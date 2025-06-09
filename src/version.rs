@@ -16,14 +16,14 @@ impl Version {
     pub fn parse(version_str: &str) -> Result<Self> {
         let version_str = version_str.trim_start_matches('v');
         let parts: Vec<&str> = version_str.split('.').collect();
-        
+
         if parts.len() < 3 {
             return Err(anyhow::anyhow!("Invalid version format: {}", version_str));
         }
-        
+
         let major = parts[0].parse()?;
         let minor = parts[1].parse()?;
-        
+
         // Handle patch version with pre-release
         let patch_part = parts[2];
         let (patch, pre) = if let Some(dash_pos) = patch_part.find('-') {
@@ -33,7 +33,7 @@ impl Version {
         } else {
             (patch_part.parse()?, None)
         };
-        
+
         Ok(Self {
             major,
             minor,
@@ -41,7 +41,7 @@ impl Version {
             pre,
         })
     }
-    
+
     pub fn to_string(&self) -> String {
         match &self.pre {
             Some(pre) => format!("{}.{}.{}-{}", self.major, self.minor, self.patch, pre),
@@ -59,35 +59,36 @@ impl VersionManager {
         if which(tool_name).is_err() {
             return Ok(None);
         }
-        
+
         // Try to get version
-        let output = Command::new(tool_name)
-            .arg("--version")
-            .output()?;
-        
+        let output = Command::new(tool_name).arg("--version").output()?;
+
         if !output.status.success() {
             return Ok(None);
         }
-        
+
         let version_output = String::from_utf8_lossy(&output.stdout);
         let version_line = version_output.lines().next().unwrap_or("");
-        
+
         // Extract version number from output
         let version_str = Self::extract_version_from_output(version_line)?;
         let version = Version::parse(&version_str)?;
-        
+
         Ok(Some(version))
     }
-    
+
     /// Get latest stable version from GitHub releases (for tools that support it)
     pub async fn get_latest_version(tool_name: &str) -> Result<Version> {
         match tool_name {
             "uv" => Self::get_uv_latest_version().await,
             "node" => Self::get_node_latest_version().await,
-            _ => Err(anyhow::anyhow!("Unsupported tool for version checking: {}", tool_name)),
+            _ => Err(anyhow::anyhow!(
+                "Unsupported tool for version checking: {}",
+                tool_name
+            )),
         }
     }
-    
+
     async fn get_uv_latest_version() -> Result<Version> {
         let client = reqwest::Client::new();
         let response = client
@@ -95,15 +96,15 @@ impl VersionManager {
             .header("User-Agent", "vx-tool")
             .send()
             .await?;
-        
+
         let release: serde_json::Value = response.json().await?;
         let tag_name = release["tag_name"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Could not find tag_name in release"))?;
-        
+
         Version::parse(tag_name)
     }
-    
+
     async fn get_node_latest_version() -> Result<Version> {
         let client = reqwest::Client::new();
         let response = client
@@ -111,27 +112,27 @@ impl VersionManager {
             .header("User-Agent", "vx-tool")
             .send()
             .await?;
-        
+
         let releases: serde_json::Value = response.json().await?;
         let latest = releases
             .as_array()
             .and_then(|arr| arr.first())
             .ok_or_else(|| anyhow::anyhow!("Could not find latest Node.js version"))?;
-        
+
         let version_str = latest["version"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Could not find version in Node.js release"))?;
-        
+
         Version::parse(version_str)
     }
-    
+
     fn extract_version_from_output(output: &str) -> Result<String> {
         // Common patterns for version extraction
         let patterns = [
             r"(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?)",  // Standard semver
             r"v(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?)", // With 'v' prefix
         ];
-        
+
         for pattern in &patterns {
             if let Ok(re) = regex::Regex::new(pattern) {
                 if let Some(captures) = re.captures(output) {
@@ -141,7 +142,10 @@ impl VersionManager {
                 }
             }
         }
-        
-        Err(anyhow::anyhow!("Could not extract version from output: {}", output))
+
+        Err(anyhow::anyhow!(
+            "Could not extract version from output: {}",
+            output
+        ))
     }
 }

@@ -53,18 +53,13 @@ impl Installer {
         fs::create_dir_all(&config.install_dir)?;
 
         match &config.install_method {
-            InstallMethod::Archive { format } => {
-                self.install_from_archive(config, format).await
-            }
+            InstallMethod::Archive { format } => self.install_from_archive(config, format).await,
             InstallMethod::PackageManager { manager, package } => {
-                self.install_from_package_manager(config, manager, package).await
+                self.install_from_package_manager(config, manager, package)
+                    .await
             }
-            InstallMethod::Script { url } => {
-                self.install_from_script(config, url).await
-            }
-            InstallMethod::Binary => {
-                self.install_binary(config).await
-            }
+            InstallMethod::Script { url } => self.install_from_script(config, url).await,
+            InstallMethod::Binary => self.install_binary(config).await,
         }
     }
 
@@ -74,7 +69,9 @@ impl Installer {
         config: &InstallConfig,
         format: &ArchiveFormat,
     ) -> Result<PathBuf> {
-        let download_url = config.download_url.as_ref()
+        let download_url = config
+            .download_url
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Download URL not provided"))?;
 
         println!("⬇️  Downloading from {}", download_url);
@@ -82,7 +79,7 @@ impl Installer {
         // Download to temporary file
         let temp_dir = TempDir::new()?;
         let temp_file = temp_dir.path().join("download");
-        
+
         let response = self.client.get(download_url).send().await?;
         let bytes = response.bytes().await?;
         fs::write(&temp_file, bytes)?;
@@ -98,8 +95,12 @@ impl Installer {
 
         // Find the executable
         let exe_path = self.find_executable(&config.install_dir, &config.tool_name)?;
-        
-        println!("✅ {} installed to {}", config.tool_name, exe_path.display());
+
+        println!(
+            "✅ {} installed to {}",
+            config.tool_name,
+            exe_path.display()
+        );
         Ok(exe_path)
     }
 
@@ -113,26 +114,16 @@ impl Installer {
         println!("📦 Installing {} using {}...", package, manager);
 
         let status = match manager {
-            "chocolatey" | "choco" => {
-                Command::new("choco")
-                    .args(&["install", package, "-y"])
-                    .status()?
-            }
-            "winget" => {
-                Command::new("winget")
-                    .args(&["install", package])
-                    .status()?
-            }
-            "brew" => {
-                Command::new("brew")
-                    .args(&["install", package])
-                    .status()?
-            }
-            "apt" => {
-                Command::new("sudo")
-                    .args(&["apt", "install", "-y", package])
-                    .status()?
-            }
+            "chocolatey" | "choco" => Command::new("choco")
+                .args(&["install", package, "-y"])
+                .status()?,
+            "winget" => Command::new("winget")
+                .args(&["install", package])
+                .status()?,
+            "brew" => Command::new("brew").args(&["install", package]).status()?,
+            "apt" => Command::new("sudo")
+                .args(&["apt", "install", "-y", package])
+                .status()?,
             _ => return Err(anyhow::anyhow!("Unsupported package manager: {}", manager)),
         };
 
@@ -177,12 +168,15 @@ impl Installer {
         // Run the script
         let status = if cfg!(windows) {
             Command::new("powershell")
-                .args(&["-ExecutionPolicy", "Bypass", "-File", &script_path.to_string_lossy()])
+                .args(&[
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    &script_path.to_string_lossy(),
+                ])
                 .status()?
         } else {
-            Command::new("bash")
-                .arg(&script_path)
-                .status()?
+            Command::new("bash").arg(&script_path).status()?
         };
 
         if !status.success() {
@@ -201,7 +195,9 @@ impl Installer {
 
     /// Install single binary
     async fn install_binary(&self, config: &InstallConfig) -> Result<PathBuf> {
-        let download_url = config.download_url.as_ref()
+        let download_url = config
+            .download_url
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Download URL not provided"))?;
 
         println!("⬇️  Downloading binary from {}", download_url);
@@ -227,7 +223,11 @@ impl Installer {
             fs::set_permissions(&exe_path, perms)?;
         }
 
-        println!("✅ {} installed to {}", config.tool_name, exe_path.display());
+        println!(
+            "✅ {} installed to {}",
+            config.tool_name,
+            exe_path.display()
+        );
         Ok(exe_path)
     }
 
@@ -294,6 +294,10 @@ impl Installer {
             }
         }
 
-        Err(anyhow::anyhow!("Executable {} not found in {}", exe_name, dir.display()))
+        Err(anyhow::anyhow!(
+            "Executable {} not found in {}",
+            exe_name,
+            dir.display()
+        ))
     }
 }

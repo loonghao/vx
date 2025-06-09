@@ -9,31 +9,31 @@ use std::path::PathBuf;
 pub trait Plugin: Send + Sync {
     /// Get plugin metadata
     fn metadata(&self) -> &PluginMetadata;
-    
+
     /// Check if the tool is installed
     async fn is_installed(&self) -> Result<bool>;
-    
+
     /// Get installed version
     async fn get_installed_version(&self) -> Result<Option<String>>;
-    
+
     /// Get latest available version
     async fn get_latest_version(&self) -> Result<String>;
-    
+
     /// Install a specific version
     async fn install(&self, version: &str, install_dir: &PathBuf) -> Result<InstallResult>;
-    
+
     /// Uninstall a specific version
     async fn uninstall(&self, version: &str, install_dir: &PathBuf) -> Result<()>;
-    
+
     /// Get executable path for a version
     fn get_executable_path(&self, version: &str, install_dir: &PathBuf) -> PathBuf;
-    
+
     /// Validate installation
     async fn validate_installation(&self, install_dir: &PathBuf) -> Result<bool>;
-    
+
     /// Get tool-specific commands
     fn get_commands(&self) -> Vec<PluginCommand>;
-    
+
     /// Execute a tool-specific command
     async fn execute_command(&self, command: &str, args: &[String]) -> Result<i32>;
 }
@@ -56,16 +56,16 @@ pub struct PluginMetadata {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum PluginCategory {
-    Language,        // Programming languages (Go, Rust, Python)
-    Runtime,         // Runtime environments (Node.js, JVM)
-    PackageManager,  // Package managers (npm, pip, cargo)
-    BuildTool,       // Build tools (make, cmake, gradle)
-    VersionControl,  // Version control (git, svn)
-    Database,        // Databases (postgres, mysql, redis)
-    Cloud,           // Cloud tools (aws-cli, gcloud, kubectl)
-    DevOps,          // DevOps tools (docker, terraform, ansible)
-    Editor,          // Editors and IDEs (vim, vscode)
-    Utility,         // General utilities
+    Language,       // Programming languages (Go, Rust, Python)
+    Runtime,        // Runtime environments (Node.js, JVM)
+    PackageManager, // Package managers (npm, pip, cargo)
+    BuildTool,      // Build tools (make, cmake, gradle)
+    VersionControl, // Version control (git, svn)
+    Database,       // Databases (postgres, mysql, redis)
+    Cloud,          // Cloud tools (aws-cli, gcloud, kubectl)
+    DevOps,         // DevOps tools (docker, terraform, ansible)
+    Editor,         // Editors and IDEs (vim, vscode)
+    Utility,        // General utilities
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,25 +132,27 @@ impl PluginRegistry {
     /// Register a plugin
     pub fn register_plugin(&mut self, plugin: Box<dyn Plugin>) -> Result<()> {
         let name = plugin.metadata().name.clone();
-        
+
         // Check for conflicts
         for conflict in &plugin.metadata().conflicts {
             if self.plugins.contains_key(conflict) {
                 return Err(anyhow::anyhow!(
                     "Plugin {} conflicts with already registered plugin {}",
-                    name, conflict
+                    name,
+                    conflict
                 ));
             }
         }
 
         // Add default config if not exists
         if !self.plugin_configs.contains_key(&name) {
-            self.plugin_configs.insert(name.clone(), PluginConfig::default());
+            self.plugin_configs
+                .insert(name.clone(), PluginConfig::default());
         }
 
         // Register plugin
         self.plugins.insert(name.clone(), plugin);
-        
+
         // Enable if configured
         if self.plugin_configs.get(&name).unwrap().enabled {
             self.enabled_plugins.push(name.clone());
@@ -241,7 +243,10 @@ impl PluginRegistry {
                 let metadata = plugin.metadata();
                 metadata.name.to_lowercase().contains(&keyword)
                     || metadata.description.to_lowercase().contains(&keyword)
-                    || metadata.keywords.iter().any(|k| k.to_lowercase().contains(&keyword))
+                    || metadata
+                        .keywords
+                        .iter()
+                        .any(|k| k.to_lowercase().contains(&keyword))
             })
             .map(|p| p.as_ref())
             .collect()
@@ -251,7 +256,8 @@ impl PluginRegistry {
     pub fn get_stats(&self) -> PluginStats {
         let total_plugins = self.plugins.len();
         let enabled_plugins = self.enabled_plugins.len();
-        let categories: HashMap<PluginCategory, usize> = self.plugins
+        let categories: HashMap<PluginCategory, usize> = self
+            .plugins
             .values()
             .flat_map(|p| &p.metadata().categories)
             .fold(HashMap::new(), |mut acc, cat| {

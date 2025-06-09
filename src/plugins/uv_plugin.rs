@@ -185,19 +185,13 @@ impl Plugin for UvPlugin {
                 name: "lock".to_string(),
                 description: "Update the project lockfile".to_string(),
                 usage: "vx uv lock [options]".to_string(),
-                examples: vec![
-                    "vx uv lock".to_string(),
-                    "vx uv lock --upgrade".to_string(),
-                ],
+                examples: vec!["vx uv lock".to_string(), "vx uv lock --upgrade".to_string()],
             },
             PluginCommand {
                 name: "tree".to_string(),
                 description: "Display the dependency tree".to_string(),
                 usage: "vx uv tree [options]".to_string(),
-                examples: vec![
-                    "vx uv tree".to_string(),
-                    "vx uv tree --depth 2".to_string(),
-                ],
+                examples: vec!["vx uv tree".to_string(), "vx uv tree --depth 2".to_string()],
             },
         ]
     }

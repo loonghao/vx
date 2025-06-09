@@ -1,4 +1,3 @@
-
 use crate::package_manager::{Package, PackageManager};
 use crate::plugin_manager::PluginManager;
 use anyhow::Result;
@@ -21,7 +20,7 @@ impl Executor {
             package_manager,
         })
     }
-    
+
     /// Execute a tool with given arguments
     pub async fn execute(&mut self, tool_name: &str, args: &[String]) -> Result<i32> {
         // Check if tool is supported by plugin system
@@ -38,7 +37,7 @@ impl Executor {
 
         Err(anyhow::anyhow!("Unsupported tool: {}", tool_name))
     }
-    
+
     /// List available tools from plugins
     pub fn list_tools(&self) -> Vec<String> {
         self.plugin_manager
@@ -47,16 +46,16 @@ impl Executor {
             .map(|plugin| plugin.metadata().name.clone())
             .collect()
     }
-    
 
-    
     /// Install a tool with the specified version using plugin manager
-    pub async fn install_tool(&mut self, tool_name: &str, version: &str) -> Result<std::path::PathBuf> {
+    pub async fn install_tool(
+        &mut self,
+        tool_name: &str,
+        version: &str,
+    ) -> Result<std::path::PathBuf> {
         // Use plugin manager for installation
         self.plugin_manager.install_tool(tool_name, version).await
     }
-
-
 
     /// Switch to a different version of a tool
     pub fn switch_version(&mut self, tool_name: &str, version: &str) -> Result<()> {
@@ -70,7 +69,8 @@ impl Executor {
 
     /// Remove all versions of a tool
     pub fn remove_tool(&mut self, tool_name: &str) -> Result<()> {
-        let versions: Vec<String> = self.package_manager
+        let versions: Vec<String> = self
+            .package_manager
             .list_versions(tool_name)
             .iter()
             .map(|pkg| pkg.version.clone())
@@ -100,7 +100,10 @@ impl Executor {
     }
 
     /// Check for updates
-    pub async fn check_updates(&self, tool_name: Option<&str>) -> Result<Vec<(String, String, String)>> {
+    pub async fn check_updates(
+        &self,
+        tool_name: Option<&str>,
+    ) -> Result<Vec<(String, String, String)>> {
         // This would integrate with the version manager to check for newer versions
         // For now, return empty - this would be implemented with actual version checking
         let _ = tool_name;
@@ -111,21 +114,21 @@ impl Executor {
     pub fn get_package_manager(&self) -> &PackageManager {
         &self.package_manager
     }
-    
+
     /// Run the actual command
     async fn run_command(&self, tool_path: &str, args: &[String]) -> Result<i32> {
         println!("🚀 Running: {} {}", tool_path, args.join(" "));
-        
+
         let mut command = Command::new(tool_path);
         command.args(args);
         command.stdin(Stdio::inherit());
         command.stdout(Stdio::inherit());
         command.stderr(Stdio::inherit());
-        
+
         let status = command.status()?;
         Ok(status.code().unwrap_or(1))
     }
-    
+
     /// Check tool status using plugin manager
     pub async fn check_tool_status(&self, tool_name: &str) -> Result<()> {
         if let Some(_plugin) = self.plugin_manager.get_plugin(tool_name) {
