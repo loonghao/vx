@@ -1,9 +1,13 @@
 # vx - Universal Development Tool Manager
 
+[中文文档](README_zh.md)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.70+-blue.svg)](https://www.rust-lang.org)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/loonghao/vx)
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/loonghao/vx/releases)
+[![CI](https://github.com/loonghao/vx/workflows/CI/badge.svg)](https://github.com/loonghao/vx/actions)
+[![Release](https://github.com/loonghao/vx/workflows/Release/badge.svg)](https://github.com/loonghao/vx/actions)
+[![GitHub release](https://img.shields.io/github/release/loonghao/vx.svg)](https://github.com/loonghao/vx/releases)
+[![GitHub downloads](https://img.shields.io/github/downloads/loonghao/vx/total.svg)](https://github.com/loonghao/vx/releases)
 
 > 🚀 The ultimate development tool manager - One tool to rule them all
 
@@ -31,16 +35,48 @@
 
 ### Installation
 
-```bash
-# Install from source (requires Rust)
-cargo install --git https://github.com/loonghao/vx
+#### Quick Install (Recommended)
 
-# Or build locally
+**Linux/macOS:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/loonghao/vx/main/install-release.ps1 | iex
+```
+
+#### Package Managers
+
+**Homebrew (macOS/Linux):**
+```bash
+brew install loonghao/tap/vx
+```
+
+**Scoop (Windows):**
+```powershell
+scoop bucket add loonghao https://github.com/loonghao/scoop-bucket
+scoop install vx
+```
+
+**Cargo (from source):**
+```bash
+cargo install --git https://github.com/loonghao/vx
+```
+
+#### Manual Installation
+
+Download the latest release from [GitHub Releases](https://github.com/loonghao/vx/releases) and extract to your PATH.
+
+#### Build from Source
+
+```bash
 git clone https://github.com/loonghao/vx
 cd vx
 cargo build --release
 
-# Windows: Run the installer
+# Windows: Run the build installer
 .\install.ps1
 ```
 
