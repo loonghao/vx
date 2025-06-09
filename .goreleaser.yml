@@ -1,0 +1,190 @@
+# GoReleaser configuration for vx
+# See: https://goreleaser.com
+
+version: 2
+
+project_name: vx
+
+before:
+  hooks:
+    - rustup default stable
+    - cargo install --locked cargo-zigbuild
+
+builds:
+  - id: vx
+    builder: rust
+    binary: vx
+    targets:
+      # Linux
+      - x86_64-unknown-linux-gnu
+      - x86_64-unknown-linux-musl
+      - aarch64-unknown-linux-gnu
+      - aarch64-unknown-linux-musl
+      # macOS
+      - x86_64-apple-darwin
+      - aarch64-apple-darwin
+      # Windows
+      - x86_64-pc-windows-gnu
+      - aarch64-pc-windows-msvc
+      # FreeBSD
+      - x86_64-unknown-freebsd
+    flags:
+      - --release
+    env:
+      - RUST_BACKTRACE=1
+    hooks:
+      pre: rustup target add {{ .Target }}
+
+archives:
+  - id: default
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - '^style:'
+      - Merge pull request
+      - Merge branch
+      - go mod tidy
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Performance improvements'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: loonghao
+    name: vx
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## vx {{ .Tag }} ({{ .Date }})
+    
+    Welcome to this new release of vx!
+  footer: |
+    ## Thanks!
+    
+    Those were the changes on {{ .Tag }}!
+  name_template: "{{.ProjectName}}-v{{.Version}}"
+
+# Linux packages
+nfpms:
+  - id: packages
+    package_name: vx
+    vendor: Hal
+    homepage: https://github.com/loonghao/vx
+    maintainer: Hal <hal.long@outlook.com>
+    description: Universal Development Tool Manager
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
+    section: utils
+    priority: optional
+    meta: true
+    dependencies:
+      - git
+    recommends:
+      - curl
+
+# Homebrew
+brews:
+  - name: vx
+    repository:
+      owner: loonghao
+      name: homebrew-tap
+    folder: Formula
+    homepage: https://github.com/loonghao/vx
+    description: Universal Development Tool Manager
+    license: MIT
+    test: |
+      system "#{bin}/vx --version"
+    install: |
+      bin.install "vx"
+
+# Scoop (Windows package manager)
+scoops:
+  - name: vx
+    repository:
+      owner: loonghao
+      name: scoop-bucket
+    folder: bucket
+    homepage: https://github.com/loonghao/vx
+    description: Universal Development Tool Manager
+    license: MIT
+
+# Docker images
+dockers:
+  - image_templates:
+      - "ghcr.io/loonghao/vx:{{ .Version }}-amd64"
+      - "ghcr.io/loonghao/vx:latest-amd64"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+  - image_templates:
+      - "ghcr.io/loonghao/vx:{{ .Version }}-arm64v8"
+      - "ghcr.io/loonghao/vx:latest-arm64v8"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    goarch: arm64
+
+docker_manifests:
+  - name_template: "ghcr.io/loonghao/vx:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/loonghao/vx:{{ .Version }}-amd64"
+      - "ghcr.io/loonghao/vx:{{ .Version }}-arm64v8"
+  - name_template: "ghcr.io/loonghao/vx:latest"
+    image_templates:
+      - "ghcr.io/loonghao/vx:latest-amd64"
+      - "ghcr.io/loonghao/vx:latest-arm64v8"
+
+# Announce
+announce:
+  skip: '{{gt .Patch 0}}'
