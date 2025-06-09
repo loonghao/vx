@@ -73,8 +73,8 @@ impl PackageManager {
 
     /// Get vx directory path
     fn get_vx_dir() -> Result<PathBuf> {
-        let home_dir = dirs::home_dir()
-            .ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
+        let home_dir =
+            dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
         Ok(home_dir.join(".vx"))
     }
 
@@ -91,14 +91,17 @@ impl PackageManager {
         let version = &package.version;
 
         // Add to registry
-        self.registry.packages
+        self.registry
+            .packages
             .entry(tool_name.clone())
             .or_insert_with(Vec::new)
             .push(package.clone());
 
         // Set as active version if it's the first or latest
         if !self.registry.active_versions.contains_key(tool_name) {
-            self.registry.active_versions.insert(tool_name.clone(), version.clone());
+            self.registry
+                .active_versions
+                .insert(tool_name.clone(), version.clone());
         }
 
         self.registry.last_updated = chrono::Utc::now();
@@ -110,15 +113,13 @@ impl PackageManager {
 
     /// List all installed packages
     pub fn list_packages(&self) -> Vec<&Package> {
-        self.registry.packages
-            .values()
-            .flatten()
-            .collect()
+        self.registry.packages.values().flatten().collect()
     }
 
     /// List installed versions of a specific tool
     pub fn list_versions(&self, tool_name: &str) -> Vec<&Package> {
-        self.registry.packages
+        self.registry
+            .packages
             .get(tool_name)
             .map(|versions| versions.iter().collect())
             .unwrap_or_default()
@@ -127,7 +128,8 @@ impl PackageManager {
     /// Get active version of a tool
     pub fn get_active_version(&self, tool_name: &str) -> Option<&Package> {
         let active_version = self.registry.active_versions.get(tool_name)?;
-        self.registry.packages
+        self.registry
+            .packages
             .get(tool_name)?
             .iter()
             .find(|pkg| &pkg.version == active_version)
@@ -136,7 +138,9 @@ impl PackageManager {
     /// Switch active version of a tool
     pub fn switch_version(&mut self, tool_name: &str, version: &str) -> Result<()> {
         // Check if version exists
-        let versions = self.registry.packages
+        let versions = self
+            .registry
+            .packages
             .get(tool_name)
             .ok_or_else(|| anyhow::anyhow!("Tool {} not found", tool_name))?;
 
@@ -146,7 +150,9 @@ impl PackageManager {
             .ok_or_else(|| anyhow::anyhow!("Version {} not found for {}", version, tool_name))?;
 
         // Update active version
-        self.registry.active_versions.insert(tool_name.to_string(), version.to_string());
+        self.registry
+            .active_versions
+            .insert(tool_name.to_string(), version.to_string());
         self.registry.last_updated = chrono::Utc::now();
         self.save_registry()?;
 
@@ -158,7 +164,9 @@ impl PackageManager {
 
     /// Remove a specific version
     pub fn remove_version(&mut self, tool_name: &str, version: &str) -> Result<()> {
-        let versions = self.registry.packages
+        let versions = self
+            .registry
+            .packages
             .get_mut(tool_name)
             .ok_or_else(|| anyhow::anyhow!("Tool {} not found", tool_name))?;
 
@@ -182,7 +190,9 @@ impl PackageManager {
         if let Some(active_version) = self.registry.active_versions.get(tool_name) {
             if active_version == version {
                 if let Some(latest) = versions.last() {
-                    self.registry.active_versions.insert(tool_name.to_string(), latest.version.clone());
+                    self.registry
+                        .active_versions
+                        .insert(tool_name.to_string(), latest.version.clone());
                     println!("🔄 Switched to version {}", latest.version);
                 } else {
                     self.registry.active_versions.remove(tool_name);
@@ -211,7 +221,10 @@ impl PackageManager {
         for (tool_name, versions) in &mut self.registry.packages {
             versions.retain(|package| {
                 if !package.install_path.exists() {
-                    println!("🧹 Cleaning up orphaned package: {} {}", tool_name, package.version);
+                    println!(
+                        "🧹 Cleaning up orphaned package: {} {}",
+                        tool_name, package.version
+                    );
                     removed_count += 1;
                     false
                 } else {
@@ -221,7 +234,9 @@ impl PackageManager {
         }
 
         // Remove empty tool entries
-        self.registry.packages.retain(|_, versions| !versions.is_empty());
+        self.registry
+            .packages
+            .retain(|_, versions| !versions.is_empty());
 
         // Clean up active versions that no longer exist
         let mut to_remove = Vec::new();
@@ -252,9 +267,7 @@ impl PackageManager {
 
     /// Get package installation directory for a tool and version
     pub fn get_package_dir(&self, tool_name: &str, version: &str) -> PathBuf {
-        self.packages_dir
-            .join(tool_name)
-            .join(version)
+        self.packages_dir.join(tool_name).join(version)
     }
 
     /// Check for updates
@@ -277,7 +290,9 @@ impl PackageManager {
     pub fn get_stats(&self) -> PackageStats {
         let total_packages = self.registry.packages.len();
         let total_versions: usize = self.registry.packages.values().map(|v| v.len()).sum();
-        let total_size: u64 = self.registry.packages
+        let total_size: u64 = self
+            .registry
+            .packages
             .values()
             .flatten()
             .map(|pkg| pkg.metadata.size)

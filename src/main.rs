@@ -27,7 +27,11 @@ async fn main() -> Result<()> {
             }
         }
 
-        Some(Commands::Install { tool, version, force }) => {
+        Some(Commands::Install {
+            tool,
+            version,
+            force,
+        }) => {
             let mut executor = Executor::new()?;
             let version = version.unwrap_or_else(|| "latest".to_string());
 
@@ -46,7 +50,12 @@ async fn main() -> Result<()> {
 
             match executor.install_tool(&tool, &version).await {
                 Ok(path) => {
-                    println!("🎉 Successfully installed {} {} to {}", tool, version, path.display());
+                    println!(
+                        "🎉 Successfully installed {} {} to {}",
+                        tool,
+                        version,
+                        path.display()
+                    );
 
                     // Add to PATH if needed
                     if let Some(parent) = path.parent() {
@@ -72,11 +81,14 @@ async fn main() -> Result<()> {
             let version = parts[1];
 
             let mut config = Config::load()?;
-            config.set_tool(tool_name.to_string(), ToolConfig {
-                version: Some(version.to_string()),
-                install_method: None,
-                proxy_command: None,
-            });
+            config.set_tool(
+                tool_name.to_string(),
+                ToolConfig {
+                    version: Some(version.to_string()),
+                    install_method: None,
+                    proxy_command: None,
+                },
+            );
             config.save()?;
 
             println!("✅ Set {} to version {}", tool_name, version);
@@ -118,7 +130,11 @@ async fn main() -> Result<()> {
             }
         }
 
-        Some(Commands::Remove { tool, version, force }) => {
+        Some(Commands::Remove {
+            tool,
+            version,
+            force,
+        }) => {
             let mut executor = Executor::new()?;
 
             if !force {
@@ -164,16 +180,28 @@ async fn main() -> Result<()> {
             println!("  📦 Total packages: {}", stats.total_packages);
             println!("  🔢 Total versions: {}", stats.total_versions);
             println!("  💾 Total size: {}", stats.format_size());
-            println!("  🕒 Last updated: {}", stats.last_updated.format("%Y-%m-%d %H:%M:%S UTC"));
+            println!(
+                "  🕒 Last updated: {}",
+                stats.last_updated.format("%Y-%m-%d %H:%M:%S UTC")
+            );
 
             // List installed packages
             let packages = executor.list_installed_packages();
             if !packages.is_empty() {
                 println!("\n📋 Installed packages:");
                 for package in packages {
-                    let active = if let Some(active_pkg) = executor.get_package_manager().get_active_version(&package.name) {
-                        if active_pkg.version == package.version { " (active)" } else { "" }
-                    } else { "" };
+                    let active = if let Some(active_pkg) = executor
+                        .get_package_manager()
+                        .get_active_version(&package.name)
+                    {
+                        if active_pkg.version == package.version {
+                            " (active)"
+                        } else {
+                            ""
+                        }
+                    } else {
+                        ""
+                    };
 
                     println!("  • {} {} {}", package.name, package.version, active);
                 }
