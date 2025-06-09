@@ -1,41 +1,39 @@
 use anyhow::Result;
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 /// Plugin trait that all tool plugins must implement
-#[async_trait]
 pub trait Plugin: Send + Sync {
     /// Get plugin metadata
     fn metadata(&self) -> &PluginMetadata;
 
     /// Check if the tool is installed
-    async fn is_installed(&self) -> Result<bool>;
+    fn is_installed(&self) -> Result<bool>;
 
     /// Get installed version
-    async fn get_installed_version(&self) -> Result<Option<String>>;
+    fn get_installed_version(&self) -> Result<Option<String>>;
 
     /// Get latest available version
-    async fn get_latest_version(&self) -> Result<String>;
+    fn get_latest_version(&self) -> Result<String>;
 
     /// Install a specific version
-    async fn install(&self, version: &str, install_dir: &PathBuf) -> Result<InstallResult>;
+    fn install(&self, version: &str, install_dir: &PathBuf) -> Result<InstallResult>;
 
     /// Uninstall a specific version
-    async fn uninstall(&self, version: &str, install_dir: &PathBuf) -> Result<()>;
+    fn uninstall(&self, version: &str, install_dir: &PathBuf) -> Result<()>;
 
     /// Get executable path for a version
     fn get_executable_path(&self, version: &str, install_dir: &PathBuf) -> PathBuf;
 
     /// Validate installation
-    async fn validate_installation(&self, install_dir: &PathBuf) -> Result<bool>;
+    fn validate_installation(&self, install_dir: &PathBuf) -> Result<bool>;
 
     /// Get tool-specific commands
     fn get_commands(&self) -> Vec<PluginCommand>;
 
     /// Execute a tool-specific command
-    async fn execute_command(&self, command: &str, args: &[String]) -> Result<i32>;
+    fn execute_command(&self, command: &str, args: &[String]) -> Result<i32>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

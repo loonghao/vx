@@ -2,7 +2,7 @@ use crate::plugin::{
     InstallResult, Platform, Plugin, PluginCategory, PluginCommand, PluginMetadata,
 };
 use anyhow::Result;
-use async_trait::async_trait;
+
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -42,20 +42,20 @@ impl RustPlugin {
     }
 }
 
-#[async_trait]
+
 impl Plugin for RustPlugin {
     fn metadata(&self) -> &PluginMetadata {
         &self.metadata
     }
 
-    async fn is_installed(&self) -> Result<bool> {
+    fn is_installed(&self) -> Result<bool> {
         match which::which("cargo") {
             Ok(_) => Ok(true),
             Err(_) => Ok(false),
         }
     }
 
-    async fn get_installed_version(&self) -> Result<Option<String>> {
+    fn get_installed_version(&self) -> Result<Option<String>> {
         let output = Command::new("rustc").arg("--version").output();
 
         match output {
@@ -71,13 +71,13 @@ impl Plugin for RustPlugin {
         }
     }
 
-    async fn get_latest_version(&self) -> Result<String> {
+    fn get_latest_version(&self) -> Result<String> {
         // For simplicity, return a known stable version
         // In a real implementation, this would fetch from forge.rust-lang.org API
         Ok("1.75.0".to_string())
     }
 
-    async fn install(&self, version: &str, _install_dir: &PathBuf) -> Result<InstallResult> {
+    fn install(&self, version: &str, _install_dir: &PathBuf) -> Result<InstallResult> {
         // Use the existing installer infrastructure
         let config = crate::install_configs::get_install_config("rust", version)
             .ok_or_else(|| anyhow::anyhow!("No install config for Rust"))?;
@@ -97,11 +97,11 @@ impl Plugin for RustPlugin {
         })
     }
 
-    async fn uninstall(&self, _version: &str, install_dir: &PathBuf) -> Result<()> {
+    fn uninstall(&self, _version: &str, install_dir: &PathBuf) -> Result<()> {
         if install_dir.exists() {
             std::fs::remove_dir_all(install_dir)?;
             println!(
-                "🗑️  Removed Rust installation from {}",
+                "🗑�? Removed Rust installation from {}",
                 install_dir.display()
             );
         }
@@ -116,7 +116,7 @@ impl Plugin for RustPlugin {
         }
     }
 
-    async fn validate_installation(&self, install_dir: &PathBuf) -> Result<bool> {
+    fn validate_installation(&self, install_dir: &PathBuf) -> Result<bool> {
         let exe_path = self.get_executable_path("", install_dir);
         Ok(exe_path.exists())
     }
@@ -185,7 +185,7 @@ impl Plugin for RustPlugin {
         ]
     }
 
-    async fn execute_command(&self, command: &str, args: &[String]) -> Result<i32> {
+    fn execute_command(&self, command: &str, args: &[String]) -> Result<i32> {
         let mut cmd = Command::new("cargo");
 
         // If command is empty, just pass args directly to cargo

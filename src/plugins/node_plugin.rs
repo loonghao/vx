@@ -2,7 +2,6 @@ use crate::plugin::{
     InstallResult, Platform, Plugin, PluginCategory, PluginCommand, PluginMetadata,
 };
 use anyhow::Result;
-use async_trait::async_trait;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -41,20 +40,19 @@ impl NodePlugin {
     }
 }
 
-#[async_trait]
 impl Plugin for NodePlugin {
     fn metadata(&self) -> &PluginMetadata {
         &self.metadata
     }
 
-    async fn is_installed(&self) -> Result<bool> {
+    fn is_installed(&self) -> Result<bool> {
         match which::which("node") {
             Ok(_) => Ok(true),
             Err(_) => Ok(false),
         }
     }
 
-    async fn get_installed_version(&self) -> Result<Option<String>> {
+    fn get_installed_version(&self) -> Result<Option<String>> {
         let output = Command::new("node").arg("--version").output();
 
         match output {
@@ -71,13 +69,13 @@ impl Plugin for NodePlugin {
         }
     }
 
-    async fn get_latest_version(&self) -> Result<String> {
+    fn get_latest_version(&self) -> Result<String> {
         // For simplicity, return a known LTS version
         // In a real implementation, this would fetch from nodejs.org API
         Ok("20.11.0".to_string())
     }
 
-    async fn install(&self, version: &str, _install_dir: &PathBuf) -> Result<InstallResult> {
+    fn install(&self, version: &str, _install_dir: &PathBuf) -> Result<InstallResult> {
         // Use the existing installer infrastructure
         let config = crate::install_configs::get_install_config("node", version)
             .ok_or_else(|| anyhow::anyhow!("No install config for Node.js"))?;
@@ -97,11 +95,11 @@ impl Plugin for NodePlugin {
         })
     }
 
-    async fn uninstall(&self, _version: &str, install_dir: &PathBuf) -> Result<()> {
+    fn uninstall(&self, _version: &str, install_dir: &PathBuf) -> Result<()> {
         if install_dir.exists() {
             std::fs::remove_dir_all(install_dir)?;
             println!(
-                "🗑️  Removed Node.js installation from {}",
+                "🗑�? Removed Node.js installation from {}",
                 install_dir.display()
             );
         }
@@ -116,7 +114,7 @@ impl Plugin for NodePlugin {
         }
     }
 
-    async fn validate_installation(&self, install_dir: &PathBuf) -> Result<bool> {
+    fn validate_installation(&self, install_dir: &PathBuf) -> Result<bool> {
         let exe_path = self.get_executable_path("", install_dir);
         Ok(exe_path.exists())
     }
@@ -156,7 +154,7 @@ impl Plugin for NodePlugin {
         ]
     }
 
-    async fn execute_command(&self, command: &str, args: &[String]) -> Result<i32> {
+    fn execute_command(&self, command: &str, args: &[String]) -> Result<i32> {
         let cmd_name = if command.is_empty() {
             "node"
         } else {

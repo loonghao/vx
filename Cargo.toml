@@ -11,7 +11,7 @@ authors = ["Hal <hal.long@outlook.com>"]
 keywords = ["version", "manager", "development", "tools", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 readme = "README.md"
-rust-version = "1.70.0"
+rust-version = "1.75.0"
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
