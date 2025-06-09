@@ -2,7 +2,7 @@ use crate::plugin::{
     InstallResult, Platform, Plugin, PluginCategory, PluginCommand, PluginMetadata,
 };
 use anyhow::Result;
-use async_trait::async_trait;
+
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -48,20 +48,20 @@ impl GoPlugin {
     }
 }
 
-#[async_trait]
+
 impl Plugin for GoPlugin {
     fn metadata(&self) -> &PluginMetadata {
         &self.metadata
     }
 
-    async fn is_installed(&self) -> Result<bool> {
+    fn is_installed(&self) -> Result<bool> {
         match which::which("go") {
             Ok(_) => Ok(true),
             Err(_) => Ok(false),
         }
     }
 
-    async fn get_installed_version(&self) -> Result<Option<String>> {
+    fn get_installed_version(&self) -> Result<Option<String>> {
         let output = Command::new("go").arg("version").output();
 
         match output {
@@ -79,13 +79,13 @@ impl Plugin for GoPlugin {
         }
     }
 
-    async fn get_latest_version(&self) -> Result<String> {
+    fn get_latest_version(&self) -> Result<String> {
         // For simplicity, return a known stable version
         // In a real implementation, this would fetch from golang.org API
         Ok("1.21.6".to_string())
     }
 
-    async fn install(&self, version: &str, _install_dir: &PathBuf) -> Result<InstallResult> {
+    fn install(&self, version: &str, _install_dir: &PathBuf) -> Result<InstallResult> {
         let _download_url = self.get_download_url(version);
 
         // Use the existing installer infrastructure
@@ -107,10 +107,10 @@ impl Plugin for GoPlugin {
         })
     }
 
-    async fn uninstall(&self, _version: &str, install_dir: &PathBuf) -> Result<()> {
+    fn uninstall(&self, _version: &str, install_dir: &PathBuf) -> Result<()> {
         if install_dir.exists() {
             std::fs::remove_dir_all(install_dir)?;
-            println!("🗑️  Removed Go installation from {}", install_dir.display());
+            println!("🗑�? Removed Go installation from {}", install_dir.display());
         }
         Ok(())
     }
@@ -123,7 +123,7 @@ impl Plugin for GoPlugin {
         }
     }
 
-    async fn validate_installation(&self, install_dir: &PathBuf) -> Result<bool> {
+    fn validate_installation(&self, install_dir: &PathBuf) -> Result<bool> {
         let exe_path = self.get_executable_path("", install_dir);
         Ok(exe_path.exists())
     }
@@ -172,7 +172,7 @@ impl Plugin for GoPlugin {
         ]
     }
 
-    async fn execute_command(&self, command: &str, args: &[String]) -> Result<i32> {
+    fn execute_command(&self, command: &str, args: &[String]) -> Result<i32> {
         let mut cmd = Command::new("go");
 
         // If command is empty, just pass args directly to go

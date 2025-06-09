@@ -154,7 +154,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.70.0  # Minimum supported version
+        uses: dtolnay/rust-toolchain@1.75.0  # Minimum supported version
       
       - name: Check MSRV
         run: cargo check --all-features
