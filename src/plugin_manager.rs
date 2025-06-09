@@ -22,10 +22,7 @@ impl Default for PluginManagerConfig {
 
         Self {
             auto_discover: true,
-            plugin_directories: vec![
-                vx_dir.join("plugins"),
-                PathBuf::from("./plugins"),
-            ],
+            plugin_directories: vec![vx_dir.join("plugins"), PathBuf::from("./plugins")],
             disabled_plugins: vec![],
             plugin_settings: HashMap::new(),
         }
@@ -43,9 +40,9 @@ impl PluginManager {
         let vx_dir = dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join(".vx");
-        
+
         fs::create_dir_all(&vx_dir)?;
-        
+
         let config_path = vx_dir.join("plugin_config.json");
         let config = if config_path.exists() {
             let content = fs::read_to_string(&config_path)?;
@@ -93,14 +90,16 @@ impl PluginManager {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
-            
+
             if path.is_dir() {
                 // Look for plugin manifest
                 let manifest_path = path.join("plugin.json");
                 if manifest_path.exists() {
                     match self.load_external_plugin(&manifest_path) {
                         Ok(_) => println!("📦 Loaded external plugin from {}", path.display()),
-                        Err(e) => eprintln!("⚠️  Failed to load plugin from {}: {}", path.display(), e),
+                        Err(e) => {
+                            eprintln!("⚠️  Failed to load plugin from {}: {}", path.display(), e)
+                        }
                     }
                 }
             }
@@ -175,7 +174,8 @@ impl PluginManager {
 
     /// Install a tool using its plugin
     pub async fn install_tool(&self, tool_name: &str, version: &str) -> Result<PathBuf> {
-        let plugin = self.get_plugin(tool_name)
+        let plugin = self
+            .get_plugin(tool_name)
             .ok_or_else(|| anyhow::anyhow!("Plugin {} not found", tool_name))?;
 
         let install_dir = self.get_tool_install_dir(tool_name, version);
@@ -187,7 +187,8 @@ impl PluginManager {
 
     /// Uninstall a tool using its plugin
     pub async fn uninstall_tool(&self, tool_name: &str, version: &str) -> Result<()> {
-        let plugin = self.get_plugin(tool_name)
+        let plugin = self
+            .get_plugin(tool_name)
             .ok_or_else(|| anyhow::anyhow!("Plugin {} not found", tool_name))?;
 
         let install_dir = self.get_tool_install_dir(tool_name, version);
@@ -196,8 +197,14 @@ impl PluginManager {
     }
 
     /// Execute a tool command using its plugin
-    pub async fn execute_tool_command(&self, tool_name: &str, command: &str, args: &[String]) -> Result<i32> {
-        let plugin = self.get_plugin(tool_name)
+    pub async fn execute_tool_command(
+        &self,
+        tool_name: &str,
+        command: &str,
+        args: &[String],
+    ) -> Result<i32> {
+        let plugin = self
+            .get_plugin(tool_name)
             .ok_or_else(|| anyhow::anyhow!("Plugin {} not found", tool_name))?;
 
         plugin.execute_command(command, args).await
@@ -215,7 +222,8 @@ impl PluginManager {
 
     /// Check if a tool is installed
     pub async fn is_tool_installed(&self, tool_name: &str) -> Result<bool> {
-        let plugin = self.get_plugin(tool_name)
+        let plugin = self
+            .get_plugin(tool_name)
             .ok_or_else(|| anyhow::anyhow!("Plugin {} not found", tool_name))?;
 
         plugin.is_installed().await
@@ -223,7 +231,8 @@ impl PluginManager {
 
     /// Get installed version of a tool
     pub async fn get_tool_version(&self, tool_name: &str) -> Result<Option<String>> {
-        let plugin = self.get_plugin(tool_name)
+        let plugin = self
+            .get_plugin(tool_name)
             .ok_or_else(|| anyhow::anyhow!("Plugin {} not found", tool_name))?;
 
         plugin.get_installed_version().await
@@ -231,7 +240,8 @@ impl PluginManager {
 
     /// Get latest version of a tool
     pub async fn get_latest_tool_version(&self, tool_name: &str) -> Result<String> {
-        let plugin = self.get_plugin(tool_name)
+        let plugin = self
+            .get_plugin(tool_name)
             .ok_or_else(|| anyhow::anyhow!("Plugin {} not found", tool_name))?;
 
         plugin.get_latest_version().await
@@ -239,7 +249,8 @@ impl PluginManager {
 
     /// List available commands for a tool
     pub fn get_tool_commands(&self, tool_name: &str) -> Result<Vec<crate::plugin::PluginCommand>> {
-        let plugin = self.get_plugin(tool_name)
+        let plugin = self
+            .get_plugin(tool_name)
             .ok_or_else(|| anyhow::anyhow!("Plugin {} not found", tool_name))?;
 
         Ok(plugin.get_commands())
@@ -247,25 +258,32 @@ impl PluginManager {
 
     /// Show plugin information
     pub fn show_plugin_info(&self, name: &str) -> Result<()> {
-        let plugin = self.get_plugin(name)
+        let plugin = self
+            .get_plugin(name)
             .ok_or_else(|| anyhow::anyhow!("Plugin {} not found", name))?;
 
         let metadata = plugin.metadata();
-        
+
         println!("📦 Plugin: {}", metadata.name);
         println!("📝 Description: {}", metadata.description);
         println!("👤 Author: {}", metadata.author);
         println!("📄 License: {}", metadata.license);
-        println!("🔗 Homepage: {}", metadata.homepage.as_deref().unwrap_or("N/A"));
-        println!("📂 Repository: {}", metadata.repository.as_deref().unwrap_or("N/A"));
+        println!(
+            "🔗 Homepage: {}",
+            metadata.homepage.as_deref().unwrap_or("N/A")
+        );
+        println!(
+            "📂 Repository: {}",
+            metadata.repository.as_deref().unwrap_or("N/A")
+        );
         println!("🏷️  Keywords: {}", metadata.keywords.join(", "));
         println!("📋 Categories: {:?}", metadata.categories);
         println!("💻 Platforms: {:?}", metadata.supported_platforms);
-        
+
         if !metadata.dependencies.is_empty() {
             println!("📦 Dependencies: {}", metadata.dependencies.join(", "));
         }
-        
+
         if !metadata.conflicts.is_empty() {
             println!("⚠️  Conflicts: {}", metadata.conflicts.join(", "));
         }

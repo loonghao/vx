@@ -87,7 +87,7 @@ impl Plugin for GoPlugin {
 
     async fn install(&self, version: &str, _install_dir: &PathBuf) -> Result<InstallResult> {
         let _download_url = self.get_download_url(version);
-        
+
         // Use the existing installer infrastructure
         let config = crate::install_configs::get_install_config("go", version)
             .ok_or_else(|| anyhow::anyhow!("No install config for Go"))?;

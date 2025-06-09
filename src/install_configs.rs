@@ -25,22 +25,34 @@ fn get_uv_config(version: &str, install_dir: PathBuf) -> InstallConfig {
     let (download_url, install_method) = if cfg!(windows) {
         // Windows: Download from GitHub releases
         let url = if version == "latest" {
-            "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip".to_string()
+            "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip"
+                .to_string()
         } else {
             format!("https://github.com/astral-sh/uv/releases/download/{}/uv-x86_64-pc-windows-msvc.zip", version)
         };
-        (Some(url), InstallMethod::Archive { format: ArchiveFormat::Zip })
+        (
+            Some(url),
+            InstallMethod::Archive {
+                format: ArchiveFormat::Zip,
+            },
+        )
     } else if cfg!(target_os = "macos") {
         // macOS: Use Homebrew or download binary
-        (None, InstallMethod::PackageManager { 
-            manager: "brew".to_string(), 
-            package: "uv".to_string() 
-        })
+        (
+            None,
+            InstallMethod::PackageManager {
+                manager: "brew".to_string(),
+                package: "uv".to_string(),
+            },
+        )
     } else {
         // Linux: Use installation script
-        (None, InstallMethod::Script { 
-            url: "https://astral.sh/uv/install.sh".to_string() 
-        })
+        (
+            None,
+            InstallMethod::Script {
+                url: "https://astral.sh/uv/install.sh".to_string(),
+            },
+        )
     };
 
     InstallConfig {
@@ -56,20 +68,47 @@ fn get_uv_config(version: &str, install_dir: PathBuf) -> InstallConfig {
 fn get_node_config(version: &str, install_dir: PathBuf) -> InstallConfig {
     let (download_url, install_method) = if cfg!(windows) {
         // Windows: Download ZIP from nodejs.org
-        let version_str = if version == "latest" { "v20.11.0" } else { version };
-        let url = format!("https://nodejs.org/dist/{}/node-{}-win-x64.zip", version_str, version_str);
-        (Some(url), InstallMethod::Archive { format: ArchiveFormat::Zip })
+        let version_str = if version == "latest" {
+            "v20.11.0"
+        } else {
+            version
+        };
+        let url = format!(
+            "https://nodejs.org/dist/{}/node-{}-win-x64.zip",
+            version_str, version_str
+        );
+        (
+            Some(url),
+            InstallMethod::Archive {
+                format: ArchiveFormat::Zip,
+            },
+        )
     } else if cfg!(target_os = "macos") {
         // macOS: Use Homebrew
-        (None, InstallMethod::PackageManager { 
-            manager: "brew".to_string(), 
-            package: "node".to_string() 
-        })
+        (
+            None,
+            InstallMethod::PackageManager {
+                manager: "brew".to_string(),
+                package: "node".to_string(),
+            },
+        )
     } else {
         // Linux: Download tar.gz
-        let version_str = if version == "latest" { "v20.11.0" } else { version };
-        let url = format!("https://nodejs.org/dist/{}/node-{}-linux-x64.tar.gz", version_str, version_str);
-        (Some(url), InstallMethod::Archive { format: ArchiveFormat::TarGz })
+        let version_str = if version == "latest" {
+            "v20.11.0"
+        } else {
+            version
+        };
+        let url = format!(
+            "https://nodejs.org/dist/{}/node-{}-linux-x64.tar.gz",
+            version_str, version_str
+        );
+        (
+            Some(url),
+            InstallMethod::Archive {
+                format: ArchiveFormat::TarGz,
+            },
+        )
     };
 
     InstallConfig {
@@ -85,20 +124,41 @@ fn get_node_config(version: &str, install_dir: PathBuf) -> InstallConfig {
 fn get_go_config(version: &str, install_dir: PathBuf) -> InstallConfig {
     let (download_url, install_method) = if cfg!(windows) {
         // Windows: Download ZIP from golang.org
-        let version_str = if version == "latest" { "1.21.6" } else { version };
+        let version_str = if version == "latest" {
+            "1.21.6"
+        } else {
+            version
+        };
         let url = format!("https://golang.org/dl/go{}.windows-amd64.zip", version_str);
-        (Some(url), InstallMethod::Archive { format: ArchiveFormat::Zip })
+        (
+            Some(url),
+            InstallMethod::Archive {
+                format: ArchiveFormat::Zip,
+            },
+        )
     } else if cfg!(target_os = "macos") {
         // macOS: Use Homebrew or download
-        (None, InstallMethod::PackageManager { 
-            manager: "brew".to_string(), 
-            package: "go".to_string() 
-        })
+        (
+            None,
+            InstallMethod::PackageManager {
+                manager: "brew".to_string(),
+                package: "go".to_string(),
+            },
+        )
     } else {
         // Linux: Download tar.gz
-        let version_str = if version == "latest" { "1.21.6" } else { version };
+        let version_str = if version == "latest" {
+            "1.21.6"
+        } else {
+            version
+        };
         let url = format!("https://golang.org/dl/go{}.linux-amd64.tar.gz", version_str);
-        (Some(url), InstallMethod::Archive { format: ArchiveFormat::TarGz })
+        (
+            Some(url),
+            InstallMethod::Archive {
+                format: ArchiveFormat::TarGz,
+            },
+        )
     };
 
     InstallConfig {
@@ -114,12 +174,12 @@ fn get_go_config(version: &str, install_dir: PathBuf) -> InstallConfig {
 fn get_rust_config(version: &str, install_dir: PathBuf) -> InstallConfig {
     // Rust uses rustup for installation on all platforms
     let install_method = if cfg!(windows) {
-        InstallMethod::Script { 
-            url: "https://win.rustup.rs/".to_string() 
+        InstallMethod::Script {
+            url: "https://win.rustup.rs/".to_string(),
         }
     } else {
-        InstallMethod::Script { 
-            url: "https://sh.rustup.rs".to_string() 
+        InstallMethod::Script {
+            url: "https://sh.rustup.rs".to_string(),
         }
     };
 
@@ -138,20 +198,36 @@ pub fn get_available_install_methods(tool_name: &str) -> Vec<String> {
         "uv" => vec![
             "Official installer".to_string(),
             "GitHub releases".to_string(),
-            if cfg!(target_os = "macos") { "Homebrew".to_string() } else { "Package manager".to_string() },
+            if cfg!(target_os = "macos") {
+                "Homebrew".to_string()
+            } else {
+                "Package manager".to_string()
+            },
         ],
         "node" => vec![
             "Official releases".to_string(),
-            if cfg!(target_os = "macos") { "Homebrew".to_string() } else { "Package manager".to_string() },
+            if cfg!(target_os = "macos") {
+                "Homebrew".to_string()
+            } else {
+                "Package manager".to_string()
+            },
             "Node Version Manager (nvm)".to_string(),
         ],
         "go" => vec![
             "Official releases".to_string(),
-            if cfg!(target_os = "macos") { "Homebrew".to_string() } else { "Package manager".to_string() },
+            if cfg!(target_os = "macos") {
+                "Homebrew".to_string()
+            } else {
+                "Package manager".to_string()
+            },
         ],
         "rust" | "cargo" => vec![
             "Rustup (recommended)".to_string(),
-            if cfg!(target_os = "macos") { "Homebrew".to_string() } else { "Package manager".to_string() },
+            if cfg!(target_os = "macos") {
+                "Homebrew".to_string()
+            } else {
+                "Package manager".to_string()
+            },
         ],
         _ => vec!["Manual installation required".to_string()],
     }
@@ -165,29 +241,28 @@ pub fn supports_auto_install(tool_name: &str) -> bool {
 /// Get installation instructions for manual installation
 pub fn get_manual_install_instructions(tool_name: &str) -> String {
     match tool_name {
-        "uv" => {
-            "To install uv manually:\n\
+        "uv" => "To install uv manually:\n\
              • Windows: Download from https://github.com/astral-sh/uv/releases\n\
              • macOS: brew install uv\n\
-             • Linux: curl -LsSf https://astral.sh/uv/install.sh | sh".to_string()
-        }
-        "node" | "npm" | "npx" => {
-            "To install Node.js manually:\n\
+             • Linux: curl -LsSf https://astral.sh/uv/install.sh | sh"
+            .to_string(),
+        "node" | "npm" | "npx" => "To install Node.js manually:\n\
              • Visit: https://nodejs.org/\n\
-             • Or use a version manager like nvm".to_string()
-        }
-        "go" => {
-            "To install Go manually:\n\
+             • Or use a version manager like nvm"
+            .to_string(),
+        "go" => "To install Go manually:\n\
              • Visit: https://golang.org/dl/\n\
-             • Or use your system package manager".to_string()
-        }
-        "rust" | "cargo" => {
-            "To install Rust manually:\n\
+             • Or use your system package manager"
+            .to_string(),
+        "rust" | "cargo" => "To install Rust manually:\n\
              • Visit: https://rustup.rs/\n\
-             • Or run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh".to_string()
-        }
+             • Or run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+            .to_string(),
         _ => {
-            format!("Please install {} manually according to its official documentation.", tool_name)
+            format!(
+                "Please install {} manually according to its official documentation.",
+                tool_name
+            )
         }
     }
 }

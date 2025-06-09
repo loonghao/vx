@@ -61,7 +61,10 @@ impl Plugin for NodePlugin {
             Ok(output) if output.status.success() => {
                 let version_str = String::from_utf8_lossy(&output.stdout);
                 // Parse "v18.19.0" -> "18.19.0"
-                let version = version_str.trim().strip_prefix('v').unwrap_or(version_str.trim());
+                let version = version_str
+                    .trim()
+                    .strip_prefix('v')
+                    .unwrap_or(version_str.trim());
                 Ok(Some(version.to_string()))
             }
             _ => Ok(None),
@@ -97,7 +100,10 @@ impl Plugin for NodePlugin {
     async fn uninstall(&self, _version: &str, install_dir: &PathBuf) -> Result<()> {
         if install_dir.exists() {
             std::fs::remove_dir_all(install_dir)?;
-            println!("🗑️  Removed Node.js installation from {}", install_dir.display());
+            println!(
+                "🗑️  Removed Node.js installation from {}",
+                install_dir.display()
+            );
         }
         Ok(())
     }

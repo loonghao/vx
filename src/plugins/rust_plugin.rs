@@ -15,7 +15,8 @@ impl RustPlugin {
         let metadata = PluginMetadata {
             name: "rust".to_string(),
             version: "1.0.0".to_string(),
-            description: "Rust programming language toolchain with Cargo package manager".to_string(),
+            description: "Rust programming language toolchain with Cargo package manager"
+                .to_string(),
             author: "vx team".to_string(),
             homepage: Some("https://www.rust-lang.org".to_string()),
             repository: Some("https://github.com/rust-lang/rust".to_string()),
@@ -99,7 +100,10 @@ impl Plugin for RustPlugin {
     async fn uninstall(&self, _version: &str, install_dir: &PathBuf) -> Result<()> {
         if install_dir.exists() {
             std::fs::remove_dir_all(install_dir)?;
-            println!("🗑️  Removed Rust installation from {}", install_dir.display());
+            println!(
+                "🗑️  Removed Rust installation from {}",
+                install_dir.display()
+            );
         }
         Ok(())
     }
