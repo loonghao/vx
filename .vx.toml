@@ -1,0 +1,6 @@
+[tools]
+
+[defaults]
+auto_install = true
+check_updates = true
+update_interval = "24h"

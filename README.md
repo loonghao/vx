@@ -1,0 +1,325 @@
+# vx - Universal Development Tool Manager
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Rust](https://img.shields.io/badge/rust-1.70+-blue.svg)](https://www.rust-lang.org)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/loonghao/vx)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/loonghao/vx/releases)
+
+> 🚀 The ultimate development tool manager - One tool to rule them all
+
+`vx` is a powerful, fast, and extensible development tool manager that provides a unified interface for managing, installing, and executing development tools across different languages and ecosystems. Think of it as a combination of `nvm`, `rustup`, `pyenv`, and package managers, all in one lightning-fast tool.
+
+## ✨ Features
+
+### 🎯 Core Features
+- **🔄 Universal Interface**: Execute any supported tool through a single, consistent interface
+- **📦 Multi-Version Management**: Install, manage, and switch between multiple versions of tools
+- **⚡ Zero Configuration**: Works out of the box with intelligent defaults
+- **🚀 Auto-Installation**: Automatically download and install missing tools
+- **🎯 Project-Specific**: Support for project-level tool configurations
+- **🔌 Plugin Architecture**: Modular design with extensible plugin system
+
+### 🛠️ Advanced Features
+- **📊 Package Management**: Chocolatey-like layered package management
+- **🔍 Smart Discovery**: Automatic tool detection and version resolution
+- **⚙️ Configuration Management**: Global and project-level configuration support
+- **📈 Dependency Tracking**: Track and manage tool dependencies
+- **🧹 Cleanup Tools**: Orphaned package cleanup and maintenance
+- **📋 Rich CLI**: Comprehensive command-line interface with helpful output
+
+## 🚀 Quick Start
+
+### Installation
+
+```bash
+# Install from source (requires Rust)
+cargo install --git https://github.com/loonghao/vx
+
+# Or build locally
+git clone https://github.com/loonghao/vx
+cd vx
+cargo build --release
+
+# Windows: Run the installer
+.\install.ps1
+```
+
+### Basic Usage
+
+```bash
+# Execute tools through vx - they'll be auto-installed if missing!
+vx uv pip install requests
+vx npm install react
+vx node app.js
+vx go build
+vx cargo run
+
+# List supported tools and plugins
+vx list
+vx plugin list
+
+# Install specific versions
+vx install uv@0.5.26
+vx install node@20.11.0
+vx install go@1.21.6
+
+# Switch between versions
+vx switch uv@0.5.26
+vx switch node@18.19.0
+
+# Project configuration
+vx init
+vx config
+```
+
+## 📖 Supported Tools
+
+### 🔧 Built-in Plugins
+
+| Tool | Commands | Category | Auto-Install | Description |
+|------|----------|----------|--------------|-------------|
+| **UV** | `vx uv pip`, `vx uv venv`, `vx uv run`, `vx uv add` | Python | ✅ | Extremely fast Python package installer |
+| **Node.js** | `vx node`, `vx npm`, `vx npx` | JavaScript | ✅ | JavaScript runtime and package manager |
+| **Go** | `vx go build`, `vx go run`, `vx go test` | Go | ✅ | Go programming language toolchain |
+| **Rust** | `vx cargo build`, `vx cargo run`, `vx cargo test` | Rust | ✅ | Rust programming language and Cargo |
+
+### 🎯 Plugin Categories
+- **Languages**: Go, Rust, Node.js, Python (via UV)
+- **Package Managers**: npm, Cargo, UV (pip-compatible)
+- **Build Tools**: Go build, Cargo, etc.
+- **Runtimes**: Node.js
+
+## ⚙️ Configuration
+
+### Global Configuration
+
+`~/.config/vx/config.toml`:
+
+```toml
+[defaults]
+auto_install = true        # Auto-install missing tools
+check_updates = true       # Check for updates
+update_interval = "24h"    # Update check frequency
+
+[tools.uv]
+version = "0.5.26"
+install_method = "official"
+
+[tools.node]
+version = "20.11.0"
+install_method = "official"
+
+[tools.go]
+version = "1.21.6"
+```
+
+### Project Configuration
+
+`.vx.toml`:
+
+```toml
+[tools]
+uv = "0.5.26"
+node = "20.11.0"
+go = "1.21.6"
+
+[defaults]
+auto_install = true
+```
+
+### Plugin Configuration
+
+```bash
+# List all plugins
+vx plugin list
+
+# Get plugin info
+vx plugin info uv
+
+# Enable/disable plugins
+vx plugin enable rust
+vx plugin disable go
+
+# Search plugins
+vx plugin search python
+```
+
+## 🎯 Real-World Examples
+
+### Python Development with UV
+```bash
+# Create a new Python project
+vx uv init my-python-app
+cd my-python-app
+
+# Add dependencies
+vx uv add fastapi uvicorn
+vx uv add --dev pytest black
+
+# Run the application
+vx uv run uvicorn main:app --reload
+
+# Run tests
+vx uv run pytest
+```
+
+### Node.js Development
+```bash
+# Install and use Node.js
+vx npm install express
+vx node server.js
+
+# Use npx for one-time tools
+vx npx create-react-app my-app
+vx npx -y typescript --init
+```
+
+### Go Development
+```bash
+# Initialize Go module
+vx go mod init my-go-app
+
+# Build and run
+vx go build
+vx go run main.go
+
+# Test
+vx go test ./...
+```
+
+### Rust Development
+```bash
+# Create new Rust project
+vx cargo new my-rust-app
+cd my-rust-app
+
+# Add dependencies
+vx cargo add serde tokio
+
+# Build and run
+vx cargo run
+```
+
+### Multi-Language Project
+```bash
+# Frontend (Node.js) + Backend (Go) + Scripts (Python)
+vx npm install          # Frontend dependencies
+vx go mod tidy          # Backend dependencies
+vx uv pip install -r requirements.txt  # Script dependencies
+
+# Run different parts
+vx npm run dev          # Frontend dev server
+vx go run cmd/server/main.go  # Backend server
+vx uv run python scripts/deploy.py  # Deployment script
+```
+
+## 📊 Package Management
+
+### Multi-Version Support
+```bash
+# Install multiple versions
+vx install go@1.20.0
+vx install go@1.21.6
+
+# List installed versions
+vx stats
+
+# Switch between versions
+vx switch go@1.20.0
+vx switch go@1.21.6
+
+# Remove specific versions
+vx remove go 1.20.0
+vx remove go --all
+
+# Cleanup orphaned packages
+vx cleanup
+```
+
+### Package Statistics
+```bash
+# View package statistics
+vx stats
+# Output:
+# 📊 Package Statistics:
+#   📦 Total packages: 3
+#   🔢 Total versions: 5
+#   💾 Total size: 2.1 GB
+#   🕒 Last updated: 2025-01-30 10:30:00 UTC
+```
+
+## 🛠️ Development
+
+### Prerequisites
+
+- Rust 1.70+
+- Cargo
+
+### Building
+
+```bash
+git clone https://github.com/loonghao/vx
+cd vx
+cargo build --release
+```
+
+### Testing
+
+```bash
+cargo test
+cargo run -- --help
+```
+
+### Plugin Development
+
+See [MODULAR_ARCHITECTURE.md](MODULAR_ARCHITECTURE.md) for detailed plugin development guide.
+
+## 🚀 Roadmap
+
+### Current Status (v0.1.0)
+- ✅ Core plugin architecture
+- ✅ 4 built-in plugins (UV, Node.js, Go, Rust)
+- ✅ Auto-installation system
+- ✅ Multi-version package management
+- ✅ Project configuration support
+
+### Upcoming Features
+- [ ] More built-in plugins (Python, Java, .NET, Docker)
+- [ ] External plugin support (.dll, .so, scripts)
+- [ ] Plugin marketplace
+- [ ] GUI interface
+- [ ] CI/CD integrations
+- [ ] Team configuration sync
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how you can help:
+
+1. **Report Issues**: Found a bug? [Open an issue](https://github.com/loonghao/vx/issues)
+2. **Feature Requests**: Have an idea? [Start a discussion](https://github.com/loonghao/vx/discussions)
+3. **Plugin Development**: Create plugins for new tools
+4. **Documentation**: Improve docs and examples
+5. **Code Contributions**: Submit pull requests
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Inspired by tools like `asdf`, `mise`, `proto`, and `chocolatey`
+- Built with ❤️ using Rust and modern development practices
+- Special thanks to the Rust community and all contributors
+
+## 📞 Support
+
+- 📖 **Documentation**: [Full documentation](https://github.com/loonghao/vx/wiki)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/loonghao/vx/discussions)
+- 🐛 **Issues**: [Bug Reports](https://github.com/loonghao/vx/issues)
+- 📧 **Contact**: hal.long@outlook.com
+
+---
+
+**Made with ❤️ for developers, by developers**
