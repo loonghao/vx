@@ -1,4 +1,4 @@
-use colored::*;
+use colored::Colorize;
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, Confirm, Select};
 use indicatif::{ProgressBar, ProgressFinish, ProgressState, ProgressStyle};
