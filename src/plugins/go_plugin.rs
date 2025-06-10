@@ -88,7 +88,7 @@ impl Plugin for GoPlugin {
         let _download_url = self.get_download_url(version);
 
         // Use the existing installer infrastructure
-        let config = crate::install_configs::get_install_config("go", version)
+        let _config = crate::install_configs::get_install_config("go", version)
             .ok_or_else(|| anyhow::anyhow!("No install config for Go"))?;
 
         // Note: This should be called from an async context
@@ -180,6 +180,7 @@ impl Plugin for GoPlugin {
 }
 
 impl GoPlugin {
+    #[allow(dead_code)]
     fn calculate_size(path: &PathBuf) -> Result<u64> {
         if path.is_file() {
             Ok(std::fs::metadata(path)?.len())
