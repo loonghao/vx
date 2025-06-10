@@ -206,7 +206,7 @@ impl UvPlugin {
     #[allow(dead_code)]
     fn calculate_size(path: &PathBuf) -> Result<u64> {
         if path.is_file() {
-            Ok(std::fs::metadata(path)?.len())
+            Ok(path.metadata()?.len())
         } else {
             Ok(0)
         }

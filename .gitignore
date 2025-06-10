@@ -32,3 +32,5 @@ test-env/
 # Temporary files
 *.tmp
 *.temp
+node_modules/
+
