@@ -78,7 +78,7 @@ impl Plugin for RustPlugin {
 
     fn install(&self, version: &str, _install_dir: &PathBuf) -> Result<InstallResult> {
         // Use the existing installer infrastructure
-        let config = crate::install_configs::get_install_config("rust", version)
+        let _config = crate::install_configs::get_install_config("rust", version)
             .ok_or_else(|| anyhow::anyhow!("No install config for Rust"))?;
 
         // Note: This should be called from an async context
@@ -193,6 +193,7 @@ impl Plugin for RustPlugin {
 }
 
 impl RustPlugin {
+    #[allow(dead_code)]
     fn calculate_size(path: &PathBuf) -> Result<u64> {
         if path.is_file() {
             Ok(std::fs::metadata(path)?.len())

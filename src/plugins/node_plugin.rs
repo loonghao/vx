@@ -77,7 +77,7 @@ impl Plugin for NodePlugin {
 
     fn install(&self, version: &str, _install_dir: &PathBuf) -> Result<InstallResult> {
         // Use the existing installer infrastructure
-        let config = crate::install_configs::get_install_config("node", version)
+        let _config = crate::install_configs::get_install_config("node", version)
             .ok_or_else(|| anyhow::anyhow!("No install config for Node.js"))?;
 
         // Note: This should be called from an async context
@@ -167,6 +167,7 @@ impl Plugin for NodePlugin {
 }
 
 impl NodePlugin {
+    #[allow(dead_code)]
     fn calculate_size(path: &PathBuf) -> Result<u64> {
         if path.is_file() {
             Ok(std::fs::metadata(path)?.len())
