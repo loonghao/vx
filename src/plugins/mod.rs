@@ -24,6 +24,6 @@ pub fn register_builtin_plugins(registry: &mut PluginRegistry) -> Result<()> {
     let uv_plugin = Box::new(uv_plugin::UvPlugin::new());
     registry.register_plugin(uv_plugin)?;
 
-    println!("✅ Registered {} built-in plugins", 4);
+    crate::ui::UI::success(&format!("Registered {} built-in plugins", 4));
     Ok(())
 }

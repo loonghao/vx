@@ -1,7 +1,9 @@
 use anyhow::Result;
 use reqwest;
 use std::fs;
+use std::io::Write;
 
+use crate::ui::UI;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::TempDir;
@@ -47,7 +49,10 @@ impl Installer {
 
     /// Install a tool with the given configuration
     pub async fn install(&self, config: &InstallConfig) -> Result<PathBuf> {
-        println!("📦 Installing {} {}...", config.tool_name, config.version);
+        UI::step(&format!(
+            "Installing {} {}...",
+            config.tool_name, config.version
+        ));
 
         // Create install directory
         fs::create_dir_all(&config.install_dir)?;
@@ -74,17 +79,43 @@ impl Installer {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Download URL not provided"))?;
 
-        println!("⬇️  Downloading from {}", download_url);
+        UI::info(&format!("Downloading from {}", download_url));
 
         // Download to temporary file
         let temp_dir = TempDir::new()?;
         let temp_file = temp_dir.path().join("download");
 
         let response = self.client.get(download_url).send().await?;
-        let bytes = response.bytes().await?;
-        fs::write(&temp_file, bytes)?;
 
-        println!("📂 Extracting archive...");
+        // Get content length for progress bar
+        let total_size = response.content_length().unwrap_or(0);
+        let progress_bar = if total_size > 0 {
+            Some(UI::new_progress_bar(total_size))
+        } else {
+            None
+        };
+
+        // Download with progress
+        let mut file = fs::File::create(&temp_file)?;
+        let mut downloaded = 0u64;
+        let mut stream = response.bytes_stream();
+
+        use futures_util::StreamExt;
+        while let Some(chunk_result) = stream.next().await {
+            let chunk = chunk_result?;
+            file.write_all(&chunk)?;
+            downloaded += chunk.len() as u64;
+
+            if let Some(pb) = &progress_bar {
+                pb.set_position(downloaded);
+            }
+        }
+
+        if let Some(pb) = progress_bar {
+            pb.finish();
+        }
+
+        let spinner = UI::new_spinner("Extracting archive...");
 
         // Extract based on format
         match format {
@@ -93,14 +124,16 @@ impl Installer {
             ArchiveFormat::TarXz => self.extract_tar_xz(&temp_file, &config.install_dir)?,
         }
 
+        spinner.finish_and_clear();
+
         // Find the executable
         let exe_path = self.find_executable(&config.install_dir, &config.tool_name)?;
 
-        println!(
-            "✅ {} installed to {}",
+        UI::success(&format!(
+            "{} installed to {}",
             config.tool_name,
             exe_path.display()
-        );
+        ));
         Ok(exe_path)
     }
 
@@ -111,7 +144,7 @@ impl Installer {
         manager: &str,
         package: &str,
     ) -> Result<PathBuf> {
-        println!("📦 Installing {} using {}...", package, manager);
+        UI::step(&format!("Installing {} using {}...", package, manager));
 
         let status = match manager {
             "chocolatey" | "choco" => Command::new("choco")
@@ -134,7 +167,7 @@ impl Installer {
         // Try to find the installed executable
         match which::which(&config.tool_name) {
             Ok(path) => {
-                println!("✅ {} installed successfully", config.tool_name);
+                UI::success(&format!("{} installed successfully", config.tool_name));
                 Ok(path)
             }
             Err(_) => Err(anyhow::anyhow!("Tool installed but not found in PATH")),
@@ -147,7 +180,7 @@ impl Installer {
         config: &InstallConfig,
         script_url: &str,
     ) -> Result<PathBuf> {
-        println!("📜 Running installation script from {}", script_url);
+        UI::step(&format!("Running installation script from {}", script_url));
 
         let response = self.client.get(script_url).send().await?;
         let script_content = response.text().await?;
@@ -186,7 +219,7 @@ impl Installer {
         // Try to find the installed executable
         match which::which(&config.tool_name) {
             Ok(path) => {
-                println!("✅ {} installed successfully", config.tool_name);
+                UI::success(&format!("{} installed successfully", config.tool_name));
                 Ok(path)
             }
             Err(_) => Err(anyhow::anyhow!("Tool installed but not found in PATH")),
@@ -200,10 +233,37 @@ impl Installer {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Download URL not provided"))?;
 
-        println!("⬇️  Downloading binary from {}", download_url);
+        UI::info(&format!("Downloading binary from {}", download_url));
 
         let response = self.client.get(download_url).send().await?;
-        let bytes = response.bytes().await?;
+
+        // Get content length for progress bar
+        let total_size = response.content_length().unwrap_or(0);
+        let progress_bar = if total_size > 0 {
+            Some(UI::new_progress_bar(total_size))
+        } else {
+            None
+        };
+
+        // Download with progress
+        let mut downloaded = 0u64;
+        let mut bytes = Vec::new();
+        let mut stream = response.bytes_stream();
+
+        use futures_util::StreamExt;
+        while let Some(chunk_result) = stream.next().await {
+            let chunk = chunk_result?;
+            bytes.extend_from_slice(&chunk);
+            downloaded += chunk.len() as u64;
+
+            if let Some(pb) = &progress_bar {
+                pb.set_position(downloaded);
+            }
+        }
+
+        if let Some(pb) = progress_bar {
+            pb.finish();
+        }
 
         let exe_name = if cfg!(windows) {
             format!("{}.exe", config.tool_name)
@@ -223,11 +283,11 @@ impl Installer {
             fs::set_permissions(&exe_path, perms)?;
         }
 
-        println!(
-            "✅ {} installed to {}",
+        UI::success(&format!(
+            "{} installed to {}",
             config.tool_name,
             exe_path.display()
-        );
+        ));
         Ok(exe_path)
     }
 

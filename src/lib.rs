@@ -7,6 +7,7 @@ pub mod package_manager;
 pub mod plugin;
 pub mod plugin_manager;
 pub mod plugins;
+pub mod ui;
 pub mod version;
 
 pub use anyhow::Result;
