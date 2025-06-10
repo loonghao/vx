@@ -170,7 +170,7 @@ impl NodePlugin {
     #[allow(dead_code)]
     fn calculate_size(path: &PathBuf) -> Result<u64> {
         if path.is_file() {
-            Ok(std::fs::metadata(path)?.len())
+            Ok(path.metadata()?.len())
         } else if path.is_dir() {
             let mut size = 0;
             for entry in walkdir::WalkDir::new(path) {

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use reqwest;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::process::Command;
 use which::which;
 
@@ -42,11 +43,17 @@ impl Version {
         })
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn as_string(&self) -> String {
         match &self.pre {
             Some(pre) => format!("{}.{}.{}-{}", self.major, self.minor, self.patch, pre),
             None => format!("{}.{}.{}", self.major, self.minor, self.patch),
         }
+    }
+}
+
+impl fmt::Display for Version {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_string())
     }
 }
 
