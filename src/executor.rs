@@ -1,50 +1,131 @@
 use crate::package_manager::{Package, PackageManager};
 use crate::plugin_manager::PluginManager;
+use crate::ui::UI;
 use anyhow::Result;
 
 use std::process::{Command, Stdio};
 use which::which;
 
 pub struct Executor {
-    plugin_manager: PluginManager,
-    package_manager: PackageManager,
+    plugin_manager: Option<PluginManager>,
+    package_manager: Option<PackageManager>,
 }
 
 impl Executor {
     pub fn new() -> Result<Self> {
-        let plugin_manager = PluginManager::new()?;
-        let package_manager = PackageManager::new()?;
-
         Ok(Self {
-            plugin_manager,
-            package_manager,
+            plugin_manager: None,
+            package_manager: None,
         })
     }
 
+    /// Lazy initialization of plugin manager
+    fn ensure_plugin_manager(&mut self) -> Result<&PluginManager> {
+        if self.plugin_manager.is_none() {
+            self.plugin_manager = Some(PluginManager::new()?);
+        }
+        Ok(self.plugin_manager.as_ref().unwrap())
+    }
+
+    /// Lazy initialization of package manager
+    fn ensure_package_manager(&mut self) -> Result<&PackageManager> {
+        if self.package_manager.is_none() {
+            self.package_manager = Some(PackageManager::new()?);
+        }
+        Ok(self.package_manager.as_ref().unwrap())
+    }
+
+    /// Lazy initialization of package manager (mutable)
+    fn ensure_package_manager_mut(&mut self) -> Result<&mut PackageManager> {
+        if self.package_manager.is_none() {
+            self.package_manager = Some(PackageManager::new()?);
+        }
+        Ok(self.package_manager.as_mut().unwrap())
+    }
+
     /// Execute a tool with given arguments
-    pub async fn execute(&mut self, tool_name: &str, args: &[String]) -> Result<i32> {
-        // Check if tool is supported by plugin system
-        if let Some(plugin) = self.plugin_manager.get_plugin(tool_name) {
-            // Use plugin to execute directly
-            return plugin.execute_command("", args).await;
+    pub async fn execute(
+        &mut self,
+        tool_name: &str,
+        args: &[String],
+        use_system_path: bool,
+    ) -> Result<i32> {
+        if use_system_path {
+            // When --use-system-path is specified, ONLY use system tools
+            if let Ok(tool_path) = which(tool_name) {
+                UI::info(&format!("Using {} (system installed)", tool_name));
+                return self.run_command(&tool_path.to_string_lossy(), args).await;
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Tool '{}' not found in system PATH",
+                    tool_name
+                ));
+            }
         }
 
-        // Fallback: check if tool is available in system
-        if let Ok(tool_path) = which(tool_name) {
-            println!("ℹ️  Using {} (system installed)", tool_name);
-            return self.run_command(&tool_path.to_string_lossy(), args).await;
+        // Default behavior: prioritize vx-managed tools, with system fallback
+        let plugin_manager = self.ensure_plugin_manager()?;
+
+        // First, check if we have a plugin for this tool
+        if let Some(_plugin) = plugin_manager.get_plugin(tool_name) {
+            // Check if the tool is installed via vx (check in vx directories)
+            if let Ok(vx_tool_path) = self.find_vx_managed_tool(tool_name) {
+                UI::info(&format!("Using {} (vx-managed)", tool_name));
+                return self
+                    .run_command(&vx_tool_path.to_string_lossy(), args)
+                    .await;
+            }
+
+            // If plugin exists but tool is not installed via vx, suggest installation
+            UI::info(&format!(
+                "Tool '{}' is supported but not installed via vx",
+                tool_name
+            ));
+            UI::hint(&format!("Run 'vx install {}' to install it", tool_name));
+
+            // Fallback to system tool if available
+            if let Ok(tool_path) = which(tool_name) {
+                UI::info(&format!("Using {} (system installed)", tool_name));
+                return self.run_command(&tool_path.to_string_lossy(), args).await;
+            }
+        } else {
+            // Tool is not supported by any plugin, check system
+            if let Ok(tool_path) = which(tool_name) {
+                UI::info(&format!("Using {} (system installed)", tool_name));
+                return self.run_command(&tool_path.to_string_lossy(), args).await;
+            }
         }
 
-        Err(anyhow::anyhow!("Unsupported tool: {}", tool_name))
+        // Provide helpful error message with available tools
+        let available_tools = self.list_tools()?;
+        let mut error_msg = format!("Tool '{}' not found.", tool_name);
+
+        if !available_tools.is_empty() {
+            error_msg.push_str("\n\nSupported tools:");
+            for tool in &available_tools {
+                error_msg.push_str(&format!("\n  * {}", tool));
+            }
+
+            // Check if this tool is supported
+            if available_tools.contains(&tool_name.to_string()) {
+                error_msg.push_str(&format!(
+                    "\n\nTo install {}, run: vx install {}",
+                    tool_name, tool_name
+                ));
+            }
+        }
+
+        Err(anyhow::anyhow!(error_msg))
     }
 
     /// List available tools from plugins
-    pub fn list_tools(&self) -> Vec<String> {
-        self.plugin_manager
+    pub fn list_tools(&mut self) -> Result<Vec<String>> {
+        let plugin_manager = self.ensure_plugin_manager()?;
+        Ok(plugin_manager
             .list_enabled_plugins()
             .iter()
             .map(|plugin| plugin.metadata().name.clone())
-            .collect()
+            .collect())
     }
 
     /// Install a tool with the specified version using plugin manager
@@ -54,49 +135,55 @@ impl Executor {
         version: &str,
     ) -> Result<std::path::PathBuf> {
         // Use plugin manager for installation
-        self.plugin_manager.install_tool(tool_name, version).await
+        let plugin_manager = self.ensure_plugin_manager()?;
+        plugin_manager.install_tool(tool_name, version).await
     }
 
     /// Switch to a different version of a tool
     pub fn switch_version(&mut self, tool_name: &str, version: &str) -> Result<()> {
-        self.package_manager.switch_version(tool_name, version)
+        let package_manager = self.ensure_package_manager_mut()?;
+        package_manager.switch_version(tool_name, version)
     }
 
     /// Remove a specific version of a tool
     pub fn remove_version(&mut self, tool_name: &str, version: &str) -> Result<()> {
-        self.package_manager.remove_version(tool_name, version)
+        let package_manager = self.ensure_package_manager_mut()?;
+        package_manager.remove_version(tool_name, version)
     }
 
     /// Remove all versions of a tool
     pub fn remove_tool(&mut self, tool_name: &str) -> Result<()> {
-        let versions: Vec<String> = self
-            .package_manager
+        let package_manager = self.ensure_package_manager_mut()?;
+        let versions: Vec<String> = package_manager
             .list_versions(tool_name)
             .iter()
             .map(|pkg| pkg.version.clone())
             .collect();
 
         for version in versions {
-            self.package_manager.remove_version(tool_name, &version)?;
+            package_manager.remove_version(tool_name, &version)?;
         }
 
-        println!("✅ Removed all versions of {}", tool_name);
+        UI::success(&format!("Removed all versions of {}", tool_name));
         Ok(())
     }
 
     /// Clean up orphaned packages
     pub fn cleanup(&mut self) -> Result<()> {
-        self.package_manager.cleanup()
+        let package_manager = self.ensure_package_manager_mut()?;
+        package_manager.cleanup()
     }
 
     /// Get package statistics
-    pub fn get_stats(&self) -> crate::package_manager::PackageStats {
-        self.package_manager.get_stats()
+    pub fn get_stats(&mut self) -> Result<crate::package_manager::PackageStats> {
+        let package_manager = self.ensure_package_manager()?;
+        Ok(package_manager.get_stats())
     }
 
     /// List all installed packages
-    pub fn list_installed_packages(&self) -> Vec<&Package> {
-        self.package_manager.list_packages()
+    pub fn list_installed_packages(&mut self) -> Result<Vec<&Package>> {
+        let package_manager = self.ensure_package_manager()?;
+        Ok(package_manager.list_packages())
     }
 
     /// Check for updates
@@ -111,13 +198,13 @@ impl Executor {
     }
 
     /// Get package manager reference
-    pub fn get_package_manager(&self) -> &PackageManager {
-        &self.package_manager
+    pub fn get_package_manager(&mut self) -> Result<&PackageManager> {
+        self.ensure_package_manager()
     }
 
     /// Run the actual command
     async fn run_command(&self, tool_path: &str, args: &[String]) -> Result<i32> {
-        println!("🚀 Running: {} {}", tool_path, args.join(" "));
+        UI::show_command_execution(tool_path, args);
 
         let mut command = Command::new(tool_path);
         command.args(args);
@@ -129,22 +216,40 @@ impl Executor {
         Ok(status.code().unwrap_or(1))
     }
 
-    /// Check tool status using plugin manager
-    pub async fn check_tool_status(&self, tool_name: &str) -> Result<()> {
-        if let Some(_plugin) = self.plugin_manager.get_plugin(tool_name) {
-            let is_installed = self.plugin_manager.is_tool_installed(tool_name).await?;
+    /// Find vx-managed tool executable path
+    fn find_vx_managed_tool(&mut self, tool_name: &str) -> Result<std::path::PathBuf> {
+        let package_manager = self.ensure_package_manager()?;
 
-            println!("🔍 Checking {} status...", tool_name);
+        // Check if tool is installed via vx package manager
+        if let Some(active_package) = package_manager.get_active_version(tool_name) {
+            if active_package.executable_path.exists() {
+                return Ok(active_package.executable_path.clone());
+            }
+        }
+
+        Err(anyhow::anyhow!(
+            "Tool '{}' not found in vx-managed installations",
+            tool_name
+        ))
+    }
+
+    /// Check tool status using plugin manager
+    pub async fn check_tool_status(&mut self, tool_name: &str) -> Result<()> {
+        let plugin_manager = self.ensure_plugin_manager()?;
+        if let Some(_plugin) = plugin_manager.get_plugin(tool_name) {
+            let spinner = UI::new_spinner(&format!("Checking {} status...", tool_name));
+            let is_installed = plugin_manager.is_tool_installed(tool_name).await?;
+            spinner.finish_and_clear();
 
             if is_installed {
-                if let Some(version) = self.plugin_manager.get_tool_version(tool_name).await? {
-                    println!("✅ {} {} is installed", tool_name, version);
+                if let Some(version) = plugin_manager.get_tool_version(tool_name).await? {
+                    UI::success(&format!("{} {} is installed", tool_name, version));
                 } else {
-                    println!("✅ {} is installed", tool_name);
+                    UI::success(&format!("{} is installed", tool_name));
                 }
             } else {
-                println!("❌ {} is not installed", tool_name);
-                println!("💡 Run 'vx install {}' to install it", tool_name);
+                UI::error(&format!("{} is not installed", tool_name));
+                UI::hint(&format!("Run 'vx install {}' to install it", tool_name));
             }
         } else {
             return Err(anyhow::anyhow!("Unsupported tool: {}", tool_name));

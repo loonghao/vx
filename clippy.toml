@@ -1,0 +1,41 @@
+doc-valid-idents = [
+  "PyPI",
+  "PubGrub",
+  "PyPy",
+  "CPython",
+  "GraalPy",
+  "ReFS",
+  "PyTorch",
+  ".." # Include the defaults
+]
+
+disallowed-types = [
+  "std::fs::DirEntry",
+  "std::fs::File",
+  "std::fs::OpenOptions",
+  "std::fs::ReadDir",
+]
+
+disallowed-methods = [
+  "std::fs::canonicalize",
+  "std::fs::copy",
+  "std::fs::create_dir",
+  "std::fs::create_dir_all",
+  "std::fs::hard_link",
+  "std::fs::metadata",
+  "std::fs::read",
+  "std::fs::read_dir",
+  "std::fs::read_link",
+  "std::fs::read_to_string",
+  "std::fs::remove_dir",
+  "std::fs::remove_dir_all",
+  "std::fs::remove_file",
+  "std::fs::rename",
+  "std::fs::set_permissions",
+  "std::fs::soft_link",
+  "std::fs::symlink_metadata",
+  "std::fs::write",
+  "std::os::unix::fs::symlink",
+  "std::os::windows::fs::symlink_dir",
+  "std::os::windows::fs::symlink_file",
+]

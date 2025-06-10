@@ -156,7 +156,7 @@ impl PluginRegistry {
             self.enabled_plugins.push(name.clone());
         }
 
-        println!("📦 Registered plugin: {}", name);
+        crate::ui::UI::info(&format!("Registered plugin: {}", name));
         Ok(())
     }
 

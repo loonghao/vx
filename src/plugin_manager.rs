@@ -111,7 +111,7 @@ impl PluginManager {
     fn load_external_plugin(&mut self, manifest_path: &PathBuf) -> Result<()> {
         // For now, just log that we found a plugin manifest
         // In a full implementation, this would load dynamic libraries or scripts
-        println!("📄 Found plugin manifest: {}", manifest_path.display());
+        println!("[INFO] Found plugin manifest: {}", manifest_path.display());
         Ok(())
     }
 
@@ -181,7 +181,7 @@ impl PluginManager {
         let install_dir = self.get_tool_install_dir(tool_name, version);
         fs::create_dir_all(&install_dir)?;
 
-        let result = plugin.install(version, &install_dir).await?;
+        let result = plugin.install(version, &install_dir)?;
         Ok(result.executable_path)
     }
 
@@ -192,7 +192,7 @@ impl PluginManager {
             .ok_or_else(|| anyhow::anyhow!("Plugin {} not found", tool_name))?;
 
         let install_dir = self.get_tool_install_dir(tool_name, version);
-        plugin.uninstall(version, &install_dir).await?;
+        plugin.uninstall(version, &install_dir)?;
         Ok(())
     }
 
@@ -207,7 +207,7 @@ impl PluginManager {
             .get_plugin(tool_name)
             .ok_or_else(|| anyhow::anyhow!("Plugin {} not found", tool_name))?;
 
-        plugin.execute_command(command, args).await
+        plugin.execute_command(command, args)
     }
 
     /// Get tool installation directory
@@ -226,7 +226,7 @@ impl PluginManager {
             .get_plugin(tool_name)
             .ok_or_else(|| anyhow::anyhow!("Plugin {} not found", tool_name))?;
 
-        plugin.is_installed().await
+        plugin.is_installed()
     }
 
     /// Get installed version of a tool
@@ -235,7 +235,7 @@ impl PluginManager {
             .get_plugin(tool_name)
             .ok_or_else(|| anyhow::anyhow!("Plugin {} not found", tool_name))?;
 
-        plugin.get_installed_version().await
+        plugin.get_installed_version()
     }
 
     /// Get latest version of a tool
@@ -244,7 +244,7 @@ impl PluginManager {
             .get_plugin(tool_name)
             .ok_or_else(|| anyhow::anyhow!("Plugin {} not found", tool_name))?;
 
-        plugin.get_latest_version().await
+        plugin.get_latest_version()
     }
 
     /// List available commands for a tool
