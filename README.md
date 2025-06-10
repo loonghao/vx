@@ -23,6 +23,14 @@
 - **🎯 Project-Specific**: Support for project-level tool configurations
 - **🔌 Plugin Architecture**: Modular design with extensible plugin system
 
+### 🎨 Enhanced CLI Experience
+- **📊 Progress Bars**: Visual feedback for downloads and installations
+- **🌈 Colorful Output**: Better visual distinction with colored messages
+- **⏳ Spinner Animations**: Smooth loading indicators for operations
+- **🤝 Interactive Confirmations**: User-friendly prompts and dialogs
+- **💡 Smart Error Messages**: Helpful suggestions and clear error reporting
+- **🔧 Environment Isolation**: `--use-system-path` flag for better control
+
 ### 🛠️ Advanced Features
 - **📊 Package Management**: Chocolatey-like layered package management
 - **🔍 Smart Discovery**: Automatic tool detection and version resolution
@@ -89,6 +97,10 @@ vx npm install react
 vx node app.js
 vx go build
 vx cargo run
+
+# Use system PATH instead of vx-managed tools
+vx --use-system-path python --version
+vx --use-system-path node --version
 
 # List supported tools and plugins
 vx list
@@ -337,7 +349,27 @@ We welcome contributions! Here's how you can help:
 4. **Documentation**: Improve docs and examples
 5. **Code Contributions**: Submit pull requests
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+### 🚀 Release Process
+
+This project uses [Release Please](https://github.com/googleapis/release-please) for automated releases:
+
+- **Follow [Conventional Commits](https://www.conventionalcommits.org/) specification**
+- **Automatic versioning**: Version bumps based on commit types
+- **Automatic changelog**: Generated from commit history
+- **Automatic releases**: GitHub releases created when Release PR is merged
+
+```bash
+# New feature (bumps minor version)
+git commit -m "feat: add Python plugin support"
+
+# Bug fix (bumps patch version)
+git commit -m "fix: resolve installation issue on Windows"
+
+# Breaking change (bumps major version)
+git commit -m "feat!: redesign plugin API"
+```
+
+See [Release Guide](docs/RELEASE_GUIDE.md) for detailed guidelines.
 
 ## 📄 License
 

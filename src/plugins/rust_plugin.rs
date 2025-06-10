@@ -42,7 +42,6 @@ impl RustPlugin {
     }
 }
 
-
 impl Plugin for RustPlugin {
     fn metadata(&self) -> &PluginMetadata {
         &self.metadata
@@ -82,26 +81,18 @@ impl Plugin for RustPlugin {
         let config = crate::install_configs::get_install_config("rust", version)
             .ok_or_else(|| anyhow::anyhow!("No install config for Rust"))?;
 
-        let installer = crate::installer::Installer::new();
-        let executable_path = installer.install(&config).await?;
-
-        // Calculate installed files and size
-        let installed_files = vec![executable_path.clone()];
-        let size = Self::calculate_size(&executable_path)?;
-
-        Ok(InstallResult {
-            executable_path,
-            installed_files,
-            size,
-            checksum: None,
-        })
+        // Note: This should be called from an async context
+        // For now, we'll return an error indicating async installation is needed
+        Err(anyhow::anyhow!(
+            "Installation requires async context. Use plugin manager install method."
+        ))
     }
 
     fn uninstall(&self, _version: &str, install_dir: &PathBuf) -> Result<()> {
         if install_dir.exists() {
             std::fs::remove_dir_all(install_dir)?;
             println!(
-                "🗑�? Removed Rust installation from {}",
+                "🗑️ Removed Rust installation from {}",
                 install_dir.display()
             );
         }

@@ -8,6 +8,14 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
 
+    /// Use system PATH to find tools instead of vx-managed versions
+    #[arg(long, global = true)]
+    pub use_system_path: bool,
+
+    /// Enable verbose output with detailed logging
+    #[arg(short, long, global = true)]
+    pub verbose: bool,
+
     /// Tool and arguments to execute
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     pub args: Vec<String>,
