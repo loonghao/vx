@@ -216,7 +216,6 @@ brews:
     repository:
       owner: loonghao
       name: homebrew-tap
-    folder: Formula
     homepage: https://github.com/loonghao/vx
     description: Universal Development Tool Manager
     license: MIT
@@ -231,7 +230,6 @@ scoops:
     repository:
       owner: loonghao
       name: scoop-bucket
-    folder: bucket
     homepage: https://github.com/loonghao/vx
     description: Universal Development Tool Manager - Manage multiple development tools and their versions
     license: MIT

@@ -1,4 +1,4 @@
-name: Release
+name: Release Please
 
 on:
   push:
@@ -15,14 +15,11 @@ on:
 
 permissions:
   contents: write
-  packages: write
   pull-requests: write
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    # Skip if this is a release-please automated commit
-    if: "!contains(github.event.head_commit.message, 'chore(main): release') && !contains(github.event.head_commit.author.name, 'github-actions')"
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
@@ -54,110 +51,13 @@ jobs:
           echo "Tag name: ${{ steps.release.outputs.tag_name }}"
           echo "Version: ${{ steps.release.outputs.version }}"
           echo "PR: ${{ steps.release.outputs.pr }}"
-  goreleaser:
-    runs-on: ubuntu-latest
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
-    steps:
-      - name: Verify release conditions
-        run: |
-          echo "Release created: ${{ needs.release-please.outputs.release_created }}"
-          echo "Tag name: ${{ needs.release-please.outputs.tag_name }}"
-          echo "Version: ${{ needs.release-please.outputs.version }}"
-          if [ "${{ needs.release-please.outputs.release_created }}" != "true" ]; then
-            echo "❌ Release not created, skipping GoReleaser"
-            exit 1
+
+          if [ "${{ steps.release.outputs.release_created }}" = "true" ]; then
+            echo "🎉 Release created! Tag: ${{ steps.release.outputs.tag_name }}"
+            echo "The tag-release.yml workflow will handle the actual release process."
+          elif [ "${{ steps.release.outputs.pr }}" != "" ]; then
+            echo "📝 Release PR created: ${{ steps.release.outputs.pr }}"
+            echo "Merge the PR to trigger the release."
+          else
+            echo "ℹ️ No release or PR created. Waiting for more commits."
           fi
-          echo "✅ Release conditions verified, proceeding with GoReleaser"
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: |
-            x86_64-unknown-linux-gnu
-            x86_64-unknown-linux-musl
-            aarch64-unknown-linux-gnu
-            aarch64-unknown-linux-musl
-            x86_64-apple-darwin
-            aarch64-apple-darwin
-            x86_64-pc-windows-gnu
-            aarch64-pc-windows-msvc
-            x86_64-unknown-freebsd
-
-      - name: Install cross-compilation dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            gcc-aarch64-linux-gnu \
-            gcc-mingw-w64-x86-64 \
-            musl-tools
-          
-          # Install cargo-zigbuild for cross-compilation
-          cargo install cargo-zigbuild
-          
-          # Install zig for cargo-zigbuild
-          sudo snap install zig --classic --beta
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-          SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN }}
-
-  # Create a draft release for manual review if needed
-  draft-release:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cross-compilation dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            gcc-aarch64-linux-gnu \
-            gcc-mingw-w64-x86-64 \
-            musl-tools
-          cargo install cargo-zigbuild
-          sudo snap install zig --classic --beta
-
-      - name: Run GoReleaser (Draft)
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --draft --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

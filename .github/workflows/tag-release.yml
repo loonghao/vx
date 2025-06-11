@@ -11,11 +11,6 @@ on:
         required: false
         default: true
         type: boolean
-      enable_pgo:
-        description: 'Enable PGO optimization'
-        required: false
-        default: true
-        type: boolean
 
 env:
   CARGO_TERM_COLOR: always
@@ -85,13 +80,12 @@ jobs:
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
           SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN }}
           CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
-          AUR_KEY: ${{ secrets.AUR_KEY }}
 
   benchmark:
     name: Performance Benchmark
     needs: goreleaser
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.enable_pgo != 'false' }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.create_release == 'true' }}
 
     steps:
     - name: Checkout code
