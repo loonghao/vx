@@ -3,6 +3,7 @@ use console::Term;
 use dialoguer::{theme::ColorfulTheme, Confirm, Select};
 use indicatif::{ProgressBar, ProgressFinish, ProgressState, ProgressStyle};
 use std::fmt::Write;
+use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -92,6 +93,110 @@ impl UI {
             .default(default)
             .interact()?;
         Ok(result)
+    }
+
+    /// Progress decorator for async operations
+    /// Similar to Python decorators, wraps async functions with progress indication
+    pub async fn with_progress<F, T, E>(message: &str, operation: F) -> Result<T, E>
+    where
+        F: Future<Output = Result<T, E>>,
+        E: std::fmt::Display,
+    {
+        let spinner = Self::new_spinner(message);
+
+        let result = operation.await;
+
+        match &result {
+            Ok(_) => {
+                spinner.finish_with_message(format!("{} {}", "[SUCCESS]".green().bold(), message));
+            }
+            Err(e) => {
+                spinner.finish_with_message(format!(
+                    "{} {}: {}",
+                    "[ERROR]".red().bold(),
+                    message,
+                    e
+                ));
+            }
+        }
+
+        result
+    }
+
+    /// Progress decorator for async operations with custom success/error messages
+    pub async fn with_progress_messages<F, T, E>(
+        loading_message: &str,
+        success_message: &str,
+        error_message: &str,
+        operation: F,
+    ) -> Result<T, E>
+    where
+        F: Future<Output = Result<T, E>>,
+        E: std::fmt::Display,
+    {
+        let spinner = Self::new_spinner(loading_message);
+
+        let result = operation.await;
+
+        match &result {
+            Ok(_) => {
+                spinner.finish_with_message(format!(
+                    "{} {}",
+                    "[SUCCESS]".green().bold(),
+                    success_message
+                ));
+            }
+            Err(e) => {
+                spinner.finish_with_message(format!(
+                    "{} {}: {}",
+                    "[ERROR]".red().bold(),
+                    error_message,
+                    e
+                ));
+            }
+        }
+
+        result
+    }
+
+    /// Progress decorator for operations that return progress updates
+    /// Useful for operations that can report their progress
+    pub async fn with_detailed_progress<F, T, E>(
+        initial_message: &str,
+        operation: F,
+    ) -> Result<T, E>
+    where
+        F: Future<Output = Result<T, E>>,
+        E: std::fmt::Display,
+    {
+        let progress_bar = ProgressBar::new_spinner();
+        progress_bar.set_style(
+            ProgressStyle::with_template("{spinner:.green} {msg}")
+                .unwrap()
+                .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
+        );
+        progress_bar.set_message(initial_message.to_string());
+        progress_bar.enable_steady_tick(Duration::from_millis(100));
+
+        let result = operation.await;
+
+        match &result {
+            Ok(_) => {
+                progress_bar.finish_with_message(format!(
+                    "{} Operation completed",
+                    "[SUCCESS]".green().bold()
+                ));
+            }
+            Err(e) => {
+                progress_bar.finish_with_message(format!(
+                    "{} Operation failed: {}",
+                    "[ERROR]".red().bold(),
+                    e
+                ));
+            }
+        }
+
+        result
     }
 
     /// Select from options
@@ -226,4 +331,25 @@ impl UI {
         let command = format!("{} {}", tool, args.join(" "));
         Self::step(&format!("Running: {}", command.bright_white()));
     }
+}
+
+/// Macro for easy progress decoration
+/// Usage: progress_wrap!("Loading...", async_operation())
+#[macro_export]
+macro_rules! progress_wrap {
+    ($message:expr, $operation:expr) => {
+        $crate::ui::UI::with_progress($message, $operation).await
+    };
+    ($loading:expr, $success:expr, $error:expr, $operation:expr) => {
+        $crate::ui::UI::with_progress_messages($loading, $success, $error, $operation).await
+    };
+}
+
+/// Macro for detailed progress decoration
+/// Usage: detailed_progress!("Processing...", async_operation())
+#[macro_export]
+macro_rules! detailed_progress {
+    ($message:expr, $operation:expr) => {
+        $crate::ui::UI::with_detailed_progress($message, $operation).await
+    };
 }

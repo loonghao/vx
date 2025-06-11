@@ -1,0 +1,112 @@
+# UV Plugin Configuration
+# This file defines how vx manages the UV Python package installer
+
+[metadata]
+name = "uv"
+version = "1.0.0"
+description = "An extremely fast Python package installer and resolver"
+author = "vx team"
+homepage = "https://docs.astral.sh/uv/"
+repository = "https://github.com/astral-sh/uv"
+license = "Apache-2.0"
+keywords = ["uv", "python", "package", "installer"]
+
+# Version definitions
+[versions.latest]
+version = "0.1.0"
+is_lts = false
+is_latest = true
+download_sources = ["github_releases", "official_installer"]
+
+[versions."0.1.0"]
+version = "0.1.0"
+release_date = "2024-01-15"
+is_lts = false
+is_latest = true
+download_sources = ["github_releases", "official_installer"]
+
+[versions."0.0.9"]
+version = "0.0.9"
+release_date = "2024-01-10"
+is_lts = false
+is_latest = false
+download_sources = ["github_releases"]
+
+# Download sources configuration
+[download_sources.github_releases]
+name = "GitHub Releases"
+platform = "all"
+arch = "x86_64"
+url_template = "https://github.com/astral-sh/uv/releases/download/{version}/uv-{platform}-{arch}.{ext}"
+checksum_url = "https://github.com/astral-sh/uv/releases/download/{version}/uv-{platform}-{arch}.{ext}.sha256"
+
+[download_sources.official_installer]
+name = "Official Installer Script"
+platform = "unix"
+arch = "all"
+url_template = "https://astral.sh/uv/install.sh"
+
+[download_sources.homebrew]
+name = "Homebrew"
+platform = "macos"
+arch = "all"
+url_template = "brew://uv"
+
+[download_sources.winget]
+name = "Windows Package Manager"
+platform = "windows"
+arch = "all"
+url_template = "winget://astral-sh.uv"
+
+# Installation methods
+[install_methods.archive_windows]
+name = "Archive Extraction (Windows)"
+method_type = "archive"
+platform = "windows"
+commands = ["extract_zip"]
+post_install = ["add_to_path"]
+
+[install_methods.archive_unix]
+name = "Archive Extraction (Unix)"
+method_type = "archive"
+platform = "unix"
+commands = ["extract_tar_gz"]
+post_install = ["chmod +x uv", "add_to_path"]
+
+[install_methods.script_installer]
+name = "Official Script Installer"
+method_type = "script"
+platform = "unix"
+commands = ["curl -LsSf https://astral.sh/uv/install.sh | sh"]
+post_install = ["source ~/.bashrc"]
+
+[install_methods.package_manager_brew]
+name = "Homebrew Package Manager"
+method_type = "package_manager"
+platform = "macos"
+commands = ["brew install uv"]
+
+[install_methods.package_manager_winget]
+name = "Windows Package Manager"
+method_type = "package_manager"
+platform = "windows"
+commands = ["winget install astral-sh.uv"]
+
+# Registry configurations for alternative sources
+[registries.official]
+name = "Official"
+base_url = "https://github.com/astral-sh/uv"
+api_url = "https://api.github.com/repos/astral-sh/uv"
+priority = 100
+
+[registries.mirror_china]
+name = "China Mirror"
+base_url = "https://mirrors.tuna.tsinghua.edu.cn/github-release/astral-sh/uv"
+priority = 50
+
+[registries.custom]
+name = "Custom Registry"
+base_url = "https://your-custom-registry.com/uv"
+api_url = "https://your-custom-registry.com/api/uv"
+auth_token = "${UV_REGISTRY_TOKEN}"
+priority = 75

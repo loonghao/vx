@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Package {
     pub name: String,
     pub version: String,
@@ -15,7 +15,13 @@ pub struct Package {
     pub metadata: PackageMetadata,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl std::fmt::Display for Package {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.version)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PackageMetadata {
     pub description: String,
     pub homepage: Option<String>,
@@ -94,7 +100,7 @@ impl PackageManager {
         self.registry
             .packages
             .entry(tool_name.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(package.clone());
 
         // Set as active version if it's the first or latest
@@ -304,6 +310,25 @@ impl PackageManager {
             total_size,
             last_updated: self.registry.last_updated,
         }
+    }
+
+    /// Get the installation path for a specific version of a tool
+    pub fn get_version_path(&self, tool_name: &str, version: &Package) -> Result<PathBuf> {
+        if let Some(versions) = self.registry.packages.get(tool_name) {
+            if let Some(package) = versions.iter().find(|p| p.version == version.version) {
+                return Ok(package.install_path.clone());
+            }
+        }
+        Err(anyhow::anyhow!(
+            "Version {} of {} not found",
+            version.version,
+            tool_name
+        ))
+    }
+
+    /// List all installed tools (unique tool names)
+    pub fn list_installed_tools(&self) -> Result<Vec<String>> {
+        Ok(self.registry.packages.keys().cloned().collect())
     }
 }
 
