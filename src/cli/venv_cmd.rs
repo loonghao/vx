@@ -165,7 +165,7 @@ async fn remove_venv(manager: &VenvManager, name: &str, force: bool) -> Result<(
         use dialoguer::Confirm;
 
         let confirm = Confirm::new()
-            .with_prompt(&format!(
+            .with_prompt(format!(
                 "Are you sure you want to remove virtual environment '{}'?",
                 name
             ))

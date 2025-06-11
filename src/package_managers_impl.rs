@@ -73,7 +73,7 @@ impl UniversalPackageManager for NpmPackageManager {
 
     fn list_packages(&self) -> Result<Vec<PackageInfo>> {
         let output = Command::new("npm")
-            .args(&["list", "--json", "--depth=0"])
+            .args(["list", "--json", "--depth=0"])
             .output()?;
 
         if !output.status.success() {
@@ -114,7 +114,7 @@ impl UniversalPackageManager for NpmPackageManager {
 
     fn search_packages(&self, query: &str) -> Result<Vec<PackageInfo>> {
         let output = Command::new("npm")
-            .args(&["search", query, "--json"])
+            .args(["search", query, "--json"])
             .output()?;
 
         if !output.status.success() {
@@ -236,7 +236,7 @@ impl UniversalPackageManager for HomebrewPackageManager {
     fn remove_packages(&self, packages: &[String]) -> Result<()> {
         for package in packages {
             let status = Command::new("brew")
-                .args(&["uninstall", package])
+                .args(["uninstall", package])
                 .status()?;
             if !status.success() {
                 return Err(anyhow::anyhow!("brew uninstall failed for {}", package));
@@ -246,7 +246,7 @@ impl UniversalPackageManager for HomebrewPackageManager {
     }
 
     fn list_packages(&self) -> Result<Vec<PackageInfo>> {
-        let output = Command::new("brew").args(&["list", "--json"]).output()?;
+        let output = Command::new("brew").args(["list", "--json"]).output()?;
 
         if !output.status.success() {
             return Err(anyhow::anyhow!("brew list failed"));
@@ -294,7 +294,7 @@ impl UniversalPackageManager for HomebrewPackageManager {
 
     fn search_packages(&self, query: &str) -> Result<Vec<PackageInfo>> {
         let output = Command::new("brew")
-            .args(&["search", query, "--json"])
+            .args(["search", query, "--json"])
             .output()?;
 
         if !output.status.success() {
@@ -337,14 +337,14 @@ impl UniversalPackageManager for HomebrewPackageManager {
     fn update_packages(&self, packages: &[String]) -> Result<()> {
         if packages.is_empty() {
             // Update all packages
-            let status = Command::new("brew").args(&["upgrade"]).status()?;
+            let status = Command::new("brew").args(["upgrade"]).status()?;
             if !status.success() {
                 return Err(anyhow::anyhow!("brew upgrade failed"));
             }
         } else {
             // Update specific packages
             for package in packages {
-                let status = Command::new("brew").args(&["upgrade", package]).status()?;
+                let status = Command::new("brew").args(["upgrade", package]).status()?;
                 if !status.success() {
                     return Err(anyhow::anyhow!("brew upgrade failed for {}", package));
                 }
@@ -423,7 +423,7 @@ impl UniversalPackageManager for RezPackageManager {
 
     fn list_packages(&self) -> Result<Vec<PackageInfo>> {
         let output = Command::new("rez")
-            .args(&["search", "--format", "json"])
+            .args(["search", "--format", "json"])
             .output()?;
 
         if !output.status.success() {
@@ -437,7 +437,7 @@ impl UniversalPackageManager for RezPackageManager {
 
     fn search_packages(&self, query: &str) -> Result<Vec<PackageInfo>> {
         let output = Command::new("rez")
-            .args(&["search", query, "--format", "json"])
+            .args(["search", query, "--format", "json"])
             .output()?;
 
         if !output.status.success() {

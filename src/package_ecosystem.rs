@@ -197,7 +197,7 @@ impl PackageEcosystemRegistry {
         let ecosystem = manager.ecosystem();
         self.managers
             .entry(ecosystem)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(manager);
     }
 

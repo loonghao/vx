@@ -10,16 +10,14 @@ pub async fn handle(tool: String, version: Option<String>, force: bool) -> Resul
     let version = version.unwrap_or_else(|| "latest".to_string());
 
     // Check if already installed (only for system tools when not forcing)
-    if !force {
-        if which::which(&tool).is_ok() {
-            // Check if it's a vx-managed package
-            let package_manager = crate::package_manager::PackageManager::new()?;
-            let vx_versions = package_manager.list_versions(&tool);
-            if vx_versions.is_empty() {
-                UI::success(&format!("{} is already installed (system)", tool));
-                UI::hint("Use --force to install vx-managed version");
-                return Ok(());
-            }
+    if !force && which::which(&tool).is_ok() {
+        // Check if it's a vx-managed package
+        let package_manager = crate::package_manager::PackageManager::new()?;
+        let vx_versions = package_manager.list_versions(&tool);
+        if vx_versions.is_empty() {
+            UI::success(&format!("{} is already installed (system)", tool));
+            UI::hint("Use --force to install vx-managed version");
+            return Ok(());
         }
     }
 
