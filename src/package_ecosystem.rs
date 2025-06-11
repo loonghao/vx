@@ -195,10 +195,7 @@ impl PackageEcosystemRegistry {
     /// Register a package manager for an ecosystem
     pub fn register_manager(&mut self, manager: Box<dyn UniversalPackageManager>) {
         let ecosystem = manager.ecosystem();
-        self.managers
-            .entry(ecosystem)
-            .or_default()
-            .push(manager);
+        self.managers.entry(ecosystem).or_default().push(manager);
     }
 
     /// Get all package managers for an ecosystem

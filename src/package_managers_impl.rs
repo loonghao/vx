@@ -235,9 +235,7 @@ impl UniversalPackageManager for HomebrewPackageManager {
 
     fn remove_packages(&self, packages: &[String]) -> Result<()> {
         for package in packages {
-            let status = Command::new("brew")
-                .args(["uninstall", package])
-                .status()?;
+            let status = Command::new("brew").args(["uninstall", package]).status()?;
             if !status.success() {
                 return Err(anyhow::anyhow!("brew uninstall failed for {}", package));
             }
