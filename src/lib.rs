@@ -13,6 +13,7 @@ pub mod tools;
 pub mod tracing_setup;
 pub mod ui;
 pub mod universal_package_router;
+pub mod venv;
 pub mod version;
 
 // Re-export tracing setup function

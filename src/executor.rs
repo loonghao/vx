@@ -1,5 +1,5 @@
 use crate::package_manager::{Package, PackageManager};
-use crate::package_managers::{PackageManagerRouter, ProjectPackageManager};
+use crate::universal_package_router::UniversalPackageRouter;
 use crate::tool_manager::ToolManager;
 use crate::ui::UI;
 use anyhow::Result;
@@ -10,7 +10,7 @@ use which::which;
 pub struct Executor {
     tool_manager: Option<ToolManager>,
     package_manager: Option<PackageManager>,
-    pm_router: Option<PackageManagerRouter>,
+    pm_router: Option<UniversalPackageRouter>,
 }
 
 impl Executor {
@@ -47,9 +47,9 @@ impl Executor {
     }
 
     /// Lazy initialization of package manager router
-    fn ensure_pm_router(&mut self) -> &PackageManagerRouter {
+    fn ensure_pm_router(&mut self) -> &UniversalPackageRouter {
         if self.pm_router.is_none() {
-            self.pm_router = Some(PackageManagerRouter::new());
+            self.pm_router = Some(UniversalPackageRouter::new());
         }
         self.pm_router.as_ref().unwrap()
     }
@@ -78,9 +78,11 @@ impl Executor {
 
         // Check if this is a package manager command
         let pm_router = self.ensure_pm_router();
-        if pm_router.registry.has(tool_name) {
+        if pm_router.has_manager(tool_name) {
             // Route to package manager
-            return match pm_router.route_command(tool_name, args) {
+            let mut full_args = vec![tool_name.to_string()];
+            full_args.extend_from_slice(args);
+            return match pm_router.route_command(&full_args) {
                 Ok(_) => Ok(0),
                 Err(e) => {
                     UI::error(&format!("Package manager command failed: {}", e));
@@ -94,13 +96,16 @@ impl Executor {
             match first_arg.as_str() {
                 "install" | "add" | "remove" | "update" | "run" => {
                     // Try to auto-detect package manager for the project
-                    return match pm_router.auto_route_command(first_arg, &args[1..]) {
-                        Ok(_) => Ok(0),
+                    // Try to auto-detect package manager for the project
+                    let mut full_args = vec![first_arg.to_string()];
+                    full_args.extend_from_slice(&args[1..]);
+                    match pm_router.route_command(&full_args) {
+                        Ok(_) => return Ok(0),
                         Err(e) => {
                             UI::warning(&format!("Auto package manager routing failed: {}", e));
                             // Continue with normal tool execution
                         }
-                    };
+                    }
                 }
                 _ => {}
             }
@@ -114,20 +119,16 @@ impl Executor {
             match tool_manager.execute_tool(tool_name, args) {
                 Ok(exit_code) => return Ok(exit_code),
                 Err(e) => {
-                    UI::warning(&format!("vx-managed execution failed: {}", e));
-                    // Fallback to system tool if available
-                    if let Ok(tool_path) = which(tool_name) {
-                        UI::info(&format!("Using {} (system installed)", tool_name));
-                        return self.run_command(&tool_path.to_string_lossy(), args).await;
-                    }
+                    // In environment isolation mode, do NOT fallback to system tools
+                    return Err(anyhow::anyhow!(
+                        "vx-managed execution failed: {}. Use --use-system-path to fallback to system tools.",
+                        e
+                    ));
                 }
             }
         } else {
-            // Tool is not supported, check system
-            if let Ok(tool_path) = which(tool_name) {
-                UI::info(&format!("Using {} (system installed)", tool_name));
-                return self.run_command(&tool_path.to_string_lossy(), args).await;
-            }
+            // Tool is not supported by vx, do NOT fallback to system in isolation mode
+            // This maintains environment isolation
         }
 
         // Provide helpful error message with available tools

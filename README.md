@@ -11,6 +11,22 @@
 
 > 🚀 The ultimate development tool manager - One tool to rule them all
 
+## ⚠️ Early Development Stage
+
+**This project is currently in early experimental development stage.** Features and APIs may change significantly between versions. Use with caution in production environments.
+
+- 🔬 **Experimental**: Core features are being actively developed and tested
+- 🚧 **Breaking Changes**: APIs and configurations may change without notice
+- 📝 **Feedback Welcome**: Please report issues and share your experience
+- 🎯 **MVP Focus**: Currently supports UV, Node.js, Go, and Rust tools
+
+### Current Limitations
+
+- **Environment Isolation**: Not fully implemented yet. Tools may fallback to system installations
+- **Tool Installation**: Auto-installation feature is under development
+- **Version Management**: Basic version switching is available but needs improvement
+- **Configuration**: Project-specific configurations are partially supported
+
 `vx` is a powerful, fast, and extensible development tool manager that provides a unified interface for managing, installing, and executing development tools across different languages and ecosystems. Think of it as a combination of `nvm`, `rustup`, `pyenv`, and package managers, all in one lightning-fast tool.
 
 ## ✨ Features
