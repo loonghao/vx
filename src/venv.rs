@@ -118,9 +118,11 @@ impl VenvManager {
 
     /// Deactivate current virtual environment
     pub fn deactivate() -> String {
-        ["unset VX_VENV",
+        [
+            "unset VX_VENV",
             "# Restore original PATH (implementation needed)",
-            "# Restore original PS1 (implementation needed)"]
+            "# Restore original PS1 (implementation needed)",
+        ]
         .join("\n")
     }
 
