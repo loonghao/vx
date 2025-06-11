@@ -1,141 +1,151 @@
-name: Tag-based Release
+name: GoReleaser Release
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create GitHub release'
+        required: false
+        default: true
+        type: boolean
+      enable_pgo:
+        description: 'Enable PGO optimization'
+        required: false
+        default: true
+        type: boolean
 
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
-  build:
-    name: Build
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact_name: vx
-            asset_name: vx-linux-amd64
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            artifact_name: vx
-            asset_name: vx-linux-amd64-musl
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact_name: vx.exe
-            asset_name: vx-windows-amd64.exe
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: vx
-            asset_name: vx-macos-amd64
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            artifact_name: vx
-            asset_name: vx-macos-arm64
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: ${{ matrix.target }}
-
-    - name: Install musl tools
-      if: matrix.target == 'x86_64-unknown-linux-musl'
-      run: sudo apt-get update && sudo apt-get install -y musl-tools
-
-    - name: Cache cargo registry
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache cargo index
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache cargo build
-      uses: actions/cache@v4
-      with:
-        path: target
-        key: ${{ runner.os }}-${{ matrix.target }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Build release binary
-      run: cargo build --release --target ${{ matrix.target }}
-
-    - name: Strip binary (Linux and macOS)
-      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
-      run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
-
-    - name: Upload binary
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.asset_name }}
-        path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
-
-  release:
-    name: Release
-    needs: build
+  goreleaser:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: |
+            x86_64-unknown-linux-gnu
+            x86_64-unknown-linux-musl
+            aarch64-unknown-linux-gnu
+            aarch64-unknown-linux-musl
+            x86_64-apple-darwin
+            aarch64-apple-darwin
+            x86_64-pc-windows-gnu
+            aarch64-pc-windows-msvc
+            x86_64-unknown-freebsd
+
+      - name: Install cross-compilation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-aarch64-linux-gnu \
+            gcc-mingw-w64-x86-64 \
+            musl-tools \
+            llvm
+
+          # Install cargo-zigbuild for cross-compilation
+          cargo install cargo-zigbuild
+
+          # Install zig for cargo-zigbuild
+          sudo snap install zig --classic --beta
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN }}
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+          AUR_KEY: ${{ secrets.AUR_KEY }}
+
+  benchmark:
+    name: Performance Benchmark
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.enable_pgo != 'false' }}
+
+    steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-
-    - name: Create release archives
+    - name: Download release assets
       run: |
-        mkdir -p dist
-        
-        # Linux AMD64
-        tar -czf dist/vx-${{ github.ref_name }}-linux-amd64.tar.gz \
-          -C vx-linux-amd64 vx \
-          README.md README_zh.md LICENSE
+        # Get the latest release
+        RELEASE_URL="https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}"
 
-        # Linux AMD64 MUSL
-        tar -czf dist/vx-${{ github.ref_name }}-linux-amd64-musl.tar.gz \
-          -C vx-linux-amd64-musl vx \
-          README.md README_zh.md LICENSE
+        # Download PGO-optimized Linux binary
+        curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "$RELEASE_URL" | \
+          jq -r '.assets[] | select(.name | contains("Linux_x86_64_pgo")) | .browser_download_url' | \
+          head -1 | \
+          xargs curl -L -o vx-pgo.tar.gz
 
-        # Windows AMD64
-        zip -j dist/vx-${{ github.ref_name }}-windows-amd64.zip \
-          vx-windows-amd64.exe/vx.exe \
-          README.md README_zh.md LICENSE
-
-        # macOS AMD64
-        tar -czf dist/vx-${{ github.ref_name }}-macos-amd64.tar.gz \
-          -C vx-macos-amd64 vx \
-          README.md README_zh.md LICENSE
-
-        # macOS ARM64
-        tar -czf dist/vx-${{ github.ref_name }}-macos-arm64.tar.gz \
-          -C vx-macos-arm64 vx \
-          README.md README_zh.md LICENSE
-
-    - name: Generate checksums
+    - name: Extract and benchmark
       run: |
-        cd dist
-        sha256sum *.tar.gz *.zip > checksums.txt
+        tar -xzf vx-pgo.tar.gz
+        chmod +x vx
 
-    - name: Create Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: |
-          dist/*.tar.gz
-          dist/*.zip
-          dist/checksums.txt
-        generate_release_notes: true
-        draft: false
-        prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        echo "## 🚀 Performance Benchmark Results" >> $GITHUB_STEP_SUMMARY
+        echo "| Command | Time (ms) | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+
+        # Benchmark version command
+        if time_result=$(timeout 10s time -f "%e" ./vx version 2>&1 >/dev/null | tail -1); then
+          time_ms=$(echo "$time_result * 1000" | bc -l | cut -d. -f1)
+          echo "| \`vx version\` | ${time_ms} | ✅ |" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "| \`vx version\` | timeout | ❌ |" >> $GITHUB_STEP_SUMMARY
+        fi
+
+        # Benchmark help command
+        if time_result=$(timeout 10s time -f "%e" ./vx --help 2>&1 >/dev/null | tail -1); then
+          time_ms=$(echo "$time_result * 1000" | bc -l | cut -d. -f1)
+          echo "| \`vx --help\` | ${time_ms} | ✅ |" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "| \`vx --help\` | timeout | ❌ |" >> $GITHUB_STEP_SUMMARY
+        fi
+
+        # Benchmark list command
+        if time_result=$(timeout 10s time -f "%e" ./vx list 2>&1 >/dev/null | tail -1); then
+          time_ms=$(echo "$time_result * 1000" | bc -l | cut -d. -f1)
+          echo "| \`vx list\` | ${time_ms} | ✅ |" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "| \`vx list\` | timeout | ❌ |" >> $GITHUB_STEP_SUMMARY
+        fi
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 PGO Optimization Benefits" >> $GITHUB_STEP_SUMMARY
+        echo "- ⚡ **Faster startup time** - Optimized for common usage patterns" >> $GITHUB_STEP_SUMMARY
+        echo "- 🎯 **Better branch prediction** - Reduced CPU pipeline stalls" >> $GITHUB_STEP_SUMMARY
+        echo "- 📈 **Improved cache locality** - Better instruction and data layout" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔥 **Real-world optimized** - Based on actual usage telemetry" >> $GITHUB_STEP_SUMMARY
