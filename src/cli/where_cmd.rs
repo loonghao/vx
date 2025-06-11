@@ -131,7 +131,7 @@ async fn show_all_installations(tool: &str) -> Result<()> {
                             let size = metadata.len();
                             let modified = metadata
                                 .modified()
-                                .map(|t| format!("{:?}", t))
+                                .map(|t| format!("{t:?}"))
                                 .unwrap_or_else(|_| "unknown".to_string());
                             println!("    Size: {size} bytes, Modified: {modified}");
                         }

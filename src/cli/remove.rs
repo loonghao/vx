@@ -8,9 +8,9 @@ pub async fn handle(tool: String, version: Option<String>, force: bool) -> Resul
 
     if !force {
         let confirmation_message = if let Some(version) = &version {
-            format!("Remove {} version {}?", tool, version)
+            format!("Remove {tool} version {version}?")
         } else {
-            format!("Remove all versions of {}?", tool)
+            format!("Remove all versions of {tool}?")
         };
 
         if !UI::confirm(&confirmation_message, false)? {
@@ -20,21 +20,21 @@ pub async fn handle(tool: String, version: Option<String>, force: bool) -> Resul
     }
 
     let spinner = if let Some(version) = &version {
-        UI::new_spinner(&format!("Removing {} version {}...", tool, version))
+        UI::new_spinner(&format!("Removing {tool} version {version}..."))
     } else {
-        UI::new_spinner(&format!("Removing all versions of {}...", tool))
+        UI::new_spinner(&format!("Removing all versions of {tool}..."))
     };
 
     match version {
         Some(version) => {
             executor.remove_version(&tool, &version)?;
             spinner.finish_and_clear();
-            UI::success(&format!("Removed {} version {}", tool, version));
+            UI::success(&format!("Removed {tool} version {version}"));
         }
         None => {
             executor.remove_tool(&tool)?;
             spinner.finish_and_clear();
-            UI::success(&format!("Removed all versions of {}", tool));
+            UI::success(&format!("Removed all versions of {tool}"));
         }
     }
 

@@ -15,7 +15,7 @@ pub async fn handle(
     detailed: bool,
     interactive: bool,
 ) -> Result<()> {
-    UI::header(&format!("Available versions for {}", tool));
+    UI::header(&format!("Available versions for {tool}"));
 
     // Clone tool for use in async blocks
     let tool_clone = tool.clone();
@@ -31,7 +31,7 @@ pub async fn handle(
     .await?;
 
     if versions.is_empty() {
-        UI::warning(&format!("No versions found for tool '{}'", tool));
+        UI::warning(&format!("No versions found for tool '{tool}'"));
         UI::hint("Check if the tool name is correct");
         UI::hint("Run 'vx list --all' to see supported tools");
         return Ok(());
@@ -138,7 +138,7 @@ async fn display_versions_list(
                 version.version,
                 status_str,
                 if let Some(date) = &version.release_date {
-                    format!(" ({})", date)
+                    format!(" ({date})")
                 } else {
                     String::new()
                 }
@@ -150,7 +150,7 @@ async fn display_versions_list(
                 } else {
                     notes.clone()
                 };
-                println!("    {}", truncated_notes);
+                println!("    {truncated_notes}");
             }
         } else {
             println!("  {} {}{}", icon, version.version, status_str);
@@ -182,10 +182,9 @@ async fn display_versions_list(
     }
 
     UI::hint(&format!(
-        "Install specific version: vx install {}@<version>",
-        tool
+        "Install specific version: vx install {tool}@<version>"
     ));
-    UI::hint(&format!("Switch version: vx switch {}@<version>", tool));
+    UI::hint(&format!("Switch version: vx switch {tool}@<version>"));
 
     Ok(())
 }
@@ -241,8 +240,7 @@ async fn handle_interactive_selection(
 
     let selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt(format!(
-            "Select a version of {} to install/switch to:",
-            tool
+            "Select a version of {tool} to install/switch to:"
         ))
         .items(&all_items)
         .default(0)
@@ -319,7 +317,7 @@ async fn handle_interactive_selection(
 }
 
 async fn fetch_tool_versions(tool: &str, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
-    let spinner = UI::new_spinner(&format!("Fetching versions for {}...", tool));
+    let spinner = UI::new_spinner(&format!("Fetching versions for {tool}..."));
 
     let versions = match tool {
         "uv" => fetch_uv_versions(include_prerelease).await?,

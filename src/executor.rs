@@ -64,12 +64,11 @@ impl Executor {
         if use_system_path {
             // When --use-system-path is specified, ONLY use system tools
             if let Ok(tool_path) = which(tool_name) {
-                UI::info(&format!("Using {} (system installed)", tool_name));
+                UI::info(&format!("Using {tool_name} (system installed)"));
                 return self.run_command(&tool_path.to_string_lossy(), args).await;
             } else {
                 return Err(anyhow::anyhow!(
-                    "Tool '{}' not found in system PATH",
-                    tool_name
+                    "Tool '{tool_name}' not found in system PATH"
                 ));
             }
         }
@@ -85,7 +84,7 @@ impl Executor {
             return match pm_router.route_command(&full_args) {
                 Ok(_) => Ok(0),
                 Err(e) => {
-                    UI::error(&format!("Package manager command failed: {}", e));
+                    UI::error(&format!("Package manager command failed: {e}"));
                     Ok(1)
                 }
             };
@@ -102,7 +101,7 @@ impl Executor {
                     match pm_router.route_command(&full_args) {
                         Ok(_) => return Ok(0),
                         Err(e) => {
-                            UI::warning(&format!("Auto package manager routing failed: {}", e));
+                            UI::warning(&format!("Auto package manager routing failed: {e}"));
                             // Continue with normal tool execution
                         }
                     }
@@ -133,19 +132,18 @@ impl Executor {
 
         // Provide helpful error message with available tools
         let available_tools = self.list_tools()?;
-        let mut error_msg = format!("Tool '{}' not found.", tool_name);
+        let mut error_msg = format!("Tool '{tool_name}' not found.");
 
         if !available_tools.is_empty() {
             error_msg.push_str("\n\nSupported tools:");
             for tool in &available_tools {
-                error_msg.push_str(&format!("\n  * {}", tool));
+                error_msg.push_str(&format!("\n  * {tool}"));
             }
 
             // Check if this tool is supported
             if available_tools.contains(&tool_name.to_string()) {
                 error_msg.push_str(&format!(
-                    "\n\nTo install {}, run: vx install {}",
-                    tool_name, tool_name
+                    "\n\nTo install {tool_name}, run: vx install {tool_name}"
                 ));
             }
         }
@@ -170,7 +168,7 @@ impl Executor {
         tool_manager.install_tool(tool_name)?;
 
         // Return a dummy path for now - this should be improved
-        Ok(std::path::PathBuf::from(format!("/tmp/{}", tool_name)))
+        Ok(std::path::PathBuf::from(format!("/tmp/{tool_name}")))
     }
 
     /// Switch to a different version of a tool
@@ -198,7 +196,7 @@ impl Executor {
             package_manager.remove_version(tool_name, &version)?;
         }
 
-        UI::success(&format!("Removed all versions of {}", tool_name));
+        UI::success(&format!("Removed all versions of {tool_name}"));
         Ok(())
     }
 
@@ -279,15 +277,15 @@ impl Executor {
         let tool_manager = self.ensure_tool_manager()?;
 
         if tool_manager.has_tool(tool_name) {
-            let spinner = UI::new_spinner(&format!("Checking {} status...", tool_name));
+            let spinner = UI::new_spinner(&format!("Checking {tool_name} status..."));
             let status = tool_manager.check_tool_status(tool_name)?;
             spinner.finish_and_clear();
 
             if status.installed {
                 if let Some(version) = &status.current_version {
-                    UI::success(&format!("{} {} is installed", tool_name, version));
+                    UI::success(&format!("{tool_name} {version} is installed"));
                 } else {
-                    UI::success(&format!("{} is installed", tool_name));
+                    UI::success(&format!("{tool_name} is installed"));
                 }
             } else {
                 UI::error(&format!("{tool_name} is not installed"));
@@ -296,7 +294,7 @@ impl Executor {
                 }
             }
         } else {
-            return Err(anyhow::anyhow!("Unsupported tool: {}", tool_name));
+            return Err(anyhow::anyhow!("Unsupported tool: {tool_name}"));
         }
 
         Ok(())

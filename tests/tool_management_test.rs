@@ -62,12 +62,12 @@ async fn test_tool_status_operations() {
 
             match status_result {
                 Ok(status) => {
-                    println!("Status for {}: {:?}", tool_name, status);
+                    println!("Status for {tool_name}: {status:?}");
                     assert_eq!(status.name, *tool_name);
                     assert!(status.supports_auto_install);
                 }
                 Err(e) => {
-                    println!("Status check for {} failed: {}", tool_name, e);
+                    println!("Status check for {tool_name} failed: {e}");
                 }
             }
         }
@@ -83,7 +83,7 @@ async fn test_tool_info_retrieval() {
         if tool_manager.has_tool(tool_name) {
             // Test getting tool info
             let tool_info = tool_manager.get_tool_info(tool_name);
-            assert!(tool_info.is_ok(), "Should get tool info for {}", tool_name);
+            assert!(tool_info.is_ok(), "Should get tool info for {tool_name}");
 
             let info = tool_info.unwrap();
             assert_eq!(info.name, *tool_name);
@@ -124,7 +124,7 @@ async fn test_tool_configuration() {
     for tool_name in &["uv", "node"] {
         if tool_manager.has_tool(tool_name) {
             let tool_config = config.get_tool_config(tool_name);
-            println!("Configuration for {}: {:?}", tool_name, tool_config);
+            println!("Configuration for {tool_name}: {tool_config:?}");
         }
     }
 }
@@ -141,15 +141,15 @@ async fn test_tool_status_summary() {
             match status {
                 Ok(status) => {
                     let summary = status.summary();
-                    println!("Status summary for {}: {}", tool_name, summary);
+                    println!("Status summary for {tool_name}: {summary}");
                     assert!(summary.contains(tool_name));
 
                     // Test needs_action method
                     let needs_action = status.needs_action();
-                    println!("Tool {} needs action: {}", tool_name, needs_action);
+                    println!("Tool {tool_name} needs action: {needs_action}");
                 }
                 Err(e) => {
-                    println!("Failed to get status for {}: {}", tool_name, e);
+                    println!("Failed to get status for {tool_name}: {e}");
                 }
             }
         }
@@ -167,7 +167,7 @@ async fn test_config_reload() {
             println!("Configuration reloaded successfully");
         }
         Err(e) => {
-            println!("Configuration reload failed: {}", e);
+            println!("Configuration reload failed: {e}");
         }
     }
 

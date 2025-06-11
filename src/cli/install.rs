@@ -15,7 +15,7 @@ pub async fn handle(tool: String, version: Option<String>, force: bool) -> Resul
         let package_manager = crate::package_manager::PackageManager::new()?;
         let vx_versions = package_manager.list_versions(&tool);
         if vx_versions.is_empty() {
-            UI::success(&format!("{} is already installed (system)", tool));
+            UI::success(&format!("{tool} is already installed (system)"));
             UI::hint("Use --force to install vx-managed version");
             return Ok(());
         }
@@ -43,8 +43,7 @@ pub async fn handle(tool: String, version: Option<String>, force: bool) -> Resul
     if let Some(parent) = path.parent() {
         UI::hint(&format!("Make sure {} is in your PATH", parent.display()));
         UI::hint(&format!(
-            "Or use 'vx {}' to run the vx-managed version",
-            tool
+            "Or use 'vx {tool}' to run the vx-managed version"
         ));
     }
 

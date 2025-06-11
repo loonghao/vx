@@ -26,15 +26,15 @@ pub async fn handle(tool: Option<String>, all: bool, detailed: bool) -> Result<(
 }
 
 async fn list_tool_versions(tool_name: &str, detailed: bool) -> Result<()> {
-    UI::header(&format!("Installed versions of {}", tool_name));
+    UI::header(&format!("Installed versions of {tool_name}"));
 
     // Get installed versions from package manager
     let package_manager = crate::package_manager::PackageManager::new()?;
     let versions = package_manager.list_versions(tool_name);
 
     if versions.is_empty() {
-        UI::warning(&format!("No versions of {} are installed", tool_name));
-        UI::hint(&format!("Install with: vx install {}", tool_name));
+        UI::warning(&format!("No versions of {tool_name} are installed"));
+        UI::hint(&format!("Install with: vx install {tool_name}"));
         return Ok(());
     }
 
@@ -58,13 +58,13 @@ async fn list_tool_versions(tool_name: &str, detailed: bool) -> Result<()> {
                 install_path.display()
             );
         } else {
-            println!("  {} {}", status_icon, version);
+            println!("  {status_icon} {version}");
         }
     }
 
     if let Some(active) = active_version {
         println!();
-        UI::info(&format!("Active version: {}", active));
+        UI::info(&format!("Active version: {active}"));
     }
 
     Ok(())
@@ -92,17 +92,17 @@ async fn list_installed_tools(_tool_manager: &ToolManager, detailed: bool) -> Re
             let total_size = calculate_tool_total_size(&package_manager, &tool_name)?;
             let size_str = format_size(total_size);
 
-            println!("  {} ({} versions, {})", tool_name, version_count, size_str);
+            println!("  {tool_name} ({version_count} versions, {size_str})");
 
             if let Some(active) = active_version {
-                println!("    → Active: {}", active);
+                println!("    → Active: {active}");
             }
         } else {
             let active_str = active_version
-                .map(|v| format!(" (active: {})", v))
+                .map(|v| format!(" (active: {v})"))
                 .unwrap_or_default();
 
-            println!("  {} ({} versions){}", tool_name, version_count, active_str);
+            println!("  {tool_name} ({version_count} versions){active_str}");
         }
     }
 
@@ -133,7 +133,7 @@ async fn list_all_tools(tool_manager: &ToolManager, detailed: bool) -> Result<()
             );
 
             if let Some(homepage) = &tool.homepage {
-                println!("    🌐 {}", homepage);
+                println!("    🌐 {homepage}");
             }
 
             if tool.supports_auto_install {
@@ -149,8 +149,7 @@ async fn list_all_tools(tool_manager: &ToolManager, detailed: bool) -> Result<()
 
     println!();
     UI::info(&format!(
-        "Installed: {}/{} tools",
-        installed_count, total_count
+        "Installed: {installed_count}/{total_count} tools"
     ));
 
     Ok(())
