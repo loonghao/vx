@@ -17,11 +17,15 @@ rust-version = "1.80.0"
 clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
-tokio = { version = "1.0", features = ["full"] }
+# Optimize tokio - only include needed features for better compile times
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "fs", "process"] }
+# Optimize reqwest - remove unnecessary features, add stream feature
 reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"], default-features = false }
 serde_json = "1.0"
 anyhow = "1.0"
 dirs = "6.0"
+# Optimize figment - only include needed features
+figment = { version = "0.10", features = ["toml", "env"] }
 which = "6.0"
 regex = "1.10"
 tempfile = "3.8"
@@ -29,6 +33,7 @@ zip = "0.6"
 tar = "0.4"
 flate2 = "1.0"
 walkdir = "2.4"
+# Optimize chrono - remove serde feature if not needed everywhere
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"
 indicatif = "0.17"
@@ -36,3 +41,41 @@ console = "0.15"
 colored = "2.1"
 dialoguer = "0.11"
 futures-util = "0.3"
+# Tracing ecosystem - standard for structured logging and spans
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-indicatif = "0.3"
+
+# Optimize compilation times
+[profile.dev]
+# Enable some optimizations for dependencies in debug mode
+opt-level = 1
+# Reduce debug info for faster compilation
+debug = 1
+
+[profile.release]
+# Full optimizations for release
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+# Fast compilation profile for development
+[profile.dev-fast]
+inherits = "dev"
+opt-level = 0
+debug = false
+incremental = true
+
+# PGO optimization profiles
+[profile.release-pgo]
+inherits = "release"
+lto = true
+codegen-units = 1
+panic = "abort"
+
+# Profile for PGO data collection
+[profile.pgo-gen]
+inherits = "release"
+debug = 1
+lto = false

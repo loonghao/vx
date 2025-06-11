@@ -133,7 +133,7 @@ impl VersionManager {
         Version::parse(version_str)
     }
 
-    fn extract_version_from_output(output: &str) -> Result<String> {
+    pub fn extract_version_from_output(output: &str) -> Result<String> {
         // Common patterns for version extraction
         let patterns = [
             r"(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?)",  // Standard semver
