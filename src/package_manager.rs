@@ -113,7 +113,7 @@ impl PackageManager {
         self.registry.last_updated = chrono::Utc::now();
         self.save_registry()?;
 
-        println!("📦 Installed {} {} to registry", tool_name, version);
+        println!("📦 Installed {tool_name} {version} to registry");
         Ok(())
     }
 
@@ -162,7 +162,7 @@ impl PackageManager {
         self.registry.last_updated = chrono::Utc::now();
         self.save_registry()?;
 
-        println!("🔄 Switched {} to version {}", tool_name, version);
+        println!("🔄 Switched {tool_name} to version {version}");
         println!("📍 Active path: {}", package.executable_path.display());
 
         Ok(())
@@ -202,7 +202,7 @@ impl PackageManager {
                     println!("🔄 Switched to version {}", latest.version);
                 } else {
                     self.registry.active_versions.remove(tool_name);
-                    println!("⚠️  No versions left for {}", tool_name);
+                    println!("⚠️  No versions left for {tool_name}");
                 }
             }
         }
@@ -215,7 +215,7 @@ impl PackageManager {
         self.registry.last_updated = chrono::Utc::now();
         self.save_registry()?;
 
-        println!("✅ Removed {} version {}", tool_name, version);
+        println!("✅ Removed {tool_name} version {version}");
         Ok(())
     }
 
@@ -263,7 +263,7 @@ impl PackageManager {
         if removed_count > 0 {
             self.registry.last_updated = chrono::Utc::now();
             self.save_registry()?;
-            println!("✅ Cleaned up {} orphaned packages", removed_count);
+            println!("✅ Cleaned up {removed_count} orphaned packages");
         } else {
             println!("✨ No cleanup needed");
         }

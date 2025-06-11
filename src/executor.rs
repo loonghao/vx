@@ -290,9 +290,9 @@ impl Executor {
                     UI::success(&format!("{} is installed", tool_name));
                 }
             } else {
-                UI::error(&format!("{} is not installed", tool_name));
+                UI::error(&format!("{tool_name} is not installed"));
                 if status.supports_auto_install {
-                    UI::hint(&format!("Run 'vx install {}' to install it", tool_name));
+                    UI::hint(&format!("Run 'vx install {tool_name}' to install it"));
                 }
             }
         } else {

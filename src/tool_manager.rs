@@ -63,7 +63,7 @@ impl ToolManager {
         // Check if tool is installed
         if !tool.is_installed()? {
             if tool.supports_auto_install() {
-                println!("🔧 Tool '{}' is not installed. Installing...", tool_name);
+                println!("🔧 Tool '{tool_name}' is not installed. Installing...");
                 self.install_tool(tool_name)?;
             } else {
                 return Err(anyhow!(
@@ -101,15 +101,12 @@ impl ToolManager {
         // Get download URL from configuration
         let download_url = self.config.get_download_url(tool_name, &version)?;
 
-        println!(
-            "📥 Downloading {} {} from {}",
-            tool_name, version, download_url
-        );
+        println!("📥 Downloading {tool_name} {version} from {download_url}");
 
         // Use the installer to install the tool
         crate::installer::install_tool(tool_name, &version, &download_url)?;
 
-        println!("✅ Successfully installed {} {}", tool_name, version);
+        println!("✅ Successfully installed {tool_name} {version}");
         Ok(())
     }
 

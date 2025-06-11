@@ -85,7 +85,7 @@ impl Installer {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Download URL not provided"))?;
 
-        UI::info(&format!("Downloading from {}", download_url));
+        UI::info(&format!("Downloading from {download_url}"));
 
         // Download to temporary file
         let temp_dir = TempDir::new()?;
@@ -150,7 +150,7 @@ impl Installer {
         manager: &str,
         package: &str,
     ) -> Result<PathBuf> {
-        UI::step(&format!("Installing {} using {}...", package, manager));
+        UI::step(&format!("Installing {package} using {manager}..."));
 
         let status = match manager {
             "chocolatey" | "choco" => Command::new("choco")
@@ -184,7 +184,7 @@ impl Installer {
         config: &InstallConfig,
         script_url: &str,
     ) -> Result<PathBuf> {
-        UI::step(&format!("Running installation script from {}", script_url));
+        UI::step(&format!("Running installation script from {script_url}"));
 
         let response = self.client.get(script_url).send().await?;
         let script_content = response.text().await?;
@@ -237,7 +237,7 @@ impl Installer {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Download URL not provided"))?;
 
-        UI::info(&format!("Downloading binary from {}", download_url));
+        UI::info(&format!("Downloading binary from {download_url}"));
 
         let response = self.client.get(download_url).send().await?;
 
@@ -345,7 +345,7 @@ impl Installer {
     /// Find executable in directory
     fn find_executable(&self, dir: &Path, tool_name: &str) -> Result<PathBuf> {
         let exe_name = if cfg!(windows) {
-            format!("{}.exe", tool_name)
+            format!("{tool_name}.exe")
         } else {
             tool_name.to_string()
         };
