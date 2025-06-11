@@ -19,19 +19,26 @@ This project has multiple release workflows to ensure reliable releases. Choose 
 3. Merge the PR to trigger the actual release
 4. GoReleaser builds and publishes binaries
 
-### 2. Tag-based Release (Simple)
+### 2. GoReleaser Release (Recommended for Manual Releases)
 **File**: `.github/workflows/tag-release.yml`
-**Trigger**: Manual tag creation
+**Trigger**: Manual tag creation or workflow dispatch
 **Features**:
-- ✅ Simple tag-based releases
-- ✅ Multi-platform builds
-- ✅ No dependency on release-please
-- ✅ Direct GitHub releases
+- ✅ **PGO-optimized builds** for maximum performance
+- ✅ **Multi-platform releases** (Linux, Windows, macOS, FreeBSD)
+- ✅ **Package manager integration** (Homebrew, Scoop, Chocolatey, AUR, Winget)
+- ✅ **Docker images** with multi-arch support
+- ✅ **Performance benchmarking** after release
+- ✅ **No dependency on release-please**
+- ✅ **Comprehensive distribution** via GoReleaser
 
 **How to use**:
 ```bash
+# Create and push tag
 git tag v0.1.0
 git push origin v0.1.0
+
+# Or trigger manually via GitHub Actions UI
+# Go to Actions → GoReleaser Release → Run workflow
 ```
 
 ### 3. Simple Release-Please (Fallback)
@@ -96,7 +103,18 @@ If automated workflows fail, you can create releases manually:
 1. **Update version** in `Cargo.toml`
 2. **Create tag**: `git tag v0.1.0`
 3. **Push tag**: `git push origin v0.1.0`
-4. **Use tag-based workflow** or create release manually in GitHub
+4. **Use GoReleaser workflow** (recommended) or create release manually in GitHub
+
+### GoReleaser Benefits
+
+The unified GoReleaser workflow provides:
+
+- 🚀 **PGO Optimization**: Profile-Guided Optimization for 15-20% performance improvement
+- 📦 **Multi-Platform**: Linux (x64, ARM64, musl), Windows (x64, ARM64), macOS (Intel, Apple Silicon), FreeBSD
+- 🏪 **Package Managers**: Automatic publishing to Homebrew, Scoop, Chocolatey, AUR, Winget
+- 🐳 **Docker**: Multi-arch container images published to GitHub Container Registry
+- 📊 **Benchmarking**: Automatic performance testing after release
+- 🔍 **Checksums**: SHA256 checksums for all artifacts
 
 ## Configuration Files
 
