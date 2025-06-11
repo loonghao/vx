@@ -4,7 +4,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Universal package manager trait that can represent any package management system
 pub trait UniversalPackageManager: Send + Sync {
@@ -36,7 +36,7 @@ pub trait UniversalPackageManager: Send + Sync {
     fn get_config(&self) -> PackageManagerConfig;
 
     /// Check if this package manager is preferred for the given project
-    fn is_preferred_for_project(&self, project_path: &PathBuf) -> bool;
+    fn is_preferred_for_project(&self, project_path: &Path) -> bool;
 }
 
 /// Ecosystem classification for different package management domains
@@ -212,7 +212,7 @@ impl PackageEcosystemRegistry {
     /// Get the preferred package manager for a project
     pub fn get_preferred_manager(
         &self,
-        project_path: &PathBuf,
+        project_path: &Path,
     ) -> Option<&dyn UniversalPackageManager> {
         let project_type = self.project_detector.detect_project_type(project_path);
 
@@ -271,7 +271,7 @@ impl ProjectDetector {
         }
     }
 
-    pub fn detect_project_type(&self, project_path: &PathBuf) -> ProjectType {
+    pub fn detect_project_type(&self, project_path: &Path) -> ProjectType {
         let mut detected_types = Vec::new();
 
         for detector in &self.detectors {
@@ -355,14 +355,14 @@ pub enum ScientificProjectType {
 
 /// Project type detector trait
 pub trait ProjectTypeDetector {
-    fn detect(&self, project_path: &PathBuf) -> Option<ProjectType>;
+    fn detect(&self, project_path: &Path) -> Option<ProjectType>;
 }
 
 /// JavaScript project detector
 pub struct JavaScriptDetector;
 
 impl ProjectTypeDetector for JavaScriptDetector {
-    fn detect(&self, project_path: &PathBuf) -> Option<ProjectType> {
+    fn detect(&self, project_path: &Path) -> Option<ProjectType> {
         if project_path.join("package.json").exists() {
             Some(ProjectType::JavaScript(JavaScriptProjectType::Node))
         } else if project_path.join("deno.json").exists()
@@ -379,7 +379,7 @@ impl ProjectTypeDetector for JavaScriptDetector {
 pub struct PythonDetector;
 
 impl ProjectTypeDetector for PythonDetector {
-    fn detect(&self, project_path: &PathBuf) -> Option<ProjectType> {
+    fn detect(&self, project_path: &Path) -> Option<ProjectType> {
         if project_path.join("pyproject.toml").exists() {
             Some(ProjectType::Python(PythonProjectType::Poetry))
         } else if project_path.join("Pipfile").exists() {
@@ -400,7 +400,7 @@ impl ProjectTypeDetector for PythonDetector {
 pub struct RustDetector;
 
 impl ProjectTypeDetector for RustDetector {
-    fn detect(&self, project_path: &PathBuf) -> Option<ProjectType> {
+    fn detect(&self, project_path: &Path) -> Option<ProjectType> {
         if project_path.join("Cargo.toml").exists() {
             Some(ProjectType::Rust)
         } else {
@@ -413,7 +413,7 @@ impl ProjectTypeDetector for RustDetector {
 pub struct GoDetector;
 
 impl ProjectTypeDetector for GoDetector {
-    fn detect(&self, project_path: &PathBuf) -> Option<ProjectType> {
+    fn detect(&self, project_path: &Path) -> Option<ProjectType> {
         if project_path.join("go.mod").exists() {
             Some(ProjectType::Go)
         } else {
