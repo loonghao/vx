@@ -1,7 +1,7 @@
 # Makefile for vx - Universal Development Tool Manager
 # Provides convenient targets for building, testing, and optimizing
 
-.PHONY: help build build-release build-pgo test clean install benchmark lint format check-deps
+.PHONY: help build build-release build-pgo test clean install benchmark lint format check-deps coverage security
 
 # Default target
 help:
@@ -12,6 +12,8 @@ help:
 	@echo "  build-release - Build release version"
 	@echo "  build-pgo     - Build with Profile-Guided Optimization"
 	@echo "  test          - Run all tests"
+	@echo "  coverage      - Generate code coverage report"
+	@echo "  security      - Run security audit"
 	@echo "  clean         - Clean build artifacts"
 	@echo "  install       - Install to system"
 	@echo "  benchmark     - Run performance benchmarks"
@@ -78,6 +80,31 @@ test:
 test-verbose:
 	@echo "🧪 Running tests with verbose output..."
 	cargo test -- --nocapture
+
+# Coverage targets
+coverage:
+	@echo "📊 Generating code coverage report..."
+	@echo "Installing cargo-llvm-cov if not present..."
+	@cargo install cargo-llvm-cov --quiet || true
+	@echo "Generating coverage..."
+	cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+	@echo "Coverage report generated: lcov.info"
+
+coverage-html:
+	@echo "📊 Generating HTML coverage report..."
+	@echo "Installing cargo-llvm-cov if not present..."
+	@cargo install cargo-llvm-cov --quiet || true
+	@echo "Generating HTML coverage..."
+	cargo llvm-cov --all-features --workspace --html
+	@echo "HTML coverage report generated in target/llvm-cov/html/"
+
+# Security targets
+security:
+	@echo "🔒 Running security audit..."
+	@echo "Installing cargo-audit if not present..."
+	@cargo install cargo-audit --quiet || true
+	@echo "Running audit..."
+	cargo audit
 
 # Maintenance targets
 clean:
@@ -164,7 +191,7 @@ endif
 quick: format lint test build
 
 # Full CI pipeline
-ci: format-check lint test build-release
+ci: format-check lint security test coverage build-release
 
 # GoReleaser targets
 goreleaser-test:
