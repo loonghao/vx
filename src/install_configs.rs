@@ -28,7 +28,7 @@ fn get_uv_config(version: &str, install_dir: PathBuf) -> InstallConfig {
             "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip"
                 .to_string()
         } else {
-            format!("https://github.com/astral-sh/uv/releases/download/{}/uv-x86_64-pc-windows-msvc.zip", version)
+            format!("https://github.com/astral-sh/uv/releases/download/{version}/uv-x86_64-pc-windows-msvc.zip")
         };
         (
             Some(url),
@@ -42,7 +42,7 @@ fn get_uv_config(version: &str, install_dir: PathBuf) -> InstallConfig {
             "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-apple-darwin.tar.gz"
                 .to_string()
         } else {
-            format!("https://github.com/astral-sh/uv/releases/download/{}/uv-x86_64-apple-darwin.tar.gz", version)
+            format!("https://github.com/astral-sh/uv/releases/download/{version}/uv-x86_64-apple-darwin.tar.gz")
         };
         (
             Some(url),
@@ -56,7 +56,7 @@ fn get_uv_config(version: &str, install_dir: PathBuf) -> InstallConfig {
             "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-unknown-linux-gnu.tar.gz"
                 .to_string()
         } else {
-            format!("https://github.com/astral-sh/uv/releases/download/{}/uv-x86_64-unknown-linux-gnu.tar.gz", version)
+            format!("https://github.com/astral-sh/uv/releases/download/{version}/uv-x86_64-unknown-linux-gnu.tar.gz")
         };
         (
             Some(url),
@@ -84,10 +84,7 @@ fn get_node_config(version: &str, install_dir: PathBuf) -> InstallConfig {
         } else {
             version
         };
-        let url = format!(
-            "https://nodejs.org/dist/{}/node-{}-win-x64.zip",
-            version_str, version_str
-        );
+        let url = format!("https://nodejs.org/dist/{version_str}/node-{version_str}-win-x64.zip");
         (
             Some(url),
             InstallMethod::Archive {
@@ -101,10 +98,8 @@ fn get_node_config(version: &str, install_dir: PathBuf) -> InstallConfig {
         } else {
             version
         };
-        let url = format!(
-            "https://nodejs.org/dist/{}/node-{}-darwin-x64.tar.gz",
-            version_str, version_str
-        );
+        let url =
+            format!("https://nodejs.org/dist/{version_str}/node-{version_str}-darwin-x64.tar.gz");
         (
             Some(url),
             InstallMethod::Archive {
@@ -118,10 +113,8 @@ fn get_node_config(version: &str, install_dir: PathBuf) -> InstallConfig {
         } else {
             version
         };
-        let url = format!(
-            "https://nodejs.org/dist/{}/node-{}-linux-x64.tar.gz",
-            version_str, version_str
-        );
+        let url =
+            format!("https://nodejs.org/dist/{version_str}/node-{version_str}-linux-x64.tar.gz");
         (
             Some(url),
             InstallMethod::Archive {
@@ -148,7 +141,7 @@ fn get_go_config(version: &str, install_dir: PathBuf) -> InstallConfig {
         } else {
             version
         };
-        let url = format!("https://golang.org/dl/go{}.windows-amd64.zip", version_str);
+        let url = format!("https://golang.org/dl/go{version_str}.windows-amd64.zip");
         (
             Some(url),
             InstallMethod::Archive {
@@ -162,10 +155,7 @@ fn get_go_config(version: &str, install_dir: PathBuf) -> InstallConfig {
         } else {
             version
         };
-        let url = format!(
-            "https://golang.org/dl/go{}.darwin-amd64.tar.gz",
-            version_str
-        );
+        let url = format!("https://golang.org/dl/go{version_str}.darwin-amd64.tar.gz");
         (
             Some(url),
             InstallMethod::Archive {
@@ -179,7 +169,7 @@ fn get_go_config(version: &str, install_dir: PathBuf) -> InstallConfig {
         } else {
             version
         };
-        let url = format!("https://golang.org/dl/go{}.linux-amd64.tar.gz", version_str);
+        let url = format!("https://golang.org/dl/go{version_str}.linux-amd64.tar.gz");
         (
             Some(url),
             InstallMethod::Archive {
@@ -292,10 +282,7 @@ pub fn get_manual_install_instructions(tool_name: &str) -> String {
              • Or run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
             .to_string(),
         _ => {
-            format!(
-                "Please install {} manually according to its official documentation.",
-                tool_name
-            )
+            format!("Please install {tool_name} manually according to its official documentation.")
         }
     }
 }

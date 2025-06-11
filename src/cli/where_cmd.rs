@@ -14,7 +14,7 @@ pub async fn handle(tool: String, all: bool) -> Result<()> {
 }
 
 async fn show_active_installation(tool: &str) -> Result<()> {
-    UI::header(&format!("Active installation of {}", tool));
+    UI::header(&format!("Active installation of {tool}"));
 
     let mut found_vx_managed = false;
 
@@ -39,7 +39,7 @@ async fn show_active_installation(tool: &str) -> Result<()> {
                     let version_output = String::from_utf8_lossy(&output.stdout);
                     let first_line = version_output.lines().next().unwrap_or("").trim();
                     if !first_line.is_empty() && first_line != active_version.version {
-                        println!("  Full version: {}", first_line);
+                        println!("  Full version: {first_line}");
                     }
                 }
             }
@@ -54,8 +54,7 @@ async fn show_active_installation(tool: &str) -> Result<()> {
                 }
             }
             UI::hint(&format!(
-                "Use 'vx switch {}@<version>' to activate a version",
-                tool
+                "Use 'vx switch {tool}@<version>' to activate a version"
             ));
         }
     }
@@ -76,19 +75,18 @@ async fn show_active_installation(tool: &str) -> Result<()> {
                         let version_output = String::from_utf8_lossy(&output.stdout);
                         let first_line = version_output.lines().next().unwrap_or("").trim();
                         if !first_line.is_empty() {
-                            println!("  Version: {}", first_line);
+                            println!("  Version: {first_line}");
                         }
                     }
                 }
 
                 UI::hint(&format!(
-                    "Use 'vx install {}' to install a vx-managed version",
-                    tool
+                    "Use 'vx install {tool}' to install a vx-managed version"
                 ));
             }
         } else if versions.is_empty() {
-            UI::warning(&format!("Tool '{}' not found", tool));
-            UI::hint(&format!("Install with: vx install {}", tool));
+            UI::warning(&format!("Tool '{tool}' not found"));
+            UI::hint(&format!("Install with: vx install {tool}"));
         }
     }
 
@@ -96,7 +94,7 @@ async fn show_active_installation(tool: &str) -> Result<()> {
 }
 
 async fn show_all_installations(tool: &str) -> Result<()> {
-    UI::header(&format!("All installations of {}", tool));
+    UI::header(&format!("All installations of {tool}"));
 
     let mut found_any = false;
 
@@ -135,7 +133,7 @@ async fn show_all_installations(tool: &str) -> Result<()> {
                                 .modified()
                                 .map(|t| format!("{:?}", t))
                                 .unwrap_or_else(|_| "unknown".to_string());
-                            println!("    Size: {} bytes, Modified: {}", size, modified);
+                            println!("    Size: {size} bytes, Modified: {modified}");
                         }
                     }
                     Err(_) => {
@@ -151,8 +149,8 @@ async fn show_all_installations(tool: &str) -> Result<()> {
     check_common_locations(tool, &mut found_any);
 
     if !found_any {
-        UI::warning(&format!("No installations of '{}' found", tool));
-        UI::hint(&format!("Install with: vx install {}", tool));
+        UI::warning(&format!("No installations of '{tool}' found"));
+        UI::hint(&format!("Install with: vx install {tool}"));
     }
 
     Ok(())
@@ -181,7 +179,7 @@ fn check_common_locations(tool: &str, found_any: &mut bool) {
                     let version_output = String::from_utf8_lossy(&output.stdout);
                     let first_line = version_output.lines().next().unwrap_or("").trim();
                     if !first_line.is_empty() {
-                        println!("    Version: {}", first_line);
+                        println!("    Version: {first_line}");
                     }
                 }
             }
@@ -199,14 +197,14 @@ fn get_common_tool_paths(tool: &str) -> Vec<PathBuf> {
             paths.push(
                 PathBuf::from(program_files)
                     .join(tool)
-                    .join(format!("{}.exe", tool)),
+                    .join(format!("{tool}.exe")),
             );
         }
         if let Some(program_files_x86) = std::env::var_os("ProgramFiles(x86)") {
             paths.push(
                 PathBuf::from(program_files_x86)
                     .join(tool)
-                    .join(format!("{}.exe", tool)),
+                    .join(format!("{tool}.exe")),
             );
         }
         if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
@@ -214,7 +212,7 @@ fn get_common_tool_paths(tool: &str) -> Vec<PathBuf> {
                 PathBuf::from(local_app_data)
                     .join("Programs")
                     .join(tool)
-                    .join(format!("{}.exe", tool)),
+                    .join(format!("{tool}.exe")),
             );
         }
     }
@@ -277,7 +275,7 @@ fn is_vx_managed(path: &std::path::Path) -> bool {
 
 fn find_executable(dir: &std::path::Path, tool_name: &str) -> Result<PathBuf> {
     let exe_name = if cfg!(windows) {
-        format!("{}.exe", tool_name)
+        format!("{tool_name}.exe")
     } else {
         tool_name.to_string()
     };
