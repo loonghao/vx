@@ -37,20 +37,31 @@ fn get_uv_config(version: &str, install_dir: PathBuf) -> InstallConfig {
             },
         )
     } else if cfg!(target_os = "macos") {
-        // macOS: Use Homebrew or download binary
+        // macOS: Download binary for better compatibility
+        let url = if version == "latest" {
+            "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-apple-darwin.tar.gz"
+                .to_string()
+        } else {
+            format!("https://github.com/astral-sh/uv/releases/download/{}/uv-x86_64-apple-darwin.tar.gz", version)
+        };
         (
-            None,
-            InstallMethod::PackageManager {
-                manager: "brew".to_string(),
-                package: "uv".to_string(),
+            Some(url),
+            InstallMethod::Archive {
+                format: ArchiveFormat::TarGz,
             },
         )
     } else {
-        // Linux: Use installation script
+        // Linux: Download binary for better compatibility
+        let url = if version == "latest" {
+            "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-unknown-linux-gnu.tar.gz"
+                .to_string()
+        } else {
+            format!("https://github.com/astral-sh/uv/releases/download/{}/uv-x86_64-unknown-linux-gnu.tar.gz", version)
+        };
         (
-            None,
-            InstallMethod::Script {
-                url: "https://astral.sh/uv/install.sh".to_string(),
+            Some(url),
+            InstallMethod::Archive {
+                format: ArchiveFormat::TarGz,
             },
         )
     };
@@ -84,12 +95,20 @@ fn get_node_config(version: &str, install_dir: PathBuf) -> InstallConfig {
             },
         )
     } else if cfg!(target_os = "macos") {
-        // macOS: Use Homebrew
+        // macOS: Download binary for better compatibility
+        let version_str = if version == "latest" {
+            "v20.11.0"
+        } else {
+            version
+        };
+        let url = format!(
+            "https://nodejs.org/dist/{}/node-{}-darwin-x64.tar.gz",
+            version_str, version_str
+        );
         (
-            None,
-            InstallMethod::PackageManager {
-                manager: "brew".to_string(),
-                package: "node".to_string(),
+            Some(url),
+            InstallMethod::Archive {
+                format: ArchiveFormat::TarGz,
             },
         )
     } else {
@@ -137,12 +156,17 @@ fn get_go_config(version: &str, install_dir: PathBuf) -> InstallConfig {
             },
         )
     } else if cfg!(target_os = "macos") {
-        // macOS: Use Homebrew or download
+        // macOS: Download binary for better compatibility
+        let version_str = if version == "latest" {
+            "1.21.6"
+        } else {
+            version
+        };
+        let url = format!("https://golang.org/dl/go{}.darwin-amd64.tar.gz", version_str);
         (
-            None,
-            InstallMethod::PackageManager {
-                manager: "brew".to_string(),
-                package: "go".to_string(),
+            Some(url),
+            InstallMethod::Archive {
+                format: ArchiveFormat::TarGz,
             },
         )
     } else {
@@ -173,21 +197,27 @@ fn get_go_config(version: &str, install_dir: PathBuf) -> InstallConfig {
 /// Rust installation configuration
 fn get_rust_config(version: &str, install_dir: PathBuf) -> InstallConfig {
     // Rust uses rustup for installation on all platforms
-    let install_method = if cfg!(windows) {
-        InstallMethod::Script {
-            url: "https://win.rustup.rs/".to_string(),
-        }
+    let (download_url, install_method) = if cfg!(windows) {
+        (
+            Some("https://win.rustup.rs/".to_string()),
+            InstallMethod::Script {
+                url: "https://win.rustup.rs/".to_string(),
+            },
+        )
     } else {
-        InstallMethod::Script {
-            url: "https://sh.rustup.rs".to_string(),
-        }
+        (
+            Some("https://sh.rustup.rs".to_string()),
+            InstallMethod::Script {
+                url: "https://sh.rustup.rs".to_string(),
+            },
+        )
     };
 
     InstallConfig {
         tool_name: "cargo".to_string(), // Primary executable
         version: version.to_string(),
         install_method,
-        download_url: None,
+        download_url,
         install_dir,
     }
 }
