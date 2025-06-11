@@ -137,7 +137,7 @@ async fn update_all_tools() -> Result<()> {
         match update_tool(&tool_name, None).await {
             Ok(()) => updated_count += 1,
             Err(e) => {
-                UI::error(&format!("Failed to update {}: {}", tool_name, e));
+                UI::error(&format!("Failed to update {tool_name}: {e}"));
                 failed_count += 1;
             }
         }
@@ -145,16 +145,16 @@ async fn update_all_tools() -> Result<()> {
 
     println!();
     UI::header("Update Summary");
-    UI::success(&format!("Updated: {} tools", updated_count));
+    UI::success(&format!("Updated: {updated_count} tools"));
     if failed_count > 0 {
-        UI::warning(&format!("Failed: {} tools", failed_count));
+        UI::warning(&format!("Failed: {failed_count} tools"));
     }
 
     Ok(())
 }
 
 async fn check_tool_updates(tool_name: &str) -> Result<()> {
-    UI::step(&format!("Checking for {} updates...", tool_name));
+    UI::step(&format!("Checking for {tool_name} updates..."));
 
     let current_version = get_current_version(tool_name).await;
     let latest_version = get_latest_version(tool_name).await?;
@@ -162,17 +162,17 @@ async fn check_tool_updates(tool_name: &str) -> Result<()> {
     match current_version {
         Some(current) => {
             if current == latest_version {
-                UI::success(&format!("{} is up to date ({})", tool_name, current));
+                UI::success(&format!("{tool_name} is up to date ({current})"));
             } else {
-                UI::info(&format!("Update available for {}:", tool_name));
+                UI::info(&format!("Update available for {tool_name}:"));
                 println!("  Current: {}", current);
                 println!("  Latest:  {}", latest_version);
-                UI::hint(&format!("Update with: vx update {}", tool_name));
+                UI::hint(&format!("Update with: vx update {tool_name}"));
             }
         }
         None => {
-            UI::warning(&format!("Tool '{}' is not installed", tool_name));
-            UI::hint(&format!("Install with: vx install {}", tool_name));
+            UI::warning(&format!("Tool '{tool_name}' is not installed"));
+            UI::hint(&format!("Install with: vx install {tool_name}"));
         }
     }
 
@@ -282,8 +282,7 @@ async fn get_latest_version(tool_name: &str) -> Result<String> {
             Ok("1.75.0".to_string())
         }
         _ => Err(anyhow::anyhow!(
-            "Version checking not implemented for {}",
-            tool_name
+            "Version checking not implemented for {tool_name}"
         )),
     }
 }
