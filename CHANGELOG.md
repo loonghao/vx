@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.0 (2025-06-11)
+
+## What's Changed
+* chore: Configure Renovate by @renovate in https://github.com/loonghao/vx/pull/1
+* fix(deps): update rust crate dirs to v6 by @renovate in https://github.com/loonghao/vx/pull/3
+* fix(deps): update rust crate reqwest to 0.12 by @renovate in https://github.com/loonghao/vx/pull/2
+* feat: Add GoReleaser CI/CD and improve CLI user experience by @loonghao in https://github.com/loonghao/vx/pull/5
+* fix(deps): update rust crate reqwest to v0.12.20 by @renovate in https://github.com/loonghao/vx/pull/9
+* fix(deps): update rust crate which to v8 by @renovate in https://github.com/loonghao/vx/pull/6
+* chore(deps): update dependency go to 1.24 by @renovate in https://github.com/loonghao/vx/pull/19
+* fix(deps): update rust crate zip to v4 - autoclosed by @renovate in https://github.com/loonghao/vx/pull/7
+* chore(deps): update goreleaser/goreleaser-action action to v6 by @renovate in https://github.com/loonghao/vx/pull/20
+* fix: resolve CI release-please configuration issues by @loonghao in https://github.com/loonghao/vx/pull/21
+
+## New Contributors
+* @renovate made their first contribution in https://github.com/loonghao/vx/pull/1
+* @loonghao made their first contribution in https://github.com/loonghao/vx/pull/5
+
+**Full Changelog**: https://github.com/loonghao/vx/commits/vx-v0.1.0
+
 ## [Unreleased]
 
 ### Features
