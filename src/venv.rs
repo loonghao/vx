@@ -86,7 +86,7 @@ impl VenvManager {
             self.install_tool_for_venv(name, tool, version)?;
         }
 
-        println!("Virtual environment '{}' created successfully", name);
+        println!("Virtual environment '{name}' created successfully");
         Ok(())
     }
 
@@ -98,7 +98,7 @@ impl VenvManager {
         let mut commands = Vec::new();
 
         // Set VX_VENV environment variable
-        commands.push(format!("export VX_VENV={}", name));
+        commands.push(format!("export VX_VENV={name}"));
 
         // Prepend venv bin directory to PATH
         for path_entry in &venv_config.path_entries {
@@ -107,11 +107,11 @@ impl VenvManager {
 
         // Set custom environment variables
         for (key, value) in &venv_config.env_vars {
-            commands.push(format!("export {}={}", key, value));
+            commands.push(format!("export {key}={value}"));
         }
 
         // Set prompt indicator
-        commands.push(format!("export PS1=\"(vx:{}) $PS1\"", name));
+        commands.push(format!("export PS1=\"(vx:{name}) $PS1\""));
 
         Ok(commands.join("\n"))
     }
@@ -154,7 +154,7 @@ impl VenvManager {
         }
 
         std::fs::remove_dir_all(&venv_dir)?;
-        println!("Virtual environment '{}' removed", name);
+        println!("Virtual environment '{name}' removed");
         Ok(())
     }
 
@@ -172,7 +172,7 @@ impl VenvManager {
     fn install_tool_for_venv(&self, venv_name: &str, tool: &str, version: &str) -> Result<()> {
         // This would integrate with the tool manager to install tools
         // in the venv-specific directory
-        println!("Installing {} {} for venv '{}'", tool, version, venv_name);
+        println!("Installing {tool} {version} for venv '{venv_name}'");
         // TODO: Implement actual tool installation
         Ok(())
     }
