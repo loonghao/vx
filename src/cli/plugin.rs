@@ -21,7 +21,7 @@ pub async fn handle(command: PluginCommand) -> Result<()> {
                 let version_str = tool
                     .version
                     .as_ref()
-                    .map(|v| format!(" ({})", v))
+                    .map(|v| format!(" ({v})"))
                     .unwrap_or_default();
 
                 println!(
@@ -30,7 +30,7 @@ pub async fn handle(command: PluginCommand) -> Result<()> {
                 );
 
                 if let Some(homepage) = &tool.homepage {
-                    println!("    🌐 {}", homepage);
+                    println!("    🌐 {homepage}");
                 }
             }
         }
@@ -42,11 +42,11 @@ pub async fn handle(command: PluginCommand) -> Result<()> {
                 println!("Installed: {}", if info.installed { "Yes" } else { "No" });
 
                 if let Some(version) = &info.version {
-                    println!("Version: {}", version);
+                    println!("Version: {version}");
                 }
 
                 if let Some(homepage) = &info.homepage {
-                    println!("Homepage: {}", homepage);
+                    println!("Homepage: {homepage}");
                 }
 
                 println!(
@@ -59,7 +59,7 @@ pub async fn handle(command: PluginCommand) -> Result<()> {
                 );
             }
             Err(e) => {
-                UI::error(&format!("Tool not found: {}", e));
+                UI::error(&format!("Tool not found: {e}"));
             }
         },
 
@@ -87,9 +87,9 @@ pub async fn handle(command: PluginCommand) -> Result<()> {
                 .collect();
 
             if matching_tools.is_empty() {
-                UI::info(&format!("No tools found matching '{}'", query));
+                UI::info(&format!("No tools found matching '{query}'"));
             } else {
-                UI::header(&format!("Tools matching '{}'", query));
+                UI::header(&format!("Tools matching '{query}'"));
                 for tool in matching_tools {
                     println!("  * {} - {}", tool.name, tool.description);
                 }
@@ -103,10 +103,10 @@ pub async fn handle(command: PluginCommand) -> Result<()> {
             let auto_install = tools.iter().filter(|t| t.supports_auto_install).count();
 
             UI::header("Tool Statistics");
-            println!("  Total tools: {}", total);
-            println!("  Installed tools: {}", installed);
+            println!("  Total tools: {total}");
+            println!("  Installed tools: {installed}");
             println!("  Not installed: {}", total - installed);
-            println!("  Support auto-install: {}", auto_install);
+            println!("  Support auto-install: {auto_install}");
         }
     }
 
