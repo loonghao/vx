@@ -1,5 +1,29 @@
+[workspace]
+members = [
+    "crates/vx-core",
+    "crates/vx-cli",
+    "crates/vx-tools/vx-tool-node",
+    "crates/vx-tools/vx-tool-go",
+    "crates/vx-tools/vx-tool-rust",
+    "crates/vx-tools/vx-tool-uv",
+    "crates/vx-package-managers/vx-pm-npm",
+]
+
+# Main package (aggregates all functionality)
 [package]
 name = "vx"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[workspace.package]
 version = "0.1.1"
 edition = "2021"
 description = "Universal Development Tool Manager"
@@ -13,7 +37,27 @@ categories = ["command-line-utilities", "development-tools"]
 readme = "README.md"
 rust-version = "1.80.0"
 
+# Binary configuration
+[[bin]]
+name = "vx"
+path = "src/main.rs"
+
+# Main crate dependencies
 [dependencies]
+vx-core = { path = "crates/vx-core" }
+vx-cli = { path = "crates/vx-cli" }
+vx-tool-node = { path = "crates/vx-tools/vx-tool-node" }
+vx-tool-go = { path = "crates/vx-tools/vx-tool-go" }
+vx-tool-rust = { path = "crates/vx-tools/vx-tool-rust" }
+vx-tool-uv = { path = "crates/vx-tools/vx-tool-uv" }
+vx-pm-npm = { path = "crates/vx-package-managers/vx-pm-npm" }
+
+# Runtime dependencies
+tokio = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+
+[workspace.dependencies]
 clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
