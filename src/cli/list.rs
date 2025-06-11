@@ -148,9 +148,7 @@ async fn list_all_tools(tool_manager: &ToolManager, detailed: bool) -> Result<()
     let total_count = tools.len();
 
     println!();
-    UI::info(&format!(
-        "Installed: {installed_count}/{total_count} tools"
-    ));
+    UI::info(&format!("Installed: {installed_count}/{total_count} tools"));
 
     Ok(())
 }

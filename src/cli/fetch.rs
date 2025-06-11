@@ -239,9 +239,7 @@ async fn handle_interactive_selection(
     all_items.push("❌ Cancel".to_string());
 
     let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt(format!(
-            "Select a version of {tool} to install/switch to:"
-        ))
+        .with_prompt(format!("Select a version of {tool} to install/switch to:"))
         .items(&all_items)
         .default(0)
         .interact_opt()?;

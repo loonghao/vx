@@ -136,10 +136,7 @@ fn test_version_aliases() {
     for alias in version_aliases {
         if manager.supports_tool("uv") {
             let url = manager.get_download_url("uv", alias);
-            assert!(
-                url.is_ok(),
-                "Should resolve version alias {alias}: {url:?}"
-            );
+            assert!(url.is_ok(), "Should resolve version alias {alias}: {url:?}");
         }
     }
 }
