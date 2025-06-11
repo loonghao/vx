@@ -1,4 +1,5 @@
 use crate::package_manager::{Package, PackageManager};
+use crate::package_managers::{PackageManagerRouter, ProjectPackageManager};
 use crate::tool_manager::ToolManager;
 use crate::ui::UI;
 use anyhow::Result;
@@ -9,6 +10,7 @@ use which::which;
 pub struct Executor {
     tool_manager: Option<ToolManager>,
     package_manager: Option<PackageManager>,
+    pm_router: Option<PackageManagerRouter>,
 }
 
 impl Executor {
@@ -16,6 +18,7 @@ impl Executor {
         Ok(Self {
             tool_manager: None,
             package_manager: None,
+            pm_router: None,
         })
     }
 
@@ -43,6 +46,14 @@ impl Executor {
         Ok(self.package_manager.as_mut().unwrap())
     }
 
+    /// Lazy initialization of package manager router
+    fn ensure_pm_router(&mut self) -> &PackageManagerRouter {
+        if self.pm_router.is_none() {
+            self.pm_router = Some(PackageManagerRouter::new());
+        }
+        self.pm_router.as_ref().unwrap()
+    }
+
     /// Execute a tool with given arguments
     pub async fn execute(
         &mut self,
@@ -64,6 +75,37 @@ impl Executor {
         }
 
         // Default behavior: prioritize vx-managed tools, with system fallback
+
+        // Check if this is a package manager command
+        let pm_router = self.ensure_pm_router();
+        if pm_router.registry.has(tool_name) {
+            // Route to package manager
+            return match pm_router.route_command(tool_name, args) {
+                Ok(_) => Ok(0),
+                Err(e) => {
+                    UI::error(&format!("Package manager command failed: {}", e));
+                    Ok(1)
+                }
+            };
+        }
+
+        // Check for smart package manager commands (install, add, etc. without tool prefix)
+        if let Some(first_arg) = args.first() {
+            match first_arg.as_str() {
+                "install" | "add" | "remove" | "update" | "run" => {
+                    // Try to auto-detect package manager for the project
+                    return match pm_router.auto_route_command(first_arg, &args[1..]) {
+                        Ok(_) => Ok(0),
+                        Err(e) => {
+                            UI::warning(&format!("Auto package manager routing failed: {}", e));
+                            // Continue with normal tool execution
+                        }
+                    };
+                }
+                _ => {}
+            }
+        }
+
         let tool_manager = self.ensure_tool_manager()?;
 
         // First, check if we have a tool for this
