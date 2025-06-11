@@ -140,7 +140,7 @@ impl UniversalPackageRouter {
                 for package in packages {
                     println!("  {} {}", package.name, package.version);
                     if let Some(description) = package.description {
-                        println!("    {}", description);
+                        println!("    {description}");
                     }
                 }
             }
@@ -148,7 +148,7 @@ impl UniversalPackageRouter {
             // List available ecosystems
             println!("Available ecosystems:");
             for ecosystem in self.registry.list_ecosystems() {
-                println!("  {:?}", ecosystem);
+                println!("  {ecosystem:?}");
             }
         }
 
@@ -168,7 +168,7 @@ impl UniversalPackageRouter {
             let packages = manager.search_packages(query)?;
 
             if packages.is_empty() {
-                println!("No packages found for query: {}", query);
+                println!("No packages found for query: {query}");
             } else {
                 println!(
                     "🔍 Search results for '{}' (using {}):",
@@ -179,7 +179,7 @@ impl UniversalPackageRouter {
                     // Limit to 10 results
                     println!("  {} {}", package.name, package.version);
                     if let Some(description) = &package.description {
-                        println!("    {}", description);
+                        println!("    {description}");
                     }
                 }
                 if packages.len() > 10 {
@@ -212,16 +212,16 @@ impl UniversalPackageRouter {
                 println!("  Name: {}", package.name);
                 println!("  Version: {}", package.version);
                 if let Some(description) = &package.description {
-                    println!("  Description: {}", description);
+                    println!("  Description: {description}");
                 }
                 if let Some(homepage) = &package.homepage {
-                    println!("  Homepage: {}", homepage);
+                    println!("  Homepage: {homepage}");
                 }
                 if !package.keywords.is_empty() {
                     println!("  Keywords: {}", package.keywords.join(", "));
                 }
             } else {
-                println!("Package '{}' not found", package_name);
+                println!("Package '{package_name}' not found");
             }
         } else {
             return Err(anyhow::anyhow!(
@@ -237,7 +237,7 @@ impl UniversalPackageRouter {
         if let Some(managers) = self.registry.get_managers(ecosystem) {
             if let Some(manager) = managers.first() {
                 if args.is_empty() {
-                    println!("Available commands for {:?} ecosystem:", ecosystem);
+                    println!("Available commands for {ecosystem:?} ecosystem:");
                     println!("  install <packages>  - Install packages");
                     println!("  remove <packages>   - Remove packages");
                     println!("  update [packages]   - Update packages");
@@ -319,7 +319,7 @@ impl UniversalPackageRouter {
         if let Some(_manager) = self.registry.get_manager_by_name(manager_name) {
             // For direct manager commands, we pass through the arguments
             // This would typically involve executing the manager directly
-            println!("Executing {} with args: {:?}", manager_name, args);
+            println!("Executing {manager_name} with args: {args:?}");
             // TODO: Implement direct execution
             Ok(())
         } else {
