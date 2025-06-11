@@ -22,15 +22,13 @@ fn test_minimal_config_always_works() {
     let url = manager.get_download_url("uv", "latest");
     assert!(
         url.is_ok(),
-        "Should be able to get download URL for uv: {:?}",
-        url
+        "Should be able to get download URL for uv: {url:?}"
     );
 
     let url = url.unwrap();
     assert!(
         url.starts_with("http"),
-        "URL should be valid HTTP URL: {}",
-        url
+        "URL should be valid HTTP URL: {url}"
     );
 }
 
@@ -118,14 +116,12 @@ fn test_multiple_tools() {
     for tool in test_tools {
         if manager.supports_tool(tool) {
             let url = manager.get_download_url(tool, "latest");
-            assert!(url.is_ok(), "Should get URL for {}: {:?}", tool, url);
+            assert!(url.is_ok(), "Should get URL for {tool}: {url:?}");
 
             let url = url.unwrap();
             assert!(
                 url.starts_with("http"),
-                "URL should be valid for {}: {}",
-                tool,
-                url
+                "URL should be valid for {tool}: {url}"
             );
         }
     }
@@ -142,9 +138,7 @@ fn test_version_aliases() {
             let url = manager.get_download_url("uv", alias);
             assert!(
                 url.is_ok(),
-                "Should resolve version alias {}: {:?}",
-                alias,
-                url
+                "Should resolve version alias {alias}: {url:?}"
             );
         }
     }
@@ -162,7 +156,7 @@ fn test_config_manager_creation_patterns() {
     let full = FigmentConfigManager::new();
     match full {
         Ok(_) => println!("Full configuration loaded successfully"),
-        Err(e) => println!("Full configuration failed (expected): {}", e),
+        Err(e) => println!("Full configuration failed (expected): {e}"),
     }
 
     // Pattern 3: Fallback pattern
@@ -199,7 +193,7 @@ fn test_error_handling() {
     // Test non-existent version (may or may not fail depending on implementation)
     let result = manager.get_download_url("uv", "nonexistent-version");
     // This might succeed if the layer treats unknown versions as "latest"
-    println!("Non-existent version result: {:?}", result);
+    println!("Non-existent version result: {result:?}");
 }
 
 #[test]
@@ -221,7 +215,7 @@ fn test_platform_specific_urls() {
         };
 
         // The URL might contain platform information
-        println!("Platform-specific URL for {}: {}", current_platform, url);
+        println!("Platform-specific URL for {current_platform}: {url}");
 
         // At minimum, it should be a valid HTTP URL
         assert!(url.starts_with("http"));

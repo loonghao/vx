@@ -25,14 +25,14 @@ pub async fn handle(tool: Option<String>, check: bool, version: Option<String>) 
 }
 
 async fn update_tool(tool_name: &str, target_version: Option<String>) -> Result<()> {
-    UI::step(&format!("Updating {}...", tool_name));
+    UI::step(&format!("Updating {tool_name}..."));
 
     let package_manager = crate::package_manager::PackageManager::new()?;
     let installed_versions = package_manager.list_versions(tool_name);
 
     if installed_versions.is_empty() {
-        UI::warning(&format!("Tool '{}' is not installed", tool_name));
-        UI::hint(&format!("Install with: vx install {}", tool_name));
+        UI::warning(&format!("Tool '{tool_name}' is not installed"));
+        UI::hint(&format!("Install with: vx install {tool_name}"));
         return Ok(());
     }
 
@@ -57,16 +57,15 @@ async fn update_tool(tool_name: &str, target_version: Option<String>) -> Result<
     if let Some(current) = &current_version {
         if current == &version_to_install {
             UI::success(&format!(
-                "{} is already up to date ({})",
-                tool_name, current
+                "{tool_name} is already up to date ({current})"
             ));
             return Ok(());
         }
 
-        UI::info(&format!("Current version: {}", current));
+        UI::info(&format!("Current version: {current}"));
     }
 
-    UI::info(&format!("Target version: {}", version_to_install));
+    UI::info(&format!("Target version: {version_to_install}"));
 
     // Check if target version is already installed
     let version_strings: Vec<String> = installed_versions
@@ -75,15 +74,14 @@ async fn update_tool(tool_name: &str, target_version: Option<String>) -> Result<
         .collect();
     if version_strings.contains(&version_to_install) {
         UI::info(&format!(
-            "Version {} is already installed",
-            version_to_install
+            "Version {version_to_install} is already installed"
         ));
 
         // Switch to this version
-        let tool_version = format!("{}@{}", tool_name, version_to_install);
+        let tool_version = format!("{tool_name}@{version_to_install}");
         crate::cli::switch::handle(tool_version, false).await?;
 
-        UI::success(&format!("Switched to {} {}", tool_name, version_to_install));
+        UI::success(&format!("Switched to {tool_name} {version_to_install}"));
         return Ok(());
     }
 
@@ -108,7 +106,7 @@ async fn update_tool(tool_name: &str, target_version: Option<String>) -> Result<
     UI::info(&format!("Installed to: {}", path.display()));
 
     // Switch to the new version
-    let tool_version = format!("{}@{}", tool_name, version_to_install);
+    let tool_version = format!("{tool_name}@{version_to_install}");
     with_progress_span!(
         "switch_version",
         crate::cli::switch::handle(tool_version, false)
@@ -165,8 +163,8 @@ async fn check_tool_updates(tool_name: &str) -> Result<()> {
                 UI::success(&format!("{tool_name} is up to date ({current})"));
             } else {
                 UI::info(&format!("Update available for {tool_name}:"));
-                println!("  Current: {}", current);
-                println!("  Latest:  {}", latest_version);
+                println!("  Current: {current}");
+                println!("  Latest:  {latest_version}");
                 UI::hint(&format!("Update with: vx update {tool_name}"));
             }
         }
@@ -218,7 +216,7 @@ async fn check_all_updates() -> Result<()> {
     if !updates_available.is_empty() {
         UI::header("Updates Available");
         for (tool, current, latest) in &updates_available {
-            println!("  {} {} → {}", tool, current, latest);
+            println!("  {tool} {current} → {latest}");
         }
         println!();
         UI::hint("Update all with: vx update");
@@ -228,14 +226,14 @@ async fn check_all_updates() -> Result<()> {
     if !up_to_date.is_empty() {
         UI::header("Up to Date");
         for (tool, version) in &up_to_date {
-            println!("  {} {}", tool, version);
+            println!("  {tool} {version}");
         }
     }
 
     if !check_failed.is_empty() {
         UI::header("Check Failed");
         for (tool, reason) in &check_failed {
-            println!("  {} ({})", tool, reason);
+            println!("  {tool} ({reason})");
         }
     }
 

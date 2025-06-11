@@ -45,13 +45,13 @@ pub async fn handle_cleanup(cache: bool, orphaned: bool, dry_run: bool) -> Resul
 }
 
 async fn show_tool_stats(tool_name: &str, detailed: bool) -> Result<()> {
-    UI::header(&format!("Statistics for {}", tool_name));
+    UI::header(&format!("Statistics for {tool_name}"));
 
     let package_manager = crate::package_manager::PackageManager::new()?;
     let versions = package_manager.list_versions(tool_name);
 
     if versions.is_empty() {
-        UI::warning(&format!("Tool '{}' is not installed", tool_name));
+        UI::warning(&format!("Tool '{tool_name}' is not installed"));
         return Ok(());
     }
 
@@ -76,7 +76,7 @@ async fn show_tool_stats(tool_name: &str, detailed: bool) -> Result<()> {
         }
     }
 
-    println!("Total versions: {}", version_count);
+    println!("Total versions: {version_count}");
     println!("Total size: {}", format_size(total_size));
 
     Ok(())

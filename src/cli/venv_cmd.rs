@@ -56,7 +56,7 @@ pub async fn handle_venv_command(args: VenvArgs) -> Result<()> {
 }
 
 async fn create_venv(manager: &VenvManager, name: &str, tools: &[String]) -> Result<()> {
-    UI::info(&format!("Creating virtual environment '{}'", name));
+    UI::info(&format!("Creating virtual environment '{name}'"));
 
     // Parse tool specifications
     let mut tool_specs = Vec::new();
@@ -73,17 +73,16 @@ async fn create_venv(manager: &VenvManager, name: &str, tools: &[String]) -> Res
     } else {
         UI::info("Tools to install:");
         for (tool, version) in &tool_specs {
-            println!("  {} @ {}", tool, version);
+            println!("  {tool} @ {version}");
         }
     }
 
     manager.create(name, &tool_specs)?;
 
     UI::success(&format!(
-        "Virtual environment '{}' created successfully!",
-        name
+        "Virtual environment '{name}' created successfully!"
     ));
-    UI::info(&format!("Activate with: vx venv activate {}", name));
+    UI::info(&format!("Activate with: vx venv activate {name}"));
 
     Ok(())
 }
@@ -102,14 +101,14 @@ async fn list_venvs(manager: &VenvManager) -> Result<()> {
 
     for venv in venvs {
         if Some(&venv) == current.as_ref() {
-            println!("* {} (active)", venv);
+            println!("* {venv} (active)");
         } else {
-            println!("  {}", venv);
+            println!("  {venv}");
         }
     }
 
     if let Some(current) = current {
-        UI::info(&format!("Currently active: {}", current));
+        UI::info(&format!("Currently active: {current}"));
     }
 
     Ok(())
@@ -119,24 +118,23 @@ async fn activate_venv(manager: &VenvManager, name: &str) -> Result<()> {
     if VenvManager::is_active() {
         if let Some(current) = VenvManager::current() {
             if current == name {
-                UI::warning(&format!("Virtual environment '{}' is already active", name));
+                UI::warning(&format!("Virtual environment '{name}' is already active"));
                 return Ok(());
             } else {
-                UI::warning(&format!("Deactivating current environment '{}'", current));
+                UI::warning(&format!("Deactivating current environment '{current}'"));
             }
         }
     }
 
     let activation_script = manager.activate(name)?;
 
-    UI::success(&format!("Activating virtual environment '{}'", name));
+    UI::success(&format!("Activating virtual environment '{name}'"));
     UI::info("Run the following commands in your shell:");
     println!();
-    println!("{}", activation_script);
+    println!("{activation_script}");
     println!();
     UI::hint(&format!(
-        "Copy and paste the above commands, or use: eval \"$(vx venv activate {})\"",
-        name
+        "Copy and paste the above commands, or use: eval \"$(vx venv activate {name})\""
     ));
 
     Ok(())
@@ -151,9 +149,9 @@ async fn deactivate_venv() -> Result<()> {
     let current = VenvManager::current().unwrap();
     let deactivation_script = VenvManager::deactivate();
 
-    UI::info(&format!("Deactivating virtual environment '{}'", current));
+    UI::info(&format!("Deactivating virtual environment '{current}'"));
     println!();
-    println!("{}", deactivation_script);
+    println!("{deactivation_script}");
     println!();
     UI::hint("Copy and paste the above commands, or use: eval \"$(vx venv deactivate)\"");
 
@@ -166,8 +164,7 @@ async fn remove_venv(manager: &VenvManager, name: &str, force: bool) -> Result<(
 
         let confirm = Confirm::new()
             .with_prompt(format!(
-                "Are you sure you want to remove virtual environment '{}'?",
-                name
+                "Are you sure you want to remove virtual environment '{name}'?"
             ))
             .default(false)
             .interact()?;
@@ -187,14 +184,14 @@ async fn remove_venv(manager: &VenvManager, name: &str, force: bool) -> Result<(
     }
 
     manager.remove(name)?;
-    UI::success(&format!("Virtual environment '{}' removed", name));
+    UI::success(&format!("Virtual environment '{name}' removed"));
 
     Ok(())
 }
 
 async fn show_current_venv() -> Result<()> {
     if let Some(current) = VenvManager::current() {
-        UI::info(&format!("Current virtual environment: {}", current));
+        UI::info(&format!("Current virtual environment: {current}"));
     } else {
         UI::info("No virtual environment is currently active");
         UI::hint("Activate one with: vx venv activate <name>");

@@ -77,7 +77,7 @@ fn generate_default_config(tools: &[String]) -> Result<String> {
         config.push_str("[tools.node]\nversion = \"lts\"\n");
     } else {
         for tool in tools {
-            config.push_str(&format!("[tools.{}]\nversion = \"latest\"\n\n", tool));
+            config.push_str(&format!("[tools.{tool}]\nversion = \"latest\"\n\n"));
         }
     }
 
@@ -86,7 +86,7 @@ fn generate_default_config(tools: &[String]) -> Result<String> {
 
 fn generate_template_config(template: &str, additional_tools: &[String]) -> Result<String> {
     let mut config = String::from("# vx configuration file\n");
-    config.push_str(&format!("# Generated from {} template\n\n", template));
+    config.push_str(&format!("# Generated from {template} template\n\n"));
 
     match template {
         "node" | "javascript" | "js" => {
@@ -110,7 +110,7 @@ fn generate_template_config(template: &str, additional_tools: &[String]) -> Resu
     }
 
     for tool in additional_tools {
-        config.push_str(&format!("[tools.{}]\nversion = \"latest\"\n\n", tool));
+        config.push_str(&format!("[tools.{tool}]\nversion = \"latest\"\n\n"));
     }
 
     Ok(config)
