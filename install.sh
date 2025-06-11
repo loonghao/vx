@@ -1,12 +1,13 @@
 #!/bin/bash
-# Installation script for vx
-# This script downloads and installs the latest version of vx from GitHub releases
+# vx Universal Development Tool Manager Installation Script
+# This script detects your platform and installs vx using the appropriate package manager
 
 set -e
 
 # Default values
 VERSION="latest"
 INSTALL_DIR="$HOME/.vx/bin"
+USE_PACKAGE_MANAGER="auto"
 
 # GitHub repository information
 OWNER="loonghao"
@@ -21,7 +22,11 @@ NC='\033[0m' # No Color
 
 # Helper functions
 log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
 log_warn() {
@@ -30,6 +35,11 @@ log_warn() {
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
 }
 
 # Parse command line arguments
@@ -43,12 +53,22 @@ while [[ $# -gt 0 ]]; do
             INSTALL_DIR="$2"
             shift 2
             ;;
+        --package-manager)
+            USE_PACKAGE_MANAGER="$2"
+            shift 2
+            ;;
+        --no-package-manager)
+            USE_PACKAGE_MANAGER="false"
+            shift
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
-            echo "  --version VERSION     Install specific version (default: latest)"
-            echo "  --install-dir DIR     Installation directory (default: ~/.vx/bin)"
-            echo "  -h, --help           Show this help message"
+            echo "  --version VERSION         Install specific version (default: latest)"
+            echo "  --install-dir DIR         Installation directory (default: ~/.vx/bin)"
+            echo "  --package-manager TYPE    Use specific package manager (auto|brew|apt|yum|pacman|false)"
+            echo "  --no-package-manager      Skip package manager, use direct download"
+            echo "  -h, --help               Show this help message"
             exit 0
             ;;
         *)
@@ -95,12 +115,61 @@ detect_platform() {
     echo "${os}_${arch}"
 }
 
-# Download and install vx
-install_vx() {
+# Try to install via package manager
+try_package_manager() {
+    local os_name
+    os_name=$(uname -s | tr '[:upper:]' '[:lower:]')
+
+    case $os_name in
+        linux)
+            if [[ "$USE_PACKAGE_MANAGER" == "auto" || "$USE_PACKAGE_MANAGER" == "apt" ]] && command_exists apt-get; then
+                log_info "Attempting to install via apt-get..."
+                log_warn "Package not yet available in official repos. Using direct download."
+                return 1
+            elif [[ "$USE_PACKAGE_MANAGER" == "auto" || "$USE_PACKAGE_MANAGER" == "yum" ]] && command_exists yum; then
+                log_info "Attempting to install via yum..."
+                log_warn "Package not yet available in official repos. Using direct download."
+                return 1
+            elif [[ "$USE_PACKAGE_MANAGER" == "auto" || "$USE_PACKAGE_MANAGER" == "pacman" ]] && command_exists pacman; then
+                log_info "Attempting to install via pacman (AUR)..."
+                if command_exists yay; then
+                    log_info "Installing from AUR using yay..."
+                    yay -S vx-bin --noconfirm
+                    return 0
+                elif command_exists paru; then
+                    log_info "Installing from AUR using paru..."
+                    paru -S vx-bin --noconfirm
+                    return 0
+                else
+                    log_warn "AUR helper not found. Using direct download."
+                    return 1
+                fi
+            else
+                return 1
+            fi
+            ;;
+        darwin)
+            if [[ "$USE_PACKAGE_MANAGER" == "auto" || "$USE_PACKAGE_MANAGER" == "brew" ]] && command_exists brew; then
+                log_info "Installing via Homebrew..."
+                brew tap loonghao/tap 2>/dev/null || true
+                brew install vx
+                return 0
+            else
+                return 1
+            fi
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Download and install vx directly
+install_vx_direct() {
     local platform
     platform=$(detect_platform)
-    
-    log_info "Installing vx for $platform..."
+
+    log_info "Installing vx for $platform via direct download..."
     
     # Create installation directory
     mkdir -p "$INSTALL_DIR"
@@ -167,10 +236,74 @@ install_vx() {
     log_info "Installation complete! Run 'vx --version' to verify."
 }
 
+# Verify installation
+verify_installation() {
+    if command_exists vx; then
+        local version
+        version=$(vx --version 2>/dev/null || echo "unknown")
+        log_success "vx is installed and working! Version: $version"
+        log_info "Run 'vx --help' to get started."
+        return 0
+    else
+        log_error "Installation verification failed. vx command not found."
+        log_info "You may need to restart your shell or update your PATH."
+        return 1
+    fi
+}
+
 # Main execution
 main() {
-    log_info "vx installer"
-    install_vx
+    echo "🚀 vx Universal Development Tool Manager Installer"
+    echo "=================================================="
+    echo
+
+    log_info "Starting vx installation..."
+
+    # Check if already installed
+    if command_exists vx; then
+        local current_version
+        current_version=$(vx --version 2>/dev/null || echo "unknown")
+        log_warn "vx is already installed (version: $current_version)"
+        read -p "Do you want to reinstall/update? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Installation cancelled."
+            exit 0
+        fi
+    fi
+
+    # Try package manager first (unless disabled)
+    if [[ "$USE_PACKAGE_MANAGER" != "false" ]]; then
+        if try_package_manager; then
+            log_success "Successfully installed via package manager!"
+            verify_installation
+            echo
+            log_success "🎉 Installation completed successfully!"
+            echo
+            log_info "Next steps:"
+            echo "  1. Run 'vx --help' to see available commands"
+            echo "  2. Run 'vx list' to see available tools"
+            echo "  3. Run 'vx install <tool>' to install a development tool"
+            echo
+            log_info "Documentation: https://github.com/loonghao/vx"
+            return 0
+        fi
+    fi
+
+    # Fall back to direct download
+    log_info "Falling back to direct download..."
+    install_vx_direct
+    verify_installation
+
+    echo
+    log_success "🎉 Installation completed successfully!"
+    echo
+    log_info "Next steps:"
+    echo "  1. Run 'vx --help' to see available commands"
+    echo "  2. Run 'vx list' to see available tools"
+    echo "  3. Run 'vx install <tool>' to install a development tool"
+    echo
+    log_info "Documentation: https://github.com/loonghao/vx"
 }
 
 main "$@"

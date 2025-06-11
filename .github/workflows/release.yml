@@ -21,6 +21,8 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    # Skip if this is a release-please automated commit
+    if: ${{ !contains(github.event.head_commit.message, 'chore(main): release') && !contains(github.event.head_commit.author.name, 'github-actions') }}
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
@@ -32,9 +34,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check commit message
+        run: |
+          echo "Commit message: ${{ github.event.head_commit.message }}"
+          echo "Commit author: ${{ github.event.head_commit.author.name }}"
+          echo "Should skip: ${{ contains(github.event.head_commit.message, 'chore(main): release') }}"
+
       - name: Run release-please
         id: release
-        uses: google-github-actions/release-please-action@v4
+        uses: googleapis/release-please-action@v4
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json

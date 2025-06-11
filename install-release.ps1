@@ -1,9 +1,12 @@
-# PowerShell installation script for vx
-# This script downloads and installs the latest version of vx from GitHub releases
+# vx Universal Development Tool Manager Installation Script for Windows
+# This script detects your platform and installs vx using the appropriate package manager
 
 param(
     [string]$Version = "latest",
-    [string]$InstallDir = "$env:USERPROFILE\.vx\bin"
+    [string]$InstallDir = "$env:USERPROFILE\.vx\bin",
+    [string]$PackageManager = "auto",
+    [switch]$NoPackageManager,
+    [switch]$Help
 )
 
 $ErrorActionPreference = "Stop"
