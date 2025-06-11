@@ -1,0 +1,17 @@
+[package]
+name = "vx-tool-uv"
+version = "0.1.0"
+edition = "2021"
+description = "UV tool support for vx"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/your-org/vx"
+keywords = ["uv", "python", "package-manager", "vx"]
+categories = ["development-tools"]
+
+[dependencies]
+anyhow = "1.0"
+vx-core = { path = "../../vx-core" }
+which = "6.0"
+
+[dev-dependencies]
+tempfile = "3.0"
