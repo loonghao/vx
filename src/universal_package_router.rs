@@ -4,7 +4,6 @@
 use crate::package_ecosystem::*;
 use crate::package_managers_impl::*;
 use anyhow::Result;
-use std::path::PathBuf;
 
 /// Universal package command router that handles all package management operations
 pub struct UniversalPackageRouter {
@@ -272,7 +271,8 @@ impl UniversalPackageRouter {
                         }
                     }
                     _ => {
-                        return Err(anyhow::anyhow!("Unknown command: {}", command));
+                        // For non-package-manager commands, let the tool manager handle it
+                        return Err(anyhow::anyhow!("Command '{}' is not a package management command for {:?} ecosystem", command, ecosystem));
                     }
                 }
             } else {
@@ -300,7 +300,7 @@ impl UniversalPackageRouter {
     
     /// Handle direct package manager commands
     fn handle_direct_manager_command(&self, manager_name: &str, args: &[String]) -> Result<()> {
-        if let Some(manager) = self.registry.get_manager_by_name(manager_name) {
+        if let Some(_manager) = self.registry.get_manager_by_name(manager_name) {
             // For direct manager commands, we pass through the arguments
             // This would typically involve executing the manager directly
             println!("Executing {} with args: {:?}", manager_name, args);
@@ -311,10 +311,15 @@ impl UniversalPackageRouter {
         }
     }
     
+    /// Check if a package manager with the given name is available
+    pub fn has_manager(&self, name: &str) -> bool {
+        self.registry.get_manager_by_name(name).is_some()
+    }
+
     /// Parse package specifications from command line arguments
     fn parse_package_specs(&self, args: &[String]) -> Result<Vec<PackageSpec>> {
         let mut specs = Vec::new();
-        
+
         for arg in args {
             let (name, version) = if arg.contains('@') {
                 let parts: Vec<&str> = arg.splitn(2, '@').collect();
@@ -322,7 +327,7 @@ impl UniversalPackageRouter {
             } else {
                 (arg.clone(), None)
             };
-            
+
             specs.push(PackageSpec {
                 name,
                 version,
@@ -331,7 +336,7 @@ impl UniversalPackageRouter {
                 dependencies: vec![],
             });
         }
-        
+
         Ok(specs)
     }
 }

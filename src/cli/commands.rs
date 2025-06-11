@@ -60,6 +60,10 @@ impl CommandHandler {
 
             Some(Commands::Plugin { command }) => super::plugin::handle(command).await,
 
+            Some(Commands::Venv { command }) => super::venv_cmd::handle_venv_command(
+                crate::cli::venv_cmd::VenvArgs { command }
+            ).await,
+
             None => {
                 // Handle tool execution
                 if cli.args.is_empty() {

@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- **Virtual Environment Support**: Added `vx venv` command for creating and managing isolated development environments
+  - `vx venv create <name>` - Create new virtual environment with specific tool versions
+  - `vx venv activate <name>` - Generate activation script for shell integration
+  - `vx venv list` - List all virtual environments
+  - `vx venv remove <name>` - Remove virtual environment
+  - `vx venv current` - Show current active environment
+- **Rust Toolchain Separation**: Split Rust tool into separate `cargo` and `rustc` tools
+  - `vx cargo` - Rust package manager and build tool
+  - `vx rustc` - Rust compiler
+- **Environment Isolation Improvements**: Enhanced tool execution to better support isolated environments
 - Initial implementation of vx - Universal Development Tool Manager
 - Support for UV (Python package manager)
 - Support for Node.js and npm
