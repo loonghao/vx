@@ -105,7 +105,7 @@ fn generate_template_config(template: &str, additional_tools: &[String]) -> Resu
             config.push_str("[tools.go]\nversion = \"latest\"\n\n");
         }
         _ => {
-            return Err(anyhow::anyhow!("Unknown template: {}", template));
+            return Err(anyhow::anyhow!("Unknown template: {template}"));
         }
     }
 
