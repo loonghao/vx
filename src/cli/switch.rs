@@ -13,9 +13,7 @@ pub async fn handle(tool_version: String, global: bool) -> Result<()> {
     let tool_name = parts[0];
     let version = parts[1];
 
-    let spinner = UI::new_spinner(&format!(
-        "Switching {tool_name} to version {version}..."
-    ));
+    let spinner = UI::new_spinner(&format!("Switching {tool_name} to version {version}..."));
 
     let mut executor = crate::executor::Executor::new()?;
     match executor.switch_version(tool_name, version) {

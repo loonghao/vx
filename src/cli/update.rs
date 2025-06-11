@@ -56,9 +56,7 @@ async fn update_tool(tool_name: &str, target_version: Option<String>) -> Result<
     // Check if we need to update
     if let Some(current) = &current_version {
         if current == &version_to_install {
-            UI::success(&format!(
-                "{tool_name} is already up to date ({current})"
-            ));
+            UI::success(&format!("{tool_name} is already up to date ({current})"));
             return Ok(());
         }
 
