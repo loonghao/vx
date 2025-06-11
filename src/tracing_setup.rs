@@ -13,27 +13,33 @@ static INDICATIF_LAYER: OnceLock<IndicatifLayer<tracing_subscriber::Registry>> =
 /// Initialize tracing with indicatif progress bars
 /// This follows Rust community best practices for structured logging
 pub fn init_tracing(verbose: bool) {
-    let indicatif_layer = IndicatifLayer::new();
+    use std::sync::Once;
+    static INIT: Once = Once::new();
 
-    // Note: We can't store the layer globally due to generic constraints
-    // This is fine as tracing-indicatif manages progress bars automatically
+    INIT.call_once(|| {
+        let indicatif_layer = IndicatifLayer::new();
 
-    let env_filter = if verbose {
-        tracing_subscriber::EnvFilter::new("vx=debug,info")
-    } else {
-        tracing_subscriber::EnvFilter::new("vx=info,warn,error")
-    };
+        // Note: We can't store the layer globally due to generic constraints
+        // This is fine as tracing-indicatif manages progress bars automatically
 
-    tracing_subscriber::registry()
-        .with(env_filter)
-        .with(
-            tracing_subscriber::fmt::layer()
-                .with_writer(indicatif_layer.get_stderr_writer())
-                .with_target(false)
-                .with_level(verbose),
-        )
-        .with(indicatif_layer)
-        .init();
+        let env_filter = if verbose {
+            tracing_subscriber::EnvFilter::new("vx=debug,info")
+        } else {
+            tracing_subscriber::EnvFilter::new("vx=info,warn,error")
+        };
+
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .with_writer(indicatif_layer.get_stderr_writer())
+                    .with_target(false)
+                    .with_level(verbose),
+            )
+            .with(indicatif_layer)
+            .try_init()
+            .ok(); // Ignore errors if already initialized
+    });
 }
 
 /// Get the global indicatif layer for manual progress bar operations
@@ -129,7 +135,8 @@ mod tests {
         init_tracing(true);
 
         let result = with_progress_span!("test_operation", async {
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            // Use a shorter sleep to reduce test time and potential timing issues
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
             Ok::<_, anyhow::Error>(42)
         })
         .await;
@@ -147,7 +154,8 @@ mod tests {
             "Operation completed successfully",
             "Operation failed",
             async {
-                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                // Use a shorter sleep to reduce test time and potential timing issues
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
                 Ok::<_, anyhow::Error>("success")
             }
         )
