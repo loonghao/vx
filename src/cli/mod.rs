@@ -12,10 +12,12 @@ pub mod stats;
 pub mod switch;
 pub mod update;
 pub mod use_cmd;
+pub mod venv_cmd;
 pub mod version;
 pub mod where_cmd;
 
 use clap::{Parser, Subcommand};
+use crate::cli::venv_cmd::VenvCommand;
 
 #[derive(Parser)]
 #[command(name = "vx")]
@@ -135,6 +137,12 @@ pub enum Commands {
     Plugin {
         #[command(subcommand)]
         command: PluginCommand,
+    },
+
+    /// Virtual environment management
+    Venv {
+        #[command(subcommand)]
+        command: VenvCommand,
     },
 }
 

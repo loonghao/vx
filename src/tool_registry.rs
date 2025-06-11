@@ -63,13 +63,15 @@ impl ToolRegistry {
     /// Register all built-in tools
     fn register_builtin_tools(&mut self) {
         // Import tool implementations
-        use crate::tools::{GoTool, NodeTool, RustTool, UvTool};
+        use crate::tools::{GoTool, NodeTool, UvTool};
+        use crate::tools::rust::{CargoTool, RustcTool};
 
         // Register tools
         self.register(Box::new(UvTool::new()));
         self.register(Box::new(NodeTool::new()));
         self.register(Box::new(GoTool::new()));
-        self.register(Box::new(RustTool::new()));
+        self.register(Box::new(CargoTool::new()));
+        self.register(Box::new(RustcTool::new()));
     }
 }
 
@@ -97,7 +99,8 @@ mod tests {
         assert!(registry.has_tool("uv"));
         assert!(registry.has_tool("node"));
         assert!(registry.has_tool("go"));
-        assert!(registry.has_tool("rust"));
+        assert!(registry.has_tool("cargo"));
+        assert!(registry.has_tool("rustc"));
     }
 
     #[test]

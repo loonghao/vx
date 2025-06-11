@@ -6,5 +6,5 @@ pub mod uv;
 
 pub use go::GoTool;
 pub use node::NodeTool;
-pub use rust::RustTool;
+pub use rust::{CargoTool, RustcTool};
 pub use uv::UvTool;

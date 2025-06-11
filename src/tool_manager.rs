@@ -4,7 +4,6 @@
 use crate::config_figment::FigmentConfigManager;
 use crate::tool::ToolInfo;
 use crate::tool_registry::ToolRegistry;
-use crate::installer::InstallConfig;
 use anyhow::{anyhow, Result};
 use std::path::PathBuf;
 
@@ -12,6 +11,7 @@ use std::path::PathBuf;
 pub struct ToolManager {
     registry: ToolRegistry,
     config: FigmentConfigManager,
+    #[allow(dead_code)]
     install_base_dir: PathBuf,
 }
 

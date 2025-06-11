@@ -14,52 +14,80 @@ pub async fn handle(tool: String, all: bool) -> Result<()> {
 }
 
 async fn show_active_installation(tool: &str) -> Result<()> {
-    // First check if tool is in system PATH
-    if let Ok(system_path) = which::which(tool) {
-        UI::header(&format!("Active installation of {}", tool));
-        println!("  System PATH: {}", system_path.display());
+    UI::header(&format!("Active installation of {}", tool));
 
-        // Try to get version
-        if let Ok(output) = std::process::Command::new(tool).arg("--version").output() {
-            if output.status.success() {
-                let version_output = String::from_utf8_lossy(&output.stdout);
-                let first_line = version_output.lines().next().unwrap_or("").trim();
-                if !first_line.is_empty() {
-                    println!("  Version: {}", first_line);
+    let mut found_vx_managed = false;
+
+    // First check for vx-managed versions (environment isolation priority)
+    let package_manager = crate::package_manager::PackageManager::new()?;
+    let versions = package_manager.list_versions(tool);
+
+    if !versions.is_empty() {
+        // Check for active vx-managed version
+        if let Some(active_version) = package_manager.get_active_version(tool) {
+            found_vx_managed = true;
+            println!("  vx-managed: {}", active_version.executable_path.display());
+            println!("  Version: {}", active_version.version);
+            println!("  Managed by: vx");
+
+            // Try to get detailed version info
+            if let Ok(output) = std::process::Command::new(&active_version.executable_path)
+                .arg("--version")
+                .output()
+            {
+                if output.status.success() {
+                    let version_output = String::from_utf8_lossy(&output.stdout);
+                    let first_line = version_output.lines().next().unwrap_or("").trim();
+                    if !first_line.is_empty() && first_line != active_version.version {
+                        println!("  Full version: {}", first_line);
+                    }
                 }
             }
-        }
-
-        // Check if this is a vx-managed installation
-        if is_vx_managed(&system_path) {
-            println!("  Managed by: vx");
         } else {
-            println!("  Managed by: system");
-            UI::hint(&format!(
-                "Use 'vx install {}' to install a vx-managed version",
-                tool
-            ));
-        }
-    } else {
-        UI::warning(&format!("Tool '{}' not found in system PATH", tool));
-
-        // Check if we have vx-managed versions
-        let package_manager = crate::package_manager::PackageManager::new()?;
-        let versions = package_manager.list_versions(tool);
-
-        if !versions.is_empty() {
-            UI::info("Available vx-managed versions:");
-            for version in versions {
+            // Has vx-managed versions but none active
+            println!("  vx-managed versions available but none active:");
+            for version in &versions {
                 if let Ok(path) = package_manager.get_version_path(tool, version) {
-                    let exe_path = find_executable(&path, tool)?;
-                    println!("  {} -> {}", version, exe_path.display());
+                    if let Ok(exe_path) = find_executable(&path, tool) {
+                        println!("    {} -> {}", version.version, exe_path.display());
+                    }
                 }
             }
             UI::hint(&format!(
                 "Use 'vx switch {}@<version>' to activate a version",
                 tool
             ));
-        } else {
+        }
+    }
+
+    // Show system PATH info only if no vx-managed version is active
+    if !found_vx_managed {
+        if let Ok(system_path) = which::which(tool) {
+            if is_vx_managed(&system_path) {
+                println!("  vx-managed: {}", system_path.display());
+                println!("  Managed by: vx");
+            } else {
+                println!("  System PATH: {}", system_path.display());
+                println!("  Managed by: system");
+
+                // Try to get version
+                if let Ok(output) = std::process::Command::new(tool).arg("--version").output() {
+                    if output.status.success() {
+                        let version_output = String::from_utf8_lossy(&output.stdout);
+                        let first_line = version_output.lines().next().unwrap_or("").trim();
+                        if !first_line.is_empty() {
+                            println!("  Version: {}", first_line);
+                        }
+                    }
+                }
+
+                UI::hint(&format!(
+                    "Use 'vx install {}' to install a vx-managed version",
+                    tool
+                ));
+            }
+        } else if versions.is_empty() {
+            UI::warning(&format!("Tool '{}' not found", tool));
             UI::hint(&format!("Install with: vx install {}", tool));
         }
     }
