@@ -31,7 +31,7 @@ impl VenvManager {
     pub fn new() -> Result<Self> {
         let config = FigmentConfigManager::new()?;
         let tool_manager = ToolManager::new()?;
-        
+
         // Get venvs directory from config or use default
         let venvs_dir = if let Some(config_dir) = dirs::config_dir() {
             config_dir.join("vx").join("venvs")
@@ -41,7 +41,7 @@ impl VenvManager {
                 .join(".vx")
                 .join("venvs")
         };
-        
+
         // Ensure venvs directory exists
         std::fs::create_dir_all(&venvs_dir)?;
 
@@ -55,7 +55,7 @@ impl VenvManager {
     /// Create a new virtual environment
     pub fn create(&self, name: &str, tools: &[(String, String)]) -> Result<()> {
         let venv_dir = self.venvs_dir.join(name);
-        
+
         if venv_dir.exists() {
             return Err(anyhow!("Virtual environment '{}' already exists", name));
         }
@@ -93,26 +93,26 @@ impl VenvManager {
     /// Activate a virtual environment (returns shell commands to execute)
     pub fn activate(&self, name: &str) -> Result<String> {
         let venv_config = self.load_venv_config(name)?;
-        
+
         // Generate activation script
         let mut commands = Vec::new();
-        
+
         // Set VX_VENV environment variable
         commands.push(format!("export VX_VENV={}", name));
-        
+
         // Prepend venv bin directory to PATH
         for path_entry in &venv_config.path_entries {
             commands.push(format!("export PATH={}:$PATH", path_entry.display()));
         }
-        
+
         // Set custom environment variables
         for (key, value) in &venv_config.env_vars {
             commands.push(format!("export {}={}", key, value));
         }
-        
+
         // Set prompt indicator
         commands.push(format!("export PS1=\"(vx:{}) $PS1\"", name));
-        
+
         Ok(commands.join("\n"))
     }
 
@@ -122,13 +122,14 @@ impl VenvManager {
             "unset VX_VENV",
             "# Restore original PATH (implementation needed)",
             "# Restore original PS1 (implementation needed)",
-        ].join("\n")
+        ]
+        .join("\n")
     }
 
     /// List all virtual environments
     pub fn list(&self) -> Result<Vec<String>> {
         let mut venvs = Vec::new();
-        
+
         if self.venvs_dir.exists() {
             for entry in std::fs::read_dir(&self.venvs_dir)? {
                 let entry = entry?;
@@ -139,7 +140,7 @@ impl VenvManager {
                 }
             }
         }
-        
+
         venvs.sort();
         Ok(venvs)
     }
@@ -147,7 +148,7 @@ impl VenvManager {
     /// Remove a virtual environment
     pub fn remove(&self, name: &str) -> Result<()> {
         let venv_dir = self.venvs_dir.join(name);
-        
+
         if !venv_dir.exists() {
             return Err(anyhow!("Virtual environment '{}' does not exist", name));
         }
@@ -178,7 +179,11 @@ impl VenvManager {
 
     /// Save virtual environment configuration
     fn save_venv_config(&self, config: &VenvConfig) -> Result<()> {
-        let config_path = self.venvs_dir.join(&config.name).join("config").join("venv.toml");
+        let config_path = self
+            .venvs_dir
+            .join(&config.name)
+            .join("config")
+            .join("venv.toml");
         let toml_content = toml::to_string_pretty(config)?;
         std::fs::write(config_path, toml_content)?;
         Ok(())
@@ -187,9 +192,12 @@ impl VenvManager {
     /// Load virtual environment configuration
     fn load_venv_config(&self, name: &str) -> Result<VenvConfig> {
         let config_path = self.venvs_dir.join(name).join("config").join("venv.toml");
-        
+
         if !config_path.exists() {
-            return Err(anyhow!("Virtual environment '{}' configuration not found", name));
+            return Err(anyhow!(
+                "Virtual environment '{}' configuration not found",
+                name
+            ));
         }
 
         let content = std::fs::read_to_string(config_path)?;

@@ -1,7 +1,7 @@
 use crate::package_manager::{Package, PackageManager};
-use crate::universal_package_router::UniversalPackageRouter;
 use crate::tool_manager::ToolManager;
 use crate::ui::UI;
+use crate::universal_package_router::UniversalPackageRouter;
 use anyhow::Result;
 
 use std::process::{Command, Stdio};
