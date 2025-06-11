@@ -4,28 +4,52 @@
 use crate::config_figment::FigmentConfigManager;
 use crate::tool::ToolInfo;
 use crate::tool_registry::ToolRegistry;
+use crate::installer::InstallConfig;
 use anyhow::{anyhow, Result};
+use std::path::PathBuf;
 
 /// Tool manager that integrates tools with configuration
 pub struct ToolManager {
     registry: ToolRegistry,
     config: FigmentConfigManager,
+    install_base_dir: PathBuf,
 }
 
 impl ToolManager {
     /// Create a new tool manager
     pub fn new() -> Result<Self> {
+        let install_base_dir = dirs::cache_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+            .join("vx")
+            .join("tools");
+
         Ok(Self {
             registry: ToolRegistry::new(),
             config: FigmentConfigManager::new()?,
+            install_base_dir,
         })
+    }
+
+    /// Create a new tool manager with custom config and install directory
+    pub fn new_with_config(config: FigmentConfigManager, install_base_dir: PathBuf) -> Self {
+        Self {
+            registry: ToolRegistry::new(),
+            config,
+            install_base_dir,
+        }
     }
 
     /// Create a minimal tool manager (for fallback)
     pub fn minimal() -> Result<Self> {
+        let install_base_dir = dirs::cache_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+            .join("vx")
+            .join("tools");
+
         Ok(Self {
             registry: ToolRegistry::new(),
             config: FigmentConfigManager::minimal()?,
+            install_base_dir,
         })
     }
 
