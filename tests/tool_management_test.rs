@@ -7,24 +7,30 @@ use vx::tool_registry::ToolRegistry;
 #[tokio::test]
 async fn test_tool_registry_basic_operations() {
     let registry = ToolRegistry::new();
-    
+
     // Test tool registration and retrieval
     assert!(registry.has_tool("uv"), "Should have uv tool registered");
-    assert!(registry.has_tool("node"), "Should have node tool registered");
+    assert!(
+        registry.has_tool("node"),
+        "Should have node tool registered"
+    );
     assert!(registry.has_tool("go"), "Should have go tool registered");
-    assert!(registry.has_tool("cargo"), "Should have cargo tool registered");
-    
+    assert!(
+        registry.has_tool("cargo"),
+        "Should have cargo tool registered"
+    );
+
     // Test tool names
     let tool_names = registry.tool_names();
     assert!(!tool_names.is_empty(), "Should have registered tools");
     assert!(tool_names.contains(&"uv".to_string()));
     assert!(tool_names.contains(&"node".to_string()));
     assert!(tool_names.contains(&"cargo".to_string()));
-    
+
     // Test tool info retrieval
     let uv_info = registry.get_tool_info("uv");
     assert!(uv_info.is_ok(), "Should get uv tool info");
-    
+
     let uv_info = uv_info.unwrap();
     assert_eq!(uv_info.name, "uv");
     assert!(!uv_info.description.is_empty());
