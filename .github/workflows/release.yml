@@ -55,12 +55,17 @@ jobs:
           echo "Version: ${{ steps.release.outputs.version }}"
           echo "PR: ${{ steps.release.outputs.pr }}"
 
-          if [ "${{ steps.release.outputs.release_created }}" = "true" ]; then
-            echo "🎉 Release created! Tag: ${{ steps.release.outputs.tag_name }}"
+          RELEASE_CREATED="${{ steps.release.outputs.release_created }}"
+          TAG_NAME="${{ steps.release.outputs.tag_name }}"
+          VERSION="${{ steps.release.outputs.version }}"
+          PR_URL="${{ steps.release.outputs.pr }}"
+
+          if [ "$RELEASE_CREATED" = "true" ]; then
+            echo "Release created! Tag: $TAG_NAME"
             echo "The tag-release.yml workflow will handle the actual release process."
-          elif [ "${{ steps.release.outputs.pr }}" != "" ]; then
-            echo "📝 Release PR created: ${{ steps.release.outputs.pr }}"
+          elif [ -n "$PR_URL" ]; then
+            echo "Release PR created: $PR_URL"
             echo "Merge the PR to trigger the release."
           else
-            echo "ℹ️ No release or PR created. Waiting for more commits."
+            echo "No release or PR created. Waiting for more commits."
           fi
