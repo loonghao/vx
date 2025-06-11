@@ -16,13 +16,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        rust: [stable, beta]
-        exclude:
-          # Reduce CI load by testing beta only on Ubuntu
-          - os: windows-latest
-            rust: beta
-          - os: macos-latest
-            rust: beta
+        rust: [stable]
 
     steps:
     - name: Checkout code

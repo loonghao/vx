@@ -42,9 +42,7 @@ pub async fn handle(tool: String, version: Option<String>, force: bool) -> Resul
     // Add to PATH if needed
     if let Some(parent) = path.parent() {
         UI::hint(&format!("Make sure {} is in your PATH", parent.display()));
-        UI::hint(&format!(
-            "Or use 'vx {tool}' to run the vx-managed version"
-        ));
+        UI::hint(&format!("Or use 'vx {tool}' to run the vx-managed version"));
     }
 
     Ok(())
