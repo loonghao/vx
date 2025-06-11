@@ -12,6 +12,8 @@
       "initial-version": "0.1.0",
       "separate-pull-requests": false,
       "skip-github-release": false,
+      "skip-labeling": true,
+      "always-link-local": false,
       "changelog-sections": [
         {
           "type": "feat",
@@ -79,5 +81,7 @@
     }
   },
   "changelog-path": "CHANGELOG.md",
-  "changelog-type": "github"
+  "changelog-type": "github",
+  "skip-github-pull-request": false,
+  "sequential-calls": true
 }
