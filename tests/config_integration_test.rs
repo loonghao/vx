@@ -2,7 +2,6 @@
 // Tests the complete configuration resolution flow including project config reuse
 
 use std::fs;
-use std::path::PathBuf;
 use tempfile::TempDir;
 use vx::config_figment::{FigmentConfigManager, ProjectType};
 
