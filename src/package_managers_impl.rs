@@ -3,7 +3,7 @@
 
 use crate::package_ecosystem::*;
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::Path;
 use std::process::Command;
 
 /// NPM package manager implementation
@@ -184,7 +184,7 @@ impl UniversalPackageManager for NpmPackageManager {
         self.config.clone()
     }
 
-    fn is_preferred_for_project(&self, project_path: &PathBuf) -> bool {
+    fn is_preferred_for_project(&self, project_path: &Path) -> bool {
         project_path.join("package-lock.json").exists()
     }
 }
@@ -361,7 +361,7 @@ impl UniversalPackageManager for HomebrewPackageManager {
         self.config.clone()
     }
 
-    fn is_preferred_for_project(&self, _project_path: &PathBuf) -> bool {
+    fn is_preferred_for_project(&self, _project_path: &Path) -> bool {
         // Homebrew is not project-specific
         false
     }
@@ -462,7 +462,7 @@ impl UniversalPackageManager for RezPackageManager {
         self.config.clone()
     }
 
-    fn is_preferred_for_project(&self, project_path: &PathBuf) -> bool {
+    fn is_preferred_for_project(&self, project_path: &Path) -> bool {
         project_path.join("package.py").exists() || project_path.join("rezbuild.py").exists()
     }
 }
