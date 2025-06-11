@@ -16,8 +16,8 @@ pub mod venv_cmd;
 pub mod version;
 pub mod where_cmd;
 
-use clap::{Parser, Subcommand};
 use crate::cli::venv_cmd::VenvCommand;
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "vx")]

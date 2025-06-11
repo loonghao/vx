@@ -162,7 +162,10 @@ fn get_go_config(version: &str, install_dir: PathBuf) -> InstallConfig {
         } else {
             version
         };
-        let url = format!("https://golang.org/dl/go{}.darwin-amd64.tar.gz", version_str);
+        let url = format!(
+            "https://golang.org/dl/go{}.darwin-amd64.tar.gz",
+            version_str
+        );
         (
             Some(url),
             InstallMethod::Archive {

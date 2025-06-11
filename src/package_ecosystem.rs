@@ -10,31 +10,31 @@ use std::path::PathBuf;
 pub trait UniversalPackageManager: Send + Sync {
     /// Get the name of this package manager
     fn name(&self) -> &str;
-    
+
     /// Get the ecosystem this package manager belongs to
     fn ecosystem(&self) -> Ecosystem;
-    
+
     /// Install packages
     fn install_packages(&self, packages: &[PackageSpec]) -> Result<()>;
-    
+
     /// Remove packages
     fn remove_packages(&self, packages: &[String]) -> Result<()>;
-    
+
     /// List installed packages
     fn list_packages(&self) -> Result<Vec<PackageInfo>>;
-    
+
     /// Search for packages
     fn search_packages(&self, query: &str) -> Result<Vec<PackageInfo>>;
-    
+
     /// Update packages
     fn update_packages(&self, packages: &[String]) -> Result<()>;
-    
+
     /// Check if this package manager is available on the system
     fn is_available(&self) -> bool;
-    
+
     /// Get package manager specific configuration
     fn get_config(&self) -> PackageManagerConfig;
-    
+
     /// Check if this package manager is preferred for the given project
     fn is_preferred_for_project(&self, project_path: &PathBuf) -> bool;
 }
@@ -191,22 +191,31 @@ impl PackageEcosystemRegistry {
             project_detector: ProjectDetector::new(),
         }
     }
-    
+
     /// Register a package manager for an ecosystem
     pub fn register_manager(&mut self, manager: Box<dyn UniversalPackageManager>) {
         let ecosystem = manager.ecosystem();
-        self.managers.entry(ecosystem).or_insert_with(Vec::new).push(manager);
+        self.managers
+            .entry(ecosystem)
+            .or_insert_with(Vec::new)
+            .push(manager);
     }
-    
+
     /// Get all package managers for an ecosystem
-    pub fn get_managers(&self, ecosystem: &Ecosystem) -> Option<&Vec<Box<dyn UniversalPackageManager>>> {
+    pub fn get_managers(
+        &self,
+        ecosystem: &Ecosystem,
+    ) -> Option<&Vec<Box<dyn UniversalPackageManager>>> {
         self.managers.get(ecosystem)
     }
-    
+
     /// Get the preferred package manager for a project
-    pub fn get_preferred_manager(&self, project_path: &PathBuf) -> Option<&dyn UniversalPackageManager> {
+    pub fn get_preferred_manager(
+        &self,
+        project_path: &PathBuf,
+    ) -> Option<&dyn UniversalPackageManager> {
         let project_type = self.project_detector.detect_project_type(project_path);
-        
+
         for ecosystem in project_type.ecosystems() {
             if let Some(managers) = self.get_managers(&ecosystem) {
                 for manager in managers {
@@ -222,10 +231,10 @@ impl PackageEcosystemRegistry {
                 }
             }
         }
-        
+
         None
     }
-    
+
     /// Get a specific package manager by name
     pub fn get_manager_by_name(&self, name: &str) -> Option<&dyn UniversalPackageManager> {
         for managers in self.managers.values() {
@@ -237,7 +246,7 @@ impl PackageEcosystemRegistry {
         }
         None
     }
-    
+
     /// List all available ecosystems
     pub fn list_ecosystems(&self) -> Vec<Ecosystem> {
         self.managers.keys().cloned().collect()
@@ -261,16 +270,16 @@ impl ProjectDetector {
             ],
         }
     }
-    
+
     pub fn detect_project_type(&self, project_path: &PathBuf) -> ProjectType {
         let mut detected_types = Vec::new();
-        
+
         for detector in &self.detectors {
             if let Some(project_type) = detector.detect(project_path) {
                 detected_types.push(project_type);
             }
         }
-        
+
         match detected_types.len() {
             0 => ProjectType::Unknown,
             1 => detected_types.into_iter().next().unwrap(),
@@ -308,9 +317,7 @@ impl ProjectType {
             ProjectType::DotNet => vec![Ecosystem::DotNet],
             ProjectType::VFX(_) => vec![Ecosystem::VFX],
             ProjectType::Scientific(_) => vec![Ecosystem::Scientific],
-            ProjectType::Mixed(types) => {
-                types.iter().flat_map(|t| t.ecosystems()).collect()
-            }
+            ProjectType::Mixed(types) => types.iter().flat_map(|t| t.ecosystems()).collect(),
             ProjectType::Unknown => vec![],
         }
     }
@@ -358,7 +365,9 @@ impl ProjectTypeDetector for JavaScriptDetector {
     fn detect(&self, project_path: &PathBuf) -> Option<ProjectType> {
         if project_path.join("package.json").exists() {
             Some(ProjectType::JavaScript(JavaScriptProjectType::Node))
-        } else if project_path.join("deno.json").exists() || project_path.join("deno.jsonc").exists() {
+        } else if project_path.join("deno.json").exists()
+            || project_path.join("deno.jsonc").exists()
+        {
             Some(ProjectType::JavaScript(JavaScriptProjectType::Deno))
         } else {
             None
@@ -377,7 +386,9 @@ impl ProjectTypeDetector for PythonDetector {
             Some(ProjectType::Python(PythonProjectType::Pipenv))
         } else if project_path.join("environment.yml").exists() {
             Some(ProjectType::Python(PythonProjectType::Conda))
-        } else if project_path.join("requirements.txt").exists() || project_path.join("setup.py").exists() {
+        } else if project_path.join("requirements.txt").exists()
+            || project_path.join("setup.py").exists()
+        {
             Some(ProjectType::Python(PythonProjectType::Standard))
         } else {
             None
