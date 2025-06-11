@@ -39,7 +39,7 @@ impl UniversalPackageManager for NpmPackageManager {
 
     fn install_packages(&self, packages: &[PackageSpec]) -> Result<()> {
         let mut args = vec!["install".to_string()];
-        
+
         for package in packages {
             let mut package_arg = package.name.clone();
             if let Some(version) = &package.version {
@@ -47,12 +47,12 @@ impl UniversalPackageManager for NpmPackageManager {
                 package_arg.push_str(version);
             }
             args.push(package_arg);
-            
+
             if package.install_options.dev_dependency {
                 args.push("--save-dev".to_string());
             }
         }
-        
+
         let status = Command::new("npm").args(&args).status()?;
         if !status.success() {
             return Err(anyhow::anyhow!("npm install failed"));
@@ -63,7 +63,7 @@ impl UniversalPackageManager for NpmPackageManager {
     fn remove_packages(&self, packages: &[String]) -> Result<()> {
         let mut args = vec!["uninstall".to_string()];
         args.extend_from_slice(packages);
-        
+
         let status = Command::new("npm").args(&args).status()?;
         if !status.success() {
             return Err(anyhow::anyhow!("npm uninstall failed"));
@@ -82,7 +82,7 @@ impl UniversalPackageManager for NpmPackageManager {
 
         let json_str = String::from_utf8_lossy(&output.stdout);
         let parsed: serde_json::Value = serde_json::from_str(&json_str)?;
-        
+
         let mut packages = Vec::new();
         if let Some(dependencies) = parsed.get("dependencies").and_then(|d| d.as_object()) {
             for (name, info) in dependencies {
@@ -90,8 +90,14 @@ impl UniversalPackageManager for NpmPackageManager {
                     packages.push(PackageInfo {
                         name: name.clone(),
                         version: version.to_string(),
-                        description: info.get("description").and_then(|d| d.as_str()).map(|s| s.to_string()),
-                        homepage: info.get("homepage").and_then(|h| h.as_str()).map(|s| s.to_string()),
+                        description: info
+                            .get("description")
+                            .and_then(|d| d.as_str())
+                            .map(|s| s.to_string()),
+                        homepage: info
+                            .get("homepage")
+                            .and_then(|h| h.as_str())
+                            .map(|s| s.to_string()),
                         repository: None,
                         license: None,
                         keywords: vec![],
@@ -117,23 +123,36 @@ impl UniversalPackageManager for NpmPackageManager {
 
         let json_str = String::from_utf8_lossy(&output.stdout);
         let parsed: serde_json::Value = serde_json::from_str(&json_str)?;
-        
+
         let mut packages = Vec::new();
         if let Some(results) = parsed.as_array() {
             for result in results {
                 if let (Some(name), Some(version)) = (
                     result.get("name").and_then(|n| n.as_str()),
-                    result.get("version").and_then(|v| v.as_str())
+                    result.get("version").and_then(|v| v.as_str()),
                 ) {
                     packages.push(PackageInfo {
                         name: name.to_string(),
                         version: version.to_string(),
-                        description: result.get("description").and_then(|d| d.as_str()).map(|s| s.to_string()),
-                        homepage: result.get("homepage").and_then(|h| h.as_str()).map(|s| s.to_string()),
+                        description: result
+                            .get("description")
+                            .and_then(|d| d.as_str())
+                            .map(|s| s.to_string()),
+                        homepage: result
+                            .get("homepage")
+                            .and_then(|h| h.as_str())
+                            .map(|s| s.to_string()),
                         repository: None,
                         license: None,
-                        keywords: result.get("keywords").and_then(|k| k.as_array())
-                            .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect())
+                        keywords: result
+                            .get("keywords")
+                            .and_then(|k| k.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_str())
+                                    .map(|s| s.to_string())
+                                    .collect()
+                            })
                             .unwrap_or_default(),
                         dependencies: vec![],
                         is_dev_dependency: false,
@@ -149,7 +168,7 @@ impl UniversalPackageManager for NpmPackageManager {
     fn update_packages(&self, packages: &[String]) -> Result<()> {
         let mut args = vec!["update".to_string()];
         args.extend_from_slice(packages);
-        
+
         let status = Command::new("npm").args(&args).status()?;
         if !status.success() {
             return Err(anyhow::anyhow!("npm update failed"));
@@ -205,7 +224,7 @@ impl UniversalPackageManager for HomebrewPackageManager {
         for package in packages {
             let mut args = vec!["install".to_string(), package.name.clone()];
             args.extend_from_slice(&package.install_options.custom_flags);
-            
+
             let status = Command::new("brew").args(&args).status()?;
             if !status.success() {
                 return Err(anyhow::anyhow!("brew install failed for {}", package.name));
@@ -227,9 +246,7 @@ impl UniversalPackageManager for HomebrewPackageManager {
     }
 
     fn list_packages(&self) -> Result<Vec<PackageInfo>> {
-        let output = Command::new("brew")
-            .args(&["list", "--json"])
-            .output()?;
+        let output = Command::new("brew").args(&["list", "--json"]).output()?;
 
         if !output.status.success() {
             return Err(anyhow::anyhow!("brew list failed"));
@@ -237,22 +254,30 @@ impl UniversalPackageManager for HomebrewPackageManager {
 
         let json_str = String::from_utf8_lossy(&output.stdout);
         let parsed: serde_json::Value = serde_json::from_str(&json_str)?;
-        
+
         let mut packages = Vec::new();
         if let Some(formulae) = parsed.as_array() {
             for formula in formulae {
                 if let (Some(name), Some(version)) = (
                     formula.get("name").and_then(|n| n.as_str()),
-                    formula.get("installed").and_then(|i| i.as_array())
+                    formula
+                        .get("installed")
+                        .and_then(|i| i.as_array())
                         .and_then(|arr| arr.first())
                         .and_then(|v| v.get("version"))
-                        .and_then(|v| v.as_str())
+                        .and_then(|v| v.as_str()),
                 ) {
                     packages.push(PackageInfo {
                         name: name.to_string(),
                         version: version.to_string(),
-                        description: formula.get("desc").and_then(|d| d.as_str()).map(|s| s.to_string()),
-                        homepage: formula.get("homepage").and_then(|h| h.as_str()).map(|s| s.to_string()),
+                        description: formula
+                            .get("desc")
+                            .and_then(|d| d.as_str())
+                            .map(|s| s.to_string()),
+                        homepage: formula
+                            .get("homepage")
+                            .and_then(|h| h.as_str())
+                            .map(|s| s.to_string()),
                         repository: None,
                         license: None,
                         keywords: vec![],
@@ -279,7 +304,7 @@ impl UniversalPackageManager for HomebrewPackageManager {
         // Parse brew search results (simplified)
         let json_str = String::from_utf8_lossy(&output.stdout);
         let parsed: serde_json::Value = serde_json::from_str(&json_str)?;
-        
+
         let mut packages = Vec::new();
         if let Some(formulae) = parsed.get("formulae").and_then(|f| f.as_array()) {
             for formula in formulae {
@@ -287,8 +312,14 @@ impl UniversalPackageManager for HomebrewPackageManager {
                     packages.push(PackageInfo {
                         name: name.to_string(),
                         version: "unknown".to_string(),
-                        description: formula.get("desc").and_then(|d| d.as_str()).map(|s| s.to_string()),
-                        homepage: formula.get("homepage").and_then(|h| h.as_str()).map(|s| s.to_string()),
+                        description: formula
+                            .get("desc")
+                            .and_then(|d| d.as_str())
+                            .map(|s| s.to_string()),
+                        homepage: formula
+                            .get("homepage")
+                            .and_then(|h| h.as_str())
+                            .map(|s| s.to_string()),
                         repository: None,
                         license: None,
                         keywords: vec![],
@@ -313,9 +344,7 @@ impl UniversalPackageManager for HomebrewPackageManager {
         } else {
             // Update specific packages
             for package in packages {
-                let status = Command::new("brew")
-                    .args(&["upgrade", package])
-                    .status()?;
+                let status = Command::new("brew").args(&["upgrade", package]).status()?;
                 if !status.success() {
                     return Err(anyhow::anyhow!("brew upgrade failed for {}", package));
                 }
@@ -377,7 +406,7 @@ impl UniversalPackageManager for RezPackageManager {
             if let Some(version) = &package.version {
                 args[1] = format!("{}-{}", package.name, version);
             }
-            
+
             let status = Command::new("rez").args(&args).status()?;
             if !status.success() {
                 return Err(anyhow::anyhow!("rez env failed for {}", package.name));
@@ -434,8 +463,7 @@ impl UniversalPackageManager for RezPackageManager {
     }
 
     fn is_preferred_for_project(&self, project_path: &PathBuf) -> bool {
-        project_path.join("package.py").exists() || 
-        project_path.join("rezbuild.py").exists()
+        project_path.join("package.py").exists() || project_path.join("rezbuild.py").exists()
     }
 }
 

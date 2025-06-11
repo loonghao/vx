@@ -14,18 +14,18 @@ impl UniversalPackageRouter {
     /// Create a new router with all supported package managers
     pub fn new() -> Self {
         let mut registry = PackageEcosystemRegistry::new();
-        
+
         // Register JavaScript ecosystem managers
         registry.register_manager(Box::new(NpmPackageManager::new()));
         // TODO: Add PnpmPackageManager, YarnPackageManager, BunPackageManager
-        
+
         // Register system package managers
         #[cfg(target_os = "macos")]
         registry.register_manager(Box::new(HomebrewPackageManager::new()));
-        
+
         // Register specialized package managers
         registry.register_manager(Box::new(RezPackageManager::new()));
-        
+
         // TODO: Add more package managers:
         // - Chocolatey (Windows)
         // - APT (Ubuntu/Debian)
@@ -35,19 +35,19 @@ impl UniversalPackageRouter {
         // - Poetry (Python)
         // - Cargo (Rust)
         // - Go modules
-        
+
         Self { registry }
     }
-    
+
     /// Route a package command to the appropriate package manager
     pub fn route_command(&self, args: &[String]) -> Result<()> {
         if args.is_empty() {
             return Err(anyhow::anyhow!("No command provided"));
         }
-        
+
         let command = &args[0];
         let remaining_args = &args[1..];
-        
+
         match command.as_str() {
             // Universal package commands (auto-detect ecosystem)
             "install" | "add" => self.handle_install_command(remaining_args),
@@ -56,25 +56,29 @@ impl UniversalPackageRouter {
             "list" | "ls" => self.handle_list_command(remaining_args),
             "search" => self.handle_search_command(remaining_args),
             "info" => self.handle_info_command(remaining_args),
-            
+
             // Ecosystem-specific commands
-            "js" | "javascript" => self.handle_ecosystem_command(&Ecosystem::JavaScript, remaining_args),
+            "js" | "javascript" => {
+                self.handle_ecosystem_command(&Ecosystem::JavaScript, remaining_args)
+            }
             "py" | "python" => self.handle_ecosystem_command(&Ecosystem::Python, remaining_args),
             "rs" | "rust" => self.handle_ecosystem_command(&Ecosystem::Rust, remaining_args),
             "go" => self.handle_ecosystem_command(&Ecosystem::Go, remaining_args),
             "system" => self.handle_system_command(remaining_args),
             "vfx" => self.handle_ecosystem_command(&Ecosystem::VFX, remaining_args),
-            "scientific" | "hpc" => self.handle_ecosystem_command(&Ecosystem::Scientific, remaining_args),
-            
+            "scientific" | "hpc" => {
+                self.handle_ecosystem_command(&Ecosystem::Scientific, remaining_args)
+            }
+
             // Direct package manager commands
             manager_name => self.handle_direct_manager_command(manager_name, remaining_args),
         }
     }
-    
+
     /// Handle install/add commands with auto-detection
     fn handle_install_command(&self, args: &[String]) -> Result<()> {
         let current_dir = std::env::current_dir()?;
-        
+
         if let Some(manager) = self.registry.get_preferred_manager(&current_dir) {
             let packages = self.parse_package_specs(args)?;
             manager.install_packages(&packages)?;
@@ -84,14 +88,14 @@ impl UniversalPackageRouter {
                 "No suitable package manager found for current project. Try specifying an ecosystem: vx pkg js install <packages>"
             ));
         }
-        
+
         Ok(())
     }
-    
+
     /// Handle remove/uninstall commands
     fn handle_remove_command(&self, args: &[String]) -> Result<()> {
         let current_dir = std::env::current_dir()?;
-        
+
         if let Some(manager) = self.registry.get_preferred_manager(&current_dir) {
             let package_names: Vec<String> = args.to_vec();
             manager.remove_packages(&package_names)?;
@@ -101,14 +105,14 @@ impl UniversalPackageRouter {
                 "No suitable package manager found for current project"
             ));
         }
-        
+
         Ok(())
     }
-    
+
     /// Handle update/upgrade commands
     fn handle_update_command(&self, args: &[String]) -> Result<()> {
         let current_dir = std::env::current_dir()?;
-        
+
         if let Some(manager) = self.registry.get_preferred_manager(&current_dir) {
             let package_names: Vec<String> = args.to_vec();
             manager.update_packages(&package_names)?;
@@ -118,17 +122,17 @@ impl UniversalPackageRouter {
                 "No suitable package manager found for current project"
             ));
         }
-        
+
         Ok(())
     }
-    
+
     /// Handle list commands
     fn handle_list_command(&self, _args: &[String]) -> Result<()> {
         let current_dir = std::env::current_dir()?;
-        
+
         if let Some(manager) = self.registry.get_preferred_manager(&current_dir) {
             let packages = manager.list_packages()?;
-            
+
             if packages.is_empty() {
                 println!("No packages installed");
             } else {
@@ -147,27 +151,32 @@ impl UniversalPackageRouter {
                 println!("  {:?}", ecosystem);
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Handle search commands
     fn handle_search_command(&self, args: &[String]) -> Result<()> {
         if args.is_empty() {
             return Err(anyhow::anyhow!("Search query required"));
         }
-        
+
         let query = &args[0];
         let current_dir = std::env::current_dir()?;
-        
+
         if let Some(manager) = self.registry.get_preferred_manager(&current_dir) {
             let packages = manager.search_packages(query)?;
-            
+
             if packages.is_empty() {
                 println!("No packages found for query: {}", query);
             } else {
-                println!("🔍 Search results for '{}' (using {}):", query, manager.name());
-                for package in packages.iter().take(10) { // Limit to 10 results
+                println!(
+                    "🔍 Search results for '{}' (using {}):",
+                    query,
+                    manager.name()
+                );
+                for package in packages.iter().take(10) {
+                    // Limit to 10 results
                     println!("  {} {}", package.name, package.version);
                     if let Some(description) = &package.description {
                         println!("    {}", description);
@@ -182,22 +191,22 @@ impl UniversalPackageRouter {
                 "No suitable package manager found for current project"
             ));
         }
-        
+
         Ok(())
     }
-    
+
     /// Handle info commands
     fn handle_info_command(&self, args: &[String]) -> Result<()> {
         if args.is_empty() {
             return Err(anyhow::anyhow!("Package name required"));
         }
-        
+
         let package_name = &args[0];
         let current_dir = std::env::current_dir()?;
-        
+
         if let Some(manager) = self.registry.get_preferred_manager(&current_dir) {
             let packages = manager.search_packages(package_name)?;
-            
+
             if let Some(package) = packages.iter().find(|p| p.name == *package_name) {
                 println!("📋 Package information:");
                 println!("  Name: {}", package.name);
@@ -219,10 +228,10 @@ impl UniversalPackageRouter {
                 "No suitable package manager found for current project"
             ));
         }
-        
+
         Ok(())
     }
-    
+
     /// Handle ecosystem-specific commands
     fn handle_ecosystem_command(&self, ecosystem: &Ecosystem, args: &[String]) -> Result<()> {
         if let Some(managers) = self.registry.get_managers(ecosystem) {
@@ -236,10 +245,10 @@ impl UniversalPackageRouter {
                     println!("  search <query>     - Search for packages");
                     return Ok(());
                 }
-                
+
                 let command = &args[0];
                 let remaining_args = &args[1..];
-                
+
                 match command.as_str() {
                     "install" | "add" => {
                         let packages = self.parse_package_specs(remaining_args)?;
@@ -272,19 +281,26 @@ impl UniversalPackageRouter {
                     }
                     _ => {
                         // For non-package-manager commands, let the tool manager handle it
-                        return Err(anyhow::anyhow!("Command '{}' is not a package management command for {:?} ecosystem", command, ecosystem));
+                        return Err(anyhow::anyhow!(
+                            "Command '{}' is not a package management command for {:?} ecosystem",
+                            command,
+                            ecosystem
+                        ));
                     }
                 }
             } else {
-                return Err(anyhow::anyhow!("No package managers available for {:?} ecosystem", ecosystem));
+                return Err(anyhow::anyhow!(
+                    "No package managers available for {:?} ecosystem",
+                    ecosystem
+                ));
             }
         } else {
             return Err(anyhow::anyhow!("Ecosystem {:?} not supported", ecosystem));
         }
-        
+
         Ok(())
     }
-    
+
     /// Handle system package manager commands
     fn handle_system_command(&self, args: &[String]) -> Result<()> {
         let system_ecosystem = if cfg!(target_os = "macos") {
@@ -294,10 +310,10 @@ impl UniversalPackageRouter {
         } else {
             Ecosystem::System(SystemType::Linux(LinuxDistro::Other("unknown".to_string())))
         };
-        
+
         self.handle_ecosystem_command(&system_ecosystem, args)
     }
-    
+
     /// Handle direct package manager commands
     fn handle_direct_manager_command(&self, manager_name: &str, args: &[String]) -> Result<()> {
         if let Some(_manager) = self.registry.get_manager_by_name(manager_name) {
@@ -307,10 +323,13 @@ impl UniversalPackageRouter {
             // TODO: Implement direct execution
             Ok(())
         } else {
-            Err(anyhow::anyhow!("Package manager '{}' not found", manager_name))
+            Err(anyhow::anyhow!(
+                "Package manager '{}' not found",
+                manager_name
+            ))
         }
     }
-    
+
     /// Check if a package manager with the given name is available
     pub fn has_manager(&self, name: &str) -> bool {
         self.registry.get_manager_by_name(name).is_some()
@@ -350,23 +369,22 @@ impl Default for UniversalPackageRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_router_creation() {
         let router = UniversalPackageRouter::new();
         // Basic test to ensure router can be created
         assert!(!router.registry.list_ecosystems().is_empty());
     }
-    
+
     #[test]
     fn test_package_spec_parsing() {
         let router = UniversalPackageRouter::new();
-        
-        let specs = router.parse_package_specs(&[
-            "react".to_string(),
-            "lodash@4.17.21".to_string(),
-        ]).unwrap();
-        
+
+        let specs = router
+            .parse_package_specs(&["react".to_string(), "lodash@4.17.21".to_string()])
+            .unwrap();
+
         assert_eq!(specs.len(), 2);
         assert_eq!(specs[0].name, "react");
         assert_eq!(specs[0].version, None);
