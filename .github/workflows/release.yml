@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/release.yml'
+      - 'release-please-config.json'
+      - '.release-please-manifest.json'
   workflow_dispatch:
 
 permissions:
@@ -20,6 +27,11 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       pr: ${{ steps.release.outputs.pr }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Run release-please
         id: release
         uses: google-github-actions/release-please-action@v4
@@ -27,11 +39,28 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Debug release-please outputs
+        run: |
+          echo "Release created: ${{ steps.release.outputs.release_created }}"
+          echo "Tag name: ${{ steps.release.outputs.tag_name }}"
+          echo "Version: ${{ steps.release.outputs.version }}"
+          echo "PR: ${{ steps.release.outputs.pr }}"
   goreleaser:
     runs-on: ubuntu-latest
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
     steps:
+      - name: Verify release conditions
+        run: |
+          echo "Release created: ${{ needs.release-please.outputs.release_created }}"
+          echo "Tag name: ${{ needs.release-please.outputs.tag_name }}"
+          echo "Version: ${{ needs.release-please.outputs.version }}"
+          if [ "${{ needs.release-please.outputs.release_created }}" != "true" ]; then
+            echo "❌ Release not created, skipping GoReleaser"
+            exit 1
+          fi
+          echo "✅ Release conditions verified, proceeding with GoReleaser"
       - name: Checkout
         uses: actions/checkout@v4
         with:
