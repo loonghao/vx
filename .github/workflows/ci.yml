@@ -90,9 +90,9 @@ jobs:
           # Windows
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-          # FreeBSD
-          - target: x86_64-unknown-freebsd
-            os: ubuntu-latest
+          # FreeBSD - temporarily disabled due to missing system libraries
+          # - target: x86_64-unknown-freebsd
+          #   os: ubuntu-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

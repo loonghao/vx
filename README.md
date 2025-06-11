@@ -82,7 +82,12 @@ Download the latest release from [GitHub Releases](https://github.com/loonghao/v
 ```bash
 git clone https://github.com/loonghao/vx
 cd vx
+
+# Standard release build
 cargo build --release
+
+# PGO-optimized build (recommended for best performance)
+make build-pgo
 
 # Windows: Run the build installer
 .\install.ps1

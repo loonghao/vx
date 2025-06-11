@@ -40,6 +40,12 @@ pub struct Installer {
     client: reqwest::Client,
 }
 
+impl Default for Installer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Installer {
     pub fn new() -> Self {
         Self {
@@ -148,14 +154,12 @@ impl Installer {
 
         let status = match manager {
             "chocolatey" | "choco" => Command::new("choco")
-                .args(&["install", package, "-y"])
+                .args(["install", package, "-y"])
                 .status()?,
-            "winget" => Command::new("winget")
-                .args(&["install", package])
-                .status()?,
-            "brew" => Command::new("brew").args(&["install", package]).status()?,
+            "winget" => Command::new("winget").args(["install", package]).status()?,
+            "brew" => Command::new("brew").args(["install", package]).status()?,
             "apt" => Command::new("sudo")
-                .args(&["apt", "install", "-y", package])
+                .args(["apt", "install", "-y", package])
                 .status()?,
             _ => return Err(anyhow::anyhow!("Unsupported package manager: {}", manager)),
         };
@@ -201,7 +205,7 @@ impl Installer {
         // Run the script
         let status = if cfg!(windows) {
             Command::new("powershell")
-                .args(&[
+                .args([
                     "-ExecutionPolicy",
                     "Bypass",
                     "-File",
@@ -360,4 +364,34 @@ impl Installer {
             dir.display()
         ))
     }
+}
+
+/// Simple wrapper function for tool installation
+pub fn install_tool(tool_name: &str, version: &str, download_url: &str) -> Result<PathBuf> {
+    // Create a basic install config
+    let install_dir = dirs::cache_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("vx")
+        .join("tools")
+        .join(tool_name)
+        .join(version);
+
+    let config = InstallConfig {
+        tool_name: tool_name.to_string(),
+        version: version.to_string(),
+        install_method: InstallMethod::Archive {
+            format: if download_url.ends_with(".zip") {
+                ArchiveFormat::Zip
+            } else {
+                ArchiveFormat::TarGz
+            },
+        },
+        download_url: Some(download_url.to_string()),
+        install_dir,
+    };
+
+    // Use tokio runtime to run async installer
+    let rt = tokio::runtime::Runtime::new()?;
+    let installer = Installer::new();
+    rt.block_on(installer.install(&config))
 }
