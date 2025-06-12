@@ -60,7 +60,7 @@ mod tests {
 
     #[test]
     fn test_http_client_creation() {
-        let client = get_http_client();
+        let _client = get_http_client();
         // Client is configured with timeout
     }
 

@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use vx_core::{
     GitHubVersionParser, HttpUtils, Result, RustUrlBuilder, ToolContext, ToolExecutionResult,
-    UrlBuilder, VersionInfo, VxTool,
+    VersionInfo, VxTool,
 };
 
 /// Macro to generate Rust tool implementations using VxTool trait
@@ -11,15 +11,15 @@ macro_rules! rust_vx_tool {
     ($name:ident, $cmd:literal, $desc:literal) => {
         #[derive(Debug, Clone)]
         pub struct $name {
-            url_builder: RustUrlBuilder,
-            version_parser: GitHubVersionParser,
+            _url_builder: RustUrlBuilder,
+            _version_parser: GitHubVersionParser,
         }
 
         impl $name {
             pub fn new() -> Self {
                 Self {
-                    url_builder: RustUrlBuilder::new(),
-                    version_parser: GitHubVersionParser::new("rust-lang", "rust"),
+                    _url_builder: RustUrlBuilder::new(),
+                    _version_parser: GitHubVersionParser::new("rust-lang", "rust"),
                 }
             }
         }
