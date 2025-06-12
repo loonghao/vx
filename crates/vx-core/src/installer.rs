@@ -12,22 +12,22 @@ use std::path::{Path, PathBuf};
 pub trait Installer: Send + Sync {
     /// Get the name of the tool this installer supports
     fn tool_name(&self) -> &str;
-    
+
     /// Install a specific version of the tool
     async fn install(&self, config: &InstallConfig) -> Result<PathBuf>;
-    
+
     /// Uninstall a specific version of the tool
     async fn uninstall(&self, tool_name: &str, version: &str) -> Result<()>;
-    
+
     /// Check if a specific version is installed
     async fn is_version_installed(&self, tool_name: &str, version: &str) -> Result<bool>;
-    
+
     /// Get the installation directory for a tool version
     fn get_install_dir(&self, tool_name: &str, version: &str) -> PathBuf;
-    
+
     /// Get all installed versions of the tool
     async fn get_installed_versions(&self, tool_name: &str) -> Result<Vec<String>>;
-    
+
     /// Verify installation integrity
     async fn verify_installation(&self, tool_name: &str, version: &str) -> Result<bool> {
         self.is_version_installed(tool_name, version).await
@@ -39,25 +39,25 @@ pub trait Installer: Send + Sync {
 pub struct InstallConfig {
     /// Name of the tool to install
     pub tool_name: String,
-    
+
     /// Version to install
     pub version: String,
-    
+
     /// Installation method
     pub install_method: InstallMethod,
-    
+
     /// Download URL (if applicable)
     pub download_url: Option<String>,
-    
+
     /// Installation directory
     pub install_dir: PathBuf,
-    
+
     /// Whether to force reinstallation
     pub force: bool,
-    
+
     /// Checksum for verification
     pub checksum: Option<String>,
-    
+
     /// Additional configuration
     pub metadata: std::collections::HashMap<String, String>,
 }
@@ -67,16 +67,16 @@ pub struct InstallConfig {
 pub enum InstallMethod {
     /// Download and extract archive
     Archive { format: ArchiveFormat },
-    
+
     /// Use system package manager
     PackageManager { manager: String, package: String },
-    
+
     /// Run installation script
     Script { url: String },
-    
+
     /// Download single binary
     Binary,
-    
+
     /// Custom installation method
     Custom { method: String },
 }
@@ -192,7 +192,7 @@ impl DefaultInstaller {
             self.extract_tar_xz(&bytes, target_dir)?;
         } else {
             // Assume it's a single binary
-            let filename = url.split('/').last().unwrap_or("binary");
+            let filename = url.split('/').next_back().unwrap_or("binary");
             let target_path = target_dir.join(filename);
             std::fs::write(target_path, &bytes)?;
         }

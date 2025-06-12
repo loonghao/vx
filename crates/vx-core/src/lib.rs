@@ -29,44 +29,61 @@
 //! }
 //! ```
 
-// pub mod plugin; // Temporarily disabled during migration
-pub mod tool;
-pub mod package_manager;
-pub mod version;
-pub mod installer;
-pub mod install_configs;
 pub mod config;
 pub mod config_figment;
 pub mod error;
-// pub mod registry; // Temporarily disabled during migration
+pub mod install_configs;
+pub mod installer;
+pub mod package_manager;
+pub mod plugin; // Re-enabled for current system
+pub mod registry;
+pub mod tool;
+pub mod version; // Re-enabled for current system
 
 // Utility modules
-pub mod platform;
+pub mod downloader;
+pub mod environment;
 pub mod http;
+pub mod platform;
 pub mod url_builder;
-pub mod version_parser;
-pub mod version_manager;
 pub mod venv;
+pub mod version_manager;
+pub mod version_parser;
 
 // Re-export main traits for convenience
-// Temporarily disabled old plugin system during migration
-// pub use plugin::{VxTool, VxPackageManager, VxPlugin, UrlBuilder, VersionParser, ConfigurableTool, ToolMetadata, StandardPlugin};
-pub use tool::{Tool, AsyncTool, Environment, Configuration, Plugin, ToolContext, ToolExecutionResult, ToolInfo, ToolStatus};
-pub use version::VersionInfo;
+// Current plugin system (VxPlugin-based)
+pub use plugin::{
+    ConfigurableTool, StandardPlugin, ToolMetadata, UrlBuilder, VersionParser, VxPackageManager,
+    VxPlugin, VxTool,
+};
+// New plugin system (Plugin-based) - for future migration
+pub use config::{GlobalConfig, ToolConfig};
+pub use config_figment::{
+    ConfigStatus, DefaultConfig, FigmentConfigManager, ProjectInfo, ProjectType, VxConfig,
+};
+pub use error::{Result, VxError};
+pub use install_configs::{
+    get_install_config, get_manual_install_instructions, supports_auto_install,
+};
 pub use installer::{InstallConfig, InstallProgress, InstallStage};
-pub use install_configs::{get_install_config, supports_auto_install, get_manual_install_instructions};
-pub use package_manager::{PackageSpec, PackageInfo, Ecosystem};
-pub use config::{ToolConfig, GlobalConfig};
-pub use config_figment::{FigmentConfigManager, VxConfig, DefaultConfig, ProjectInfo, ProjectType, ConfigStatus};
-pub use error::{VxError, Result};
-// pub use registry::{PluginRegistry, ToolRegistry}; // Temporarily disabled during migration
+pub use package_manager::{Ecosystem, PackageInfo, PackageSpec};
+pub use registry::{PluginRegistry, ToolRegistry};
+pub use tool::{
+    AsyncTool, Configuration, Environment, Plugin, Tool, ToolContext, ToolExecutionResult,
+    ToolInfo, ToolStatus,
+};
+pub use version::VersionInfo; // Re-enabled for current system
 
 // Re-export utility modules
-pub use platform::{Platform, OperatingSystem, Architecture};
-pub use http::{HttpUtils, get_http_client};
-pub use url_builder::{NodeUrlBuilder, GoUrlBuilder, RustUrlBuilder, PythonUrlBuilder, GenericUrlBuilder};
-pub use version_parser::{NodeVersionParser, GoVersionParser, GitHubVersionParser, VersionParserUtils};
+pub use downloader::ToolDownloader;
+pub use environment::{EnvironmentConfig, ToolInstallation, VxEnvironment};
+pub use http::{get_http_client, HttpUtils};
+pub use platform::{Architecture, OperatingSystem, Platform};
+pub use url_builder::{
+    GenericUrlBuilder, GoUrlBuilder, NodeUrlBuilder, PythonUrlBuilder, RustUrlBuilder, UvUrlBuilder,
+};
+pub use venv::{VenvConfig, VenvManager};
 pub use version_manager::{Version, VersionManager};
-pub use venv::{VenvManager, VenvConfig};
-
-
+pub use version_parser::{
+    GitHubVersionParser, GoVersionParser, NodeVersionParser, VersionParserUtils,
+};

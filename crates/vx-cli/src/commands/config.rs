@@ -1,17 +1,10 @@
 // Config command implementation
 
-use crate::cli::ConfigCommand;
 use crate::ui::UI;
-use anyhow::Result;
+use vx_core::{Result, VxError};
 
-pub async fn handle(command: Option<ConfigCommand>) -> Result<()> {
-    match command {
-        Some(ConfigCommand::Show) | None => show_config().await,
-        Some(ConfigCommand::Set { key, value }) => set_config(&key, &value).await,
-        Some(ConfigCommand::Get { key }) => get_config(&key).await,
-        Some(ConfigCommand::Reset { key }) => reset_config(key).await,
-        Some(ConfigCommand::Edit) => edit_config().await,
-    }
+pub async fn handle() -> Result<()> {
+    show_config().await
 }
 
 pub async fn handle_init(tools: Vec<String>, template: Option<String>) -> Result<()> {
@@ -107,7 +100,9 @@ fn generate_template_config(template: &str, additional_tools: &[String]) -> Resu
             config.push_str("[tools.go]\nversion = \"latest\"\n\n");
         }
         _ => {
-            return Err(anyhow::anyhow!("Unknown template: {template}"));
+            return Err(VxError::Other {
+                message: format!("Unknown template: {template}"),
+            });
         }
     }
 

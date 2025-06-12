@@ -25,7 +25,7 @@ pub struct Cli {
     pub args: Vec<String>,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone)]
 pub enum Commands {
     /// Show version information
     Version,
@@ -131,7 +131,7 @@ pub enum Commands {
     },
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone)]
 pub enum ConfigCommand {
     /// Show current configuration
     Show,
@@ -156,7 +156,7 @@ pub enum ConfigCommand {
     Edit,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone)]
 pub enum PluginCommand {
     /// List all plugins
     List {
