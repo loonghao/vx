@@ -2,7 +2,7 @@
 
 use crate::cli::{Cli, Commands};
 use crate::ui::UI;
-use anyhow::Result;
+use vx_core::PluginRegistry;
 
 pub mod config;
 pub mod execute;
@@ -22,32 +22,40 @@ pub mod where_cmd;
 pub struct CommandHandler;
 
 impl CommandHandler {
-    pub async fn handle(cli: Cli) -> Result<()> {
+    pub async fn handle(cli: Cli, registry: &PluginRegistry) -> anyhow::Result<()> {
         // Set verbose mode
         UI::set_verbose(cli.verbose);
 
         match cli.command {
-            Some(Commands::Version) => version::handle().await,
+            Some(Commands::Version) => version::handle().await.map_err(Into::into),
 
-            Some(Commands::List) => list::handle(None, false, false).await,
+            Some(Commands::List) => list::handle(registry, false).await.map_err(Into::into),
 
             Some(Commands::Install {
                 tool,
                 version,
                 force,
-            }) => install::handle(tool, version, force).await,
+            }) => install::handle(registry, &tool, version.as_deref(), force)
+                .await
+                .map_err(Into::into),
 
             Some(Commands::Update { tool, apply: _ }) => {
-                update::handle(tool, false, None).await
+                update::handle(registry, tool.as_deref(), false)
+                    .await
+                    .map_err(Into::into)
             }
 
             Some(Commands::Remove {
                 tool,
                 version,
                 force,
-            }) => remove::handle(tool, version, force).await,
+            }) => remove::handle(registry, &tool, version.as_deref(), force)
+                .await
+                .map_err(Into::into),
 
-            Some(Commands::Where { tool, all }) => where_cmd::handle(tool, all).await,
+            Some(Commands::Where { tool, all }) => where_cmd::handle(registry, &tool, all)
+                .await
+                .map_err(Into::into),
 
             Some(Commands::Fetch {
                 tool,
@@ -55,29 +63,36 @@ impl CommandHandler {
                 prerelease,
                 detailed,
                 interactive,
-            }) => fetch::handle(tool, latest, prerelease, detailed, interactive).await,
+            }) => fetch::handle(registry, &tool, latest, detailed, interactive, prerelease)
+                .await
+                .map_err(Into::into),
 
-            Some(Commands::Use { tool_version }) => use_cmd::handle(tool_version).await,
+            Some(Commands::Use { tool_version }) => use_cmd::handle(registry, &tool_version)
+                .await
+                .map_err(Into::into),
 
             Some(Commands::Switch {
                 tool_version,
                 global,
-            }) => switch::handle(tool_version, global).await,
+            }) => switch::handle(registry, &tool_version, global)
+                .await
+                .map_err(Into::into),
 
-            Some(Commands::Config) => config::handle(None).await,
+            Some(Commands::Config) => config::handle().await.map_err(Into::into),
 
-            Some(Commands::Init) => config::handle_init(vec![], None).await,
+            Some(Commands::Init) => config::handle_init(vec![], None).await.map_err(Into::into),
 
-            Some(Commands::Cleanup) => stats::handle_cleanup(false, false, false).await,
+            Some(Commands::Cleanup) => stats::handle_cleanup(false, false, false)
+                .await
+                .map_err(Into::into),
 
-            Some(Commands::Stats) => stats::handle(None, false).await,
+            Some(Commands::Stats) => stats::handle(registry).await.map_err(Into::into),
 
-            Some(Commands::Plugin { command }) => plugin::handle(command).await,
-
-            Some(Commands::Venv { command }) => {
-                venv_cmd::handle_venv_command(venv_cmd::VenvArgs { command })
-                    .await
+            Some(Commands::Plugin { command }) => {
+                plugin::handle(registry, command).await.map_err(Into::into)
             }
+
+            Some(Commands::Venv { command }) => venv_cmd::handle(command).await.map_err(Into::into),
 
             None => {
                 // Handle tool execution
@@ -94,8 +109,9 @@ impl CommandHandler {
 
                 // Use the executor to run the tool
                 let exit_code =
-                    execute::execute_tool(tool_name, tool_args, cli.use_system_path)
-                        .await?;
+                    execute::execute_tool(registry, tool_name, tool_args, cli.use_system_path)
+                        .await
+                        .map_err(anyhow::Error::from)?;
                 if exit_code != 0 {
                     std::process::exit(exit_code);
                 }

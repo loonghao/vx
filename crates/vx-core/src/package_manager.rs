@@ -9,34 +9,34 @@ use std::path::Path;
 pub trait PackageManager: Send + Sync {
     /// Get the name of this package manager
     fn name(&self) -> &str;
-    
+
     /// Get the ecosystem this package manager belongs to
     fn ecosystem(&self) -> Ecosystem;
-    
+
     /// Install packages
     async fn install_packages(&self, packages: &[PackageSpec]) -> Result<()>;
-    
+
     /// Remove packages
     async fn remove_packages(&self, packages: &[String]) -> Result<()>;
-    
+
     /// List installed packages
     async fn list_packages(&self) -> Result<Vec<PackageInfo>>;
-    
+
     /// Search for packages
     async fn search_packages(&self, query: &str) -> Result<Vec<PackageInfo>>;
-    
+
     /// Update packages
     async fn update_packages(&self, packages: &[String]) -> Result<()>;
-    
+
     /// Check if this package manager is available on the system
     async fn is_available(&self) -> Result<bool>;
-    
+
     /// Check if this package manager is preferred for the given project
     fn is_preferred_for_project(&self, project_path: &Path) -> bool;
-    
+
     /// Get package manager configuration
     fn get_config(&self) -> PackageManagerConfig;
-    
+
     /// Run a package manager command
     async fn run_command(&self, args: &[String]) -> Result<i32>;
 }
@@ -138,19 +138,19 @@ impl PackageSpec {
             dev_dependency: false,
         }
     }
-    
+
     /// Set version constraint
     pub fn with_version(mut self, version: String) -> Self {
         self.version = Some(version);
         self
     }
-    
+
     /// Set as dev dependency
     pub fn as_dev_dependency(mut self) -> Self {
         self.dev_dependency = true;
         self
     }
-    
+
     /// Set package source
     pub fn with_source(mut self, source: String) -> Self {
         self.source = Some(source);

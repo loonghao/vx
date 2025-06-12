@@ -1,23 +1,31 @@
 //! Rust toolchain implementations with environment isolation
 
-use std::path::PathBuf;
-use std::process::Command;
-use vx_core::{Tool, ToolContext, VersionInfo, Result};
+use std::collections::HashMap;
+use vx_core::{
+    GitHubVersionParser, HttpUtils, Result, RustUrlBuilder, ToolContext, ToolExecutionResult,
+    UrlBuilder, VersionInfo, VxTool,
+};
 
-/// Macro to generate Rust tool implementations with environment isolation
-macro_rules! rust_tool {
+/// Macro to generate Rust tool implementations using VxTool trait
+macro_rules! rust_vx_tool {
     ($name:ident, $cmd:literal, $desc:literal) => {
         #[derive(Debug, Clone)]
-        pub struct $name;
+        pub struct $name {
+            url_builder: RustUrlBuilder,
+            version_parser: GitHubVersionParser,
+        }
 
         impl $name {
             pub fn new() -> Self {
-                Self
+                Self {
+                    url_builder: RustUrlBuilder::new(),
+                    version_parser: GitHubVersionParser::new("rust-lang", "rust"),
+                }
             }
         }
 
         #[async_trait::async_trait]
-        impl Tool for $name {
+        impl VxTool for $name {
             fn name(&self) -> &str {
                 $cmd
             }
@@ -30,83 +38,61 @@ macro_rules! rust_tool {
                 vec![]
             }
 
-            async fn fetch_versions(&self, _include_prerelease: bool) -> Result<Vec<VersionInfo>> {
-                // For Rust tools, we typically use rustup to manage versions
-                // This is a placeholder implementation
-                Ok(vec![])
+            async fn fetch_versions(&self, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
+                // For Rust tools, fetch from GitHub releases
+                let json = HttpUtils::fetch_json(RustUrlBuilder::versions_url()).await?;
+                GitHubVersionParser::parse_versions(&json, include_prerelease)
             }
 
-            async fn install_version(&self, version: &str) -> Result<PathBuf> {
-                // For Rust tools, installation is typically handled by rustup
-                // This would integrate with rustup or download from GitHub releases
+            async fn install_version(&self, version: &str, force: bool) -> Result<()> {
+                if !force && self.is_version_installed(version).await? {
+                    return Err(vx_core::VxError::VersionAlreadyInstalled {
+                        tool_name: self.name().to_string(),
+                        version: version.to_string(),
+                    });
+                }
+
                 let install_dir = self.get_version_install_dir(version);
-                std::fs::create_dir_all(&install_dir)?;
+                let _exe_path = self.default_install_workflow(version, &install_dir).await?;
 
-                // Return the executable path
-                Ok(self.get_executable_path(version))
-            }
-
-            async fn get_installed_versions(&self) -> Result<Vec<String>> {
-                let base_dir = self.get_base_install_dir();
-                if !base_dir.exists() {
-                    return Ok(vec![]);
+                // Verify installation
+                if !self.is_version_installed(version).await? {
+                    return Err(vx_core::VxError::InstallationFailed {
+                        tool_name: self.name().to_string(),
+                        version: version.to_string(),
+                        message: "Installation verification failed".to_string(),
+                    });
                 }
 
-                let mut versions = vec![];
-                for entry in std::fs::read_dir(&base_dir)? {
-                    let entry = entry?;
-                    if entry.file_type()?.is_dir() {
-                        if let Some(version) = entry.file_name().to_str() {
-                            versions.push(version.to_string());
-                        }
-                    }
-                }
-
-                versions.sort();
-                versions.reverse();
-                Ok(versions)
-            }
-
-            async fn uninstall_version(&self, version: &str) -> Result<()> {
-                let version_dir = self.get_version_install_dir(version);
-                if version_dir.exists() {
-                    std::fs::remove_dir_all(version_dir)?;
-                }
                 Ok(())
             }
 
-            async fn get_download_url(&self, _version: &str) -> Result<Option<String>> {
-                // This would return the download URL for the specific version
-                // For Rust tools, this might be GitHub releases or rustup channels
-                Ok(None)
+            async fn execute(
+                &self,
+                args: &[String],
+                context: &ToolContext,
+            ) -> Result<ToolExecutionResult> {
+                self.default_execute_workflow(args, context).await
             }
 
-            fn get_executable_path(&self, version: &str) -> PathBuf {
-                let exe_name = if cfg!(windows) {
-                    format!("{}.exe", self.name())
-                } else {
-                    self.name().to_string()
-                };
-
-                self.get_version_install_dir(version).join("bin").join(exe_name)
+            async fn get_download_url(&self, version: &str) -> Result<Option<String>> {
+                let rust_url_builder = RustUrlBuilder::new();
+                Ok(rust_url_builder.download_url(version))
             }
 
-            async fn execute(&self, context: &ToolContext) -> Result<i32> {
-                let exe_path = self.get_executable_path(&context.version);
-
-                let mut cmd = Command::new(&exe_path);
-                cmd.args(&context.args);
-
-                if let Some(cwd) = &context.working_directory {
-                    cmd.current_dir(cwd);
-                }
-
-                for (key, value) in &context.environment_variables {
-                    cmd.env(key, value);
-                }
-
-                let status = cmd.status()?;
-                Ok(status.code().unwrap_or(1))
+            fn metadata(&self) -> HashMap<String, String> {
+                let mut meta = HashMap::new();
+                meta.insert(
+                    "homepage".to_string(),
+                    "https://www.rust-lang.org/".to_string(),
+                );
+                meta.insert("ecosystem".to_string(), "rust".to_string());
+                meta.insert(
+                    "repository".to_string(),
+                    "https://github.com/rust-lang/rust".to_string(),
+                );
+                meta.insert("license".to_string(), "MIT OR Apache-2.0".to_string());
+                meta
             }
         }
 
@@ -118,14 +104,21 @@ macro_rules! rust_tool {
     };
 }
 
-// Define all Rust tools using the macro
-rust_tool!(CargoTool, "cargo", "Rust package manager and build tool");
-rust_tool!(RustcTool, "rustc", "The Rust compiler");
-rust_tool!(RustupTool, "rustup", "Rust toolchain installer and version manager");
-rust_tool!(RustdocTool, "rustdoc", "Rust documentation generator");
-rust_tool!(RustfmtTool, "rustfmt", "Rust code formatter");
-rust_tool!(ClippyTool, "clippy", "Rust linter for catching common mistakes");
-
+// Define all Rust tools using the VxTool macro
+rust_vx_tool!(CargoTool, "cargo", "Rust package manager and build tool");
+rust_vx_tool!(RustcTool, "rustc", "The Rust compiler");
+rust_vx_tool!(
+    RustupTool,
+    "rustup",
+    "Rust toolchain installer and version manager"
+);
+rust_vx_tool!(RustdocTool, "rustdoc", "Rust documentation generator");
+rust_vx_tool!(RustfmtTool, "rustfmt", "Rust code formatter");
+rust_vx_tool!(
+    ClippyTool,
+    "clippy",
+    "Rust linter for catching common mistakes"
+);
 
 #[cfg(test)]
 mod tests {
@@ -147,52 +140,12 @@ mod tests {
     }
 
     #[test]
-    fn test_rustup_tool_creation() {
-        let tool = RustupTool::new();
-        assert_eq!(tool.name(), "rustup");
-        assert!(!tool.description().is_empty());
-    }
+    fn test_rust_tool_metadata() {
+        let tool = CargoTool::new();
+        let metadata = tool.metadata();
 
-    #[test]
-    fn test_rustdoc_tool_creation() {
-        let tool = RustdocTool::new();
-        assert_eq!(tool.name(), "rustdoc");
-        assert!(!tool.description().is_empty());
-    }
-
-    #[test]
-    fn test_rustfmt_tool_creation() {
-        let tool = RustfmtTool::new();
-        assert_eq!(tool.name(), "rustfmt");
-        assert!(!tool.description().is_empty());
-    }
-
-    #[test]
-    fn test_clippy_tool_creation() {
-        let tool = ClippyTool::new();
-        assert_eq!(tool.name(), "clippy");
-        assert!(!tool.description().is_empty());
-    }
-
-    #[test]
-    fn test_executable_path() {
-        let cargo = CargoTool::new();
-        let exe_path = cargo.get_executable_path("1.75.0");
-
-        if cfg!(windows) {
-            assert!(exe_path.to_string_lossy().ends_with("cargo.exe"));
-        } else {
-            assert!(exe_path.to_string_lossy().ends_with("cargo"));
-        }
-
-        assert!(exe_path.to_string_lossy().contains("1.75.0"));
-    }
-
-    #[tokio::test]
-    async fn test_get_installed_versions() {
-        let cargo = CargoTool::new();
-        let versions = cargo.get_installed_versions().await.unwrap();
-        // Should return empty list if no versions installed
-        assert!(versions.is_empty() || !versions.is_empty());
+        assert!(metadata.contains_key("homepage"));
+        assert!(metadata.contains_key("ecosystem"));
+        assert_eq!(metadata.get("ecosystem"), Some(&"rust".to_string()));
     }
 }

@@ -8,20 +8,9 @@ members = [
     "crates/vx-tools/vx-tool-uv",
     "crates/vx-package-managers/vx-pm-npm",
 ]
+resolver = "2"
 
-# Main package (aggregates all functionality)
-[package]
-name = "vx"
-version.workspace = true
-edition.workspace = true
-description.workspace = true
-license.workspace = true
-repository.workspace = true
-homepage.workspace = true
-authors.workspace = true
-keywords.workspace = true
-categories.workspace = true
-rust-version.workspace = true
+
 
 [workspace.package]
 version = "0.1.1"
@@ -37,25 +26,7 @@ categories = ["command-line-utilities", "development-tools"]
 readme = "README.md"
 rust-version = "1.80.0"
 
-# Binary configuration
-[[bin]]
-name = "vx"
-path = "src/main.rs"
 
-# Main crate dependencies
-[dependencies]
-vx-core = { path = "crates/vx-core" }
-vx-cli = { path = "crates/vx-cli" }
-vx-tool-node = { path = "crates/vx-tools/vx-tool-node" }
-vx-tool-go = { path = "crates/vx-tools/vx-tool-go" }
-vx-tool-rust = { path = "crates/vx-tools/vx-tool-rust" }
-vx-tool-uv = { path = "crates/vx-tools/vx-tool-uv" }
-vx-pm-npm = { path = "crates/vx-package-managers/vx-pm-npm" }
-
-# Runtime dependencies
-tokio = { workspace = true }
-anyhow = { workspace = true }
-clap = { workspace = true }
 
 [workspace.dependencies]
 clap = { version = "4.4", features = ["derive"] }
@@ -90,12 +61,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-indicatif = "0.3"
 
-[dev-dependencies]
-tokio-test = "0.4"
-mockall = "0.13"
-assert_cmd = "2.0"
-predicates = "3.1"
-serial_test = "3.1"
+
 
 # Optimize compilation times
 [profile.dev]

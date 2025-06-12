@@ -2,11 +2,11 @@
 //!
 //! This demonstrates the minimal code needed to add package manager support.
 
-use vx_core::{Plugin, PackageSpec, Ecosystem, Result};
 use std::path::Path;
+use vx_core::{Ecosystem, PackageSpec, Result, VxPackageManager, VxPlugin, VxTool};
 
 /// Example: Simple NPM package manager implementation
-/// 
+///
 /// This shows how little code is needed to add package manager support to vx.
 #[derive(Default)]
 pub struct SimpleNpmPackageManager;
@@ -16,24 +16,24 @@ impl VxPackageManager for SimpleNpmPackageManager {
     fn name(&self) -> &str {
         "npm"
     }
-    
+
     fn ecosystem(&self) -> Ecosystem {
         Ecosystem::JavaScript
     }
-    
+
     fn description(&self) -> &str {
         "Node Package Manager"
     }
-    
+
     /// Detect if this is an npm project by looking for package.json
     fn is_preferred_for_project(&self, project_path: &Path) -> bool {
         project_path.join("package.json").exists()
     }
-    
+
     fn get_config_files(&self) -> Vec<&str> {
         vec!["package.json", "package-lock.json"]
     }
-    
+
     /// Main method to implement - install packages
     async fn install_packages(&self, packages: &[PackageSpec], project_path: &Path) -> Result<()> {
         if packages.is_empty() {
@@ -41,7 +41,8 @@ impl VxPackageManager for SimpleNpmPackageManager {
             self.run_command(&["install"], &[], project_path).await
         } else {
             // Install specific packages
-            let package_names: Vec<String> = packages.iter()
+            let package_names: Vec<String> = packages
+                .iter()
                 .map(|pkg| {
                     if let Some(version) = &pkg.version {
                         format!("{}@{}", pkg.name, version)
@@ -50,22 +51,24 @@ impl VxPackageManager for SimpleNpmPackageManager {
                     }
                 })
                 .collect();
-            
+
             let command = if packages.iter().any(|pkg| pkg.dev_dependency) {
                 vec!["install", "--save-dev"]
             } else {
                 vec!["install", "--save"]
             };
-            
-            self.run_command(&command, &package_names, project_path).await
+
+            self.run_command(&command, &package_names, project_path)
+                .await
         }
     }
-    
+
     /// Override the default remove command
     async fn remove_packages(&self, packages: &[String], project_path: &Path) -> Result<()> {
-        self.run_command(&["uninstall"], packages, project_path).await
+        self.run_command(&["uninstall"], packages, project_path)
+            .await
     }
-    
+
     /// Override the default update command
     async fn update_packages(&self, packages: &[String], project_path: &Path) -> Result<()> {
         if packages.is_empty() {
@@ -85,77 +88,85 @@ impl VxPlugin for SimpleNpmPlugin {
     fn name(&self) -> &str {
         "simple-npm"
     }
-    
+
     fn description(&self) -> &str {
         "Simple NPM package manager support for vx"
     }
-    
+
     fn version(&self) -> &str {
         "1.0.0"
     }
-    
+
+    fn tools(&self) -> Vec<Box<dyn VxTool>> {
+        vec![]
+    }
+
     fn package_managers(&self) -> Vec<Box<dyn VxPackageManager>> {
-        vec![Box::new(SimpleNpmPackageManager::default())]
+        vec![Box::new(SimpleNpmPackageManager)]
+    }
+
+    fn supports_tool(&self, _tool_name: &str) -> bool {
+        false
     }
 }
 
 /// Factory function to create the plugin
 pub fn create_simple_npm_plugin() -> Box<dyn VxPlugin> {
-    Box::new(SimpleNpmPlugin::default())
+    Box::new(SimpleNpmPlugin)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     
+
     #[test]
     fn test_simple_npm_package_manager() {
-        let pm = SimpleNpmPackageManager::default();
-        
+        let pm = SimpleNpmPackageManager;
+
         assert_eq!(pm.name(), "npm");
         assert_eq!(pm.ecosystem(), Ecosystem::JavaScript);
         assert_eq!(pm.description(), "Node Package Manager");
-        
+
         // Test project detection
         let temp_dir = std::env::temp_dir().join("test-npm-project");
         std::fs::create_dir_all(&temp_dir).unwrap();
-        
+
         // Should not be preferred without package.json
         assert!(!pm.is_preferred_for_project(&temp_dir));
-        
+
         // Should be preferred with package.json
         std::fs::write(temp_dir.join("package.json"), "{}").unwrap();
         assert!(pm.is_preferred_for_project(&temp_dir));
-        
+
         // Cleanup
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
-    
+
     #[test]
     fn test_simple_npm_plugin() {
-        let plugin = SimpleNpmPlugin::default();
-        
+        let plugin = SimpleNpmPlugin;
+
         assert_eq!(plugin.name(), "simple-npm");
         assert_eq!(plugin.version(), "1.0.0");
         assert!(plugin.supports_package_manager("npm"));
         assert!(!plugin.supports_package_manager("yarn"));
-        
+
         let package_managers = plugin.package_managers();
         assert_eq!(package_managers.len(), 1);
         assert_eq!(package_managers[0].name(), "npm");
     }
-    
+
     #[tokio::test]
     async fn test_package_spec_formatting() {
-        let pm = SimpleNpmPackageManager::default();
-        
+        let pm = SimpleNpmPackageManager;
+
         let packages = vec![
             PackageSpec::new("express".to_string()),
             PackageSpec::new("lodash".to_string()).with_version("4.17.21".to_string()),
             PackageSpec::new("jest".to_string()).as_dev_dependency(),
         ];
-        
+
         // This would test the package formatting logic
         // In a real test, we'd mock the command execution
         assert_eq!(packages.len(), 3);

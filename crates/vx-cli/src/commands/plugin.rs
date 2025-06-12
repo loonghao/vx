@@ -2,9 +2,9 @@
 
 use crate::cli::PluginCommand;
 use crate::ui::UI;
-use anyhow::Result;
+use vx_core::{PluginRegistry, Result};
 
-pub async fn handle(command: PluginCommand) -> Result<()> {
+pub async fn handle(registry: &PluginRegistry, command: PluginCommand) -> Result<()> {
     // TODO: Replace with vx-core tool manager
     // let tool_manager = crate::tool_manager::ToolManager::new()
     //     .or_else(|_| crate::tool_manager::ToolManager::minimal())?;
@@ -14,10 +14,45 @@ pub async fn handle(command: PluginCommand) -> Result<()> {
             enabled: _,
             category: _,
         } => {
-            // let tools = tool_manager.get_all_tools();
+            UI::header("Available Plugins");
 
-            UI::header("Available Tools");
-            UI::warning("Plugin list not yet implemented in new architecture");
+            let plugins = registry.get_plugins();
+            if plugins.is_empty() {
+                UI::warn("No plugins registered");
+                return Ok(());
+            }
+
+            for plugin in plugins {
+                UI::item(&format!(
+                    "📦 {} v{} - {}",
+                    plugin.name(),
+                    plugin.version(),
+                    plugin.description()
+                ));
+
+                let tools = plugin.tools();
+                if !tools.is_empty() {
+                    UI::detail(&format!(
+                        "   Tools: {}",
+                        tools
+                            .iter()
+                            .map(|t| t.name())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
+
+                let pms = plugin.package_managers();
+                if !pms.is_empty() {
+                    UI::detail(&format!(
+                        "   Package Managers: {}",
+                        pms.iter()
+                            .map(|pm| pm.name())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
+            }
             // for tool in tools {
             //     let status_icon = if tool.installed { "✅" } else { "❌" };
             //     let version_str = tool

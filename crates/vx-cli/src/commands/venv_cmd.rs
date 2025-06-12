@@ -1,8 +1,8 @@
 // Virtual environment CLI commands
 
 use crate::ui::UI;
-use anyhow::Result;
 use clap::{Args, Subcommand};
+use vx_core::Result;
 
 #[derive(Args)]
 pub struct VenvArgs {
@@ -10,7 +10,7 @@ pub struct VenvArgs {
     pub command: VenvCommand,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone)]
 pub enum VenvCommand {
     /// Create a new virtual environment
     Create {
@@ -41,11 +41,11 @@ pub enum VenvCommand {
     Current,
 }
 
-pub async fn handle_venv_command(args: VenvArgs) -> Result<()> {
+pub async fn handle(command: VenvCommand) -> Result<()> {
     // TODO: Replace with vx-core VenvManager
     // let manager = VenvManager::new()?;
 
-    match args.command {
+    match command {
         VenvCommand::Create { name, tools } => create_venv(&name, &tools).await,
         VenvCommand::List => list_venvs().await,
         VenvCommand::Activate { name } => activate_venv(&name).await,
@@ -91,7 +91,7 @@ async fn create_venv(name: &str, tools: &[String]) -> Result<()> {
 async fn list_venvs() -> Result<()> {
     UI::header("Virtual Environments");
     UI::warning("Virtual environment listing not yet implemented in new architecture");
-    
+
     // let venvs = manager.list()?;
 
     // if venvs.is_empty() {
@@ -121,7 +121,7 @@ async fn list_venvs() -> Result<()> {
 async fn activate_venv(name: &str) -> Result<()> {
     UI::info(&format!("Activating virtual environment '{name}'"));
     UI::warning("Virtual environment activation not yet implemented in new architecture");
-    
+
     // if VenvManager::is_active() {
     //     if let Some(current) = VenvManager::current() {
     //         if current == name {
@@ -150,7 +150,7 @@ async fn activate_venv(name: &str) -> Result<()> {
 async fn deactivate_venv() -> Result<()> {
     UI::info("Deactivating virtual environment");
     UI::warning("Virtual environment deactivation not yet implemented in new architecture");
-    
+
     // if !VenvManager::is_active() {
     //     UI::warning("No virtual environment is currently active");
     //     return Ok(());
@@ -171,7 +171,7 @@ async fn deactivate_venv() -> Result<()> {
 async fn remove_venv(name: &str, force: bool) -> Result<()> {
     UI::info(&format!("Removing virtual environment '{name}'"));
     UI::warning("Virtual environment removal not yet implemented in new architecture");
-    
+
     if !force {
         UI::info("Use --force to confirm removal");
         return Ok(());
@@ -210,7 +210,7 @@ async fn remove_venv(name: &str, force: bool) -> Result<()> {
 async fn show_current_venv() -> Result<()> {
     UI::info("Checking current virtual environment");
     UI::warning("Virtual environment status not yet implemented in new architecture");
-    
+
     // if let Some(current) = VenvManager::current() {
     //     UI::info(&format!("Current virtual environment: {current}"));
     // } else {

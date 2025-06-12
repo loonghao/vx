@@ -1,7 +1,7 @@
 //! Node.js plugin implementation
 
-use vx_core::{VxPlugin, VxTool};
 use crate::node_tool::{NodeTool, NpmTool, NpxTool};
+use vx_core::{VxPlugin, VxTool};
 
 /// Node.js plugin that manages Node.js-related tools
 #[derive(Debug)]
@@ -49,19 +49,27 @@ impl Default for NodePlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_node_plugin() {
-        let plugin = NodePlugin::default();
-        
+        let plugin = NodePlugin;
+
         assert_eq!(plugin.name(), "node");
-        assert_eq!(plugin.description(), "Node.js support for vx");
+        assert_eq!(
+            plugin.description(),
+            "Node.js JavaScript runtime and package management tools"
+        );
         assert!(plugin.supports_tool("node"));
-        assert!(plugin.supports_tool("nodejs"));
+        assert!(plugin.supports_tool("npm"));
+        assert!(plugin.supports_tool("npx"));
         assert!(!plugin.supports_tool("python"));
-        
+
         let tools = plugin.tools();
-        assert_eq!(tools.len(), 1);
-        assert_eq!(tools[0].name(), "node");
+        assert_eq!(tools.len(), 3); // node, npm, npx
+
+        let tool_names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
+        assert!(tool_names.contains(&"node"));
+        assert!(tool_names.contains(&"npm"));
+        assert!(tool_names.contains(&"npx"));
     }
 }

@@ -1,7 +1,7 @@
 //! Rust plugin implementation
 
-use vx_core::{Tool, Plugin};
-use crate::rust_tool::{CargoTool, RustcTool, RustupTool, RustdocTool, RustfmtTool, ClippyTool};
+use crate::rust_tool::{CargoTool, ClippyTool, RustcTool, RustdocTool, RustfmtTool, RustupTool};
+use vx_core::{VxPlugin, VxTool};
 
 /// Rust plugin that provides Rust toolchain tools
 #[derive(Debug, Default)]
@@ -13,7 +13,8 @@ impl RustPlugin {
     }
 }
 
-impl Plugin for RustPlugin {
+#[async_trait::async_trait]
+impl VxPlugin for RustPlugin {
     fn name(&self) -> &str {
         "rust"
     }
@@ -26,7 +27,7 @@ impl Plugin for RustPlugin {
         env!("CARGO_PKG_VERSION")
     }
 
-    fn tools(&self) -> Vec<Box<dyn Tool>> {
+    fn tools(&self) -> Vec<Box<dyn VxTool>> {
         vec![
             Box::new(CargoTool::new()),
             Box::new(RustcTool::new()),
@@ -38,7 +39,10 @@ impl Plugin for RustPlugin {
     }
 
     fn supports_tool(&self, tool_name: &str) -> bool {
-        matches!(tool_name, "cargo" | "rustc" | "rustup" | "rustdoc" | "rustfmt" | "clippy")
+        matches!(
+            tool_name,
+            "cargo" | "rustc" | "rustup" | "rustdoc" | "rustfmt" | "clippy"
+        )
     }
 }
 

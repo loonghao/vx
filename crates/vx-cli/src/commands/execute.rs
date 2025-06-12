@@ -1,11 +1,25 @@
 //! Execute command implementation
 
-use vx_core::{Result, VxError, ToolContext};
 use crate::ui::UI;
-use std::collections::HashMap;
+use vx_core::{PluginRegistry, Result, ToolContext, VxError};
+
+/// Handle the execute command
+pub async fn handle(
+    registry: &PluginRegistry,
+    tool_name: &str,
+    args: &[String],
+    use_system_path: bool,
+) -> Result<()> {
+    let exit_code = execute_tool(registry, tool_name, args, use_system_path).await?;
+    if exit_code != 0 {
+        std::process::exit(exit_code);
+    }
+    Ok(())
+}
 
 /// Execute tool with given arguments
 pub async fn execute_tool(
+    registry: &PluginRegistry,
     tool_name: &str,
     args: &[String],
     use_system_path: bool,
@@ -21,30 +35,34 @@ pub async fn execute_tool(
     context.use_system_path = use_system_path;
     context.working_directory = std::env::current_dir().ok();
 
-    // For now, just execute using system PATH
-    if use_system_path {
-        let status = std::process::Command::new(tool_name)
-            .args(args)
-            .status()
-            .map_err(|_| VxError::ToolNotFound {
-                tool_name: tool_name.to_string()
-            })?;
+    // Check if tool is supported by vx
+    if !use_system_path && registry.supports_tool(tool_name) {
+        // Try to get the tool from registry
+        if let Some(tool) = registry.get_tool(tool_name) {
+            UI::debug(&format!("Using vx-managed tool: {}", tool_name));
 
-        Ok(status.code().unwrap_or(1))
-    } else {
-        // TODO: Implement vx-managed tool execution
-        UI::warn(&format!("vx-managed execution not yet implemented for {}", tool_name));
-        UI::hint("Using system PATH as fallback");
-
-        let status = std::process::Command::new(tool_name)
-            .args(args)
-            .status()
-            .map_err(|_| VxError::ToolNotFound {
-                tool_name: tool_name.to_string()
-            })?;
-
-        Ok(status.code().unwrap_or(1))
+            // Execute using the tool's implementation
+            let result = tool.execute(args, &context).await?;
+            return Ok(result.exit_code);
+        }
     }
+
+    // Fall back to system PATH execution
+    if use_system_path {
+        UI::debug(&format!("Using system PATH for: {}", tool_name));
+    } else {
+        UI::warn(&format!(
+            "Tool '{}' not found in vx registry, falling back to system PATH",
+            tool_name
+        ));
+    }
+
+    let status = std::process::Command::new(tool_name)
+        .args(args)
+        .status()
+        .map_err(|_| VxError::ToolNotFound {
+            tool_name: tool_name.to_string(),
+        })?;
+
+    Ok(status.code().unwrap_or(1))
 }
-
-
