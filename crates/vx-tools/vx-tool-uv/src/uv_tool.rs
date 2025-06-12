@@ -11,15 +11,15 @@ macro_rules! uv_vx_tool {
     ($name:ident, $cmd:literal, $desc:literal, $homepage:expr) => {
         #[derive(Debug, Clone)]
         pub struct $name {
-            url_builder: UvUrlBuilder,
-            version_parser: GitHubVersionParser,
+            _url_builder: UvUrlBuilder,
+            _version_parser: GitHubVersionParser,
         }
 
         impl $name {
             pub fn new() -> Self {
                 Self {
-                    url_builder: UvUrlBuilder::new(),
-                    version_parser: GitHubVersionParser::new("astral-sh", "uv"),
+                    _url_builder: UvUrlBuilder::new(),
+                    _version_parser: GitHubVersionParser::new("astral-sh", "uv"),
                 }
             }
         }

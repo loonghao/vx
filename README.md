@@ -24,12 +24,19 @@
 - 📝 **Feedback Welcome**: Please report issues and share your experience
 - 🎯 **MVP Focus**: Currently supports UV, Node.js, Go, and Rust tools
 
+### ✅ Recently Implemented
+
+- **NPX Support**: Full support for Node.js package runner with environment isolation
+- **UVX Support**: Complete Python application runner integration via UV
+- **Environment Isolation**: All tools run in vx-managed environments (no system PATH dependency)
+- **Auto-Installation**: Automatic tool download and installation on first use
+- **MCP Integration**: Ready for use as proxy in MCP server configurations
+
 ### Current Limitations
 
-- **Environment Isolation**: Not fully implemented yet. Tools may fallback to system installations
-- **Tool Installation**: Auto-installation feature is under development
-- **Version Management**: Basic version switching is available but needs improvement
-- **Configuration**: Project-specific configurations are partially supported
+- **Package Manager Integration**: Additional package managers (pnpm, yarn, bun) in development
+- **Configuration**: Advanced project-specific configurations being enhanced
+- **Plugin System**: External plugin support planned for future releases
 
 `vx` is a powerful, fast, and extensible development tool manager that provides a unified interface for managing, installing, and executing development tools across different languages and ecosystems. Think of it as a combination of `nvm`, `rustup`, `pyenv`, and package managers, all in one lightning-fast tool.
 
@@ -123,6 +130,12 @@ vx node app.js
 vx go build
 vx cargo run
 
+# Package runners with environment isolation
+vx npx create-react-app my-app
+vx npx -y cowsay "Hello from vx!"
+vx uvx cowsay -t "Hello from vx uvx!"
+vx uvx ruff check .
+
 # Use system PATH instead of vx-managed tools
 vx --use-system-path python --version
 vx --use-system-path node --version
@@ -132,12 +145,12 @@ vx list
 vx plugin list
 
 # Install specific versions
-vx install uv@0.5.26
-vx install node@20.11.0
+vx install uv@0.7.12
+vx install node@20.0.0
 vx install go@1.21.6
 
 # Switch between versions
-vx switch uv@0.5.26
+vx switch uv@0.7.12
 vx switch node@18.19.0
 
 # Project configuration
@@ -152,15 +165,60 @@ vx config
 | Tool | Commands | Category | Auto-Install | Description |
 |------|----------|----------|--------------|-------------|
 | **UV** | `vx uv pip`, `vx uv venv`, `vx uv run`, `vx uv add` | Python | ✅ | Extremely fast Python package installer |
+| **UVX** | `vx uvx <package>`, `vx uvx ruff`, `vx uvx black` | Python | ✅ | Python application runner (via UV) |
 | **Node.js** | `vx node`, `vx npm`, `vx npx` | JavaScript | ✅ | JavaScript runtime and package manager |
+| **NPX** | `vx npx <package>`, `vx npx create-react-app` | JavaScript | ✅ | Node.js package runner |
 | **Go** | `vx go build`, `vx go run`, `vx go test` | Go | ✅ | Go programming language toolchain |
 | **Rust** | `vx cargo build`, `vx cargo run`, `vx cargo test` | Rust | ✅ | Rust programming language and Cargo |
 
 ### 🎯 Plugin Categories
 - **Languages**: Go, Rust, Node.js, Python (via UV)
 - **Package Managers**: npm, Cargo, UV (pip-compatible)
+- **Package Runners**: npx, uvx (with environment isolation)
 - **Build Tools**: Go build, Cargo, etc.
 - **Runtimes**: Node.js
+
+## 🔌 MCP Integration
+
+vx is designed to work seamlessly as a proxy for package runners in MCP (Model Context Protocol) server configurations, providing environment isolation and automatic tool management.
+
+### Before (Direct Tool Usage)
+```json
+{
+  "mcpServers": {
+    "browsermcp": {
+      "command": "npx",
+      "args": ["-y", "@browsermcp/mcp@latest"]
+    },
+    "python-tool": {
+      "command": "uvx",
+      "args": ["some-python-tool@latest"]
+    }
+  }
+}
+```
+
+### After (vx Proxy)
+```json
+{
+  "mcpServers": {
+    "browsermcp": {
+      "command": "vx",
+      "args": ["npx", "-y", "@browsermcp/mcp@latest"]
+    },
+    "python-tool": {
+      "command": "vx",
+      "args": ["uvx", "some-python-tool@latest"]
+    }
+  }
+}
+```
+
+### Benefits
+- **Environment Isolation**: No conflicts with system-installed tools
+- **Automatic Installation**: Tools are downloaded and managed automatically
+- **Version Control**: Consistent tool versions across environments
+- **Cross-Platform**: Works identically on Windows, macOS, and Linux
 
 ## ⚙️ Configuration
 
@@ -234,6 +292,14 @@ vx uv run uvicorn main:app --reload
 
 # Run tests
 vx uv run pytest
+
+# Use uvx for Python applications (with environment isolation)
+vx uvx ruff check .
+vx uvx black --check .
+vx uvx cowsay -t "Hello from vx uvx!"
+
+# All tools run in vx-managed environments
+vx uv --version  # Uses vx-managed uv
 ```
 
 ### Node.js Development
@@ -242,9 +308,14 @@ vx uv run pytest
 vx npm install express
 vx node server.js
 
-# Use npx for one-time tools
+# Use npx for one-time tools (with environment isolation)
 vx npx create-react-app my-app
 vx npx -y typescript --init
+vx npx cowsay "Hello from vx!"
+
+# All tools run in vx-managed environments
+vx npm --version  # Uses vx-managed npm
+vx node --version # Uses vx-managed Node.js
 ```
 
 ### Go Development
@@ -349,15 +420,20 @@ See [MODULAR_ARCHITECTURE.md](MODULAR_ARCHITECTURE.md) for detailed plugin devel
 
 ## 🚀 Roadmap
 
-### Current Status (v0.1.0)
+### Current Status (v0.1.1)
 - ✅ Core plugin architecture
-- ✅ 4 built-in plugins (UV, Node.js, Go, Rust)
+- ✅ 6 built-in tools (UV, UVX, Node.js, NPX, Go, Rust)
+- ✅ Environment isolation system
 - ✅ Auto-installation system
 - ✅ Multi-version package management
+- ✅ MCP integration support
+- ✅ Package runner support (npx, uvx)
 - ✅ Project configuration support
 
 ### Upcoming Features
-- [ ] More built-in plugins (Python, Java, .NET, Docker)
+- [ ] More package managers (pnpm, yarn, bun)
+- [ ] System package managers (Homebrew, Chocolatey)
+- [ ] Specialized tools (Rez for VFX, Spack for HPC)
 - [ ] External plugin support (.dll, .so, scripts)
 - [ ] Plugin marketplace
 - [ ] GUI interface

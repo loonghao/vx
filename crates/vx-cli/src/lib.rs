@@ -51,7 +51,7 @@ impl VxCli {
     }
 
     /// Handle a specific command
-    async fn handle_command(&self, command: cli::Commands, cli: &Cli) -> Result<()> {
+    async fn handle_command(&self, command: cli::Commands, _cli: &Cli) -> Result<()> {
         use cli::Commands;
 
         match command {

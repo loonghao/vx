@@ -4,7 +4,7 @@ use crate::ui::UI;
 use vx_core::{PluginRegistry, Result};
 
 /// Handle the list command
-pub async fn handle(registry: &PluginRegistry, show_all: bool) -> Result<()> {
+pub async fn handle(registry: &PluginRegistry, _show_all: bool) -> Result<()> {
     UI::info("Available tools:");
 
     let tools = registry.get_all_tools();

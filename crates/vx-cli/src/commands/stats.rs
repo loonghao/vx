@@ -44,7 +44,8 @@ pub async fn handle_cleanup(cache: bool, orphaned: bool, dry_run: bool) -> Resul
     Ok(())
 }
 
-async fn show_tool_stats(tool_name: &str, detailed: bool) -> Result<()> {
+#[allow(dead_code)]
+async fn show_tool_stats(tool_name: &str, _detailed: bool) -> Result<()> {
     UI::header(&format!("Statistics for {tool_name}"));
     UI::warning("Tool stats not yet implemented in new architecture");
 
@@ -84,7 +85,7 @@ async fn show_tool_stats(tool_name: &str, detailed: bool) -> Result<()> {
     Ok(())
 }
 
-async fn show_all_stats(registry: &PluginRegistry) -> Result<()> {
+async fn show_all_stats(_registry: &PluginRegistry) -> Result<()> {
     let spinner = UI::new_spinner("Collecting package statistics...");
     UI::warning("Package statistics not yet implemented in new architecture");
 
@@ -135,6 +136,7 @@ async fn show_all_stats(registry: &PluginRegistry) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn calculate_directory_size(path: &std::path::Path) -> Result<u64> {
     if path.is_file() {
         Ok(path.metadata()?.len())
@@ -152,6 +154,7 @@ fn calculate_directory_size(path: &std::path::Path) -> Result<u64> {
     }
 }
 
+#[allow(dead_code)]
 fn format_size(bytes: u64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
     let mut size = bytes as f64;

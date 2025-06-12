@@ -22,9 +22,9 @@
 //!         Ok(vec![])
 //!     }
 //!
-//!     async fn install_version(&self, version: &str, install_dir: &std::path::Path) -> Result<std::path::PathBuf> {
+//!     async fn install_version(&self, version: &str, force: bool) -> Result<()> {
 //!         // Download and install the tool
-//!         Ok(install_dir.join("bin").join("mytool"))
+//!         Ok(())
 //!     }
 //! }
 //! ```

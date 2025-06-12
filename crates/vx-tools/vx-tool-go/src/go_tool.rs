@@ -9,15 +9,15 @@ use vx_core::{
 /// Go tool implementation
 #[derive(Debug, Clone)]
 pub struct GoTool {
-    url_builder: GoUrlBuilder,
-    version_parser: GitHubVersionParser,
+    _url_builder: GoUrlBuilder,
+    _version_parser: GitHubVersionParser,
 }
 
 impl GoTool {
     pub fn new() -> Self {
         Self {
-            url_builder: GoUrlBuilder::new(),
-            version_parser: GitHubVersionParser::new("golang", "go"),
+            _url_builder: GoUrlBuilder::new(),
+            _version_parser: GitHubVersionParser::new("golang", "go"),
         }
     }
 }
