@@ -118,7 +118,6 @@ pub fn create_simple_npm_plugin() -> Box<dyn VxPlugin> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn test_simple_npm_package_manager() {
@@ -159,7 +158,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_package_spec_formatting() {
-        let pm = SimpleNpmPackageManager;
+        let _pm = SimpleNpmPackageManager;
 
         let packages = vec![
             PackageSpec::new("express".to_string()),

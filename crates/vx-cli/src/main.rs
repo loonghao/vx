@@ -10,16 +10,16 @@ async fn main() -> anyhow::Result<()> {
     let mut registry = PluginRegistry::new();
 
     // Register Node.js plugin
-    registry.register(Box::new(vx_tool_node::NodePlugin::new()));
+    let _ = registry.register(Box::new(vx_tool_node::NodePlugin::new()));
 
     // Register Go plugin
-    registry.register(Box::new(vx_tool_go::GoPlugin::new()));
+    let _ = registry.register(Box::new(vx_tool_go::GoPlugin::new()));
 
     // Register Rust plugin
-    registry.register(Box::new(vx_tool_rust::RustPlugin::new()));
+    let _ = registry.register(Box::new(vx_tool_rust::RustPlugin::new()));
 
     // Register UV plugin
-    registry.register(Box::new(vx_tool_uv::UvPlugin::new()));
+    let _ = registry.register(Box::new(vx_tool_uv::UvPlugin::new()));
 
     // Create and run CLI
     let cli = VxCli::new(registry);

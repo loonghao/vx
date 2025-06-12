@@ -199,9 +199,7 @@ impl Default for ToolRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        Ecosystem, PackageSpec, VersionInfo,
-    };
+    use crate::{Ecosystem, PackageSpec, VersionInfo};
     use std::path::Path;
 
     // Mock implementations for testing
@@ -245,8 +243,6 @@ mod tests {
 
     struct MockPlugin {
         name: String,
-        tools: Vec<Box<dyn VxTool>>,
-        package_managers: Vec<Box<dyn VxPackageManager>>,
     }
 
     #[async_trait::async_trait]
@@ -274,8 +270,6 @@ mod tests {
 
         let plugin = Box::new(MockPlugin {
             name: "test-plugin".to_string(),
-            tools: vec![],
-            package_managers: vec![],
         });
 
         assert!(registry.register(plugin).is_ok());

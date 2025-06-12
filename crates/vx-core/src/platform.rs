@@ -187,7 +187,7 @@ mod tests {
         let platform = Platform::current();
 
         let archive_ext = platform.archive_extension();
-        let exe_ext = platform.executable_extension();
+        let _exe_ext = platform.executable_extension();
 
         assert!(!archive_ext.is_empty());
         // exe_ext can be empty on Unix systems

@@ -3,7 +3,7 @@
 use crate::ui::UI;
 use vx_core::{PluginRegistry, Result};
 
-pub async fn handle(registry: &PluginRegistry, tool_version: &str, global: bool) -> Result<()> {
+pub async fn handle(_registry: &PluginRegistry, tool_version: &str, _global: bool) -> Result<()> {
     UI::warn(&format!(
         "Switch command not yet implemented for: {}",
         tool_version

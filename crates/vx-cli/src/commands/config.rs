@@ -43,21 +43,25 @@ async fn show_config() -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn set_config(_key: &str, _value: &str) -> Result<()> {
     UI::warning("Config set not yet implemented");
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn get_config(_key: &str) -> Result<()> {
     UI::warning("Config get not yet implemented");
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn reset_config(_key: Option<String>) -> Result<()> {
     UI::warning("Config reset not yet implemented");
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn edit_config() -> Result<()> {
     UI::warning("Config edit not yet implemented");
     Ok(())

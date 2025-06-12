@@ -147,8 +147,6 @@ impl ToolDownloader {
         install_dir: &Path,
         tool_name: &str,
     ) -> Result<PathBuf> {
-        
-
         let file = std::fs::File::open(archive_path)?;
         let mut archive = zip::ZipArchive::new(file).map_err(|e| VxError::InstallationFailed {
             tool_name: tool_name.to_string(),
@@ -194,8 +192,6 @@ impl ToolDownloader {
         install_dir: &Path,
         tool_name: &str,
     ) -> Result<PathBuf> {
-        
-
         let file = std::fs::File::open(archive_path)?;
         let decoder = flate2::read::GzDecoder::new(file);
         let mut archive = tar::Archive::new(decoder);

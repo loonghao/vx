@@ -5,22 +5,22 @@ use vx_core::{
     HttpUtils, NodeUrlBuilder, NodeVersionParser, Result, ToolContext, ToolExecutionResult,
     VersionInfo, VxEnvironment, VxError, VxTool,
 };
-use vx_core::{UrlBuilder, VersionParser};
+// use vx_core::{UrlBuilder, VersionParser};
 
 /// Macro to generate Node.js tool implementations using VxTool trait
 macro_rules! node_vx_tool {
     ($name:ident, $cmd:literal, $desc:literal, $homepage:expr) => {
         #[derive(Debug, Clone)]
         pub struct $name {
-            url_builder: NodeUrlBuilder,
-            version_parser: NodeVersionParser,
+            _url_builder: NodeUrlBuilder,
+            _version_parser: NodeVersionParser,
         }
 
         impl $name {
             pub fn new() -> Self {
                 Self {
-                    url_builder: NodeUrlBuilder::new(),
-                    version_parser: NodeVersionParser::new(),
+                    _url_builder: NodeUrlBuilder::new(),
+                    _version_parser: NodeVersionParser::new(),
                 }
             }
         }
