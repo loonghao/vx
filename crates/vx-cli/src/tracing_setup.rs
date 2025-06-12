@@ -10,6 +10,11 @@ use tracing_subscriber::util::SubscriberInitExt;
 #[allow(dead_code)]
 static INDICATIF_LAYER: OnceLock<IndicatifLayer<tracing_subscriber::Registry>> = OnceLock::new();
 
+/// Setup tracing with default settings
+pub fn setup_tracing() {
+    init_tracing(false);
+}
+
 /// Initialize tracing with indicatif progress bars
 /// This follows Rust community best practices for structured logging
 pub fn init_tracing(verbose: bool) {

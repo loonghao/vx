@@ -1,8 +1,7 @@
 //! Go plugin implementation
 
-use vx_core::{Plugin, Tool};
 use crate::go_tool::GoTool;
-use std::collections::HashMap;
+use vx_core::{VxPlugin, VxTool};
 
 /// Go plugin that provides Go tool support
 pub struct GoPlugin;
@@ -19,7 +18,8 @@ impl Default for GoPlugin {
     }
 }
 
-impl Plugin for GoPlugin {
+#[async_trait::async_trait]
+impl VxPlugin for GoPlugin {
     fn name(&self) -> &str {
         "go"
     }
@@ -32,9 +32,8 @@ impl Plugin for GoPlugin {
         env!("CARGO_PKG_VERSION")
     }
 
-    fn tools(&self) -> Vec<Box<dyn vx_core::AsyncTool>> {
-        // For now, return empty vec since we need to implement AsyncTool wrapper
-        vec![]
+    fn tools(&self) -> Vec<Box<dyn VxTool>> {
+        vec![Box::new(GoTool::new())]
     }
 
     fn supports_tool(&self, tool_name: &str) -> bool {
@@ -48,10 +47,13 @@ mod tests {
 
     #[test]
     fn test_go_plugin() {
-        let plugin = GoPlugin::default();
+        let plugin = GoPlugin;
 
         assert_eq!(plugin.name(), "go");
-        assert_eq!(plugin.description(), "Go programming language support for vx");
+        assert_eq!(
+            plugin.description(),
+            "Go programming language support for vx"
+        );
         assert!(plugin.supports_tool("go"));
         assert!(plugin.supports_tool("golang"));
         assert!(!plugin.supports_tool("python"));

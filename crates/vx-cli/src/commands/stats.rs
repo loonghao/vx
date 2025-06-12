@@ -1,13 +1,10 @@
 // Stats and cleanup command implementation
 
 use crate::ui::UI;
-use anyhow::Result;
+use vx_core::{PluginRegistry, Result};
 
-pub async fn handle(tool: Option<String>, detailed: bool) -> Result<()> {
-    match tool {
-        Some(tool_name) => show_tool_stats(&tool_name, detailed).await,
-        None => show_all_stats(detailed).await,
-    }
+pub async fn handle(registry: &PluginRegistry) -> Result<()> {
+    show_all_stats(registry).await
 }
 
 pub async fn handle_cleanup(cache: bool, orphaned: bool, dry_run: bool) -> Result<()> {
@@ -87,10 +84,10 @@ async fn show_tool_stats(tool_name: &str, detailed: bool) -> Result<()> {
     Ok(())
 }
 
-async fn show_all_stats(detailed: bool) -> Result<()> {
+async fn show_all_stats(registry: &PluginRegistry) -> Result<()> {
     let spinner = UI::new_spinner("Collecting package statistics...");
     UI::warning("Package statistics not yet implemented in new architecture");
-    
+
     // TODO: Replace with vx-core executor
     // let mut executor = crate::executor::Executor::new()?;
     // let stats = executor.get_stats()?;

@@ -11,8 +11,17 @@ keywords.workspace = true
 categories.workspace = true
 rust-version.workspace = true
 
+[[bin]]
+name = "vx"
+path = "src/main.rs"
+
 [dependencies]
 vx-core = { path = "../vx-core" }
+vx-tool-node = { path = "../vx-tools/vx-tool-node" }
+vx-tool-go = { path = "../vx-tools/vx-tool-go" }
+vx-tool-rust = { path = "../vx-tools/vx-tool-rust" }
+vx-tool-uv = { path = "../vx-tools/vx-tool-uv" }
+vx-pm-npm = { path = "../vx-package-managers/vx-pm-npm" }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
@@ -22,3 +31,4 @@ indicatif = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-indicatif = { workspace = true }
+walkdir = { workspace = true }

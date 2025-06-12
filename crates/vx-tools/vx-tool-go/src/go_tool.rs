@@ -1,16 +1,24 @@
 //! Go tool implementation
 
-use vx_core::{Tool, Result};
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::collections::HashMap;
+use vx_core::{
+    GitHubVersionParser, GoUrlBuilder, GoVersionParser, HttpUtils, Result, ToolContext,
+    ToolExecutionResult, VersionInfo, VxTool,
+};
 
 /// Go tool implementation
 #[derive(Debug, Clone)]
-pub struct GoTool;
+pub struct GoTool {
+    url_builder: GoUrlBuilder,
+    version_parser: GitHubVersionParser,
+}
 
 impl GoTool {
     pub fn new() -> Self {
-        Self
+        Self {
+            url_builder: GoUrlBuilder::new(),
+            version_parser: GitHubVersionParser::new("golang", "go"),
+        }
     }
 }
 
@@ -20,7 +28,8 @@ impl Default for GoTool {
     }
 }
 
-impl Tool for GoTool {
+#[async_trait::async_trait]
+impl VxTool for GoTool {
     fn name(&self) -> &str {
         "go"
     }
@@ -29,43 +38,57 @@ impl Tool for GoTool {
         "Go programming language"
     }
 
-    fn homepage(&self) -> Option<&str> {
-        Some("https://golang.org/")
+    fn aliases(&self) -> Vec<&str> {
+        vec!["golang"]
     }
 
-    fn is_installed(&self) -> Result<bool> {
-        Ok(which::which("go").is_ok())
+    async fn fetch_versions(&self, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
+        // For Go, fetch from GitHub releases
+        let json = HttpUtils::fetch_json(GoUrlBuilder::versions_url()).await?;
+        GoVersionParser::parse_versions(&json, include_prerelease)
     }
 
-    fn get_version(&self) -> Result<Option<String>> {
-        let output = Command::new("go").arg("version").output()
-            .map_err(|e| vx_core::VxError::Other { message: e.to_string() })?;
-
-        if output.status.success() {
-            let version_str = String::from_utf8_lossy(&output.stdout);
-            // Parse "go version go1.21.6 linux/amd64" -> "1.21.6"
-            if let Some(version_part) = version_str.split_whitespace().nth(2) {
-                let version = version_part.trim_start_matches("go");
-                return Ok(Some(version.to_string()));
-            }
+    async fn install_version(&self, version: &str, force: bool) -> Result<()> {
+        if !force && self.is_version_installed(version).await? {
+            return Err(vx_core::VxError::VersionAlreadyInstalled {
+                tool_name: self.name().to_string(),
+                version: version.to_string(),
+            });
         }
-        Ok(None)
+
+        let install_dir = self.get_version_install_dir(version);
+        let _exe_path = self.default_install_workflow(version, &install_dir).await?;
+
+        // Verify installation
+        if !self.is_version_installed(version).await? {
+            return Err(vx_core::VxError::InstallationFailed {
+                tool_name: self.name().to_string(),
+                version: version.to_string(),
+                message: "Installation verification failed".to_string(),
+            });
+        }
+
+        Ok(())
     }
 
-    fn get_executable_path(&self, _version: &str, install_dir: &Path) -> PathBuf {
-        let exe_name = if cfg!(windows) {
-            "go.exe"
-        } else {
-            "go"
-        };
-
-        install_dir.join("bin").join(exe_name)
+    async fn execute(&self, args: &[String], context: &ToolContext) -> Result<ToolExecutionResult> {
+        self.default_execute_workflow(args, context).await
     }
 
-    fn execute(&self, args: &[String]) -> Result<i32> {
-        let status = Command::new("go").args(args).status()
-            .map_err(|e| vx_core::VxError::Other { message: e.to_string() })?;
-        Ok(status.code().unwrap_or(1))
+    async fn get_download_url(&self, version: &str) -> Result<Option<String>> {
+        Ok(GoUrlBuilder::download_url(version))
+    }
+
+    fn metadata(&self) -> HashMap<String, String> {
+        let mut meta = HashMap::new();
+        meta.insert("homepage".to_string(), "https://golang.org/".to_string());
+        meta.insert("ecosystem".to_string(), "go".to_string());
+        meta.insert(
+            "repository".to_string(),
+            "https://github.com/golang/go".to_string(),
+        );
+        meta.insert("license".to_string(), "BSD-3-Clause".to_string());
+        meta
     }
 }
 
@@ -79,20 +102,16 @@ mod tests {
 
         assert_eq!(tool.name(), "go");
         assert_eq!(tool.description(), "Go programming language");
-        assert!(tool.homepage().is_some());
-        assert!(tool.supports_auto_install());
+        assert!(tool.aliases().contains(&"golang"));
     }
 
     #[test]
-    fn test_executable_path() {
+    fn test_go_tool_metadata() {
         let tool = GoTool::new();
-        let install_dir = std::path::Path::new("/test/dir");
-        let exe_path = tool.get_executable_path("1.21.0", install_dir);
+        let metadata = tool.metadata();
 
-        if cfg!(windows) {
-            assert!(exe_path.to_string_lossy().ends_with("go.exe"));
-        } else {
-            assert!(exe_path.to_string_lossy().ends_with("go"));
-        }
+        assert!(metadata.contains_key("homepage"));
+        assert!(metadata.contains_key("ecosystem"));
+        assert_eq!(metadata.get("ecosystem"), Some(&"go".to_string()));
     }
 }

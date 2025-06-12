@@ -96,7 +96,12 @@ pub trait Configuration: Send + Sync {
     fn get_project_tool_version(&self, tool_name: &str, project_path: &Path) -> Option<String>;
 
     /// Set project-specific tool version
-    fn set_project_tool_version(&self, tool_name: &str, version: String, project_path: &Path) -> Result<()>;
+    fn set_project_tool_version(
+        &self,
+        tool_name: &str,
+        version: String,
+        project_path: &Path,
+    ) -> Result<()>;
 
     /// Get active environment name
     fn get_active_environment(&self) -> Option<String>;
@@ -105,7 +110,12 @@ pub trait Configuration: Send + Sync {
     fn set_active_environment(&self, env_name: Option<String>) -> Result<()>;
 
     /// Resolve tool version based on priority: CLI > Environment > Project > Global > Latest
-    fn resolve_tool_version(&self, tool_name: &str, cli_version: Option<&str>, project_path: Option<&Path>) -> Option<String>;
+    fn resolve_tool_version(
+        &self,
+        tool_name: &str,
+        cli_version: Option<&str>,
+        project_path: Option<&Path>,
+    ) -> Option<String>;
 }
 
 /// Plugin interface - organizes related tools
@@ -139,7 +149,7 @@ pub struct ToolContext {
     pub working_directory: Option<PathBuf>,
     pub environment_variables: HashMap<String, String>,
     pub environment: Option<String>, // venv name
-    pub use_system_path: bool, // Whether to use system PATH or vx-managed tools
+    pub use_system_path: bool,       // Whether to use system PATH or vx-managed tools
 }
 
 impl ToolContext {
@@ -178,11 +188,9 @@ pub struct ToolInfo {
 /// Status of a tool in a specific environment
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolStatus {
-    pub name: String,
-    pub version: String,
-    pub executable_path: PathBuf,
-    pub environment: Option<String>,
-    pub is_available: bool,
+    pub installed: bool,
+    pub current_version: Option<String>,
+    pub installed_versions: Vec<String>,
 }
 
 /// Synchronous tool interface for compatibility with legacy code

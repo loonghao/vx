@@ -120,20 +120,25 @@ pub struct LayerInfo {
 impl ConfigStatus {
     /// Get a summary of the configuration status
     pub fn summary(&self) -> String {
-        let active_layers: Vec<&str> = self.layers
+        let active_layers: Vec<&str> = self
+            .layers
             .iter()
             .filter(|l| l.available)
             .map(|l| l.name.as_str())
             .collect();
-        
+
         format!(
             "Configuration layers: {} | Tools: {} | Fallback: {}",
             active_layers.join(", "),
             self.available_tools.len(),
-            if self.fallback_enabled { "enabled" } else { "disabled" }
+            if self.fallback_enabled {
+                "enabled"
+            } else {
+                "disabled"
+            }
         )
     }
-    
+
     /// Check if the configuration is healthy
     pub fn is_healthy(&self) -> bool {
         // At least one layer should be available
@@ -258,14 +263,14 @@ impl FigmentConfigManager {
         // Fall back to builtin URL builders
         if self.config.defaults.fallback_to_builtin {
             match tool_name {
-                "node" => crate::NodeUrlBuilder::download_url(version)
-                    .ok_or_else(|| VxError::Other {
+                "node" => {
+                    crate::NodeUrlBuilder::download_url(version).ok_or_else(|| VxError::Other {
                         message: format!("No download URL available for {} {}", tool_name, version),
-                    }),
-                "go" => crate::GoUrlBuilder::download_url(version)
-                    .ok_or_else(|| VxError::Other {
-                        message: format!("No download URL available for {} {}", tool_name, version),
-                    }),
+                    })
+                }
+                "go" => crate::GoUrlBuilder::download_url(version).ok_or_else(|| VxError::Other {
+                    message: format!("No download URL available for {} {}", tool_name, version),
+                }),
                 _ => Err(VxError::Other {
                     message: format!("Tool {} not supported", tool_name),
                 }),
@@ -281,8 +286,12 @@ impl FigmentConfigManager {
     fn expand_url_template(&self, template: &str, tool_name: &str, version: &str) -> String {
         let platform = crate::Platform::current();
         let (os, arch) = match tool_name {
-            "node" => platform.node_platform_string().unwrap_or(("linux".to_string(), "x64".to_string())),
-            "go" => platform.go_platform_string().unwrap_or(("linux".to_string(), "amd64".to_string())),
+            "node" => platform
+                .node_platform_string()
+                .unwrap_or(("linux".to_string(), "x64".to_string())),
+            "go" => platform
+                .go_platform_string()
+                .unwrap_or(("linux".to_string(), "amd64".to_string())),
             _ => ("linux".to_string(), "x64".to_string()),
         };
         let ext = platform.archive_extension();
@@ -456,12 +465,15 @@ impl FigmentConfigManager {
         let mut config = VxConfig::default();
 
         for (tool_name, version) in &project_info.tool_versions {
-            config.tools.insert(tool_name.clone(), ToolConfig {
-                version: Some(version.clone()),
-                install_method: None,
-                registry: None,
-                custom_sources: None,
-            });
+            config.tools.insert(
+                tool_name.clone(),
+                ToolConfig {
+                    version: Some(version.clone()),
+                    install_method: None,
+                    registry: None,
+                    custom_sources: None,
+                },
+            );
         }
 
         Ok(config)

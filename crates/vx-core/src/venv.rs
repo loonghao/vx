@@ -133,9 +133,13 @@ impl VenvManager {
                 let entry = entry.map_err(|e| VxError::Other {
                     message: format!("Failed to read directory entry: {}", e),
                 })?;
-                if entry.file_type().map_err(|e| VxError::Other {
-                    message: format!("Failed to get file type: {}", e),
-                })?.is_dir() {
+                if entry
+                    .file_type()
+                    .map_err(|e| VxError::Other {
+                        message: format!("Failed to get file type: {}", e),
+                    })?
+                    .is_dir()
+                {
                     if let Some(name) = entry.file_name().to_str() {
                         venvs.push(name.to_string());
                     }

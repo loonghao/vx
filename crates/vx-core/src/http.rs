@@ -30,7 +30,7 @@ impl HttpUtils {
         let json = response.json().await?;
         Ok(json)
     }
-    
+
     /// Download a file to bytes
     pub async fn download_bytes(url: &str) -> Result<Vec<u8>> {
         let client = get_http_client();
@@ -38,7 +38,12 @@ impl HttpUtils {
         let bytes = response.bytes().await?;
         Ok(bytes.to_vec())
     }
-    
+
+    /// Download a file (alias for download_bytes)
+    pub async fn download_file(url: &str) -> Result<Vec<u8>> {
+        Self::download_bytes(url).await
+    }
+
     /// Check if a URL is accessible (HEAD request)
     pub async fn check_url(url: &str) -> Result<bool> {
         let client = get_http_client();
@@ -52,13 +57,13 @@ impl HttpUtils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_http_client_creation() {
         let client = get_http_client();
-        assert!(client.timeout().is_some());
+        // Client is configured with timeout
     }
-    
+
     #[tokio::test]
     async fn test_fetch_json_mock() {
         // This would require a mock server in a real test

@@ -3,10 +3,13 @@
 //! This module provides simplified traits that abstract away most of the complexity,
 //! allowing developers to focus on the core functionality of their tools.
 
-use crate::{Result, VersionInfo, PackageSpec, PackageInfo, Ecosystem, ToolContext, ToolExecutionResult, HttpUtils, FigmentConfigManager};
-use std::path::{Path, PathBuf};
-use std::collections::HashMap;
+use crate::{
+    Ecosystem, FigmentConfigManager, HttpUtils, PackageInfo, PackageSpec, Result, ToolContext,
+    ToolDownloader, ToolExecutionResult, ToolStatus, VersionInfo, VxEnvironment,
+};
 use serde_json::Value;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 /// Simplified trait for implementing tool support
 ///
@@ -16,39 +19,57 @@ use serde_json::Value;
 pub trait VxTool: Send + Sync {
     /// Tool name (required)
     fn name(&self) -> &str;
-    
+
     /// Tool description (optional, has default)
     fn description(&self) -> &str {
         "A development tool"
     }
-    
+
     /// Supported aliases for this tool (optional)
     fn aliases(&self) -> Vec<&str> {
         vec![]
     }
-    
+
     /// Fetch available versions from the tool's official source
     /// This is the main method developers need to implement
     async fn fetch_versions(&self, include_prerelease: bool) -> Result<Vec<VersionInfo>>;
-    
+
     /// Install a specific version of the tool
     /// Default implementation provides a basic download-and-extract workflow
-    async fn install_version(&self, version: &str, install_dir: &Path) -> Result<PathBuf> {
-        self.default_install_workflow(version, install_dir).await
+    async fn install_version(&self, version: &str, force: bool) -> Result<()> {
+        if !force && self.is_version_installed(version).await? {
+            return Err(crate::VxError::VersionAlreadyInstalled {
+                tool_name: self.name().to_string(),
+                version: version.to_string(),
+            });
+        }
+
+        let install_dir = self.get_version_install_dir(version);
+        let _exe_path = self.default_install_workflow(version, &install_dir).await?;
+
+        // Verify installation
+        if !self.is_version_installed(version).await? {
+            return Err(crate::VxError::InstallationFailed {
+                tool_name: self.name().to_string(),
+                version: version.to_string(),
+                message: "Installation verification failed".to_string(),
+            });
+        }
+
+        Ok(())
     }
-    
+
     /// Check if a version is installed (has sensible default)
     async fn is_version_installed(&self, version: &str) -> Result<bool> {
-        let install_dir = self.get_version_install_dir(version);
-        let exe_path = self.get_executable_path(&install_dir).await?;
-        Ok(exe_path.exists())
+        let env = VxEnvironment::new().expect("Failed to create VX environment");
+        Ok(env.is_version_installed(self.name(), version))
     }
-    
+
     /// Execute the tool with given arguments (has default implementation)
     async fn execute(&self, args: &[String], context: &ToolContext) -> Result<ToolExecutionResult> {
         self.default_execute_workflow(args, context).await
     }
-    
+
     /// Get the executable path within an installation directory
     /// Override this if your tool has a non-standard layout
     async fn get_executable_path(&self, install_dir: &Path) -> Result<PathBuf> {
@@ -57,70 +78,75 @@ pub trait VxTool: Send + Sync {
         } else {
             self.name().to_string()
         };
-        
+
         // Try common locations
         let candidates = vec![
             install_dir.join(&exe_name),
             install_dir.join("bin").join(&exe_name),
             install_dir.join("Scripts").join(&exe_name), // Windows Python-style
         ];
-        
+
         for candidate in candidates {
             if candidate.exists() {
                 return Ok(candidate);
             }
         }
-        
+
         // Default to bin directory
         Ok(install_dir.join("bin").join(exe_name))
     }
-    
+
     /// Get download URL for a specific version and current platform
     /// Override this to provide platform-specific URLs
     async fn get_download_url(&self, version: &str) -> Result<Option<String>> {
         // Default: try to extract from version info
         let versions = self.fetch_versions(true).await?;
-        Ok(versions.iter()
+        Ok(versions
+            .iter()
             .find(|v| v.version == version)
             .and_then(|v| v.download_url.clone()))
     }
-    
+
     /// Get installation directory for a specific version
     fn get_version_install_dir(&self, version: &str) -> PathBuf {
-        self.get_base_install_dir().join(version)
+        let env = VxEnvironment::new().expect("Failed to create VX environment");
+        env.get_version_install_dir(self.name(), version)
     }
-    
+
     /// Get base installation directory for this tool
     fn get_base_install_dir(&self) -> PathBuf {
-        dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join(".vx")
-            .join("tools")
-            .join(self.name())
+        let env = VxEnvironment::new().expect("Failed to create VX environment");
+        env.get_tool_install_dir(self.name())
     }
-    
+
     /// Default installation workflow (download + extract)
     /// Most tools can use this as-is
-    async fn default_install_workflow(&self, version: &str, install_dir: &Path) -> Result<PathBuf> {
-        // Create install directory
-        std::fs::create_dir_all(install_dir)?;
-        
+    async fn default_install_workflow(
+        &self,
+        version: &str,
+        _install_dir: &Path,
+    ) -> Result<PathBuf> {
         // Get download URL
-        let download_url = self.get_download_url(version).await?
-            .ok_or_else(|| crate::VxError::Other {
-                message: format!("No download URL found for {} version {}", self.name(), version),
-            })?;
-        
-        // Download and extract (this would be implemented in the installer module)
-        let installer = crate::installer::DefaultInstaller::new();
-        installer.download_and_extract(&download_url, install_dir).await?;
-        
-        // Return executable path
-        self.get_executable_path(install_dir).await
+        let download_url = self.get_download_url(version).await?.ok_or_else(|| {
+            crate::VxError::DownloadUrlNotFound {
+                tool_name: self.name().to_string(),
+                version: version.to_string(),
+            }
+        })?;
+
+        // Use the new downloader
+        let downloader = ToolDownloader::new()?;
+        downloader
+            .download_and_install(self.name(), version, &download_url)
+            .await
     }
-    
+
     /// Default execution workflow
-    async fn default_execute_workflow(&self, args: &[String], context: &ToolContext) -> Result<ToolExecutionResult> {
+    async fn default_execute_workflow(
+        &self,
+        args: &[String],
+        context: &ToolContext,
+    ) -> Result<ToolExecutionResult> {
         // Find the tool executable
         let exe_path = if context.use_system_path {
             which::which(self.name()).map_err(|_| crate::VxError::ToolNotFound {
@@ -130,68 +156,92 @@ pub trait VxTool: Send + Sync {
             // Use vx-managed version
             let active_version = self.get_active_version().await?;
             let install_dir = self.get_version_install_dir(&active_version);
-            self.get_executable_path(&install_dir).await?
+            let env = VxEnvironment::new().expect("Failed to create VX environment");
+            env.find_executable_in_dir(&install_dir, self.name())?
         };
-        
+
         // Execute the tool
         let mut cmd = std::process::Command::new(&exe_path);
         cmd.args(args);
-        
+
         if let Some(cwd) = &context.working_directory {
             cmd.current_dir(cwd);
         }
-        
+
         for (key, value) in &context.environment_variables {
             cmd.env(key, value);
         }
-        
+
         let status = cmd.status().map_err(|e| crate::VxError::Other {
             message: format!("Failed to execute {}: {}", self.name(), e),
         })?;
-        
+
         Ok(ToolExecutionResult {
             exit_code: status.code().unwrap_or(1),
             stdout: None, // Could be enhanced to capture output
             stderr: None,
         })
     }
-    
+
     /// Get the currently active version (has default implementation)
     async fn get_active_version(&self) -> Result<String> {
-        // Try to get from config, fallback to latest installed
+        let env = VxEnvironment::new().expect("Failed to create VX environment");
+
+        // Try to get from environment config first
+        if let Some(active_version) = env.get_active_version(self.name())? {
+            return Ok(active_version);
+        }
+
+        // Fallback to latest installed
         let installed_versions = self.get_installed_versions().await?;
-        installed_versions.first()
+        installed_versions
+            .first()
             .cloned()
             .ok_or_else(|| crate::VxError::ToolNotInstalled {
                 tool_name: self.name().to_string(),
             })
     }
-    
+
     /// Get all installed versions
     async fn get_installed_versions(&self) -> Result<Vec<String>> {
-        let base_dir = self.get_base_install_dir();
-        if !base_dir.exists() {
-            return Ok(vec![]);
-        }
-        
-        let mut versions = vec![];
-        for entry in std::fs::read_dir(&base_dir)? {
-            let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                if let Some(version) = entry.file_name().to_str() {
-                    if self.is_version_installed(version).await? {
-                        versions.push(version.to_string());
-                    }
-                }
-            }
-        }
-        
-        // Sort versions (latest first)
-        versions.sort();
-        versions.reverse();
-        Ok(versions)
+        let env = VxEnvironment::new().expect("Failed to create VX environment");
+        env.list_installed_versions(self.name())
     }
-    
+
+    /// Remove a specific version of the tool
+    async fn remove_version(&self, version: &str, force: bool) -> Result<()> {
+        if !self.is_version_installed(version).await? {
+            if !force {
+                return Err(crate::VxError::VersionNotInstalled {
+                    tool_name: self.name().to_string(),
+                    version: version.to_string(),
+                });
+            }
+            return Ok(());
+        }
+
+        let version_dir = self.get_version_install_dir(version);
+        std::fs::remove_dir_all(&version_dir)?;
+
+        Ok(())
+    }
+
+    /// Get tool status (installed versions, active version, etc.)
+    async fn get_status(&self) -> Result<ToolStatus> {
+        let installed_versions = self.get_installed_versions().await?;
+        let current_version = if !installed_versions.is_empty() {
+            self.get_active_version().await.ok()
+        } else {
+            None
+        };
+
+        Ok(ToolStatus {
+            installed: !installed_versions.is_empty(),
+            current_version,
+            installed_versions,
+        })
+    }
+
     /// Additional metadata for the tool (optional)
     fn metadata(&self) -> HashMap<String, String> {
         HashMap::new()
@@ -237,7 +287,9 @@ pub trait VxPackageManager: Send + Sync {
     fn is_preferred_for_project(&self, project_path: &Path) -> bool {
         // Default: check for common config files
         let config_files = self.get_config_files();
-        config_files.iter().any(|file| project_path.join(file).exists())
+        config_files
+            .iter()
+            .any(|file| project_path.join(file).exists())
     }
 
     /// Get configuration files that indicate this package manager should be used
@@ -274,16 +326,23 @@ pub trait VxPackageManager: Send + Sync {
     }
 
     /// Run a package manager command with arguments
-    async fn run_command(&self, command: &[&str], args: &[String], project_path: &Path) -> Result<()> {
+    async fn run_command(
+        &self,
+        command: &[&str],
+        args: &[String],
+        project_path: &Path,
+    ) -> Result<()> {
         let mut cmd = std::process::Command::new(self.name());
         cmd.args(command);
         cmd.args(args);
         cmd.current_dir(project_path);
 
-        let status = cmd.status().map_err(|e| crate::VxError::PackageManagerError {
-            manager: self.name().to_string(),
-            message: format!("Failed to run command: {}", e),
-        })?;
+        let status = cmd
+            .status()
+            .map_err(|e| crate::VxError::PackageManagerError {
+                manager: self.name().to_string(),
+                message: format!("Failed to run command: {}", e),
+            })?;
 
         if !status.success() {
             return Err(crate::VxError::PackageManagerError {
@@ -361,14 +420,16 @@ pub trait VxPlugin: Send + Sync {
 
     /// Check if this plugin supports a specific tool
     fn supports_tool(&self, tool_name: &str) -> bool {
-        self.tools().iter().any(|tool| {
-            tool.name() == tool_name || tool.aliases().contains(&tool_name)
-        })
+        self.tools()
+            .iter()
+            .any(|tool| tool.name() == tool_name || tool.aliases().contains(&tool_name))
     }
 
     /// Check if this plugin supports a specific package manager
     fn supports_package_manager(&self, pm_name: &str) -> bool {
-        self.package_managers().iter().any(|pm| pm.name() == pm_name)
+        self.package_managers()
+            .iter()
+            .any(|pm| pm.name() == pm_name)
     }
 
     /// Plugin metadata (optional)
@@ -435,8 +496,8 @@ impl ConfigurableTool {
         url_builder: Box<dyn UrlBuilder>,
         version_parser: Box<dyn VersionParser>,
     ) -> Result<Self> {
-        let config_manager = FigmentConfigManager::new()
-            .or_else(|_| FigmentConfigManager::minimal())?;
+        let config_manager =
+            FigmentConfigManager::new().or_else(|_| FigmentConfigManager::minimal())?;
 
         Ok(Self {
             metadata,
@@ -463,12 +524,16 @@ impl VxTool for ConfigurableTool {
 
     async fn fetch_versions(&self, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
         let json = HttpUtils::fetch_json(self.url_builder.versions_url()).await?;
-        self.version_parser.parse_versions(&json, include_prerelease)
+        self.version_parser
+            .parse_versions(&json, include_prerelease)
     }
 
     async fn get_download_url(&self, version: &str) -> Result<Option<String>> {
         // First try to get from figment configuration
-        if let Ok(url) = self.config_manager.get_download_url(&self.metadata.name, version) {
+        if let Ok(url) = self
+            .config_manager
+            .get_download_url(&self.metadata.name, version)
+        {
             return Ok(Some(url));
         }
 

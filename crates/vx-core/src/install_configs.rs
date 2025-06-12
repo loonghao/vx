@@ -1,6 +1,6 @@
 use crate::installer::{ArchiveFormat, InstallConfig, InstallMethod};
-use crate::url_builder::{NodeUrlBuilder, GoUrlBuilder, GenericUrlBuilder};
 use crate::platform::Platform;
+use crate::url_builder::{GenericUrlBuilder, GoUrlBuilder, NodeUrlBuilder};
 use std::path::PathBuf;
 
 /// Get installation configuration for a specific tool
@@ -34,18 +34,22 @@ fn get_uv_config(version: &str, install_dir: PathBuf) -> InstallConfig {
         crate::platform::OperatingSystem::MacOS => {
             ("uv-x86_64-apple-darwin.tar.gz", ArchiveFormat::TarGz)
         }
-        _ => {
-            ("uv-x86_64-unknown-linux-gnu.tar.gz", ArchiveFormat::TarGz)
-        }
+        _ => ("uv-x86_64-unknown-linux-gnu.tar.gz", ArchiveFormat::TarGz),
     };
 
     let download_url = if version == "latest" {
         Some(GenericUrlBuilder::github_release_download_url(
-            "astral-sh", "uv", "latest", filename
+            "astral-sh",
+            "uv",
+            "latest",
+            filename,
         ))
     } else {
         Some(GenericUrlBuilder::github_release_download_url(
-            "astral-sh", "uv", version, filename
+            "astral-sh",
+            "uv",
+            version,
+            filename,
         ))
     };
 

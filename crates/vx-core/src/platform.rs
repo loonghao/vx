@@ -37,7 +37,7 @@ impl Platform {
             arch: Self::current_arch(),
         }
     }
-    
+
     /// Get the current operating system
     pub fn current_os() -> OperatingSystem {
         if cfg!(target_os = "windows") {
@@ -52,7 +52,7 @@ impl Platform {
             OperatingSystem::Other(std::env::consts::OS.to_string())
         }
     }
-    
+
     /// Get the current architecture
     pub fn current_arch() -> Architecture {
         if cfg!(target_arch = "x86_64") {
@@ -67,7 +67,7 @@ impl Platform {
             Architecture::Other(std::env::consts::ARCH.to_string())
         }
     }
-    
+
     /// Get platform string for Node.js downloads
     pub fn node_platform_string(&self) -> Option<(String, String)> {
         let os = match self.os {
@@ -76,17 +76,17 @@ impl Platform {
             OperatingSystem::Linux => "linux",
             _ => return None,
         };
-        
+
         let arch = match self.arch {
             Architecture::X86_64 => "x64",
             Architecture::X86 => "x86",
             Architecture::Aarch64 => "arm64",
             _ => return None,
         };
-        
+
         Some((os.to_string(), arch.to_string()))
     }
-    
+
     /// Get platform string for Go downloads
     pub fn go_platform_string(&self) -> Option<(String, String)> {
         let os = match self.os {
@@ -96,7 +96,7 @@ impl Platform {
             OperatingSystem::FreeBSD => "freebsd",
             _ => return None,
         };
-        
+
         let arch = match self.arch {
             Architecture::X86_64 => "amd64",
             Architecture::X86 => "386",
@@ -104,10 +104,10 @@ impl Platform {
             Architecture::Arm => "armv6l",
             _ => return None,
         };
-        
+
         Some((os.to_string(), arch.to_string()))
     }
-    
+
     /// Get file extension for archives on this platform
     pub fn archive_extension(&self) -> &'static str {
         match self.os {
@@ -115,7 +115,7 @@ impl Platform {
             _ => "tar.gz",
         }
     }
-    
+
     /// Get executable extension for this platform
     pub fn executable_extension(&self) -> &'static str {
         match self.os {
@@ -158,34 +158,37 @@ impl std::fmt::Display for Platform {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_current_platform() {
         let platform = Platform::current();
-        
+
         // Should detect some valid OS and arch
         assert!(!matches!(platform.os, OperatingSystem::Other(_)));
         assert!(!matches!(platform.arch, Architecture::Other(_)));
     }
-    
+
     #[test]
     fn test_platform_strings() {
         let platform = Platform::current();
-        
+
         // Should be able to generate platform strings for major tools
-        if matches!(platform.os, OperatingSystem::Windows | OperatingSystem::MacOS | OperatingSystem::Linux) {
+        if matches!(
+            platform.os,
+            OperatingSystem::Windows | OperatingSystem::MacOS | OperatingSystem::Linux
+        ) {
             assert!(platform.node_platform_string().is_some());
             assert!(platform.go_platform_string().is_some());
         }
     }
-    
+
     #[test]
     fn test_extensions() {
         let platform = Platform::current();
-        
+
         let archive_ext = platform.archive_extension();
         let exe_ext = platform.executable_extension();
-        
+
         assert!(!archive_ext.is_empty());
         // exe_ext can be empty on Unix systems
     }
