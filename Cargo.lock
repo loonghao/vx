@@ -2211,6 +2211,7 @@ dependencies = [
  "colored",
  "dialoguer",
  "indicatif",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-indicatif",

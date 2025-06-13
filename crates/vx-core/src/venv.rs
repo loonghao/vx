@@ -23,8 +23,10 @@ pub struct VenvManager {
 
 impl VenvManager {
     pub fn new() -> Result<Self> {
-        // Get venvs directory from config or use default
-        let venvs_dir = if let Some(config_dir) = dirs::config_dir() {
+        // Get venvs directory from VX_HOME or config or use default
+        let venvs_dir = if let Ok(vx_home) = env::var("VX_HOME") {
+            PathBuf::from(vx_home).join("venvs")
+        } else if let Some(config_dir) = dirs::config_dir() {
             config_dir.join("vx").join("venvs")
         } else {
             dirs::home_dir()
