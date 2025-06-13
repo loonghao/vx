@@ -16,8 +16,6 @@ builds:
     binary: vx
     command: build
     targets:
-      # FreeBSD (PGO not well supported)
-      - x86_64-unknown-freebsd
       # Windows x64
       - x86_64-pc-windows-msvc
       # ARM targets (PGO support varies)
