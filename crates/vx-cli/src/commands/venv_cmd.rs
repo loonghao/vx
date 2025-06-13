@@ -201,7 +201,7 @@ async fn remove_venv(manager: &VenvManager, name: &str, force: bool) -> Result<(
     if let Some(current) = VenvManager::current() {
         if current == name {
             UI::error("Cannot remove active virtual environment. Deactivate first.");
-            UI::hint(&format!("Run: vx venv deactivate"));
+            UI::hint("Run: vx venv deactivate");
             return Ok(());
         }
     }
