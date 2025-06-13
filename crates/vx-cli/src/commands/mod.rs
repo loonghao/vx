@@ -19,6 +19,9 @@ pub mod venv_cmd;
 pub mod version;
 pub mod where_cmd;
 
+#[cfg(test)]
+pub mod tests;
+
 pub struct CommandHandler;
 
 impl CommandHandler {
