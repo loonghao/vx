@@ -33,6 +33,7 @@ jobs:
         with:
           release-type: rust
           skip-github-release: true
+          skip-labeling: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: false
