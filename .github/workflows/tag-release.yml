@@ -20,8 +20,6 @@ env:
   RUST_BACKTRACE: short
   # Use all available CPU cores for compilation
   CARGO_BUILD_JOBS: 0
-  # Enable faster linker
-  RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
   # sccache configuration
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
