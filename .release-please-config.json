@@ -4,13 +4,16 @@
     ".": {
       "release-type": "rust",
       "changelog-path": "CHANGELOG.md",
-      "package-name": "vx"
+      "package-name": "vx",
+      "include-component-in-tag": false
     }
   },
   "separate-pull-requests": false,
   "skip-github-release": true,
   "skip-labeling": true,
   "always-link-local": false,
-  "group-pull-request-title-pattern": "chore: release${component} ${version}",
-  "pull-request-title-pattern": "chore: release${component} ${version}"
+  "group-pull-request-title-pattern": "chore${scope}: release ${version}",
+  "pull-request-title-pattern": "chore${scope}: release ${version}",
+  "tag-separator": "",
+  "include-v-in-tag": true
 }
