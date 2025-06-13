@@ -31,7 +31,13 @@ pub enum Commands {
     Version,
 
     /// List supported tools
-    List,
+    List {
+        /// Tool name to show details for (optional)
+        tool: Option<String>,
+        /// Show installation status for tools
+        #[arg(long)]
+        status: bool,
+    },
 
     /// Install a specific tool version
     Install {
