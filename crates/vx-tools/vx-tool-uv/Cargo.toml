@@ -11,7 +11,7 @@ categories = ["development-tools"]
 [dependencies]
 anyhow = "1.0"
 vx-core = { path = "../../vx-core" }
-which = "6.0"
+which = "8.0"
 async-trait = { workspace = true }
 
 [dev-dependencies]
