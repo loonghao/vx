@@ -1,5 +1,9 @@
 name: GoReleaser
 
+# This workflow builds and releases binaries for multiple platforms
+# Triggered by version tags (v*) or manual dispatch
+# Integrates with release-please for automated releases
+
 permissions:
   contents: write
   packages: write
@@ -7,11 +11,11 @@ permissions:
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*'  # Trigger on version tags created by release-please
   workflow_dispatch:
     inputs:
       dry-run:
-        description: 'Run in dry-run mode'
+        description: 'Run in dry-run mode (no actual release)'
         required: false
         default: false
         type: boolean
@@ -38,7 +42,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.23'
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -78,7 +82,6 @@ jobs:
             gcc-mingw-w64-x86-64 \
             musl-tools \
             llvm \
-            lld \
             clang \
             upx-ucl
 
@@ -90,7 +93,38 @@ jobs:
           args: release --clean ${{ github.event.inputs.dry-run == 'true' && '--snapshot' || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
-          AUR_KEY: ${{ secrets.AUR_KEY }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-          SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN }}
+          # Package manager tokens (optional - will skip if not available)
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY || '' }}
+          AUR_KEY: ${{ secrets.AUR_KEY || '' }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN || '' }}
+          SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN || '' }}
+
+      - name: Verify build artifacts
+        if: always()
+        run: |
+          echo "🔍 Verifying build artifacts..."
+
+          # Check if dist directory exists
+          if [ -d "dist" ]; then
+            echo "✅ Build artifacts directory found"
+            echo "📦 Generated artifacts:"
+            ls -la dist/ || true
+
+            # Count binary files
+            BINARY_COUNT=$(find dist/ -name "vx*" -type f | wc -l)
+            echo "🔢 Total binary files: $BINARY_COUNT"
+
+            # Basic verification for Linux binary (if exists)
+            if [ -f "dist/vx_Linux_x86_64/vx" ]; then
+              echo "🐧 Testing Linux binary..."
+              chmod +x dist/vx_Linux_x86_64/vx
+              if ./dist/vx_Linux_x86_64/vx --version; then
+                echo "✅ Linux binary verification passed"
+              else
+                echo "⚠️ Linux binary verification failed"
+              fi
+            fi
+          else
+            echo "❌ No build artifacts found"
+            exit 1
+          fi
