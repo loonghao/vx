@@ -9,58 +9,15 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: write
-  repository-projects: write
-  actions: read
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-      version: ${{ steps.release.outputs.version }}
-      pr: ${{ steps.release.outputs.pr }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Run release-please
-        id: release
         uses: googleapis/release-please-action@v4
         with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Debug release-please outputs
-        run: |
-          echo "Release created: ${{ steps.release.outputs.release_created }}"
-          echo "Tag name: ${{ steps.release.outputs.tag_name }}"
-          echo "Version: ${{ steps.release.outputs.version }}"
-          echo "PRs created: ${{ steps.release.outputs.prs_created }}"
-
-      - name: Release created
-        if: ${{ steps.release.outputs.release_created }}
-        run: |
-          echo "🎉 Release created!"
-          echo "Tag: ${{ steps.release.outputs.tag_name }}"
-          echo "Version: ${{ steps.release.outputs.version }}"
-          echo "The tag-release.yml workflow will handle the actual release process."
-
-      - name: Release PR created
-        if: ${{ steps.release.outputs.prs_created && !steps.release.outputs.release_created }}
-        run: |
-          echo "📝 Release PR created!"
-          echo "A release PR has been created or updated."
-          echo "Merge the PR to trigger the release."
-          echo "Check the Actions tab for the PR details."
-
-      - name: No action needed
-        if: ${{ !steps.release.outputs.release_created && !steps.release.outputs.prs_created }}
-        run: |
-          echo "ℹ️ No release or PR created."
-          echo "Waiting for more commits with conventional commit messages."
-          echo "Use 'feat:', 'fix:', or other conventional prefixes."
