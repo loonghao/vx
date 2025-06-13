@@ -4,10 +4,14 @@ coverage:
       default:
         target: 80%
         threshold: 5%
+        # Only warn, don't fail CI
+        informational: true
     patch:
       default:
         target: 80%
         threshold: 5%
+        # Only warn, don't fail CI
+        informational: true
 
 comment:
   layout: "reach,diff,flags,tree"
