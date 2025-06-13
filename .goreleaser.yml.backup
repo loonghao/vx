@@ -26,8 +26,15 @@ builds:
     flags:
       - --release
       - --package=vx
+      # Enable parallel compilation
+      - --jobs={{ .Env.CARGO_BUILD_JOBS | default "0" }}
     env:
       - RUST_BACKTRACE=1
+      # Enable incremental compilation for faster rebuilds
+      - CARGO_INCREMENTAL=1
+      # Use faster linker when available
+      - CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang
+      - CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=lld-link
     hooks:
       pre: rustup target add {{ .Target }}
 
@@ -47,8 +54,15 @@ builds:
     flags:
       - --release
       - --package=vx
+      # Enable parallel compilation
+      - --jobs={{ .Env.CARGO_BUILD_JOBS | default "0" }}
     env:
       - RUST_BACKTRACE=1
+      # Enable incremental compilation for faster rebuilds
+      - CARGO_INCREMENTAL=1
+      # Use faster linker when available
+      - CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang
+      - CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=lld
     hooks:
       pre:
         - rustup target add {{ .Target }}
