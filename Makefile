@@ -1,7 +1,7 @@
 # Makefile for vx - Universal Development Tool Manager
 # Provides convenient targets for building, testing, and optimizing
 
-.PHONY: help build build-release build-pgo test clean install benchmark lint format check-deps coverage security
+.PHONY: help build build-release build-pgo test clean install benchmark lint format check-deps coverage security advanced-build sccache-setup upx-install
 
 # Default target
 help:
@@ -18,6 +18,8 @@ help:
 	@echo "  install       - Install to system"
 	@echo "  benchmark     - Run performance benchmarks"
 	@echo "  lint          - Run linting checks"
+	@echo "  lint-fix      - Fix clippy warnings automatically"
+	@echo "  lint-strict   - Run strict linting with pedantic rules"
 	@echo "  format        - Format code"
 	@echo "  check-deps    - Check for dependency updates"
 	@echo ""
@@ -30,19 +32,31 @@ help:
 	@echo "  goreleaser-test     - Test GoReleaser configuration"
 	@echo "  goreleaser-snapshot - Create snapshot build"
 	@echo "  goreleaser-release  - Create PGO-optimized release"
+	@echo ""
+	@echo "Advanced optimization targets:"
+	@echo "  advanced-build      - Build with all optimizations"
+	@echo "  sccache-setup       - Install and configure sccache"
+	@echo "  upx-install         - Install UPX compression tool"
+	@echo "  build-matrix        - Build for multiple targets"
+	@echo "  build-optimized     - Build with UPX and stripping"
 
 # Basic build targets
 build:
 	@echo "🔨 Building debug version..."
-	cargo build
+	CARGO_BUILD_JOBS=0 cargo build
 
 build-release:
 	@echo "🚀 Building release version..."
-	cargo build --release
+	CARGO_BUILD_JOBS=0 CARGO_INCREMENTAL=1 cargo build --release
 
 build-fast:
 	@echo "⚡ Building with fast profile..."
-	cargo build --profile dev-fast
+	CARGO_BUILD_JOBS=0 cargo build --profile dev-fast
+
+# Optimized parallel build
+build-parallel:
+	@echo "⚡ Building with maximum parallelization..."
+	CARGO_BUILD_JOBS=0 CARGO_INCREMENTAL=1 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build --release
 
 # PGO build targets
 build-pgo:
@@ -119,7 +133,17 @@ install:
 # Code quality targets
 lint:
 	@echo "🔍 Running linting checks..."
-	cargo clippy -- -D warnings
+	cargo clippy --all-targets --all-features -- -D warnings
+
+lint-fix:
+	@echo "🔧 Fixing clippy warnings..."
+	@chmod +x scripts/fix-clippy.sh
+	@./scripts/fix-clippy.sh --fix
+
+lint-strict:
+	@echo "🔍 Running strict linting checks..."
+	@chmod +x scripts/fix-clippy.sh
+	@./scripts/fix-clippy.sh --pedantic --nursery --all-features
 
 format:
 	@echo "✨ Formatting code..."
@@ -224,3 +248,58 @@ perf-compare:
 	@$(MAKE) build-pgo >/dev/null 2>&1
 	@echo "PGO build:"
 	@time ./target/release/vx version >/dev/null 2>&1
+
+# Advanced optimization targets
+advanced-build:
+	@echo "🚀 Building with all optimizations..."
+	@chmod +x scripts/advanced-build.sh
+	@./scripts/advanced-build.sh --pgo --benchmark --size-analysis
+
+sccache-setup:
+	@echo "⚡ Setting up sccache..."
+	@if ! command -v sccache >/dev/null 2>&1; then \
+		echo "Installing sccache..."; \
+		cargo install sccache --locked; \
+	else \
+		echo "sccache already installed"; \
+	fi
+	@echo "sccache version: $$(sccache --version)"
+	@echo "sccache stats:"
+	@sccache --show-stats
+
+upx-install:
+	@echo "🗜️ Installing UPX compression tool..."
+ifeq ($(OS),Windows_NT)
+	@choco install upx
+else ifeq ($(shell uname),Darwin)
+	@brew install upx
+else
+	@sudo apt-get update && sudo apt-get install -y upx-ucl
+endif
+	@echo "UPX version: $$(upx --version | head -1)"
+
+build-matrix:
+	@echo "🌐 Building for multiple targets..."
+	@for target in x86_64-unknown-linux-gnu x86_64-unknown-linux-musl aarch64-unknown-linux-gnu x86_64-apple-darwin aarch64-apple-darwin x86_64-pc-windows-msvc; do \
+		echo "Building for $$target..."; \
+		./scripts/advanced-build.sh --target $$target || echo "Failed to build $$target"; \
+	done
+
+build-optimized:
+	@echo "🎯 Building optimized release..."
+	@$(MAKE) sccache-setup
+	@$(MAKE) upx-install
+	@./scripts/advanced-build.sh --pgo --strip --upx --benchmark
+
+# Cross-compilation helpers
+build-linux-arm64:
+	@echo "🐧 Building for Linux ARM64..."
+	@./scripts/advanced-build.sh --target aarch64-unknown-linux-gnu
+
+build-macos-arm64:
+	@echo "🍎 Building for macOS ARM64..."
+	@./scripts/advanced-build.sh --target aarch64-apple-darwin --pgo
+
+build-windows:
+	@echo "🪟 Building for Windows..."
+	@./scripts/advanced-build.sh --target x86_64-pc-windows-msvc --pgo
