@@ -1,12 +1,13 @@
 # Multi-stage build for vx
 FROM alpine:latest
 
-# Install runtime dependencies
-RUN apk add --no-cache \
+# Install runtime dependencies in a single layer for faster builds
+RUN apk add --no-cache --update \
     ca-certificates \
     git \
     curl \
-    bash
+    bash \
+    && rm -rf /var/cache/apk/*
 
 # Create a non-root user
 RUN addgroup -g 1000 vx && \

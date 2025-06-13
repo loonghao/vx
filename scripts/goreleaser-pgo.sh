@@ -41,12 +41,13 @@ mkdir -p "$PGO_DATA_DIR"
 
 # Step 1: Build instrumented binary
 log_step "Building instrumented binary for profile collection..."
-export RUSTFLAGS="-Cprofile-generate=$PGO_DATA_DIR"
+export RUSTFLAGS="-Cprofile-generate=$PGO_DATA_DIR -Ccodegen-units=1 -Copt-level=3"
+export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-0}"
 
-if ! cargo build --release --target "$TARGET"; then
+if ! cargo build --release --target "$TARGET" --jobs="$CARGO_BUILD_JOBS"; then
     log_warning "Failed to build instrumented binary, falling back to standard build"
     unset RUSTFLAGS
-    cargo build --release --target "$TARGET"
+    cargo build --release --target "$TARGET" --jobs="$CARGO_BUILD_JOBS"
     exit 0
 fi
 
@@ -108,13 +109,13 @@ if [[ -f "$BINARY_PATH" ]]; then
     
     # Step 4: Build optimized binary
     log_step "Building PGO-optimized binary..."
-    export RUSTFLAGS="-Cprofile-use=$MERGED_PROFILE -Cllvm-args=-pgo-warn-missing-function"
-    
-    if cargo build --release --target "$TARGET"; then
+    export RUSTFLAGS="-Cprofile-use=$MERGED_PROFILE -Cllvm-args=-pgo-warn-missing-function -Ccodegen-units=1 -Copt-level=3 -Ctarget-cpu=native"
+
+    if cargo build --release --target "$TARGET" --jobs="$CARGO_BUILD_JOBS"; then
         log_success "PGO-optimized binary built successfully"
-        
-        # Verify the optimized binary
-        if timeout 5s "$BINARY_PATH" version >/dev/null 2>&1; then
+
+        # Verify the optimized binary (with shorter timeout for speed)
+        if timeout 3s "$BINARY_PATH" version >/dev/null 2>&1; then
             log_success "Binary verification passed"
         else
             log_warning "Binary verification failed, but continuing"
@@ -122,12 +123,12 @@ if [[ -f "$BINARY_PATH" ]]; then
     else
         log_warning "PGO build failed, falling back to standard build"
         unset RUSTFLAGS
-        cargo build --release --target "$TARGET"
+        cargo build --release --target "$TARGET" --jobs="$CARGO_BUILD_JOBS"
     fi
 else
     log_warning "Binary not found at $BINARY_PATH, falling back to standard build"
     unset RUSTFLAGS
-    cargo build --release --target "$TARGET"
+    cargo build --release --target "$TARGET" --jobs="$CARGO_BUILD_JOBS"
 fi
 
 # Cleanup

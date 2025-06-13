@@ -14,6 +14,14 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # Optimize Rust compilation
+  CARGO_INCREMENTAL: 1
+  CARGO_NET_RETRY: 10
+  RUST_BACKTRACE: short
+  CARGO_BUILD_JOBS: 0
+  # sccache configuration
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
 
 permissions:
   contents: write
@@ -72,15 +80,32 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
       - name: Install cross-compilation dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
             gcc-aarch64-linux-gnu \
             gcc-mingw-w64-x86-64 \
             musl-tools \
-            llvm
+            llvm \
+            lld \
+            clang \
+            upx-ucl \
+            && rm -rf /var/cache/apt/*
+
+      - name: Install UPX (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install upx
+
+      - name: Install UPX (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install upx
 
       - name: Setup cross-compilation environment
         run: |
@@ -94,16 +119,18 @@ jobs:
               ;;
           esac
 
-      - name: Cache cargo registry
+      - name: Cache Rust dependencies
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-${{ matrix.target }}-
+            ${{ runner.os }}-${{ matrix.target }}-cargo-
             ${{ runner.os }}-cargo-
 
       - name: Build with PGO (if supported)
@@ -136,6 +163,31 @@ jobs:
         run: |
           echo "Building standard release for ${{ matrix.target }}"
           cargo build --release --target ${{ matrix.target }} --package vx
+
+      - name: Strip binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          case "${{ matrix.target }}" in
+            aarch64-unknown-linux-gnu)
+              aarch64-linux-gnu-strip target/${{ matrix.target }}/release/vx
+              ;;
+            x86_64-pc-windows-gnu)
+              x86_64-w64-mingw32-strip target/${{ matrix.target }}/release/vx.exe
+              ;;
+            *)
+              strip target/${{ matrix.target }}/release/vx
+              ;;
+          esac
+
+      - name: Compress with UPX
+        run: |
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+            upx --best --lzma target/${{ matrix.target }}/release/vx.exe || echo "UPX compression failed, continuing..."
+          else
+            upx --best --lzma target/${{ matrix.target }}/release/vx || echo "UPX compression failed, continuing..."
+          fi
+        shell: bash
+        continue-on-error: true
 
       - name: Prepare artifacts
         shell: bash
