@@ -8,15 +8,6 @@ project_name: vx
 before:
   hooks:
     - rustup default stable
-    # Install optimization tools
-    - |
-      if command -v apt-get >/dev/null 2>&1; then
-        sudo apt-get update -qq && sudo apt-get install -y upx-ucl
-      elif command -v brew >/dev/null 2>&1; then
-        brew install upx
-      elif command -v choco >/dev/null 2>&1; then
-        choco install upx
-      fi
 
 builds:
   # Standard build (fallback for unsupported PGO targets)
@@ -76,22 +67,6 @@ builds:
       pre:
         - rustup target add {{ .Target }}
         - bash scripts/goreleaser-pgo.sh {{ .Target }}
-      post:
-        # Strip symbols for smaller binaries (Unix only)
-        - |
-          if [[ "{{ .Target }}" != *"windows"* ]]; then
-            case "{{ .Target }}" in
-              aarch64-unknown-linux-gnu)
-                aarch64-linux-gnu-strip {{ .Path }}
-                ;;
-              x86_64-pc-windows-gnu)
-                x86_64-w64-mingw32-strip {{ .Path }}
-                ;;
-              *)
-                strip {{ .Path }}
-                ;;
-            esac
-          fi
 
 archives:
   # PGO-optimized archives (main targets)
