@@ -9,7 +9,6 @@
       "draft": false,
       "prerelease": false,
       "include-v-in-tag": true,
-      "initial-version": "0.1.0",
       "separate-pull-requests": false,
       "skip-github-release": true,
       "skip-labeling": true,
