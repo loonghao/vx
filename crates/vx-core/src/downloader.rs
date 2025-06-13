@@ -251,6 +251,7 @@ impl ToolDownloader {
 
     /// Make file executable on Windows (no-op)
     #[cfg(not(unix))]
+    #[allow(dead_code)]
     fn make_executable(&self, _path: &Path) -> Result<()> {
         Ok(())
     }

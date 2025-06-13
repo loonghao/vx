@@ -16,7 +16,6 @@ fn test_config_manager_creation() {
 
     if let Ok(manager) = result {
         let config = manager.config();
-        assert!(config.defaults.auto_install == true || config.defaults.auto_install == false);
         assert!(!config.defaults.default_registry.is_empty());
     }
 }
@@ -52,7 +51,7 @@ version = "0.5.26"
 
     if let Ok(manager) = result {
         let config = manager.config();
-        assert_eq!(config.defaults.auto_install, true);
+        assert!(config.defaults.auto_install);
 
         // Check if tools are configured
         let available_tools = manager.get_available_tools();

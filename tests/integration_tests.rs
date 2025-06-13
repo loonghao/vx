@@ -56,7 +56,7 @@ fn test_vx_list_command() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     // Should show available tools
-    assert!(stdout.len() > 0);
+    assert!(!stdout.is_empty());
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn test_vx_plugin_list() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     // Should show available plugins
-    assert!(stdout.len() > 0);
+    assert!(!stdout.is_empty());
 }
 
 #[test]
@@ -76,7 +76,7 @@ fn test_vx_unsupported_tool() {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     // Should suggest available plugins or show error
-    assert!(stderr.len() > 0);
+    assert!(!stderr.is_empty());
 }
 
 #[test]
@@ -101,7 +101,7 @@ mod tool_specific_tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
 
         // Either succeeds with help output or fails with proper error message
-        assert!(output.status.success() || stderr.len() > 0 || stdout.len() > 0);
+        assert!(output.status.success() || !stderr.is_empty() || !stdout.is_empty());
     }
 
     #[test]
@@ -112,7 +112,7 @@ mod tool_specific_tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
 
         // Either succeeds with help output or fails with proper error message
-        assert!(output.status.success() || stderr.len() > 0 || stdout.len() > 0);
+        assert!(output.status.success() || !stderr.is_empty() || !stdout.is_empty());
     }
 
     #[test]
@@ -123,7 +123,7 @@ mod tool_specific_tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
 
         // Either succeeds with version output or fails with proper error message
-        assert!(output.status.success() || stderr.len() > 0 || stdout.len() > 0);
+        assert!(output.status.success() || !stderr.is_empty() || !stdout.is_empty());
     }
 
     #[test]
@@ -137,8 +137,8 @@ mod tool_specific_tests {
         assert!(
             output.status.success()
                 || stdout.contains("cargo")
-                || stderr.len() > 0
-                || stdout.len() > 0
+                || !stderr.is_empty()
+                || !stdout.is_empty()
         );
     }
 }
@@ -157,7 +157,7 @@ mod environment_isolation_tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
 
         // Should not silently fall back to system python without explicit flag
-        assert!(output.status.success() || stderr.len() > 0 || stdout.len() > 0);
+        assert!(output.status.success() || !stderr.is_empty() || !stdout.is_empty());
     }
 
     #[test]
@@ -186,6 +186,6 @@ mod config_tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
 
-        assert!(output.status.success() || stderr.len() > 0 || stdout.len() > 0);
+        assert!(output.status.success() || !stderr.is_empty() || !stdout.is_empty());
     }
 }

@@ -3,7 +3,7 @@
 //! These tests verify that the plugin system works correctly
 //! and that all plugins are properly registered and functional.
 
-use vx_core::{PluginRegistry, VxPackageManager, VxPlugin, VxTool};
+use vx_core::{PluginRegistry, VxPlugin};
 
 /// Test that all plugins can be registered without conflicts
 #[tokio::test]
