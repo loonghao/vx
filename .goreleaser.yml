@@ -8,25 +8,18 @@ project_name: vx
 before:
   hooks:
     - rustup default stable
-    - cargo install --locked cargo-zigbuild
-    # Install LLVM tools for PGO
-    - |
-      if command -v apt-get >/dev/null 2>&1; then
-        sudo apt-get update && sudo apt-get install -y llvm
-      elif command -v brew >/dev/null 2>&1; then
-        brew install llvm
-      elif command -v choco >/dev/null 2>&1; then
-        choco install llvm
-      fi
 
 builds:
   # Standard build (fallback for unsupported PGO targets)
   - id: vx-standard
     builder: rust
     binary: vx
+    command: build
     targets:
       # FreeBSD (PGO not well supported)
       - x86_64-unknown-freebsd
+      # Windows x64
+      - x86_64-pc-windows-msvc
       # ARM targets (PGO support varies)
       - aarch64-unknown-linux-gnu
       - aarch64-unknown-linux-musl
@@ -34,6 +27,7 @@ builds:
       - aarch64-pc-windows-msvc
     flags:
       - --release
+      - --package=vx
     env:
       - RUST_BACKTRACE=1
     hooks:
@@ -43,6 +37,7 @@ builds:
   - id: vx-pgo
     builder: rust
     binary: vx
+    command: build
     targets:
       # Linux (best PGO support)
       - x86_64-unknown-linux-gnu
@@ -53,23 +48,19 @@ builds:
       - x86_64-pc-windows-gnu
     flags:
       - --release
+      - --package=vx
     env:
       - RUST_BACKTRACE=1
     hooks:
       pre:
         - rustup target add {{ .Target }}
-        - chmod +x scripts/goreleaser-pgo.sh
-        - ./scripts/goreleaser-pgo.sh {{ .Target }}
+        - bash scripts/goreleaser-pgo.sh {{ .Target }}
 
 archives:
   # PGO-optimized archives (main targets)
   - id: pgo
-    builds:
+    ids:
       - vx-pgo
-    format: tar.gz
-    format_overrides:
-      - goos: windows
-        format: zip
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -84,12 +75,8 @@ archives:
 
   # Standard archives (fallback targets)
   - id: standard
-    builds:
+    ids:
       - vx-standard
-    format: tar.gz
-    format_overrides:
-      - goos: windows
-        format: zip
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -106,7 +93,7 @@ checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 
 changelog:
   sort: asc
@@ -210,19 +197,7 @@ nfpms:
       preremove: |
         echo "Removing vx..."
 
-# Homebrew
-brews:
-  - name: vx
-    repository:
-      owner: loonghao
-      name: homebrew-tap
-    homepage: https://github.com/loonghao/vx
-    description: Universal Development Tool Manager
-    license: MIT
-    test: |
-      system "#{bin}/vx --version"
-    install: |
-      bin.install "vx"
+
 
 # Scoop (Windows package manager)
 scoops:
