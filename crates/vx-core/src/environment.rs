@@ -216,14 +216,51 @@ impl VxEnvironment {
     /// Find executable in installation directory
     pub fn find_executable_in_dir(&self, dir: &Path, tool_name: &str) -> Result<PathBuf> {
         // Common executable patterns (including nested directories)
-        let patterns = vec![
-            // Direct in root
-            tool_name.to_string(),
-            format!("{}.exe", tool_name),
-            // In bin subdirectory
-            format!("bin/{}", tool_name),
-            format!("bin/{}.exe", tool_name),
-        ];
+        // On Windows, prioritize .cmd and .exe files over files without extensions
+        let mut patterns = vec![];
+
+        // Add Windows-specific patterns first (higher priority)
+        #[cfg(windows)]
+        {
+            patterns.extend(vec![
+                format!("{}.cmd", tool_name),
+                format!("{}.bat", tool_name),
+                format!("{}.exe", tool_name),
+                format!("{}.ps1", tool_name),
+            ]);
+        }
+
+        // Add generic patterns
+        #[cfg(not(windows))]
+        {
+            patterns.extend(vec![format!("{}.exe", tool_name), tool_name.to_string()]);
+        }
+
+        // On Windows, add the no-extension pattern last (lowest priority)
+        #[cfg(windows)]
+        {
+            patterns.push(tool_name.to_string());
+        }
+
+        // Add bin subdirectory patterns
+        #[cfg(windows)]
+        {
+            patterns.extend(vec![
+                format!("bin/{}.cmd", tool_name),
+                format!("bin/{}.bat", tool_name),
+                format!("bin/{}.exe", tool_name),
+                format!("bin/{}.ps1", tool_name),
+                format!("bin/{}", tool_name),
+            ]);
+        }
+
+        #[cfg(not(windows))]
+        {
+            patterns.extend(vec![
+                format!("bin/{}.exe", tool_name),
+                format!("bin/{}", tool_name),
+            ]);
+        }
 
         // First try direct patterns
         for pattern in &patterns {

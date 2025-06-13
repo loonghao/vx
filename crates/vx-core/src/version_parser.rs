@@ -222,7 +222,70 @@ impl GitHubVersionParser {
             }
         }
 
+        // Sort versions in descending order (latest first)
+        // This ensures that the first version in the list is the latest
+        versions.sort_by(|a, b| {
+            // Use semantic version comparison for better sorting
+            // Parse versions for comparison
+            let version_a = Self::parse_semantic_version(&a.version);
+            let version_b = Self::parse_semantic_version(&b.version);
+
+            match (version_a, version_b) {
+                (Ok(va), Ok(vb)) => vb.cmp(&va), // Descending order
+                _ => {
+                    // Fallback to string comparison if semantic parsing fails
+                    b.version.cmp(&a.version)
+                }
+            }
+        });
+
         Ok(versions)
+    }
+
+    /// Parse a semantic version string into comparable components
+    fn parse_semantic_version(version: &str) -> Result<(u32, u32, u32, String)> {
+        let clean_version = version.trim_start_matches('v');
+        let parts: Vec<&str> = clean_version.split('.').collect();
+
+        if parts.len() < 2 {
+            return Err(crate::VxError::Other {
+                message: format!("Invalid version format: {}", version),
+            });
+        }
+
+        let major = parts[0].parse::<u32>().map_err(|_| crate::VxError::Other {
+            message: format!("Invalid major version: {}", parts[0]),
+        })?;
+
+        let minor = parts[1].parse::<u32>().map_err(|_| crate::VxError::Other {
+            message: format!("Invalid minor version: {}", parts[1]),
+        })?;
+
+        let (patch, suffix) = if parts.len() > 2 {
+            // Handle patch version with possible suffix (e.g., "1-alpha")
+            let patch_part = parts[2];
+            if let Some(dash_pos) = patch_part.find('-') {
+                let patch_num =
+                    patch_part[..dash_pos]
+                        .parse::<u32>()
+                        .map_err(|_| crate::VxError::Other {
+                            message: format!("Invalid patch version: {}", &patch_part[..dash_pos]),
+                        })?;
+                let suffix = patch_part[dash_pos..].to_string();
+                (patch_num, suffix)
+            } else {
+                let patch_num = patch_part
+                    .parse::<u32>()
+                    .map_err(|_| crate::VxError::Other {
+                        message: format!("Invalid patch version: {}", patch_part),
+                    })?;
+                (patch_num, String::new())
+            }
+        } else {
+            (0, String::new())
+        };
+
+        Ok((major, minor, patch, suffix))
     }
 }
 
@@ -306,5 +369,56 @@ mod tests {
         assert_eq!(versions[0].version, "18.0.0");
         assert_eq!(versions[1].version, "16.20.0");
         assert_eq!(versions[1].metadata.get("lts"), Some(&"true".to_string()));
+    }
+
+    #[test]
+    fn test_github_version_parser_sorting() {
+        let json = json!([
+            {
+                "tag_name": "0.7.10",
+                "prerelease": false,
+                "published_at": "2024-01-10T00:00:00Z",
+                "body": "Release notes for 0.7.10"
+            },
+            {
+                "tag_name": "0.7.13",
+                "prerelease": false,
+                "published_at": "2024-01-13T00:00:00Z",
+                "body": "Release notes for 0.7.13"
+            },
+            {
+                "tag_name": "0.7.11",
+                "prerelease": false,
+                "published_at": "2024-01-11T00:00:00Z",
+                "body": "Release notes for 0.7.11"
+            }
+        ]);
+
+        let versions = GitHubVersionParser::parse_versions(&json, false).unwrap();
+        assert_eq!(versions.len(), 3);
+        // Should be sorted in descending order (latest first)
+        assert_eq!(versions[0].version, "0.7.13");
+        assert_eq!(versions[1].version, "0.7.11");
+        assert_eq!(versions[2].version, "0.7.10");
+    }
+
+    #[test]
+    fn test_semantic_version_parsing() {
+        // Test valid semantic versions
+        let result = GitHubVersionParser::parse_semantic_version("1.2.3");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), (1, 2, 3, String::new()));
+
+        let result = GitHubVersionParser::parse_semantic_version("v2.0.1");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), (2, 0, 1, String::new()));
+
+        let result = GitHubVersionParser::parse_semantic_version("0.7.13-alpha");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), (0, 7, 13, "-alpha".to_string()));
+
+        // Test invalid versions
+        let result = GitHubVersionParser::parse_semantic_version("invalid");
+        assert!(result.is_err());
     }
 }

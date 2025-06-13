@@ -34,3 +34,4 @@ test-env/
 *.temp
 node_modules/
 
+.shrimp-config.json

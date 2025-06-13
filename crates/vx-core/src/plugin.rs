@@ -210,20 +210,60 @@ pub trait VxTool: Send + Sync {
 
     /// Remove a specific version of the tool
     async fn remove_version(&self, version: &str, force: bool) -> Result<()> {
-        if !self.is_version_installed(version).await? {
+        let version_dir = self.get_version_install_dir(version);
+
+        // Check if the directory exists first
+        if !version_dir.exists() {
             if !force {
                 return Err(crate::VxError::VersionNotInstalled {
                     tool_name: self.name().to_string(),
                     version: version.to_string(),
                 });
             }
+            // In force mode, if directory doesn't exist, consider it already removed
             return Ok(());
         }
 
-        let version_dir = self.get_version_install_dir(version);
-        std::fs::remove_dir_all(&version_dir)?;
-
-        Ok(())
+        // Attempt to remove the directory
+        match std::fs::remove_dir_all(&version_dir) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                if force {
+                    // In force mode, ignore certain types of errors
+                    match e.kind() {
+                        std::io::ErrorKind::NotFound => {
+                            // Directory was removed between our check and removal attempt
+                            Ok(())
+                        }
+                        std::io::ErrorKind::PermissionDenied => {
+                            // Still report permission errors even in force mode
+                            Err(crate::VxError::PermissionError {
+                                message: format!(
+                                    "Permission denied when removing {} {}: {}",
+                                    self.name(),
+                                    version,
+                                    e
+                                ),
+                            })
+                        }
+                        _ => {
+                            // For other errors in force mode, convert to a more user-friendly message
+                            Err(crate::VxError::IoError {
+                                message: format!(
+                                    "Failed to remove {} {} directory: {}",
+                                    self.name(),
+                                    version,
+                                    e
+                                ),
+                            })
+                        }
+                    }
+                } else {
+                    // In non-force mode, propagate the original error
+                    Err(e.into())
+                }
+            }
+        }
     }
 
     /// Get tool status (installed versions, active version, etc.)

@@ -29,7 +29,11 @@ impl CommandHandler {
         match cli.command {
             Some(Commands::Version) => version::handle().await.map_err(Into::into),
 
-            Some(Commands::List) => list::handle(registry, false).await.map_err(Into::into),
+            Some(Commands::List { tool, status }) => {
+                list::handle(registry, tool.as_deref(), status)
+                    .await
+                    .map_err(Into::into)
+            }
 
             Some(Commands::Install {
                 tool,

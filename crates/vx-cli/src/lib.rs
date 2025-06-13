@@ -56,9 +56,11 @@ impl VxCli {
 
         match command {
             Commands::Version => commands::version::handle().await.map_err(Into::into),
-            Commands::List => commands::list::handle(&self.registry, false)
-                .await
-                .map_err(Into::into),
+            Commands::List { tool, status } => {
+                commands::list::handle(&self.registry, tool.as_deref(), status)
+                    .await
+                    .map_err(Into::into)
+            }
             Commands::Install {
                 tool,
                 version,
