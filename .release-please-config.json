@@ -4,11 +4,11 @@
     ".": {
       "release-type": "rust",
       "changelog-path": "CHANGELOG.md",
-      "package-name": "vx"
+      "package-name": "vx",
+      "skip-github-release": true
     }
   },
   "separate-pull-requests": false,
   "skip-github-release": true,
-  "bootstrap-sha": "391be7d",
-  "last-release-sha": "391be7d"
+  "force": true
 }
