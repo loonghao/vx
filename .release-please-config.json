@@ -9,5 +9,8 @@
   },
   "separate-pull-requests": false,
   "skip-github-release": true,
-  "skip-labeling": true
+  "skip-labeling": true,
+  "always-link-local": false,
+  "group-pull-request-title-pattern": "chore: release${component} ${version}",
+  "pull-request-title-pattern": "chore: release${component} ${version}"
 }
