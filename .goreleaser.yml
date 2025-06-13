@@ -31,7 +31,7 @@ builds:
     hooks:
       pre: rustup target add {{ .Target }}
 
-  # PGO-optimized builds for main targets
+  # PGO-optimized builds for supported targets only
   - id: vx-pgo
     builder: rust
     binary: vx
@@ -42,8 +42,6 @@ builds:
       - x86_64-unknown-linux-musl
       # macOS (good PGO support)
       - x86_64-apple-darwin
-      # Windows (good PGO support)
-      - x86_64-pc-windows-gnu
     flags:
       - --release
       - --package=vx
@@ -52,7 +50,7 @@ builds:
     hooks:
       pre:
         - rustup target add {{ .Target }}
-        - bash scripts/goreleaser-pgo.sh {{ .Target }}
+        - bash scripts/simplified-pgo.sh {{ .Target }}
 
 archives:
   # PGO-optimized archives (main targets)

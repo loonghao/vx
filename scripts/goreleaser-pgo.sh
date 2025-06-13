@@ -42,12 +42,10 @@ mkdir -p "$PGO_DATA_DIR"
 # Step 1: Build instrumented binary
 log_step "Building instrumented binary for profile collection..."
 export RUSTFLAGS="-Cprofile-generate=$PGO_DATA_DIR -Ccodegen-units=1 -Copt-level=3"
-export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-0}"
-
-if ! cargo build --release --target "$TARGET" --jobs="$CARGO_BUILD_JOBS"; then
+if ! cargo build --release --target "$TARGET" --package=vx; then
     log_warning "Failed to build instrumented binary, falling back to standard build"
     unset RUSTFLAGS
-    cargo build --release --target "$TARGET" --jobs="$CARGO_BUILD_JOBS"
+    cargo build --release --target "$TARGET" --package=vx
     exit 0
 fi
 
@@ -86,7 +84,7 @@ if [[ -f "$BINARY_PATH" ]]; then
     if [[ "$PROFILE_COUNT" -eq 0 ]]; then
         log_warning "No profile data generated, falling back to standard build"
         unset RUSTFLAGS
-        cargo build --release --target "$TARGET"
+        cargo build --release --target "$TARGET" --package=vx
         exit 0
     fi
     
@@ -111,7 +109,7 @@ if [[ -f "$BINARY_PATH" ]]; then
     log_step "Building PGO-optimized binary..."
     export RUSTFLAGS="-Cprofile-use=$MERGED_PROFILE -Cllvm-args=-pgo-warn-missing-function -Ccodegen-units=1 -Copt-level=3 -Ctarget-cpu=native"
 
-    if cargo build --release --target "$TARGET" --jobs="$CARGO_BUILD_JOBS"; then
+    if cargo build --release --target "$TARGET" --package=vx; then
         log_success "PGO-optimized binary built successfully"
 
         # Verify the optimized binary (with shorter timeout for speed)
@@ -123,12 +121,12 @@ if [[ -f "$BINARY_PATH" ]]; then
     else
         log_warning "PGO build failed, falling back to standard build"
         unset RUSTFLAGS
-        cargo build --release --target "$TARGET" --jobs="$CARGO_BUILD_JOBS"
+        cargo build --release --target "$TARGET" --package=vx
     fi
 else
     log_warning "Binary not found at $BINARY_PATH, falling back to standard build"
     unset RUSTFLAGS
-    cargo build --release --target "$TARGET" --jobs="$CARGO_BUILD_JOBS"
+    cargo build --release --target "$TARGET" --package=vx
 fi
 
 # Cleanup
