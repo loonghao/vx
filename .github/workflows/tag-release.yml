@@ -14,6 +14,17 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # Optimize Rust compilation
+  CARGO_INCREMENTAL: 1
+  CARGO_NET_RETRY: 10
+  RUST_BACKTRACE: short
+  # Use all available CPU cores for compilation
+  CARGO_BUILD_JOBS: 0
+  # Enable faster linker
+  RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
+  # sccache configuration
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
 
 permissions:
   contents: write
@@ -33,6 +44,20 @@ jobs:
         with:
           go-version: '1.24'
 
+      # Cache Rust dependencies for faster builds
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -46,20 +71,30 @@ jobs:
             x86_64-pc-windows-gnu
             aarch64-pc-windows-msvc
 
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
       - name: Install cross-compilation dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          # Use parallel apt operations for faster installation
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
             gcc-aarch64-linux-gnu \
             gcc-mingw-w64-x86-64 \
             musl-tools \
-            llvm
+            llvm \
+            lld \
+            clang
 
-          # Install cargo-zigbuild for cross-compilation
-          cargo install cargo-zigbuild
+          # Cache cargo tools installation
+          if ! command -v cargo-zigbuild &> /dev/null; then
+            cargo install cargo-zigbuild --locked
+          fi
 
-          # Install zig for cargo-zigbuild
-          sudo snap install zig --classic --beta
+          # Install zig for cargo-zigbuild (use faster installation method)
+          if ! command -v zig &> /dev/null; then
+            sudo snap install zig --classic --beta
+          fi
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3

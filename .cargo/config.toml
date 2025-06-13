@@ -1,0 +1,76 @@
+# Cargo configuration for optimized builds
+# This file contains build optimizations for faster compilation
+
+[build]
+# Enable incremental compilation for faster rebuilds
+incremental = true
+
+# Use sccache for distributed compilation caching (when available)
+# rustc-wrapper = "sccache"
+
+# Use faster linker when available
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-unknown-linux-musl]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=lld", "-C", "target-feature=+crt-static"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "link-arg=/SUBSYSTEM:CONSOLE"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "link-arg=/SUBSYSTEM:CONSOLE"]
+
+# Network optimizations
+[net]
+retry = 10
+git-fetch-with-cli = true
+
+# Registry optimizations
+[registries.crates-io]
+protocol = "sparse"
+
+# Profile optimizations
+[profile.release]
+# Enable Link Time Optimization for better performance
+lto = "thin"
+# Optimize for size and speed
+opt-level = 3
+# Enable debug info for better profiling
+debug = 1
+# Reduce binary size
+strip = "symbols"
+# Enable panic unwinding for better error handling
+panic = "unwind"
+# Optimize for performance
+codegen-units = 1
+
+[profile.dev]
+# Faster compilation for development
+opt-level = 0
+debug = true
+incremental = true
+
+# PGO profile for instrumented builds
+[profile.pgo-generate]
+inherits = "release"
+debug = 1
+strip = "none"
+
+# PGO profile for optimized builds
+[profile.pgo-use]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
