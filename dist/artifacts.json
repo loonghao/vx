@@ -1,1 +1,0 @@
-[{"name":"metadata.json","path":"dist/metadata.json","internal_type":34,"type":"Metadata"},{"name":"vx.exe","path":"dist/vx-standard_x86_64-pc-windows-msvc/vx.exe","goos":"windows","goarch":"amd64","target":"x86_64-pc-windows-msvc","internal_type":4,"type":"Binary","extra":{"Binary":"vx","Builder":"rust","Ext":".exe","ID":"vx-standard"}}]
