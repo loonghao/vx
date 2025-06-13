@@ -8,5 +8,8 @@
     }
   },
   "separate-pull-requests": false,
-  "skip-github-release": true
+  "skip-github-release": true,
+  "always-link-local": false,
+  "sequential-calls": true,
+  "skip-labeling": true
 }
