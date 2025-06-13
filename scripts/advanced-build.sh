@@ -19,7 +19,7 @@ PGO_DATA_DIR="pgo-data"
 SCCACHE_ENABLED=${SCCACHE_ENABLED:-true}
 UPX_ENABLED=${UPX_ENABLED:-true}
 STRIP_ENABLED=${STRIP_ENABLED:-true}
-PARALLEL_JOBS=${CARGO_BUILD_JOBS:-0}
+PARALLEL_JOBS=${CARGO_BUILD_JOBS:-}
 
 function log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -87,7 +87,10 @@ function setup_environment() {
     export CARGO_INCREMENTAL=1
     export CARGO_NET_RETRY=10
     export RUST_BACKTRACE=short
-    export CARGO_BUILD_JOBS=$PARALLEL_JOBS
+    # Only set CARGO_BUILD_JOBS if PARALLEL_JOBS is set and not 0
+    if [[ -n "$PARALLEL_JOBS" && "$PARALLEL_JOBS" != "0" ]]; then
+        export CARGO_BUILD_JOBS=$PARALLEL_JOBS
+    fi
     
     # Setup sccache if enabled
     if [ "$SCCACHE_ENABLED" = "true" ] && command -v sccache >/dev/null 2>&1; then
@@ -168,7 +171,12 @@ function build_binary() {
     if [ "$use_pgo" = "true" ]; then
         bash scripts/goreleaser-pgo.sh "$target"
     else
-        cargo build --release --target "$target" --package vx --jobs="$PARALLEL_JOBS"
+        # Build with or without explicit jobs parameter
+        if [[ -n "$PARALLEL_JOBS" && "$PARALLEL_JOBS" != "0" ]]; then
+            cargo build --release --target "$target" --package vx --jobs="$PARALLEL_JOBS"
+        else
+            cargo build --release --target "$target" --package vx
+        fi
     fi
     
     log_success "Binary built successfully"
