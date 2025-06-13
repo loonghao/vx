@@ -39,6 +39,12 @@
 - **Configuration**: Advanced project-specific configurations being enhanced
 - **Plugin System**: External plugin support planned for future releases
 
+### 🎯 Next Release (v0.1.2)
+
+- **Enhanced Release Automation**: Improved CI/CD pipeline with proper version tracking
+- **Better Error Handling**: More robust error messages and recovery mechanisms
+- **Documentation Updates**: Comprehensive documentation improvements
+
 `vx` is a powerful, fast, and extensible development tool manager that provides a unified interface for managing, installing, and executing development tools across different languages and ecosystems. Think of it as a combination of `nvm`, `rustup`, `pyenv`, and package managers, all in one lightning-fast tool.
 
 ## ✨ Features
