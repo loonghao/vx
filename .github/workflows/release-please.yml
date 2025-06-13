@@ -31,8 +31,8 @@ jobs:
         id: release
         uses: googleapis/release-please-action@v4
         with:
-          release-type: rust
-          skip-github-release: true
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json
           skip-labeling: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
