@@ -9,9 +9,6 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  # sccache configuration
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
 
 jobs:
   # Code quality checks
@@ -43,11 +40,16 @@ jobs:
       
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: "sccache"
       
       - name: Check documentation
         run: cargo doc --no-deps --document-private-items --all-features
         env:
           RUSTDOCFLAGS: -D warnings
+          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: "sccache"
 
   # Run tests on multiple platforms
   test:
@@ -77,6 +79,9 @@ jobs:
       
       - name: Run tests
         run: cargo test --all-features --verbose
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: "sccache"
 
   # Build for multiple platforms to ensure compatibility
   build:
@@ -139,6 +144,9 @@ jobs:
           fi
           cargo build --release --target ${{ matrix.target }}
         shell: bash
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: "sccache"
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -154,9 +162,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: rustsec/audit-check@v2.0.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        run: cargo install --locked cargo-audit
+
+      - name: Run security audit
+        run: cargo audit
 
   # Check minimum supported Rust version
   msrv:
@@ -168,5 +182,11 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
       - name: Check MSRV
         run: cargo check --all-features
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: "sccache"
