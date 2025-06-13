@@ -9,6 +9,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # sccache configuration
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
 
 jobs:
   # Code quality checks
@@ -22,6 +25,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
       
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -56,6 +62,9 @@ jobs:
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
       
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -101,6 +110,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
       
       - name: Install cross-compilation tools (Linux)
         if: matrix.os == 'ubuntu-latest'
