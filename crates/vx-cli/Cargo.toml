@@ -32,3 +32,6 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-indicatif = { workspace = true }
 walkdir = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
