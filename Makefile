@@ -43,20 +43,20 @@ help:
 # Basic build targets
 build:
 	@echo "🔨 Building debug version..."
-	CARGO_BUILD_JOBS=0 cargo build
+	cargo build
 
 build-release:
 	@echo "🚀 Building release version..."
-	CARGO_BUILD_JOBS=0 CARGO_INCREMENTAL=1 cargo build --release
+	CARGO_INCREMENTAL=1 cargo build --release
 
 build-fast:
 	@echo "⚡ Building with fast profile..."
-	CARGO_BUILD_JOBS=0 cargo build --profile dev-fast
+	cargo build --profile dev-fast
 
 # Optimized parallel build
 build-parallel:
 	@echo "⚡ Building with maximum parallelization..."
-	CARGO_BUILD_JOBS=0 CARGO_INCREMENTAL=1 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build --release
+	CARGO_INCREMENTAL=1 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build --release
 
 # PGO build targets
 build-pgo:

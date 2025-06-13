@@ -19,7 +19,7 @@
 
 ```toml
 [build]
-jobs = 0                    # 使用所有 CPU 核心
+# jobs = 0                  # 不要设置为 0，让 Cargo 使用默认值（所有 CPU 核心）
 incremental = true          # 启用增量编译
 
 [target.x86_64-unknown-linux-gnu]
@@ -39,7 +39,7 @@ builds:
   - flags:
       - --release
       - --package=vx
-      - --jobs={{ .Env.CARGO_BUILD_JOBS | default "0" }}  # 并行编译
+      # 不指定 --jobs 参数，让 Cargo 使用默认并行度
     env:
       - CARGO_INCREMENTAL=1                                # 增量编译
       - CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang # 快速链接器
@@ -49,7 +49,7 @@ builds:
 
 ```yaml
 env:
-  CARGO_BUILD_JOBS: 0           # 使用所有 CPU 核心
+  # 不设置 CARGO_BUILD_JOBS，让 Cargo 使用默认并行度（所有 CPU 核心）
   CARGO_INCREMENTAL: 1          # 启用增量编译
   RUSTFLAGS: "-C link-arg=-fuse-ld=lld"  # 快速链接器
 
@@ -71,10 +71,9 @@ steps:
 ```bash
 # 优化的 RUSTFLAGS
 export RUSTFLAGS="-Cprofile-generate=$PGO_DATA_DIR -Ccodegen-units=1 -Copt-level=3"
-export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-0}"
 
-# 并行构建
-cargo build --release --target "$TARGET" --jobs="$CARGO_BUILD_JOBS"
+# 并行构建（让 Cargo 使用默认并行度）
+cargo build --release --target "$TARGET"
 ```
 
 ## 📈 性能提升

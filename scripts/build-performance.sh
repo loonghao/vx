@@ -86,7 +86,7 @@ function main() {
     fi
     
     # Set optimal build environment
-    export CARGO_BUILD_JOBS=0
+    # Don't set CARGO_BUILD_JOBS, let Cargo use default parallelism
     export CARGO_INCREMENTAL=1
     export RUSTFLAGS="-C link-arg=-fuse-ld=lld"
     
@@ -129,7 +129,7 @@ function main() {
     # Performance recommendations
     echo ""
     log_info "Performance Recommendations:"
-    echo "  • Use 'cargo build --jobs=0' to utilize all CPU cores"
+    echo "  • Let Cargo use default parallelism (don't specify --jobs=0)"
     echo "  • Enable incremental compilation with CARGO_INCREMENTAL=1"
     echo "  • Use lld linker for faster linking: RUSTFLAGS='-C link-arg=-fuse-ld=lld'"
     echo "  • Consider PGO for production builds (adds build time but improves runtime performance)"
