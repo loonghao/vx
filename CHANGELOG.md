@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.3 (2025-06-13)
+
+### Bug Fixes
+
+* resolve GoReleaser template function error ([87ec968](https://github.com/loonghao/vx/commit/87ec968))
+* use correct GoReleaser envOrDefault function ([f92c27a](https://github.com/loonghao/vx/commit/f92c27a))
+
 ## 0.1.2 (2025-06-13)
 
 ### Bug Fixes
