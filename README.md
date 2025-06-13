@@ -31,6 +31,7 @@
 - **Environment Isolation**: All tools run in vx-managed environments (no system PATH dependency)
 - **Auto-Installation**: Automatic tool download and installation on first use
 - **MCP Integration**: Ready for use as proxy in MCP server configurations
+- **Improved CI/CD**: Enhanced release automation with release-please integration
 
 ### Current Limitations
 
