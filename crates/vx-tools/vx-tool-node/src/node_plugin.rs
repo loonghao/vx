@@ -1,7 +1,8 @@
 //! Node.js plugin implementation
 
 use crate::node_tool::{NodeTool, NpmTool, NpxTool};
-use vx_core::{VxPlugin, VxTool};
+use vx_core::{VxPackageManager, VxPlugin, VxTool};
+use vx_pm_npm::SimpleNpmPackageManager;
 
 /// Node.js plugin that manages Node.js-related tools
 #[derive(Debug)]
@@ -33,6 +34,10 @@ impl VxPlugin for NodePlugin {
             Box::new(NpmTool::new()),
             Box::new(NpxTool::new()),
         ]
+    }
+
+    fn package_managers(&self) -> Vec<Box<dyn VxPackageManager>> {
+        vec![Box::new(SimpleNpmPackageManager)]
     }
 
     fn supports_tool(&self, tool_name: &str) -> bool {

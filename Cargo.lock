@@ -2188,6 +2188,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx"
+version = "0.1.1"
+dependencies = [
+ "anyhow",
+ "tempfile",
+ "tokio",
+ "vx-cli",
+ "vx-core",
+ "vx-tool-go",
+ "vx-tool-node",
+ "vx-tool-rust",
+ "vx-tool-uv",
+]
+
+[[package]]
 name = "vx-cli"
 version = "0.1.1"
 dependencies = [
@@ -2269,6 +2284,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-core",
+ "vx-pm-npm",
  "which",
 ]
 

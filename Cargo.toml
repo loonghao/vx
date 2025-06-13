@@ -10,6 +10,38 @@ members = [
 ]
 resolver = "2"
 
+# Root package for integration tests
+[package]
+name = "vx"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+# Main binary
+[[bin]]
+name = "vx"
+path = "crates/vx-cli/src/main.rs"
+
+[dependencies]
+vx-cli = { path = "crates/vx-cli" }
+vx-core = { path = "crates/vx-core" }
+vx-tool-node = { path = "crates/vx-tools/vx-tool-node" }
+vx-tool-go = { path = "crates/vx-tools/vx-tool-go" }
+vx-tool-rust = { path = "crates/vx-tools/vx-tool-rust" }
+vx-tool-uv = { path = "crates/vx-tools/vx-tool-uv" }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+tempfile = { workspace = true }
 
 
 [workspace.package]
@@ -27,15 +59,23 @@ readme = "README.md"
 rust-version = "1.80.0"
 
 
-
 [workspace.dependencies]
 clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
 # Optimize tokio - only include needed features for better compile times
-tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "fs", "process"] }
+tokio = { version = "1.0", features = [
+    "rt-multi-thread",
+    "macros",
+    "fs",
+    "process",
+] }
 # Optimize reqwest - remove unnecessary features, add stream feature
-reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"], default-features = false }
+reqwest = { version = "0.12", features = [
+    "json",
+    "stream",
+    "rustls-tls",
+], default-features = false }
 serde_json = "1.0"
 anyhow = "1.0"
 dirs = "6.0"
@@ -60,7 +100,6 @@ futures-util = "0.3"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-indicatif = "0.3"
-
 
 
 # Optimize compilation times

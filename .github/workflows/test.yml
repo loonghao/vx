@@ -49,7 +49,7 @@ jobs:
       run: cargo test --verbose --all-features
 
     - name: Run integration tests
-      run: cargo test --test '*' --verbose
+      run: cargo test --test integration_tests --verbose
 
   coverage:
     name: Code Coverage

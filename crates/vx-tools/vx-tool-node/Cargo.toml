@@ -13,6 +13,7 @@ rust-version.workspace = true
 
 [dependencies]
 vx-core = { path = "../../vx-core" }
+vx-pm-npm = { path = "../../vx-package-managers/vx-pm-npm" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
