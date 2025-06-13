@@ -27,7 +27,7 @@ builds:
       - --release
       - --package=vx
       # Enable parallel compilation
-      - --jobs={{ .Env.CARGO_BUILD_JOBS | default "0" }}
+      - --jobs={{ if .Env.CARGO_BUILD_JOBS }}{{ .Env.CARGO_BUILD_JOBS }}{{ else }}0{{ end }}
     env:
       - RUST_BACKTRACE=1
       # Enable incremental compilation for faster rebuilds
@@ -55,7 +55,7 @@ builds:
       - --release
       - --package=vx
       # Enable parallel compilation
-      - --jobs={{ .Env.CARGO_BUILD_JOBS | default "0" }}
+      - --jobs={{ if .Env.CARGO_BUILD_JOBS }}{{ .Env.CARGO_BUILD_JOBS }}{{ else }}0{{ end }}
     env:
       - RUST_BACKTRACE=1
       # Enable incremental compilation for faster rebuilds
