@@ -26,18 +26,13 @@ builds:
       - RUST_BACKTRACE=1
       - CARGO_BUILD_JOBS=1
 
-  # Cross-compiled builds
+  # Cross-compiled builds (Windows only for now)
   - id: vx-cross
     builder: rust
     tool: cross
     binary: vx
     command: build
     targets:
-      # Linux musl (static linking)
-      - x86_64-unknown-linux-musl
-      # macOS (cross-compilation)
-      - x86_64-apple-darwin
-      - aarch64-apple-darwin
       # Windows (cross-compilation)
       - x86_64-pc-windows-msvc
     flags:
