@@ -100,11 +100,24 @@ on:
 
 Add these secrets to your GitHub repository:
 
-| Secret Name | Description | Required For |
-|-------------|-------------|--------------|
-| `WINGET_TOKEN` | GitHub PAT for WinGet | WinGet |
-| `CHOCOLATEY_API_KEY` | Chocolatey API key | Chocolatey |
-| `HOMEBREW_TAP_GITHUB_TOKEN` | GitHub PAT for Homebrew tap | Homebrew |
+| Secret Name | Description | Required For | How to Get |
+|-------------|-------------|--------------|------------|
+| `WINGET_TOKEN` | GitHub PAT for WinGet | WinGet | [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens) |
+| `CHOCOLATEY_API_KEY` | Chocolatey API key | Chocolatey | [Chocolatey Account > API Keys](https://chocolatey.org/account) |
+| `HOMEBREW_TAP_GITHUB_TOKEN` | GitHub PAT for Homebrew tap | Homebrew | [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens) |
+| `SCOOP_BUCKET_TOKEN` | GitHub PAT for Scoop bucket | Scoop | [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens) |
+| `CARGO_REGISTRY_TOKEN` | Cargo registry token | release-plz | [crates.io Account Settings](https://crates.io/settings/tokens) |
+
+### Setting up GitHub Personal Access Tokens
+
+For `WINGET_TOKEN`, `HOMEBREW_TAP_GITHUB_TOKEN`, and `SCOOP_BUCKET_TOKEN`:
+
+1. Go to [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens)
+2. Click "Generate new token (classic)"
+3. Set expiration and select scopes:
+   - `public_repo` (for public repositories)
+   - `repo` (for private repositories)
+4. Copy the generated token and add it to repository secrets
 
 ## 🔍 Monitoring and Troubleshooting
 
