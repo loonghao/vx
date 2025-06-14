@@ -19,14 +19,18 @@ builds:
     targets:
       # Linux (native compilation)
       - x86_64-unknown-linux-gnu
-      # Windows (cross-compilation using native Rust toolchain)
-      - x86_64-pc-windows-msvc
+      # Windows (cross-compilation using GNU toolchain)
+      - x86_64-pc-windows-gnu
     flags:
       - --release
       - --package=vx
     env:
       - RUST_BACKTRACE=1
       - CARGO_BUILD_JOBS=1
+      # Windows cross-compilation environment
+      - CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc
+      - CXX_x86_64_pc_windows_gnu=x86_64-w64-mingw32-g++
+      - AR_x86_64_pc_windows_gnu=x86_64-w64-mingw32-ar
 
 archives:
   - id: default
