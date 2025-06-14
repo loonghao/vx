@@ -24,7 +24,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   # Build configuration
-  CARGO_BUILD_JOBS: "0"  # Use all available CPU cores
+  CARGO_BUILD_JOBS: "1"  # Use single job for stability
   # sccache configuration
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
@@ -53,7 +53,7 @@ jobs:
             x86_64-pc-windows-msvc
 
       - name: Install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
+        run: cargo install cross --locked
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
