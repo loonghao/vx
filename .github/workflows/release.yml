@@ -1,0 +1,175 @@
+name: Release
+
+# This workflow builds and releases binaries for multiple platforms
+# Triggered by version tags (v*) or manual dispatch
+# Simple GitHub Actions-based release without external dependencies
+
+permissions:
+  contents: write
+  packages: write
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags created by release-please
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Run in dry-run mode (no actual release)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # Build configuration
+  CARGO_BUILD_JOBS: "1"  # Use single job for stability
+  # sccache configuration
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
+
+jobs:
+  build:
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: vx
+            asset_name: vx-linux-amd64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: vx.exe
+            asset_name: vx-windows-amd64.exe
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: vx
+            asset_name: vx-macos-amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: vx
+            asset_name: vx-macos-arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+      - name: Install UPX (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends upx-ucl
+
+      - name: Install UPX (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install upx
+
+      - name: Install UPX (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          echo "Skipping UPX installation for macOS (not used)"
+
+      - name: Build binary
+        run: |
+          cargo build --release --target ${{ matrix.target }} --package vx
+        env:
+          RUST_BACKTRACE: 1
+          CARGO_BUILD_JOBS: 1
+
+      - name: Compress binary with UPX
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            echo "Compressing Windows binary with UPX..."
+            upx --best target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            echo "Skipping UPX compression for macOS (not supported reliably)"
+            echo "macOS binary will remain uncompressed"
+          else
+            echo "Compressing Linux binary with UPX..."
+            upx --best target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          fi
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Debug artifacts structure
+        run: |
+          echo "🔍 Downloaded artifacts structure:"
+          find ./artifacts -type f -exec ls -la {} \;
+
+      - name: Create release archives and checksums
+        run: |
+          chmod +x scripts/create-archives.sh
+          ./scripts/create-archives.sh
+
+      - name: Generate release body
+        run: |
+          chmod +x scripts/generate-release-body.sh
+          ./scripts/generate-release-body.sh "${{ github.ref_name }}" "See commit history for detailed changes."
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            *.tar.gz
+            *.zip
+            checksums.txt
+          draft: false
+          prerelease: ${{ contains(github.ref, '-test') || contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
+          generate_release_notes: true
+          body_path: release-body.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify release files
+        run: |
+          chmod +x scripts/verify-release.sh
+          ./scripts/verify-release.sh
