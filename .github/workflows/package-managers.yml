@@ -8,9 +8,7 @@ on:
     workflows: ["Release"]
     types:
       - completed
-    branches:
-      - main
-      - 'fix/**'  # Allow test branches
+    # Remove branches filter for tag-triggered workflows
   workflow_dispatch:
     inputs:
       version:
