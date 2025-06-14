@@ -10,11 +10,53 @@ before:
     - rustup default stable
     - rustup component add rust-src
 
-# Skip builds - use pre-built binaries from matrix build
+# Use pre-built binaries from matrix build
 builds:
-  - skip: true
+  - id: linux-amd64
+    binary: vx
+    goos:
+      - linux
+    goarch:
+      - amd64
+    skip: true
 
-# Skip archives completely
+  - id: windows-amd64
+    binary: vx
+    goos:
+      - windows
+    goarch:
+      - amd64
+    skip: true
+
+  - id: darwin-amd64
+    binary: vx
+    goos:
+      - darwin
+    goarch:
+      - amd64
+    skip: true
+
+  - id: darwin-arm64
+    binary: vx
+    goos:
+      - darwin
+    goarch:
+      - arm64
+    skip: true
+
+# Use extra_files to include pre-built binaries
+release:
+  extra_files:
+    - glob: "dist/vx_Linux_x86_64"
+      name_template: "vx-linux-amd64"
+    - glob: "dist/vx_Windows_x86_64.exe"
+      name_template: "vx-windows-amd64.exe"
+    - glob: "dist/vx_Darwin_x86_64"
+      name_template: "vx-darwin-amd64"
+    - glob: "dist/vx_Darwin_arm64"
+      name_template: "vx-darwin-arm64"
+
+# Skip archives since we're using extra_files
 archives:
   - id: default
     builds: []

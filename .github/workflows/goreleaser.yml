@@ -229,43 +229,16 @@ jobs:
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN || '' }}
           SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN || '' }}
 
-      - name: Rename binaries for release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Verify files for GoReleaser
         run: |
-          # Create release directory with properly named files
-          mkdir -p release-assets
-
-          # Copy and rename files
-          if [ -f "dist/vx_Linux_x86_64" ]; then
-            cp "dist/vx_Linux_x86_64" "release-assets/vx-linux-amd64"
-            echo "✅ Prepared Linux binary: vx-linux-amd64"
-          fi
-
-          if [ -f "dist/vx_Windows_x86_64.exe" ]; then
-            cp "dist/vx_Windows_x86_64.exe" "release-assets/vx-windows-amd64.exe"
-            echo "✅ Prepared Windows binary: vx-windows-amd64.exe"
-          fi
-
-          if [ -f "dist/vx_Darwin_x86_64" ]; then
-            cp "dist/vx_Darwin_x86_64" "release-assets/vx-darwin-amd64"
-            echo "✅ Prepared macOS Intel binary: vx-darwin-amd64"
-          fi
-
-          if [ -f "dist/vx_Darwin_arm64" ]; then
-            cp "dist/vx_Darwin_arm64" "release-assets/vx-darwin-arm64"
-            echo "✅ Prepared macOS ARM binary: vx-darwin-arm64"
-          fi
-
-          echo "📦 Release assets prepared:"
-          ls -la release-assets/
-
-      - name: Upload release assets
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: release-assets/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "🔍 Verifying files for GoReleaser extra_files:"
+          for file in "dist/vx_Linux_x86_64" "dist/vx_Windows_x86_64.exe" "dist/vx_Darwin_x86_64" "dist/vx_Darwin_arm64"; do
+            if [ -f "$file" ]; then
+              echo "✅ Found: $file ($(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo "unknown size") bytes)"
+            else
+              echo "❌ Missing: $file"
+            fi
+          done
 
       - name: Verify build artifacts
         if: always()
