@@ -14,62 +14,20 @@ before:
 builds:
   - skip: true
 
+# Skip archives since we're using extra_files
 archives:
-  - id: linux-amd64
-    builds: []
-    name_template: "{{ .ProjectName }}_Linux_x86_64"
-    files:
-      - src: "dist/vx_Linux_x86_64"
-        dst: "vx"
-        strip_parent: true
-      - README.md
-      - LICENSE
-      - CHANGELOG.md
-    format_overrides:
-      - goos: linux
-        format: tar.gz
+  - skip: true
 
-  - id: windows-amd64
-    builds: []
-    name_template: "{{ .ProjectName }}_Windows_x86_64"
-    files:
-      - src: "dist/vx_Windows_x86_64.exe"
-        dst: "vx.exe"
-        strip_parent: true
-      - README.md
-      - LICENSE
-      - CHANGELOG.md
-    format_overrides:
-      - goos: windows
-        format: zip
-
-  - id: darwin-amd64
-    builds: []
-    name_template: "{{ .ProjectName }}_Darwin_x86_64"
-    files:
-      - src: "dist/vx_Darwin_x86_64"
-        dst: "vx"
-        strip_parent: true
-      - README.md
-      - LICENSE
-      - CHANGELOG.md
-    format_overrides:
-      - goos: darwin
-        format: tar.gz
-
-  - id: darwin-arm64
-    builds: []
-    name_template: "{{ .ProjectName }}_Darwin_arm64"
-    files:
-      - src: "dist/vx_Darwin_arm64"
-        dst: "vx"
-        strip_parent: true
-      - README.md
-      - LICENSE
-      - CHANGELOG.md
-    format_overrides:
-      - goos: darwin
-        format: tar.gz
+# Upload pre-built binaries directly as release assets
+extra_files:
+  - glob: "dist/vx_Linux_x86_64"
+    name_template: "vx-linux-amd64"
+  - glob: "dist/vx_Windows_x86_64.exe"
+    name_template: "vx-windows-amd64.exe"
+  - glob: "dist/vx_Darwin_x86_64"
+    name_template: "vx-darwin-amd64"
+  - glob: "dist/vx_Darwin_arm64"
+    name_template: "vx-darwin-arm64"
 
 # UPX compression is already done in the build stage
 # upx:
