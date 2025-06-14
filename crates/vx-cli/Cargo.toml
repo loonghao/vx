@@ -16,12 +16,12 @@ name = "vx"
 path = "src/main.rs"
 
 [dependencies]
-vx-core = { version = "0.1.4", path = "../vx-core" }
-vx-tool-node = { version = "0.1.4", path = "../vx-tools/vx-tool-node" }
-vx-tool-go = { version = "0.1.4", path = "../vx-tools/vx-tool-go" }
-vx-tool-rust = { version = "0.1.4", path = "../vx-tools/vx-tool-rust" }
-vx-tool-uv = { version = "0.1.0", path = "../vx-tools/vx-tool-uv" }
-vx-pm-npm = { version = "0.1.4", path = "../vx-package-managers/vx-pm-npm" }
+vx-core = { version = "0.1.36", path = "../vx-core" }
+vx-tool-node = { version = "0.1.36", path = "../vx-tools/vx-tool-node" }
+vx-tool-go = { version = "0.1.36", path = "../vx-tools/vx-tool-go" }
+vx-tool-rust = { version = "0.1.36", path = "../vx-tools/vx-tool-rust" }
+vx-tool-uv = { version = "0.1.36", path = "../vx-tools/vx-tool-uv" }
+vx-pm-npm = { version = "0.1.36", path = "../vx-package-managers/vx-pm-npm" }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
