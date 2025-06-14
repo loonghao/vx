@@ -144,6 +144,11 @@ jobs:
         with:
           path: ./artifacts
 
+      - name: Debug artifacts structure
+        run: |
+          echo "🔍 Downloaded artifacts structure:"
+          find ./artifacts -type f -exec ls -la {} \;
+
       - name: Prepare release assets
         run: |
           mkdir -p dist
@@ -158,6 +163,16 @@ jobs:
           # Debug: List files in dist directory
           echo "📁 Files in dist directory:"
           ls -la dist/
+
+          # Verify each expected file exists
+          echo "🔍 Checking for expected files:"
+          for file in "dist/vx_Linux_x86_64" "dist/vx_Windows_x86_64.exe" "dist/vx_Darwin_x86_64" "dist/vx_Darwin_arm64"; do
+            if [ -f "$file" ]; then
+              echo "✅ Found: $file ($(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo "unknown size") bytes)"
+            else
+              echo "❌ Missing: $file"
+            fi
+          done
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
