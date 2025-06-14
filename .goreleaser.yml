@@ -16,8 +16,14 @@ builds:
     binary: vx
     command: build
     targets:
-      # Linux only for now to test
+      # Linux
       - x86_64-unknown-linux-gnu
+      - x86_64-unknown-linux-musl
+      # macOS
+      - x86_64-apple-darwin
+      - aarch64-apple-darwin
+      # Windows
+      - x86_64-pc-windows-msvc
     flags:
       - --release
       - --package=vx
@@ -48,8 +54,8 @@ upx:
     compress: best
     lzma: false  # Disable LZMA for better compatibility
     brute: false  # Disable brute force for faster compression
-    goos: [linux, windows]  # Only compress for Linux and Windows
-    goarch: [amd64]  # Only compress x64 binaries for stability
+    goos: [linux, windows, darwin]  # Compress for Linux, Windows, and macOS
+    goarch: [amd64, arm64]  # Support both x64 and ARM64
 
 checksum:
   name_template: 'checksums.txt'
