@@ -13,15 +13,12 @@ before:
 builds:
   - id: vx
     builder: rust
-    tool: cross
+    tool: cargo
     binary: vx
     command: build
     targets:
       # Linux (native compilation works well)
       - x86_64-unknown-linux-gnu
-      - x86_64-unknown-linux-musl
-      # Windows (cross-compilation supported by cross)
-      - x86_64-pc-windows-msvc
     flags:
       - --release
       - --package=vx
@@ -52,7 +49,7 @@ upx:
     compress: best
     lzma: false  # Disable LZMA for better compatibility
     brute: false  # Disable brute force for faster compression
-    goos: [linux, windows]  # Compress for Linux and Windows only
+    goos: [linux]  # Compress for Linux only
     goarch: [amd64]  # Support x64 only for now
 
 checksum:
