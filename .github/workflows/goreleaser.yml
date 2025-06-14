@@ -202,20 +202,21 @@ jobs:
             return 1
           }
 
-          # Copy binaries with fallback logic
-          copy_binary "Linux" "artifacts/vx-linux-amd64/vx" "dist/vx_Linux_x86_64" "vx"
-          copy_binary "Windows" "artifacts/vx-windows-amd64.exe/vx.exe" "dist/vx_Windows_x86_64.exe" "vx"
-          copy_binary "macOS Intel" "artifacts/vx-macos-amd64/vx" "dist/vx_Darwin_x86_64" "vx"
-          copy_binary "macOS ARM" "artifacts/vx-macos-arm64/vx" "dist/vx_Darwin_arm64" "vx"
+          # Copy binaries with GoReleaser prebuilt naming convention
+          # Template: dist/vx_{{ .Os }}_{{ .Arch }}{{ if eq .Os "windows" }}.exe{{ end }}
+          copy_binary "Linux" "artifacts/vx-linux-amd64/vx" "dist/vx_linux_amd64" "vx"
+          copy_binary "Windows" "artifacts/vx-windows-amd64.exe/vx.exe" "dist/vx_windows_amd64.exe" "vx"
+          copy_binary "macOS Intel" "artifacts/vx-macos-amd64/vx" "dist/vx_darwin_amd64" "vx"
+          copy_binary "macOS ARM" "artifacts/vx-macos-arm64/vx" "dist/vx_darwin_arm64" "vx"
 
           # Debug: List files in dist directory
           echo "📁 Files in dist directory:"
           ls -la dist/
 
           # Verify each expected file exists and fail if none found
-          echo "🔍 Checking for expected files:"
+          echo "🔍 Checking for expected files (GoReleaser prebuilt naming):"
           FOUND_COUNT=0
-          for file in "dist/vx_Linux_x86_64" "dist/vx_Windows_x86_64.exe" "dist/vx_Darwin_x86_64" "dist/vx_Darwin_arm64"; do
+          for file in "dist/vx_linux_amd64" "dist/vx_windows_amd64.exe" "dist/vx_darwin_amd64" "dist/vx_darwin_arm64"; do
             if [ -f "$file" ]; then
               echo "✅ Found: $file ($(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo "unknown size") bytes)"
               FOUND_COUNT=$((FOUND_COUNT + 1))
@@ -250,8 +251,8 @@ jobs:
 
       - name: Verify files for GoReleaser
         run: |
-          echo "🔍 Verifying files for GoReleaser extra_files:"
-          for file in "dist/vx_Linux_x86_64" "dist/vx_Windows_x86_64.exe" "dist/vx_Darwin_x86_64" "dist/vx_Darwin_arm64"; do
+          echo "🔍 Verifying files for GoReleaser prebuilt builder:"
+          for file in "dist/vx_linux_amd64" "dist/vx_windows_amd64.exe" "dist/vx_darwin_amd64" "dist/vx_darwin_arm64"; do
             if [ -f "$file" ]; then
               echo "✅ Found: $file ($(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo "unknown size") bytes)"
             else
@@ -275,10 +276,10 @@ jobs:
             echo "🔢 Total binary files: $BINARY_COUNT"
 
             # Basic verification for Linux binary (if exists)
-            if [ -f "dist/vx_Linux_x86_64" ]; then
+            if [ -f "dist/vx_linux_amd64" ]; then
               echo "🐧 Testing Linux binary..."
-              chmod +x dist/vx_Linux_x86_64
-              if ./dist/vx_Linux_x86_64 --version; then
+              chmod +x dist/vx_linux_amd64
+              if ./dist/vx_linux_amd64 --version; then
                 echo "✅ Linux binary verification passed"
               else
                 echo "⚠️ Linux binary verification failed"
