@@ -14,20 +14,12 @@ before:
 builds:
   - skip: true
 
-# Skip archives since we're using extra_files
+# Skip archives completely
 archives:
-  - skip: true
-
-# Upload pre-built binaries directly as release assets
-extra_files:
-  - glob: "dist/vx_Linux_x86_64"
-    name_template: "vx-linux-amd64"
-  - glob: "dist/vx_Windows_x86_64.exe"
-    name_template: "vx-windows-amd64.exe"
-  - glob: "dist/vx_Darwin_x86_64"
-    name_template: "vx-darwin-amd64"
-  - glob: "dist/vx_Darwin_arm64"
-    name_template: "vx-darwin-arm64"
+  - id: default
+    builds: []
+    files:
+      - "this_file_does_not_exist*"
 
 # UPX compression is already done in the build stage
 # upx:
@@ -96,6 +88,15 @@ release:
 
     **Made with ❤️ for developers, by developers**
   name_template: "{{.ProjectName}}-v{{.Version}}"
+  extra_files:
+    - glob: "dist/vx_Linux_x86_64"
+      name_template: "vx-linux-amd64"
+    - glob: "dist/vx_Windows_x86_64.exe"
+      name_template: "vx-windows-amd64.exe"
+    - glob: "dist/vx_Darwin_x86_64"
+      name_template: "vx-darwin-amd64"
+    - glob: "dist/vx_Darwin_arm64"
+      name_template: "vx-darwin-arm64"
 
 # Linux packages (disabled for now since we skip builds)
 # nfpms:
