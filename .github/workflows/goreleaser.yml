@@ -152,6 +152,8 @@ jobs:
           cp artifacts/vx-windows-amd64.exe/vx.exe dist/vx_Windows_x86_64.exe
           cp artifacts/vx-macos-amd64/vx dist/vx_Darwin_x86_64
           cp artifacts/vx-macos-arm64/vx dist/vx_Darwin_arm64
+          # Clean up artifacts directory to avoid git dirty state
+          rm -rf artifacts
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
