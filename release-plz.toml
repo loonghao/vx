@@ -46,8 +46,9 @@ git_release_enable = true
 git_release_name = "v{{version}}"
 # Enable release draft mode for review
 git_release_draft = false
-# Enable publishing to crates.io
-publish = true
+# Disable automatic publishing to crates.io for now
+# We'll handle crates.io publishing manually or via separate workflow
+publish = false
 # Custom release body template
 git_release_body = """
 ## What's Changed
