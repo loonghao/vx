@@ -30,7 +30,8 @@ package_binary() {
                 tar -czf "$archive_name" -C "$artifact_dir" "$(basename "$binary_file")"
                 echo "📦 Created tar.gz: $archive_name"
             elif [ "$archive_type" = "zip" ]; then
-                (cd "$artifact_dir" && zip "../$archive_name" "$(basename "$binary_file")")
+                # Create zip in current directory, not in artifact_dir
+                zip "$archive_name" -j "$binary_file"
                 echo "📦 Created zip: $archive_name"
             fi
             
@@ -76,6 +77,10 @@ fi
 
 echo "📊 Created $CREATED_COUNT archive(s)"
 
+# Debug: List current directory contents
+echo "📁 Current directory contents:"
+ls -la
+
 # Generate checksums
 echo "🔐 Generating checksums..."
 if ls *.tar.gz *.zip 1> /dev/null 2>&1; then
@@ -84,6 +89,8 @@ if ls *.tar.gz *.zip 1> /dev/null 2>&1; then
     cat checksums.txt
 else
     echo "❌ No archive files found for checksum generation"
+    echo "📁 Files in current directory:"
+    ls -la
     exit 1
 fi
 
