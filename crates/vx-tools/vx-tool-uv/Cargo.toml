@@ -1,16 +1,19 @@
 [package]
 name = "vx-tool-uv"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 description = "UV tool support for vx"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/your-org/vx"
-keywords = ["uv", "python", "package-manager", "vx"]
-categories = ["development-tools"]
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
 
 [dependencies]
-anyhow = "1.0"
-vx-core = { version = "0.1.4", path = "../../vx-core" }
+vx-core = { version = "0.1.36", path = "../../vx-core" }
+anyhow = { workspace = true }
 which = "8.0"
 async-trait = { workspace = true }
 
