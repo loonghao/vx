@@ -188,33 +188,41 @@ jobs:
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN || '' }}
           SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN || '' }}
 
-      - name: Upload release assets manually
+      - name: Rename binaries for release
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          # Get the tag name
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          echo "Uploading assets for tag: $TAG_NAME"
+          # Create release directory with properly named files
+          mkdir -p release-assets
 
-          # Upload each binary file to the release
+          # Copy and rename files
           if [ -f "dist/vx_Linux_x86_64" ]; then
-            echo "Uploading Linux binary..."
-            gh release upload "$TAG_NAME" "dist/vx_Linux_x86_64#vx-linux-amd64" --clobber
+            cp "dist/vx_Linux_x86_64" "release-assets/vx-linux-amd64"
+            echo "✅ Prepared Linux binary: vx-linux-amd64"
           fi
 
           if [ -f "dist/vx_Windows_x86_64.exe" ]; then
-            echo "Uploading Windows binary..."
-            gh release upload "$TAG_NAME" "dist/vx_Windows_x86_64.exe#vx-windows-amd64.exe" --clobber
+            cp "dist/vx_Windows_x86_64.exe" "release-assets/vx-windows-amd64.exe"
+            echo "✅ Prepared Windows binary: vx-windows-amd64.exe"
           fi
 
           if [ -f "dist/vx_Darwin_x86_64" ]; then
-            echo "Uploading macOS Intel binary..."
-            gh release upload "$TAG_NAME" "dist/vx_Darwin_x86_64#vx-darwin-amd64" --clobber
+            cp "dist/vx_Darwin_x86_64" "release-assets/vx-darwin-amd64"
+            echo "✅ Prepared macOS Intel binary: vx-darwin-amd64"
           fi
 
           if [ -f "dist/vx_Darwin_arm64" ]; then
-            echo "Uploading macOS ARM binary..."
-            gh release upload "$TAG_NAME" "dist/vx_Darwin_arm64#vx-darwin-arm64" --clobber
+            cp "dist/vx_Darwin_arm64" "release-assets/vx-darwin-arm64"
+            echo "✅ Prepared macOS ARM binary: vx-darwin-arm64"
           fi
+
+          echo "📦 Release assets prepared:"
+          ls -la release-assets/
+
+      - name: Upload release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
