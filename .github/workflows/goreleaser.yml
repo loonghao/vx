@@ -94,7 +94,7 @@ jobs:
       - name: Install UPX (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          brew install upx
+          echo "Skipping UPX installation for macOS (not used)"
 
       - name: Build binary
         run: |
@@ -106,8 +106,13 @@ jobs:
       - name: Compress binary with UPX
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            echo "Compressing Windows binary with UPX..."
             upx --best target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            echo "Skipping UPX compression for macOS (not supported reliably)"
+            echo "macOS binary will remain uncompressed"
           else
+            echo "Compressing Linux binary with UPX..."
             upx --best target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
           fi
         shell: bash
