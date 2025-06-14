@@ -2,18 +2,10 @@
 # https://release-plz.ieni.dev/docs/config
 
 [workspace]
-# Enable changelog generation
-changelog_update = true
-# Enable git tag creation
-git_tag_enable = true
-# Git tag name template
-git_tag_name = "v{{version}}"
-# Enable GitHub release creation
-git_release_enable = true
-# Release name template
-git_release_name = "v{{version}}"
-# Enable release draft mode for review
-git_release_draft = false
+# Only process the main package, not workspace members
+allow_dirty = true
+# Disable automatic publishing of workspace members
+publish = false
 
 # Simple changelog configuration
 [changelog]
@@ -39,11 +31,23 @@ commit_parsers = [
     { message = "^revert", group = "Revert" },
 ]
 
-# Package-specific configuration
+# Package-specific configuration - only process main package
 [[package]]
 name = "vx"
 # Enable changelog for the main package
 changelog_update = true
+# Enable git tag creation
+git_tag_enable = true
+# Git tag name template
+git_tag_name = "v{{version}}"
+# Enable GitHub release creation
+git_release_enable = true
+# Release name template
+git_release_name = "v{{version}}"
+# Enable release draft mode for review
+git_release_draft = false
+# Enable publishing to crates.io
+publish = true
 # Custom release body template
 git_release_body = """
 ## What's Changed
@@ -68,3 +72,32 @@ Download the appropriate binary for your platform from the assets below.
 cargo install vx
 ```
 """
+
+# Disable publishing for workspace member packages
+[[package]]
+name = "vx-core"
+publish = false
+
+[[package]]
+name = "vx-cli"
+publish = false
+
+[[package]]
+name = "vx-tool-node"
+publish = false
+
+[[package]]
+name = "vx-tool-go"
+publish = false
+
+[[package]]
+name = "vx-tool-rust"
+publish = false
+
+[[package]]
+name = "vx-tool-uv"
+publish = false
+
+[[package]]
+name = "vx-pm-npm"
+publish = false
