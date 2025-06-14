@@ -16,16 +16,14 @@ builds:
     binary: vx
     command: build
     targets:
-      # Linux (native and musl)
+      # Linux only for now to test
       - x86_64-unknown-linux-gnu
-      - x86_64-unknown-linux-musl
-      # Windows
-      - x86_64-pc-windows-msvc
     flags:
       - --release
       - --package=vx
     env:
       - RUST_BACKTRACE=1
+      - CARGO_BUILD_JOBS=1
 
 archives:
   - id: default
