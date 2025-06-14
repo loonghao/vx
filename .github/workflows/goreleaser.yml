@@ -152,11 +152,52 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p dist
-          # Copy and rename artifacts for GoReleaser
-          cp artifacts/vx-linux-amd64/vx dist/vx_Linux_x86_64
-          cp artifacts/vx-windows-amd64.exe/vx.exe dist/vx_Windows_x86_64.exe
-          cp artifacts/vx-macos-amd64/vx dist/vx_Darwin_x86_64
-          cp artifacts/vx-macos-arm64/vx dist/vx_Darwin_arm64
+
+          # Debug: Show what we actually downloaded
+          echo "🔍 Artifacts directory structure:"
+          find ./artifacts -type f -name "*" | head -20
+
+          # Copy and rename artifacts for GoReleaser with error handling
+          echo "📦 Copying artifacts to dist directory..."
+
+          # Linux binary
+          if [ -f "artifacts/vx-linux-amd64/vx" ]; then
+            cp "artifacts/vx-linux-amd64/vx" "dist/vx_Linux_x86_64"
+            echo "✅ Copied Linux binary"
+          else
+            echo "❌ Linux binary not found at artifacts/vx-linux-amd64/vx"
+            ls -la artifacts/vx-linux-amd64/ || echo "Directory not found"
+          fi
+
+          # Windows binary
+          if [ -f "artifacts/vx-windows-amd64.exe/vx.exe" ]; then
+            cp "artifacts/vx-windows-amd64.exe/vx.exe" "dist/vx_Windows_x86_64.exe"
+            echo "✅ Copied Windows binary"
+          else
+            echo "❌ Windows binary not found"
+            ls -la artifacts/vx-windows-amd64.exe/ || echo "Directory not found"
+            # Try to find any .exe file in the directory
+            find artifacts/ -name "*.exe" -type f | head -5
+          fi
+
+          # macOS Intel binary
+          if [ -f "artifacts/vx-macos-amd64/vx" ]; then
+            cp "artifacts/vx-macos-amd64/vx" "dist/vx_Darwin_x86_64"
+            echo "✅ Copied macOS Intel binary"
+          else
+            echo "❌ macOS Intel binary not found"
+            ls -la artifacts/vx-macos-amd64/ || echo "Directory not found"
+          fi
+
+          # macOS ARM binary
+          if [ -f "artifacts/vx-macos-arm64/vx" ]; then
+            cp "artifacts/vx-macos-arm64/vx" "dist/vx_Darwin_arm64"
+            echo "✅ Copied macOS ARM binary"
+          else
+            echo "❌ macOS ARM binary not found"
+            ls -la artifacts/vx-macos-arm64/ || echo "Directory not found"
+          fi
+
           # Clean up artifacts directory to avoid git dirty state
           rm -rf artifacts
 
