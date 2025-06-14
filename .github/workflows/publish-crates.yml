@@ -1,0 +1,122 @@
+name: Publish to crates.io
+
+# Manual workflow to publish to crates.io
+# This runs separately from release-plz to avoid conflicts
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., v0.1.4)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run (check only, do not publish)'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Verify version matches
+        run: |
+          CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "vx") | .version')
+          INPUT_VERSION="${{ github.event.inputs.version }}"
+          # Remove 'v' prefix if present
+          INPUT_VERSION=${INPUT_VERSION#v}
+          
+          echo "Cargo.toml version: $CARGO_VERSION"
+          echo "Input version: $INPUT_VERSION"
+          
+          if [ "$CARGO_VERSION" != "$INPUT_VERSION" ]; then
+            echo "❌ Version mismatch!"
+            echo "Cargo.toml has version $CARGO_VERSION but input is $INPUT_VERSION"
+            exit 1
+          fi
+          
+          echo "✅ Version matches: $CARGO_VERSION"
+
+      - name: Check if version already published
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION=${VERSION#v}  # Remove 'v' prefix
+          
+          echo "Checking if vx@$VERSION is already published..."
+          
+          if cargo search vx --limit 1 | grep -q "vx = \"$VERSION\""; then
+            echo "❌ Version $VERSION is already published to crates.io"
+            exit 1
+          else
+            echo "✅ Version $VERSION is not yet published"
+          fi
+
+      - name: Build and test
+        run: |
+          echo "Building project..."
+          cargo build --release
+          
+          echo "Running tests..."
+          cargo test --release
+
+      - name: Dry run publish
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          echo "🔍 Performing dry run..."
+          cargo publish --dry-run
+          echo "✅ Dry run completed successfully!"
+          echo "To actually publish, re-run this workflow with dry_run=false"
+
+      - name: Publish to crates.io
+        if: github.event.inputs.dry_run == 'false'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          echo "🚀 Publishing to crates.io..."
+          cargo publish
+          echo "✅ Successfully published to crates.io!"
+
+      - name: Summary
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          DRY_RUN="${{ github.event.inputs.dry_run }}"
+          
+          echo "📦 Publish Summary"
+          echo "Version: $VERSION"
+          echo "Dry run: $DRY_RUN"
+          
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "✅ Dry run completed - ready for actual publish"
+          else
+            echo "🚀 Published to crates.io successfully!"
+            echo "Users can now install with: cargo install vx"
+          fi
