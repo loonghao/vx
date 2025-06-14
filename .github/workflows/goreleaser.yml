@@ -72,10 +72,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             upx-ucl \
-            mingw-w64
-
-      - name: Install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross --locked
+            gcc-mingw-w64-x86-64
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
