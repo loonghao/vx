@@ -188,6 +188,36 @@ jobs:
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN || '' }}
           SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN || '' }}
 
+      - name: Upload release assets manually
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          # Get the tag name
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "Uploading assets for tag: $TAG_NAME"
+
+          # Upload each binary file to the release
+          if [ -f "dist/vx_Linux_x86_64" ]; then
+            echo "Uploading Linux binary..."
+            gh release upload "$TAG_NAME" "dist/vx_Linux_x86_64#vx-linux-amd64" --clobber
+          fi
+
+          if [ -f "dist/vx_Windows_x86_64.exe" ]; then
+            echo "Uploading Windows binary..."
+            gh release upload "$TAG_NAME" "dist/vx_Windows_x86_64.exe#vx-windows-amd64.exe" --clobber
+          fi
+
+          if [ -f "dist/vx_Darwin_x86_64" ]; then
+            echo "Uploading macOS Intel binary..."
+            gh release upload "$TAG_NAME" "dist/vx_Darwin_x86_64#vx-darwin-amd64" --clobber
+          fi
+
+          if [ -f "dist/vx_Darwin_arm64" ]; then
+            echo "Uploading macOS ARM binary..."
+            gh release upload "$TAG_NAME" "dist/vx_Darwin_arm64#vx-darwin-arm64" --clobber
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Verify build artifacts
         if: always()
         run: |
