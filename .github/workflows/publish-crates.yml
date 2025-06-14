@@ -96,14 +96,23 @@ jobs:
           echo "✅ Dry run completed successfully!"
           echo "To actually publish, re-run this workflow with dry_run=false"
 
-      - name: Publish to crates.io
+      - name: Publish workspace to crates.io
         if: github.event.inputs.dry_run == 'false'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          echo "🚀 Publishing to crates.io..."
-          cargo publish
-          echo "✅ Successfully published to crates.io!"
+          echo "🚀 Publishing workspace to crates.io..."
+          chmod +x scripts/publish-workspace.sh
+          DRY_RUN=false scripts/publish-workspace.sh
+          echo "✅ Successfully published all packages to crates.io!"
+
+      - name: Dry run workspace publish
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          echo "🔍 Performing workspace dry run..."
+          chmod +x scripts/publish-workspace.sh
+          DRY_RUN=true scripts/publish-workspace.sh
+          echo "✅ Workspace dry run completed successfully!"
 
       - name: Summary
         run: |
