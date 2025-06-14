@@ -10,32 +10,51 @@ before:
     - rustup default stable
     - rustup component add rust-src
 
+# Use pre-built binaries from matrix build
 builds:
-  - id: vx
-    builder: rust
-    tool: cargo
+  - id: vx-linux
     binary: vx
-    command: build
-    targets:
-      # Linux (native compilation)
-      - x86_64-unknown-linux-gnu
-      # Windows (cross-compilation using GNU toolchain)
-      - x86_64-pc-windows-gnu
-    flags:
-      - --release
-      - --package=vx
-    env:
-      - RUST_BACKTRACE=1
-      - CARGO_BUILD_JOBS=1
-      # Windows cross-compilation environment
-      - CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc
-      - CXX_x86_64_pc_windows_gnu=x86_64-w64-mingw32-g++
-      - AR_x86_64_pc_windows_gnu=x86_64-w64-mingw32-ar
+    no_unique_dist_dir: true
+    dir: dist
+    main: ./vx_Linux_x86_64
+    goos: [linux]
+    goarch: [amd64]
+    builder: prebuilt
+
+  - id: vx-windows
+    binary: vx
+    no_unique_dist_dir: true
+    dir: dist
+    main: ./vx_Windows_x86_64.exe
+    goos: [windows]
+    goarch: [amd64]
+    builder: prebuilt
+
+  - id: vx-darwin-amd64
+    binary: vx
+    no_unique_dist_dir: true
+    dir: dist
+    main: ./vx_Darwin_x86_64
+    goos: [darwin]
+    goarch: [amd64]
+    builder: prebuilt
+
+  - id: vx-darwin-arm64
+    binary: vx
+    no_unique_dist_dir: true
+    dir: dist
+    main: ./vx_Darwin_arm64
+    goos: [darwin]
+    goarch: [arm64]
+    builder: prebuilt
 
 archives:
   - id: default
     ids:
-      - vx
+      - vx-linux
+      - vx-windows
+      - vx-darwin-amd64
+      - vx-darwin-arm64
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -48,15 +67,15 @@ archives:
       - LICENSE
       - CHANGELOG.md
 
-# UPX compression for smaller binaries
-upx:
-  - ids: [vx]
-    enabled: true
-    compress: best
-    lzma: false  # Disable LZMA for better compatibility
-    brute: false  # Disable brute force for faster compression
-    goos: [linux, windows]  # Compress for Linux and Windows
-    goarch: [amd64]  # Support x64 only for now
+# UPX compression is already done in the build stage
+# upx:
+#   - ids: [vx-linux, vx-windows, vx-darwin-amd64, vx-darwin-arm64]
+#     enabled: true
+#     compress: best
+#     lzma: false
+#     brute: false
+#     goos: [linux, windows, darwin]
+#     goarch: [amd64, arm64]
 
 checksum:
   name_template: 'checksums.txt'
@@ -119,6 +138,8 @@ release:
 # Linux packages
 nfpms:
   - id: packages
+    builds:
+      - vx-linux  # Only use Linux build for packages
     package_name: vx
     vendor: Hal
     homepage: https://github.com/loonghao/vx
