@@ -153,67 +153,82 @@ jobs:
         run: |
           mkdir -p dist
 
-          # Debug: Show what we actually downloaded
-          echo "🔍 Artifacts directory structure:"
-          find ./artifacts -type f -name "*" | head -20
+          # Debug: Show complete artifacts structure
+          echo "🔍 Complete artifacts directory structure:"
+          find ./artifacts -type f -ls 2>/dev/null || echo "No artifacts found"
 
-          # Copy and rename artifacts for GoReleaser with error handling
+          echo "🔍 Artifacts directory tree:"
+          tree ./artifacts 2>/dev/null || find ./artifacts -type d | sort
+
+          echo "🔍 All files in artifacts:"
+          find ./artifacts -name "*" -type f -exec ls -la {} \; 2>/dev/null || echo "No files found"
+
+          # Copy and rename artifacts for GoReleaser with comprehensive error handling
           echo "📦 Copying artifacts to dist directory..."
 
-          # Linux binary
-          if [ -f "artifacts/vx-linux-amd64/vx" ]; then
-            cp "artifacts/vx-linux-amd64/vx" "dist/vx_Linux_x86_64"
-            echo "✅ Copied Linux binary"
-          else
-            echo "❌ Linux binary not found at artifacts/vx-linux-amd64/vx"
-            ls -la artifacts/vx-linux-amd64/ || echo "Directory not found"
-          fi
+          # Function to find and copy binary
+          copy_binary() {
+            local platform="$1"
+            local expected_path="$2"
+            local dest_file="$3"
+            local binary_name="$4"
 
-          # Windows binary
-          if [ -f "artifacts/vx-windows-amd64.exe/vx.exe" ]; then
-            cp "artifacts/vx-windows-amd64.exe/vx.exe" "dist/vx_Windows_x86_64.exe"
-            echo "✅ Copied Windows binary"
-          else
-            echo "❌ Windows binary not found"
-            ls -la artifacts/vx-windows-amd64.exe/ || echo "Directory not found"
-            # Try to find any .exe file in the directory
-            find artifacts/ -name "*.exe" -type f | head -5
-          fi
+            echo "🔍 Looking for $platform binary..."
 
-          # macOS Intel binary
-          if [ -f "artifacts/vx-macos-amd64/vx" ]; then
-            cp "artifacts/vx-macos-amd64/vx" "dist/vx_Darwin_x86_64"
-            echo "✅ Copied macOS Intel binary"
-          else
-            echo "❌ macOS Intel binary not found"
-            ls -la artifacts/vx-macos-amd64/ || echo "Directory not found"
-          fi
+            # Try exact path first
+            if [ -f "$expected_path" ]; then
+              cp "$expected_path" "$dest_file"
+              echo "✅ Copied $platform binary from $expected_path"
+              return 0
+            fi
 
-          # macOS ARM binary
-          if [ -f "artifacts/vx-macos-arm64/vx" ]; then
-            cp "artifacts/vx-macos-arm64/vx" "dist/vx_Darwin_arm64"
-            echo "✅ Copied macOS ARM binary"
-          else
-            echo "❌ macOS ARM binary not found"
-            ls -la artifacts/vx-macos-arm64/ || echo "Directory not found"
-          fi
+            # Try to find the binary in the platform directory
+            local platform_dir=$(dirname "$expected_path")
+            if [ -d "$platform_dir" ]; then
+              echo "📁 Contents of $platform_dir:"
+              ls -la "$platform_dir"
 
-          # Clean up artifacts directory to avoid git dirty state
-          rm -rf artifacts
+              # Look for any file that might be the binary
+              local found_binary=$(find "$platform_dir" -name "$binary_name*" -type f | head -1)
+              if [ -n "$found_binary" ]; then
+                cp "$found_binary" "$dest_file"
+                echo "✅ Copied $platform binary from $found_binary"
+                return 0
+              fi
+            fi
+
+            echo "❌ $platform binary not found"
+            return 1
+          }
+
+          # Copy binaries with fallback logic
+          copy_binary "Linux" "artifacts/vx-linux-amd64/vx" "dist/vx_Linux_x86_64" "vx"
+          copy_binary "Windows" "artifacts/vx-windows-amd64.exe/vx.exe" "dist/vx_Windows_x86_64.exe" "vx"
+          copy_binary "macOS Intel" "artifacts/vx-macos-amd64/vx" "dist/vx_Darwin_x86_64" "vx"
+          copy_binary "macOS ARM" "artifacts/vx-macos-arm64/vx" "dist/vx_Darwin_arm64" "vx"
 
           # Debug: List files in dist directory
           echo "📁 Files in dist directory:"
           ls -la dist/
 
-          # Verify each expected file exists
+          # Verify each expected file exists and fail if none found
           echo "🔍 Checking for expected files:"
+          FOUND_COUNT=0
           for file in "dist/vx_Linux_x86_64" "dist/vx_Windows_x86_64.exe" "dist/vx_Darwin_x86_64" "dist/vx_Darwin_arm64"; do
             if [ -f "$file" ]; then
               echo "✅ Found: $file ($(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo "unknown size") bytes)"
+              FOUND_COUNT=$((FOUND_COUNT + 1))
             else
               echo "❌ Missing: $file"
             fi
           done
+
+          if [ $FOUND_COUNT -eq 0 ]; then
+            echo "💥 FATAL: No binary files were found! Cannot proceed with release."
+            exit 1
+          else
+            echo "📊 Found $FOUND_COUNT out of 4 expected binary files"
+          fi
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
