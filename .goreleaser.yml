@@ -25,7 +25,9 @@ archives:
       - README.md
       - LICENSE
       - CHANGELOG.md
-    format: tar.gz
+    format_overrides:
+      - goos: linux
+        format: tar.gz
 
   - id: windows-amd64
     builds: []
@@ -37,7 +39,9 @@ archives:
       - README.md
       - LICENSE
       - CHANGELOG.md
-    format: zip
+    format_overrides:
+      - goos: windows
+        format: zip
 
   - id: darwin-amd64
     builds: []
@@ -49,7 +53,9 @@ archives:
       - README.md
       - LICENSE
       - CHANGELOG.md
-    format: tar.gz
+    format_overrides:
+      - goos: darwin
+        format: tar.gz
 
   - id: darwin-arm64
     builds: []
@@ -61,7 +67,9 @@ archives:
       - README.md
       - LICENSE
       - CHANGELOG.md
-    format: tar.gz
+    format_overrides:
+      - goos: darwin
+        format: tar.gz
 
 # UPX compression is already done in the build stage
 # upx:
@@ -131,28 +139,28 @@ release:
     **Made with ❤️ for developers, by developers**
   name_template: "{{.ProjectName}}-v{{.Version}}"
 
-# Linux packages
-nfpms:
-  - id: packages
-    builds: []  # No builds since we skip them
-    package_name: vx
-    vendor: Hal
-    homepage: https://github.com/loonghao/vx
-    maintainer: Hal <hal.long@outlook.com>
-    description: Universal Development Tool Manager - Manage multiple development tools and their versions
-    license: MIT
-    formats:
-      - deb      # Debian/Ubuntu only for now
-    bindir: /usr/bin
-    section: utils
-    priority: optional
-    dependencies:
-      - git
-    contents:
-      - src: "dist/vx_Linux_x86_64"
-        dst: "/usr/bin/vx"
-        file_info:
-          mode: 0755
+# Linux packages (disabled for now since we skip builds)
+# nfpms:
+#   - id: packages
+#     builds: []  # No builds since we skip them
+#     package_name: vx
+#     vendor: Hal
+#     homepage: https://github.com/loonghao/vx
+#     maintainer: Hal <hal.long@outlook.com>
+#     description: Universal Development Tool Manager - Manage multiple development tools and their versions
+#     license: MIT
+#     formats:
+#       - deb      # Debian/Ubuntu only for now
+#     bindir: /usr/bin
+#     section: utils
+#     priority: optional
+#     dependencies:
+#       - git
+#     contents:
+#       - src: "dist/vx_Linux_x86_64"
+#         dst: "/usr/bin/vx"
+#         file_info:
+#           mode: 0755
 
 
 
