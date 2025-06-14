@@ -15,8 +15,8 @@ builds:
   - id: vx-linux
     binary: vx
     no_unique_dist_dir: true
-    dir: dist
-    main: ./vx_Linux_x86_64
+    dir: .
+    main: ./dist/vx_Linux_x86_64
     goos: [linux]
     goarch: [amd64]
     builder: prebuilt
@@ -24,8 +24,8 @@ builds:
   - id: vx-windows
     binary: vx
     no_unique_dist_dir: true
-    dir: dist
-    main: ./vx_Windows_x86_64.exe
+    dir: .
+    main: ./dist/vx_Windows_x86_64.exe
     goos: [windows]
     goarch: [amd64]
     builder: prebuilt
@@ -33,8 +33,8 @@ builds:
   - id: vx-darwin-amd64
     binary: vx
     no_unique_dist_dir: true
-    dir: dist
-    main: ./vx_Darwin_x86_64
+    dir: .
+    main: ./dist/vx_Darwin_x86_64
     goos: [darwin]
     goarch: [amd64]
     builder: prebuilt
@@ -42,8 +42,8 @@ builds:
   - id: vx-darwin-arm64
     binary: vx
     no_unique_dist_dir: true
-    dir: dist
-    main: ./vx_Darwin_arm64
+    dir: .
+    main: ./dist/vx_Darwin_arm64
     goos: [darwin]
     goarch: [arm64]
     builder: prebuilt
