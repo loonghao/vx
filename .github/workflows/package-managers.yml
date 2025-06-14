@@ -8,18 +8,26 @@ on:
     workflows: ["Release"]
     types:
       - completed
+    branches:
+      - main
+      - 'fix/**'  # Allow test branches
   workflow_dispatch:
     inputs:
       version:
         description: 'Version to publish (e.g., v1.0.0)'
         required: true
         type: string
+      force_run:
+        description: 'Force run even if Release workflow failed'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
 
 jobs:
-  # Only run if the Release workflow was successful
+  # Only run if the Release workflow was successful or forced
   check-release:
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
@@ -27,14 +35,27 @@ jobs:
       should-publish: ${{ steps.check.outputs.should-publish }}
       version: ${{ steps.version.outputs.version }}
     steps:
+      - name: Debug workflow event
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Workflow run head branch: ${{ github.event.workflow_run.head_branch }}"
+          echo "Force run input: ${{ github.event.inputs.force_run }}"
+
       - name: Check if should publish
         id: check
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Manual dispatch - will publish"
+            echo "should-publish=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.force_run }}" == "true" ]]; then
+            echo "Force run enabled - will publish"
             echo "should-publish=true" >> $GITHUB_OUTPUT
           elif [[ "${{ github.event.workflow_run.conclusion }}" == "success" ]]; then
+            echo "Release workflow successful - will publish"
             echo "should-publish=true" >> $GITHUB_OUTPUT
           else
+            echo "Release workflow failed or conditions not met - will not publish"
             echo "should-publish=false" >> $GITHUB_OUTPUT
           fi
 
@@ -44,11 +65,37 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           else
-            # Extract version from the triggering workflow
-            echo "version=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
+            # Extract version from the triggering workflow head branch (should be a tag)
+            version="${{ github.event.workflow_run.head_branch }}"
+            if [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+              echo "version=$version" >> $GITHUB_OUTPUT
+            else
+              echo "version=unknown" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Verify GitHub Release exists
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          echo "Checking if GitHub Release exists for version: $version"
+
+          # Check if release exists
+          release_url="https://api.github.com/repos/loonghao/vx/releases/tags/$version"
+          if curl -s -f -H "Accept: application/vnd.github.v3+json" "$release_url" > /dev/null; then
+            echo "✅ GitHub Release found for $version"
+
+            # List available assets
+            echo "📦 Available release assets:"
+            curl -s -H "Accept: application/vnd.github.v3+json" "$release_url" | \
+              jq -r '.assets[] | "  - \(.name) (\(.size) bytes)"'
+          else
+            echo "❌ GitHub Release not found for $version"
+            echo "Please ensure the Release workflow completed successfully"
+            exit 1
           fi
 
   # Publish to Windows Package Manager (WinGet)
+  # WinGet automatically detects new GitHub releases, no manual upload needed
   publish-winget:
     needs: check-release
     runs-on: windows-latest
@@ -60,8 +107,10 @@ jobs:
           identifier: loonghao.vx
           max-versions-to-keep: 5
           token: ${{ secrets.WINGET_TOKEN }}
+          # WinGet automatically uses GitHub release assets
 
   # Publish to Chocolatey
+  # Downloads release assets and creates Chocolatey package
   publish-chocolatey:
     needs: check-release
     runs-on: windows-latest
@@ -70,12 +119,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Publish to Chocolatey
-        uses: crazy-max/ghaction-chocolatey@v3
-        with:
-          args: push vx.nupkg --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCOLATEY_API_KEY }}
+      - name: Download Windows binary from release
+        run: |
+          $version = "${{ needs.check-release.outputs.version }}"
+          $downloadUrl = "https://github.com/loonghao/vx/releases/download/$version/vx-windows-amd64.exe"
+          Write-Host "Downloading from: $downloadUrl"
+          Invoke-WebRequest -Uri $downloadUrl -OutFile "vx.exe"
+          Write-Host "Downloaded binary size: $((Get-Item vx.exe).Length) bytes"
+
+      - name: Create Chocolatey package
+        run: |
+          # Create chocolatey package structure
+          New-Item -ItemType Directory -Force -Path "chocolatey/tools"
+          Copy-Item "vx.exe" "chocolatey/tools/"
+
+          # Create nuspec file (this should be templated)
+          Write-Host "Creating Chocolatey package for version ${{ needs.check-release.outputs.version }}"
+          # TODO: Create proper .nuspec file and build .nupkg
+
+      - name: Publish to Chocolatey (placeholder)
+        run: |
+          Write-Host "🚧 Chocolatey publishing requires .nuspec file setup"
+          Write-Host "📋 Next steps:"
+          Write-Host "1. Create vx.nuspec template"
+          Write-Host "2. Build .nupkg file"
+          Write-Host "3. Upload with: choco push vx.nupkg --source https://push.chocolatey.org/ --api-key API_KEY"
 
   # Publish to Homebrew
+  # Automatically creates formula using GitHub release assets
   publish-homebrew:
     needs: check-release
     runs-on: ubuntu-latest
@@ -94,6 +165,10 @@ jobs:
           target_darwin_amd64: true
           target_darwin_arm64: true
           target_linux_amd64: true
+          # Automatically uses GitHub release assets:
+          # - vx-macos-amd64 for Darwin x86_64
+          # - vx-macos-arm64 for Darwin ARM64
+          # - vx-linux-amd64 for Linux x86_64
 
   # Publish to Scoop (Custom implementation)
   publish-scoop:
