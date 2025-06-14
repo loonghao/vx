@@ -119,189 +119,152 @@ nfpms:
     description: Universal Development Tool Manager - Manage multiple development tools and their versions
     license: MIT
     formats:
-      - deb      # Debian/Ubuntu
-      - rpm      # RedHat/CentOS/Fedora/SUSE
-      - apk      # Alpine Linux
-      - archlinux # Arch Linux
+      - deb      # Debian/Ubuntu only for now
     bindir: /usr/bin
     section: utils
     priority: optional
-    meta: true
     dependencies:
       - git
-    recommends:
-      - curl
-      - wget
-    suggests:
-      - build-essential
-    contents:
-      - src: "./README.md"
-        dst: "/usr/share/doc/vx/README.md"
-      - src: "./LICENSE"
-        dst: "/usr/share/doc/vx/LICENSE"
-      - src: "./CHANGELOG.md"
-        dst: "/usr/share/doc/vx/CHANGELOG.md"
-    scripts:
-      postinstall: |
-        echo "vx has been installed successfully!"
-        echo "Run 'vx --help' to get started."
-        echo "Visit https://github.com/loonghao/vx for documentation."
-      preremove: |
-        echo "Removing vx..."
 
 
 
+
+# Package managers (disabled for testing)
 # Scoop (Windows package manager)
-scoops:
-  - name: vx
-    repository:
-      owner: loonghao
-      name: scoop-bucket
-    homepage: https://github.com/loonghao/vx
-    description: Universal Development Tool Manager - Manage multiple development tools and their versions
-    license: MIT
-    commit_author:
-      name: goreleaserbot
-      email: bot@goreleaser.com
-    commit_msg_template: "{{ .ProjectName }}: Update to {{ .Tag }}"
+# scoops:
+#   - name: vx
+#     repository:
+#       owner: loonghao
+#       name: scoop-bucket
+#     homepage: https://github.com/loonghao/vx
+#     description: Universal Development Tool Manager - Manage multiple development tools and their versions
+#     license: MIT
+#     commit_author:
+#       name: goreleaserbot
+#       email: bot@goreleaser.com
+#     commit_msg_template: "{{ .ProjectName }}: Update to {{ .Tag }}"
 
 # AUR (Arch User Repository)
-aurs:
-  - name: vx-bin
-    homepage: https://github.com/loonghao/vx
-    description: Universal Development Tool Manager - Manage multiple development tools and their versions
-    maintainers:
-      - 'Hal <hal.long@outlook.com>'
-    license: MIT
-    private_key: '{{ .Env.AUR_KEY }}'
-    git_url: 'ssh://aur@aur.archlinux.org/vx-bin.git'
-    depends:
-      - git
-    optdepends:
-      - 'curl: for downloading tools'
-      - 'wget: alternative download method'
-    package: |-
-      # bin
-      install -Dm755 "./vx" "${pkgdir}/usr/bin/vx"
+# aurs:
+#   - name: vx-bin
+#     homepage: https://github.com/loonghao/vx
+#     description: Universal Development Tool Manager - Manage multiple development tools and their versions
+#     maintainers:
+#       - 'Hal <hal.long@outlook.com>'
+#     license: MIT
+#     private_key: '{{ .Env.AUR_KEY }}'
+#     git_url: 'ssh://aur@aur.archlinux.org/vx-bin.git'
+#     depends:
+#       - git
+#     optdepends:
+#       - 'curl: for downloading tools'
+#       - 'wget: alternative download method'
+#     package: |-
+#       # bin
+#       install -Dm755 "./vx" "${pkgdir}/usr/bin/vx"
+#
+#       # license
+#       install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/vx/LICENSE"
+#
+#       # documentation
+#       install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/vx/README.md"
+#     commit_author:
+#       name: goreleaserbot
+#       email: bot@goreleaser.com
+#     commit_msg_template: 'updpkg: {{ .ProjectName }} {{ .Tag }}'
+#     skip_upload: auto
 
-      # license
-      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/vx/LICENSE"
+# Docker images (disabled for testing)
+# dockers:
+#   - image_templates:
+#       - "ghcr.io/loonghao/vx:{{ .Version }}-amd64"
+#       - "ghcr.io/loonghao/vx:latest-amd64"
+#     dockerfile: Dockerfile
+#     use: buildx
+#     build_flag_templates:
+#       - "--platform=linux/amd64"
+#       - "--label=org.opencontainers.image.created={{.Date}}"
+#       - "--label=org.opencontainers.image.title={{.ProjectName}}"
+#       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+#       - "--label=org.opencontainers.image.version={{.Version}}"
 
-      # documentation
-      install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/vx/README.md"
-    commit_author:
-      name: goreleaserbot
-      email: bot@goreleaser.com
-    commit_msg_template: 'updpkg: {{ .ProjectName }} {{ .Tag }}'
-    skip_upload: auto
+# docker_manifests:
+#   - name_template: "ghcr.io/loonghao/vx:{{ .Version }}"
+#     image_templates:
+#       - "ghcr.io/loonghao/vx:{{ .Version }}-amd64"
 
-# Docker images
-dockers:
-  - image_templates:
-      - "ghcr.io/loonghao/vx:{{ .Version }}-amd64"
-      - "ghcr.io/loonghao/vx:latest-amd64"
-    dockerfile: Dockerfile
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-  - image_templates:
-      - "ghcr.io/loonghao/vx:{{ .Version }}-arm64v8"
-      - "ghcr.io/loonghao/vx:latest-arm64v8"
-    dockerfile: Dockerfile
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/arm64/v8"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-    goarch: arm64
-
-docker_manifests:
-  - name_template: "ghcr.io/loonghao/vx:{{ .Version }}"
-    image_templates:
-      - "ghcr.io/loonghao/vx:{{ .Version }}-amd64"
-      - "ghcr.io/loonghao/vx:{{ .Version }}-arm64v8"
-  - name_template: "ghcr.io/loonghao/vx:latest"
-    image_templates:
-      - "ghcr.io/loonghao/vx:latest-amd64"
-      - "ghcr.io/loonghao/vx:latest-arm64v8"
-
+# Package managers (disabled for testing)
 # Chocolatey (Windows package manager)
-chocolateys:
-  - name: vx
-    ids:
-      - default
-    owners: Hal
-    title: vx - Universal Development Tool Manager
-    authors: Hal <hal.long@outlook.com>
-    project_url: https://github.com/loonghao/vx
-    url_template: "https://github.com/loonghao/vx/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-    icon_url: "https://raw.githubusercontent.com/loonghao/vx/main/docs/logo.png"
-    copyright: 2025 Hal
-    license_url: https://github.com/loonghao/vx/blob/main/LICENSE
-    require_license_acceptance: false
-    project_source_url: https://github.com/loonghao/vx
-    docs_url: https://github.com/loonghao/vx/blob/main/README.md
-    bug_tracker_url: https://github.com/loonghao/vx/issues
-    tags: "development tools version manager cli rust"
-    summary: Universal Development Tool Manager - Manage multiple development tools and their versions
-    description: |
-      vx is a universal development tool manager that helps developers manage multiple tools and their versions.
-      It supports automatic installation, version switching, and environment isolation for various development tools.
-    release_notes: "https://github.com/loonghao/vx/releases/tag/v{{ .Version }}"
-    dependencies:
-      - id: git
-    api_key: "{{ .Env.CHOCOLATEY_API_KEY }}"
-    source_repo: "https://push.chocolatey.org/"
-    skip_publish: false
+# chocolateys:
+#   - name: vx
+#     ids:
+#       - default
+#     owners: Hal
+#     title: vx - Universal Development Tool Manager
+#     authors: Hal <hal.long@outlook.com>
+#     project_url: https://github.com/loonghao/vx
+#     url_template: "https://github.com/loonghao/vx/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+#     icon_url: "https://raw.githubusercontent.com/loonghao/vx/main/docs/logo.png"
+#     copyright: 2025 Hal
+#     license_url: https://github.com/loonghao/vx/blob/main/LICENSE
+#     require_license_acceptance: false
+#     project_source_url: https://github.com/loonghao/vx
+#     docs_url: https://github.com/loonghao/vx/blob/main/README.md
+#     bug_tracker_url: https://github.com/loonghao/vx/issues
+#     tags: "development tools version manager cli rust"
+#     summary: Universal Development Tool Manager - Manage multiple development tools and their versions
+#     description: |
+#       vx is a universal development tool manager that helps developers manage multiple tools and their versions.
+#       It supports automatic installation, version switching, and environment isolation for various development tools.
+#     release_notes: "https://github.com/loonghao/vx/releases/tag/v{{ .Version }}"
+#     dependencies:
+#       - id: git
+#     api_key: "{{ .Env.CHOCOLATEY_API_KEY }}"
+#     source_repo: "https://push.chocolatey.org/"
+#     skip_publish: false
 
 # Winget (Windows Package Manager)
-winget:
-  - name: vx
-    publisher: Hal
-    short_description: "Universal Development Tool Manager"
-    license: "mit"
-    publisher_url: https://github.com/loonghao/vx
-    publisher_support_url: "https://github.com/loonghao/vx/issues/new"
-    package_identifier: Hal.vx
-    ids:
-      - default
-    url_template: "https://github.com/loonghao/vx/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-    commit_author:
-      name: goreleaserbot
-      email: bot@goreleaser.com
-    commit_msg_template: "{{ .PackageIdentifier }}: {{ .Tag }}"
-    homepage: "https://github.com/loonghao/vx"
-    description: "vx is a universal development tool manager that helps developers manage multiple tools and their versions with automatic installation, version switching, and environment isolation."
-    license_url: "https://github.com/loonghao/vx/blob/main/LICENSE"
-    copyright: "2025 Hal"
-    skip_upload: auto
-    release_notes: "{{.Changelog}}"
-    tags:
-      - development
-      - tools
-      - version-manager
-      - cli
-      - rust
-    dependencies:
-      - package_identifier: Git.Git
-        minimum_version: 2.0.0
-    repository:
-      owner: microsoft
-      name: winget-pkgs
-      branch: "vx-{{.Version}}"
-      pull_request:
-        enabled: true
-        draft: false
-        base:
-          owner: microsoft
-          name: winget-pkgs
-          branch: master
+# winget:
+#   - name: vx
+#     publisher: Hal
+#     short_description: "Universal Development Tool Manager"
+#     license: "mit"
+#     publisher_url: https://github.com/loonghao/vx
+#     publisher_support_url: "https://github.com/loonghao/vx/issues/new"
+#     package_identifier: Hal.vx
+#     ids:
+#       - default
+#     url_template: "https://github.com/loonghao/vx/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+#     commit_author:
+#       name: goreleaserbot
+#       email: bot@goreleaser.com
+#     commit_msg_template: "{{ .PackageIdentifier }}: {{ .Tag }}"
+#     homepage: "https://github.com/loonghao/vx"
+#     description: "vx is a universal development tool manager that helps developers manage multiple tools and their versions with automatic installation, version switching, and environment isolation."
+#     license_url: "https://github.com/loonghao/vx/blob/main/LICENSE"
+#     copyright: "2025 Hal"
+#     skip_upload: auto
+#     release_notes: "{{.Changelog}}"
+#     tags:
+#       - development
+#       - tools
+#       - version-manager
+#       - cli
+#       - rust
+#     dependencies:
+#       - package_identifier: Git.Git
+#         minimum_version: 2.0.0
+#     repository:
+#       owner: microsoft
+#       name: winget-pkgs
+#       branch: "vx-{{.Version}}"
+#       pull_request:
+#         enabled: true
+#         draft: false
+#         base:
+#           owner: microsoft
+#           name: winget-pkgs
+#           branch: master
 
 # Announce
 announce:
