@@ -10,62 +10,58 @@ before:
     - rustup default stable
     - rustup component add rust-src
 
-# Use pre-built binaries from matrix build
+# Skip builds - use pre-built binaries from matrix build
 builds:
-  - id: vx-linux
-    binary: vx
-    no_unique_dist_dir: true
-    dir: .
-    main: ./dist/vx_Linux_x86_64
-    goos: [linux]
-    goarch: [amd64]
-    builder: prebuilt
-
-  - id: vx-windows
-    binary: vx
-    no_unique_dist_dir: true
-    dir: .
-    main: ./dist/vx_Windows_x86_64.exe
-    goos: [windows]
-    goarch: [amd64]
-    builder: prebuilt
-
-  - id: vx-darwin-amd64
-    binary: vx
-    no_unique_dist_dir: true
-    dir: .
-    main: ./dist/vx_Darwin_x86_64
-    goos: [darwin]
-    goarch: [amd64]
-    builder: prebuilt
-
-  - id: vx-darwin-arm64
-    binary: vx
-    no_unique_dist_dir: true
-    dir: .
-    main: ./dist/vx_Darwin_arm64
-    goos: [darwin]
-    goarch: [arm64]
-    builder: prebuilt
+  - skip: true
 
 archives:
-  - id: default
-    ids:
-      - vx-linux
-      - vx-windows
-      - vx-darwin-amd64
-      - vx-darwin-arm64
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
+  - id: linux-amd64
+    builds: []
+    name_template: "{{ .ProjectName }}_Linux_x86_64"
     files:
+      - src: "dist/vx_Linux_x86_64"
+        dst: "vx"
+        strip_parent: true
       - README.md
       - LICENSE
       - CHANGELOG.md
+    format: tar.gz
+
+  - id: windows-amd64
+    builds: []
+    name_template: "{{ .ProjectName }}_Windows_x86_64"
+    files:
+      - src: "dist/vx_Windows_x86_64.exe"
+        dst: "vx.exe"
+        strip_parent: true
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+    format: zip
+
+  - id: darwin-amd64
+    builds: []
+    name_template: "{{ .ProjectName }}_Darwin_x86_64"
+    files:
+      - src: "dist/vx_Darwin_x86_64"
+        dst: "vx"
+        strip_parent: true
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+    format: tar.gz
+
+  - id: darwin-arm64
+    builds: []
+    name_template: "{{ .ProjectName }}_Darwin_arm64"
+    files:
+      - src: "dist/vx_Darwin_arm64"
+        dst: "vx"
+        strip_parent: true
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+    format: tar.gz
 
 # UPX compression is already done in the build stage
 # upx:
@@ -138,8 +134,7 @@ release:
 # Linux packages
 nfpms:
   - id: packages
-    builds:
-      - vx-linux  # Only use Linux build for packages
+    builds: []  # No builds since we skip them
     package_name: vx
     vendor: Hal
     homepage: https://github.com/loonghao/vx
@@ -153,6 +148,11 @@ nfpms:
     priority: optional
     dependencies:
       - git
+    contents:
+      - src: "dist/vx_Linux_x86_64"
+        dst: "/usr/bin/vx"
+        file_info:
+          mode: 0755
 
 
 
