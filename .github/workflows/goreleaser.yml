@@ -155,6 +155,10 @@ jobs:
           # Clean up artifacts directory to avoid git dirty state
           rm -rf artifacts
 
+          # Debug: List files in dist directory
+          echo "📁 Files in dist directory:"
+          ls -la dist/
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -185,10 +189,10 @@ jobs:
             echo "🔢 Total binary files: $BINARY_COUNT"
 
             # Basic verification for Linux binary (if exists)
-            if [ -f "dist/vx_Linux_x86_64/vx" ]; then
+            if [ -f "dist/vx_Linux_x86_64" ]; then
               echo "🐧 Testing Linux binary..."
-              chmod +x dist/vx_Linux_x86_64/vx
-              if ./dist/vx_Linux_x86_64/vx --version; then
+              chmod +x dist/vx_Linux_x86_64
+              if ./dist/vx_Linux_x86_64 --version; then
                 echo "✅ Linux binary verification passed"
               else
                 echo "⚠️ Linux binary verification failed"
