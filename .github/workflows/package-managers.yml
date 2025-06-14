@@ -1,0 +1,138 @@
+name: Package Managers
+
+# Publish to various package managers after a successful release
+# Triggered only when a release is published (not draft)
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  # Only run if the Release workflow was successful
+  check-release:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    outputs:
+      should-publish: ${{ steps.check.outputs.should-publish }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Check if should publish
+        id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-publish=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.workflow_run.conclusion }}" == "success" ]]; then
+            echo "should-publish=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-publish=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Extract version from the triggering workflow
+            echo "version=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
+          fi
+
+  # Publish to Windows Package Manager (WinGet)
+  publish-winget:
+    needs: check-release
+    runs-on: windows-latest
+    if: needs.check-release.outputs.should-publish == 'true'
+    steps:
+      - name: Publish to WinGet
+        uses: vedantmgoyal9/winget-releaser@main
+        with:
+          identifier: loonghao.vx
+          max-versions-to-keep: 5
+          token: ${{ secrets.WINGET_TOKEN }}
+
+  # Publish to Chocolatey
+  publish-chocolatey:
+    needs: check-release
+    runs-on: windows-latest
+    if: needs.check-release.outputs.should-publish == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Publish to Chocolatey
+        uses: crazy-max/ghaction-chocolatey@v3
+        with:
+          args: push vx.nupkg --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCOLATEY_API_KEY }}
+
+  # Publish to Homebrew
+  publish-homebrew:
+    needs: check-release
+    runs-on: ubuntu-latest
+    if: needs.check-release.outputs.should-publish == 'true'
+    steps:
+      - name: Publish to Homebrew
+        uses: Justintime50/homebrew-releaser@v2
+        with:
+          homebrew_owner: loonghao
+          homebrew_tap: homebrew-vx
+          github_token: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          commit_owner: vx-bot
+          commit_email: vx-bot@users.noreply.github.com
+          install: 'bin.install "vx"'
+          test: 'assert_match("vx", shell_output("#{bin}/vx --version"))'
+          target_darwin_amd64: true
+          target_darwin_arm64: true
+          target_linux_amd64: true
+
+  # Publish to Scoop (Custom implementation)
+  publish-scoop:
+    needs: check-release
+    runs-on: ubuntu-latest
+    if: needs.check-release.outputs.should-publish == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Publish to Scoop Bucket
+        run: |
+          # This is a custom script to update Scoop bucket
+          # You'll need to create a separate repository for your Scoop bucket
+          echo "🚧 Scoop publishing requires custom implementation"
+          echo "📋 Steps needed:"
+          echo "1. Create a Scoop bucket repository (e.g., loonghao/scoop-vx)"
+          echo "2. Generate Scoop manifest JSON"
+          echo "3. Commit to bucket repository"
+          echo "💡 Consider using: https://github.com/Ash258/Scoop-GithubActions"
+
+  # Summary job
+  publish-summary:
+    needs: [check-release, publish-winget, publish-chocolatey, publish-homebrew, publish-scoop]
+    runs-on: ubuntu-latest
+    if: always() && needs.check-release.outputs.should-publish == 'true'
+    steps:
+      - name: Publish Summary
+        run: |
+          echo "📦 Package Manager Publishing Summary"
+          echo "Version: ${{ needs.check-release.outputs.version }}"
+          echo ""
+          echo "🪟 WinGet: ${{ needs.publish-winget.result }}"
+          echo "🍫 Chocolatey: ${{ needs.publish-chocolatey.result }}"
+          echo "🍺 Homebrew: ${{ needs.publish-homebrew.result }}"
+          echo "🥄 Scoop: ${{ needs.publish-scoop.result }}"
+          echo ""
+          if [[ "${{ needs.publish-winget.result }}" == "success" && "${{ needs.publish-chocolatey.result }}" == "success" && "${{ needs.publish-homebrew.result }}" == "success" ]]; then
+            echo "✅ All package managers published successfully!"
+          else
+            echo "⚠️ Some package managers failed to publish. Check the logs above."
+          fi
