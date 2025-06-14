@@ -16,17 +16,11 @@ builds:
     binary: vx
     command: build
     targets:
-      # Linux
+      # Linux (native and musl)
       - x86_64-unknown-linux-gnu
       - x86_64-unknown-linux-musl
-      - aarch64-unknown-linux-gnu
-      - aarch64-unknown-linux-musl
-      # macOS
-      - x86_64-apple-darwin
-      - aarch64-apple-darwin
       # Windows
       - x86_64-pc-windows-msvc
-      - aarch64-pc-windows-msvc
     flags:
       - --release
       - --package=vx

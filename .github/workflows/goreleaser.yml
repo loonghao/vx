@@ -50,13 +50,7 @@ jobs:
           targets: |
             x86_64-unknown-linux-gnu
             x86_64-unknown-linux-musl
-            aarch64-unknown-linux-gnu
-            aarch64-unknown-linux-musl
-            x86_64-apple-darwin
-            aarch64-apple-darwin
             x86_64-pc-windows-msvc
-            aarch64-pc-windows-msvc
-            x86_64-pc-windows-gnu
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
@@ -74,20 +68,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Install Zig
-        uses: goto-bus-stop/setup-zig@v2
-        with:
-          version: 0.13.0
-
-      - name: Install cargo-zigbuild
-        run: cargo install --locked cargo-zigbuild
-
       - name: Install cross-compilation dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            gcc-aarch64-linux-gnu \
-            gcc-mingw-w64-x86-64 \
             musl-tools \
             upx-ucl
 
