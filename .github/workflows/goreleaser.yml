@@ -31,6 +31,7 @@ env:
 
 jobs:
   build:
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
         include:
@@ -126,7 +127,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout
@@ -229,6 +230,9 @@ jobs:
           else
             echo "📊 Found $FOUND_COUNT out of 4 expected binary files"
           fi
+
+          # Clean up artifacts directory to avoid GoReleaser dirty state
+          rm -rf artifacts
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
