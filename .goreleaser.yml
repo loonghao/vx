@@ -44,17 +44,7 @@ builds:
       - arm64
     skip: true
 
-# Use extra_files to include pre-built binaries
-release:
-  extra_files:
-    - glob: "dist/vx_Linux_x86_64"
-      name_template: "vx-linux-amd64"
-    - glob: "dist/vx_Windows_x86_64.exe"
-      name_template: "vx-windows-amd64.exe"
-    - glob: "dist/vx_Darwin_x86_64"
-      name_template: "vx-darwin-amd64"
-    - glob: "dist/vx_Darwin_arm64"
-      name_template: "vx-darwin-arm64"
+# Extra files will be added to the main release section below
 
 # Skip archives since we're using extra_files
 archives:
@@ -112,6 +102,15 @@ release:
   draft: false
   prerelease: auto
   mode: replace
+  extra_files:
+    - glob: "dist/vx_Linux_x86_64"
+      name_template: "vx-linux-amd64"
+    - glob: "dist/vx_Windows_x86_64.exe"
+      name_template: "vx-windows-amd64.exe"
+    - glob: "dist/vx_Darwin_x86_64"
+      name_template: "vx-darwin-amd64"
+    - glob: "dist/vx_Darwin_arm64"
+      name_template: "vx-darwin-arm64"
   header: |
     ## 🚀 vx {{ .Tag }} ({{ .Date }})
 
