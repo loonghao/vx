@@ -49,7 +49,7 @@ jobs:
         with:
           targets: |
             x86_64-unknown-linux-gnu
-            x86_64-pc-windows-msvc
+            x86_64-pc-windows-gnu
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
