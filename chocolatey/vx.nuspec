@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>vx</id>
+    <version>{{VERSION}}</version>
+    <packageSourceUrl>https://github.com/loonghao/vx</packageSourceUrl>
+    <owners>loonghao</owners>
+    <title>vx - Universal Version Management Tool</title>
+    <authors>loonghao</authors>
+    <projectUrl>https://github.com/loonghao/vx</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/loonghao/vx/main/assets/logo.png</iconUrl>
+    <copyright>2025 loonghao</copyright>
+    <licenseUrl>https://github.com/loonghao/vx/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/loonghao/vx</projectSourceUrl>
+    <docsUrl>https://github.com/loonghao/vx/blob/main/README.md</docsUrl>
+    <bugTrackerUrl>https://github.com/loonghao/vx/issues</bugTrackerUrl>
+    <tags>version-management rust cli tool development</tags>
+    <summary>Universal version management tool for development environments</summary>
+    <description><![CDATA[
+vx is a universal version management tool developed in Rust, designed to be a proxy wrapper with version control functionality (similar to nvm/rustup).
+
+## Features
+
+- **Universal Tool Management**: Support for multiple programming languages and tools
+- **Version Control**: Seamless switching between different versions
+- **Environment Isolation**: Each tool version runs in its own isolated environment
+- **Plugin Architecture**: Extensible design for adding new tools
+- **Cross-Platform**: Works on Windows, macOS, and Linux
+
+## Supported Tools
+
+- **Node.js Ecosystem**: npm, pnpm, yarn, bun
+- **Python**: uv, pip
+- **Future Support**: Go, Rust, and other development tools
+
+## Usage
+
+```
+vx <tool> <command>
+```
+
+Examples:
+- `vx uv pip install package`
+- `vx npm install`
+- `vx node --version`
+
+For more information, visit: https://github.com/loonghao/vx
+]]></description>
+    <releaseNotes>{{RELEASE_NOTES}}</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

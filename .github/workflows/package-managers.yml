@@ -63,12 +63,23 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           else
-            # Extract version from the triggering workflow head branch (should be a tag)
-            version="${{ github.event.workflow_run.head_branch }}"
-            if [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-              echo "version=$version" >> $GITHUB_OUTPUT
+            # Get the latest release tag from GitHub API
+            echo "Getting latest release version from GitHub API..."
+            latest_release=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/loonghao/vx/releases/latest" | \
+              jq -r '.tag_name // empty')
+
+            if [[ -n "$latest_release" && "$latest_release" != "null" ]]; then
+              echo "Found latest release: $latest_release"
+              echo "version=$latest_release" >> $GITHUB_OUTPUT
             else
-              echo "version=unknown" >> $GITHUB_OUTPUT
+              echo "No release found, trying to get from workflow run..."
+              version="${{ github.event.workflow_run.head_branch }}"
+              if [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+                echo "version=$version" >> $GITHUB_OUTPUT
+              else
+                echo "version=unknown" >> $GITHUB_OUTPUT
+              fi
             fi
           fi
 
@@ -122,26 +133,48 @@ jobs:
           $version = "${{ needs.check-release.outputs.version }}"
           $downloadUrl = "https://github.com/loonghao/vx/releases/download/$version/vx-windows-amd64.exe"
           Write-Host "Downloading from: $downloadUrl"
-          Invoke-WebRequest -Uri $downloadUrl -OutFile "vx.exe"
-          Write-Host "Downloaded binary size: $((Get-Item vx.exe).Length) bytes"
+
+          try {
+            Invoke-WebRequest -Uri $downloadUrl -OutFile "vx.exe" -ErrorAction Stop
+            Write-Host "Downloaded binary size: $((Get-Item vx.exe).Length) bytes"
+          } catch {
+            Write-Host "Failed to download binary: $_"
+            Write-Host "Available releases:"
+            $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/loonghao/vx/releases"
+            $releases | ForEach-Object { Write-Host "  - $($_.tag_name)" }
+            exit 1
+          }
 
       - name: Create Chocolatey package
         run: |
+          $version = "${{ needs.check-release.outputs.version }}"
+
           # Create chocolatey package structure
           New-Item -ItemType Directory -Force -Path "chocolatey/tools"
           Copy-Item "vx.exe" "chocolatey/tools/"
 
-          # Create nuspec file (this should be templated)
-          Write-Host "Creating Chocolatey package for version ${{ needs.check-release.outputs.version }}"
-          # TODO: Create proper .nuspec file and build .nupkg
+          # Update nuspec file with current version
+          $nuspecContent = Get-Content "chocolatey/vx.nuspec" -Raw
+          $nuspecContent = $nuspecContent -replace "{{VERSION}}", $version.TrimStart('v')
+          $nuspecContent = $nuspecContent -replace "{{RELEASE_NOTES}}", "See https://github.com/loonghao/vx/releases/tag/$version"
+          Set-Content "chocolatey/vx.nuspec" $nuspecContent
 
-      - name: Publish to Chocolatey (placeholder)
+          # Build package
+          choco pack chocolatey/vx.nuspec --outputdirectory .
+
+          Write-Host "Created Chocolatey package for version $version"
+          Get-ChildItem *.nupkg | ForEach-Object { Write-Host "Package: $($_.Name)" }
+
+      - name: Publish to Chocolatey
         run: |
-          Write-Host "🚧 Chocolatey publishing requires .nuspec file setup"
-          Write-Host "📋 Next steps:"
-          Write-Host "1. Create vx.nuspec template"
-          Write-Host "2. Build .nupkg file"
-          Write-Host "3. Upload with: choco push vx.nupkg --source https://push.chocolatey.org/ --api-key API_KEY"
+          $nupkgFile = Get-ChildItem *.nupkg | Select-Object -First 1
+          if ($nupkgFile) {
+            Write-Host "Publishing $($nupkgFile.Name) to Chocolatey..."
+            choco push $nupkgFile.Name --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCOLATEY_API_KEY }}
+          } else {
+            Write-Host "No .nupkg file found!"
+            exit 1
+          }
 
   # Publish to Homebrew
   # Automatically creates formula using GitHub release assets
@@ -177,16 +210,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Publish to Scoop Bucket
-        run: |
-          # This is a custom script to update Scoop bucket
-          # You'll need to create a separate repository for your Scoop bucket
-          echo "🚧 Scoop publishing requires custom implementation"
-          echo "📋 Steps needed:"
-          echo "1. Create a Scoop bucket repository (e.g., loonghao/scoop-vx)"
-          echo "2. Generate Scoop manifest JSON"
-          echo "3. Commit to bucket repository"
-          echo "💡 Consider using: https://github.com/Ash258/Scoop-GithubActions"
+      - name: Update Scoop Bucket
+        uses: Ash258/Scoop-GithubActions@stable
+        with:
+          bucket_repository: loonghao/scoop-vx
+          app_name: vx
+          github_token: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          # Automatically generates manifest from GitHub release
 
   # Summary job
   publish-summary:
