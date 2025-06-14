@@ -13,16 +13,14 @@ before:
 builds:
   - id: vx
     builder: rust
+    tool: cross
     binary: vx
     command: build
     targets:
-      # Linux
+      # Linux (native compilation works well)
       - x86_64-unknown-linux-gnu
       - x86_64-unknown-linux-musl
-      # macOS
-      - x86_64-apple-darwin
-      - aarch64-apple-darwin
-      # Windows
+      # Windows (cross-compilation supported by cross)
       - x86_64-pc-windows-msvc
     flags:
       - --release
@@ -54,8 +52,8 @@ upx:
     compress: best
     lzma: false  # Disable LZMA for better compatibility
     brute: false  # Disable brute force for faster compression
-    goos: [linux, windows, darwin]  # Compress for Linux, Windows, and macOS
-    goarch: [amd64, arm64]  # Support both x64 and ARM64
+    goos: [linux, windows]  # Compress for Linux and Windows only
+    goarch: [amd64]  # Support x64 only for now
 
 checksum:
   name_template: 'checksums.txt'
