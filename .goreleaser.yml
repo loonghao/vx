@@ -11,14 +11,35 @@ before:
     - rustup component add rust-src
 
 builds:
-  - id: vx
+  # Native Linux build
+  - id: vx-linux
     builder: rust
     tool: cargo
     binary: vx
     command: build
     targets:
-      # Linux (native compilation works well)
       - x86_64-unknown-linux-gnu
+    flags:
+      - --release
+      - --package=vx
+    env:
+      - RUST_BACKTRACE=1
+      - CARGO_BUILD_JOBS=1
+
+  # Cross-compiled builds
+  - id: vx-cross
+    builder: rust
+    tool: cross
+    binary: vx
+    command: build
+    targets:
+      # Linux musl (static linking)
+      - x86_64-unknown-linux-musl
+      # macOS (cross-compilation)
+      - x86_64-apple-darwin
+      - aarch64-apple-darwin
+      # Windows (cross-compilation)
+      - x86_64-pc-windows-msvc
     flags:
       - --release
       - --package=vx
@@ -29,7 +50,8 @@ builds:
 archives:
   - id: default
     ids:
-      - vx
+      - vx-linux
+      - vx-cross
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -44,12 +66,12 @@ archives:
 
 # UPX compression for smaller binaries
 upx:
-  - ids: [vx]
+  - ids: [vx-linux, vx-cross]
     enabled: true
     compress: best
     lzma: false  # Disable LZMA for better compatibility
     brute: false  # Disable brute force for faster compression
-    goos: [linux]  # Compress for Linux only
+    goos: [linux, windows]  # Compress for Linux and Windows
     goarch: [amd64]  # Support x64 only for now
 
 checksum:
