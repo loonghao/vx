@@ -1,0 +1,30 @@
+# Cross-compilation configuration for vx
+# See: https://github.com/cross-rs/cross
+
+[build]
+# Use pre-built Docker images for cross-compilation
+default-target = "x86_64-unknown-linux-gnu"
+
+[target.x86_64-unknown-linux-musl]
+# Use Alpine Linux for musl builds (static linking)
+image = "ghcr.io/cross-rs/x86_64-unknown-linux-musl:main"
+
+[target.x86_64-apple-darwin]
+# macOS x86_64 cross-compilation
+image = "ghcr.io/cross-rs/x86_64-apple-darwin:main"
+
+[target.aarch64-apple-darwin]
+# macOS ARM64 (Apple Silicon) cross-compilation
+image = "ghcr.io/cross-rs/aarch64-apple-darwin:main"
+
+[target.x86_64-pc-windows-msvc]
+# Windows x86_64 cross-compilation
+image = "ghcr.io/cross-rs/x86_64-pc-windows-msvc:main"
+
+# Environment variables for all targets
+[build.env]
+passthrough = [
+    "RUST_BACKTRACE",
+    "CARGO_BUILD_JOBS",
+    "CARGO_TERM_COLOR"
+]
