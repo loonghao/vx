@@ -14,7 +14,6 @@ pub mod remove;
 pub mod stats;
 pub mod switch;
 pub mod update;
-pub mod use_cmd;
 pub mod venv_cmd;
 pub mod version;
 pub mod where_cmd;
@@ -71,10 +70,6 @@ impl CommandHandler {
                 detailed,
                 interactive,
             }) => fetch::handle(registry, &tool, latest, detailed, interactive, prerelease)
-                .await
-                .map_err(Into::into),
-
-            Some(Commands::Use { tool_version }) => use_cmd::handle(registry, &tool_version)
                 .await
                 .map_err(Into::into),
 
