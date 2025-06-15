@@ -23,6 +23,7 @@
 - 🚧 **Breaking Changes**: APIs and configurations may change without notice
 - 📝 **Feedback Welcome**: Please report issues and share your experience
 - 🎯 **MVP Focus**: Currently supports UV, Node.js, Go, and Rust tools
+- 🚀 **Release Automation**: Now with automated release management via release-plz
 
 ### ✅ Recently Implemented
 
