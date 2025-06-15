@@ -2,6 +2,9 @@
 //!
 //! This module contains unit tests for all CLI commands.
 
+pub mod execute_tests;
+pub mod install_tests;
+pub mod list_tests;
 pub mod venv_tests;
 
 use std::sync::atomic::{AtomicU32, Ordering};
