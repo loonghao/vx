@@ -32,11 +32,13 @@
 pub mod config;
 pub mod config_figment;
 pub mod error;
+pub mod global_tool_manager;
 pub mod install_configs;
 pub mod installer;
 pub mod package_manager;
 pub mod plugin; // Re-enabled for current system
 pub mod registry;
+pub mod symlink_venv;
 pub mod tool;
 pub mod version; // Re-enabled for current system
 
@@ -77,8 +79,10 @@ pub use version::VersionInfo; // Re-enabled for current system
 // Re-export utility modules
 pub use downloader::ToolDownloader;
 pub use environment::{EnvironmentConfig, ToolInstallation, VxEnvironment};
+pub use global_tool_manager::{GlobalToolInfo, GlobalToolManager, VenvDependency};
 pub use http::{get_http_client, HttpUtils};
 pub use platform::{Architecture, OperatingSystem, Platform};
+pub use symlink_venv::{SymlinkVenv, SymlinkVenvManager};
 pub use url_builder::{
     GenericUrlBuilder, GoUrlBuilder, NodeUrlBuilder, PythonUrlBuilder, RustUrlBuilder, UvUrlBuilder,
 };

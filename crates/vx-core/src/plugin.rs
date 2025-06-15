@@ -136,9 +136,18 @@ pub trait VxTool: Send + Sync {
 
         // Use the new downloader
         let downloader = ToolDownloader::new()?;
-        downloader
+        let exe_path = downloader
             .download_and_install(self.name(), version, &download_url)
-            .await
+            .await?;
+
+        // Register with global tool manager
+        let global_manager = crate::GlobalToolManager::new()?;
+        let install_dir = self.get_version_install_dir(version);
+        global_manager
+            .register_global_tool(self.name(), version, &install_dir)
+            .await?;
+
+        Ok(exe_path)
     }
 
     /// Default execution workflow
@@ -224,9 +233,30 @@ pub trait VxTool: Send + Sync {
             return Ok(());
         }
 
+        // Check if tool can be safely removed (not referenced by any venv)
+        let global_manager = crate::GlobalToolManager::new()?;
+        if !force && !global_manager.can_remove_tool(self.name()).await? {
+            let dependents = global_manager.get_tool_dependents(self.name()).await?;
+            return Err(crate::VxError::Other {
+                message: format!(
+                    "Cannot remove {} {} - it is referenced by virtual environments: {}. Use --force to override.",
+                    self.name(),
+                    version,
+                    dependents.join(", ")
+                ),
+            });
+        }
+
         // Attempt to remove the directory
         match std::fs::remove_dir_all(&version_dir) {
-            Ok(()) => Ok(()),
+            Ok(()) => {
+                // Remove from global tool manager
+                if let Err(e) = global_manager.remove_global_tool(self.name()).await {
+                    // Log warning but don't fail the operation
+                    eprintln!("Warning: Failed to remove tool from global registry: {}", e);
+                }
+                Ok(())
+            }
             Err(e) => {
                 if force {
                     // In force mode, ignore certain types of errors
