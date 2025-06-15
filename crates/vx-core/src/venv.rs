@@ -187,11 +187,14 @@ impl VenvManager {
 
     /// Save virtual environment configuration
     fn save_venv_config(&self, config: &VenvConfig) -> Result<()> {
-        let config_path = self
-            .venvs_dir
-            .join(&config.name)
-            .join("config")
-            .join("venv.toml");
+        let config_dir = self.venvs_dir.join(&config.name).join("config");
+        let config_path = config_dir.join("venv.toml");
+
+        // Ensure config directory exists
+        std::fs::create_dir_all(&config_dir).map_err(|e| VxError::Other {
+            message: format!("Failed to create config directory: {}", e),
+        })?;
+
         let toml_content = toml::to_string_pretty(config).map_err(|e| VxError::Other {
             message: format!("Failed to serialize venv config: {}", e),
         })?;

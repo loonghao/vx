@@ -16,7 +16,8 @@ Write-Host "=================================" -ForegroundColor $Blue
 if ($DryRun) {
     Write-Host "⚠️  DRY RUN MODE - No actual publishing" -ForegroundColor $Yellow
     Write-Host "   Use -DryRun:`$false to actually publish" -ForegroundColor $Yellow
-} else {
+}
+else {
     Write-Host "🔥 LIVE MODE - Will actually publish to crates.io" -ForegroundColor $Red
 }
 
@@ -29,8 +30,8 @@ $packages = @(
     "crates/vx-tools/vx-tool-rust", 
     "crates/vx-tools/vx-tool-uv",
     "crates/vx-package-managers/vx-pm-npm",
-    "crates/vx-tools/vx-tool-node",  # Depends on vx-pm-npm
-    "crates/vx-cli",                 # Depends on all tools
+    "crates/vx-tools/vx-tool-node", # Depends on vx-pm-npm
+    "crates/vx-cli", # Depends on all tools
     "."                              # Main package depends on everything
 )
 
@@ -44,7 +45,8 @@ function Test-PackagePublished {
     if ($searchResult -match "$PackageName = `"$Version`"") {
         Write-Host "⚠️  $PackageName@$Version is already published" -ForegroundColor $Yellow
         return $true
-    } else {
+    }
+    else {
         Write-Host "✅ $PackageName@$Version is not yet published" -ForegroundColor $Green
         return $false
     }
@@ -53,20 +55,43 @@ function Test-PackagePublished {
 # Function to get package name and version
 function Get-PackageInfo {
     param($PackageDir)
-    
+
     $cargoToml = if ($PackageDir -eq ".") { "Cargo.toml" } else { "$PackageDir/Cargo.toml" }
-    
+
     if (-not (Test-Path $cargoToml)) {
         $cargoToml = "Cargo.toml"
     }
-    
-    # Use cargo metadata to get package info
-    $metadata = cargo metadata --no-deps --format-version 1 --manifest-path $cargoToml | ConvertFrom-Json
-    $package = $metadata.packages[0]
-    
-    return @{
-        Name = $package.name
-        Version = $package.version
+
+    # Change to the package directory to get correct metadata
+    $originalLocation = Get-Location
+    try {
+        if ($PackageDir -ne ".") {
+            Set-Location $PackageDir
+        }
+
+        # Use cargo metadata to get package info from current directory
+        # Filter to only get the package in the current directory
+        $metadata = cargo metadata --no-deps --format-version 1 | ConvertFrom-Json
+        $currentPath = (Get-Location).Path.Replace('\', '/')
+
+        # Find the package that matches the current directory
+        $package = $metadata.packages | Where-Object {
+            $packagePath = $_.manifest_path -replace '\\', '/' -replace '/Cargo\.toml$', ''
+            $packagePath -eq $currentPath
+        }
+
+        if (-not $package) {
+            # Fallback: if we can't find by path, use the first package
+            $package = $metadata.packages[0]
+        }
+
+        return @{
+            Name    = $package.name
+            Version = $package.version
+        }
+    }
+    finally {
+        Set-Location $originalLocation
     }
 }
 
@@ -114,7 +139,8 @@ function Publish-Package {
             
             Write-Host "⏳ Waiting $WaitTime seconds for crates.io to update..." -ForegroundColor $Yellow
             Start-Sleep $WaitTime
-        } else {
+        }
+        else {
             Write-Host "🔍 Dry run completed for $packageName" -ForegroundColor $Yellow
         }
     }
@@ -160,7 +186,8 @@ foreach ($package in $packages) {
 if ($DryRun) {
     Write-Host "🎉 Dry run completed successfully!" -ForegroundColor $Green
     Write-Host "💡 To actually publish, run: .\scripts\publish-workspace.ps1 -DryRun:`$false" -ForegroundColor $Yellow
-} else {
+}
+else {
     Write-Host "🎉 All packages published successfully!" -ForegroundColor $Green
     Write-Host "🎯 Users can now install with: cargo install vx" -ForegroundColor $Green
 }
