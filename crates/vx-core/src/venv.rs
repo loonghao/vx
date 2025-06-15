@@ -6,7 +6,7 @@
 //! - Manages tool versions through global installation + PATH manipulation
 //! - Provides seamless user experience similar to nvm/pnpm
 
-use crate::{GlobalToolManager, Result, VxEnvironment, VxError};
+use crate::{GlobalToolManager, Result, VxEnvironment, VxError, VxShimManager};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -303,8 +303,35 @@ impl VenvManager {
     }
 
     /// Install a tool for a specific virtual environment
-    fn install_tool_for_venv(&self, _venv_name: &str, _tool: &str, _version: &str) -> Result<()> {
-        // TODO: Implement actual tool installation
+    fn install_tool_for_venv(&self, venv_name: &str, tool: &str, version: &str) -> Result<()> {
+        // Check if the tool version is already installed globally
+        if !self.env.is_version_installed(tool, version) {
+            return Err(VxError::VersionNotInstalled {
+                tool_name: tool.to_string(),
+                version: version.to_string(),
+            });
+        }
+
+        // Get the installation info to find the executable path
+        let installation = self
+            .env
+            .get_installation_info(tool, version)?
+            .ok_or_else(|| VxError::VersionNotInstalled {
+                tool_name: tool.to_string(),
+                version: version.to_string(),
+            })?;
+
+        // Create shim manager for this venv
+        let shim_manager = VxShimManager::new(self.env.clone())?;
+
+        // Create a venv-specific shim directory
+        let venv_dir = self.venvs_dir.join(venv_name);
+        let venv_bin_dir = venv_dir.join("bin");
+        std::fs::create_dir_all(&venv_bin_dir)?;
+
+        // Create shim for this tool in the venv
+        shim_manager.create_tool_shim(tool, &installation.executable_path, version, None)?;
+
         Ok(())
     }
 
