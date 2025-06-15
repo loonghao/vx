@@ -81,9 +81,6 @@ NODE_ENV = "development"
 PATH_EXTRA = "/extra/path"
 "#;
 
-    pub const LEGACY_SCOOP_CONFIG: &str = r#"path = C:\tools\node\node.exe
-args = --version"#;
-
     pub const SHIM_WITH_ENV_VARS: &str = r#"
 path = "${NODE_HOME}/bin/node"
 args = ["${NODE_ARGS}"]

@@ -62,7 +62,7 @@ mod tests {
     fn test_executor_creation() {
         let config = ShimConfig {
             path: "/bin/echo".to_string(),
-            args: Some("hello".to_string()),
+            args: Some(vec!["hello".to_string()]),
             working_dir: None,
             env: None,
             hide_console: None,

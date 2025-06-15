@@ -32,7 +32,7 @@ impl ShimManager {
 
         let config = ShimConfig {
             path: target_path.as_ref().to_string_lossy().to_string(),
-            args: args.map(|s| s.to_string()),
+            args: args.map(|s| vec![s.to_string()]),
             working_dir: None,
             env: None,
             hide_console: None,
@@ -131,7 +131,7 @@ mod tests {
 
         let content = fs::read_to_string(&shim_path).unwrap();
         assert!(content.contains("path = \"/bin/echo\""));
-        assert!(content.contains("args = \"hello\""));
+        assert!(content.contains("args = [\"hello\"]"));
     }
 
     #[test]

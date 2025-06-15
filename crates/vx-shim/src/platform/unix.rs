@@ -62,7 +62,7 @@ impl UnixExecutor {
             }
             ForkResult::Child => {
                 // Child process - exec the target program
-                let error = command.exec();
+                let error = CommandExt::exec(&mut command);
                 // If we reach here, exec failed
                 eprintln!("Failed to exec: {}", error);
                 std::process::exit(1);
@@ -152,8 +152,8 @@ trait CommandExt {
 
 impl CommandExt for Command {
     fn exec(&mut self) -> std::io::Error {
-        use std::os::unix::process::CommandExt;
-        match self.exec() {
+        use std::os::unix::process::CommandExt as StdCommandExt;
+        match StdCommandExt::exec(self) {
             Ok(_) => unreachable!(),
             Err(e) => e,
         }

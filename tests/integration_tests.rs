@@ -170,7 +170,6 @@ mod environment_isolation_tests {
         }
 
         // The test passes as long as it doesn't panic
-        assert!(true, "Test completed without panic");
     }
 
     #[test]
