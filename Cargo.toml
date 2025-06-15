@@ -31,11 +31,6 @@ path = "src/main.rs"
 
 [dependencies]
 vx-cli = { version = "0.1.36", path = "crates/vx-cli" }
-vx-core = { version = "0.1.36", path = "crates/vx-core" }
-vx-tool-node = { version = "0.1.36", path = "crates/vx-tools/vx-tool-node" }
-vx-tool-go = { version = "0.1.36", path = "crates/vx-tools/vx-tool-go" }
-vx-tool-rust = { version = "0.1.36", path = "crates/vx-tools/vx-tool-rust" }
-vx-tool-uv = { version = "0.1.36", path = "crates/vx-tools/vx-tool-uv" }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 

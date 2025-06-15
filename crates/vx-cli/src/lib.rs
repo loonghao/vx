@@ -13,6 +13,32 @@ pub mod ui;
 pub use cli::Cli;
 pub use tracing_setup::setup_tracing;
 
+/// Main entry point for the VX CLI application
+/// This function sets up the plugin registry and runs the CLI
+pub async fn main() -> anyhow::Result<()> {
+    // Setup tracing
+    setup_tracing();
+
+    // Create plugin registry with all available plugins
+    let mut registry = vx_core::PluginRegistry::new();
+
+    // Register Node.js plugin
+    let _ = registry.register(Box::new(vx_tool_node::NodePlugin::new()));
+
+    // Register Go plugin
+    let _ = registry.register(Box::new(vx_tool_go::GoPlugin::new()));
+
+    // Register Rust plugin
+    let _ = registry.register(Box::new(vx_tool_rust::RustPlugin::new()));
+
+    // Register UV plugin
+    let _ = registry.register(Box::new(vx_tool_uv::UvPlugin::new()));
+
+    // Create and run CLI
+    let cli = VxCli::new(registry);
+    cli.run().await
+}
+
 /// Main CLI application structure
 pub struct VxCli {
     registry: PluginRegistry,
