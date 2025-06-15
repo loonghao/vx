@@ -77,6 +77,9 @@ pub enum VxError {
     /// Unsupported operation
     UnsupportedOperation { operation: String, reason: String },
 
+    /// Shim not found
+    ShimNotFound(String),
+
     /// Generic error
     Other { message: String },
 }
@@ -175,6 +178,9 @@ impl fmt::Display for VxError {
             }
             VxError::UnsupportedOperation { operation, reason } => {
                 write!(f, "Unsupported operation '{}': {}", operation, reason)
+            }
+            VxError::ShimNotFound(message) => {
+                write!(f, "Shim not found: {}", message)
             }
             VxError::Other { message } => {
                 write!(f, "{}", message)

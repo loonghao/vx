@@ -28,6 +28,7 @@ chrono = { version = "0.4", features = ["serde"] }
 zip = "4.0"
 tar = "0.4"
 flate2 = "1.0"
+vx-shim = { path = "../vx-shim" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

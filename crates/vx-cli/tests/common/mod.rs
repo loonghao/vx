@@ -3,7 +3,7 @@
 use std::env;
 use std::path::PathBuf;
 use tempfile::TempDir;
-use vx_core::{VenvManager, PluginRegistry};
+use vx_core::{PluginRegistry, VenvManager};
 
 /// Test fixture for CLI tests
 pub struct CliTestFixture {
@@ -16,21 +16,21 @@ impl CliTestFixture {
     pub fn new() -> anyhow::Result<Self> {
         let temp_dir = TempDir::new()?;
         let original_dir = env::current_dir()?;
-        
+
         // Change to temp directory for isolation
         env::set_current_dir(temp_dir.path())?;
-        
+
         Ok(Self {
             temp_dir,
             original_dir,
         })
     }
-    
+
     /// Get the path to the temporary directory
     pub fn path(&self) -> &std::path::Path {
         self.temp_dir.path()
     }
-    
+
     /// Create a file in the test directory
     pub fn create_file(&self, name: &str, content: &str) -> anyhow::Result<()> {
         std::fs::write(self.path().join(name), content)?;
@@ -49,15 +49,15 @@ impl Drop for CliTestFixture {
 pub fn create_test_venv_manager() -> anyhow::Result<(VenvManager, TempDir)> {
     let temp_dir = TempDir::new()?;
     let original_dir = env::current_dir()?;
-    
+
     // Change to temp directory
     env::set_current_dir(temp_dir.path())?;
-    
+
     let manager = VenvManager::new()?;
-    
+
     // Restore directory
     env::set_current_dir(original_dir)?;
-    
+
     Ok((manager, temp_dir))
 }
 

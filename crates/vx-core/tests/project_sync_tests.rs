@@ -1,27 +1,27 @@
 //! Project synchronization tests
 
 use rstest::*;
-use tokio_test;
 use vx_core::FigmentConfigManager;
 
 mod common;
-use common::{TestFixture, sample_configs};
+use common::{sample_configs, TestFixture};
 
 /// Test project sync functionality
 #[rstest]
 #[tokio::test]
 async fn test_project_sync() {
     let fixture = TestFixture::new().expect("Failed to create test fixture");
-    
+
     // Create a .vx.toml with tool versions
-    fixture.create_file(".vx.toml", sample_configs::VALID_VX_CONFIG)
+    fixture
+        .create_file(".vx.toml", sample_configs::VALID_VX_CONFIG)
         .expect("Failed to write config");
 
     let manager = FigmentConfigManager::new().expect("Failed to create config manager");
 
     // Test sync (this will not actually install tools in test environment)
     let result = manager.sync_project(false).await;
-    
+
     // For now, we expect this to work or fail gracefully
     // The actual implementation might need adjustment
     match result {
@@ -41,16 +41,17 @@ async fn test_project_sync() {
 #[tokio::test]
 async fn test_project_sync_force() {
     let fixture = TestFixture::new().expect("Failed to create test fixture");
-    
+
     // Create a .vx.toml with tool versions
-    fixture.create_file(".vx.toml", sample_configs::VALID_VX_CONFIG)
+    fixture
+        .create_file(".vx.toml", sample_configs::VALID_VX_CONFIG)
         .expect("Failed to write config");
 
     let manager = FigmentConfigManager::new().expect("Failed to create config manager");
 
     // Test sync with force flag
     let result = manager.sync_project(true).await;
-    
+
     // Similar to above, we expect this to work or fail gracefully
     match result {
         Ok(installed_tools) => {
@@ -67,13 +68,13 @@ async fn test_project_sync_force() {
 #[tokio::test]
 async fn test_project_sync_no_config() {
     let _fixture = TestFixture::new().expect("Failed to create test fixture");
-    
+
     // No .vx.toml file created
     let manager = FigmentConfigManager::new().expect("Failed to create config manager");
 
     // Test sync without project config
     let result = manager.sync_project(false).await;
-    
+
     // Should handle missing config gracefully
     match result {
         Ok(installed_tools) => {
