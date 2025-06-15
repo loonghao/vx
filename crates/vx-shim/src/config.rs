@@ -1,10 +1,74 @@
 //! Shim configuration parsing and management
 
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+
+/// Custom deserializer for args field that handles both string and array formats
+fn deserialize_args<'de, D>(deserializer: D) -> Result<Option<Vec<String>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::{self, Visitor};
+    use std::fmt;
+
+    struct ArgsVisitor;
+
+    impl<'de> Visitor<'de> for ArgsVisitor {
+        type Value = Option<Vec<String>>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a string or array of strings")
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            deserializer.deserialize_any(ArgsValueVisitor).map(Some)
+        }
+    }
+
+    struct ArgsValueVisitor;
+
+    impl<'de> Visitor<'de> for ArgsValueVisitor {
+        type Value = Vec<String>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a string or array of strings")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            // Parse string as shell arguments
+            shell_words::split(value).map_err(|_| de::Error::custom("invalid shell arguments"))
+        }
+
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: de::SeqAccess<'de>,
+        {
+            let mut vec = Vec::new();
+            while let Some(element) = seq.next_element::<String>()? {
+                vec.push(element);
+            }
+            Ok(vec)
+        }
+    }
+
+    deserializer.deserialize_option(ArgsVisitor)
+}
 
 /// Shim configuration loaded from .shim files
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,7 +77,9 @@ pub struct ShimConfig {
     pub path: String,
 
     /// Optional arguments to prepend to the command
-    pub args: Option<String>,
+    /// Can be either a string (legacy format) or array of strings (TOML format)
+    #[serde(deserialize_with = "deserialize_args", default)]
+    pub args: Option<Vec<String>>,
 
     /// Working directory for the target executable
     pub working_dir: Option<String>,
@@ -65,55 +131,8 @@ impl ShimConfig {
 
     /// Parse shim configuration from string content
     pub fn parse(content: &str) -> Result<Self> {
-        // Try TOML format first
-        if let Ok(config) = toml::from_str::<ShimConfig>(content) {
-            return Ok(config);
-        }
-
-        // Fall back to legacy Scoop format (key = value pairs)
-        Self::parse_legacy_format(content)
-    }
-
-    /// Parse legacy Scoop shim format
-    fn parse_legacy_format(content: &str) -> Result<Self> {
-        let mut path = None;
-        let mut args = None;
-        let mut working_dir = None;
-        let mut env = HashMap::new();
-
-        for line in content.lines() {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-
-            if let Some((key, value)) = parse_key_value(line) {
-                match key.as_str() {
-                    "path" => path = Some(value),
-                    "args" => args = Some(value),
-                    "working_dir" | "workingdir" => working_dir = Some(value),
-                    key if key.starts_with("env.") => {
-                        let env_key = key.strip_prefix("env.").unwrap();
-                        env.insert(env_key.to_string(), value);
-                    }
-                    _ => {
-                        // Ignore unknown keys for compatibility
-                    }
-                }
-            }
-        }
-
-        let path = path.context("Missing required 'path' field in shim configuration")?;
-
-        Ok(ShimConfig {
-            path,
-            args,
-            working_dir,
-            env: if env.is_empty() { None } else { Some(env) },
-            hide_console: None,
-            run_as_admin: None,
-            signal_handling: Some(SignalHandling::default()),
-        })
+        toml::from_str::<ShimConfig>(content)
+            .with_context(|| "Failed to parse shim configuration as TOML")
     }
 
     /// Get the target executable path, resolving any environment variables
@@ -124,7 +143,7 @@ impl ShimConfig {
     /// Get the resolved arguments as a vector
     pub fn resolved_args(&self) -> Vec<String> {
         if let Some(ref args) = self.args {
-            shell_words::split(&expand_env_vars(args)).unwrap_or_else(|_| vec![args.clone()])
+            args.iter().map(|arg| expand_env_vars(arg)).collect()
         } else {
             Vec::new()
         }
@@ -145,27 +164,6 @@ impl ShimConfig {
                     .collect()
             })
             .unwrap_or_default()
-    }
-}
-
-/// Parse a key = value line
-fn parse_key_value(line: &str) -> Option<(String, String)> {
-    if let Some(eq_pos) = line.find('=') {
-        let key = line[..eq_pos].trim().to_string();
-        let value = line[eq_pos + 1..].trim().to_string();
-
-        // Remove quotes if present
-        let value = if (value.starts_with('"') && value.ends_with('"'))
-            || (value.starts_with('\'') && value.ends_with('\''))
-        {
-            value[1..value.len() - 1].to_string()
-        } else {
-            value
-        };
-
-        Some((key, value))
-    } else {
-        None
     }
 }
 
@@ -248,28 +246,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_legacy_format() {
-        let content = r#"
-path = C:\Program Files\Git\git.exe
-args = status -u
-working_dir = C:\workspace
-env.PATH = /usr/local/bin
-"#;
-
-        let config = ShimConfig::parse(content).unwrap();
-        assert_eq!(config.path, r"C:\Program Files\Git\git.exe");
-        assert_eq!(config.args, Some("status -u".to_string()));
-        assert_eq!(config.working_dir, Some(r"C:\workspace".to_string()));
-
-        let env = config.env.unwrap();
-        assert_eq!(env.get("PATH"), Some(&"/usr/local/bin".to_string()));
-    }
-
-    #[test]
     fn test_parse_toml_format() {
         let content = r#"
 path = "/usr/bin/git"
-args = "status -u"
+args = ["status", "-u"]
 
 [signal_handling]
 ignore_sigint = true
@@ -278,7 +258,10 @@ kill_on_exit = true
 
         let config = ShimConfig::parse(content).unwrap();
         assert_eq!(config.path, "/usr/bin/git");
-        assert_eq!(config.args, Some("status -u".to_string()));
+        assert_eq!(
+            config.args,
+            Some(vec!["status".to_string(), "-u".to_string()])
+        );
 
         let signal_handling = config.signal_handling.unwrap();
         assert_eq!(signal_handling.ignore_sigint, Some(true));
@@ -298,25 +281,5 @@ kill_on_exit = true
         assert_eq!(expand_env_vars("${TEST_VAR}/path"), "test_value/path");
 
         std::env::remove_var("TEST_VAR");
-    }
-
-    #[test]
-    fn test_parse_key_value() {
-        assert_eq!(
-            parse_key_value("key = value"),
-            Some(("key".to_string(), "value".to_string()))
-        );
-
-        assert_eq!(
-            parse_key_value("key=\"quoted value\""),
-            Some(("key".to_string(), "quoted value".to_string()))
-        );
-
-        assert_eq!(
-            parse_key_value("key='single quoted'"),
-            Some(("key".to_string(), "single quoted".to_string()))
-        );
-
-        assert_eq!(parse_key_value("invalid line"), None);
     }
 }

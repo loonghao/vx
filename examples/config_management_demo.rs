@@ -9,8 +9,6 @@
 //! cargo run --example config_management_demo
 //! ```
 
-use std::collections::HashMap;
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔧 VX 配置管理功能演示");
     println!("{}", "=".repeat(50));
@@ -123,11 +121,11 @@ fn simulate_project_init() -> Result<(), Box<dyn std::error::Error>> {
     println!("# VX Project Configuration");
     println!("# This file defines the tools and versions required for this project.");
     println!("# Run 'vx sync' to install all required tools.");
-    println!("");
+    println!();
     println!("[tools]");
     println!("node = \"18.17.0\"    # 从 package.json engines 检测");
     println!("python = \"3.11.5\"  # 从 pyproject.toml 检测");
-    println!("");
+    println!();
     println!("[settings]");
     println!("auto_install = true");
     println!("cache_duration = \"7d\"");
@@ -195,7 +193,7 @@ fn simulate_config_commands() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Layers: builtin, user, project, environment");
     println!("  Tools: 2 configured");
     println!("  Auto-install: enabled");
-    println!("");
+    println!();
     println!("Active Tools:");
     println!("  node: 18.17.0 (from project)");
     println!("  python: 3.11.5 (from project)");
