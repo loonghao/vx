@@ -27,7 +27,7 @@ rust-version.workspace = true
 # Main binary
 [[bin]]
 name = "vx"
-path = "crates/vx-cli/src/main.rs"
+path = "src/main.rs"
 
 [dependencies]
 vx-cli = { version = "0.1.36", path = "crates/vx-cli" }

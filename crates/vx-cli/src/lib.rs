@@ -101,11 +101,6 @@ impl VxCli {
             )
             .await
             .map_err(Into::into),
-            Commands::Use { tool_version } => {
-                commands::use_cmd::handle(&self.registry, &tool_version)
-                    .await
-                    .map_err(Into::into)
-            }
             Commands::Switch {
                 tool_version,
                 global,

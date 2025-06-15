@@ -97,11 +97,6 @@ pub enum Commands {
         interactive: bool,
     },
 
-    /// Set default version for a tool (deprecated, use switch)
-    Use {
-        /// Tool and version (e.g., uv@1.0.0, node@18.0.0)
-        tool_version: String,
-    },
 
     /// Switch to a different version of a tool
     Switch {
