@@ -39,6 +39,7 @@ pub struct VenvDependency {
 #[derive(Debug)]
 pub struct GlobalToolManager {
     /// VX environment for path management
+    #[allow(dead_code)]
     env: VxEnvironment,
     /// Path to global tools registry file
     registry_path: PathBuf,
