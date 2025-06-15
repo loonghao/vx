@@ -4,10 +4,14 @@
 [workspace]
 # Allow dirty working directories for development
 allow_dirty = true
-# Only release when there are actual changes
-release_always = false
+# Generate releases based on conventional commits, not registry state
+release_always = true
 # Disable automatic publishing to crates.io (use post-release workflow)
 publish = false
+# Process packages based on git changes only
+git_release_enable = true
+# Skip dependency checks that require registry access
+dependencies_update = false
 
 # Simple changelog configuration
 [changelog]
@@ -52,6 +56,8 @@ git_release_name = "v{{version}}"
 git_release_draft = false
 # Disable automatic publishing (use post-release workflow)
 publish = false
+# Generate releases based on git history, not registry state
+git_release_type = "auto"
 # Custom release body template
 git_release_body = """
 ## What's Changed
