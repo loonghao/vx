@@ -1,7 +1,9 @@
 // CLI module - modular command structure
 // Each command is implemented in its own module for better maintainability
 
-use crate::commands::venv_cmd::VenvCommand;
+use crate::commands::{
+    global::GlobalCommand, symlink_venv::SymlinkVenvCommand, venv_cmd::VenvCommand,
+};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -128,6 +130,18 @@ pub enum Commands {
     Venv {
         #[command(subcommand)]
         command: VenvCommand,
+    },
+
+    /// Global tool management
+    Global {
+        #[command(subcommand)]
+        command: GlobalCommand,
+    },
+
+    /// Symlink virtual environment management
+    SymlinkVenv {
+        #[command(subcommand)]
+        command: SymlinkVenvCommand,
     },
 }
 
