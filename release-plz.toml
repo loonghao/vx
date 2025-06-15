@@ -4,14 +4,10 @@
 [workspace]
 # Allow dirty working directories for development
 allow_dirty = true
-# Release on every commit to main branch to handle version mismatches
-release_always = true
-# Enable automatic publishing to crates.io
-publish = true
-# Set timeout for publishing operations
-publish_timeout = "10m"
-# Allow publishing dirty directories for version mismatch scenarios
-publish_allow_dirty = true
+# Only release when there are actual changes
+release_always = false
+# Disable automatic publishing to crates.io (use post-release workflow)
+publish = false
 
 # Simple changelog configuration
 [changelog]
@@ -54,8 +50,8 @@ git_release_enable = true
 git_release_name = "v{{version}}"
 # Enable release draft mode for review
 git_release_draft = false
-# Enable automatic publishing to crates.io
-publish = true
+# Disable automatic publishing (use post-release workflow)
+publish = false
 # Custom release body template
 git_release_body = """
 ## What's Changed
@@ -81,48 +77,5 @@ cargo install vx
 ```
 """
 
-# Workspace member packages configuration
-# All packages are processed for version management and changelog generation
-# Enable publishing for all packages
-
-[[package]]
-name = "vx-core"
-# Enable processing for version management
-release = true
-# Enable automatic publishing
-publish = true
-
-[[package]]
-name = "vx-cli"
-release = true
-publish = true
-
-[[package]]
-name = "vx-shim"
-release = true
-publish = true
-
-[[package]]
-name = "vx-tool-node"
-release = true
-publish = true
-
-[[package]]
-name = "vx-tool-go"
-release = true
-publish = true
-
-[[package]]
-name = "vx-tool-rust"
-release = true
-publish = true
-
-[[package]]
-name = "vx-tool-uv"
-release = true
-publish = true
-
-[[package]]
-name = "vx-pm-npm"
-release = true
-publish = true
+# Workspace member packages are handled by the smart publishing script
+# Only the main package is managed by release-plz for GitHub releases
