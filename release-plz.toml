@@ -4,12 +4,14 @@
 [workspace]
 # Allow dirty working directories for development
 allow_dirty = true
-# Only release when merging release PR, not on every commit
-release_always = false
+# Release on every commit to main branch to handle version mismatches
+release_always = true
 # Enable automatic publishing to crates.io
 publish = true
 # Set timeout for publishing operations
 publish_timeout = "10m"
+# Allow publishing dirty directories for version mismatch scenarios
+publish_allow_dirty = true
 
 # Simple changelog configuration
 [changelog]
