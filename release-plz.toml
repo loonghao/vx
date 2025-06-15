@@ -4,8 +4,8 @@
 [workspace]
 # Allow dirty working directories for development
 allow_dirty = true
-# Generate releases based on conventional commits, not registry state
-release_always = false
+# Always try to create releases when there are changes (this enables PR creation)
+release_always = true
 # Disable automatic publishing to crates.io (use post-release workflow)
 publish = false
 # Process packages based on git changes only
