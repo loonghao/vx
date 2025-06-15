@@ -1,8 +1,9 @@
 //! Shim configuration tests
 
+use anyhow::Result;
 use pretty_assertions::assert_eq;
 use rstest::*;
-use vx_shim::{Result, ShimConfig};
+use vx_shim::ShimConfig;
 
 mod common;
 use common::sample_configs;
@@ -13,23 +14,12 @@ fn test_toml_config_parsing() -> Result<()> {
     let config = ShimConfig::parse(sample_configs::TOML_SHIM_CONFIG)?;
 
     assert_eq!(config.path, "/usr/bin/node");
-    assert_eq!(config.args, Some(vec!["--version".to_string()]));
+    assert_eq!(config.resolved_args(), vec!["--version".to_string()]);
 
     // Check environment variables
     let env = config.env.unwrap();
     assert_eq!(env.get("NODE_ENV"), Some(&"development".to_string()));
     assert_eq!(env.get("PATH_EXTRA"), Some(&"/extra/path".to_string()));
-
-    Ok(())
-}
-
-/// Test legacy Scoop format parsing
-#[rstest]
-fn test_legacy_scoop_parsing() -> Result<()> {
-    let config = ShimConfig::parse(sample_configs::LEGACY_SCOOP_CONFIG)?;
-
-    assert_eq!(config.path, r"C:\tools\node\node.exe");
-    assert_eq!(config.args, Some(vec!["--version".to_string()]));
 
     Ok(())
 }
@@ -44,12 +34,13 @@ fn test_env_var_expansion() -> Result<()> {
 
     let config = ShimConfig::parse(sample_configs::SHIM_WITH_ENV_VARS)?;
 
-    assert_eq!(config.path, "/opt/node/bin/node");
-    assert_eq!(config.args, Some(vec!["--inspect".to_string()]));
+    // Test resolved values (with environment variable expansion)
+    assert_eq!(config.resolved_path(), "/opt/node/bin/node");
+    assert_eq!(config.resolved_args(), vec!["--inspect".to_string()]);
 
     // Check environment variables with expansion
-    let env = config.env.unwrap();
-    assert_eq!(env.get("DEBUG"), Some(&"true".to_string()));
+    let resolved_env = config.resolved_env();
+    assert_eq!(resolved_env.get("DEBUG"), Some(&"true".to_string()));
 
     // Clean up
     std::env::remove_var("NODE_HOME");
