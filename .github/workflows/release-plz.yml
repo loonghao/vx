@@ -1,8 +1,8 @@
 name: Release PLZ
 
 # Automated release workflow using release-plz
-# Only creates release PRs - no building or publishing
-# Building and publishing is handled by release.yml
+# Handles both release PR creation and direct publishing
+# Falls back to force-publish workflow if release-plz fails
 
 permissions:
   contents: write
@@ -21,6 +21,8 @@ jobs:
   release-plz:
     name: Release PLZ
     runs-on: ubuntu-latest
+    outputs:
+      release_failed: ${{ steps.set-output.outputs.release_failed }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,16 +47,58 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Create release PR
+        id: release-pr
         uses: MarcoIeni/release-plz-action@v0.5
         with:
           command: release-pr
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
 
       - name: Create release
+        id: release
         uses: MarcoIeni/release-plz-action@v0.5
         with:
           command: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        continue-on-error: true
+
+      - name: Check release-plz results
+        run: |
+          echo "Release PR step result: ${{ steps.release-pr.outcome }}"
+          echo "Release step result: ${{ steps.release.outcome }}"
+
+          if [ "${{ steps.release.outcome }}" = "failure" ]; then
+            echo "❌ release-plz failed, will trigger fallback publishing"
+            echo "RELEASE_PLZ_FAILED=true" >> $GITHUB_ENV
+          else
+            echo "✅ release-plz completed successfully"
+            echo "RELEASE_PLZ_FAILED=false" >> $GITHUB_ENV
+          fi
+
+      - name: Set output for fallback
+        id: set-output
+        run: |
+          echo "release_failed=${{ env.RELEASE_PLZ_FAILED }}" >> $GITHUB_OUTPUT
+
+      - name: Final status
+        run: |
+          if [ "${{ env.RELEASE_PLZ_FAILED }}" = "true" ]; then
+            echo "⚠️ release-plz failed, will trigger fallback publishing"
+          else
+            echo "🎉 Release completed successfully via release-plz"
+          fi
+
+  # Fallback publishing job that runs if release-plz fails
+  fallback-publish:
+    needs: release-plz
+    if: needs.release-plz.outputs.release_failed == 'true'
+    uses: ./.github/workflows/force-publish.yml
+    with:
+      packages: 'all'
+      force: true
+      dry_run: false
+    secrets:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
