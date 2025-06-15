@@ -46,6 +46,11 @@ libc = "0.2"
 [dev-dependencies]
 tempfile = "3.0"
 assert_cmd = "2.0"
+rstest = { workspace = true }
+tokio-test = { workspace = true }
+test-case = { workspace = true }
+pretty_assertions = { workspace = true }
+anyhow = { workspace = true }
 
 [features]
 default = []

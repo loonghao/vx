@@ -31,8 +31,7 @@
 
 pub mod config;
 pub mod config_figment;
-#[cfg(test)]
-mod config_figment_tests;
+// Tests moved to tests/ directory
 pub mod error;
 pub mod global_tool_manager;
 pub mod install_configs;
