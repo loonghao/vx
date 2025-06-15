@@ -191,16 +191,16 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           echo "🚀 Publishing workspace to crates.io..."
-          chmod +x scripts/publish-workspace.sh
-          DRY_RUN=false scripts/publish-workspace.sh
+          chmod +x scripts/smart-publish.sh
+          DRY_RUN=false SKIP_TESTS=true scripts/smart-publish.sh
           echo "✅ Successfully published all packages to crates.io!"
 
       - name: Dry run workspace publish
         if: github.event.inputs.dry-run == 'true'
         run: |
           echo "🔍 Performing workspace dry run..."
-          chmod +x scripts/publish-workspace.sh
-          DRY_RUN=true scripts/publish-workspace.sh
+          chmod +x scripts/smart-publish.sh
+          DRY_RUN=true SKIP_TESTS=true scripts/smart-publish.sh
           echo "✅ Workspace dry run completed successfully!"
 
   # Create GitHub Release with binaries

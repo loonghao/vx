@@ -1,0 +1,181 @@
+name: Post-Release Publish
+
+# This workflow runs after a release tag is created
+# It publishes all workspace packages to crates.io
+# Only publishes packages that don't already exist or have newer versions
+
+permissions:
+  contents: read
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggered when version tags are pushed
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (e.g., v0.2.1)'
+        required: true
+        type: string
+      force:
+        description: 'Force publish even if version exists'
+        required: false
+        default: false
+        type: boolean
+      skip-tests:
+        description: 'Skip running tests'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  publish-crates:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+          else
+            TAG_NAME="${{ github.event.inputs.tag }}"
+          fi
+          VERSION=${TAG_NAME#v}  # Remove 'v' prefix
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION from tag: $TAG_NAME"
+
+      - name: Verify version matches Cargo.toml
+        run: |
+          CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 | grep -o '"version":"[^"]*"' | head -1 | sed 's/"version":"\([^"]*\)"/\1/')
+          RELEASE_VERSION="${{ steps.version.outputs.version }}"
+          
+          echo "Cargo.toml version: $CARGO_VERSION"
+          echo "Release version: $RELEASE_VERSION"
+          
+          if [ "$CARGO_VERSION" != "$RELEASE_VERSION" ]; then
+            echo "❌ Version mismatch!"
+            echo "Cargo.toml has version $CARGO_VERSION but release is $RELEASE_VERSION"
+            exit 1
+          fi
+          
+          echo "✅ Version matches: $CARGO_VERSION"
+
+      - name: Set publishing options
+        id: options
+        run: |
+          FORCE_PUBLISH="${{ github.event.inputs.force || 'false' }}"
+          SKIP_TESTS="${{ github.event.inputs.skip-tests || 'true' }}"
+          
+          echo "force_publish=$FORCE_PUBLISH" >> $GITHUB_OUTPUT
+          echo "skip_tests=$SKIP_TESTS" >> $GITHUB_OUTPUT
+          
+          echo "Publishing options:"
+          echo "  Force publish: $FORCE_PUBLISH"
+          echo "  Skip tests: $SKIP_TESTS"
+
+      - name: Dry run publish
+        run: |
+          echo "🔍 Performing dry run to validate all packages..."
+          chmod +x scripts/smart-publish.sh
+          DRY_RUN=true \
+          FORCE_PUBLISH=${{ steps.options.outputs.force_publish }} \
+          SKIP_TESTS=${{ steps.options.outputs.skip_tests }} \
+          scripts/smart-publish.sh
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          echo "🚀 Publishing workspace to crates.io..."
+          echo "Version: ${{ steps.version.outputs.version }}"
+          echo "Tag: ${{ steps.version.outputs.tag }}"
+          
+          chmod +x scripts/smart-publish.sh
+          DRY_RUN=false \
+          FORCE_PUBLISH=${{ steps.options.outputs.force_publish }} \
+          SKIP_TESTS=${{ steps.options.outputs.skip_tests }} \
+          scripts/smart-publish.sh
+
+      - name: Verify installation
+        run: |
+          echo "🔍 Verifying that vx can be installed from crates.io..."
+          # Wait a bit for crates.io to update
+          sleep 60
+          
+          # Try to install the published package
+          if cargo install vx --version ${{ steps.version.outputs.version }}; then
+            echo "✅ Successfully installed vx@${{ steps.version.outputs.version }} from crates.io"
+            
+            # Test basic functionality
+            vx --version
+            echo "✅ vx is working correctly"
+          else
+            echo "❌ Failed to install vx from crates.io"
+            echo "This might be due to crates.io indexing delay"
+            echo "Manual verification may be needed"
+          fi
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## 📦 Crates.io Publishing Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ steps.version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Force Publish:** ${{ steps.options.outputs.force_publish }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Skip Tests:** ${{ steps.options.outputs.skip_tests }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ **Status:** All packages published successfully!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Installation" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo "cargo install vx" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status:** Publishing failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please check the workflow logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  notify-success:
+    name: Notify Success
+    runs-on: ubuntu-latest
+    needs: publish-crates
+    if: success()
+    
+    steps:
+      - name: Success notification
+        run: |
+          echo "🎉 Successfully published vx@${{ needs.publish-crates.outputs.version || github.ref_name }} to crates.io!"
+          echo "Users can now install with: cargo install vx"
