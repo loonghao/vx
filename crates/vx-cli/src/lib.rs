@@ -153,6 +153,12 @@ impl VxCli {
             Commands::Venv { command } => commands::venv_cmd::handle(command)
                 .await
                 .map_err(Into::into),
+            Commands::Global { command } => {
+                commands::global::handle(command).await.map_err(Into::into)
+            }
+            Commands::SymlinkVenv { command } => commands::symlink_venv::handle(command)
+                .await
+                .map_err(Into::into),
         }
     }
 

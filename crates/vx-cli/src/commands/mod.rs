@@ -7,12 +7,14 @@ use vx_core::PluginRegistry;
 pub mod config;
 pub mod execute;
 pub mod fetch;
+pub mod global;
 pub mod install;
 pub mod list;
 pub mod plugin;
 pub mod remove;
 pub mod stats;
 pub mod switch;
+pub mod symlink_venv;
 pub mod update;
 pub mod venv_cmd;
 pub mod version;
@@ -95,6 +97,12 @@ impl CommandHandler {
             }
 
             Some(Commands::Venv { command }) => venv_cmd::handle(command).await.map_err(Into::into),
+
+            Some(Commands::Global { command }) => global::handle(command).await.map_err(Into::into),
+
+            Some(Commands::SymlinkVenv { command }) => {
+                symlink_venv::handle(command).await.map_err(Into::into)
+            }
 
             None => {
                 // Handle tool execution
