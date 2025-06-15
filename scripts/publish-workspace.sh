@@ -52,22 +52,24 @@ check_published() {
     fi
 }
 
-# Function to get package name and version
+# Function to get package name and version (without jq dependency)
 get_package_info() {
     local package_dir=$1
-    
+
     if [ "$package_dir" = "." ]; then
         package_dir=""
     fi
-    
+
     local cargo_toml="$package_dir/Cargo.toml"
     if [ ! -f "$cargo_toml" ]; then
         cargo_toml="Cargo.toml"
     fi
-    
-    local name=$(cargo metadata --no-deps --format-version 1 --manifest-path "$cargo_toml" | jq -r '.packages[0].name')
-    local version=$(cargo metadata --no-deps --format-version 1 --manifest-path "$cargo_toml" | jq -r '.packages[0].version')
-    
+
+    # Use cargo metadata with grep/sed instead of jq
+    local metadata=$(cargo metadata --no-deps --format-version 1 --manifest-path "$cargo_toml")
+    local name=$(echo "$metadata" | grep -o '"name":"[^"]*"' | head -1 | sed 's/"name":"\([^"]*\)"/\1/')
+    local version=$(echo "$metadata" | grep -o '"version":"[^"]*"' | head -1 | sed 's/"version":"\([^"]*\)"/\1/')
+
     echo "$name:$version"
 }
 
