@@ -97,7 +97,6 @@ pub enum Commands {
         interactive: bool,
     },
 
-
     /// Switch to a different version of a tool
     Switch {
         /// Tool and version (e.g., go@1.21.6, node@18.0.0)
