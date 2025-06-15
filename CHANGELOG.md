@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [0.2.0](https://github.com/loonghao/vx/compare/v0.1.36...v0.2.0) - 2025-06-15
+
+### Bug Fixes
+
+- *(deps)* update rust crate zip to v4.1.0
+- add missing dev-dependencies for integration tests
+- remove deprecated use command and fix binary installation
+- resolve venv test failures and improve workspace publishing script
+- resolve release-plz workspace dependency issues
+- configure release-plz to handle workspace packages correctly
+- resolve release-plz configuration and package manager issues
+
+### Features
+
+- add Windows-compatible publishing scripts and environment testing
+- unify all workspace versions to 0.1.36
+- add version numbers to workspace dependencies and automated publishing
+- implement separate crates.io publishing workflow
+
+### Refactor
+
+- simplify main package by reusing vx-cli main function
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
