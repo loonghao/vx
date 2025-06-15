@@ -33,34 +33,28 @@ try {
         $Version = $LatestRelease.tag_name
     }
 
-    # Construct download URL
-    $FileName = "vx_${Platform}_${Arch}.zip"
-    $DownloadUrl = "https://github.com/$Owner/$Repo/releases/download/$Version/$FileName"
-    
-    Write-Host "Downloading vx $Version for $Platform $Arch..." -ForegroundColor Yellow
-    
-    # Download the archive
-    $TempFile = [System.IO.Path]::GetTempFileName() + ".zip"
-    Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempFile
-    
-    # Extract the archive
-    $TempDir = [System.IO.Path]::GetTempPath() + [System.Guid]::NewGuid().ToString()
-    Expand-Archive -Path $TempFile -DestinationPath $TempDir -Force
-    
-    # Move the binary to the installation directory
-    $BinaryPath = Join-Path $TempDir "vx.exe"
-    $DestPath = Join-Path $InstallDir "vx.exe"
-    
-    if (Test-Path $BinaryPath) {
-        Move-Item $BinaryPath $DestPath -Force
-        Write-Host "vx installed successfully to $DestPath" -ForegroundColor Green
-    } else {
-        throw "Binary not found in the downloaded archive"
+    # Construct download URL based on platform
+    if ($Platform -eq "Windows") {
+        $FileName = "vx-windows-amd64.exe"
+        $DownloadUrl = "https://github.com/$Owner/$Repo/releases/download/$Version/$FileName"
+    }
+    else {
+        throw "Unsupported platform: $Platform"
     }
     
-    # Clean up
-    Remove-Item $TempFile -Force
-    Remove-Item $TempDir -Recurse -Force
+    Write-Host "Downloading vx $Version for $Platform $Arch..." -ForegroundColor Yellow
+
+    # Download the binary directly
+    $DestPath = Join-Path $InstallDir "vx.exe"
+    Invoke-WebRequest -Uri $DownloadUrl -OutFile $DestPath
+
+    # Verify the download
+    if (Test-Path $DestPath) {
+        Write-Host "vx installed successfully to $DestPath" -ForegroundColor Green
+    }
+    else {
+        throw "Failed to download binary"
+    }
     
     # Add to PATH if not already there
     $CurrentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
@@ -73,7 +67,8 @@ try {
     Write-Host ""
     Write-Host "Installation complete! Run 'vx --version' to verify." -ForegroundColor Green
     
-} catch {
+}
+catch {
     Write-Error "Installation failed: $_"
     exit 1
 }
