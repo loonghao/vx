@@ -2194,6 +2194,11 @@ dependencies = [
  "tempfile",
  "tokio",
  "vx-cli",
+ "vx-core",
+ "vx-tool-go",
+ "vx-tool-node",
+ "vx-tool-rust",
+ "vx-tool-uv",
 ]
 
 [[package]]
