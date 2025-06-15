@@ -1,0 +1,84 @@
+name: Force Publish
+
+# Manual workflow to force publish packages to crates.io
+# Use this when there are version mismatches or other publishing issues
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Packages to publish (comma-separated, or "all" for all packages)'
+        required: true
+        default: 'all'
+        type: string
+      force:
+        description: 'Force publish even if already published'
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: 'Dry run mode (no actual publishing)'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  force-publish:
+    name: Force Publish to crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Display input parameters
+        run: |
+          echo "🔧 Force Publish Parameters:"
+          echo "  Packages: ${{ github.event.inputs.packages }}"
+          echo "  Force: ${{ github.event.inputs.force }}"
+          echo "  Dry Run: ${{ github.event.inputs.dry_run }}"
+          echo ""
+
+      - name: Force publish packages
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          PACKAGES: ${{ github.event.inputs.packages }}
+          FORCE: ${{ github.event.inputs.force }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          chmod +x scripts/force-publish.sh
+          ./scripts/force-publish.sh
+
+      - name: Summary
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "✅ Dry run completed successfully!"
+            echo "💡 To actually publish, re-run with dry_run=false"
+          else
+            echo "🎉 Force publish completed!"
+            echo "📦 Check crates.io for published packages"
+          fi

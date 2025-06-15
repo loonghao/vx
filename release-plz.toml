@@ -6,8 +6,10 @@
 allow_dirty = true
 # Only release when merging release PR, not on every commit
 release_always = false
-# Disable automatic publishing - we'll handle this manually
-publish = false
+# Enable automatic publishing to crates.io
+publish = true
+# Set timeout for publishing operations
+publish_timeout = "10m"
 
 # Simple changelog configuration
 [changelog]
@@ -50,9 +52,8 @@ git_release_enable = true
 git_release_name = "v{{version}}"
 # Enable release draft mode for review
 git_release_draft = false
-# Disable automatic publishing to crates.io for now
-# We'll handle crates.io publishing manually or via separate workflow
-publish = false
+# Enable automatic publishing to crates.io
+publish = true
 # Custom release body template
 git_release_body = """
 ## What's Changed
@@ -80,41 +81,46 @@ cargo install vx
 
 # Workspace member packages configuration
 # All packages are processed for version management and changelog generation
-# But publishing is disabled - handled by separate workflow
+# Enable publishing for all packages
 
 [[package]]
 name = "vx-core"
 # Enable processing for version management
 release = true
-# Disable automatic publishing
-publish = false
+# Enable automatic publishing
+publish = true
 
 [[package]]
 name = "vx-cli"
 release = true
-publish = false
+publish = true
+
+[[package]]
+name = "vx-shim"
+release = true
+publish = true
 
 [[package]]
 name = "vx-tool-node"
 release = true
-publish = false
+publish = true
 
 [[package]]
 name = "vx-tool-go"
 release = true
-publish = false
+publish = true
 
 [[package]]
 name = "vx-tool-rust"
 release = true
-publish = false
+publish = true
 
 [[package]]
 name = "vx-tool-uv"
 release = true
-publish = false
+publish = true
 
 [[package]]
 name = "vx-pm-npm"
 release = true
-publish = false
+publish = true
