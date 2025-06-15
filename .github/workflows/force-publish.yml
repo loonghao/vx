@@ -1,7 +1,7 @@
-name: Force Publish
+name: Fallback Publish
 
-# Manual workflow to force publish packages to crates.io
-# Use this when there are version mismatches or other publishing issues
+# Fallback workflow to publish packages to crates.io
+# Used when release-plz fails or for manual publishing
 
 permissions:
   contents: write

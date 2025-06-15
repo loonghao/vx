@@ -46,8 +46,50 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: Check for conventional commits
+        id: check-commits
+        run: |
+          # Get commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous tags found, will create initial release"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version_bump=minor" >> $GITHUB_OUTPUT
+          else
+            # Check commits since last tag
+            COMMITS=$(git log ${LAST_TAG}..HEAD --oneline)
+
+            if [ -z "$COMMITS" ]; then
+              echo "No new commits since last tag"
+              echo "should_release=false" >> $GITHUB_OUTPUT
+            else
+              echo "Found new commits, checking for conventional commit patterns..."
+              echo "$COMMITS"
+
+              # Determine if we should release based on commit messages
+              if echo "$COMMITS" | grep -qE "^[a-f0-9]+ (feat|fix|docs|style|refactor|perf|test|chore|build|ci)"; then
+                echo "Found conventional commits, will create release"
+                echo "should_release=true" >> $GITHUB_OUTPUT
+
+                # Determine version bump
+                if echo "$COMMITS" | grep -q "BREAKING CHANGE\|!:"; then
+                  echo "version_bump=major" >> $GITHUB_OUTPUT
+                elif echo "$COMMITS" | grep -qE "^[a-f0-9]+ (feat|feature)"; then
+                  echo "version_bump=minor" >> $GITHUB_OUTPUT
+                else
+                  echo "version_bump=patch" >> $GITHUB_OUTPUT
+                fi
+              else
+                echo "No conventional commits found, skipping release"
+                echo "should_release=false" >> $GITHUB_OUTPUT
+              fi
+            fi
+          fi
+
       - name: Create release PR
         id: release-pr
+        if: steps.check-commits.outputs.should_release == 'true'
         uses: MarcoIeni/release-plz-action@v0.5
         with:
           command: release-pr
@@ -57,6 +99,7 @@ jobs:
 
       - name: Create release
         id: release
+        if: steps.check-commits.outputs.should_release == 'true'
         uses: MarcoIeni/release-plz-action@v0.5
         with:
           command: release
@@ -67,15 +110,22 @@ jobs:
 
       - name: Check release-plz results
         run: |
-          echo "Release PR step result: ${{ steps.release-pr.outcome }}"
-          echo "Release step result: ${{ steps.release.outcome }}"
+          SHOULD_RELEASE="${{ steps.check-commits.outputs.should_release }}"
 
-          if [ "${{ steps.release.outcome }}" = "failure" ]; then
-            echo "❌ release-plz failed, will trigger fallback publishing"
-            echo "RELEASE_PLZ_FAILED=true" >> $GITHUB_ENV
-          else
-            echo "✅ release-plz completed successfully"
+          if [ "$SHOULD_RELEASE" = "false" ]; then
+            echo "ℹ️ No release needed - no conventional commits found"
             echo "RELEASE_PLZ_FAILED=false" >> $GITHUB_ENV
+          else
+            echo "Release PR step result: ${{ steps.release-pr.outcome }}"
+            echo "Release step result: ${{ steps.release.outcome }}"
+
+            if [ "${{ steps.release.outcome }}" = "failure" ]; then
+              echo "❌ release-plz failed, will trigger fallback publishing"
+              echo "RELEASE_PLZ_FAILED=true" >> $GITHUB_ENV
+            else
+              echo "✅ release-plz completed successfully"
+              echo "RELEASE_PLZ_FAILED=false" >> $GITHUB_ENV
+            fi
           fi
 
       - name: Set output for fallback
