@@ -25,6 +25,26 @@ on:
         required: false
         default: true
         type: boolean
+  workflow_call:
+    inputs:
+      packages:
+        description: 'Packages to publish (comma-separated, or "all" for all packages)'
+        required: false
+        default: 'all'
+        type: string
+      force:
+        description: 'Force publish even if already published'
+        required: false
+        default: true
+        type: boolean
+      dry_run:
+        description: 'Dry run mode (no actual publishing)'
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      CARGO_REGISTRY_TOKEN:
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -58,27 +78,32 @@ jobs:
       - name: Display input parameters
         run: |
           echo "🔧 Force Publish Parameters:"
-          echo "  Packages: ${{ github.event.inputs.packages }}"
-          echo "  Force: ${{ github.event.inputs.force }}"
-          echo "  Dry Run: ${{ github.event.inputs.dry_run }}"
+          echo "  Packages: ${{ inputs.packages || github.event.inputs.packages }}"
+          echo "  Force: ${{ inputs.force || github.event.inputs.force }}"
+          echo "  Dry Run: ${{ inputs.dry_run || github.event.inputs.dry_run }}"
+          echo "  Trigger: ${{ github.event_name }}"
           echo ""
 
       - name: Force publish packages
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          PACKAGES: ${{ github.event.inputs.packages }}
-          FORCE: ${{ github.event.inputs.force }}
-          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          PACKAGES: ${{ inputs.packages || github.event.inputs.packages }}
+          FORCE: ${{ inputs.force || github.event.inputs.force }}
+          DRY_RUN: ${{ inputs.dry_run || github.event.inputs.dry_run }}
         run: |
           chmod +x scripts/force-publish.sh
           ./scripts/force-publish.sh
 
       - name: Summary
         run: |
-          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+          DRY_RUN="${{ inputs.dry_run || github.event.inputs.dry_run }}"
+          if [ "$DRY_RUN" = "true" ]; then
             echo "✅ Dry run completed successfully!"
             echo "💡 To actually publish, re-run with dry_run=false"
           else
             echo "🎉 Force publish completed!"
             echo "📦 Check crates.io for published packages"
+            if [ "${{ github.event_name }}" = "workflow_call" ]; then
+              echo "🔄 This was triggered automatically due to release-plz failure"
+            fi
           fi
