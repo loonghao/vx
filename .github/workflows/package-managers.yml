@@ -1,14 +1,14 @@
 name: Package Managers
 
-# Publish to various package managers after a successful release
-# Triggered only when a release is published (not draft)
+# Publish to various package managers using pre-built artifacts
+# Downloads binaries from GitHub Release (built by release.yml)
+# No building - only packaging and distribution
 
 on:
   workflow_run:
     workflows: ["Release"]
     types:
       - completed
-    # Remove branches filter for tag-triggered workflows
   workflow_dispatch:
     inputs:
       version:
@@ -130,9 +130,10 @@ jobs:
 
       - name: Download Windows binary from release
         run: |
+          # Download pre-built binary from GitHub Release (built by release.yml)
           $version = "${{ needs.check-release.outputs.version }}"
           $downloadUrl = "https://github.com/loonghao/vx/releases/download/$version/vx-windows-amd64.zip"
-          Write-Host "Downloading from: $downloadUrl"
+          Write-Host "Downloading pre-built binary from: $downloadUrl"
 
           try {
             # Download the zip file

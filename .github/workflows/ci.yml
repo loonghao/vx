@@ -1,10 +1,14 @@
 name: CI
 
+# Continuous Integration for PR validation and main branch verification
+# Only performs code quality checks, tests, and build verification
+# No artifacts are uploaded - release.yml handles actual building
+
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  push:
+    branches: [main]  # Quick verification on main
 
 env:
   CARGO_TERM_COLOR: always
@@ -83,34 +87,24 @@ jobs:
           SCCACHE_GHA_ENABLED: "true"
           RUSTC_WRAPPER: "sccache"
 
-  # Build for multiple platforms to ensure compatibility
-  build:
-    name: Build
+  # Build verification for key platforms only (not all targets)
+  # This ensures the code compiles but doesn't upload artifacts
+  build-check:
+    name: Build Check
     strategy:
       matrix:
         include:
-          # Linux
+          # Core platforms for verification
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-          - target: x86_64-unknown-linux-musl
-            os: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-          # macOS
           - target: x86_64-apple-darwin
             os: macos-latest
-          - target: aarch64-apple-darwin
-            os: macos-latest
-          # Windows
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-          # FreeBSD - temporarily disabled due to missing system libraries
-          # - target: x86_64-unknown-freebsd
-          #   os: ubuntu-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -118,16 +112,7 @@ jobs:
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
-      
-      - name: Install cross-compilation tools (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          if [[ "${{ matrix.target }}" == *"musl"* ]]; then
-            sudo apt-get install -y musl-tools
-          fi
-      
+
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
@@ -136,25 +121,14 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      
-      - name: Build
-        run: |
-          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
-            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
-          fi
-          cargo build --release --target ${{ matrix.target }}
-        shell: bash
+
+      - name: Build verification
+        run: cargo build --release --target ${{ matrix.target }}
         env:
           SCCACHE_GHA_ENABLED: "true"
           RUSTC_WRAPPER: "sccache"
-      
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: vx-${{ matrix.target }}
-          path: |
-            target/${{ matrix.target }}/release/vx*
-          retention-days: 1
+
+      # No artifact upload - this is just verification
 
   # Security audit
   security:
