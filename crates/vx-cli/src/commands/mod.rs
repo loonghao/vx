@@ -20,8 +20,7 @@ pub mod venv_cmd;
 pub mod version;
 pub mod where_cmd;
 
-#[cfg(test)]
-pub mod tests;
+// Tests moved to tests/ directory
 
 pub struct CommandHandler;
 

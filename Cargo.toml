@@ -112,6 +112,15 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-indicatif = "0.3"
 
+# Testing frameworks and utilities
+rstest = "0.18"
+tokio-test = "0.4"
+test-case = "3.3"
+pretty_assertions = "1.4"
+mockall = "0.12"
+wiremock = "0.5"
+serial_test = "3.0"
+
 
 # Optimize compilation times
 [profile.dev]

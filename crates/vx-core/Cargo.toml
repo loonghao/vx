@@ -32,3 +32,9 @@ flate2 = "1.0"
 [dev-dependencies]
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
+rstest = { workspace = true }
+tokio-test = { workspace = true }
+test-case = { workspace = true }
+pretty_assertions = { workspace = true }
+anyhow = { workspace = true }
+serial_test = { workspace = true }
