@@ -96,7 +96,7 @@ pub async fn handle(command: GlobalCommand) -> Result<()> {
                 if tool.referenced_by.is_empty() {
                     UI::detail("Referenced by: none (can be safely removed)");
                 } else {
-                    UI::detail(&format!("Referenced by virtual environments:"));
+                    UI::detail("Referenced by virtual environments:");
                     for venv in &tool.referenced_by {
                         UI::detail(&format!("  - {}", venv));
                     }

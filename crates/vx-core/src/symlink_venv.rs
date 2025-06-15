@@ -1,9 +1,9 @@
 //! Symlink-based virtual environment system
-//! 
+//!
 //! This module provides functionality for creating virtual environments
 //! that use symlinks to reference globally installed tools, similar to pnpm.
 
-use crate::{GlobalToolManager, Result, VxError, VxEnvironment};
+use crate::{GlobalToolManager, Result, VxEnvironment, VxError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -40,7 +40,7 @@ impl SymlinkVenvManager {
     pub fn new() -> Result<Self> {
         let env = VxEnvironment::new()?;
         let global_manager = GlobalToolManager::new()?;
-        
+
         let data_dir = env
             .get_base_install_dir()
             .parent()
@@ -48,9 +48,9 @@ impl SymlinkVenvManager {
                 message: "Failed to get VX data directory".to_string(),
             })?
             .to_path_buf();
-        
+
         let registry_path = data_dir.join("symlink_venvs.json");
-        
+
         Ok(Self {
             env,
             global_manager,
@@ -74,9 +74,11 @@ impl SymlinkVenvManager {
 
         // Create bin directory for symlinks
         let bin_dir = path.join("bin");
-        fs::create_dir_all(&bin_dir).await.map_err(|e| VxError::Other {
-            message: format!("Failed to create venv bin directory: {}", e),
-        })?;
+        fs::create_dir_all(&bin_dir)
+            .await
+            .map_err(|e| VxError::Other {
+                message: format!("Failed to create venv bin directory: {}", e),
+            })?;
 
         // Create venv info
         let venv = SymlinkVenv {
@@ -112,7 +114,9 @@ impl SymlinkVenvManager {
 
         // Get global tool installation path
         let global_install_dir = self.env.get_version_install_dir(tool_name, version);
-        let global_exe = self.env.find_executable_in_dir(&global_install_dir, tool_name)?;
+        let global_exe = self
+            .env
+            .find_executable_in_dir(&global_install_dir, tool_name)?;
 
         // Create symlink in venv bin directory
         let venv_bin_dir = venv.path.join("bin");
@@ -120,20 +124,25 @@ impl SymlinkVenvManager {
 
         // Remove existing symlink if it exists
         if venv_exe.exists() {
-            fs::remove_file(&venv_exe).await.map_err(|e| VxError::Other {
-                message: format!("Failed to remove existing symlink: {}", e),
-            })?;
+            fs::remove_file(&venv_exe)
+                .await
+                .map_err(|e| VxError::Other {
+                    message: format!("Failed to remove existing symlink: {}", e),
+                })?;
         }
 
         // Create symlink
         self.create_symlink(&global_exe, &venv_exe).await?;
 
         // Update venv registry
-        venv.linked_tools.insert(tool_name.to_string(), version.to_string());
+        venv.linked_tools
+            .insert(tool_name.to_string(), version.to_string());
         venv.modified_at = chrono::Utc::now();
 
         // Update global tool dependencies
-        self.global_manager.add_venv_dependency(venv_name, tool_name).await?;
+        self.global_manager
+            .add_venv_dependency(venv_name, tool_name)
+            .await?;
 
         // Save changes
         self.save_venvs(&venvs).await?;
@@ -152,9 +161,11 @@ impl SymlinkVenvManager {
         // Remove symlink
         let venv_exe = venv.path.join("bin").join(tool_name);
         if venv_exe.exists() {
-            fs::remove_file(&venv_exe).await.map_err(|e| VxError::Other {
-                message: format!("Failed to remove symlink: {}", e),
-            })?;
+            fs::remove_file(&venv_exe)
+                .await
+                .map_err(|e| VxError::Other {
+                    message: format!("Failed to remove symlink: {}", e),
+                })?;
         }
 
         // Update venv registry
@@ -162,7 +173,9 @@ impl SymlinkVenvManager {
         venv.modified_at = chrono::Utc::now();
 
         // Update global tool dependencies
-        self.global_manager.remove_venv_dependency(venv_name, tool_name).await?;
+        self.global_manager
+            .remove_venv_dependency(venv_name, tool_name)
+            .await?;
 
         // Save changes
         self.save_venvs(&venvs).await?;
@@ -173,18 +186,22 @@ impl SymlinkVenvManager {
     /// Remove a virtual environment
     pub async fn remove_venv(&self, name: &str) -> Result<()> {
         let mut venvs = self.load_venvs().await?;
-        
+
         if let Some(venv) = venvs.get(name) {
             // Remove all tool dependencies
             for tool_name in venv.linked_tools.keys() {
-                self.global_manager.remove_venv_dependency(name, tool_name).await?;
+                self.global_manager
+                    .remove_venv_dependency(name, tool_name)
+                    .await?;
             }
 
             // Remove venv directory
             if venv.path.exists() {
-                fs::remove_dir_all(&venv.path).await.map_err(|e| VxError::Other {
-                    message: format!("Failed to remove venv directory: {}", e),
-                })?;
+                fs::remove_dir_all(&venv.path)
+                    .await
+                    .map_err(|e| VxError::Other {
+                        message: format!("Failed to remove venv directory: {}", e),
+                    })?;
             }
 
             // Remove from registry
@@ -217,9 +234,11 @@ impl SymlinkVenvManager {
     async fn create_symlink(&self, target: &Path, link: &Path) -> Result<()> {
         #[cfg(unix)]
         {
-            tokio::fs::symlink(target, link).await.map_err(|e| VxError::Other {
-                message: format!("Failed to create symlink: {}", e),
-            })
+            tokio::fs::symlink(target, link)
+                .await
+                .map_err(|e| VxError::Other {
+                    message: format!("Failed to create symlink: {}", e),
+                })
         }
 
         #[cfg(windows)]
@@ -229,9 +248,11 @@ impl SymlinkVenvManager {
                 Ok(()) => Ok(()),
                 Err(_) => {
                     // Fall back to copying the file
-                    tokio::fs::copy(target, link).await.map_err(|e| VxError::Other {
-                        message: format!("Failed to copy file (symlink fallback): {}", e),
-                    })?;
+                    tokio::fs::copy(target, link)
+                        .await
+                        .map_err(|e| VxError::Other {
+                            message: format!("Failed to copy file (symlink fallback): {}", e),
+                        })?;
                     Ok(())
                 }
             }
@@ -244,11 +265,12 @@ impl SymlinkVenvManager {
             return Ok(HashMap::new());
         }
 
-        let content = fs::read_to_string(&self.registry_path).await.map_err(|e| {
-            VxError::Other {
-                message: format!("Failed to read venv registry: {}", e),
-            }
-        })?;
+        let content =
+            fs::read_to_string(&self.registry_path)
+                .await
+                .map_err(|e| VxError::Other {
+                    message: format!("Failed to read venv registry: {}", e),
+                })?;
 
         serde_json::from_str(&content).map_err(|e| VxError::Other {
             message: format!("Failed to parse venv registry: {}", e),
@@ -259,18 +281,22 @@ impl SymlinkVenvManager {
     async fn save_venvs(&self, venvs: &HashMap<String, SymlinkVenv>) -> Result<()> {
         // Ensure parent directory exists
         if let Some(parent) = self.registry_path.parent() {
-            fs::create_dir_all(parent).await.map_err(|e| VxError::Other {
-                message: format!("Failed to create registry directory: {}", e),
-            })?;
+            fs::create_dir_all(parent)
+                .await
+                .map_err(|e| VxError::Other {
+                    message: format!("Failed to create registry directory: {}", e),
+                })?;
         }
 
         let content = serde_json::to_string_pretty(venvs).map_err(|e| VxError::Other {
             message: format!("Failed to serialize venv registry: {}", e),
         })?;
 
-        fs::write(&self.registry_path, content).await.map_err(|e| VxError::Other {
-            message: format!("Failed to write venv registry: {}", e),
-        })
+        fs::write(&self.registry_path, content)
+            .await
+            .map_err(|e| VxError::Other {
+                message: format!("Failed to write venv registry: {}", e),
+            })
     }
 }
 

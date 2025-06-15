@@ -304,6 +304,144 @@ impl FigmentConfigManager {
             .replace("{ext}", ext)
     }
 
+    /// Validate the current configuration
+    pub fn validate(&self) -> Result<Vec<String>> {
+        let mut warnings = Vec::new();
+
+        // Validate tool configurations
+        for (tool_name, tool_config) in &self.config.tools {
+            if let Some(version) = &tool_config.version {
+                if version.is_empty() {
+                    warnings.push(format!("Tool '{}' has empty version", tool_name));
+                }
+            }
+
+            if let Some(custom_sources) = &tool_config.custom_sources {
+                for (source_name, url) in custom_sources {
+                    if !url.contains("{version}") && !url.contains("{tool}") {
+                        warnings.push(format!(
+                            "Tool '{}' source '{}' URL may be missing version/tool placeholders",
+                            tool_name, source_name
+                        ));
+                    }
+                }
+            }
+        }
+
+        // Validate registry configurations
+        for (registry_name, registry_config) in &self.config.registries {
+            if registry_config.base_url.is_empty() {
+                warnings.push(format!("Registry '{}' has empty base URL", registry_name));
+            }
+        }
+
+        // Validate default settings
+        if self.config.defaults.update_interval.is_empty() {
+            warnings.push("Update interval is empty".to_string());
+        }
+
+        Ok(warnings)
+    }
+
+    /// Initialize a new .vx.toml configuration file in the current directory
+    pub fn init_project_config(
+        &self,
+        tools: Option<HashMap<String, String>>,
+        interactive: bool,
+    ) -> Result<()> {
+        let config_path = std::env::current_dir()
+            .map_err(|e| VxError::Other {
+                message: format!("Failed to get current directory: {}", e),
+            })?
+            .join(".vx.toml");
+
+        if config_path.exists() {
+            return Err(VxError::Other {
+                message: "Configuration file .vx.toml already exists".to_string(),
+            });
+        }
+
+        let mut project_config = crate::venv::ProjectConfig::default();
+
+        // Add provided tools or detect from project
+        if let Some(tools) = tools {
+            project_config.tools = tools;
+        } else if interactive {
+            // In interactive mode, we could prompt for tools
+            // For now, just detect from existing project files
+            if let Some(project_info) = &self.project_info {
+                project_config.tools = project_info.tool_versions.clone();
+            }
+        }
+
+        // Set sensible defaults
+        project_config.settings.auto_install = true;
+        project_config.settings.cache_duration = "7d".to_string();
+
+        // Generate TOML content
+        let toml_content = toml::to_string_pretty(&project_config).map_err(|e| VxError::Other {
+            message: format!("Failed to serialize configuration: {}", e),
+        })?;
+
+        // Add header comment
+        let header = r#"# VX Project Configuration
+# This file defines the tools and versions required for this project.
+# Run 'vx sync' to install all required tools.
+
+"#;
+
+        let full_content = format!("{}{}", header, toml_content);
+
+        // Write to file
+        std::fs::write(&config_path, full_content).map_err(|e| VxError::Other {
+            message: format!("Failed to write .vx.toml: {}", e),
+        })?;
+
+        Ok(())
+    }
+
+    /// Sync project configuration - install all required tools
+    pub async fn sync_project(&self, force: bool) -> Result<Vec<String>> {
+        let mut installed_tools = Vec::new();
+
+        // Load project configuration
+        let venv_manager = crate::VenvManager::new()?;
+        let project_config = venv_manager.load_project_config()?;
+
+        if let Some(config) = project_config {
+            for (tool_name, version) in &config.tools {
+                // Check if tool is already installed
+                let env = crate::VxEnvironment::new()?;
+                let is_installed = env.is_version_installed(tool_name, version);
+
+                if !is_installed || force {
+                    // TODO: Install the tool using the plugin system
+                    // For now, just record what would be installed
+                    installed_tools.push(format!("{}@{}", tool_name, version));
+                }
+            }
+        }
+
+        Ok(installed_tools)
+    }
+
+    /// Get project tool version from configuration
+    pub fn get_project_tool_version(&self, tool_name: &str) -> Option<String> {
+        // First check if we have project info with tool versions
+        if let Some(project_info) = &self.project_info {
+            if let Some(version) = project_info.tool_versions.get(tool_name) {
+                return Some(version.clone());
+            }
+        }
+
+        // Then check tool-specific configuration
+        if let Some(tool_config) = self.config.tools.get(tool_name) {
+            return tool_config.version.clone();
+        }
+
+        None
+    }
+
     /// Get configuration status for diagnostics
     pub fn get_status(&self) -> ConfigStatus {
         let mut layers = Vec::new();
@@ -451,7 +589,10 @@ impl FigmentConfigManager {
         // Layer 4: vx-specific project configuration (.vx.toml)
         let vx_project_config = PathBuf::from(".vx.toml");
         if vx_project_config.exists() {
-            figment = figment.merge(Toml::file(vx_project_config));
+            // Parse .vx.toml as project config and convert to VxConfig format
+            if let Ok(project_config) = Self::parse_vx_project_config(&vx_project_config) {
+                figment = figment.merge(Serialized::defaults(project_config));
+            }
         }
 
         // Layer 5: Environment variables (highest priority)
@@ -585,6 +726,40 @@ impl FigmentConfigManager {
         }
 
         Ok(versions)
+    }
+
+    /// Parse .vx.toml project configuration and convert to VxConfig format
+    fn parse_vx_project_config(path: &PathBuf) -> Result<VxConfig> {
+        let content = fs::read_to_string(path).map_err(|e| VxError::Other {
+            message: format!("Failed to read .vx.toml: {}", e),
+        })?;
+
+        // Parse as project config first
+        let project_config: crate::venv::ProjectConfig =
+            toml::from_str(&content).map_err(|e| VxError::Other {
+                message: format!("Failed to parse .vx.toml: {}", e),
+            })?;
+
+        // Convert to VxConfig format
+        let mut vx_config = VxConfig::default();
+
+        // Convert tools from simple string format to ToolConfig format
+        for (tool_name, version) in project_config.tools {
+            vx_config.tools.insert(
+                tool_name,
+                ToolConfig {
+                    version: Some(version),
+                    install_method: None,
+                    registry: None,
+                    custom_sources: None,
+                },
+            );
+        }
+
+        // Apply project settings to defaults
+        vx_config.defaults.auto_install = project_config.settings.auto_install;
+
+        Ok(vx_config)
     }
 
     /// Parse version requirement string to extract version

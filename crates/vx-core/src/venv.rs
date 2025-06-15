@@ -1,46 +1,174 @@
-// Virtual environment management for vx
-// Similar to Python's venv, allows users to enter an isolated environment
+//! Simplified virtual environment management for vx
+//!
+//! This module provides a simplified virtual environment system that:
+//! - Uses transparent proxy approach (no explicit activation needed)
+//! - Automatically detects project configuration (.vx.toml)
+//! - Manages tool versions through global installation + PATH manipulation
+//! - Provides seamless user experience similar to nvm/pnpm
 
-use crate::{Result, VxError};
+use crate::{GlobalToolManager, Result, VxEnvironment, VxError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
 
-/// Virtual environment configuration
+/// Simplified virtual environment configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VenvConfig {
+    /// Virtual environment name
     pub name: String,
+    /// Tools and their versions
     pub tools: HashMap<String, String>, // tool_name -> version
-    pub path_entries: Vec<PathBuf>,
-    pub env_vars: HashMap<String, String>,
+    /// Creation timestamp
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    /// Last modified timestamp
+    pub modified_at: chrono::DateTime<chrono::Utc>,
+    /// Whether this venv is currently active
+    pub is_active: bool,
 }
 
-/// Virtual environment manager
+/// Project configuration from .vx.toml
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ProjectConfig {
+    /// Tools required by this project
+    pub tools: HashMap<String, String>,
+    /// Project settings
+    pub settings: ProjectSettings,
+}
+
+/// Project settings
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectSettings {
+    /// Automatically install missing tools
+    pub auto_install: bool,
+    /// Cache duration for version checks
+    pub cache_duration: String,
+}
+
+impl Default for ProjectSettings {
+    fn default() -> Self {
+        Self {
+            auto_install: true,
+            cache_duration: "7d".to_string(),
+        }
+    }
+}
+
+/// Simplified virtual environment manager
 pub struct VenvManager {
+    /// VX environment for path management
+    env: VxEnvironment,
+    /// Global tool manager for tool installation
+    #[allow(dead_code)]
+    global_manager: GlobalToolManager,
+    /// Path to venvs directory
     venvs_dir: PathBuf,
 }
 
 impl VenvManager {
+    /// Create a new VenvManager instance
     pub fn new() -> Result<Self> {
-        // Get venvs directory from VX_HOME or config or use default
-        let venvs_dir = if let Ok(vx_home) = env::var("VX_HOME") {
-            PathBuf::from(vx_home).join("venvs")
-        } else if let Some(config_dir) = dirs::config_dir() {
-            config_dir.join("vx").join("venvs")
-        } else {
-            dirs::home_dir()
-                .unwrap_or_else(|| std::env::current_dir().unwrap())
-                .join(".vx")
-                .join("venvs")
-        };
+        let env = VxEnvironment::new()?;
+        let global_manager = GlobalToolManager::new()?;
+
+        // Get venvs directory from VX environment
+        let venvs_dir = env
+            .get_base_install_dir()
+            .parent()
+            .ok_or_else(|| VxError::Other {
+                message: "Failed to get VX data directory".to_string(),
+            })?
+            .join("venvs");
 
         // Ensure venvs directory exists
         std::fs::create_dir_all(&venvs_dir).map_err(|e| VxError::Other {
             message: format!("Failed to create venvs directory: {}", e),
         })?;
 
-        Ok(Self { venvs_dir })
+        Ok(Self {
+            env,
+            global_manager,
+            venvs_dir,
+        })
+    }
+
+    /// Load project configuration from .vx.toml
+    pub fn load_project_config(&self) -> Result<Option<ProjectConfig>> {
+        let config_path = std::env::current_dir()
+            .map_err(|e| VxError::Other {
+                message: format!("Failed to get current directory: {}", e),
+            })?
+            .join(".vx.toml");
+
+        if !config_path.exists() {
+            return Ok(None);
+        }
+
+        let content = std::fs::read_to_string(&config_path).map_err(|e| VxError::Other {
+            message: format!("Failed to read .vx.toml: {}", e),
+        })?;
+
+        let config: ProjectConfig = toml::from_str(&content).map_err(|e| VxError::Other {
+            message: format!("Failed to parse .vx.toml: {}", e),
+        })?;
+
+        Ok(Some(config))
+    }
+
+    /// Get the tool version for the current project context
+    pub async fn get_project_tool_version(&self, tool_name: &str) -> Result<Option<String>> {
+        // First check project configuration
+        if let Some(config) = self.load_project_config()? {
+            if let Some(version) = config.tools.get(tool_name) {
+                return Ok(Some(version.clone()));
+            }
+        }
+
+        // TODO: Check for tool-specific version files (.nvmrc, .python-version, etc.)
+
+        Ok(None)
+    }
+
+    /// Ensure a tool is available for the current project
+    pub async fn ensure_tool_available(&self, tool_name: &str) -> Result<PathBuf> {
+        // Get the required version for this project
+        let version = self
+            .get_project_tool_version(tool_name)
+            .await?
+            .unwrap_or_else(|| "latest".to_string());
+
+        // Check if the specific version is installed
+        let install_dir = self.env.get_version_install_dir(tool_name, &version);
+        let is_installed = self.env.is_version_installed(tool_name, &version);
+
+        if !is_installed {
+            // Auto-install if enabled
+            let should_auto_install = if let Some(config) = self.load_project_config()? {
+                config.settings.auto_install
+            } else {
+                true // Default to auto-install
+            };
+
+            if should_auto_install {
+                // TODO: Implement auto-installation through plugin system
+                return Err(VxError::Other {
+                    message: format!(
+                        "Tool '{}' version '{}' is not installed. Auto-installation not yet implemented. Run 'vx install {}@{}' to install it.",
+                        tool_name, version, tool_name, version
+                    ),
+                });
+            } else {
+                return Err(VxError::Other {
+                    message: format!(
+                        "Tool '{}' version '{}' is not installed. Run 'vx install {}@{}' to install it.",
+                        tool_name, version, tool_name, version
+                    ),
+                });
+            }
+        }
+
+        // Get the executable path
+        self.env.find_executable_in_dir(&install_dir, tool_name)
     }
 
     /// Create a new virtual environment
@@ -73,8 +201,9 @@ impl VenvManager {
         let venv_config = VenvConfig {
             name: name.to_string(),
             tools: tool_versions,
-            path_entries: vec![venv_dir.join("bin")],
-            env_vars: HashMap::new(),
+            created_at: chrono::Utc::now(),
+            modified_at: chrono::Utc::now(),
+            is_active: false,
         };
 
         // Save configuration
@@ -90,7 +219,7 @@ impl VenvManager {
 
     /// Activate a virtual environment (returns shell commands to execute)
     pub fn activate(&self, name: &str) -> Result<String> {
-        let venv_config = self.load_venv_config(name)?;
+        let _venv_config = self.load_venv_config(name)?;
 
         // Generate activation script
         let mut commands = Vec::new();
@@ -98,15 +227,9 @@ impl VenvManager {
         // Set VX_VENV environment variable
         commands.push(format!("export VX_VENV={name}"));
 
-        // Prepend venv bin directory to PATH
-        for path_entry in &venv_config.path_entries {
-            commands.push(format!("export PATH={}:$PATH", path_entry.display()));
-        }
-
-        // Set custom environment variables
-        for (key, value) in &venv_config.env_vars {
-            commands.push(format!("export {key}={value}"));
-        }
+        // In the simplified design, we don't modify PATH directly
+        // Instead, vx commands will automatically use the correct tool versions
+        // based on the project configuration
 
         // Set prompt indicator
         commands.push(format!("export PS1=\"(vx:{name}) $PS1\""));
