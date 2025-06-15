@@ -79,9 +79,32 @@ For the first release, you need to:
 
 ### release-plz Fails with "package not found"
 
-This happens when packages haven't been published to crates.io yet.
+**Problem**:
+```
+ERROR failed to update packages
+Caused by:
+    0: failed to determine next versions
+    1: failed to retrieve difference of package vx
+    2: package `vx-*` not found in the registry, but the git tag v0.1.36 exists.
+```
 
-**Solution**: The current configuration disables crates.io publishing for workspace members, only the main `vx` package should be published.
+**Root Cause**: release-plz tries to check all workspace packages on crates.io, but workspace members haven't been published yet.
+
+**Solution**:
+1. **Workspace Configuration**: Set `release = false` in `[workspace]` to disable processing of all packages by default
+2. **Main Package Only**: Set `release = true` only for the main `vx` package in `[[package]]` section
+3. **Separate Publishing**: Use our custom workflow to publish workspace members to crates.io
+
+**Current Configuration**:
+```toml
+[workspace]
+release = false  # Disable all packages by default
+
+[[package]]
+name = "vx"
+release = true   # Only process main package
+publish = false  # But don't auto-publish to crates.io
+```
 
 ### Package Manager Publishing Fails
 
