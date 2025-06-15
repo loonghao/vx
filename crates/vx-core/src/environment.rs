@@ -67,6 +67,24 @@ impl VxEnvironment {
         })
     }
 
+    /// Create a new VX environment with custom base directory (for testing)
+    pub fn new_with_base_dir<P: AsRef<Path>>(base_dir: P) -> Result<Self> {
+        let base_dir = base_dir.as_ref().to_path_buf();
+        let config_dir = base_dir.join("config");
+        let cache_dir = base_dir.join("cache");
+
+        // Ensure directories exist
+        std::fs::create_dir_all(&base_dir)?;
+        std::fs::create_dir_all(&config_dir)?;
+        std::fs::create_dir_all(&cache_dir)?;
+
+        Ok(Self {
+            base_dir,
+            config_dir,
+            cache_dir,
+        })
+    }
+
     /// Get VX home directory
     pub fn get_vx_home() -> Result<PathBuf> {
         if let Ok(vx_home) = std::env::var("VX_HOME") {
@@ -103,6 +121,20 @@ impl VxEnvironment {
     /// Get download cache directory for a tool
     pub fn get_tool_cache_dir(&self, tool_name: &str) -> PathBuf {
         self.cache_dir.join("downloads").join(tool_name)
+    }
+
+    /// Get shim directory for tool proxies
+    pub fn shim_dir(&self) -> Result<PathBuf> {
+        let shim_dir = self.base_dir.join("shims");
+        std::fs::create_dir_all(&shim_dir)?;
+        Ok(shim_dir)
+    }
+
+    /// Get bin directory for vx executables
+    pub fn bin_dir(&self) -> Result<PathBuf> {
+        let bin_dir = self.base_dir.join("bin");
+        std::fs::create_dir_all(&bin_dir)?;
+        Ok(bin_dir)
     }
 
     /// Get configuration file path

@@ -15,45 +15,49 @@ impl ShimTestFixture {
     pub fn new() -> anyhow::Result<Self> {
         let temp_dir = TempDir::new()?;
         let original_dir = env::current_dir()?;
-        
+
         // Change to temp directory for isolation
         env::set_current_dir(temp_dir.path())?;
-        
+
         Ok(Self {
             temp_dir,
             original_dir,
         })
     }
-    
+
     /// Get the path to the temporary directory
     pub fn path(&self) -> &std::path::Path {
         self.temp_dir.path()
     }
-    
+
     /// Create a file in the test directory
     pub fn create_file(&self, name: &str, content: &str) -> anyhow::Result<()> {
         std::fs::write(self.path().join(name), content)?;
         Ok(())
     }
-    
+
     /// Create an executable file in the test directory
     #[cfg(unix)]
     pub fn create_executable(&self, name: &str, content: &str) -> anyhow::Result<()> {
         use std::os::unix::fs::PermissionsExt;
-        
+
         let path = self.path().join(name);
         std::fs::write(&path, content)?;
-        
+
         let mut perms = std::fs::metadata(&path)?.permissions();
         perms.set_mode(0o755);
         std::fs::set_permissions(&path, perms)?;
-        
+
         Ok(())
     }
-    
+
     #[cfg(windows)]
     pub fn create_executable(&self, name: &str, content: &str) -> anyhow::Result<()> {
-        let exe_name = if name.ends_with(".exe") { name.to_string() } else { format!("{}.exe", name) };
+        let exe_name = if name.ends_with(".exe") {
+            name.to_string()
+        } else {
+            format!("{}.exe", name)
+        };
         std::fs::write(self.path().join(exe_name), content)?;
         Ok(())
     }

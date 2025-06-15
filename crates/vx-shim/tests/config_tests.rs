@@ -1,8 +1,8 @@
 //! Shim configuration tests
 
-use rstest::*;
 use pretty_assertions::assert_eq;
-use vx_shim::{ShimConfig, Result};
+use rstest::*;
+use vx_shim::{Result, ShimConfig};
 
 mod common;
 use common::sample_configs;
@@ -11,15 +11,15 @@ use common::sample_configs;
 #[rstest]
 fn test_toml_config_parsing() -> Result<()> {
     let config = ShimConfig::parse(sample_configs::TOML_SHIM_CONFIG)?;
-    
+
     assert_eq!(config.path, "/usr/bin/node");
     assert_eq!(config.args, Some(vec!["--version".to_string()]));
-    
+
     // Check environment variables
     let env = config.env.unwrap();
     assert_eq!(env.get("NODE_ENV"), Some(&"development".to_string()));
     assert_eq!(env.get("PATH_EXTRA"), Some(&"/extra/path".to_string()));
-    
+
     Ok(())
 }
 
@@ -27,10 +27,10 @@ fn test_toml_config_parsing() -> Result<()> {
 #[rstest]
 fn test_legacy_scoop_parsing() -> Result<()> {
     let config = ShimConfig::parse(sample_configs::LEGACY_SCOOP_CONFIG)?;
-    
+
     assert_eq!(config.path, r"C:\tools\node\node.exe");
     assert_eq!(config.args, Some(vec!["--version".to_string()]));
-    
+
     Ok(())
 }
 
@@ -41,21 +41,21 @@ fn test_env_var_expansion() -> Result<()> {
     std::env::set_var("NODE_HOME", "/opt/node");
     std::env::set_var("NODE_ARGS", "--inspect");
     std::env::set_var("DEBUG", "true");
-    
+
     let config = ShimConfig::parse(sample_configs::SHIM_WITH_ENV_VARS)?;
-    
+
     assert_eq!(config.path, "/opt/node/bin/node");
     assert_eq!(config.args, Some(vec!["--inspect".to_string()]));
-    
+
     // Check environment variables with expansion
     let env = config.env.unwrap();
     assert_eq!(env.get("DEBUG"), Some(&"true".to_string()));
-    
+
     // Clean up
     std::env::remove_var("NODE_HOME");
     std::env::remove_var("NODE_ARGS");
     std::env::remove_var("DEBUG");
-    
+
     Ok(())
 }
 
@@ -72,10 +72,10 @@ fn test_invalid_config() {
 fn test_minimal_config() -> Result<()> {
     let minimal_config = r#"path = "/bin/echo""#;
     let config = ShimConfig::parse(minimal_config)?;
-    
+
     assert_eq!(config.path, "/bin/echo");
     assert_eq!(config.args, None);
     assert_eq!(config.env, None);
-    
+
     Ok(())
 }
