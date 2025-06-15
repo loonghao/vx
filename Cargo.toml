@@ -117,7 +117,7 @@ rstest = "0.18"
 tokio-test = "0.4"
 test-case = "3.3"
 pretty_assertions = "1.4"
-mockall = "0.12"
+mockall = "0.13"
 wiremock = "0.5"
 serial_test = "3.0"
 
