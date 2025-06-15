@@ -3,13 +3,16 @@
 use super::{cleanup_test_env, create_test_venv_manager};
 use crate::commands::venv_cmd::{handle, VenvCommand};
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Mutex;
 use vx_core::VenvManager;
 
 static TEST_ENV_COUNTER: AtomicU32 = AtomicU32::new(0);
+static TEST_LOCK: Mutex<()> = Mutex::new(());
 
 fn unique_env_name(prefix: &str) -> String {
     let id = TEST_ENV_COUNTER.fetch_add(1, Ordering::SeqCst);
-    format!("{}-{}", prefix, id)
+    let thread_id = std::thread::current().id();
+    format!("{}-{}-{:?}", prefix, id, thread_id)
 }
 
 #[tokio::test]
@@ -62,27 +65,21 @@ async fn test_venv_create_with_tools() {
 
 #[tokio::test]
 async fn test_venv_create_duplicate() {
-    let (_manager, _temp_dir) = create_test_venv_manager().expect("Failed to create test manager");
+    let _lock = TEST_LOCK.lock().unwrap();
+    let (manager, _temp_dir) = create_test_venv_manager().expect("Failed to create test manager");
 
     let env_name = unique_env_name("duplicate-env");
 
-    // Create first environment
-    let result1 = handle(VenvCommand::Create {
-        name: env_name.clone(),
-        tools: vec![],
-    })
-    .await;
-    assert!(result1.is_ok());
+    // Create first environment directly using manager
+    let result1 = manager.create(&env_name, &[]);
+    assert!(result1.is_ok(), "First environment creation should succeed");
 
     // Try to create duplicate - should fail
-    let result2 = handle(VenvCommand::Create {
-        name: env_name,
-        tools: vec![],
-    })
-    .await;
-    // Note: This test might pass if the VenvManager doesn't properly check for duplicates
-    // For now, we'll just ensure it doesn't panic
-    assert!(result2.is_ok() || result2.is_err());
+    let result2 = manager.create(&env_name, &[]);
+    assert!(
+        result2.is_err(),
+        "Duplicate environment creation should fail"
+    );
 
     cleanup_test_env();
 }
