@@ -2,9 +2,11 @@
 # https://release-plz.ieni.dev/docs/config
 
 [workspace]
-# Only process the main package, not workspace members
+# Allow dirty working directories for development
 allow_dirty = true
-# Disable automatic publishing of workspace members
+# Only release when merging release PR, not on every commit
+release_always = false
+# Disable automatic publishing - we'll handle this manually
 publish = false
 
 # Simple changelog configuration
@@ -34,6 +36,8 @@ commit_parsers = [
 # Package-specific configuration - only process main package
 [[package]]
 name = "vx"
+# Enable processing for the main package only
+release = true
 # Enable changelog for the main package
 changelog_update = true
 # Enable git tag creation
@@ -74,31 +78,43 @@ cargo install vx
 ```
 """
 
-# Disable publishing for workspace member packages
+# Workspace member packages configuration
+# All packages are processed for version management and changelog generation
+# But publishing is disabled - handled by separate workflow
+
 [[package]]
 name = "vx-core"
+# Enable processing for version management
+release = true
+# Disable automatic publishing
 publish = false
 
 [[package]]
 name = "vx-cli"
+release = true
 publish = false
 
 [[package]]
 name = "vx-tool-node"
+release = true
 publish = false
 
 [[package]]
 name = "vx-tool-go"
+release = true
 publish = false
 
 [[package]]
 name = "vx-tool-rust"
+release = true
 publish = false
 
 [[package]]
 name = "vx-tool-uv"
+release = true
 publish = false
 
 [[package]]
 name = "vx-pm-npm"
+release = true
 publish = false
