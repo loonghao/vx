@@ -153,10 +153,8 @@ trait CommandExt {
 impl CommandExt for Command {
     fn exec(&mut self) -> std::io::Error {
         use std::os::unix::process::CommandExt as StdCommandExt;
-        match StdCommandExt::exec(self) {
-            Ok(_) => unreachable!(),
-            Err(e) => e,
-        }
+        // exec() either succeeds (never returns) or fails (returns Error)
+        StdCommandExt::exec(self)
     }
 }
 
