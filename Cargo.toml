@@ -2,6 +2,7 @@
 members = [
     "crates/vx-core",
     "crates/vx-cli",
+    "crates/vx-shim",
     "crates/vx-tools/vx-tool-node",
     "crates/vx-tools/vx-tool-go",
     "crates/vx-tools/vx-tool-rust",
@@ -28,6 +29,15 @@ rust-version.workspace = true
 [[bin]]
 name = "vx"
 path = "src/main.rs"
+
+# Examples
+[[example]]
+name = "auto_install_demo"
+path = "examples/auto_install_demo.rs"
+
+[[example]]
+name = "config_management_demo"
+path = "examples/config_management_demo.rs"
 
 [dependencies]
 vx-cli = { version = "0.2.0", path = "crates/vx-cli" }
