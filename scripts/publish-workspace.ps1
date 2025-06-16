@@ -24,15 +24,27 @@ else {
 Write-Host ""
 
 # Publishing order based on dependencies
+# Level 1: No internal dependencies
 $packages = @(
-    "crates/vx-core",
-    "crates/vx-tools/vx-tool-go",
-    "crates/vx-tools/vx-tool-rust", 
-    "crates/vx-tools/vx-tool-uv",
-    "crates/vx-package-managers/vx-pm-npm",
-    "crates/vx-tools/vx-tool-node", # Depends on vx-pm-npm
-    "crates/vx-cli", # Depends on all tools
-    "."                              # Main package depends on everything
+    "crates/vx-shim", # No internal dependencies
+
+    # Level 2: Depends only on vx-shim
+    "crates/vx-core", # Depends on vx-shim
+
+    # Level 3: Depends on vx-core
+    "crates/vx-tools/vx-tool-go", # Depends on vx-core
+    "crates/vx-tools/vx-tool-rust", # Depends on vx-core
+    "crates/vx-tools/vx-tool-uv", # Depends on vx-core
+    "crates/vx-package-managers/vx-pm-npm", # Depends on vx-core
+
+    # Level 4: Depends on vx-core + vx-pm-npm
+    "crates/vx-tools/vx-tool-node", # Depends on vx-core + vx-pm-npm
+
+    # Level 5: Depends on all tools
+    "crates/vx-cli", # Depends on vx-core + all tools
+
+    # Level 6: Main package depends on everything
+    "."                              # Main package depends on vx-cli
 )
 
 # Function to check if package is already published
