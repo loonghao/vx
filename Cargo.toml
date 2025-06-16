@@ -56,7 +56,7 @@ vx-tool-uv = { version = "0.2.2", path = "crates/vx-tools/vx-tool-uv" }
 
 
 [workspace.package]
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 description = "Universal Development Tool Manager"
 license = "MIT"
