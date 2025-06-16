@@ -18,6 +18,8 @@ release = false
 release_commits = "^(feat|fix|docs|style|refactor|perf|test|chore|build|ci)[(:]"
 # Add labels to release PRs
 pr_labels = ["release", "automated"]
+# Skip registry checks to avoid version conflicts - use git-based versioning
+git_release_type = "auto"
 
 # Enhanced changelog configuration
 [changelog]
@@ -146,6 +148,8 @@ git_release_draft = false
 publish = false
 # Generate releases based on git history, not registry state
 git_release_type = "auto"
+# Skip registry checks for this package
+allow_dirty = true
 # Include commits from workspace packages in main package changelog
 changelog_include = [
     "vx-core",
