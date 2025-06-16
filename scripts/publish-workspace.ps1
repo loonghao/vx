@@ -138,9 +138,11 @@ function Publish-Package {
         cargo test
         if ($LASTEXITCODE -ne 0) { throw "Tests failed" }
         
-        Write-Host "🔍 Dry run for $packageName..." -ForegroundColor $Blue
-        cargo publish --dry-run
-        if ($LASTEXITCODE -ne 0) { throw "Dry run failed" }
+        if ($DryRun) {
+            Write-Host "🔍 Dry run for $packageName..." -ForegroundColor $Blue
+            cargo publish --dry-run
+            if ($LASTEXITCODE -ne 0) { throw "Dry run failed" }
+        }
         
         if (-not $DryRun) {
             Write-Host "🚀 Publishing $packageName to crates.io..." -ForegroundColor $Green

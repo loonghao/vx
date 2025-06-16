@@ -111,8 +111,10 @@ publish_package() {
     echo -e "${BLUE}🧪 Testing $package_name...${NC}"
     cargo test
     
-    echo -e "${BLUE}🔍 Dry run for $package_name...${NC}"
-    cargo publish --dry-run
+    if [ "$DRY_RUN" = "true" ]; then
+        echo -e "${BLUE}🔍 Dry run for $package_name...${NC}"
+        cargo publish --dry-run
+    fi
     
     if [ "$DRY_RUN" = "false" ]; then
         echo -e "${GREEN}🚀 Publishing $package_name to crates.io...${NC}"
