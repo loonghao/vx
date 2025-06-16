@@ -14,8 +14,8 @@ git_release_enable = true
 dependencies_update = false
 # Disable processing of all workspace packages by default
 release = false
-# Only create releases for meaningful commits (conventional commits)
-release_commits = "^(feat|fix|docs|style|refactor|perf|test|chore|build|ci)[(:]"
+# Process all commits for release detection (removed regex filter)
+# release_commits = "^(feat|fix|docs|style|refactor|perf|test|chore|build|ci).*"
 # Add labels to release PRs
 pr_labels = ["release", "automated"]
 # Use git-based versioning instead of registry checks
@@ -148,6 +148,8 @@ git_release_draft = false
 publish = false
 # Generate releases based on git history, not registry state
 git_release_type = "auto"
+# Override release detection to process recent commits
+release_commits = ".*"
 # Skip build verification to avoid dependency conflicts
 publish_no_verify = true
 # Include commits from workspace packages in main package changelog
