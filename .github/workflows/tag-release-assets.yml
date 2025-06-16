@@ -1,37 +1,36 @@
-name: Release
+name: Tag Release Assets
 
-# The ONLY workflow that builds and publishes artifacts
-# Triggered when a release is published by release-plz
-# Builds all platforms, publishes to crates.io, and uploads to GitHub Release
+# This workflow is triggered when a tag is created by release-plz
+# It builds cross-platform binaries and uploads them to the GitHub Release
+# This complements the release-plz workflow which handles crates.io publishing
 
 permissions:
   contents: write
   packages: write
 
 on:
-  release:
-    types: [published]  # Triggered when release-plz publishes a release
+  push:
+    tags:
+      - 'v*'  # Triggered when version tags are pushed by release-plz
   workflow_dispatch:
     inputs:
-      dry-run:
-        description: 'Run in dry-run mode (no actual release)'
-        required: false
-        default: false
-        type: boolean
+      tag:
+        description: 'Tag to build assets for (e.g., v0.2.1)'
+        required: true
+        type: string
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  # Build configuration
-  CARGO_BUILD_JOBS: "1"  # Use single job for stability
+  # Build configuration for stability
+  CARGO_BUILD_JOBS: "1"
   # sccache configuration
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
 
 jobs:
   # Build all platform binaries
-  build:
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+  build-assets:
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -54,14 +53,6 @@ jobs:
             target: aarch64-unknown-linux-musl
             artifact_name: vx
             asset_name: vx-linux-arm64-musl
-          - os: ubuntu-latest
-            target: armv7-unknown-linux-gnueabi
-            artifact_name: vx
-            asset_name: vx-linux-armv7
-          - os: ubuntu-latest
-            target: armv7-unknown-linux-musleabi
-            artifact_name: vx
-            asset_name: vx-linux-armv7-musl
           # Windows targets
           - os: windows-latest
             target: x86_64-pc-windows-msvc
@@ -88,7 +79,21 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.inputs.tag || github.ref }}
           submodules: true
+
+      - name: Get tag information
+        id: tag-info
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+          else
+            TAG_NAME="${{ github.event.inputs.tag }}"
+          fi
+          VERSION=${TAG_NAME#v}  # Remove 'v' prefix
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building assets for tag: $TAG_NAME (version: $VERSION)"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -99,7 +104,6 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.9
 
       - name: Cache crates
-        id: cache-crates
         uses: actions/cache@v4
         with:
           path: ~/.cargo/registry/cache
@@ -120,11 +124,6 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           choco install upx
-
-      - name: Install UPX (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          echo "Skipping UPX installation for macOS (not used)"
 
       - name: Build binary
         uses: nick-fields/retry@v3
@@ -148,7 +147,6 @@ jobs:
             upx --best target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
             echo "Skipping UPX compression for macOS (not supported reliably)"
-            echo "macOS binary will remain uncompressed"
           else
             echo "Compressing Linux binary with UPX..."
             upx --best target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
@@ -162,105 +160,30 @@ jobs:
           path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
           if-no-files-found: error
 
-      - name: Clean up cargo cache
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-cache
-
-      - name: Auto-clean cargo cache
-        if: steps.cache-crates.outputs.cache-hit != 'true'
-        run: cargo cache --autoclean
-
-  # Publish to crates.io
-  publish-crates:
+  # Upload assets to GitHub Release
+  upload-assets:
+    needs: build-assets
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Get version from release
-        id: version
+      - name: Get tag information
+        id: tag-info
         run: |
-          if [[ "${{ github.event_name }}" == "release" ]]; then
-            echo "version=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            TAG_NAME=${GITHUB_REF#refs/tags/}
           else
-            echo "version=manual" >> $GITHUB_OUTPUT
+            TAG_NAME="${{ github.event.inputs.tag }}"
           fi
-
-      - name: Verify version matches (for release events)
-        if: github.event_name == 'release'
-        run: |
-          CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "vx") | .version')
-          RELEASE_VERSION="${{ github.event.release.tag_name }}"
-          RELEASE_VERSION=${RELEASE_VERSION#v}  # Remove 'v' prefix
-
-          echo "Cargo.toml version: $CARGO_VERSION"
-          echo "Release version: $RELEASE_VERSION"
-
-          if [ "$CARGO_VERSION" != "$RELEASE_VERSION" ]; then
-            echo "❌ Version mismatch!"
-            echo "Cargo.toml has version $CARGO_VERSION but release is $RELEASE_VERSION"
-            exit 1
-          fi
-
-          echo "✅ Version matches: $CARGO_VERSION"
-
-      - name: Build and test
-        run: |
-          echo "Building project..."
-          cargo build --release
-
-          echo "Running tests..."
-          cargo test --release
-
-      - name: Publish workspace to crates.io
-        if: github.event.inputs.dry-run != 'true'
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          echo "🚀 Publishing workspace to crates.io..."
-          chmod +x scripts/smart-publish.sh
-          DRY_RUN=false SKIP_TESTS=true scripts/smart-publish.sh
-          echo "✅ Successfully published all packages to crates.io!"
-
-      - name: Dry run workspace publish
-        if: github.event.inputs.dry-run == 'true'
-        run: |
-          echo "🔍 Performing workspace dry run..."
-          chmod +x scripts/smart-publish.sh
-          DRY_RUN=true SKIP_TESTS=true scripts/smart-publish.sh
-          echo "✅ Workspace dry run completed successfully!"
-
-  # Create GitHub Release with binaries
-  release:
-    needs: [build, publish-crates]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+          VERSION=${TAG_NAME#v}  # Remove 'v' prefix
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Uploading assets for tag: $TAG_NAME (version: $VERSION)"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -277,38 +200,98 @@ jobs:
           chmod +x scripts/create-archives.sh
           ./scripts/create-archives.sh
 
-      - name: Generate release body
+      - name: Check if GitHub Release exists
+        id: check-release
         run: |
-          chmod +x scripts/generate-release-body.sh
-          ./scripts/generate-release-body.sh "${{ github.ref_name }}" "See commit history for detailed changes."
+          TAG_NAME="${{ steps.tag-info.outputs.tag }}"
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            echo "release_exists=true" >> $GITHUB_OUTPUT
+            echo "✅ GitHub Release $TAG_NAME already exists"
+          else
+            echo "release_exists=false" >> $GITHUB_OUTPUT
+            echo "❌ GitHub Release $TAG_NAME does not exist"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload assets to existing release
-        if: github.event_name == 'release'
+        if: steps.check-release.outputs.release_exists == 'true'
         uses: softprops/action-gh-release@v2
         with:
           files: |
             *.tar.gz
             *.zip
             checksums.txt
-          tag_name: ${{ github.event.release.tag_name }}
+          tag_name: ${{ steps.tag-info.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create new release (manual dispatch)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Create release with assets (if not exists)
+        if: steps.check-release.outputs.release_exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
           files: |
             *.tar.gz
             *.zip
             checksums.txt
+          tag_name: ${{ steps.tag-info.outputs.tag }}
+          name: ${{ steps.tag-info.outputs.tag }}
           draft: false
           generate_release_notes: true
-          body_path: release-body.md
+          body: |
+            ## 🚀 Release ${{ steps.tag-info.outputs.tag }}
+            
+            This release was automatically created from tag ${{ steps.tag-info.outputs.tag }}.
+            
+            ### 📦 Installation
+            
+            #### Package Managers
+            - **Cargo**: `cargo install vx`
+            - **Windows (WinGet)**: `winget install loonghao.vx`
+            - **Windows (Chocolatey)**: `choco install vx`
+            - **macOS (Homebrew)**: `brew install loonghao/vx/vx`
+            - **Windows (Scoop)**: `scoop bucket add vx https://github.com/loonghao/scoop-vx && scoop install vx`
+            
+            #### Download Binary
+            Download the appropriate binary for your platform from the assets below.
+            
+            ### 🔗 Links
+            - **Full Changelog**: https://github.com/loonghao/vx/compare/{{ previous_tag }}...${{ steps.tag-info.outputs.tag }}
+            - **Documentation**: https://github.com/loonghao/vx#readme
+            - **Issues**: https://github.com/loonghao/vx/issues
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify release files
+      - name: Verify release assets
         run: |
-          chmod +x scripts/verify-release.sh
-          ./scripts/verify-release.sh
+          TAG_NAME="${{ steps.tag-info.outputs.tag }}"
+          echo "🔍 Verifying assets for release $TAG_NAME..."
+          
+          # List release assets
+          gh release view "$TAG_NAME" --json assets --jq '.assets[].name' | sort
+          
+          echo "✅ Assets uploaded successfully to GitHub Release $TAG_NAME"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create summary
+        run: |
+          echo "## 🚀 Release Assets Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ steps.tag-info.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.tag-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Assets Uploaded" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # List all created archives
+          for file in *.tar.gz *.zip; do
+            if [ -f "$file" ]; then
+              echo "- \`$file\`" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [GitHub Release](https://github.com/loonghao/vx/releases/tag/${{ steps.tag-info.outputs.tag }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [crates.io Package](https://crates.io/crates/vx)" >> $GITHUB_STEP_SUMMARY
