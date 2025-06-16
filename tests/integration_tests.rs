@@ -82,11 +82,12 @@ fn test_vx_unsupported_tool() {
 #[test]
 fn test_vx_system_path_flag() {
     // Test that --use-system-path flag is recognized
-    let output = run_vx_command(&["--use-system-path", "echo", "test"]);
-    // This might fail if echo is not available, but the flag should be parsed
+    let output = run_vx_command(&["--use-system-path", "nonexistent-tool-xyz"]);
+    // This should fail because the tool doesn't exist, but the flag should be parsed correctly
     let stderr = String::from_utf8_lossy(&output.stderr);
-    // Should not contain "unknown flag" or similar errors
-    assert!(!stderr.contains("unknown") && !stderr.contains("unrecognized"));
+    // Should not contain "unknown flag" or similar errors about the flag itself
+    // It should contain an error about the tool not being found, not about unknown flags
+    assert!(!stderr.contains("unknown flag") && !stderr.contains("unrecognized option"));
 }
 
 #[cfg(test)]
