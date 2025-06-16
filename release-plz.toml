@@ -10,7 +10,7 @@ release_always = true
 publish = false
 # Process packages based on git changes only
 git_release_enable = true
-# Skip dependency checks that require registry access
+# Skip dependency checks that require registry access - this prevents registry conflicts
 dependencies_update = false
 # Disable processing of all workspace packages by default
 release = false
@@ -18,7 +18,7 @@ release = false
 release_commits = "^(feat|fix|docs|style|refactor|perf|test|chore|build|ci)[(:]"
 # Add labels to release PRs
 pr_labels = ["release", "automated"]
-# Skip registry checks to avoid version conflicts - use git-based versioning
+# Use git-based versioning instead of registry checks
 git_release_type = "auto"
 
 # Enhanced changelog configuration
@@ -150,6 +150,8 @@ publish = false
 git_release_type = "auto"
 # Skip registry checks for this package
 allow_dirty = true
+# Skip build verification to avoid dependency conflicts
+publish_no_verify = true
 # Include commits from workspace packages in main package changelog
 changelog_include = [
     "vx-core",
