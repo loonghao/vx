@@ -1,10 +1,15 @@
 // CLI module - modular command structure
 // Each command is implemented in its own module for better maintainability
 
-use crate::commands::{
-    global::GlobalCommand, symlink_venv::SymlinkVenvCommand, venv_cmd::VenvCommand,
-};
-use clap::{Parser, Subcommand};
+use crate::commands::{global::GlobalCommand, venv_cmd::VenvCommand};
+use clap::{Parser, Subcommand, ValueEnum};
+
+#[derive(ValueEnum, Clone, Debug)]
+pub enum OutputFormat {
+    Table,
+    Json,
+    Yaml,
+}
 
 #[derive(Parser)]
 #[command(name = "vx")]
@@ -33,15 +38,23 @@ pub enum Commands {
     Version,
 
     /// List supported tools
+    #[command(alias = "ls")]
     List {
         /// Tool name to show details for (optional)
         tool: Option<String>,
         /// Show installation status for tools
         #[arg(long)]
         status: bool,
+        /// Show only installed tools
+        #[arg(long)]
+        installed: bool,
+        /// Show only available tools
+        #[arg(long)]
+        available: bool,
     },
 
     /// Install a specific tool version
+    #[command(alias = "i")]
     Install {
         /// Tool name (e.g., uv, node, go, rust)
         tool: String,
@@ -53,6 +66,7 @@ pub enum Commands {
     },
 
     /// Update tools to latest versions
+    #[command(alias = "up")]
     Update {
         /// Tool name (optional, updates all if not specified)
         tool: Option<String>,
@@ -61,19 +75,20 @@ pub enum Commands {
         apply: bool,
     },
 
-    /// Remove installed tool versions
-    Remove {
+    /// Uninstall tool versions (preferred over remove)
+    #[command(alias = "rm")]
+    Uninstall {
         /// Tool name
         tool: String,
-        /// Version to remove (optional, removes all if not specified)
+        /// Version to uninstall (optional, removes all if not specified)
         version: Option<String>,
         /// Force removal without confirmation
         #[arg(long)]
         force: bool,
     },
 
-    /// Show where a tool is installed
-    Where {
+    /// Show which tool version is being used (preferred over where)
+    Which {
         /// Tool name
         tool: String,
         /// Show all installed versions
@@ -81,8 +96,8 @@ pub enum Commands {
         all: bool,
     },
 
-    /// Fetch and display available versions for a tool
-    Fetch {
+    /// Show available versions for a tool (preferred over fetch)
+    Versions {
         /// Tool name
         tool: String,
         /// Show only latest versions (limit results)
@@ -108,14 +123,103 @@ pub enum Commands {
         global: bool,
     },
 
-    /// Show configuration
-    Config,
+    /// Configuration management
+    #[command(alias = "cfg")]
+    Config {
+        #[command(subcommand)]
+        command: Option<ConfigCommand>,
+    },
+
+    /// Search available tools
+    Search {
+        /// Search query
+        query: Option<String>,
+        /// Filter by category
+        #[arg(long)]
+        category: Option<String>,
+        /// Show only installed tools
+        #[arg(long)]
+        installed_only: bool,
+        /// Show only available (not installed) tools
+        #[arg(long)]
+        available_only: bool,
+        /// Output format
+        #[arg(long, value_enum, default_value = "table")]
+        format: OutputFormat,
+        /// Show verbose information
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
+    /// Sync project tools from .vx.toml
+    Sync {
+        /// Only check, don't install
+        #[arg(long)]
+        check: bool,
+        /// Force reinstall all tools
+        #[arg(long)]
+        force: bool,
+        /// Preview operations without executing
+        #[arg(long)]
+        dry_run: bool,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+        /// Disable parallel installation
+        #[arg(long)]
+        no_parallel: bool,
+        /// Disable auto-install
+        #[arg(long)]
+        no_auto_install: bool,
+    },
 
     /// Initialize vx configuration for current project
-    Init,
+    Init {
+        /// Interactive initialization
+        #[arg(long)]
+        interactive: bool,
+        /// Use predefined template
+        #[arg(long)]
+        template: Option<String>,
+        /// Specify tools to include (comma-separated)
+        #[arg(long)]
+        tools: Option<String>,
+        /// Force overwrite existing configuration
+        #[arg(long)]
+        force: bool,
+        /// Preview configuration without creating file
+        #[arg(long)]
+        dry_run: bool,
+        /// List available templates
+        #[arg(long)]
+        list_templates: bool,
+    },
 
-    /// Clean up orphaned packages and cache
-    Cleanup,
+    /// Clean up system (preferred over cleanup)
+    #[command(alias = "clean")]
+    Clean {
+        /// Preview cleanup operations without executing
+        #[arg(long)]
+        dry_run: bool,
+        /// Only clean cache files
+        #[arg(long)]
+        cache: bool,
+        /// Only clean orphaned tool versions
+        #[arg(long)]
+        orphaned: bool,
+        /// Clean all (cache + orphaned)
+        #[arg(long)]
+        all: bool,
+        /// Force cleanup without confirmation
+        #[arg(long)]
+        force: bool,
+        /// Clean files older than specified days
+        #[arg(long)]
+        older_than: Option<u32>,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
 
     /// Show package statistics and disk usage
     Stats,
@@ -124,6 +228,12 @@ pub enum Commands {
     Plugin {
         #[command(subcommand)]
         command: PluginCommand,
+    },
+
+    /// Shell integration commands
+    Shell {
+        #[command(subcommand)]
+        command: ShellCommand,
     },
 
     /// Virtual environment management
@@ -136,12 +246,6 @@ pub enum Commands {
     Global {
         #[command(subcommand)]
         command: GlobalCommand,
-    },
-
-    /// Symlink virtual environment management
-    SymlinkVenv {
-        #[command(subcommand)]
-        command: SymlinkVenvCommand,
     },
 }
 
@@ -203,4 +307,18 @@ pub enum PluginCommand {
     },
     /// Show plugin statistics
     Stats,
+}
+
+#[derive(Subcommand, Clone)]
+pub enum ShellCommand {
+    /// Generate shell initialization script
+    Init {
+        /// Shell type (auto-detected if not specified)
+        shell: Option<String>,
+    },
+    /// Generate shell completion script
+    Completions {
+        /// Shell type
+        shell: String,
+    },
 }

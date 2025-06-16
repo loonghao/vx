@@ -4,17 +4,22 @@ use crate::cli::{Cli, Commands};
 use crate::ui::UI;
 use vx_core::PluginRegistry;
 
+pub mod cleanup;
 pub mod config;
 pub mod execute;
 pub mod fetch;
 pub mod global;
+pub mod init;
 pub mod install;
 pub mod list;
 pub mod plugin;
 pub mod remove;
+pub mod search;
+pub mod shell;
 pub mod stats;
 pub mod switch;
-pub mod symlink_venv;
+pub mod sync;
+
 pub mod update;
 pub mod venv_cmd;
 pub mod version;
@@ -32,11 +37,14 @@ impl CommandHandler {
         match cli.command {
             Some(Commands::Version) => version::handle().await.map_err(Into::into),
 
-            Some(Commands::List { tool, status }) => {
-                list::handle(registry, tool.as_deref(), status)
-                    .await
-                    .map_err(Into::into)
-            }
+            Some(Commands::List {
+                tool,
+                status,
+                installed: _,
+                available: _,
+            }) => list::handle(registry, tool.as_deref(), status)
+                .await
+                .map_err(Into::into),
 
             Some(Commands::Install {
                 tool,
@@ -52,7 +60,7 @@ impl CommandHandler {
                     .map_err(Into::into)
             }
 
-            Some(Commands::Remove {
+            Some(Commands::Uninstall {
                 tool,
                 version,
                 force,
@@ -60,11 +68,11 @@ impl CommandHandler {
                 .await
                 .map_err(Into::into),
 
-            Some(Commands::Where { tool, all }) => where_cmd::handle(registry, &tool, all)
+            Some(Commands::Which { tool, all }) => where_cmd::handle(registry, &tool, all)
                 .await
                 .map_err(Into::into),
 
-            Some(Commands::Fetch {
+            Some(Commands::Versions {
                 tool,
                 latest,
                 prerelease,
@@ -81,13 +89,112 @@ impl CommandHandler {
                 .await
                 .map_err(Into::into),
 
-            Some(Commands::Config) => config::handle().await.map_err(Into::into),
+            Some(Commands::Config { command }) => match command {
+                Some(crate::cli::ConfigCommand::Show) | None => {
+                    config::handle().await.map_err(Into::into)
+                }
+                Some(crate::cli::ConfigCommand::Set { key, value }) => {
+                    config::handle_set(&key, &value).await.map_err(Into::into)
+                }
+                Some(crate::cli::ConfigCommand::Get { key }) => {
+                    config::handle_get(&key).await.map_err(Into::into)
+                }
+                Some(crate::cli::ConfigCommand::Reset { key }) => {
+                    config::handle_reset(key.clone()).await.map_err(Into::into)
+                }
+                Some(crate::cli::ConfigCommand::Edit) => {
+                    config::handle_edit().await.map_err(Into::into)
+                }
+            },
 
-            Some(Commands::Init) => config::handle_init(vec![], None).await.map_err(Into::into),
-
-            Some(Commands::Cleanup) => stats::handle_cleanup(false, false, false)
+            Some(Commands::Search {
+                query,
+                category,
+                installed_only,
+                available_only,
+                format,
+                verbose,
+            }) => {
+                // TODO: Get registry from context
+                // For now, create a minimal registry
+                let registry = vx_core::PluginRegistry::new();
+                search::handle(
+                    &registry,
+                    query.clone(),
+                    category.clone(),
+                    installed_only,
+                    available_only,
+                    format.clone(),
+                    verbose,
+                )
                 .await
-                .map_err(Into::into),
+                .map_err(Into::into)
+            }
+
+            Some(Commands::Sync {
+                check,
+                force,
+                dry_run,
+                verbose,
+                no_parallel,
+                no_auto_install,
+            }) => {
+                // TODO: Get registry from context
+                let registry = vx_core::PluginRegistry::new();
+                sync::handle(
+                    &registry,
+                    check,
+                    force,
+                    dry_run,
+                    verbose,
+                    no_parallel,
+                    no_auto_install,
+                )
+                .await
+                .map_err(Into::into)
+            }
+
+            Some(Commands::Init {
+                interactive,
+                template,
+                tools,
+                force,
+                dry_run,
+                list_templates,
+            }) => init::handle(
+                interactive,
+                template.clone(),
+                tools.clone(),
+                force,
+                dry_run,
+                list_templates,
+            )
+            .await
+            .map_err(Into::into),
+
+            Some(Commands::Clean {
+                dry_run,
+                cache,
+                orphaned,
+                all,
+                force,
+                older_than,
+                verbose,
+            }) => {
+                // Map new clean options to cleanup options
+                let cache_only = cache && !all;
+                let orphaned_only = orphaned && !all;
+                cleanup::handle(
+                    dry_run,
+                    cache_only,
+                    orphaned_only,
+                    force,
+                    older_than,
+                    verbose,
+                )
+                .await
+                .map_err(Into::into)
+            }
 
             Some(Commands::Stats) => stats::handle(registry).await.map_err(Into::into),
 
@@ -98,10 +205,6 @@ impl CommandHandler {
             Some(Commands::Venv { command }) => venv_cmd::handle(command).await.map_err(Into::into),
 
             Some(Commands::Global { command }) => global::handle(command).await.map_err(Into::into),
-
-            Some(Commands::SymlinkVenv { command }) => {
-                symlink_venv::handle(command).await.map_err(Into::into)
-            }
 
             None => {
                 // Handle tool execution
@@ -125,6 +228,18 @@ impl CommandHandler {
                     std::process::exit(exit_code);
                 }
                 Ok(())
+            }
+
+            Some(Commands::Shell { command }) => {
+                use crate::cli::ShellCommand;
+                match command {
+                    ShellCommand::Init { shell } => shell::handle_shell_init(shell.clone())
+                        .await
+                        .map_err(Into::into),
+                    ShellCommand::Completions { shell } => shell::handle_completion(shell.clone())
+                        .await
+                        .map_err(Into::into),
+                }
             }
         }
     }

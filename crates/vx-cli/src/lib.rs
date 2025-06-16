@@ -82,11 +82,14 @@ impl VxCli {
 
         match command {
             Commands::Version => commands::version::handle().await.map_err(Into::into),
-            Commands::List { tool, status } => {
-                commands::list::handle(&self.registry, tool.as_deref(), status)
-                    .await
-                    .map_err(Into::into)
-            }
+            Commands::List {
+                tool,
+                status,
+                installed: _,
+                available: _,
+            } => commands::list::handle(&self.registry, tool.as_deref(), status)
+                .await
+                .map_err(Into::into),
             Commands::Install {
                 tool,
                 version,
@@ -99,19 +102,22 @@ impl VxCli {
                     .await
                     .map_err(Into::into)
             }
-            Commands::Remove {
+
+            Commands::Uninstall {
                 tool,
                 version,
                 force,
             } => commands::remove::handle(&self.registry, &tool, version.as_deref(), force)
                 .await
                 .map_err(Into::into),
-            Commands::Where { tool, all } => {
+
+            Commands::Which { tool, all } => {
                 commands::where_cmd::handle(&self.registry, &tool, all)
                     .await
                     .map_err(Into::into)
             }
-            Commands::Fetch {
+
+            Commands::Versions {
                 tool,
                 latest,
                 prerelease,
@@ -133,16 +139,62 @@ impl VxCli {
             } => commands::switch::handle(&self.registry, &tool_version, global)
                 .await
                 .map_err(Into::into),
-            Commands::Config => commands::config::handle().await.map_err(Into::into),
-            Commands::Init => {
-                // TODO: Implement init command
-                println!("Init command not yet implemented");
-                Ok(())
+            Commands::Config { command } => match command {
+                Some(cli::ConfigCommand::Show) | None => {
+                    commands::config::handle().await.map_err(Into::into)
+                }
+                Some(cli::ConfigCommand::Set { key, value }) => {
+                    commands::config::handle_set(&key, &value)
+                        .await
+                        .map_err(Into::into)
+                }
+                Some(cli::ConfigCommand::Get { key }) => {
+                    commands::config::handle_get(&key).await.map_err(Into::into)
+                }
+                Some(cli::ConfigCommand::Reset { key }) => {
+                    commands::config::handle_reset(key.clone())
+                        .await
+                        .map_err(Into::into)
+                }
+                Some(cli::ConfigCommand::Edit) => {
+                    commands::config::handle_edit().await.map_err(Into::into)
+                }
+            },
+            Commands::Init {
+                interactive,
+                template,
+                tools,
+                force,
+                dry_run,
+                list_templates,
+            } => {
+                commands::init::handle(interactive, template, tools, force, dry_run, list_templates)
+                    .await
+                    .map_err(Into::into)
             }
-            Commands::Cleanup => {
-                // TODO: Implement cleanup command
-                println!("Cleanup command not yet implemented");
-                Ok(())
+
+            Commands::Clean {
+                dry_run,
+                cache,
+                orphaned,
+                all,
+                force,
+                older_than,
+                verbose,
+            } => {
+                // Map new clean options to cleanup options
+                let cache_only = cache && !all;
+                let orphaned_only = orphaned && !all;
+                commands::cleanup::handle(
+                    dry_run,
+                    cache_only,
+                    orphaned_only,
+                    force,
+                    older_than,
+                    verbose,
+                )
+                .await
+                .map_err(Into::into)
             }
             Commands::Stats => commands::stats::handle(&self.registry)
                 .await
@@ -156,9 +208,58 @@ impl VxCli {
             Commands::Global { command } => {
                 commands::global::handle(command).await.map_err(Into::into)
             }
-            Commands::SymlinkVenv { command } => commands::symlink_venv::handle(command)
-                .await
-                .map_err(Into::into),
+            Commands::Search {
+                query,
+                category,
+                installed_only,
+                available_only,
+                format,
+                verbose,
+            } => commands::search::handle(
+                &self.registry,
+                query,
+                category,
+                installed_only,
+                available_only,
+                format,
+                verbose,
+            )
+            .await
+            .map_err(Into::into),
+            Commands::Sync {
+                check,
+                force,
+                dry_run,
+                verbose,
+                no_parallel,
+                no_auto_install,
+            } => commands::sync::handle(
+                &self.registry,
+                check,
+                force,
+                dry_run,
+                verbose,
+                no_parallel,
+                no_auto_install,
+            )
+            .await
+            .map_err(Into::into),
+
+            Commands::Shell { command } => {
+                use crate::cli::ShellCommand;
+                match command {
+                    ShellCommand::Init { shell } => {
+                        commands::shell::handle_shell_init(shell.clone())
+                            .await
+                            .map_err(Into::into)
+                    }
+                    ShellCommand::Completions { shell } => {
+                        commands::shell::handle_completion(shell.clone())
+                            .await
+                            .map_err(Into::into)
+                    }
+                }
+            }
         }
     }
 

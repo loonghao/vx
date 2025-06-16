@@ -5,8 +5,9 @@
 ## 语法
 
 ```bash
-vx shell-init [SHELL]
-vx completion <SHELL>
+# Shell集成命令
+vx shell init [SHELL]
+vx shell completions <SHELL>
 ```
 
 ## 描述
@@ -25,20 +26,20 @@ vx 提供了丰富的 Shell 集成功能，包括自动补全、环境初始化�
 
 ### 自动检测 Shell
 ```bash
-# 自动检测当前 Shell 并输出初始化脚本
-vx shell-init
+# 自动检测当前Shell并输出初始化脚本
+vx shell init
 
 # 在 Shell 配置文件中使用
-eval "$(vx shell-init)"
+eval "$(vx shell init)"
 ```
 
 ### 指定 Shell
 ```bash
-# 为特定 Shell 生成初始化脚本
-vx shell-init bash
-vx shell-init zsh
-vx shell-init fish
-vx shell-init powershell
+# 为特定Shell生成初始化脚本
+vx shell init bash
+vx shell init zsh
+vx shell init fish
+vx shell init powershell
 ```
 
 ## 自动补全
@@ -46,32 +47,32 @@ vx shell-init powershell
 ### 安装自动补全
 ```bash
 # Bash
-vx completion bash > /etc/bash_completion.d/vx
+vx shell completions bash > /etc/bash_completion.d/vx
 # 或者用户级别
-vx completion bash > ~/.bash_completion.d/vx
+vx shell completions bash > ~/.bash_completion.d/vx
 
 # Zsh
-vx completion zsh > /usr/local/share/zsh/site-functions/_vx
+vx shell completions zsh > /usr/local/share/zsh/site-functions/_vx
 # 或者用户级别
-vx completion zsh > ~/.zsh/completions/_vx
+vx shell completions zsh > ~/.zsh/completions/_vx
 
 # Fish
-vx completion fish > ~/.config/fish/completions/vx.fish
+vx shell completions fish > ~/.config/fish/completions/vx.fish
 
 # PowerShell
-vx completion powershell | Out-String | Invoke-Expression
+vx shell completions powershell | Out-String | Invoke-Expression
 ```
 
 ### 临时启用补全
 ```bash
 # Bash/Zsh
-source <(vx completion bash)  # 或 zsh
+source <(vx shell completions bash)  # 或 zsh
 
 # Fish
-vx completion fish | source
+vx shell completions fish | source
 
 # PowerShell
-vx completion powershell | Out-String | Invoke-Expression
+vx shell completions powershell | Out-String | Invoke-Expression
 ```
 
 ## 配置示例
@@ -82,15 +83,19 @@ vx completion powershell | Out-String | Invoke-Expression
 export PATH="$HOME/.vx/bin:$PATH"
 
 # 初始化 vx Shell 集成
-eval "$(vx shell-init bash)"
-
-# 启用自动补全
-source <(vx completion bash)
+eval "$(vx shell init bash)"
+source <(vx shell completions bash)
 
 # 可选：设置别名
 alias vnode="vx node"
 alias vuv="vx uv"
 alias vgo="vx go"
+
+# 使用 vx 内置别名
+alias vi="vx i"      # vx install
+alias vrm="vx rm"    # vx uninstall
+alias vls="vx ls"    # vx list
+alias vup="vx up"    # vx update
 ```
 
 ### Zsh 配置 (~/.zshrc)

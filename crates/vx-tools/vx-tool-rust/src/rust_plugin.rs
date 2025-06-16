@@ -1,6 +1,6 @@
 //! Rust plugin implementation
 
-use crate::rust_tool::{CargoTool, ClippyTool, RustcTool, RustdocTool, RustfmtTool, RustupTool};
+use crate::rust_tool::CargoTool;
 use vx_core::{VxPlugin, VxTool};
 
 /// Rust plugin that provides Rust toolchain tools
@@ -28,21 +28,11 @@ impl VxPlugin for RustPlugin {
     }
 
     fn tools(&self) -> Vec<Box<dyn VxTool>> {
-        vec![
-            Box::new(CargoTool::new()),
-            Box::new(RustcTool::new()),
-            Box::new(RustupTool::new()),
-            Box::new(RustdocTool::new()),
-            Box::new(RustfmtTool::new()),
-            Box::new(ClippyTool::new()),
-        ]
+        vec![Box::new(CargoTool::new())]
     }
 
     fn supports_tool(&self, tool_name: &str) -> bool {
-        matches!(
-            tool_name,
-            "cargo" | "rustc" | "rustup" | "rustdoc" | "rustfmt" | "clippy"
-        )
+        matches!(tool_name, "cargo")
     }
 }
 
@@ -62,15 +52,10 @@ mod tests {
         let plugin = RustPlugin::new();
         let tools = plugin.tools();
 
-        assert_eq!(tools.len(), 6);
+        assert_eq!(tools.len(), 1);
 
         let tool_names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
         assert!(tool_names.contains(&"cargo"));
-        assert!(tool_names.contains(&"rustc"));
-        assert!(tool_names.contains(&"rustup"));
-        assert!(tool_names.contains(&"rustdoc"));
-        assert!(tool_names.contains(&"rustfmt"));
-        assert!(tool_names.contains(&"clippy"));
     }
 
     #[test]
@@ -78,11 +63,11 @@ mod tests {
         let plugin = RustPlugin::new();
 
         assert!(plugin.supports_tool("cargo"));
-        assert!(plugin.supports_tool("rustc"));
-        assert!(plugin.supports_tool("rustup"));
-        assert!(plugin.supports_tool("rustdoc"));
-        assert!(plugin.supports_tool("rustfmt"));
-        assert!(plugin.supports_tool("clippy"));
+        assert!(!plugin.supports_tool("rustc"));
+        assert!(!plugin.supports_tool("rustup"));
+        assert!(!plugin.supports_tool("rustdoc"));
+        assert!(!plugin.supports_tool("rustfmt"));
+        assert!(!plugin.supports_tool("clippy"));
         assert!(!plugin.supports_tool("nonexistent"));
     }
 
