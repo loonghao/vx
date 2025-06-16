@@ -13,13 +13,21 @@ on:
     branches:
       - main
   workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"  # Daily check for releases
+
+concurrency:
+  group: release-plz
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
   release-plz:
     name: Release PLZ
+    if: github.repository == 'loonghao/vx'
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     outputs:
       release_failed: ${{ steps.set-output.outputs.release_failed }}
@@ -29,22 +37,15 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: true
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust dependencies
-        uses: actions/cache@v4
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          shared-key: build
 
       - name: Check for conventional commits
         id: check-commits
@@ -86,6 +87,13 @@ jobs:
               fi
             fi
           fi
+
+      - name: Build vx binary
+        run: |
+          mkdir -p "$HOME/bin"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          cargo build --release --package vx
+          cp target/release/vx "$HOME/bin/"
 
       - name: Create release PR
         id: release-pr
