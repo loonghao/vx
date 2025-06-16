@@ -196,7 +196,6 @@ pub enum Commands {
     },
 
     /// Clean up system (preferred over cleanup)
-    #[command(alias = "clean")]
     Clean {
         /// Preview cleanup operations without executing
         #[arg(long)]

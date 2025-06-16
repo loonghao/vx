@@ -11,9 +11,6 @@ keywords.workspace = true
 categories.workspace = true
 rust-version.workspace = true
 
-[[bin]]
-name = "vx"
-path = "src/main.rs"
 
 [dependencies]
 vx-core = { version = "0.2.2", path = "../vx-core" }
