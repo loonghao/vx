@@ -104,21 +104,8 @@ macro_rules! rust_vx_tool {
     };
 }
 
-// Define all Rust tools using the VxTool macro
+// Define Rust tools using the VxTool macro
 rust_vx_tool!(CargoTool, "cargo", "Rust package manager and build tool");
-rust_vx_tool!(RustcTool, "rustc", "The Rust compiler");
-rust_vx_tool!(
-    RustupTool,
-    "rustup",
-    "Rust toolchain installer and version manager"
-);
-rust_vx_tool!(RustdocTool, "rustdoc", "Rust documentation generator");
-rust_vx_tool!(RustfmtTool, "rustfmt", "Rust code formatter");
-rust_vx_tool!(
-    ClippyTool,
-    "clippy",
-    "Rust linter for catching common mistakes"
-);
 
 #[cfg(test)]
 mod tests {
@@ -130,13 +117,6 @@ mod tests {
         assert_eq!(tool.name(), "cargo");
         assert!(!tool.description().is_empty());
         assert!(tool.aliases().is_empty());
-    }
-
-    #[test]
-    fn test_rustc_tool_creation() {
-        let tool = RustcTool::new();
-        assert_eq!(tool.name(), "rustc");
-        assert!(!tool.description().is_empty());
     }
 
     #[test]

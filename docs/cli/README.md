@@ -54,18 +54,44 @@ OPTIONS:
     -V, --version       显示版本信息
 ```
 
+## 🔗 命令别名
+
+VX 提供常用命令的便捷别名：
+
+```bash
+# 工具管理别名
+vx i <tool>         # vx install <tool>
+vx rm <tool>        # vx remove <tool> / vx uninstall <tool>
+vx ls               # vx list
+vx up               # vx update
+
+# 配置管理别名
+vx cfg              # vx config
+
+# 清理别名
+vx clean            # vx cleanup (推荐使用)
+
+# 标准命令
+vx uninstall        # 卸载工具
+vx which            # 显示工具位置
+vx versions         # 显示可用版本
+vx clean            # 清理系统
+```
+
 ## 📚 命令分类
 
 ### 🛠️ 工具执行
 - [execute](./execute.md) - 直接执行工具（透明代理）
 
 ### 📦 工具管理
-- [install](./install.md) - 安装工具
-- [list](./list.md) - 列出工具
-- [update](./update.md) - 更新工具
-- [remove](./remove.md) - 移除工具
+- [install](./install.md) - 安装工具 (别名: `i`)
+- [list](./list.md) - 列出工具 (别名: `ls`)
+- [update](./update.md) - 更新工具 (别名: `up`)
+- [uninstall](./remove.md) - 卸载工具 (别名: `rm`)
 - [search](./search.md) - 搜索工具
 - [switch](./switch.md) - 切换版本
+- [which](./remove.md) - 显示工具位置
+- [versions](./remove.md) - 显示可用版本
 
 ### 🌍 虚拟环境管理
 - [venv](./venv.md) - 虚拟环境管理
@@ -76,10 +102,10 @@ OPTIONS:
 ### 🔧 项目管理
 - [init](./init.md) - 初始化项目
 - [sync](./sync.md) - 项目同步
-- [config](./config.md) - 配置管理
+- [config](./config.md) - 配置管理 (别名: `cfg`)
 
 ### 🧹 维护命令
-- [cleanup](./cleanup.md) - 清理操作
+- [clean](./cleanup.md) - 清理系统 (别名: `clean`)
 - [stats](./stats.md) - 统计信息
 
 ### 🔌 插件管理
@@ -87,6 +113,8 @@ OPTIONS:
 
 ### 🔧 高级功能
 - [shell-integration](./shell-integration.md) - Shell 集成
+  - `vx shell init` - 生成Shell初始化脚本
+  - `vx shell completions` - 生成Shell补全脚本
 - [troubleshooting](./troubleshooting.md) - 故障排除
 
 ## 📝 快速开始
