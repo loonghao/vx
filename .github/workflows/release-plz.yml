@@ -105,7 +105,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
-      - name: Create release
+      - name: Create release and publish to crates.io
         id: release
         if: steps.check-commits.outputs.should_release == 'true'
         uses: MarcoIeni/release-plz-action@v0.5
@@ -147,16 +147,10 @@ jobs:
             echo "⚠️ release-plz failed, will trigger fallback publishing"
           else
             echo "🎉 Release completed successfully via release-plz"
+            echo "📦 Crates published to crates.io"
+            echo "🏷️ Git tag created - this will trigger asset building workflow"
           fi
 
-  # Fallback publishing job that runs if release-plz fails
-  fallback-publish:
-    needs: release-plz
-    if: needs.release-plz.outputs.release_failed == 'true'
-    uses: ./.github/workflows/force-publish.yml
-    with:
-      packages: 'all'
-      force: true
-      dry_run: false
-    secrets:
-      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+  # Note: Fallback publishing has been removed
+  # release-plz now handles publishing directly with retry logic
+  # If release-plz fails, manual intervention may be required
