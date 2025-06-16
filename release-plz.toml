@@ -144,8 +144,8 @@ git_release_enable = true
 git_release_name = "v{{version}}"
 # Enable release draft mode for review
 git_release_draft = false
-# Disable automatic publishing (use post-release workflow)
-publish = false
+# Enable automatic publishing to crates.io
+publish = true
 # Generate releases based on git history, not registry state
 git_release_type = "auto"
 # Skip build verification to avoid dependency conflicts

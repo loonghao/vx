@@ -1,12 +1,12 @@
 name: Package Managers
 
 # Publish to various package managers using pre-built artifacts
-# Downloads binaries from GitHub Release (built by release.yml)
+# Downloads binaries from GitHub Release (built by tag-release-assets.yml)
 # No building - only packaging and distribution
 
 on:
   workflow_run:
-    workflows: ["Release"]
+    workflows: ["Tag Release Assets"]
     types:
       - completed
   workflow_dispatch:
@@ -130,18 +130,18 @@ jobs:
 
       - name: Download Windows binary from release
         run: |
-          # Download pre-built binary from GitHub Release (built by release.yml)
+          # Download pre-built binary from GitHub Release (built by tag-release-assets.yml)
           $version = "${{ needs.check-release.outputs.version }}"
-          $downloadUrl = "https://github.com/loonghao/vx/releases/download/$version/vx-windows-amd64.zip"
+          $downloadUrl = "https://github.com/loonghao/vx/releases/download/$version/vx-windows-x64.zip"
           Write-Host "Downloading pre-built binary from: $downloadUrl"
 
           try {
             # Download the zip file
-            Invoke-WebRequest -Uri $downloadUrl -OutFile "vx-windows-amd64.zip" -ErrorAction Stop
-            Write-Host "Downloaded zip size: $((Get-Item vx-windows-amd64.zip).Length) bytes"
+            Invoke-WebRequest -Uri $downloadUrl -OutFile "vx-windows-x64.zip" -ErrorAction Stop
+            Write-Host "Downloaded zip size: $((Get-Item vx-windows-x64.zip).Length) bytes"
 
             # Extract the exe from zip
-            Expand-Archive -Path "vx-windows-amd64.zip" -DestinationPath "." -Force
+            Expand-Archive -Path "vx-windows-x64.zip" -DestinationPath "." -Force
 
             # Find the vx.exe file (it might be in a subdirectory)
             $exeFile = Get-ChildItem -Recurse -Name "vx.exe" | Select-Object -First 1
@@ -214,9 +214,9 @@ jobs:
           target_darwin_arm64: true
           target_linux_amd64: true
           # Automatically uses GitHub release assets:
-          # - vx-macos-amd64 for Darwin x86_64
+          # - vx-macos-x64 for Darwin x86_64
           # - vx-macos-arm64 for Darwin ARM64
-          # - vx-linux-amd64 for Linux x86_64
+          # - vx-linux-x64 for Linux x86_64
 
   # Publish to Scoop (Custom implementation)
   publish-scoop:
