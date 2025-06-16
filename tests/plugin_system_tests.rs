@@ -27,7 +27,6 @@ async fn test_plugin_registration() {
     assert!(registry.supports_tool("npx"));
     assert!(registry.supports_tool("go"));
     assert!(registry.supports_tool("cargo"));
-    assert!(registry.supports_tool("rustc"));
     assert!(registry.supports_tool("uv"));
     assert!(registry.supports_tool("uvx"));
 
@@ -69,11 +68,7 @@ fn test_rust_plugin_tools() {
 
     let tool_names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
     assert!(tool_names.contains(&"cargo"));
-    assert!(tool_names.contains(&"rustc"));
-    assert!(tool_names.contains(&"rustup"));
-    assert!(tool_names.contains(&"rustdoc"));
-    assert!(tool_names.contains(&"rustfmt"));
-    assert!(tool_names.contains(&"clippy"));
+    // Only cargo is supported now - other tools were removed for simplicity
 }
 
 #[test]
