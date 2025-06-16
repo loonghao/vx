@@ -1,6 +1,11 @@
-[tools]
+# VX Project Configuration
+# This file defines the tools and versions required for this project.
+# Run 'vx sync' to install all required tools.
 
-[defaults]
+[tools]
+python = "3.11"
+uv = "latest"
+
+[settings]
 auto_install = true
-check_updates = true
-update_interval = "24h"
+cache_duration = "7d"
