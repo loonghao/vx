@@ -8,14 +8,6 @@ changelog_update = true
 git_release_enable = true
 # Enable automatic tag creation
 git_tag_enable = true
-# Don't set workspace-level git_tag_name to avoid conflicts with package-level settings
-
-# Version synchronization settings
-# This helps resolve version mismatch issues between local and registry
-allow_dirty = false
-# Release only when merging release PR (not on every commit)
-# This prevents version conflicts and allows manual control
-release_always = false
 
 # Changelog configuration
 [changelog]
@@ -29,57 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 """
 
-# Package-specific configuration
-[[package]]
-name = "vx-shim"
-changelog_update = true
-# Custom tag format for vx-shim (library releases)
-git_tag_name = "vx-shim-v{{version}}"
-
-[[package]]
-name = "vx-core"
-changelog_update = true
-# Custom tag format for vx-core (library releases)
-git_tag_name = "vx-core-v{{version}}"
-
-[[package]]
-name = "vx-cli"
-changelog_update = true
-# Custom tag format for vx-cli (library releases)
-git_tag_name = "vx-cli-v{{version}}"
-
-[[package]]
-name = "vx-tool-uv"
-changelog_update = true
-# Custom tag format for vx-tool-uv (library releases)
-git_tag_name = "vx-tool-uv-v{{version}}"
-
-[[package]]
-name = "vx-tool-node"
-changelog_update = true
-# Custom tag format for vx-tool-node (library releases)
-git_tag_name = "vx-tool-node-v{{version}}"
-
-[[package]]
-name = "vx-tool-go"
-changelog_update = true
-# Custom tag format for vx-tool-go (library releases)
-git_tag_name = "vx-tool-go-v{{version}}"
-
-[[package]]
-name = "vx-tool-rust"
-changelog_update = true
-# Custom tag format for vx-tool-rust (library releases)
-git_tag_name = "vx-tool-rust-v{{version}}"
-
-[[package]]
-name = "vx-pm-npm"
-changelog_update = true
-# Custom tag format for vx-pm-npm (library releases)
-git_tag_name = "vx-pm-npm-v{{version}}"
-
+# Package-specific configuration - only for the main vx CLI
 [[package]]
 name = "vx"
+# Main CLI package is in the root directory
 changelog_update = true
 # Standard tag format for main CLI (triggers release.yml workflow)
 git_tag_name = "v{{version}}"
+
+# Note: Internal libraries (vx-core, vx-cli, vx-shim, vx-tool-*, vx-pm-*) are not configured here
+# as they are internal components that follow the main package version and don't need separate releases
