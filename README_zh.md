@@ -60,20 +60,60 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/loonghao/vx/main/install-release.ps1 | iex
+powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+```
+
+#### 高级安装选项
+
+**安装特定版本:**
+```bash
+# Linux/macOS
+VX_VERSION="0.1.0" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# Windows
+$env:VX_VERSION="0.1.0"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+```
+
+**安装到自定义目录:**
+```bash
+# Linux/macOS
+VX_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# Windows
+$env:VX_INSTALL_DIR="C:\tools\vx"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 ```
 
 #### 包管理器
 
-**Homebrew (macOS/Linux):**
-```bash
-brew install loonghao/tap/vx
+**Chocolatey (Windows):**
+```powershell
+choco install vx
 ```
 
 **Scoop (Windows):**
 ```powershell
-scoop bucket add loonghao https://github.com/loonghao/scoop-bucket
+scoop bucket add loonghao https://github.com/loonghao/scoop-vx.git
 scoop install vx
+```
+
+**WinGet (Windows):**
+```powershell
+winget install loonghao.vx
+```
+
+**Homebrew (macOS):**
+```bash
+brew tap loonghao/vx
+brew install vx
+```
+
+**Arch Linux (AUR):**
+```bash
+# 使用 yay
+yay -S vx-bin
+
+# 使用 paru
+paru -S vx-bin
 ```
 
 **Cargo (从源码):**
