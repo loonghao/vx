@@ -13,7 +13,36 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 
 **Windows (PowerShell):**
 ```powershell
-iwr -useb https://raw.githubusercontent.com/loonghao/vx/main/install-release.ps1 | iex
+powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+```
+
+### Advanced Installation Options
+
+**Install specific version:**
+```bash
+# Linux/macOS
+VX_VERSION="0.1.0" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# Windows
+$env:VX_VERSION="0.1.0"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+```
+
+**Install to custom directory:**
+```bash
+# Linux/macOS
+VX_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# Windows
+$env:VX_INSTALL_DIR="C:\tools\vx"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+```
+
+**Build from source:**
+```bash
+# Linux/macOS
+BUILD_FROM_SOURCE=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# Windows (in vx repository directory)
+powershell -c ".\install.ps1 -BuildFromSource"
 ```
 
 ## 📦 Package Managers
