@@ -1,12 +1,10 @@
-name: Release PLZ
-
-# Modern automated release workflow using release-plz
-# Simplified to let release-plz handle all logic
-# Automatically creates tags and publishes to crates.io
+name: Release-plz
 
 permissions:
-  contents: write
   pull-requests: write
+  contents: write
+  issues: write
+  repository-projects: write
 
 on:
   push:
@@ -14,75 +12,28 @@ on:
       - main
   workflow_dispatch:
 
-concurrency:
-  group: release-plz
-  cancel-in-progress: false
-
-env:
-  CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
-
 jobs:
   release-plz:
-    name: Release PLZ
-    if: github.repository == 'loonghao/vx'
-    timeout-minutes: 15
+    name: Release-plz
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Rust
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: release-plz
-
-      - name: Create release PR
-        id: release-pr
+      - name: Run release-plz
         uses: MarcoIeni/release-plz-action@v0.5.107
-        with:
-          command: release-pr
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create release and publish to crates.io
-        id: release
-        uses: MarcoIeni/release-plz-action@v0.5.107
-        with:
-          command: release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use PAT if available, fallback to GITHUB_TOKEN
+          # Note: If you get "GitHub Actions is not permitted to create or approve pull requests" error,
+          # you need to either:
+          # 1. Enable "Allow GitHub Actions to create and approve pull requests" in repository settings
+          # 2. Or create a Personal Access Token with repo permissions and add it as RELEASE_PLZ_TOKEN secret
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-      - name: Summary
-        if: always()
-        run: |
-          echo "## 🚀 Release PLZ Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Release PR**: ${{ steps.release-pr.outcome }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Release**: ${{ steps.release.outcome }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ steps.release.outcome }}" == "success" ]]; then
-            echo "✅ **Status**: Release completed successfully!" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- 📦 Crates published to crates.io" >> $GITHUB_STEP_SUMMARY
-            echo "- 🏷️ Git tag created (will trigger asset building)" >> $GITHUB_STEP_SUMMARY
-            echo "- 📝 GitHub Release created" >> $GITHUB_STEP_SUMMARY
-          elif [[ "${{ steps.release.outcome }}" == "skipped" ]]; then
-            echo "ℹ️ **Status**: No release needed" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- No conventional commits found since last release" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Status**: Release failed" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- Check the workflow logs for details" >> $GITHUB_STEP_SUMMARY
-            echo "- Manual intervention may be required" >> $GITHUB_STEP_SUMMARY
-          fi

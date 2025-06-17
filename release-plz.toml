@@ -2,26 +2,15 @@
 # https://release-plz.ieni.dev/docs/config
 
 [workspace]
-# Allow dirty working directories for development
-allow_dirty = true
-# Always try to create releases when there are changes (this enables PR creation)
-release_always = true
-# Disable automatic publishing to crates.io (use post-release workflow)
-publish = false
-# Process packages based on git changes only
+# Enable automatic changelog generation
+changelog_update = true
+# Enable automatic version bumping
 git_release_enable = true
-# Skip dependency checks that require registry access - this prevents registry conflicts
-dependencies_update = false
-# Disable processing of all workspace packages by default
-release = false
-# Process all commits for release detection
-release_commits = "^(feat|fix|docs|style|refactor|perf|test|chore|build|ci).*"
-# Add labels to release PRs
-pr_labels = ["release", "automated"]
-# Use git-based versioning instead of registry checks
-git_release_type = "auto"
+# Enable automatic tag creation
+git_tag_enable = true
+# Don't set workspace-level git_tag_name to avoid conflicts with package-level settings
 
-# Enhanced changelog configuration
+# Changelog configuration
 [changelog]
 header = """
 # Changelog
@@ -31,173 +20,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
 """
 
-# Clean up commit messages before processing
-commit_preprocessors = [
-    # Replace issue/PR numbers with links
-    { pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/loonghao/vx/pull/${1}))" },
-    # Remove "Signed-off-by" lines
-    { pattern = "\\n\\nSigned-off-by: .*", replace = "" },
-    # Clean up merge commit messages
-    { pattern = "Merge pull request #([0-9]+) from [^\\n]+\\n\\n", replace = "" },
-    # Remove multiple spaces
-    { pattern = "  +", replace = " " },
-    # Remove trailing whitespace
-    { pattern = " +$", replace = "" },
-]
-
-# Always include breaking changes in changelog
-protect_breaking_commits = true
-# Sort commits by newest first
-sort_commits = "newest"
-
-# Enhanced commit parsing for conventional commits
-commit_parsers = [
-    # Features and enhancements
-    { message = "^feat", group = "✨ Features" },
-    { message = "^feature", group = "✨ Features" },
-
-    # Bug fixes
-    { message = "^fix", group = "🐛 Bug Fixes" },
-
-    # Documentation
-    { message = "^docs?", group = "📚 Documentation" },
-
-    # Performance improvements
-    { message = "^perf", group = "⚡ Performance" },
-
-    # Code refactoring
-    { message = "^refactor", group = "♻️ Refactor" },
-
-    # Styling changes
-    { message = "^style", group = "💄 Styling" },
-
-    # Testing
-    { message = "^test", group = "🧪 Testing" },
-
-    # Build system and CI
-    { message = "^build", group = "🔧 Build System" },
-    { message = "^ci", group = "👷 CI/CD" },
-
-    # Skip release commits and dependency updates
-    { message = "^chore\\(release\\): prepare for", skip = true },
-    { message = "^chore\\(deps.*\\)", skip = true },
-    { message = "^chore: release", skip = true },
-
-    # Other chores
-    { message = "^chore", group = "🔧 Miscellaneous Tasks" },
-
-    # Reverts
-    { message = "^revert", group = "⏪ Revert" },
-
-    # Security fixes
-    { message = "^security", group = "🔒 Security" },
-
-    # Breaking changes (should be caught by other patterns but included for safety)
-    { message = ".*!:", group = "💥 Breaking Changes" },
-
-    # Catch-all for other conventional commits
-    { message = "^\\w+", group = "📦 Other Changes" },
-]
-
-# Explicitly disable all workspace packages to avoid registry checks
+# Package-specific configuration
 [[package]]
 name = "vx-shim"
-release = false
+path = "crates/vx-shim"
+changelog_update = true
+# Custom tag format for vx-shim (library releases)
+git_tag_name = "vx-shim-v{{version}}"
 
 [[package]]
 name = "vx-core"
-release = false
+path = "crates/vx-core"
+changelog_update = true
+# Custom tag format for vx-core (library releases)
+git_tag_name = "vx-core-v{{version}}"
 
 [[package]]
 name = "vx-cli"
-release = false
+path = "crates/vx-cli"
+changelog_update = true
+# Custom tag format for vx-cli (library releases)
+git_tag_name = "vx-cli-v{{version}}"
 
 [[package]]
 name = "vx-tool-uv"
-release = false
+path = "crates/vx-tools/vx-tool-uv"
+changelog_update = true
+# Custom tag format for vx-tool-uv (library releases)
+git_tag_name = "vx-tool-uv-v{{version}}"
 
 [[package]]
 name = "vx-tool-node"
-release = false
+path = "crates/vx-tools/vx-tool-node"
+changelog_update = true
+# Custom tag format for vx-tool-node (library releases)
+git_tag_name = "vx-tool-node-v{{version}}"
+
+[[package]]
+name = "vx-tool-go"
+path = "crates/vx-tools/vx-tool-go"
+changelog_update = true
+# Custom tag format for vx-tool-go (library releases)
+git_tag_name = "vx-tool-go-v{{version}}"
+
+[[package]]
+name = "vx-tool-rust"
+path = "crates/vx-tools/vx-tool-rust"
+changelog_update = true
+# Custom tag format for vx-tool-rust (library releases)
+git_tag_name = "vx-tool-rust-v{{version}}"
 
 [[package]]
 name = "vx-pm-npm"
-release = false
+path = "crates/vx-package-managers/vx-pm-npm"
+changelog_update = true
+# Custom tag format for vx-pm-npm (library releases)
+git_tag_name = "vx-pm-npm-v{{version}}"
 
-# Package-specific configuration - only process main package
 [[package]]
 name = "vx"
-# Enable processing for the main package only
-release = true
-# Enable changelog for the main package
 changelog_update = true
-# Enable git tag creation
-git_tag_enable = true
-# Git tag name template
+# Standard tag format for main CLI (triggers release.yml workflow)
 git_tag_name = "v{{version}}"
-# Enable GitHub release creation
-git_release_enable = true
-# Release name template
-git_release_name = "v{{version}}"
-# Enable release draft mode for review
-git_release_draft = false
-# Enable automatic publishing to crates.io
-publish = true
-# Generate releases based on git history, not registry state
-git_release_type = "auto"
-# Skip build verification to avoid dependency conflicts
-publish_no_verify = true
-# Include commits from workspace packages in main package changelog
-changelog_include = [
-    "vx-core",
-    "vx-cli",
-    "vx-shim",
-    "vx-tool-uv",
-    "vx-tool-node",
-    "vx-pm-npm",
-]
-# Enhanced release body template
-git_release_body = """
-## 🚀 What's New in {{ version }}
-
-{{ changelog }}
-
-{% if remote.contributors %}
-## 👥 Contributors
-
-Thanks to all the contributors who made this release possible:
-{% for contributor in remote.contributors -%}
-* @{{ contributor.username }}
-{% endfor %}
-{% endif %}
-
-## 📦 Installation
-
-### 🔧 Package Managers
-- **Windows (WinGet)**: `winget install loonghao.vx`
-- **Windows (Chocolatey)**: `choco install vx`
-- **macOS (Homebrew)**: `brew install loonghao/vx/vx`
-- **Windows (Scoop)**: `scoop bucket add vx https://github.com/loonghao/scoop-vx && scoop install vx`
-
-### 📦 Cargo
-```bash
-cargo install vx
-```
-
-### 💾 Download Binary
-Download the appropriate binary for your platform from the assets below.
-
-## 🔗 Links
-- **Full Changelog**: https://github.com/loonghao/vx/compare/{{ previous_tag }}...{{ tag }}
-- **Documentation**: https://github.com/loonghao/vx#readme
-- **Issues**: https://github.com/loonghao/vx/issues
-
----
-*This release was automatically generated by [release-plz](https://github.com/release-plz/release-plz)*
-"""
-
-# Workspace member packages are handled by the smart publishing script
-# Only the main package is managed by release-plz for GitHub releases
