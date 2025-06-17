@@ -81,20 +81,60 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/loonghao/vx/main/install-release.ps1 | iex
+powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+```
+
+#### Advanced Installation Options
+
+**Install specific version:**
+```bash
+# Linux/macOS
+VX_VERSION="0.1.0" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# Windows
+$env:VX_VERSION="0.1.0"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+```
+
+**Install to custom directory:**
+```bash
+# Linux/macOS
+VX_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# Windows
+$env:VX_INSTALL_DIR="C:\tools\vx"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 ```
 
 #### Package Managers
 
-**Homebrew (macOS/Linux):**
-```bash
-brew install loonghao/tap/vx
+**Chocolatey (Windows):**
+```powershell
+choco install vx
 ```
 
 **Scoop (Windows):**
 ```powershell
-scoop bucket add loonghao https://github.com/loonghao/scoop-bucket
+scoop bucket add loonghao https://github.com/loonghao/scoop-vx.git
 scoop install vx
+```
+
+**WinGet (Windows):**
+```powershell
+winget install loonghao.vx
+```
+
+**Homebrew (macOS):**
+```bash
+brew tap loonghao/vx
+brew install vx
+```
+
+**Arch Linux (AUR):**
+```bash
+# Using yay
+yay -S vx-bin
+
+# Using paru
+paru -S vx-bin
 ```
 
 **Cargo (from source):**
@@ -112,14 +152,17 @@ Download the latest release from [GitHub Releases](https://github.com/loonghao/v
 git clone https://github.com/loonghao/vx
 cd vx
 
-# Standard release build
+# Build and install using the installer (recommended)
+# Linux/macOS
+BUILD_FROM_SOURCE=true ./install.sh
+
+# Windows
+.\install.ps1 -BuildFromSource
+
+# Or build manually
 cargo build --release
-
-# PGO-optimized build (recommended for best performance)
-make build-pgo
-
-# Windows: Run the build installer
-.\install.ps1
+cp target/release/vx ~/.local/bin/  # Linux/macOS
+# copy target\release\vx.exe %USERPROFILE%\.local\bin\  # Windows
 ```
 
 ### Basic Usage
