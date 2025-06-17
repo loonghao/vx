@@ -25,56 +25,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # Package-specific configuration
 [[package]]
 name = "vx-shim"
-path = "crates/vx-shim"
 changelog_update = true
 # Custom tag format for vx-shim (library releases)
 git_tag_name = "vx-shim-v{{version}}"
 
 [[package]]
 name = "vx-core"
-path = "crates/vx-core"
 changelog_update = true
 # Custom tag format for vx-core (library releases)
 git_tag_name = "vx-core-v{{version}}"
 
 [[package]]
 name = "vx-cli"
-path = "crates/vx-cli"
 changelog_update = true
 # Custom tag format for vx-cli (library releases)
 git_tag_name = "vx-cli-v{{version}}"
 
 [[package]]
 name = "vx-tool-uv"
-path = "crates/vx-tools/vx-tool-uv"
 changelog_update = true
 # Custom tag format for vx-tool-uv (library releases)
 git_tag_name = "vx-tool-uv-v{{version}}"
 
 [[package]]
 name = "vx-tool-node"
-path = "crates/vx-tools/vx-tool-node"
 changelog_update = true
 # Custom tag format for vx-tool-node (library releases)
 git_tag_name = "vx-tool-node-v{{version}}"
 
 [[package]]
 name = "vx-tool-go"
-path = "crates/vx-tools/vx-tool-go"
 changelog_update = true
 # Custom tag format for vx-tool-go (library releases)
 git_tag_name = "vx-tool-go-v{{version}}"
 
 [[package]]
 name = "vx-tool-rust"
-path = "crates/vx-tools/vx-tool-rust"
 changelog_update = true
 # Custom tag format for vx-tool-rust (library releases)
 git_tag_name = "vx-tool-rust-v{{version}}"
 
 [[package]]
 name = "vx-pm-npm"
-path = "crates/vx-package-managers/vx-pm-npm"
 changelog_update = true
 # Custom tag format for vx-pm-npm (library releases)
 git_tag_name = "vx-pm-npm-v{{version}}"
