@@ -2,13 +2,29 @@
 
 This guide helps you set up the correct crates.io API token for automated publishing.
 
-## 🚨 Common Issue: Token Format Error
+## 🚨 Common Issues
+
+### Version Synchronization Problems
+
+If you're seeing errors like:
+```
+ERROR: failed to update packages
+Caused by:
+  package `vx` has a different version (0.2.3) with respect to the registry package (0.2.2),
+  but the git tag v0.2.3 exists. Consider running `cargo publish` manually to publish the
+  new version of this package.
+```
+
+**Root Cause**: Local package versions are ahead of registry versions, but git tags exist.
+**Solution**: This is resolved by using `release_always = false` in release-plz.toml and proper workflow separation.
+
+### Token Format Issues
 
 If you're seeing this error:
 ```
 error: failed to publish to registry at https://crates.io
 Caused by:
-  the remote server responded with an error (status 401 Unauthorized): 
+  the remote server responded with an error (status 401 Unauthorized):
   The given API token does not match the format used by crates.io.
 ```
 
@@ -58,9 +74,9 @@ cargo publish --dry-run --package vx
 ```
 
 ### Test in CI
-1. Push a commit to main branch
-2. Check the "Validate crates.io token format" step in the workflow
-3. Look for ✅ "Token format appears correct" message
+1. Create a test PR to trigger release-plz-pr job
+2. Check that release-plz can access the registry
+3. Merge the PR to trigger actual release
 
 ## 🛡️ Security Best Practices
 

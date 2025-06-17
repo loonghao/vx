@@ -3,111 +3,59 @@ name: Release-plz
 permissions:
   pull-requests: write
   contents: write
-  issues: write
-  repository-projects: write
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
-  release-plz:
-    name: Release-plz
+  # Release unpublished packages.
+  release-plz-release:
+    name: Release-plz release
     runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'loonghao' }}
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Validate crates.io token format
-        run: |
-          if [[ -z "$CARGO_REGISTRY_TOKEN" ]]; then
-            echo "❌ CARGO_REGISTRY_TOKEN is not set"
-            exit 1
-          fi
-
-          # Check if token starts with the correct prefix
-          if [[ "$CARGO_REGISTRY_TOKEN" =~ ^crates-io-.+ ]]; then
-            echo "✅ Token format appears correct (starts with 'crates-io-')"
-          else
-            echo "⚠️ Warning: Token does not start with 'crates-io-' prefix"
-            echo "   Modern crates.io tokens should start with 'crates-io-'"
-            echo "   Please generate a new token at: https://crates.io/me"
-          fi
-
-          # Check token length (modern tokens are typically longer)
-          TOKEN_LENGTH=${#CARGO_REGISTRY_TOKEN}
-          echo "📏 Token length: $TOKEN_LENGTH characters"
-
-          if [[ $TOKEN_LENGTH -lt 40 ]]; then
-            echo "⚠️ Warning: Token seems short for a modern crates.io token"
-            echo "   Consider generating a new token at: https://crates.io/me"
-          fi
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-
       - name: Run release-plz
-        id: release-plz
-        uses: MarcoIeni/release-plz-action@v0.5.107
-        continue-on-error: true
+        uses: release-plz/action@v0.5
+        with:
+          command: release
         env:
-          # Use PAT if available, fallback to GITHUB_TOKEN
-          # Note: If you get "GitHub Actions is not permitted to create or approve pull requests" error,
-          # you need to either:
-          # 1. Enable "Allow GitHub Actions to create and approve pull requests" in repository settings
-          # 2. Or create a Personal Access Token with repo permissions and add it as RELEASE_PLZ_TOKEN secret
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-      - name: Troubleshoot release-plz failure
-        if: steps.release-plz.outcome == 'failure'
-        run: |
-          echo "❌ release-plz failed. Here are common solutions:"
-          echo ""
-          echo "🔑 **Token Issues:**"
-          echo "1. Generate a new crates.io token at: https://crates.io/me"
-          echo "2. Ensure the token starts with 'crates-io-' prefix"
-          echo "3. Update the CARGO_REGISTRY_TOKEN secret in repository settings"
-          echo ""
-          echo "🔐 **GitHub Permissions:**"
-          echo "1. Check if RELEASE_PLZ_TOKEN secret is set (recommended)"
-          echo "2. Or enable 'Allow GitHub Actions to create and approve pull requests' in repo settings"
-          echo ""
-          echo "📦 **Package Issues:**"
-          echo "1. Ensure all packages in workspace are properly configured"
-          echo "2. Check that package names don't conflict with existing crates"
-          echo "3. Verify all dependencies are published and accessible"
-          echo ""
-          echo "🔍 **Debug Steps:**"
-          echo "1. Check the release-plz logs above for specific error messages"
-          echo "2. Try running 'cargo publish --dry-run' locally"
-          echo "3. Verify your crates.io account has publish permissions"
-
-          # Exit with failure to make the workflow fail
-          exit 1
-
-      - name: Success summary
-        if: steps.release-plz.outcome == 'success'
-        run: |
-          echo "🎉 Release-plz completed successfully!"
-          echo ""
-          echo "✅ **What happened:**"
-          echo "- Packages were analyzed for changes"
-          echo "- Version bumps were applied where needed"
-          echo "- Changelogs were updated"
-          echo "- Git tags were created"
-          echo "- Packages were published to crates.io"
-          echo "- GitHub releases were created"
-          echo ""
-          echo "🔄 **Next steps:**"
-          echo "- Check the created tags and releases"
-          echo "- Verify packages are available on crates.io"
-          echo "- Asset building workflow should trigger automatically"
+  # Create a PR with the new versions and changelog, preparing the next release.
+  release-plz-pr:
+    name: Release-plz PR
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'loonghao' }}
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Run release-plz
+        uses: release-plz/action@v0.5
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
 

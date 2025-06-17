@@ -10,6 +10,13 @@ git_release_enable = true
 git_tag_enable = true
 # Don't set workspace-level git_tag_name to avoid conflicts with package-level settings
 
+# Version synchronization settings
+# This helps resolve version mismatch issues between local and registry
+allow_dirty = false
+# Release only when merging release PR (not on every commit)
+# This prevents version conflicts and allows manual control
+release_always = false
+
 # Changelog configuration
 [changelog]
 header = """
