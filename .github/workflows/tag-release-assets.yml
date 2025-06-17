@@ -1,297 +1,95 @@
-name: Tag Release Assets
+name: Release
 
-# This workflow is triggered when a tag is created by release-plz
-# It builds cross-platform binaries and uploads them to the GitHub Release
-# This complements the release-plz workflow which handles crates.io publishing
-
-permissions:
-  contents: write
-  packages: write
+# This workflow handles binary releases and distribution
+# - Triggered by tag pushes (v*) or release events
+# - Builds cross-platform binaries and uploads to GitHub releases
+# - Uses houseabsolute/actions-rust-release for simplified release management
+#
+# Note: Crates.io publishing is handled by release-plz.yml workflow
 
 on:
   push:
     tags:
-      - 'v*'  # Triggered when version tags are pushed by release-plz
+      - 'v*'
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to build assets for (e.g., v0.2.1)'
-        required: true
-        type: string
+
+permissions:
+  contents: write
+  actions: read
+  id-token: write
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
-  # Build configuration for stability
-  CARGO_BUILD_JOBS: "1"
-  # sccache configuration
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
 
 jobs:
-  # Build all platform binaries
-  build-assets:
-    timeout-minutes: 45
+  release:
+    name: Release - ${{ matrix.platform.os_name }}
     strategy:
-      fail-fast: false
       matrix:
-        include:
-          # Linux targets
-          - os: ubuntu-latest
+        platform:
+          # Linux platforms
+          - os_name: Linux-x86_64
+            os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: vx
-            asset_name: vx-linux-x64
-          - os: ubuntu-latest
+
+          - os_name: Linux-x86_64-musl
+            os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            artifact_name: vx
-            asset_name: vx-linux-x64-musl
-          - os: ubuntu-latest
+
+          - os_name: Linux-aarch64
+            os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            artifact_name: vx
-            asset_name: vx-linux-arm64
-          - os: ubuntu-latest
+
+          - os_name: Linux-aarch64-musl
+            os: ubuntu-latest
             target: aarch64-unknown-linux-musl
-            artifact_name: vx
-            asset_name: vx-linux-arm64-musl
-          # Windows targets
-          - os: windows-latest
+
+          # Windows platforms
+          - os_name: Windows-x86_64
+            os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: vx.exe
-            asset_name: vx-windows-x64.exe
-          - os: windows-latest
+
+          - os_name: Windows-aarch64
+            os: windows-latest
             target: aarch64-pc-windows-msvc
-            artifact_name: vx.exe
-            asset_name: vx-windows-arm64.exe
-          # macOS targets
-          - os: macos-latest
+
+          # macOS platforms
+          - os_name: macOS-x86_64
+            os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: vx
-            asset_name: vx-macos-x64
-          - os: macos-latest
+
+          - os_name: macOS-aarch64
+            os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: vx
-            asset_name: vx-macos-arm64
 
-    runs-on: ${{ matrix.os }}
+          # FreeBSD platform (cross-compiled from Linux)
+          - os_name: FreeBSD-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-freebsd
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.2.2
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.inputs.tag || github.ref }}
-
-      - name: Get tag information
-        id: tag-info
-        run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            TAG_NAME=${GITHUB_REF#refs/tags/}
-          else
-            TAG_NAME="${{ github.event.inputs.tag }}"
-          fi
-          VERSION=${TAG_NAME#v}  # Remove 'v' prefix
-          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building assets for tag: $TAG_NAME (version: $VERSION)"
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.9
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: build-${{ matrix.target }}
-          key: ${{ matrix.target }}
-
-      - name: Install cross-compilation tools
-        if: matrix.os == 'ubuntu-latest'
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cross
-
-      - name: Install UPX (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends upx-ucl
-
-      - name: Install UPX (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          choco install upx
-
-      - name: Build binary
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 20
-          max_attempts: 3
-          command: |
-            if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-              cross build --release --target ${{ matrix.target }} --package vx
-            else
-              cargo build --release --target ${{ matrix.target }} --package vx
-            fi
-        env:
-          RUST_BACKTRACE: 1
-          CARGO_BUILD_JOBS: 1
-
-      - name: Compress binary with UPX
-        run: |
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            echo "Compressing Windows binary with UPX..."
-            upx --best target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
-          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
-            echo "Skipping UPX compression for macOS (not supported reliably)"
-          else
-            echo "Compressing Linux binary with UPX..."
-            upx --best target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
-          fi
-        shell: bash
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.asset_name }}
-          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
-          if-no-files-found: error
-
-  # Upload assets to GitHub Release
-  upload-assets:
-    needs: build-assets
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform.os }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v4
+
+      - name: Build executable
+        uses: houseabsolute/actions-rust-cross@v1
         with:
-          fetch-depth: 0
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          command: build
+          target: ${{ matrix.platform.target }}
+          args: "--locked --release --bin vx"
+          strip: true
 
-      - name: Get tag information
-        id: tag-info
-        run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            TAG_NAME=${GITHUB_REF#refs/tags/}
-          else
-            TAG_NAME="${{ github.event.inputs.tag }}"
-          fi
-          VERSION=${TAG_NAME#v}  # Remove 'v' prefix
-          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Uploading assets for tag: $TAG_NAME (version: $VERSION)"
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - name: Publish artifacts and release
+        uses: houseabsolute/actions-rust-release@v0
         with:
-          path: ./artifacts
+          executable-name: vx
+          target: ${{ matrix.platform.target }}
+          changes-file: CHANGELOG.md
+          extra-files: |
+            README.md
+            README_zh.md
+            LICENSE
 
-      - name: Debug artifacts structure
-        run: |
-          echo "🔍 Downloaded artifacts structure:"
-          find ./artifacts -type f -exec ls -la {} \;
 
-      - name: Create release archives and checksums
-        run: |
-          chmod +x scripts/create-archives.sh
-          ./scripts/create-archives.sh
-
-      - name: Check if GitHub Release exists
-        id: check-release
-        run: |
-          TAG_NAME="${{ steps.tag-info.outputs.tag }}"
-          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            echo "release_exists=true" >> $GITHUB_OUTPUT
-            echo "✅ GitHub Release $TAG_NAME already exists"
-          else
-            echo "release_exists=false" >> $GITHUB_OUTPUT
-            echo "❌ GitHub Release $TAG_NAME does not exist"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload assets to existing release
-        if: steps.check-release.outputs.release_exists == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            *.tar.gz
-            *.zip
-            checksums.txt
-          tag_name: ${{ steps.tag-info.outputs.tag }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create release with assets (if not exists)
-        if: steps.check-release.outputs.release_exists == 'false'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            *.tar.gz
-            *.zip
-            checksums.txt
-          tag_name: ${{ steps.tag-info.outputs.tag }}
-          name: ${{ steps.tag-info.outputs.tag }}
-          draft: false
-          generate_release_notes: true
-          body: |
-            ## 🚀 Release ${{ steps.tag-info.outputs.tag }}
-            
-            This release was automatically created from tag ${{ steps.tag-info.outputs.tag }}.
-            
-            ### 📦 Installation
-            
-            #### Package Managers
-            - **Cargo**: `cargo install vx`
-            - **Windows (WinGet)**: `winget install loonghao.vx`
-            - **Windows (Chocolatey)**: `choco install vx`
-            - **macOS (Homebrew)**: `brew install loonghao/vx/vx`
-            - **Windows (Scoop)**: `scoop bucket add vx https://github.com/loonghao/scoop-vx && scoop install vx`
-            
-            #### Download Binary
-            Download the appropriate binary for your platform from the assets below.
-            
-            ### 🔗 Links
-            - **Full Changelog**: https://github.com/loonghao/vx/compare/{{ previous_tag }}...${{ steps.tag-info.outputs.tag }}
-            - **Documentation**: https://github.com/loonghao/vx#readme
-            - **Issues**: https://github.com/loonghao/vx/issues
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Verify release assets
-        run: |
-          TAG_NAME="${{ steps.tag-info.outputs.tag }}"
-          echo "🔍 Verifying assets for release $TAG_NAME..."
-          
-          # List release assets
-          gh release view "$TAG_NAME" --json assets --jq '.assets[].name' | sort
-          
-          echo "✅ Assets uploaded successfully to GitHub Release $TAG_NAME"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create summary
-        run: |
-          echo "## 🚀 Release Assets Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Tag:** ${{ steps.tag-info.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ steps.tag-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Assets Uploaded" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # List all created archives
-          for file in *.tar.gz *.zip; do
-            if [ -f "$file" ]; then
-              echo "- \`$file\`" >> $GITHUB_STEP_SUMMARY
-            fi
-          done
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔗 Links" >> $GITHUB_STEP_SUMMARY
-          echo "- [GitHub Release](https://github.com/loonghao/vx/releases/tag/${{ steps.tag-info.outputs.tag }})" >> $GITHUB_STEP_SUMMARY
-          echo "- [crates.io Package](https://crates.io/crates/vx)" >> $GITHUB_STEP_SUMMARY
