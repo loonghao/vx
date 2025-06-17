@@ -1,83 +1,110 @@
 name: CI
 
 # Continuous Integration for PR validation and main branch verification
-# Only performs code quality checks, tests, and build verification
-# No artifacts are uploaded - release.yml handles actual building
+# - Code quality checks (formatting, clippy, documentation)
+# - Comprehensive testing across platforms and Rust versions
+# - Security auditing and MSRV verification
+# - Build verification for key platforms
+# - Release-plz configuration validation (PR only)
 
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]  # Quick verification on main
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
 jobs:
-  # Code quality checks
-  lint:
-    name: Lint
+  # Code quality checks - formatting, clippy, and documentation
+  code_quality:
+    name: Code Quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.2.2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install Rust
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.9
-
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+        uses: actions/cache@v4
         with:
-          shared-key: ci-lint
-      
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-quality-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-quality-
+            ${{ runner.os }}-cargo-
+
       - name: Check formatting
         run: cargo fmt --all -- --check
-      
+
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
-        env:
-          SCCACHE_GHA_ENABLED: "true"
-          RUSTC_WRAPPER: "sccache"
-      
-      - name: Check documentation
-        run: cargo doc --no-deps --document-private-items --all-features
-        env:
-          RUSTDOCFLAGS: -D warnings
-          SCCACHE_GHA_ENABLED: "true"
-          RUSTC_WRAPPER: "sccache"
 
-  # Run tests on multiple platforms
+      - name: Check documentation
+        run: cargo doc --all-features --no-deps --document-private-items
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
+  # Comprehensive testing across platforms
   test:
-    name: Test
+    name: Test - ${{ matrix.platform.name }}
+    runs-on: ${{ matrix.platform.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        rust: [stable]
-    runs-on: ${{ matrix.os }}
+        platform:
+          # Native compilation platforms
+          - name: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            rust: stable
+          - name: Linux-x86_64-beta
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            rust: beta
+          - name: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            rust: stable
+          - name: macOS-x86_64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            rust: stable
+          # Cross-compilation targets for broader testing
+          - name: Linux-ARM64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            rust: stable
+          - name: Linux-musl
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            rust: stable
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.9
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+      - name: Run tests and build
+        uses: houseabsolute/actions-rust-cross@v1
         with:
-          shared-key: ci-test-${{ matrix.os }}
-      
-      - name: Run tests
-        run: cargo test --all-features --verbose
-        env:
-          SCCACHE_GHA_ENABLED: "true"
-          RUSTC_WRAPPER: "sccache"
+          command: both
+          target: ${{ matrix.platform.target }}
+          toolchain: ${{ matrix.platform.rust }}
+          args: "--locked --all-features"
+          use-rust-cache: true
 
   # Build verification for key platforms only (not all targets)
   # This ensures the code compiles but doesn't upload artifacts
@@ -96,67 +123,152 @@ jobs:
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4.2.2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install Rust
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.9
-
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+        uses: actions/cache@v4
         with:
-          shared-key: ci-build-${{ matrix.os }}
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
+            ${{ runner.os }}-cargo-
 
       - name: Build verification (native target)
         run: cargo build --release
-        env:
-          SCCACHE_GHA_ENABLED: "true"
-          RUSTC_WRAPPER: "sccache"
 
       # No artifact upload - this is just verification
 
-  # Security audit
-  security:
+  # Security audit using rustsec database
+  security_audit:
     name: Security Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.2.2
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-audit
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-audit
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Run security audit
-        run: cargo audit
+        uses: rustsec/audit-check@v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   # Check minimum supported Rust version
   msrv:
     name: MSRV
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.2.2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install Rust
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.9
-
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+        uses: actions/cache@v4
         with:
-          shared-key: ci-msrv
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-msrv-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-msrv-
+            ${{ runner.os }}-cargo-
 
       - name: Check MSRV
         run: cargo check --all-features
-        env:
-          SCCACHE_GHA_ENABLED: "true"
-          RUSTC_WRAPPER: "sccache"
 
+  # Validate release-plz configuration (PR only)
+  release_plz_config_check:
+    name: Release-plz Config Validation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
 
+      - name: Validate GitHub Token
+        run: |
+          echo "🔐 Validating GitHub Token configuration..."
+          echo ""
+          # Check if RELEASE_PLZ_TOKEN is available (we can't access the actual value for security)
+          if [ -n "${{ secrets.RELEASE_PLZ_TOKEN }}" ]; then
+            echo "✅ RELEASE_PLZ_TOKEN is configured"
+            TOKEN_SOURCE="RELEASE_PLZ_TOKEN"
+          else
+            echo "⚠️ RELEASE_PLZ_TOKEN not found, will use GITHUB_TOKEN"
+            TOKEN_SOURCE="GITHUB_TOKEN"
+          fi
+
+          # Test token format validation logic (using GITHUB_TOKEN as it's always available)
+          TEST_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          # Basic token format validation
+          if [[ "$TEST_TOKEN" =~ ^(ghp_|gho_|ghu_|ghs_|ghr_|github_pat_) ]]; then
+            echo "✅ Token format validation logic works correctly"
+          else
+            echo "❌ Token format validation failed - this may indicate an issue"
+            exit 1
+          fi
+
+          # Test API connectivity with GITHUB_TOKEN
+          echo "🌐 Testing GitHub API connectivity..."
+          curl -s -H "Authorization: Bearer $TEST_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/user > /dev/null || {
+            echo "❌ GitHub API connectivity test failed"
+            exit 1
+          }
+          echo "✅ GitHub API connectivity test passed"
+          echo "🎯 Token validation will use: $TOKEN_SOURCE"
+
+      - name: Validate release-plz configuration file
+        run: |
+          echo "🔧 Validating release-plz configuration..."
+          echo ""
+          # Check if config file exists
+          if [ -f "release-plz.toml" ]; then
+            echo "✅ release-plz.toml found"
+          else
+            echo "❌ release-plz.toml not found"
+            exit 1
+          fi
+
+          # Validate TOML syntax
+          echo "🧪 Checking TOML syntax..."
+          if command -v toml-cli &> /dev/null; then
+            toml-cli get release-plz.toml . > /dev/null || {
+              echo "❌ Invalid TOML syntax in release-plz.toml"
+              exit 1
+            }
+          else
+            # Basic syntax check using Python (available in GitHub runners)
+            python3 -c "
+          import tomllib
+          try:
+              with open('release-plz.toml', 'rb') as f:
+                  tomllib.load(f)
+              print('✅ TOML syntax is valid')
+          except Exception as e:
+              print(f'❌ TOML syntax error: {e}')
+              exit(1)
+          " || exit 1
+          fi
+
+          echo ""
+          echo "✅ Release-plz configuration validation completed!"
+          echo "📝 Configuration file exists and has valid TOML syntax."
+          echo "🎯 The workflow should work correctly when merged to main."
