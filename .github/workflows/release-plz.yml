@@ -1,8 +1,8 @@
 name: Release PLZ
 
-# Automated release workflow using release-plz
-# Handles both release PR creation and direct publishing
-# Falls back to force-publish workflow if release-plz fails
+# Modern automated release workflow using release-plz
+# Simplified to let release-plz handle all logic
+# Automatically creates tags and publishes to crates.io
 
 permissions:
   contents: write
@@ -13,11 +13,10 @@ on:
     branches:
       - main
   workflow_dispatch:
-  schedule:
-    - cron: "0 0 * * *"  # Daily check for releases
 
 concurrency:
   group: release-plz
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
@@ -27,17 +26,15 @@ jobs:
   release-plz:
     name: Release PLZ
     if: github.repository == 'loonghao/vx'
-    timeout-minutes: 20
+    timeout-minutes: 15
     runs-on: ubuntu-latest
-    outputs:
-      release_failed: ${{ steps.set-output.outputs.release_failed }}
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-          submodules: true
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -45,112 +42,47 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: build
-
-      - name: Check for conventional commits
-        id: check-commits
-        run: |
-          # Get commits since last tag
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
-          if [ -z "$LAST_TAG" ]; then
-            echo "No previous tags found, will create initial release"
-            echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "version_bump=minor" >> $GITHUB_OUTPUT
-          else
-            # Check commits since last tag
-            COMMITS=$(git log ${LAST_TAG}..HEAD --oneline)
-
-            if [ -z "$COMMITS" ]; then
-              echo "No new commits since last tag"
-              echo "should_release=false" >> $GITHUB_OUTPUT
-            else
-              echo "Found new commits, checking for conventional commit patterns..."
-              echo "$COMMITS"
-
-              # Determine if we should release based on commit messages
-              if echo "$COMMITS" | grep -qE "^[a-f0-9]+ (feat|fix|docs|style|refactor|perf|test|chore|build|ci)"; then
-                echo "Found conventional commits, will create release"
-                echo "should_release=true" >> $GITHUB_OUTPUT
-
-                # Determine version bump
-                if echo "$COMMITS" | grep -q "BREAKING CHANGE\|!:"; then
-                  echo "version_bump=major" >> $GITHUB_OUTPUT
-                elif echo "$COMMITS" | grep -qE "^[a-f0-9]+ (feat|feature)"; then
-                  echo "version_bump=minor" >> $GITHUB_OUTPUT
-                else
-                  echo "version_bump=patch" >> $GITHUB_OUTPUT
-                fi
-              else
-                echo "No conventional commits found, skipping release"
-                echo "should_release=false" >> $GITHUB_OUTPUT
-              fi
-            fi
-          fi
-
-      - name: Build vx binary
-        run: |
-          mkdir -p "$HOME/bin"
-          echo "$HOME/bin" >> "$GITHUB_PATH"
-          cargo build --release --package vx
-          cp target/release/vx "$HOME/bin/"
+          shared-key: release-plz
 
       - name: Create release PR
         id: release-pr
-        if: steps.check-commits.outputs.should_release == 'true'
-        uses: MarcoIeni/release-plz-action@v0.5
+        uses: MarcoIeni/release-plz-action@v0.5.107
         with:
           command: release-pr
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
 
       - name: Create release and publish to crates.io
         id: release
-        if: steps.check-commits.outputs.should_release == 'true'
-        uses: MarcoIeni/release-plz-action@v0.5
+        uses: MarcoIeni/release-plz-action@v0.5.107
         with:
           command: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true
 
-      - name: Check release-plz results
+      - name: Summary
+        if: always()
         run: |
-          SHOULD_RELEASE="${{ steps.check-commits.outputs.should_release }}"
+          echo "## 🚀 Release PLZ Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release PR**: ${{ steps.release-pr.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Release**: ${{ steps.release.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "$SHOULD_RELEASE" = "false" ]; then
-            echo "ℹ️ No release needed - no conventional commits found"
-            echo "RELEASE_PLZ_FAILED=false" >> $GITHUB_ENV
+          if [[ "${{ steps.release.outcome }}" == "success" ]]; then
+            echo "✅ **Status**: Release completed successfully!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- 📦 Crates published to crates.io" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏷️ Git tag created (will trigger asset building)" >> $GITHUB_STEP_SUMMARY
+            echo "- 📝 GitHub Release created" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ steps.release.outcome }}" == "skipped" ]]; then
+            echo "ℹ️ **Status**: No release needed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- No conventional commits found since last release" >> $GITHUB_STEP_SUMMARY
           else
-            echo "Release PR step result: ${{ steps.release-pr.outcome }}"
-            echo "Release step result: ${{ steps.release.outcome }}"
-
-            if [ "${{ steps.release.outcome }}" = "failure" ]; then
-              echo "❌ release-plz failed, will trigger fallback publishing"
-              echo "RELEASE_PLZ_FAILED=true" >> $GITHUB_ENV
-            else
-              echo "✅ release-plz completed successfully"
-              echo "RELEASE_PLZ_FAILED=false" >> $GITHUB_ENV
-            fi
+            echo "❌ **Status**: Release failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- Check the workflow logs for details" >> $GITHUB_STEP_SUMMARY
+            echo "- Manual intervention may be required" >> $GITHUB_STEP_SUMMARY
           fi
-
-      - name: Set output for fallback
-        id: set-output
-        run: |
-          echo "release_failed=${{ env.RELEASE_PLZ_FAILED }}" >> $GITHUB_OUTPUT
-
-      - name: Final status
-        run: |
-          if [ "${{ env.RELEASE_PLZ_FAILED }}" = "true" ]; then
-            echo "⚠️ release-plz failed, will trigger fallback publishing"
-          else
-            echo "🎉 Release completed successfully via release-plz"
-            echo "📦 Crates published to crates.io"
-            echo "🏷️ Git tag created - this will trigger asset building workflow"
-          fi
-
-  # Note: Fallback publishing has been removed
-  # release-plz now handles publishing directly with retry logic
-  # If release-plz fails, manual intervention may be required
