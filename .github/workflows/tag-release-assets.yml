@@ -76,11 +76,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.tag || github.ref }}
-          submodules: true
 
       - name: Get tag information
         id: tag-info
@@ -103,16 +102,17 @@ jobs:
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
 
-      - name: Cache crates
-        uses: actions/cache@v4
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
         with:
-          path: ~/.cargo/registry/cache
-          key: cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-registry
+          shared-key: build-${{ matrix.target }}
+          key: ${{ matrix.target }}
 
       - name: Install cross-compilation tools
         if: matrix.os == 'ubuntu-latest'
-        uses: taiki-e/install-action@cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
 
       - name: Install UPX (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -167,7 +167,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.tag || github.ref }}
