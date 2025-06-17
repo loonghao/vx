@@ -25,6 +25,15 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Check what would be released (dry-run)
+        uses: MarcoIeni/release-plz-action@v0.5.107
+        with:
+          command: release
+          args: --dry-run
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
       - name: Run release-plz
         uses: MarcoIeni/release-plz-action@v0.5.107
         env:
