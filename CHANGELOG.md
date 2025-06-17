@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.2.4](https://github.com/loonghao/vx/compare/v0.2.3...v0.2.4) - 2025-06-17
+
+### Added
+
+- simplify release-plz configuration based on shimexe best practices
+- simplify release workflow based on shimexe best practices
+- improve CI configuration based on shimexe best practices
+
+### Fixed
+
+- separate cross-compilation build from native testing
+- add cross-compilation dependencies for ARM64 target
+- temporarily disable ARM64 cross-compilation due to linker issues
+- use correct release-plz action and resolve version sync issues
+- move release-plz dry-run to CI and enhance token troubleshooting
+
+### Other
+
+- update README installation instructions
 ## [Unreleased]
 
 ## [0.2.3](https://github.com/loonghao/vx/compare/v0.2.2...v0.2.3) - 2025-06-16

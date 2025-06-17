@@ -2576,7 +2576,7 @@ dependencies = [
 
 [[package]]
 name = "vx"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "tempfile",
@@ -2591,7 +2591,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cli"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "clap",
@@ -2621,7 +2621,7 @@ dependencies = [
 
 [[package]]
 name = "vx-core"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2650,7 +2650,7 @@ dependencies = [
 
 [[package]]
 name = "vx-pm-npm"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2684,7 +2684,7 @@ dependencies = [
 
 [[package]]
 name = "vx-tool-go"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2697,7 +2697,7 @@ dependencies = [
 
 [[package]]
 name = "vx-tool-node"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2713,7 +2713,7 @@ dependencies = [
 
 [[package]]
 name = "vx-tool-rust"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2726,7 +2726,7 @@ dependencies = [
 
 [[package]]
 name = "vx-tool-uv"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "async-trait",
