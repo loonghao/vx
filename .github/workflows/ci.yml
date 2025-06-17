@@ -68,32 +68,38 @@ jobs:
     strategy:
       matrix:
         platform:
-          # Native compilation platforms
+          # Native compilation platforms - full build and test
           - name: Linux-x86_64
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             rust: stable
+            cross_compile: false
           - name: Linux-x86_64-beta
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             rust: beta
+            cross_compile: false
           - name: Windows-x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
             rust: stable
+            cross_compile: false
           - name: macOS-x86_64
             os: macos-latest
             target: x86_64-apple-darwin
             rust: stable
-          # Cross-compilation targets for broader testing
+            cross_compile: false
+          # Cross-compilation targets - build verification only
           - name: Linux-ARM64
             os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             rust: stable
+            cross_compile: true
           - name: Linux-musl
             os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             rust: stable
+            cross_compile: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -105,10 +111,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
-      - name: Run tests and build
+      # For native compilation: run both build and test
+      # For cross-compilation: only build (can't run tests on different architecture)
+      - name: Run tests and build (native)
+        if: matrix.platform.cross_compile == false
         uses: houseabsolute/actions-rust-cross@v1
         with:
           command: both
+          target: ${{ matrix.platform.target }}
+          toolchain: ${{ matrix.platform.rust }}
+          args: "--locked --all-features"
+          use-rust-cache: true
+
+      - name: Build only (cross-compilation)
+        if: matrix.platform.cross_compile == true
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
           target: ${{ matrix.platform.target }}
           toolchain: ${{ matrix.platform.rust }}
           args: "--locked --all-features"
