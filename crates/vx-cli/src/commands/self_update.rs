@@ -91,15 +91,32 @@ async fn get_latest_version() -> Result<String> {
         GITHUB_OWNER, GITHUB_REPO
     );
 
-    let response = client
+    let mut request = client
         .get(&url)
-        .header("User-Agent", format!("vx/{}", get_current_version()?))
+        .header("User-Agent", format!("vx/{}", get_current_version()?));
+
+    // Add GitHub token if available in environment
+    if let Ok(token) = std::env::var("GITHUB_TOKEN") {
+        request = request.header("Authorization", format!("Bearer {}", token));
+    }
+
+    let response = request
         .send()
         .await
         .context("Failed to fetch latest release information")?;
 
     if !response.status().is_success() {
-        anyhow::bail!("GitHub API request failed: {}", response.status());
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_default();
+
+        // Handle rate limiting gracefully
+        if status == 403 && error_text.contains("rate limit") {
+            anyhow::bail!(
+                "GitHub API rate limit exceeded. To avoid this, set GITHUB_TOKEN environment variable with a personal access token."
+            );
+        }
+
+        anyhow::bail!("GitHub API request failed: {} - {}", status, error_text);
     }
 
     let release: serde_json::Value = response

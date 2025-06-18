@@ -6,7 +6,7 @@
 //! - Manages tool versions through global installation + PATH manipulation
 //! - Provides seamless user experience similar to nvm/pnpm
 
-use crate::{GlobalToolManager, Result, VxEnvironment, VxError, VxShimManager};
+use crate::{GlobalToolManager, Result, VxEnvironment, VxError, VxShimexeManager};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -322,7 +322,7 @@ impl VenvManager {
             })?;
 
         // Create shim manager for this venv
-        let shim_manager = VxShimManager::new(self.env.clone())?;
+        let shim_manager = VxShimexeManager::new(self.env.clone())?;
 
         // Create a venv-specific shim directory
         let venv_dir = self.venvs_dir.join(venv_name);

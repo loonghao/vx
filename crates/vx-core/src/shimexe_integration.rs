@@ -109,6 +109,20 @@ impl VxShimexeManager {
         Ok(())
     }
 
+    /// Switch tool version by updating the shim
+    pub fn switch_tool_version(
+        &self,
+        tool_name: &str,
+        version: &str,
+        tool_path: &Path,
+    ) -> Result<PathBuf> {
+        // Remove existing shim if it exists
+        let _ = self.remove_shim(tool_name);
+
+        // Create new shim with the new tool path
+        self.create_tool_shim(tool_name, tool_path, version, None)
+    }
+
     /// Create the actual shim executable
     fn create_shim_executable(&self, tool_name: &str, config_path: &Path) -> Result<PathBuf> {
         // For now, we'll create a simple wrapper script that uses shimexe-core
