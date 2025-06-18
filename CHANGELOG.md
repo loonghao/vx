@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.2.5](https://github.com/loonghao/vx/compare/v0.2.4...v0.2.5) - 2025-06-18
+
+### Fixed
+
+- Installer script for powershell
+- simplify release-plz.toml following shimexe best practices
+- optimize release-plz configuration to prevent duplicate CI triggers
+- improve CI checkout for fork PRs and optimize release workflows
+
 ## [0.2.4](https://github.com/loonghao/vx/compare/v0.2.3...v0.2.4) - 2025-06-17
 
 ### Added

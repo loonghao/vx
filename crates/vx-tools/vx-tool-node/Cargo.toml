@@ -12,8 +12,8 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-vx-core = { version = "0.2.4", path = "../../vx-core" }
-vx-pm-npm = { version = "0.2.4", path = "../../vx-package-managers/vx-pm-npm" }
+vx-core = { version = "0.2.5", path = "../../vx-core" }
+vx-pm-npm = { version = "0.2.5", path = "../../vx-package-managers/vx-pm-npm" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
