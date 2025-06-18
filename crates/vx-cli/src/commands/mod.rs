@@ -15,6 +15,7 @@ pub mod list;
 pub mod plugin;
 pub mod remove;
 pub mod search;
+pub mod self_update;
 pub mod shell;
 pub mod stats;
 pub mod switch;
@@ -56,6 +57,12 @@ impl CommandHandler {
 
             Some(Commands::Update { tool, apply: _ }) => {
                 update::handle(registry, tool.as_deref(), false)
+                    .await
+                    .map_err(Into::into)
+            }
+
+            Some(Commands::SelfUpdate { check, version }) => {
+                self_update::handle(check, version.as_deref())
                     .await
                     .map_err(Into::into)
             }

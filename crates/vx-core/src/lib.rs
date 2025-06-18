@@ -41,6 +41,7 @@ pub mod plugin;
 pub mod proxy;
 pub mod registry;
 pub mod shim_integration;
+pub mod shimexe_integration;
 pub mod symlink_venv;
 pub mod tool;
 pub mod version;
@@ -87,6 +88,7 @@ pub use http::{get_http_client, HttpUtils};
 pub use platform::{Architecture, OperatingSystem, Platform};
 pub use proxy::{ProxyContext, ToolProxy};
 pub use shim_integration::VxShimManager;
+pub use shimexe_integration::VxShimexeManager;
 pub use symlink_venv::{SymlinkVenv, SymlinkVenvManager};
 pub use url_builder::{
     GenericUrlBuilder, GoUrlBuilder, NodeUrlBuilder, PythonUrlBuilder, RustUrlBuilder, UvUrlBuilder,

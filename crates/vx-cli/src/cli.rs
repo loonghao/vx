@@ -75,6 +75,16 @@ pub enum Commands {
         apply: bool,
     },
 
+    /// Update vx itself to the latest version
+    #[command(name = "self-update")]
+    SelfUpdate {
+        /// Only check for updates, don't install
+        #[arg(long)]
+        check: bool,
+        /// Specific version to install
+        version: Option<String>,
+    },
+
     /// Uninstall tool versions (preferred over remove)
     #[command(alias = "rm")]
     Uninstall {
