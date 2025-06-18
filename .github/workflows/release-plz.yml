@@ -1,10 +1,5 @@
 name: Release-plz
 
-# Automated release management using release-plz
-# - Publishes unpublished packages to crates.io
-# - Creates release PRs with version bumps and changelog updates
-# - Uses PAT token for triggering other workflows
-
 permissions:
   pull-requests: write
   contents: write
