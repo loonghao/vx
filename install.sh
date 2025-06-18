@@ -127,9 +127,18 @@ install_from_release() {
     info "Installing vx v$version for $platform..."
 
     # Construct download URL based on actual release asset naming
+    # Format: vx-{OS}-{variant}-{arch}.tar.gz
     case "$platform" in
-        linux-x64)    archive_name="vx-Linux-gnu-x86_64.tar.gz" ;;
-        linux-arm64)  archive_name="vx-Linux-gnu-arm64.tar.gz" ;;
+        linux-x64)
+            # Try musl first (static binary), fallback to gnu
+            archive_name="vx-Linux-musl-x86_64.tar.gz"
+            fallback_archive="vx-Linux-gnu-x86_64.tar.gz"
+            ;;
+        linux-arm64)
+            # Try musl first (static binary), fallback to gnu
+            archive_name="vx-Linux-musl-arm64.tar.gz"
+            fallback_archive="vx-Linux-gnu-arm64.tar.gz"
+            ;;
         macos-x64)    archive_name="vx-macOS-x86_64.tar.gz" ;;
         macos-arm64)  archive_name="vx-macOS-arm64.tar.gz" ;;
         *) error "Unsupported platform: $platform"; exit 1 ;;
@@ -141,14 +150,41 @@ install_from_release() {
     temp_dir=$(mktemp -d)
     trap 'rm -rf "$temp_dir"' EXIT
 
-    # Download
+    # Download with fallback support
     info "Downloading from $download_url..."
+    download_success=false
+
     if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$download_url" -o "$temp_dir/$archive_name"
+        if curl -fsSL "$download_url" -o "$temp_dir/$archive_name" 2>/dev/null; then
+            download_success=true
+        elif [[ -n "${fallback_archive:-}" ]]; then
+            warn "Primary download failed, trying fallback..."
+            fallback_url="$BASE_URL/download/v$version/$fallback_archive"
+            info "Downloading from $fallback_url..."
+            if curl -fsSL "$fallback_url" -o "$temp_dir/$fallback_archive" 2>/dev/null; then
+                archive_name="$fallback_archive"
+                download_success=true
+            fi
+        fi
     elif command -v wget >/dev/null 2>&1; then
-        wget -q "$download_url" -O "$temp_dir/$archive_name"
+        if wget -q "$download_url" -O "$temp_dir/$archive_name" 2>/dev/null; then
+            download_success=true
+        elif [[ -n "${fallback_archive:-}" ]]; then
+            warn "Primary download failed, trying fallback..."
+            fallback_url="$BASE_URL/download/v$version/$fallback_archive"
+            info "Downloading from $fallback_url..."
+            if wget -q "$fallback_url" -O "$temp_dir/$fallback_archive" 2>/dev/null; then
+                archive_name="$fallback_archive"
+                download_success=true
+            fi
+        fi
     else
         error "Neither curl nor wget is available"
+        exit 1
+    fi
+
+    if [[ "$download_success" != "true" ]]; then
+        error "Failed to download vx binary"
         exit 1
     fi
 

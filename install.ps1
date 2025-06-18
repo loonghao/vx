@@ -47,7 +47,16 @@ function Write-Success {
 
 # Detect platform and map to release naming convention
 function Get-Platform {
-    $arch = if ([Environment]::Is64BitOperatingSystem) { "x86_64" } else { "x86" }
+    # Detect architecture more accurately
+    $arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture) {
+        "X64" { "x86_64" }
+        "Arm64" { "aarch64" }
+        "X86" { "x86" }
+        default {
+            # Fallback to environment check
+            if ([Environment]::Is64BitOperatingSystem) { "x86_64" } else { "x86" }
+        }
+    }
     return "Windows-msvc-$arch"
 }
 
@@ -119,6 +128,7 @@ function Install-FromRelease {
     Write-Info "Installing vx v$Version for $platform..."
 
     # Construct download URL based on actual release asset naming
+    # Format: vx-{OS}-{variant}-{arch}.zip
     $archiveName = "vx-$platform.zip"
     $downloadUrl = "$BaseUrl/download/v$Version/$archiveName"
 
