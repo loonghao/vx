@@ -103,6 +103,12 @@ impl VxCli {
                     .map_err(Into::into)
             }
 
+            Commands::SelfUpdate { check, version } => {
+                commands::self_update::handle(check, version.as_deref())
+                    .await
+                    .map_err(Into::into)
+            }
+
             Commands::Uninstall {
                 tool,
                 version,

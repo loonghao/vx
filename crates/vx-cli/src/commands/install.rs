@@ -1,6 +1,7 @@
 //! Install command implementation
 
 use crate::ui::UI;
+use tracing::{info_span, Instrument};
 use vx_core::{PluginRegistry, Result, VxError};
 
 pub async fn handle(
@@ -20,9 +21,15 @@ pub async fn handle(
     let target_version = if let Some(v) = version {
         v.to_string()
     } else {
-        // Get latest version
-        UI::info(&format!("Fetching latest version for {}...", tool_name));
-        let versions = tool.fetch_versions(false).await?;
+        // Get latest version with progress span
+        let span = info_span!("Fetching latest version", tool = tool_name);
+        let versions = async {
+            UI::info(&format!("Fetching latest version for {}...", tool_name));
+            tool.fetch_versions(false).await
+        }
+        .instrument(span)
+        .await?;
+
         if versions.is_empty() {
             return Err(VxError::VersionNotFound {
                 tool_name: tool_name.to_string(),
@@ -44,8 +51,13 @@ pub async fn handle(
         return Ok(());
     }
 
-    // Install the version
-    match tool.install_version(&target_version, force).await {
+    // Install the version with progress span
+    let install_span = info_span!("Installing tool", tool = tool_name, version = %target_version);
+    let install_result = async { tool.install_version(&target_version, force).await }
+        .instrument(install_span)
+        .await;
+
+    match install_result {
         Ok(()) => {
             UI::success(&format!(
                 "Successfully installed {} {}",
