@@ -1,10 +1,10 @@
 [workspace]
 # Enable automatic changelog generation
 changelog_update = true
-# Disable workspace-level git releases (only main vx package should create releases)
-git_release_enable = false
-# Disable workspace-level tag creation (only main vx package should create tags)
-git_tag_enable = false
+# Enable automatic version bumping
+git_release_enable = true
+# Enable automatic tag creation
+git_tag_enable = true
 
 # Changelog configuration
 [changelog]
@@ -23,66 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 name = "vx"
 # Main CLI package is in the root directory (no path needed)
 changelog_update = true
-# Enable git release only for main vx package
-git_release_enable = true
-# Enable git tag only for main vx package
-git_tag_enable = true
 # Standard tag format for main CLI (triggers tag-release-assets.yml workflow)
 git_tag_name = "v{{version}}"
 
-# Internal crates configuration - publish to crates.io but no GitHub releases
-[[package]]
-name = "vx-core"
-path = "crates/vx-core"
-changelog_update = false
-git_release_enable = false
-git_tag_enable = false
-
-[[package]]
-name = "vx-cli"
-path = "crates/vx-cli"
-changelog_update = false
-git_release_enable = false
-git_tag_enable = false
-
-[[package]]
-name = "vx-shim"
-path = "crates/vx-shim"
-changelog_update = false
-git_release_enable = false
-git_tag_enable = false
-
-[[package]]
-name = "vx-tool-node"
-path = "crates/vx-tools/vx-tool-node"
-changelog_update = false
-git_release_enable = false
-git_tag_enable = false
-
-[[package]]
-name = "vx-tool-go"
-path = "crates/vx-tools/vx-tool-go"
-changelog_update = false
-git_release_enable = false
-git_tag_enable = false
-
-[[package]]
-name = "vx-tool-rust"
-path = "crates/vx-tools/vx-tool-rust"
-changelog_update = false
-git_release_enable = false
-git_tag_enable = false
-
-[[package]]
-name = "vx-tool-uv"
-path = "crates/vx-tools/vx-tool-uv"
-changelog_update = false
-git_release_enable = false
-git_tag_enable = false
-
-[[package]]
-name = "vx-pm-npm"
-path = "crates/vx-package-managers/vx-pm-npm"
-changelog_update = false
-git_release_enable = false
-git_tag_enable = false
+# Note: Internal crates (vx-core, vx-cli, etc.) are not configured here
+# as they are internal libraries that follow the main package version
+# and don't need separate releases. They will be published to crates.io
+# automatically but won't create GitHub releases.
