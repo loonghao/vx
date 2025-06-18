@@ -1,7 +1,6 @@
 //! Download and extraction utilities for VX tool manager
 
 use crate::{Result, VxEnvironment, VxError};
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// Tool downloader and installer
@@ -38,7 +37,7 @@ impl ToolDownloader {
         let install_dir = self.env.get_version_install_dir(tool_name, version);
         std::fs::create_dir_all(&install_dir)?;
 
-        // Extract or copy file
+        // Extract or copy file with progress indication
         let executable_path = if self.is_archive(&filename) {
             println!("📦 Extracting archive...");
             self.extract_archive(&download_path, &install_dir, tool_name)
@@ -60,8 +59,12 @@ impl ToolDownloader {
         Ok(executable_path)
     }
 
-    /// Download a file from URL
+    /// Download a file from URL with progress bar
     async fn download_file(&self, url: &str, output_path: &Path) -> Result<()> {
+        use futures_util::StreamExt;
+        use indicatif::{ProgressBar, ProgressStyle};
+        use std::io::Write;
+
         let client = crate::http::get_http_client();
         let response = client
             .get(url)
@@ -79,17 +82,38 @@ impl ToolDownloader {
             });
         }
 
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|e| VxError::DownloadFailed {
+        // Get content length for progress bar
+        let total_size = response.content_length().unwrap_or(0);
+
+        // Create progress bar
+        let pb = ProgressBar::new(total_size);
+        pb.set_style(
+            ProgressStyle::with_template(
+                "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})"
+            )
+            .unwrap()
+            .progress_chars("#>-"),
+        );
+        pb.set_message("Downloading");
+
+        // Create file and download with progress
+        let mut file = std::fs::File::create(output_path)?;
+        let mut stream = response.bytes_stream();
+        let mut downloaded = 0u64;
+
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|e| VxError::DownloadFailed {
                 url: url.to_string(),
                 reason: e.to_string(),
             })?;
 
-        let mut file = std::fs::File::create(output_path)?;
-        file.write_all(&bytes)?;
+            file.write_all(&chunk)?;
+            downloaded += chunk.len() as u64;
+            pb.set_position(downloaded);
+        }
+
         file.flush()?;
+        pb.finish_with_message("Download completed");
 
         Ok(())
     }
@@ -140,13 +164,15 @@ impl ToolDownloader {
         }
     }
 
-    /// Extract ZIP archive
+    /// Extract ZIP archive with progress bar
     async fn extract_zip(
         &self,
         archive_path: &Path,
         install_dir: &Path,
         tool_name: &str,
     ) -> Result<PathBuf> {
+        use indicatif::{ProgressBar, ProgressStyle};
+
         let file = std::fs::File::open(archive_path)?;
         let mut archive = zip::ZipArchive::new(file).map_err(|e| VxError::InstallationFailed {
             tool_name: tool_name.to_string(),
@@ -154,7 +180,19 @@ impl ToolDownloader {
             message: format!("Failed to open ZIP archive: {}", e),
         })?;
 
-        for i in 0..archive.len() {
+        // Create progress bar for extraction
+        let total_files = archive.len();
+        let pb = ProgressBar::new(total_files as u64);
+        pb.set_style(
+            ProgressStyle::with_template(
+                "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} files extracted"
+            )
+            .unwrap()
+            .progress_chars("#>-"),
+        );
+        pb.set_message("Extracting");
+
+        for i in 0..total_files {
             let mut file = archive
                 .by_index(i)
                 .map_err(|e| VxError::InstallationFailed {
@@ -165,7 +203,10 @@ impl ToolDownloader {
 
             let outpath = match file.enclosed_name() {
                 Some(path) => install_dir.join(path),
-                None => continue,
+                None => {
+                    pb.inc(1);
+                    continue;
+                }
             };
 
             if file.name().ends_with('/') {
@@ -179,7 +220,11 @@ impl ToolDownloader {
                 let mut outfile = std::fs::File::create(&outpath)?;
                 std::io::copy(&mut file, &mut outfile)?;
             }
+
+            pb.inc(1);
         }
+
+        pb.finish_with_message("Extraction completed");
 
         // Find the executable
         self.find_executable_in_dir(install_dir, tool_name)

@@ -29,6 +29,9 @@ zip = "4.0"
 tar = "0.4"
 flate2 = "1.0"
 vx-shim = { version = "0.2.3", path = "../vx-shim" }
+shimexe-core = "0.3.2"
+indicatif = { workspace = true }
+futures-util = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
