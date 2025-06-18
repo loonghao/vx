@@ -40,7 +40,7 @@ name = "config_management_demo"
 path = "examples/config_management_demo.rs"
 
 [dependencies]
-vx-cli = { version = "0.2.4", path = "crates/vx-cli" }
+vx-cli = { version = "0.2.5", path = "crates/vx-cli" }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 
@@ -48,15 +48,15 @@ anyhow = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = { workspace = true }
 # Test dependencies for integration tests
-vx-core = { version = "0.2.4", path = "crates/vx-core" }
-vx-tool-node = { version = "0.2.4", path = "crates/vx-tools/vx-tool-node" }
-vx-tool-go = { version = "0.2.4", path = "crates/vx-tools/vx-tool-go" }
-vx-tool-rust = { version = "0.2.4", path = "crates/vx-tools/vx-tool-rust" }
-vx-tool-uv = { version = "0.2.4", path = "crates/vx-tools/vx-tool-uv" }
+vx-core = { version = "0.2.5", path = "crates/vx-core" }
+vx-tool-node = { version = "0.2.5", path = "crates/vx-tools/vx-tool-node" }
+vx-tool-go = { version = "0.2.5", path = "crates/vx-tools/vx-tool-go" }
+vx-tool-rust = { version = "0.2.5", path = "crates/vx-tools/vx-tool-rust" }
+vx-tool-uv = { version = "0.2.5", path = "crates/vx-tools/vx-tool-uv" }
 
 
 [workspace.package]
-version = "0.2.4"
+version = "0.2.5"
 edition = "2021"
 description = "Universal Development Tool Manager"
 license = "MIT"
