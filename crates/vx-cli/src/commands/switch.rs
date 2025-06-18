@@ -1,7 +1,7 @@
 //! Switch command implementation
 
 use crate::ui::UI;
-use vx_core::{PluginRegistry, Result, VxEnvironment, VxError, VxShimManager};
+use vx_core::{PluginRegistry, Result, VxEnvironment, VxError, VxShimexeManager};
 
 pub async fn handle(_registry: &PluginRegistry, tool_version: &str, global: bool) -> Result<()> {
     // Parse tool@version format
@@ -11,7 +11,7 @@ pub async fn handle(_registry: &PluginRegistry, tool_version: &str, global: bool
 
     // Create environment and shim manager
     let environment = VxEnvironment::new()?;
-    let shim_manager = VxShimManager::new(environment.clone())?;
+    let shim_manager = VxShimexeManager::new(environment.clone())?;
 
     // Check if the version is installed
     if !environment.is_version_installed(&tool_name, &version) {
@@ -34,7 +34,8 @@ pub async fn handle(_registry: &PluginRegistry, tool_version: &str, global: bool
         })?;
 
     // Switch the tool version using shim
-    shim_manager.switch_tool_version(&tool_name, &version, &installation.executable_path)?;
+    let _shim_path =
+        shim_manager.switch_tool_version(&tool_name, &version, &installation.executable_path)?;
 
     if global {
         // Set as global default version
