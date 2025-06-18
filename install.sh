@@ -58,13 +58,15 @@ detect_platform() {
     echo "$os-$arch"
 }
 
-# Get latest version from GitHub API
+# Get latest version from GitHub API (no authentication required)
 get_latest_version() {
     local api_url="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
 
     if command -v curl >/dev/null 2>&1; then
+        # Use curl without authentication - public API access
         curl -s "$api_url" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//'
     elif command -v wget >/dev/null 2>&1; then
+        # Use wget without authentication - public API access
         wget -qO- "$api_url" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//'
     else
         error "Neither curl nor wget is available"
@@ -124,12 +126,12 @@ install_from_release() {
 
     info "Installing vx v$version for $platform..."
 
-    # Construct download URL
+    # Construct download URL based on actual release asset naming
     case "$platform" in
-        linux-x64)    archive_name="vx-linux-x64.tar.gz" ;;
-        linux-arm64)  archive_name="vx-linux-arm64.tar.gz" ;;
-        macos-x64)    archive_name="vx-macos-x64.tar.gz" ;;
-        macos-arm64)  archive_name="vx-macos-arm64.tar.gz" ;;
+        linux-x64)    archive_name="vx-Linux-gnu-x86_64.tar.gz" ;;
+        linux-arm64)  archive_name="vx-Linux-gnu-arm64.tar.gz" ;;
+        macos-x64)    archive_name="vx-macOS-x86_64.tar.gz" ;;
+        macos-arm64)  archive_name="vx-macOS-arm64.tar.gz" ;;
         *) error "Unsupported platform: $platform"; exit 1 ;;
     esac
 
