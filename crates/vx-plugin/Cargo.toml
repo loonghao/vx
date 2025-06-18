@@ -1,0 +1,61 @@
+[package]
+name = "vx-plugin"
+version.workspace = true
+edition.workspace = true
+description = "Plugin system for vx - Universal Development Tool Manager"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords = ["plugin", "tools", "development", "manager", "extensibility"]
+categories = ["development-tools", "api-bindings"]
+readme = "README.md"
+rust-version.workspace = true
+
+[lib]
+name = "vx_plugin"
+path = "src/lib.rs"
+
+[dependencies]
+# Core dependencies
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+
+# Path and file utilities
+which = { workspace = true }
+dirs = { workspace = true }
+
+# Internal dependencies
+vx-config = { version = "0.2.6", path = "../vx-config" }
+
+# Optional dependencies for features
+mockall = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+tempfile = { workspace = true }
+rstest = { workspace = true }
+pretty_assertions = { workspace = true }
+serial_test = { workspace = true }
+
+[features]
+default = []
+# Feature for enabling additional debugging and development tools
+dev-tools = []
+# Feature for enabling mock implementations for testing
+testing = ["mockall"]
+
+[[example]]
+name = "simple_tool_plugin"
+path = "examples/simple_tool_plugin.rs"
+
+[[example]]
+name = "package_manager_plugin"
+path = "examples/package_manager_plugin.rs"
+
+[[example]]
+name = "combined_plugin"
+path = "examples/combined_plugin.rs"
