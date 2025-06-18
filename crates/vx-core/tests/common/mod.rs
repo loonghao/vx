@@ -3,7 +3,7 @@
 use std::env;
 use std::path::PathBuf;
 use tempfile::TempDir;
-use vx_core::{FigmentConfigManager, GlobalToolManager, VenvManager, VxEnvironment};
+use vx_core::{ConfigManager, GlobalToolManager, VenvManager, VxEnvironment};
 
 /// Test fixture for creating isolated test environments
 pub struct TestFixture {
@@ -52,8 +52,8 @@ impl Drop for TestFixture {
 }
 
 /// Create a test configuration manager with minimal setup
-pub fn create_test_config_manager() -> anyhow::Result<FigmentConfigManager> {
-    Ok(FigmentConfigManager::minimal()?)
+pub fn create_test_config_manager() -> anyhow::Result<ConfigManager> {
+    Ok(ConfigManager::minimal()?)
 }
 
 /// Create a test VX environment

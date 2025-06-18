@@ -2,7 +2,7 @@
 
 use crate::ui::UI;
 use std::collections::HashMap;
-use vx_core::{config_figment::FigmentConfigManager, Result, VxError};
+use vx_core::{ConfigManager, Result, VxError};
 
 pub async fn handle() -> Result<()> {
     show_config().await
@@ -27,7 +27,7 @@ pub async fn handle_init(tools: Vec<String>, template: Option<String>) -> Result
 async fn show_config() -> Result<()> {
     let spinner = UI::new_spinner("Loading configuration...");
 
-    let config_manager = FigmentConfigManager::new()?;
+    let config_manager = ConfigManager::new().await?;
     let status = config_manager.get_status();
 
     spinner.finish_and_clear();
@@ -117,7 +117,7 @@ async fn set_config(key: &str, value: &str) -> Result<()> {
 async fn get_config(key: &str) -> Result<()> {
     let spinner = UI::new_spinner("Loading configuration...");
 
-    let config_manager = FigmentConfigManager::new()?;
+    let config_manager = ConfigManager::new().await?;
     let config = config_manager.config();
 
     spinner.finish_and_clear();
@@ -136,8 +136,11 @@ async fn get_config(key: &str) -> Result<()> {
         }
         ["defaults", setting] => match *setting {
             "auto_install" => UI::info(&format!("{}: {}", key, config.defaults.auto_install)),
-            "check_updates" => UI::info(&format!("{}: {}", key, config.defaults.check_updates)),
-            "update_interval" => UI::info(&format!("{}: {}", key, config.defaults.update_interval)),
+            "cache_duration" => UI::info(&format!("{}: {}", key, config.defaults.cache_duration)),
+            "fallback_to_builtin" => {
+                UI::info(&format!("{}: {}", key, config.defaults.fallback_to_builtin))
+            }
+            "use_system_path" => UI::info(&format!("{}: {}", key, config.defaults.use_system_path)),
             _ => {
                 UI::warn(&format!("Unknown setting: {}", setting));
             }

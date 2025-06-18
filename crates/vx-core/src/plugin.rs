@@ -4,12 +4,13 @@
 //! allowing developers to focus on the core functionality of their tools.
 
 use crate::{
-    Ecosystem, FigmentConfigManager, HttpUtils, PackageInfo, PackageSpec, Result, ToolContext,
-    ToolDownloader, ToolExecutionResult, ToolStatus, VersionInfo, VxEnvironment,
+    Ecosystem, HttpUtils, PackageInfo, PackageSpec, Result, ToolContext, ToolExecutionResult,
+    ToolStatus, VersionInfo, VxEnvironment,
 };
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use vx_config::ConfigManager;
 
 /// Simplified trait for implementing tool support
 ///
@@ -134,9 +135,9 @@ pub trait VxTool: Send + Sync {
             }
         })?;
 
-        // Use the new downloader
-        let downloader = ToolDownloader::new()?;
-        let exe_path = downloader
+        // Use the new installer adapter
+        let adapter = crate::InstallerAdapter::new().await?;
+        let exe_path = adapter
             .download_and_install(self.name(), version, &download_url)
             .await?;
 
@@ -555,19 +556,20 @@ impl VxPlugin for StandardPlugin {
 /// making it highly configurable without code changes.
 pub struct ConfigurableTool {
     metadata: ToolMetadata,
-    config_manager: FigmentConfigManager,
+    config_manager: ConfigManager,
     url_builder: Box<dyn UrlBuilder>,
     version_parser: Box<dyn VersionParser>,
 }
 
 impl ConfigurableTool {
-    pub fn new(
+    pub async fn new(
         metadata: ToolMetadata,
         url_builder: Box<dyn UrlBuilder>,
         version_parser: Box<dyn VersionParser>,
     ) -> Result<Self> {
-        let config_manager =
-            FigmentConfigManager::new().or_else(|_| FigmentConfigManager::minimal())?;
+        let config_manager = ConfigManager::new()
+            .await
+            .or_else(|_| ConfigManager::minimal())?;
 
         Ok(Self {
             metadata,

@@ -1,4 +1,4 @@
-use crate::installer::{ArchiveFormat, InstallConfig, InstallMethod};
+use crate::installer_adapter::{ArchiveFormat, InstallConfig, InstallMethod};
 use crate::platform::Platform;
 use crate::url_builder::{GenericUrlBuilder, GoUrlBuilder, NodeUrlBuilder};
 use std::path::PathBuf;

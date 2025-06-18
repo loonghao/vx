@@ -240,6 +240,14 @@ impl From<walkdir::Error> for VxError {
     }
 }
 
+impl From<vx_config::ConfigError> for VxError {
+    fn from(err: vx_config::ConfigError) -> Self {
+        VxError::ConfigurationError {
+            message: format!("Configuration error: {}", err),
+        }
+    }
+}
+
 // Helper macros for creating errors
 #[macro_export]
 macro_rules! tool_not_found {

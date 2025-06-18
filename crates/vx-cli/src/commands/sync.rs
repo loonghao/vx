@@ -2,7 +2,7 @@
 
 use crate::ui::UI;
 
-use vx_core::{FigmentConfigManager, PluginRegistry, Result, VxError};
+use vx_core::{ConfigManager, PluginRegistry, Result, VxError};
 
 pub async fn handle(
     registry: &PluginRegistry,
@@ -28,7 +28,7 @@ pub async fn handle(
     }
 
     // Load project configuration
-    let config_manager = FigmentConfigManager::new()?;
+    let config_manager = ConfigManager::new().await?;
     let config = config_manager.config();
 
     spinner.finish_and_clear();
@@ -47,7 +47,7 @@ pub async fn handle(
         let version = tool_config.version.as_deref().unwrap_or("latest");
         let status = check_tool_status(registry, tool_name, version).await?;
         sync_plan.push(SyncItem {
-            name: tool_name.clone(),
+            name: tool_name.to_string(),
             version: version.to_string(),
             status,
         });

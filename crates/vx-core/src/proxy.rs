@@ -9,10 +9,11 @@
 //! - Ensures tools are installed (with auto-install if enabled)
 //! - Transparently executes the tool with the correct version
 
-use crate::{config_figment::FigmentConfigManager, PluginRegistry, Result, VenvManager, VxError};
+use crate::{registry::PluginRegistry, Result, VenvManager, VxError};
 use std::env;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use vx_config::ConfigManager;
 
 /// Transparent proxy for tool execution
 pub struct ToolProxy {
@@ -21,7 +22,7 @@ pub struct ToolProxy {
     /// Plugin registry for tool resolution
     plugin_registry: PluginRegistry,
     /// Configuration manager for project and global settings
-    config_manager: FigmentConfigManager,
+    config_manager: ConfigManager,
 }
 
 /// Tool execution context
@@ -39,10 +40,10 @@ pub struct ProxyContext {
 
 impl ToolProxy {
     /// Create a new tool proxy
-    pub fn new() -> Result<Self> {
+    pub async fn new() -> Result<Self> {
         let venv_manager = VenvManager::new()?;
         let plugin_registry = PluginRegistry::new();
-        let config_manager = FigmentConfigManager::new()?;
+        let config_manager = ConfigManager::new().await?;
 
         Ok(Self {
             venv_manager,
@@ -158,7 +159,7 @@ impl ToolProxy {
     async fn auto_install_tool(
         &self,
         tool_name: &str,
-        tool: &dyn crate::plugin::VxTool,
+        tool: &dyn crate::VxTool,
     ) -> Result<PathBuf> {
         // Check if auto-installation is enabled from configuration
         let auto_install_enabled = self.config_manager.config().defaults.auto_install;
@@ -215,7 +216,7 @@ impl ToolProxy {
     /// Get the version of a tool that would be used in the current context
     pub async fn get_effective_version(&self, tool_name: &str) -> Result<String> {
         // Try to get project-specific version from configuration first
-        if let Some(version) = self.config_manager.get_project_tool_version(tool_name) {
+        if let Some(version) = self.config_manager.get_tool_version(tool_name) {
             return Ok(version);
         }
 
@@ -252,33 +253,45 @@ impl ToolProxy {
     }
 
     /// Get the configuration manager
-    pub fn config_manager(&self) -> &FigmentConfigManager {
+    pub fn config_manager(&self) -> &ConfigManager {
         &self.config_manager
     }
 
     /// Validate the current configuration
     pub fn validate_config(&self) -> Result<Vec<String>> {
-        self.config_manager.validate()
+        Ok(self.config_manager.validate()?)
     }
 
     /// Initialize a new project configuration
-    pub fn init_project_config(
+    pub async fn init_project_config(
         &self,
         tools: Option<std::collections::HashMap<String, String>>,
         interactive: bool,
     ) -> Result<()> {
-        self.config_manager.init_project_config(tools, interactive)
+        Ok(self
+            .config_manager
+            .init_project_config(tools, interactive)
+            .await?)
     }
 
     /// Sync project configuration (install all required tools)
     pub async fn sync_project(&self, force: bool) -> Result<Vec<String>> {
-        self.config_manager.sync_project(force).await
+        Ok(self.config_manager.sync_project(force).await?)
     }
 }
 
-impl Default for ToolProxy {
-    fn default() -> Self {
-        Self::new().expect("Failed to create ToolProxy")
+impl ToolProxy {
+    /// Create a new tool proxy with minimal configuration (for testing/fallback)
+    pub fn minimal() -> Result<Self> {
+        let venv_manager = VenvManager::new()?;
+        let plugin_registry = PluginRegistry::new();
+        let config_manager = ConfigManager::minimal()?;
+
+        Ok(Self {
+            venv_manager,
+            plugin_registry,
+            config_manager,
+        })
     }
 }
 
@@ -288,13 +301,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_tool_proxy_creation() {
-        let proxy = ToolProxy::new();
+        let proxy = ToolProxy::new().await;
         assert!(proxy.is_ok());
     }
 
     #[tokio::test]
     async fn test_is_tool_available() {
-        let proxy = ToolProxy::new().unwrap();
+        let proxy = ToolProxy::new().await.unwrap();
 
         // Test with a tool that should be available on most systems
         let available = proxy.is_tool_available("echo").await;
@@ -305,7 +318,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_auto_install_functionality() {
-        let proxy = ToolProxy::new().unwrap();
+        let proxy = ToolProxy::new().await.unwrap();
 
         // Test that auto-install logic is properly integrated
         // This test verifies the method exists and can be called
@@ -322,7 +335,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_config_management() {
-        let proxy = ToolProxy::new().unwrap();
+        let proxy = ToolProxy::new().await.unwrap();
 
         // Test configuration validation
         let validation_result = proxy.validate_config();
@@ -333,9 +346,7 @@ mod tests {
         assert!(config.defaults.auto_install); // Should be true by default
 
         // Test project tool version retrieval
-        let version = proxy
-            .config_manager()
-            .get_project_tool_version("nonexistent");
+        let version = proxy.config_manager().get_tool_version("nonexistent");
         assert!(version.is_none()); // Should be None for non-existent tools
 
         println!("Configuration management tests passed");
@@ -358,9 +369,10 @@ mod tests {
     #[tokio::test]
     async fn test_proxy_initialization() {
         let proxy = ToolProxy::new();
-        assert!(proxy.is_ok(), "ToolProxy creation should succeed");
+        let proxy_result = proxy.await;
+        assert!(proxy_result.is_ok(), "ToolProxy creation should succeed");
 
-        if let Ok(proxy) = proxy {
+        if let Ok(proxy) = proxy_result {
             // Test that all components are properly initialized
             let config = proxy.config_manager().config();
             assert!(config.defaults.auto_install); // Default should be true
@@ -373,7 +385,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_effective_version_resolution() {
-        let proxy = ToolProxy::new().unwrap();
+        let proxy = ToolProxy::new().await.unwrap();
 
         // Test with non-existent tool
         let result = proxy.get_effective_version("nonexistent-tool").await;
@@ -387,7 +399,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tool_availability_check() {
-        let proxy = ToolProxy::new().unwrap();
+        let proxy = ToolProxy::new().await.unwrap();
 
         // Test with system tool
         let available = proxy.is_tool_available("echo").await;
@@ -403,14 +415,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_config_integration() {
-        let proxy = ToolProxy::new().unwrap();
+        let proxy = ToolProxy::new().await.unwrap();
 
         // Test that configuration is properly integrated
         let config = proxy.config_manager().config();
 
         // Test default values
         assert!(config.defaults.auto_install);
-        assert!(!config.defaults.default_registry.is_empty());
+        assert!(config.defaults.fallback_to_builtin); // Should be true by default
 
         // Test tool configuration access
         let tool_config = proxy.config_manager().get_tool_config("nonexistent");

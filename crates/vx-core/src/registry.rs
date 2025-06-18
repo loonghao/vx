@@ -199,8 +199,9 @@ impl Default for ToolRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Ecosystem, PackageSpec, VersionInfo};
+    use crate::{Ecosystem, PackageSpec};
     use std::path::Path;
+    use vx_plugin::VersionInfo;
 
     // Mock implementations for testing
     struct MockTool {
@@ -213,8 +214,11 @@ mod tests {
             &self.name
         }
 
-        async fn fetch_versions(&self, _include_prerelease: bool) -> Result<Vec<VersionInfo>> {
-            Ok(vec![VersionInfo::new("1.0.0".to_string())])
+        async fn fetch_versions(
+            &self,
+            _include_prerelease: bool,
+        ) -> anyhow::Result<Vec<VersionInfo>> {
+            Ok(vec![VersionInfo::new("1.0.0")])
         }
     }
 
@@ -229,14 +233,14 @@ mod tests {
         }
 
         fn ecosystem(&self) -> Ecosystem {
-            Ecosystem::Other("test".to_string())
+            Ecosystem::Generic
         }
 
         async fn install_packages(
             &self,
             _packages: &[PackageSpec],
             _project_path: &Path,
-        ) -> Result<()> {
+        ) -> anyhow::Result<()> {
             Ok(())
         }
     }

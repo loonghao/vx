@@ -12,16 +12,24 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+# Configuration management
+vx-config = { version = "0.2.6", path = "../vx-config" }
+# Plugin system
+vx-plugin = { version = "0.2.6", path = "../vx-plugin" }
+# Installation utilities
+vx-installer = { version = "0.2.6", path = "../vx-installer" }
+# Version management
+vx-version = { version = "0.2.0", path = "../vx-version" }
+
 serde = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
+toml = { workspace = true }
 dirs = { workspace = true }
 which = { workspace = true }
-toml = { workspace = true }
-figment = { version = "0.10", features = ["toml", "env"] }
 regex = { workspace = true }
 walkdir = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }

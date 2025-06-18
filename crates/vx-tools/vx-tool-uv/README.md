@@ -1,24 +1,37 @@
-# vx-tool-uv
+# 🐍 vx-tool-uv
+
+<div align="center">
+
+**UV Python Tool Plugin for vx Universal Tool Manager**
 
 [![Crates.io](https://img.shields.io/crates/v/vx-tool-uv.svg)](https://crates.io/crates/vx-tool-uv)
 [![Documentation](https://docs.rs/vx-tool-uv/badge.svg)](https://docs.rs/vx-tool-uv)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://github.com/loonghao/vx/workflows/CI/badge.svg)](https://github.com/loonghao/vx/actions)
 
-UV Python tool support for the vx universal tool manager.
+*Lightning-fast Python package management with beautiful installation experience*
 
-## Overview
+</div>
 
-`vx-tool-uv` provides UV (Extremely fast Python package installer and resolver) support for vx, enabling automatic installation, version management, and execution of UV commands through the vx interface.
+## 🎯 Overview
 
-## Features
+`vx-tool-uv` provides UV (Extremely fast Python package installer and resolver) support for vx, enabling automatic installation, version management, and execution of UV commands through the vx interface. Enhanced with the **vx-installer** engine for beautiful installation experiences.
 
-- **UV Package Manager**: Lightning-fast Python package installation
-- **UVX Support**: Python application runner with environment isolation
-- **Auto-Installation**: Automatic download and installation of UV
-- **Cross-Platform**: Windows, macOS, and Linux support
-- **Virtual Environment**: Seamless integration with UV's venv management
-- **Pip Compatibility**: Drop-in replacement for pip commands
-- **Performance**: 10-100x faster than traditional pip
+## ✨ Features
+
+### 🚀 Enhanced Installation Experience
+- **📊 Beautiful Progress Bars**: Rich progress tracking during UV installation and package operations
+- **🔒 Security First**: Automatic checksum verification and secure downloads
+- **⚡ Lightning Performance**: 10-100x faster than traditional pip with concurrent operations
+
+### 🐍 Core UV Features
+- **UV Package Manager**: Extremely fast Python package installation and dependency resolution
+- **UVX Support**: Python application runner with complete environment isolation
+- **Auto-Installation**: Zero-configuration automatic download and installation of UV
+- **Cross-Platform**: Seamless operation on Windows, macOS, and Linux
+- **Virtual Environment**: Advanced integration with UV's venv management
+- **Pip Compatibility**: Drop-in replacement for pip commands with enhanced performance
+- **🤖 MCP Ready**: Perfect for MCP servers requiring Python tools
 
 ## Supported Commands
 
@@ -43,10 +56,16 @@ vx uv pip install --system requests
 
 ### UVX Application Runner
 ```bash
-# Run Python applications
-vx uvx ruff check .
-vx uvx black .
-vx uvx pytest
+# 🎯 Perfect for MCP servers - just add 'vx'!
+vx uvx ruff check .                  # Auto-installs ruff via UV
+vx uvx black .                       # Auto-installs black via UV
+vx uvx pytest                        # Auto-installs pytest via UV
+vx uvx cowsay -t "Hello from vx!"    # One-time tool execution
+
+# 🤖 MCP Integration Example
+# Instead of: uvx some-python-tool
+# Use:        vx uvx some-python-tool
+# Benefits: Auto-installation, environment isolation, progress tracking
 
 # Run with specific versions
 vx uvx --python 3.11 black .

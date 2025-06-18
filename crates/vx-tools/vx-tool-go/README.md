@@ -1,10 +1,17 @@
-# vx-tool-go
+# 🐹 vx-tool-go
+
+<div align="center">
+
+**Go Programming Language Tool Plugin for vx Universal Tool Manager**
 
 [![Crates.io](https://img.shields.io/crates/v/vx-tool-go.svg)](https://crates.io/crates/vx-tool-go)
 [![Documentation](https://docs.rs/vx-tool-go/badge.svg)](https://docs.rs/vx-tool-go)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://github.com/loonghao/vx/workflows/CI/badge.svg)](https://github.com/loonghao/vx/actions)
 
-Go programming language tool support for the vx universal tool manager.
+*Fast Go development with beautiful installation experience and zero configuration*
+
+</div>
 
 ## Overview
 

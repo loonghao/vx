@@ -1,7 +1,7 @@
 //! Project synchronization tests
 
 use rstest::*;
-use vx_core::FigmentConfigManager;
+use vx_core::ConfigManager;
 
 mod common;
 use common::{sample_configs, TestFixture};
@@ -17,7 +17,9 @@ async fn test_project_sync() {
         .create_file(".vx.toml", sample_configs::VALID_VX_CONFIG)
         .expect("Failed to write config");
 
-    let manager = FigmentConfigManager::new().expect("Failed to create config manager");
+    let manager = ConfigManager::new()
+        .await
+        .expect("Failed to create config manager");
 
     // Test sync (this will not actually install tools in test environment)
     let result = manager.sync_project(false).await;
@@ -47,7 +49,9 @@ async fn test_project_sync_force() {
         .create_file(".vx.toml", sample_configs::VALID_VX_CONFIG)
         .expect("Failed to write config");
 
-    let manager = FigmentConfigManager::new().expect("Failed to create config manager");
+    let manager = ConfigManager::new()
+        .await
+        .expect("Failed to create config manager");
 
     // Test sync with force flag
     let result = manager.sync_project(true).await;
@@ -70,7 +74,9 @@ async fn test_project_sync_no_config() {
     let _fixture = TestFixture::new().expect("Failed to create test fixture");
 
     // No .vx.toml file created
-    let manager = FigmentConfigManager::new().expect("Failed to create config manager");
+    let manager = ConfigManager::new()
+        .await
+        .expect("Failed to create config manager");
 
     // Test sync without project config
     let result = manager.sync_project(false).await;

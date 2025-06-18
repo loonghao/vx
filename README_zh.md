@@ -1,33 +1,72 @@
-# vx - 通用开发工具管理器
+# 🚀 vx - 通用开发工具管理器
 
-[English](README.md)
+<div align="center">
+
+**终极开发工具管理器 - 一个工具统治所有工具**
+
+[English](README.md) | [📖 文档](https://docs.rs/vx) | [🚀 快速开始](#-快速开始) | [💡 示例](#-实际示例)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/rust-1.70+-blue.svg)](https://www.rust-lang.org)
-[![CI](https://github.com/loonghao/vx/workflows/CI/badge.svg)](https://github.com/loonghao/vx/actions)
+[![Rust](https://img.shields.io/badge/rust-1.80+-blue.svg)](https://www.rust-lang.org)
+[![Test](https://github.com/loonghao/vx/workflows/Test/badge.svg)](https://github.com/loonghao/vx/actions)
 [![Release](https://github.com/loonghao/vx/workflows/Release/badge.svg)](https://github.com/loonghao/vx/actions)
+[![codecov](https://codecov.io/gh/loonghao/vx/branch/main/graph/badge.svg)](https://codecov.io/gh/loonghao/vx)
+[![Security audit](https://github.com/loonghao/vx/workflows/Security%20audit/badge.svg)](https://github.com/loonghao/vx/actions)
 [![GitHub release](https://img.shields.io/github/release/loonghao/vx.svg)](https://github.com/loonghao/vx/releases)
 [![GitHub downloads](https://img.shields.io/github/downloads/loonghao/vx/total.svg)](https://github.com/loonghao/vx/releases)
+[![Crates.io](https://img.shields.io/crates/v/vx.svg)](https://crates.io/crates/vx)
+[![Documentation](https://docs.rs/vx/badge.svg)](https://docs.rs/vx)
 
-> 🚀 终极开发工具管理器 - 一个工具统治所有工具
+*闪电般快速、格式无关的开发工具管理器，具有美观的进度跟踪*
 
-## ⚠️ 早期开发阶段
+</div>
 
-**本项目目前处于早期实验开发阶段。** 功能和API可能在版本之间发生重大变化。在生产环境中请谨慎使用。
+---
 
-- 🔬 **实验性质**: 核心功能正在积极开发和测试中
-- 🚧 **破坏性变更**: API和配置可能在没有通知的情况下发生变化
-- 📝 **欢迎反馈**: 请报告问题并分享您的使用体验
-- 🎯 **MVP重点**: 目前支持UV、Node.js、Go和Rust工具
+## 🎯 什么是 vx？
 
-### 当前限制
+**vx** 是一个强大、快速且可扩展的开发工具管理器，为跨不同语言和生态系统的开发工具管理、安装和执行提供统一接口。可以将其视为 `nvm`、`rustup`、`pyenv` 和包管理器的组合，全部集成在一个闪电般快速的工具中。
 
-- **环境隔离**: 尚未完全实现。工具可能会回退到系统安装
-- **工具安装**: 自动安装功能正在开发中
-- **版本管理**: 基本的版本切换功能可用，但需要改进
-- **配置管理**: 项目特定配置部分支持
+## 💡 设计理念
 
-`vx` 是一个强大、快速且可扩展的开发工具管理器，为跨不同语言和生态系统的开发工具管理、安装和执行提供统一接口。可以将其视为 `nvm`、`rustup`、`pyenv` 和包管理器的组合，全部集成在一个闪电般快速的工具中。
+### 我们解决的问题
+
+每次开始新的开发项目时，我们都面临同样令人沮丧的循环：
+- 为前端工具安装 Node.js 和 npm
+- 为脚本和自动化设置 Python 和 pip/uv
+- 为后端服务配置 Go
+- 为系统工具管理 Rust 工具链
+- 处理版本冲突和 PATH 问题
+- 在不同机器和环境中重复这个过程
+
+**随着 MCP（模型上下文协议）的兴起**，这个问题变得更加突出。许多 MCP 服务器需要 `uvx` 用于 Python 工具，需要 `npx` 用于 Node.js 包，迫使开发者管理多个工具生态系统才能让 AI 辅助正常工作。
+
+### 我们的解决方案：零学习成本
+
+vx 在保持**零学习成本**的同时消除了这种复杂性：
+
+```bash
+# 不再需要学习和管理多个工具：
+npx create-react-app my-app     # 需要 Node.js 设置
+uvx ruff check .                # 需要 Python/UV 设置
+go run main.go                  # 需要 Go 安装
+
+# 只需使用 vx 和您已经知道的相同命令：
+vx npx create-react-app my-app  # 需要时自动安装 Node.js
+vx uvx ruff check .             # 需要时自动安装 UV
+vx go run main.go               # 需要时自动安装 Go
+```
+
+### 🌟 为什么选择 vx？
+
+- **🔄 通用接口**: 通过单一、一致的接口执行任何支持的工具
+- **📚 零学习成本**: 使用您已经知道的完全相同的命令（`npx`、`uvx`、`go` 等）
+- **⚡ 闪电般快速**: 使用 Rust 构建，采用异步优先架构，实现最大性能
+- **🚀 自动安装**: 自动下载和安装缺失的工具，具有美观的进度条
+- **🔒 环境隔离**: 所有工具在 vx 管理的环境中运行（无系统 PATH 冲突）
+- **📦 格式无关**: 支持 ZIP、TAR.GZ、TAR.XZ、TAR.BZ2 和原始二进制文件
+- **🎨 美观的用户体验**: 丰富的进度条、彩色输出和直观的命令
+- **🤖 MCP 就绪**: 非常适合 MCP 服务器 - 只需在命令前加上 `vx`
 
 ## ✨ 特性
 
@@ -121,32 +160,48 @@ paru -S vx-bin
 cargo install --git https://github.com/loonghao/vx
 ```
 
-### 基本用法
+### ⚡ 快速示例：相同命令，更好体验
 
 ```bash
-# 通过 vx 执行工具 - 如果缺失会自动安装！
-vx uv pip install requests
-vx npm install react
-vx node app.js
-vx go build
-vx cargo run
+# 🎯 使用您已经知道的完全相同的命令 - 只需添加 'vx'！
 
-# 列出支持的工具和插件
-vx list
-vx plugin list
+# Python 开发（无需 Python 设置）
+vx uv pip install requests           # 需要时自动安装 UV
+vx uvx ruff check .                  # 通过 UV 自动安装 ruff
+vx uvx black --check .               # 通过 UV 自动安装 black
 
-# 安装特定版本
-vx install uv@0.5.26
-vx install node@20.11.0
-vx install go@1.21.6
+# Node.js 开发（无需 Node.js 设置）
+vx npm install react                 # 需要时自动安装 Node.js
+vx npx create-react-app my-app       # 自动安装 create-react-app
+vx npx -y cowsay "Hello from vx!"    # 一次性工具执行
 
-# 在版本之间切换
-vx switch uv@0.5.26
-vx switch node@18.19.0
+# Go 开发（无需 Go 设置）
+vx go build                          # 需要时自动安装 Go
+vx go run main.go                    # 您知道的相同命令
 
-# 项目配置
-vx init
-vx config
+# Rust 开发（无需 Rust 设置）
+vx cargo run                         # 需要时自动安装 Rust
+vx cargo build --release             # 相同的 Cargo 命令
+
+# 🤖 非常适合 MCP 服务器 - 只需在前面加上 'vx'：
+# 不再使用: npx @browsermcp/mcp@latest
+# 改为使用: vx npx @browsermcp/mcp@latest
+# 不再使用: uvx some-python-tool
+# 改为使用: vx uvx some-python-tool
+
+# 🔧 需要时的高级功能
+vx --use-system-path python --version  # 需要时使用系统工具
+vx list                               # 显示所有可用工具
+vx stats                              # 包统计和使用情况
+
+# 🎯 具有美观进度条的版本管理
+vx install uv@0.7.12                 # 安装特定版本
+vx install node@20.0.0               # 丰富的进度跟踪
+vx switch node@18.19.0               # 即时版本切换
+
+# ⚙️ 项目配置
+vx init                               # 初始化项目配置
+vx config                             # 管理全局设置
 ```
 
 ## 📖 支持的工具
@@ -159,6 +214,66 @@ vx config
 | **Node.js** | `vx node`, `vx npm`, `vx npx` | JavaScript | ✅ | JavaScript 运行时和包管理器 |
 | **Go** | `vx go build`, `vx go run`, `vx go test` | Go | ✅ | Go 编程语言工具链 |
 | **Rust** | `vx cargo build`, `vx cargo run`, `vx cargo test` | Rust | ✅ | Rust 编程语言和 Cargo |
+
+## 🔌 MCP 集成：完美解决方案
+
+vx 在设计时就考虑了 MCP（模型上下文协议）。许多 MCP 服务器需要 `uvx` 和 `npx`，但设置这些工具可能复杂且容易出错。vx 通过**零配置**和**零学习成本**解决了这个问题。
+
+### MCP 挑战
+
+MCP 服务器通常需要多个工具生态系统：
+```bash
+# 传统设置需要管理多个工具：
+npm install -g some-package     # 需要 Node.js 设置
+uvx install some-python-tool    # 需要 Python/UV 设置
+# 还要处理 PATH 冲突、版本不匹配等问题
+```
+
+### vx 解决方案：只需添加 `vx`
+
+使用 vx，您只需在现有命令前加上 `vx` - **无学习成本，无配置**：
+
+### 之前（需要复杂设置）
+```json
+{
+  "mcpServers": {
+    "browsermcp": {
+      "command": "npx",
+      "args": ["-y", "@browsermcp/mcp@latest"]
+    },
+    "python-tool": {
+      "command": "uvx",
+      "args": ["some-python-tool@latest"]
+    }
+  }
+}
+```
+
+### 之后（使用 vx 零设置）
+```json
+{
+  "mcpServers": {
+    "browsermcp": {
+      "command": "vx",
+      "args": ["npx", "-y", "@browsermcp/mcp@latest"]
+    },
+    "python-tool": {
+      "command": "vx",
+      "args": ["uvx", "some-python-tool@latest"]
+    }
+  }
+}
+```
+
+### 🎯 您获得的好处
+
+- **📚 零学习成本**: 使用您已经知道的完全相同的 `npx` 和 `uvx` 命令
+- **🚀 零配置**: 无需安装 Node.js、Python、UV 或管理 PATH
+- **🔒 完全隔离**: MCP 工具在隔离环境中运行，无冲突
+- **📊 美观进度**: 通过丰富的进度条查看具体发生的情况
+- **🛡️ 安全优先**: 自动校验和验证和安全下载
+- **🌍 跨平台**: 在 Windows、macOS 和 Linux 上行为完全一致
+- **⚡ 闪电般快速**: 并发下载和安装
 
 ## ⚙️ 配置
 
@@ -252,20 +367,30 @@ cargo run -- --help
 
 ## 🚀 路线图
 
-### 当前状态 (v0.1.0)
-- ✅ 核心插件架构
-- ✅ 4 个内置插件（UV、Node.js、Go、Rust）
-- ✅ 自动安装系统
-- ✅ 多版本包管理
-- ✅ 项目配置支持
+### 当前状态 (v0.2.x)
+- ✅ **核心插件架构** 具有基于特征的可扩展性
+- ✅ **6 个内置工具**（UV、UVX、Node.js、NPX、Go、Rust）
+- ✅ **完整环境隔离系统** 具有完整的 PATH 管理
+- ✅ **🆕 vx-installer 引擎** 具有通用格式支持
+- ✅ **🆕 美观的进度条** 具有 ETA 和传输速率
+- ✅ **🆕 安全优先下载** 具有校验和验证
+- ✅ **🆕 异步安装系统** 具有并发操作
+- ✅ **多版本包管理** 具有智能切换
+- ✅ **MCP 集成支持** 用于无缝代理使用
+- ✅ **包运行器支持**（npx、uvx）具有环境隔离
+- ✅ **项目配置支持** 具有基于 TOML 的配置
 
 ### 即将推出的功能
-- [ ] 更多内置插件（Python、Java、.NET、Docker）
-- [ ] 外部插件支持（.dll、.so、脚本）
-- [ ] 插件市场
-- [ ] GUI 界面
-- [ ] CI/CD 集成
-- [ ] 团队配置同步
+- [ ] **增强的包管理器**: pnpm、yarn、bun 与完整的 vx-installer 集成
+- [ ] **系统包管理器**: Homebrew、Chocolatey、apt、yum 支持
+- [ ] **专业工具**: 用于 VFX 的 Rez、用于 HPC 环境的 Spack
+- [ ] **外部插件支持**: .dll、.so 和基于脚本的插件
+- [ ] **插件市场**: 社区驱动的插件生态系统
+- [ ] **高级安装方法**: Docker、容器和虚拟环境
+- [ ] **GUI 界面**: 具有可视化工具管理的桌面应用程序
+- [ ] **CI/CD 集成**: GitHub Actions、GitLab CI、Jenkins 插件
+- [ ] **团队配置同步**: 共享配置和工具版本
+- [ ] **性能优化**: 缓存、并行操作和智能更新
 
 ## 🤝 贡献
 
