@@ -1,6 +1,3 @@
-# release-plz configuration
-# https://release-plz.ieni.dev/docs/config
-
 [workspace]
 # Enable automatic changelog generation
 changelog_update = true
@@ -24,10 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # Package-specific configuration - only for the main vx CLI
 [[package]]
 name = "vx"
-# Main CLI package is in the root directory
+# Main CLI package is in the root directory (no path needed)
 changelog_update = true
-# Standard tag format for main CLI (triggers release.yml workflow)
+# Standard tag format for main CLI (triggers tag-release-assets.yml workflow)
 git_tag_name = "v{{version}}"
+# Only create GitHub releases for the main CLI package
+git_release_enable = true
 
-# Note: Internal libraries (vx-core, vx-cli, vx-shim, vx-tool-*, vx-pm-*) are not configured here
-# as they are internal components that follow the main package version and don't need separate releases
+# Note: Other packages (vx-core, vx-cli, vx-shim, vx-tool-*, vx-pm-*) will be published to crates.io
+# but won't create separate GitHub releases or tags to avoid duplicate CI triggers
