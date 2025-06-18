@@ -47,14 +47,15 @@ function Write-Success {
 
 # Detect platform and map to release naming convention
 function Get-Platform {
-    $arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
-    return "windows-$arch"
+    $arch = if ([Environment]::Is64BitOperatingSystem) { "x86_64" } else { "x86" }
+    return "Windows-msvc-$arch"
 }
 
-# Get latest version from GitHub API
+# Get latest version from GitHub API (no authentication required)
 function Get-LatestVersion {
     try {
         $apiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
+        # Use public API access without authentication
         $response = Invoke-RestMethod -Uri $apiUrl -Method Get
         return $response.tag_name -replace '^v', ''
     }
@@ -117,7 +118,7 @@ function Install-FromRelease {
 
     Write-Info "Installing vx v$Version for $platform..."
 
-    # Construct download URL
+    # Construct download URL based on actual release asset naming
     $archiveName = "vx-$platform.zip"
     $downloadUrl = "$BaseUrl/download/v$Version/$archiveName"
 
