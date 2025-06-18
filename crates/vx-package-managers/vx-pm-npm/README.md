@@ -1,10 +1,17 @@
-# vx-pm-npm
+# 📦 vx-pm-npm
+
+<div align="center">
+
+**NPM Package Manager Plugin for vx Universal Tool Manager**
 
 [![Crates.io](https://img.shields.io/crates/v/vx-pm-npm.svg)](https://crates.io/crates/vx-pm-npm)
 [![Documentation](https://docs.rs/vx-pm-npm/badge.svg)](https://docs.rs/vx-pm-npm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://github.com/loonghao/vx/workflows/CI/badge.svg)](https://github.com/loonghao/vx/actions)
 
-NPM package manager support for the vx universal tool manager.
+*Complete NPM package management with beautiful installation experience and zero configuration*
+
+</div>
 
 ## Overview
 

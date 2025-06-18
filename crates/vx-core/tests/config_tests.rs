@@ -4,7 +4,7 @@ use pretty_assertions::assert_eq;
 use rstest::*;
 use serial_test::serial;
 use std::collections::HashMap;
-use vx_core::FigmentConfigManager;
+use vx_core::ConfigManager;
 
 mod common;
 use common::{env_helpers, sample_configs, TestFixture};
@@ -12,7 +12,8 @@ use common::{env_helpers, sample_configs, TestFixture};
 /// Test configuration validation with various issues
 #[rstest]
 #[serial]
-fn test_config_validation_with_issues() {
+#[tokio::test]
+async fn test_config_validation_with_issues() {
     let fixture = TestFixture::new().expect("Failed to create test fixture");
 
     // Create config with validation issues
@@ -21,7 +22,9 @@ fn test_config_validation_with_issues() {
         .expect("Failed to write config");
 
     // Test validation - should succeed but return warnings
-    let manager = FigmentConfigManager::new().expect("Failed to create config manager");
+    let manager = ConfigManager::new()
+        .await
+        .expect("Failed to create config manager");
     let warnings = manager.validate().expect("Validation should succeed");
 
     // Note: The actual validation behavior might be different than expected
@@ -35,24 +38,24 @@ fn test_config_validation_with_issues() {
 /// Test project configuration initialization
 #[rstest]
 #[serial]
-fn test_project_config_initialization() {
+#[tokio::test]
+async fn test_project_config_initialization() {
     let _fixture = TestFixture::new().expect("Failed to create test fixture");
 
     // Ensure no .vx.toml exists
     let _ = std::fs::remove_file(".vx.toml");
 
-    let manager = FigmentConfigManager::minimal().expect("Failed to create config manager");
+    let manager = ConfigManager::minimal().expect("Failed to create config manager");
 
     // Test initialization with specific tools
     let mut tools = HashMap::new();
     tools.insert("node".to_string(), "18.17.0".to_string());
     tools.insert("python".to_string(), "3.11.5".to_string());
 
-    let result = manager.init_project_config(Some(tools), false);
+    let result = manager.init_project_config(Some(tools), false).await;
     assert!(
         result.is_ok(),
-        "Project config initialization should succeed: {:?}",
-        result
+        "Project config initialization should succeed"
     );
 
     // Check that .vx.toml was created
@@ -68,14 +71,15 @@ fn test_project_config_initialization() {
     assert!(content.contains("auto_install = true"));
 
     // Test that second initialization fails
-    let result2 = manager.init_project_config(None, false);
+    let result2 = manager.init_project_config(None, false).await;
     assert!(result2.is_err(), "Second initialization should fail");
 }
 
 /// Test project tool version retrieval
 #[rstest]
 #[serial]
-fn test_project_tool_version_retrieval() {
+#[tokio::test]
+async fn test_project_tool_version_retrieval() {
     let fixture = TestFixture::new().expect("Failed to create test fixture");
 
     // Create a .vx.toml with tool versions
@@ -83,15 +87,17 @@ fn test_project_tool_version_retrieval() {
         .create_file(".vx.toml", sample_configs::VALID_VX_CONFIG)
         .expect("Failed to write config");
 
-    let manager = FigmentConfigManager::new().expect("Failed to create config manager");
+    let manager = ConfigManager::new()
+        .await
+        .expect("Failed to create config manager");
 
     // Test tool version retrieval
     // Note: The actual behavior depends on how figment processes the .vx.toml file
     // For now, we test that the method works without crashing
-    let node_version = manager.get_project_tool_version("node");
-    let python_version = manager.get_project_tool_version("python");
-    let go_version = manager.get_project_tool_version("go");
-    let nonexistent_version = manager.get_project_tool_version("nonexistent");
+    let node_version = manager.get_tool_version("node");
+    let python_version = manager.get_tool_version("python");
+    let go_version = manager.get_tool_version("go");
+    let nonexistent_version = manager.get_tool_version("nonexistent");
 
     println!("Node version: {:?}", node_version);
     println!("Python version: {:?}", python_version);
@@ -108,7 +114,7 @@ fn test_project_tool_version_retrieval() {
 /// Test configuration status reporting
 #[rstest]
 fn test_configuration_status() {
-    let manager = FigmentConfigManager::minimal().expect("Failed to create config manager");
+    let manager = ConfigManager::minimal().expect("Failed to create config manager");
     let status = manager.get_status();
 
     // Should have at least builtin layer
@@ -130,12 +136,15 @@ fn test_configuration_status() {
 
 /// Test configuration with environment variables
 #[rstest]
-fn test_config_with_environment_variables() {
+#[tokio::test]
+async fn test_config_with_environment_variables() {
     // Set environment variables for test
     let _env1 = env_helpers::EnvVar::set("VX_DEFAULTS_AUTO_INSTALL", "false");
     let _env2 = env_helpers::EnvVar::set("VX_TOOLS_NODE_VERSION", "20.10.0");
 
-    let manager = FigmentConfigManager::new().expect("Failed to create config manager");
+    let manager = ConfigManager::new()
+        .await
+        .expect("Failed to create config manager");
     let config = manager.config();
 
     // Environment variables should override defaults
@@ -147,7 +156,7 @@ fn test_config_with_environment_variables() {
 /// Test tool configuration retrieval
 #[rstest]
 fn test_tool_configuration() {
-    let manager = FigmentConfigManager::minimal().expect("Failed to create config manager");
+    let manager = ConfigManager::minimal().expect("Failed to create config manager");
 
     // Test getting tool config for non-existent tool
     assert!(manager.get_tool_config("nonexistent").is_none());
@@ -163,7 +172,8 @@ fn test_tool_configuration() {
 /// Test configuration error handling
 #[rstest]
 #[serial]
-fn test_config_error_handling() {
+#[tokio::test]
+async fn test_config_error_handling() {
     let fixture = TestFixture::new().expect("Failed to create test fixture");
 
     // Create invalid TOML
@@ -172,7 +182,7 @@ fn test_config_error_handling() {
         .expect("Failed to write config");
 
     // Should handle invalid TOML gracefully
-    let result = FigmentConfigManager::new();
+    let result = ConfigManager::new().await;
 
     // Note: The actual behavior might be different - figment might be more tolerant
     // For now, we just verify that it doesn't crash

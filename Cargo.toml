@@ -1,5 +1,9 @@
 [workspace]
 members = [
+    "crates/vx-config",
+    "crates/vx-plugin",
+    "crates/vx-installer",
+    "crates/vx-version",
     "crates/vx-core",
     "crates/vx-cli",
     "crates/vx-tools/vx-tool-node",

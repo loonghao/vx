@@ -33,7 +33,7 @@ pub async fn execute_tool(
     }
 
     // Use the transparent proxy system
-    match ToolProxy::new() {
+    match ToolProxy::new().await {
         Ok(proxy) => {
             UI::debug(&format!("Using vx transparent proxy for: {}", tool_name));
 

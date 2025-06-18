@@ -1,0 +1,45 @@
+[package]
+name = "vx-version"
+version = "0.2.0"
+edition = "2021"
+authors = ["Hal <hal.long@outlook.com>"]
+description = "Version management and parsing utilities for the vx universal tool manager"
+license = "MIT"
+repository = "https://github.com/loonghao/vx"
+homepage = "https://github.com/loonghao/vx"
+documentation = "https://docs.rs/vx-version"
+keywords = ["version", "semver", "parsing", "management", "tools"]
+categories = ["development-tools", "parsing"]
+readme = "README.md"
+
+[dependencies]
+# Core dependencies
+serde = { version = "1.0", features = ["derive"] }
+anyhow = "1.0"
+async-trait = "0.1"
+
+# HTTP client for fetching versions
+reqwest = { version = "0.12", features = ["json"] }
+
+# JSON parsing
+serde_json = "1.0"
+
+# Regular expressions for version parsing
+regex = "1.0"
+
+# Command execution
+which = "6.0"
+
+# Standard library collections
+indexmap = "2.0"
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["full"] }
+tempfile = "3.0"
+
+[features]
+default = []
+# Enable additional version sources
+github = []
+npm = []
+pypi = []

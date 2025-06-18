@@ -1,69 +1,137 @@
-# vx-tool-node
+# 🟢 vx-tool-node
+
+<div align="center">
+
+**Node.js Tool Plugin for vx Universal Tool Manager**
 
 [![Crates.io](https://img.shields.io/crates/v/vx-tool-node.svg)](https://crates.io/crates/vx-tool-node)
 [![Documentation](https://docs.rs/vx-tool-node/badge.svg)](https://docs.rs/vx-tool-node)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://github.com/loonghao/vx/workflows/CI/badge.svg)](https://github.com/loonghao/vx/actions)
 
-Node.js tool support for the vx universal tool manager.
+*Beautiful Node.js installation and management with zero configuration*
 
-## Overview
+</div>
 
-`vx-tool-node` provides Node.js runtime support for vx, enabling automatic installation, version management, and execution of Node.js and npm commands through the vx interface.
+## 🎯 Overview
 
-## Features
+`vx-tool-node` provides comprehensive Node.js runtime support for vx, enabling automatic installation, version management, and execution of Node.js and npm commands through the vx interface. Enhanced with the **vx-installer** engine for beautiful installation experiences.
 
-- **Node.js Runtime**: Full Node.js runtime support with version management
-- **NPM Integration**: Built-in npm package manager support
-- **NPX Support**: Package runner functionality for one-time tool execution
-- **Auto-Installation**: Automatic download and installation of Node.js versions
-- **Cross-Platform**: Windows, macOS, and Linux support
-- **Version Management**: Install and switch between multiple Node.js versions
-- **LTS Support**: Automatic detection and installation of LTS versions
+## ✨ Features
 
-## Supported Commands
+### 🚀 Enhanced Installation Experience
+- **📊 Beautiful Progress Bars**: Rich progress tracking with ETA and transfer rates during Node.js installation
+- **🔒 Security First**: Automatic checksum verification and secure HTTPS downloads
+- **📦 Universal Format Support**: Handles multiple Node.js distribution formats automatically
+- **⚡ Lightning Fast**: Concurrent downloads and async installation process
+
+### 🔧 Core Node.js Features
+- **Node.js Runtime**: Full Node.js runtime support with intelligent version management
+- **NPM Integration**: Built-in npm package manager with complete feature support
+- **NPX Support**: Package runner functionality for one-time tool execution with environment isolation
+- **Auto-Installation**: Zero-configuration automatic download and installation of Node.js versions
+- **Cross-Platform**: Seamless operation on Windows, macOS, and Linux
+- **Version Management**: Install and switch between multiple Node.js versions instantly
+- **LTS Support**: Automatic detection and installation of LTS versions with recommendations
+
+## 🚀 Installation Experience
+
+When you first use Node.js through vx, you'll see a beautiful installation process:
+
+```bash
+$ vx node --version
+
+🚀 Installing Node.js v20.11.0...
+⬇️  [████████████████████████████████] 28.4MB/28.4MB (4.2MB/s, 0s remaining)
+📦 Extracting Node.js archive...
+🔧 Setting up Node.js environment...
+✅ Node.js v20.11.0 installed successfully!
+
+v20.11.0
+```
+
+### 🔒 Security Features
+
+- **HTTPS-only downloads** from official Node.js releases
+- **Automatic checksum verification** to ensure file integrity
+- **Secure archive extraction** with path validation
+- **Permission validation** before installation
+
+## 💡 Supported Commands
 
 ### Node.js Runtime
 ```bash
-# Execute Node.js scripts
-vx node script.js
-vx node --version
-vx node -e "console.log('Hello, World!')"
+# 🎯 Use the EXACT same Node.js commands you already know!
+vx node script.js                    # Auto-installs Node.js if needed
+vx node --version                    # Beautiful progress bars on first run
+vx node -e "console.log('Hello!')"   # Zero configuration required
 
-# Interactive REPL
+# Interactive REPL (same as always)
 vx node
 ```
 
 ### NPM Package Manager
 ```bash
-# Package management
-vx npm install express
-vx npm install -g typescript
-vx npm uninstall lodash
-vx npm update
+# 📦 Same npm commands, enhanced experience
+vx npm install express              # Auto-installs Node.js + npm if needed
+vx npm install -g typescript        # Global packages in isolated environment
+vx npm uninstall lodash             # Same commands you know
+vx npm update                        # Enhanced with progress tracking
 
-# Project management
-vx npm init
-vx npm run dev
-vx npm test
-vx npm publish
+# 🚀 Project management (zero learning curve)
+vx npm init                          # Interactive project setup
+vx npm run dev                       # Run scripts as usual
+vx npm test                          # Testing workflows unchanged
+vx npm publish                       # Publishing works the same
 
-# Information commands
-vx npm list
-vx npm outdated
-vx npm audit
+# 📊 Information commands with better output
+vx npm list                           # Enhanced formatting
+vx npm outdated                      # Better visual output
+vx npm audit                         # Security audit with colors
 ```
 
 ### NPX Package Runner
 ```bash
-# Run packages without installing
-vx npx create-react-app my-app
-vx npx typescript --init
-vx npx cowsay "Hello from vx!"
+# 🎯 Perfect for MCP servers - just add 'vx'!
+vx npx create-react-app my-app       # Auto-installs create-react-app
+vx npx -y cowsay "Hello from vx!"    # One-time tool execution
+vx npx typescript --init             # TypeScript setup
+vx npx @browsermcp/mcp@latest        # MCP server execution
 
-# Run specific versions
-vx npx typescript@4.9.5 --version
-vx npx -p typescript@latest tsc --version
+# 🚀 Run specific versions with progress tracking
+vx npx typescript@4.9.5 --version    # Version-specific execution
+vx npx -p typescript@latest tsc --version  # Latest version usage
+
+# 🤖 MCP Integration Example
+# Instead of: npx @browsermcp/mcp@latest
+# Use:        vx npx @browsermcp/mcp@latest
+# Benefits: Auto-installation, environment isolation, progress tracking
 ```
+
+## 🤖 MCP Integration
+
+Perfect for MCP (Model Context Protocol) servers that require Node.js tools:
+
+```json
+{
+  "mcpServers": {
+    "browsermcp": {
+      "command": "vx",
+      "args": ["npx", "-y", "@browsermcp/mcp@latest"]
+    },
+    "typescript-tools": {
+      "command": "vx",
+      "args": ["npx", "typescript-language-server", "--stdio"]
+    }
+  }
+}
+```
+
+### Benefits for MCP
+- **Zero Setup**: No need to install Node.js manually
+- **Environment Isolation**: MCP tools run in isolated environments
+- **Automatic Updates**: Tools are automatically managed and updated
+- **Cross-Platform**: Works identically on all platforms
 
 ## Installation
 
@@ -296,9 +364,21 @@ This project is licensed under the MIT License - see the [LICENSE](../../../LICE
 
 Contributions are welcome! Please see the [contributing guidelines](../../../CONTRIBUTING.md) for more information.
 
-## Related Crates
+## 🔗 Related Crates
 
-- [`vx-core`](../../vx-core/README.md) - Core functionality
-- [`vx-cli`](../../vx-cli/README.md) - Command-line interface
-- [`vx-pm-npm`](../../vx-package-managers/vx-pm-npm/README.md) - NPM package manager
-- [`vx-tool-uv`](../vx-tool-uv/README.md) - UV Python tool
+- [`vx-installer`](../../vx-installer/README.md) - 🆕 Universal installation engine with progress tracking
+- [`vx-core`](../../vx-core/README.md) - Core functionality and utilities
+- [`vx-cli`](../../vx-cli/README.md) - Command-line interface with rich UX
+- [`vx-config`](../../vx-config/README.md) - Configuration management system
+- [`vx-pm-npm`](../../vx-package-managers/vx-pm-npm/README.md) - NPM package manager plugin
+- [`vx-tool-uv`](../vx-tool-uv/README.md) - UV Python tool plugin
+
+---
+
+<div align="center">
+
+**Node.js development made effortless**
+
+[🚀 Get Started](../../../README.md) | [📖 Documentation](https://docs.rs/vx-tool-node) | [🤝 Contributing](../../../CONTRIBUTING.md)
+
+</div>
