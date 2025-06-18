@@ -12,7 +12,7 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-vx-core = { version = "0.2.5", path = "../../vx-core" }
+vx-core = { version = "0.2.6", path = "../../vx-core" }
 anyhow = { workspace = true }
 which = "8.0"
 async-trait = { workspace = true }

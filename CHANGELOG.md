@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.2.6](https://github.com/loonghao/vx/compare/v0.2.5...v0.2.6) - 2025-06-18
+
+### Added
+
+- improve install scripts with better platform detection and fallback
+- optimize release configuration for single vx package releases
+
+### Other
+
+- simplify release-plz.toml following shimexe best practices
+
 ## [0.2.5](https://github.com/loonghao/vx/compare/v0.2.4...v0.2.5) - 2025-06-18
 
 ### Fixed
