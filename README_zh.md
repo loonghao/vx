@@ -381,6 +381,15 @@ cargo run -- --help
 - ✅ **项目配置支持** 具有基于 TOML 的配置
 
 ### 即将推出的功能
+
+#### 🔧 新工具支持（第7阶段）
+- [ ] **just** - 现代命令运行器和构建工具（`vx just --list`、`vx just build`）
+- [ ] **kubectl** - Kubernetes 命令行工具（`vx kubectl get pods`、`vx kubectl apply`）
+- [ ] **deno** - 现代 JavaScript/TypeScript 运行时（`vx deno run`、`vx deno task`）
+- [ ] **podman** - 容器管理（`vx podman run`、`vx podman build`）
+- [ ] **zig** - 系统编程语言（`vx zig build`、`vx zig run`）
+
+#### 🚀 增强功能
 - [ ] **增强的包管理器**: pnpm、yarn、bun 与完整的 vx-installer 集成
 - [ ] **系统包管理器**: Homebrew、Chocolatey、apt、yum 支持
 - [ ] **专业工具**: 用于 VFX 的 Rez、用于 HPC 环境的 Spack

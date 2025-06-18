@@ -628,6 +628,15 @@ See [MODULAR_ARCHITECTURE.md](MODULAR_ARCHITECTURE.md) for detailed plugin devel
 - ✅ **Project configuration support** with TOML-based configs
 
 ### Upcoming Features
+
+#### 🔧 New Tool Support (Phase 7)
+- [ ] **just** - Modern command runner and build tool (`vx just --list`, `vx just build`)
+- [ ] **kubectl** - Kubernetes command-line tool (`vx kubectl get pods`, `vx kubectl apply`)
+- [ ] **deno** - Modern JavaScript/TypeScript runtime (`vx deno run`, `vx deno task`)
+- [ ] **podman** - Container management (`vx podman run`, `vx podman build`)
+- [ ] **zig** - Systems programming language (`vx zig build`, `vx zig run`)
+
+#### 🚀 Enhanced Features
 - [ ] **Enhanced Package Managers**: pnpm, yarn, bun with full vx-installer integration
 - [ ] **System Package Managers**: Homebrew, Chocolatey, apt, yum support
 - [ ] **Specialized Tools**: Rez for VFX, Spack for HPC environments
