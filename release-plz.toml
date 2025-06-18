@@ -25,8 +25,6 @@ name = "vx"
 changelog_update = true
 # Standard tag format for main CLI (triggers tag-release-assets.yml workflow)
 git_tag_name = "v{{version}}"
-# Only create GitHub releases for the main CLI package
-git_release_enable = true
 
-# Note: Other packages (vx-core, vx-cli, vx-shim, vx-tool-*, vx-pm-*) will be published to crates.io
-# but won't create separate GitHub releases or tags to avoid duplicate CI triggers
+# Note: Internal libraries (vx-core, vx-cli, vx-shim, vx-tool-*, vx-pm-*) are not configured here
+# as they are internal components that follow the main package version and don't need separate releases
