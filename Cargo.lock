@@ -2495,7 +2495,7 @@ dependencies = [
 
 [[package]]
 name = "vx"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "tempfile",
@@ -2514,7 +2514,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cli"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2550,7 +2550,7 @@ dependencies = [
 
 [[package]]
 name = "vx-config"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2568,7 +2568,7 @@ dependencies = [
 
 [[package]]
 name = "vx-core"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2587,7 +2587,7 @@ dependencies = [
 
 [[package]]
 name = "vx-dependency"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2601,7 +2601,7 @@ dependencies = [
 
 [[package]]
 name = "vx-installer"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2624,7 +2624,7 @@ dependencies = [
 
 [[package]]
 name = "vx-plugin"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2643,7 +2643,7 @@ dependencies = [
 
 [[package]]
 name = "vx-tool-bun"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2657,7 +2657,7 @@ dependencies = [
 
 [[package]]
 name = "vx-tool-go"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2674,7 +2674,7 @@ dependencies = [
 
 [[package]]
 name = "vx-tool-node"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2694,7 +2694,7 @@ dependencies = [
 
 [[package]]
 name = "vx-tool-npm"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2708,7 +2708,7 @@ dependencies = [
 
 [[package]]
 name = "vx-tool-pnpm"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2724,7 +2724,7 @@ dependencies = [
 
 [[package]]
 name = "vx-tool-rust"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2741,7 +2741,7 @@ dependencies = [
 
 [[package]]
 name = "vx-tool-standard"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -2751,7 +2751,7 @@ dependencies = [
 
 [[package]]
 name = "vx-tool-uv"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2766,7 +2766,7 @@ dependencies = [
 
 [[package]]
 name = "vx-tool-yarn"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2780,7 +2780,7 @@ dependencies = [
 
 [[package]]
 name = "vx-version"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "async-trait",
