@@ -5,6 +5,8 @@ changelog_update = true
 git_release_enable = false
 # Enable automatic tag creation for all packages
 git_tag_enable = true
+# Only process the main vx package for releases by default
+release = false
 
 # Changelog configuration
 [changelog]
@@ -25,75 +27,12 @@ name = "vx"
 changelog_update = true
 # Enable GitHub releases only for the main package
 git_release_enable = true
+# Enable processing for the main package
+release = true
 # Standard tag format for main CLI (triggers tag-release-assets.yml workflow)
 git_tag_name = "v{{version}}"
 
-# Internal crates configuration - publish to crates.io but no GitHub releases
-[[package]]
-name = "vx-core"
-git_release_enable = false
-
-[[package]]
-name = "vx-cli"
-git_release_enable = false
-
-[[package]]
-name = "vx-config"
-git_release_enable = false
-
-[[package]]
-name = "vx-plugin"
-git_release_enable = false
-
-[[package]]
-name = "vx-installer"
-git_release_enable = false
-
-[[package]]
-name = "vx-version"
-git_release_enable = false
-
-[[package]]
-name = "vx-dependency"
-git_release_enable = false
-
-[[package]]
-name = "vx-paths"
-git_release_enable = false
-
-[[package]]
-name = "vx-tool-standard"
-git_release_enable = false
-
-# Tool packages
-[[package]]
-name = "vx-tool-node"
-git_release_enable = false
-
-[[package]]
-name = "vx-tool-go"
-git_release_enable = false
-
-[[package]]
-name = "vx-tool-rust"
-git_release_enable = false
-
-[[package]]
-name = "vx-tool-uv"
-git_release_enable = false
-
-[[package]]
-name = "vx-tool-npm"
-git_release_enable = false
-
-[[package]]
-name = "vx-tool-pnpm"
-git_release_enable = false
-
-[[package]]
-name = "vx-tool-yarn"
-git_release_enable = false
-
-[[package]]
-name = "vx-tool-bun"
-git_release_enable = false
+# All other packages inherit workspace settings:
+# - release = false (not processed by release-plz)
+# - git_release_enable = false (no GitHub releases)
+# - They will still be published to crates.io when the main package is released
