@@ -51,6 +51,11 @@ pub async fn main() -> anyhow::Result<()> {
         .register_plugin(Box::new(vx_tool_uv::UvPlugin::new()))
         .await;
 
+    // Register Bun plugin
+    let _ = registry
+        .register_plugin(Box::new(vx_tool_bun::BunPlugin::new()))
+        .await;
+
     // Create and run CLI
     let cli = VxCli::new(registry);
     cli.run().await

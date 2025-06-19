@@ -2543,6 +2543,7 @@ dependencies = [
  "vx-core",
  "vx-paths",
  "vx-plugin",
+ "vx-tool-bun",
  "vx-tool-go",
  "vx-tool-node",
  "vx-tool-npm",
@@ -2669,6 +2670,7 @@ dependencies = [
  "tokio",
  "vx-core",
  "vx-plugin",
+ "vx-version",
  "which",
 ]
 
