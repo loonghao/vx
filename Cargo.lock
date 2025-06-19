@@ -2809,9 +2809,11 @@ name = "vx-cli"
 version = "0.2.6"
 dependencies = [
  "anyhow",
+ "async-trait",
  "clap",
  "colored",
  "dialoguer",
+ "dirs 6.0.0",
  "indicatif",
  "pretty_assertions",
  "reqwest",
@@ -2827,11 +2829,13 @@ dependencies = [
  "tracing-indicatif",
  "tracing-subscriber",
  "vx-core",
+ "vx-plugin",
  "vx-tool-go",
  "vx-tool-node",
  "vx-tool-npm",
  "vx-tool-rust",
  "vx-tool-uv",
+ "vx-version",
  "walkdir",
  "zip",
 ]
@@ -2955,7 +2959,9 @@ dependencies = [
  "tokio",
  "vx-core",
  "vx-installer",
+ "vx-plugin",
  "vx-tool-standard",
+ "vx-version",
 ]
 
 [[package]]
@@ -2971,8 +2977,10 @@ dependencies = [
  "tokio",
  "vx-core",
  "vx-installer",
+ "vx-plugin",
  "vx-tool-npm",
  "vx-tool-standard",
+ "vx-version",
  "which 8.0.0",
 ]
 
@@ -3001,6 +3009,7 @@ dependencies = [
  "tokio",
  "vx-core",
  "vx-installer",
+ "vx-plugin",
  "vx-tool-standard",
  "which 8.0.0",
 ]
@@ -3016,7 +3025,10 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-core",
+ "vx-installer",
  "vx-plugin",
+ "vx-tool-standard",
+ "vx-version",
 ]
 
 [[package]]
@@ -3039,6 +3051,7 @@ dependencies = [
  "vx-core",
  "vx-installer",
  "vx-plugin",
+ "vx-tool-standard",
  "vx-version",
  "which 8.0.0",
 ]

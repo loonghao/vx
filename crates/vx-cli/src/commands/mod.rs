@@ -2,11 +2,13 @@
 
 use crate::cli::{Cli, Commands};
 use crate::ui::UI;
-use vx_core::PluginRegistry;
+use vx_plugin::PluginRegistry;
 
 pub mod cleanup;
 pub mod config;
 pub mod execute;
+#[cfg(test)]
+mod execute_tests;
 pub mod fetch;
 pub mod global;
 pub mod init;
@@ -36,48 +38,36 @@ impl CommandHandler {
         UI::set_verbose(cli.verbose);
 
         match cli.command {
-            Some(Commands::Version) => version::handle().await.map_err(Into::into),
+            Some(Commands::Version) => version::handle().await,
 
             Some(Commands::List {
                 tool,
                 status,
                 installed: _,
                 available: _,
-            }) => list::handle(registry, tool.as_deref(), status)
-                .await
-                .map_err(Into::into),
+            }) => list::handle(registry, tool.as_deref(), status).await,
 
             Some(Commands::Install {
                 tool,
                 version,
                 force,
-            }) => install::handle(registry, &tool, version.as_deref(), force)
-                .await
-                .map_err(Into::into),
+            }) => install::handle(registry, &tool, version.as_deref(), force).await,
 
             Some(Commands::Update { tool, apply: _ }) => {
-                update::handle(registry, tool.as_deref(), false)
-                    .await
-                    .map_err(Into::into)
+                update::handle(registry, tool.as_deref(), false).await
             }
 
             Some(Commands::SelfUpdate { check, version }) => {
-                self_update::handle(check, version.as_deref())
-                    .await
-                    .map_err(Into::into)
+                self_update::handle(check, version.as_deref()).await
             }
 
             Some(Commands::Uninstall {
                 tool,
                 version,
                 force,
-            }) => remove::handle(registry, &tool, version.as_deref(), force)
-                .await
-                .map_err(Into::into),
+            }) => remove::handle(registry, &tool, version.as_deref(), force).await,
 
-            Some(Commands::Which { tool, all }) => where_cmd::handle(registry, &tool, all)
-                .await
-                .map_err(Into::into),
+            Some(Commands::Which { tool, all }) => where_cmd::handle(registry, &tool, all).await,
 
             Some(Commands::Versions {
                 tool,
@@ -85,33 +75,23 @@ impl CommandHandler {
                 prerelease,
                 detailed,
                 interactive,
-            }) => fetch::handle(registry, &tool, latest, detailed, interactive, prerelease)
-                .await
-                .map_err(Into::into),
+            }) => fetch::handle(registry, &tool, latest, detailed, interactive, prerelease).await,
 
             Some(Commands::Switch {
                 tool_version,
                 global,
-            }) => switch::handle(registry, &tool_version, global)
-                .await
-                .map_err(Into::into),
+            }) => switch::handle(registry, &tool_version, global).await,
 
             Some(Commands::Config { command }) => match command {
-                Some(crate::cli::ConfigCommand::Show) | None => {
-                    config::handle().await.map_err(Into::into)
-                }
+                Some(crate::cli::ConfigCommand::Show) | None => config::handle().await,
                 Some(crate::cli::ConfigCommand::Set { key, value }) => {
-                    config::handle_set(&key, &value).await.map_err(Into::into)
+                    config::handle_set(&key, &value).await
                 }
-                Some(crate::cli::ConfigCommand::Get { key }) => {
-                    config::handle_get(&key).await.map_err(Into::into)
-                }
+                Some(crate::cli::ConfigCommand::Get { key }) => config::handle_get(&key).await,
                 Some(crate::cli::ConfigCommand::Reset { key }) => {
-                    config::handle_reset(key.clone()).await.map_err(Into::into)
+                    config::handle_reset(key.clone()).await
                 }
-                Some(crate::cli::ConfigCommand::Edit) => {
-                    config::handle_edit().await.map_err(Into::into)
-                }
+                Some(crate::cli::ConfigCommand::Edit) => config::handle_edit().await,
             },
 
             Some(Commands::Search {
@@ -124,7 +104,7 @@ impl CommandHandler {
             }) => {
                 // TODO: Get registry from context
                 // For now, create a minimal registry
-                let registry = vx_core::PluginRegistry::new();
+                let registry = PluginRegistry::new();
                 search::handle(
                     &registry,
                     query.clone(),
@@ -135,7 +115,6 @@ impl CommandHandler {
                     verbose,
                 )
                 .await
-                .map_err(Into::into)
             }
 
             Some(Commands::Sync {
@@ -147,7 +126,7 @@ impl CommandHandler {
                 no_auto_install,
             }) => {
                 // TODO: Get registry from context
-                let registry = vx_core::PluginRegistry::new();
+                let registry = PluginRegistry::new();
                 sync::handle(
                     &registry,
                     check,
@@ -158,7 +137,6 @@ impl CommandHandler {
                     no_auto_install,
                 )
                 .await
-                .map_err(Into::into)
             }
 
             Some(Commands::Init {
@@ -168,16 +146,17 @@ impl CommandHandler {
                 force,
                 dry_run,
                 list_templates,
-            }) => init::handle(
-                interactive,
-                template.clone(),
-                tools.clone(),
-                force,
-                dry_run,
-                list_templates,
-            )
-            .await
-            .map_err(Into::into),
+            }) => {
+                init::handle(
+                    interactive,
+                    template.clone(),
+                    tools.clone(),
+                    force,
+                    dry_run,
+                    list_templates,
+                )
+                .await
+            }
 
             Some(Commands::Clean {
                 dry_run,
@@ -200,18 +179,15 @@ impl CommandHandler {
                     verbose,
                 )
                 .await
-                .map_err(Into::into)
             }
 
-            Some(Commands::Stats) => stats::handle(registry).await.map_err(Into::into),
+            Some(Commands::Stats) => stats::handle(registry).await,
 
-            Some(Commands::Plugin { command }) => {
-                plugin::handle(registry, command).await.map_err(Into::into)
-            }
+            Some(Commands::Plugin { command }) => plugin::handle(registry, command).await,
 
-            Some(Commands::Venv { command }) => venv_cmd::handle(command).await.map_err(Into::into),
+            Some(Commands::Venv { command }) => venv_cmd::handle(command).await,
 
-            Some(Commands::Global { command }) => global::handle(command).await.map_err(Into::into),
+            Some(Commands::Global { command }) => global::handle(command).await,
 
             None => {
                 // Handle tool execution
@@ -229,8 +205,7 @@ impl CommandHandler {
                 // Use the executor to run the tool
                 let exit_code =
                     execute::execute_tool(registry, tool_name, tool_args, cli.use_system_path)
-                        .await
-                        .map_err(anyhow::Error::from)?;
+                        .await?;
                 if exit_code != 0 {
                     std::process::exit(exit_code);
                 }
@@ -240,12 +215,10 @@ impl CommandHandler {
             Some(Commands::Shell { command }) => {
                 use crate::cli::ShellCommand;
                 match command {
-                    ShellCommand::Init { shell } => shell::handle_shell_init(shell.clone())
-                        .await
-                        .map_err(Into::into),
-                    ShellCommand::Completions { shell } => shell::handle_completion(shell.clone())
-                        .await
-                        .map_err(Into::into),
+                    ShellCommand::Init { shell } => shell::handle_shell_init(shell.clone()).await,
+                    ShellCommand::Completions { shell } => {
+                        shell::handle_completion(shell.clone()).await
+                    }
                 }
             }
         }

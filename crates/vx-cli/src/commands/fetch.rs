@@ -1,7 +1,8 @@
 //! Fetch command implementation
 
 use crate::ui::UI;
-use vx_core::{PluginRegistry, Result, VxError};
+use anyhow::Result;
+use vx_plugin::PluginRegistry;
 
 /// Handle the fetch command
 pub async fn handle(
@@ -14,9 +15,7 @@ pub async fn handle(
 ) -> Result<()> {
     let tool = registry
         .get_tool(tool_name)
-        .ok_or_else(|| VxError::ToolNotFound {
-            tool_name: tool_name.to_string(),
-        })?;
+        .ok_or_else(|| anyhow::anyhow!("Tool not found: {}", tool_name))?;
 
     UI::info(&format!("Fetching versions for {}...", tool_name));
 
@@ -35,7 +34,7 @@ pub async fn handle(
     UI::success(&format!("Found {} versions:", versions.len()));
 
     for (i, version) in versions.iter().enumerate() {
-        let prerelease_marker = if version.is_prerelease {
+        let prerelease_marker = if version.prerelease {
             " (prerelease)"
         } else {
             ""

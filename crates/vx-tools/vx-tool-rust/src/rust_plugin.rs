@@ -1,7 +1,7 @@
 //! Rust plugin implementation
 
 use crate::rust_tool::CargoTool;
-use vx_core::{VxPlugin, VxTool};
+use vx_plugin::{VxPlugin, VxTool};
 
 /// Rust plugin that provides Rust toolchain tools
 #[derive(Debug, Default)]

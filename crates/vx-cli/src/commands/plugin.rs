@@ -2,7 +2,8 @@
 
 use crate::cli::PluginCommand;
 use crate::ui::UI;
-use vx_core::{PluginRegistry, Result};
+use anyhow::Result;
+use vx_plugin::PluginRegistry;
 
 pub async fn handle(registry: &PluginRegistry, command: PluginCommand) -> Result<()> {
     // TODO: Replace with vx-core tool manager
@@ -16,42 +17,14 @@ pub async fn handle(registry: &PluginRegistry, command: PluginCommand) -> Result
         } => {
             UI::header("Available Plugins");
 
-            let plugins = registry.get_plugins();
+            let plugins = registry.list_plugins();
             if plugins.is_empty() {
                 UI::warn("No plugins registered");
                 return Ok(());
             }
 
-            for plugin in plugins {
-                UI::item(&format!(
-                    "📦 {} v{} - {}",
-                    plugin.name(),
-                    plugin.version(),
-                    plugin.description()
-                ));
-
-                let tools = plugin.tools();
-                if !tools.is_empty() {
-                    UI::detail(&format!(
-                        "   Tools: {}",
-                        tools
-                            .iter()
-                            .map(|t| t.name())
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    ));
-                }
-
-                let pms = plugin.package_managers();
-                if !pms.is_empty() {
-                    UI::detail(&format!(
-                        "   Package Managers: {}",
-                        pms.iter()
-                            .map(|pm| pm.name())
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    ));
-                }
+            for plugin_name in plugins {
+                UI::item(&format!("📦 {}", plugin_name));
             }
             // for tool in tools {
             //     let status_icon = if tool.installed { "✅" } else { "❌" };

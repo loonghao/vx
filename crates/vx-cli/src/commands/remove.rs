@@ -1,7 +1,8 @@
 //! Remove command implementation
 
 use crate::ui::UI;
-use vx_core::{PluginRegistry, Result, VxError};
+use anyhow::Result;
+use vx_plugin::PluginRegistry;
 
 pub async fn handle(
     registry: &PluginRegistry,
@@ -12,9 +13,7 @@ pub async fn handle(
     // Get the tool from registry
     let tool = registry
         .get_tool(tool_name)
-        .ok_or_else(|| VxError::ToolNotFound {
-            tool_name: tool_name.to_string(),
-        })?;
+        .ok_or_else(|| anyhow::anyhow!("Tool not found: {}", tool_name))?;
 
     if let Some(target_version) = version {
         // Remove specific version

@@ -2,12 +2,21 @@
 
 use anyhow::Result;
 use clap::Parser;
-use vx_core::{PluginRegistry, VxError};
+use vx_plugin::PluginRegistry;
 
 pub mod cli;
 pub mod commands;
 pub mod tracing_setup;
 pub mod ui;
+
+#[cfg(test)]
+pub mod test_utils;
+
+#[cfg(test)]
+mod cli_tests;
+
+#[cfg(test)]
+mod plugin_tests;
 
 // Re-export for convenience
 pub use cli::Cli;
@@ -20,19 +29,27 @@ pub async fn main() -> anyhow::Result<()> {
     setup_tracing();
 
     // Create plugin registry with all available plugins
-    let mut registry = vx_core::PluginRegistry::new();
+    let registry = PluginRegistry::new();
 
     // Register Node.js plugin
-    let _ = registry.register(Box::new(vx_tool_node::NodePlugin::new()));
+    let _ = registry
+        .register_plugin(Box::new(vx_tool_node::NodePlugin::new()))
+        .await;
 
     // Register Go plugin
-    let _ = registry.register(Box::new(vx_tool_go::GoPlugin::new()));
+    let _ = registry
+        .register_plugin(Box::new(vx_tool_go::GoPlugin::new()))
+        .await;
 
     // Register Rust plugin
-    let _ = registry.register(Box::new(vx_tool_rust::RustPlugin::new()));
+    let _ = registry
+        .register_plugin(Box::new(vx_tool_rust::RustPlugin::new()))
+        .await;
 
     // Register UV plugin
-    let _ = registry.register(Box::new(vx_tool_uv::UvPlugin::new()));
+    let _ = registry
+        .register_plugin(Box::new(vx_tool_uv::UvPlugin::new()))
+        .await;
 
     // Create and run CLI
     let cli = VxCli::new(registry);
@@ -81,46 +98,34 @@ impl VxCli {
         use cli::Commands;
 
         match command {
-            Commands::Version => commands::version::handle().await.map_err(Into::into),
+            Commands::Version => commands::version::handle().await,
             Commands::List {
                 tool,
                 status,
                 installed: _,
                 available: _,
-            } => commands::list::handle(&self.registry, tool.as_deref(), status)
-                .await
-                .map_err(Into::into),
+            } => commands::list::handle(&self.registry, tool.as_deref(), status).await,
             Commands::Install {
                 tool,
                 version,
                 force,
-            } => commands::install::handle(&self.registry, &tool, version.as_deref(), force)
-                .await
-                .map_err(Into::into),
+            } => commands::install::handle(&self.registry, &tool, version.as_deref(), force).await,
             Commands::Update { tool, apply } => {
-                commands::update::handle(&self.registry, tool.as_deref(), apply)
-                    .await
-                    .map_err(Into::into)
+                commands::update::handle(&self.registry, tool.as_deref(), apply).await
             }
 
             Commands::SelfUpdate { check, version } => {
-                commands::self_update::handle(check, version.as_deref())
-                    .await
-                    .map_err(Into::into)
+                commands::self_update::handle(check, version.as_deref()).await
             }
 
             Commands::Uninstall {
                 tool,
                 version,
                 force,
-            } => commands::remove::handle(&self.registry, &tool, version.as_deref(), force)
-                .await
-                .map_err(Into::into),
+            } => commands::remove::handle(&self.registry, &tool, version.as_deref(), force).await,
 
             Commands::Which { tool, all } => {
-                commands::where_cmd::handle(&self.registry, &tool, all)
-                    .await
-                    .map_err(Into::into)
+                commands::where_cmd::handle(&self.registry, &tool, all).await
             }
 
             Commands::Versions {
@@ -129,42 +134,31 @@ impl VxCli {
                 prerelease,
                 detailed,
                 interactive,
-            } => commands::fetch::handle(
-                &self.registry,
-                &tool,
-                latest,
-                detailed,
-                interactive,
-                prerelease,
-            )
-            .await
-            .map_err(Into::into),
+            } => {
+                commands::fetch::handle(
+                    &self.registry,
+                    &tool,
+                    latest,
+                    detailed,
+                    interactive,
+                    prerelease,
+                )
+                .await
+            }
             Commands::Switch {
                 tool_version,
                 global,
-            } => commands::switch::handle(&self.registry, &tool_version, global)
-                .await
-                .map_err(Into::into),
+            } => commands::switch::handle(&self.registry, &tool_version, global).await,
             Commands::Config { command } => match command {
-                Some(cli::ConfigCommand::Show) | None => {
-                    commands::config::handle().await.map_err(Into::into)
-                }
+                Some(cli::ConfigCommand::Show) | None => commands::config::handle().await,
                 Some(cli::ConfigCommand::Set { key, value }) => {
-                    commands::config::handle_set(&key, &value)
-                        .await
-                        .map_err(Into::into)
+                    commands::config::handle_set(&key, &value).await
                 }
-                Some(cli::ConfigCommand::Get { key }) => {
-                    commands::config::handle_get(&key).await.map_err(Into::into)
-                }
+                Some(cli::ConfigCommand::Get { key }) => commands::config::handle_get(&key).await,
                 Some(cli::ConfigCommand::Reset { key }) => {
-                    commands::config::handle_reset(key.clone())
-                        .await
-                        .map_err(Into::into)
+                    commands::config::handle_reset(key.clone()).await
                 }
-                Some(cli::ConfigCommand::Edit) => {
-                    commands::config::handle_edit().await.map_err(Into::into)
-                }
+                Some(cli::ConfigCommand::Edit) => commands::config::handle_edit().await,
             },
             Commands::Init {
                 interactive,
@@ -176,7 +170,6 @@ impl VxCli {
             } => {
                 commands::init::handle(interactive, template, tools, force, dry_run, list_templates)
                     .await
-                    .map_err(Into::into)
             }
 
             Commands::Clean {
@@ -200,20 +193,11 @@ impl VxCli {
                     verbose,
                 )
                 .await
-                .map_err(Into::into)
             }
-            Commands::Stats => commands::stats::handle(&self.registry)
-                .await
-                .map_err(Into::into),
-            Commands::Plugin { command } => commands::plugin::handle(&self.registry, command)
-                .await
-                .map_err(Into::into),
-            Commands::Venv { command } => commands::venv_cmd::handle(command)
-                .await
-                .map_err(Into::into),
-            Commands::Global { command } => {
-                commands::global::handle(command).await.map_err(Into::into)
-            }
+            Commands::Stats => commands::stats::handle(&self.registry).await,
+            Commands::Plugin { command } => commands::plugin::handle(&self.registry, command).await,
+            Commands::Venv { command } => commands::venv_cmd::handle(command).await,
+            Commands::Global { command } => commands::global::handle(command).await,
             Commands::Search {
                 query,
                 category,
@@ -221,17 +205,18 @@ impl VxCli {
                 available_only,
                 format,
                 verbose,
-            } => commands::search::handle(
-                &self.registry,
-                query,
-                category,
-                installed_only,
-                available_only,
-                format,
-                verbose,
-            )
-            .await
-            .map_err(Into::into),
+            } => {
+                commands::search::handle(
+                    &self.registry,
+                    query,
+                    category,
+                    installed_only,
+                    available_only,
+                    format,
+                    verbose,
+                )
+                .await
+            }
             Commands::Sync {
                 check,
                 force,
@@ -239,30 +224,27 @@ impl VxCli {
                 verbose,
                 no_parallel,
                 no_auto_install,
-            } => commands::sync::handle(
-                &self.registry,
-                check,
-                force,
-                dry_run,
-                verbose,
-                no_parallel,
-                no_auto_install,
-            )
-            .await
-            .map_err(Into::into),
+            } => {
+                commands::sync::handle(
+                    &self.registry,
+                    check,
+                    force,
+                    dry_run,
+                    verbose,
+                    no_parallel,
+                    no_auto_install,
+                )
+                .await
+            }
 
             Commands::Shell { command } => {
                 use crate::cli::ShellCommand;
                 match command {
                     ShellCommand::Init { shell } => {
-                        commands::shell::handle_shell_init(shell.clone())
-                            .await
-                            .map_err(Into::into)
+                        commands::shell::handle_shell_init(shell.clone()).await
                     }
                     ShellCommand::Completions { shell } => {
-                        commands::shell::handle_completion(shell.clone())
-                            .await
-                            .map_err(Into::into)
+                        commands::shell::handle_completion(shell.clone()).await
                     }
                 }
             }
@@ -272,17 +254,12 @@ impl VxCli {
     /// Execute a tool with the given arguments
     async fn execute_tool(&self, args: &[String], use_system_path: bool) -> Result<()> {
         if args.is_empty() {
-            return Err(VxError::Other {
-                message: "No tool specified".to_string(),
-            }
-            .into());
+            return Err(anyhow::anyhow!("No tool specified"));
         }
 
         let tool_name = &args[0];
         let tool_args = &args[1..];
 
-        commands::execute::handle(&self.registry, tool_name, tool_args, use_system_path)
-            .await
-            .map_err(Into::into)
+        commands::execute::handle(&self.registry, tool_name, tool_args, use_system_path).await
     }
 }

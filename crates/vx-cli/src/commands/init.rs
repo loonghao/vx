@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Write};
 
-use vx_core::{Result, VxError};
+use anyhow::Result;
 
 pub async fn handle(
     interactive: bool,
@@ -20,9 +20,7 @@ pub async fn handle(
     }
 
     let config_path = std::env::current_dir()
-        .map_err(|e| VxError::Other {
-            message: format!("Failed to get current directory: {}", e),
-        })?
+        .map_err(|e| anyhow::anyhow!("Failed to get current directory: {}", e))?
         .join(".vx.toml");
 
     // Check if config already exists
@@ -50,9 +48,8 @@ pub async fn handle(
     }
 
     // Write configuration file
-    fs::write(&config_path, config_content).map_err(|e| VxError::Other {
-        message: format!("Failed to write .vx.toml: {}", e),
-    })?;
+    fs::write(&config_path, config_content)
+        .map_err(|e| anyhow::anyhow!("Failed to write .vx.toml: {}", e))?;
 
     UI::success("✅ Created .vx.toml configuration file");
 
@@ -165,12 +162,10 @@ fn generate_template_config(template_name: &str) -> Result<String> {
         }
         "minimal" => HashMap::new(),
         _ => {
-            return Err(VxError::Other {
-                message: format!(
-                    "Unknown template: {}. Use --list-templates to see available templates.",
-                    template_name
-                ),
-            });
+            return Err(anyhow::anyhow!(
+                "Unknown template: {}. Use --list-templates to see available templates.",
+                template_name
+            ));
         }
     };
 
@@ -196,9 +191,8 @@ fn generate_tools_config(tools_str: &str) -> Result<String> {
 }
 
 async fn generate_auto_detected_config() -> Result<String> {
-    let current_dir = std::env::current_dir().map_err(|e| VxError::Other {
-        message: format!("Failed to get current directory: {}", e),
-    })?;
+    let current_dir = std::env::current_dir()
+        .map_err(|e| anyhow::anyhow!("Failed to get current directory: {}", e))?;
 
     let mut tools = HashMap::new();
     let mut detected_types = Vec::new();

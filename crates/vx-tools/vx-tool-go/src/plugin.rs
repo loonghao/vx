@@ -1,7 +1,7 @@
 //! Go plugin implementation
 
-use crate::go_tool::GoTool;
-use vx_core::{VxPlugin, VxTool};
+use crate::tool::GoTool;
+use vx_plugin::{VxPlugin, VxTool};
 
 /// Go plugin that provides Go tool support
 pub struct GoPlugin;

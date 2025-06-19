@@ -14,6 +14,7 @@ rust-version.workspace = true
 
 [dependencies]
 vx-core = { version = "0.2.6", path = "../vx-core" }
+vx-plugin = { version = "0.2.6", path = "../vx-plugin" }
 vx-tool-node = { version = "0.2.6", path = "../vx-tools/vx-tool-node" }
 vx-tool-go = { version = "0.2.6", path = "../vx-tools/vx-tool-go" }
 vx-tool-rust = { version = "0.2.6", path = "../vx-tools/vx-tool-rust" }
@@ -35,6 +36,7 @@ serde_yaml = "0.9"
 reqwest = { workspace = true }
 tempfile = { workspace = true }
 zip = "4.0"
+dirs = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
@@ -44,3 +46,5 @@ tokio-test = { workspace = true }
 test-case = { workspace = true }
 pretty_assertions = { workspace = true }
 anyhow = { workspace = true }
+async-trait = { workspace = true }
+vx-version = { version = "0.2.0", path = "../vx-version" }

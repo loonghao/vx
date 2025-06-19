@@ -1,7 +1,7 @@
 // Shell integration commands
 
+use anyhow::Result;
 use std::env;
-use vx_core::{Result, VxEnvironment, VxError};
 
 pub async fn handle_shell_init(shell: Option<String>) -> Result<()> {
     let shell_type = shell.unwrap_or_else(detect_shell);
@@ -13,9 +13,7 @@ pub async fn handle_shell_init(shell: Option<String>) -> Result<()> {
         "powershell" | "pwsh" => print_powershell_init(),
         "cmd" => print_cmd_init(),
         _ => {
-            return Err(VxError::Other {
-                message: format!("Unsupported shell: {}", shell_type),
-            });
+            return Err(anyhow::anyhow!("Unsupported shell: {}", shell_type));
         }
     }
 
@@ -29,9 +27,7 @@ pub async fn handle_completion(shell: String) -> Result<()> {
         "fish" => print_fish_completion(),
         "powershell" | "pwsh" => print_powershell_completion(),
         _ => {
-            return Err(VxError::Other {
-                message: format!("Unsupported shell: {}", shell),
-            });
+            return Err(anyhow::anyhow!("Unsupported shell: {}", shell));
         }
     }
 
@@ -64,9 +60,9 @@ fn detect_shell() -> String {
 }
 
 fn print_bash_init() {
-    let vx_home = VxEnvironment::get_vx_home()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| "$HOME/.vx".to_string());
+    let vx_home = dirs::home_dir()
+        .map(|p| p.join(".vx").display().to_string())
+        .unwrap_or_else(|| "$HOME/.vx".to_string());
 
     println!(
         r#"# VX Shell Integration for Bash
@@ -129,9 +125,9 @@ __vx_prompt() {{
 }
 
 fn print_zsh_init() {
-    let vx_home = VxEnvironment::get_vx_home()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| "$HOME/.vx".to_string());
+    let vx_home = dirs::home_dir()
+        .map(|p| p.join(".vx").display().to_string())
+        .unwrap_or_else(|| "$HOME/.vx".to_string());
 
     println!(
         r#"# VX Shell Integration for Zsh
@@ -191,9 +187,9 @@ __vx_prompt() {{
 }
 
 fn print_fish_init() {
-    let vx_home = VxEnvironment::get_vx_home()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| "$HOME/.vx".to_string());
+    let vx_home = dirs::home_dir()
+        .map(|p| p.join(".vx").display().to_string())
+        .unwrap_or_else(|| "$HOME/.vx".to_string());
 
     println!(
         r#"# VX Shell Integration for Fish
@@ -256,9 +252,9 @@ end
 }
 
 fn print_powershell_init() {
-    let vx_home = VxEnvironment::get_vx_home()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| "$env:USERPROFILE\\.vx".to_string());
+    let vx_home = dirs::home_dir()
+        .map(|p| p.join(".vx").display().to_string())
+        .unwrap_or_else(|| "$env:USERPROFILE\\.vx".to_string());
 
     println!(
         r#"# VX Shell Integration for PowerShell
@@ -328,9 +324,7 @@ function Get-VxPrompt {{
 }
 
 fn print_cmd_init() {
-    let vx_home = VxEnvironment::get_vx_home()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| "%USERPROFILE%\\.vx".to_string());
+    let vx_home = "%USERPROFILE%\\.vx".to_string();
 
     println!(
         r#"@echo off

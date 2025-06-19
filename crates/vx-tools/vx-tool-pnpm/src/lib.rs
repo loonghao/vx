@@ -11,7 +11,7 @@ pub use config::{
 
 use anyhow::Result;
 use std::path::Path;
-use vx_core::{Ecosystem, PackageSpec, VxPackageManager, VxPlugin, VxTool};
+use vx_plugin::{Ecosystem, PackageSpec, VxPackageManager, VxPlugin, VxTool};
 
 /// PNPM package manager implementation
 #[derive(Default)]

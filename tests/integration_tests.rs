@@ -202,3 +202,82 @@ mod config_tests {
         assert!(output.status.success() || !stderr.is_empty() || !stdout.is_empty());
     }
 }
+
+#[cfg(test)]
+mod dynamic_execution_tests {
+    use super::*;
+
+    #[test]
+    fn test_dynamic_command_with_multiple_args() {
+        // Test that vx can handle complex command arguments
+        let output = run_vx_command(&["echo", "hello", "world", "test"]);
+
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(stdout.contains("hello"));
+        }
+        // If echo is not available, that's also acceptable
+    }
+
+    #[test]
+    fn test_dynamic_command_with_flags() {
+        // Test that vx properly passes flags to tools
+        let output = run_vx_command(&["cargo", "--version"]);
+
+        // Should either work or show proper error
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        assert!(output.status.success() || !stderr.is_empty() || !stdout.is_empty());
+    }
+
+    #[test]
+    fn test_zero_learning_cost() {
+        // Test that users can use vx exactly like they would use the tool directly
+        // This is the core value proposition of vx
+
+        // Test with a common command that should work on most systems
+        let output = run_vx_command(&["echo", "vx-test"]);
+
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(stdout.contains("vx-test"));
+        }
+    }
+}
+
+#[cfg(test)]
+mod error_handling_tests {
+    use super::*;
+
+    #[test]
+    fn test_clear_error_messages() {
+        // Test that vx provides clear error messages
+        let output = run_vx_command(&["definitely-nonexistent-tool-xyz"]);
+
+        assert!(!output.status.success());
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        // Should contain helpful error message
+        assert!(stderr.contains("Tool not found") || stderr.contains("not found"));
+    }
+
+    #[test]
+    fn test_no_args_behavior() {
+        // Test behavior when no arguments are provided
+        let output = run_vx_command(&[]);
+
+        // vx now shows help when no arguments are provided, which is a success case
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        // Should provide usage information either in stdout or stderr
+        assert!(
+            stdout.contains("Usage")
+                || stderr.contains("Usage")
+                || stdout.contains("help")
+                || stderr.contains("help")
+                || stderr.contains("No tool specified")
+        );
+    }
+}

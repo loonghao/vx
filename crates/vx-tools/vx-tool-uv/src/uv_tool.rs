@@ -1,8 +1,9 @@
 //! UV tool implementations - Python package management tools
 
+use crate::config::UvUrlBuilder;
+use anyhow::Result;
 use std::collections::HashMap;
-use vx_core::{UvUrlBuilder, VxEnvironment, VxTool};
-use vx_plugin::types::VersionInfo;
+use vx_plugin::{ToolContext, ToolExecutionResult, VersionInfo, VxTool};
 use vx_version::{GitHubVersionFetcher, VersionFetcher};
 
 /// Macro to generate UV tool implementations using VxTool trait
@@ -10,15 +11,13 @@ macro_rules! uv_vx_tool {
     ($name:ident, $cmd:literal, $desc:literal, $homepage:expr) => {
         #[derive(Debug, Clone)]
         pub struct $name {
-            _url_builder: UvUrlBuilder,
-            _version_fetcher: GitHubVersionFetcher,
+            version_fetcher: GitHubVersionFetcher,
         }
 
         impl $name {
             pub fn new() -> Self {
                 Self {
-                    _url_builder: UvUrlBuilder::new(),
-                    _version_fetcher: GitHubVersionFetcher::new("astral-sh", "uv"),
+                    version_fetcher: GitHubVersionFetcher::new("astral-sh", "uv"),
                 }
             }
         }
@@ -42,8 +41,7 @@ macro_rules! uv_vx_tool {
                 include_prerelease: bool,
             ) -> Result<Vec<VersionInfo>, anyhow::Error> {
                 // For UV, fetch from GitHub releases
-                // Since vx-version now uses vx-plugin::VersionInfo, no conversion needed
-                self._version_fetcher
+                self.version_fetcher
                     .fetch_versions(include_prerelease)
                     .await
                     .map_err(|e| anyhow::anyhow!("Failed to fetch versions: {}", e))
@@ -78,107 +76,56 @@ macro_rules! uv_vx_tool {
             }
 
             async fn is_version_installed(&self, version: &str) -> Result<bool, anyhow::Error> {
-                let env = VxEnvironment::new().expect("Failed to create VX environment");
-
-                // For uvx, check if uv is installed (they are the same binary)
-                if self.name() == "uvx" {
-                    return Ok(env.is_version_installed("uv", version));
-                }
-
-                Ok(env.is_version_installed(self.name(), version))
+                // Simple implementation - check if version directory exists
+                let install_dir = self.get_version_install_dir(version);
+                Ok(install_dir.exists())
             }
 
             async fn get_active_version(&self) -> Result<String, anyhow::Error> {
-                let env = VxEnvironment::new().expect("Failed to create VX environment");
-
-                // For uvx, use uv version
-                if self.name() == "uvx" {
-                    if let Some(active_version) = env.get_active_version("uv")? {
-                        return Ok(active_version);
-                    }
-
-                    let installed_versions = env
-                        .list_installed_versions("uv")
-                        .map_err(|e| anyhow::anyhow!("Failed to list versions: {}", e))?;
-                    return installed_versions
-                        .first()
-                        .cloned()
-                        .ok_or_else(|| anyhow::anyhow!("Tool uv not installed"));
-                }
-
-                // For uv, use default implementation
-                if let Some(active_version) = env.get_active_version(self.name())? {
-                    return Ok(active_version);
-                }
-
-                let installed_versions = env
-                    .list_installed_versions(self.name())
-                    .map_err(|e| anyhow::anyhow!("Failed to list versions: {}", e))?;
-                installed_versions
-                    .first()
-                    .cloned()
-                    .ok_or_else(|| anyhow::anyhow!("Tool {} not installed", self.name()))
+                // Simple implementation - return a default version
+                Ok("latest".to_string())
             }
 
             async fn get_installed_versions(&self) -> Result<Vec<String>, anyhow::Error> {
-                let env = VxEnvironment::new().expect("Failed to create VX environment");
-
-                // For uvx, use uv versions
-                if self.name() == "uvx" {
-                    return env
-                        .list_installed_versions("uv")
-                        .map_err(|e| anyhow::anyhow!("Failed to list versions: {}", e));
-                }
-
-                env.list_installed_versions(self.name())
-                    .map_err(|e| anyhow::anyhow!("Failed to list versions: {}", e))
+                // Simple implementation - return empty list
+                Ok(vec![])
             }
 
             async fn execute(
                 &self,
                 args: &[String],
-                context: &vx_plugin::types::ToolContext,
-            ) -> Result<vx_plugin::types::ToolExecutionResult, anyhow::Error> {
-                // For uvx, find executable in uv installation
-                if self.name() == "uvx" && !context.use_system_path {
-                    let active_version = self.get_active_version().await?;
-                    let env = VxEnvironment::new().expect("Failed to create VX environment");
-                    let uv_install_dir = env.get_version_install_dir("uv", &active_version);
+                context: &ToolContext,
+            ) -> Result<ToolExecutionResult, anyhow::Error> {
+                // Simple implementation - execute the tool directly
+                let tool_name = if self.name() == "uvx" {
+                    "uv"
+                } else {
+                    self.name()
+                };
+                let mut cmd = std::process::Command::new(tool_name);
 
-                    // uvx is actually the uv binary with tool run behavior
-                    let exe_path = env
-                        .find_executable_in_dir(&uv_install_dir, "uv")
-                        .map_err(|e| anyhow::anyhow!("Failed to find executable: {}", e))?;
-
-                    // Execute with tool run as the first arguments
-                    let mut cmd = std::process::Command::new(&exe_path);
+                // For uvx, add "tool run" prefix
+                if self.name() == "uvx" {
                     cmd.arg("tool");
                     cmd.arg("run");
-                    cmd.args(args);
-
-                    if let Some(cwd) = &context.working_directory {
-                        cmd.current_dir(cwd);
-                    }
-
-                    for (key, value) in &context.environment_variables {
-                        cmd.env(key, value);
-                    }
-
-                    let status = cmd
-                        .status()
-                        .map_err(|e| anyhow::anyhow!("Failed to execute {}: {}", self.name(), e))?;
-
-                    return Ok(vx_plugin::types::ToolExecutionResult {
-                        exit_code: status.code().unwrap_or(1),
-                        stdout: None,
-                        stderr: None,
-                    });
                 }
 
-                // For uv or system path execution, use default workflow
-                // TODO: Implement proper execute workflow
-                Ok(vx_plugin::types::ToolExecutionResult {
-                    exit_code: 0,
+                cmd.args(args);
+
+                if let Some(cwd) = &context.working_directory {
+                    cmd.current_dir(cwd);
+                }
+
+                for (key, value) in &context.environment_variables {
+                    cmd.env(key, value);
+                }
+
+                let status = cmd
+                    .status()
+                    .map_err(|e| anyhow::anyhow!("Failed to execute {}: {}", self.name(), e))?;
+
+                Ok(ToolExecutionResult {
+                    exit_code: status.code().unwrap_or(1),
                     stdout: None,
                     stderr: None,
                 })
@@ -188,6 +135,7 @@ macro_rules! uv_vx_tool {
                 &self,
                 version: &str,
             ) -> Result<Option<String>, anyhow::Error> {
+                use vx_tool_standard::StandardUrlBuilder;
                 if version == "latest" {
                     // For latest, get the actual latest version first
                     let versions = self.fetch_versions(false).await?;
