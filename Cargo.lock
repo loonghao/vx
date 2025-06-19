@@ -2939,6 +2939,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-core",
+ "vx-plugin",
  "which 8.0.0",
 ]
 
@@ -3015,6 +3016,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-core",
+ "vx-plugin",
 ]
 
 [[package]]
@@ -3051,6 +3053,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-core",
+ "vx-plugin",
  "which 8.0.0",
 ]
 
