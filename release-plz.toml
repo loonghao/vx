@@ -1,9 +1,9 @@
 [workspace]
 # Enable automatic changelog generation
 changelog_update = true
-# Enable automatic version bumping
-git_release_enable = true
-# Enable automatic tag creation
+# Disable GitHub releases for all packages by default (only main package will have releases)
+git_release_enable = false
+# Enable automatic tag creation for all packages
 git_tag_enable = true
 
 # Changelog configuration
@@ -23,10 +23,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 name = "vx"
 # Main CLI package is in the root directory (no path needed)
 changelog_update = true
+# Enable GitHub releases only for the main package
+git_release_enable = true
 # Standard tag format for main CLI (triggers tag-release-assets.yml workflow)
 git_tag_name = "v{{version}}"
 
-# Note: Internal crates (vx-core, vx-cli, etc.) are not configured here
-# as they are internal libraries that follow the main package version
-# and don't need separate releases. They will be published to crates.io
-# automatically but won't create GitHub releases.
+# Internal crates configuration - publish to crates.io but no GitHub releases
+[[package]]
+name = "vx-core"
+git_release_enable = false
+
+[[package]]
+name = "vx-cli"
+git_release_enable = false
+
+[[package]]
+name = "vx-config"
+git_release_enable = false
+
+[[package]]
+name = "vx-plugin"
+git_release_enable = false
+
+[[package]]
+name = "vx-installer"
+git_release_enable = false
+
+[[package]]
+name = "vx-version"
+git_release_enable = false
+
+[[package]]
+name = "vx-dependency"
+git_release_enable = false
+
+[[package]]
+name = "vx-tool-standard"
+git_release_enable = false
+
+# Tool packages
+[[package]]
+name = "vx-tool-node"
+git_release_enable = false
+
+[[package]]
+name = "vx-tool-go"
+git_release_enable = false
+
+[[package]]
+name = "vx-tool-rust"
+git_release_enable = false
+
+[[package]]
+name = "vx-tool-uv"
+git_release_enable = false
+
+[[package]]
+name = "vx-tool-npm"
+git_release_enable = false
+
+[[package]]
+name = "vx-tool-pnpm"
+git_release_enable = false
+
+[[package]]
+name = "vx-tool-yarn"
+git_release_enable = false
+
+[[package]]
+name = "vx-tool-bun"
+git_release_enable = false
