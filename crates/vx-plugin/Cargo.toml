@@ -30,6 +30,7 @@ dirs = { workspace = true }
 
 # Internal dependencies
 vx-config = { version = "0.2.6", path = "../vx-config" }
+vx-paths = { version = "0.2.6", path = "../vx-paths" }
 
 # Optional dependencies for features
 mockall = { workspace = true, optional = true }

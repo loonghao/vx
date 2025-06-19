@@ -10,38 +10,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.6] - 2025-01-19
 
 ### Added
-- Initial release of vx-tool-npm crate
-- NPM package manager support for vx
-- Node.js package installation and management
-- Script execution and lifecycle management
-- Registry configuration and management
-- Security audit capabilities
+- Initial release of vx-tool-pnpm crate
+- PNPM package manager support for vx
+- Fast, disk space efficient package manager integration
+- Workspace and monorepo support
+- Strict dependency resolution
+- Content-addressable storage benefits
 
 ### Features
-- NPM installation and version management
-- Package installation with `npm install`
-- Script execution with `npm run`
+- PNPM installation and version management
+- Package installation with `pnpm install`
+- Script execution with `pnpm run`
+- Workspace management commands
 - Dependency management and updates
-- Registry configuration
-- Security audit and vulnerability scanning
+- Cache management and optimization
+- Lock file handling
 
 ### Integration
 - Seamless integration with vx tool management
 - Automatic Node.js dependency resolution
-- Cross-platform NPM support
+- Cross-platform PNPM support
 - Version constraint handling
 - Plugin architecture compatibility
 
 ### Documentation
 - Complete usage examples
-- NPM-specific configuration guides
-- Package management documentation
-- Security best practices
+- PNPM-specific configuration guides
+- Workspace setup instructions
+- Performance optimization tips
 
 ## [0.2.5] - 2025-01-18
 
 ### Added
-- Core NPM tool implementation
+- Core PNPM tool implementation
 - Basic package manager operations
 - Version detection utilities
 
@@ -49,4 +50,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial project setup
-- NPM tool foundation
+- PNPM tool foundation

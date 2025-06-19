@@ -7,13 +7,13 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
+pub mod config;
 pub mod manager;
 pub mod resolver;
-pub mod config;
 
+pub use config::PathConfig;
 pub use manager::PathManager;
 pub use resolver::PathResolver;
-pub use config::PathConfig;
 
 /// Standard vx directory structure
 #[derive(Debug, Clone)]
@@ -35,9 +35,9 @@ impl VxPaths {
     pub fn new() -> Result<Self> {
         let home_dir = dirs::home_dir()
             .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
-        
+
         let base_dir = home_dir.join(".vx");
-        
+
         Ok(Self {
             tools_dir: base_dir.join("tools"),
             cache_dir: base_dir.join("cache"),
@@ -50,7 +50,7 @@ impl VxPaths {
     /// Create VxPaths with custom base directory
     pub fn with_base_dir<P: AsRef<Path>>(base_dir: P) -> Self {
         let base_dir = base_dir.as_ref().to_path_buf();
-        
+
         Self {
             tools_dir: base_dir.join("tools"),
             cache_dir: base_dir.join("cache"),
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn test_vx_paths_creation() {
         let paths = VxPaths::with_base_dir("/tmp/test-vx");
-        
+
         assert_eq!(paths.base_dir, PathBuf::from("/tmp/test-vx"));
         assert_eq!(paths.tools_dir, PathBuf::from("/tmp/test-vx/tools"));
         assert_eq!(paths.cache_dir, PathBuf::from("/tmp/test-vx/cache"));
