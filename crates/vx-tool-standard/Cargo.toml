@@ -1,0 +1,18 @@
+[package]
+name = "vx-tool-standard"
+version.workspace = true
+edition.workspace = true
+description = "Standard interfaces and utilities for vx tool implementations"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+vx-core = { path = "../vx-core" }
+vx-installer = { path = "../vx-installer" }
+anyhow = { workspace = true }
+serde = { workspace = true }

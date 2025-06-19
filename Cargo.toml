@@ -6,11 +6,16 @@ members = [
     "crates/vx-version",
     "crates/vx-core",
     "crates/vx-cli",
+    "crates/vx-dependency",
+    "crates/vx-tool-standard",
     "crates/vx-tools/vx-tool-node",
     "crates/vx-tools/vx-tool-go",
     "crates/vx-tools/vx-tool-rust",
     "crates/vx-tools/vx-tool-uv",
-    "crates/vx-package-managers/vx-pm-npm",
+    "crates/vx-tools/vx-tool-npm",
+    "crates/vx-tools/vx-tool-pnpm",
+    "crates/vx-tools/vx-tool-yarn",
+    "crates/vx-tools/vx-tool-bun",
 ]
 resolver = "2"
 
@@ -56,6 +61,10 @@ vx-tool-node = { version = "0.2.6", path = "crates/vx-tools/vx-tool-node" }
 vx-tool-go = { version = "0.2.6", path = "crates/vx-tools/vx-tool-go" }
 vx-tool-rust = { version = "0.2.6", path = "crates/vx-tools/vx-tool-rust" }
 vx-tool-uv = { version = "0.2.6", path = "crates/vx-tools/vx-tool-uv" }
+vx-tool-npm = { version = "0.2.6", path = "crates/vx-tools/vx-tool-npm" }
+vx-tool-pnpm = { version = "0.2.6", path = "crates/vx-tools/vx-tool-pnpm" }
+vx-tool-yarn = { version = "0.2.6", path = "crates/vx-tools/vx-tool-yarn" }
+vx-tool-bun = { version = "0.2.6", path = "crates/vx-tools/vx-tool-bun" }
 
 
 [workspace.package]

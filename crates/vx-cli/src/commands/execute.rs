@@ -1,7 +1,9 @@
 //! Execute command implementation - Transparent proxy for tool execution
 
 use crate::ui::UI;
-use vx_core::{PluginRegistry, Result, ToolProxy, VxError};
+use vx_core::{VxError, VxResult as Result};
+use vx_plugin::PluginRegistry;
+// TODO: DynamicExecutor needs to be implemented or imported from appropriate crate
 
 /// Handle the execute command
 pub async fn handle(
@@ -17,56 +19,18 @@ pub async fn handle(
     Ok(())
 }
 
-/// Execute tool with given arguments using the transparent proxy system
+/// Execute tool with given arguments (simplified for closed-loop toolchain)
 pub async fn execute_tool(
     _registry: &PluginRegistry,
     tool_name: &str,
     args: &[String],
-    use_system_path: bool,
+    _use_system_path: bool,
 ) -> Result<i32> {
     UI::debug(&format!("Executing: {} {}", tool_name, args.join(" ")));
 
-    if use_system_path {
-        // Use system PATH directly
-        UI::debug(&format!("Using system PATH for: {}", tool_name));
-        return execute_system_tool(tool_name, args).await;
-    }
-
-    // Use the transparent proxy system
-    match ToolProxy::new().await {
-        Ok(proxy) => {
-            UI::debug(&format!("Using vx transparent proxy for: {}", tool_name));
-
-            // Check if tool is available
-            if !proxy.is_tool_available(tool_name).await {
-                UI::warn(&format!(
-                    "Tool '{}' not found in vx or system PATH",
-                    tool_name
-                ));
-                UI::hint(&format!(
-                    "Try running 'vx install {}' to install it",
-                    tool_name
-                ));
-                UI::hint("Or use --use-system-path to search system PATH only");
-                return Err(VxError::ToolNotFound {
-                    tool_name: tool_name.to_string(),
-                });
-            }
-
-            // Show which version will be used
-            if let Ok(version) = proxy.get_effective_version(tool_name).await {
-                UI::debug(&format!("Using {} version: {}", tool_name, version));
-            }
-
-            // Execute through proxy
-            proxy.execute_tool(tool_name, args).await
-        }
-        Err(e) => {
-            UI::warn(&format!("Failed to create tool proxy: {}", e));
-            UI::info("Falling back to system PATH execution");
-            execute_system_tool(tool_name, args).await
-        }
-    }
+    // For now, use direct system execution
+    // TODO: Implement smart tool resolution with vx-managed tools
+    execute_system_tool(tool_name, args).await
 }
 
 /// Execute a tool using system PATH

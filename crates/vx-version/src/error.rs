@@ -9,44 +9,31 @@ pub type Result<T> = std::result::Result<T, VersionError>;
 #[derive(Debug)]
 pub enum VersionError {
     /// Invalid version format
-    InvalidVersion {
-        version: String,
-        reason: String,
-    },
-    
+    InvalidVersion { version: String, reason: String },
+
     /// Network error during version fetching
-    NetworkError {
-        url: String,
-        source: reqwest::Error,
-    },
-    
+    NetworkError { url: String, source: reqwest::Error },
+
     /// JSON parsing error
     ParseError {
         content: String,
         source: serde_json::Error,
     },
-    
+
     /// Version not found
-    VersionNotFound {
-        version: String,
-        tool: String,
-    },
-    
+    VersionNotFound { version: String, tool: String },
+
     /// Tool not found in system
-    ToolNotFound {
-        tool: String,
-    },
-    
+    ToolNotFound { tool: String },
+
     /// Command execution error
     CommandError {
         command: String,
         source: std::io::Error,
     },
-    
+
     /// Generic error
-    Other {
-        message: String,
-    },
+    Other { message: String },
 }
 
 impl fmt::Display for VersionError {
@@ -92,7 +79,10 @@ impl std::error::Error for VersionError {
 impl From<reqwest::Error> for VersionError {
     fn from(err: reqwest::Error) -> Self {
         VersionError::NetworkError {
-            url: err.url().map(|u| u.to_string()).unwrap_or_else(|| "unknown".to_string()),
+            url: err
+                .url()
+                .map(|u| u.to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
             source: err,
         }
     }

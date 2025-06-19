@@ -1,8 +1,8 @@
 [package]
-name = "vx-tool-uv"
+name = "vx-tool-pnpm"
 version.workspace = true
 edition.workspace = true
-description = "UV tool support for vx"
+description = "PNPM package manager support for vx"
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -14,11 +14,10 @@ rust-version.workspace = true
 [dependencies]
 vx-core = { version = "0.2.6", path = "../../vx-core" }
 vx-installer = { version = "0.2.6", path = "../../vx-installer" }
-vx-plugin = { version = "0.2.6", path = "../../vx-plugin" }
-vx-version = { version = "0.2.0", path = "../../vx-version" }
+vx-tool-standard = { path = "../../vx-tool-standard" }
+serde = { workspace = true }
+serde_json = { workspace = true }
 anyhow = { workspace = true }
-which = "8.0"
 async-trait = { workspace = true }
-
-[dev-dependencies]
-tempfile = "3.0"
+tokio = { workspace = true }
+which = { workspace = true }
