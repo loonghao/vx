@@ -125,7 +125,7 @@ mod tests {
         let pm = SimpleNpmPackageManager;
 
         assert_eq!(pm.name(), "npm");
-        assert_eq!(pm.ecosystem(), Ecosystem::JavaScript);
+        assert_eq!(pm.ecosystem(), Ecosystem::Node);
         assert_eq!(pm.description(), "Node Package Manager");
 
         // Test project detection

@@ -5,8 +5,8 @@
 use async_trait::async_trait;
 use std::path::Path;
 use vx_plugin::{
-    Ecosystem, PackageInfo, PackageSpec, PluginRegistry, PluginRegistryBuilder, Result,
-    VersionInfo, VxPackageManager, VxPlugin, VxTool,
+    Ecosystem, PackageSpec, PluginRegistryBuilder, Result, VersionInfo, VxPackageManager, VxPlugin,
+    VxTool,
 };
 
 /// A simple example tool
