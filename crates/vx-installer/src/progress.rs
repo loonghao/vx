@@ -151,7 +151,7 @@ impl ProgressReporter for ConsoleProgressReporter {
     async fn finish(&self, message: &str) {
         if let Ok(mut bar_guard) = self.bar.lock() {
             if let Some(bar) = bar_guard.take() {
-                bar.finish_with_message(message);
+                bar.finish_with_message(message.to_string());
             }
         }
     }
