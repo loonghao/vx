@@ -1,7 +1,21 @@
 #!/usr/bin/env bash
-# vx installer script for Linux and macOS
-# Usage: curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-# Usage with version: VX_VERSION="0.1.0" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+# vx installer script for Linux and macOS with multi-channel distribution support
+#
+# Basic usage:
+#   curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#
+# With specific version:
+#   VX_VERSION="0.1.0" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#
+# With GitHub token (to avoid rate limits):
+#   GITHUB_TOKEN="your_token" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#
+# Build from source:
+#   BUILD_FROM_SOURCE=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#
+# Alternative package managers:
+#   # Homebrew: brew install loonghao/vx/vx
+#   # Cargo: cargo install vx
 
 set -euo pipefail
 
@@ -58,20 +72,85 @@ detect_platform() {
     echo "$os-$arch"
 }
 
-# Get latest version from GitHub API (no authentication required)
+# Get latest version from GitHub API with optional authentication and fallback
 get_latest_version() {
     local api_url="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
+    local auth_header=""
+
+    # Check for GitHub token
+    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+        auth_header="Authorization: Bearer $GITHUB_TOKEN"
+        info "Using authenticated GitHub API request"
+    else
+        info "Using unauthenticated GitHub API request (rate limited)"
+    fi
+
+    # Try GitHub API first
+    local response
+    if command -v curl >/dev/null 2>&1; then
+        if [[ -n "$auth_header" ]]; then
+            response=$(curl -s -H "$auth_header" "$api_url" 2>/dev/null || echo "")
+        else
+            response=$(curl -s "$api_url" 2>/dev/null || echo "")
+        fi
+
+        # Check for rate limit error
+        if [[ -n "$response" ]] && ! echo "$response" | grep -q "rate limit\|429"; then
+            echo "$response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//' || echo ""
+            return
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if [[ -n "$auth_header" ]]; then
+            response=$(wget -qO- --header="$auth_header" "$api_url" 2>/dev/null || echo "")
+        else
+            response=$(wget -qO- "$api_url" 2>/dev/null || echo "")
+        fi
+
+        # Check for rate limit error
+        if [[ -n "$response" ]] && ! echo "$response" | grep -q "rate limit\|429"; then
+            echo "$response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//' || echo ""
+            return
+        fi
+    fi
+
+    # Fallback: try jsDelivr API
+    warn "GitHub API unavailable, trying alternative methods..."
+    local jsdelivr_url="https://data.jsdelivr.com/v1/package/gh/$REPO_OWNER/$REPO_NAME"
 
     if command -v curl >/dev/null 2>&1; then
-        # Use curl without authentication - public API access
-        curl -s "$api_url" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//'
+        local jsdelivr_response
+        jsdelivr_response=$(curl -s "$jsdelivr_url" 2>/dev/null || echo "")
+        if [[ -n "$jsdelivr_response" ]]; then
+            echo "$jsdelivr_response" | grep -o '"version":"[^"]*"' | head -1 | sed 's/"version":"//;s/"//' | sed 's/^v//' || echo ""
+            return
+        fi
     elif command -v wget >/dev/null 2>&1; then
-        # Use wget without authentication - public API access
-        wget -qO- "$api_url" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//'
-    else
-        error "Neither curl nor wget is available"
-        exit 1
+        local jsdelivr_response
+        jsdelivr_response=$(wget -qO- "$jsdelivr_url" 2>/dev/null || echo "")
+        if [[ -n "$jsdelivr_response" ]]; then
+            echo "$jsdelivr_response" | grep -o '"version":"[^"]*"' | head -1 | sed 's/"version":"//;s/"//' | sed 's/^v//' || echo ""
+            return
+        fi
     fi
+
+    # If all else fails, provide helpful error message
+    error "Unable to determine latest version automatically due to rate limiting."
+    echo ""
+    echo "🔧 Solutions:"
+    echo "1. Set GITHUB_TOKEN environment variable:"
+    echo "   GITHUB_TOKEN='your_token_here' $0"
+    echo ""
+    echo "2. Specify version explicitly:"
+    echo "   VX_VERSION='0.1.0' $0"
+    echo ""
+    echo "3. Use package managers:"
+    echo "   brew install loonghao/vx/vx"
+    echo "   cargo install vx"
+    echo ""
+    echo "4. Build from source:"
+    echo "   BUILD_FROM_SOURCE=true $0"
+    echo ""
+    exit 1
 }
 
 # Build from source (fallback method)
@@ -144,47 +223,105 @@ install_from_release() {
         *) error "Unsupported platform: $platform"; exit 1 ;;
     esac
 
-    download_url="$BASE_URL/download/v$version/$archive_name"
-
     # Create temporary directory
     temp_dir=$(mktemp -d)
     trap 'rm -rf "$temp_dir"' EXIT
 
-    # Download with fallback support
-    info "Downloading from $download_url..."
+    # Download with multi-channel fallback support
     download_success=false
 
-    if command -v curl >/dev/null 2>&1; then
-        if curl -fsSL "$download_url" -o "$temp_dir/$archive_name" 2>/dev/null; then
-            download_success=true
-        elif [[ -n "${fallback_archive:-}" ]]; then
-            warn "Primary download failed, trying fallback..."
-            fallback_url="$BASE_URL/download/v$version/$fallback_archive"
-            info "Downloading from $fallback_url..."
-            if curl -fsSL "$fallback_url" -o "$temp_dir/$fallback_archive" 2>/dev/null; then
-                archive_name="$fallback_archive"
-                download_success=true
+    # Define download channels in order of preference
+    local channels=(
+        "GitHub Releases|$BASE_URL/download/v$version/$archive_name"
+        "jsDelivr CDN|https://cdn.jsdelivr.net/gh/$REPO_OWNER/$REPO_NAME@v$version/$archive_name"
+        "Fastly CDN|https://fastly.jsdelivr.net/gh/$REPO_OWNER/$REPO_NAME@v$version/$archive_name"
+    )
+
+    # Try each channel
+    for channel_info in "${channels[@]}"; do
+        local channel_name="${channel_info%%|*}"
+        local download_url="${channel_info##*|}"
+
+        info "Trying $channel_name: $download_url"
+
+        if command -v curl >/dev/null 2>&1; then
+            if curl -fsSL --connect-timeout 10 --max-time 30 "$download_url" -o "$temp_dir/$archive_name" 2>/dev/null; then
+                # Verify download
+                if [[ -f "$temp_dir/$archive_name" ]] && [[ $(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0) -gt 1024 ]]; then
+                    local file_size=$(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0)
+                    success "Successfully downloaded from $channel_name ($(echo "scale=2; $file_size/1024/1024" | bc 2>/dev/null || echo "unknown") MB)"
+                    download_success=true
+                    break
+                else
+                    warn "Downloaded file too small, trying next channel..."
+                    rm -f "$temp_dir/$archive_name"
+                fi
             fi
-        fi
-    elif command -v wget >/dev/null 2>&1; then
-        if wget -q "$download_url" -O "$temp_dir/$archive_name" 2>/dev/null; then
-            download_success=true
-        elif [[ -n "${fallback_archive:-}" ]]; then
-            warn "Primary download failed, trying fallback..."
-            fallback_url="$BASE_URL/download/v$version/$fallback_archive"
-            info "Downloading from $fallback_url..."
-            if wget -q "$fallback_url" -O "$temp_dir/$fallback_archive" 2>/dev/null; then
-                archive_name="$fallback_archive"
-                download_success=true
+        elif command -v wget >/dev/null 2>&1; then
+            if wget -q --timeout=30 "$download_url" -O "$temp_dir/$archive_name" 2>/dev/null; then
+                # Verify download
+                if [[ -f "$temp_dir/$archive_name" ]] && [[ $(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0) -gt 1024 ]]; then
+                    local file_size=$(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0)
+                    success "Successfully downloaded from $channel_name ($(echo "scale=2; $file_size/1024/1024" | bc 2>/dev/null || echo "unknown") MB)"
+                    download_success=true
+                    break
+                else
+                    warn "Downloaded file too small, trying next channel..."
+                    rm -f "$temp_dir/$archive_name"
+                fi
             fi
+        else
+            error "Neither curl nor wget is available"
+            exit 1
         fi
-    else
-        error "Neither curl nor wget is available"
-        exit 1
+
+        warn "Failed to download from $channel_name"
+    done
+
+    # Try fallback archive if primary failed and fallback exists
+    if [[ "$download_success" != "true" ]] && [[ -n "${fallback_archive:-}" ]]; then
+        warn "All channels failed for primary archive, trying fallback archive..."
+
+        local fallback_channels=(
+            "GitHub Releases|$BASE_URL/download/v$version/$fallback_archive"
+            "jsDelivr CDN|https://cdn.jsdelivr.net/gh/$REPO_OWNER/$REPO_NAME@v$version/$fallback_archive"
+            "Fastly CDN|https://fastly.jsdelivr.net/gh/$REPO_OWNER/$REPO_NAME@v$version/$fallback_archive"
+        )
+
+        for channel_info in "${fallback_channels[@]}"; do
+            local channel_name="${channel_info%%|*}"
+            local download_url="${channel_info##*|}"
+
+            info "Trying $channel_name (fallback): $download_url"
+
+            if command -v curl >/dev/null 2>&1; then
+                if curl -fsSL --connect-timeout 10 --max-time 30 "$download_url" -o "$temp_dir/$fallback_archive" 2>/dev/null; then
+                    if [[ -f "$temp_dir/$fallback_archive" ]] && [[ $(stat -f%z "$temp_dir/$fallback_archive" 2>/dev/null || stat -c%s "$temp_dir/$fallback_archive" 2>/dev/null || echo 0) -gt 1024 ]]; then
+                        archive_name="$fallback_archive"
+                        success "Successfully downloaded fallback from $channel_name"
+                        download_success=true
+                        break
+                    fi
+                fi
+            elif command -v wget >/dev/null 2>&1; then
+                if wget -q --timeout=30 "$download_url" -O "$temp_dir/$fallback_archive" 2>/dev/null; then
+                    if [[ -f "$temp_dir/$fallback_archive" ]] && [[ $(stat -f%z "$temp_dir/$fallback_archive" 2>/dev/null || stat -c%s "$temp_dir/$fallback_archive" 2>/dev/null || echo 0) -gt 1024 ]]; then
+                        archive_name="$fallback_archive"
+                        success "Successfully downloaded fallback from $channel_name"
+                        download_success=true
+                        break
+                    fi
+                fi
+            fi
+
+            warn "Failed to download fallback from $channel_name"
+        done
     fi
 
     if [[ "$download_success" != "true" ]]; then
-        error "Failed to download vx binary"
+        error "Failed to download vx binary from all channels"
+        error "Available channels: GitHub Releases, jsDelivr CDN, Fastly CDN"
+        error "Try building from source with: BUILD_FROM_SOURCE=true $0"
         exit 1
     fi
 
