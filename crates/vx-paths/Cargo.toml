@@ -1,0 +1,17 @@
+[package]
+name = "vx-paths"
+version = "0.2.6"
+edition = "2021"
+description = "Cross-platform path management for vx tool installations"
+license = "MIT"
+repository = "https://github.com/loonghao/vx"
+homepage = "https://github.com/loonghao/vx"
+
+[dependencies]
+anyhow = { workspace = true }
+dirs = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

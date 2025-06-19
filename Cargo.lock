@@ -2538,6 +2538,7 @@ dependencies = [
  "tracing-indicatif",
  "tracing-subscriber",
  "vx-core",
+ "vx-paths",
  "vx-plugin",
  "vx-tool-go",
  "vx-tool-node",
@@ -2621,6 +2622,17 @@ dependencies = [
  "tokio-test",
  "walkdir",
  "zip",
+]
+
+[[package]]
+name = "vx-paths"
+version = "0.2.6"
+dependencies = [
+ "anyhow",
+ "dirs",
+ "serde",
+ "tempfile",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
