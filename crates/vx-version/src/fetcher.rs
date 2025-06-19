@@ -1,6 +1,6 @@
 //! Version fetching traits and implementations
 
-use crate::{Result, VersionInfo, VersionError};
+use crate::{Result, VersionError, VersionInfo};
 use async_trait::async_trait;
 
 /// Trait for fetching version information from external sources
@@ -76,13 +76,16 @@ impl VersionFetcher for GitHubVersionFetcher {
     async fn fetch_versions(&self, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
         let client = reqwest::Client::new();
         let url = self.releases_url();
-        
+
         let response = client
             .get(&url)
             .header("User-Agent", "vx-version")
             .send()
             .await
-            .map_err(|e| VersionError::NetworkError { url: url.clone(), source: e })?;
+            .map_err(|e| VersionError::NetworkError {
+                url: url.clone(),
+                source: e,
+            })?;
 
         let json: serde_json::Value = response
             .json()
@@ -123,18 +126,25 @@ impl VersionFetcher for NodeVersionFetcher {
     async fn fetch_versions(&self, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
         let client = reqwest::Client::new();
         let url = "https://nodejs.org/dist/index.json";
-        
+
         let response = client
             .get(url)
             .header("User-Agent", "vx-version")
             .send()
             .await
-            .map_err(|e| VersionError::NetworkError { url: url.to_string(), source: e })?;
+            .map_err(|e| VersionError::NetworkError {
+                url: url.to_string(),
+                source: e,
+            })?;
 
-        let json: serde_json::Value = response
-            .json()
-            .await
-            .map_err(|e| VersionError::NetworkError { url: url.to_string(), source: e })?;
+        let json: serde_json::Value =
+            response
+                .json()
+                .await
+                .map_err(|e| VersionError::NetworkError {
+                    url: url.to_string(),
+                    source: e,
+                })?;
 
         crate::parser::NodeVersionParser::parse_versions(&json, include_prerelease)
     }
@@ -148,7 +158,10 @@ mod tests {
     fn test_github_fetcher_creation() {
         let fetcher = GitHubVersionFetcher::new("astral-sh", "uv");
         assert_eq!(fetcher.tool_name(), "uv");
-        assert_eq!(fetcher.releases_url(), "https://api.github.com/repos/astral-sh/uv/releases");
+        assert_eq!(
+            fetcher.releases_url(),
+            "https://api.github.com/repos/astral-sh/uv/releases"
+        );
     }
 
     #[test]

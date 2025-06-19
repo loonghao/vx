@@ -13,6 +13,8 @@ rust-version.workspace = true
 
 [dependencies]
 vx-core = { version = "0.2.6", path = "../../vx-core" }
+vx-installer = { version = "0.2.6", path = "../../vx-installer" }
+vx-tool-standard = { path = "../../vx-tool-standard" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

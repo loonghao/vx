@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 use tempfile::TempDir;
 use vx_installer::{
-    ArchiveFormat, InstallConfig, InstallMethod, Installer,
     progress::{ProgressContext, ProgressStyle},
+    ArchiveFormat, InstallConfig, InstallMethod, Installer,
 };
 
 /// Test basic installer creation
@@ -34,18 +34,24 @@ fn test_install_config_builder() {
     assert_eq!(config.tool_name, "test-tool");
     assert_eq!(config.version, "1.0.0");
     assert!(matches!(config.install_method, InstallMethod::Binary));
-    assert_eq!(config.download_url, Some("https://example.com/test-tool".to_string()));
+    assert_eq!(
+        config.download_url,
+        Some("https://example.com/test-tool".to_string())
+    );
     assert_eq!(config.install_dir, install_dir);
     assert!(config.force);
     assert_eq!(config.checksum, Some("abc123".to_string()));
-    assert_eq!(config.metadata.get("platform"), Some(&"linux-x64".to_string()));
+    assert_eq!(
+        config.metadata.get("platform"),
+        Some(&"linux-x64".to_string())
+    );
 }
 
 /// Test archive format detection
 #[test]
 fn test_archive_format_detection() {
-    use vx_installer::formats::detect_format;
     use std::path::Path;
+    use vx_installer::formats::detect_format;
 
     assert_eq!(detect_format(Path::new("test.zip")), Some("zip"));
     assert_eq!(detect_format(Path::new("test.tar.gz")), Some("tar.gz"));
@@ -64,7 +70,7 @@ fn test_progress_context() {
     let style = ProgressStyle::default();
     let progress = ProgressContext::new(
         vx_installer::progress::create_progress_reporter(style, false),
-        false
+        false,
     );
     assert!(!progress.is_enabled());
 }
@@ -112,20 +118,39 @@ fn test_install_methods() {
     let binary_method = InstallMethod::Binary;
     assert!(matches!(binary_method, InstallMethod::Binary));
 
-    let zip_method = InstallMethod::Archive { format: ArchiveFormat::Zip };
-    assert!(matches!(zip_method, InstallMethod::Archive { format: ArchiveFormat::Zip }));
+    let zip_method = InstallMethod::Archive {
+        format: ArchiveFormat::Zip,
+    };
+    assert!(matches!(
+        zip_method,
+        InstallMethod::Archive {
+            format: ArchiveFormat::Zip
+        }
+    ));
 
-    let tar_gz_method = InstallMethod::Archive { format: ArchiveFormat::TarGz };
-    assert!(matches!(tar_gz_method, InstallMethod::Archive { format: ArchiveFormat::TarGz }));
+    let tar_gz_method = InstallMethod::Archive {
+        format: ArchiveFormat::TarGz,
+    };
+    assert!(matches!(
+        tar_gz_method,
+        InstallMethod::Archive {
+            format: ArchiveFormat::TarGz
+        }
+    ));
 
-    let script_method = InstallMethod::Script { url: "https://example.com/install.sh".to_string() };
+    let script_method = InstallMethod::Script {
+        url: "https://example.com/install.sh".to_string(),
+    };
     assert!(matches!(script_method, InstallMethod::Script { .. }));
 
-    let package_method = InstallMethod::PackageManager { 
-        manager: "apt".to_string(), 
-        package: "nodejs".to_string() 
+    let package_method = InstallMethod::PackageManager {
+        manager: "apt".to_string(),
+        package: "nodejs".to_string(),
     };
-    assert!(matches!(package_method, InstallMethod::PackageManager { .. }));
+    assert!(matches!(
+        package_method,
+        InstallMethod::PackageManager { .. }
+    ));
 }
 
 /// Test that installer can check installation status
@@ -143,7 +168,10 @@ async fn test_installation_check() {
 
     // Should return false for non-existent installation
     let is_installed = installer.is_installed(&config).await.unwrap();
-    assert!(!is_installed, "Non-existent tool should not be reported as installed");
+    assert!(
+        !is_installed,
+        "Non-existent tool should not be reported as installed"
+    );
 }
 
 /// Test version information
@@ -153,16 +181,22 @@ fn test_version_info() {
     assert!(!version.is_empty(), "Version should not be empty");
 
     let user_agent = vx_installer::USER_AGENT;
-    assert!(user_agent.contains("vx-installer"), "User agent should contain vx-installer");
-    assert!(user_agent.contains(version), "User agent should contain version");
+    assert!(
+        user_agent.contains("vx-installer"),
+        "User agent should contain vx-installer"
+    );
+    assert!(
+        user_agent.contains(version),
+        "User agent should contain version"
+    );
 }
 
 /// Test that all format handlers can be created
 #[test]
 fn test_format_handlers() {
-    use vx_installer::formats::{ArchiveExtractor, FormatHandler};
-    use vx_installer::formats::{binary::BinaryHandler, tar::TarHandler, zip::ZipHandler};
     use std::path::Path;
+    use vx_installer::formats::{binary::BinaryHandler, tar::TarHandler, zip::ZipHandler};
+    use vx_installer::formats::{ArchiveExtractor, FormatHandler};
 
     let zip_handler = ZipHandler::new();
     assert_eq!(zip_handler.name(), "zip");
@@ -186,8 +220,8 @@ fn test_format_handlers() {
 /// Test downloader configuration
 #[test]
 fn test_downloader_config() {
-    use vx_installer::downloader::DownloadConfig;
     use std::time::Duration;
+    use vx_installer::downloader::DownloadConfig;
 
     let config = DownloadConfig::new("https://example.com/file.zip", "/tmp/file.zip")
         .with_checksum("abc123")
@@ -207,12 +241,14 @@ fn test_downloader_config() {
 #[tokio::test]
 async fn test_vx_core_integration() {
     // This test verifies that the types are compatible
-    use vx_installer::{InstallConfig, InstallMethod, ArchiveFormat};
+    use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod};
 
     let config = InstallConfig::builder()
         .tool_name("test")
         .version("1.0.0")
-        .install_method(InstallMethod::Archive { format: ArchiveFormat::Zip })
+        .install_method(InstallMethod::Archive {
+            format: ArchiveFormat::Zip,
+        })
         .build();
 
     // Should be able to serialize/deserialize

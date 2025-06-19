@@ -23,7 +23,7 @@ impl VersionUtils {
 
     /// Filter out prerelease versions
     pub fn filter_stable_only(versions: Vec<VersionInfo>) -> Vec<VersionInfo> {
-        versions.into_iter().filter(|v| !v.is_prerelease).collect()
+        versions.into_iter().filter(|v| !v.prerelease).collect()
     }
 
     /// Get the latest N versions
@@ -33,7 +33,15 @@ impl VersionUtils {
 
     /// Filter versions by LTS status
     pub fn filter_lts_only(versions: Vec<VersionInfo>) -> Vec<VersionInfo> {
-        versions.into_iter().filter(|v| v.is_lts()).collect()
+        versions
+            .into_iter()
+            .filter(|v| {
+                v.metadata
+                    .get("lts")
+                    .map(|val| val == "true")
+                    .unwrap_or(false)
+            })
+            .collect()
     }
 
     /// Find a specific version in a list
@@ -177,7 +185,7 @@ mod tests {
     fn test_filter_stable_only() {
         let versions = vec![
             VersionInfo::new("1.0.0".to_string()),
-            VersionInfo::new("1.1.0-alpha".to_string()).with_prerelease(true),
+            VersionInfo::new("1.1.0-alpha".to_string()).as_prerelease(),
             VersionInfo::new("1.1.0".to_string()),
         ];
 

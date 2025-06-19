@@ -2,9 +2,11 @@
 //!
 //! This example demonstrates how to create a package manager plugin for vx.
 
-use vx_plugin::{VxPackageManager, VxPlugin, StandardPackageManager, Ecosystem, PackageSpec, PackageInfo, Result};
 use async_trait::async_trait;
 use std::path::Path;
+use vx_plugin::{
+    Ecosystem, PackageInfo, PackageSpec, Result, StandardPackageManager, VxPackageManager, VxPlugin,
+};
 
 /// A simple example package manager
 struct ExamplePackageManager;
@@ -62,15 +64,13 @@ impl VxPackageManager for ExamplePackageManager {
     async fn search_packages(&self, query: &str) -> Result<Vec<PackageInfo>> {
         println!("Searching for packages matching: {}", query);
         // In a real implementation, this would query a package registry
-        Ok(vec![
-            PackageInfo {
-                name: format!("{}-result", query),
-                version: "1.0.0".to_string(),
-                description: Some(format!("A package matching {}", query)),
-                dev_dependency: false,
-                metadata: std::collections::HashMap::new(),
-            },
-        ])
+        Ok(vec![PackageInfo {
+            name: format!("{}-result", query),
+            version: "1.0.0".to_string(),
+            description: Some(format!("A package matching {}", query)),
+            dev_dependency: false,
+            metadata: std::collections::HashMap::new(),
+        }])
     }
 }
 
@@ -104,11 +104,11 @@ impl VxPlugin for ExamplePackageManagerPlugin {
 async fn main() -> Result<()> {
     // Create and register the plugin
     let plugin = Box::new(ExamplePackageManagerPlugin);
-    
+
     println!("Plugin: {}", plugin.name());
     println!("Description: {}", plugin.description());
     println!("Version: {}", plugin.version());
-    
+
     // List package managers provided by the plugin
     let package_managers = plugin.package_managers();
     println!("Package managers provided:");
@@ -116,7 +116,7 @@ async fn main() -> Result<()> {
         println!("  - {} ({})", pm.name(), pm.description());
         println!("    Ecosystem: {:?}", pm.ecosystem());
         println!("    Config files: {:?}", pm.get_config_files());
-        
+
         // Test package listing
         let temp_dir = std::env::temp_dir();
         match pm.list_packages(&temp_dir).await {
@@ -131,16 +131,19 @@ async fn main() -> Result<()> {
                 println!("    Error listing packages: {}", e);
             }
         }
-        
+
         // Test package search
         match pm.search_packages("test").await {
             Ok(results) => {
                 println!("    Search results for 'test':");
                 for result in results {
-                    println!("      - {}@{}: {}", 
-                        result.name, 
-                        result.version, 
-                        result.description.unwrap_or_else(|| "No description".to_string())
+                    println!(
+                        "      - {}@{}: {}",
+                        result.name,
+                        result.version,
+                        result
+                            .description
+                            .unwrap_or_else(|| "No description".to_string())
                     );
                 }
             }
@@ -149,16 +152,20 @@ async fn main() -> Result<()> {
             }
         }
     }
-    
+
     // Demonstrate StandardPackageManager
     println!("\nDemonstrating StandardPackageManager:");
     let standard_pm = StandardPackageManager::new("npm", "Node Package Manager", Ecosystem::Node)
         .with_config_file("package.json")
         .with_config_file("package-lock.json");
-    
-    println!("Standard PM: {} ({})", standard_pm.name(), standard_pm.description());
+
+    println!(
+        "Standard PM: {} ({})",
+        standard_pm.name(),
+        standard_pm.description()
+    );
     println!("Config files: {:?}", standard_pm.get_config_files());
     println!("Install command: {:?}", standard_pm.get_install_command());
-    
+
     Ok(())
 }

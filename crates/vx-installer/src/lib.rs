@@ -27,8 +27,8 @@
 //!         .tool_name("node")
 //!         .version("18.17.0")
 //!         .download_url("https://nodejs.org/dist/v18.17.0/node-v18.17.0-linux-x64.tar.gz")
-//!         .install_method(InstallMethod::Archive { 
-//!             format: ArchiveFormat::TarGz 
+//!         .install_method(InstallMethod::Archive {
+//!             format: ArchiveFormat::TarGz
 //!         })
 //!         .install_dir(PathBuf::from("/opt/vx/tools/node/18.17.0"))
 //!         .build();
@@ -49,9 +49,7 @@ pub mod progress;
 // Re-export main types for convenience
 pub use downloader::Downloader;
 pub use error::{Error, Result};
-pub use installer::{
-    ArchiveFormat, InstallConfig, InstallConfigBuilder, InstallMethod, Installer,
-};
+pub use installer::{ArchiveFormat, InstallConfig, InstallConfigBuilder, InstallMethod, Installer};
 pub use progress::{ProgressReporter, ProgressStyle};
 
 // Re-export format handlers

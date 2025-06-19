@@ -1,9 +1,10 @@
 //! Rust toolchain implementations with environment isolation
 
+use anyhow::Result;
 use std::collections::HashMap;
 use vx_core::{
-    GitHubVersionParser, HttpUtils, Result, RustUrlBuilder, ToolContext, ToolExecutionResult,
-    VersionInfo, VxTool,
+    GitHubVersionFetcher, HttpUtils, RustUrlBuilder, ToolContext, ToolExecutionResult, VersionInfo,
+    VxError, VxTool,
 };
 
 /// Macro to generate Rust tool implementations using VxTool trait
@@ -12,14 +13,12 @@ macro_rules! rust_vx_tool {
         #[derive(Debug, Clone)]
         pub struct $name {
             _url_builder: RustUrlBuilder,
-            _version_parser: GitHubVersionParser,
         }
 
         impl $name {
             pub fn new() -> Self {
                 Self {
                     _url_builder: RustUrlBuilder::new(),
-                    _version_parser: GitHubVersionParser::new("rust-lang", "rust"),
                 }
             }
         }
@@ -39,9 +38,9 @@ macro_rules! rust_vx_tool {
             }
 
             async fn fetch_versions(&self, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
-                // For Rust tools, fetch from GitHub releases
-                let json = HttpUtils::fetch_json(RustUrlBuilder::versions_url()).await?;
-                GitHubVersionParser::parse_versions(&json, include_prerelease)
+                // For Rust tools, use GitHubVersionFetcher
+                let fetcher = GitHubVersionFetcher::new("rust-lang", "rust");
+                fetcher.fetch_versions(include_prerelease).await
             }
 
             async fn install_version(&self, version: &str, force: bool) -> Result<()> {

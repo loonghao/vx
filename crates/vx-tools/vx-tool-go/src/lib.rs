@@ -2,11 +2,12 @@
 
 use vx_core::VxPlugin;
 
-mod go_plugin;
-mod go_tool;
+mod config;
+mod plugin;
+mod tool;
 
-pub use go_plugin::GoPlugin;
-pub use go_tool::GoTool;
+pub use plugin::GoPlugin;
+pub use tool::GoTool;
 
 /// Create a new Go plugin instance
 pub fn create_plugin() -> Box<dyn VxPlugin> {

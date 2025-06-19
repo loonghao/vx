@@ -2,12 +2,12 @@
 //!
 //! This example demonstrates how to create a plugin that provides both tools and package managers.
 
-use vx_plugin::{
-    VxTool, VxPackageManager, VxPlugin, PluginRegistry, PluginRegistryBuilder,
-    Ecosystem, PackageSpec, PackageInfo, VersionInfo, Result
-};
 use async_trait::async_trait;
 use std::path::Path;
+use vx_plugin::{
+    Ecosystem, PackageInfo, PackageSpec, PluginRegistry, PluginRegistryBuilder, Result,
+    VersionInfo, VxPackageManager, VxPlugin, VxTool,
+};
 
 /// A simple example tool
 struct ExampleTool;
@@ -144,14 +144,17 @@ async fn main() -> Result<()> {
 
     // Create the plugin
     let plugin = Box::new(CombinedPlugin::new());
-    
+
     println!("Plugin Information:");
     println!("  Name: {}", plugin.name());
     println!("  Description: {}", plugin.description());
     println!("  Version: {}", plugin.version());
     println!("  Author: {}", plugin.author().unwrap_or("Unknown"));
     println!("  Homepage: {}", plugin.homepage().unwrap_or("None"));
-    println!("  Compatible with vx 0.2.6: {}", plugin.is_compatible_with("0.2.6"));
+    println!(
+        "  Compatible with vx 0.2.6: {}",
+        plugin.is_compatible_with("0.2.6")
+    );
     println!();
 
     // Test tool functionality
@@ -160,7 +163,7 @@ async fn main() -> Result<()> {
     for tool in &tools {
         println!("  - {} ({})", tool.name(), tool.description());
         println!("    Aliases: {:?}", tool.aliases());
-        
+
         // Test version fetching
         match tool.fetch_versions(false).await {
             Ok(versions) => {
@@ -188,7 +191,7 @@ async fn main() -> Result<()> {
 
     // Demonstrate plugin registry usage
     println!("=== Plugin Registry Demo ===\n");
-    
+
     // Create registry using builder pattern
     let registry = PluginRegistryBuilder::new()
         .with_plugin(Box::new(CombinedPlugin::new()))
@@ -221,10 +224,16 @@ async fn main() -> Result<()> {
     println!("  example-tool: {}", registry.has_tool("example-tool"));
     println!("  et (alias): {}", registry.has_tool("et"));
     println!("  nonexistent: {}", registry.has_tool("nonexistent"));
-    
+
     println!("Package manager availability:");
-    println!("  example-pm: {}", registry.has_package_manager("example-pm"));
-    println!("  nonexistent: {}", registry.has_package_manager("nonexistent"));
+    println!(
+        "  example-pm: {}",
+        registry.has_package_manager("example-pm")
+    );
+    println!(
+        "  nonexistent: {}",
+        registry.has_package_manager("nonexistent")
+    );
     println!();
 
     // Get plugin metadata

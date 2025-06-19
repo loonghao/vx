@@ -2,7 +2,9 @@
 
 use crate::ui::UI;
 use std::collections::HashMap;
-use vx_core::{ConfigManager, Result, VxError};
+use vx_config::ConfigManager;
+use vx_core::{VxError, VxResult as Result};
+// TODO: Need to define ProjectConfig or import from appropriate crate
 
 pub async fn handle() -> Result<()> {
     show_config().await
