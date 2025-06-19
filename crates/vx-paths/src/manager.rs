@@ -204,7 +204,8 @@ mod tests {
     #[test]
     fn test_path_manager_creation() {
         let temp_dir = TempDir::new().unwrap();
-        let manager = PathManager::with_base_dir(temp_dir.path()).unwrap();
+        let base_dir = temp_dir.path().join(".vx");
+        let manager = PathManager::with_base_dir(&base_dir).unwrap();
 
         assert!(manager.tools_dir().exists());
         assert!(manager.cache_dir().exists());
@@ -215,32 +216,28 @@ mod tests {
     #[test]
     fn test_tool_paths() {
         let temp_dir = TempDir::new().unwrap();
-        let manager = PathManager::with_base_dir(temp_dir.path()).unwrap();
+        let base_dir = temp_dir.path().join(".vx");
+        let manager = PathManager::with_base_dir(&base_dir).unwrap();
 
         let tool_dir = manager.tool_dir("node");
         let version_dir = manager.tool_version_dir("node", "18.17.0");
         let exe_path = manager.tool_executable_path("node", "18.17.0");
 
-        assert_eq!(tool_dir, temp_dir.path().join(".vx/tools/node"));
-        assert_eq!(version_dir, temp_dir.path().join(".vx/tools/node/18.17.0"));
+        assert_eq!(tool_dir, base_dir.join("tools/node"));
+        assert_eq!(version_dir, base_dir.join("tools/node/18.17.0"));
 
         if cfg!(target_os = "windows") {
-            assert_eq!(
-                exe_path,
-                temp_dir.path().join(".vx/tools/node/18.17.0/node.exe")
-            );
+            assert_eq!(exe_path, base_dir.join("tools/node/18.17.0/node.exe"));
         } else {
-            assert_eq!(
-                exe_path,
-                temp_dir.path().join(".vx/tools/node/18.17.0/node")
-            );
+            assert_eq!(exe_path, base_dir.join("tools/node/18.17.0/node"));
         }
     }
 
     #[test]
     fn test_tool_version_management() {
         let temp_dir = TempDir::new().unwrap();
-        let manager = PathManager::with_base_dir(temp_dir.path()).unwrap();
+        let base_dir = temp_dir.path().join(".vx");
+        let manager = PathManager::with_base_dir(&base_dir).unwrap();
 
         // Initially no versions
         assert!(!manager.is_tool_version_installed("node", "18.17.0"));
