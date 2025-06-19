@@ -3,8 +3,13 @@
 //! This provides Yarn package manager integration for the vx tool.
 
 use anyhow::Result;
+use std::collections::HashMap;
 use std::path::Path;
-use vx_plugin::{Ecosystem, PackageSpec, VxPackageManager, VxPlugin, VxTool};
+use vx_plugin::{
+    Ecosystem, PackageSpec, ToolContext, ToolExecutionResult, VersionInfo, VxPackageManager,
+    VxPlugin, VxTool,
+};
+use vx_version::{GitHubVersionFetcher, VersionFetcher};
 
 /// Yarn package manager implementation
 #[derive(Default)]
@@ -100,6 +105,136 @@ impl VxPackageManager for YarnPackageManager {
     }
 }
 
+/// Yarn tool implementation
+#[derive(Debug, Clone)]
+pub struct YarnTool {
+    version_fetcher: GitHubVersionFetcher,
+}
+
+impl YarnTool {
+    pub fn new() -> Self {
+        Self {
+            version_fetcher: GitHubVersionFetcher::new("yarnpkg", "yarn"),
+        }
+    }
+}
+
+impl Default for YarnTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait::async_trait]
+impl VxTool for YarnTool {
+    fn name(&self) -> &str {
+        "yarn"
+    }
+
+    fn description(&self) -> &str {
+        "Fast, reliable, and secure dependency management"
+    }
+
+    fn aliases(&self) -> Vec<&str> {
+        vec![]
+    }
+
+    async fn fetch_versions(&self, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
+        self.version_fetcher
+            .fetch_versions(include_prerelease)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to fetch yarn versions: {}", e))
+    }
+
+    async fn install_version(&self, version: &str, force: bool) -> Result<()> {
+        if !force && self.is_version_installed(version).await? {
+            return Err(anyhow::anyhow!(
+                "Version {} of yarn is already installed",
+                version
+            ));
+        }
+
+        let install_dir = self.get_version_install_dir(version);
+        let _exe_path = self.default_install_workflow(version, &install_dir).await?;
+
+        // Verify installation
+        if !self.is_version_installed(version).await? {
+            return Err(anyhow::anyhow!(
+                "Installation verification failed for yarn version {}",
+                version
+            ));
+        }
+
+        Ok(())
+    }
+
+    async fn is_version_installed(&self, version: &str) -> Result<bool> {
+        let install_dir = self.get_version_install_dir(version);
+        Ok(install_dir.exists())
+    }
+
+    async fn execute(&self, args: &[String], context: &ToolContext) -> Result<ToolExecutionResult> {
+        // Check if yarn is available in system PATH
+        if which::which("yarn").is_err() {
+            // Try to install yarn if not found
+            eprintln!("Yarn not found, attempting to install...");
+            if let Err(e) = self.install_version("latest", false).await {
+                return Err(anyhow::anyhow!("Failed to install yarn: {}", e));
+            }
+            eprintln!("Yarn installed successfully");
+        }
+
+        let mut cmd = std::process::Command::new("yarn");
+        cmd.args(args);
+
+        if let Some(cwd) = &context.working_directory {
+            cmd.current_dir(cwd);
+        }
+
+        for (key, value) in &context.environment_variables {
+            cmd.env(key, value);
+        }
+
+        let status = cmd
+            .status()
+            .map_err(|e| anyhow::anyhow!("Failed to execute yarn: {}", e))?;
+
+        Ok(ToolExecutionResult {
+            exit_code: status.code().unwrap_or(1),
+            stdout: None,
+            stderr: None,
+        })
+    }
+
+    async fn get_active_version(&self) -> Result<String> {
+        Ok("latest".to_string())
+    }
+
+    async fn get_installed_versions(&self) -> Result<Vec<String>> {
+        Ok(vec![])
+    }
+
+    async fn get_download_url(&self, version: &str) -> Result<Option<String>> {
+        // Yarn releases are available on GitHub
+        let url = format!(
+            "https://github.com/yarnpkg/yarn/releases/download/v{}/yarn-v{}.tar.gz",
+            version, version
+        );
+        Ok(Some(url))
+    }
+
+    fn metadata(&self) -> HashMap<String, String> {
+        let mut meta = HashMap::new();
+        meta.insert("homepage".to_string(), "https://yarnpkg.com/".to_string());
+        meta.insert("ecosystem".to_string(), "javascript".to_string());
+        meta.insert(
+            "repository".to_string(),
+            "https://github.com/yarnpkg/yarn".to_string(),
+        );
+        meta
+    }
+}
+
 /// Yarn plugin
 #[derive(Default)]
 pub struct YarnPlugin;
@@ -126,15 +261,15 @@ impl VxPlugin for YarnPlugin {
     }
 
     fn tools(&self) -> Vec<Box<dyn VxTool>> {
-        vec![]
+        vec![Box::new(YarnTool::new())]
     }
 
     fn package_managers(&self) -> Vec<Box<dyn VxPackageManager>> {
         vec![Box::new(YarnPackageManager)]
     }
 
-    fn supports_tool(&self, _tool_name: &str) -> bool {
-        false
+    fn supports_tool(&self, tool_name: &str) -> bool {
+        tool_name == "yarn"
     }
 }
 

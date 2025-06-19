@@ -2,8 +2,8 @@
 
 use crate::ui::UI;
 use anyhow::Result;
+use std::collections::HashMap;
 use vx_plugin::PluginRegistry;
-// TODO: DynamicExecutor needs to be implemented or imported from appropriate crate
 
 /// Handle the execute command
 pub async fn handle(
@@ -19,18 +19,61 @@ pub async fn handle(
     Ok(())
 }
 
-/// Execute tool with given arguments (simplified for closed-loop toolchain)
+/// Execute tool with given arguments with smart tool resolution
 pub async fn execute_tool(
-    _registry: &PluginRegistry,
+    registry: &PluginRegistry,
     tool_name: &str,
     args: &[String],
-    _use_system_path: bool,
+    use_system_path: bool,
 ) -> Result<i32> {
     UI::debug(&format!("Executing: {} {}", tool_name, args.join(" ")));
 
-    // For now, use direct system execution
-    // TODO: Implement smart tool resolution with vx-managed tools
-    execute_system_tool(tool_name, args).await
+    // Try to find the tool in vx-managed tools first
+    if let Some(tool) = registry.get_tool(tool_name) {
+        return execute_vx_tool(tool, args).await;
+    }
+
+    // If use_system_path is true, try system PATH
+    if use_system_path {
+        if let Ok(exit_code) = execute_system_tool(tool_name, args).await {
+            return Ok(exit_code);
+        }
+    }
+
+    // Tool not found, try to auto-install if supported
+    if let Some(tool) = registry.get_tool(tool_name) {
+        UI::info(&format!(
+            "Tool '{}' not found, attempting to install...",
+            tool_name
+        ));
+
+        // Try to install the latest version
+        if let Err(e) = tool.install_version("latest", false).await {
+            UI::warn(&format!("Failed to auto-install {}: {}", tool_name, e));
+            return Err(anyhow::anyhow!(
+                "Tool not found and auto-install failed: {}",
+                tool_name
+            ));
+        }
+
+        UI::success(&format!("Successfully installed {}", tool_name));
+        return execute_vx_tool(tool, args).await;
+    }
+
+    Err(anyhow::anyhow!("Tool not found: {}", tool_name))
+}
+
+/// Execute a vx-managed tool
+async fn execute_vx_tool(tool: Box<dyn vx_plugin::VxTool>, args: &[String]) -> Result<i32> {
+    let context = vx_plugin::ToolContext {
+        working_directory: std::env::current_dir().ok(),
+        environment_variables: HashMap::new(),
+        use_system_path: false,
+        options: HashMap::new(),
+    };
+
+    let result = tool.execute(args, &context).await?;
+    Ok(result.exit_code)
 }
 
 /// Execute a tool using system PATH

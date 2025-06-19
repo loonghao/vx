@@ -2741,6 +2741,7 @@ dependencies = [
  "vx-installer",
  "vx-plugin",
  "vx-tool-standard",
+ "vx-version",
  "which",
 ]
 
@@ -2798,6 +2799,7 @@ dependencies = [
  "tokio",
  "vx-core",
  "vx-plugin",
+ "vx-version",
  "which",
 ]
 
