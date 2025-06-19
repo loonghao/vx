@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use std::path::Path;
-use vx_core::{Ecosystem, PackageSpec, VxPackageManager, VxPlugin, VxTool};
+use vx_plugin::{Ecosystem, PackageSpec, VxPackageManager, VxPlugin, VxTool};
 
 /// Bun package manager implementation
 #[derive(Default)]
@@ -116,7 +116,7 @@ mod tests {
     fn test_bun_package_manager() {
         let pm = BunPackageManager;
         assert_eq!(pm.name(), "bun");
-        assert_eq!(pm.ecosystem(), Ecosystem::JavaScript);
+        assert_eq!(pm.ecosystem(), Ecosystem::Node);
         assert_eq!(
             pm.description(),
             "Incredibly fast JavaScript runtime, bundler, test runner, and package manager"

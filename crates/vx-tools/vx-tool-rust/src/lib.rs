@@ -1,6 +1,6 @@
 //! Rust tool support for vx
 
-use vx_core::VxPlugin;
+use vx_plugin::VxPlugin;
 
 mod rust_plugin;
 mod rust_tool;

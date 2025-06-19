@@ -113,7 +113,7 @@ impl DependencyGraph {
         for dep in dependencies {
             self.reverse_edges
                 .entry(dep)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(tool_name.clone());
         }
 
