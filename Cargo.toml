@@ -1,14 +1,14 @@
 [workspace]
 members = [
     "crates/vx-config",
+    "crates/vx-paths",
     "crates/vx-plugin",
     "crates/vx-installer",
     "crates/vx-version",
     "crates/vx-core",
-    "crates/vx-cli",
     "crates/vx-dependency",
-    "crates/vx-paths",
     "crates/vx-tool-standard",
+    "crates/vx-cli",
     "crates/vx-tools/vx-tool-node",
     "crates/vx-tools/vx-tool-go",
     "crates/vx-tools/vx-tool-rust",
