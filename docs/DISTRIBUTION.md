@@ -191,6 +191,40 @@ Automatic fallback occurs on:
 - Connection timeouts
 - File size validation failures
 
+## 🔄 Self-Update Multi-Channel Support
+
+vx's self-update functionality also benefits from the multi-channel distribution strategy:
+
+### Intelligent Channel Selection
+
+- **Without GitHub Token**: Prefers CDN (jsDelivr) for both version checking and downloads
+- **With GitHub Token**: Uses GitHub API for version checking, falls back to CDN if needed
+- **Download Fallback**: Automatically tries multiple channels if primary fails
+
+### Self-Update Usage
+
+```bash
+# Basic self-update (uses CDN when no token)
+vx self-update
+
+# With GitHub token (uses GitHub API)
+GITHUB_TOKEN="your_token" vx self-update
+
+# Check for updates only
+vx self-update --check
+
+# Force update even if same version
+vx self-update --force
+```
+
+### Self-Update Channel Strategy
+
+| Scenario | Primary Channel | Fallback Channels | Behavior |
+|----------|----------------|-------------------|----------|
+| No Token | jsDelivr CDN | Fastly CDN → GitHub | Avoids rate limits |
+| With Token | GitHub API | jsDelivr → Fastly | Uses authentication |
+| Rate Limited | CDN Fallback | Multiple CDNs | Automatic retry |
+
 ## 🔄 Future Enhancements
 
 ### Planned Improvements
@@ -210,6 +244,11 @@ Automatic fallback occurs on:
 4. **Analytics Dashboard:**
    - Real-time channel status
    - Geographic usage patterns
+
+5. **Self-Update Enhancements:**
+   - Automatic background updates
+   - Delta updates for faster downloads
+   - Rollback functionality
 
 ### Community Contributions
 
