@@ -5,21 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<<<<<<< HEAD
-
-## [0.3.0](https://github.com/loonghao/vx/compare/vx-dependency-v0.2.6...vx-dependency-v0.3.0) - 2025-06-19
-
-### Added
-
-- refactor vx-core architecture with closed-loop toolchain design
-
-### Fixed
-
-- resolve import errors and clippy warnings in tool packages
-=======
 ## [Unreleased]
 
-## [0.2.6] - 2025-01-19
+## [0.3.0] - 2025-06-19
+
+### Added
+- Initial release of vx-dependency crate
+- Dependency resolution engine for tool management
+- Multi-layer dependency support (tool -> tool dependencies)
+- Automatic dependency installation and management
+- Dependency graph construction and analysis
+- Circular dependency detection and prevention
+- Version constraint resolution across dependencies
+- Refactor vx-core architecture with closed-loop toolchain design
+
+### Fixed
+- Resolve import errors and clippy warnings in tool packages
 
 ### Added
 - Initial release of vx-dependency crate
@@ -63,4 +64,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial project setup
 - Dependency management foundation
->>>>>>> fix/compilation-and-install-issues
+
