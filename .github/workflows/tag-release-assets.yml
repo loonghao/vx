@@ -1,16 +1,17 @@
 name: Release
 
 # This workflow handles binary releases and distribution
-# - Triggered by tag pushes (v*) or release events
+# - Triggered by main package tag pushes (v1.2.3 format) or manual dispatch
 # - Builds cross-platform binaries and uploads to GitHub releases
 # - Uses houseabsolute/actions-rust-release for simplified release management
+# - Only processes main vx package tags, not individual crate tags (vx-tool-*, vx-core-*, etc.)
 #
 # Note: Crates.io publishing is handled by release-plz.yml workflow
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]+.[0-9]+.[0-9]+*'  # Only match main package tags like v1.2.3, v1.2.3-rc1, etc.
   workflow_dispatch:
 
 permissions:
