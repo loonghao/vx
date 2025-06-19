@@ -112,17 +112,18 @@ jobs:
           strip: true
 
       # Code signing for Windows executables using SignPath.io
-      - name: Sign Windows executable
-        if: contains(matrix.platform.target, 'windows')
-        uses: signpath/github-action-submit-signing-request@v1
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: 'vx'
-          signing-policy-slug: 'release-signing'
-          github-artifact-id: ${{ steps.build.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: 'signed-artifacts'
+      # TODO: Re-enable when SignPath secrets are properly configured
+      # - name: Sign Windows executable
+      #   if: contains(matrix.platform.target, 'windows')
+      #   uses: signpath/github-action-submit-signing-request@v1
+      #   with:
+      #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+      #     organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+      #     project-slug: 'vx'
+      #     signing-policy-slug: 'release-signing'
+      #     github-artifact-id: ${{ steps.build.outputs.artifact-id }}
+      #     wait-for-completion: true
+      #     output-artifact-directory: 'signed-artifacts'
 
       - name: Publish artifacts and release
         uses: houseabsolute/actions-rust-release@v0
