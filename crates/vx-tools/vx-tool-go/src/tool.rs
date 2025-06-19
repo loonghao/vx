@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use vx_plugin::{ToolContext, ToolExecutionResult, VersionInfo, VxTool};
 use vx_tool_standard::StandardUrlBuilder;
 use vx_version::{GitHubVersionFetcher, VersionFetcher};
+use which;
 
 /// Go tool implementation
 #[derive(Debug, Clone)]
@@ -74,7 +75,16 @@ impl VxTool for GoTool {
     }
 
     async fn execute(&self, args: &[String], context: &ToolContext) -> Result<ToolExecutionResult> {
-        // Simple implementation - execute the tool directly
+        // Check if go is available in system PATH
+        if which::which("go").is_err() {
+            // Try to install go if not found
+            eprintln!("Go not found, attempting to install...");
+            if let Err(e) = self.install_version("latest", false).await {
+                return Err(anyhow::anyhow!("Failed to install go: {}", e));
+            }
+            eprintln!("Go installed successfully");
+        }
+
         let mut cmd = std::process::Command::new("go");
         cmd.args(args);
 

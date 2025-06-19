@@ -2691,6 +2691,7 @@ dependencies = [
  "vx-plugin",
  "vx-tool-standard",
  "vx-version",
+ "which",
 ]
 
 [[package]]
@@ -2760,6 +2761,7 @@ dependencies = [
  "vx-plugin",
  "vx-tool-standard",
  "vx-version",
+ "which",
 ]
 
 [[package]]

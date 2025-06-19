@@ -146,6 +146,16 @@ impl VxTool for BunTool {
     }
 
     async fn execute(&self, args: &[String], context: &ToolContext) -> Result<ToolExecutionResult> {
+        // Check if bun is available in system PATH
+        if which::which("bun").is_err() {
+            // Try to install bun if not found
+            eprintln!("Bun not found, attempting to install...");
+            if let Err(e) = self.install_version("latest", false).await {
+                return Err(anyhow::anyhow!("Failed to install bun: {}", e));
+            }
+            eprintln!("Bun installed successfully");
+        }
+
         let mut cmd = std::process::Command::new("bun");
         cmd.args(args);
 

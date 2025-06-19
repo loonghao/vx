@@ -75,7 +75,16 @@ macro_rules! rust_vx_tool {
                 args: &[String],
                 context: &ToolContext,
             ) -> Result<ToolExecutionResult> {
-                // Simple implementation - execute the tool directly
+                // Check if tool is available in system PATH
+                if which::which($cmd).is_err() {
+                    // Try to install tool if not found
+                    eprintln!("{} not found, attempting to install...", $cmd);
+                    if let Err(e) = self.install_version("latest", false).await {
+                        return Err(anyhow::anyhow!("Failed to install {}: {}", $cmd, e));
+                    }
+                    eprintln!("{} installed successfully", $cmd);
+                }
+
                 let mut cmd = std::process::Command::new($cmd);
                 cmd.args(args);
 

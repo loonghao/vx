@@ -96,12 +96,22 @@ macro_rules! uv_vx_tool {
                 args: &[String],
                 context: &ToolContext,
             ) -> Result<ToolExecutionResult, anyhow::Error> {
-                // Simple implementation - execute the tool directly
                 let tool_name = if self.name() == "uvx" {
                     "uv"
                 } else {
                     self.name()
                 };
+
+                // Check if tool is available in system PATH
+                if which::which(tool_name).is_err() {
+                    // Try to install tool if not found
+                    eprintln!("{} not found, attempting to install...", tool_name);
+                    if let Err(e) = self.install_version("latest", false).await {
+                        return Err(anyhow::anyhow!("Failed to install {}: {}", tool_name, e));
+                    }
+                    eprintln!("{} installed successfully", tool_name);
+                }
+
                 let mut cmd = std::process::Command::new(tool_name);
 
                 // For uvx, add "tool run" prefix
