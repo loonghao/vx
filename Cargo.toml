@@ -69,7 +69,7 @@ vx-tool-bun = { version = "0.4.0", path = "crates/vx-tools/vx-tool-bun" }
 
 
 [workspace.package]
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "Universal Development Tool Manager"
 license = "MIT"
