@@ -1,8 +1,8 @@
 [package]
-name = "vx-tool-uv"
+name = "vx-dependency"
 version.workspace = true
 edition.workspace = true
-description = "UV tool support for vx"
+description = "Dependency resolution and management for vx tools"
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -12,13 +12,13 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-vx-core = { version = "0.2.6", path = "../../vx-core" }
-vx-installer = { version = "0.2.6", path = "../../vx-installer" }
-vx-plugin = { version = "0.2.6", path = "../../vx-plugin" }
-vx-version = { version = "0.2.0", path = "../../vx-version" }
 anyhow = { workspace = true }
-which = "8.0"
 async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+thiserror = "1.0"
 
 [dev-dependencies]
-tempfile = "3.0"
+tokio-test = "0.4"
+tempfile = "3.8"

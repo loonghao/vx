@@ -40,18 +40,19 @@
 
 pub mod error;
 pub mod fetcher;
-pub mod info;
 pub mod manager;
 pub mod parser;
 pub mod utils;
 
 // Re-export main types for convenience
 pub use error::{Result, VersionError};
-pub use fetcher::{VersionFetcher, GitHubVersionFetcher, NodeVersionFetcher};
-pub use info::VersionInfo;
+pub use fetcher::{GitHubVersionFetcher, NodeVersionFetcher, VersionFetcher};
 pub use manager::VersionManager;
-pub use parser::{VersionParser, NodeVersionParser, GoVersionParser, GitHubVersionParser};
+pub use parser::{GitHubVersionParser, GoVersionParser, NodeVersionParser, VersionParser};
 pub use utils::VersionUtils;
+
+// Re-export VersionInfo from vx-plugin to avoid duplication
+pub use vx_plugin::types::VersionInfo;
 
 /// Version of this crate
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

@@ -1,6 +1,6 @@
 //! Version parsing utilities for different tools
 
-use crate::{Result, VersionInfo, VersionError};
+use crate::{Result, VersionError, VersionInfo};
 use serde_json::Value;
 
 /// Trait for parsing versions from JSON responses
@@ -52,7 +52,11 @@ impl NodeVersionParser {
                 let lts_info = release["lts"].as_str();
                 let is_lts = lts_info.is_some() && lts_info != Some("false");
 
-                let mut version_info = VersionInfo::new(version).with_prerelease(is_prerelease);
+                let mut version_info = if is_prerelease {
+                    VersionInfo::new(version).as_prerelease()
+                } else {
+                    VersionInfo::new(version)
+                };
 
                 if let Some(date) = release_date {
                     version_info = version_info.with_release_date(date);
@@ -84,7 +88,8 @@ impl VersionParser for NodeVersionParser {
     fn parse_versions(&self, json: &Value, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
         Self::parse_versions(json, include_prerelease)
     }
-}/// Version parser for Go releases
+}
+/// Version parser for Go releases
 #[derive(Debug, Clone)]
 pub struct GoVersionParser;
 
@@ -123,9 +128,12 @@ impl GoVersionParser {
                     continue;
                 }
 
-                let mut version_info = VersionInfo::new(version)
-                    .with_prerelease(is_prerelease)
-                    .with_release_notes("Go release".to_string());
+                let mut version_info = if is_prerelease {
+                    VersionInfo::new(version).as_prerelease()
+                } else {
+                    VersionInfo::new(version)
+                }
+                .with_release_notes("Go release".to_string());
 
                 if stable {
                     version_info =
@@ -150,7 +158,8 @@ impl VersionParser for GoVersionParser {
     fn parse_versions(&self, json: &Value, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
         Self::parse_versions(json, include_prerelease)
     }
-}/// Version parser for GitHub releases (used by Rust, Python, etc.)
+}
+/// Version parser for GitHub releases (used by Rust, Python, etc.)
 #[derive(Debug, Clone)]
 pub struct GitHubVersionParser {
     owner: String,
@@ -205,7 +214,11 @@ impl GitHubVersionParser {
                     }
                 });
 
-                let mut version_info = VersionInfo::new(version).with_prerelease(is_prerelease);
+                let mut version_info = if is_prerelease {
+                    VersionInfo::new(version).as_prerelease()
+                } else {
+                    VersionInfo::new(version)
+                };
 
                 if let Some(date) = release_date {
                     version_info = version_info.with_release_date(date);
@@ -226,7 +239,7 @@ impl GitHubVersionParser {
 
             match (version_a, version_b) {
                 (Ok(va), Ok(vb)) => vb.cmp(&va), // Descending order
-                _ => b.version.cmp(&a.version),   // Fallback to string comparison
+                _ => b.version.cmp(&a.version),  // Fallback to string comparison
             }
         });
 
@@ -245,32 +258,39 @@ impl GitHubVersionParser {
             });
         }
 
-        let major = parts[0].parse::<u32>().map_err(|_| VersionError::InvalidVersion {
-            version: version.to_string(),
-            reason: format!("Invalid major version: {}", parts[0]),
-        })?;
+        let major = parts[0]
+            .parse::<u32>()
+            .map_err(|_| VersionError::InvalidVersion {
+                version: version.to_string(),
+                reason: format!("Invalid major version: {}", parts[0]),
+            })?;
 
-        let minor = parts[1].parse::<u32>().map_err(|_| VersionError::InvalidVersion {
-            version: version.to_string(),
-            reason: format!("Invalid minor version: {}", parts[1]),
-        })?;
+        let minor = parts[1]
+            .parse::<u32>()
+            .map_err(|_| VersionError::InvalidVersion {
+                version: version.to_string(),
+                reason: format!("Invalid minor version: {}", parts[1]),
+            })?;
 
         let (patch, suffix) = if parts.len() > 2 {
             let patch_part = parts[2];
             if let Some(dash_pos) = patch_part.find('-') {
-                let patch_num = patch_part[..dash_pos]
-                    .parse::<u32>()
-                    .map_err(|_| VersionError::InvalidVersion {
+                let patch_num = patch_part[..dash_pos].parse::<u32>().map_err(|_| {
+                    VersionError::InvalidVersion {
                         version: version.to_string(),
                         reason: format!("Invalid patch version: {}", &patch_part[..dash_pos]),
-                    })?;
+                    }
+                })?;
                 let suffix = patch_part[dash_pos..].to_string();
                 (patch_num, suffix)
             } else {
-                let patch_num = patch_part.parse::<u32>().map_err(|_| VersionError::InvalidVersion {
-                    version: version.to_string(),
-                    reason: format!("Invalid patch version: {}", patch_part),
-                })?;
+                let patch_num =
+                    patch_part
+                        .parse::<u32>()
+                        .map_err(|_| VersionError::InvalidVersion {
+                            version: version.to_string(),
+                            reason: format!("Invalid patch version: {}", patch_part),
+                        })?;
                 (patch_num, String::new())
             }
         } else {
@@ -285,7 +305,8 @@ impl VersionParser for GitHubVersionParser {
     fn parse_versions(&self, json: &Value, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
         Self::parse_versions(json, include_prerelease)
     }
-}/// Generic version parser utilities
+}
+/// Generic version parser utilities
 pub struct VersionParserUtils;
 
 impl VersionParserUtils {
@@ -335,8 +356,14 @@ mod tests {
         assert!(!VersionParserUtils::is_prerelease("1.0.0"));
 
         assert_eq!(VersionParserUtils::clean_version("v1.0.0", &["v"]), "1.0.0");
-        assert_eq!(VersionParserUtils::clean_version("go1.21.0", &["go"]), "1.21.0");
-        assert_eq!(VersionParserUtils::clean_version("1.0.0", &["v", "go"]), "1.0.0");
+        assert_eq!(
+            VersionParserUtils::clean_version("go1.21.0", &["go"]),
+            "1.21.0"
+        );
+        assert_eq!(
+            VersionParserUtils::clean_version("1.0.0", &["v", "go"]),
+            "1.0.0"
+        );
     }
 
     #[test]
