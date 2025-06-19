@@ -1,6 +1,6 @@
 //! Go tool support for vx
 
-use vx_core::VxPlugin;
+use vx_plugin::VxPlugin;
 
 mod config;
 mod plugin;

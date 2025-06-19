@@ -1,7 +1,8 @@
 // Stats and cleanup command implementation
 
 use crate::ui::UI;
-use vx_core::{PluginRegistry, Result};
+use anyhow::Result;
+use vx_plugin::PluginRegistry;
 
 pub async fn handle(registry: &PluginRegistry) -> Result<()> {
     show_all_stats(registry).await

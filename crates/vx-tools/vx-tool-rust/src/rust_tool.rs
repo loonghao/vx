@@ -1,11 +1,11 @@
 //! Rust toolchain implementations with environment isolation
 
+use crate::config::RustUrlBuilder;
 use anyhow::Result;
 use std::collections::HashMap;
-use vx_core::{
-    GitHubVersionFetcher, HttpUtils, RustUrlBuilder, ToolContext, ToolExecutionResult, VersionInfo,
-    VxError, VxTool,
-};
+use vx_plugin::{ToolContext, ToolExecutionResult, VersionInfo, VxTool};
+use vx_tool_standard::StandardUrlBuilder;
+use vx_version::{GitHubVersionFetcher, VersionFetcher};
 
 /// Macro to generate Rust tool implementations using VxTool trait
 macro_rules! rust_vx_tool {
@@ -40,15 +40,19 @@ macro_rules! rust_vx_tool {
             async fn fetch_versions(&self, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
                 // For Rust tools, use GitHubVersionFetcher
                 let fetcher = GitHubVersionFetcher::new("rust-lang", "rust");
-                fetcher.fetch_versions(include_prerelease).await
+                fetcher
+                    .fetch_versions(include_prerelease)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Failed to fetch versions: {}", e))
             }
 
             async fn install_version(&self, version: &str, force: bool) -> Result<()> {
                 if !force && self.is_version_installed(version).await? {
-                    return Err(vx_core::VxError::VersionAlreadyInstalled {
-                        tool_name: self.name().to_string(),
-                        version: version.to_string(),
-                    });
+                    return Err(anyhow::anyhow!(
+                        "Version {} of {} is already installed",
+                        version,
+                        self.name()
+                    ));
                 }
 
                 let install_dir = self.get_version_install_dir(version);
@@ -56,11 +60,11 @@ macro_rules! rust_vx_tool {
 
                 // Verify installation
                 if !self.is_version_installed(version).await? {
-                    return Err(vx_core::VxError::InstallationFailed {
-                        tool_name: self.name().to_string(),
-                        version: version.to_string(),
-                        message: "Installation verification failed".to_string(),
-                    });
+                    return Err(anyhow::anyhow!(
+                        "Installation verification failed for {} version {}",
+                        self.name(),
+                        version
+                    ));
                 }
 
                 Ok(())
@@ -71,12 +75,31 @@ macro_rules! rust_vx_tool {
                 args: &[String],
                 context: &ToolContext,
             ) -> Result<ToolExecutionResult> {
-                self.default_execute_workflow(args, context).await
+                // Simple implementation - execute the tool directly
+                let mut cmd = std::process::Command::new($cmd);
+                cmd.args(args);
+
+                if let Some(cwd) = &context.working_directory {
+                    cmd.current_dir(cwd);
+                }
+
+                for (key, value) in &context.environment_variables {
+                    cmd.env(key, value);
+                }
+
+                let status = cmd
+                    .status()
+                    .map_err(|e| anyhow::anyhow!("Failed to execute {}: {}", $cmd, e))?;
+
+                Ok(ToolExecutionResult {
+                    exit_code: status.code().unwrap_or(1),
+                    stdout: None,
+                    stderr: None,
+                })
             }
 
             async fn get_download_url(&self, version: &str) -> Result<Option<String>> {
-                let rust_url_builder = RustUrlBuilder::new();
-                Ok(rust_url_builder.download_url(version))
+                Ok(RustUrlBuilder::download_url(version))
             }
 
             fn metadata(&self) -> HashMap<String, String> {

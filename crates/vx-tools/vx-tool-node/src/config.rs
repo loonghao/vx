@@ -16,7 +16,7 @@ pub struct NodeUrlBuilder;
 impl StandardUrlBuilder for NodeUrlBuilder {
     /// Generate download URL for Node.js version
     fn download_url(version: &str) -> Option<String> {
-        let platform = Self::get_platform_string();
+        let _platform = Self::get_platform_string();
         let filename = Self::get_filename(version);
 
         Some(format!("https://nodejs.org/dist/v{}/{}", version, filename))

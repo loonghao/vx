@@ -1,7 +1,7 @@
 //! UV plugin implementation
 
 use crate::uv_tool::{UvCommand, UvxTool};
-use vx_core::{VxPlugin, VxTool};
+use vx_plugin::{VxPlugin, VxTool};
 
 /// UV plugin that manages UV-related tools
 #[derive(Debug)]
