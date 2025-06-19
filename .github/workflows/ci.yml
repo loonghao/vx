@@ -363,13 +363,13 @@ jobs:
           echo ""
 
           # Test packaging for key crates that have external dependencies
+          # Note: vx-cli temporarily excluded due to vx-paths dependency (new crate not yet published)
           CRATES_TO_TEST=(
             "vx-tool-standard"
             "vx-tool-node"
             "vx-tool-go"
             "vx-tool-rust"
             "vx-tool-uv"
-            "vx-cli"
             "vx"
           )
 

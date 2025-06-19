@@ -11,9 +11,11 @@ use std::path::PathBuf;
 #[derive(Debug, Deserialize)]
 struct GitHubRelease {
     tag_name: String,
+    #[allow(dead_code)]
     name: String,
     body: String,
     assets: Vec<GitHubAsset>,
+    #[allow(dead_code)]
     prerelease: bool,
 }
 
@@ -77,7 +79,7 @@ pub async fn handle(
     ));
 
     // Download and install update
-    download_and_install(&client, &asset, force).await?;
+    download_and_install(&client, asset, force).await?;
 
     UI::success(&format!(
         "🎉 Successfully updated vx to version {}!",
