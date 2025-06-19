@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use std::path::Path;
-use vx_core::{Ecosystem, PackageSpec, VxPackageManager, VxPlugin, VxTool};
+use vx_plugin::{Ecosystem, PackageSpec, VxPackageManager, VxPlugin, VxTool};
 
 /// Yarn package manager implementation
 #[derive(Default)]
@@ -116,7 +116,7 @@ mod tests {
     fn test_yarn_package_manager() {
         let pm = YarnPackageManager;
         assert_eq!(pm.name(), "yarn");
-        assert_eq!(pm.ecosystem(), Ecosystem::JavaScript);
+        assert_eq!(pm.ecosystem(), Ecosystem::Node);
         assert_eq!(
             pm.description(),
             "Fast, reliable, and secure dependency management"
