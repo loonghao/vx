@@ -1,6 +1,6 @@
 [package]
 name = "vx-version"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["Hal <hal.long@outlook.com>"]
 description = "Version management and parsing utilities for the vx universal tool manager"
@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 # Core dependencies
-vx-plugin = { version = "0.2.6", path = "../vx-plugin" }
+vx-plugin = { version = "0.3.0", path = "../vx-plugin" }
 serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0"
 async-trait = "0.1"

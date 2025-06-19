@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.3.0](https://github.com/loonghao/vx/compare/v0.2.6...v0.3.0) - 2025-06-19
+
+### Added
+
+- fix compilation errors and add comprehensive test suite
+- refactor vx-core architecture with closed-loop toolchain design
+- complete vx project modular refactoring
+- [**breaking**] remove vx-shim and improve GitHub API handling
+- optimize core logic with shimexe-core integration and progress bars
+
+### Fixed
+
+- resolve release-plz configuration and dependency version issues
+- *(deps)* update rust crate which to v8
+- *(deps)* update rust crate dirs to v6
+- resolve coverage testing compilation errors and warnings
+- resolve Linux musl cross-compilation OpenSSL issues
+- resolve import errors and clippy warnings in tool packages
+
+### Other
+
+- *(deps)* update codecov/codecov-action action to v5
+- update README with upcoming tool support
+
 ## [0.2.6](https://github.com/loonghao/vx/compare/v0.2.5...v0.2.6) - 2025-06-18
 
 ### Added

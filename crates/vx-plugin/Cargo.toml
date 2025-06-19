@@ -29,7 +29,7 @@ which = { workspace = true }
 dirs = { workspace = true }
 
 # Internal dependencies
-vx-config = { version = "0.2.6", path = "../vx-config" }
+vx-config = { version = "0.3.0", path = "../vx-config" }
 
 # Optional dependencies for features
 mockall = { workspace = true, optional = true }

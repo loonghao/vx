@@ -13,13 +13,13 @@ rust-version.workspace = true
 
 
 [dependencies]
-vx-core = { version = "0.2.6", path = "../vx-core" }
-vx-plugin = { version = "0.2.6", path = "../vx-plugin" }
-vx-tool-node = { version = "0.2.6", path = "../vx-tools/vx-tool-node" }
-vx-tool-go = { version = "0.2.6", path = "../vx-tools/vx-tool-go" }
-vx-tool-rust = { version = "0.2.6", path = "../vx-tools/vx-tool-rust" }
-vx-tool-uv = { version = "0.2.6", path = "../vx-tools/vx-tool-uv" }
-vx-tool-npm = { version = "0.2.6", path = "../vx-tools/vx-tool-npm" }
+vx-core = { version = "0.3.0", path = "../vx-core" }
+vx-plugin = { version = "0.3.0", path = "../vx-plugin" }
+vx-tool-node = { version = "0.3.0", path = "../vx-tools/vx-tool-node" }
+vx-tool-go = { version = "0.3.0", path = "../vx-tools/vx-tool-go" }
+vx-tool-rust = { version = "0.3.0", path = "../vx-tools/vx-tool-rust" }
+vx-tool-uv = { version = "0.3.0", path = "../vx-tools/vx-tool-uv" }
+vx-tool-npm = { version = "0.3.0", path = "../vx-tools/vx-tool-npm" }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
@@ -47,4 +47,4 @@ test-case = { workspace = true }
 pretty_assertions = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
-vx-version = { version = "0.2.0", path = "../vx-version" }
+vx-version = { version = "0.2.1", path = "../vx-version" }
