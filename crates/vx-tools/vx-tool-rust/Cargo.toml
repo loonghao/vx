@@ -12,11 +12,11 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-vx-core = { version = "0.3.0", path = "../../vx-core" }
-vx-plugin = { version = "0.3.0", path = "../../vx-plugin" }
-vx-version = { version = "0.2.1", path = "../../vx-version" }
-vx-tool-standard = { version = "0.3.0", path = "../../vx-tool-standard" }
-vx-installer = { version = "0.3.0", path = "../../vx-installer" }
+vx-core = { version = "0.4.0", path = "../../vx-core" }
+vx-plugin = { version = "0.4.0", path = "../../vx-plugin" }
+vx-version = { version = "0.2.2", path = "../../vx-version" }
+vx-tool-standard = { version = "0.4.0", path = "../../vx-tool-standard" }
+vx-installer = { version = "0.4.0", path = "../../vx-installer" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

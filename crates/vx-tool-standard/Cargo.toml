@@ -12,7 +12,7 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-vx-core = { version = "0.3.0", path = "../vx-core" }
-vx-installer = { version = "0.3.0", path = "../vx-installer" }
+vx-core = { version = "0.4.0", path = "../vx-core" }
+vx-installer = { version = "0.4.0", path = "../vx-installer" }
 anyhow = { workspace = true }
 serde = { workspace = true }

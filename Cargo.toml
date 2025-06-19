@@ -49,7 +49,7 @@ name = "config_management_demo"
 path = "examples/config_management_demo.rs"
 
 [dependencies]
-vx-cli = { version = "0.3.0", path = "crates/vx-cli" }
+vx-cli = { version = "0.4.0", path = "crates/vx-cli" }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 
@@ -57,19 +57,19 @@ anyhow = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = { workspace = true }
 # Test dependencies for integration tests
-vx-core = { version = "0.3.0", path = "crates/vx-core" }
-vx-tool-node = { version = "0.3.0", path = "crates/vx-tools/vx-tool-node" }
-vx-tool-go = { version = "0.3.0", path = "crates/vx-tools/vx-tool-go" }
-vx-tool-rust = { version = "0.3.0", path = "crates/vx-tools/vx-tool-rust" }
-vx-tool-uv = { version = "0.3.0", path = "crates/vx-tools/vx-tool-uv" }
-vx-tool-npm = { version = "0.3.0", path = "crates/vx-tools/vx-tool-npm" }
-vx-tool-pnpm = { version = "0.3.0", path = "crates/vx-tools/vx-tool-pnpm" }
-vx-tool-yarn = { version = "0.3.0", path = "crates/vx-tools/vx-tool-yarn" }
-vx-tool-bun = { version = "0.3.0", path = "crates/vx-tools/vx-tool-bun" }
+vx-core = { version = "0.4.0", path = "crates/vx-core" }
+vx-tool-node = { version = "0.4.0", path = "crates/vx-tools/vx-tool-node" }
+vx-tool-go = { version = "0.4.0", path = "crates/vx-tools/vx-tool-go" }
+vx-tool-rust = { version = "0.4.0", path = "crates/vx-tools/vx-tool-rust" }
+vx-tool-uv = { version = "0.4.0", path = "crates/vx-tools/vx-tool-uv" }
+vx-tool-npm = { version = "0.4.0", path = "crates/vx-tools/vx-tool-npm" }
+vx-tool-pnpm = { version = "0.4.0", path = "crates/vx-tools/vx-tool-pnpm" }
+vx-tool-yarn = { version = "0.4.0", path = "crates/vx-tools/vx-tool-yarn" }
+vx-tool-bun = { version = "0.4.0", path = "crates/vx-tools/vx-tool-bun" }
 
 
 [workspace.package]
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "Universal Development Tool Manager"
 license = "MIT"
