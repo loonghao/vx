@@ -79,6 +79,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
+      # Install musl tools for musl targets
+      - name: Install musl tools
+        if: contains(matrix.platform.target, 'musl') && matrix.platform.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
       - name: Build executable
         uses: houseabsolute/actions-rust-cross@v1
         with:

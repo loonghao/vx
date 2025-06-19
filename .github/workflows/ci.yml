@@ -111,6 +111,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
+      # Install musl tools for musl target
+      - name: Install musl tools
+        if: matrix.platform.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
       # For native compilation: run both build and test
       # For cross-compilation: only build (can't run tests on different architecture)
       - name: Run tests and build (native)
