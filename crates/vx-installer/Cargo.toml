@@ -40,7 +40,7 @@ async-trait = "0.1"
 sha2 = "0.10"
 
 # Error handling
-thiserror = "1.0"
+thiserror = "2.0"
 
 # Platform-specific dependencies
 [target.'cfg(unix)'.dependencies]

@@ -46,16 +46,17 @@ function Write-Success {
     Write-Host "[SUCCESS] $Message" -ForegroundColor Green
 }
 
-function Write-Progress {
+function Write-ProgressInfo {
     param(
         [string]$Activity,
         [string]$Status,
         [int]$PercentComplete = -1
     )
     if ($PercentComplete -ge 0) {
-        Write-Progress -Activity $Activity -Status $Status -PercentComplete $PercentComplete
-    } else {
-        Write-Progress -Activity $Activity -Status $Status
+        Microsoft.PowerShell.Utility\Write-Progress -Activity $Activity -Status $Status -PercentComplete $PercentComplete
+    }
+    else {
+        Microsoft.PowerShell.Utility\Write-Progress -Activity $Activity -Status $Status
     }
 }
 
@@ -77,15 +78,15 @@ function Get-Platform {
 # Get latest version from GitHub API (no authentication required)
 function Get-LatestVersion {
     try {
-        Write-Progress -Activity "Fetching latest version" -Status "Connecting to GitHub API..."
+        Write-ProgressInfo -Activity "Fetching latest version" -Status "Connecting to GitHub API..."
         $apiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
         # Use public API access without authentication
         $response = Invoke-RestMethod -Uri $apiUrl -Method Get
-        Write-Progress -Activity "Fetching latest version" -Completed
+        Microsoft.PowerShell.Utility\Write-Progress -Activity "Fetching latest version" -Completed
         return $response.tag_name -replace '^v', ''
     }
     catch {
-        Write-Progress -Activity "Fetching latest version" -Completed
+        Microsoft.PowerShell.Utility\Write-Progress -Activity "Fetching latest version" -Completed
         Write-Error "Failed to get latest version: $_"
         exit 1
     }
@@ -112,26 +113,26 @@ function Build-FromSource {
 
     # Build the project
     Write-Info "Building vx..."
-    Write-Progress -Activity "Building vx from source" -Status "Compiling Rust code..."
+    Microsoft.PowerShell.Utility\Write-Progress -Activity "Building vx from source" -Status "Compiling Rust code..."
     cargo build --release
 
     if ($LASTEXITCODE -ne 0) {
-        Write-Progress -Activity "Building vx from source" -Completed
+        Microsoft.PowerShell.Utility\Write-Progress -Activity "Building vx from source" -Completed
         Write-Error "Build failed!"
         exit 1
     }
-    Write-Progress -Activity "Building vx from source" -Status "Build completed" -PercentComplete 100
+    Microsoft.PowerShell.Utility\Write-Progress -Activity "Building vx from source" -Status "Build completed" -PercentComplete 100
 
     # Create installation directory
-    Write-Progress -Activity "Building vx from source" -Status "Creating installation directory..."
+    Microsoft.PowerShell.Utility\Write-Progress -Activity "Building vx from source" -Status "Creating installation directory..."
     if (!(Test-Path $InstallDir)) {
         New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     }
 
     # Copy the binary
-    Write-Progress -Activity "Building vx from source" -Status "Installing binary..."
+    Microsoft.PowerShell.Utility\Write-Progress -Activity "Building vx from source" -Status "Installing binary..."
     Copy-Item "target\release\vx.exe" "$InstallDir\vx.exe" -Force
-    Write-Progress -Activity "Building vx from source" -Completed
+    Microsoft.PowerShell.Utility\Write-Progress -Activity "Building vx from source" -Completed
     Write-Success "vx built and installed from source to: $InstallDir"
 }
 
@@ -141,10 +142,10 @@ function Install-FromRelease {
 
     if ($Version -eq "latest") {
         Write-Info "Fetching latest version..."
-        Write-Progress -Activity "Installing vx" -Status "Fetching latest version..." -PercentComplete 10
+        Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Fetching latest version..." -PercentComplete 10
         $Version = Get-LatestVersion
         if (-not $Version) {
-            Write-Progress -Activity "Installing vx" -Completed
+            Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Completed
             Write-Error "Failed to get latest version"
             exit 1
         }
@@ -158,19 +159,19 @@ function Install-FromRelease {
     $downloadUrl = "$BaseUrl/download/v$Version/$archiveName"
 
     # Create temporary directory
-    Write-Progress -Activity "Installing vx" -Status "Preparing download..." -PercentComplete 20
+    Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Preparing download..." -PercentComplete 20
     $tempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
 
     try {
         # Download
         Write-Info "Downloading from $downloadUrl..."
-        Write-Progress -Activity "Installing vx" -Status "Downloading vx v$Version..." -PercentComplete 30
+        Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Downloading vx v$Version..." -PercentComplete 30
         $archivePath = Join-Path $tempDir $archiveName
         Invoke-WebRequest -Uri $downloadUrl -OutFile $archivePath -UseBasicParsing
 
         # Extract
         Write-Info "Extracting to $InstallDir..."
-        Write-Progress -Activity "Installing vx" -Status "Extracting archive..." -PercentComplete 60
+        Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Extracting archive..." -PercentComplete 60
         if (-not (Test-Path $InstallDir)) {
             New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
         }
@@ -178,10 +179,10 @@ function Install-FromRelease {
         Expand-Archive -Path $archivePath -DestinationPath $tempDir -Force
 
         # Find and copy the binary
-        Write-Progress -Activity "Installing vx" -Status "Installing binary..." -PercentComplete 80
+        Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Installing binary..." -PercentComplete 80
         $binaryPath = Get-ChildItem -Path $tempDir -Name "vx.exe" -Recurse | Select-Object -First 1
         if (-not $binaryPath) {
-            Write-Progress -Activity "Installing vx" -Completed
+            Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Completed
             Write-Error "vx.exe not found in archive"
             exit 1
         }
@@ -190,11 +191,11 @@ function Install-FromRelease {
         $destPath = Join-Path $InstallDir "vx.exe"
         Copy-Item -Path $sourcePath -Destination $destPath -Force
 
-        Write-Progress -Activity "Installing vx" -Status "Installation completed" -PercentComplete 100
+        Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Installation completed" -PercentComplete 100
         Write-Success "vx v$Version installed to $destPath"
     }
     catch {
-        Write-Progress -Activity "Installing vx" -Completed
+        Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Completed
         Write-Warn "Failed to download pre-built binary: $_"
         Write-Info "Falling back to building from source..."
         Build-FromSource
@@ -202,7 +203,7 @@ function Install-FromRelease {
     }
     finally {
         # Cleanup
-        Write-Progress -Activity "Installing vx" -Completed
+        Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Completed
         Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
@@ -211,7 +212,7 @@ function Install-FromRelease {
 function Update-Path {
     param([string]$InstallPath)
 
-    Write-Progress -Activity "Finalizing installation" -Status "Checking PATH environment..." -PercentComplete 90
+    Microsoft.PowerShell.Utility\Write-Progress -Activity "Finalizing installation" -Status "Checking PATH environment..." -PercentComplete 90
 
     # Check if install directory is in PATH
     $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
@@ -223,7 +224,7 @@ function Update-Path {
         Write-Host "Or add it manually through System Properties > Environment Variables"
     }
 
-    Write-Progress -Activity "Finalizing installation" -Completed
+    Microsoft.PowerShell.Utility\Write-Progress -Activity "Finalizing installation" -Completed
 }
 
 # Verify installation

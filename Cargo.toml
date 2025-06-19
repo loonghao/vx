@@ -7,6 +7,7 @@ members = [
     "crates/vx-core",
     "crates/vx-cli",
     "crates/vx-dependency",
+    "crates/vx-paths",
     "crates/vx-tool-standard",
     "crates/vx-tools/vx-tool-node",
     "crates/vx-tools/vx-tool-go",
@@ -101,6 +102,7 @@ reqwest = { version = "0.12", features = [
 ], default-features = false }
 serde_json = "1.0"
 anyhow = "1.0"
+thiserror = "1.0"
 dirs = "6.0"
 # Optimize figment - only include needed features
 figment = { version = "0.10", features = ["toml", "env"] }

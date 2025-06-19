@@ -83,11 +83,26 @@ fn get_current_version() -> Result<String> {
     Ok(env!("CARGO_PKG_VERSION").to_string())
 }
 
-/// Get latest version from GitHub API
+/// Get latest version from GitHub releases (with fallback strategies)
 async fn get_latest_version() -> Result<String> {
+    // Try API first (with better error handling)
+    match get_latest_version_from_api().await {
+        Ok(version) => return Ok(version),
+        Err(e) => {
+            UI::warn(&format!("GitHub API failed: {}", e));
+            UI::info("Falling back to releases page parsing...");
+        }
+    }
+
+    // Fallback to parsing releases page
+    get_latest_version_from_page().await
+}
+
+/// Get latest version from GitHub API (preferred method)
+async fn get_latest_version_from_api() -> Result<String> {
     let client = reqwest::Client::new();
     let url = format!(
-        "https://api.github.com/repos/{}/{}/releases/latest",
+        "https://api.github.com/repos/{}/{}/releases",
         GITHUB_OWNER, GITHUB_REPO
     );
 
@@ -103,33 +118,72 @@ async fn get_latest_version() -> Result<String> {
     let response = request
         .send()
         .await
-        .context("Failed to fetch latest release information")?;
+        .context("Failed to fetch releases from API")?;
 
     if !response.status().is_success() {
         let status = response.status();
-        let error_text = response.text().await.unwrap_or_default();
-
-        // Handle rate limiting gracefully
-        if status == 403 && error_text.contains("rate limit") {
-            anyhow::bail!(
-                "GitHub API rate limit exceeded. To avoid this, set GITHUB_TOKEN environment variable with a personal access token."
-            );
+        if status == 403 {
+            anyhow::bail!("GitHub API rate limit exceeded");
         }
-
-        anyhow::bail!("GitHub API request failed: {} - {}", status, error_text);
+        anyhow::bail!("GitHub API request failed: {}", status);
     }
 
-    let release: serde_json::Value = response
+    let releases: serde_json::Value = response
         .json()
         .await
         .context("Failed to parse GitHub API response")?;
 
-    let tag_name = release["tag_name"]
-        .as_str()
-        .context("Missing tag_name in release")?;
+    // Find the latest main vx release (tag starts with 'v' and doesn't contain '-')
+    if let Some(releases_array) = releases.as_array() {
+        for release in releases_array {
+            if let Some(tag_name) = release["tag_name"].as_str() {
+                if tag_name.starts_with('v') && !tag_name.contains('-') {
+                    return Ok(tag_name.trim_start_matches('v').to_string());
+                }
+            }
+        }
+    }
 
-    // Remove 'v' prefix if present
-    Ok(tag_name.trim_start_matches('v').to_string())
+    anyhow::bail!("No main vx release found in API response")
+}
+
+/// Get latest version from GitHub releases page (fallback method)
+async fn get_latest_version_from_page() -> Result<String> {
+    let client = reqwest::Client::new();
+    let url = format!(
+        "https://github.com/{}/{}/releases",
+        GITHUB_OWNER, GITHUB_REPO
+    );
+
+    let response = client
+        .get(&url)
+        .header("User-Agent", format!("vx/{}", get_current_version()?))
+        .send()
+        .await
+        .context("Failed to fetch releases page")?;
+
+    if !response.status().is_success() {
+        anyhow::bail!("Failed to fetch releases page: {}", response.status());
+    }
+
+    let html = response
+        .text()
+        .await
+        .context("Failed to read page content")?;
+
+    // Parse HTML to find the first main vx release tag
+    // Look for patterns like: href="/loonghao/vx/releases/tag/v0.2.6"
+    use regex::Regex;
+    let re = Regex::new(r#"href="[^"]*?/releases/tag/v([0-9]+\.[0-9]+\.[0-9]+)""#)
+        .context("Failed to create regex")?;
+
+    for captures in re.captures_iter(&html) {
+        if let Some(version) = captures.get(1) {
+            return Ok(version.as_str().to_string());
+        }
+    }
+
+    anyhow::bail!("Could not find main vx version in releases page")
 }
 
 /// Download and replace the current executable
