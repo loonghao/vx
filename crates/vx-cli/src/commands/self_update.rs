@@ -145,7 +145,7 @@ async fn get_latest_release(
 
     // Try GitHub API (either as primary with token, or as fallback without token)
     match try_github_api(client, prerelease).await {
-        Ok(release) => return Ok(release),
+        Ok(release) => Ok(release),
         Err(e) => {
             // Check if it's a rate limit error
             if e.to_string().contains("rate limit") {
@@ -177,7 +177,7 @@ async fn get_latest_release(
             }
 
             // Return the original error if all else fails
-            return Err(e);
+            Err(e)
         }
     }
 }
