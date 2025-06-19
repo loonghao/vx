@@ -56,6 +56,16 @@ pub async fn main() -> anyhow::Result<()> {
         .register_plugin(Box::new(vx_tool_bun::BunPlugin::new()))
         .await;
 
+    // Register Yarn plugin
+    let _ = registry
+        .register_plugin(Box::new(vx_tool_yarn::YarnPlugin::new()))
+        .await;
+
+    // Register PNPM plugin
+    let _ = registry
+        .register_plugin(Box::new(vx_tool_pnpm::PnpmPlugin::new()))
+        .await;
+
     // Create and run CLI
     let cli = VxCli::new(registry);
     cli.run().await

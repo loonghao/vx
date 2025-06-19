@@ -22,6 +22,8 @@ vx-tool-rust = { version = "0.4.0", path = "../vx-tools/vx-tool-rust" }
 vx-tool-uv = { version = "0.4.0", path = "../vx-tools/vx-tool-uv" }
 vx-tool-npm = { version = "0.4.0", path = "../vx-tools/vx-tool-npm" }
 vx-tool-bun = { version = "0.4.0", path = "../vx-tools/vx-tool-bun" }
+vx-tool-yarn = { version = "0.4.0", path = "../vx-tools/vx-tool-yarn" }
+vx-tool-pnpm = { version = "0.4.0", path = "../vx-tools/vx-tool-pnpm" }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
