@@ -121,7 +121,7 @@ vx go run main.go               # Auto-installs Go if needed
 
 ### Installation
 
-#### Quick Install (Recommended)
+#### 🚀 Quick Install (Recommended)
 
 **Linux/macOS:**
 ```bash
@@ -133,7 +133,22 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 ```
 
-#### Advanced Installation Options
+#### 🧠 Smart Install (Multi-Channel with Auto-Fallback)
+
+For the most reliable installation experience with automatic fallback to multiple distribution channels:
+
+**Linux/macOS:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
+```
+
+This smart installer automatically:
+- 🌍 Detects your geographic region for optimal CDN selection
+- ⚡ Tests channel speeds and selects the fastest available
+- 🔄 Falls back to alternative channels if primary fails
+- 📊 Shows detailed progress with beautiful progress bars
+
+#### 🔧 Advanced Installation Options
 
 **Install specific version:**
 ```bash
@@ -144,6 +159,15 @@ VX_VERSION="0.1.0" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main
 $env:VX_VERSION="0.1.0"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 ```
 
+**Install with GitHub token (avoids rate limits):**
+```bash
+# Linux/macOS
+GITHUB_TOKEN="your_token_here" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# Windows
+$env:GITHUB_TOKEN="your_token_here"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+```
+
 **Install to custom directory:**
 ```bash
 # Linux/macOS
@@ -152,6 +176,30 @@ VX_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/loonghao
 # Windows
 $env:VX_INSTALL_DIR="C:\tools\vx"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 ```
+
+**Force specific distribution channel:**
+```bash
+# Use jsDelivr CDN (good for China/Asia)
+VX_FORCE_CHANNEL="jsdelivr" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
+
+# Use Fastly CDN (good for Europe)
+VX_FORCE_CHANNEL="fastly" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
+
+# Use GitHub directly (good for Americas)
+VX_FORCE_CHANNEL="github" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
+```
+
+#### 🌐 Multi-Channel Distribution
+
+vx uses a sophisticated multi-channel distribution system to ensure reliable downloads worldwide:
+
+| Channel | Description | Best For | Rate Limits |
+|---------|-------------|----------|-------------|
+| **GitHub Releases** | Primary distribution | Americas, authenticated users | 60/hour (unauth), 5000/hour (auth) |
+| **jsDelivr CDN** | Global CDN with China support | Asia-Pacific, China | Unlimited |
+| **Fastly CDN** | High-performance global CDN | Europe, global | Unlimited |
+
+**Automatic Fallback:** If one channel fails, the installer automatically tries the next available channel.
 
 #### Package Managers
 
@@ -652,6 +700,136 @@ vx stats
 #   💾 Total size: 2.1 GB
 #   🕒 Last updated: 2025-01-30 10:30:00 UTC
 ```
+
+## 🔧 Troubleshooting
+
+### Installation Issues
+
+#### GitHub API Rate Limit Exceeded
+
+**Problem:** Getting "API rate limit exceeded" error during installation.
+
+**Solutions:**
+1. **Use GitHub Token (Recommended):**
+   ```bash
+   # Linux/macOS
+   GITHUB_TOKEN="your_token_here" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+   # Windows
+   $env:GITHUB_TOKEN="your_token_here"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+   ```
+
+2. **Specify Version Explicitly:**
+   ```bash
+   VX_VERSION="0.1.0" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+   ```
+
+3. **Use Smart Installer with CDN Fallback:**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
+   ```
+
+4. **Use Package Managers:**
+   ```bash
+   # Windows
+   winget install loonghao.vx
+   scoop install vx
+
+   # macOS
+   brew install loonghao/vx/vx
+   ```
+
+#### Download Failures
+
+**Problem:** Downloads fail or are very slow.
+
+**Solutions:**
+1. **Force Specific Channel:**
+   ```bash
+   # Use jsDelivr CDN (good for Asia/China)
+   VX_FORCE_CHANNEL="jsdelivr" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
+
+   # Use Fastly CDN (good for Europe)
+   VX_FORCE_CHANNEL="fastly" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
+   ```
+
+2. **Enable Debug Mode:**
+   ```bash
+   VX_DEBUG=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
+   ```
+
+3. **Build from Source:**
+   ```bash
+   BUILD_FROM_SOURCE=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+   ```
+
+#### Network Issues in China
+
+**Problem:** Slow or failed downloads due to network restrictions.
+
+**Solutions:**
+1. **Use jsDelivr CDN:**
+   ```bash
+   VX_FORCE_CHANNEL="jsdelivr" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
+   ```
+
+2. **Use Mirror URLs:**
+   ```bash
+   curl -fsSL https://fastly.jsdelivr.net/gh/loonghao/vx@main/install-smart.sh | bash
+   ```
+
+### Runtime Issues
+
+#### Tool Not Found
+
+**Problem:** `vx: command not found` after installation.
+
+**Solutions:**
+1. **Add to PATH manually:**
+   ```bash
+   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+2. **Check installation location:**
+   ```bash
+   which vx
+   ls -la ~/.local/bin/vx
+   ```
+
+#### Permission Denied
+
+**Problem:** Permission errors when running vx.
+
+**Solutions:**
+1. **Fix permissions:**
+   ```bash
+   chmod +x ~/.local/bin/vx
+   ```
+
+2. **Check ownership:**
+   ```bash
+   ls -la ~/.local/bin/vx
+   chown $USER:$USER ~/.local/bin/vx
+   ```
+
+### Getting Help
+
+If you're still experiencing issues:
+
+1. **Enable Debug Mode:**
+   ```bash
+   VX_DEBUG=true vx your-command
+   ```
+
+2. **Check System Requirements:**
+   - Linux: glibc 2.17+ or musl
+   - macOS: 10.12+
+   - Windows: Windows 10+
+
+3. **Report Issues:**
+   - [GitHub Issues](https://github.com/loonghao/vx/issues)
+   - Include debug output and system information
 
 ## 🛠️ Development
 
