@@ -68,7 +68,7 @@ async fn test_tool_discovery() {
 
 #[tokio::test]
 async fn test_get_tool() {
-    let mut registry = PluginRegistry::new();
+    let registry = PluginRegistry::new();
 
     let plugin = MockPlugin::new("test-plugin").with_tool(MockTool::new("test-tool", "1.0.0"));
 
@@ -160,7 +160,7 @@ fn test_mock_tool_failure_mode() {
 
 #[tokio::test]
 async fn test_plugin_registry_tool_lookup_performance() {
-    let mut registry = PluginRegistry::new();
+    let registry = PluginRegistry::new();
 
     // Register many tools to test lookup performance
     for i in 0..100 {
@@ -180,7 +180,7 @@ async fn test_plugin_registry_tool_lookup_performance() {
 
 #[tokio::test]
 async fn test_plugin_registry_duplicate_tools() {
-    let mut registry = PluginRegistry::new();
+    let registry = PluginRegistry::new();
 
     // Register two plugins with the same tool name
     let plugin1 = MockPlugin::new("plugin1").with_tool(MockTool::new("common-tool", "1.0.0"));
@@ -199,7 +199,7 @@ async fn test_plugin_registry_duplicate_tools() {
 
 #[tokio::test]
 async fn test_empty_plugin_registration() {
-    let mut registry = PluginRegistry::new();
+    let registry = PluginRegistry::new();
 
     // Register a plugin with no tools
     let empty_plugin = MockPlugin::new("empty-plugin");

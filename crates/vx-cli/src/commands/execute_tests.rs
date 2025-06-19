@@ -149,7 +149,7 @@ fn test_mock_command_executor() {
 }
 
 #[test]
-#[should_panic(expected = "Unexpected command call")]
+#[should_panic(expected = "Command mismatch")]
 fn test_mock_command_executor_unexpected_call() {
     let mut executor = MockCommandExecutor::new()
         .expect_command("node", vec!["--version"])
