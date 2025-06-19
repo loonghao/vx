@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::{Command, Output};
+use std::process::Output;
 use tempfile::TempDir;
 use vx_plugin::{PluginRegistry, VxPlugin, VxTool};
 
@@ -92,11 +92,7 @@ impl VxTool for MockTool {
         _include_prerelease: bool,
     ) -> anyhow::Result<Vec<vx_version::VersionInfo>> {
         // Return a mock version for testing
-        Ok(vec![vx_version::VersionInfo {
-            version: self.version.clone(),
-            prerelease: false,
-            yanked: false,
-        }])
+        Ok(vec![vx_version::VersionInfo::new(self.version.clone())])
     }
 
     async fn get_executable_path(&self, _install_dir: &std::path::Path) -> anyhow::Result<PathBuf> {

@@ -3,7 +3,7 @@
 use std::env;
 use std::path::PathBuf;
 use tempfile::TempDir;
-use vx_core::{PluginRegistry, VenvManager};
+use vx_plugin::PluginRegistry;
 
 /// Test fixture for CLI tests
 pub struct CliTestFixture {
@@ -45,20 +45,10 @@ impl Drop for CliTestFixture {
     }
 }
 
-/// Create a test venv manager for CLI tests
-pub fn create_test_venv_manager() -> anyhow::Result<(VenvManager, TempDir)> {
+/// Create a test environment directory
+pub fn create_test_env_dir() -> anyhow::Result<TempDir> {
     let temp_dir = TempDir::new()?;
-    let original_dir = env::current_dir()?;
-
-    // Change to temp directory
-    env::set_current_dir(temp_dir.path())?;
-
-    let manager = VenvManager::new()?;
-
-    // Restore directory
-    env::set_current_dir(original_dir)?;
-
-    Ok((manager, temp_dir))
+    Ok(temp_dir)
 }
 
 /// Create a test plugin registry
