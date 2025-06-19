@@ -135,8 +135,8 @@ jobs:
           action-gh-release-parameters: |
             {
               "body": "${{ steps.changelog_reader.outputs.changes }}",
-              "prerelease": ${{ steps.changelog_reader.outputs.status == 'prereleased' }},
-              "draft": ${{ steps.changelog_reader.outputs.status == 'unreleased' }}
+              "prerelease": false,
+              "draft": false
             }
           extra-files: |
             README.md

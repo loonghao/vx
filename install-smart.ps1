@@ -282,10 +282,13 @@ function Install-FromRelease {
     
     # Determine archive name based on platform
     # Try multiple naming conventions for Windows
+    # houseabsolute/actions-rust-release uses format: {executable-name}-{target}.zip
     $possibleArchives = @(
+        "vx-x86_64-pc-windows-msvc.zip",
         "vx-$platform.zip",
         "vx-Windows-x86_64.zip",
         "vx-windows-x86_64.zip",
+        "vx-x86_64-pc-windows-msvc.tar.gz",
         "vx-$platform.tar.gz",
         "vx-Windows-x86_64.tar.gz"
     )
