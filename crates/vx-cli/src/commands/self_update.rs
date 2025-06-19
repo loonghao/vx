@@ -40,8 +40,8 @@ pub async fn handle(
     // Create HTTP client with optional authentication
     let client = create_authenticated_client(token)?;
 
-    // Get latest release information
-    let release = get_latest_release(&client, prerelease).await?;
+    // Get latest release information with smart channel selection
+    let release = get_latest_release(&client, prerelease, token.is_some()).await?;
 
     let latest_version = release.tag_name.trim_start_matches('v');
     UI::detail(&format!("Latest version: {}", latest_version));
@@ -109,8 +109,8 @@ fn create_authenticated_client(token: Option<&str>) -> Result<reqwest::Client> {
         );
         UI::detail("🔐 Using authenticated requests to GitHub API");
     } else {
-        UI::detail("🌐 Using unauthenticated requests to GitHub API");
-        UI::hint("💡 Use --token <TOKEN> to avoid rate limits in shared environments");
+        UI::detail("🌐 No GitHub token provided, will prefer CDN for downloads");
+        UI::hint("💡 Use --token <TOKEN> to use GitHub API directly and avoid CDN delays");
     }
 
     let client = reqwest::Client::builder()
@@ -121,7 +121,68 @@ fn create_authenticated_client(token: Option<&str>) -> Result<reqwest::Client> {
     Ok(client)
 }
 
-async fn get_latest_release(client: &reqwest::Client, prerelease: bool) -> Result<GitHubRelease> {
+async fn get_latest_release(
+    client: &reqwest::Client,
+    prerelease: bool,
+    has_token: bool,
+) -> Result<GitHubRelease> {
+    // If no token is provided, prefer CDN to avoid rate limits
+    if !has_token {
+        UI::info("🌐 No GitHub token provided, using CDN for version check...");
+
+        // Try jsDelivr API first when no token
+        match try_jsdelivr_api(client, prerelease).await {
+            Ok(release) => {
+                UI::info("✅ Got version info from jsDelivr CDN");
+                return Ok(release);
+            }
+            Err(e) => {
+                UI::warn(&format!("⚠️ CDN fallback failed: {}", e));
+                UI::info("🔄 Falling back to GitHub API...");
+            }
+        }
+    }
+
+    // Try GitHub API (either as primary with token, or as fallback without token)
+    match try_github_api(client, prerelease).await {
+        Ok(release) => return Ok(release),
+        Err(e) => {
+            // Check if it's a rate limit error
+            if e.to_string().contains("rate limit") {
+                if has_token {
+                    // If we have a token but still hit rate limit, something's wrong
+                    return Err(anyhow!(
+                        "GitHub API rate limit exceeded even with authentication. \
+                        Check your token permissions or try again later."
+                    ));
+                } else {
+                    // If no token and we already tried CDN, we're out of options
+                    return Err(anyhow!(
+                        "GitHub API rate limit exceeded and CDN fallback also failed. \
+                        Use --token <TOKEN> to authenticate and increase rate limits. \
+                        See: https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api"
+                    ));
+                }
+            }
+
+            // For other errors, try CDN as last resort if we haven't already
+            if has_token {
+                UI::warn(&format!("⚠️ GitHub API failed: {}", e));
+                UI::info("🔄 Trying CDN fallback...");
+
+                if let Ok(release) = try_jsdelivr_api(client, prerelease).await {
+                    UI::info("✅ Got version info from jsDelivr CDN");
+                    return Ok(release);
+                }
+            }
+
+            // Return the original error if all else fails
+            return Err(e);
+        }
+    }
+}
+
+async fn try_github_api(client: &reqwest::Client, prerelease: bool) -> Result<GitHubRelease> {
     let url = if prerelease {
         "https://api.github.com/repos/loonghao/vx/releases"
     } else {
@@ -139,9 +200,7 @@ async fn get_latest_release(client: &reqwest::Client, prerelease: bool) -> Resul
             .unwrap_or("unknown");
 
         return Err(anyhow!(
-            "GitHub API rate limit exceeded (remaining: {}). \
-            Use --token <TOKEN> to authenticate and increase rate limits. \
-            See: https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api",
+            "GitHub API rate limit exceeded (remaining: {})",
             remaining
         ));
     }
@@ -214,17 +273,8 @@ async fn download_and_install(
     let current_exe = env::current_exe()?;
     let backup_path = current_exe.with_extension("bak");
 
-    // Download the new binary
-    let response = client.get(&asset.browser_download_url).send().await?;
-
-    if !response.status().is_success() {
-        return Err(anyhow!(
-            "Failed to download asset: HTTP {}",
-            response.status()
-        ));
-    }
-
-    let content = response.bytes().await?;
+    // Try downloading with multi-channel fallback
+    let content = download_with_fallback(client, asset).await?;
 
     // Create temporary file for the new binary
     let temp_path = current_exe.with_extension("tmp");
@@ -236,7 +286,7 @@ async fn download_and_install(
         extract_from_tar_gz(&content, &temp_path)?;
     } else {
         // Assume it's a raw binary
-        fs::write(&temp_path, &content)?;
+        fs::write(&temp_path, content)?;
     }
 
     // Make executable on Unix systems
@@ -316,4 +366,191 @@ fn extract_from_tar_gz(content: &[u8], output_path: &PathBuf) -> Result<()> {
     }
 
     Err(anyhow!("vx executable not found in TAR.GZ archive"))
+}
+
+async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<GitHubRelease> {
+    let url = "https://data.jsdelivr.com/v1/package/gh/loonghao/vx";
+
+    let response = client.get(url).send().await?;
+
+    if !response.status().is_success() {
+        return Err(anyhow!(
+            "Failed to fetch from jsDelivr: {}",
+            response.status()
+        ));
+    }
+
+    let json: serde_json::Value = response.json().await?;
+
+    // Extract version information from jsDelivr response
+    let versions = json["versions"]
+        .as_array()
+        .ok_or_else(|| anyhow!("No versions found in jsDelivr response"))?;
+
+    let latest_version = if prerelease {
+        // For prerelease, get the first version (latest)
+        versions.first()
+    } else {
+        // For stable, find the first non-prerelease version
+        versions.iter().find(|v| {
+            if let Some(version_str) = v.as_str() {
+                !version_str.contains("-") // Simple check for prerelease
+            } else {
+                false
+            }
+        })
+    }
+    .and_then(|v| v.as_str())
+    .ok_or_else(|| anyhow!("No suitable version found"))?;
+
+    // Create CDN-based assets for the version
+    let assets = create_cdn_assets(latest_version);
+
+    // Create a minimal GitHubRelease structure from jsDelivr data
+    Ok(GitHubRelease {
+        tag_name: latest_version.to_string(),
+        name: format!("Release {}", latest_version),
+        body: "Release information retrieved from CDN".to_string(),
+        prerelease: latest_version.contains("-"),
+        assets,
+    })
+}
+
+fn create_cdn_assets(version: &str) -> Vec<GitHubAsset> {
+    let base_url = format!("https://cdn.jsdelivr.net/gh/loonghao/vx@v{}", version);
+
+    // Define platform-specific asset names based on our release naming convention
+    let asset_configs = vec![
+        ("vx-Windows-msvc-x86_64.zip", "windows", "x86_64"),
+        ("vx-Windows-msvc-arm64.zip", "windows", "aarch64"),
+        ("vx-Linux-musl-x86_64.tar.gz", "linux", "x86_64"),
+        ("vx-Linux-musl-arm64.tar.gz", "linux", "aarch64"),
+        ("vx-macOS-x86_64.tar.gz", "macos", "x86_64"),
+        ("vx-macOS-arm64.tar.gz", "macos", "aarch64"),
+    ];
+
+    asset_configs
+        .into_iter()
+        .map(|(name, _os, _arch)| GitHubAsset {
+            name: name.to_string(),
+            browser_download_url: format!("{}/{}", base_url, name),
+            size: 0, // Size unknown from CDN
+        })
+        .collect()
+}
+
+async fn download_with_fallback(client: &reqwest::Client, asset: &GitHubAsset) -> Result<Vec<u8>> {
+    // Extract version from the original URL for CDN fallback
+    let version = extract_version_from_url(&asset.browser_download_url);
+
+    // Define download channels in order of preference
+    // If original URL is from CDN (jsDelivr), it means we got version info from CDN
+    // so we should prefer CDN for downloads too
+    let channels = if asset.browser_download_url.contains("jsdelivr.net") {
+        // CDN-first strategy (when version came from CDN)
+        vec![
+            ("jsDelivr CDN", asset.browser_download_url.clone()),
+            (
+                "Fastly CDN",
+                format!(
+                    "https://fastly.jsdelivr.net/gh/loonghao/vx@v{}/{}",
+                    version, asset.name
+                ),
+            ),
+            (
+                "GitHub Releases",
+                format!(
+                    "https://github.com/loonghao/vx/releases/download/v{}/{}",
+                    version, asset.name
+                ),
+            ),
+        ]
+    } else {
+        // GitHub-first strategy (when version came from GitHub API)
+        vec![
+            ("GitHub Releases", asset.browser_download_url.clone()),
+            (
+                "jsDelivr CDN",
+                format!(
+                    "https://cdn.jsdelivr.net/gh/loonghao/vx@v{}/{}",
+                    version, asset.name
+                ),
+            ),
+            (
+                "Fastly CDN",
+                format!(
+                    "https://fastly.jsdelivr.net/gh/loonghao/vx@v{}/{}",
+                    version, asset.name
+                ),
+            ),
+        ]
+    };
+
+    for (channel_name, url) in channels {
+        UI::detail(&format!("🔄 Trying {}: {}", channel_name, url));
+
+        match client.get(&url).send().await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    match response.bytes().await {
+                        Ok(content) => {
+                            if content.len() > 1024 {
+                                // Basic size validation
+                                UI::info(&format!(
+                                    "✅ Downloaded from {} ({} bytes)",
+                                    channel_name,
+                                    content.len()
+                                ));
+                                return Ok(content.to_vec());
+                            } else {
+                                UI::warn(&format!(
+                                    "⚠️ Downloaded file too small from {}, trying next channel...",
+                                    channel_name
+                                ));
+                            }
+                        }
+                        Err(e) => {
+                            UI::warn(&format!(
+                                "⚠️ Failed to read content from {}: {}",
+                                channel_name, e
+                            ));
+                        }
+                    }
+                } else {
+                    UI::warn(&format!(
+                        "⚠️ HTTP {} from {}, trying next channel...",
+                        response.status(),
+                        channel_name
+                    ));
+                }
+            }
+            Err(e) => {
+                UI::warn(&format!("⚠️ Failed to connect to {}: {}", channel_name, e));
+            }
+        }
+    }
+
+    Err(anyhow!("Failed to download from all channels"))
+}
+
+fn extract_version_from_url(url: &str) -> String {
+    // Extract version from GitHub release URL or CDN URL
+    // Look for patterns like "/v1.2.3/" or "@v1.2.3"
+    for part in url.split('/') {
+        if part.starts_with('v') && part.len() > 1 {
+            let version_part = &part[1..]; // Remove 'v' prefix
+            if version_part.chars().next().unwrap_or('a').is_ascii_digit() {
+                return version_part.to_string();
+            }
+        }
+        if part.starts_with("@v") && part.len() > 2 {
+            let version_part = &part[2..]; // Remove '@v' prefix
+            if version_part.chars().next().unwrap_or('a').is_ascii_digit() {
+                return version_part.to_string();
+            }
+        }
+    }
+
+    // Fallback to current version if extraction fails
+    env!("CARGO_PKG_VERSION").to_string()
 }
