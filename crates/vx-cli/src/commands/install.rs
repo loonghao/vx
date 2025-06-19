@@ -1,8 +1,9 @@
 //! Install command implementation
 
 use crate::ui::UI;
+use anyhow::Result;
 use tracing::{info_span, Instrument};
-use vx_core::{PluginRegistry, Result, VxError};
+use vx_plugin::PluginRegistry;
 
 pub async fn handle(
     registry: &PluginRegistry,
@@ -13,9 +14,7 @@ pub async fn handle(
     // Get the tool from registry
     let tool = registry
         .get_tool(tool_name)
-        .ok_or_else(|| VxError::ToolNotFound {
-            tool_name: tool_name.to_string(),
-        })?;
+        .ok_or_else(|| anyhow::anyhow!("Tool not found: {}", tool_name))?;
 
     // Determine version to install
     let target_version = if let Some(v) = version {
@@ -31,10 +30,7 @@ pub async fn handle(
         .await?;
 
         if versions.is_empty() {
-            return Err(VxError::VersionNotFound {
-                tool_name: tool_name.to_string(),
-                version: "latest".to_string(),
-            });
+            return Err(anyhow::anyhow!("No versions found for tool: {}", tool_name));
         }
         versions[0].version.clone()
     };

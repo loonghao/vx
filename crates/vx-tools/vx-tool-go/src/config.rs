@@ -8,6 +8,7 @@ use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod};
 use vx_tool_standard::{StandardToolConfig, StandardUrlBuilder, ToolDependency};
 
 /// Standard configuration for Go tool
+#[allow(dead_code)]
 pub struct Config;
 
 /// Go URL builder for consistent download URL generation
@@ -119,6 +120,7 @@ pub fn get_install_methods() -> Vec<String> {
 }
 
 /// Check if Go supports automatic installation
+#[allow(dead_code)]
 pub fn supports_auto_install() -> bool {
     true
 }

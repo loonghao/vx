@@ -1,7 +1,8 @@
 //! Switch command implementation
 
 use crate::ui::UI;
-use vx_core::{PluginRegistry, Result, VxEnvironment, VxError, VxShimexeManager};
+use anyhow::Result;
+use vx_plugin::PluginRegistry;
 
 pub async fn handle(_registry: &PluginRegistry, tool_version: &str, global: bool) -> Result<()> {
     // Parse tool@version format
@@ -9,72 +10,12 @@ pub async fn handle(_registry: &PluginRegistry, tool_version: &str, global: bool
 
     UI::info(&format!("Switching {} to version {}", tool_name, version));
 
-    // Create environment and shim manager
-    let environment = VxEnvironment::new()?;
-    let shim_manager = VxShimexeManager::new(environment.clone())?;
-
-    // Check if the version is installed
-    if !environment.is_version_installed(&tool_name, &version) {
-        UI::error(&format!(
-            "Version {} of {} is not installed. Install it first with: vx install {}@{}",
-            version, tool_name, tool_name, version
-        ));
-        return Err(VxError::VersionNotInstalled {
-            tool_name: tool_name.clone(),
-            version: version.clone(),
-        });
-    }
-
-    // Get the installation info to find the executable path
-    let installation = environment
-        .get_installation_info(&tool_name, &version)?
-        .ok_or_else(|| VxError::VersionNotInstalled {
-            tool_name: tool_name.clone(),
-            version: version.clone(),
-        })?;
-
-    // Switch the tool version using shim
-    let _shim_path =
-        shim_manager.switch_tool_version(&tool_name, &version, &installation.executable_path)?;
-
-    if global {
-        // Set as global default version
-        environment.set_active_version(&tool_name, &version)?;
-        UI::success(&format!(
-            "Switched {} to version {} globally",
-            tool_name, version
-        ));
-        UI::hint(&format!(
-            "All new terminal sessions will use {}@{}",
-            tool_name, version
-        ));
-    } else {
-        // Session-level switch (for now, just update the shim)
-        UI::success(&format!(
-            "Switched {} to version {} in current session",
-            tool_name, version
-        ));
-        UI::hint(&format!(
-            "Use 'vx switch {}@{} --global' to make this the default for all sessions",
-            tool_name, version
-        ));
-    }
-
-    // Verify the switch worked
-    let shim_dir = environment.shim_dir()?;
-    let shim_path = shim_dir.join(if cfg!(windows) {
-        format!("{}.exe", tool_name)
-    } else {
-        tool_name.clone()
-    });
-
-    if shim_path.exists() {
-        UI::info(&format!("Shim created at: {}", shim_path.display()));
-        UI::hint(&format!(
-            "Make sure {} is in your PATH to use the switched version",
-            shim_dir.display()
-        ));
-    }
+    // Simplified implementation - switch command not fully implemented yet
+    UI::warning("Switch command not yet fully implemented in new architecture");
+    UI::hint(&format!(
+        "Would switch {} to version {} (global: {})",
+        tool_name, version, global
+    ));
 
     Ok(())
 }
@@ -83,18 +24,17 @@ pub async fn handle(_registry: &PluginRegistry, tool_version: &str, global: bool
 pub fn parse_tool_version(tool_version: &str) -> Result<(String, String)> {
     if let Some((tool, version)) = tool_version.split_once('@') {
         if tool.is_empty() || version.is_empty() {
-            return Err(VxError::ParseError {
-                message: format!("Invalid tool@version format: {}", tool_version),
-            });
+            return Err(anyhow::anyhow!(
+                "Invalid tool@version format: {}",
+                tool_version
+            ));
         }
         Ok((tool.to_string(), version.to_string()))
     } else {
-        Err(VxError::ParseError {
-            message: format!(
-                "Invalid format: {}. Expected format: tool@version (e.g., node@20.10.0)",
-                tool_version
-            ),
-        })
+        Err(anyhow::anyhow!(
+            "Invalid format: {}. Expected format: tool@version (e.g., node@20.10.0)",
+            tool_version
+        ))
     }
 }
 

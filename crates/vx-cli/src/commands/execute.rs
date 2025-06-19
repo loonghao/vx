@@ -1,7 +1,7 @@
 //! Execute command implementation - Transparent proxy for tool execution
 
 use crate::ui::UI;
-use vx_core::{VxError, VxResult as Result};
+use anyhow::Result;
 use vx_plugin::PluginRegistry;
 // TODO: DynamicExecutor needs to be implemented or imported from appropriate crate
 
@@ -38,9 +38,7 @@ async fn execute_system_tool(tool_name: &str, args: &[String]) -> Result<i32> {
     let status = std::process::Command::new(tool_name)
         .args(args)
         .status()
-        .map_err(|_| VxError::ToolNotFound {
-            tool_name: tool_name.to_string(),
-        })?;
+        .map_err(|_| anyhow::anyhow!("Tool not found: {}", tool_name))?;
 
     Ok(status.code().unwrap_or(1))
 }

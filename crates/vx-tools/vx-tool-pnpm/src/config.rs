@@ -4,7 +4,7 @@
 //! including dependencies and installation methods.
 
 use std::path::PathBuf;
-use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod};
+use vx_installer::{InstallConfig, InstallMethod};
 use vx_tool_standard::{StandardToolConfig, StandardUrlBuilder, ToolDependency};
 
 /// Standard configuration for PNPM tool
@@ -16,7 +16,7 @@ pub struct PnpmUrlBuilder;
 impl StandardUrlBuilder for PnpmUrlBuilder {
     /// Generate download URL for PNPM version
     fn download_url(version: &str) -> Option<String> {
-        let platform = Self::get_platform_string();
+        let _platform = Self::get_platform_string();
         let filename = Self::get_filename(version);
 
         Some(format!(
@@ -92,11 +92,7 @@ pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConf
     };
 
     let download_url = PnpmUrlBuilder::download_url(actual_version);
-    let install_method = if cfg!(windows) {
-        InstallMethod::Binary
-    } else {
-        InstallMethod::Binary
-    };
+    let install_method = InstallMethod::Binary;
 
     InstallConfig::builder()
         .tool_name("pnpm")
