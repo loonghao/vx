@@ -17,7 +17,7 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-thiserror = "1.0"
+thiserror = "2.0"
 dirs = "6.0"
 
 [dev-dependencies]
