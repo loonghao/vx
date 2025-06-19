@@ -58,6 +58,10 @@ name = "vx-dependency"
 git_release_enable = false
 
 [[package]]
+name = "vx-paths"
+git_release_enable = false
+
+[[package]]
 name = "vx-tool-standard"
 git_release_enable = false
 

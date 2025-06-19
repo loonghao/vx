@@ -8,6 +8,7 @@ use crate::{Result, ToolContext, ToolExecutionResult, ToolStatus, VersionInfo};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use vx_paths::{with_executable_extension, PathManager};
 
 /// Simplified trait for implementing tool support
 ///
@@ -120,11 +121,11 @@ pub trait VxTool: Send + Sync {
     }
     /// Check if a version is installed
     ///
-    /// Default implementation checks for the existence of the tool's
-    /// installation directory.
+    /// Default implementation checks for the existence of the tool's executable
+    /// in the standard vx path structure.
     async fn is_version_installed(&self, version: &str) -> Result<bool> {
-        let install_dir = self.get_version_install_dir(version);
-        Ok(install_dir.exists())
+        let path_manager = PathManager::new().unwrap_or_else(|_| PathManager::default());
+        Ok(path_manager.is_tool_version_installed(self.name(), version))
     }
 
     /// Execute the tool with given arguments
@@ -140,17 +141,18 @@ pub trait VxTool: Send + Sync {
     /// Get the executable path within an installation directory
     ///
     /// Override this if your tool has a non-standard layout.
-    /// The default implementation looks for common executable locations.
+    /// The default implementation uses the standard vx path structure.
     async fn get_executable_path(&self, install_dir: &Path) -> Result<PathBuf> {
-        let exe_name = if cfg!(target_os = "windows") {
-            format!("{}.exe", self.name())
-        } else {
-            self.name().to_string()
-        };
+        let exe_name = with_executable_extension(self.name());
 
-        // Try common locations
+        // For standard vx installations, the executable should be directly in the version directory
+        let standard_path = install_dir.join(&exe_name);
+        if standard_path.exists() {
+            return Ok(standard_path);
+        }
+
+        // Try common locations for legacy or non-standard installations
         let candidates = vec![
-            install_dir.join(&exe_name),
             install_dir.join("bin").join(&exe_name),
             install_dir.join("Scripts").join(&exe_name), // Windows Python-style
         ];
@@ -161,8 +163,8 @@ pub trait VxTool: Send + Sync {
             }
         }
 
-        // Default to bin directory
-        Ok(install_dir.join("bin").join(exe_name))
+        // Default to standard vx path structure
+        Ok(standard_path)
     }
 
     /// Get download URL for a specific version and current platform
@@ -179,26 +181,21 @@ pub trait VxTool: Send + Sync {
     /// Get installation directory for a specific version
     ///
     /// Returns the path where this version of the tool should be installed.
+    /// Uses the standard vx path structure: ~/.vx/tools/<tool>/<version>
     fn get_version_install_dir(&self, version: &str) -> PathBuf {
-        // This would integrate with vx's directory structure
-        // For now, use a simple implementation
-        dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join(".vx")
-            .join("tools")
-            .join(self.name())
-            .join(version)
+        // Use PathManager for consistent path structure
+        let path_manager = PathManager::new().unwrap_or_else(|_| PathManager::default());
+        path_manager.tool_version_dir(self.name(), version)
     }
 
     /// Get base installation directory for this tool
     ///
     /// Returns the base directory where all versions of this tool are installed.
+    /// Uses the standard vx path structure: ~/.vx/tools/<tool>
     fn get_base_install_dir(&self) -> PathBuf {
-        dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join(".vx")
-            .join("tools")
-            .join(self.name())
+        // Use PathManager for consistent path structure
+        let path_manager = PathManager::new().unwrap_or_else(|_| PathManager::default());
+        path_manager.tool_dir(self.name())
     }
 
     /// Get the currently active version
@@ -214,22 +211,10 @@ pub trait VxTool: Send + Sync {
 
     /// Get all installed versions
     ///
-    /// Default implementation scans the tool's installation directory.
+    /// Default implementation uses PathManager to scan for installed versions.
     async fn get_installed_versions(&self) -> Result<Vec<String>> {
-        let base_dir = self.get_base_install_dir();
-        if !base_dir.exists() {
-            return Ok(vec![]);
-        }
-
-        let mut versions = Vec::new();
-        for entry in std::fs::read_dir(base_dir)? {
-            let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                if let Some(name) = entry.file_name().to_str() {
-                    versions.push(name.to_string());
-                }
-            }
-        }
+        let path_manager = PathManager::new().unwrap_or_else(|_| PathManager::default());
+        let mut versions = path_manager.list_tool_versions(self.name())?;
 
         // Sort versions (newest first)
         versions.sort_by(|a, b| b.cmp(a));
@@ -237,11 +222,11 @@ pub trait VxTool: Send + Sync {
     }
     /// Remove a specific version of the tool
     ///
-    /// Default implementation removes the version's installation directory.
+    /// Default implementation uses PathManager to remove the version.
     async fn remove_version(&self, version: &str, force: bool) -> Result<()> {
-        let version_dir = self.get_version_install_dir(version);
+        let path_manager = PathManager::new().unwrap_or_else(|_| PathManager::default());
 
-        if !version_dir.exists() {
+        if !path_manager.is_tool_version_installed(self.name(), version) {
             if !force {
                 return Err(anyhow::anyhow!(
                     "Version {} of {} is not installed",
@@ -252,7 +237,7 @@ pub trait VxTool: Send + Sync {
             return Ok(());
         }
 
-        std::fs::remove_dir_all(&version_dir)?;
+        path_manager.remove_tool_version(self.name(), version)?;
         Ok(())
     }
 
@@ -298,8 +283,10 @@ pub trait VxTool: Send + Sync {
         // 3. Set up any necessary symlinks or scripts
         // 4. Return the path to the main executable
 
-        // Placeholder: just create a dummy executable
-        let exe_path = self.get_executable_path(install_dir).await?;
+        // Create executable in standard vx path structure
+        let path_manager = PathManager::new().unwrap_or_else(|_| PathManager::default());
+        let exe_path = path_manager.tool_executable_path(self.name(), version);
+
         if let Some(parent) = exe_path.parent() {
             std::fs::create_dir_all(parent)?;
         }

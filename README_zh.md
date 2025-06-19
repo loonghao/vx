@@ -70,6 +70,18 @@ vx go run main.go               # 需要时自动安装 Go
 
 ## ✨ 特性
 
+### 🚀 最新改进 (v0.3.0)
+
+- **🔄 自更新系统**: 内置自更新功能，支持 GitHub 令牌以避免速率限制
+- **📁 统一路径管理**: 新的 vx-paths 系统，提供标准化工具安装路径
+- **📊 增强的工具发现**: 改进的 `list` 和 `which` 命令，提供详细状态信息
+- **🏗️ 模块化架构**: 使用 vx-installer 引擎完全重写，提高可维护性
+- **📊 高级进度跟踪**: 美观的进度条，显示 ETA 和传输速率
+- **🔧 增强的安装系统**: 支持多种存档格式和安装方法
+- **🔌 插件系统**: 可扩展架构，支持内置和外部插件
+- **🛡️ 安全优先**: 内置校验和验证和安全下载
+- **🌍 跨平台**: 在 Windows、macOS 和 Linux 上无缝运行
+
 ### 🎯 核心特性
 - **🔄 通用接口**: 通过单一、一致的接口执行任何支持的工具
 - **📦 多版本管理**: 安装、管理和切换工具的多个版本
@@ -77,6 +89,8 @@ vx go run main.go               # 需要时自动安装 Go
 - **🚀 自动安装**: 自动下载和安装缺失的工具
 - **🎯 项目特定**: 支持项目级工具配置
 - **🔌 插件架构**: 模块化设计，具有可扩展的插件系统
+- **🔄 自更新系统**: 内置更新功能，支持 GitHub 令牌以避免 API 速率限制
+- **📁 统一路径管理**: 跨所有平台的标准化工具安装路径
 
 ### 🛠️ 高级特性
 - **📊 包管理**: 类似 Chocolatey 的分层包管理
@@ -191,8 +205,14 @@ vx cargo build --release             # 相同的 Cargo 命令
 
 # 🔧 需要时的高级功能
 vx --use-system-path python --version  # 需要时使用系统工具
-vx list                               # 显示所有可用工具
+vx list --status                      # 显示所有工具及安装状态
+vx which node --all                   # 显示工具的所有已安装版本
 vx stats                              # 包统计和使用情况
+
+# 🔄 支持 GitHub 令牌的自更新（解决速率限制问题）
+vx self-update --check                # 检查更新
+vx self-update --token ghp_xxxx       # 使用 GitHub 令牌更新（推荐团队使用）
+vx self-update --prerelease           # 包含预发布版本
 
 # 🎯 具有美观进度条的版本管理
 vx install uv@0.7.12                 # 安装特定版本
@@ -274,6 +294,56 @@ uvx install some-python-tool    # 需要 Python/UV 设置
 - **🛡️ 安全优先**: 自动校验和验证和安全下载
 - **🌍 跨平台**: 在 Windows、macOS 和 Linux 上行为完全一致
 - **⚡ 闪电般快速**: 并发下载和安装
+
+## 🔄 自更新系统
+
+vx 包含强大的自更新系统，解决了在共享环境中常见的 GitHub API 速率限制问题。
+
+### 🚀 快速更新
+```bash
+# 检查更新
+vx self-update --check
+
+# 更新到最新版本
+vx self-update
+
+# 使用 GitHub 令牌更新（推荐团队/共享网络使用）
+vx self-update --token ghp_your_github_token_here
+
+# 包含预发布版本
+vx self-update --prerelease
+
+# 强制更新，即使已经是最新版本
+vx self-update --force
+```
+
+### 🔐 GitHub 令牌支持
+
+**问题**: GitHub 的公共 API 对未认证用户有每小时 60 次请求的速率限制。在共享环境（办公室、学校、公寓）中，多个用户可能会达到此限制。
+
+**解决方案**: 使用 GitHub 令牌将速率限制提高到每小时 5,000 次请求：
+
+```bash
+# 在此处创建 GitHub 令牌：https://github.com/settings/tokens
+# 不需要特殊权限 - 只需基本访问权限
+
+# 使用令牌进行更新
+vx self-update --token ghp_xxxxxxxxxxxxxxxxxxxx
+
+# 或设置为环境变量
+export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+vx self-update
+```
+
+### 📊 更新功能
+
+- **🔍 智能检测**: 自动检测当前版本和最新版本
+- **📦 跨平台**: 支持 Windows、macOS 和 Linux 二进制文件
+- **🔒 安全下载**: 仅使用 HTTPS，自动验证
+- **📋 发布说明**: 显示新版本的更新日志
+- **🔄 备份和回滚**: 自动备份当前版本
+- **⚡ 快速下载**: 并发下载，带进度条
+- **🎯 格式支持**: ZIP、TAR.GZ 存档和原始二进制文件
 
 ## ⚙️ 配置
 
@@ -367,14 +437,17 @@ cargo run -- --help
 
 ## 🚀 路线图
 
-### 当前状态 (v0.2.x)
+### 当前状态 (v0.3.0)
 - ✅ **核心插件架构** 具有基于特征的可扩展性
 - ✅ **6 个内置工具**（UV、UVX、Node.js、NPX、Go、Rust）
 - ✅ **完整环境隔离系统** 具有完整的 PATH 管理
-- ✅ **🆕 vx-installer 引擎** 具有通用格式支持
-- ✅ **🆕 美观的进度条** 具有 ETA 和传输速率
-- ✅ **🆕 安全优先下载** 具有校验和验证
-- ✅ **🆕 异步安装系统** 具有并发操作
+- ✅ **🆕 自更新系统** 支持 GitHub 令牌以避免速率限制
+- ✅ **🆕 统一路径管理** 使用 vx-paths 系统（`~/.vx/tools/<tool>/<version>/`）
+- ✅ **🆕 增强的工具发现** 改进的 `list --status` 和 `which --all` 命令
+- ✅ **vx-installer 引擎** 具有通用格式支持
+- ✅ **美观的进度条** 具有 ETA 和传输速率
+- ✅ **安全优先下载** 具有校验和验证
+- ✅ **异步安装系统** 具有并发操作
 - ✅ **多版本包管理** 具有智能切换
 - ✅ **MCP 集成支持** 用于无缝代理使用
 - ✅ **包运行器支持**（npx、uvx）具有环境隔离

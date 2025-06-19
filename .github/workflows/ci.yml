@@ -331,6 +331,62 @@ jobs:
           echo "📝 Configuration file exists and has valid TOML syntax."
           echo "🎯 The workflow should work correctly when merged to main."
 
+  # Simulate publishing to catch dependency issues early
+  publish_simulation:
+    name: Publish Simulation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-publish-sim-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-publish-sim-
+            ${{ runner.os }}-cargo-
+
+      - name: Simulate package publishing
+        run: |
+          echo "🚀 Simulating package publishing to detect dependency issues..."
+          echo ""
+
+          # Test packaging for key crates that have external dependencies
+          # Note: vx-cli temporarily excluded due to vx-paths dependency (new crate not yet published)
+          CRATES_TO_TEST=(
+            "vx-tool-standard"
+            "vx-tool-node"
+            "vx-tool-go"
+            "vx-tool-rust"
+            "vx-tool-uv"
+            "vx"
+          )
+
+          for crate in "${CRATES_TO_TEST[@]}"; do
+            echo "📦 Testing package: $crate"
+            if cargo package -p "$crate" --allow-dirty --no-verify; then
+              echo "✅ $crate packages successfully"
+            else
+              echo "❌ $crate packaging failed"
+              exit 1
+            fi
+            echo ""
+          done
+
+          echo "🎉 All packages can be built for publishing!"
+          echo "💡 This ensures dependencies are correctly specified for crates.io"
+
   # Code coverage reporting (only on PR)
   coverage:
     name: Code Coverage
