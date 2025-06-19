@@ -1,304 +1,319 @@
 //! Self-update command implementation
-//! Allows vx to update itself to the latest version
 
 use crate::ui::UI;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Result};
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, USER_AGENT};
+use serde::Deserialize;
 use std::env;
+use std::fs;
 use std::path::PathBuf;
-use tracing::{info_span, Instrument};
 
-const GITHUB_OWNER: &str = "loonghao";
-const GITHUB_REPO: &str = "vx";
-
-/// Handle self-update command
-pub async fn handle(check_only: bool, version: Option<&str>) -> Result<()> {
-    let span = info_span!("Self-update", check_only = check_only);
-    async {
-        if check_only {
-            check_for_updates().await
-        } else {
-            perform_self_update(version).await
-        }
-    }
-    .instrument(span)
-    .await
+#[derive(Debug, Deserialize)]
+struct GitHubRelease {
+    tag_name: String,
+    #[allow(dead_code)]
+    name: String,
+    body: String,
+    assets: Vec<GitHubAsset>,
+    #[allow(dead_code)]
+    prerelease: bool,
 }
 
-/// Check for available updates
-async fn check_for_updates() -> Result<()> {
-    UI::info("Checking for vx updates...");
-
-    let current_version = get_current_version()?;
-    let latest_version = get_latest_version().await?;
-
-    if current_version == latest_version {
-        UI::success(&format!("vx {} is up to date", current_version));
-    } else {
-        UI::info(&format!(
-            "Update available: {} → {}",
-            current_version, latest_version
-        ));
-        UI::hint("Run 'vx self-update' to update");
-    }
-
-    Ok(())
+#[derive(Debug, Deserialize)]
+struct GitHubAsset {
+    name: String,
+    browser_download_url: String,
+    size: u64,
 }
 
-/// Perform self-update
-async fn perform_self_update(target_version: Option<&str>) -> Result<()> {
-    let current_version = get_current_version()?;
+pub async fn handle(
+    token: Option<&str>,
+    prerelease: bool,
+    force: bool,
+    check_only: bool,
+) -> Result<()> {
+    UI::info("🔍 Checking for vx updates...");
 
-    let target_version = if let Some(v) = target_version {
-        v.to_string()
-    } else {
-        UI::info("Fetching latest version...");
-        get_latest_version().await?
-    };
+    let current_version = env!("CARGO_PKG_VERSION");
+    UI::detail(&format!("Current version: {}", current_version));
 
-    if current_version == target_version {
-        UI::success(&format!("vx {} is already up to date", current_version));
+    // Create HTTP client with optional authentication
+    let client = create_authenticated_client(token)?;
+
+    // Get latest release information
+    let release = get_latest_release(&client, prerelease).await?;
+
+    let latest_version = release.tag_name.trim_start_matches('v');
+    UI::detail(&format!("Latest version: {}", latest_version));
+
+    // Check if update is needed
+    if !force && current_version == latest_version {
+        UI::success("✅ vx is already up to date!");
         return Ok(());
     }
 
+    if current_version != latest_version {
+        UI::info(&format!(
+            "📦 New version available: {} -> {}",
+            current_version, latest_version
+        ));
+
+        if !release.body.is_empty() {
+            UI::info("📝 Release notes:");
+            println!("{}", release.body);
+        }
+    }
+
+    if check_only {
+        if current_version != latest_version {
+            UI::info("💡 Run 'vx self-update' to update to the latest version");
+        }
+        return Ok(());
+    }
+
+    // Find appropriate asset for current platform
+    let asset = find_platform_asset(&release.assets)?;
     UI::info(&format!(
-        "Updating vx: {} → {}",
-        current_version, target_version
+        "📥 Downloading {} ({} bytes)...",
+        asset.name, asset.size
     ));
 
+    // Download and install update
+    download_and_install(&client, asset, force).await?;
+
+    UI::success(&format!(
+        "🎉 Successfully updated vx to version {}!",
+        latest_version
+    ));
+    UI::hint("Restart your terminal or run 'vx --version' to verify the update");
+
+    Ok(())
+}
+
+fn create_authenticated_client(token: Option<&str>) -> Result<reqwest::Client> {
+    let mut headers = HeaderMap::new();
+
+    // Always set User-Agent
+    headers.insert(
+        USER_AGENT,
+        HeaderValue::from_static("vx-cli/0.3.0 (https://github.com/loonghao/vx)"),
+    );
+
+    // Add authentication if token is provided
+    if let Some(token) = token {
+        let auth_value = format!("Bearer {}", token);
+        headers.insert(
+            AUTHORIZATION,
+            HeaderValue::from_str(&auth_value)
+                .map_err(|e| anyhow!("Invalid token format: {}", e))?,
+        );
+        UI::detail("🔐 Using authenticated requests to GitHub API");
+    } else {
+        UI::detail("🌐 Using unauthenticated requests to GitHub API");
+        UI::hint("💡 Use --token <TOKEN> to avoid rate limits in shared environments");
+    }
+
+    let client = reqwest::Client::builder()
+        .default_headers(headers)
+        .timeout(std::time::Duration::from_secs(30))
+        .build()?;
+
+    Ok(client)
+}
+
+async fn get_latest_release(client: &reqwest::Client, prerelease: bool) -> Result<GitHubRelease> {
+    let url = if prerelease {
+        "https://api.github.com/repos/loonghao/vx/releases"
+    } else {
+        "https://api.github.com/repos/loonghao/vx/releases/latest"
+    };
+
+    let response = client.get(url).send().await?;
+
+    // Check for rate limiting
+    if response.status() == 403 {
+        let remaining = response
+            .headers()
+            .get("x-ratelimit-remaining")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("unknown");
+
+        return Err(anyhow!(
+            "GitHub API rate limit exceeded (remaining: {}). \
+            Use --token <TOKEN> to authenticate and increase rate limits. \
+            See: https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api",
+            remaining
+        ));
+    }
+
+    if !response.status().is_success() {
+        return Err(anyhow!(
+            "Failed to fetch release information: HTTP {}",
+            response.status()
+        ));
+    }
+
+    if prerelease {
+        let releases: Vec<GitHubRelease> = response.json().await?;
+        releases
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No releases found"))
+    } else {
+        Ok(response.json().await?)
+    }
+}
+
+fn find_platform_asset(assets: &[GitHubAsset]) -> Result<&GitHubAsset> {
+    let target_os = env::consts::OS;
+    let target_arch = env::consts::ARCH;
+
+    // Define platform-specific patterns
+    let patterns = match (target_os, target_arch) {
+        ("windows", "x86_64") => vec!["windows", "win64", "x86_64-pc-windows"],
+        ("windows", "x86") => vec!["windows", "win32", "i686-pc-windows"],
+        ("macos", "x86_64") => vec!["macos", "darwin", "x86_64-apple-darwin"],
+        ("macos", "aarch64") => vec!["macos", "darwin", "aarch64-apple-darwin"],
+        ("linux", "x86_64") => vec!["linux", "x86_64-unknown-linux"],
+        ("linux", "aarch64") => vec!["linux", "aarch64-unknown-linux"],
+        _ => {
+            return Err(anyhow!(
+                "Unsupported platform: {}-{}",
+                target_os,
+                target_arch
+            ))
+        }
+    };
+
+    // Find matching asset
+    for asset in assets {
+        let name_lower = asset.name.to_lowercase();
+        if patterns.iter().any(|pattern| name_lower.contains(pattern)) {
+            return Ok(asset);
+        }
+    }
+
+    Err(anyhow!(
+        "No compatible binary found for {}-{}. Available assets: {}",
+        target_os,
+        target_arch,
+        assets
+            .iter()
+            .map(|a| a.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    ))
+}
+
+async fn download_and_install(
+    client: &reqwest::Client,
+    asset: &GitHubAsset,
+    force: bool,
+) -> Result<()> {
     // Get current executable path
-    let current_exe = env::current_exe().context("Failed to get current executable path")?;
+    let current_exe = env::current_exe()?;
+    let backup_path = current_exe.with_extension("bak");
 
-    // Download and replace the executable
-    download_and_replace(&current_exe, &target_version).await?;
-
-    UI::success(&format!("Successfully updated vx to {}", target_version));
-    UI::hint("Restart your terminal to ensure the new version is loaded");
-
-    Ok(())
-}
-
-/// Get current vx version
-fn get_current_version() -> Result<String> {
-    // Get version from Cargo.toml or environment
-    Ok(env!("CARGO_PKG_VERSION").to_string())
-}
-
-/// Get latest version from GitHub API
-async fn get_latest_version() -> Result<String> {
-    let client = reqwest::Client::new();
-    let url = format!(
-        "https://api.github.com/repos/{}/{}/releases/latest",
-        GITHUB_OWNER, GITHUB_REPO
-    );
-
-    let mut request = client
-        .get(&url)
-        .header("User-Agent", format!("vx/{}", get_current_version()?));
-
-    // Add GitHub token if available in environment
-    if let Ok(token) = std::env::var("GITHUB_TOKEN") {
-        request = request.header("Authorization", format!("Bearer {}", token));
-    }
-
-    let response = request
-        .send()
-        .await
-        .context("Failed to fetch latest release information")?;
+    // Download the new binary
+    let response = client.get(&asset.browser_download_url).send().await?;
 
     if !response.status().is_success() {
-        let status = response.status();
-        let error_text = response.text().await.unwrap_or_default();
-
-        // Handle rate limiting gracefully
-        if status == 403 && error_text.contains("rate limit") {
-            anyhow::bail!(
-                "GitHub API rate limit exceeded. To avoid this, set GITHUB_TOKEN environment variable with a personal access token."
-            );
-        }
-
-        anyhow::bail!("GitHub API request failed: {} - {}", status, error_text);
+        return Err(anyhow!(
+            "Failed to download asset: HTTP {}",
+            response.status()
+        ));
     }
 
-    let release: serde_json::Value = response
-        .json()
-        .await
-        .context("Failed to parse GitHub API response")?;
+    let content = response.bytes().await?;
 
-    let tag_name = release["tag_name"]
-        .as_str()
-        .context("Missing tag_name in release")?;
+    // Create temporary file for the new binary
+    let temp_path = current_exe.with_extension("tmp");
 
-    // Remove 'v' prefix if present
-    Ok(tag_name.trim_start_matches('v').to_string())
-}
-
-/// Download and replace the current executable
-async fn download_and_replace(current_exe: &PathBuf, version: &str) -> Result<()> {
-    use std::fs;
-    use std::io::Write;
-
-    // Determine platform-specific binary name
-    let platform = get_platform_string();
-    let archive_name = format!("vx-{}.zip", platform);
-    let download_url = format!(
-        "https://github.com/{}/{}/releases/download/v{}/{}",
-        GITHUB_OWNER, GITHUB_REPO, version, archive_name
-    );
-
-    UI::info(&format!("Downloading vx {} for {}...", version, platform));
-
-    // Create temporary directory
-    let temp_dir = tempfile::tempdir().context("Failed to create temporary directory")?;
-
-    // Download the archive
-    let client = reqwest::Client::new();
-    let response = client
-        .get(&download_url)
-        .send()
-        .await
-        .context("Failed to download update")?;
-
-    if !response.status().is_success() {
-        anyhow::bail!("Download failed: {}", response.status());
-    }
-
-    let archive_path = temp_dir.path().join(&archive_name);
-    let mut file = fs::File::create(&archive_path).context("Failed to create temporary file")?;
-
-    let content = response
-        .bytes()
-        .await
-        .context("Failed to read download content")?;
-
-    file.write_all(&content)
-        .context("Failed to write download content")?;
-
-    // Extract the archive
-    UI::info("Extracting update...");
-    extract_archive(&archive_path, temp_dir.path())?;
-
-    // Find the new executable
-    let new_exe_name = if cfg!(windows) { "vx.exe" } else { "vx" };
-    let new_exe_path = find_executable_in_dir(temp_dir.path(), new_exe_name)?;
-
-    // Replace the current executable
-    UI::info("Installing update...");
-    replace_executable(current_exe, &new_exe_path)?;
-
-    Ok(())
-}
-
-/// Get platform string for download URL
-fn get_platform_string() -> String {
-    let os = if cfg!(target_os = "windows") {
-        "Windows"
-    } else if cfg!(target_os = "macos") {
-        "Darwin"
+    // Handle different asset types
+    if asset.name.ends_with(".zip") {
+        extract_from_zip(&content, &temp_path)?;
+    } else if asset.name.ends_with(".tar.gz") {
+        extract_from_tar_gz(&content, &temp_path)?;
     } else {
-        "Linux"
-    };
-
-    let arch = if cfg!(target_arch = "x86_64") {
-        "x86_64"
-    } else if cfg!(target_arch = "aarch64") {
-        "aarch64"
-    } else {
-        "x86_64" // fallback
-    };
-
-    let variant = if cfg!(target_os = "windows") {
-        "msvc"
-    } else {
-        "gnu"
-    };
-
-    format!("{}-{}-{}", os, variant, arch)
-}
-
-/// Extract archive to directory
-fn extract_archive(archive_path: &PathBuf, extract_dir: &std::path::Path) -> Result<()> {
-    let file = std::fs::File::open(archive_path).context("Failed to open archive")?;
-
-    let mut archive = zip::ZipArchive::new(file).context("Failed to read ZIP archive")?;
-
-    for i in 0..archive.len() {
-        let mut file = archive
-            .by_index(i)
-            .context("Failed to read archive entry")?;
-
-        let outpath = match file.enclosed_name() {
-            Some(path) => extract_dir.join(path),
-            None => continue,
-        };
-
-        if file.name().ends_with('/') {
-            std::fs::create_dir_all(&outpath).context("Failed to create directory")?;
-        } else {
-            if let Some(p) = outpath.parent() {
-                if !p.exists() {
-                    std::fs::create_dir_all(p).context("Failed to create parent directory")?;
-                }
-            }
-            let mut outfile =
-                std::fs::File::create(&outpath).context("Failed to create output file")?;
-            std::io::copy(&mut file, &mut outfile).context("Failed to extract file")?;
-        }
+        // Assume it's a raw binary
+        fs::write(&temp_path, &content)?;
     }
 
-    Ok(())
-}
-
-/// Find executable in directory
-fn find_executable_in_dir(dir: &std::path::Path, exe_name: &str) -> Result<PathBuf> {
-    use std::fs;
-
-    for entry in fs::read_dir(dir).context("Failed to read directory")? {
-        let entry = entry.context("Failed to read directory entry")?;
-        let path = entry.path();
-
-        if path.is_file() && path.file_name().unwrap_or_default() == exe_name {
-            return Ok(path);
-        }
-
-        if path.is_dir() {
-            if let Ok(found) = find_executable_in_dir(&path, exe_name) {
-                return Ok(found);
-            }
-        }
-    }
-
-    anyhow::bail!("Executable {} not found in archive", exe_name);
-}
-
-/// Replace the current executable with the new one
-fn replace_executable(current_exe: &PathBuf, new_exe: &PathBuf) -> Result<()> {
-    use std::fs;
-
-    // On Windows, we might need to rename the current exe first
-    #[cfg(windows)]
+    // Make executable on Unix systems
+    #[cfg(unix)]
     {
-        let backup_path = current_exe.with_extension("exe.old");
-        if backup_path.exists() {
-            fs::remove_file(&backup_path).context("Failed to remove old backup")?;
-        }
-        fs::rename(current_exe, &backup_path).context("Failed to backup current executable")?;
-
-        fs::copy(new_exe, current_exe).context("Failed to install new executable")?;
-
-        // Try to remove backup, but don't fail if we can't
-        let _ = fs::remove_file(&backup_path);
-    }
-
-    #[cfg(not(windows))]
-    {
-        fs::copy(new_exe, current_exe).context("Failed to install new executable")?;
-
-        // Make executable
         use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(current_exe)?.permissions();
+        let mut perms = fs::metadata(&temp_path)?.permissions();
         perms.set_mode(0o755);
-        fs::set_permissions(current_exe, perms).context("Failed to set executable permissions")?;
+        fs::set_permissions(&temp_path, perms)?;
     }
 
+    // Backup current executable
+    if current_exe.exists() && !force {
+        if backup_path.exists() {
+            fs::remove_file(&backup_path)?;
+        }
+        fs::rename(&current_exe, &backup_path)?;
+        UI::detail(&format!(
+            "📦 Backed up current version to {}",
+            backup_path.display()
+        ));
+    }
+
+    // Replace current executable
+    fs::rename(&temp_path, &current_exe)?;
+
+    UI::detail(&format!(
+        "✅ Installed new version to {}",
+        current_exe.display()
+    ));
+
     Ok(())
+}
+
+fn extract_from_zip(content: &[u8], output_path: &PathBuf) -> Result<()> {
+    use std::io::Cursor;
+    use zip::ZipArchive;
+
+    let cursor = Cursor::new(content);
+    let mut archive = ZipArchive::new(cursor)?;
+
+    // Find the vx executable in the archive
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)?;
+        let name = file.name();
+
+        if name.ends_with("vx") || name.ends_with("vx.exe") {
+            let mut output = fs::File::create(output_path)?;
+            std::io::copy(&mut file, &mut output)?;
+            return Ok(());
+        }
+    }
+
+    Err(anyhow!("vx executable not found in ZIP archive"))
+}
+
+fn extract_from_tar_gz(content: &[u8], output_path: &PathBuf) -> Result<()> {
+    use flate2::read::GzDecoder;
+    use std::io::Cursor;
+    use tar::Archive;
+
+    let cursor = Cursor::new(content);
+    let gz = GzDecoder::new(cursor);
+    let mut archive = Archive::new(gz);
+
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let path = entry.path()?;
+
+        if let Some(name) = path.file_name() {
+            if name == "vx" || name == "vx.exe" {
+                let mut output = fs::File::create(output_path)?;
+                std::io::copy(&mut entry, &mut output)?;
+                return Ok(());
+            }
+        }
+    }
+
+    Err(anyhow!("vx executable not found in TAR.GZ archive"))
 }

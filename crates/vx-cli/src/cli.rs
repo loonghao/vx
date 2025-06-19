@@ -83,6 +83,15 @@ pub enum Commands {
         check: bool,
         /// Specific version to install
         version: Option<String>,
+        /// GitHub token for authenticated API requests (avoids rate limits)
+        #[arg(long)]
+        token: Option<String>,
+        /// Include pre-release versions
+        #[arg(long)]
+        prerelease: bool,
+        /// Force update even if already up to date
+        #[arg(long)]
+        force: bool,
     },
 
     /// Uninstall tool versions (preferred over remove)

@@ -2522,12 +2522,16 @@ dependencies = [
  "colored",
  "dialoguer",
  "dirs",
+ "flate2",
  "indicatif",
  "pretty_assertions",
+ "regex",
  "reqwest",
  "rstest",
+ "serde",
  "serde_json",
  "serde_yaml",
+ "tar",
  "tempfile",
  "test-case",
  "tokio",
@@ -2537,6 +2541,7 @@ dependencies = [
  "tracing-indicatif",
  "tracing-subscriber",
  "vx-core",
+ "vx-paths",
  "vx-plugin",
  "vx-tool-go",
  "vx-tool-node",
@@ -2580,7 +2585,7 @@ dependencies = [
  "serial_test",
  "tempfile",
  "test-case",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
  "tokio",
  "tokio-test",
 ]
@@ -2594,7 +2599,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
  "tokio",
  "tokio-test",
 ]
@@ -2615,11 +2620,22 @@ dependencies = [
  "sha2",
  "tar",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
  "tokio",
  "tokio-test",
  "walkdir",
  "zip",
+]
+
+[[package]]
+name = "vx-paths"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "dirs",
+ "serde",
+ "tempfile",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2638,6 +2654,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "vx-config",
+ "vx-paths",
  "which",
 ]
 

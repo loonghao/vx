@@ -15,6 +15,7 @@ rust-version.workspace = true
 [dependencies]
 vx-core = { version = "0.3.0", path = "../vx-core" }
 vx-plugin = { version = "0.3.0", path = "../vx-plugin" }
+vx-paths = { version = "0.3.0", path = "../vx-paths" }
 vx-tool-node = { version = "0.3.0", path = "../vx-tools/vx-tool-node" }
 vx-tool-go = { version = "0.3.0", path = "../vx-tools/vx-tool-go" }
 vx-tool-rust = { version = "0.3.0", path = "../vx-tools/vx-tool-rust" }
@@ -31,12 +32,16 @@ tracing-subscriber = { workspace = true }
 tracing-indicatif = { workspace = true }
 walkdir = { workspace = true }
 toml = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = "0.9"
 reqwest = { workspace = true }
 tempfile = { workspace = true }
 zip = "4.0"
+tar = { workspace = true }
+flate2 = { workspace = true }
 dirs = { workspace = true }
+regex = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -114,9 +114,13 @@ impl VxCli {
                 commands::update::handle(&self.registry, tool.as_deref(), apply).await
             }
 
-            Commands::SelfUpdate { check, version } => {
-                commands::self_update::handle(check, version.as_deref()).await
-            }
+            Commands::SelfUpdate {
+                check,
+                version: _,
+                token,
+                prerelease,
+                force,
+            } => commands::self_update::handle(token.as_deref(), prerelease, force, check).await,
 
             Commands::Uninstall {
                 tool,

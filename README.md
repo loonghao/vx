@@ -68,8 +68,11 @@ vx go run main.go               # Auto-installs Go if needed
 - **🎨 Beautiful UX**: Rich progress bars, colorful output, and intuitive commands
 - **🤖 MCP Ready**: Perfect for MCP servers - just prefix commands with `vx`
 
-### 🚀 Latest Improvements
+### 🚀 Latest Improvements (v0.3.0)
 
+- **🔄 Self-Update System**: Built-in self-update with GitHub token support to avoid rate limits
+- **📁 Unified Path Management**: New vx-paths system for standardized tool installation paths
+- **📊 Enhanced Tool Discovery**: Improved `list` and `which` commands with detailed status information
 - **🏗️ Modular Architecture**: Complete rewrite with vx-installer engine for better maintainability
 - **📊 Advanced Progress Tracking**: Beautiful progress bars with ETA and transfer rates
 - **🔧 Enhanced Installation System**: Support for multiple archive formats and installation methods
@@ -86,6 +89,8 @@ vx go run main.go               # Auto-installs Go if needed
 - **🚀 Auto-Installation**: Automatically download and install missing tools with beautiful progress tracking
 - **🎯 Project-Specific**: Support for project-level tool configurations
 - **🔌 Plugin Architecture**: Modular design with extensible plugin system
+- **🔄 Self-Update System**: Built-in updates with GitHub token support to avoid API rate limits
+- **📁 Unified Path Management**: Standardized tool installation paths across all platforms
 
 ### 🎨 Enhanced CLI Experience
 - **📊 Beautiful Progress Bars**: Rich progress bars with ETA, transfer rates, and visual feedback
@@ -110,6 +115,7 @@ vx go run main.go               # Auto-installs Go if needed
 - **📈 Dependency Tracking**: Advanced dependency management and conflict resolution
 - **🧹 Maintenance Tools**: Automated cleanup of orphaned packages and cache management
 - **📋 Rich CLI**: Comprehensive command-line interface with detailed help and examples
+- **📁 Unified Path Management**: Standardized tool paths (`~/.vx/tools/<tool>/<version>/`) across all platforms
 
 ## 🚀 Quick Start
 
@@ -239,8 +245,14 @@ vx cargo build --release             # Same Cargo commands
 
 # 🔧 Advanced features when you need them
 vx --use-system-path python --version  # Use system tools when needed
-vx list                               # Show all available tools
+vx list --status                      # Show all tools with installation status
+vx which node --all                   # Show all installed versions of a tool
 vx stats                              # Package statistics and usage
+
+# 🔄 Self-update with GitHub token support (solves rate limit issues)
+vx self-update --check                # Check for updates
+vx self-update --token ghp_xxxx       # Update with GitHub token (recommended for teams)
+vx self-update --prerelease           # Include pre-release versions
 
 # 🎯 Version management with beautiful progress bars
 vx install uv@0.7.12                 # Install specific versions
@@ -551,6 +563,56 @@ vx go run cmd/server/main.go  # Backend server
 vx uv run python scripts/deploy.py  # Deployment script
 ```
 
+## 🔄 Self-Update System
+
+vx includes a powerful self-update system that solves GitHub API rate limit issues commonly encountered in shared environments.
+
+### 🚀 Quick Update
+```bash
+# Check for updates
+vx self-update --check
+
+# Update to latest version
+vx self-update
+
+# Update with GitHub token (recommended for teams/shared networks)
+vx self-update --token ghp_your_github_token_here
+
+# Include pre-release versions
+vx self-update --prerelease
+
+# Force update even if already up to date
+vx self-update --force
+```
+
+### 🔐 GitHub Token Support
+
+**Problem**: GitHub's public API has a rate limit of 60 requests per hour for unauthenticated users. In shared environments (offices, schools, apartments), multiple users may hit this limit.
+
+**Solution**: Use a GitHub token to increase the rate limit to 5,000 requests per hour:
+
+```bash
+# Create a GitHub token at: https://github.com/settings/tokens
+# No special permissions needed - just basic access
+
+# Use token for updates
+vx self-update --token ghp_xxxxxxxxxxxxxxxxxxxx
+
+# Or set as environment variable
+export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+vx self-update
+```
+
+### 📊 Update Features
+
+- **🔍 Smart Detection**: Automatically detects current and latest versions
+- **📦 Cross-Platform**: Supports Windows, macOS, and Linux binaries
+- **🔒 Secure Downloads**: HTTPS-only with automatic verification
+- **📋 Release Notes**: Shows changelog for new versions
+- **🔄 Backup & Rollback**: Automatically backs up current version
+- **⚡ Fast Downloads**: Concurrent downloads with progress bars
+- **🎯 Format Support**: ZIP, TAR.GZ archives and raw binaries
+
 ## 📊 Package Management
 
 ### Multi-Version Support
@@ -559,8 +621,13 @@ vx uv run python scripts/deploy.py  # Deployment script
 vx install go@1.20.0
 vx install go@1.21.6
 
-# List installed versions
+# List installed versions with detailed status
+vx list --status
 vx stats
+
+# Show tool installation paths
+vx which go --all
+vx which node --all
 
 # Switch between versions
 vx switch go@1.20.0
@@ -614,14 +681,17 @@ See [MODULAR_ARCHITECTURE.md](MODULAR_ARCHITECTURE.md) for detailed plugin devel
 
 ## 🚀 Roadmap
 
-### Current Status (v0.2.x)
+### Current Status (v0.3.0)
 - ✅ **Core plugin architecture** with trait-based extensibility
 - ✅ **6 built-in tools** (UV, UVX, Node.js, NPX, Go, Rust)
 - ✅ **Environment isolation system** with complete PATH management
-- ✅ **🆕 vx-installer engine** with universal format support
-- ✅ **🆕 Beautiful progress bars** with ETA and transfer rates
-- ✅ **🆕 Security-first downloads** with checksum verification
-- ✅ **🆕 Async installation system** with concurrent operations
+- ✅ **🆕 Self-update system** with GitHub token support for rate limit avoidance
+- ✅ **🆕 Unified path management** with vx-paths system (`~/.vx/tools/<tool>/<version>/`)
+- ✅ **🆕 Enhanced tool discovery** with improved `list --status` and `which --all` commands
+- ✅ **vx-installer engine** with universal format support
+- ✅ **Beautiful progress bars** with ETA and transfer rates
+- ✅ **Security-first downloads** with checksum verification
+- ✅ **Async installation system** with concurrent operations
 - ✅ **Multi-version package management** with intelligent switching
 - ✅ **MCP integration support** for seamless proxy usage
 - ✅ **Package runner support** (npx, uvx) with environment isolation

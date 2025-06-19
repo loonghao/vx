@@ -57,9 +57,13 @@ impl CommandHandler {
                 update::handle(registry, tool.as_deref(), false).await
             }
 
-            Some(Commands::SelfUpdate { check, version }) => {
-                self_update::handle(check, version.as_deref()).await
-            }
+            Some(Commands::SelfUpdate {
+                check,
+                version: _,
+                token,
+                prerelease,
+                force,
+            }) => self_update::handle(token.as_deref(), prerelease, force, check).await,
 
             Some(Commands::Uninstall {
                 tool,
