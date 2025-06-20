@@ -61,7 +61,16 @@ macro_rules! node_vx_tool {
                 }
 
                 let install_dir = self.get_version_install_dir(version);
-                let _exe_path = self.default_install_workflow(version, &install_dir).await?;
+
+                // Use real installation with vx-installer
+                let mut config = crate::config::create_install_config(version, install_dir);
+                config.force = force; // Set the force flag
+                let installer = vx_installer::Installer::new().await?;
+
+                let _exe_path = installer
+                    .install(&config)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Failed to install Node.js {}: {}", version, e))?;
 
                 // Verify installation
                 if !self.is_version_installed(version).await? {
@@ -86,7 +95,16 @@ macro_rules! node_vx_tool {
                 args: &[String],
                 context: &ToolContext,
             ) -> Result<ToolExecutionResult> {
-                // Simple implementation - execute the tool directly
+                // Check if tool is available in system PATH
+                if which::which($cmd).is_err() {
+                    // Try to install tool if not found
+                    eprintln!("{} not found, attempting to install...", $cmd);
+                    if let Err(e) = self.install_version("latest", false).await {
+                        return Err(anyhow::anyhow!("Failed to install {}: {}", $cmd, e));
+                    }
+                    eprintln!("{} installed successfully", $cmd);
+                }
+
                 let mut cmd = std::process::Command::new($cmd);
                 cmd.args(args);
 

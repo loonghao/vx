@@ -4,7 +4,7 @@
 //! including URL building, platform detection, and installation methods.
 
 use std::path::PathBuf;
-use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod};
+use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod, LifecycleAction, LifecycleHooks};
 use vx_tool_standard::{StandardToolConfig, StandardUrlBuilder, ToolDependency};
 
 /// Standard configuration for Go tool
@@ -98,12 +98,22 @@ pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConf
         },
     };
 
+    // Create lifecycle hooks to optimize path structure
+    let mut hooks = LifecycleHooks::default();
+
+    // Go archives extract to go/ subdirectory
+    // We want to move everything from go/ to the root install directory
+    hooks.post_install.push(LifecycleAction::FlattenDirectory {
+        source_pattern: "go".to_string(),
+    });
+
     InstallConfig::builder()
         .tool_name("go")
         .version(version.to_string())
         .install_method(install_method)
         .download_url(download_url.unwrap_or_default())
         .install_dir(install_dir)
+        .lifecycle_hooks(hooks)
         .build()
 }
 

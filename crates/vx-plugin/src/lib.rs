@@ -61,6 +61,7 @@
 //! ```
 
 // Re-export core types and traits for convenience
+pub use dependency::DependencyResolver;
 pub use package_manager::{StandardPackageManager, VxPackageManager};
 pub use plugin::{StandardPlugin, VxPlugin};
 pub use registry::{PluginRegistry, PluginRegistryBuilder, ToolRegistry};
@@ -68,6 +69,7 @@ pub use tool::{ConfigurableTool, UrlBuilder, VersionParser, VxTool};
 pub use types::*;
 
 // Module declarations
+pub mod dependency;
 pub mod package_manager;
 pub mod plugin;
 pub mod registry;

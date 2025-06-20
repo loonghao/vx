@@ -4,7 +4,7 @@
 //! including URL building, platform detection, and installation methods.
 
 use std::path::PathBuf;
-use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod};
+use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod, LifecycleAction, LifecycleHooks};
 use vx_tool_standard::{StandardToolConfig, StandardUrlBuilder, ToolDependency};
 
 /// Standard configuration for UV tool
@@ -114,6 +114,20 @@ impl StandardToolConfig for Config {
 pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConfig {
     let download_url = UvUrlBuilder::download_url(version);
 
+    // Create lifecycle hooks to optimize path structure
+    let mut hooks = LifecycleHooks::default();
+
+    // UV archives may extract to subdirectories, flatten them
+    // Also set executable permissions on Unix systems
+    hooks.post_install.push(LifecycleAction::FlattenDirectory {
+        source_pattern: "uv".to_string(),
+    });
+
+    #[cfg(unix)]
+    hooks.post_install.push(LifecycleAction::SetExecutable {
+        path: "uv".to_string(),
+    });
+
     InstallConfig::builder()
         .tool_name(Config::tool_name())
         .version(version)
@@ -126,6 +140,7 @@ pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConf
             },
         })
         .install_dir(install_dir)
+        .lifecycle_hooks(hooks)
         .build()
 }
 

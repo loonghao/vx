@@ -395,3 +395,44 @@ pub enum IsolationLevel {
     /// Complete sandboxing
     Sandbox,
 }
+
+/// Tool dependency specification
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolDependency {
+    /// Name of the dependency tool
+    pub tool_name: String,
+    /// Human-readable description
+    pub description: String,
+    /// Whether this dependency is required
+    pub required: bool,
+    /// Version requirement (optional)
+    pub version_requirement: Option<String>,
+}
+
+impl ToolDependency {
+    /// Create a new required dependency
+    pub fn required(tool_name: impl Into<String>, description: impl Into<String>) -> Self {
+        Self {
+            tool_name: tool_name.into(),
+            description: description.into(),
+            required: true,
+            version_requirement: None,
+        }
+    }
+
+    /// Create a new optional dependency
+    pub fn optional(tool_name: impl Into<String>, description: impl Into<String>) -> Self {
+        Self {
+            tool_name: tool_name.into(),
+            description: description.into(),
+            required: false,
+            version_requirement: None,
+        }
+    }
+
+    /// Set version requirement
+    pub fn with_version(mut self, version: impl Into<String>) -> Self {
+        self.version_requirement = Some(version.into());
+        self
+    }
+}

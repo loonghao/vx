@@ -2,6 +2,8 @@
 //!
 //! This provides Bun package manager integration and tool support for the vx tool.
 
+pub mod config;
+
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
@@ -127,7 +129,15 @@ impl VxTool for BunTool {
         }
 
         let install_dir = self.get_version_install_dir(version);
-        let _exe_path = self.default_install_workflow(version, &install_dir).await?;
+
+        // Use real installation with vx-installer
+        let config = crate::config::create_install_config(version, install_dir);
+        let installer = vx_installer::Installer::new().await?;
+
+        let _exe_path = installer
+            .install(&config)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to install Bun {}: {}", version, e))?;
 
         // Verify installation
         if !self.is_version_installed(version).await? {
@@ -146,6 +156,16 @@ impl VxTool for BunTool {
     }
 
     async fn execute(&self, args: &[String], context: &ToolContext) -> Result<ToolExecutionResult> {
+        // Check if bun is available in system PATH
+        if which::which("bun").is_err() {
+            // Try to install bun if not found
+            eprintln!("Bun not found, attempting to install...");
+            if let Err(e) = self.install_version("latest", false).await {
+                return Err(anyhow::anyhow!("Failed to install bun: {}", e));
+            }
+            eprintln!("Bun installed successfully");
+        }
+
         let mut cmd = std::process::Command::new("bun");
         cmd.args(args);
 
@@ -194,6 +214,12 @@ impl VxTool for BunTool {
             "https://github.com/oven-sh/bun".to_string(),
         );
         meta
+    }
+
+    fn get_dependencies(&self) -> Vec<vx_plugin::ToolDependency> {
+        // Bun is a standalone JavaScript runtime that doesn't require Node.js
+        // It's actually an alternative to Node.js
+        vec![]
     }
 }
 

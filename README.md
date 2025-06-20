@@ -322,6 +322,9 @@ vx config                             # Manage global settings
 | **UVX** | `vx uvx <package>`, `vx uvx ruff`, `vx uvx black` | Python | ✅ | ✅ | Python application runner (via UV) |
 | **Node.js** | `vx node`, `vx npm`, `vx npx` | JavaScript | ✅ | ✅ | JavaScript runtime and package manager |
 | **NPX** | `vx npx <package>`, `vx npx create-react-app` | JavaScript | ✅ | ✅ | Node.js package runner |
+| **Yarn** | `vx yarn install`, `vx yarn add`, `vx yarn run` | JavaScript | ✅ | ✅ | Fast, reliable dependency management (Classic & Berry) |
+| **PNPM** | `vx pnpm install`, `vx pnpm add`, `vx pnpm run` | JavaScript | ✅ | ✅ | Fast, disk space efficient package manager |
+| **Bun** | `vx bun install`, `vx bun add`, `vx bun run` | JavaScript | ✅ | ✅ | Incredibly fast JavaScript runtime and package manager |
 | **Go** | `vx go build`, `vx go run`, `vx go test` | Go | ✅ | ✅ | Go programming language toolchain |
 | **Rust** | `vx cargo build`, `vx cargo run`, `vx cargo test` | Rust | ✅ | ✅ | Rust programming language and Cargo |
 
@@ -336,10 +339,10 @@ vx config                             # Manage global settings
 
 ### 🏗️ Plugin Categories
 - **Languages**: Go, Rust, Node.js, Python (via UV)
-- **Package Managers**: npm, Cargo, UV (pip-compatible)
+- **Package Managers**: npm, yarn, pnpm, bun, Cargo, UV (pip-compatible)
 - **Package Runners**: npx, uvx (with complete environment isolation)
 - **Build Tools**: Go build, Cargo, and language-specific toolchains
-- **Runtimes**: Node.js with automatic version management
+- **Runtimes**: Node.js, Bun with automatic version management
 
 ## 🚀 vx-installer Engine
 
@@ -885,7 +888,7 @@ See [MODULAR_ARCHITECTURE.md](MODULAR_ARCHITECTURE.md) for detailed plugin devel
 - [ ] **zig** - Systems programming language (`vx zig build`, `vx zig run`)
 
 #### 🚀 Enhanced Features
-- [ ] **Enhanced Package Managers**: pnpm, yarn, bun with full vx-installer integration
+- [x] **Enhanced Package Managers**: pnpm, yarn, bun with full vx-installer integration
 - [ ] **System Package Managers**: Homebrew, Chocolatey, apt, yum support
 - [ ] **Specialized Tools**: Rez for VFX, Spack for HPC environments
 - [ ] **External Plugin Support**: .dll, .so, and script-based plugins

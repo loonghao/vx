@@ -232,6 +232,9 @@ vx config                             # 管理全局设置
 |------|----------|----------|--------------|-------------|
 | **UV** | `vx uv pip`, `vx uv venv`, `vx uv run`, `vx uv add` | Python | ✅ | 极快的 Python 包安装器 |
 | **Node.js** | `vx node`, `vx npm`, `vx npx` | JavaScript | ✅ | JavaScript 运行时和包管理器 |
+| **Yarn** | `vx yarn install`, `vx yarn add`, `vx yarn run` | JavaScript | ✅ | 快速、可靠的依赖管理（Classic & Berry） |
+| **PNPM** | `vx pnpm install`, `vx pnpm add`, `vx pnpm run` | JavaScript | ✅ | 快速、节省磁盘空间的包管理器 |
+| **Bun** | `vx bun install`, `vx bun add`, `vx bun run` | JavaScript | ✅ | 极快的 JavaScript 运行时和包管理器 |
 | **Go** | `vx go build`, `vx go run`, `vx go test` | Go | ✅ | Go 编程语言工具链 |
 | **Rust** | `vx cargo build`, `vx cargo run`, `vx cargo test` | Rust | ✅ | Rust 编程语言和 Cargo |
 
@@ -463,7 +466,7 @@ cargo run -- --help
 - [ ] **zig** - 系统编程语言（`vx zig build`、`vx zig run`）
 
 #### 🚀 增强功能
-- [ ] **增强的包管理器**: pnpm、yarn、bun 与完整的 vx-installer 集成
+- [x] **增强的包管理器**: pnpm、yarn、bun 与完整的 vx-installer 集成
 - [ ] **系统包管理器**: Homebrew、Chocolatey、apt、yum 支持
 - [ ] **专业工具**: 用于 VFX 的 Rez、用于 HPC 环境的 Spack
 - [ ] **外部插件支持**: .dll、.so 和基于脚本的插件

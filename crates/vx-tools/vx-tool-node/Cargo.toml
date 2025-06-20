@@ -13,7 +13,9 @@ rust-version.workspace = true
 
 [dependencies]
 vx-core = { version = "0.4.0", path = "../../vx-core" }
-vx-installer = { version = "0.4.0", path = "../../vx-installer" }
+vx-installer = { version = "0.4.0", path = "../../vx-installer", features = [
+    "progress",
+] }
 vx-tool-standard = { version = "0.4.0", path = "../../vx-tool-standard" }
 vx-plugin = { version = "0.4.0", path = "../../vx-plugin" }
 vx-version = { version = "0.2.2", path = "../../vx-version" }

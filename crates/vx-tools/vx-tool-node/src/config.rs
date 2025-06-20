@@ -4,7 +4,7 @@
 //! including URL building, platform detection, and installation methods.
 
 use std::path::PathBuf;
-use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod};
+use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod, LifecycleAction, LifecycleHooks};
 use vx_tool_standard::{StandardToolConfig, StandardUrlBuilder, ToolDependency};
 
 /// Standard configuration for Node.js tool
@@ -98,12 +98,44 @@ pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConf
         },
     };
 
+    // Create lifecycle hooks to optimize path structure
+    let mut hooks = LifecycleHooks::default();
+
+    // Post-install action to flatten the directory structure
+    // Node.js archives extract to node-v{version}-{platform}/ subdirectory
+    // We want to move everything to the root install directory
+    let platform = NodeUrlBuilder::get_platform_string();
+    let archive_subdir = format!("node-v{}-{}", actual_version, platform);
+
+    hooks.post_install.push(LifecycleAction::FlattenDirectory {
+        source_pattern: archive_subdir,
+    });
+
+    // Add health check to verify Node.js installation
+    // Use --version flag to avoid hanging and get a quick response
+    hooks
+        .post_install
+        .push(LifecycleAction::ValidateInstallation {
+            command: if cfg!(windows) {
+                "node.exe --version".to_string()
+            } else {
+                "node --version".to_string()
+            },
+            expected_output: Some("v".to_string()), // Node.js version starts with 'v'
+        });
+
+    // Cleanup any temporary files
+    hooks.post_install.push(LifecycleAction::CleanupTemp {
+        pattern: ".tmp".to_string(),
+    });
+
     InstallConfig::builder()
         .tool_name("node")
         .version(version.to_string())
         .install_method(install_method)
         .download_url(download_url.unwrap_or_default())
         .install_dir(install_dir)
+        .lifecycle_hooks(hooks)
         .build()
 }
 

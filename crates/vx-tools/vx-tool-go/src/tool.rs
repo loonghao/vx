@@ -59,7 +59,16 @@ impl VxTool for GoTool {
         }
 
         let install_dir = self.get_version_install_dir(version);
-        let _exe_path = self.default_install_workflow(version, &install_dir).await?;
+
+        // Use real installation with vx-installer
+        let mut config = crate::config::create_install_config(version, install_dir);
+        config.force = force; // Set the force flag
+        let installer = vx_installer::Installer::new().await?;
+
+        let _exe_path = installer
+            .install(&config)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to install Go {}: {}", version, e))?;
 
         // Verify installation
         if !self.is_version_installed(version).await? {
@@ -74,8 +83,52 @@ impl VxTool for GoTool {
     }
 
     async fn execute(&self, args: &[String], context: &ToolContext) -> Result<ToolExecutionResult> {
-        // Simple implementation - execute the tool directly
-        let mut cmd = std::process::Command::new("go");
+        // Determine which go executable to use
+        let go_executable = if context.use_system_path {
+            "go".to_string() // Use system go
+        } else {
+            // Ensure go is installed in vx environment
+            let active_version = match self.get_active_version().await {
+                Ok(version) => version,
+                Err(_) => {
+                    // No version installed, try to install latest
+                    match self.install_version("latest", false).await {
+                        Ok(_) => "latest".to_string(),
+                        Err(e) => {
+                            return Err(anyhow::anyhow!("Failed to install go: {}", e));
+                        }
+                    }
+                }
+            };
+
+            // Get the path to the vx-managed go executable
+            let install_dir = self.get_version_install_dir(&active_version);
+            match self.get_executable_path(&install_dir).await {
+                Ok(path) => path.to_string_lossy().to_string(),
+                Err(_) => {
+                    // Executable not found, try to install
+                    match self.install_version("latest", false).await {
+                        Ok(_) => {
+                            let latest_dir = self.get_version_install_dir("latest");
+                            match self.get_executable_path(&latest_dir).await {
+                                Ok(path) => path.to_string_lossy().to_string(),
+                                Err(e) => {
+                                    return Err(anyhow::anyhow!(
+                                        "Failed to find go executable after installation: {}",
+                                        e
+                                    ));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            return Err(anyhow::anyhow!("Failed to install go: {}", e));
+                        }
+                    }
+                }
+            }
+        };
+
+        let mut cmd = std::process::Command::new(&go_executable);
         cmd.args(args);
 
         if let Some(cwd) = &context.working_directory {
