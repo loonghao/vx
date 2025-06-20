@@ -59,7 +59,16 @@ impl VxTool for GoTool {
         }
 
         let install_dir = self.get_version_install_dir(version);
-        let _exe_path = self.default_install_workflow(version, &install_dir).await?;
+
+        // Use real installation with vx-installer
+        let mut config = crate::config::create_install_config(version, install_dir);
+        config.force = force; // Set the force flag
+        let installer = vx_installer::Installer::new().await?;
+
+        let _exe_path = installer
+            .install(&config)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to install Go {}: {}", version, e))?;
 
         // Verify installation
         if !self.is_version_installed(version).await? {

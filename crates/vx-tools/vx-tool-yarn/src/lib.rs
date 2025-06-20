@@ -2,6 +2,8 @@
 //!
 //! This provides Yarn package manager integration for the vx tool.
 
+pub mod config;
+
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
@@ -158,7 +160,16 @@ impl VxTool for YarnTool {
         }
 
         let install_dir = self.get_version_install_dir(version);
-        let _exe_path = self.default_install_workflow(version, &install_dir).await?;
+
+        // Use real installation with vx-installer
+        let mut config = crate::config::create_install_config(version, install_dir);
+        config.force = force; // Set the force flag
+        let installer = vx_installer::Installer::new().await?;
+
+        let _exe_path = installer
+            .install(&config)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to install Yarn {}: {}", version, e))?;
 
         // Verify installation
         if !self.is_version_installed(version).await? {
@@ -266,6 +277,13 @@ impl VxTool for YarnTool {
             "https://github.com/yarnpkg/yarn".to_string(),
         );
         meta
+    }
+
+    fn get_dependencies(&self) -> Vec<vx_plugin::ToolDependency> {
+        vec![
+            vx_plugin::ToolDependency::required("node", "Yarn requires Node.js runtime")
+                .with_version(">=16.10.0"),
+        ]
     }
 }
 

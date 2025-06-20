@@ -16,6 +16,7 @@ rust-version.workspace = true
 vx-core = { version = "0.4.0", path = "../vx-core" }
 vx-plugin = { version = "0.4.0", path = "../vx-plugin" }
 vx-paths = { version = "0.3.1", path = "../vx-paths" }
+shimexe-core = "0.1"
 vx-tool-node = { version = "0.4.0", path = "../vx-tools/vx-tool-node" }
 vx-tool-go = { version = "0.4.0", path = "../vx-tools/vx-tool-go" }
 vx-tool-rust = { version = "0.4.0", path = "../vx-tools/vx-tool-rust" }
@@ -45,6 +46,7 @@ tar = { workspace = true }
 flate2 = { workspace = true }
 dirs = { workspace = true }
 regex = { workspace = true }
+which = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

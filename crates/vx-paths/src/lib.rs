@@ -10,10 +10,12 @@ use std::path::{Path, PathBuf};
 pub mod config;
 pub mod manager;
 pub mod resolver;
+pub mod shim;
 
 pub use config::PathConfig;
 pub use manager::PathManager;
 pub use resolver::PathResolver;
+pub use shim::ShimManager;
 
 /// Standard vx directory structure
 #[derive(Debug, Clone)]

@@ -56,7 +56,15 @@ macro_rules! rust_vx_tool {
                 }
 
                 let install_dir = self.get_version_install_dir(version);
-                let _exe_path = self.default_install_workflow(version, &install_dir).await?;
+
+                // Use real installation with vx-installer
+                let config = crate::config::create_install_config(version, install_dir);
+                let installer = vx_installer::Installer::new().await?;
+
+                let _exe_path = installer
+                    .install(&config)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Failed to install Rust {}: {}", version, e))?;
 
                 // Verify installation
                 if !self.is_version_installed(version).await? {

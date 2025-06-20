@@ -124,8 +124,11 @@ pub trait VxTool: Send + Sync {
     /// Default implementation checks for the existence of the tool's executable
     /// in the standard vx path structure.
     async fn is_version_installed(&self, version: &str) -> Result<bool> {
-        let path_manager = PathManager::new().unwrap_or_else(|_| PathManager::default());
-        Ok(path_manager.is_tool_version_installed(self.name(), version))
+        let install_dir = self.get_version_install_dir(version);
+        match self.get_executable_path(&install_dir).await {
+            Ok(exe_path) => Ok(exe_path.exists()),
+            Err(_) => Ok(false),
+        }
     }
 
     /// Execute the tool with given arguments
@@ -151,11 +154,40 @@ pub trait VxTool: Send + Sync {
             return Ok(standard_path);
         }
 
+        // On Windows, also try .bat extension for batch files
+        #[cfg(windows)]
+        {
+            let bat_path = install_dir.join(format!("{}.bat", self.name()));
+            if bat_path.exists() {
+                return Ok(bat_path);
+            }
+        }
+
+        // Try tool-specific locations based on common installation patterns
+        let tool_specific_candidates =
+            self.get_tool_specific_executable_paths(install_dir, &exe_name);
+        for candidate in tool_specific_candidates {
+            if candidate.exists() {
+                return Ok(candidate);
+            }
+        }
+
         // Try common locations for legacy or non-standard installations
-        let candidates = vec![
+        let mut candidates = vec![
             install_dir.join("bin").join(&exe_name),
             install_dir.join("Scripts").join(&exe_name), // Windows Python-style
         ];
+
+        // On Windows, also try .bat files in common locations
+        #[cfg(windows)]
+        {
+            candidates.push(install_dir.join("bin").join(format!("{}.bat", self.name())));
+            candidates.push(
+                install_dir
+                    .join("Scripts")
+                    .join(format!("{}.bat", self.name())),
+            );
+        }
 
         for candidate in candidates {
             if candidate.exists() {
@@ -165,6 +197,46 @@ pub trait VxTool: Send + Sync {
 
         // Default to standard vx path structure
         Ok(standard_path)
+    }
+
+    /// Get tool-specific executable paths
+    ///
+    /// Override this method to provide tool-specific executable locations.
+    /// This is useful for tools that have non-standard directory structures.
+    fn get_tool_specific_executable_paths(
+        &self,
+        install_dir: &Path,
+        exe_name: &str,
+    ) -> Vec<PathBuf> {
+        match self.name() {
+            "go" => vec![
+                // Go typically extracts to go/bin/go.exe
+                install_dir.join("go").join("bin").join(exe_name),
+                // Alternative: go-<version>/bin/go.exe (though we don't know version here)
+                install_dir.join("go").join("bin").join(exe_name),
+            ],
+            "node" => vec![
+                // Node.js can be directly in the root or in a subdirectory
+                install_dir.join("node").join(exe_name),
+                install_dir.join("node.exe"), // Sometimes just node.exe in root
+            ],
+            "python" => vec![
+                // Python can be in various locations
+                install_dir.join("python").join(exe_name),
+                install_dir.join("Python").join(exe_name),
+                install_dir.join("Scripts").join(exe_name),
+            ],
+            "rust" | "cargo" | "rustc" => vec![
+                // Rust toolchain structure
+                install_dir.join("bin").join(exe_name),
+                install_dir.join("rust").join("bin").join(exe_name),
+            ],
+            "uv" => vec![
+                // UV is typically a single binary
+                install_dir.join("uv").join(exe_name),
+            ],
+            _ => vec![], // No specific paths for unknown tools
+        }
     }
 
     /// Get download URL for a specific version and current platform
@@ -285,25 +357,46 @@ pub trait VxTool: Send + Sync {
 
         // Create executable in standard vx path structure
         let path_manager = PathManager::new().unwrap_or_else(|_| PathManager::default());
-        let exe_path = path_manager.tool_executable_path(self.name(), version);
+
+        // On Windows, use .bat extension for batch files, otherwise use standard extension
+        let exe_path = if cfg!(windows) {
+            let version_dir = path_manager.tool_version_dir(self.name(), version);
+            version_dir.join(format!("{}.bat", self.name()))
+        } else {
+            path_manager.tool_executable_path(self.name(), version)
+        };
 
         if let Some(parent) = exe_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
 
         // Create a placeholder file to indicate installation
-        std::fs::write(
-            &exe_path,
-            format!(
-                "#!/bin/bash\necho 'This is {} version {}'\n",
-                self.name(),
-                version
-            ),
-        )?;
-
-        // Make it executable on Unix systems
-        #[cfg(unix)]
+        #[cfg(windows)]
         {
+            // On Windows, create a batch file that can actually be executed
+            std::fs::write(
+                &exe_path,
+                format!(
+                    "@echo off\necho This is {} version {}\n",
+                    self.name(),
+                    version
+                ),
+            )?;
+        }
+
+        #[cfg(not(windows))]
+        {
+            // On Unix systems, create a shell script
+            std::fs::write(
+                &exe_path,
+                format!(
+                    "#!/bin/bash\necho 'This is {} version {}'\n",
+                    self.name(),
+                    version
+                ),
+            )?;
+
+            // Make it executable on Unix systems
             use std::os::unix::fs::PermissionsExt;
             let mut perms = std::fs::metadata(&exe_path)?.permissions();
             perms.set_mode(0o755);
@@ -319,6 +412,12 @@ pub trait VxTool: Send + Sync {
     /// supported platforms, configuration options, etc.
     fn metadata(&self) -> HashMap<String, String> {
         HashMap::new()
+    }
+
+    /// Get tool dependencies
+    /// Default implementation returns empty dependencies
+    fn get_dependencies(&self) -> Vec<crate::types::ToolDependency> {
+        Vec::new()
     }
 }
 

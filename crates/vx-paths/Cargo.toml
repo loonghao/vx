@@ -12,6 +12,9 @@ anyhow = { workspace = true }
 dirs = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+shimexe-core = { workspace = true }
+toml = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }

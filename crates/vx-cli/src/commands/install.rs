@@ -11,44 +11,66 @@ pub async fn handle(
     version: Option<&str>,
     force: bool,
 ) -> Result<()> {
+    // Parse tool@version format if present
+    let (actual_tool_name, parsed_version) = if tool_name.contains('@') {
+        let parts: Vec<&str> = tool_name.splitn(2, '@').collect();
+        if parts.len() == 2 {
+            (parts[0], Some(parts[1]))
+        } else {
+            (tool_name, version)
+        }
+    } else {
+        (tool_name, version)
+    };
+
     // Get the tool from registry
     let tool = registry
-        .get_tool(tool_name)
-        .ok_or_else(|| anyhow::anyhow!("Tool not found: {}", tool_name))?;
+        .get_tool(actual_tool_name)
+        .ok_or_else(|| anyhow::anyhow!("Tool not found: {}", actual_tool_name))?;
 
-    // Determine version to install
-    let target_version = if let Some(v) = version {
+    // Determine version to install (prefer parsed version over explicit version)
+    let target_version = if let Some(v) = parsed_version.or(version) {
         v.to_string()
     } else {
         // Get latest version with progress span
-        let span = info_span!("Fetching latest version", tool = tool_name);
+        let span = info_span!("Fetching latest version", tool = actual_tool_name);
         let versions = async {
-            UI::info(&format!("Fetching latest version for {}...", tool_name));
+            UI::info(&format!(
+                "Fetching latest version for {}...",
+                actual_tool_name
+            ));
             tool.fetch_versions(false).await
         }
         .instrument(span)
         .await?;
 
         if versions.is_empty() {
-            return Err(anyhow::anyhow!("No versions found for tool: {}", tool_name));
+            return Err(anyhow::anyhow!(
+                "No versions found for tool: {}",
+                actual_tool_name
+            ));
         }
         versions[0].version.clone()
     };
 
-    UI::info(&format!("Installing {} {}...", tool_name, target_version));
+    UI::info(&format!(
+        "Installing {} {}...",
+        actual_tool_name, target_version
+    ));
 
     // Check if already installed
     if !force && tool.is_version_installed(&target_version).await? {
         UI::success(&format!(
             "{} {} is already installed",
-            tool_name, target_version
+            actual_tool_name, target_version
         ));
         UI::hint("Use --force to reinstall");
         return Ok(());
     }
 
     // Install the version with progress span
-    let install_span = info_span!("Installing tool", tool = tool_name, version = %target_version);
+    let install_span =
+        info_span!("Installing tool", tool = actual_tool_name, version = %target_version);
     let install_result = async { tool.install_version(&target_version, force).await }
         .instrument(install_span)
         .await;
@@ -57,7 +79,7 @@ pub async fn handle(
         Ok(()) => {
             UI::success(&format!(
                 "Successfully installed {} {}",
-                tool_name, target_version
+                actual_tool_name, target_version
             ));
 
             // Show installation path
@@ -67,13 +89,13 @@ pub async fn handle(
             // Show usage hint
             UI::hint(&format!(
                 "Use 'vx {} --version' to verify installation",
-                tool_name
+                actual_tool_name
             ));
         }
         Err(e) => {
             UI::error(&format!(
                 "Failed to install {} {}: {}",
-                tool_name, target_version, e
+                actual_tool_name, target_version, e
             ));
             return Err(e);
         }

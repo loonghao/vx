@@ -61,7 +61,15 @@ macro_rules! uv_vx_tool {
                 }
 
                 let install_dir = self.get_version_install_dir(version);
-                let _exe_path = self.default_install_workflow(version, &install_dir).await?;
+
+                // Use real installation with vx-installer
+                let config = crate::config::create_install_config(version, install_dir);
+                let installer = vx_installer::Installer::new().await?;
+
+                let _exe_path = installer
+                    .install(&config)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Failed to install UV {}: {}", version, e))?;
 
                 // Verify installation
                 if !self.is_version_installed(version).await? {
@@ -102,17 +110,39 @@ macro_rules! uv_vx_tool {
                     self.name()
                 };
 
-                // Check if tool is available in system PATH
-                if which::which(tool_name).is_err() {
-                    // Try to install tool if not found
-                    eprintln!("{} not found, attempting to install...", tool_name);
-                    if let Err(e) = self.install_version("latest", false).await {
-                        return Err(anyhow::anyhow!("Failed to install {}: {}", tool_name, e));
-                    }
-                    eprintln!("{} installed successfully", tool_name);
-                }
+                // First, try to use vx-managed version
+                let path_manager = vx_paths::PathManager::new()
+                    .map_err(|e| anyhow::anyhow!("Failed to initialize path manager: {}", e))?;
 
-                let mut cmd = std::process::Command::new(tool_name);
+                // Check if we have an installed version
+                let installed_versions = self.get_installed_versions().await?;
+                let executable_path = if !installed_versions.is_empty() {
+                    // Use the latest installed version
+                    let latest_version = &installed_versions[0];
+                    path_manager.tool_executable_path(tool_name, latest_version)
+                } else {
+                    // No vx-managed version, check if we should use system PATH
+                    if context.use_system_path {
+                        // Check if tool is available in system PATH
+                        if which::which(tool_name).is_err() {
+                            // Try to install tool if not found
+                            eprintln!("{} not found, attempting to install...", tool_name);
+                            if let Err(e) = self.install_version("latest", false).await {
+                                return Err(anyhow::anyhow!("Failed to install {}: {}", tool_name, e));
+                            }
+                            eprintln!("{} installed successfully", tool_name);
+                        }
+                        // Use system tool
+                        std::path::PathBuf::from(tool_name)
+                    } else {
+                        return Err(anyhow::anyhow!(
+                            "Tool '{}' not found in vx-managed installations and system PATH is disabled",
+                            tool_name
+                        ));
+                    }
+                };
+
+                let mut cmd = std::process::Command::new(&executable_path);
 
                 // For uvx, add "tool run" prefix
                 if self.name() == "uvx" {
@@ -167,6 +197,17 @@ macro_rules! uv_vx_tool {
                 );
                 meta.insert("license".to_string(), "MIT OR Apache-2.0".to_string());
                 meta
+            }
+
+            fn get_dependencies(&self) -> Vec<vx_plugin::ToolDependency> {
+                // Default implementation for UV tools
+                if self.name() == "uvx" {
+                    vec![
+                        vx_plugin::ToolDependency::required("uv", "uvx is a subcommand of uv")
+                    ]
+                } else {
+                    Vec::new()
+                }
             }
         }
 

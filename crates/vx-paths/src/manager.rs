@@ -68,10 +68,122 @@ impl PathManager {
 
     /// Get the executable path for a specific tool version
     /// Returns: ~/.vx/tools/<tool>/<version>/<tool>.exe (Windows) or ~/.vx/tools/<tool>/<version>/<tool> (Unix)
+    /// This method tries to find the actual executable by checking tool-specific locations
     pub fn tool_executable_path(&self, tool_name: &str, version: &str) -> PathBuf {
         let version_dir = self.tool_version_dir(tool_name, version);
         let executable_name = with_executable_extension(tool_name);
-        version_dir.join(executable_name)
+
+        // First try the standard path
+        let standard_path = version_dir.join(&executable_name);
+        if standard_path.exists() {
+            return standard_path;
+        }
+
+        // Try tool-specific locations
+        let tool_specific_paths =
+            self.get_tool_specific_executable_paths(tool_name, &version_dir, &executable_name);
+        for path in tool_specific_paths {
+            if path.exists() {
+                return path;
+            }
+        }
+
+        // Return standard path as fallback (even if it doesn't exist)
+        standard_path
+    }
+
+    /// Get tool-specific executable paths for different tools
+    fn get_tool_specific_executable_paths(
+        &self,
+        tool_name: &str,
+        version_dir: &Path,
+        exe_name: &str,
+    ) -> Vec<PathBuf> {
+        match tool_name {
+            "go" => vec![
+                // Go with optimized path structure (after FlattenDirectory)
+                version_dir.join("bin").join(exe_name),
+                // Go with original nested structure (fallback)
+                version_dir.join("go").join("bin").join(exe_name),
+            ],
+            "node" => {
+                let mut paths = vec![
+                    // Node.js can be directly in the root or in a subdirectory
+                    version_dir.join("node").join(exe_name),
+                    version_dir.join("node.exe"), // Sometimes just node.exe in root
+                ];
+
+                // On Windows, also check for .bat file
+                #[cfg(windows)]
+                paths.push(version_dir.join(format!("{}.bat", tool_name)));
+
+                paths
+            }
+            "python" => vec![
+                // Python can be in various locations
+                version_dir.join("python").join(exe_name),
+                version_dir.join("Python").join(exe_name),
+                version_dir.join("Scripts").join(exe_name),
+            ],
+            "rust" | "cargo" | "rustc" => vec![
+                // Rust toolchain structure
+                version_dir.join("bin").join(exe_name),
+                version_dir.join("rust").join("bin").join(exe_name),
+            ],
+            "uv" => {
+                let mut paths = vec![
+                    // UV can be a single binary in the root directory
+                    version_dir.join(exe_name),
+                    // Or in a subdirectory
+                    version_dir.join("uv").join(exe_name),
+                ];
+
+                // On Windows, also check for .bat file
+                #[cfg(windows)]
+                paths.push(version_dir.join(format!("{}.bat", tool_name)));
+
+                paths
+            }
+            "yarn" => {
+                let mut paths = vec![];
+
+                // On Windows, prioritize .cmd files
+                #[cfg(windows)]
+                {
+                    paths.push(version_dir.join("bin").join("yarn.cmd"));
+                    paths.push(version_dir.join("bin").join("yarn.bat"));
+                }
+
+                // Then try regular executable
+                paths.push(version_dir.join("bin").join("yarn"));
+
+                // Try to find yarn subdirectories dynamically
+                if let Ok(entries) = std::fs::read_dir(version_dir) {
+                    for entry in entries.flatten() {
+                        if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+                            let dir_name = entry.file_name();
+                            if let Some(name) = dir_name.to_str() {
+                                if name.starts_with("yarn-v") {
+                                    // Found yarn version directory
+                                    let yarn_dir = version_dir.join(name);
+
+                                    #[cfg(windows)]
+                                    {
+                                        paths.push(yarn_dir.join("bin").join("yarn.cmd"));
+                                        paths.push(yarn_dir.join("bin").join("yarn.bat"));
+                                    }
+
+                                    paths.push(yarn_dir.join("bin").join("yarn"));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                paths
+            }
+            _ => vec![], // No specific paths for unknown tools
+        }
     }
 
     /// Check if a tool version is installed
@@ -184,6 +296,50 @@ impl PathManager {
         self.paths
             .tmp_dir
             .join(format!("{}-{}", tool_name, version))
+    }
+
+    // === Shimexe Architecture Support ===
+
+    /// Get the current shim directory for a tool
+    /// Returns: ~/.vx/tools/<tool>/current
+    pub fn tool_current_dir(&self, tool_name: &str) -> PathBuf {
+        self.tool_dir(tool_name).join("current")
+    }
+
+    /// Get the current shim executable path for a tool
+    /// Returns: ~/.vx/tools/<tool>/current/<tool>.bat (Windows) or ~/.vx/tools/<tool>/current/<tool> (Unix)
+    pub fn tool_current_executable_path(&self, tool_name: &str) -> PathBuf {
+        let current_dir = self.tool_current_dir(tool_name);
+
+        // On Windows, use .bat extension for batch files
+        // On Unix, use no extension for shell scripts
+        #[cfg(windows)]
+        let executable_name = format!("{}.bat", tool_name);
+
+        #[cfg(not(windows))]
+        let executable_name = tool_name.to_string();
+
+        current_dir.join(executable_name)
+    }
+
+    /// Get the current shim configuration path for a tool
+    /// Returns: ~/.vx/tools/<tool>/current/<tool>.shim.toml
+    pub fn tool_current_shim_config_path(&self, tool_name: &str) -> PathBuf {
+        let current_dir = self.tool_current_dir(tool_name);
+        current_dir.join(format!("{}.shim.toml", tool_name))
+    }
+
+    /// Check if a tool has a current version set (shim exists)
+    pub fn has_current_version(&self, tool_name: &str) -> bool {
+        let shim_config = self.tool_current_shim_config_path(tool_name);
+        shim_config.exists()
+    }
+
+    /// Create the current directory structure for a tool
+    pub fn create_tool_current_dir(&self, tool_name: &str) -> Result<PathBuf> {
+        let current_dir = self.tool_current_dir(tool_name);
+        std::fs::create_dir_all(&current_dir)?;
+        Ok(current_dir)
     }
 }
 impl Default for PathManager {

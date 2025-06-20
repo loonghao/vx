@@ -54,6 +54,29 @@ async fn list_tool_versions(
                 "  Use 'vx install {}' to install this tool",
                 tool_name
             ));
+
+            // Show dependency information for uninstalled tools
+            if let Some(tool) = registry.get_tool(tool_name) {
+                let dependencies = tool.get_dependencies();
+                if !dependencies.is_empty() {
+                    UI::info("  📋 Dependencies:");
+                    for dep in dependencies {
+                        let dep_versions = resolver
+                            .manager()
+                            .list_tool_versions(&dep.tool_name)
+                            .unwrap_or_default();
+                        let status = if dep_versions.is_empty() {
+                            "❌ not installed"
+                        } else {
+                            "✅ installed"
+                        };
+                        UI::info(&format!(
+                            "     • {} - {} ({})",
+                            dep.tool_name, dep.description, status
+                        ));
+                    }
+                }
+            }
         }
         return Ok(());
     }

@@ -32,39 +32,39 @@ pub async fn main() -> anyhow::Result<()> {
     let registry = PluginRegistry::new();
 
     // Register Node.js plugin
-    let _ = registry
+    registry
         .register_plugin(Box::new(vx_tool_node::NodePlugin::new()))
-        .await;
+        .await?;
 
     // Register Go plugin
-    let _ = registry
+    registry
         .register_plugin(Box::new(vx_tool_go::GoPlugin::new()))
-        .await;
+        .await?;
 
     // Register Rust plugin
-    let _ = registry
+    registry
         .register_plugin(Box::new(vx_tool_rust::RustPlugin::new()))
-        .await;
+        .await?;
 
     // Register UV plugin
-    let _ = registry
+    registry
         .register_plugin(Box::new(vx_tool_uv::UvPlugin::new()))
-        .await;
+        .await?;
 
     // Register Bun plugin
-    let _ = registry
+    registry
         .register_plugin(Box::new(vx_tool_bun::BunPlugin::new()))
-        .await;
+        .await?;
 
     // Register Yarn plugin
-    let _ = registry
+    registry
         .register_plugin(Box::new(vx_tool_yarn::YarnPlugin::new()))
-        .await;
+        .await?;
 
     // Register PNPM plugin
-    let _ = registry
+    registry
         .register_plugin(Box::new(vx_tool_pnpm::PnpmPlugin::new()))
-        .await;
+        .await?;
 
     // Create and run CLI
     let cli = VxCli::new(registry);
@@ -109,7 +109,7 @@ impl VxCli {
     }
 
     /// Handle a specific command
-    async fn handle_command(&self, command: cli::Commands, _cli: &Cli) -> Result<()> {
+    async fn handle_command(&self, command: cli::Commands, cli: &Cli) -> Result<()> {
         use cli::Commands;
 
         match command {
@@ -144,7 +144,7 @@ impl VxCli {
             } => commands::remove::handle(&self.registry, &tool, version.as_deref(), force).await,
 
             Commands::Which { tool, all } => {
-                commands::where_cmd::handle(&self.registry, &tool, all).await
+                commands::where_cmd::handle(&self.registry, &tool, all, cli.use_system_path).await
             }
 
             Commands::Versions {

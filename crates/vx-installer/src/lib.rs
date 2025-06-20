@@ -49,7 +49,10 @@ pub mod progress;
 // Re-export main types for convenience
 pub use downloader::Downloader;
 pub use error::{Error, Result};
-pub use installer::{ArchiveFormat, InstallConfig, InstallConfigBuilder, InstallMethod, Installer};
+pub use installer::{
+    ArchiveFormat, InstallConfig, InstallConfigBuilder, InstallMethod, Installer, LifecycleAction,
+    LifecycleHooks, PostInstallAction,
+};
 pub use progress::{ProgressReporter, ProgressStyle};
 
 // Re-export format handlers
