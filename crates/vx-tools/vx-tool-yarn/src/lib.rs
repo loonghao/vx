@@ -17,16 +17,19 @@ pub struct YarnPackageManager;
 
 impl YarnPackageManager {
     /// Check if this is a Yarn Berry (2+) project
+    #[allow(dead_code)]
     fn is_yarn_berry(&self, project_path: &Path) -> bool {
         project_path.join(".yarnrc.yml").exists()
     }
 
     /// Check if this is a Yarn Classic (1.x) project
+    #[allow(dead_code)]
     fn is_yarn_classic(&self, project_path: &Path) -> bool {
         project_path.join(".yarnrc").exists() && !self.is_yarn_berry(project_path)
     }
 
     /// Check if project supports workspaces
+    #[allow(dead_code)]
     fn supports_workspaces(&self, project_path: &Path) -> bool {
         if let Ok(package_json) = std::fs::read_to_string(project_path.join("package.json")) {
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&package_json) {
@@ -174,17 +177,52 @@ impl VxTool for YarnTool {
     }
 
     async fn execute(&self, args: &[String], context: &ToolContext) -> Result<ToolExecutionResult> {
-        // Check if yarn is available in system PATH
-        if which::which("yarn").is_err() {
-            // Try to install yarn if not found
-            eprintln!("Yarn not found, attempting to install...");
-            if let Err(e) = self.install_version("latest", false).await {
-                return Err(anyhow::anyhow!("Failed to install yarn: {}", e));
-            }
-            eprintln!("Yarn installed successfully");
-        }
+        // Determine which yarn executable to use
+        let yarn_executable = if context.use_system_path {
+            "yarn".to_string() // Use system yarn
+        } else {
+            // Ensure yarn is installed in vx environment
+            let active_version = match self.get_active_version().await {
+                Ok(version) => version,
+                Err(_) => {
+                    // No version installed, try to install latest
+                    match self.install_version("latest", false).await {
+                        Ok(_) => "latest".to_string(),
+                        Err(e) => {
+                            return Err(anyhow::anyhow!("Failed to install yarn: {}", e));
+                        }
+                    }
+                }
+            };
 
-        let mut cmd = std::process::Command::new("yarn");
+            // Get the path to the vx-managed yarn executable
+            let install_dir = self.get_version_install_dir(&active_version);
+            match self.get_executable_path(&install_dir).await {
+                Ok(path) => path.to_string_lossy().to_string(),
+                Err(_) => {
+                    // Executable not found, try to install
+                    match self.install_version("latest", false).await {
+                        Ok(_) => {
+                            let latest_dir = self.get_version_install_dir("latest");
+                            match self.get_executable_path(&latest_dir).await {
+                                Ok(path) => path.to_string_lossy().to_string(),
+                                Err(e) => {
+                                    return Err(anyhow::anyhow!(
+                                        "Failed to find yarn executable after installation: {}",
+                                        e
+                                    ));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            return Err(anyhow::anyhow!("Failed to install yarn: {}", e));
+                        }
+                    }
+                }
+            }
+        };
+
+        let mut cmd = std::process::Command::new(&yarn_executable);
         cmd.args(args);
 
         if let Some(cwd) = &context.working_directory {
@@ -206,13 +244,9 @@ impl VxTool for YarnTool {
         })
     }
 
-    async fn get_active_version(&self) -> Result<String> {
-        Ok("latest".to_string())
-    }
-
-    async fn get_installed_versions(&self) -> Result<Vec<String>> {
-        Ok(vec![])
-    }
+    // Use default implementations from VxTool trait
+    // async fn get_active_version(&self) -> Result<String>
+    // async fn get_installed_versions(&self) -> Result<Vec<String>>
 
     async fn get_download_url(&self, version: &str) -> Result<Option<String>> {
         // Yarn releases are available on GitHub

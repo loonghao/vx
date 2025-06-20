@@ -24,6 +24,7 @@ pub struct PnpmPackageManager;
 
 impl PnpmPackageManager {
     /// Check if project supports workspaces
+    #[allow(dead_code)]
     fn supports_workspaces(&self, project_path: &Path) -> bool {
         // Check for pnpm-workspace.yaml
         if project_path.join("pnpm-workspace.yaml").exists() {
@@ -176,17 +177,52 @@ impl VxTool for PnpmTool {
     }
 
     async fn execute(&self, args: &[String], context: &ToolContext) -> Result<ToolExecutionResult> {
-        // Check if pnpm is available in system PATH
-        if which::which("pnpm").is_err() {
-            // Try to install pnpm if not found
-            eprintln!("PNPM not found, attempting to install...");
-            if let Err(e) = self.install_version("latest", false).await {
-                return Err(anyhow::anyhow!("Failed to install pnpm: {}", e));
-            }
-            eprintln!("PNPM installed successfully");
-        }
+        // Determine which pnpm executable to use
+        let pnpm_executable = if context.use_system_path {
+            "pnpm".to_string() // Use system pnpm
+        } else {
+            // Ensure pnpm is installed in vx environment
+            let active_version = match self.get_active_version().await {
+                Ok(version) => version,
+                Err(_) => {
+                    // No version installed, try to install latest
+                    match self.install_version("latest", false).await {
+                        Ok(_) => "latest".to_string(),
+                        Err(e) => {
+                            return Err(anyhow::anyhow!("Failed to install pnpm: {}", e));
+                        }
+                    }
+                }
+            };
 
-        let mut cmd = std::process::Command::new("pnpm");
+            // Get the path to the vx-managed pnpm executable
+            let install_dir = self.get_version_install_dir(&active_version);
+            match self.get_executable_path(&install_dir).await {
+                Ok(path) => path.to_string_lossy().to_string(),
+                Err(_) => {
+                    // Executable not found, try to install
+                    match self.install_version("latest", false).await {
+                        Ok(_) => {
+                            let latest_dir = self.get_version_install_dir("latest");
+                            match self.get_executable_path(&latest_dir).await {
+                                Ok(path) => path.to_string_lossy().to_string(),
+                                Err(e) => {
+                                    return Err(anyhow::anyhow!(
+                                        "Failed to find pnpm executable after installation: {}",
+                                        e
+                                    ));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            return Err(anyhow::anyhow!("Failed to install pnpm: {}", e));
+                        }
+                    }
+                }
+            }
+        };
+
+        let mut cmd = std::process::Command::new(&pnpm_executable);
         cmd.args(args);
 
         if let Some(cwd) = &context.working_directory {
@@ -208,13 +244,9 @@ impl VxTool for PnpmTool {
         })
     }
 
-    async fn get_active_version(&self) -> Result<String> {
-        Ok("latest".to_string())
-    }
-
-    async fn get_installed_versions(&self) -> Result<Vec<String>> {
-        Ok(vec![])
-    }
+    // Use default implementations from VxTool trait
+    // async fn get_active_version(&self) -> Result<String>
+    // async fn get_installed_versions(&self) -> Result<Vec<String>>
 
     async fn get_download_url(&self, version: &str) -> Result<Option<String>> {
         // PNPM releases are available on GitHub
