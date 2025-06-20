@@ -32,8 +32,7 @@ fn test_tool_dependency_with_version() {
 
 #[test]
 fn test_tool_dependency_chaining() {
-    let dep = ToolDependency::optional("go", "Go programming language")
-        .with_version(">=1.19.0");
+    let dep = ToolDependency::optional("go", "Go programming language").with_version(">=1.19.0");
 
     assert_eq!(dep.tool_name, "go");
     assert_eq!(dep.description, "Go programming language");
@@ -96,7 +95,7 @@ fn test_tool_dependency_json_format() {
     let dep = ToolDependency::required("node", "Node.js runtime").with_version(">=16.0.0");
 
     let json = serde_json::to_string_pretty(&dep).unwrap();
-    
+
     // Check that JSON contains expected fields
     assert!(json.contains("\"tool_name\""));
     assert!(json.contains("\"description\""));
@@ -111,7 +110,7 @@ fn test_tool_dependency_json_format() {
 #[test]
 fn test_tool_dependency_collection() {
     let mut deps = Vec::new();
-    
+
     deps.push(ToolDependency::required("node", "Node.js"));
     deps.push(ToolDependency::optional("yarn", "Yarn package manager"));
     deps.push(ToolDependency::required("npm", "NPM package manager"));

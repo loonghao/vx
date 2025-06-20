@@ -215,6 +215,12 @@ impl VxTool for BunTool {
         );
         meta
     }
+
+    fn get_dependencies(&self) -> Vec<vx_plugin::ToolDependency> {
+        // Bun is a standalone JavaScript runtime that doesn't require Node.js
+        // It's actually an alternative to Node.js
+        vec![]
+    }
 }
 
 /// Bun plugin

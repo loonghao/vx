@@ -2796,6 +2796,7 @@ dependencies = [
  "async-trait",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "vx-core",
  "vx-installer",

@@ -182,6 +182,20 @@ impl PathManager {
 
                 paths
             }
+            "bun" => {
+                let mut paths = vec![
+                    // Bun can be directly in the root directory
+                    version_dir.join(exe_name),
+                    // Or in a bin subdirectory
+                    version_dir.join("bin").join(exe_name),
+                ];
+
+                // On Windows, also check for .bat file
+                #[cfg(windows)]
+                paths.push(version_dir.join(format!("{}.bat", tool_name)));
+
+                paths
+            }
             _ => vec![], // No specific paths for unknown tools
         }
     }

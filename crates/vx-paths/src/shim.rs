@@ -3,6 +3,8 @@
 //! This module provides functionality to create and manage executable shims
 //! that allow transparent version switching for tools.
 
+#[cfg(test)]
+use crate::with_executable_extension;
 use crate::PathManager;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
