@@ -231,42 +231,8 @@ pub fn get_tool_filename(config: &VxConfig, tool_name: &str, version: &str) -> O
     None
 }
 
-/// Create a standard InstallConfig for any tool (sync access)
-pub fn create_standard_install_config(
-    tool_name: &str,
-    version: &str,
-    install_dir: std::path::PathBuf,
-) -> Option<vx_installer::InstallConfig> {
-    use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod, LifecycleHooks};
-
-    let config = get_global_config();
-
-    // Get download URL from config
-    let download_url = get_tool_download_url(config, tool_name, version)?;
-
-    // Determine archive format based on platform
-    let format = if cfg!(windows) {
-        ArchiveFormat::Zip
-    } else {
-        ArchiveFormat::TarGz
-    };
-
-    let install_method = InstallMethod::Archive { format };
-
-    // Create basic lifecycle hooks
-    let hooks = LifecycleHooks::default();
-
-    Some(
-        InstallConfig::builder()
-            .tool_name(tool_name)
-            .version(version)
-            .install_method(install_method)
-            .download_url(download_url)
-            .install_dir(install_dir)
-            .lifecycle_hooks(hooks)
-            .build(),
-    )
-}
+// Note: create_standard_install_config function removed to break circular dependency
+// with vx-installer. This functionality should be moved to vx-installer instead.
 
 /// Get tool executable name for current platform (sync access)
 pub fn get_tool_executable_name(tool_name: &str) -> String {

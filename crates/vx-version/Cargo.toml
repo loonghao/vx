@@ -19,14 +19,11 @@ serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0"
 async-trait = "0.1"
 
-# HTTP client for fetching versions - use rustls for better cross-compilation
-reqwest = { version = "0.12", features = [
-    "json",
-    "rustls-tls",
-], default-features = false }
+# HTTP client for fetching versions - use workspace configuration (rustls-tls)
+reqwest = { workspace = true }
 
 # Turbo CDN for unified download and version fetching
-turbo-cdn = "0.1.2"
+turbo-cdn = "0.2.0"
 
 # JSON parsing
 serde_json = "1.0"

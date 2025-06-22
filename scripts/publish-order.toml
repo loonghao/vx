@@ -1,0 +1,120 @@
+# VX Crates Publishing Order Configuration
+# This file defines the correct order for publishing crates to avoid dependency conflicts
+
+[metadata]
+description = "VX crates publishing order based on dependency analysis"
+version = "0.4.1"
+workspace_root = "."
+
+# Publishing layers - each layer can be published in parallel,
+# but all crates in layer N must be published before layer N+1
+
+[[layers]]
+name = "foundation"
+description = "Foundation crates with no internal dependencies"
+crates = [
+    { name = "vx-dependency", path = "crates/vx-dependency" },
+    { name = "vx-paths", path = "crates/vx-paths" }
+]
+
+[[layers]]
+name = "core-utilities"
+description = "Core utilities that depend on foundation"
+crates = [
+    { name = "vx-plugin", path = "crates/vx-plugin" },
+    { name = "vx-version", path = "crates/vx-version" }
+]
+
+[[layers]]
+name = "configuration-and-installation"
+description = "Configuration and installation management"
+crates = [
+    { name = "vx-config", path = "crates/vx-config" },
+    { name = "vx-installer", path = "crates/vx-installer" },
+    { name = "vx-download", path = "crates/vx-download" }
+]
+
+[[layers]]
+name = "core-services"
+description = "Core services and benchmarking"
+crates = [
+    { name = "vx-core", path = "crates/vx-core" },
+    { name = "vx-benchmark", path = "crates/vx-benchmark" }
+]
+
+[[layers]]
+name = "tool-framework"
+description = "Standard tool framework"
+crates = [
+    { name = "vx-tool-standard", path = "crates/vx-tool-standard" }
+]
+
+[[layers]]
+name = "simple-tools"
+description = "Simple tools with minimal dependencies"
+crates = [
+    { name = "vx-tool-npm", path = "crates/vx-tools/vx-tool-npm" },
+    { name = "vx-tool-uv", path = "crates/vx-tools/vx-tool-uv" },
+    { name = "vx-tool-python", path = "crates/vx-tools/vx-tool-python" },
+    { name = "vx-tool-rust", path = "crates/vx-tools/vx-tool-rust" }
+]
+
+[[layers]]
+name = "complex-tools"
+description = "Tools with more complex dependencies"
+crates = [
+    { name = "vx-tool-go", path = "crates/vx-tools/vx-tool-go" },
+    { name = "vx-tool-bun", path = "crates/vx-tools/vx-tool-bun" }
+]
+
+[[layers]]
+name = "node-ecosystem"
+description = "Node.js ecosystem tools (node must come before package managers)"
+crates = [
+    { name = "vx-tool-node", path = "crates/vx-tools/vx-tool-node" },
+    { name = "vx-tool-pnpm", path = "crates/vx-tools/vx-tool-pnpm" },
+    { name = "vx-tool-yarn", path = "crates/vx-tools/vx-tool-yarn" }
+]
+
+[[layers]]
+name = "application"
+description = "Main CLI and application"
+crates = [
+    { name = "vx-cli", path = "crates/vx-cli" },
+    { name = "vx", path = "." }
+]
+
+# Dependency validation rules
+[validation]
+# These dependencies must be published before their dependents
+required_order = [
+    "vx-paths -> vx-plugin",
+    "vx-plugin -> vx-core",
+    "vx-config -> vx-installer",
+    "vx-installer -> vx-tool-*",
+    "vx-tool-standard -> vx-tool-*",
+    "vx-tool-node -> vx-tool-npm",
+    "vx-tool-node -> vx-tool-pnpm", 
+    "vx-tool-node -> vx-tool-yarn",
+    "vx-tool-* -> vx-cli",
+    "vx-cli -> vx"
+]
+
+# Crates that should never have circular dependencies
+no_circular_deps = [
+    "vx-config",
+    "vx-installer"
+]
+
+[publishing]
+# Wait time between publications (seconds)
+wait_between_crates = 30
+wait_between_layers = 60
+
+# Retry configuration
+max_retries = 3
+retry_delay = 10
+
+# Verification settings
+verify_publication = true
+verification_timeout = 300

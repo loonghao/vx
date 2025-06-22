@@ -3097,38 +3097,6 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "turbo-cdn"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2116b6d3b48225a72d1e37e8926c71c9d305acf5f747840ede01446d00d50311"
-dependencies = [
- "anyhow",
- "async-trait",
- "blake3",
- "chrono",
- "config",
- "dirs",
- "flate2",
- "futures",
- "indicatif",
- "metrics",
- "rand",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.12",
- "tokio",
- "tokio-util",
- "toml",
- "tracing",
- "tracing-subscriber",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "turbo-cdn"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02dbff8d78e5dc9a182365cbd150c988c34f3f942c14985daa97f7f987b6d483"
@@ -3370,7 +3338,7 @@ dependencies = [
  "tracing",
  "tracing-indicatif",
  "tracing-subscriber",
- "turbo-cdn 0.2.0",
+ "turbo-cdn",
  "vx-config",
  "vx-core",
  "vx-installer",
@@ -3409,7 +3377,6 @@ dependencies = [
  "tokio",
  "tokio-test",
  "toml",
- "vx-installer",
 ]
 
 [[package]]
@@ -3465,7 +3432,7 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber",
- "turbo-cdn 0.2.0",
+ "turbo-cdn",
  "url",
  "vx-config",
  "vx-paths",
@@ -3491,7 +3458,7 @@ dependencies = [
  "tokio",
  "tokio-test",
  "tracing",
- "turbo-cdn 0.2.0",
+ "turbo-cdn",
  "walkdir",
  "zip",
 ]
@@ -3733,7 +3700,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
- "turbo-cdn 0.1.2",
+ "turbo-cdn",
  "vx-plugin",
  "which",
 ]

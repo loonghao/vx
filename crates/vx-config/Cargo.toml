@@ -32,8 +32,8 @@ anyhow = { workspace = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 
-# Installer support for standard config creation
-vx-installer = { version = "0.4.0", path = "../vx-installer" }
+# Note: Removed vx-installer dependency to break circular dependency
+# vx-installer will depend on vx-config instead
 
 [dev-dependencies]
 tempfile = { workspace = true }
