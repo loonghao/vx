@@ -363,7 +363,7 @@ async fn handle_auto_installation(
                 tool_name
             ));
 
-            return Err(anyhow::anyhow!("Tool installation and execution failed"));
+            Err(anyhow::anyhow!("Tool installation and execution failed"))
         }
     }
 }

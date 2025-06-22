@@ -133,12 +133,10 @@ pub async fn create_install_config(
         } else {
             "bun-darwin-x64"
         }
+    } else if cfg!(target_arch = "aarch64") {
+        "bun-linux-aarch64"
     } else {
-        if cfg!(target_arch = "aarch64") {
-            "bun-linux-aarch64"
-        } else {
-            "bun-linux-x64"
-        }
+        "bun-linux-x64"
     };
 
     // First flatten the version directory (bun-v{version})

@@ -83,6 +83,7 @@ impl VxPackageManager for BunPackageManager {
 /// Bun tool implementation
 #[derive(Debug, Clone)]
 pub struct BunTool {
+    #[allow(dead_code)]
     version_fetcher: Option<TurboCdnVersionFetcher>,
 }
 
@@ -102,6 +103,7 @@ impl BunTool {
     }
 
     /// Get or initialize the version fetcher
+    #[allow(dead_code)]
     async fn get_version_fetcher(&self) -> Result<TurboCdnVersionFetcher> {
         match &self.version_fetcher {
             Some(fetcher) => Ok(fetcher.clone()),
@@ -121,10 +123,7 @@ impl BunTool {
     }
 
     /// Get executable path for a given install directory
-    async fn get_executable_path(
-        &self,
-        install_dir: &std::path::PathBuf,
-    ) -> Result<std::path::PathBuf> {
+    async fn get_executable_path(&self, install_dir: &Path) -> Result<std::path::PathBuf> {
         let exe_name = if cfg!(windows) { "bun.exe" } else { "bun" };
         let exe_path = install_dir.join(exe_name);
 
@@ -346,12 +345,10 @@ impl VxTool for BunTool {
             } else {
                 "bun-darwin-x64"
             }
+        } else if cfg!(target_arch = "aarch64") {
+            "bun-linux-aarch64"
         } else {
-            if cfg!(target_arch = "aarch64") {
-                "bun-linux-aarch64"
-            } else {
-                "bun-linux-x64"
-            }
+            "bun-linux-x64"
         };
 
         let url = format!(

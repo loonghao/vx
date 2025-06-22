@@ -32,7 +32,7 @@ pub async fn handle(
         };
 
         if !dialoguer::Confirm::new()
-            .with_prompt(&format!("Are you sure you want to {}?", action))
+            .with_prompt(format!("Are you sure you want to {}?", action))
             .default(false)
             .interact()?
         {

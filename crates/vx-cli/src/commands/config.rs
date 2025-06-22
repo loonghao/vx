@@ -244,7 +244,7 @@ async fn reset_config(tool: Option<&str>, yes: bool) -> Result<()> {
         UI::info(&format!("Resetting configuration for tool '{}'", tool_name));
 
         // Reset specific tool configuration
-        match config_manager.reset_tool_config(&tool_name).await {
+        match config_manager.reset_tool_config(tool_name).await {
             Ok(_) => {
                 UI::success(&format!(
                     "Configuration for '{}' has been reset to defaults",

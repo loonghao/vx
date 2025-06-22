@@ -3,6 +3,7 @@
 use crate::config::NodeUrlBuilder;
 use anyhow::Result;
 use std::collections::HashMap;
+use std::path::Path;
 use vx_plugin::{ToolContext, ToolExecutionResult, VersionInfo, VxTool};
 use vx_tool_standard::StandardUrlBuilder;
 use vx_version::{NodeVersionFetcher, VersionFetcher};
@@ -369,10 +370,7 @@ impl NodeTool {
     }
 
     /// Get executable path for a given install directory
-    async fn get_executable_path(
-        &self,
-        install_dir: &std::path::PathBuf,
-    ) -> Result<std::path::PathBuf> {
+    async fn get_executable_path(&self, install_dir: &Path) -> Result<std::path::PathBuf> {
         let exe_name = if cfg!(windows) {
             format!("{}.exe", self.name())
         } else {
@@ -430,10 +428,7 @@ impl NpmTool {
     }
 
     /// Get executable path for npm (in node's installation)
-    async fn get_executable_path(
-        &self,
-        install_dir: &std::path::PathBuf,
-    ) -> Result<std::path::PathBuf> {
+    async fn get_executable_path(&self, install_dir: &Path) -> Result<std::path::PathBuf> {
         let exe_name = if cfg!(windows) { "npm.cmd" } else { "npm" };
         let exe_path = install_dir.join(exe_name);
 
@@ -469,10 +464,7 @@ impl NpxTool {
     }
 
     /// Get executable path for npx (in node's installation)
-    async fn get_executable_path(
-        &self,
-        install_dir: &std::path::PathBuf,
-    ) -> Result<std::path::PathBuf> {
+    async fn get_executable_path(&self, install_dir: &Path) -> Result<std::path::PathBuf> {
         let exe_name = if cfg!(windows) { "npx.cmd" } else { "npx" };
         let exe_path = install_dir.join(exe_name);
 

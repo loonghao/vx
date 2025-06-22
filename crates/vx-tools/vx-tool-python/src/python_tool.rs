@@ -3,9 +3,9 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::path::PathBuf;
+
 use vx_installer::Installer;
-use vx_plugin::{StandardTool, ToolContext, ToolExecutionResult, VxTool};
+use vx_plugin::{ToolContext, ToolExecutionResult, VxTool};
 use vx_version::{TurboCdnVersionFetcher, VersionFetcher, VersionInfo};
 
 /// Python tool using Python Build Standalone

@@ -13,6 +13,7 @@ macro_rules! rust_vx_tool {
         #[derive(Debug, Clone)]
         pub struct $name {
             _url_builder: RustUrlBuilder,
+            #[allow(dead_code)]
             version_fetcher: Option<TurboCdnVersionFetcher>,
         }
 
@@ -34,6 +35,7 @@ macro_rules! rust_vx_tool {
             }
 
             /// Get or initialize the version fetcher
+            #[allow(dead_code)]
             async fn get_version_fetcher(&self) -> Result<TurboCdnVersionFetcher> {
                 match &self.version_fetcher {
                     Some(fetcher) => Ok(fetcher.clone()),

@@ -4,7 +4,7 @@ use crate::config::GoUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use vx_plugin::{
     ExecutableTool, InstallableTool, ToolContext, ToolExecutionResult, VersionInfo, VersionedTool,
     VxTool,
@@ -57,7 +57,7 @@ impl InstallableTool for GoTool {
         paths.tools_dir.join("go").join(version)
     }
 
-    async fn get_executable_path(&self, install_dir: &PathBuf) -> Result<PathBuf> {
+    async fn get_executable_path(&self, install_dir: &Path) -> Result<PathBuf> {
         let exe_name = if cfg!(windows) { "go.exe" } else { "go" };
         let exe_path = install_dir.join("bin").join(exe_name);
 
