@@ -775,7 +775,10 @@ impl Installer {
         {
             // Other platforms - suppress unused variable warnings
             let _ = (&target_path, description);
-            tracing::info!("Shortcut creation not implemented for this platform: {}", name);
+            tracing::info!(
+                "Shortcut creation not implemented for this platform: {}",
+                name
+            );
         }
 
         Ok(())
