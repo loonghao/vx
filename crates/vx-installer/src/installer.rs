@@ -766,7 +766,16 @@ impl Installer {
         #[cfg(target_os = "macos")]
         {
             // macOS doesn't typically use desktop shortcuts in the same way
+            // Suppress unused variable warnings
+            let _ = (&target_path, description);
             tracing::info!("Shortcut creation not implemented for macOS: {}", name);
+        }
+
+        #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
+        {
+            // Other platforms - suppress unused variable warnings
+            let _ = (&target_path, description);
+            tracing::info!("Shortcut creation not implemented for this platform: {}", name);
         }
 
         Ok(())

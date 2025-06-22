@@ -142,9 +142,20 @@ impl VxIntegrationTest {
     /// Cleanup test environment
     pub async fn cleanup(&self) -> Result<()> {
         if self.test_dir.exists() {
-            std::fs::remove_dir_all(&self.test_dir)?;
+            match std::fs::remove_dir_all(&self.test_dir) {
+                Ok(()) => {
+                    println!("🧹 Test environment cleaned up");
+                }
+                Err(e) => {
+                    // Log the error but don't fail the test
+                    println!("⚠️  Warning: Failed to cleanup test directory: {}", e);
+                    println!("   Directory: {}", self.test_dir.display());
+                    // This is not a critical error, so we continue
+                }
+            }
+        } else {
+            println!("🧹 Test environment already clean (directory not found)");
         }
-        println!("🧹 Test environment cleaned up");
         Ok(())
     }
 
