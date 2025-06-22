@@ -194,3 +194,15 @@ lto = false
 # Workspace-level feature overrides to force rustls usage
 [workspace.metadata.cargo-machete]
 ignored = ["openssl", "openssl-sys", "native-tls"]
+
+# Force all dependencies to use rustls instead of native-tls
+[patch.crates-io]
+# Override reqwest to always use rustls-tls
+reqwest = { version = "0.12", features = [
+    "json",
+    "stream",
+    "rustls-tls",
+    "charset",
+    "http2",
+    "macos-system-configuration",
+], default-features = false }

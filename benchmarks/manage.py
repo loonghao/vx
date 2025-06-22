@@ -30,6 +30,14 @@ class BenchmarkManager:
     def load_result(self, file_path: Path) -> List[Dict[str, Any]]:
         """Load a benchmark result file."""
         try:
+            # Try utf-8-sig first to handle BOM, fallback to utf-8
+            for encoding in ['utf-8-sig', 'utf-8']:
+                try:
+                    with open(file_path, 'r', encoding=encoding) as f:
+                        return json.load(f)
+                except UnicodeDecodeError:
+                    continue
+            # If both encodings fail, raise the last exception
             with open(file_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
@@ -40,6 +48,14 @@ class BenchmarkManager:
         """Load baseline benchmark data."""
         if self.baseline_file.exists():
             try:
+                # Try utf-8-sig first to handle BOM, fallback to utf-8
+                for encoding in ['utf-8-sig', 'utf-8']:
+                    try:
+                        with open(self.baseline_file, 'r', encoding=encoding) as f:
+                            return json.load(f)
+                    except UnicodeDecodeError:
+                        continue
+                # If both encodings fail, raise the last exception
                 with open(self.baseline_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
             except Exception as e:
