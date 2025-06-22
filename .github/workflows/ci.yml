@@ -134,7 +134,7 @@ jobs:
           elif [[ "${{ matrix.platform.target }}" == "x86_64-unknown-linux-musl" ]]; then
             PLATFORM="linux/amd64"
             IMAGE="rust:1.82-alpine"
-            DEPS="pkgconf-dev openssl-dev musl-dev"
+            DEPS="pkgconf-dev openssl-dev openssl-libs-static musl-dev gcc"
             TARGET_FLAG="--target x86_64-unknown-linux-musl"
           else
             echo "Unsupported Docker target: ${{ matrix.platform.target }}"
@@ -145,6 +145,9 @@ jobs:
             --platform $PLATFORM \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
+            -e OPENSSL_STATIC=1 \
+            -e OPENSSL_LIB_DIR=/usr/lib \
+            -e OPENSSL_INCLUDE_DIR=/usr/include \
             $IMAGE \
             sh -c "
               if command -v apk >/dev/null 2>&1; then
