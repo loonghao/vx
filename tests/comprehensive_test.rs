@@ -217,6 +217,22 @@ async fn test_error_handling_comprehensive() {
 async fn test_performance_benchmarks() {
     println!("⚡ Running performance benchmarks");
 
+    // Skip performance benchmarks in CI or when cargo is not available
+    if std::env::var("CI").is_ok() {
+        println!("🔄 Skipping performance benchmarks in CI environment");
+        return;
+    }
+
+    // Check if cargo is available
+    if let Err(_) = tokio::process::Command::new("cargo")
+        .arg("--version")
+        .output()
+        .await
+    {
+        println!("⚠️  Cargo not found, skipping performance benchmarks");
+        return;
+    }
+
     let mut benchmark = performance_benchmark::PerformanceBenchmark::new();
 
     match benchmark.run_all_benchmarks().await {

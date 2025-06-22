@@ -197,6 +197,19 @@ impl VxIntegrationTest {
             .or_else(|_| std::env::current_dir().map(|p| p.to_string_lossy().to_string()))
             .unwrap_or_else(|_| ".".to_string());
 
+        // Debug information
+        println!("🔧 Executing command: cargo run -- {}", args.join(" "));
+        println!("📁 Working directory: {}", workspace_root);
+
+        // Check if cargo is available
+        if let Err(e) = tokio::process::Command::new("cargo")
+            .arg("--version")
+            .output()
+            .await
+        {
+            return Err(anyhow::anyhow!("Cargo not available: {}", e));
+        }
+
         let output = timeout(
             Duration::from_secs(timeout_secs),
             tokio::process::Command::new("cargo")

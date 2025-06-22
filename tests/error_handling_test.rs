@@ -201,7 +201,12 @@ impl ErrorHandlingTest {
         let start = Instant::now();
 
         // Try to install to a restricted directory (this should fail gracefully)
-        std::env::set_var("VX_HOME", "C:\\Windows\\System32\\vx_test"); // Restricted path
+        let restricted_path = if cfg!(windows) {
+            "C:\\Windows\\System32\\vx_test" // Windows restricted path
+        } else {
+            "/root/vx_test" // Unix restricted path (requires root)
+        };
+        std::env::set_var("VX_HOME", restricted_path);
 
         match self
             .test_suite

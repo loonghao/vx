@@ -232,9 +232,18 @@ pub fn mock_error_output(stderr: &str, _exit_code: i32) -> Output {
 /// Helper to create test configuration
 pub fn create_test_config() -> HashMap<String, String> {
     let mut config = HashMap::new();
-    config.insert("vx_home".to_string(), "/tmp/vx-test".to_string());
-    config.insert("tools_dir".to_string(), "/tmp/vx-test/tools".to_string());
-    config.insert("cache_dir".to_string(), "/tmp/vx-test/cache".to_string());
+
+    // Use platform-appropriate temporary directory
+    let temp_base = if cfg!(windows) {
+        std::env::var("TEMP").unwrap_or_else(|_| "C:\\temp".to_string())
+    } else {
+        "/tmp".to_string()
+    };
+
+    let vx_home = format!("{}/vx-test", temp_base);
+    config.insert("vx_home".to_string(), vx_home.clone());
+    config.insert("tools_dir".to_string(), format!("{}/tools", vx_home));
+    config.insert("cache_dir".to_string(), format!("{}/cache", vx_home));
     config
 }
 

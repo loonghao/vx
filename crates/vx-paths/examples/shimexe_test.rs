@@ -7,7 +7,11 @@ fn main() -> Result<()> {
     println!("Testing shimexe-core API...");
 
     // Test ShimRunner with our created shim config
-    let shim_config_path = r"C:\Users\hallo\.vx\tools\go\current\go.shim.toml";
+    let shim_config_path = if cfg!(windows) {
+        r"C:\Users\hallo\.vx\tools\go\current\go.shim.toml"
+    } else {
+        "/Users/hallo/.vx/tools/go/current/go.shim.toml"
+    };
 
     println!("Loading shim config from: {}", shim_config_path);
 
