@@ -114,8 +114,13 @@ mod fetcher_url_tests {
             .expect("Failed to create config manager");
         let config = config_manager.config();
 
-        // Every configured tool should have a fetcher URL
+        // Every configured tool should have a fetcher URL, except for dependency tools
         for (tool_name, tool_config) in &config.tools {
+            // Skip tools that depend on other tools (they don't need their own fetcher URL)
+            if tool_config.depends_on.is_some() {
+                continue;
+            }
+
             assert!(
                 tool_config.fetcher_url.is_some(),
                 "Tool {} is missing fetcher_url configuration",
@@ -156,16 +161,20 @@ mod config_validation_tests {
                 "Tool {} missing homepage",
                 tool_name
             );
-            assert!(
-                tool_config.fetcher_url.is_some(),
-                "Tool {} missing fetcher_url",
-                tool_name
-            );
-            assert!(
-                tool_config.download_url_template.is_some(),
-                "Tool {} missing download_url_template",
-                tool_name
-            );
+
+            // Only check fetcher_url and download_url_template for independent tools
+            if tool_config.depends_on.is_none() {
+                assert!(
+                    tool_config.fetcher_url.is_some(),
+                    "Tool {} missing fetcher_url",
+                    tool_name
+                );
+                assert!(
+                    tool_config.download_url_template.is_some(),
+                    "Tool {} missing download_url_template",
+                    tool_name
+                );
+            }
         }
     }
 

@@ -46,6 +46,23 @@ cache_max_size = 5368709120
 # Enable compression for cached files
 cache_compression = true
 
+# Smart cache configuration
+[turbo_cdn.smart_cache]
+# Maximum cache size in bytes (10GB)
+max_size = 10737418240
+# Cache TTL in seconds (7 days)
+ttl_seconds = 604800
+# Enable deduplication
+enable_dedup = true
+# Enable cross-tool sharing
+enable_sharing = true
+# Enable cache preheating
+enable_preheating = false
+# Cleanup threshold (80%)
+cleanup_threshold = 0.8
+# Minimum file size for deduplication (1MB)
+min_dedup_size = 1048576
+
 # Tool-specific configurations
 [tools.bun]
 description = "Fast all-in-one JavaScript runtime"
@@ -175,10 +192,10 @@ tag_regex = "^(.+)$"
 output_regex = "Python ([0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)"
 normalize_semver = true
 [tools.python.platforms]
-windows-x64 = { target_pattern = "x86_64-pc-windows-msvc-install_only", executable_name = "python.exe", bin_dir = "python" }
-linux-x64 = { target_pattern = "x86_64-unknown-linux-gnu-install_only", executable_name = "python3", bin_dir = "python/bin" }
-darwin-x64 = { target_pattern = "x86_64-apple-darwin-install_only", executable_name = "python3", bin_dir = "python/bin" }
-darwin-aarch64 = { target_pattern = "aarch64-apple-darwin-install_only", executable_name = "python3", bin_dir = "python/bin" }
+windows-x64 = "cpython-{version}+{build_date}-x86_64-pc-windows-msvc-install_only.tar.gz"
+linux-x64 = "cpython-{version}+{build_date}-x86_64-unknown-linux-gnu-install_only.tar.gz"
+darwin-x64 = "cpython-{version}+{build_date}-x86_64-apple-darwin-install_only.tar.gz"
+darwin-aarch64 = "cpython-{version}+{build_date}-aarch64-apple-darwin-install_only.tar.gz"
 [tools.python.executables]
 windows = "python.exe"
 linux = "python3"
