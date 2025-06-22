@@ -224,10 +224,11 @@ async fn test_performance_benchmarks() {
     }
 
     // Check if cargo is available
-    if let Err(_) = tokio::process::Command::new("cargo")
+    if tokio::process::Command::new("cargo")
         .arg("--version")
         .output()
         .await
+        .is_err()
     {
         println!("⚠️  Cargo not found, skipping performance benchmarks");
         return;
