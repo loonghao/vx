@@ -371,11 +371,11 @@ jobs:
             # Layer 1: Foundation (no internal deps)
             "vx-dependency"
             "vx-paths"
-            # Layer 2: Core utilities
-            "vx-plugin"
             "vx-version"
-            # Layer 3: Config and installation
+            # Layer 2: Config (needed by plugin)
             "vx-config"
+            # Layer 3: Core utilities (depends on config)
+            "vx-plugin"
             "vx-installer"
             "vx-download"
             # Layer 4: Core services
@@ -450,7 +450,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info
-          fail_ci_if_error: false  # 只显示不失败
+          fail_ci_if_error: false
           verbose: true
           flags: unittests
           name: codecov-umbrella
