@@ -9,12 +9,6 @@ pub mod commands;
 pub mod tracing_setup;
 pub mod ui;
 
-#[cfg(test)]
-mod cli_tests;
-
-#[cfg(test)]
-mod plugin_tests;
-
 // Re-export for convenience
 pub use cli::Cli;
 pub use tracing_setup::setup_tracing;

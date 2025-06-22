@@ -197,14 +197,24 @@ pub fn apply_vx_overrides(config: &mut TurboCdnConfig) -> Result<()> {
     config.performance.chunk_size = "4MB".to_string();
     config.performance.timeout = Duration::from_secs(300);
 
-    // Override cache settings
+    // Override cache settings using vx-paths
     config.performance.cache.enabled = true;
     config.performance.cache.max_size = "10GB".to_string();
     config.performance.cache.ttl = Duration::from_secs(7 * 24 * 60 * 60);
 
-    // Override logging settings
-    config.logging.audit_enabled = false;
+    // Use vx-paths for cache directory
+    if let Ok(cache_dir) = vx_paths::get_turbo_cdn_cache_dir() {
+        config.performance.cache.directory = cache_dir.to_string_lossy().to_string();
+    }
+
+    // Override logging settings using vx-paths
+    config.logging.audit_enabled = true; // Enable audit logging
     config.logging.level = "info".to_string();
+
+    // Use vx-paths for log directory
+    if let Ok(log_file) = vx_paths::get_turbo_cdn_audit_log() {
+        config.logging.audit_file = log_file.to_string_lossy().to_string();
+    }
 
     Ok(())
 }

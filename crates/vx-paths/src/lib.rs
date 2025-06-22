@@ -30,6 +30,10 @@ pub struct VxPaths {
     pub config_dir: PathBuf,
     /// Temporary directory (~/.vx/tmp)
     pub tmp_dir: PathBuf,
+    /// Turbo-CDN cache directory (~/.vx/turbo-cdn)
+    pub turbo_cdn_cache_dir: PathBuf,
+    /// Turbo-CDN logs directory (~/.vx/logs)
+    pub turbo_cdn_logs_dir: PathBuf,
 }
 
 impl VxPaths {
@@ -45,6 +49,8 @@ impl VxPaths {
             cache_dir: base_dir.join("cache"),
             config_dir: base_dir.join("config"),
             tmp_dir: base_dir.join("tmp"),
+            turbo_cdn_cache_dir: base_dir.join("turbo-cdn"),
+            turbo_cdn_logs_dir: base_dir.join("logs"),
             base_dir,
         })
     }
@@ -58,6 +64,8 @@ impl VxPaths {
             cache_dir: base_dir.join("cache"),
             config_dir: base_dir.join("config"),
             tmp_dir: base_dir.join("tmp"),
+            turbo_cdn_cache_dir: base_dir.join("turbo-cdn"),
+            turbo_cdn_logs_dir: base_dir.join("logs"),
             base_dir,
         }
     }
@@ -69,7 +77,24 @@ impl VxPaths {
         std::fs::create_dir_all(&self.cache_dir)?;
         std::fs::create_dir_all(&self.config_dir)?;
         std::fs::create_dir_all(&self.tmp_dir)?;
+        std::fs::create_dir_all(&self.turbo_cdn_cache_dir)?;
+        std::fs::create_dir_all(&self.turbo_cdn_logs_dir)?;
         Ok(())
+    }
+
+    /// Get turbo-cdn cache directory path
+    pub fn turbo_cdn_cache_dir(&self) -> &PathBuf {
+        &self.turbo_cdn_cache_dir
+    }
+
+    /// Get turbo-cdn logs directory path
+    pub fn turbo_cdn_logs_dir(&self) -> &PathBuf {
+        &self.turbo_cdn_logs_dir
+    }
+
+    /// Get turbo-cdn audit log file path
+    pub fn turbo_cdn_audit_log(&self) -> PathBuf {
+        self.turbo_cdn_logs_dir.join("audit.log")
     }
 }
 
@@ -94,6 +119,27 @@ pub fn executable_extension() -> &'static str {
 /// Add executable extension to a tool name if needed
 pub fn with_executable_extension(tool_name: &str) -> String {
     format!("{}{}", tool_name, executable_extension())
+}
+
+/// Get turbo-cdn cache directory path (global convenience function)
+pub fn get_turbo_cdn_cache_dir() -> Result<PathBuf> {
+    let paths = VxPaths::new()?;
+    paths.ensure_dirs()?;
+    Ok(paths.turbo_cdn_cache_dir)
+}
+
+/// Get turbo-cdn logs directory path (global convenience function)
+pub fn get_turbo_cdn_logs_dir() -> Result<PathBuf> {
+    let paths = VxPaths::new()?;
+    paths.ensure_dirs()?;
+    Ok(paths.turbo_cdn_logs_dir)
+}
+
+/// Get turbo-cdn audit log file path (global convenience function)
+pub fn get_turbo_cdn_audit_log() -> Result<PathBuf> {
+    let paths = VxPaths::new()?;
+    paths.ensure_dirs()?;
+    Ok(paths.turbo_cdn_audit_log())
 }
 
 /// Custom which function that respects PATHEXT on Windows and supports vx-managed tools
@@ -246,6 +292,11 @@ mod tests {
         assert_eq!(paths.cache_dir, PathBuf::from("/tmp/test-vx/cache"));
         assert_eq!(paths.config_dir, PathBuf::from("/tmp/test-vx/config"));
         assert_eq!(paths.tmp_dir, PathBuf::from("/tmp/test-vx/tmp"));
+        assert_eq!(
+            paths.turbo_cdn_cache_dir,
+            PathBuf::from("/tmp/test-vx/turbo-cdn")
+        );
+        assert_eq!(paths.turbo_cdn_logs_dir, PathBuf::from("/tmp/test-vx/logs"));
     }
 
     #[test]
