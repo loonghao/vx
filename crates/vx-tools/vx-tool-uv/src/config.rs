@@ -119,13 +119,14 @@ impl StandardToolConfig for Config {
 
 /// Create installation configuration for UV
 pub fn create_install_config(version: &str, install_dir: PathBuf, force: bool) -> InstallConfig {
-    // IMPORTANT: This function should NOT receive "latest" as version
-    // The caller should resolve "latest" to actual version first
-    if version == "latest" {
-        panic!("create_install_config received 'latest' version, this should be resolved first");
-    }
+    // Handle "latest" version by resolving to default version
+    let actual_version = if version == "latest" {
+        Config::get_default_version() // Use the default stable version
+    } else {
+        version
+    };
 
-    let download_url = UvUrlBuilder::download_url(version);
+    let download_url = UvUrlBuilder::download_url(actual_version);
 
     // Create lifecycle hooks to optimize path structure
     let mut hooks = LifecycleHooks::default();
@@ -143,7 +144,7 @@ pub fn create_install_config(version: &str, install_dir: PathBuf, force: bool) -
 
     InstallConfig::builder()
         .tool_name(Config::tool_name())
-        .version(version)
+        .version(actual_version)
         .download_url(download_url.unwrap_or_default())
         .install_method(InstallMethod::Archive {
             format: if cfg!(windows) {
@@ -166,7 +167,7 @@ mod tests {
     fn test_uv_url_builder() {
         let url = UvUrlBuilder::download_url("0.1.0");
         assert!(url.is_some());
-        assert!(url.unwrap().contains("github.com"));
+        assert!(url.expect("URL should be generated").contains("github.com"));
     }
 
     #[test]
@@ -185,11 +186,23 @@ mod tests {
     }
 
     #[test]
+    fn test_latest_version_handling() {
+        // Test that create_install_config properly handles "latest" version
+        let config = create_install_config("latest", PathBuf::from("/tmp/uv"), false);
+
+        // Should resolve "latest" to the default version
+        assert_eq!(config.version, Config::get_default_version());
+        assert_eq!(config.tool_name, "uv");
+        assert!(config.download_url.is_some());
+        assert!(!config.force);
+    }
+
+    #[test]
     fn test_uv_url_format_fix() {
         // Test that the URL format is correct (no version in filename)
         let url = UvUrlBuilder::download_url("0.7.13");
         assert!(url.is_some());
-        let url_str = url.unwrap();
+        let url_str = url.expect("URL should be generated");
 
         // Should contain the version in the path but not in the filename
         assert!(url_str.contains("/0.7.13/"));

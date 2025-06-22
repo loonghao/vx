@@ -115,13 +115,12 @@ pub async fn create_install_config(
     version: &str,
     install_dir: PathBuf,
 ) -> anyhow::Result<InstallConfig> {
-    // IMPORTANT: This function should NOT receive "latest" as version
-    // The caller should resolve "latest" to actual version first
-    if version == "latest" {
-        return Err(anyhow::anyhow!(
-            "create_install_config received 'latest' version, this should be resolved first"
-        ));
-    }
+    // Handle "latest" version by resolving to default version
+    let actual_version = if version == "latest" {
+        Config::get_default_version() // Use the default LTS version
+    } else {
+        version
+    };
 
     // Use global config system for sync access
     use vx_config::{get_global_config, get_tool_download_url, VersionParser};
@@ -132,13 +131,13 @@ pub async fn create_install_config(
     let clean_version = if let Some(tool_config) = config.tools.get("node") {
         if let Some(version_parser) = VersionParser::from_tool_config(tool_config) {
             version_parser
-                .parse_tag(version)
-                .unwrap_or_else(|_| version.to_string())
+                .parse_tag(actual_version)
+                .unwrap_or_else(|_| actual_version.to_string())
         } else {
-            version.to_string()
+            actual_version.to_string()
         }
     } else {
-        version.to_string()
+        actual_version.to_string()
     };
 
     let download_url = get_tool_download_url(config, "node", &clean_version)
@@ -250,19 +249,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_latest_version_handling() {
-        // Test that create_install_config properly rejects "latest" version
-        let result = create_install_config("latest", PathBuf::from("/tmp/node")).await;
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("should be resolved first"));
-
-        // Test with a real version instead
-        let config = create_install_config("20.11.0", PathBuf::from("/tmp/node"))
+        // Test that create_install_config properly handles "latest" version
+        let config = create_install_config("latest", PathBuf::from("/tmp/node"))
             .await
-            .expect("Should create config with real version");
-        assert_eq!(config.version, "20.11.0");
+            .expect("Should create config with latest version");
+
+        // Should resolve "latest" to the default LTS version
+        assert_eq!(config.version, Config::get_default_version());
+        assert_eq!(config.tool_name, "node");
+        assert!(config.download_url.is_some());
+
         // Should use actual version in URL
         assert!(config
             .download_url

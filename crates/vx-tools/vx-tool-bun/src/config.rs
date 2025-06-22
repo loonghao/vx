@@ -167,7 +167,7 @@ pub async fn create_install_config(
 
     Ok(InstallConfig::builder()
         .tool_name("bun")
-        .version(actual_version.to_string())
+        .version(clean_version)
         .install_method(install_method)
         .download_url(download_url)
         .install_dir(install_dir)
@@ -218,14 +218,16 @@ mod tests {
     fn test_bun_url_builder() {
         let url = BunUrlBuilder::download_url("1.0.0");
         assert!(url.is_some());
-        assert!(url.unwrap().contains("github.com/oven-sh/bun"));
+        assert!(url
+            .expect("URL should be generated")
+            .contains("github.com/oven-sh/bun"));
     }
 
     #[tokio::test]
     async fn test_create_install_config() {
         let config = create_install_config("latest", PathBuf::from("/tmp/bun"))
             .await
-            .unwrap();
+            .expect("Should create install config");
         assert_eq!(config.tool_name, "bun");
         assert_eq!(config.version, "1.2.9"); // Should use actual version for consistency
     }

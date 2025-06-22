@@ -112,7 +112,7 @@ pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConf
 
     InstallConfig::builder()
         .tool_name("yarn")
-        .version(version.to_string())
+        .version(actual_version.to_string())
         .install_method(install_method)
         .download_url(download_url.unwrap_or_default())
         .install_dir(install_dir)
@@ -166,13 +166,15 @@ mod tests {
     fn test_yarn_url_builder() {
         let url = YarnUrlBuilder::download_url("1.22.19");
         assert!(url.is_some());
-        assert!(url.unwrap().contains("github.com/yarnpkg/yarn"));
+        assert!(url
+            .expect("URL should be generated")
+            .contains("github.com/yarnpkg/yarn"));
     }
 
     #[test]
     fn test_create_install_config() {
         let config = create_install_config("latest", PathBuf::from("/tmp/yarn"));
         assert_eq!(config.tool_name, "yarn");
-        assert_eq!(config.version, "latest");
+        assert_eq!(config.version, "1.22.19"); // Should resolve "latest" to actual version
     }
 }
