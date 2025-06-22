@@ -26,6 +26,7 @@ pub struct BenchmarkResult {
 pub struct PerformanceBaseline {
     pub version: String,
     pub created_at: DateTime<Utc>,
+    pub last_updated: DateTime<Utc>,
     pub baselines: HashMap<String, OperationBaseline>,
 }
 
@@ -233,6 +234,7 @@ impl BenchmarkManager {
             .unwrap_or_else(|| PerformanceBaseline {
                 version: "1.0.0".to_string(),
                 created_at: Utc::now(),
+                last_updated: Utc::now(),
                 baselines: HashMap::new(),
             });
 
@@ -257,7 +259,9 @@ impl BenchmarkManager {
 
             let average_ms = durations.iter().sum::<u64>() / durations.len() as u64;
             let percentile_95_ms = durations[(durations.len() as f64 * 0.95) as usize];
-            let max_duration_ms = *durations.last().unwrap();
+            let max_duration_ms = *durations.last().ok_or_else(|| {
+                anyhow::anyhow!("No durations found for operation: {}", data[0].operation)
+            })?;
 
             let operation_baseline = OperationBaseline {
                 operation: data[0].operation.clone(),
@@ -386,21 +390,23 @@ mod tests {
 
     #[test]
     fn test_benchmark_manager_creation() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let baseline_path = temp_dir.path().join("baseline.json");
         let results_dir = temp_dir.path().join("results");
 
-        let manager = BenchmarkManager::new(&baseline_path, &results_dir).unwrap();
+        let manager = BenchmarkManager::new(&baseline_path, &results_dir)
+            .expect("Failed to create benchmark manager");
         assert!(results_dir.exists());
     }
 
     #[test]
     fn test_baseline_comparison() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let baseline_path = temp_dir.path().join("baseline.json");
         let results_dir = temp_dir.path().join("results");
 
-        let manager = BenchmarkManager::new(&baseline_path, &results_dir).unwrap();
+        let manager = BenchmarkManager::new(&baseline_path, &results_dir)
+            .expect("Failed to create benchmark manager");
 
         let results = vec![BenchmarkResult {
             operation: "test".to_string(),
@@ -413,7 +419,9 @@ mod tests {
             metadata: HashMap::new(),
         }];
 
-        let comparisons = manager.compare_against_baseline(&results).unwrap();
+        let comparisons = manager
+            .compare_against_baseline(&results)
+            .expect("Failed to compare against baseline");
         assert_eq!(comparisons.len(), 1);
         assert_eq!(comparisons[0].status, ComparisonStatus::NoBaseline);
     }

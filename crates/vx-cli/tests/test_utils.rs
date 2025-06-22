@@ -1,8 +1,9 @@
 //! Test utilities for vx-cli tests
 
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::{ExitStatus, Output};
+use std::process::Output;
 use vx_plugin::{PluginRegistry, VxPlugin, VxTool};
 
 /// Test environment setup
@@ -85,6 +86,7 @@ impl MockTool {
     }
 }
 
+#[async_trait]
 impl VxTool for MockTool {
     fn name(&self) -> &str {
         &self.name
@@ -94,8 +96,15 @@ impl VxTool for MockTool {
         "Mock tool for testing"
     }
 
-    fn executable_path(&self) -> Option<&std::path::Path> {
-        self.executable_path.as_deref()
+    async fn fetch_versions(
+        &self,
+        _include_prerelease: bool,
+    ) -> Result<Vec<vx_plugin::VersionInfo>, anyhow::Error> {
+        // Return mock versions for testing
+        Ok(vec![
+            vx_plugin::VersionInfo::new("1.0.0"),
+            vx_plugin::VersionInfo::new("2.0.0"),
+        ])
     }
 }
 
@@ -247,13 +256,12 @@ pub fn command_exists(command: &str) -> bool {
 }
 
 /// Skip test if command is not available
+#[macro_export]
 macro_rules! skip_if_command_missing {
     ($command:expr) => {
-        if !crate::test_utils::command_exists($command) {
+        if !test_utils::command_exists($command) {
             eprintln!("Skipping test: {} command not found", $command);
             return;
         }
     };
 }
-
-pub use skip_if_command_missing;
