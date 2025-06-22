@@ -1,7 +1,8 @@
 //! Tests for the execute command module
 
-use super::execute::*;
-use crate::test_utils::*;
+use vx_cli::commands::execute::*;
+mod test_utils;
+use test_utils::*;
 
 #[tokio::test]
 async fn test_execute_tool_success() {

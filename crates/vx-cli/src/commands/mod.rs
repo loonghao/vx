@@ -8,8 +8,6 @@ pub mod async_install;
 pub mod cleanup;
 pub mod config;
 pub mod execute;
-#[cfg(test)]
-mod execute_tests;
 pub mod fetch;
 pub mod global;
 pub mod init;

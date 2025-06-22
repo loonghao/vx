@@ -1,49 +1,27 @@
-//! Test utilities for vx-cli
-//!
-//! This module provides common testing utilities, mocks, and helpers
-//! for testing vx-cli functionality.
+//! Test utilities for vx-cli tests
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::Output;
-use tempfile::TempDir;
+use std::process::{ExitStatus, Output};
 use vx_plugin::{PluginRegistry, VxPlugin, VxTool};
 
-/// Mock tool for testing
-#[derive(Debug, Clone)]
-pub struct MockTool {
-    pub name: String,
-    pub version: String,
-    pub executable_path: Option<PathBuf>,
-    pub should_fail: bool,
+/// Test environment setup
+pub struct TestEnvironment {
+    pub registry: PluginRegistry,
 }
 
-impl MockTool {
-    pub fn new(name: &str, version: &str) -> Self {
+impl TestEnvironment {
+    pub fn new() -> Self {
         Self {
-            name: name.to_string(),
-            version: version.to_string(),
-            executable_path: None,
-            should_fail: false,
+            registry: PluginRegistry::new(),
         }
-    }
-
-    pub fn with_executable(mut self, path: PathBuf) -> Self {
-        self.executable_path = Some(path);
-        self
-    }
-
-    pub fn with_failure(mut self) -> Self {
-        self.should_fail = true;
-        self
     }
 }
 
 /// Mock plugin for testing
-#[derive(Debug)]
 pub struct MockPlugin {
-    pub name: String,
-    pub tools: Vec<MockTool>,
+    name: String,
+    tools: Vec<MockTool>,
 }
 
 impl MockPlugin {
@@ -77,7 +55,36 @@ impl VxPlugin for MockPlugin {
     }
 }
 
-#[async_trait::async_trait]
+/// Mock tool for testing
+#[derive(Clone)]
+pub struct MockTool {
+    name: String,
+    pub version: String,
+    pub executable_path: Option<PathBuf>,
+    pub should_fail: bool,
+}
+
+impl MockTool {
+    pub fn new(name: &str, version: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            version: version.to_string(),
+            executable_path: None,
+            should_fail: false,
+        }
+    }
+
+    pub fn with_executable(mut self, path: PathBuf) -> Self {
+        self.executable_path = Some(path);
+        self
+    }
+
+    pub fn with_failure(mut self) -> Self {
+        self.should_fail = true;
+        self
+    }
+}
+
 impl VxTool for MockTool {
     fn name(&self) -> &str {
         &self.name
@@ -87,119 +94,81 @@ impl VxTool for MockTool {
         "Mock tool for testing"
     }
 
-    async fn fetch_versions(
-        &self,
-        _include_prerelease: bool,
-    ) -> anyhow::Result<Vec<vx_version::VersionInfo>> {
-        // Return a mock version for testing
-        Ok(vec![vx_version::VersionInfo::new(self.version.clone())])
-    }
-
-    async fn get_executable_path(&self, _install_dir: &std::path::Path) -> anyhow::Result<PathBuf> {
-        self.executable_path
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("Tool not installed"))
-    }
-
-    async fn get_installed_versions(&self) -> anyhow::Result<Vec<String>> {
-        if self.executable_path.is_some() {
-            Ok(vec![self.version.clone()])
-        } else {
-            Ok(vec![])
-        }
-    }
-
-    async fn is_version_installed(&self, version: &str) -> anyhow::Result<bool> {
-        Ok(self.executable_path.is_some() && self.version == version)
+    fn executable_path(&self) -> Option<&std::path::Path> {
+        self.executable_path.as_deref()
     }
 }
 
-/// Test environment setup
-pub struct TestEnvironment {
-    pub temp_dir: TempDir,
-    pub registry: PluginRegistry,
-    pub mock_tools: HashMap<String, MockTool>,
-}
-
-impl TestEnvironment {
-    pub fn new() -> Self {
-        let temp_dir = TempDir::new().expect("Failed to create temp directory");
-        let registry = PluginRegistry::new();
-
-        Self {
-            temp_dir,
-            registry,
-            mock_tools: HashMap::new(),
-        }
-    }
-
-    pub fn add_mock_tool(&mut self, tool: MockTool) {
-        self.mock_tools.insert(tool.name.clone(), tool);
-    }
-
-    pub async fn setup_mock_plugin(&mut self, plugin: MockPlugin) {
-        let _ = self.registry.register_plugin(Box::new(plugin)).await;
-    }
-
-    pub fn temp_path(&self) -> &std::path::Path {
-        self.temp_dir.path()
-    }
-}
-
-/// Mock command execution for testing
+/// Mock command executor for testing
 pub struct MockCommandExecutor {
-    pub expected_commands: Vec<(String, Vec<String>)>,
-    pub responses: Vec<Result<Output, std::io::Error>>,
-    pub call_count: usize,
+    expectations: Vec<CommandExpectation>,
+    current_index: usize,
+}
+
+struct CommandExpectation {
+    command: String,
+    args: Vec<String>,
+    response: Result<Output, std::io::Error>,
 }
 
 impl MockCommandExecutor {
     pub fn new() -> Self {
         Self {
-            expected_commands: Vec::new(),
-            responses: Vec::new(),
-            call_count: 0,
+            expectations: Vec::new(),
+            current_index: 0,
         }
     }
 
     pub fn expect_command(mut self, command: &str, args: Vec<&str>) -> Self {
-        self.expected_commands.push((
-            command.to_string(),
-            args.iter().map(|s| s.to_string()).collect(),
-        ));
+        self.expectations.push(CommandExpectation {
+            command: command.to_string(),
+            args: args.iter().map(|s| s.to_string()).collect(),
+            response: Ok(mock_success_output("")),
+        });
         self
     }
 
     pub fn with_response(mut self, output: Output) -> Self {
-        self.responses.push(Ok(output));
+        if let Some(last) = self.expectations.last_mut() {
+            last.response = Ok(output);
+        }
         self
     }
 
     pub fn with_error(mut self, error: std::io::Error) -> Self {
-        self.responses.push(Err(error));
+        if let Some(last) = self.expectations.last_mut() {
+            last.response = Err(error);
+        }
         self
     }
 
     pub fn execute(&mut self, command: &str, args: &[String]) -> Result<Output, std::io::Error> {
-        if self.call_count >= self.expected_commands.len() {
+        if self.current_index >= self.expectations.len() {
             panic!("Unexpected command call: {} {:?}", command, args);
         }
 
-        let (expected_cmd, expected_args) = &self.expected_commands[self.call_count];
-        assert_eq!(command, expected_cmd, "Command mismatch");
-        assert_eq!(args, expected_args, "Arguments mismatch");
+        let expectation = &self.expectations[self.current_index];
 
-        let response = match &self.responses[self.call_count] {
-            Ok(output) => Ok(Output {
-                status: output.status,
-                stdout: output.stdout.clone(),
-                stderr: output.stderr.clone(),
-            }),
-            Err(e) => Err(std::io::Error::new(e.kind(), e.to_string())),
-        };
-        self.call_count += 1;
+        if expectation.command != command {
+            panic!(
+                "Command mismatch: expected '{}', got '{}'",
+                expectation.command, command
+            );
+        }
 
-        response
+        if expectation.args != args {
+            panic!(
+                "Arguments mismatch: expected {:?}, got {:?}",
+                expectation.args, args
+            );
+        }
+
+        self.current_index += 1;
+        expectation
+            .response
+            .as_ref()
+            .map(|o| o.clone())
+            .map_err(|e| std::io::Error::new(e.kind(), e.to_string()))
     }
 }
 
@@ -207,18 +176,20 @@ impl MockCommandExecutor {
 pub fn mock_success_output(stdout: &str) -> Output {
     use std::process::Command;
 
-    // Create a real command that will succeed to get a valid ExitStatus
-    let output = Command::new("echo")
-        .arg("")
-        .output()
-        .unwrap_or_else(|_| Output {
-            status: std::process::ExitStatus::default(),
-            stdout: Vec::new(),
-            stderr: Vec::new(),
-        });
+    // Create a real successful command to get a proper ExitStatus
+    let output = if cfg!(target_os = "windows") {
+        Command::new("cmd").args(["/C", "echo"]).output()
+    } else {
+        Command::new("true").output()
+    };
+
+    let status = output.map(|o| o.status).unwrap_or_else(|_| {
+        // Fallback: create a mock status
+        std::process::Command::new("echo").status().unwrap()
+    });
 
     Output {
-        status: output.status,
+        status,
         stdout: stdout.as_bytes().to_vec(),
         stderr: Vec::new(),
     }
@@ -228,50 +199,61 @@ pub fn mock_success_output(stdout: &str) -> Output {
 pub fn mock_error_output(stderr: &str, _exit_code: i32) -> Output {
     use std::process::Command;
 
-    // Create a real command that will fail to get a valid ExitStatus
-    let output = Command::new("nonexistent-command-xyz")
-        .output()
-        .unwrap_or_else(|_| Output {
-            status: std::process::ExitStatus::default(),
-            stdout: Vec::new(),
-            stderr: Vec::new(),
-        });
+    // Create a real failed command to get a proper ExitStatus
+    let output = if cfg!(target_os = "windows") {
+        Command::new("cmd").args(["/C", "exit 1"]).output()
+    } else {
+        Command::new("false").output()
+    };
+
+    let status = output.map(|o| o.status).unwrap_or_else(|_| {
+        // Fallback: create a mock status
+        std::process::Command::new("false")
+            .status()
+            .unwrap_or_else(|_| std::process::Command::new("echo").status().unwrap())
+    });
 
     Output {
-        status: output.status,
+        status,
         stdout: Vec::new(),
         stderr: stderr.as_bytes().to_vec(),
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_mock_tool_creation() {
-        let tool = MockTool::new("node", "18.0.0");
-        assert_eq!(tool.name(), "node");
-        assert_eq!(tool.version, "18.0.0");
-        assert!(tool.executable_path.is_none());
-    }
-
-    #[test]
-    fn test_mock_tool_with_executable() {
-        let path = PathBuf::from("/usr/bin/node");
-        let tool = MockTool::new("node", "18.0.0").with_executable(path.clone());
-
-        assert_eq!(tool.name(), "node");
-        assert_eq!(tool.executable_path, Some(path));
-    }
-
-    #[tokio::test]
-    async fn test_test_environment() {
-        let mut env = TestEnvironment::new();
-        let tool = MockTool::new("test-tool", "1.0.0");
-        env.add_mock_tool(tool);
-
-        assert!(env.temp_path().exists());
-        assert!(env.mock_tools.contains_key("test-tool"));
-    }
+/// Helper to create test configuration
+pub fn create_test_config() -> HashMap<String, String> {
+    let mut config = HashMap::new();
+    config.insert("vx_home".to_string(), "/tmp/vx-test".to_string());
+    config.insert("tools_dir".to_string(), "/tmp/vx-test/tools".to_string());
+    config.insert("cache_dir".to_string(), "/tmp/vx-test/cache".to_string());
+    config
 }
+
+/// Helper to create temporary test directory
+pub fn create_temp_dir() -> tempfile::TempDir {
+    tempfile::tempdir().expect("Failed to create temporary directory")
+}
+
+/// Helper to create test file with content
+pub fn create_test_file(dir: &std::path::Path, name: &str, content: &str) -> std::path::PathBuf {
+    let file_path = dir.join(name);
+    std::fs::write(&file_path, content).expect("Failed to write test file");
+    file_path
+}
+
+/// Helper to check if a command exists on the system
+pub fn command_exists(command: &str) -> bool {
+    which::which(command).is_ok()
+}
+
+/// Skip test if command is not available
+macro_rules! skip_if_command_missing {
+    ($command:expr) => {
+        if !crate::test_utils::command_exists($command) {
+            eprintln!("Skipping test: {} command not found", $command);
+            return;
+        }
+    };
+}
+
+pub use skip_if_command_missing;
