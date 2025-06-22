@@ -59,9 +59,14 @@ async fn test_bun_tool_download_url() {
 #[tokio::test]
 async fn test_bun_tool_active_version() {
     let tool = BunTool::new();
-    let version = tool.get_active_version().await.unwrap();
+    let result = tool.get_active_version().await;
 
-    assert_eq!(version, "latest");
+    // Should return an error when no versions are installed
+    assert!(result.is_err());
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("No Bun versions installed"));
 }
 
 #[tokio::test]
