@@ -117,6 +117,9 @@ impl PathManager {
                 #[cfg(windows)]
                 paths.push(version_dir.join(format!("{}.bat", tool_name)));
 
+                #[cfg(not(windows))]
+                let _ = &mut paths; // Suppress unused_mut warning on non-Windows
+
                 paths
             }
             "python" => vec![
@@ -141,6 +144,9 @@ impl PathManager {
                 // On Windows, also check for .bat file
                 #[cfg(windows)]
                 paths.push(version_dir.join(format!("{}.bat", tool_name)));
+
+                #[cfg(not(windows))]
+                let _ = &mut paths; // Suppress unused_mut warning on non-Windows
 
                 paths
             }
@@ -193,6 +199,9 @@ impl PathManager {
                 // On Windows, also check for .bat file
                 #[cfg(windows)]
                 paths.push(version_dir.join(format!("{}.bat", tool_name)));
+
+                #[cfg(not(windows))]
+                let _ = &mut paths; // Suppress unused_mut warning on non-Windows
 
                 paths
             }
