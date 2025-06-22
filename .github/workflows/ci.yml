@@ -103,8 +103,8 @@ jobs:
             os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             rust: stable
-            cross_compile: false
-            use_docker: true
+            cross_compile: true
+            use_cross: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -133,19 +133,31 @@ jobs:
             ${{ runner.os }}-${{ matrix.platform.target }}-cargo-
             ${{ runner.os }}-cargo-
 
-      # Setup cross-compilation toolchain using taiki-e action
+      # Setup cross-compilation toolchain using taiki-e action (for ARM64)
       - name: Setup cross-compilation toolchain
         if: matrix.platform.use_docker == true
         uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           target: ${{ matrix.platform.target }}
 
-      # Build and test with cross-compilation
-      - name: Build and test (cross-compilation)
+      # Install cross tool for musl targets
+      - name: Install cross tool
+        if: matrix.platform.use_cross == true
+        uses: taiki-e/install-action@cross
+
+      # Build and test with taiki-e cross-compilation (ARM64)
+      - name: Build and test (taiki-e cross-compilation)
         if: matrix.platform.use_docker == true
         run: |
           cargo build --release --all-features
           cargo test --all-features
+
+      # Build and test with cross tool (musl)
+      - name: Build and test (cross tool)
+        if: matrix.platform.use_cross == true
+        run: |
+          cross build --release --all-features --target ${{ matrix.platform.target }}
+          cross test --all-features --target ${{ matrix.platform.target }}
 
       # Install musl tools for musl target
       - name: Install musl tools
