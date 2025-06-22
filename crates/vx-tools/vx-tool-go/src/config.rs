@@ -237,7 +237,8 @@ mod tests {
     fn test_go_url_builder() {
         let url = GoUrlBuilder::download_url("1.21.6");
         assert!(url.is_some());
-        assert!(url.unwrap().contains("golang.org"));
+        // Go now uses go.dev instead of golang.org
+        assert!(url.expect("URL should be generated").contains("go.dev"));
     }
 
     #[test]
@@ -250,7 +251,7 @@ mod tests {
     async fn test_create_install_config() {
         let config = create_install_config("1.21.6", PathBuf::from("/tmp/go"))
             .await
-            .unwrap();
+            .expect("Should create install config");
         assert_eq!(config.tool_name, "go");
         assert_eq!(config.version, "1.21.6");
         assert!(config.download_url.is_some());
@@ -260,12 +261,12 @@ mod tests {
     async fn test_latest_version_handling() {
         let config = create_install_config("latest", PathBuf::from("/tmp/go"))
             .await
-            .unwrap();
+            .expect("Should create install config for latest version");
         assert_eq!(config.version, "latest");
-        // Should use actual version in URL
+        // Should use actual version in URL - Go now uses go.dev instead of golang.org
         assert!(config
             .download_url
             .as_ref()
-            .map_or(false, |url| url.contains("golang.org")));
+            .map_or(false, |url| url.contains("go.dev")));
     }
 }
