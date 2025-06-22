@@ -124,16 +124,59 @@ impl VxIntegrationTest {
 
     /// Setup test environment
     pub async fn setup(&mut self) -> Result<()> {
-        // Create test directory
-        if self.test_dir.exists() {
-            std::fs::remove_dir_all(&self.test_dir)?;
+        println!("🔧 Setting up test environment...");
+        println!("📁 Target test directory: {}", self.test_dir.display());
+
+        // Check parent directory permissions
+        if let Some(parent) = self.test_dir.parent() {
+            println!("📂 Parent directory: {}", parent.display());
+            if !parent.exists() {
+                println!("⚠️  Parent directory does not exist, creating...");
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    anyhow::anyhow!(
+                        "Failed to create parent directory {}: {}",
+                        parent.display(),
+                        e
+                    )
+                })?;
+            }
         }
-        std::fs::create_dir_all(&self.test_dir)?;
+
+        // Remove existing test directory if it exists
+        if self.test_dir.exists() {
+            println!("🧹 Removing existing test directory...");
+            std::fs::remove_dir_all(&self.test_dir).map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to remove existing test directory {}: {}",
+                    self.test_dir.display(),
+                    e
+                )
+            })?;
+        }
+
+        // Create test directory
+        println!("📁 Creating test directory...");
+        std::fs::create_dir_all(&self.test_dir).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to create test directory {}: {}",
+                self.test_dir.display(),
+                e
+            )
+        })?;
+
+        // Verify directory was created
+        if !self.test_dir.exists() {
+            return Err(anyhow::anyhow!(
+                "Test directory was not created successfully: {}",
+                self.test_dir.display()
+            ));
+        }
 
         // Set VX_HOME to test directory
         std::env::set_var("VX_HOME", &self.test_dir);
+        println!("🔧 Set VX_HOME to: {}", self.test_dir.display());
 
-        println!("🔧 Test environment setup complete");
+        println!("✅ Test environment setup complete");
         println!("📁 Test directory: {}", self.test_dir.display());
 
         Ok(())
@@ -191,6 +234,7 @@ impl VxIntegrationTest {
     }
 
     /// Check if cleanup was successful (for testing)
+    #[allow(dead_code)]
     pub fn is_cleaned_up(&self) -> bool {
         !self.test_dir.exists()
     }
