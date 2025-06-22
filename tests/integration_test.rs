@@ -142,21 +142,57 @@ impl VxIntegrationTest {
     /// Cleanup test environment
     pub async fn cleanup(&self) -> Result<()> {
         if self.test_dir.exists() {
+            // Try multiple cleanup strategies for Windows compatibility
+            let mut cleanup_success = false;
+
+            // Strategy 1: Direct removal
             match std::fs::remove_dir_all(&self.test_dir) {
                 Ok(()) => {
                     println!("🧹 Test environment cleaned up");
+                    cleanup_success = true;
                 }
                 Err(e) => {
-                    // Log the error but don't fail the test
-                    println!("⚠️  Warning: Failed to cleanup test directory: {}", e);
-                    println!("   Directory: {}", self.test_dir.display());
-                    // This is not a critical error, so we continue
+                    println!("⚠️  First cleanup attempt failed: {}", e);
+
+                    // Strategy 2: Wait and retry (Windows file locking)
+                    if cfg!(windows) {
+                        println!("🔄 Retrying cleanup after delay (Windows file locking)...");
+                        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+                        match std::fs::remove_dir_all(&self.test_dir) {
+                            Ok(()) => {
+                                println!("🧹 Test environment cleaned up on retry");
+                                cleanup_success = true;
+                            }
+                            Err(e2) => {
+                                println!("⚠️  Warning: Failed to cleanup test directory: {}", e2);
+                                println!("   Directory: {}", self.test_dir.display());
+                                // On Windows, this is often due to file locking and is not critical
+                                if cfg!(windows) {
+                                    println!("   This is common on Windows due to file locking and is not critical");
+                                }
+                            }
+                        }
+                    } else {
+                        println!("⚠️  Warning: Failed to cleanup test directory: {}", e);
+                        println!("   Directory: {}", self.test_dir.display());
+                    }
                 }
+            }
+
+            // Return success even if cleanup failed on Windows (due to file locking)
+            if !cleanup_success && cfg!(windows) {
+                println!("🔄 Cleanup incomplete on Windows - this is expected due to file locking");
             }
         } else {
             println!("🧹 Test environment already clean (directory not found)");
         }
         Ok(())
+    }
+
+    /// Check if cleanup was successful (for testing)
+    pub fn is_cleaned_up(&self) -> bool {
+        !self.test_dir.exists()
     }
 
     /// Record a test result
