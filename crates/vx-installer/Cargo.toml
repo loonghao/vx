@@ -20,8 +20,8 @@ tokio = { workspace = true }
 reqwest = { workspace = true }
 tracing = { workspace = true }
 
-# Turbo CDN for unified download
-turbo-cdn = "0.2.0"
+# Turbo CDN for unified download - try to use rustls if available
+turbo-cdn = { version = "0.2.0", default-features = false }
 
 # File system and path utilities
 dirs = { workspace = true }

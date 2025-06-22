@@ -113,6 +113,7 @@ jobs:
         run: |
           echo "CARGO_NET_GIT_FETCH_WITH_CLI=true" >> $GITHUB_ENV
           echo "OPENSSL_NO_VENDOR=1" >> $GITHUB_ENV
+          echo "RUSTFLAGS=--cfg reqwest_unstable" >> $GITHUB_ENV
 
       # Install musl tools for musl target
       - name: Install musl tools

@@ -19,7 +19,7 @@ vx-paths = { path = "../vx-paths" }
 vx-version = { path = "../vx-version" }
 vx-installer = { path = "../vx-installer" }
 vx-config = { path = "../vx-config" }
-turbo-cdn = "0.2.0"
+turbo-cdn = { version = "0.2.0", default-features = false }
 shimexe-core = "0.3"
 vx-tool-node = { path = "../vx-tools/vx-tool-node" }
 vx-tool-go = { path = "../vx-tools/vx-tool-go" }
