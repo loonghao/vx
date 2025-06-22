@@ -204,7 +204,7 @@ pub fn apply_vx_overrides(config: &mut TurboCdnConfig) -> Result<()> {
 
     // Use vx-paths for cache directory
     if let Ok(cache_dir) = vx_paths::get_turbo_cdn_cache_dir() {
-        config.performance.cache.directory = cache_dir.to_string_lossy().to_string();
+        config.performance.cache.directory = Some(cache_dir.to_string_lossy().to_string());
     }
 
     // Override logging settings using vx-paths
@@ -213,7 +213,7 @@ pub fn apply_vx_overrides(config: &mut TurboCdnConfig) -> Result<()> {
 
     // Use vx-paths for log directory
     if let Ok(log_file) = vx_paths::get_turbo_cdn_audit_log() {
-        config.logging.audit_file = log_file.to_string_lossy().to_string();
+        config.logging.audit_file = Some(log_file.to_string_lossy().to_string());
     }
 
     Ok(())

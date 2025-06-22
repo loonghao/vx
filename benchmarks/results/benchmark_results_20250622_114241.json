@@ -1,0 +1,124 @@
+[
+  {
+    "operation": "version_fetch",
+    "tool": "node",
+    "version": null,
+    "duration_ms": 57886,
+    "success": true,
+    "timestamp": "2025-06-22T11:42:14.234581800+00:00",
+    "commit_hash": null,
+    "metadata": {
+      "version_count": "22"
+    }
+  },
+  {
+    "operation": "version_fetch",
+    "tool": "go",
+    "version": null,
+    "duration_ms": 2697,
+    "success": true,
+    "timestamp": "2025-06-22T11:42:16.931968200+00:00",
+    "commit_hash": null,
+    "metadata": {
+      "version_count": "3"
+    }
+  },
+  {
+    "operation": "version_fetch",
+    "tool": "uv",
+    "version": null,
+    "duration_ms": 3993,
+    "success": true,
+    "timestamp": "2025-06-22T11:42:20.925274900+00:00",
+    "commit_hash": null,
+    "metadata": {
+      "version_count": "22"
+    }
+  },
+  {
+    "operation": "version_fetch",
+    "tool": "pnpm",
+    "version": null,
+    "duration_ms": 3887,
+    "success": true,
+    "timestamp": "2025-06-22T11:42:24.812954500+00:00",
+    "commit_hash": null,
+    "metadata": {
+      "version_count": "22"
+    }
+  },
+  {
+    "operation": "version_fetch",
+    "tool": "yarn",
+    "version": null,
+    "duration_ms": 4556,
+    "success": true,
+    "timestamp": "2025-06-22T11:42:29.369107800+00:00",
+    "commit_hash": null,
+    "metadata": {
+      "version_count": "22"
+    }
+  },
+  {
+    "operation": "installation",
+    "tool": "node",
+    "version": "22.12.0",
+    "duration_ms": 1781,
+    "success": true,
+    "timestamp": "2025-06-22T11:42:31.150816+00:00",
+    "commit_hash": null,
+    "metadata": {
+      "output_length": "99"
+    }
+  },
+  {
+    "operation": "installation",
+    "tool": "go",
+    "version": "1.23.4",
+    "duration_ms": 3186,
+    "success": true,
+    "timestamp": "2025-06-22T11:42:34.337287300+00:00",
+    "commit_hash": null,
+    "metadata": {
+      "output_length": "93"
+    }
+  },
+  {
+    "operation": "installation",
+    "tool": "uv",
+    "version": "0.7.13",
+    "duration_ms": 1635,
+    "success": true,
+    "timestamp": "2025-06-22T11:42:35.973281+00:00",
+    "commit_hash": null,
+    "metadata": {
+      "output_length": "93"
+    }
+  },
+  {
+    "operation": "cdn_optimization",
+    "tool": "node",
+    "version": null,
+    "duration_ms": 3244,
+    "success": true,
+    "timestamp": "2025-06-22T11:42:39.217418500+00:00",
+    "commit_hash": null,
+    "metadata": {
+      "version_count": "22",
+      "cdn_enabled": "true"
+    }
+  },
+  {
+    "operation": "cdn_optimization",
+    "tool": "go",
+    "version": null,
+    "duration_ms": 2629,
+    "success": true,
+    "timestamp": "2025-06-22T11:42:41.847104700+00:00",
+    "commit_hash": null,
+    "metadata": {
+      "version_count": "3",
+      "cdn_enabled": "true"
+    }
+  }
+]

@@ -4,7 +4,7 @@ use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Download performance metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -204,7 +204,7 @@ impl PerformanceMonitor {
                 avg_speed: 0.0,
                 last_health_check: SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_secs(),
                 health_status: HealthStatus::Unknown,
             });
@@ -232,12 +232,11 @@ impl PerformanceMonitor {
         // Update health status based on recent performance
         // Calculate health status after updating metrics to avoid borrowing issues
         let source_name = metrics.source.clone();
-        drop(source_metrics); // Release the mutable borrow
+        let _ = source_metrics; // Release the mutable borrow
         let health_status = self.calculate_health_status(&source_name);
-        self.cdn_metrics
-            .get_mut(&source_name)
-            .unwrap()
-            .health_status = health_status;
+        if let Some(metrics) = self.cdn_metrics.get_mut(&source_name) {
+            metrics.health_status = health_status;
+        }
     }
 
     /// Calculate health status for a CDN source

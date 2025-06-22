@@ -1,8 +1,14 @@
-# Benchmark results (keep baseline)
-results/
+# Ignore temporary files
 *.tmp
-*.log
+*.temp
 
-# Keep baseline and documentation
+# Keep baseline and results
 !baseline.json
+!results/
+!results/*.json
+
+# Keep management tools and documentation
+!manage.py
+!manage.ps1
 !README.md
+!performance_report.md

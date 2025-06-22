@@ -1,87 +1,60 @@
-{
-  "version": "1.0.0",
-  "created_at": "2025-06-21T14:30:00.000Z",
-  "last_updated": "2025-06-21T14:30:00.000Z",
-  "baselines": {
-    "version_fetch_node": {
-      "operation": "version_fetch",
-      "max_duration_ms": 60000,
-      "percentile_95_ms": 45000,
-      "average_ms": 30000,
-      "sample_count": 10,
-      "last_updated": "2025-06-21T14:30:00.000Z"
-    },
-    "version_fetch_go": {
-      "operation": "version_fetch",
-      "max_duration_ms": 10000,
-      "percentile_95_ms": 8000,
-      "average_ms": 5000,
-      "sample_count": 10,
-      "last_updated": "2025-06-21T14:30:00.000Z"
-    },
-    "version_fetch_uv": {
-      "operation": "version_fetch",
-      "max_duration_ms": 15000,
-      "percentile_95_ms": 12000,
-      "average_ms": 8000,
-      "sample_count": 10,
-      "last_updated": "2025-06-21T14:30:00.000Z"
-    },
-    "version_fetch_pnpm": {
-      "operation": "version_fetch",
-      "max_duration_ms": 15000,
-      "percentile_95_ms": 12000,
-      "average_ms": 8000,
-      "sample_count": 10,
-      "last_updated": "2025-06-21T14:30:00.000Z"
-    },
-    "version_fetch_yarn": {
-      "operation": "version_fetch",
-      "max_duration_ms": 15000,
-      "percentile_95_ms": 12000,
-      "average_ms": 8000,
-      "sample_count": 10,
-      "last_updated": "2025-06-21T14:30:00.000Z"
-    },
-    "installation_node": {
-      "operation": "installation",
-      "max_duration_ms": 300000,
-      "percentile_95_ms": 240000,
-      "average_ms": 120000,
-      "sample_count": 10,
-      "last_updated": "2025-06-21T14:30:00.000Z"
-    },
-    "installation_go": {
-      "operation": "installation",
-      "max_duration_ms": 300000,
-      "percentile_95_ms": 240000,
-      "average_ms": 120000,
-      "sample_count": 10,
-      "last_updated": "2025-06-21T14:30:00.000Z"
-    },
-    "installation_uv": {
-      "operation": "installation",
-      "max_duration_ms": 300000,
-      "percentile_95_ms": 240000,
-      "average_ms": 120000,
-      "sample_count": 10,
-      "last_updated": "2025-06-21T14:30:00.000Z"
-    },
-    "cdn_optimization_node": {
-      "operation": "cdn_optimization",
-      "max_duration_ms": 30000,
-      "percentile_95_ms": 25000,
-      "average_ms": 15000,
-      "sample_count": 10,
-      "last_updated": "2025-06-21T14:30:00.000Z"
-    },
-    "cdn_optimization_go": {
-      "operation": "cdn_optimization",
-      "max_duration_ms": 30000,
-      "percentile_95_ms": 25000,
-      "average_ms": 15000,
-      "sample_count": 10,
-      "last_updated": "2025-06-21T14:30:00.000Z"
-    }
-  }
+﻿{
+    "created_at":  "2025-06-22T20:09:52.1695381+08:00",
+    "tools":  {
+                  "go":  {
+                             "total_count":  3,
+                             "success_count":  3,
+                             "total_duration":  8512
+                         },
+                  "node":  {
+                               "total_count":  3,
+                               "success_count":  3,
+                               "total_duration":  62911
+                           },
+                  "uv":  {
+                             "total_count":  2,
+                             "success_count":  2,
+                             "total_duration":  5628
+                         },
+                  "pnpm":  {
+                               "total_count":  1,
+                               "success_count":  1,
+                               "total_duration":  3887
+                           },
+                  "yarn":  {
+                               "total_count":  1,
+                               "success_count":  1,
+                               "total_duration":  4556
+                           }
+              },
+    "source_file":  "benchmark_results_20250622_114241.json",
+    "operations":  {
+                       "installation":  {
+                                            "success_rate":  1,
+                                            "min_duration":  1635,
+                                            "total_duration":  6602,
+                                            "success_count":  3,
+                                            "count":  3,
+                                            "max_duration":  3186,
+                                            "avg_duration":  2200.6666666666665
+                                        },
+                       "cdn_optimization":  {
+                                                "success_rate":  1,
+                                                "min_duration":  2629,
+                                                "total_duration":  5873,
+                                                "success_count":  2,
+                                                "count":  2,
+                                                "max_duration":  3244,
+                                                "avg_duration":  2936.5
+                                            },
+                       "version_fetch":  {
+                                             "success_rate":  1,
+                                             "min_duration":  2697,
+                                             "total_duration":  73019,
+                                             "success_count":  5,
+                                             "count":  5,
+                                             "max_duration":  57886,
+                                             "avg_duration":  14603.8
+                                         }
+                   }
 }
