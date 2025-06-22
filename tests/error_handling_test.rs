@@ -2,7 +2,12 @@
 //!
 //! This test suite verifies that vx handles error conditions gracefully.
 
-use crate::integration_test::{TestResult, ToolTestConfig, VxIntegrationTest};
+#![allow(clippy::duplicate_mod)]
+
+// Import shared test utilities
+#[path = "integration_test.rs"]
+mod integration_test_shared;
+use integration_test_shared::{TestResult, ToolTestConfig, VxIntegrationTest};
 use std::time::{Duration, Instant};
 
 /// Test error handling and edge cases
@@ -256,7 +261,7 @@ impl ErrorHandlingTest {
             let tool_name = tool.to_string();
             let handle = tokio::spawn(async move {
                 let start = Instant::now();
-                let mut test_suite = VxIntegrationTest::new();
+                let test_suite = VxIntegrationTest::new();
 
                 match test_suite
                     .execute_vx_command(&["versions", &tool_name], 60)

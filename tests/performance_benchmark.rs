@@ -2,7 +2,12 @@
 //!
 //! This test suite establishes performance baselines and monitors for regressions.
 
-use crate::integration_test::VxIntegrationTest;
+#![allow(clippy::duplicate_mod)]
+
+// Re-export integration test utilities
+#[path = "integration_test.rs"]
+mod integration_test_shared;
+use integration_test_shared::VxIntegrationTest;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -25,7 +30,9 @@ pub struct BenchmarkResult {
 pub struct PerformanceBaseline {
     pub version_fetch_max: u64,
     pub installation_max: u64,
+    #[allow(dead_code)]
     pub version_switch_max: u64,
+    #[allow(dead_code)]
     pub uninstall_max: u64,
 }
 
@@ -299,7 +306,7 @@ impl PerformanceBenchmark {
             if result.success {
                 operation_stats
                     .entry(result.operation.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(result.duration_ms);
             }
         }

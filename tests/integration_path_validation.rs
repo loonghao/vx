@@ -5,12 +5,13 @@
 
 use anyhow::Result;
 use std::collections::HashMap;
-use std::path::PathBuf;
+
 use tempfile::TempDir;
 use vx_paths::PathManager;
 
 /// Integration test fixture for validating tool installations
 struct IntegrationPathTestFixture {
+    #[allow(dead_code)]
     temp_dir: TempDir,
     path_manager: PathManager,
 }
@@ -102,6 +103,7 @@ enum ToolPathStructure {
     /// Executable in bin subdirectory
     BinSubdirectory,
     /// Custom path relative to version directory
+    #[allow(dead_code)]
     CustomPath(String),
 }
 

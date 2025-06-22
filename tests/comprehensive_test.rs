@@ -3,6 +3,8 @@
 //! This test runs the full integration test suite to verify all tools work correctly.
 //! Run with: cargo test --test comprehensive_test -- --nocapture
 
+#![allow(clippy::duplicate_mod)]
+
 mod error_handling_test;
 mod integration_test;
 mod performance_benchmark;
