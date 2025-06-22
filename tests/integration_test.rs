@@ -192,12 +192,17 @@ impl VxIntegrationTest {
     ) -> Result<(String, Duration)> {
         let start = Instant::now();
 
+        // Get the workspace root directory dynamically
+        let workspace_root = std::env::var("CARGO_MANIFEST_DIR")
+            .or_else(|_| std::env::current_dir().map(|p| p.to_string_lossy().to_string()))
+            .unwrap_or_else(|_| ".".to_string());
+
         let output = timeout(
             Duration::from_secs(timeout_secs),
             tokio::process::Command::new("cargo")
                 .args(["run", "--"])
                 .args(args)
-                .current_dir("c:/github/vx")
+                .current_dir(&workspace_root)
                 .output(),
         )
         .await??;
