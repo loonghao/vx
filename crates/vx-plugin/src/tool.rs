@@ -189,6 +189,9 @@ pub trait VxTool: Send + Sync {
             );
         }
 
+        #[cfg(not(windows))]
+        let _ = &mut candidates; // Suppress unused_mut warning on non-Windows
+
         for candidate in candidates {
             if candidate.exists() {
                 return Ok(candidate);
