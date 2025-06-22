@@ -20,6 +20,9 @@ tokio = { workspace = true }
 reqwest = { workspace = true }
 tracing = { workspace = true }
 
+# Turbo CDN for unified download
+turbo-cdn = "0.2.0"
+
 # File system and path utilities
 dirs = { workspace = true }
 tempfile = { workspace = true }

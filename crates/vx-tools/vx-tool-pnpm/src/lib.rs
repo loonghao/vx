@@ -16,7 +16,7 @@ use vx_plugin::{
     Ecosystem, PackageSpec, ToolContext, ToolExecutionResult, VersionInfo, VxPackageManager,
     VxPlugin, VxTool,
 };
-use vx_version::{GitHubVersionFetcher, VersionFetcher};
+use vx_version::{TurboCdnVersionFetcher, VersionFetcher};
 
 /// PNPM package manager implementation
 #[derive(Default)]
@@ -111,13 +111,34 @@ impl VxPackageManager for PnpmPackageManager {
 /// PNPM tool implementation
 #[derive(Debug, Clone)]
 pub struct PnpmTool {
-    version_fetcher: GitHubVersionFetcher,
+    version_fetcher: Option<TurboCdnVersionFetcher>,
 }
 
 impl PnpmTool {
     pub fn new() -> Self {
         Self {
-            version_fetcher: GitHubVersionFetcher::new("pnpm", "pnpm"),
+            version_fetcher: None,
+        }
+    }
+
+    /// Initialize the tool with turbo-cdn support
+    pub async fn init() -> Result<Self> {
+        let version_fetcher = TurboCdnVersionFetcher::new("pnpm", "pnpm").await?;
+        Ok(Self {
+            version_fetcher: Some(version_fetcher),
+        })
+    }
+
+    /// Get or initialize the version fetcher
+    async fn get_version_fetcher(&self) -> Result<TurboCdnVersionFetcher> {
+        match &self.version_fetcher {
+            Some(fetcher) => Ok(fetcher.clone()),
+            None => {
+                // Create a new fetcher if not initialized
+                TurboCdnVersionFetcher::new("pnpm", "pnpm")
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Failed to create TurboCdnVersionFetcher: {}", e))
+            }
         }
     }
 }
@@ -143,7 +164,9 @@ impl VxTool for PnpmTool {
     }
 
     async fn fetch_versions(&self, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
-        self.version_fetcher
+        // Use TurboCdn for version fetching
+        let fetcher = self.get_version_fetcher().await?;
+        fetcher
             .fetch_versions(include_prerelease)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to fetch pnpm versions: {}", e))

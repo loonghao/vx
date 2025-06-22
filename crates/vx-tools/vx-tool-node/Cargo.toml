@@ -20,6 +20,8 @@ vx-tool-standard = { version = "0.4.0", path = "../../vx-tool-standard" }
 vx-plugin = { version = "0.4.0", path = "../../vx-plugin" }
 vx-version = { version = "0.2.2", path = "../../vx-version" }
 vx-tool-npm = { version = "0.4.0", path = "../vx-tool-npm" }
+vx-config = { version = "0.4.1", path = "../../vx-config" }
+vx-paths = { version = "0.3.1", path = "../../vx-paths" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
@@ -28,3 +30,7 @@ tokio = { workspace = true }
 reqwest = { workspace = true }
 which = { workspace = true }
 dirs = { workspace = true }
+futures = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.8"

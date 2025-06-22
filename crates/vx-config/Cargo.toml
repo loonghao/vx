@@ -18,6 +18,10 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }
 
+# Version parsing
+semver = "1.0"
+regex = "1.10"
+
 # File system and path utilities
 dirs = { workspace = true }
 
@@ -27,6 +31,9 @@ anyhow = { workspace = true }
 # Async support
 tokio = { workspace = true }
 async-trait = { workspace = true }
+
+# Installer support for standard config creation
+vx-installer = { version = "0.4.0", path = "../vx-installer" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

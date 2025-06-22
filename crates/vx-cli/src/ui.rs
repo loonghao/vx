@@ -102,6 +102,19 @@ impl UI {
         Self::spinner(message);
         SimpleSpinner
     }
+
+    /// Ask for user confirmation
+    pub fn confirm(message: &str) -> bool {
+        use std::io::{self, Write};
+
+        print!("{} [y/N]: ", message);
+        io::stdout().flush().unwrap();
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
+
+        matches!(input.trim().to_lowercase().as_str(), "y" | "yes")
+    }
 }
 
 /// Simple spinner placeholder

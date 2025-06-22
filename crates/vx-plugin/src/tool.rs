@@ -284,9 +284,49 @@ pub trait VxTool: Send + Sync {
     /// Get all installed versions
     ///
     /// Default implementation uses PathManager to scan for installed versions.
+    /// This is now optimized for async operation with concurrent verification.
     async fn get_installed_versions(&self) -> Result<Vec<String>> {
         let path_manager = PathManager::new().unwrap_or_else(|_| PathManager::default());
-        let mut versions = path_manager.list_tool_versions(self.name())?;
+        let tool_dir = path_manager.tool_dir(self.name());
+
+        // Check if tool directory exists using async I/O
+        if !tokio::fs::try_exists(&tool_dir).await.unwrap_or(false) {
+            return Ok(vec![]);
+        }
+
+        let mut entries = tokio::fs::read_dir(&tool_dir).await?;
+        let mut version_candidates = Vec::new();
+
+        // Collect all potential version directories
+        while let Some(entry) = entries.next_entry().await? {
+            if entry.file_type().await?.is_dir() {
+                if let Some(version) = entry.file_name().to_str() {
+                    version_candidates.push((version.to_string(), entry.path()));
+                }
+            }
+        }
+
+        // Verify installations concurrently
+        let verification_futures = version_candidates.iter().map(|(version, install_dir)| {
+            let version = version.clone();
+            let install_dir = install_dir.clone();
+            async move {
+                // Quick check: does the installation directory have an executable?
+                match self.get_executable_path(&install_dir).await {
+                    Ok(exe_path) => {
+                        if tokio::fs::try_exists(&exe_path).await.unwrap_or(false) {
+                            Some(version)
+                        } else {
+                            None
+                        }
+                    }
+                    Err(_) => None,
+                }
+            }
+        });
+
+        let verification_results = futures::future::join_all(verification_futures).await;
+        let mut versions: Vec<String> = verification_results.into_iter().flatten().collect();
 
         // Sort versions (newest first)
         versions.sort_by(|a, b| b.cmp(a));

@@ -1,0 +1,367 @@
+# VX Global Default Configuration
+# This file contains the default configuration for vx tool manager
+# It will be embedded into the binary at compile time
+
+[global]
+# Default home directory for vx (relative to user home)
+home_dir = ".vx"
+# Default tools directory
+tools_dir = "tools"
+# Default cache directory
+cache_dir = "cache"
+# Default shims directory
+shims_dir = "shims"
+# Default configuration directory
+config_dir = "config"
+
+[defaults]
+# Whether to automatically install missing tools
+auto_install = true
+# Default cache duration for downloads
+cache_duration = "7d"
+# Whether to fall back to builtin tool configurations
+fallback_to_builtin = true
+# Whether to use system PATH for tools
+use_system_path = false
+# Default download timeout in seconds
+download_timeout = 300
+# Maximum concurrent downloads
+max_concurrent_downloads = 4
+
+[turbo_cdn]
+# Turbo CDN configuration
+enabled = true
+# Default region (Global, China, US, EU)
+default_region = "Global"
+# Maximum concurrent chunks for downloads
+max_concurrent_chunks = 8
+# Chunk size in bytes (2MB)
+chunk_size = 2097152
+# Maximum retries for failed downloads
+max_retries = 3
+# Cache configuration
+cache_enabled = true
+# Maximum cache size in bytes (5GB)
+cache_max_size = 5368709120
+# Enable compression for cached files
+cache_compression = true
+
+# Tool-specific configurations
+[tools.bun]
+description = "Fast all-in-one JavaScript runtime"
+homepage = "https://bun.sh"
+repository = "oven-sh/bun"
+# Version fetcher URL for getting available versions
+fetcher_url = "https://api.github.com/repos/oven-sh/bun/releases"
+# Download URL template - {version} will be replaced with actual version
+download_url_template = "https://github.com/oven-sh/bun/releases/download/bun-v{version}/{filename}"
+# Version parsing configuration
+[tools.bun.version_parsing]
+# Regex to extract version from GitHub release tags
+tag_regex = "^bun-v(.+)$"
+# Regex to extract version from tool output
+output_regex = "bun\\s+([0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)"
+# Whether to normalize versions to semver format
+normalize_semver = true
+# Platform-specific filenames
+[tools.bun.platforms]
+windows-x64 = "bun-windows-x64.zip"
+windows-aarch64 = "bun-windows-aarch64.zip"
+linux-x64 = "bun-linux-x64.zip"
+linux-aarch64 = "bun-linux-aarch64.zip"
+darwin-x64 = "bun-darwin-x64.zip"
+darwin-aarch64 = "bun-darwin-aarch64.zip"
+# Executable names after extraction
+[tools.bun.executables]
+windows = "bun.exe"
+linux = "bun"
+darwin = "bun"
+
+[tools.bunx]
+description = "Package runner for Bun"
+homepage = "https://bun.sh"
+repository = "oven-sh/bun"
+# bunx comes with bun, no separate download needed
+depends_on = ["bun"]
+# Executable is actually bun with 'x' argument
+[tools.bunx.executables]
+windows = "bun.exe"
+linux = "bun"
+darwin = "bun"
+# Arguments to pass to the executable
+[tools.bunx.exec_args]
+default = ["x"]
+
+[tools.node]
+description = "Node.js JavaScript runtime"
+homepage = "https://nodejs.org"
+repository = "nodejs/node"
+# Version fetcher URL for getting available versions
+fetcher_url = "https://nodejs.org/dist/index.json"
+download_url_template = "https://nodejs.org/dist/v{version}/{filename}"
+# Version parsing configuration
+[tools.node.version_parsing]
+tag_regex = "^v(.+)$"
+output_regex = "v([0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)"
+normalize_semver = true
+[tools.node.platforms]
+windows-x64 = "node-v{version}-win-x64.zip"
+windows-aarch64 = "node-v{version}-win-arm64.zip"
+linux-x64 = "node-v{version}-linux-x64.tar.xz"
+linux-aarch64 = "node-v{version}-linux-arm64.tar.xz"
+darwin-x64 = "node-v{version}-darwin-x64.tar.gz"
+darwin-aarch64 = "node-v{version}-darwin-arm64.tar.gz"
+[tools.node.executables]
+windows = "node.exe"
+linux = "bin/node"
+darwin = "bin/node"
+
+[tools.npm]
+description = "Node.js package manager"
+homepage = "https://www.npmjs.com"
+repository = "npm/cli"
+depends_on = ["node"]
+# npm is bundled with Node.js, no separate download needed
+[tools.npm.executables]
+windows = "npm.cmd"
+linux = "bin/npm"
+darwin = "bin/npm"
+
+[tools.npx]
+description = "Node.js package runner"
+homepage = "https://www.npmjs.com/package/npx"
+repository = "npm/cli"
+depends_on = ["node"]
+# npx is bundled with Node.js, no separate download needed
+[tools.npx.executables]
+windows = "npx.cmd"
+linux = "bin/npx"
+darwin = "bin/npx"
+
+[tools.go]
+description = "Go programming language"
+homepage = "https://go.dev"
+repository = "golang/go"
+# Version fetcher URL for getting available versions
+fetcher_url = "https://go.dev/dl/?mode=json"
+download_url_template = "https://go.dev/dl/{filename}"
+# Version parsing configuration
+[tools.go.version_parsing]
+tag_regex = "^go(.+)$"
+output_regex = "go version go([0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:-[a-zA-Z0-9.-]+)?)"
+normalize_semver = true
+[tools.go.platforms]
+windows-x64 = "go{version}.windows-amd64.zip"
+windows-aarch64 = "go{version}.windows-arm64.zip"
+linux-x64 = "go{version}.linux-amd64.tar.gz"
+linux-aarch64 = "go{version}.linux-arm64.tar.gz"
+darwin-x64 = "go{version}.darwin-amd64.tar.gz"
+darwin-aarch64 = "go{version}.darwin-arm64.tar.gz"
+[tools.go.executables]
+windows = "bin/go.exe"
+linux = "bin/go"
+darwin = "bin/go"
+
+[tools.python]
+description = "Python programming language using Python Build Standalone"
+homepage = "https://www.python.org"
+repository = "astral-sh/python-build-standalone"
+# Version fetcher URL for getting available versions
+fetcher_url = "https://api.github.com/repos/astral-sh/python-build-standalone/releases"
+download_url_template = "https://github.com/astral-sh/python-build-standalone/releases/download/{version}/{filename}"
+# Version parsing configuration
+[tools.python.version_parsing]
+tag_regex = "^(.+)$"
+output_regex = "Python ([0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)"
+normalize_semver = true
+[tools.python.platforms]
+windows-x64 = { target_pattern = "x86_64-pc-windows-msvc-install_only", executable_name = "python.exe", bin_dir = "python" }
+linux-x64 = { target_pattern = "x86_64-unknown-linux-gnu-install_only", executable_name = "python3", bin_dir = "python/bin" }
+darwin-x64 = { target_pattern = "x86_64-apple-darwin-install_only", executable_name = "python3", bin_dir = "python/bin" }
+darwin-aarch64 = { target_pattern = "aarch64-apple-darwin-install_only", executable_name = "python3", bin_dir = "python/bin" }
+[tools.python.executables]
+windows = "python.exe"
+linux = "python3"
+darwin = "python3"
+
+[tools.pip]
+description = "Python package installer"
+homepage = "https://pip.pypa.io"
+repository = "pypa/pip"
+depends_on = ["python"]
+# pip comes with Python Build Standalone
+[tools.pip.executables]
+windows = "python.exe"
+linux = "python3"
+darwin = "python3"
+[tools.pip.exec_args]
+default = ["-m", "pip"]
+
+[tools.pipx]
+description = "Install and run Python applications in isolated environments"
+homepage = "https://pypa.github.io/pipx/"
+repository = "pypa/pipx"
+depends_on = ["python", "pip"]
+# pipx needs to be installed via pip
+[tools.pipx.executables]
+windows = "python.exe"
+linux = "python3"
+darwin = "python3"
+[tools.pipx.exec_args]
+default = ["-m", "pipx"]
+
+[tools.uv]
+description = "An extremely fast Python package installer and resolver"
+homepage = "https://docs.astral.sh/uv/"
+repository = "astral-sh/uv"
+# Version fetcher URL for getting available versions
+fetcher_url = "https://api.github.com/repos/astral-sh/uv/releases"
+download_url_template = "https://github.com/astral-sh/uv/releases/download/{version}/{filename}"
+# Version parsing configuration
+[tools.uv.version_parsing]
+tag_regex = "^(.+)$"
+output_regex = "uv ([0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)"
+normalize_semver = true
+[tools.uv.platforms]
+windows-x64 = "uv-x86_64-pc-windows-msvc.zip"
+windows-aarch64 = "uv-aarch64-pc-windows-msvc.zip"
+linux-x64 = "uv-x86_64-unknown-linux-gnu.tar.gz"
+linux-aarch64 = "uv-aarch64-unknown-linux-gnu.tar.gz"
+darwin-x64 = "uv-x86_64-apple-darwin.tar.gz"
+darwin-aarch64 = "uv-aarch64-apple-darwin.tar.gz"
+[tools.uv.executables]
+windows = "uv.exe"
+linux = "uv"
+darwin = "uv"
+
+[tools.pnpm]
+description = "Fast, disk space efficient package manager"
+homepage = "https://pnpm.io"
+repository = "pnpm/pnpm"
+# Version fetcher URL for getting available versions
+fetcher_url = "https://api.github.com/repos/pnpm/pnpm/releases"
+download_url_template = "https://github.com/pnpm/pnpm/releases/download/v{version}/{filename}"
+depends_on = ["node"]
+# Version parsing configuration
+[tools.pnpm.version_parsing]
+tag_regex = "^v(.+)$"
+output_regex = "pnpm ([0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)"
+normalize_semver = true
+[tools.pnpm.platforms]
+windows-x64 = "pnpm-win-x64-{version}.exe"
+windows-aarch64 = "pnpm-win-arm64-{version}.exe"
+linux-x64 = "pnpm-linux-x64-{version}"
+linux-aarch64 = "pnpm-linux-arm64-{version}"
+darwin-x64 = "pnpm-macos-x64-{version}"
+darwin-aarch64 = "pnpm-macos-arm64-{version}"
+[tools.pnpm.executables]
+windows = "pnpm.exe"
+linux = "pnpm"
+darwin = "pnpm"
+
+# Download source configurations
+[download_sources.nodejs]
+name = "nodejs"
+base_url = "https://nodejs.org"
+supported_domains = ["nodejs.org"]
+max_file_size = 52428800                                       # 50MB
+timeout_seconds = 300
+url_template = "https://nodejs.org/dist/v{version}/{filename}"
+enabled = true
+priority = 100
+
+[download_sources.golang]
+name = "golang"
+base_url = "https://golang.org"
+supported_domains = ["golang.org", "go.dev"]
+max_file_size = 209715200                         # 200MB
+timeout_seconds = 600
+url_template = "https://golang.org/dl/{filename}"
+enabled = true
+priority = 100
+
+[download_sources.python_standalone]
+name = "python_standalone"
+base_url = "https://github.com/astral-sh/python-build-standalone"
+supported_domains = ["github.com"]
+max_file_size = 104857600                                                                                    # 100MB
+timeout_seconds = 600
+url_template = "https://github.com/astral-sh/python-build-standalone/releases/download/{version}/{filename}"
+enabled = true
+priority = 90
+
+[download_sources.rust]
+name = "rust"
+base_url = "https://forge.rust-lang.org"
+supported_domains = ["forge.rust-lang.org", "static.rust-lang.org"]
+max_file_size = 314572800                                           # 300MB
+timeout_seconds = 900
+url_template = "https://static.rust-lang.org/dist/{filename}"
+enabled = true
+priority = 100
+
+[download_sources.bun]
+name = "bun"
+base_url = "https://github.com/oven-sh/bun"
+supported_domains = ["github.com"]
+max_file_size = 52428800                                                                    # 50MB
+timeout_seconds = 300
+url_template = "https://github.com/oven-sh/bun/releases/download/bun-v{version}/{filename}"
+enabled = true
+priority = 90
+
+[download_sources.uv]
+name = "uv"
+base_url = "https://github.com/astral-sh/uv"
+supported_domains = ["github.com"]
+max_file_size = 31457280                                                                # 30MB
+timeout_seconds = 300
+url_template = "https://github.com/astral-sh/uv/releases/download/{version}/{filename}"
+enabled = true
+priority = 90
+
+[download_sources.maven]
+name = "maven"
+base_url = "https://repo1.maven.org"
+supported_domains = ["repo1.maven.org"]
+max_file_size = 104857600                                         # 100MB
+timeout_seconds = 300
+url_template = "https://repo1.maven.org/maven2/{path}/{filename}"
+enabled = true
+priority = 80
+
+[download_sources.nuget]
+name = "nuget"
+base_url = "https://api.nuget.org"
+supported_domains = ["api.nuget.org"]
+max_file_size = 52428800                                                               # 50MB
+timeout_seconds = 300
+url_template = "https://api.nuget.org/v3-flatcontainer/{package}/{version}/{filename}"
+enabled = true
+priority = 80
+
+# Registry configurations
+[registries.github]
+url = "https://api.github.com"
+description = "GitHub Releases"
+trusted = true
+
+[registries.npm]
+url = "https://registry.npmjs.org"
+description = "NPM Registry"
+trusted = true
+
+[registries.pypi]
+url = "https://pypi.org"
+description = "Python Package Index"
+trusted = true
+
+# Platform detection mappings
+[platform_mappings]
+# Map Rust target triples to our platform names
+"x86_64-pc-windows-msvc" = "windows-x64"
+"aarch64-pc-windows-msvc" = "windows-aarch64"
+"x86_64-unknown-linux-gnu" = "linux-x64"
+"aarch64-unknown-linux-gnu" = "linux-aarch64"
+"x86_64-apple-darwin" = "darwin-x64"
+"aarch64-apple-darwin" = "darwin-aarch64"

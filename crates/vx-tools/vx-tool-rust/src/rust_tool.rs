@@ -5,7 +5,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 use vx_plugin::{ToolContext, ToolExecutionResult, VersionInfo, VxTool};
 use vx_tool_standard::StandardUrlBuilder;
-use vx_version::{GitHubVersionFetcher, VersionFetcher};
+use vx_version::{GitHubVersionFetcher, TurboCdnVersionFetcher, VersionFetcher};
 
 /// Macro to generate Rust tool implementations using VxTool trait
 macro_rules! rust_vx_tool {
@@ -13,12 +13,38 @@ macro_rules! rust_vx_tool {
         #[derive(Debug, Clone)]
         pub struct $name {
             _url_builder: RustUrlBuilder,
+            version_fetcher: Option<TurboCdnVersionFetcher>,
         }
 
         impl $name {
             pub fn new() -> Self {
                 Self {
                     _url_builder: RustUrlBuilder::new(),
+                    version_fetcher: None,
+                }
+            }
+
+            /// Initialize the tool with turbo-cdn support
+            pub async fn init() -> Result<Self> {
+                let version_fetcher = TurboCdnVersionFetcher::new("rust-lang", "rust").await?;
+                Ok(Self {
+                    _url_builder: RustUrlBuilder::new(),
+                    version_fetcher: Some(version_fetcher),
+                })
+            }
+
+            /// Get or initialize the version fetcher
+            async fn get_version_fetcher(&self) -> Result<TurboCdnVersionFetcher> {
+                match &self.version_fetcher {
+                    Some(fetcher) => Ok(fetcher.clone()),
+                    None => {
+                        // Create a new fetcher if not initialized
+                        TurboCdnVersionFetcher::new("rust-lang", "rust")
+                            .await
+                            .map_err(|e| {
+                                anyhow::anyhow!("Failed to create TurboCdnVersionFetcher: {}", e)
+                            })
+                    }
                 }
             }
         }

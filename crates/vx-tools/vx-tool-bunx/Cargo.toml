@@ -1,0 +1,23 @@
+[package]
+name = "vx-tool-bunx"
+version = "0.1.0"
+edition = "2021"
+description = "Bunx tool implementation for vx"
+license = "MIT"
+repository = "https://github.com/loonghao/vx"
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+# VX dependencies
+vx-plugin = { version = "0.4.0", path = "../../vx-plugin" }
+vx-version = { version = "0.2.2", path = "../../vx-version" }
+vx-installer = { version = "0.4.1", path = "../../vx-installer" }
+vx-paths = { version = "0.3.1", path = "../../vx-paths" }
+
+# Tool dependencies
+vx-tool-bun = { version = "0.1.0", path = "../vx-tool-bun" }

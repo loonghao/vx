@@ -10,9 +10,6 @@ pub mod tracing_setup;
 pub mod ui;
 
 #[cfg(test)]
-pub mod test_utils;
-
-#[cfg(test)]
 mod cli_tests;
 
 #[cfg(test)]
@@ -64,6 +61,11 @@ pub async fn main() -> anyhow::Result<()> {
     // Register PNPM plugin
     registry
         .register_plugin(Box::new(vx_tool_pnpm::PnpmPlugin::new()))
+        .await?;
+
+    // Register Python plugin
+    registry
+        .register_plugin(vx_tool_python::create_plugin())
         .await?;
 
     // Create and run CLI
@@ -168,17 +170,10 @@ impl VxCli {
                 tool_version,
                 global,
             } => commands::switch::handle(&self.registry, &tool_version, global).await,
-            Commands::Config { command } => match command {
-                Some(cli::ConfigCommand::Show) | None => commands::config::handle().await,
-                Some(cli::ConfigCommand::Set { key, value }) => {
-                    commands::config::handle_set(&key, &value).await
-                }
-                Some(cli::ConfigCommand::Get { key }) => commands::config::handle_get(&key).await,
-                Some(cli::ConfigCommand::Reset { key }) => {
-                    commands::config::handle_reset(key.clone()).await
-                }
-                Some(cli::ConfigCommand::Edit) => commands::config::handle_edit().await,
-            },
+            Commands::Config { action } => {
+                let config_cmd = commands::config::ConfigCommand { action };
+                config_cmd.execute().await
+            }
             Commands::Init {
                 interactive,
                 template,
@@ -217,6 +212,28 @@ impl VxCli {
             Commands::Plugin { command } => commands::plugin::handle(&self.registry, command).await,
             Commands::Venv { command } => commands::venv_cmd::handle(command).await,
             Commands::Global { command } => commands::global::handle(command).await,
+            Commands::Async { command } => {
+                use crate::cli::AsyncCommand;
+                match command {
+                    AsyncCommand::Install {
+                        tools,
+                        force,
+                        max_concurrent,
+                    } => {
+                        commands::async_install::handle_concurrent(&tools, force, max_concurrent)
+                            .await
+                    }
+                    AsyncCommand::Versions { tools, prerelease } => {
+                        commands::async_install::handle_versions_concurrent(&tools, prerelease)
+                            .await
+                    }
+                    AsyncCommand::Benchmark { tools, force } => {
+                        commands::async_install::handle_benchmark(&tools, force).await
+                    }
+                    AsyncCommand::Stats => commands::async_install::handle_stats().await,
+                    AsyncCommand::ClearCache => commands::async_install::handle_clear_cache().await,
+                }
+            }
             Commands::Search {
                 query,
                 category,

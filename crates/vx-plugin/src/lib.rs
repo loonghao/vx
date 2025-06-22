@@ -61,19 +61,23 @@
 //! ```
 
 // Re-export core types and traits for convenience
+pub use config_tool::ConfigBasedTool;
 pub use dependency::DependencyResolver;
 pub use package_manager::{StandardPackageManager, VxPackageManager};
 pub use plugin::{StandardPlugin, VxPlugin};
 pub use registry::{PluginRegistry, PluginRegistryBuilder, ToolRegistry};
 pub use tool::{ConfigurableTool, UrlBuilder, VersionParser, VxTool};
+pub use traits::{ExecutableTool, InstallableTool, StandardTool, VersionedTool};
 pub use types::*;
 
 // Module declarations
+pub mod config_tool;
 pub mod dependency;
 pub mod package_manager;
 pub mod plugin;
 pub mod registry;
 pub mod tool;
+pub mod traits;
 pub mod types;
 
 // Utility modules

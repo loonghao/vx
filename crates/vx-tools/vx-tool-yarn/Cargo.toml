@@ -15,6 +15,7 @@ rust-version.workspace = true
 vx-core = { version = "0.4.0", path = "../../vx-core" }
 vx-plugin = { version = "0.4.0", path = "../../vx-plugin" }
 vx-version = { version = "0.2.2", path = "../../vx-version" }
+vx-config = { version = "0.4.1", path = "../../vx-config" }
 vx-installer = { version = "0.4.0", path = "../../vx-installer" }
 vx-tool-standard = { version = "0.4.0", path = "../../vx-tool-standard" }
 serde = { workspace = true }

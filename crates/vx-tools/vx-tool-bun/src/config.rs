@@ -4,7 +4,7 @@
 //! including dependencies and installation methods.
 
 use std::path::PathBuf;
-use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod};
+use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod, LifecycleAction, LifecycleHooks};
 use vx_tool_standard::{StandardToolConfig, StandardUrlBuilder, ToolDependency};
 
 /// Standard configuration for Bun tool
@@ -29,15 +29,20 @@ impl StandardUrlBuilder for BunUrlBuilder {
         format!("bun-{}.zip", platform)
     }
 
-    /// Get platform string for Bun downloads
+    /// Get platform string for Bun downloads - USES BUN-SPECIFIC FORMAT
     fn get_platform_string() -> String {
-        match (std::env::consts::OS, std::env::consts::ARCH) {
-            ("windows", "x86_64") => "windows-x64".to_string(),
-            ("windows", "aarch64") => "windows-aarch64".to_string(),
-            ("macos", "x86_64") => "darwin-x64".to_string(),
-            ("macos", "aarch64") => "darwin-aarch64".to_string(),
-            ("linux", "x86_64") => "linux-x64".to_string(),
-            ("linux", "aarch64") => "linux-aarch64".to_string(),
+        // Bun uses a different platform naming convention
+        // Convert from standard platform string to Bun format
+        let standard_platform = vx_config::get_platform_string();
+
+        // Map standard platform strings to Bun format
+        match standard_platform.as_str() {
+            "x86_64-pc-windows-msvc" => "windows-x64".to_string(),
+            "aarch64-pc-windows-msvc" => "windows-aarch64".to_string(),
+            "x86_64-apple-darwin" => "darwin-x64".to_string(),
+            "aarch64-apple-darwin" => "darwin-aarch64".to_string(),
+            "x86_64-unknown-linux-gnu" => "linux-x64".to_string(),
+            "aarch64-unknown-linux-gnu" => "linux-aarch64".to_string(),
             _ => "linux-x64".to_string(), // Default fallback
         }
     }
@@ -50,7 +55,11 @@ impl StandardToolConfig for Config {
     }
 
     fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConfig {
-        create_install_config(version, install_dir)
+        // This is a sync wrapper - in practice, this should be avoided
+        // and the async version should be used directly
+        tokio::runtime::Handle::current()
+            .block_on(create_install_config(version, install_dir))
+            .expect("Failed to create install config")
     }
 
     fn get_install_methods() -> Vec<String> {
@@ -76,25 +85,96 @@ impl StandardToolConfig for Config {
 }
 
 /// Create Bun installation configuration
-pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConfig {
+pub async fn create_install_config(
+    version: &str,
+    install_dir: PathBuf,
+) -> anyhow::Result<InstallConfig> {
     let actual_version = if version == "latest" {
-        "1.0.0" // Default to stable version
+        "1.2.9" // Default to stable version
     } else {
         version
     };
 
-    let download_url = BunUrlBuilder::download_url(actual_version);
+    // Use vx-config system to get download URL - NO MORE HARDCODING!
+    use vx_config::{get_tool_download_url, ConfigManager, VersionParser};
+
+    let config_manager = ConfigManager::new().await?;
+    let config = config_manager.config();
+
+    // Use version parser to clean version properly
+    let clean_version = if let Some(tool_config) = config.tools.get("bun") {
+        if let Some(version_parser) = VersionParser::from_tool_config(tool_config) {
+            version_parser
+                .parse_tag(actual_version)
+                .unwrap_or_else(|_| actual_version.to_string())
+        } else {
+            actual_version.to_string()
+        }
+    } else {
+        actual_version.to_string()
+    };
+
+    let download_url = get_tool_download_url(config, "bun", &clean_version)
+        .ok_or_else(|| anyhow::anyhow!("No download URL configured for bun"))?;
     let install_method = InstallMethod::Archive {
         format: ArchiveFormat::Zip,
     };
 
-    InstallConfig::builder()
+    // Create lifecycle hooks to optimize path structure
+    let mut hooks = LifecycleHooks::default();
+
+    // Bun archives have nested structure: bun-v{version}/bun-{platform}/bun.exe
+    // We need to flatten this to just have bun.exe in the root
+    let platform_dir = if cfg!(windows) {
+        "bun-windows-x64"
+    } else if cfg!(target_os = "macos") {
+        if cfg!(target_arch = "aarch64") {
+            "bun-darwin-aarch64"
+        } else {
+            "bun-darwin-x64"
+        }
+    } else {
+        if cfg!(target_arch = "aarch64") {
+            "bun-linux-aarch64"
+        } else {
+            "bun-linux-x64"
+        }
+    };
+
+    // First flatten the version directory (bun-v{version})
+    let version_dir = format!("bun-v{}", clean_version);
+    hooks.post_install.push(LifecycleAction::FlattenDirectory {
+        source_pattern: version_dir,
+    });
+
+    // Then flatten the platform directory
+    hooks.post_install.push(LifecycleAction::FlattenDirectory {
+        source_pattern: platform_dir.to_string(),
+    });
+
+    // Set executable permissions on Unix systems
+    #[cfg(unix)]
+    hooks.post_install.push(LifecycleAction::SetExecutable {
+        path: "bun".to_string(),
+    });
+
+    // Add health check to verify Bun installation
+    let exe_name = if cfg!(windows) { "bun.exe" } else { "bun" };
+    hooks
+        .post_install
+        .push(LifecycleAction::ValidateInstallation {
+            command: format!("{} --version", exe_name),
+            expected_output: None, // Just check that the command runs successfully
+        });
+
+    Ok(InstallConfig::builder()
         .tool_name("bun")
-        .version(version.to_string())
+        .version(actual_version.to_string())
         .install_method(install_method)
-        .download_url(download_url.unwrap_or_default())
+        .download_url(download_url)
         .install_dir(install_dir)
-        .build()
+        .lifecycle_hooks(hooks)
+        .build())
 }
 
 /// Get available Bun installation methods
@@ -143,10 +223,12 @@ mod tests {
         assert!(url.unwrap().contains("github.com/oven-sh/bun"));
     }
 
-    #[test]
-    fn test_create_install_config() {
-        let config = create_install_config("latest", PathBuf::from("/tmp/bun"));
+    #[tokio::test]
+    async fn test_create_install_config() {
+        let config = create_install_config("latest", PathBuf::from("/tmp/bun"))
+            .await
+            .unwrap();
         assert_eq!(config.tool_name, "bun");
-        assert_eq!(config.version, "latest");
+        assert_eq!(config.version, "1.2.9"); // Should use actual version for consistency
     }
 }

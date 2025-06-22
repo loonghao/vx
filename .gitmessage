@@ -1,45 +1,21 @@
-# <type>[optional scope]: <description>
+﻿# <type>(<scope>): <subject>
 #
-# [optional body]
+# <body>
 #
-# [optional footer(s)]
+# <footer>
 #
-# --- COMMIT END ---
-# Type can be:
-#   feat     (new feature)
-#   fix      (bug fix)
-#   docs     (changes to documentation)
-#   style    (formatting, missing semi colons, etc; no code change)
-#   refactor (refactoring production code)
-#   test     (adding missing tests, refactoring tests; no production code change)
-#   chore    (updating grunt tasks etc; no production code change)
-#   perf     (performance improvements)
-#   ci       (changes to CI configuration)
-#   build    (changes to build system)
-#   revert   (reverts a previous commit)
+# Type should be one of the following:
+# * feat: A new feature
+# * fix: A bug fix
+# * docs: Documentation only changes
+# * style: Changes that do not affect the meaning of the code
+# * refactor: A code change that neither fixes a bug nor adds a feature
+# * test: Adding missing tests or correcting existing tests
+# * chore: Changes to the build process or auxiliary tools
+# * ci: Changes to CI configuration files and scripts
+# * build: Changes that affect the build system or external dependencies
 #
-# Scope is optional and can be anything specifying place of the commit change.
-# For example: feat(parser): add ability to parse arrays
-#
-# Description should be imperative, start with lowercase and not end with a period
-# No more than 50 characters
-#
-# Body should explain what and why vs. how
-# Can be multiple paragraphs, each separated by a blank line
-# Wrap at 72 characters
-#
-# Footer should contain any information about Breaking Changes
-# and is also the place to reference GitHub issues that this commit closes
-#
-# Breaking Changes should start with the word BREAKING CHANGE: with a space or two newlines
-# The rest of the commit message is then used for this.
-#
-# Examples:
-# feat: add hat wobble
-# fix(scope): prevent racing of requests
-# feat!: send an email to the customer when a product is shipped
-# feat(api)!: send an email to the customer when a product is shipped
-# chore!: drop support for Node 6
-# docs: correct spelling of CHANGELOG
-# feat(lang): add polish language
-# fix: correct minor typos in code
+# Scope is optional and should be the name of the package affected
+# Subject should be imperative mood, lowercase, no period at the end
+# Body should explain what and why vs. how (optional)
+# Footer should contain any breaking changes or issue references (optional)

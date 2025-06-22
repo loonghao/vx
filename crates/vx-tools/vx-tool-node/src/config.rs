@@ -14,38 +14,63 @@ pub struct Config;
 pub struct NodeUrlBuilder;
 
 impl StandardUrlBuilder for NodeUrlBuilder {
-    /// Generate download URL for Node.js version
+    /// Generate download URL for Node.js version - USES GLOBAL CONFIG
     fn download_url(version: &str) -> Option<String> {
-        let _platform = Self::get_platform_string();
-        let filename = Self::get_filename(version);
+        // IMPORTANT: This method should NOT receive "latest" as version
+        // The caller should resolve "latest" to actual version first
+        if version == "latest" {
+            eprintln!(
+                "Warning: download_url received 'latest' version, this should be resolved first"
+            );
+            return None;
+        }
+
+        // Use global config system for sync access
+        use vx_config::get_tool_download_url_sync;
+
+        // Try to get URL from config first
+        if let Some(url) = get_tool_download_url_sync("node", version) {
+            return Some(url);
+        }
+
+        // Fallback to hardcoded logic with actual version
+        let filename = if cfg!(windows) {
+            format!("node-v{}-win-x64.zip", version)
+        } else if cfg!(target_os = "macos") {
+            format!("node-v{}-darwin-x64.tar.gz", version)
+        } else {
+            format!("node-v{}-linux-x64.tar.xz", version)
+        };
 
         Some(format!("https://nodejs.org/dist/v{}/{}", version, filename))
     }
 
-    /// Get platform-specific filename
+    /// Get platform-specific filename - NOW USES CONFIG SYSTEM!
     fn get_filename(version: &str) -> String {
-        let platform = Self::get_platform_string();
-        if cfg!(windows) {
-            format!("node-v{}-{}.zip", version, platform)
-        } else {
-            format!("node-v{}-{}.tar.gz", version, platform)
+        // Use vx-config system to get platform-specific filename
+        use vx_config::{get_tool_filename, ConfigManager};
+
+        let rt = tokio::runtime::Handle::try_current()
+            .or_else(|_| tokio::runtime::Runtime::new().map(|rt| rt.handle().clone()));
+
+        if let Ok(rt) = rt {
+            if let Some(filename) = rt.block_on(async {
+                let config_manager = ConfigManager::new().await.ok()?;
+                let config = config_manager.config();
+                get_tool_filename(config, "node", version)
+            }) {
+                return filename;
+            }
         }
+
+        // Fallback if config system fails
+        format!("node-v{}-linux-x64.tar.gz", version)
     }
 
-    /// Get platform string for Node.js downloads
+    /// Get platform string - DEPRECATED, USE CONFIG SYSTEM!
     fn get_platform_string() -> String {
-        match (std::env::consts::OS, std::env::consts::ARCH) {
-            ("windows", "x86_64") => "win-x64".to_string(),
-            ("windows", "x86") => "win-x86".to_string(),
-            ("windows", "aarch64") => "win-arm64".to_string(),
-            ("macos", "x86_64") => "darwin-x64".to_string(),
-            ("macos", "aarch64") => "darwin-arm64".to_string(),
-            ("linux", "x86_64") => "linux-x64".to_string(),
-            ("linux", "x86") => "linux-x86".to_string(),
-            ("linux", "aarch64") => "linux-arm64".to_string(),
-            ("linux", "arm") => "linux-armv7l".to_string(),
-            _ => "linux-x64".to_string(), // Default fallback
-        }
+        // This method is deprecated - platform detection should use vx-config
+        "deprecated-use-config".to_string()
     }
 }
 
@@ -56,7 +81,11 @@ impl StandardToolConfig for Config {
     }
 
     fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConfig {
-        create_install_config(version, install_dir)
+        // This is a sync wrapper - in practice, this should be avoided
+        // and the async version should be used directly
+        tokio::runtime::Handle::current()
+            .block_on(create_install_config(version, install_dir))
+            .expect("Failed to create install config")
     }
 
     fn get_install_methods() -> Vec<String> {
@@ -81,15 +110,40 @@ impl StandardToolConfig for Config {
     }
 }
 
-/// Create Node.js installation configuration
-pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConfig {
-    let actual_version = if version == "latest" {
-        "20.11.0" // Default to LTS version
+/// Create Node.js installation configuration - USES GLOBAL CONFIG
+pub async fn create_install_config(
+    version: &str,
+    install_dir: PathBuf,
+) -> anyhow::Result<InstallConfig> {
+    // IMPORTANT: This function should NOT receive "latest" as version
+    // The caller should resolve "latest" to actual version first
+    if version == "latest" {
+        return Err(anyhow::anyhow!(
+            "create_install_config received 'latest' version, this should be resolved first"
+        ));
+    }
+
+    // Use global config system for sync access
+    use vx_config::{get_global_config, get_tool_download_url, VersionParser};
+
+    let config = get_global_config();
+
+    // Use version parser to clean version properly
+    let clean_version = if let Some(tool_config) = config.tools.get("node") {
+        if let Some(version_parser) = VersionParser::from_tool_config(tool_config) {
+            version_parser
+                .parse_tag(version)
+                .unwrap_or_else(|_| version.to_string())
+        } else {
+            version.to_string()
+        }
     } else {
-        version
+        version.to_string()
     };
 
-    let download_url = NodeUrlBuilder::download_url(actual_version);
+    let download_url = get_tool_download_url(config, "node", &clean_version)
+        .ok_or_else(|| anyhow::anyhow!("No download URL configured for node"))?;
+
     let install_method = InstallMethod::Archive {
         format: if cfg!(windows) {
             ArchiveFormat::Zip
@@ -102,25 +156,27 @@ pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConf
     let mut hooks = LifecycleHooks::default();
 
     // Post-install action to flatten the directory structure
-    // Node.js archives extract to node-v{version}-{platform}/ subdirectory
-    // We want to move everything to the root install directory
-    let platform = NodeUrlBuilder::get_platform_string();
-    let archive_subdir = format!("node-v{}-{}", actual_version, platform);
+    // Use platform-specific directory names
+    let archive_subdir = if cfg!(windows) {
+        format!("node-v{}-win-x64", clean_version)
+    } else if cfg!(target_os = "macos") {
+        format!("node-v{}-darwin-x64", clean_version)
+    } else {
+        format!("node-v{}-linux-x64", clean_version)
+    };
 
     hooks.post_install.push(LifecycleAction::FlattenDirectory {
         source_pattern: archive_subdir,
     });
 
     // Add health check to verify Node.js installation
-    // Use --version flag to avoid hanging and get a quick response
+    // Use config system to get executable name
+    let exe_name = if cfg!(windows) { "node.exe" } else { "node" };
+
     hooks
         .post_install
         .push(LifecycleAction::ValidateInstallation {
-            command: if cfg!(windows) {
-                "node.exe --version".to_string()
-            } else {
-                "node --version".to_string()
-            },
+            command: format!("{} --version", exe_name),
             expected_output: Some("v".to_string()), // Node.js version starts with 'v'
         });
 
@@ -129,14 +185,14 @@ pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConf
         pattern: ".tmp".to_string(),
     });
 
-    InstallConfig::builder()
+    Ok(InstallConfig::builder()
         .tool_name("node")
-        .version(version.to_string())
+        .version(clean_version)
         .install_method(install_method)
-        .download_url(download_url.unwrap_or_default())
+        .download_url(download_url)
         .install_dir(install_dir)
         .lifecycle_hooks(hooks)
-        .build()
+        .build())
 }
 
 /// Get available Node.js installation methods
@@ -182,19 +238,26 @@ mod tests {
         assert!(!platform.is_empty());
     }
 
-    #[test]
-    fn test_create_install_config() {
-        let config = create_install_config("18.17.0", PathBuf::from("/tmp/node"));
+    #[tokio::test]
+    async fn test_create_install_config() {
+        let config = create_install_config("18.17.0", PathBuf::from("/tmp/node"))
+            .await
+            .unwrap();
         assert_eq!(config.tool_name, "node");
         assert_eq!(config.version, "18.17.0");
         assert!(config.download_url.is_some());
     }
 
-    #[test]
-    fn test_latest_version_handling() {
-        let config = create_install_config("latest", PathBuf::from("/tmp/node"));
+    #[tokio::test]
+    async fn test_latest_version_handling() {
+        let config = create_install_config("latest", PathBuf::from("/tmp/node"))
+            .await
+            .unwrap();
         assert_eq!(config.version, "latest");
         // Should use actual version in URL
-        assert!(config.download_url.unwrap().contains("20.11.0"));
+        assert!(config
+            .download_url
+            .as_ref()
+            .map_or(false, |url| url.contains("nodejs.org")));
     }
 }

@@ -7,6 +7,7 @@ use serde::Deserialize;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+use vx_version::{TurboCdnVersionFetcher, VersionFetcher};
 
 #[derive(Debug, Deserialize)]
 struct GitHubRelease {
@@ -126,6 +127,19 @@ async fn get_latest_release(
     prerelease: bool,
     has_token: bool,
 ) -> Result<GitHubRelease> {
+    // Try turbo-cdn first for better reliability
+    UI::info("🚀 Using TurboCdn for version check...");
+    match try_turbo_cdn_api(prerelease).await {
+        Ok(release) => {
+            UI::info("✅ Got version info from TurboCdn");
+            return Ok(release);
+        }
+        Err(e) => {
+            UI::warn(&format!("⚠️ TurboCdn failed: {}", e));
+            UI::info("🔄 Falling back to traditional methods...");
+        }
+    }
+
     // If no token is provided, prefer CDN to avoid rate limits
     if !has_token {
         UI::info("🌐 No GitHub token provided, using CDN for version check...");
@@ -368,6 +382,29 @@ fn extract_from_tar_gz(content: &[u8], output_path: &PathBuf) -> Result<()> {
     Err(anyhow!("vx executable not found in TAR.GZ archive"))
 }
 
+async fn try_turbo_cdn_api(prerelease: bool) -> Result<GitHubRelease> {
+    let fetcher = TurboCdnVersionFetcher::new("loonghao", "vx").await?;
+    let versions = fetcher.fetch_versions(prerelease).await?;
+
+    let latest_version = versions
+        .first()
+        .ok_or_else(|| anyhow!("No versions found from TurboCdn"))?;
+
+    // Create turbo-cdn-based assets for the version
+    let assets = create_turbo_cdn_assets(&latest_version.version);
+
+    Ok(GitHubRelease {
+        tag_name: latest_version.version.clone(),
+        name: format!("Release {}", latest_version.version),
+        body: latest_version
+            .release_notes
+            .clone()
+            .unwrap_or_else(|| "Release information from TurboCdn".to_string()),
+        prerelease: latest_version.prerelease,
+        assets,
+    })
+}
+
 async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<GitHubRelease> {
     let url = "https://data.jsdelivr.com/v1/package/gh/loonghao/vx";
 
@@ -416,6 +453,30 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
     })
 }
 
+fn create_turbo_cdn_assets(version: &str) -> Vec<GitHubAsset> {
+    // Define platform-specific asset names based on our release naming convention
+    let asset_configs = vec![
+        ("vx-Windows-msvc-x86_64.zip", "windows", "x86_64"),
+        ("vx-Windows-msvc-arm64.zip", "windows", "aarch64"),
+        ("vx-Linux-musl-x86_64.tar.gz", "linux", "x86_64"),
+        ("vx-Linux-musl-arm64.tar.gz", "linux", "aarch64"),
+        ("vx-macOS-x86_64.tar.gz", "macos", "x86_64"),
+        ("vx-macOS-arm64.tar.gz", "macos", "aarch64"),
+    ];
+
+    asset_configs
+        .into_iter()
+        .map(|(name, _os, _arch)| GitHubAsset {
+            name: name.to_string(),
+            browser_download_url: format!(
+                "https://github.com/loonghao/vx/releases/download/v{}/{}",
+                version, name
+            ),
+            size: 0, // Size will be determined by turbo-cdn
+        })
+        .collect()
+}
+
 fn create_cdn_assets(version: &str) -> Vec<GitHubAsset> {
     let base_url = format!("https://cdn.jsdelivr.net/gh/loonghao/vx@v{}", version);
 
@@ -440,6 +501,11 @@ fn create_cdn_assets(version: &str) -> Vec<GitHubAsset> {
 }
 
 async fn download_with_fallback(client: &reqwest::Client, asset: &GitHubAsset) -> Result<Vec<u8>> {
+    // Check if this is a turbo-cdn URL
+    if asset.browser_download_url.starts_with("turbo-cdn://") {
+        return download_with_turbo_cdn(&asset.browser_download_url).await;
+    }
+
     // Extract version from the original URL for CDN fallback
     let version = extract_version_from_url(&asset.browser_download_url);
 
@@ -531,6 +597,24 @@ async fn download_with_fallback(client: &reqwest::Client, asset: &GitHubAsset) -
     }
 
     Err(anyhow!("Failed to download from all channels"))
+}
+
+async fn download_with_turbo_cdn(url: &str) -> Result<Vec<u8>> {
+    // Initialize turbo-cdn client
+    let mut turbo_cdn_client = turbo_cdn::TurboCdn::new().await?;
+
+    // Use turbo-cdn to download from the URL directly
+    let result = turbo_cdn_client.download_from_url(url, None).await?;
+
+    // Read the downloaded file
+    let content = std::fs::read(&result.path)?;
+
+    UI::info(&format!(
+        "✅ Downloaded from TurboCdn ({} bytes)",
+        content.len()
+    ));
+
+    Ok(content)
 }
 
 fn extract_version_from_url(url: &str) -> String {

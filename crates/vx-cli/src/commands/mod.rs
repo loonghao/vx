@@ -4,6 +4,7 @@ use crate::cli::{Cli, Commands};
 use crate::ui::UI;
 use vx_plugin::PluginRegistry;
 
+pub mod async_install;
 pub mod cleanup;
 pub mod config;
 pub mod execute;
@@ -88,17 +89,10 @@ impl CommandHandler {
                 global,
             }) => switch::handle(registry, &tool_version, global).await,
 
-            Some(Commands::Config { command }) => match command {
-                Some(crate::cli::ConfigCommand::Show) | None => config::handle().await,
-                Some(crate::cli::ConfigCommand::Set { key, value }) => {
-                    config::handle_set(&key, &value).await
-                }
-                Some(crate::cli::ConfigCommand::Get { key }) => config::handle_get(&key).await,
-                Some(crate::cli::ConfigCommand::Reset { key }) => {
-                    config::handle_reset(key.clone()).await
-                }
-                Some(crate::cli::ConfigCommand::Edit) => config::handle_edit().await,
-            },
+            Some(Commands::Config { action }) => {
+                let config_cmd = config::ConfigCommand { action };
+                config_cmd.execute().await
+            }
 
             Some(Commands::Search {
                 query,
@@ -194,6 +188,25 @@ impl CommandHandler {
             Some(Commands::Venv { command }) => venv_cmd::handle(command).await,
 
             Some(Commands::Global { command }) => global::handle(command).await,
+
+            Some(Commands::Async { command }) => {
+                use crate::cli::AsyncCommand;
+                match command {
+                    AsyncCommand::Install {
+                        tools,
+                        force,
+                        max_concurrent,
+                    } => async_install::handle_concurrent(&tools, force, max_concurrent).await,
+                    AsyncCommand::Versions { tools, prerelease } => {
+                        async_install::handle_versions_concurrent(&tools, prerelease).await
+                    }
+                    AsyncCommand::Benchmark { tools, force } => {
+                        async_install::handle_benchmark(&tools, force).await
+                    }
+                    AsyncCommand::Stats => async_install::handle_stats().await,
+                    AsyncCommand::ClearCache => async_install::handle_clear_cache().await,
+                }
+            }
 
             None => {
                 // Handle tool execution

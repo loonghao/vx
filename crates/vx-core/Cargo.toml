@@ -20,6 +20,11 @@ serde_json = { workspace = true }
 thiserror = "2.0"
 dirs = "6.0"
 
+# Dependencies for AsyncVxManager
+tokio = { workspace = true }
+futures = { workspace = true }
+vx-plugin = { version = "0.4.1", path = "../vx-plugin" }
+
 [dev-dependencies]
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }

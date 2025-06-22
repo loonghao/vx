@@ -11,7 +11,7 @@ use vx_plugin::{
     Ecosystem, PackageSpec, ToolContext, ToolExecutionResult, VersionInfo, VxPackageManager,
     VxPlugin, VxTool,
 };
-use vx_version::{GitHubVersionFetcher, VersionFetcher};
+use vx_version::{TurboCdnVersionFetcher, VersionFetcher};
 
 /// Yarn package manager implementation
 #[derive(Default)]
@@ -113,13 +113,34 @@ impl VxPackageManager for YarnPackageManager {
 /// Yarn tool implementation
 #[derive(Debug, Clone)]
 pub struct YarnTool {
-    version_fetcher: GitHubVersionFetcher,
+    version_fetcher: Option<TurboCdnVersionFetcher>,
 }
 
 impl YarnTool {
     pub fn new() -> Self {
         Self {
-            version_fetcher: GitHubVersionFetcher::new("yarnpkg", "yarn"),
+            version_fetcher: None,
+        }
+    }
+
+    /// Initialize the tool with turbo-cdn support
+    pub async fn init() -> Result<Self> {
+        let version_fetcher = TurboCdnVersionFetcher::new("yarnpkg", "yarn").await?;
+        Ok(Self {
+            version_fetcher: Some(version_fetcher),
+        })
+    }
+
+    /// Get or initialize the version fetcher
+    async fn get_version_fetcher(&self) -> Result<TurboCdnVersionFetcher> {
+        match &self.version_fetcher {
+            Some(fetcher) => Ok(fetcher.clone()),
+            None => {
+                // Create a new fetcher if not initialized
+                TurboCdnVersionFetcher::new("yarnpkg", "yarn")
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Failed to create TurboCdnVersionFetcher: {}", e))
+            }
         }
     }
 }
@@ -145,7 +166,9 @@ impl VxTool for YarnTool {
     }
 
     async fn fetch_versions(&self, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
-        self.version_fetcher
+        // Use TurboCdn for version fetching
+        let fetcher = self.get_version_fetcher().await?;
+        fetcher
             .fetch_versions(include_prerelease)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to fetch yarn versions: {}", e))

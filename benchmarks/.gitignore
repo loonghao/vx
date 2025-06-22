@@ -1,0 +1,8 @@
+# Benchmark results (keep baseline)
+results/
+*.tmp
+*.log
+
+# Keep baseline and documentation
+!baseline.json
+!README.md

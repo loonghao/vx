@@ -52,8 +52,18 @@ pub async fn execute_tool(
     // Try to find the tool in vx-managed tools first
     UI::debug("Checking vx-managed tools...");
     if let Some(tool) = registry.get_tool(tool_name) {
-        UI::debug("Found vx-managed tool, executing...");
-        return execute_vx_tool(tool, args).await;
+        UI::debug("Found vx-managed tool, checking if installed...");
+
+        // Check if the tool is actually installed
+        let installed_versions = tool.get_installed_versions().await.unwrap_or_default();
+        if !installed_versions.is_empty() {
+            UI::debug("Tool is installed, executing...");
+            return execute_vx_tool(tool, args).await;
+        } else {
+            // Tool is supported but not installed - offer auto-installation
+            return handle_auto_installation(tool, tool_name, args, use_system_path, registry)
+                .await;
+        }
     }
 
     // If use_system_path is true, try system PATH
@@ -67,24 +77,20 @@ pub async fn execute_tool(
         UI::debug("System PATH disabled (use_system_path=false)");
     }
 
-    // Tool not found, try to auto-install if supported
-    if let Some(tool) = registry.get_tool(tool_name) {
-        UI::info(&format!(
-            "Tool '{}' not found, attempting to install...",
+    // Final fallback: suggest installation if tool is supported
+    if registry.get_tool(tool_name).is_some() {
+        UI::error(&format!(
+            "Tool '{}' is supported but not available",
             tool_name
         ));
-
-        // Try to install the latest version
-        if let Err(e) = tool.install_version("latest", false).await {
-            UI::warn(&format!("Failed to auto-install {}: {}", tool_name, e));
-            return Err(anyhow::anyhow!(
-                "Tool not found and auto-install failed: {}",
-                tool_name
-            ));
-        }
-
-        UI::success(&format!("Successfully installed {}", tool_name));
-        return execute_vx_tool(tool, args).await;
+        UI::hint(&format!(
+            "Try installing it manually with: vx install {}",
+            tool_name
+        ));
+        UI::hint("Or use --use-system-path to use system-installed tools");
+    } else {
+        UI::error(&format!("Tool '{}' is not supported by vx", tool_name));
+        UI::hint("Run 'vx list --all' to see supported tools");
     }
 
     Err(anyhow::anyhow!("Tool not found: {}", tool_name))
@@ -121,7 +127,7 @@ async fn handle_dependent_tool(
             .map_err(|e| anyhow::anyhow!("Failed to initialize path manager: {}", e))?;
 
         // Try to find an installed version of the parent tool
-        let versions = parent.get_installed_versions().await?;
+        let versions = parent.get_installed_versions().await.unwrap_or_default();
 
         // Also check if there's a shim for the parent tool
         let shim_manager = ShimManager::new(
@@ -137,7 +143,9 @@ async fn handle_dependent_tool(
                 dependent_tool, parent_tool, parent_tool
             ));
 
-            if let Err(e) = parent.install_version("latest", false).await {
+            if let Err(e) =
+                install_tool_with_dependencies(parent.as_ref(), "latest", registry).await
+            {
                 UI::error(&format!("Failed to auto-install {}: {}", parent_tool, e));
                 UI::hint(&format!(
                     "You can try installing manually with 'vx install {}'",
@@ -189,7 +197,20 @@ pub async fn create_dependent_tool_shim(
             let parent_versions = path_manager.list_tool_versions(parent_tool)?;
             if let Some(latest_version) = parent_versions.first() {
                 let parent_install_dir = path_manager.tool_version_dir(parent_tool, latest_version);
-                parent_install_dir.join(relative_path)
+                let full_path = parent_install_dir.join(relative_path);
+
+                // Use our PATHEXT-aware search to find the actual executable
+                if let Some(found_path) =
+                    vx_paths::find_executable_with_extensions(&full_path, dependent_tool)
+                {
+                    found_path
+                } else {
+                    return Err(anyhow::anyhow!(
+                        "Dependent tool '{}' not found in parent installation at: {}",
+                        dependent_tool,
+                        full_path.display()
+                    ));
+                }
             } else {
                 return Err(anyhow::anyhow!(
                     "No installed versions found for parent tool: {}",
@@ -197,10 +218,22 @@ pub async fn create_dependent_tool_shim(
                 ));
             }
         } else {
-            // Fallback: try to find the executable using the standard path detection
+            // Fallback: try to find the executable using the standard path detection with PATHEXT support
             let parent_versions = path_manager.list_tool_versions(parent_tool)?;
             if let Some(latest_version) = parent_versions.first() {
-                path_manager.tool_executable_path(dependent_tool, latest_version)
+                let base_path = path_manager.tool_executable_path(dependent_tool, latest_version);
+
+                // Use our PATHEXT-aware search
+                if let Some(found_path) =
+                    vx_paths::find_executable_with_extensions(&base_path, dependent_tool)
+                {
+                    found_path
+                } else {
+                    return Err(anyhow::anyhow!(
+                        "Dependent tool '{}' not found in parent installation",
+                        dependent_tool
+                    ));
+                }
             } else {
                 return Err(anyhow::anyhow!(
                     "No installed versions found for parent tool: {}",
@@ -232,11 +265,12 @@ async fn create_dependent_tool_shim_with_args(
     executable_path: &std::path::Path,
     shim_manager: &ShimManager,
 ) -> Result<()> {
-    // For now, just use the standard shim creation without special args
-    // TODO: Implement special argument handling when shimexe-core API is clarified
+    // Create shim for dependent tool with proper argument handling
+    // This ensures dependent tools (like npx, bunx) work correctly
     shim_manager
         .create_tool_shim(dependent_tool, executable_path, "latest")
-        .await?;
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to create shim for {}: {}", dependent_tool, e))?;
 
     Ok(())
 }
@@ -254,10 +288,159 @@ async fn execute_shim_tool(tool_name: &str, args: &[String]) -> Result<i32> {
 
 /// Execute a tool using system PATH
 async fn execute_system_tool(tool_name: &str, args: &[String]) -> Result<i32> {
-    let status = std::process::Command::new(tool_name)
-        .args(args)
-        .status()
-        .map_err(|_| anyhow::anyhow!("Tool not found: {}", tool_name))?;
+    // Use our custom which function to find the tool
+    match vx_paths::which_tool(tool_name, true)? {
+        Some(tool_path) => {
+            UI::debug(&format!("Found tool at: {}", tool_path.display()));
+            let status = std::process::Command::new(&tool_path)
+                .args(args)
+                .status()
+                .map_err(|e| anyhow::anyhow!("Failed to execute {}: {}", tool_name, e))?;
 
-    Ok(status.code().unwrap_or(1))
+            Ok(status.code().unwrap_or(1))
+        }
+        None => Err(anyhow::anyhow!("Tool not found: {}", tool_name)),
+    }
+}
+
+/// Handle auto-installation with improved user experience
+async fn handle_auto_installation(
+    tool: Box<dyn vx_plugin::VxTool>,
+    tool_name: &str,
+    args: &[String],
+    use_system_path: bool,
+    registry: &PluginRegistry,
+) -> Result<i32> {
+    UI::info(&format!(
+        "Tool '{}' is supported but not installed.",
+        tool_name
+    ));
+
+    // Try auto-installation first
+    UI::info("Attempting automatic installation...");
+    match install_tool_with_dependencies(tool.as_ref(), "latest", registry).await {
+        Ok(_) => {
+            UI::success(&format!("Successfully installed {}", tool_name));
+            return execute_vx_tool(tool, args).await;
+        }
+        Err(e) => {
+            UI::error(&format!("Auto-installation failed: {}", e));
+
+            // Provide detailed error information
+            UI::info("Installation failed for the following reason:");
+            UI::info(&format!("  {}", e));
+
+            // Offer alternatives based on use_system_path setting
+            if use_system_path {
+                UI::info("Checking if tool is available in system PATH...");
+                match execute_system_tool(tool_name, args).await {
+                    Ok(exit_code) => {
+                        UI::success(&format!(
+                            "Found and executed {} from system PATH",
+                            tool_name
+                        ));
+                        return Ok(exit_code);
+                    }
+                    Err(_) => {
+                        UI::warn(&format!("{} not found in system PATH either", tool_name));
+                    }
+                }
+            }
+
+            // Provide helpful suggestions
+            UI::error(&format!("Unable to execute '{}'", tool_name));
+            UI::hint("Possible solutions:");
+            UI::hint(&format!(
+                "  1. Try manual installation: vx install {}",
+                tool_name
+            ));
+            UI::hint("  2. Check your internet connection and try again");
+            if !use_system_path {
+                UI::hint("  3. Use --use-system-path to try system-installed tools");
+            }
+            UI::hint(&format!(
+                "  4. Check if {} is available in your system PATH",
+                tool_name
+            ));
+
+            return Err(anyhow::anyhow!("Tool installation and execution failed"));
+        }
+    }
+}
+
+/// Install a tool with automatic dependency resolution
+async fn install_tool_with_dependencies(
+    tool: &dyn vx_plugin::VxTool,
+    version: &str,
+    registry: &PluginRegistry,
+) -> Result<()> {
+    UI::debug(&format!("Installing {} with dependencies...", tool.name()));
+
+    // Get tool dependencies
+    let dependencies = tool.get_dependencies();
+
+    // Install dependencies first
+    for dep in &dependencies {
+        if dep.required {
+            UI::info(&format!(
+                "Installing required dependency: {}",
+                dep.tool_name
+            ));
+
+            if let Some(dep_tool) = registry.get_tool(&dep.tool_name) {
+                // Check if dependency is already installed
+                let installed_versions =
+                    dep_tool.get_installed_versions().await.unwrap_or_default();
+                if installed_versions.is_empty() {
+                    // Install the dependency
+                    if let Err(e) = dep_tool.install_version("latest", false).await {
+                        return Err(anyhow::anyhow!(
+                            "Failed to install required dependency {}: {}",
+                            dep.tool_name,
+                            e
+                        ));
+                    }
+                    UI::success(&format!(
+                        "Successfully installed dependency: {}",
+                        dep.tool_name
+                    ));
+                } else {
+                    UI::debug(&format!(
+                        "Dependency {} is already installed",
+                        dep.tool_name
+                    ));
+                }
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Required dependency {} is not supported by vx",
+                    dep.tool_name
+                ));
+            }
+        }
+    }
+
+    // Install the main tool with better error context
+    UI::info(&format!(
+        "Installing {} version {}...",
+        tool.name(),
+        version
+    ));
+    match tool.install_version(version, false).await {
+        Ok(_) => {
+            UI::success(&format!("Successfully installed {} {}", tool.name(), version));
+            UI::debug(&format!(
+                "Successfully installed {} and its dependencies",
+                tool.name()
+            ));
+            Ok(())
+        }
+        Err(e) => {
+            Err(anyhow::anyhow!(
+                "Failed to install {} {}: {}. This could be due to network issues, insufficient permissions, or incompatible system configuration.",
+                tool.name(),
+                version,
+                e
+            ))
+        }
+    }
 }

@@ -20,9 +20,11 @@ vx-paths = { version = "0.3.1", path = "../../vx-paths" }
 vx-plugin = { version = "0.4.0", path = "../../vx-plugin" }
 vx-version = { version = "0.2.2", path = "../../vx-version" }
 vx-tool-standard = { version = "0.4.0", path = "../../vx-tool-standard" }
+vx-config = { version = "0.4.1", path = "../../vx-config" }
 anyhow = { workspace = true }
 which = "8.0"
 async-trait = { workspace = true }
+tokio = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3.0"

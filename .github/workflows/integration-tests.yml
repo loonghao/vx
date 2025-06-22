@@ -1,0 +1,427 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  integration-tests:
+    name: Integration Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-apple-darwin
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ matrix.rust }}
+        targets: ${{ matrix.target }}
+
+    - name: Cache Cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Build project
+      run: cargo build --release
+
+    - name: Run unit tests
+      run: cargo test --lib --bins
+
+    - name: Run quick integration tests
+      run: cargo test --test comprehensive_test quick_tests -- --nocapture
+      timeout-minutes: 10
+
+    - name: Run version listing tests
+      run: cargo test --test comprehensive_test test_version_listing_only -- --nocapture
+      timeout-minutes: 15
+
+    - name: Run CDN performance tests
+      run: cargo test --test comprehensive_test test_cdn_performance -- --nocapture
+      timeout-minutes: 10
+
+    - name: Run error handling tests
+      run: cargo test --test comprehensive_test test_error_handling_comprehensive -- --nocapture
+      timeout-minutes: 20
+
+    - name: Run working tools tests
+      run: cargo test --test working_tools_test -- --nocapture
+      timeout-minutes: 15
+
+  benchmark-gate:
+    name: Benchmark Performance Gate
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target/
+        key: ubuntu-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Create benchmark directories
+      run: |
+        mkdir -p benchmarks/results
+        mkdir -p benchmarks/baselines
+
+    - name: Download baseline (if exists)
+      uses: actions/download-artifact@v4
+      with:
+        name: benchmark-baseline
+        path: benchmarks/
+      continue-on-error: true
+
+    - name: Build project
+      run: cargo build --release
+
+    - name: Run performance benchmarks
+      run: cargo test --test comprehensive_test test_performance_benchmarks -- --nocapture
+      timeout-minutes: 30
+      env:
+        GITHUB_SHA: ${{ github.sha }}
+        GITHUB_PR_NUMBER: ${{ github.event.number }}
+
+    - name: Check benchmark performance
+      run: |
+        echo "🔍 Checking benchmark performance against baseline..."
+
+        # Find latest benchmark results
+        LATEST_RESULT=$(ls -t benchmark_results_*.json 2>/dev/null | head -n1)
+
+        if [ -z "$LATEST_RESULT" ]; then
+          echo "❌ No benchmark results found"
+          exit 1
+        fi
+
+        echo "📊 Found benchmark results: $LATEST_RESULT"
+
+        # Move to benchmarks directory
+        mv "$LATEST_RESULT" benchmarks/results/
+
+        # Run benchmark analysis (simplified version)
+        python3 -c "
+        import json
+        import sys
+        import os
+
+        # Load results
+        with open('benchmarks/results/$LATEST_RESULT', 'r') as f:
+            results = json.load(f)
+
+        # Load baseline if exists
+        baseline_path = 'benchmarks/baseline.json'
+        baseline = {}
+        if os.path.exists(baseline_path):
+            with open(baseline_path, 'r') as f:
+                baseline_data = json.load(f)
+                baseline = baseline_data.get('baselines', {})
+
+        failed_tests = 0
+        warning_tests = 0
+        total_tests = len(results)
+
+        print('📊 Benchmark Analysis Results:')
+        print('=' * 40)
+
+        for result in results:
+            operation = result['operation']
+            tool = result['tool']
+            duration_ms = result['duration_ms']
+            success = result['success']
+
+            key = f'{operation}_{tool}'
+
+            if not success:
+                print(f'❌ {tool} {operation}: FAILED')
+                failed_tests += 1
+                continue
+
+            if key in baseline:
+                max_duration = baseline[key]['max_duration_ms']
+                percentile_95 = baseline[key]['percentile_95_ms']
+
+                if duration_ms > max_duration:
+                    deviation = ((duration_ms - max_duration) / max_duration) * 100
+                    print(f'❌ {tool} {operation}: {duration_ms}ms > {max_duration}ms (+{deviation:.1f}%)')
+                    failed_tests += 1
+                elif duration_ms > percentile_95:
+                    deviation = ((duration_ms - percentile_95) / percentile_95) * 100
+                    print(f'⚠️  {tool} {operation}: {duration_ms}ms > {percentile_95}ms (+{deviation:.1f}%)')
+                    warning_tests += 1
+                else:
+                    print(f'✅ {tool} {operation}: {duration_ms}ms (within baseline)')
+            else:
+                print(f'❓ {tool} {operation}: {duration_ms}ms (no baseline)')
+                warning_tests += 1
+
+        print('=' * 40)
+        print(f'Total: {total_tests}, Failed: {failed_tests}, Warnings: {warning_tests}')
+
+        if failed_tests > 0:
+            print('❌ BENCHMARK GATE FAILED: Performance regression detected')
+            sys.exit(1)
+        elif warning_tests > 0:
+            print('⚠️  BENCHMARK GATE WARNING: Some tests have no baseline or warnings')
+        else:
+            print('✅ BENCHMARK GATE PASSED: All tests within baseline')
+        "
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-${{ github.sha }}
+        path: benchmarks/results/
+        retention-days: 30
+
+    - name: Update baseline (main branch only)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        echo "📊 Updating performance baseline..."
+
+        # This would use the vx-benchmark crate to update baseline
+        # For now, we'll create a simple baseline from current results
+        LATEST_RESULT=$(ls -t benchmarks/results/benchmark_results_*.json | head -n1)
+
+        python3 -c "
+        import json
+        from datetime import datetime
+
+        # Load current results
+        with open('$LATEST_RESULT', 'r') as f:
+            results = json.load(f)
+
+        # Create baseline
+        baseline = {
+            'version': '1.0.0',
+            'created_at': datetime.utcnow().isoformat() + 'Z',
+            'baselines': {}
+        }
+
+        for result in results:
+            if result['success']:
+                operation = result['operation']
+                tool = result['tool']
+                duration_ms = result['duration_ms']
+
+                key = f'{operation}_{tool}'
+
+                # Add 20% buffer for max duration
+                baseline['baselines'][key] = {
+                    'operation': operation,
+                    'max_duration_ms': int(duration_ms * 1.2),
+                    'percentile_95_ms': duration_ms,
+                    'average_ms': duration_ms,
+                    'sample_count': 1,
+                    'last_updated': datetime.utcnow().isoformat() + 'Z'
+                }
+
+        # Save baseline
+        with open('benchmarks/baseline.json', 'w') as f:
+            json.dump(baseline, f, indent=2)
+
+        print('✅ Baseline updated successfully')
+        "
+
+    - name: Upload updated baseline
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-baseline
+        path: benchmarks/baseline.json
+        retention-days: 90
+
+  comprehensive-tests:
+    name: Comprehensive Tests
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[full-test]')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target/
+        key: ubuntu-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build project
+      run: cargo build --release
+
+    - name: Run comprehensive test suite
+      run: cargo test --test comprehensive_test test_all_vx_tools_comprehensive -- --nocapture
+      timeout-minutes: 60
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: comprehensive-test-results
+        path: |
+          target/debug/
+          *.log
+
+  performance-benchmarks:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[benchmark]')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target/
+        key: ubuntu-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build project
+      run: cargo build --release
+
+    - name: Run performance benchmarks
+      run: |
+        echo "🚀 Starting performance benchmarks"
+        
+        # Test version fetching performance
+        echo "📊 Testing version fetching performance"
+        time cargo run versions node
+        time cargo run versions go
+        time cargo run versions uv
+        
+        # Test installation performance
+        echo "📦 Testing installation performance"
+        time cargo run install node 22.12.0
+        time cargo run install go 1.23.4
+        
+        # Test CDN optimization
+        echo "⚡ Testing CDN optimization"
+        cargo test --test comprehensive_test test_cdn_performance -- --nocapture
+
+    - name: Save performance results
+      run: |
+        echo "Performance benchmark completed at $(date)" > performance-results.txt
+        echo "Commit: ${{ github.sha }}" >> performance-results.txt
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-results
+        path: performance-results.txt
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+
+    - name: Run security audit
+      run: cargo audit
+
+    - name: Check for vulnerabilities
+      run: cargo audit --deny warnings
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+
+    - name: Run clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+    - name: Check documentation
+      run: cargo doc --no-deps --document-private-items
+
+  notify-results:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [integration-tests, code-quality, security-audit]
+    if: always()
+
+    steps:
+    - name: Notify success
+      if: needs.integration-tests.result == 'success' && needs.code-quality.result == 'success' && needs.security-audit.result == 'success'
+      run: |
+        echo "✅ All tests passed successfully!"
+        echo "🎉 Integration tests, code quality, and security audit completed"
+
+    - name: Notify failure
+      if: needs.integration-tests.result == 'failure' || needs.code-quality.result == 'failure' || needs.security-audit.result == 'failure'
+      run: |
+        echo "❌ Some tests failed"
+        echo "Integration tests: ${{ needs.integration-tests.result }}"
+        echo "Code quality: ${{ needs.code-quality.result }}"
+        echo "Security audit: ${{ needs.security-audit.result }}"
+        exit 1

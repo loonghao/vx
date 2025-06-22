@@ -47,35 +47,10 @@ impl StandardUrlBuilder for RustUrlBuilder {
         }
     }
 
-    /// Get platform string for downloads
+    /// Get platform string for downloads - DELEGATES TO GLOBAL CONFIG
     fn get_platform_string() -> String {
-        if cfg!(target_os = "windows") {
-            if cfg!(target_arch = "x86_64") {
-                "x86_64-pc-windows-msvc".to_string()
-            } else if cfg!(target_arch = "x86") {
-                "i686-pc-windows-msvc".to_string()
-            } else {
-                "unknown-pc-windows-msvc".to_string()
-            }
-        } else if cfg!(target_os = "macos") {
-            if cfg!(target_arch = "x86_64") {
-                "x86_64-apple-darwin".to_string()
-            } else if cfg!(target_arch = "aarch64") {
-                "aarch64-apple-darwin".to_string()
-            } else {
-                "unknown-apple-darwin".to_string()
-            }
-        } else if cfg!(target_os = "linux") {
-            if cfg!(target_arch = "x86_64") {
-                "x86_64-unknown-linux-gnu".to_string()
-            } else if cfg!(target_arch = "aarch64") {
-                "aarch64-unknown-linux-gnu".to_string()
-            } else {
-                "unknown-unknown-linux-gnu".to_string()
-            }
-        } else {
-            "unknown".to_string()
-        }
+        // Delegate to global config system
+        vx_config::get_platform_string()
     }
 }
 

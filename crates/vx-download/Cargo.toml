@@ -1,0 +1,57 @@
+[package]
+name = "vx-download"
+version.workspace = true
+edition.workspace = true
+description = "Unified download manager for vx using turbo-cdn"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Core dependencies
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+# Turbo CDN for unified download
+turbo-cdn = "0.2.0"
+
+# URL parsing
+url = { workspace = true }
+
+# Cryptography for checksums
+sha2 = "0.10"
+
+# vx dependencies
+vx-config = { path = "../vx-config" }
+vx-paths = { path = "../vx-paths" }
+
+# File system and path utilities
+dirs = { workspace = true }
+tempfile = { workspace = true }
+
+# Progress and UI
+indicatif = { version = "0.17", optional = true }
+futures-util = "0.3"
+
+# Async trait support
+async-trait = "0.1"
+
+# Error handling
+thiserror = "2.0"
+
+[features]
+default = ["progress"]
+progress = ["indicatif"]
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+tempfile = { workspace = true }
+tracing-subscriber = { workspace = true }
+toml = { workspace = true }

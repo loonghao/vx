@@ -17,9 +17,20 @@ pub struct Installer {
 }
 
 impl Installer {
-    /// Create a new installer
+    /// Create a new installer with regular HTTP downloader
     pub async fn new() -> Result<Self> {
         let downloader = Downloader::new()?;
+        let extractor = ArchiveExtractor::new();
+
+        Ok(Self {
+            downloader,
+            extractor,
+        })
+    }
+
+    /// Create a new installer with turbo-cdn support
+    pub async fn with_turbo_cdn() -> Result<Self> {
+        let downloader = Downloader::with_turbo_cdn().await?;
         let extractor = ArchiveExtractor::new();
 
         Ok(Self {

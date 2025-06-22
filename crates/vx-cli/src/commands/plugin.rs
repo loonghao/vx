@@ -47,7 +47,41 @@ pub async fn handle(registry: &PluginRegistry, command: PluginCommand) -> Result
 
         PluginCommand::Info { name } => {
             UI::header(&format!("Tool: {name}"));
-            UI::warning("Plugin info not yet implemented in new architecture");
+
+            // Check if tool exists in registry
+            let available_tools = registry.list_tools();
+            if available_tools.contains(&name) {
+                println!("📦 Name: {}", name);
+                println!("📝 Description: Available tool plugin");
+                println!("✅ Available: Yes");
+
+                // Check if tool is installed
+                let paths = vx_paths::VxPaths::default();
+                let tool_dir = paths.tools_dir.join(&name);
+                let is_installed = tool_dir.exists()
+                    && tool_dir
+                        .read_dir()
+                        .map(|mut d| d.next().is_some())
+                        .unwrap_or(false);
+                println!("💾 Installed: {}", if is_installed { "Yes" } else { "No" });
+
+                if is_installed {
+                    // Show installed versions
+                    if let Ok(entries) = std::fs::read_dir(&tool_dir) {
+                        let versions: Vec<String> = entries
+                            .filter_map(|e| e.ok())
+                            .filter(|e| e.path().is_dir())
+                            .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
+                            .collect();
+
+                        if !versions.is_empty() {
+                            println!("📋 Installed versions: {}", versions.join(", "));
+                        }
+                    }
+                }
+            } else {
+                UI::error(&format!("Tool '{}' not found in registry", name));
+            }
             // match tool_manager.get_tool_info(&name) {
             //     Ok(info) => {
             //         UI::header(&format!("Tool: {}", info.name));
@@ -89,7 +123,21 @@ pub async fn handle(registry: &PluginRegistry, command: PluginCommand) -> Result
 
         PluginCommand::Search { query } => {
             UI::header(&format!("Tools matching '{query}'"));
-            UI::warning("Plugin search not yet implemented in new architecture");
+
+            let available_tools = registry.list_tools();
+            let matching_tools: Vec<_> = available_tools
+                .into_iter()
+                .filter(|tool| tool.to_lowercase().contains(&query.to_lowercase()))
+                .collect();
+
+            if matching_tools.is_empty() {
+                UI::info(&format!("No tools found matching '{query}'"));
+            } else {
+                println!("Found {} matching tools:", matching_tools.len());
+                for tool in matching_tools {
+                    println!("  📦 {}", tool);
+                }
+            }
             // let tools = tool_manager.get_all_tools();
             // let matching_tools: Vec<_> = tools
             //     .into_iter()
@@ -114,7 +162,40 @@ pub async fn handle(registry: &PluginRegistry, command: PluginCommand) -> Result
 
         PluginCommand::Stats => {
             UI::header("Tool Statistics");
-            UI::warning("Plugin stats not yet implemented in new architecture");
+
+            let available_tools = registry.list_tools();
+            let total_tools = available_tools.len();
+
+            // Count installed tools
+            let paths = vx_paths::VxPaths::default();
+            let mut installed_count = 0;
+
+            if paths.tools_dir.exists() {
+                for tool_name in &available_tools {
+                    let tool_dir = paths.tools_dir.join(tool_name);
+                    if tool_dir.exists()
+                        && tool_dir
+                            .read_dir()
+                            .map(|mut d| d.next().is_some())
+                            .unwrap_or(false)
+                    {
+                        installed_count += 1;
+                    }
+                }
+            }
+
+            println!("📊 Tool Statistics:");
+            println!("  Total available tools: {}", total_tools);
+            println!("  Installed tools: {}", installed_count);
+            println!("  Not installed: {}", total_tools - installed_count);
+            println!(
+                "  Installation rate: {:.1}%",
+                if total_tools > 0 {
+                    (installed_count as f64 / total_tools as f64) * 100.0
+                } else {
+                    0.0
+                }
+            );
             // let tools = tool_manager.get_all_tools();
             // let total = tools.len();
             // let installed = tools.iter().filter(|t| t.installed).count();

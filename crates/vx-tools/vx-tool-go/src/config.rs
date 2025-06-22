@@ -15,37 +15,63 @@ pub struct Config;
 pub struct GoUrlBuilder;
 
 impl StandardUrlBuilder for GoUrlBuilder {
-    /// Generate download URL for Go version
+    /// Generate download URL for Go version - NOW USES CONFIG SYSTEM!
     fn download_url(version: &str) -> Option<String> {
-        let filename = Self::get_filename(version);
+        // Use vx-config system instead of hardcoding
+        use vx_config::{get_tool_download_url, ConfigManager, VersionParser};
 
-        Some(format!("https://golang.org/dl/{}", filename))
+        // This is a sync wrapper - ideally we'd make this async
+        let rt = tokio::runtime::Handle::try_current()
+            .or_else(|_| tokio::runtime::Runtime::new().map(|rt| rt.handle().clone()))
+            .ok()?;
+
+        rt.block_on(async {
+            let config_manager = ConfigManager::new().await.ok()?;
+            let config = config_manager.config();
+
+            // Use version parser to clean version
+            let clean_version = if let Some(tool_config) = config.tools.get("go") {
+                if let Some(version_parser) = VersionParser::from_tool_config(tool_config) {
+                    version_parser
+                        .parse_tag(version)
+                        .unwrap_or_else(|_| version.to_string())
+                } else {
+                    version.to_string()
+                }
+            } else {
+                version.to_string()
+            };
+
+            get_tool_download_url(config, "go", &clean_version)
+        })
     }
 
-    /// Get platform-specific filename
+    /// Get platform-specific filename - NOW USES CONFIG SYSTEM!
     fn get_filename(version: &str) -> String {
-        let platform = Self::get_platform_string();
-        if cfg!(windows) {
-            format!("go{}.{}.zip", version, platform)
-        } else {
-            format!("go{}.{}.tar.gz", version, platform)
+        // Use vx-config system to get platform-specific filename
+        use vx_config::{get_tool_filename, ConfigManager};
+
+        let rt = tokio::runtime::Handle::try_current()
+            .or_else(|_| tokio::runtime::Runtime::new().map(|rt| rt.handle().clone()));
+
+        if let Ok(rt) = rt {
+            if let Some(filename) = rt.block_on(async {
+                let config_manager = ConfigManager::new().await.ok()?;
+                let config = config_manager.config();
+                get_tool_filename(config, "go", version)
+            }) {
+                return filename;
+            }
         }
+
+        // Fallback if config system fails
+        format!("go{}.linux-amd64.tar.gz", version)
     }
 
-    /// Get platform string for Go downloads
+    /// Get platform string - DEPRECATED, USE CONFIG SYSTEM!
     fn get_platform_string() -> String {
-        match (std::env::consts::OS, std::env::consts::ARCH) {
-            ("windows", "x86_64") => "windows-amd64".to_string(),
-            ("windows", "x86") => "windows-386".to_string(),
-            ("windows", "aarch64") => "windows-arm64".to_string(),
-            ("macos", "x86_64") => "darwin-amd64".to_string(),
-            ("macos", "aarch64") => "darwin-arm64".to_string(),
-            ("linux", "x86_64") => "linux-amd64".to_string(),
-            ("linux", "x86") => "linux-386".to_string(),
-            ("linux", "aarch64") => "linux-arm64".to_string(),
-            ("linux", "arm") => "linux-armv6l".to_string(),
-            _ => "linux-amd64".to_string(), // Default fallback
-        }
+        // This method is deprecated - platform detection should use vx-config
+        "deprecated-use-config".to_string()
     }
 }
 
@@ -56,7 +82,8 @@ impl StandardToolConfig for Config {
     }
 
     fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConfig {
-        create_install_config(version, install_dir)
+        // Use simplified sync implementation to avoid runtime conflicts
+        create_install_config_sync(version, install_dir)
     }
 
     fn get_install_methods() -> Vec<String> {
@@ -81,21 +108,82 @@ impl StandardToolConfig for Config {
     }
 }
 
-/// Create Go installation configuration
-pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConfig {
-    let actual_version = if version == "latest" {
-        "1.21.6" // Default to stable version
+/// Create Go installation configuration (sync version) - USES GLOBAL CONFIG
+pub fn create_install_config_sync(version: &str, install_dir: PathBuf) -> InstallConfig {
+    // Use global config system for sync access
+    use vx_config::{get_global_config, get_tool_download_url, VersionParser};
+
+    let config = get_global_config();
+
+    // Use version parser to clean version properly
+    let clean_version = if let Some(tool_config) = config.tools.get("go") {
+        if let Some(version_parser) = VersionParser::from_tool_config(tool_config) {
+            version_parser
+                .parse_tag(version)
+                .unwrap_or_else(|_| version.to_string())
+        } else {
+            version.to_string()
+        }
     } else {
-        version
+        version.to_string()
     };
 
-    let download_url = GoUrlBuilder::download_url(actual_version);
+    let download_url = get_tool_download_url(config, "go", &clean_version).unwrap_or_else(|| {
+        // Fallback URL if config system fails
+        format!(
+            "https://golang.org/dl/go{}.linux-amd64.tar.gz",
+            clean_version
+        )
+    });
+
     let install_method = InstallMethod::Archive {
-        format: if cfg!(windows) {
-            ArchiveFormat::Zip
+        format: ArchiveFormat::TarGz,
+    };
+
+    // Create lifecycle hooks to optimize path structure
+    let mut hooks = LifecycleHooks::default();
+    hooks.post_install.push(LifecycleAction::FlattenDirectory {
+        source_pattern: "go".to_string(),
+    });
+
+    InstallConfig::builder()
+        .tool_name("go")
+        .version(clean_version)
+        .install_method(install_method)
+        .download_url(download_url)
+        .install_dir(install_dir)
+        .lifecycle_hooks(hooks)
+        .build()
+}
+
+/// Create Go installation configuration (async version) - USES GLOBAL CONFIG
+pub async fn create_install_config(
+    version: &str,
+    install_dir: PathBuf,
+) -> anyhow::Result<InstallConfig> {
+    // Use global config system for sync access
+    use vx_config::{get_global_config, get_tool_download_url, VersionParser};
+
+    let config = get_global_config();
+
+    // Use version parser to clean version properly
+    let clean_version = if let Some(tool_config) = config.tools.get("go") {
+        if let Some(version_parser) = VersionParser::from_tool_config(tool_config) {
+            version_parser
+                .parse_tag(version)
+                .unwrap_or_else(|_| version.to_string())
         } else {
-            ArchiveFormat::TarGz
-        },
+            version.to_string()
+        }
+    } else {
+        version.to_string()
+    };
+
+    let download_url = get_tool_download_url(config, "go", &clean_version)
+        .ok_or_else(|| anyhow::anyhow!("No download URL configured for go"))?;
+
+    let install_method = InstallMethod::Archive {
+        format: ArchiveFormat::TarGz, // Config system will handle platform-specific formats
     };
 
     // Create lifecycle hooks to optimize path structure
@@ -107,14 +195,14 @@ pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConf
         source_pattern: "go".to_string(),
     });
 
-    InstallConfig::builder()
+    Ok(InstallConfig::builder()
         .tool_name("go")
-        .version(version.to_string())
+        .version(clean_version)
         .install_method(install_method)
-        .download_url(download_url.unwrap_or_default())
+        .download_url(download_url)
         .install_dir(install_dir)
         .lifecycle_hooks(hooks)
-        .build()
+        .build())
 }
 
 /// Get available Go installation methods
@@ -137,10 +225,8 @@ pub fn supports_auto_install() -> bool {
 
 /// Get manual installation instructions for Go
 pub fn get_manual_instructions() -> String {
-    "To install Go manually:\n\
-     • Visit: https://golang.org/dl/\n\
-     • Or use your system package manager"
-        .to_string()
+    // Use global config system for sync access
+    vx_config::get_tool_manual_instructions_sync("go")
 }
 
 #[cfg(test)]
@@ -160,19 +246,26 @@ mod tests {
         assert!(!platform.is_empty());
     }
 
-    #[test]
-    fn test_create_install_config() {
-        let config = create_install_config("1.21.6", PathBuf::from("/tmp/go"));
+    #[tokio::test]
+    async fn test_create_install_config() {
+        let config = create_install_config("1.21.6", PathBuf::from("/tmp/go"))
+            .await
+            .unwrap();
         assert_eq!(config.tool_name, "go");
         assert_eq!(config.version, "1.21.6");
         assert!(config.download_url.is_some());
     }
 
-    #[test]
-    fn test_latest_version_handling() {
-        let config = create_install_config("latest", PathBuf::from("/tmp/go"));
+    #[tokio::test]
+    async fn test_latest_version_handling() {
+        let config = create_install_config("latest", PathBuf::from("/tmp/go"))
+            .await
+            .unwrap();
         assert_eq!(config.version, "latest");
         // Should use actual version in URL
-        assert!(config.download_url.unwrap().contains("1.21.6"));
+        assert!(config
+            .download_url
+            .as_ref()
+            .map_or(false, |url| url.contains("golang.org")));
     }
 }

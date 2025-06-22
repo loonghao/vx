@@ -31,5 +31,9 @@
 // Core abstractions - the only module we need
 pub mod core;
 
+// Async manager for high-performance tool management
+pub mod async_manager;
+
 // Re-export everything from core for convenience
+pub use async_manager::*;
 pub use core::*;

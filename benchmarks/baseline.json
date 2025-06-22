@@ -1,0 +1,87 @@
+{
+  "version": "1.0.0",
+  "created_at": "2025-06-21T14:30:00.000Z",
+  "last_updated": "2025-06-21T14:30:00.000Z",
+  "baselines": {
+    "version_fetch_node": {
+      "operation": "version_fetch",
+      "max_duration_ms": 60000,
+      "percentile_95_ms": 45000,
+      "average_ms": 30000,
+      "sample_count": 10,
+      "last_updated": "2025-06-21T14:30:00.000Z"
+    },
+    "version_fetch_go": {
+      "operation": "version_fetch",
+      "max_duration_ms": 10000,
+      "percentile_95_ms": 8000,
+      "average_ms": 5000,
+      "sample_count": 10,
+      "last_updated": "2025-06-21T14:30:00.000Z"
+    },
+    "version_fetch_uv": {
+      "operation": "version_fetch",
+      "max_duration_ms": 15000,
+      "percentile_95_ms": 12000,
+      "average_ms": 8000,
+      "sample_count": 10,
+      "last_updated": "2025-06-21T14:30:00.000Z"
+    },
+    "version_fetch_pnpm": {
+      "operation": "version_fetch",
+      "max_duration_ms": 15000,
+      "percentile_95_ms": 12000,
+      "average_ms": 8000,
+      "sample_count": 10,
+      "last_updated": "2025-06-21T14:30:00.000Z"
+    },
+    "version_fetch_yarn": {
+      "operation": "version_fetch",
+      "max_duration_ms": 15000,
+      "percentile_95_ms": 12000,
+      "average_ms": 8000,
+      "sample_count": 10,
+      "last_updated": "2025-06-21T14:30:00.000Z"
+    },
+    "installation_node": {
+      "operation": "installation",
+      "max_duration_ms": 300000,
+      "percentile_95_ms": 240000,
+      "average_ms": 120000,
+      "sample_count": 10,
+      "last_updated": "2025-06-21T14:30:00.000Z"
+    },
+    "installation_go": {
+      "operation": "installation",
+      "max_duration_ms": 300000,
+      "percentile_95_ms": 240000,
+      "average_ms": 120000,
+      "sample_count": 10,
+      "last_updated": "2025-06-21T14:30:00.000Z"
+    },
+    "installation_uv": {
+      "operation": "installation",
+      "max_duration_ms": 300000,
+      "percentile_95_ms": 240000,
+      "average_ms": 120000,
+      "sample_count": 10,
+      "last_updated": "2025-06-21T14:30:00.000Z"
+    },
+    "cdn_optimization_node": {
+      "operation": "cdn_optimization",
+      "max_duration_ms": 30000,
+      "percentile_95_ms": 25000,
+      "average_ms": 15000,
+      "sample_count": 10,
+      "last_updated": "2025-06-21T14:30:00.000Z"
+    },
+    "cdn_optimization_go": {
+      "operation": "cdn_optimization",
+      "max_duration_ms": 30000,
+      "percentile_95_ms": 25000,
+      "average_ms": 15000,
+      "sample_count": 10,
+      "last_updated": "2025-06-21T14:30:00.000Z"
+    }
+  }
+}

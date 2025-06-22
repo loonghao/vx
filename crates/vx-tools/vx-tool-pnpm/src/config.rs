@@ -35,15 +35,20 @@ impl StandardUrlBuilder for PnpmUrlBuilder {
         }
     }
 
-    /// Get platform string for PNPM downloads
+    /// Get platform string for PNPM downloads - USES PNPM-SPECIFIC FORMAT
     fn get_platform_string() -> String {
-        match (std::env::consts::OS, std::env::consts::ARCH) {
-            ("windows", "x86_64") => "win-x64".to_string(),
-            ("windows", "aarch64") => "win-arm64".to_string(),
-            ("macos", "x86_64") => "macos-x64".to_string(),
-            ("macos", "aarch64") => "macos-arm64".to_string(),
-            ("linux", "x86_64") => "linux-x64".to_string(),
-            ("linux", "aarch64") => "linux-arm64".to_string(),
+        // PNPM uses a different platform naming convention
+        // Convert from standard platform string to PNPM format
+        let standard_platform = vx_config::get_platform_string();
+
+        // Map standard platform strings to PNPM format
+        match standard_platform.as_str() {
+            "x86_64-pc-windows-msvc" => "win-x64".to_string(),
+            "aarch64-pc-windows-msvc" => "win-arm64".to_string(),
+            "x86_64-apple-darwin" => "macos-x64".to_string(),
+            "aarch64-apple-darwin" => "macos-arm64".to_string(),
+            "x86_64-unknown-linux-gnu" => "linux-x64".to_string(),
+            "aarch64-unknown-linux-gnu" => "linux-arm64".to_string(),
             _ => "linux-x64".to_string(), // Default fallback
         }
     }
