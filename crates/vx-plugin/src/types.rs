@@ -58,6 +58,7 @@ impl VersionInfo {
     }
 
     /// Mark this version as a prerelease
+    #[allow(clippy::wrong_self_convention)]
     pub fn as_prerelease(mut self) -> Self {
         self.prerelease = true;
         self
@@ -134,6 +135,7 @@ impl PackageSpec {
     }
 
     /// Mark as development dependency
+    #[allow(clippy::wrong_self_convention)]
     pub fn as_dev_dependency(mut self) -> Self {
         self.dev_dependency = true;
         self

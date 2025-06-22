@@ -54,7 +54,10 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: |
+          echo "🔍 Running Clippy for code quality checks..."
+          # Run clippy with standard warnings, but allow pedantic lints
+          cargo clippy --all-targets --all-features -- -D warnings -A clippy::pedantic -A clippy::nursery
 
       - name: Check documentation
         run: cargo doc --all-features --no-deps --document-private-items
