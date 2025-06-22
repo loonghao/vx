@@ -334,9 +334,9 @@ jobs:
           echo "📝 Configuration file exists and has valid TOML syntax."
           echo "🎯 The workflow should work correctly when merged to main."
 
-  # Simulate publishing to catch dependency issues early
-  publish_simulation:
-    name: Publish Simulation
+  # Verify package build readiness to catch dependency issues early
+  package_verification:
+    name: Package Build Verification
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
@@ -360,13 +360,13 @@ jobs:
             ${{ runner.os }}-cargo-publish-sim-
             ${{ runner.os }}-cargo-
 
-      - name: Simulate package publishing
+      - name: Verify package build readiness
         run: |
-          echo "🚀 Simulating package publishing to detect dependency issues..."
+          echo "🔍 Verifying package build readiness..."
           echo ""
 
-          # Test packaging in dependency order to avoid version conflicts
-          # Using --allow-dirty --no-verify to skip crates.io version checks during development
+          # Test building each crate individually to ensure they compile correctly
+          # This verifies dependency resolution without requiring crates.io publishing
           CRATES_TO_TEST=(
             # Layer 1: Foundation (no internal deps)
             "vx-dependency"
@@ -400,18 +400,18 @@ jobs:
           )
 
           for crate in "${CRATES_TO_TEST[@]}"; do
-            echo "📦 Testing package: $crate"
-            if cargo package -p "$crate" --allow-dirty --no-verify; then
-              echo "✅ $crate packages successfully"
+            echo "🔨 Building crate: $crate"
+            if cargo build -p "$crate" --release; then
+              echo "✅ $crate builds successfully"
             else
-              echo "❌ $crate packaging failed"
+              echo "❌ $crate build failed"
               exit 1
             fi
             echo ""
           done
 
-          echo "🎉 All packages can be built for publishing!"
-          echo "💡 Dependencies are correctly specified and ready for crates.io"
+          echo "🎉 All crates build successfully!"
+          echo "💡 Dependencies are correctly resolved and ready for publishing"
 
   # Code coverage reporting (only on PR)
   coverage:

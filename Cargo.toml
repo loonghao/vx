@@ -56,6 +56,11 @@ vx-cli = { path = "crates/vx-cli" }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 
+[features]
+default = []
+# Use rustls instead of native-tls for better cross-compilation support
+rustls-tls = []
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = { workspace = true }
@@ -107,6 +112,9 @@ reqwest = { version = "0.12", features = [
     "json",
     "stream",
     "rustls-tls",
+    "charset",
+    "http2",
+    "macos-system-configuration",
 ], default-features = false }
 serde_json = "1.0"
 anyhow = "1.0"
