@@ -65,3 +65,8 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 vx-version = { version = "0.2.2", path = "../vx-version" }
 which = { workspace = true }
+
+[features]
+default = []
+# Use rustls instead of native-tls for better cross-compilation support
+rustls-tls = []

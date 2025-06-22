@@ -53,3 +53,5 @@ default = []
 github = []
 npm = []
 pypi = []
+# Use rustls instead of native-tls for better cross-compilation support
+rustls-tls = []

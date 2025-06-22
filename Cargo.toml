@@ -59,7 +59,9 @@ anyhow = { workspace = true }
 [features]
 default = []
 # Use rustls instead of native-tls for better cross-compilation support
-rustls-tls = []
+rustls-tls = [
+    "vx-cli/rustls-tls",
+]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

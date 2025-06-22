@@ -49,6 +49,8 @@ thiserror = "2.0"
 [features]
 default = ["progress"]
 progress = ["indicatif"]
+# Use rustls instead of native-tls for better cross-compilation support
+rustls-tls = []
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

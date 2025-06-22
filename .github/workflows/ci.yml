@@ -107,8 +107,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # No additional setup needed for cross-compilation
-      # The actions-rust-cross action handles all cross-compilation setup automatically
+      # Set environment variables to force rustls usage and avoid OpenSSL
+      - name: Set rustls environment variables
+        if: matrix.platform.cross_compile == true
+        run: |
+          echo "CARGO_NET_GIT_FETCH_WITH_CLI=true" >> $GITHUB_ENV
+          echo "OPENSSL_NO_VENDOR=1" >> $GITHUB_ENV
 
       # Install musl tools for musl target
       - name: Install musl tools
@@ -136,7 +140,7 @@ jobs:
           command: build
           target: ${{ matrix.platform.target }}
           toolchain: ${{ matrix.platform.rust }}
-          args: "--locked --all-features"
+          args: "--locked --no-default-features --features rustls-tls"
           use-rust-cache: true
 
   # Build verification for key platforms only (not all targets)

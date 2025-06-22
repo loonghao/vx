@@ -63,3 +63,5 @@ default = []
 extended-formats = []
 # Feature for progress bars
 progress = ["indicatif"]
+# Use rustls instead of native-tls for better cross-compilation support
+rustls-tls = []
