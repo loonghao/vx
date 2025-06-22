@@ -229,7 +229,7 @@ mod tests {
     fn test_node_url_builder() {
         let url = NodeUrlBuilder::download_url("18.17.0");
         assert!(url.is_some());
-        assert!(url.unwrap().contains("nodejs.org"));
+        assert!(url.expect("URL should be generated").contains("nodejs.org"));
     }
 
     #[test]
@@ -242,7 +242,7 @@ mod tests {
     async fn test_create_install_config() {
         let config = create_install_config("18.17.0", PathBuf::from("/tmp/node"))
             .await
-            .unwrap();
+            .expect("Should create install config");
         assert_eq!(config.tool_name, "node");
         assert_eq!(config.version, "18.17.0");
         assert!(config.download_url.is_some());
@@ -250,10 +250,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_latest_version_handling() {
-        let config = create_install_config("latest", PathBuf::from("/tmp/node"))
+        // Test that create_install_config properly rejects "latest" version
+        let result = create_install_config("latest", PathBuf::from("/tmp/node")).await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("should be resolved first"));
+
+        // Test with a real version instead
+        let config = create_install_config("20.11.0", PathBuf::from("/tmp/node"))
             .await
-            .unwrap();
-        assert_eq!(config.version, "latest");
+            .expect("Should create config with real version");
+        assert_eq!(config.version, "20.11.0");
         // Should use actual version in URL
         assert!(config
             .download_url
