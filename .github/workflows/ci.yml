@@ -107,26 +107,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install system dependencies for cross-compilation
-      - name: Install cross-compilation dependencies
-        if: matrix.platform.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          # Add arm64 architecture for cross-compilation
-          sudo dpkg --add-architecture arm64
-          sudo apt-get update
-          # Install cross-compilation toolchain and OpenSSL for arm64
-          sudo apt-get install -y \
-            gcc-aarch64-linux-gnu \
-            pkg-config \
-            libssl-dev:arm64 \
-            libssl3:arm64
-          # Set environment variables for cross-compilation
-          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
-          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
-          echo "OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu" >> $GITHUB_ENV
-          echo "OPENSSL_INCLUDE_DIR=/usr/include/openssl" >> $GITHUB_ENV
+      # No additional setup needed for cross-compilation
+      # The actions-rust-cross action handles all cross-compilation setup automatically
 
       # Install musl tools for musl target
       - name: Install musl tools
