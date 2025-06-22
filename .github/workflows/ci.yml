@@ -104,6 +104,7 @@ jobs:
             target: x86_64-unknown-linux-musl
             rust: stable
             cross_compile: false
+            use_docker: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -120,19 +121,39 @@ jobs:
         if: matrix.platform.use_docker == true
         uses: docker/setup-buildx-action@v3
 
-      # Build and test in ARM64 Docker container
-      - name: Build and test in ARM64 container
+      # Build and test in Docker container (ARM64 or musl)
+      - name: Build and test in Docker container
         if: matrix.platform.use_docker == true
         run: |
+          # Determine platform and image based on target
+          if [[ "${{ matrix.platform.target }}" == "aarch64-unknown-linux-gnu" ]]; then
+            PLATFORM="linux/arm64"
+            IMAGE="rust:1.82-slim"
+            DEPS="pkg-config libssl-dev"
+            TARGET_FLAG=""
+          elif [[ "${{ matrix.platform.target }}" == "x86_64-unknown-linux-musl" ]]; then
+            PLATFORM="linux/amd64"
+            IMAGE="rust:1.82-alpine"
+            DEPS="pkgconf-dev openssl-dev musl-dev"
+            TARGET_FLAG="--target x86_64-unknown-linux-musl"
+          else
+            echo "Unsupported Docker target: ${{ matrix.platform.target }}"
+            exit 1
+          fi
+
           docker run --rm \
-            --platform linux/arm64 \
+            --platform $PLATFORM \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
-            rust:1.82-slim \
-            bash -c "
-              apt-get update && apt-get install -y pkg-config libssl-dev && \
-              cargo build --release --all-features && \
-              cargo test --all-features
+            $IMAGE \
+            sh -c "
+              if command -v apk >/dev/null 2>&1; then
+                apk add --no-cache $DEPS
+              else
+                apt-get update && apt-get install -y $DEPS
+              fi && \
+              cargo build --release --all-features $TARGET_FLAG && \
+              cargo test --all-features $TARGET_FLAG
             "
 
       # Install musl tools for musl target
