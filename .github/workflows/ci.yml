@@ -362,14 +362,37 @@ jobs:
           echo "🚀 Simulating package publishing to detect dependency issues..."
           echo ""
 
-          # Test packaging for key crates that have external dependencies
-          # Note: vx-cli temporarily excluded due to vx-paths dependency (new crate not yet published)
+          # Test packaging in dependency order to avoid version conflicts
+          # Using --allow-dirty --no-verify to skip crates.io version checks during development
           CRATES_TO_TEST=(
+            # Layer 1: Foundation (no internal deps)
+            "vx-dependency"
+            "vx-paths"
+            # Layer 2: Core utilities
+            "vx-plugin"
+            "vx-version"
+            # Layer 3: Config and installation
+            "vx-config"
+            "vx-installer"
+            "vx-download"
+            # Layer 4: Core services
+            "vx-core"
+            "vx-benchmark"
+            # Layer 5: Tool framework
             "vx-tool-standard"
-            "vx-tool-node"
-            "vx-tool-go"
-            "vx-tool-rust"
+            # Layer 6: Simple tools
+            "vx-tool-npm"
             "vx-tool-uv"
+            "vx-tool-python"
+            "vx-tool-rust"
+            "vx-tool-go"
+            "vx-tool-bun"
+            # Layer 7: Node ecosystem
+            "vx-tool-node"
+            "vx-tool-pnpm"
+            "vx-tool-yarn"
+            # Layer 8: Application
+            "vx-cli"
             "vx"
           )
 
@@ -385,7 +408,7 @@ jobs:
           done
 
           echo "🎉 All packages can be built for publishing!"
-          echo "💡 This ensures dependencies are correctly specified for crates.io"
+          echo "💡 Dependencies are correctly specified and ready for crates.io"
 
   # Code coverage reporting (only on PR)
   coverage:
