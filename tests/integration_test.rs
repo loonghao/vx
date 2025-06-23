@@ -145,13 +145,64 @@ impl VxIntegrationTest {
         // Remove existing test directory if it exists
         if self.test_dir.exists() {
             println!("🧹 Removing existing test directory...");
-            std::fs::remove_dir_all(&self.test_dir).map_err(|e| {
-                anyhow::anyhow!(
-                    "Failed to remove existing test directory {}: {}",
-                    self.test_dir.display(),
-                    e
-                )
-            })?;
+
+            // Try multiple cleanup strategies for Windows compatibility
+            #[allow(unused_assignments)]
+            let mut cleanup_success = false;
+
+            // Strategy 1: Direct removal
+            match std::fs::remove_dir_all(&self.test_dir) {
+                Ok(()) => {
+                    println!("🧹 Existing test directory removed successfully");
+                    cleanup_success = true;
+                }
+                Err(e) => {
+                    println!("⚠️  First removal attempt failed: {}", e);
+
+                    // Strategy 2: Wait and retry (Windows file locking)
+                    if cfg!(windows) {
+                        println!("🔄 Retrying removal after delay (Windows file locking)...");
+                        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+                        match std::fs::remove_dir_all(&self.test_dir) {
+                            Ok(()) => {
+                                println!("🧹 Existing test directory removed on retry");
+                                cleanup_success = true;
+                            }
+                            Err(e2) => {
+                                // On Windows, this is often due to file locking and is not critical for setup
+                                if cfg!(windows) {
+                                    println!(
+                                        "⚠️  Warning: Could not remove existing directory: {}",
+                                        e2
+                                    );
+                                    println!("   This is common on Windows due to file locking");
+                                    println!("   Continuing with setup...");
+                                    cleanup_success = true; // Allow setup to continue
+                                } else {
+                                    return Err(anyhow::anyhow!(
+                                        "Failed to remove existing test directory {}: {}",
+                                        self.test_dir.display(),
+                                        e2
+                                    ));
+                                }
+                            }
+                        }
+                    } else {
+                        return Err(anyhow::anyhow!(
+                            "Failed to remove existing test directory {}: {}",
+                            self.test_dir.display(),
+                            e
+                        ));
+                    }
+                }
+            }
+
+            if !cleanup_success {
+                return Err(anyhow::anyhow!(
+                    "Failed to remove existing test directory after multiple attempts"
+                ));
+            }
         }
 
         // Create test directory

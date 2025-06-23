@@ -156,6 +156,9 @@ mockall = "0.13"
 wiremock = "0.6"
 serial_test = "3.0"
 
+# CDN and download acceleration - force rustls-tls
+turbo-cdn = { version = "0.2.0", default-features = false, features = ["rustls-tls"] }
+
 
 # Optimize compilation times
 [profile.dev]
@@ -194,3 +197,9 @@ lto = false
 # Workspace-level feature overrides to force rustls usage
 [workspace.metadata.cargo-machete]
 ignored = ["openssl", "openssl-sys", "native-tls"]
+
+# Force all dependencies to use rustls instead of native-tls
+# Note: We cannot use [patch.crates-io] to modify features of the same package
+# Instead, we rely on workspace dependency configuration and explicit feature control
+
+
