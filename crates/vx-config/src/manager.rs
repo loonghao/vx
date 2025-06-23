@@ -1,6 +1,14 @@
 //! Main configuration manager implementation
 
-use crate::{config::build_figment, detection::detect_project_info, types::*, Result};
+use crate::{
+    config::build_figment,
+    defaults::{
+        get_tool_dependencies, get_tool_download_url, get_tool_executable, load_default_config,
+    },
+    detection::detect_project_info,
+    types::*,
+    Result,
+};
 use figment::Figment;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -30,7 +38,11 @@ impl ConfigManager {
     pub fn minimal() -> Result<Self> {
         use figment::providers::Serialized;
 
-        let figment = Figment::from(Serialized::defaults(VxConfig::default()));
+        // Load the embedded default configuration instead of empty defaults
+        let default_config =
+            crate::defaults::load_default_config().unwrap_or_else(|_| VxConfig::default());
+
+        let figment = Figment::from(Serialized::defaults(default_config));
         let config = figment.extract()?;
 
         Ok(Self {
@@ -216,10 +228,93 @@ impl ConfigManager {
             }
         }
 
-        // Return error if no custom URL found - let caller handle fallback
+        // Try to get URL from default configuration
+        if let Some(url) = get_tool_download_url(&self.config, tool_name, version) {
+            return Ok(url);
+        }
+
+        // Return error if no URL found
         Err(crate::error::ConfigError::Other {
             message: format!("No download URL configured for tool: {}", tool_name),
         })
+    }
+
+    /// Get tool dependencies
+    pub fn get_tool_dependencies(&self, tool_name: &str) -> Vec<String> {
+        get_tool_dependencies(&self.config, tool_name)
+    }
+
+    /// Get tool executable name for current platform
+    pub fn get_tool_executable(&self, tool_name: &str) -> Option<String> {
+        get_tool_executable(&self.config, tool_name)
+    }
+
+    /// Load default configuration (useful for testing or fallback)
+    pub fn load_defaults() -> Result<VxConfig> {
+        load_default_config()
+    }
+
+    /// Reset configuration for a specific tool to defaults
+    pub async fn reset_tool_config(&self, tool_name: &str) -> Result<()> {
+        // Get the project config path
+        let config_path = get_project_config_path()?;
+
+        if !config_path.exists() {
+            return Err(crate::error::ConfigError::Validation {
+                message: "No project configuration file found to reset".to_string(),
+            });
+        }
+
+        // Load current project config
+        let mut project_config: ProjectConfig = {
+            let content = std::fs::read_to_string(&config_path).map_err(|e| {
+                crate::error::ConfigError::Io {
+                    message: format!("Failed to read config file: {}", e),
+                    source: e,
+                }
+            })?;
+
+            toml::from_str(&content).map_err(|e| crate::error::ConfigError::Parse {
+                message: format!("Failed to parse config file: {}", e),
+                file_type: "TOML".to_string(),
+            })?
+        };
+
+        // Remove the tool from project config (reset to default)
+        if project_config.tools.remove(tool_name).is_some() {
+            // Write updated config back to file
+            let content = generate_config_content(&project_config)?;
+            write_config_file(&config_path, &content)?;
+        }
+
+        Ok(())
+    }
+
+    /// Reset all configuration to defaults
+    pub async fn reset_all_config(&self) -> Result<()> {
+        // Get the project config path
+        let config_path = get_project_config_path()?;
+
+        if config_path.exists() {
+            // Remove the project config file
+            std::fs::remove_file(&config_path).map_err(|e| crate::error::ConfigError::Io {
+                message: format!("Failed to remove config file: {}", e),
+                source: e,
+            })?;
+        }
+
+        // Also remove user config if it exists
+        if let Some(config_dir) = dirs::config_dir() {
+            let user_config = config_dir.join("vx").join("config.toml");
+            if user_config.exists() {
+                std::fs::remove_file(&user_config).map_err(|e| crate::error::ConfigError::Io {
+                    message: format!("Failed to remove user config file: {}", e),
+                    source: e,
+                })?;
+            }
+        }
+
+        Ok(())
     }
 }
 

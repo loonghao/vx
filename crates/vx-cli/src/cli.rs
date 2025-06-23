@@ -146,7 +146,7 @@ pub enum Commands {
     #[command(alias = "cfg")]
     Config {
         #[command(subcommand)]
-        command: Option<ConfigCommand>,
+        action: crate::commands::config::ConfigAction,
     },
 
     /// Search available tools
@@ -265,31 +265,12 @@ pub enum Commands {
         #[command(subcommand)]
         command: GlobalCommand,
     },
-}
 
-#[derive(Subcommand, Clone)]
-pub enum ConfigCommand {
-    /// Show current configuration
-    Show,
-    /// Set configuration value
-    Set {
-        /// Configuration key (e.g., defaults.auto_install)
-        key: String,
-        /// Configuration value
-        value: String,
+    /// High-performance async operations using AsyncVxManager
+    Async {
+        #[command(subcommand)]
+        command: AsyncCommand,
     },
-    /// Get configuration value
-    Get {
-        /// Configuration key
-        key: String,
-    },
-    /// Reset configuration to defaults
-    Reset {
-        /// Reset specific key only
-        key: Option<String>,
-    },
-    /// Edit configuration file
-    Edit,
 }
 
 #[derive(Subcommand, Clone)]
@@ -325,6 +306,42 @@ pub enum PluginCommand {
     },
     /// Show plugin statistics
     Stats,
+}
+
+#[derive(Subcommand, Clone)]
+pub enum AsyncCommand {
+    /// Install multiple tools concurrently
+    Install {
+        /// Tool specifications (e.g., node@20 go@1.21 rust@1.75)
+        tools: Vec<String>,
+        /// Force reinstallation even if already installed
+        #[arg(long)]
+        force: bool,
+        /// Maximum number of concurrent operations
+        #[arg(long)]
+        max_concurrent: Option<usize>,
+    },
+    /// Fetch versions for multiple tools concurrently
+    Versions {
+        /// Tool names
+        tools: Vec<String>,
+        /// Include pre-release versions
+        #[arg(long)]
+        prerelease: bool,
+    },
+    /// Benchmark concurrent vs sequential installation
+    Benchmark {
+        /// Tool specifications to benchmark
+        tools: Vec<String>,
+        /// Force reinstallation for accurate benchmarking
+        #[arg(long)]
+        force: bool,
+    },
+    /// Show AsyncVxManager statistics
+    Stats,
+    /// Clear AsyncVxManager caches
+    #[command(name = "clear-cache")]
+    ClearCache,
 }
 
 #[derive(Subcommand, Clone)]

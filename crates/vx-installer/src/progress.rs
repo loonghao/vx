@@ -99,8 +99,15 @@ impl ConsoleProgressReporter {
     }
 
     /// Create with default style
-    pub fn default() -> Self {
+    pub fn with_default_style() -> Self {
         Self::new(ProgressStyle::default())
+    }
+}
+
+#[cfg(feature = "progress")]
+impl Default for ConsoleProgressReporter {
+    fn default() -> Self {
+        Self::with_default_style()
     }
 }
 

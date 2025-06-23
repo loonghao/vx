@@ -1,6 +1,7 @@
 //! Tests for plugin system functionality
 
-use crate::test_utils::*;
+mod test_utils;
+use test_utils::*;
 use vx_plugin::{PluginRegistry, VxPlugin, VxTool};
 
 #[tokio::test]

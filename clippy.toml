@@ -10,3 +10,7 @@ doc-valid-idents = [
   "HTTPS",
   ".." # Include the defaults
 ]
+
+# Disable pedantic lints that are too noisy for this project
+avoid-breaking-exported-api = false
+too-many-lines-threshold = 150

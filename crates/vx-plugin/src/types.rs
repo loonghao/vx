@@ -58,6 +58,7 @@ impl VersionInfo {
     }
 
     /// Mark this version as a prerelease
+    #[allow(clippy::wrong_self_convention)]
     pub fn as_prerelease(mut self) -> Self {
         self.prerelease = true;
         self
@@ -134,6 +135,7 @@ impl PackageSpec {
     }
 
     /// Mark as development dependency
+    #[allow(clippy::wrong_self_convention)]
     pub fn as_dev_dependency(mut self) -> Self {
         self.dev_dependency = true;
         self
@@ -394,4 +396,45 @@ pub enum IsolationLevel {
     Project,
     /// Complete sandboxing
     Sandbox,
+}
+
+/// Tool dependency specification
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolDependency {
+    /// Name of the dependency tool
+    pub tool_name: String,
+    /// Human-readable description
+    pub description: String,
+    /// Whether this dependency is required
+    pub required: bool,
+    /// Version requirement (optional)
+    pub version_requirement: Option<String>,
+}
+
+impl ToolDependency {
+    /// Create a new required dependency
+    pub fn required(tool_name: impl Into<String>, description: impl Into<String>) -> Self {
+        Self {
+            tool_name: tool_name.into(),
+            description: description.into(),
+            required: true,
+            version_requirement: None,
+        }
+    }
+
+    /// Create a new optional dependency
+    pub fn optional(tool_name: impl Into<String>, description: impl Into<String>) -> Self {
+        Self {
+            tool_name: tool_name.into(),
+            description: description.into(),
+            required: false,
+            version_requirement: None,
+        }
+    }
+
+    /// Set version requirement
+    pub fn with_version(mut self, version: impl Into<String>) -> Self {
+        self.version_requirement = Some(version.into());
+        self
+    }
 }

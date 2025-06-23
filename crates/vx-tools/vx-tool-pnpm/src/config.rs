@@ -35,15 +35,20 @@ impl StandardUrlBuilder for PnpmUrlBuilder {
         }
     }
 
-    /// Get platform string for PNPM downloads
+    /// Get platform string for PNPM downloads - USES PNPM-SPECIFIC FORMAT
     fn get_platform_string() -> String {
-        match (std::env::consts::OS, std::env::consts::ARCH) {
-            ("windows", "x86_64") => "win-x64".to_string(),
-            ("windows", "aarch64") => "win-arm64".to_string(),
-            ("macos", "x86_64") => "macos-x64".to_string(),
-            ("macos", "aarch64") => "macos-arm64".to_string(),
-            ("linux", "x86_64") => "linux-x64".to_string(),
-            ("linux", "aarch64") => "linux-arm64".to_string(),
+        // PNPM uses a different platform naming convention
+        // Convert from standard platform string to PNPM format
+        let standard_platform = vx_config::get_platform_string();
+
+        // Map standard platform strings to PNPM format
+        match standard_platform.as_str() {
+            "x86_64-pc-windows-msvc" => "win-x64".to_string(),
+            "aarch64-pc-windows-msvc" => "win-arm64".to_string(),
+            "x86_64-apple-darwin" => "macos-x64".to_string(),
+            "aarch64-apple-darwin" => "macos-arm64".to_string(),
+            "x86_64-unknown-linux-gnu" => "linux-x64".to_string(),
+            "aarch64-unknown-linux-gnu" => "linux-arm64".to_string(),
             _ => "linux-x64".to_string(), // Default fallback
         }
     }
@@ -96,7 +101,7 @@ pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConf
 
     InstallConfig::builder()
         .tool_name("pnpm")
-        .version(version.to_string())
+        .version(actual_version.to_string())
         .install_method(install_method)
         .download_url(download_url.unwrap_or_default())
         .install_dir(install_dir)
@@ -154,13 +159,15 @@ mod tests {
     fn test_pnpm_url_builder() {
         let url = PnpmUrlBuilder::download_url("8.15.0");
         assert!(url.is_some());
-        assert!(url.unwrap().contains("github.com/pnpm/pnpm"));
+        assert!(url
+            .expect("URL should be generated")
+            .contains("github.com/pnpm/pnpm"));
     }
 
     #[test]
     fn test_create_install_config() {
         let config = create_install_config("latest", PathBuf::from("/tmp/pnpm"));
         assert_eq!(config.tool_name, "pnpm");
-        assert_eq!(config.version, "latest");
+        assert_eq!(config.version, "8.15.0"); // Should resolve "latest" to actual version
     }
 }

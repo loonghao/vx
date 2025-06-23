@@ -4,10 +4,15 @@ use crate::{progress::ProgressContext, Error, Result, USER_AGENT};
 use futures_util::StreamExt;
 use sha2::Digest;
 use std::path::{Path, PathBuf};
+// use std::time::Duration; // TODO: Add back when turbo-cdn is implemented
+// Note: turbo-cdn integration will be completed later
+// use turbo_cdn::config::{CacheConfig, GeneralConfig, NetworkConfig};
+// use turbo_cdn::{DownloadOptions, Region, Source, TurboCdn, TurboCdnConfig};
 
 /// HTTP downloader for fetching files from URLs
 pub struct Downloader {
     client: reqwest::Client,
+    // turbo_cdn: Option<turbo_cdn::TurboCdn>, // TODO: Add back when turbo-cdn integration is complete
 }
 
 impl Downloader {
@@ -21,6 +26,12 @@ impl Downloader {
         Ok(Self { client })
     }
 
+    /// Create a new downloader with turbo-cdn support (TODO: implement when turbo-cdn is ready)
+    pub async fn with_turbo_cdn() -> Result<Self> {
+        // For now, just return a regular downloader
+        Self::new()
+    }
+
     /// Create a downloader with custom client configuration
     pub fn with_client(client: reqwest::Client) -> Self {
         Self { client }
@@ -28,6 +39,62 @@ impl Downloader {
 
     /// Download a file from URL to the specified path
     pub async fn download(
+        &self,
+        url: &str,
+        output_path: &Path,
+        progress: &ProgressContext,
+    ) -> Result<()> {
+        // Check if this is a turbo-cdn URL
+        if url.starts_with("turbo-cdn://") {
+            return self
+                .download_with_turbo_cdn(url, output_path, progress)
+                .await;
+        }
+
+        // Fallback to regular HTTP download
+        self.download_http(url, output_path, progress).await
+    }
+
+    /// Download using turbo-cdn
+    async fn download_with_turbo_cdn(
+        &self,
+        url: &str,
+        output_path: &Path,
+        progress: &ProgressContext,
+    ) -> Result<()> {
+        // Initialize turbo-cdn client
+        let mut turbo_cdn_client = turbo_cdn::TurboCdn::new()
+            .await
+            .map_err(|e| Error::download_failed(url, e.to_string()))?;
+
+        // Extract filename from output path
+        let filename = output_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("download");
+
+        progress
+            .start(&format!("Downloading {} via TurboCdn", filename), None)
+            .await?;
+
+        // Use turbo-cdn to download from the URL directly
+        let result = turbo_cdn_client
+            .download_from_url(url, None)
+            .await
+            .map_err(|e| Error::download_failed(url, e.to_string()))?;
+
+        // Copy the downloaded file to the target location
+        if let Some(parent) = output_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::copy(&result.path, output_path)?;
+
+        progress.finish("Download completed").await?;
+        Ok(())
+    }
+
+    /// Download using regular HTTP
+    async fn download_http(
         &self,
         url: &str,
         output_path: &Path,

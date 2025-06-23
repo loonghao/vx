@@ -19,11 +19,11 @@ serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0"
 async-trait = "0.1"
 
-# HTTP client for fetching versions - use rustls for better cross-compilation
-reqwest = { version = "0.12", features = [
-    "json",
-    "rustls-tls",
-], default-features = false }
+# HTTP client for fetching versions - use workspace configuration (rustls-tls)
+reqwest = { workspace = true }
+
+# Turbo CDN for unified download and version fetching - use workspace configuration (rustls-tls)
+turbo-cdn = { workspace = true }
 
 # JSON parsing
 serde_json = "1.0"
@@ -31,11 +31,17 @@ serde_json = "1.0"
 # Regular expressions for version parsing
 regex = "1.0"
 
+# Semantic version parsing for sorting
+semver = "1.0"
+
 # Command execution
 which = "8.0"
 
 # Standard library collections
 indexmap = "2.0"
+
+# Async runtime for caching
+tokio = { version = "1.0", features = ["sync"] }
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["full"] }
@@ -47,3 +53,5 @@ default = []
 github = []
 npm = []
 pypi = []
+# Use rustls instead of native-tls for better cross-compilation support
+rustls-tls = []

@@ -232,6 +232,22 @@ pub fn get_plugins_dir() -> std::path::PathBuf {
     get_vx_dir().join("plugins")
 }
 
+/// Resolve version string to actual version
+///
+/// If the version is "latest", this function will fetch the latest version
+/// from the tool's version list. Otherwise, it returns the version as-is.
+pub async fn resolve_version<T: crate::VxTool>(tool: &T, version: &str) -> Result<String> {
+    if version == "latest" {
+        let versions = tool.fetch_versions(false).await?;
+        if versions.is_empty() {
+            return Err(anyhow::anyhow!("No versions found for {}", tool.name()));
+        }
+        Ok(versions[0].version.clone())
+    } else {
+        Ok(version.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

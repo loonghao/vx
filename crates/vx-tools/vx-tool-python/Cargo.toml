@@ -1,0 +1,44 @@
+[package]
+name = "vx-tool-python"
+version = "0.4.1"
+edition = "2021"
+description = "Python tool plugin for VX using Python Build Standalone"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/loonghao/vx"
+
+[dependencies]
+# Core VX dependencies
+vx-plugin = { version = "0.4.1", path = "../../vx-plugin" }
+vx-installer = { version = "0.4.1", path = "../../vx-installer" }
+vx-paths = { version = "0.3.1", path = "../../vx-paths" }
+vx-config = { version = "0.4.1", path = "../../vx-config" }
+vx-tool-standard = { version = "0.4.1", path = "../../vx-tool-standard" }
+vx-version = { version = "0.2.2", path = "../../vx-version" }
+
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+# HTTP client
+reqwest = { workspace = true, features = ["json"] }
+
+# Logging
+tracing = { workspace = true }
+
+# File system utilities
+which = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio-test = "0.4"
+
+[lib]
+name = "vx_tool_python"
+path = "src/lib.rs"

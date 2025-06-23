@@ -46,7 +46,10 @@ pub mod utils;
 
 // Re-export main types for convenience
 pub use error::{Result, VersionError};
-pub use fetcher::{GitHubVersionFetcher, NodeVersionFetcher, VersionFetcher};
+pub use fetcher::{
+    CachedVersionFetcher, GitHubVersionFetcher, GoVersionFetcher, NodeVersionFetcher,
+    TurboCdnVersionFetcher, VersionFetcher,
+};
 pub use manager::VersionManager;
 pub use parser::{GitHubVersionParser, GoVersionParser, NodeVersionParser, VersionParser};
 pub use utils::VersionUtils;

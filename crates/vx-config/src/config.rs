@@ -23,7 +23,13 @@ pub fn build_figment(project_info: &Option<ProjectInfo>) -> Result<Figment> {
 
 /// Add built-in default configuration (lowest priority)
 fn add_builtin_defaults(figment: Figment) -> Figment {
-    figment.merge(Serialized::defaults(VxConfig::default()))
+    // Load the embedded default configuration
+    if let Ok(default_config) = crate::defaults::load_default_config() {
+        figment.merge(Serialized::defaults(default_config))
+    } else {
+        // Fallback to empty config if default loading fails
+        figment.merge(Serialized::defaults(VxConfig::default()))
+    }
 }
 
 /// Add global user configuration
@@ -71,10 +77,20 @@ fn create_project_config_from_info(project_info: &ProjectInfo) -> Result<VxConfi
         config.tools.insert(
             tool_name.clone(),
             ToolConfig {
+                description: None,
+                homepage: None,
+                repository: None,
+                fetcher_url: None,
                 version: Some(version.clone()),
                 install_method: None,
                 registry: None,
                 custom_sources: None,
+                download_url_template: None,
+                platforms: None,
+                executables: None,
+                depends_on: None,
+                exec_args: None,
+                version_parsing: None,
             },
         );
     }
@@ -97,10 +113,20 @@ fn parse_vx_project_config(path: &PathBuf) -> Result<VxConfig> {
         vx_config.tools.insert(
             tool_name,
             ToolConfig {
+                description: None,
+                homepage: None,
+                repository: None,
+                fetcher_url: None,
                 version: Some(version),
                 install_method: None,
                 registry: None,
                 custom_sources: None,
+                download_url_template: None,
+                platforms: None,
+                executables: None,
+                depends_on: None,
+                exec_args: None,
+                version_parsing: None,
             },
         );
     }

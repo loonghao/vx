@@ -23,14 +23,16 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
+futures = { workspace = true }
 
 # Path and file utilities
 which = { workspace = true }
 dirs = { workspace = true }
 
 # Internal dependencies
-vx-config = { version = "0.4.0", path = "../vx-config" }
+vx-config = { version = "0.4.1", path = "../vx-config" }
 vx-paths = { version = "0.3.1", path = "../vx-paths" }
+vx-installer = { version = "0.4.1", path = "../vx-installer" }
 
 # Optional dependencies for features
 mockall = { workspace = true, optional = true }

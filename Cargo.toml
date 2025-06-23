@@ -4,9 +4,11 @@ members = [
     "crates/vx-paths",
     "crates/vx-plugin",
     "crates/vx-installer",
+    "crates/vx-download",
     "crates/vx-version",
     "crates/vx-core",
     "crates/vx-dependency",
+    "crates/vx-benchmark",
     "crates/vx-tool-standard",
     "crates/vx-cli",
     "crates/vx-tools/vx-tool-node",
@@ -17,6 +19,7 @@ members = [
     "crates/vx-tools/vx-tool-pnpm",
     "crates/vx-tools/vx-tool-yarn",
     "crates/vx-tools/vx-tool-bun",
+    "crates/vx-tools/vx-tool-python",
 ]
 resolver = "2"
 
@@ -49,23 +52,35 @@ name = "config_management_demo"
 path = "examples/config_management_demo.rs"
 
 [dependencies]
-vx-cli = { version = "0.4.0", path = "crates/vx-cli" }
+vx-cli = { path = "crates/vx-cli" }
 tokio = { workspace = true }
 anyhow = { workspace = true }
+
+[features]
+default = []
+# Use rustls instead of native-tls for better cross-compilation support
+rustls-tls = [
+    "vx-cli/rustls-tls",
+]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = { workspace = true }
 # Test dependencies for integration tests
-vx-core = { version = "0.4.0", path = "crates/vx-core" }
-vx-tool-node = { version = "0.4.0", path = "crates/vx-tools/vx-tool-node" }
-vx-tool-go = { version = "0.4.0", path = "crates/vx-tools/vx-tool-go" }
-vx-tool-rust = { version = "0.4.0", path = "crates/vx-tools/vx-tool-rust" }
-vx-tool-uv = { version = "0.4.0", path = "crates/vx-tools/vx-tool-uv" }
-vx-tool-npm = { version = "0.4.0", path = "crates/vx-tools/vx-tool-npm" }
-vx-tool-pnpm = { version = "0.4.0", path = "crates/vx-tools/vx-tool-pnpm" }
-vx-tool-yarn = { version = "0.4.0", path = "crates/vx-tools/vx-tool-yarn" }
-vx-tool-bun = { version = "0.4.0", path = "crates/vx-tools/vx-tool-bun" }
+vx-core = { path = "crates/vx-core" }
+vx-paths = { path = "crates/vx-paths" }
+# Performance benchmark dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+vx-tool-node = { path = "crates/vx-tools/vx-tool-node" }
+vx-tool-go = { path = "crates/vx-tools/vx-tool-go" }
+vx-tool-rust = { path = "crates/vx-tools/vx-tool-rust" }
+vx-tool-uv = { path = "crates/vx-tools/vx-tool-uv" }
+vx-tool-npm = { path = "crates/vx-tools/vx-tool-npm" }
+vx-tool-pnpm = { path = "crates/vx-tools/vx-tool-pnpm" }
+vx-tool-yarn = { path = "crates/vx-tools/vx-tool-yarn" }
+vx-tool-bun = { path = "crates/vx-tools/vx-tool-bun" }
 
 
 [workspace.package]
@@ -99,16 +114,21 @@ reqwest = { version = "0.12", features = [
     "json",
     "stream",
     "rustls-tls",
+    "charset",
+    "http2",
+    "macos-system-configuration",
 ], default-features = false }
 serde_json = "1.0"
 anyhow = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
 dirs = "6.0"
 # Optimize figment - only include needed features
 figment = { version = "0.10", features = ["toml", "env"] }
 which = "8.0"
 regex = "1.10"
 tempfile = "3.8"
+url = "2.5"
+shimexe-core = "0.3"
 zip = "4.0"
 tar = "0.4"
 flate2 = "1.0"
@@ -121,6 +141,7 @@ console = "0.15"
 colored = "3.0"
 dialoguer = "0.11"
 futures-util = "0.3"
+futures = "0.3"
 # Tracing ecosystem - standard for structured logging and spans
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -134,6 +155,9 @@ pretty_assertions = "1.4"
 mockall = "0.13"
 wiremock = "0.6"
 serial_test = "3.0"
+
+# CDN and download acceleration - force rustls-tls
+turbo-cdn = { version = "0.2.0", default-features = false, features = ["rustls-tls"] }
 
 
 # Optimize compilation times
@@ -169,3 +193,13 @@ panic = "abort"
 inherits = "release"
 debug = 1
 lto = false
+
+# Workspace-level feature overrides to force rustls usage
+[workspace.metadata.cargo-machete]
+ignored = ["openssl", "openssl-sys", "native-tls"]
+
+# Force all dependencies to use rustls instead of native-tls
+# Note: We cannot use [patch.crates-io] to modify features of the same package
+# Instead, we rely on workspace dependency configuration and explicit feature control
+
+

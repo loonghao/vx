@@ -1,7 +1,7 @@
 //! Tests for CLI argument parsing and command routing
 
-use crate::cli::*;
 use clap::Parser;
+use vx_cli::cli::*;
 
 #[test]
 fn test_cli_version_command() {
