@@ -97,8 +97,8 @@ jobs:
             os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             rust: stable
-            cross_compile: false
-            use_docker: true
+            cross_compile: true
+            use_cross: true
           - name: Linux-musl
             os: ubuntu-latest
             target: x86_64-unknown-linux-musl
@@ -133,26 +133,12 @@ jobs:
             ${{ runner.os }}-${{ matrix.platform.target }}-cargo-
             ${{ runner.os }}-cargo-
 
-      # Setup cross-compilation toolchain using taiki-e action (for ARM64)
-      - name: Setup cross-compilation toolchain
-        if: matrix.platform.use_docker == true
-        uses: taiki-e/setup-cross-toolchain-action@v1
-        with:
-          target: ${{ matrix.platform.target }}
-
-      # Install cross tool for musl targets
+      # Install cross tool for all cross-compilation targets
       - name: Install cross tool
         if: matrix.platform.use_cross == true
         uses: taiki-e/install-action@cross
 
-      # Build and test with taiki-e cross-compilation (ARM64)
-      - name: Build and test (taiki-e cross-compilation)
-        if: matrix.platform.use_docker == true
-        run: |
-          cargo build --release --all-features
-          cargo test --all-features
-
-      # Build and test with cross tool (musl)
+      # Build and test with cross tool (ARM64 and musl)
       - name: Build and test (cross tool)
         if: matrix.platform.use_cross == true
         run: |
