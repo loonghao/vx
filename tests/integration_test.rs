@@ -215,12 +215,39 @@ impl VxIntegrationTest {
             )
         })?;
 
-        // Verify directory was created
-        if !self.test_dir.exists() {
-            return Err(anyhow::anyhow!(
-                "Test directory was not created successfully: {}",
-                self.test_dir.display()
-            ));
+        // Verify directory was created with retry mechanism for macOS compatibility
+        let mut verification_attempts = 0;
+        let max_attempts = 5;
+
+        while verification_attempts < max_attempts {
+            if self.test_dir.exists() {
+                println!(
+                    "✅ Test directory verified on attempt {}",
+                    verification_attempts + 1
+                );
+                break;
+            }
+
+            verification_attempts += 1;
+            if verification_attempts < max_attempts {
+                println!(
+                    "⚠️  Directory verification attempt {} failed, retrying...",
+                    verification_attempts
+                );
+                tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+
+                // Try creating again in case of filesystem delays
+                if let Err(e) = std::fs::create_dir_all(&self.test_dir) {
+                    println!("⚠️  Retry create failed: {}", e);
+                }
+            } else {
+                // Final attempt failed
+                return Err(anyhow::anyhow!(
+                    "Test directory was not created successfully after {} attempts: {}",
+                    max_attempts,
+                    self.test_dir.display()
+                ));
+            }
         }
 
         // Set VX_HOME to test directory
