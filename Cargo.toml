@@ -86,7 +86,7 @@ rust-version = "1.80.0"
 [workspace.dependencies]
 clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.8"
+toml = "0.9"
 # Optimize tokio - only include needed features for better compile times
 tokio = { version = "1.0", features = [
     "rt-multi-thread",
