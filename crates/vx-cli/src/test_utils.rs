@@ -121,6 +121,12 @@ pub struct TestEnvironment {
     pub mock_tools: HashMap<String, MockTool>,
 }
 
+impl Default for TestEnvironment {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestEnvironment {
     pub fn new() -> Self {
         let temp_dir = TempDir::new().expect("Failed to create temp directory");
@@ -151,6 +157,12 @@ pub struct MockCommandExecutor {
     pub expected_commands: Vec<(String, Vec<String>)>,
     pub responses: Vec<Result<Output, std::io::Error>>,
     pub call_count: usize,
+}
+
+impl Default for MockCommandExecutor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MockCommandExecutor {
