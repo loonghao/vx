@@ -7,7 +7,6 @@ members = [
   "crates/vx-version",
   "crates/vx-core",
   "crates/vx-dependency",
-  "crates/vx-tool-standard",
   "crates/vx-sdk",
   "crates/vx-cli",
   "crates/vx-tools/node",

@@ -3,7 +3,7 @@
 //! Tool Development SDK for vx - Universal Development Tool Manager
 //!
 //! This crate provides the unified SDK for developing tools and bundles that integrate
-//! with the vx ecosystem. It consolidates functionality from `vx-plugin` and `vx-tool-standard`.
+//! with the vx ecosystem.
 //!
 //! ## Features
 //!
