@@ -1,0 +1,22 @@
+# Typos configuration for vx project
+# https://github.com/crate-ci/typos
+
+[default]
+extend-ignore-identifiers-re = [
+    # Common false positives
+    "ba",
+    "ot",
+]
+
+[default.extend-words]
+# Allow specific words that are false positives
+nd = "nd"
+
+[files]
+extend-exclude = [
+    "Cargo.lock",
+    "target/",
+    "*.snap",
+    "*.min.js",
+    "*.min.css",
+]
