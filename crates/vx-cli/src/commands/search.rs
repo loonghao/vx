@@ -3,10 +3,10 @@
 use crate::cli::OutputFormat;
 use crate::ui::UI;
 use anyhow::Result;
-use vx_plugin::PluginRegistry;
+use vx_plugin::BundleRegistry;
 
 pub async fn handle(
-    _registry: &PluginRegistry,
+    _registry: &BundleRegistry,
     query: Option<String>,
     category: Option<String>,
     installed_only: bool,

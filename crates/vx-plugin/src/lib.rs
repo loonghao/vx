@@ -5,6 +5,15 @@
 //! This crate provides the core plugin architecture for vx, enabling developers to create
 //! custom tools and package managers that integrate seamlessly with the vx ecosystem.
 //!
+//! ## Migration Notice
+//!
+//! The following types have been renamed for clarity:
+//! - `VxPlugin` → `ToolBundle` (a bundle of tools and package managers)
+//! - `VxPackageManager` → `PackageManager`
+//! - `VxTool` remains as `VxTool` (or use `Tool` from vx-sdk)
+//!
+//! The old names are still available but deprecated.
+//!
 //! ## Features
 //!
 //! - **Tool Plugins**: Create custom tool implementations with automatic version management
@@ -14,7 +23,7 @@
 //!
 //! ## Quick Start
 //!
-//! ### Creating a Simple Tool Plugin
+//! ### Creating a Simple Tool
 //!
 //! ```rust,no_run
 //! use vx_plugin::{VxTool, VersionInfo, Result};
@@ -35,37 +44,57 @@
 //! }
 //! ```
 //!
-//! ### Creating a Package Manager Plugin
+//! ### Creating a Tool Bundle (formerly Plugin)
 //!
-//! ```rust,no_run//! use vx_plugin::{VxPackageManager, Ecosystem, PackageSpec, Result};
+//! ```rust,no_run
+//! use vx_plugin::{ToolBundle, VxTool, PackageManager, Result};
 //! use async_trait::async_trait;
-//! use std::path::Path;
 //!
-//! struct MyPackageManager;
+//! struct MyBundle;
 //!
 //! #[async_trait]
-//! impl VxPackageManager for MyPackageManager {
+//! impl ToolBundle for MyBundle {
 //!     fn name(&self) -> &str {
-//!         "mypm"
+//!         "my-bundle"
 //!     }
 //!
-//!     fn ecosystem(&self) -> Ecosystem {
-//!         Ecosystem::Node
+//!     fn description(&self) -> &str {
+//!         "A bundle that provides custom tools and package managers"
 //!     }
 //!
-//!     async fn install_packages(&self, packages: &[PackageSpec], project_path: &Path) -> Result<()> {
-//!         // Implementation here
-//!         Ok(())
+//!     fn tools(&self) -> Vec<Box<dyn VxTool>> {
+//!         vec![]
+//!     }
+//!
+//!     fn package_managers(&self) -> Vec<Box<dyn PackageManager>> {
+//!         vec![]
 //!     }
 //! }
 //! ```
 
 // Re-export core types and traits for convenience
-pub use package_manager::{StandardPackageManager, VxPackageManager};
-pub use plugin::{StandardPlugin, VxPlugin};
-pub use registry::{PluginRegistry, PluginRegistryBuilder, ToolRegistry};
+// New names (preferred)
+pub use package_manager::{PackageManager, StandardPackageManager};
+pub use plugin::{StandardBundle, ToolBundle};
+pub use registry::{BundleRegistry, BundleRegistryBuilder, ToolRegistry};
 pub use tool::{ConfigurableTool, UrlBuilder, VersionParser, VxTool};
 pub use types::*;
+
+// Deprecated aliases for backward compatibility
+#[deprecated(since = "0.5.0", note = "Use `ToolBundle` instead")]
+pub use plugin::ToolBundle as VxPlugin;
+
+#[deprecated(since = "0.5.0", note = "Use `PackageManager` instead")]
+pub use package_manager::PackageManager as VxPackageManager;
+
+#[deprecated(since = "0.5.0", note = "Use `StandardBundle` instead")]
+pub use plugin::StandardBundle as StandardPlugin;
+
+#[deprecated(since = "0.5.0", note = "Use `BundleRegistry` instead")]
+pub use registry::BundleRegistry as PluginRegistry;
+
+#[deprecated(since = "0.5.0", note = "Use `BundleRegistryBuilder` instead")]
+pub use registry::BundleRegistryBuilder as PluginRegistryBuilder;
 
 // Module declarations
 pub mod package_manager;

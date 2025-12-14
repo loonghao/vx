@@ -4,14 +4,14 @@
 
 use anyhow::Result;
 use std::path::Path;
-use vx_plugin::{Ecosystem, PackageSpec, VxPackageManager, VxPlugin, VxTool};
+use vx_plugin::{Ecosystem, PackageManager, PackageSpec, ToolBundle, VxTool};
 
 /// Yarn package manager implementation
 #[derive(Default)]
 pub struct YarnPackageManager;
 
 #[async_trait::async_trait]
-impl VxPackageManager for YarnPackageManager {
+impl PackageManager for YarnPackageManager {
     fn name(&self) -> &str {
         "yarn"
     }
@@ -77,7 +77,7 @@ impl VxPackageManager for YarnPackageManager {
 pub struct YarnPlugin;
 
 #[async_trait::async_trait]
-impl VxPlugin for YarnPlugin {
+impl ToolBundle for YarnPlugin {
     fn name(&self) -> &str {
         "yarn"
     }
@@ -94,7 +94,7 @@ impl VxPlugin for YarnPlugin {
         vec![]
     }
 
-    fn package_managers(&self) -> Vec<Box<dyn VxPackageManager>> {
+    fn package_managers(&self) -> Vec<Box<dyn PackageManager>> {
         vec![Box::new(YarnPackageManager)]
     }
 
@@ -104,7 +104,7 @@ impl VxPlugin for YarnPlugin {
 }
 
 /// Factory function to create the plugin
-pub fn create_yarn_plugin() -> Box<dyn VxPlugin> {
+pub fn create_yarn_plugin() -> Box<dyn ToolBundle> {
     Box::new(YarnPlugin)
 }
 

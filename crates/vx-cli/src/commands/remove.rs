@@ -2,10 +2,10 @@
 
 use crate::ui::UI;
 use anyhow::Result;
-use vx_plugin::PluginRegistry;
+use vx_plugin::BundleRegistry;
 
 pub async fn handle(
-    registry: &PluginRegistry,
+    registry: &BundleRegistry,
     tool_name: &str,
     version: Option<&str>,
     force: bool,
