@@ -119,8 +119,14 @@ jobs:
             ${{ runner.os }}-${{ matrix.platform.target }}-cargo-test-
             ${{ runner.os }}-cargo-
 
+      - name: Build binary for CLI tests
+        run: cargo build --release --locked
+
       - name: Run tests
         run: cargo test --workspace --all-features --locked
+        env:
+          # Use release binary for trycmd CLI snapshot tests
+          CARGO_TARGET_DIR: target
 
       - name: Build release
         run: cargo build --release --locked
