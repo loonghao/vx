@@ -1,3 +1,20 @@
 {
-  ".": "0.4.1"
+  ".": "0.4.1",
+  "crates/vx-cli": "0.4.1",
+  "crates/vx-config": "0.4.1",
+  "crates/vx-core": "0.4.1",
+  "crates/vx-dependency": "0.4.1",
+  "crates/vx-installer": "0.4.1",
+  "crates/vx-paths": "0.3.1",
+  "crates/vx-plugin": "0.4.1",
+  "crates/vx-sdk": "0.4.1",
+  "crates/vx-tool-standard": "0.4.1",
+  "crates/vx-version": "0.2.2",
+  "crates/vx-tools/bun": "0.4.1",
+  "crates/vx-tools/go": "0.4.1",
+  "crates/vx-tools/node": "0.4.1",
+  "crates/vx-tools/pnpm": "0.4.1",
+  "crates/vx-tools/rust": "0.4.1",
+  "crates/vx-tools/uv": "0.4.1",
+  "crates/vx-tools/yarn": "0.4.1"
 }

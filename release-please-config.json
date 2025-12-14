@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "release-type": "simple",
+  "release-type": "rust",
   "include-v-in-tag": true,
   "separate-pull-requests": false,
   "packages": {
@@ -8,7 +8,7 @@
       "package-name": "vx",
       "component": "vx",
       "changelog-path": "CHANGELOG.md",
-      "release-type": "simple",
+      "release-type": "rust",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
       "extra-files": [
@@ -18,6 +18,108 @@
           "jsonpath": "$.workspace.package.version"
         }
       ]
+    },
+    "crates/vx-cli": {
+      "package-name": "vx-cli",
+      "component": "vx-cli",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-config": {
+      "package-name": "vx-config",
+      "component": "vx-config",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-core": {
+      "package-name": "vx-core",
+      "component": "vx-core",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-dependency": {
+      "package-name": "vx-dependency",
+      "component": "vx-dependency",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-installer": {
+      "package-name": "vx-installer",
+      "component": "vx-installer",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-paths": {
+      "package-name": "vx-paths",
+      "component": "vx-paths",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-plugin": {
+      "package-name": "vx-plugin",
+      "component": "vx-plugin",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-sdk": {
+      "package-name": "vx-sdk",
+      "component": "vx-sdk",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-tool-standard": {
+      "package-name": "vx-tool-standard",
+      "component": "vx-tool-standard",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-version": {
+      "package-name": "vx-version",
+      "component": "vx-version",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-tools/bun": {
+      "package-name": "vx-tool-bun",
+      "component": "vx-tool-bun",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-tools/go": {
+      "package-name": "vx-tool-go",
+      "component": "vx-tool-go",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-tools/node": {
+      "package-name": "vx-tool-node",
+      "component": "vx-tool-node",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-tools/pnpm": {
+      "package-name": "vx-tool-pnpm",
+      "component": "vx-tool-pnpm",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-tools/rust": {
+      "package-name": "vx-tool-rust",
+      "component": "vx-tool-rust",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-tools/uv": {
+      "package-name": "vx-tool-uv",
+      "component": "vx-tool-uv",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
+    },
+    "crates/vx-tools/yarn": {
+      "package-name": "vx-tool-yarn",
+      "component": "vx-tool-yarn",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust"
     }
   },
   "changelog-sections": [
