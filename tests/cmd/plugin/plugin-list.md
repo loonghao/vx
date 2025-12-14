@@ -6,10 +6,10 @@ Verify that `vx plugin list` shows registered plugins.
 $ vx plugin list
 
 Available Bundles
-  📦 go
-  📦 rust
-  📦 bun
 [..]
+  📦 uv
   📦 node
+  📦 go
+  📦 bun
 
 ```
