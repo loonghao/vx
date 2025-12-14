@@ -18,7 +18,7 @@
 //!
 //! ## Example
 //!
-//! ```rust
+//! ```rust,no_run
 //! use vx_version::{VersionInfo, VersionFetcher, GitHubVersionFetcher};
 //!
 //! #[tokio::main]
