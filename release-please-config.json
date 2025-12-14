@@ -1,13 +1,14 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "release-type": "rust",
+  "release-type": "simple",
   "include-v-in-tag": true,
+  "separate-pull-requests": false,
   "packages": {
     ".": {
       "package-name": "vx",
       "component": "vx",
       "changelog-path": "CHANGELOG.md",
-      "release-type": "rust",
+      "release-type": "simple",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
       "extra-files": [
