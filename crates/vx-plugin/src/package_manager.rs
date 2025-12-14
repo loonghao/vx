@@ -211,9 +211,8 @@ impl StandardPackageManager {
         description: impl Into<String>,
         ecosystem: Ecosystem,
     ) -> Self {
-        let name = name.into();
         Self {
-            name: name.clone(),
+            name: name.into(),
             description: description.into(),
             ecosystem,
             config_files: Vec::new(),

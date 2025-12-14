@@ -15,7 +15,7 @@ repos:
 
       - id: cargo-clippy
         name: cargo clippy
-        entry: cargo clippy --all-targets --all-features -- -D warnings
+        entry: cargo clippy --all-targets --all-features -- -D warnings -D clippy::manual_strip -D clippy::needless_borrow -D clippy::redundant_clone -D clippy::unnecessary_unwrap
         language: system
         types: [rust]
         pass_filenames: false

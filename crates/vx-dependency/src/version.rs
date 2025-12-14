@@ -208,20 +208,20 @@ impl VersionRange {
         let mut components = Vec::new();
 
         // Handle single constraint for now
-        let (operator, version_str) = if expression.starts_with(">=") {
-            (VersionOperator::GreaterThanOrEqual, &expression[2..])
-        } else if expression.starts_with("<=") {
-            (VersionOperator::LessThanOrEqual, &expression[2..])
-        } else if expression.starts_with('>') {
-            (VersionOperator::GreaterThan, &expression[1..])
-        } else if expression.starts_with('<') {
-            (VersionOperator::LessThan, &expression[1..])
-        } else if expression.starts_with('^') {
-            (VersionOperator::Caret, &expression[1..])
-        } else if expression.starts_with('~') {
-            (VersionOperator::Tilde, &expression[1..])
-        } else if expression.starts_with('=') {
-            (VersionOperator::Equal, &expression[1..])
+        let (operator, version_str) = if let Some(stripped) = expression.strip_prefix(">=") {
+            (VersionOperator::GreaterThanOrEqual, stripped)
+        } else if let Some(stripped) = expression.strip_prefix("<=") {
+            (VersionOperator::LessThanOrEqual, stripped)
+        } else if let Some(stripped) = expression.strip_prefix('>') {
+            (VersionOperator::GreaterThan, stripped)
+        } else if let Some(stripped) = expression.strip_prefix('<') {
+            (VersionOperator::LessThan, stripped)
+        } else if let Some(stripped) = expression.strip_prefix('^') {
+            (VersionOperator::Caret, stripped)
+        } else if let Some(stripped) = expression.strip_prefix('~') {
+            (VersionOperator::Tilde, stripped)
+        } else if let Some(stripped) = expression.strip_prefix('=') {
+            (VersionOperator::Equal, stripped)
         } else {
             (VersionOperator::Equal, expression)
         };
