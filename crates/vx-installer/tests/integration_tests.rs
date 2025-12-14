@@ -213,8 +213,7 @@ fn test_format_handlers() {
     assert_eq!(binary_handler.name(), "binary");
 
     let _extractor = ArchiveExtractor::new();
-    // Should have all default handlers
-    assert!(true); // Just test that it can be created
+    // ArchiveExtractor::new() succeeds without panic - test passes
 }
 
 /// Test downloader configuration
