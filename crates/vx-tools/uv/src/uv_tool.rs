@@ -135,7 +135,6 @@ macro_rules! uv_vx_tool {
                 &self,
                 version: &str,
             ) -> Result<Option<String>, anyhow::Error> {
-                use vx_tool_standard::StandardUrlBuilder;
                 if version == "latest" {
                     // For latest, get the actual latest version first
                     let versions = self.fetch_versions(false).await?;

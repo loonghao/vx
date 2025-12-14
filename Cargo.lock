@@ -2755,7 +2755,6 @@ dependencies = [
  "vx-core",
  "vx-installer",
  "vx-plugin",
- "vx-tool-standard",
  "vx-version",
 ]
 
@@ -2773,7 +2772,6 @@ dependencies = [
  "vx-core",
  "vx-installer",
  "vx-plugin",
- "vx-tool-standard",
  "vx-version",
  "which",
 ]
@@ -2790,7 +2788,6 @@ dependencies = [
  "vx-core",
  "vx-installer",
  "vx-plugin",
- "vx-tool-standard",
  "which",
 ]
 
@@ -2807,18 +2804,7 @@ dependencies = [
  "vx-core",
  "vx-installer",
  "vx-plugin",
- "vx-tool-standard",
  "vx-version",
-]
-
-[[package]]
-name = "vx-tool-standard"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "serde",
- "vx-core",
- "vx-installer",
 ]
 
 [[package]]
@@ -2831,7 +2817,6 @@ dependencies = [
  "vx-core",
  "vx-installer",
  "vx-plugin",
- "vx-tool-standard",
  "vx-version",
  "which",
 ]

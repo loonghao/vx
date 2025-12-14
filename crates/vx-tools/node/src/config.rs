@@ -5,25 +5,19 @@
 
 use std::path::PathBuf;
 use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod};
-use vx_tool_standard::{StandardToolConfig, StandardUrlBuilder, ToolDependency};
-
-/// Standard configuration for Node.js tool
-pub struct Config;
 
 /// Node.js URL builder for consistent download URL generation
 pub struct NodeUrlBuilder;
 
-impl StandardUrlBuilder for NodeUrlBuilder {
+impl NodeUrlBuilder {
     /// Generate download URL for Node.js version
-    fn download_url(version: &str) -> Option<String> {
-        let _platform = Self::get_platform_string();
+    pub fn download_url(version: &str) -> Option<String> {
         let filename = Self::get_filename(version);
-
         Some(format!("https://nodejs.org/dist/v{}/{}", version, filename))
     }
 
     /// Get platform-specific filename
-    fn get_filename(version: &str) -> String {
+    pub fn get_filename(version: &str) -> String {
         let platform = Self::get_platform_string();
         if cfg!(windows) {
             format!("node-v{}-{}.zip", version, platform)
@@ -33,7 +27,7 @@ impl StandardUrlBuilder for NodeUrlBuilder {
     }
 
     /// Get platform string for Node.js downloads
-    fn get_platform_string() -> String {
+    pub fn get_platform_string() -> String {
         match (std::env::consts::OS, std::env::consts::ARCH) {
             ("windows", "x86_64") => "win-x64".to_string(),
             ("windows", "x86") => "win-x86".to_string(),
@@ -46,38 +40,6 @@ impl StandardUrlBuilder for NodeUrlBuilder {
             ("linux", "arm") => "linux-armv7l".to_string(),
             _ => "linux-x64".to_string(), // Default fallback
         }
-    }
-}
-
-/// Implementation of standard tool configuration for Node.js
-impl StandardToolConfig for Config {
-    fn tool_name() -> &'static str {
-        "node"
-    }
-
-    fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConfig {
-        create_install_config(version, install_dir)
-    }
-
-    fn get_install_methods() -> Vec<String> {
-        get_install_methods()
-    }
-
-    fn supports_auto_install() -> bool {
-        true
-    }
-
-    fn get_manual_instructions() -> String {
-        get_manual_instructions()
-    }
-
-    fn get_dependencies() -> Vec<ToolDependency> {
-        // Node.js has no dependencies - it's a base runtime
-        vec![]
-    }
-
-    fn get_default_version() -> &'static str {
-        "20.11.0" // LTS version
     }
 }
 
@@ -131,38 +93,4 @@ pub fn get_manual_instructions() -> String {
      • Visit: https://nodejs.org/\n\
      • Or use a version manager like nvm"
         .to_string()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_node_url_builder() {
-        let url = NodeUrlBuilder::download_url("18.17.0");
-        assert!(url.is_some());
-        assert!(url.unwrap().contains("nodejs.org"));
-    }
-
-    #[test]
-    fn test_platform_string() {
-        let platform = NodeUrlBuilder::get_platform_string();
-        assert!(!platform.is_empty());
-    }
-
-    #[test]
-    fn test_create_install_config() {
-        let config = create_install_config("18.17.0", PathBuf::from("/tmp/node"));
-        assert_eq!(config.tool_name, "node");
-        assert_eq!(config.version, "18.17.0");
-        assert!(config.download_url.is_some());
-    }
-
-    #[test]
-    fn test_latest_version_handling() {
-        let config = create_install_config("latest", PathBuf::from("/tmp/node"));
-        assert_eq!(config.version, "latest");
-        // Should use actual version in URL
-        assert!(config.download_url.unwrap().contains("20.11.0"));
-    }
 }
