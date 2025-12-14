@@ -1,6 +1,6 @@
 //! UV tool support for vx
 
-use vx_plugin::VxPlugin;
+use vx_plugin::ToolBundle;
 
 mod config;
 mod uv_plugin;
@@ -11,6 +11,6 @@ pub use uv_plugin::UvPlugin;
 pub use uv_tool::{UvCommand, UvxTool};
 
 /// Create a new UV plugin instance
-pub fn create_plugin() -> Box<dyn VxPlugin> {
+pub fn create_plugin() -> Box<dyn ToolBundle> {
     Box::new(UvPlugin)
 }

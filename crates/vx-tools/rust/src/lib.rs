@@ -1,6 +1,6 @@
 //! Rust tool support for vx
 
-use vx_plugin::VxPlugin;
+use vx_plugin::ToolBundle;
 
 mod config;
 mod rust_plugin;
@@ -11,6 +11,6 @@ pub use rust_plugin::RustPlugin;
 pub use rust_tool::CargoTool;
 
 /// Create a new Rust plugin instance
-pub fn create_plugin() -> Box<dyn VxPlugin> {
+pub fn create_plugin() -> Box<dyn ToolBundle> {
     Box::new(RustPlugin)
 }

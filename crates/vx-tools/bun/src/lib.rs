@@ -6,8 +6,8 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
 use vx_plugin::{
-    Ecosystem, PackageSpec, ToolContext, ToolExecutionResult, VersionInfo, VxPackageManager,
-    VxPlugin, VxTool,
+    Ecosystem, PackageManager, PackageSpec, ToolBundle, ToolContext, ToolExecutionResult,
+    VersionInfo, VxTool,
 };
 use vx_version::{GitHubVersionFetcher, VersionFetcher};
 
@@ -16,7 +16,7 @@ use vx_version::{GitHubVersionFetcher, VersionFetcher};
 pub struct BunPackageManager;
 
 #[async_trait::async_trait]
-impl VxPackageManager for BunPackageManager {
+impl PackageManager for BunPackageManager {
     fn name(&self) -> &str {
         "bun"
     }
@@ -208,7 +208,7 @@ impl BunPlugin {
 }
 
 #[async_trait::async_trait]
-impl VxPlugin for BunPlugin {
+impl ToolBundle for BunPlugin {
     fn name(&self) -> &str {
         "bun"
     }
@@ -225,7 +225,7 @@ impl VxPlugin for BunPlugin {
         vec![Box::new(BunTool::new())]
     }
 
-    fn package_managers(&self) -> Vec<Box<dyn VxPackageManager>> {
+    fn package_managers(&self) -> Vec<Box<dyn PackageManager>> {
         vec![Box::new(BunPackageManager)]
     }
 
@@ -235,7 +235,7 @@ impl VxPlugin for BunPlugin {
 }
 
 /// Factory function to create the plugin
-pub fn create_bun_plugin() -> Box<dyn VxPlugin> {
+pub fn create_bun_plugin() -> Box<dyn ToolBundle> {
     Box::new(BunPlugin)
 }
 

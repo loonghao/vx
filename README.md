@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**The Ultimate Development Tool Manager - One Tool to Rule Them All**
+<!-- The Ultimate Development Tool Manager - One Tool to Rule Them All -->
 
 [中文文档](README_zh.md) | [📖 Documentation](https://docs.rs/vx) | [🚀 Quick Start](#-quick-start) | [💡 Examples](#-real-world-examples)
 
@@ -17,7 +17,7 @@
 [![Crates.io](https://img.shields.io/crates/v/vx.svg)](https://crates.io/crates/vx)
 [![Documentation](https://docs.rs/vx/badge.svg)](https://docs.rs/vx)
 
-*Lightning-fast, format-agnostic development tool manager with beautiful progress tracking*
+<!-- Lightning-fast, format-agnostic development tool manager with beautiful progress tracking -->
 
 </div>
 
@@ -32,6 +32,7 @@
 ### The Problem We Solve
 
 Every time we start a new development project, we face the same frustrating cycle:
+
 - Install Node.js and npm for frontend tools
 - Set up Python and pip/uv for scripts and automation
 - Configure Go for backend services
@@ -83,6 +84,7 @@ vx go run main.go               # Auto-installs Go if needed
 ## ✨ Features
 
 ### 🎯 Core Features
+
 - **🔄 Universal Interface**: Execute any supported tool through a single, consistent interface
 - **📦 Multi-Version Management**: Install, manage, and switch between multiple versions of tools
 - **⚡ Zero Configuration**: Works out of the box with intelligent defaults
@@ -93,6 +95,7 @@ vx go run main.go               # Auto-installs Go if needed
 - **📁 Unified Path Management**: Standardized tool installation paths across all platforms
 
 ### 🎨 Enhanced CLI Experience
+
 - **📊 Beautiful Progress Bars**: Rich progress bars with ETA, transfer rates, and visual feedback
 - **🌈 Colorful Output**: Better visual distinction with colored messages and emojis
 - **⏳ Smooth Animations**: Elegant loading indicators and spinner animations
@@ -101,6 +104,7 @@ vx go run main.go               # Auto-installs Go if needed
 - **🔧 Environment Control**: `--use-system-path` flag for flexible tool execution
 
 ### 🛠️ Advanced Installation Engine
+
 - **📦 Universal Format Support**: ZIP, TAR.GZ, TAR.XZ, TAR.BZ2, and raw binaries
 - **🔒 Security First**: Built-in checksum verification and secure HTTPS downloads
 - **⚡ Async Performance**: Lightning-fast concurrent downloads and installations
@@ -109,6 +113,7 @@ vx go run main.go               # Auto-installs Go if needed
 - **🌍 Cross-Platform**: Seamless operation across Windows, macOS, and Linux
 
 ### 🏗️ Modern Architecture
+
 - **📊 Package Management**: Chocolatey-like layered package management system
 - **🔍 Smart Discovery**: Automatic tool detection and intelligent version resolution
 - **⚙️ Configuration Management**: Global and project-level configuration with TOML support
@@ -124,11 +129,13 @@ vx go run main.go               # Auto-installs Go if needed
 #### 🚀 Quick Install (Recommended)
 
 **Linux/macOS:**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 ```
 
 **Windows (PowerShell):**
+
 ```powershell
 powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 ```
@@ -138,11 +145,13 @@ powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps
 For the most reliable installation experience with automatic fallback to multiple distribution channels:
 
 **Linux/macOS:**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
 ```
 
 This smart installer automatically:
+
 - 🌍 Detects your geographic region for optimal CDN selection
 - ⚡ Tests channel speeds and selects the fastest available
 - 🔄 Falls back to alternative channels if primary fails
@@ -151,6 +160,7 @@ This smart installer automatically:
 #### 🔧 Advanced Installation Options
 
 **Install specific version:**
+
 ```bash
 # Linux/macOS
 VX_VERSION="0.1.0" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
@@ -160,6 +170,7 @@ $env:VX_VERSION="0.1.0"; powershell -c "irm https://raw.githubusercontent.com/lo
 ```
 
 **Install with GitHub token (avoids rate limits):**
+
 ```bash
 # Linux/macOS
 GITHUB_TOKEN="your_token_here" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
@@ -169,6 +180,7 @@ $env:GITHUB_TOKEN="your_token_here"; powershell -c "irm https://raw.githubuserco
 ```
 
 **Install to custom directory:**
+
 ```bash
 # Linux/macOS
 VX_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
@@ -178,6 +190,7 @@ $env:VX_INSTALL_DIR="C:\tools\vx"; powershell -c "irm https://raw.githubusercont
 ```
 
 **Force specific distribution channel:**
+
 ```bash
 # Use jsDelivr CDN (good for China/Asia)
 VX_FORCE_CHANNEL="jsdelivr" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
@@ -204,28 +217,33 @@ vx uses a sophisticated multi-channel distribution system to ensure reliable dow
 #### Package Managers
 
 **Chocolatey (Windows):**
+
 ```powershell
 choco install vx
 ```
 
 **Scoop (Windows):**
+
 ```powershell
 scoop bucket add loonghao https://github.com/loonghao/scoop-vx.git
 scoop install vx
 ```
 
 **WinGet (Windows):**
+
 ```powershell
 winget install loonghao.vx
 ```
 
 **Homebrew (macOS):**
+
 ```bash
 brew tap loonghao/vx
 brew install vx
 ```
 
 **Arch Linux (AUR):**
+
 ```bash
 # Using yay
 yay -S vx-bin
@@ -235,6 +253,7 @@ paru -S vx-bin
 ```
 
 **Cargo (from source):**
+
 ```bash
 cargo install --git https://github.com/loonghao/vx
 ```
@@ -312,6 +331,30 @@ vx init                               # Initialize project configuration
 vx config                             # Manage global settings
 ```
 
+## 📋 CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `vx [tool] [args...]` | Execute a tool with arguments (auto-installs if needed) |
+| `vx version` | Show version information |
+| `vx list` | List supported tools |
+| `vx install <tool>@<version>` | Install a specific tool version |
+| `vx uninstall <tool> [version]` | Uninstall tool versions |
+| `vx switch <tool>@<version>` | Switch to a different version |
+| `vx which <tool>` | Show which tool version is being used |
+| `vx versions <tool>` | Show available versions for a tool |
+| `vx search <query>` | Search available tools |
+| `vx stats` | Show package statistics and disk usage |
+| `vx clean` | Clean up system (cache, orphaned packages) |
+| `vx sync` | Sync project tools from .vx.toml |
+| `vx init` | Initialize vx configuration for current project |
+| `vx config` | Configuration management |
+| `vx self-update` | Update vx itself to the latest version |
+| `vx plugin` | Plugin management commands |
+| `vx venv` | Virtual environment management |
+| `vx global` | Global tool management |
+| `vx shell` | Shell integration commands |
+
 ## 📖 Supported Tools
 
 ### 🔧 Built-in Plugins
@@ -335,6 +378,7 @@ vx config                             # Manage global settings
 - **🔧 Flexible Methods**: Archives, binaries, scripts, and package managers
 
 ### 🏗️ Plugin Categories
+
 - **Languages**: Go, Rust, Node.js, Python (via UV)
 - **Package Managers**: npm, Cargo, UV (pip-compatible)
 - **Package Runners**: npx, uvx (with complete environment isolation)
@@ -371,7 +415,7 @@ vx is powered by the **vx-installer** engine, a state-of-the-art installation sy
 | Extract TAR.GZ | 100MB | 2.1s | 10MB |
 | Install Binary | 25MB | 0.5s | 4MB |
 
-*Benchmarks on Intel i7-10700K, 32GB RAM, SSD storage*
+<!-- Benchmarks on Intel i7-10700K, 32GB RAM, SSD storage -->
 
 ## 🔌 MCP Integration: The Perfect Solution
 
@@ -380,6 +424,7 @@ vx was designed with MCP (Model Context Protocol) in mind. Many MCP servers requ
 ### The MCP Challenge
 
 MCP servers often require multiple tool ecosystems:
+
 ```bash
 # Traditional setup requires managing multiple tools:
 npm install -g some-package     # Requires Node.js setup
@@ -392,6 +437,7 @@ uvx install some-python-tool    # Requires Python/UV setup
 With vx, you simply prefix your existing commands with `vx` - **no learning curve, no configuration**:
 
 ### Before (Complex Setup Required)
+
 ```json
 {
   "mcpServers": {
@@ -408,6 +454,7 @@ With vx, you simply prefix your existing commands with `vx` - **no learning curv
 ```
 
 ### After (Zero Setup with vx)
+
 ```json
 {
   "mcpServers": {
@@ -439,23 +486,27 @@ vx is built with a modern, modular architecture that emphasizes performance, ext
 
 ### 📦 Core Components
 
-```
+```text
 vx/
 ├── vx-cli/              # Command-line interface with rich UX
 ├── vx-core/             # Core functionality and utilities
-├── vx-installer/        # 🆕 Universal installation engine
+├── vx-sdk/              # 🆕 Tool development SDK
+├── vx-installer/        # Universal installation engine
 ├── vx-config/           # Configuration management (TOML-based)
 ├── vx-plugin/           # Plugin system and trait definitions
-├── vx-tools/            # Built-in tool plugins
-│   ├── vx-tool-node/    # Node.js support with NPX integration
-│   ├── vx-tool-go/      # Go toolchain support
-│   ├── vx-tool-rust/    # Rust and Cargo support
-│   └── vx-tool-uv/      # UV (Python) with UVX support
-└── vx-package-managers/ # Package manager plugins
-    └── vx-pm-npm/       # NPM package manager integration
+├── vx-paths/            # Unified path management
+├── vx-version/          # Version fetching and parsing
+└── vx-tools/            # Built-in tool bundles
+    ├── node/            # Node.js + npm + npx
+    ├── go/              # Go toolchain
+    ├── rust/            # Rust and Cargo
+    ├── uv/              # UV (Python) with UVX
+    ├── bun/             # Bun runtime
+    ├── pnpm/            # PNPM package manager
+    └── yarn/            # Yarn package manager
 ```
 
-### 🚀 vx-installer Engine
+### 🔧 vx-installer Core
 
 The heart of vx's installation system, providing:
 
@@ -532,6 +583,7 @@ vx plugin search python
 ## 🎯 Real-World Examples
 
 ### Python Development with UV
+
 ```bash
 # Create a new Python project
 vx uv init my-python-app
@@ -557,6 +609,7 @@ vx uv --version  # Uses vx-managed uv
 ```
 
 ### Node.js Development
+
 ```bash
 # Install and use Node.js
 vx npm install express
@@ -573,6 +626,7 @@ vx node --version # Uses vx-managed Node.js
 ```
 
 ### Go Development
+
 ```bash
 # Initialize Go module
 vx go mod init my-go-app
@@ -586,6 +640,7 @@ vx go test ./...
 ```
 
 ### Rust Development
+
 ```bash
 # Create new Rust project
 vx cargo new my-rust-app
@@ -599,6 +654,7 @@ vx cargo run
 ```
 
 ### Multi-Language Project
+
 ```bash
 # Frontend (Node.js) + Backend (Go) + Scripts (Python)
 vx npm install          # Frontend dependencies
@@ -616,6 +672,7 @@ vx uv run python scripts/deploy.py  # Deployment script
 vx includes a powerful self-update system that solves GitHub API rate limit issues commonly encountered in shared environments.
 
 ### 🚀 Quick Update
+
 ```bash
 # Check for updates
 vx self-update --check
@@ -664,6 +721,7 @@ vx self-update
 ## 📊 Package Management
 
 ### Multi-Version Support
+
 ```bash
 # Install multiple versions
 vx install go@1.20.0
@@ -690,6 +748,7 @@ vx cleanup
 ```
 
 ### Package Statistics
+
 ```bash
 # View package statistics
 vx stats
@@ -710,7 +769,9 @@ vx stats
 **Problem:** Getting "API rate limit exceeded" error during installation.
 
 **Solutions:**
+
 1. **Use GitHub Token (Recommended):**
+
    ```bash
    # Linux/macOS
    GITHUB_TOKEN="your_token_here" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
@@ -720,16 +781,19 @@ vx stats
    ```
 
 2. **Specify Version Explicitly:**
+
    ```bash
    VX_VERSION="0.1.0" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
    ```
 
 3. **Use Smart Installer with CDN Fallback:**
+
    ```bash
    curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
    ```
 
 4. **Use Package Managers:**
+
    ```bash
    # Windows
    winget install loonghao.vx
@@ -744,7 +808,9 @@ vx stats
 **Problem:** Downloads fail or are very slow.
 
 **Solutions:**
+
 1. **Force Specific Channel:**
+
    ```bash
    # Use jsDelivr CDN (good for Asia/China)
    VX_FORCE_CHANNEL="jsdelivr" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
@@ -754,11 +820,13 @@ vx stats
    ```
 
 2. **Enable Debug Mode:**
+
    ```bash
    VX_DEBUG=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
    ```
 
 3. **Build from Source:**
+
    ```bash
    BUILD_FROM_SOURCE=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
    ```
@@ -768,12 +836,15 @@ vx stats
 **Problem:** Slow or failed downloads due to network restrictions.
 
 **Solutions:**
+
 1. **Use jsDelivr CDN:**
+
    ```bash
    VX_FORCE_CHANNEL="jsdelivr" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
    ```
 
 2. **Use Mirror URLs:**
+
    ```bash
    curl -fsSL https://fastly.jsdelivr.net/gh/loonghao/vx@main/install-smart.sh | bash
    ```
@@ -785,13 +856,16 @@ vx stats
 **Problem:** `vx: command not found` after installation.
 
 **Solutions:**
+
 1. **Add to PATH manually:**
+
    ```bash
    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
    source ~/.bashrc
    ```
 
 2. **Check installation location:**
+
    ```bash
    which vx
    ls -la ~/.local/bin/vx
@@ -802,12 +876,15 @@ vx stats
 **Problem:** Permission errors when running vx.
 
 **Solutions:**
+
 1. **Fix permissions:**
+
    ```bash
    chmod +x ~/.local/bin/vx
    ```
 
 2. **Check ownership:**
+
    ```bash
    ls -la ~/.local/bin/vx
    chown $USER:$USER ~/.local/bin/vx
@@ -818,6 +895,7 @@ vx stats
 If you're still experiencing issues:
 
 1. **Enable Debug Mode:**
+
    ```bash
    VX_DEBUG=true vx your-command
    ```
@@ -860,6 +938,7 @@ See [MODULAR_ARCHITECTURE.md](MODULAR_ARCHITECTURE.md) for detailed plugin devel
 ## 🚀 Roadmap
 
 ### Current Status (v0.3.0)
+
 - ✅ **Core plugin architecture** with trait-based extensibility
 - ✅ **6 built-in tools** (UV, UVX, Node.js, NPX, Go, Rust)
 - ✅ **Environment isolation system** with complete PATH management
@@ -878,6 +957,7 @@ See [MODULAR_ARCHITECTURE.md](MODULAR_ARCHITECTURE.md) for detailed plugin devel
 ### Upcoming Features
 
 #### 🔧 New Tool Support (Phase 7)
+
 - [ ] **just** - Modern command runner and build tool (`vx just --list`, `vx just build`)
 - [ ] **kubectl** - Kubernetes command-line tool (`vx kubectl get pods`, `vx kubectl apply`)
 - [ ] **deno** - Modern JavaScript/TypeScript runtime (`vx deno run`, `vx deno task`)
@@ -885,6 +965,7 @@ See [MODULAR_ARCHITECTURE.md](MODULAR_ARCHITECTURE.md) for detailed plugin devel
 - [ ] **zig** - Systems programming language (`vx zig build`, `vx zig run`)
 
 #### 🚀 Enhanced Features
+
 - [ ] **Enhanced Package Managers**: pnpm, yarn, bun with full vx-installer integration
 - [ ] **System Package Managers**: Homebrew, Chocolatey, apt, yum support
 - [ ] **Specialized Tools**: Rez for VFX, Spack for HPC environments
@@ -943,9 +1024,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 📖 **Documentation**: [Full documentation](https://github.com/loonghao/vx/wiki)
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/loonghao/vx/discussions)
 - 🐛 **Issues**: [Bug Reports](https://github.com/loonghao/vx/issues)
-- 📧 **Contact**: hal.long@outlook.com
+- 📧 **Contact**: <hal.long@outlook.com>
 
 ---
 
-**Made with ❤️ for developers, by developers**
-
+<!-- Made with love for developers, by developers -->

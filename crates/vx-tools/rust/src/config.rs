@@ -8,6 +8,7 @@ use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod};
 use vx_tool_standard::{StandardToolConfig, StandardUrlBuilder, ToolDependency};
 
 /// Standard configuration for Rust tool
+#[allow(dead_code)]
 pub struct Config;
 
 /// Rust URL builder for consistent download URL generation
@@ -110,6 +111,7 @@ impl StandardToolConfig for Config {
 }
 
 /// Create installation configuration for Rust
+#[allow(dead_code)]
 pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConfig {
     let download_url = RustUrlBuilder::download_url(version);
 

@@ -2,11 +2,11 @@
 
 use crate::ui::UI;
 use anyhow::Result;
-use vx_plugin::PluginRegistry;
+use vx_plugin::BundleRegistry;
 
 /// Handle the fetch command
 pub async fn handle(
-    registry: &PluginRegistry,
+    registry: &BundleRegistry,
     tool_name: &str,
     latest: Option<usize>,
     include_prerelease: bool,

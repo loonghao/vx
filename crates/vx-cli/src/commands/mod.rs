@@ -2,7 +2,7 @@
 
 use crate::cli::{Cli, Commands};
 use crate::ui::UI;
-use vx_plugin::PluginRegistry;
+use vx_plugin::BundleRegistry;
 
 pub mod cleanup;
 pub mod config;
@@ -33,7 +33,7 @@ pub mod where_cmd;
 pub struct CommandHandler;
 
 impl CommandHandler {
-    pub async fn handle(cli: Cli, registry: &PluginRegistry) -> anyhow::Result<()> {
+    pub async fn handle(cli: Cli, registry: &BundleRegistry) -> anyhow::Result<()> {
         // Set verbose mode
         UI::set_verbose(cli.verbose);
 
@@ -108,7 +108,7 @@ impl CommandHandler {
             }) => {
                 // TODO: Get registry from context
                 // For now, create a minimal registry
-                let registry = PluginRegistry::new();
+                let registry = BundleRegistry::new();
                 search::handle(
                     &registry,
                     query.clone(),
@@ -130,7 +130,7 @@ impl CommandHandler {
                 no_auto_install,
             }) => {
                 // TODO: Get registry from context
-                let registry = PluginRegistry::new();
+                let registry = BundleRegistry::new();
                 sync::handle(
                     &registry,
                     check,

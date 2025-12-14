@@ -3,9 +3,9 @@
 use crate::ui::UI;
 use anyhow::Result;
 use vx_paths::{PathManager, PathResolver};
-use vx_plugin::PluginRegistry;
+use vx_plugin::BundleRegistry;
 
-pub async fn handle(_registry: &PluginRegistry, tool: &str, all: bool) -> Result<()> {
+pub async fn handle(_registry: &BundleRegistry, tool: &str, all: bool) -> Result<()> {
     UI::debug(&format!("Looking for vx-managed tool: {}", tool));
 
     // Create path manager and resolver

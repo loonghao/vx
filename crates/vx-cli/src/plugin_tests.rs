@@ -1,54 +1,54 @@
 //! Tests for plugin system functionality
 
 use crate::test_utils::*;
-use vx_plugin::{PluginRegistry, VxPlugin, VxTool};
+use vx_plugin::{BundleRegistry, ToolBundle, VxTool};
 
 #[tokio::test]
 async fn test_plugin_registry_creation() {
-    let registry = PluginRegistry::new();
+    let registry = BundleRegistry::new();
 
     // Registry should be created successfully
-    let plugins = registry.list_plugins();
-    assert!(plugins.is_empty()); // Should start empty
+    let bundles = registry.list_bundles();
+    assert!(bundles.is_empty()); // Should start empty
 }
 
 #[tokio::test]
 async fn test_plugin_registration() {
-    let registry = PluginRegistry::new();
+    let registry = BundleRegistry::new();
 
     // Create a mock plugin
     let plugin = MockPlugin::new("test-plugin").with_tool(MockTool::new("test-tool", "1.0.0"));
 
     // Register the plugin
-    let result = registry.register_plugin(Box::new(plugin)).await;
+    let result = registry.register_bundle(Box::new(plugin)).await;
     assert!(result.is_ok());
 
     // Check that plugin is registered
-    let plugins = registry.list_plugins();
-    assert_eq!(plugins.len(), 1);
-    assert!(plugins.contains(&"test-plugin".to_string()));
+    let bundles = registry.list_bundles();
+    assert_eq!(bundles.len(), 1);
+    assert!(bundles.contains(&"test-plugin".to_string()));
 }
 
 #[tokio::test]
 async fn test_multiple_plugin_registration() {
-    let registry = PluginRegistry::new();
+    let registry = BundleRegistry::new();
 
     // Register multiple plugins
     let plugin1 = MockPlugin::new("plugin1").with_tool(MockTool::new("tool1", "1.0.0"));
     let plugin2 = MockPlugin::new("plugin2").with_tool(MockTool::new("tool2", "2.0.0"));
 
-    let _ = registry.register_plugin(Box::new(plugin1)).await;
-    let _ = registry.register_plugin(Box::new(plugin2)).await;
+    let _ = registry.register_bundle(Box::new(plugin1)).await;
+    let _ = registry.register_bundle(Box::new(plugin2)).await;
 
-    let plugins = registry.list_plugins();
-    assert_eq!(plugins.len(), 2);
-    assert!(plugins.contains(&"plugin1".to_string()));
-    assert!(plugins.contains(&"plugin2".to_string()));
+    let bundles = registry.list_bundles();
+    assert_eq!(bundles.len(), 2);
+    assert!(bundles.contains(&"plugin1".to_string()));
+    assert!(bundles.contains(&"plugin2".to_string()));
 }
 
 #[tokio::test]
 async fn test_tool_discovery() {
-    let registry = PluginRegistry::new();
+    let registry = BundleRegistry::new();
 
     // Create plugin with multiple tools
     let plugin = MockPlugin::new("multi-tool-plugin")
@@ -56,7 +56,7 @@ async fn test_tool_discovery() {
         .with_tool(MockTool::new("npm", "8.0.0"))
         .with_tool(MockTool::new("yarn", "1.22.0"));
 
-    let _ = registry.register_plugin(Box::new(plugin)).await;
+    let _ = registry.register_bundle(Box::new(plugin)).await;
 
     // Test tool discovery
     let tools = registry.list_tools();
@@ -68,11 +68,11 @@ async fn test_tool_discovery() {
 
 #[tokio::test]
 async fn test_get_tool() {
-    let registry = PluginRegistry::new();
+    let registry = BundleRegistry::new();
 
     let plugin = MockPlugin::new("test-plugin").with_tool(MockTool::new("test-tool", "1.0.0"));
 
-    let _ = registry.register_plugin(Box::new(plugin)).await;
+    let _ = registry.register_bundle(Box::new(plugin)).await;
 
     // Test getting existing tool
     let tool = registry.get_tool("test-tool");
@@ -88,7 +88,7 @@ async fn test_get_tool() {
 
 #[tokio::test]
 async fn test_tool_installation_status() {
-    let registry = PluginRegistry::new();
+    let registry = BundleRegistry::new();
 
     // Create tools with different installation states
     let installed_tool = MockTool::new("installed-tool", "1.0.0")
@@ -99,7 +99,7 @@ async fn test_tool_installation_status() {
         .with_tool(installed_tool)
         .with_tool(not_installed_tool);
 
-    let _ = registry.register_plugin(Box::new(plugin)).await;
+    let _ = registry.register_bundle(Box::new(plugin)).await;
 
     // Test that tools can be retrieved
     let tool = registry.get_tool("installed-tool");
@@ -160,13 +160,13 @@ fn test_mock_tool_failure_mode() {
 
 #[tokio::test]
 async fn test_plugin_registry_tool_lookup_performance() {
-    let registry = PluginRegistry::new();
+    let registry = BundleRegistry::new();
 
     // Register many tools to test lookup performance
     for i in 0..100 {
         let plugin = MockPlugin::new(&format!("plugin-{}", i))
             .with_tool(MockTool::new(&format!("tool-{}", i), "1.0.0"));
-        let _ = registry.register_plugin(Box::new(plugin)).await;
+        let _ = registry.register_bundle(Box::new(plugin)).await;
     }
 
     // Test that lookup is still fast
@@ -180,14 +180,14 @@ async fn test_plugin_registry_tool_lookup_performance() {
 
 #[tokio::test]
 async fn test_plugin_registry_duplicate_tools() {
-    let registry = PluginRegistry::new();
+    let registry = BundleRegistry::new();
 
     // Register two plugins with the same tool name
     let plugin1 = MockPlugin::new("plugin1").with_tool(MockTool::new("common-tool", "1.0.0"));
     let plugin2 = MockPlugin::new("plugin2").with_tool(MockTool::new("common-tool", "2.0.0"));
 
-    let _ = registry.register_plugin(Box::new(plugin1)).await;
-    let _ = registry.register_plugin(Box::new(plugin2)).await;
+    let _ = registry.register_bundle(Box::new(plugin1)).await;
+    let _ = registry.register_bundle(Box::new(plugin2)).await;
 
     // Should handle duplicate tool names gracefully
     let tool = registry.get_tool("common-tool");
@@ -199,17 +199,17 @@ async fn test_plugin_registry_duplicate_tools() {
 
 #[tokio::test]
 async fn test_empty_plugin_registration() {
-    let registry = PluginRegistry::new();
+    let registry = BundleRegistry::new();
 
     // Register a plugin with no tools
     let empty_plugin = MockPlugin::new("empty-plugin");
-    let result = registry.register_plugin(Box::new(empty_plugin)).await;
+    let result = registry.register_bundle(Box::new(empty_plugin)).await;
 
     assert!(result.is_ok());
 
-    let plugins = registry.list_plugins();
-    assert_eq!(plugins.len(), 1);
-    assert!(plugins.contains(&"empty-plugin".to_string()));
+    let bundles = registry.list_bundles();
+    assert_eq!(bundles.len(), 1);
+    assert!(bundles.contains(&"empty-plugin".to_string()));
 
     let tools = registry.list_tools();
     assert!(tools.is_empty());

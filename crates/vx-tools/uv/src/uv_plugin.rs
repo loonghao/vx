@@ -1,7 +1,7 @@
 //! UV plugin implementation
 
 use crate::uv_tool::{UvCommand, UvxTool};
-use vx_plugin::{VxPlugin, VxTool};
+use vx_plugin::{ToolBundle, VxTool};
 
 /// UV plugin that manages UV-related tools
 #[derive(Debug)]
@@ -14,7 +14,7 @@ impl UvPlugin {
 }
 
 #[async_trait::async_trait]
-impl VxPlugin for UvPlugin {
+impl ToolBundle for UvPlugin {
     fn name(&self) -> &str {
         "uv"
     }

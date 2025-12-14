@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Output;
 use tempfile::TempDir;
-use vx_plugin::{PluginRegistry, VxPlugin, VxTool};
+use vx_plugin::{BundleRegistry, ToolBundle, VxTool};
 
 /// Mock tool for testing
 #[derive(Debug, Clone)]
@@ -39,7 +39,7 @@ impl MockTool {
     }
 }
 
-/// Mock plugin for testing
+/// Mock bundle for testing
 #[derive(Debug)]
 pub struct MockPlugin {
     pub name: String,
@@ -60,7 +60,7 @@ impl MockPlugin {
     }
 }
 
-impl VxPlugin for MockPlugin {
+impl ToolBundle for MockPlugin {
     fn name(&self) -> &str {
         &self.name
     }
@@ -117,14 +117,14 @@ impl VxTool for MockTool {
 /// Test environment setup
 pub struct TestEnvironment {
     pub temp_dir: TempDir,
-    pub registry: PluginRegistry,
+    pub registry: BundleRegistry,
     pub mock_tools: HashMap<String, MockTool>,
 }
 
 impl TestEnvironment {
     pub fn new() -> Self {
         let temp_dir = TempDir::new().expect("Failed to create temp directory");
-        let registry = PluginRegistry::new();
+        let registry = BundleRegistry::new();
 
         Self {
             temp_dir,
@@ -138,7 +138,7 @@ impl TestEnvironment {
     }
 
     pub async fn setup_mock_plugin(&mut self, plugin: MockPlugin) {
-        let _ = self.registry.register_plugin(Box::new(plugin)).await;
+        let _ = self.registry.register_bundle(Box::new(plugin)).await;
     }
 
     pub fn temp_path(&self) -> &std::path::Path {

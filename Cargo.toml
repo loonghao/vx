@@ -1,22 +1,22 @@
 [workspace]
 members = [
-    "crates/vx-config",
-    "crates/vx-paths",
-    "crates/vx-plugin",
-    "crates/vx-installer",
-    "crates/vx-version",
-    "crates/vx-core",
-    "crates/vx-dependency",
-    "crates/vx-tool-standard",
-    "crates/vx-cli",
-    "crates/vx-tools/vx-tool-node",
-    "crates/vx-tools/vx-tool-go",
-    "crates/vx-tools/vx-tool-rust",
-    "crates/vx-tools/vx-tool-uv",
-    "crates/vx-tools/vx-tool-npm",
-    "crates/vx-tools/vx-tool-pnpm",
-    "crates/vx-tools/vx-tool-yarn",
-    "crates/vx-tools/vx-tool-bun",
+  "crates/vx-config",
+  "crates/vx-paths",
+  "crates/vx-plugin",
+  "crates/vx-installer",
+  "crates/vx-version",
+  "crates/vx-core",
+  "crates/vx-dependency",
+  "crates/vx-tool-standard",
+  "crates/vx-sdk",
+  "crates/vx-cli",
+  "crates/vx-tools/node",
+  "crates/vx-tools/go",
+  "crates/vx-tools/rust",
+  "crates/vx-tools/uv",
+  "crates/vx-tools/pnpm",
+  "crates/vx-tools/yarn",
+  "crates/vx-tools/bun",
 ]
 resolver = "2"
 
@@ -58,14 +58,13 @@ tokio = { workspace = true, features = ["test-util"] }
 tempfile = { workspace = true }
 # Test dependencies for integration tests
 vx-core = { version = "0.4.0", path = "crates/vx-core" }
-vx-tool-node = { version = "0.4.0", path = "crates/vx-tools/vx-tool-node" }
-vx-tool-go = { version = "0.4.0", path = "crates/vx-tools/vx-tool-go" }
-vx-tool-rust = { version = "0.4.0", path = "crates/vx-tools/vx-tool-rust" }
-vx-tool-uv = { version = "0.4.0", path = "crates/vx-tools/vx-tool-uv" }
-vx-tool-npm = { version = "0.4.0", path = "crates/vx-tools/vx-tool-npm" }
-vx-tool-pnpm = { version = "0.4.0", path = "crates/vx-tools/vx-tool-pnpm" }
-vx-tool-yarn = { version = "0.4.0", path = "crates/vx-tools/vx-tool-yarn" }
-vx-tool-bun = { version = "0.4.0", path = "crates/vx-tools/vx-tool-bun" }
+vx-tool-node = { version = "0.4.0", path = "crates/vx-tools/node" }
+vx-tool-go = { version = "0.4.0", path = "crates/vx-tools/go" }
+vx-tool-rust = { version = "0.4.0", path = "crates/vx-tools/rust" }
+vx-tool-uv = { version = "0.4.0", path = "crates/vx-tools/uv" }
+vx-tool-pnpm = { version = "0.4.0", path = "crates/vx-tools/pnpm" }
+vx-tool-yarn = { version = "0.4.0", path = "crates/vx-tools/yarn" }
+vx-tool-bun = { version = "0.4.0", path = "crates/vx-tools/bun" }
 
 
 [workspace.package]
@@ -89,16 +88,16 @@ serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
 # Optimize tokio - only include needed features for better compile times
 tokio = { version = "1.0", features = [
-    "rt-multi-thread",
-    "macros",
-    "fs",
-    "process",
+  "rt-multi-thread",
+  "macros",
+  "fs",
+  "process",
 ] }
 # Optimize reqwest - use rustls instead of OpenSSL for better cross-compilation
 reqwest = { version = "0.12", features = [
-    "json",
-    "stream",
-    "rustls-tls",
+  "json",
+  "stream",
+  "rustls-tls",
 ], default-features = false }
 serde_json = "1.0"
 anyhow = "1.0"

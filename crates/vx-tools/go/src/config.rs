@@ -82,6 +82,7 @@ impl StandardToolConfig for Config {
 }
 
 /// Create Go installation configuration
+#[allow(dead_code)]
 pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConfig {
     let actual_version = if version == "latest" {
         "1.21.6" // Default to stable version
@@ -108,6 +109,7 @@ pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConf
 }
 
 /// Get available Go installation methods
+#[allow(dead_code)]
 pub fn get_install_methods() -> Vec<String> {
     vec![
         "Official releases".to_string(),
@@ -126,6 +128,7 @@ pub fn supports_auto_install() -> bool {
 }
 
 /// Get manual installation instructions for Go
+#[allow(dead_code)]
 pub fn get_manual_instructions() -> String {
     "To install Go manually:\n\
      • Visit: https://golang.org/dl/\n\

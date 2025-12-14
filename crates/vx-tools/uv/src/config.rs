@@ -8,6 +8,7 @@ use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod};
 use vx_tool_standard::{StandardToolConfig, StandardUrlBuilder, ToolDependency};
 
 /// Standard configuration for UV tool
+#[allow(dead_code)]
 pub struct Config;
 
 /// UV URL builder for consistent download URL generation
@@ -111,6 +112,7 @@ impl StandardToolConfig for Config {
 }
 
 /// Create installation configuration for UV
+#[allow(dead_code)]
 pub fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConfig {
     let download_url = UvUrlBuilder::download_url(version);
 

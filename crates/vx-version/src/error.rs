@@ -14,6 +14,16 @@ pub enum VersionError {
     /// Network error during version fetching
     NetworkError { url: String, source: reqwest::Error },
 
+    /// HTTP error with status code
+    HttpError {
+        url: String,
+        status: u16,
+        message: String,
+    },
+
+    /// API rate limit exceeded
+    RateLimited { message: String },
+
     /// JSON parsing error
     ParseError {
         content: String,
@@ -44,6 +54,16 @@ impl fmt::Display for VersionError {
             }
             VersionError::NetworkError { url, source } => {
                 write!(f, "Network error fetching from '{}': {}", url, source)
+            }
+            VersionError::HttpError {
+                url,
+                status,
+                message,
+            } => {
+                write!(f, "HTTP error {} from '{}': {}", status, url, message)
+            }
+            VersionError::RateLimited { message } => {
+                write!(f, "Rate limit exceeded: {}", message)
             }
             VersionError::ParseError { content, source } => {
                 write!(f, "Failed to parse content '{}': {}", content, source)

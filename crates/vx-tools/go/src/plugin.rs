@@ -1,7 +1,7 @@
 //! Go plugin implementation
 
 use crate::tool::GoTool;
-use vx_plugin::{VxPlugin, VxTool};
+use vx_plugin::{ToolBundle, VxTool};
 
 /// Go plugin that provides Go tool support
 pub struct GoPlugin;
@@ -19,7 +19,7 @@ impl Default for GoPlugin {
 }
 
 #[async_trait::async_trait]
-impl VxPlugin for GoPlugin {
+impl ToolBundle for GoPlugin {
     fn name(&self) -> &str {
         "go"
     }

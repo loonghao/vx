@@ -3,9 +3,9 @@
 use crate::cli::PluginCommand;
 use crate::ui::UI;
 use anyhow::Result;
-use vx_plugin::PluginRegistry;
+use vx_plugin::BundleRegistry;
 
-pub async fn handle(registry: &PluginRegistry, command: PluginCommand) -> Result<()> {
+pub async fn handle(registry: &BundleRegistry, command: PluginCommand) -> Result<()> {
     // TODO: Replace with vx-core tool manager
     // let tool_manager = crate::tool_manager::ToolManager::new()
     //     .or_else(|_| crate::tool_manager::ToolManager::minimal())?;
@@ -15,16 +15,16 @@ pub async fn handle(registry: &PluginRegistry, command: PluginCommand) -> Result
             enabled: _,
             category: _,
         } => {
-            UI::header("Available Plugins");
+            UI::header("Available Bundles");
 
-            let plugins = registry.list_plugins();
-            if plugins.is_empty() {
-                UI::warn("No plugins registered");
+            let bundles = registry.list_bundles();
+            if bundles.is_empty() {
+                UI::warn("No bundles registered");
                 return Ok(());
             }
 
-            for plugin_name in plugins {
-                UI::item(&format!("📦 {}", plugin_name));
+            for bundle_name in bundles {
+                UI::item(&format!("📦 {}", bundle_name));
             }
             // for tool in tools {
             //     let status_icon = if tool.installed { "✅" } else { "❌" };

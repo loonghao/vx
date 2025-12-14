@@ -3,10 +3,10 @@
 use crate::ui::UI;
 use anyhow::Result;
 use vx_paths::{PathManager, PathResolver};
-use vx_plugin::PluginRegistry;
+use vx_plugin::BundleRegistry;
 
 pub async fn handle(
-    registry: &PluginRegistry,
+    registry: &BundleRegistry,
     tool: Option<&str>,
     show_status: bool,
 ) -> Result<()> {
@@ -29,7 +29,7 @@ pub async fn handle(
 }
 
 async fn list_tool_versions(
-    registry: &PluginRegistry,
+    registry: &BundleRegistry,
     resolver: &PathResolver,
     tool_name: &str,
     show_status: bool,
@@ -80,7 +80,7 @@ async fn list_tool_versions(
 }
 
 async fn list_all_tools(
-    registry: &PluginRegistry,
+    registry: &BundleRegistry,
     resolver: &PathResolver,
     show_status: bool,
 ) -> Result<()> {
