@@ -30,7 +30,7 @@ tar = { workspace = true }
 flate2 = { workspace = true }
 
 # Progress and UI
-indicatif = { version = "0.17", optional = true }
+indicatif = { version = "0.18", optional = true }
 futures-util = "0.3"
 
 # Async trait support
