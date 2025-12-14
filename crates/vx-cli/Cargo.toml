@@ -45,7 +45,7 @@ regex = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-tokio = { workspace = true, features = ["test-util"] }
+tokio = { workspace = true, features = ["test-util", "sync"] }
 rstest = { workspace = true }
 tokio-test = { workspace = true }
 test-case = { workspace = true }
@@ -53,3 +53,9 @@ pretty_assertions = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 vx-version = { version = "0.2.2", path = "../vx-version" }
+vx-paths = { version = "0.3.1", path = "../vx-paths" }
+vx-tool-node = { version = "0.4.0", path = "../vx-tools/node" }
+vx-tool-go = { version = "0.4.0", path = "../vx-tools/go" }
+vx-tool-rust = { version = "0.4.0", path = "../vx-tools/rust" }
+vx-tool-uv = { version = "0.4.0", path = "../vx-tools/uv" }
+vx-tool-bun = { version = "0.4.0", path = "../vx-tools/bun" }

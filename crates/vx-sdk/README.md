@@ -1,26 +1,20 @@
-# 🛠️ vx-sdk
+# vx-sdk
 
-<div align="center">
-
-**Tool Development SDK for vx - Universal Development Tool Manager**
+Tool Development SDK for vx - Universal Development Tool Manager.
 
 [![Crates.io](https://img.shields.io/crates/v/vx-sdk.svg)](https://crates.io/crates/vx-sdk)
 [![Documentation](https://docs.rs/vx-sdk/badge.svg)](https://docs.rs/vx-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-*The recommended way to create tool plugins for the vx ecosystem*
+This is the recommended way to create tool plugins for the vx ecosystem.
 
-</div>
-
----
-
-## 🎯 Overview
+## Overview
 
 `vx-sdk` is the unified SDK for developing tools and bundles that integrate with the vx ecosystem. It provides a clean, modern API for creating tool plugins with automatic version management, beautiful progress tracking, and cross-platform support.
 
 > **Note**: This is the recommended crate for plugin development. It supersedes the older `vx-plugin` API with cleaner naming and better ergonomics.
 
-## ✨ Features
+## Features
 
 - **Tool Trait**: Core interface for implementing tool support
 - **ToolBundle Trait**: Group related tools and package managers
@@ -29,7 +23,7 @@
 - **Helpers**: URL builders, version utilities, and platform helpers
 - **Registry**: Dynamic tool and bundle registration
 
-## 🚀 Quick Start
+## Quick Start
 
 Add to your `Cargo.toml`:
 
@@ -138,7 +132,7 @@ async fn main() -> Result<()> {
 }
 ```
 
-## 📦 Core Types
+## Core Types
 
 ### Tool Trait
 
@@ -172,10 +166,10 @@ pub trait Tool: Send + Sync {
 ```rust
 use vx_sdk::VersionInfo;
 
-let version = VersionInfo::new("18.17.0")
-    .with_release_date("2023-06-20")
-    .with_download_url("https://nodejs.org/dist/v18.17.0/...")
-    .with_lts("Hydrogen");
+let version = VersionInfo::new("18.17.0".to_string())
+    .with_release_date("2023-06-20".to_string())
+    .with_download_url("https://nodejs.org/dist/v18.17.0/...".to_string())
+    .with_lts("Hydrogen".to_string());
 
 println!("Version: {}", version.version);
 println!("Is LTS: {}", version.is_lts());
@@ -197,7 +191,7 @@ let filename = UrlUtils::extract_filename(&url)?;
 let extension = UrlUtils::get_extension(&url)?;
 ```
 
-## 🔄 Migration from vx-plugin
+## Migration from vx-plugin
 
 If you're migrating from `vx-plugin`, the following renames apply:
 
@@ -212,9 +206,9 @@ If you're migrating from `vx-plugin`, the following renames apply:
 
 Deprecated aliases are available for backward compatibility, but new code should use the new names.
 
-## 🏗️ Architecture
+## Architecture
 
-```
+```text
 vx-sdk/
 ├── traits/
 │   ├── tool.rs          # Tool trait definition
@@ -236,7 +230,7 @@ vx-sdk/
     └── ecosystem.rs     # Ecosystem enum
 ```
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run all tests
@@ -249,29 +243,19 @@ RUST_LOG=vx_sdk=debug cargo test
 cargo test tool_trait
 ```
 
-## 🔗 Related Crates
+## Related Crates
 
-- [`vx-core`](../vx-core/README.md) - Core engine and tool management
-- [`vx-installer`](../vx-installer/README.md) - Universal installation engine
-- [`vx-version`](../vx-version/README.md) - Version parsing and fetching
-- [`vx-plugin`](../vx-plugin/README.md) - Legacy plugin API (use vx-sdk instead)
+- [vx-core](../vx-core/README.md) - Core engine and tool management
+- [vx-installer](../vx-installer/README.md) - Universal installation engine
+- [vx-version](../vx-version/README.md) - Version parsing and fetching
+- [vx-plugin](../vx-plugin/README.md) - Legacy plugin API (use vx-sdk instead)
 
 ### Example Tool Implementations
 
-- [`vx-tool-node`](../vx-tools/node/README.md) - Node.js implementation
-- [`vx-tool-go`](../vx-tools/go/README.md) - Go implementation
-- [`vx-tool-uv`](../vx-tools/uv/README.md) - UV Python implementation
+- [vx-tool-node](../vx-tools/node/README.md) - Node.js implementation
+- [vx-tool-go](../vx-tools/go/README.md) - Go implementation
+- [vx-tool-uv](../vx-tools/uv/README.md) - UV Python implementation
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](../../LICENSE) for details.
-
----
-
-<div align="center">
-
-**Build powerful tools for the vx ecosystem**
-
-[🚀 Get Started](../../README.md) | [📖 Documentation](https://docs.rs/vx-sdk) | [🤝 Contributing](../../CONTRIBUTING.md)
-
-</div>
