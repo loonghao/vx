@@ -3,7 +3,7 @@
 use std::env;
 use std::path::PathBuf;
 use tempfile::TempDir;
-use vx_plugin::PluginRegistry;
+use vx_plugin::BundleRegistry;
 
 /// Test fixture for CLI tests
 pub struct CliTestFixture {
@@ -51,9 +51,9 @@ pub fn create_test_env_dir() -> anyhow::Result<TempDir> {
     Ok(temp_dir)
 }
 
-/// Create a test plugin registry
-pub fn create_test_registry() -> PluginRegistry {
-    PluginRegistry::new()
+/// Create a test bundle registry
+pub fn create_test_registry() -> BundleRegistry {
+    BundleRegistry::new()
 }
 
 /// Clean up test environment

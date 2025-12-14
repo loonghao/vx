@@ -320,6 +320,30 @@ pub trait VxTool: Send + Sync {
     fn metadata(&self) -> HashMap<String, String> {
         HashMap::new()
     }
+
+    /// Get dependencies for this tool
+    ///
+    /// Override this to declare that this tool depends on other tools.
+    /// For example, npm depends on node, cargo depends on rust.
+    fn get_dependencies(&self) -> Vec<crate::ToolDependency> {
+        vec![]
+    }
+
+    /// Resolve "latest" version to actual version string
+    ///
+    /// This is a helper method that resolves "latest" to the actual latest version.
+    /// Tools can override this for custom resolution logic.
+    async fn resolve_version(&self, version: &str) -> Result<String> {
+        if version == "latest" {
+            let versions = self.fetch_versions(false).await?;
+            versions
+                .first()
+                .map(|v| v.version.clone())
+                .ok_or_else(|| anyhow::anyhow!("No versions found for {}", self.name()))
+        } else {
+            Ok(version.to_string())
+        }
+    }
 }
 
 /// Helper trait for URL builders that can generate download URLs

@@ -25,15 +25,15 @@
 //! async fn main() -> anyhow::Result<()> {
 //!     // Create a version fetcher for a GitHub repository
 //!     let fetcher = GitHubVersionFetcher::new("astral-sh", "uv");
-//!     
+//!
 //!     // Fetch available versions
 //!     let versions = fetcher.fetch_versions(false).await?;
-//!     
+//!
 //!     // Get the latest version
 //!     if let Some(latest) = versions.first() {
 //!         println!("Latest version: {}", latest.version);
 //!     }
-//!     
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -46,7 +46,10 @@ pub mod utils;
 
 // Re-export main types for convenience
 pub use error::{Result, VersionError};
-pub use fetcher::{GitHubVersionFetcher, NodeVersionFetcher, VersionFetcher};
+pub use fetcher::{
+    get_github_token, GitHubVersionFetcher, NodeVersionFetcher, VersionFetcher, GH_TOKEN_ENV,
+    GITHUB_TOKEN_ENV,
+};
 pub use manager::VersionManager;
 pub use parser::{GitHubVersionParser, GoVersionParser, NodeVersionParser, VersionParser};
 pub use utils::VersionUtils;

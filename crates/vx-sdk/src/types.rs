@@ -1,7 +1,6 @@
-//! Shared types and data structures for the plugin system
+//! Shared types and data structures for the SDK
 //!
-//! This module contains all the common types used across the plugin system,
-//! including version information, package specifications, and execution contexts.
+//! This module contains all common types used across the SDK.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -87,7 +86,7 @@ impl VersionInfo {
         self
     }
 
-    /// Add metadata to this version
+    /// Add metadata
     pub fn with_metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.metadata.insert(key.into(), value.into());
         self
@@ -139,6 +138,7 @@ impl PackageSpec {
         self
     }
 }
+
 /// Information about an installed package
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PackageInfo {
@@ -230,6 +230,7 @@ impl ToolContext {
         self
     }
 }
+
 /// Result of tool execution
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolExecutionResult {
@@ -315,7 +316,7 @@ impl Default for ToolStatus {
     }
 }
 
-/// Basic tool metadata for standard tools
+/// Basic tool metadata
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolMetadata {
     /// Tool name
@@ -397,9 +398,6 @@ pub enum IsolationLevel {
 }
 
 /// Tool dependency specification
-///
-/// Used to declare that a tool depends on another tool.
-/// For example, npm depends on node, cargo depends on rust.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolDependency {
     /// Name of the required tool
@@ -439,51 +437,3 @@ impl ToolDependency {
         self
     }
 }
-
-/// Installation error with detailed context
-#[derive(Debug, Clone)]
-pub struct InstallError {
-    /// Tool name
-    pub tool: String,
-    /// Version being installed
-    pub version: String,
-    /// Error message
-    pub message: String,
-    /// Error kind
-    pub kind: InstallErrorKind,
-}
-
-/// Kinds of installation errors
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum InstallErrorKind {
-    /// Version already installed
-    AlreadyInstalled,
-    /// Version not found
-    VersionNotFound,
-    /// Download failed
-    DownloadFailed,
-    /// Extraction failed
-    ExtractionFailed,
-    /// Verification failed
-    VerificationFailed,
-    /// Permission denied
-    PermissionDenied,
-    /// Disk space insufficient
-    DiskSpaceFull,
-    /// Network error
-    NetworkError,
-    /// Other error
-    Other,
-}
-
-impl std::fmt::Display for InstallError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Failed to install {} version {}: {}",
-            self.tool, self.version, self.message
-        )
-    }
-}
-
-impl std::error::Error for InstallError {}

@@ -2,9 +2,9 @@
 
 use crate::ui::UI;
 use anyhow::Result;
-use vx_plugin::PluginRegistry;
+use vx_plugin::BundleRegistry;
 
-pub async fn handle(registry: &PluginRegistry) -> Result<()> {
+pub async fn handle(registry: &BundleRegistry) -> Result<()> {
     show_all_stats(registry).await
 }
 
@@ -86,7 +86,7 @@ async fn show_tool_stats(tool_name: &str, _detailed: bool) -> Result<()> {
     Ok(())
 }
 
-async fn show_all_stats(_registry: &PluginRegistry) -> Result<()> {
+async fn show_all_stats(_registry: &BundleRegistry) -> Result<()> {
     let spinner = UI::new_spinner("Collecting package statistics...");
     UI::warning("Package statistics not yet implemented in new architecture");
 

@@ -48,15 +48,3 @@ default = []
 dev-tools = []
 # Feature for enabling mock implementations for testing
 testing = ["mockall"]
-
-[[example]]
-name = "simple_tool_plugin"
-path = "examples/simple_tool_plugin.rs"
-
-[[example]]
-name = "package_manager_plugin"
-path = "examples/package_manager_plugin.rs"
-
-[[example]]
-name = "combined_plugin"
-path = "examples/combined_plugin.rs"

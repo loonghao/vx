@@ -11,14 +11,14 @@ pub use config::{
 
 use anyhow::Result;
 use std::path::Path;
-use vx_plugin::{Ecosystem, PackageSpec, VxPackageManager, VxPlugin, VxTool};
+use vx_plugin::{Ecosystem, PackageManager, PackageSpec, ToolBundle, VxTool};
 
 /// PNPM package manager implementation
 #[derive(Default)]
 pub struct PnpmPackageManager;
 
 #[async_trait::async_trait]
-impl VxPackageManager for PnpmPackageManager {
+impl PackageManager for PnpmPackageManager {
     fn name(&self) -> &str {
         "pnpm"
     }
@@ -84,7 +84,7 @@ impl VxPackageManager for PnpmPackageManager {
 pub struct PnpmPlugin;
 
 #[async_trait::async_trait]
-impl VxPlugin for PnpmPlugin {
+impl ToolBundle for PnpmPlugin {
     fn name(&self) -> &str {
         "pnpm"
     }
@@ -101,7 +101,7 @@ impl VxPlugin for PnpmPlugin {
         vec![]
     }
 
-    fn package_managers(&self) -> Vec<Box<dyn VxPackageManager>> {
+    fn package_managers(&self) -> Vec<Box<dyn PackageManager>> {
         vec![Box::new(PnpmPackageManager)]
     }
 
@@ -111,7 +111,7 @@ impl VxPlugin for PnpmPlugin {
 }
 
 /// Factory function to create the plugin
-pub fn create_pnpm_plugin() -> Box<dyn VxPlugin> {
+pub fn create_pnpm_plugin() -> Box<dyn ToolBundle> {
     Box::new(PnpmPlugin)
 }
 

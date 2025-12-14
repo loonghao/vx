@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-use vx_plugin::PluginRegistry;
+use vx_plugin::BundleRegistry;
 
 pub mod cli;
 pub mod commands;
@@ -28,32 +28,32 @@ pub async fn main() -> anyhow::Result<()> {
     // Setup tracing
     setup_tracing();
 
-    // Create plugin registry with all available plugins
-    let registry = PluginRegistry::new();
+    // Create bundle registry with all available bundles
+    let registry = BundleRegistry::new();
 
-    // Register Node.js plugin
+    // Register Node.js bundle
     let _ = registry
-        .register_plugin(Box::new(vx_tool_node::NodePlugin::new()))
+        .register_bundle(Box::new(vx_tool_node::NodePlugin::new()))
         .await;
 
-    // Register Go plugin
+    // Register Go bundle
     let _ = registry
-        .register_plugin(Box::new(vx_tool_go::GoPlugin::new()))
+        .register_bundle(Box::new(vx_tool_go::GoPlugin::new()))
         .await;
 
-    // Register Rust plugin
+    // Register Rust bundle
     let _ = registry
-        .register_plugin(Box::new(vx_tool_rust::RustPlugin::new()))
+        .register_bundle(Box::new(vx_tool_rust::RustPlugin::new()))
         .await;
 
-    // Register UV plugin
+    // Register UV bundle
     let _ = registry
-        .register_plugin(Box::new(vx_tool_uv::UvPlugin::new()))
+        .register_bundle(Box::new(vx_tool_uv::UvPlugin::new()))
         .await;
 
-    // Register Bun plugin
+    // Register Bun bundle
     let _ = registry
-        .register_plugin(Box::new(vx_tool_bun::BunPlugin::new()))
+        .register_bundle(Box::new(vx_tool_bun::BunPlugin::new()))
         .await;
 
     // Create and run CLI
@@ -63,12 +63,12 @@ pub async fn main() -> anyhow::Result<()> {
 
 /// Main CLI application structure
 pub struct VxCli {
-    registry: PluginRegistry,
+    registry: BundleRegistry,
 }
 
 impl VxCli {
-    /// Create a new VxCli instance with the given plugin registry
-    pub fn new(registry: PluginRegistry) -> Self {
+    /// Create a new VxCli instance with the given bundle registry
+    pub fn new(registry: BundleRegistry) -> Self {
         Self { registry }
     }
 

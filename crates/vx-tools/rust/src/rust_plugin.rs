@@ -1,7 +1,7 @@
 //! Rust plugin implementation
 
 use crate::rust_tool::CargoTool;
-use vx_plugin::{VxPlugin, VxTool};
+use vx_plugin::{ToolBundle, VxTool};
 
 /// Rust plugin that provides Rust toolchain tools
 #[derive(Debug, Default)]
@@ -14,7 +14,7 @@ impl RustPlugin {
 }
 
 #[async_trait::async_trait]
-impl VxPlugin for RustPlugin {
+impl ToolBundle for RustPlugin {
     fn name(&self) -> &str {
         "rust"
     }

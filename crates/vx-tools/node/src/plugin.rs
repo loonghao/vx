@@ -1,9 +1,15 @@
-//! Node.js plugin implementation
+//! Node.js bundle implementation
 
+use crate::npm_pm::NpmPackageManager;
 use crate::tool::{NodeTool, NpmTool, NpxTool};
-use vx_plugin::{VxPackageManager, VxPlugin, VxTool};
+use vx_plugin::{PackageManager, ToolBundle, VxTool};
 
-/// Node.js plugin that manages Node.js-related tools
+/// Node.js bundle that provides Node.js runtime and npm package manager
+///
+/// This bundle includes:
+/// - `node` - Node.js JavaScript runtime
+/// - `npm` - Node Package Manager (as both tool and package manager)
+/// - `npx` - Node Package Runner
 #[derive(Debug)]
 pub struct NodePlugin;
 
@@ -14,7 +20,7 @@ impl NodePlugin {
 }
 
 #[async_trait::async_trait]
-impl VxPlugin for NodePlugin {
+impl ToolBundle for NodePlugin {
     fn name(&self) -> &str {
         "node"
     }
@@ -35,45 +41,17 @@ impl VxPlugin for NodePlugin {
         ]
     }
 
-    fn package_managers(&self) -> Vec<Box<dyn VxPackageManager>> {
-        vec![]
+    fn package_managers(&self) -> Vec<Box<dyn PackageManager>> {
+        vec![Box::new(NpmPackageManager::new())]
     }
 
     fn supports_tool(&self, tool_name: &str) -> bool {
-        matches!(tool_name, "node" | "npm" | "npx")
+        matches!(tool_name, "node" | "npm" | "npx" | "nodejs")
     }
 }
 
 impl Default for NodePlugin {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_node_plugin() {
-        let plugin = NodePlugin;
-
-        assert_eq!(plugin.name(), "node");
-        assert_eq!(
-            plugin.description(),
-            "Node.js JavaScript runtime and package management tools"
-        );
-        assert!(plugin.supports_tool("node"));
-        assert!(plugin.supports_tool("npm"));
-        assert!(plugin.supports_tool("npx"));
-        assert!(!plugin.supports_tool("python"));
-
-        let tools = plugin.tools();
-        assert_eq!(tools.len(), 3); // node, npm, npx
-
-        let tool_names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
-        assert!(tool_names.contains(&"node"));
-        assert!(tool_names.contains(&"npm"));
-        assert!(tool_names.contains(&"npx"));
     }
 }

@@ -1,7 +1,28 @@
 //! Version fetching traits and implementations
+//!
+//! This module provides version fetching capabilities with support for:
+//! - GitHub API with optional token authentication (to avoid rate limits)
+//! - Node.js official release API
+//! - Extensible trait for custom version sources
 
 use crate::{Result, VersionError, VersionInfo};
 use async_trait::async_trait;
+
+/// Environment variable name for GitHub token
+pub const GITHUB_TOKEN_ENV: &str = "GITHUB_TOKEN";
+
+/// Alternative environment variable name for GitHub token (used by GitHub CLI)
+pub const GH_TOKEN_ENV: &str = "GH_TOKEN";
+
+/// Get GitHub token from environment variables
+///
+/// Checks in order: GITHUB_TOKEN, GH_TOKEN
+pub fn get_github_token() -> Option<String> {
+    std::env::var(GITHUB_TOKEN_ENV)
+        .ok()
+        .or_else(|| std::env::var(GH_TOKEN_ENV).ok())
+        .filter(|t| !t.is_empty())
+}
 
 /// Trait for fetching version information from external sources
 #[async_trait]
@@ -32,20 +53,46 @@ pub trait VersionFetcher: Send + Sync {
 }
 
 /// Version fetcher for GitHub releases
+///
+/// Supports optional GitHub token authentication to avoid API rate limits.
+/// The token is read from environment variables: `GITHUB_TOKEN` or `GH_TOKEN`.
+///
+/// # Rate Limits
+///
+/// - Without token: 60 requests/hour per IP
+/// - With token: 5,000 requests/hour per user
+///
+/// # Example
+///
+/// ```rust
+/// use vx_version::GitHubVersionFetcher;
+///
+/// // Token will be automatically read from GITHUB_TOKEN or GH_TOKEN env var
+/// let fetcher = GitHubVersionFetcher::new("astral-sh", "uv");
+///
+/// // Or explicitly set a token
+/// let fetcher_with_token = GitHubVersionFetcher::new("astral-sh", "uv")
+///     .with_token("ghp_xxxxxxxxxxxx".to_string());
+/// ```
 #[derive(Debug, Clone)]
 pub struct GitHubVersionFetcher {
     owner: String,
     repo: String,
     tool_name: String,
+    /// Optional GitHub token for authenticated requests
+    token: Option<String>,
 }
 
 impl GitHubVersionFetcher {
     /// Create a new GitHubVersionFetcher
+    ///
+    /// Automatically reads token from GITHUB_TOKEN or GH_TOKEN environment variables.
     pub fn new(owner: &str, repo: &str) -> Self {
         Self {
             owner: owner.to_string(),
             repo: repo.to_string(),
             tool_name: repo.to_string(),
+            token: get_github_token(),
         }
     }
 
@@ -55,7 +102,21 @@ impl GitHubVersionFetcher {
             owner: owner.to_string(),
             repo: repo.to_string(),
             tool_name: tool_name.to_string(),
+            token: get_github_token(),
         }
+    }
+
+    /// Set a custom GitHub token for this fetcher
+    ///
+    /// This overrides any token from environment variables.
+    pub fn with_token(mut self, token: String) -> Self {
+        self.token = Some(token);
+        self
+    }
+
+    /// Check if this fetcher has a token configured
+    pub fn has_token(&self) -> bool {
+        self.token.is_some()
     }
 
     /// Get the API URL for releases
@@ -64,6 +125,21 @@ impl GitHubVersionFetcher {
             "https://api.github.com/repos/{}/{}/releases",
             self.owner, self.repo
         )
+    }
+
+    /// Build HTTP client with appropriate headers
+    fn build_request(&self, client: &reqwest::Client, url: &str) -> reqwest::RequestBuilder {
+        let mut request = client
+            .get(url)
+            .header("User-Agent", "vx-version")
+            .header("Accept", "application/vnd.github+json")
+            .header("X-GitHub-Api-Version", "2022-11-28");
+
+        if let Some(token) = &self.token {
+            request = request.header("Authorization", format!("Bearer {}", token));
+        }
+
+        request
     }
 }
 
@@ -77,15 +153,42 @@ impl VersionFetcher for GitHubVersionFetcher {
         let client = reqwest::Client::new();
         let url = self.releases_url();
 
-        let response = client
-            .get(&url)
-            .header("User-Agent", "vx-version")
+        let response = self
+            .build_request(&client, &url)
             .send()
             .await
             .map_err(|e| VersionError::NetworkError {
                 url: url.clone(),
                 source: e,
             })?;
+
+        // Check for rate limit errors
+        if response.status() == reqwest::StatusCode::FORBIDDEN {
+            let remaining = response
+                .headers()
+                .get("x-ratelimit-remaining")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.parse::<u32>().ok())
+                .unwrap_or(0);
+
+            if remaining == 0 {
+                return Err(VersionError::RateLimited {
+                    message: format!(
+                        "GitHub API rate limit exceeded. Set {} or {} environment variable to increase limit.",
+                        GITHUB_TOKEN_ENV, GH_TOKEN_ENV
+                    ),
+                });
+            }
+        }
+
+        // Check for other HTTP errors
+        if !response.status().is_success() {
+            return Err(VersionError::HttpError {
+                url: url.clone(),
+                status: response.status().as_u16(),
+                message: format!("GitHub API returned status {}", response.status()),
+            });
+        }
 
         let json: serde_json::Value = response
             .json()

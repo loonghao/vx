@@ -2,12 +2,12 @@
 
 use crate::ui::UI;
 use anyhow::Result;
-use vx_plugin::PluginRegistry;
+use vx_plugin::BundleRegistry;
 // TODO: DynamicExecutor needs to be implemented or imported from appropriate crate
 
 /// Handle the execute command
 pub async fn handle(
-    registry: &PluginRegistry,
+    registry: &BundleRegistry,
     tool_name: &str,
     args: &[String],
     use_system_path: bool,
@@ -21,7 +21,7 @@ pub async fn handle(
 
 /// Execute tool with given arguments (simplified for closed-loop toolchain)
 pub async fn execute_tool(
-    _registry: &PluginRegistry,
+    _registry: &BundleRegistry,
     tool_name: &str,
     args: &[String],
     _use_system_path: bool,
