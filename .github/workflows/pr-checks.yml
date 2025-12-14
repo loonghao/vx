@@ -135,8 +135,14 @@ jobs:
           key: ${{ runner.os }}-cargo-test-${{ hashFiles('Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-test-
 
+      - name: Build binary for CLI tests
+        run: cargo build --release
+
       - name: Run tests
         run: cargo test --workspace --all-features
+        env:
+          # Use release binary for trycmd CLI snapshot tests
+          CARGO_TARGET_DIR: target
 
   # Build verification for release
   build:
