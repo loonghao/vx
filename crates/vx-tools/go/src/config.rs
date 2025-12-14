@@ -5,25 +5,19 @@
 
 use std::path::PathBuf;
 use vx_installer::{ArchiveFormat, InstallConfig, InstallMethod};
-use vx_tool_standard::{StandardToolConfig, StandardUrlBuilder, ToolDependency};
-
-/// Standard configuration for Go tool
-#[allow(dead_code)]
-pub struct Config;
 
 /// Go URL builder for consistent download URL generation
 pub struct GoUrlBuilder;
 
-impl StandardUrlBuilder for GoUrlBuilder {
+impl GoUrlBuilder {
     /// Generate download URL for Go version
-    fn download_url(version: &str) -> Option<String> {
+    pub fn download_url(version: &str) -> Option<String> {
         let filename = Self::get_filename(version);
-
         Some(format!("https://golang.org/dl/{}", filename))
     }
 
     /// Get platform-specific filename
-    fn get_filename(version: &str) -> String {
+    pub fn get_filename(version: &str) -> String {
         let platform = Self::get_platform_string();
         if cfg!(windows) {
             format!("go{}.{}.zip", version, platform)
@@ -33,7 +27,7 @@ impl StandardUrlBuilder for GoUrlBuilder {
     }
 
     /// Get platform string for Go downloads
-    fn get_platform_string() -> String {
+    pub fn get_platform_string() -> String {
         match (std::env::consts::OS, std::env::consts::ARCH) {
             ("windows", "x86_64") => "windows-amd64".to_string(),
             ("windows", "x86") => "windows-386".to_string(),
@@ -46,38 +40,6 @@ impl StandardUrlBuilder for GoUrlBuilder {
             ("linux", "arm") => "linux-armv6l".to_string(),
             _ => "linux-amd64".to_string(), // Default fallback
         }
-    }
-}
-
-/// Implementation of standard tool configuration for Go
-impl StandardToolConfig for Config {
-    fn tool_name() -> &'static str {
-        "go"
-    }
-
-    fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConfig {
-        create_install_config(version, install_dir)
-    }
-
-    fn get_install_methods() -> Vec<String> {
-        get_install_methods()
-    }
-
-    fn supports_auto_install() -> bool {
-        true
-    }
-
-    fn get_manual_instructions() -> String {
-        get_manual_instructions()
-    }
-
-    fn get_dependencies() -> Vec<ToolDependency> {
-        // Go has no dependencies - it's a standalone runtime
-        vec![]
-    }
-
-    fn get_default_version() -> &'static str {
-        "1.21.6" // Stable version
     }
 }
 
@@ -134,38 +96,4 @@ pub fn get_manual_instructions() -> String {
      • Visit: https://golang.org/dl/\n\
      • Or use your system package manager"
         .to_string()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_go_url_builder() {
-        let url = GoUrlBuilder::download_url("1.21.6");
-        assert!(url.is_some());
-        assert!(url.unwrap().contains("golang.org"));
-    }
-
-    #[test]
-    fn test_platform_string() {
-        let platform = GoUrlBuilder::get_platform_string();
-        assert!(!platform.is_empty());
-    }
-
-    #[test]
-    fn test_create_install_config() {
-        let config = create_install_config("1.21.6", PathBuf::from("/tmp/go"));
-        assert_eq!(config.tool_name, "go");
-        assert_eq!(config.version, "1.21.6");
-        assert!(config.download_url.is_some());
-    }
-
-    #[test]
-    fn test_latest_version_handling() {
-        let config = create_install_config("latest", PathBuf::from("/tmp/go"));
-        assert_eq!(config.version, "latest");
-        // Should use actual version in URL
-        assert!(config.download_url.unwrap().contains("1.21.6"));
-    }
 }

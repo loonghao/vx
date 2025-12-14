@@ -5,20 +5,14 @@
 
 use std::path::PathBuf;
 use vx_installer::{InstallConfig, InstallMethod};
-use vx_tool_standard::{StandardToolConfig, StandardUrlBuilder, ToolDependency};
-
-/// Standard configuration for PNPM tool
-pub struct Config;
 
 /// PNPM URL builder for consistent download URL generation
 pub struct PnpmUrlBuilder;
 
-impl StandardUrlBuilder for PnpmUrlBuilder {
+impl PnpmUrlBuilder {
     /// Generate download URL for PNPM version
-    fn download_url(version: &str) -> Option<String> {
-        let _platform = Self::get_platform_string();
+    pub fn download_url(version: &str) -> Option<String> {
         let filename = Self::get_filename(version);
-
         Some(format!(
             "https://github.com/pnpm/pnpm/releases/download/v{}/{}",
             version, filename
@@ -26,7 +20,7 @@ impl StandardUrlBuilder for PnpmUrlBuilder {
     }
 
     /// Get platform-specific filename
-    fn get_filename(version: &str) -> String {
+    pub fn get_filename(version: &str) -> String {
         let platform = Self::get_platform_string();
         if cfg!(windows) {
             format!("pnpm-{}-{}.exe", platform, version)
@@ -36,7 +30,7 @@ impl StandardUrlBuilder for PnpmUrlBuilder {
     }
 
     /// Get platform string for PNPM downloads
-    fn get_platform_string() -> String {
+    pub fn get_platform_string() -> String {
         match (std::env::consts::OS, std::env::consts::ARCH) {
             ("windows", "x86_64") => "win-x64".to_string(),
             ("windows", "aarch64") => "win-arm64".to_string(),
@@ -46,40 +40,6 @@ impl StandardUrlBuilder for PnpmUrlBuilder {
             ("linux", "aarch64") => "linux-arm64".to_string(),
             _ => "linux-x64".to_string(), // Default fallback
         }
-    }
-}
-
-/// Implementation of standard tool configuration for PNPM
-impl StandardToolConfig for Config {
-    fn tool_name() -> &'static str {
-        "pnpm"
-    }
-
-    fn create_install_config(version: &str, install_dir: PathBuf) -> InstallConfig {
-        create_install_config(version, install_dir)
-    }
-
-    fn get_install_methods() -> Vec<String> {
-        get_install_methods()
-    }
-
-    fn supports_auto_install() -> bool {
-        true
-    }
-
-    fn get_manual_instructions() -> String {
-        get_manual_instructions()
-    }
-
-    fn get_dependencies() -> Vec<ToolDependency> {
-        vec![
-            ToolDependency::required("node", "PNPM requires Node.js runtime")
-                .with_version(">=16.14.0"),
-        ]
-    }
-
-    fn get_default_version() -> &'static str {
-        "latest"
     }
 }
 
@@ -128,39 +88,4 @@ pub fn get_manual_instructions() -> String {
      • Or visit: https://pnpm.io/installation\n\
      • Requires Node.js >=16.14.0"
         .to_string()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_pnpm_dependencies() {
-        let deps = Config::get_dependencies();
-        assert_eq!(deps.len(), 1);
-        assert_eq!(deps[0].tool_name, "node");
-        assert!(deps[0].required);
-        assert_eq!(deps[0].version_requirement, Some(">=16.14.0".to_string()));
-    }
-
-    #[test]
-    fn test_pnpm_config() {
-        assert_eq!(Config::tool_name(), "pnpm");
-        assert!(Config::supports_auto_install());
-        assert_eq!(Config::get_default_version(), "latest");
-    }
-
-    #[test]
-    fn test_pnpm_url_builder() {
-        let url = PnpmUrlBuilder::download_url("8.15.0");
-        assert!(url.is_some());
-        assert!(url.unwrap().contains("github.com/pnpm/pnpm"));
-    }
-
-    #[test]
-    fn test_create_install_config() {
-        let config = create_install_config("latest", PathBuf::from("/tmp/pnpm"));
-        assert_eq!(config.tool_name, "pnpm");
-        assert_eq!(config.version, "latest");
-    }
 }

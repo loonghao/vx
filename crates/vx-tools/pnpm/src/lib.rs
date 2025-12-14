@@ -6,7 +6,7 @@ mod config;
 
 pub use config::{
     create_install_config, get_install_methods, get_manual_instructions, supports_auto_install,
-    Config, PnpmUrlBuilder,
+    PnpmUrlBuilder,
 };
 
 use anyhow::Result;

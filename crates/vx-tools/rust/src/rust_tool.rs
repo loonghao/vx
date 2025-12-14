@@ -4,7 +4,6 @@ use crate::config::RustUrlBuilder;
 use anyhow::Result;
 use std::collections::HashMap;
 use vx_plugin::{ToolContext, ToolExecutionResult, VersionInfo, VxTool};
-use vx_tool_standard::StandardUrlBuilder;
 use vx_version::{GitHubVersionFetcher, VersionFetcher};
 
 /// Macro to generate Rust tool implementations using VxTool trait
