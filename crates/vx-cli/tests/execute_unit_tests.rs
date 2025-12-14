@@ -38,8 +38,8 @@ fn test_registry_operations() {
 fn test_argument_vectors() {
     // Test different argument patterns without execution
     let empty_args: Vec<String> = Vec::new();
-    let single_arg = vec!["--version".to_string()];
-    let multiple_args = vec!["--help".to_string(), "--verbose".to_string()];
+    let single_arg = ["--version".to_string()];
+    let multiple_args = ["--help".to_string(), "--verbose".to_string()];
 
     assert_eq!(empty_args.len(), 0);
     assert_eq!(single_arg.len(), 1);
