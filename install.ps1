@@ -80,13 +80,14 @@ function Get-Platform {
     $arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture) {
         "X64" { "x86_64" }
         "Arm64" { "aarch64" }
-        "X86" { "x86" }
+        "X86" { "i686" }
         default {
             # Fallback to environment check
-            if ([Environment]::Is64BitOperatingSystem) { "x86_64" } else { "x86" }
+            if ([Environment]::Is64BitOperatingSystem) { "x86_64" } else { "i686" }
         }
     }
-    return "Windows-msvc-$arch"
+    # Match Rust target triple format: {arch}-pc-windows-msvc
+    return "$arch-pc-windows-msvc"
 }
 
 # Get latest version from GitHub API with optional authentication and fallback
