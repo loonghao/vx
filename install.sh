@@ -53,23 +53,24 @@ success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
-# Detect platform and architecture
+# Detect platform and architecture - returns Rust target triple
 detect_platform() {
     local os arch
 
     case "$(uname -s)" in
-        Linux*)  os="linux" ;;
-        Darwin*) os="macos" ;;
+        Linux*)  os="unknown-linux" ;;
+        Darwin*) os="apple-darwin" ;;
         *)       error "Unsupported operating system: $(uname -s)"; exit 1 ;;
     esac
 
     case "$(uname -m)" in
-        x86_64|amd64) arch="x64" ;;
-        aarch64|arm64) arch="arm64" ;;
+        x86_64|amd64) arch="x86_64" ;;
+        aarch64|arm64) arch="aarch64" ;;
         *) error "Unsupported architecture: $(uname -m)"; exit 1 ;;
     esac
 
-    echo "$os-$arch"
+    # Return Rust target triple format
+    echo "$arch-$os"
 }
 
 # Get latest version from GitHub API with optional authentication and fallback
@@ -205,21 +206,25 @@ install_from_release() {
 
     info "Installing vx v$version for $platform..."
 
-    # Construct download URL based on actual release asset naming
-    # Format: vx-{OS}-{variant}-{arch}.tar.gz
+    # Construct download URL based on Rust target triple
+    # Format: vx-{target}.tar.gz (e.g., vx-x86_64-unknown-linux-gnu.tar.gz)
     case "$platform" in
-        linux-x64)
+        x86_64-unknown-linux)
             # Try musl first (static binary), fallback to gnu
-            archive_name="vx-Linux-musl-x86_64.tar.gz"
-            fallback_archive="vx-Linux-gnu-x86_64.tar.gz"
+            archive_name="vx-x86_64-unknown-linux-musl.tar.gz"
+            fallback_archive="vx-x86_64-unknown-linux-gnu.tar.gz"
             ;;
-        linux-arm64)
+        aarch64-unknown-linux)
             # Try musl first (static binary), fallback to gnu
-            archive_name="vx-Linux-musl-arm64.tar.gz"
-            fallback_archive="vx-Linux-gnu-arm64.tar.gz"
+            archive_name="vx-aarch64-unknown-linux-musl.tar.gz"
+            fallback_archive="vx-aarch64-unknown-linux-gnu.tar.gz"
             ;;
-        macos-x64)    archive_name="vx-macOS-x86_64.tar.gz" ;;
-        macos-arm64)  archive_name="vx-macOS-arm64.tar.gz" ;;
+        x86_64-apple-darwin)
+            archive_name="vx-x86_64-apple-darwin.tar.gz"
+            ;;
+        aarch64-apple-darwin)
+            archive_name="vx-aarch64-apple-darwin.tar.gz"
+            ;;
         *) error "Unsupported platform: $platform"; exit 1 ;;
     esac
 

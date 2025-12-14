@@ -1,23 +1,15 @@
 name: Release
 
-# This workflow is the ONLY workflow that runs on main branch pushes.
-# It handles:
-# 1. Regular commits to main: Only runs release-please to check if a release PR should be created/updated
-# 2. release-please PR merge: Creates a release tag and triggers the full release process
-# 3. Tag push (v*): Builds binaries and creates GitHub Release
+# This workflow runs on main branch pushes and handles the complete release process:
+# 1. Regular commits to main: Runs release-please to check if a release PR should be created/updated
+# 2. release-please PR merge: Creates a release, builds binaries, and publishes to crates.io
 #
 # Note: release-please creates tags in format "v0.4.1" (v format)
-#
-# This design eliminates duplicate CI runs by:
-# - Not triggering other workflows on main push
-# - Only running expensive builds when a release is actually created
 
 on:
   push:
     branches:
       - main
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+*'  # release-please tag format: v0.4.1
   workflow_dispatch:
     inputs:
       force-rebuild:
@@ -55,27 +47,13 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # Determine if this is a tag push (for publishing)
-  check-tag:
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    outputs:
-      is_tag: 'true'
-      tag_name: ${{ github.ref_name }}
-    steps:
-      - name: Tag detected
-        run: |
-          echo "Tag push detected: ${{ github.ref_name }}"
-          echo "This will trigger the full release process"
-
   # Build CLI binaries for all platforms
   build-binaries:
     name: Build (${{ matrix.platform.os_name }})
-    needs: [release-please, check-tag]
+    needs: [release-please]
     if: |
       always() &&
-      ((needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
-       (needs.check-tag.result == 'success' && needs.check-tag.outputs.is_tag == 'true'))
+      (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true')
     runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
@@ -181,11 +159,10 @@ jobs:
   github-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [release-please, check-tag, build-binaries]
+    needs: [release-please, build-binaries]
     if: |
       always() &&
-      ((needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
-       (needs.check-tag.result == 'success' && needs.check-tag.outputs.is_tag == 'true')) &&
+      (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') &&
       needs.build-binaries.result == 'success'
     permissions:
       contents: write
@@ -199,11 +176,7 @@ jobs:
       - name: Determine tag name
         id: tag
         run: |
-          if [ "${{ needs.release-please.outputs.tag_name }}" != "" ]; then
-            echo "TAG_NAME=${{ needs.release-please.outputs.tag_name }}" >> $GITHUB_OUTPUT
-          else
-            echo "TAG_NAME=${{ needs.check-tag.outputs.tag_name }}" >> $GITHUB_OUTPUT
-          fi
+          echo "TAG_NAME=${{ needs.release-please.outputs.tag_name }}" >> $GITHUB_OUTPUT
 
       - name: Generate changelog
         id: changelog
@@ -269,11 +242,10 @@ jobs:
   publish-crates:
     name: Publish to crates.io
     runs-on: ubuntu-latest
-    needs: [release-please, check-tag, github-release]
+    needs: [release-please, github-release]
     if: |
       always() &&
-      ((needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
-       (needs.check-tag.result == 'success' && needs.check-tag.outputs.is_tag == 'true')) &&
+      (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') &&
       needs.github-release.result == 'success'
     steps:
       - uses: actions/checkout@v4
