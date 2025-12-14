@@ -1,31 +1,84 @@
 name: Release
 
-# This workflow handles binary releases and distribution
-# - Triggered by main package tag pushes (v1.2.3 format) or manual dispatch
-# - Builds cross-platform binaries and uploads to GitHub releases
-# - Uses houseabsolute/actions-rust-release for simplified release management
-# - Only processes main vx package tags, not individual crate tags (vx-tool-*, vx-core-*, etc.)
+# This workflow is the ONLY workflow that runs on main branch pushes.
+# It handles:
+# 1. Regular commits to main: Only runs release-please to check if a release PR should be created/updated
+# 2. release-please PR merge: Creates a release tag and triggers the full release process
+# 3. Tag push (v*): Builds binaries and creates GitHub Release
 #
-# Note: Crates.io publishing is handled by release-plz.yml workflow
+# Note: release-please creates tags in format "v0.4.1" (v format)
+#
+# This design eliminates duplicate CI runs by:
+# - Not triggering other workflows on main push
+# - Only running expensive builds when a release is actually created
 
 on:
   push:
+    branches:
+      - main
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+*'  # Only match main package tags like v1.2.3, v1.2.3-rc1, etc.
+      - 'v[0-9]+.[0-9]+.[0-9]+*'  # release-please tag format: v0.4.1
   workflow_dispatch:
+    inputs:
+      force-rebuild:
+        description: 'Force rebuild binaries'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
-  actions: read
+  pull-requests: write
+  issues: write
   id-token: write
+  attestations: write
+  actions: read
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  release:
-    name: Release - ${{ matrix.platform.os_name }}
+  # First job: Run release-please to create releases and tags
+  # This only runs on main branch pushes (not tag pushes)
+  release-please:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      releases_created: ${{ steps.release.outputs.releases_created }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Determine if this is a tag push (for publishing)
+  check-tag:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    outputs:
+      is_tag: 'true'
+      tag_name: ${{ github.ref_name }}
+    steps:
+      - name: Tag detected
+        run: |
+          echo "Tag push detected: ${{ github.ref_name }}"
+          echo "This will trigger the full release process"
+
+  # Build CLI binaries for all platforms
+  build-binaries:
+    name: Build (${{ matrix.platform.os_name }})
+    needs: [release-please, check-tag]
+    if: |
+      always() &&
+      ((needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
+       (needs.check-tag.result == 'success' && needs.check-tag.outputs.is_tag == 'true'))
+    runs-on: ${{ matrix.platform.os }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
           # Linux platforms
@@ -63,22 +116,19 @@ jobs:
             os: macos-latest
             target: aarch64-apple-darwin
 
-          # FreeBSD platform (cross-compiled from Linux)
-          - os_name: FreeBSD-x86_64
-            os: ubuntu-latest
-            target: x86_64-unknown-freebsd
-
-    runs-on: ${{ matrix.platform.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Extract changelog for current version
       - name: Get version from tag
         id: tag_name
-        run: |
-          echo "current_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
         shell: bash
+        run: |
+          if [ "${{ needs.release-please.outputs.tag_name }}" != "" ]; then
+            echo "current_version=${needs.release-please.outputs.tag_name#v}" >> $GITHUB_OUTPUT
+          else
+            echo "current_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Get Changelog Entry
         id: changelog_reader
@@ -87,8 +137,6 @@ jobs:
           validation_level: warn
           version: ${{ steps.tag_name.outputs.current_version }}
           path: ./CHANGELOG.md
-
-
 
       # Install cross-compilation dependencies for ARM64 targets
       - name: Install cross-compilation dependencies
@@ -112,26 +160,12 @@ jobs:
           args: "--locked --release --bin vx"
           strip: true
 
-      # Code signing for Windows executables using SignPath.io
-      # TODO: Re-enable when SignPath secrets are properly configured
-      # - name: Sign Windows executable
-      #   if: contains(matrix.platform.target, 'windows')
-      #   uses: signpath/github-action-submit-signing-request@v1
-      #   with:
-      #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-      #     organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
-      #     project-slug: 'vx'
-      #     signing-policy-slug: 'release-signing'
-      #     github-artifact-id: ${{ steps.build.outputs.artifact-id }}
-      #     wait-for-completion: true
-      #     output-artifact-directory: 'signed-artifacts'
-
       - name: Publish artifacts and release
         uses: houseabsolute/actions-rust-release@v0
         with:
           executable-name: vx
           target: ${{ matrix.platform.target }}
-          changes-file: ""  # Disable default changelog file
+          changes-file: ""
           action-gh-release-parameters: |
             {
               "body": "${{ steps.changelog_reader.outputs.changes }}",
@@ -142,3 +176,128 @@ jobs:
             README.md
             README_zh.md
             LICENSE
+
+  # Create GitHub Release with all artifacts
+  github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [release-please, check-tag, build-binaries]
+    if: |
+      always() &&
+      ((needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
+       (needs.check-tag.result == 'success' && needs.check-tag.outputs.is_tag == 'true')) &&
+      needs.build-binaries.result == 'success'
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine tag name
+        id: tag
+        run: |
+          if [ "${{ needs.release-please.outputs.tag_name }}" != "" ]; then
+            echo "TAG_NAME=${{ needs.release-please.outputs.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "TAG_NAME=${{ needs.check-tag.outputs.tag_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate changelog
+        id: changelog
+        uses: jaywcjlove/changelog-generator@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filter-author: (loonghao|renovate\\[bot\\]|dependabot\\[bot\\]|Renovate Bot)
+          filter: ''
+          template: |
+            ## Bugs
+            {{fix}}
+
+            ## Feature
+            {{feat}}
+
+            ## Improve
+            {{refactor,perf,clean}}
+
+            ## Misc
+            {{chore,style,ci,build||🔧 Nothing changed}}
+
+            ## Unknown
+            {{__unknown__}}
+
+      - name: Update GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.tag.outputs.TAG_NAME }}
+          name: ${{ steps.tag.outputs.TAG_NAME }}
+          body: |
+            Comparing Changes: ${{ steps.changelog.outputs.compareurl }}
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            ---
+
+            ### Installation
+
+            #### Quick Install (Recommended)
+
+            **Linux/macOS:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+            ```
+
+            **Windows (PowerShell):**
+            ```powershell
+            irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+            ```
+
+            #### Manual Download
+
+            Download the appropriate binary for your platform from the assets below.
+          draft: false
+          prerelease: false
+          allowUpdates: true
+          skipIfReleaseExists: false
+          updateOnlyUnreleased: false
+          makeLatest: true
+
+  # Publish to crates.io
+  publish-crates:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: [release-please, check-tag, github-release]
+    if: |
+      always() &&
+      ((needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
+       (needs.check-tag.result == 'success' && needs.check-tag.outputs.is_tag == 'true')) &&
+      needs.github-release.result == 'success'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "CARGO_REGISTRY_TOKEN not set, skipping crates.io publishing"
+            exit 0
+          fi
+          # Publish packages in dependency order
+          # Note: Some packages may already be published, so we use --no-fail-fast
+          cargo publish -p vx-paths --allow-dirty || true
+          cargo publish -p vx-config --allow-dirty || true
+          cargo publish -p vx-version --allow-dirty || true
+          cargo publish -p vx-plugin --allow-dirty || true
+          cargo publish -p vx-installer --allow-dirty || true
+          cargo publish -p vx-dependency --allow-dirty || true
+          cargo publish -p vx-tool-standard --allow-dirty || true
+          cargo publish -p vx-sdk --allow-dirty || true
+          cargo publish -p vx-core --allow-dirty || true
+          cargo publish -p vx --allow-dirty || true
