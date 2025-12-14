@@ -1,42 +1,46 @@
 name: CI
 
-# Continuous Integration for PR validation and main branch verification
-# - Code quality checks (formatting, clippy, documentation)
-# - Comprehensive testing across platforms and Rust versions
-# - Security auditing and MSRV verification
-# - Build verification for key platforms
-# - Release-plz configuration validation (PR only)
+# Main CI workflow - runs on main branch pushes and manual triggers
+# PR checks are handled by pr-checks.yml which is optimized for PR feedback
 
 on:
-  pull_request:
-    branches: [main]
   push:
     branches: [main, develop]
+  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
   actions: read
   security-events: write
 
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
+  CARGO_HTTP_TIMEOUT: '600'
+  CARGO_NET_RETRY: '10'
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
   RUST_BACKTRACE: 1
 
 jobs:
   # Code quality checks - formatting, clippy, and documentation
-  code_quality:
+  code-quality:
     name: Code Quality
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      - name: Cache Rust dependencies
+      - name: Cache Rust
         uses: actions/cache@v4
         with:
           path: |
@@ -45,7 +49,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-quality-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-quality-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-quality-
             ${{ runner.os }}-cargo-
@@ -53,117 +57,55 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Check documentation
         run: cargo doc --all-features --no-deps --document-private-items
         env:
           RUSTDOCFLAGS: "-D warnings"
 
-  # Comprehensive testing across platforms
-  test:
-    name: Test - ${{ matrix.platform.name }}
+  # Full test matrix on main branch
+  test-matrix:
+    name: Test (${{ matrix.platform.name }})
     runs-on: ${{ matrix.platform.os }}
+    timeout-minutes: 25
     strategy:
+      fail-fast: false
       matrix:
         platform:
-          # Native compilation platforms - full build and test
+          # Native compilation platforms
           - name: Linux-x86_64
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             rust: stable
-            cross_compile: false
           - name: Linux-x86_64-beta
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             rust: beta
-            cross_compile: false
           - name: Windows-x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
             rust: stable
-            cross_compile: false
           - name: macOS-x86_64
             os: macos-latest
             target: x86_64-apple-darwin
             rust: stable
-            cross_compile: false
-          # Cross-compilation targets - build verification only
-          - name: Linux-ARM64
-            os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
+          - name: macOS-ARM64
+            os: macos-latest
+            target: aarch64-apple-darwin
             rust: stable
-            cross_compile: true
-          - name: Linux-musl
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            rust: stable
-            cross_compile: false
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Install system dependencies for cross-compilation
-      - name: Install cross-compilation dependencies
-        if: matrix.platform.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-
-      # Install musl tools for musl target
-      - name: Install musl tools
-        if: matrix.platform.target == 'x86_64-unknown-linux-musl'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-
-      # For native compilation: run both build and test
-      # For cross-compilation: only build (can't run tests on different architecture)
-      - name: Run tests and build (native)
-        if: matrix.platform.cross_compile == false
-        uses: houseabsolute/actions-rust-cross@v1
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
         with:
-          command: both
-          target: ${{ matrix.platform.target }}
           toolchain: ${{ matrix.platform.rust }}
-          args: "--locked --all-features"
-          use-rust-cache: true
+          targets: ${{ matrix.platform.target }}
 
-      - name: Build only (cross-compilation)
-        if: matrix.platform.cross_compile == true
-        uses: houseabsolute/actions-rust-cross@v1
-        with:
-          command: build
-          target: ${{ matrix.platform.target }}
-          toolchain: ${{ matrix.platform.rust }}
-          args: "--locked --all-features"
-          use-rust-cache: true
-
-  # Build verification for key platforms only (not all targets)
-  # This ensures the code compiles but doesn't upload artifacts
-  # Each platform builds its native target to avoid cross-compilation issues
-  build-check:
-    name: Build Check
-    strategy:
-      matrix:
-        include:
-          # Native builds only - no cross-compilation
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: macos-latest
-            target: x86_64-apple-darwin
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
+      - name: Cache Rust
         uses: actions/cache@v4
         with:
           path: |
@@ -172,41 +114,83 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.platform.target }}-cargo-test-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-build-
+            ${{ runner.os }}-${{ matrix.platform.target }}-cargo-test-
             ${{ runner.os }}-cargo-
 
-      - name: Build verification (native target)
-        run: cargo build --release
+      - name: Run tests
+        run: cargo test --workspace --all-features --locked
 
-      # No artifact upload - this is just verification
+      - name: Build release
+        run: cargo build --release --locked
 
-  # Security audit using rustsec database
-  security_audit:
+  # Cross-compilation verification
+  cross-build:
+    name: Cross Build (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Cache Rust
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-cross-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-cross-
+            ${{ runner.os }}-cargo-
+
+      - name: Build with cross
+        run: cross build --release --target ${{ matrix.target }} --locked
+
+  # Security audit
+  security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Run security audit
         uses: rustsec/audit-check@v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Check minimum supported Rust version
+  # MSRV check
   msrv:
-    name: MSRV
+    name: MSRV (1.80.0)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust MSRV
+        uses: dtolnay/rust-toolchain@1.80.0
 
-      - name: Cache Rust dependencies
+      - name: Cache Rust
         uses: actions/cache@v4
         with:
           path: |
@@ -215,194 +199,29 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-msrv-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-msrv-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-msrv-
             ${{ runner.os }}-cargo-
 
       - name: Check MSRV
-        run: cargo check --all-features
+        run: cargo check --workspace --all-features --locked
 
-  # Validate release-plz configuration (PR only)
-  release_plz_config_check:
-    name: Release-plz Config Validation
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          # For PR events, checkout the PR head commit (supports fork PRs)
-          ref: ${{ github.event.pull_request.head.sha || github.head_ref }}
-
-      - name: Debug PR information
-        run: |
-          echo "🔍 Debugging PR and checkout information..."
-          echo "Event name: ${{ github.event_name }}"
-          echo "Repository: ${{ github.repository }}"
-          echo "Head ref: ${{ github.head_ref }}"
-          echo "Base ref: ${{ github.base_ref }}"
-          echo "PR number: ${{ github.event.number }}"
-          echo "PR head SHA: ${{ github.event.pull_request.head.sha }}"
-          echo "PR head ref: ${{ github.event.pull_request.head.ref }}"
-          echo "PR head repo: ${{ github.event.pull_request.head.repo.full_name }}"
-          echo "PR base repo: ${{ github.event.pull_request.base.repo.full_name }}"
-          echo "Current SHA: ${{ github.sha }}"
-          echo ""
-          echo "📁 Current working directory contents:"
-          ls -la
-          echo ""
-          echo "🌿 Git branch information:"
-          git branch -a || echo "Git branch command failed"
-          echo ""
-          echo "📝 Git log (last 3 commits):"
-          git log --oneline -3 || echo "Git log command failed"
-
-      - name: Validate GitHub Token
-        run: |
-          echo "🔐 Validating GitHub Token configuration..."
-          echo ""
-          # Check if RELEASE_PLZ_TOKEN is available (we can't access the actual value for security)
-          if [ -n "${{ secrets.RELEASE_PLZ_TOKEN }}" ]; then
-            echo "✅ RELEASE_PLZ_TOKEN is configured"
-            TOKEN_SOURCE="RELEASE_PLZ_TOKEN"
-          else
-            echo "⚠️ RELEASE_PLZ_TOKEN not found, will use GITHUB_TOKEN"
-            TOKEN_SOURCE="GITHUB_TOKEN"
-          fi
-
-          # Test token format validation logic (using GITHUB_TOKEN as it's always available)
-          TEST_TOKEN="${{ secrets.GITHUB_TOKEN }}"
-          # Basic token format validation
-          if [[ "$TEST_TOKEN" =~ ^(ghp_|gho_|ghu_|ghs_|ghr_|github_pat_) ]]; then
-            echo "✅ Token format validation logic works correctly"
-          else
-            echo "❌ Token format validation failed - this may indicate an issue"
-            exit 1
-          fi
-
-          # Test API connectivity with GITHUB_TOKEN
-          echo "🌐 Testing GitHub API connectivity..."
-          curl -s -H "Authorization: Bearer $TEST_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/user > /dev/null || {
-            echo "❌ GitHub API connectivity test failed"
-            exit 1
-          }
-          echo "✅ GitHub API connectivity test passed"
-          echo "🎯 Token validation will use: $TOKEN_SOURCE"
-
-      - name: Validate release-plz configuration file
-        run: |
-          echo "🔧 Validating release-plz configuration..."
-          echo ""
-          # Check if config file exists
-          if [ -f "release-plz.toml" ]; then
-            echo "✅ release-plz.toml found"
-          else
-            echo "❌ release-plz.toml not found"
-            exit 1
-          fi
-
-          # Validate TOML syntax
-          echo "🧪 Checking TOML syntax..."
-          if command -v toml-cli &> /dev/null; then
-            toml-cli get release-plz.toml . > /dev/null || {
-              echo "❌ Invalid TOML syntax in release-plz.toml"
-              exit 1
-            }
-          else
-            # Basic syntax check using Python (available in GitHub runners)
-            python3 -c "
-          import tomllib
-          try:
-              with open('release-plz.toml', 'rb') as f:
-                  tomllib.load(f)
-              print('✅ TOML syntax is valid')
-          except Exception as e:
-              print(f'❌ TOML syntax error: {e}')
-              exit(1)
-          " || exit 1
-          fi
-
-          echo ""
-          echo "✅ Release-plz configuration validation completed!"
-          echo "📝 Configuration file exists and has valid TOML syntax."
-          echo "🎯 The workflow should work correctly when merged to main."
-
-  # Simulate publishing to catch dependency issues early
-  publish_simulation:
-    name: Publish Simulation
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-publish-sim-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-publish-sim-
-            ${{ runner.os }}-cargo-
-
-      - name: Simulate package publishing
-        run: |
-          echo "🚀 Simulating package publishing to detect dependency issues..."
-          echo ""
-
-          # Test packaging for key crates that have external dependencies
-          # Note: vx-cli temporarily excluded due to vx-paths dependency (new crate not yet published)
-          CRATES_TO_TEST=(
-            "vx-tool-standard"
-            "vx-tool-node"
-            "vx-tool-go"
-            "vx-tool-rust"
-            "vx-tool-uv"
-            "vx"
-          )
-
-          for crate in "${CRATES_TO_TEST[@]}"; do
-            echo "📦 Testing package: $crate"
-            if cargo package -p "$crate" --allow-dirty --no-verify; then
-              echo "✅ $crate packages successfully"
-            else
-              echo "❌ $crate packaging failed"
-              exit 1
-            fi
-            echo ""
-          done
-
-          echo "🎉 All packages can be built for publishing!"
-          echo "💡 This ensures dependencies are correctly specified for crates.io"
-
-  # Code coverage reporting (only on PR)
+  # Code coverage
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    timeout-minutes: 20
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
-      - name: Cache Rust dependencies
+      - name: Cache Rust
         uses: actions/cache@v4
         with:
           path: |
@@ -411,12 +230,12 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-coverage-
             ${{ runner.os }}-cargo-
 
-      - name: Generate code coverage
+      - name: Generate coverage
         run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
@@ -424,7 +243,49 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info
-          fail_ci_if_error: false  # 只显示不失败
+          fail_ci_if_error: false
           verbose: true
           flags: unittests
           name: codecov-umbrella
+
+  # CI success gate
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [code-quality, test-matrix, cross-build, security-audit, msrv, coverage]
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          echo "## CI Results" >> $GITHUB_STEP_SUMMARY
+
+          declare -A jobs=(
+            ["code-quality"]="${{ needs.code-quality.result }}"
+            ["test-matrix"]="${{ needs.test-matrix.result }}"
+            ["cross-build"]="${{ needs.cross-build.result }}"
+            ["security-audit"]="${{ needs.security-audit.result }}"
+            ["msrv"]="${{ needs.msrv.result }}"
+            ["coverage"]="${{ needs.coverage.result }}"
+          )
+
+          failed=0
+          for job in "${!jobs[@]}"; do
+            result="${jobs[$job]}"
+            if [[ "$result" == "success" ]]; then
+              echo "- ✅ $job" >> $GITHUB_STEP_SUMMARY
+            elif [[ "$result" == "skipped" ]]; then
+              echo "- ⏭️ $job (skipped)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- ❌ $job ($result)" >> $GITHUB_STEP_SUMMARY
+              failed=1
+            fi
+          done
+
+          if [[ $failed -eq 1 ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **CI failed**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **All CI checks passed!**" >> $GITHUB_STEP_SUMMARY
