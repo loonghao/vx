@@ -9,10 +9,10 @@ use crate::{Resolver, ResolverConfig, Result};
 use std::process::{ExitStatus, Stdio};
 use tokio::process::Command;
 use tracing::{debug, info, warn};
-use vx_runtime::ProviderRegistry;
+use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 /// Executor for runtime command forwarding
-pub struct Executor {
+pub struct Executor<'a> {
     /// Configuration
     config: ResolverConfig,
 
@@ -20,10 +20,13 @@ pub struct Executor {
     resolver: Resolver,
 
     /// Optional provider registry for installation
-    registry: Option<ProviderRegistry>,
+    registry: Option<&'a ProviderRegistry>,
+
+    /// Runtime context for installation
+    context: Option<&'a RuntimeContext>,
 }
 
-impl Executor {
+impl<'a> Executor<'a> {
     /// Create a new executor
     pub fn new(config: ResolverConfig) -> Result<Self> {
         let resolver = Resolver::new(config.clone())?;
@@ -31,17 +34,39 @@ impl Executor {
             config,
             resolver,
             registry: None,
+            context: None,
         })
     }
 
     /// Create an executor with a provider registry for auto-installation
-    pub fn with_registry(config: ResolverConfig, registry: ProviderRegistry) -> Result<Self> {
+    pub fn with_registry(config: ResolverConfig, registry: &'a ProviderRegistry) -> Result<Self> {
         let resolver = Resolver::new(config.clone())?;
         Ok(Self {
             config,
             resolver,
             registry: Some(registry),
+            context: None,
         })
+    }
+
+    /// Create an executor with a provider registry and runtime context
+    pub fn with_registry_and_context(
+        config: ResolverConfig,
+        registry: &'a ProviderRegistry,
+        context: &'a RuntimeContext,
+    ) -> Result<Self> {
+        let resolver = Resolver::new(config.clone())?;
+        Ok(Self {
+            config,
+            resolver,
+            registry: Some(registry),
+            context: Some(context),
+        })
+    }
+
+    /// Set the runtime context
+    pub fn set_context(&mut self, context: &'a RuntimeContext) {
+        self.context = Some(context);
     }
 
     /// Execute a runtime with the given arguments
@@ -120,12 +145,29 @@ impl Executor {
         info!("Installing: {}", runtime_name);
 
         // Try using the provider registry first
-        if let Some(registry) = &self.registry {
+        if let (Some(registry), Some(context)) = (self.registry, self.context) {
             if let Some(runtime) = registry.get_runtime(runtime_name) {
-                // Install latest version
-                info!("Installing {} via provider", runtime_name);
-                // TODO: Implement installation via provider
-                let _ = runtime;
+                // Fetch versions to get the latest
+                let versions = runtime.fetch_versions(context).await?;
+                let version = versions
+                    .iter()
+                    .find(|v| !v.prerelease)
+                    .map(|v| v.version.clone())
+                    .or_else(|| versions.first().map(|v| v.version.clone()))
+                    .ok_or_else(|| anyhow::anyhow!("No versions found for {}", runtime_name))?;
+
+                info!("Installing {} {} via provider", runtime_name, version);
+
+                // Run pre-install hook
+                runtime.pre_install(&version, context).await?;
+
+                // Actually install the runtime
+                runtime.install(&version, context).await?;
+
+                // Run post-install hook
+                runtime.post_install(&version, context).await?;
+
+                info!("Successfully installed {} {}", runtime_name, version);
                 return Ok(());
             }
         }

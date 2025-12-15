@@ -52,6 +52,13 @@ pub async fn handle(
         return Ok(());
     }
 
+    // Run pre-install hook
+    let pre_install_span =
+        info_span!("Pre-install hook", tool = tool_name, version = %target_version);
+    async { runtime.pre_install(&target_version, context).await }
+        .instrument(pre_install_span)
+        .await?;
+
     // Install the version with progress spinner
     let spinner =
         ProgressSpinner::new_install(&format!("Installing {} {}...", tool_name, target_version));
@@ -66,6 +73,13 @@ pub async fn handle(
                 "✓ Successfully installed {} {}",
                 tool_name, target_version
             ));
+
+            // Run post-install hook
+            let post_install_span =
+                info_span!("Post-install hook", tool = tool_name, version = %target_version);
+            async { runtime.post_install(&target_version, context).await }
+                .instrument(post_install_span)
+                .await?;
 
             // Show installation path
             UI::detail(&format!("Installed to: {}", result.install_path.display()));
