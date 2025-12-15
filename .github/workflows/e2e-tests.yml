@@ -266,21 +266,53 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
         tool: [uv, node, go, bun]
-        exclude:
-          - os: windows-latest
-            tool: bun
         include:
           - os: ubuntu-latest
             artifact: vx-linux
             binary: vx
+            tool: uv
+          - os: ubuntu-latest
+            artifact: vx-linux
+            binary: vx
+            tool: node
+          - os: ubuntu-latest
+            artifact: vx-linux
+            binary: vx
+            tool: go
+          - os: ubuntu-latest
+            artifact: vx-linux
+            binary: vx
+            tool: bun
           - os: windows-latest
             artifact: vx-windows
             binary: vx.exe
+            tool: uv
+          - os: windows-latest
+            artifact: vx-windows
+            binary: vx.exe
+            tool: node
+          - os: windows-latest
+            artifact: vx-windows
+            binary: vx.exe
+            tool: go
+          # Skip bun on Windows (not well supported)
           - os: macos-latest
             artifact: vx-macos
             binary: vx
+            tool: uv
+          - os: macos-latest
+            artifact: vx-macos
+            binary: vx
+            tool: node
+          - os: macos-latest
+            artifact: vx-macos
+            binary: vx
+            tool: go
+          - os: macos-latest
+            artifact: vx-macos
+            binary: vx
+            tool: bun
 
     steps:
       - name: Checkout repository
