@@ -78,6 +78,17 @@ impl Runtime for GoRuntime {
         Ok(versions)
     }
 
+    /// Go archives extract to a `go/` subdirectory
+    /// e.g., go1.21.0.darwin-arm64.tar.gz extracts to: go/bin/go
+    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
+        let exe_name = if platform.os == vx_runtime::Os::Windows {
+            "go.exe"
+        } else {
+            "go"
+        };
+        format!("go/bin/{}", exe_name)
+    }
+
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         Ok(GoUrlBuilder::download_url(version, platform))
     }

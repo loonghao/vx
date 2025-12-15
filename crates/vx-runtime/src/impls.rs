@@ -130,6 +130,16 @@ impl HttpClient for RealHttpClient {
 
     async fn download(&self, url: &str, dest: &Path) -> Result<()> {
         let response = self.client.get(url).send().await?;
+
+        // Check for successful response
+        if !response.status().is_success() {
+            return Err(anyhow::anyhow!(
+                "Download failed: HTTP {} for {}",
+                response.status(),
+                url
+            ));
+        }
+
         let bytes = response.bytes().await?;
 
         if let Some(parent) = dest.parent() {
@@ -149,6 +159,16 @@ impl HttpClient for RealHttpClient {
         use tokio::io::AsyncWriteExt;
 
         let response = self.client.get(url).send().await?;
+
+        // Check for successful response
+        if !response.status().is_success() {
+            return Err(anyhow::anyhow!(
+                "Download failed: HTTP {} for {}",
+                response.status(),
+                url
+            ));
+        }
+
         let total_size = response.content_length().unwrap_or(0);
 
         if let Some(parent) = dest.parent() {

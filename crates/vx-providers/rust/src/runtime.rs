@@ -13,6 +13,12 @@ impl CargoRuntime {
     pub fn new() -> Self {
         Self
     }
+
+    /// Get the directory name inside the archive for a given version
+    pub fn get_archive_dir_name(version: &str) -> String {
+        let platform = RustUrlBuilder::get_platform_string();
+        format!("rust-{}-{}", version, platform)
+    }
 }
 
 impl Default for CargoRuntime {
@@ -37,6 +43,17 @@ impl Runtime for CargoRuntime {
 
     fn aliases(&self) -> &[&str] {
         &[]
+    }
+
+    /// Rust archives extract to `rust-{version}-{platform}/cargo/bin/cargo`
+    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        let dir_name = Self::get_archive_dir_name(version);
+        let exe_name = if platform.os == vx_runtime::Os::Windows {
+            "cargo.exe"
+        } else {
+            "cargo"
+        };
+        format!("{}/cargo/bin/{}", dir_name, exe_name)
     }
 
     async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
@@ -88,6 +105,17 @@ impl Runtime for RustcRuntime {
         &[]
     }
 
+    /// Rust archives extract to `rust-{version}-{platform}/rustc/bin/rustc`
+    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        let dir_name = CargoRuntime::get_archive_dir_name(version);
+        let exe_name = if platform.os == vx_runtime::Os::Windows {
+            "rustc.exe"
+        } else {
+            "rustc"
+        };
+        format!("{}/rustc/bin/{}", dir_name, exe_name)
+    }
+
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
         CargoRuntime::new().fetch_versions(ctx).await
     }
@@ -129,6 +157,15 @@ impl Runtime for RustupRuntime {
 
     fn aliases(&self) -> &[&str] {
         &[]
+    }
+
+    /// Rustup is a single executable downloaded directly
+    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
+        if platform.os == vx_runtime::Os::Windows {
+            "rustup-init.exe".to_string()
+        } else {
+            "rustup-init".to_string()
+        }
     }
 
     async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {

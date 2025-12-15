@@ -91,7 +91,7 @@ impl<'a> Executor<'a> {
         debug!("Executing: {} {}", runtime_name, args.join(" "));
 
         // Resolve the runtime
-        let resolution = self.resolver.resolve(runtime_name)?;
+        let mut resolution = self.resolver.resolve(runtime_name)?;
 
         // Check if we need to install anything
         if !resolution.install_order.is_empty() {
@@ -101,6 +101,13 @@ impl<'a> Executor<'a> {
                     resolution.install_order
                 );
                 self.install_runtimes(&resolution.install_order).await?;
+
+                // Re-resolve after installation to get the correct executable path
+                resolution = self.resolver.resolve(runtime_name)?;
+                debug!(
+                    "Re-resolved after installation: executable={}",
+                    resolution.executable.display()
+                );
             } else {
                 // Report missing dependencies
                 let missing = if resolution.runtime_needs_install {

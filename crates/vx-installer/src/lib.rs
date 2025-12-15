@@ -12,6 +12,7 @@
 //! - **Progress Tracking**: Built-in progress bars for downloads and extractions
 //! - **Platform Agnostic**: Works across Windows, macOS, and Linux
 //! - **Async Support**: Fully async API for non-blocking operations
+//! - **CDN Acceleration**: Optional CDN optimization via turbo-cdn
 //!
 //! ## Example
 //!
@@ -40,6 +41,7 @@
 //! }
 //! ```
 
+pub mod cdn;
 pub mod downloader;
 pub mod error;
 pub mod formats;
@@ -47,6 +49,7 @@ pub mod installer;
 pub mod progress;
 
 // Re-export main types for convenience
+pub use cdn::{CdnConfig, CdnOptimizer};
 pub use downloader::Downloader;
 pub use error::{Error, Result};
 pub use installer::{ArchiveFormat, InstallConfig, InstallConfigBuilder, InstallMethod, Installer};

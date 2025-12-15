@@ -1,6 +1,6 @@
 //! Download utilities for vx-installer
 
-use crate::{progress::ProgressContext, Error, Result, USER_AGENT};
+use crate::{cdn::CdnOptimizer, progress::ProgressContext, Error, Result, USER_AGENT};
 use futures_util::StreamExt;
 use sha2::Digest;
 use std::path::{Path, PathBuf};
@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 /// HTTP downloader for fetching files from URLs
 pub struct Downloader {
     client: reqwest::Client,
+    cdn_optimizer: CdnOptimizer,
 }
 
 impl Downloader {
@@ -18,21 +19,63 @@ impl Downloader {
             .timeout(std::time::Duration::from_secs(300)) // 5 minutes
             .build()?;
 
-        Ok(Self { client })
+        Ok(Self {
+            client,
+            cdn_optimizer: CdnOptimizer::default(),
+        })
+    }
+
+    /// Create a downloader with CDN acceleration enabled
+    pub fn with_cdn(cdn_enabled: bool) -> Result<Self> {
+        let client = reqwest::Client::builder()
+            .user_agent(USER_AGENT)
+            .timeout(std::time::Duration::from_secs(300))
+            .build()?;
+
+        Ok(Self {
+            client,
+            cdn_optimizer: CdnOptimizer::new(cdn_enabled),
+        })
     }
 
     /// Create a downloader with custom client configuration
     pub fn with_client(client: reqwest::Client) -> Self {
-        Self { client }
+        Self {
+            client,
+            cdn_optimizer: CdnOptimizer::default(),
+        }
+    }
+
+    /// Create a downloader with custom client and CDN optimizer
+    pub fn with_client_and_cdn(client: reqwest::Client, cdn_optimizer: CdnOptimizer) -> Self {
+        Self {
+            client,
+            cdn_optimizer,
+        }
+    }
+
+    /// Enable or disable CDN acceleration
+    pub fn set_cdn_enabled(&mut self, enabled: bool) {
+        self.cdn_optimizer = CdnOptimizer::new(enabled);
+    }
+
+    /// Check if CDN acceleration is enabled
+    pub fn is_cdn_enabled(&self) -> bool {
+        self.cdn_optimizer.is_enabled()
     }
 
     /// Download a file from URL to the specified path
+    ///
+    /// If CDN acceleration is enabled, the URL will be optimized before downloading.
     pub async fn download(
         &self,
         url: &str,
         output_path: &Path,
         progress: &ProgressContext,
     ) -> Result<()> {
+        // Optimize URL with CDN if enabled
+        let download_url = self.cdn_optimizer.optimize_url(url).await?;
+
         // Ensure parent directory exists
         if let Some(parent) = output_path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -41,15 +84,15 @@ impl Downloader {
         // Start the download request
         let response = self
             .client
-            .get(url)
+            .get(&download_url)
             .send()
             .await
-            .map_err(|e| Error::download_failed(url, e.to_string()))?;
+            .map_err(|e| Error::download_failed(&download_url, e.to_string()))?;
 
         // Check response status
         if !response.status().is_success() {
             return Err(Error::download_failed(
-                url,
+                &download_url,
                 format!("HTTP {}", response.status()),
             ));
         }
@@ -57,7 +100,7 @@ impl Downloader {
         // Get content length for progress tracking
         let total_size = response.content_length();
 
-        // Extract filename for progress display
+        // Extract filename for progress display (use original URL for display)
         let filename = self.extract_filename_from_url(url);
         let message = format!("Downloading {}", filename);
 

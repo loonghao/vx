@@ -57,7 +57,7 @@ pub use impls::{
 pub use platform::{Arch, Os, Platform};
 pub use provider::Provider;
 pub use registry::ProviderRegistry;
-pub use runtime::Runtime;
+pub use runtime::{Runtime, VerificationResult};
 pub use traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProvider};
 pub use types::{ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec, VersionInfo};
 
