@@ -108,9 +108,61 @@ jobs:
         env:
           RUSTDOCFLAGS: "-D warnings"
 
-  # Tests on multiple platforms
-  test:
-    name: Test (${{ matrix.os }})
+  # Build binaries and upload as artifacts
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    needs: [quick-checks]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: vx-linux
+            binary: vx
+          - os: windows-latest
+            artifact: vx-windows
+            binary: vx.exe
+          - os: macos-latest
+            artifact: vx-macos
+            binary: vx
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-build-
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Test CLI (--help)
+        shell: bash
+        run: |
+          ./target/release/${{ matrix.binary }} --help
+          ./target/release/${{ matrix.binary }} --version
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: target/release/${{ matrix.binary }}
+          retention-days: 1
+
+  # Unit tests (no binary needed)
+  unit-test:
+    name: Unit Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     needs: [quick-checks]
@@ -135,25 +187,28 @@ jobs:
           key: ${{ runner.os }}-cargo-test-${{ hashFiles('Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-test-
 
-      - name: Build binary for CLI tests
-        run: cargo build --release
+      - name: Run unit tests
+        run: cargo test --workspace --all-features --lib
 
-      - name: Run tests
-        run: cargo test --workspace --all-features
-        env:
-          # Use release binary for trycmd CLI snapshot tests
-          CARGO_TARGET_DIR: target
-
-  # Build verification for release
-  build:
-    name: Build (${{ matrix.os }})
+  # E2E tests (download binary artifact)
+  e2e-test:
+    name: E2E Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
-    needs: [quick-checks]
+    needs: [build]
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact: vx-linux
+            binary: vx
+          - os: windows-latest
+            artifact: vx-windows
+            binary: vx.exe
+          - os: macos-latest
+            artifact: vx-macos
+            binary: vx
     steps:
       - uses: actions/checkout@v4
 
@@ -168,17 +223,24 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-build-
+          key: ${{ runner.os }}-cargo-e2e-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-e2e-
 
-      - name: Build release
-        run: cargo build --release
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ./bin
 
-      - name: Test CLI (--help)
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/${{ matrix.binary }}
+
+      - name: Run E2E tests
         shell: bash
-        run: |
-          ./target/release/vx --help
-          ./target/release/vx --version
+        run: cargo test --workspace --all-features --test '*'
+        env:
+          VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.binary }}
 
   # Security audit
   security:
@@ -197,7 +259,7 @@ jobs:
   pr-ready:
     name: PR Ready
     runs-on: ubuntu-latest
-    needs: [quick-checks, clippy, docs, test, build, security]
+    needs: [quick-checks, clippy, docs, unit-test, e2e-test, build, security]
     if: always()
     steps:
       - name: Check results
@@ -209,7 +271,8 @@ jobs:
             ["quick-checks"]="${{ needs.quick-checks.result }}"
             ["clippy"]="${{ needs.clippy.result }}"
             ["docs"]="${{ needs.docs.result }}"
-            ["test"]="${{ needs.test.result }}"
+            ["unit-test"]="${{ needs.unit-test.result }}"
+            ["e2e-test"]="${{ needs.e2e-test.result }}"
             ["build"]="${{ needs.build.result }}"
             ["security"]="${{ needs.security.result }}"
           )

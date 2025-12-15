@@ -22,7 +22,7 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let installer = Installer::new().await?;
-//!     
+//!
 //!     let config = InstallConfig::builder()
 //!         .tool_name("node")
 //!         .version("18.17.0")
@@ -32,10 +32,10 @@
 //!         })
 //!         .install_dir(PathBuf::from("/opt/vx/tools/node/18.17.0"))
 //!         .build();
-//!     
+//!
 //!     let executable_path = installer.install(&config).await?;
 //!     println!("Installed to: {}", executable_path.display());
-//!     
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -66,6 +66,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::const_is_empty)]
     fn test_version_info() {
         assert!(!VERSION.is_empty());
         assert!(USER_AGENT.contains("vx-installer"));
