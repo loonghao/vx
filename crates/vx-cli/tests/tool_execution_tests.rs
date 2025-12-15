@@ -7,11 +7,11 @@ mod common;
 
 use common::{cleanup_test_env, create_full_registry, init_test_env};
 use rstest::*;
-use vx_plugin::BundleRegistry;
+use vx_runtime::ProviderRegistry;
 
 /// Test fixture that provides a fully initialized registry
 #[fixture]
-pub async fn registry() -> BundleRegistry {
+pub async fn registry() -> ProviderRegistry {
     init_test_env();
     create_full_registry().await
 }
@@ -27,7 +27,7 @@ mod execute_tests {
     /// Test execute with empty tool name
     #[rstest]
     #[tokio::test]
-    async fn test_execute_empty_tool(#[future] registry: BundleRegistry) {
+    async fn test_execute_empty_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let result = execute::handle(&registry, "", &[], false).await;
         assert!(result.is_err(), "Execute with empty tool should fail");
@@ -37,7 +37,7 @@ mod execute_tests {
     /// Test execute with nonexistent tool
     #[rstest]
     #[tokio::test]
-    async fn test_execute_nonexistent_tool(#[future] registry: BundleRegistry) {
+    async fn test_execute_nonexistent_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let result = execute::handle(&registry, "nonexistent-tool-xyz", &[], false).await;
         assert!(result.is_err(), "Execute nonexistent tool should fail");
@@ -47,7 +47,7 @@ mod execute_tests {
     /// Test execute with system path fallback
     #[rstest]
     #[tokio::test]
-    async fn test_execute_with_system_path(#[future] registry: BundleRegistry) {
+    async fn test_execute_with_system_path(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         // This should attempt to use system PATH
         let result = execute::handle(&registry, "echo", &["hello".to_string()], true).await;
@@ -72,13 +72,13 @@ mod version_detection_tests {
     #[case("bun")]
     #[tokio::test]
     async fn test_tool_has_version_info(
-        #[future] registry: BundleRegistry,
+        #[future] registry: ProviderRegistry,
         #[case] tool_name: &str,
     ) {
         let registry = registry.await;
 
-        if let Some(tool) = registry.get_tool(tool_name) {
-            let name = tool.name();
+        if let Some(runtime) = registry.get_runtime(tool_name) {
+            let name = runtime.name();
             assert!(!name.is_empty(), "Tool should have a name");
         }
 
@@ -153,21 +153,20 @@ mod tool_metadata_tests {
     #[case("node", &["node", "npm", "npx"])]
     #[case("go", &["go"])]
     #[case("uv", &["uv", "uvx"])]
-    #[case("bun", &["bun"])] // Note: bunx is not a separate tool
+    #[case("bun", &["bun"])]
     #[tokio::test]
     async fn test_tool_bundle_provides_tools(
-        #[future] registry: BundleRegistry,
-        #[case] bundle_name: &str,
+        #[future] registry: ProviderRegistry,
+        #[case] _bundle_name: &str,
         #[case] expected_tools: &[&str],
     ) {
         let registry = registry.await;
 
         for tool_name in expected_tools {
-            let tool = registry.get_tool(tool_name);
+            let runtime = registry.get_runtime(tool_name);
             assert!(
-                tool.is_some(),
-                "Bundle '{}' should provide tool '{}'",
-                bundle_name,
+                runtime.is_some(),
+                "Registry should provide runtime '{}'",
                 tool_name
             );
         }
@@ -209,14 +208,14 @@ mod concurrent_tests {
 
             handles.push(tokio::spawn(async move {
                 barrier.wait().await;
-                let tool = registry.get_tool(tool_name);
-                tool.is_some()
+                let runtime = registry.get_runtime(tool_name);
+                runtime.is_some()
             }));
         }
 
         for handle in handles {
             let result = handle.await.expect("Task should complete");
-            assert!(result, "Tool should be found");
+            assert!(result, "Runtime should be found");
         }
 
         cleanup_test_env();
@@ -234,19 +233,19 @@ mod concurrent_tests {
 
         for _ in 0..10 {
             let registry = Arc::clone(&registry);
-            handles.push(tokio::spawn(async move { registry.list_tools() }));
+            handles.push(tokio::spawn(async move { registry.runtime_names() }));
         }
 
         let mut results = vec![];
         for handle in handles {
-            let tools = handle.await.expect("Task should complete");
-            results.push(tools);
+            let runtimes = handle.await.expect("Task should complete");
+            results.push(runtimes.len());
         }
 
-        // All results should be identical
-        let first = &results[0];
+        // All results should have the same count
+        let first = results[0];
         for result in &results[1..] {
-            assert_eq!(first, result, "Concurrent listings should be identical");
+            assert_eq!(first, *result, "Concurrent listings should have same count");
         }
 
         cleanup_test_env();
@@ -299,15 +298,15 @@ mod alias_tests {
     /// Test that tool aliases work correctly
     #[rstest]
     #[tokio::test]
-    async fn test_npm_is_node_alias(#[future] registry: BundleRegistry) {
+    async fn test_npm_is_node_alias(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
 
-        // npm should be available as a tool
-        let npm = registry.get_tool("npm");
+        // npm should be available as a runtime
+        let npm = registry.get_runtime("npm");
         assert!(npm.is_some(), "npm should be available");
 
         // npx should also be available
-        let npx = registry.get_tool("npx");
+        let npx = registry.get_runtime("npx");
         assert!(npx.is_some(), "npx should be available");
 
         cleanup_test_env();
@@ -316,11 +315,11 @@ mod alias_tests {
     /// Test uvx is uv alias
     #[rstest]
     #[tokio::test]
-    async fn test_uvx_is_uv_alias(#[future] registry: BundleRegistry) {
+    async fn test_uvx_is_uv_alias(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
 
-        let uv = registry.get_tool("uv");
-        let uvx = registry.get_tool("uvx");
+        let uv = registry.get_runtime("uv");
+        let uvx = registry.get_runtime("uvx");
 
         assert!(uv.is_some(), "uv should be available");
         assert!(uvx.is_some(), "uvx should be available");
@@ -331,10 +330,10 @@ mod alias_tests {
     /// Test bun is registered
     #[rstest]
     #[tokio::test]
-    async fn test_bun_is_registered(#[future] registry: BundleRegistry) {
+    async fn test_bun_is_registered(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
 
-        let bun = registry.get_tool("bun");
+        let bun = registry.get_runtime("bun");
         assert!(bun.is_some(), "bun should be available");
 
         // Note: bunx is not a separate tool, it's "bun x" command

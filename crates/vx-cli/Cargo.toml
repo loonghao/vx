@@ -14,15 +14,17 @@ rust-version.workspace = true
 
 [dependencies]
 vx-core = { version = "0.4.0", path = "../vx-core" }
-vx-plugin = { version = "0.4.0", path = "../vx-plugin" }
 vx-paths = { version = "0.3.1", path = "../vx-paths" }
-vx-tool-node = { version = "0.4.0", path = "../vx-tools/node" }
-vx-tool-go = { version = "0.4.0", path = "../vx-tools/go" }
-vx-tool-rust = { version = "0.4.0", path = "../vx-tools/rust" }
-vx-tool-uv = { version = "0.4.0", path = "../vx-tools/uv" }
-vx-tool-bun = { version = "0.4.0", path = "../vx-tools/bun" }
-vx-tool-pnpm = { version = "0.4.0", path = "../vx-tools/pnpm" }
-vx-tool-yarn = { version = "0.4.0", path = "../vx-tools/yarn" }
+vx-resolver = { version = "0.4.0", path = "../vx-resolver" }
+vx-runtime = { version = "0.4.0", path = "../vx-runtime" }
+# Providers
+vx-provider-node = { version = "0.4.0", path = "../vx-providers/node" }
+vx-provider-go = { version = "0.4.0", path = "../vx-providers/go" }
+vx-provider-rust = { version = "0.4.0", path = "../vx-providers/rust" }
+vx-provider-uv = { version = "0.4.0", path = "../vx-providers/uv" }
+vx-provider-bun = { version = "0.4.0", path = "../vx-providers/bun" }
+vx-provider-pnpm = { version = "0.4.0", path = "../vx-providers/pnpm" }
+vx-provider-yarn = { version = "0.4.0", path = "../vx-providers/yarn" }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
@@ -44,6 +46,7 @@ tar = { workspace = true }
 flate2 = { workspace = true }
 dirs = { workspace = true }
 regex = { workspace = true }
+which = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
@@ -56,10 +59,3 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 vx-version = { version = "0.2.2", path = "../vx-version" }
 vx-paths = { version = "0.3.1", path = "../vx-paths" }
-vx-tool-node = { version = "0.4.0", path = "../vx-tools/node" }
-vx-tool-go = { version = "0.4.0", path = "../vx-tools/go" }
-vx-tool-rust = { version = "0.4.0", path = "../vx-tools/rust" }
-vx-tool-uv = { version = "0.4.0", path = "../vx-tools/uv" }
-vx-tool-bun = { version = "0.4.0", path = "../vx-tools/bun" }
-vx-tool-pnpm = { version = "0.4.0", path = "../vx-tools/pnpm" }
-vx-tool-yarn = { version = "0.4.0", path = "../vx-tools/yarn" }

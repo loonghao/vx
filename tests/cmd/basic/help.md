@@ -28,6 +28,7 @@ Commands:
   shell        Shell integration commands
   venv         Virtual environment management
   global       Global tool management
+  env          Environment management
   help         Print this message or the help of the given subcommand(s)
 
 Arguments:

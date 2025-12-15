@@ -3,10 +3,10 @@
 use crate::ui::UI;
 
 use anyhow::Result;
-use vx_plugin::BundleRegistry;
+use vx_runtime::ProviderRegistry;
 
 pub async fn handle(
-    _registry: &BundleRegistry,
+    _registry: &ProviderRegistry,
     check: bool,
     force: bool,
     dry_run: bool,

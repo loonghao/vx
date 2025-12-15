@@ -2,24 +2,25 @@
 
 use crate::ui::UI;
 use anyhow::Result;
-use vx_plugin::BundleRegistry;
+use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 pub async fn handle(
-    registry: &BundleRegistry,
+    registry: &ProviderRegistry,
+    context: &RuntimeContext,
     tool_name: &str,
     version: Option<&str>,
     force: bool,
 ) -> Result<()> {
-    // Get the tool from registry
-    let tool = registry
-        .get_tool(tool_name)
+    // Get the runtime from registry
+    let runtime = registry
+        .get_runtime(tool_name)
         .ok_or_else(|| anyhow::anyhow!("Tool not found: {}", tool_name))?;
 
     if let Some(target_version) = version {
         // Remove specific version
         UI::info(&format!("Removing {} {}...", tool_name, target_version));
 
-        match tool.remove_version(target_version, force).await {
+        match runtime.uninstall(target_version, context).await {
             Ok(()) => {
                 UI::success(&format!(
                     "Successfully removed {} {}",
@@ -36,7 +37,7 @@ pub async fn handle(
         }
     } else {
         // Remove all versions
-        let installed_versions = tool.get_installed_versions().await?;
+        let installed_versions = runtime.installed_versions(context).await?;
 
         if installed_versions.is_empty() {
             UI::warn(&format!("No versions of {} are installed", tool_name));
@@ -57,7 +58,7 @@ pub async fn handle(
 
         let mut errors = Vec::new();
         for version in &installed_versions {
-            match tool.remove_version(version, true).await {
+            match runtime.uninstall(version, context).await {
                 Ok(()) => {
                     UI::detail(&format!("Removed {} {}", tool_name, version));
                 }

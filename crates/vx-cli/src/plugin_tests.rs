@@ -1,216 +1,194 @@
-//! Tests for plugin system functionality
+//! Tests for provider system functionality
 
 use crate::test_utils::*;
-use vx_plugin::{BundleRegistry, ToolBundle, VxTool};
+use std::sync::Arc;
+use vx_runtime::{Provider, ProviderRegistry};
 
-#[tokio::test]
-async fn test_plugin_registry_creation() {
-    let registry = BundleRegistry::new();
+#[test]
+fn test_provider_registry_creation() {
+    let registry = ProviderRegistry::new();
 
     // Registry should be created successfully
-    let bundles = registry.list_bundles();
-    assert!(bundles.is_empty()); // Should start empty
-}
-
-#[tokio::test]
-async fn test_plugin_registration() {
-    let registry = BundleRegistry::new();
-
-    // Create a mock plugin
-    let plugin = MockPlugin::new("test-plugin").with_tool(MockTool::new("test-tool", "1.0.0"));
-
-    // Register the plugin
-    let result = registry.register_bundle(Box::new(plugin)).await;
-    assert!(result.is_ok());
-
-    // Check that plugin is registered
-    let bundles = registry.list_bundles();
-    assert_eq!(bundles.len(), 1);
-    assert!(bundles.contains(&"test-plugin".to_string()));
-}
-
-#[tokio::test]
-async fn test_multiple_plugin_registration() {
-    let registry = BundleRegistry::new();
-
-    // Register multiple plugins
-    let plugin1 = MockPlugin::new("plugin1").with_tool(MockTool::new("tool1", "1.0.0"));
-    let plugin2 = MockPlugin::new("plugin2").with_tool(MockTool::new("tool2", "2.0.0"));
-
-    let _ = registry.register_bundle(Box::new(plugin1)).await;
-    let _ = registry.register_bundle(Box::new(plugin2)).await;
-
-    let bundles = registry.list_bundles();
-    assert_eq!(bundles.len(), 2);
-    assert!(bundles.contains(&"plugin1".to_string()));
-    assert!(bundles.contains(&"plugin2".to_string()));
-}
-
-#[tokio::test]
-async fn test_tool_discovery() {
-    let registry = BundleRegistry::new();
-
-    // Create plugin with multiple tools
-    let plugin = MockPlugin::new("multi-tool-plugin")
-        .with_tool(MockTool::new("node", "18.0.0"))
-        .with_tool(MockTool::new("npm", "8.0.0"))
-        .with_tool(MockTool::new("yarn", "1.22.0"));
-
-    let _ = registry.register_bundle(Box::new(plugin)).await;
-
-    // Test tool discovery
-    let tools = registry.list_tools();
-    assert_eq!(tools.len(), 3);
-    assert!(tools.contains(&"node".to_string()));
-    assert!(tools.contains(&"npm".to_string()));
-    assert!(tools.contains(&"yarn".to_string()));
-}
-
-#[tokio::test]
-async fn test_get_tool() {
-    let registry = BundleRegistry::new();
-
-    let plugin = MockPlugin::new("test-plugin").with_tool(MockTool::new("test-tool", "1.0.0"));
-
-    let _ = registry.register_bundle(Box::new(plugin)).await;
-
-    // Test getting existing tool
-    let tool = registry.get_tool("test-tool");
-    assert!(tool.is_some());
-
-    let tool = tool.unwrap();
-    assert_eq!(tool.name(), "test-tool");
-
-    // Test getting non-existent tool
-    let missing_tool = registry.get_tool("missing-tool");
-    assert!(missing_tool.is_none());
-}
-
-#[tokio::test]
-async fn test_tool_installation_status() {
-    let registry = BundleRegistry::new();
-
-    // Create tools with different installation states
-    let installed_tool = MockTool::new("installed-tool", "1.0.0")
-        .with_executable(std::path::PathBuf::from("/usr/bin/installed-tool"));
-    let not_installed_tool = MockTool::new("not-installed-tool", "1.0.0");
-
-    let plugin = MockPlugin::new("test-plugin")
-        .with_tool(installed_tool)
-        .with_tool(not_installed_tool);
-
-    let _ = registry.register_bundle(Box::new(plugin)).await;
-
-    // Test that tools can be retrieved
-    let tool = registry.get_tool("installed-tool");
-    assert!(tool.is_some());
-
-    let tool = registry.get_tool("not-installed-tool");
-    assert!(tool.is_some());
+    let providers = registry.providers();
+    assert!(providers.is_empty()); // Should start empty
 }
 
 #[test]
-fn test_mock_plugin_creation() {
-    let plugin = MockPlugin::new("test-plugin");
-    assert_eq!(plugin.name(), "test-plugin");
-    assert_eq!(plugin.description(), "Mock plugin for testing");
-    assert!(plugin.tools().is_empty());
+fn test_provider_registration() {
+    let registry = ProviderRegistry::new();
+
+    // Create a mock provider
+    let provider =
+        MockProvider::new("test-provider").with_runtime(MockRuntime::new("test-runtime", "1.0.0"));
+
+    // Register the provider
+    registry.register(Arc::new(provider));
+
+    // Check that provider is registered
+    let providers = registry.providers();
+    assert_eq!(providers.len(), 1);
+    assert_eq!(providers[0].name(), "test-provider");
 }
 
 #[test]
-fn test_mock_plugin_with_tools() {
-    let tool1 = MockTool::new("tool1", "1.0.0");
-    let tool2 = MockTool::new("tool2", "2.0.0");
+fn test_multiple_provider_registration() {
+    let registry = ProviderRegistry::new();
 
-    let plugin = MockPlugin::new("test-plugin")
-        .with_tool(tool1)
-        .with_tool(tool2);
+    // Register multiple providers
+    let provider1 =
+        MockProvider::new("provider1").with_runtime(MockRuntime::new("runtime1", "1.0.0"));
+    let provider2 =
+        MockProvider::new("provider2").with_runtime(MockRuntime::new("runtime2", "2.0.0"));
 
-    let tools = plugin.tools();
-    assert_eq!(tools.len(), 2);
-    assert_eq!(tools[0].name(), "tool1");
-    assert_eq!(tools[1].name(), "tool2");
+    registry.register(Arc::new(provider1));
+    registry.register(Arc::new(provider2));
+
+    let providers = registry.providers();
+    assert_eq!(providers.len(), 2);
 }
 
 #[test]
-fn test_mock_tool_properties() {
-    let tool = MockTool::new("test-tool", "1.0.0");
+fn test_runtime_discovery() {
+    let registry = ProviderRegistry::new();
 
-    assert_eq!(tool.name(), "test-tool");
-    assert_eq!(tool.description(), "Mock tool for testing");
-    assert_eq!(tool.version, "1.0.0");
-    assert!(tool.executable_path.is_none());
+    // Create provider with multiple runtimes
+    let provider = MockProvider::new("multi-runtime-provider")
+        .with_runtime(MockRuntime::new("node", "18.0.0"))
+        .with_runtime(MockRuntime::new("npm", "8.0.0"))
+        .with_runtime(MockRuntime::new("yarn", "1.22.0"));
+
+    registry.register(Arc::new(provider));
+
+    // Test runtime discovery
+    let runtimes = registry.runtime_names();
+    assert_eq!(runtimes.len(), 3);
+    assert!(runtimes.contains(&"node".to_string()));
+    assert!(runtimes.contains(&"npm".to_string()));
+    assert!(runtimes.contains(&"yarn".to_string()));
 }
 
 #[test]
-fn test_mock_tool_with_executable() {
-    let path = std::path::PathBuf::from("/usr/bin/test-tool");
-    let tool = MockTool::new("test-tool", "1.0.0").with_executable(path.clone());
+fn test_get_runtime() {
+    let registry = ProviderRegistry::new();
 
-    assert_eq!(tool.name(), "test-tool");
-    assert_eq!(tool.executable_path, Some(path));
+    let provider =
+        MockProvider::new("test-provider").with_runtime(MockRuntime::new("test-runtime", "1.0.0"));
+
+    registry.register(Arc::new(provider));
+
+    // Test getting existing runtime
+    let runtime = registry.get_runtime("test-runtime");
+    assert!(runtime.is_some());
+
+    let runtime = runtime.unwrap();
+    assert_eq!(runtime.name(), "test-runtime");
+
+    // Test getting non-existent runtime
+    let missing_runtime = registry.get_runtime("missing-runtime");
+    assert!(missing_runtime.is_none());
 }
 
 #[test]
-fn test_mock_tool_failure_mode() {
-    let tool = MockTool::new("failing-tool", "1.0.0").with_failure();
-
-    assert!(tool.should_fail);
+fn test_mock_provider_creation() {
+    let provider = MockProvider::new("test-provider");
+    assert_eq!(provider.name(), "test-provider");
+    assert_eq!(provider.description(), "Mock provider for testing");
+    assert!(provider.runtimes().is_empty());
 }
 
-#[tokio::test]
-async fn test_plugin_registry_tool_lookup_performance() {
-    let registry = BundleRegistry::new();
+#[test]
+fn test_mock_provider_with_runtimes() {
+    let runtime1 = MockRuntime::new("runtime1", "1.0.0");
+    let runtime2 = MockRuntime::new("runtime2", "2.0.0");
 
-    // Register many tools to test lookup performance
+    let provider = MockProvider::new("test-provider")
+        .with_runtime(runtime1)
+        .with_runtime(runtime2);
+
+    let runtimes = provider.runtimes();
+    assert_eq!(runtimes.len(), 2);
+    assert_eq!(runtimes[0].name(), "runtime1");
+    assert_eq!(runtimes[1].name(), "runtime2");
+}
+
+#[test]
+fn test_mock_runtime_properties() {
+    let runtime = MockRuntime::new("test-runtime", "1.0.0");
+
+    assert_eq!(runtime.name, "test-runtime");
+    assert_eq!(runtime.version, "1.0.0");
+    assert!(runtime.executable_path.is_none());
+}
+
+#[test]
+fn test_mock_runtime_with_executable() {
+    let path = std::path::PathBuf::from("/usr/bin/test-runtime");
+    let runtime = MockRuntime::new("test-runtime", "1.0.0").with_executable(path.clone());
+
+    assert_eq!(runtime.name, "test-runtime");
+    assert_eq!(runtime.executable_path, Some(path));
+}
+
+#[test]
+fn test_mock_runtime_failure_mode() {
+    let runtime = MockRuntime::new("failing-runtime", "1.0.0").with_failure();
+
+    assert!(runtime.should_fail);
+}
+
+#[test]
+fn test_provider_registry_runtime_lookup_performance() {
+    let registry = ProviderRegistry::new();
+
+    // Register many runtimes to test lookup performance
     for i in 0..100 {
-        let plugin = MockPlugin::new(&format!("plugin-{}", i))
-            .with_tool(MockTool::new(&format!("tool-{}", i), "1.0.0"));
-        let _ = registry.register_bundle(Box::new(plugin)).await;
+        let provider = MockProvider::new(&format!("provider-{}", i))
+            .with_runtime(MockRuntime::new(&format!("runtime-{}", i), "1.0.0"));
+        registry.register(Arc::new(provider));
     }
 
     // Test that lookup is still fast
     let start = std::time::Instant::now();
-    let tool = registry.get_tool("tool-50");
+    let runtime = registry.get_runtime("runtime-50");
     let duration = start.elapsed();
 
-    assert!(tool.is_some());
+    assert!(runtime.is_some());
     assert!(duration.as_millis() < 10); // Should be very fast
 }
 
-#[tokio::test]
-async fn test_plugin_registry_duplicate_tools() {
-    let registry = BundleRegistry::new();
+#[test]
+fn test_provider_registry_duplicate_runtimes() {
+    let registry = ProviderRegistry::new();
 
-    // Register two plugins with the same tool name
-    let plugin1 = MockPlugin::new("plugin1").with_tool(MockTool::new("common-tool", "1.0.0"));
-    let plugin2 = MockPlugin::new("plugin2").with_tool(MockTool::new("common-tool", "2.0.0"));
+    // Register two providers with the same runtime name
+    let provider1 =
+        MockProvider::new("provider1").with_runtime(MockRuntime::new("common-runtime", "1.0.0"));
+    let provider2 =
+        MockProvider::new("provider2").with_runtime(MockRuntime::new("common-runtime", "2.0.0"));
 
-    let _ = registry.register_bundle(Box::new(plugin1)).await;
-    let _ = registry.register_bundle(Box::new(plugin2)).await;
+    registry.register(Arc::new(provider1));
+    registry.register(Arc::new(provider2));
 
-    // Should handle duplicate tool names gracefully
-    let tool = registry.get_tool("common-tool");
-    assert!(tool.is_some());
+    // Should handle duplicate runtime names gracefully
+    let runtime = registry.get_runtime("common-runtime");
+    assert!(runtime.is_some());
 
-    // The behavior for duplicate tools depends on implementation
+    // The behavior for duplicate runtimes depends on implementation
     // This test ensures it doesn't panic
 }
 
-#[tokio::test]
-async fn test_empty_plugin_registration() {
-    let registry = BundleRegistry::new();
+#[test]
+fn test_empty_provider_registration() {
+    let registry = ProviderRegistry::new();
 
-    // Register a plugin with no tools
-    let empty_plugin = MockPlugin::new("empty-plugin");
-    let result = registry.register_bundle(Box::new(empty_plugin)).await;
+    // Register a provider with no runtimes
+    let empty_provider = MockProvider::new("empty-provider");
+    registry.register(Arc::new(empty_provider));
 
-    assert!(result.is_ok());
+    let providers = registry.providers();
+    assert_eq!(providers.len(), 1);
+    assert_eq!(providers[0].name(), "empty-provider");
 
-    let bundles = registry.list_bundles();
-    assert_eq!(bundles.len(), 1);
-    assert!(bundles.contains(&"empty-plugin".to_string()));
-
-    let tools = registry.list_tools();
-    assert!(tools.is_empty());
+    let runtimes = registry.runtime_names();
+    assert!(runtimes.is_empty());
 }

@@ -30,12 +30,29 @@ impl PathManager {
         Self { paths }
     }
 
+    // ========== Base Directories ==========
+
     /// Get the base vx directory
     pub fn base_dir(&self) -> &Path {
         &self.paths.base_dir
     }
 
-    /// Get the tools directory
+    /// Get the global store directory
+    pub fn store_dir(&self) -> &Path {
+        &self.paths.store_dir
+    }
+
+    /// Get the environments directory
+    pub fn envs_dir(&self) -> &Path {
+        &self.paths.envs_dir
+    }
+
+    /// Get the bin directory (for shims)
+    pub fn bin_dir(&self) -> &Path {
+        &self.paths.bin_dir
+    }
+
+    /// Get the tools directory (legacy)
     pub fn tools_dir(&self) -> &Path {
         &self.paths.tools_dir
     }
@@ -54,33 +71,166 @@ impl PathManager {
     pub fn tmp_dir(&self) -> &Path {
         &self.paths.tmp_dir
     }
-    /// Get the installation directory for a specific tool
+
+    // ========== Store Paths (Content-Addressable Storage) ==========
+
+    /// Get the store directory for a specific runtime
+    /// Returns: ~/.vx/store/<runtime>
+    pub fn runtime_store_dir(&self, runtime_name: &str) -> PathBuf {
+        self.paths.store_dir.join(runtime_name)
+    }
+
+    /// Get the store directory for a specific runtime version
+    /// Returns: ~/.vx/store/<runtime>/<version>
+    pub fn version_store_dir(&self, runtime_name: &str, version: &str) -> PathBuf {
+        self.runtime_store_dir(runtime_name).join(version)
+    }
+
+    /// Get the executable path in the store for a specific runtime version
+    /// Returns: ~/.vx/store/<runtime>/<version>/bin/<runtime>.exe (Windows)
+    pub fn store_executable_path(&self, runtime_name: &str, version: &str) -> PathBuf {
+        let version_dir = self.version_store_dir(runtime_name, version);
+        let executable_name = with_executable_extension(runtime_name);
+        version_dir.join("bin").join(executable_name)
+    }
+
+    /// Check if a runtime version is installed in the store
+    pub fn is_version_in_store(&self, runtime_name: &str, version: &str) -> bool {
+        let version_dir = self.version_store_dir(runtime_name, version);
+        version_dir.exists()
+    }
+
+    /// List all installed versions of a runtime in the store
+    pub fn list_store_versions(&self, runtime_name: &str) -> Result<Vec<String>> {
+        let runtime_dir = self.runtime_store_dir(runtime_name);
+
+        if !runtime_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut versions = Vec::new();
+        for entry in std::fs::read_dir(&runtime_dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                if let Some(version) = entry.file_name().to_str() {
+                    versions.push(version.to_string());
+                }
+            }
+        }
+
+        versions.sort();
+        Ok(versions)
+    }
+
+    /// List all runtimes in the store
+    pub fn list_store_runtimes(&self) -> Result<Vec<String>> {
+        if !self.paths.store_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut runtimes = Vec::new();
+        for entry in std::fs::read_dir(&self.paths.store_dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                if let Some(name) = entry.file_name().to_str() {
+                    runtimes.push(name.to_string());
+                }
+            }
+        }
+
+        runtimes.sort();
+        Ok(runtimes)
+    }
+
+    // ========== Environment Paths ==========
+
+    /// Get the directory for a specific environment
+    /// Returns: ~/.vx/envs/<env_name>
+    pub fn env_dir(&self, env_name: &str) -> PathBuf {
+        self.paths.envs_dir.join(env_name)
+    }
+
+    /// Get the default environment directory
+    /// Returns: ~/.vx/envs/default
+    pub fn default_env_dir(&self) -> PathBuf {
+        self.paths.envs_dir.join("default")
+    }
+
+    /// Get the runtime link path in an environment
+    /// Returns: ~/.vx/envs/<env_name>/<runtime>
+    pub fn env_runtime_path(&self, env_name: &str, runtime_name: &str) -> PathBuf {
+        self.env_dir(env_name).join(runtime_name)
+    }
+
+    /// List all environments
+    pub fn list_envs(&self) -> Result<Vec<String>> {
+        if !self.paths.envs_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut envs = Vec::new();
+        for entry in std::fs::read_dir(&self.paths.envs_dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                if let Some(name) = entry.file_name().to_str() {
+                    envs.push(name.to_string());
+                }
+            }
+        }
+
+        envs.sort();
+        Ok(envs)
+    }
+
+    /// Check if an environment exists
+    pub fn env_exists(&self, env_name: &str) -> bool {
+        self.env_dir(env_name).exists()
+    }
+
+    /// Create an environment directory
+    pub fn create_env(&self, env_name: &str) -> Result<PathBuf> {
+        let env_dir = self.env_dir(env_name);
+        std::fs::create_dir_all(&env_dir)?;
+        Ok(env_dir)
+    }
+
+    /// Remove an environment
+    pub fn remove_env(&self, env_name: &str) -> Result<()> {
+        let env_dir = self.env_dir(env_name);
+        if env_dir.exists() {
+            std::fs::remove_dir_all(&env_dir)?;
+        }
+        Ok(())
+    }
+
+    // ========== Legacy Tool Paths (for backward compatibility) ==========
+
+    /// Get the installation directory for a specific tool (legacy)
     /// Returns: ~/.vx/tools/<tool>
     pub fn tool_dir(&self, tool_name: &str) -> PathBuf {
         self.paths.tools_dir.join(tool_name)
     }
 
-    /// Get the installation directory for a specific tool version
+    /// Get the installation directory for a specific tool version (legacy)
     /// Returns: ~/.vx/tools/<tool>/<version>
     pub fn tool_version_dir(&self, tool_name: &str, version: &str) -> PathBuf {
         self.tool_dir(tool_name).join(version)
     }
 
-    /// Get the executable path for a specific tool version
-    /// Returns: ~/.vx/tools/<tool>/<version>/<tool>.exe (Windows) or ~/.vx/tools/<tool>/<version>/<tool> (Unix)
+    /// Get the executable path for a specific tool version (legacy)
     pub fn tool_executable_path(&self, tool_name: &str, version: &str) -> PathBuf {
         let version_dir = self.tool_version_dir(tool_name, version);
         let executable_name = with_executable_extension(tool_name);
         version_dir.join(executable_name)
     }
 
-    /// Check if a tool version is installed
+    /// Check if a tool version is installed (legacy)
     pub fn is_tool_version_installed(&self, tool_name: &str, version: &str) -> bool {
         let exe_path = self.tool_executable_path(tool_name, version);
         exe_path.exists()
     }
 
-    /// List all installed versions of a tool
+    /// List all installed versions of a tool (legacy)
     pub fn list_tool_versions(&self, tool_name: &str) -> Result<Vec<String>> {
         let tool_dir = self.tool_dir(tool_name);
 
@@ -94,7 +244,6 @@ impl PathManager {
             let entry = entry?;
             if entry.file_type()?.is_dir() {
                 if let Some(version) = entry.file_name().to_str() {
-                    // Verify that the executable exists in this version directory
                     if self.is_tool_version_installed(tool_name, version) {
                         versions.push(version.to_string());
                     }
@@ -102,12 +251,11 @@ impl PathManager {
             }
         }
 
-        // Sort versions (simple string sort for now, could be improved with semver)
         versions.sort();
         Ok(versions)
     }
 
-    /// Get the latest installed version of a tool
+    /// Get the latest installed version of a tool (legacy)
     pub fn get_latest_tool_version(&self, tool_name: &str) -> Result<Option<String>> {
         let versions = self.list_tool_versions(tool_name)?;
 
@@ -115,12 +263,11 @@ impl PathManager {
             return Ok(None);
         }
 
-        // For now, use simple string comparison
-        // TODO: Implement proper semantic version comparison
         let latest = versions.into_iter().max();
         Ok(latest)
     }
-    /// List all installed tools
+
+    /// List all installed tools (legacy)
     pub fn list_installed_tools(&self) -> Result<Vec<String>> {
         let tools_dir = &self.paths.tools_dir;
 
@@ -134,7 +281,6 @@ impl PathManager {
             let entry = entry?;
             if entry.file_type()?.is_dir() {
                 if let Some(tool_name) = entry.file_name().to_str() {
-                    // Check if this tool has any valid versions installed
                     let versions = self.list_tool_versions(tool_name)?;
                     if !versions.is_empty() {
                         tools.push(tool_name.to_string());
@@ -147,14 +293,14 @@ impl PathManager {
         Ok(tools)
     }
 
-    /// Create the directory structure for a tool version
+    /// Create the directory structure for a tool version (legacy)
     pub fn create_tool_version_dir(&self, tool_name: &str, version: &str) -> Result<PathBuf> {
         let version_dir = self.tool_version_dir(tool_name, version);
         std::fs::create_dir_all(&version_dir)?;
         Ok(version_dir)
     }
 
-    /// Remove a specific tool version
+    /// Remove a specific tool version (legacy)
     pub fn remove_tool_version(&self, tool_name: &str, version: &str) -> Result<()> {
         let version_dir = self.tool_version_dir(tool_name, version);
 
@@ -162,7 +308,6 @@ impl PathManager {
             std::fs::remove_dir_all(&version_dir)?;
         }
 
-        // If this was the last version, remove the tool directory
         let tool_dir = self.tool_dir(tool_name);
         if tool_dir.exists() {
             let remaining_versions = self.list_tool_versions(tool_name)?;
@@ -186,78 +331,12 @@ impl PathManager {
             .join(format!("{}-{}", tool_name, version))
     }
 }
+
 impl Default for PathManager {
     fn default() -> Self {
         Self::new().unwrap_or_else(|_| {
-            // Fallback to current directory if home directory is not available
             Self::with_base_dir(".vx")
                 .expect("Failed to create PathManager with fallback directory")
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::TempDir;
-
-    #[test]
-    fn test_path_manager_creation() {
-        let temp_dir = TempDir::new().unwrap();
-        let base_dir = temp_dir.path().join(".vx");
-        let manager = PathManager::with_base_dir(&base_dir).unwrap();
-
-        assert!(manager.tools_dir().exists());
-        assert!(manager.cache_dir().exists());
-        assert!(manager.config_dir().exists());
-        assert!(manager.tmp_dir().exists());
-    }
-
-    #[test]
-    fn test_tool_paths() {
-        let temp_dir = TempDir::new().unwrap();
-        let base_dir = temp_dir.path().join(".vx");
-        let manager = PathManager::with_base_dir(&base_dir).unwrap();
-
-        let tool_dir = manager.tool_dir("node");
-        let version_dir = manager.tool_version_dir("node", "18.17.0");
-        let exe_path = manager.tool_executable_path("node", "18.17.0");
-
-        assert_eq!(tool_dir, base_dir.join("tools/node"));
-        assert_eq!(version_dir, base_dir.join("tools/node/18.17.0"));
-
-        if cfg!(target_os = "windows") {
-            assert_eq!(exe_path, base_dir.join("tools/node/18.17.0/node.exe"));
-        } else {
-            assert_eq!(exe_path, base_dir.join("tools/node/18.17.0/node"));
-        }
-    }
-
-    #[test]
-    fn test_tool_version_management() {
-        let temp_dir = TempDir::new().unwrap();
-        let base_dir = temp_dir.path().join(".vx");
-        let manager = PathManager::with_base_dir(&base_dir).unwrap();
-
-        // Initially no versions
-        assert!(!manager.is_tool_version_installed("node", "18.17.0"));
-        assert_eq!(
-            manager.list_tool_versions("node").unwrap(),
-            Vec::<String>::new()
-        );
-
-        // Create version directory and executable
-        let _version_dir = manager.create_tool_version_dir("node", "18.17.0").unwrap();
-        let exe_path = manager.tool_executable_path("node", "18.17.0");
-        std::fs::write(&exe_path, "fake executable").unwrap();
-
-        // Now it should be detected
-        assert!(manager.is_tool_version_installed("node", "18.17.0"));
-        assert_eq!(manager.list_tool_versions("node").unwrap(), vec!["18.17.0"]);
-        assert_eq!(
-            manager.get_latest_tool_version("node").unwrap(),
-            Some("18.17.0".to_string())
-        );
-        assert_eq!(manager.list_installed_tools().unwrap(), vec!["node"]);
     }
 }

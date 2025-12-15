@@ -2,24 +2,30 @@
 
 use crate::ui::UI;
 use anyhow::Result;
-use vx_plugin::BundleRegistry;
+use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 /// Handle the fetch command
 pub async fn handle(
-    registry: &BundleRegistry,
+    registry: &ProviderRegistry,
+    context: &RuntimeContext,
     tool_name: &str,
     latest: Option<usize>,
     include_prerelease: bool,
     detailed: bool,
     interactive: bool,
 ) -> Result<()> {
-    let tool = registry
-        .get_tool(tool_name)
+    let runtime = registry
+        .get_runtime(tool_name)
         .ok_or_else(|| anyhow::anyhow!("Tool not found: {}", tool_name))?;
 
     UI::info(&format!("Fetching versions for {}...", tool_name));
 
-    let mut versions = tool.fetch_versions(include_prerelease).await?;
+    let mut versions = runtime.fetch_versions(context).await?;
+
+    // Filter out prereleases if not requested
+    if !include_prerelease {
+        versions.retain(|v| !v.prerelease);
+    }
 
     if versions.is_empty() {
         UI::warn("No versions found");
@@ -39,11 +45,7 @@ pub async fn handle(
         } else {
             ""
         };
-        let lts_marker = if version.metadata.get("lts") == Some(&"true".to_string()) {
-            " (LTS)"
-        } else {
-            ""
-        };
+        let lts_marker = if version.lts { " (LTS)" } else { "" };
 
         if detailed {
             UI::item(&format!(
@@ -54,12 +56,8 @@ pub async fn handle(
                 lts_marker
             ));
 
-            if let Some(date) = &version.release_date {
+            if let Some(date) = &version.released_at {
                 UI::detail(&format!("   Released: {}", date));
-            }
-
-            if let Some(notes) = &version.release_notes {
-                UI::detail(&format!("   Notes: {}", notes));
             }
 
             if let Some(url) = &version.download_url {

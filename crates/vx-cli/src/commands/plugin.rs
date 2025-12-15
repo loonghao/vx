@@ -3,128 +3,110 @@
 use crate::cli::PluginCommand;
 use crate::ui::UI;
 use anyhow::Result;
-use vx_plugin::BundleRegistry;
+use vx_runtime::ProviderRegistry;
 
-pub async fn handle(registry: &BundleRegistry, command: PluginCommand) -> Result<()> {
-    // TODO: Replace with vx-core tool manager
-    // let tool_manager = crate::tool_manager::ToolManager::new()
-    //     .or_else(|_| crate::tool_manager::ToolManager::minimal())?;
-
+pub async fn handle(registry: &ProviderRegistry, command: PluginCommand) -> Result<()> {
     match command {
         PluginCommand::List {
             enabled: _,
             category: _,
         } => {
-            UI::header("Available Bundles");
+            UI::header("Available Providers");
 
-            let bundles = registry.list_bundles();
-            if bundles.is_empty() {
-                UI::warn("No bundles registered");
+            let providers = registry.providers();
+            if providers.is_empty() {
+                UI::warn("No providers registered");
                 return Ok(());
             }
 
-            for bundle_name in bundles {
-                UI::item(&format!("📦 {}", bundle_name));
+            for provider in providers {
+                UI::item(&format!(
+                    "📦 {} - {}",
+                    provider.name(),
+                    provider.description()
+                ));
+
+                // List runtimes in this provider
+                for runtime in provider.runtimes() {
+                    UI::detail(&format!(
+                        "  ├── {} - {}",
+                        runtime.name(),
+                        runtime.description()
+                    ));
+                }
             }
-            // for tool in tools {
-            //     let status_icon = if tool.installed { "✅" } else { "❌" };
-            //     let version_str = tool
-            //         .version
-            //         .as_ref()
-            //         .map(|v| format!(" ({v})"))
-            //         .unwrap_or_default();
-
-            //     println!(
-            //         "  {} {} - {}{}",
-            //         status_icon, tool.name, tool.description, version_str
-            //     );
-
-            //     if let Some(homepage) = &tool.homepage {
-            //         println!("    🌐 {homepage}");
-            //     }
-            // }
         }
 
         PluginCommand::Info { name } => {
-            UI::header(&format!("Tool: {name}"));
-            UI::warning("Plugin info not yet implemented in new architecture");
-            // match tool_manager.get_tool_info(&name) {
-            //     Ok(info) => {
-            //         UI::header(&format!("Tool: {}", info.name));
-            //         println!("Description: {}", info.description);
-            //         println!("Installed: {}", if info.installed { "Yes" } else { "No" });
+            UI::header(&format!("Runtime: {name}"));
 
-            //         if let Some(version) = &info.version {
-            //             println!("Version: {version}");
-            //         }
+            if let Some(runtime) = registry.get_runtime(&name) {
+                println!("Name: {}", runtime.name());
+                println!("Description: {}", runtime.description());
+                println!("Ecosystem: {:?}", runtime.ecosystem());
 
-            //         if let Some(homepage) = &info.homepage {
-            //             println!("Homepage: {homepage}");
-            //         }
+                let aliases = runtime.aliases();
+                if !aliases.is_empty() {
+                    println!("Aliases: {}", aliases.join(", "));
+                }
 
-            //         println!(
-            //             "Auto-install: {}",
-            //             if info.supports_auto_install {
-            //                 "Yes"
-            //             } else {
-            //                 "No"
-            //             }
-            //         );
-            //     }
-            //     Err(e) => {
-            //         UI::error(&format!("Tool not found: {e}"));
-            //     }
-            // }
+                let deps = runtime.dependencies();
+                if !deps.is_empty() {
+                    println!("Dependencies:");
+                    for dep in deps {
+                        println!("  - {}", dep.name);
+                    }
+                }
+            } else {
+                UI::error(&format!("Runtime '{}' not found", name));
+            }
         }
 
         PluginCommand::Enable { name: _ } => {
-            UI::warning("Enable/disable commands not applicable to the new tool system");
-            UI::hint("All tools are automatically available");
+            UI::warning("Enable/disable commands not applicable to the new provider system");
+            UI::hint("All providers are automatically available");
         }
 
         PluginCommand::Disable { name: _ } => {
-            UI::warning("Enable/disable commands not applicable to the new tool system");
-            UI::hint("All tools are automatically available");
+            UI::warning("Enable/disable commands not applicable to the new provider system");
+            UI::hint("All providers are automatically available");
         }
 
         PluginCommand::Search { query } => {
-            UI::header(&format!("Tools matching '{query}'"));
-            UI::warning("Plugin search not yet implemented in new architecture");
-            // let tools = tool_manager.get_all_tools();
-            // let matching_tools: Vec<_> = tools
-            //     .into_iter()
-            //     .filter(|tool| {
-            //         tool.name.contains(&query)
-            //             || tool
-            //                 .description
-            //                 .to_lowercase()
-            //                 .contains(&query.to_lowercase())
-            //     })
-            //     .collect();
+            UI::header(&format!("Runtimes matching '{query}'"));
 
-            // if matching_tools.is_empty() {
-            //     UI::info(&format!("No tools found matching '{query}'"));
-            // } else {
-            //     UI::header(&format!("Tools matching '{query}'"));
-            //     for tool in matching_tools {
-            //         println!("  * {} - {}", tool.name, tool.description);
-            //     }
-            // }
+            let query_lower = query.to_lowercase();
+            let mut found = false;
+
+            for name in registry.runtime_names() {
+                if name.to_lowercase().contains(&query_lower) {
+                    if let Some(runtime) = registry.get_runtime(&name) {
+                        UI::item(&format!("{} - {}", name, runtime.description()));
+                        found = true;
+                    }
+                }
+            }
+
+            if !found {
+                UI::info(&format!("No runtimes found matching '{query}'"));
+            }
         }
 
         PluginCommand::Stats => {
-            UI::header("Tool Statistics");
-            UI::warning("Plugin stats not yet implemented in new architecture");
-            // let tools = tool_manager.get_all_tools();
-            // let total = tools.len();
-            // let installed = tools.iter().filter(|t| t.installed).count();
-            // let auto_install = tools.iter().filter(|t| t.supports_auto_install).count();
+            UI::header("Provider Statistics");
 
-            // UI::header("Tool Statistics");
-            // println!("  Total tools: {total}");
-            // println!("  Installed tools: {installed}");
-            // println!("  Not installed: {}", total - installed);
-            // println!("  Support auto-install: {auto_install}");
+            let providers = registry.providers();
+            let total_providers = providers.len();
+            let total_runtimes = registry.runtime_names().len();
+
+            println!("  Total providers: {}", total_providers);
+            println!("  Total runtimes: {}", total_runtimes);
+
+            println!("\n  Providers:");
+            for provider in providers {
+                let runtime_count = provider.runtimes().len();
+                println!("    {} ({} runtimes)", provider.name(), runtime_count);
+            }
         }
     }
 

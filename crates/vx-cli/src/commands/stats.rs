@@ -2,9 +2,9 @@
 
 use crate::ui::UI;
 use anyhow::Result;
-use vx_plugin::BundleRegistry;
+use vx_runtime::ProviderRegistry;
 
-pub async fn handle(registry: &BundleRegistry) -> Result<()> {
+pub async fn handle(registry: &ProviderRegistry) -> Result<()> {
     show_all_stats(registry).await
 }
 
@@ -15,16 +15,12 @@ pub async fn handle_cleanup(cache: bool, orphaned: bool, dry_run: bool) -> Resul
         UI::header("Cleaning up...");
     }
 
-    // TODO: Replace with vx-core executor
-    // let mut executor = crate::executor::Executor::new()?;
-
     if cache || !orphaned {
         if dry_run {
             UI::info("Would clean cache directories");
         } else {
             UI::step("Cleaning cache...");
             UI::warning("Cache cleanup not yet implemented in new architecture");
-            // TODO: Implement cache cleanup
         }
     }
 
@@ -34,7 +30,6 @@ pub async fn handle_cleanup(cache: bool, orphaned: bool, dry_run: bool) -> Resul
         } else {
             UI::step("Cleaning orphaned packages...");
             UI::warning("Orphaned package cleanup not yet implemented in new architecture");
-            // executor.cleanup()?;
         }
     }
 
@@ -49,91 +44,13 @@ pub async fn handle_cleanup(cache: bool, orphaned: bool, dry_run: bool) -> Resul
 async fn show_tool_stats(tool_name: &str, _detailed: bool) -> Result<()> {
     UI::header(&format!("Statistics for {tool_name}"));
     UI::warning("Tool stats not yet implemented in new architecture");
-
-    // TODO: Replace with vx-core package manager
-    // let package_manager = crate::package_manager::PackageManager::new()?;
-    // let versions = package_manager.list_versions(tool_name);
-
-    // if versions.is_empty() {
-    //     UI::warning(&format!("Tool '{tool_name}' is not installed"));
-    //     return Ok(());
-    // }
-
-    // let mut total_size = 0u64;
-    // let version_count = versions.len();
-
-    // if detailed {
-    //     println!("Installed versions:");
-    //     for version in &versions {
-    //         if let Ok(path) = package_manager.get_version_path(tool_name, version) {
-    //             let size = calculate_directory_size(&path).unwrap_or(0);
-    //             total_size += size;
-    //             println!("  {} - {} ({})", version, format_size(size), path.display());
-    //         }
-    //     }
-    //     println!();
-    // } else {
-    //     for version in &versions {
-    //         if let Ok(path) = package_manager.get_version_path(tool_name, version) {
-    //             total_size += calculate_directory_size(&path).unwrap_or(0);
-    //         }
-    //     }
-    // }
-
-    // println!("Total versions: {version_count}");
-    // println!("Total size: {}", format_size(total_size));
-
     Ok(())
 }
 
-async fn show_all_stats(_registry: &BundleRegistry) -> Result<()> {
+async fn show_all_stats(_registry: &ProviderRegistry) -> Result<()> {
     let spinner = UI::new_spinner("Collecting package statistics...");
     UI::warning("Package statistics not yet implemented in new architecture");
-
-    // TODO: Replace with vx-core executor
-    // let mut executor = crate::executor::Executor::new()?;
-    // let stats = executor.get_stats()?;
     spinner.finish_and_clear();
-
-    // UI::show_stats(
-    //     stats.total_packages,
-    //     stats.total_versions,
-    //     stats.total_size,
-    //     &stats
-    //         .last_updated
-    //         .format("%Y-%m-%d %H:%M:%S UTC")
-    //         .to_string(),
-    // );
-
-    // List installed packages
-    // if let Ok(packages) = executor.list_installed_packages() {
-    //     if !packages.is_empty() {
-    //         if detailed {
-    //             println!();
-    //             UI::header("Installed Packages");
-    //             for package in &packages {
-    //                 println!(
-    //                     "  {} {} - {}",
-    //                     package.name, package.version, &package.metadata.description
-    //                 );
-    //             }
-    //         } else {
-    //             // Create a simple list without active status for now
-    //             let package_list: Vec<(String, String, bool)> = packages
-    //                 .iter()
-    //                 .map(|package| {
-    //                     // For now, mark all as inactive to avoid borrowing issues
-    //                     // TODO: Improve this to show actual active status
-    //                     (package.name.clone(), package.version.clone(), false)
-    //                 })
-    //                 .collect();
-
-    //             println!();
-    //             UI::show_package_list(&package_list);
-    //         }
-    //     }
-    // }
-
     Ok(())
 }
 
