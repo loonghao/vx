@@ -225,9 +225,61 @@ impl PathManager {
     }
 
     /// Check if a tool version is installed (legacy)
+    /// This checks both the simple path and searches subdirectories
     pub fn is_tool_version_installed(&self, tool_name: &str, version: &str) -> bool {
+        // First check the simple path
         let exe_path = self.tool_executable_path(tool_name, version);
-        exe_path.exists()
+        if exe_path.exists() {
+            return true;
+        }
+
+        // If not found, search in subdirectories (for archives that extract to subdirs)
+        let version_dir = self.tool_version_dir(tool_name, version);
+        self.find_executable_in_dir(&version_dir, tool_name)
+            .is_some()
+    }
+
+    /// Search for an executable in a directory (recursively, up to 2 levels)
+    fn find_executable_in_dir(&self, dir: &std::path::Path, exe_name: &str) -> Option<PathBuf> {
+        if !dir.exists() {
+            return None;
+        }
+
+        let exe_name_with_ext = with_executable_extension(exe_name);
+
+        // Check direct children
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+
+                // Check if this is the executable
+                if path.is_file() {
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name == exe_name_with_ext || name == exe_name {
+                            return Some(path);
+                        }
+                    }
+                }
+
+                // Check one level deeper (for archives that extract to subdirectories)
+                if path.is_dir() {
+                    if let Ok(sub_entries) = std::fs::read_dir(&path) {
+                        for sub_entry in sub_entries.filter_map(|e| e.ok()) {
+                            let sub_path = sub_entry.path();
+                            if sub_path.is_file() {
+                                if let Some(name) = sub_path.file_name().and_then(|n| n.to_str()) {
+                                    if name == exe_name_with_ext || name == exe_name {
+                                        return Some(sub_path);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     /// List all installed versions of a tool (legacy)
