@@ -42,6 +42,12 @@ sha2 = "0.10"
 # Error handling
 thiserror = "2.0"
 
+# Logging (for CDN module)
+tracing = { workspace = true }
+
+# CDN acceleration (optional)
+turbo-cdn = { version = "0.4", optional = true }
+
 # Platform-specific dependencies
 [target.'cfg(unix)'.dependencies]
 # Unix-specific dependencies for file permissions
@@ -52,6 +58,11 @@ thiserror = "2.0"
 [dev-dependencies]
 tokio-test = "0.4"
 tempfile = { workspace = true }
+criterion = { version = "0.5", features = ["async_tokio"] }
+
+[[bench]]
+name = "download_benchmark"
+harness = false
 
 [features]
 default = []
@@ -59,3 +70,5 @@ default = []
 extended-formats = []
 # Feature for progress bars
 progress = ["indicatif"]
+# Feature for CDN acceleration
+cdn-acceleration = ["turbo-cdn"]

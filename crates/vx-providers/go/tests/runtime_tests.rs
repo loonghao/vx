@@ -2,7 +2,7 @@
 
 use rstest::rstest;
 use vx_provider_go::{GoProvider, GoRuntime};
-use vx_runtime::{Ecosystem, Provider, Runtime};
+use vx_runtime::{Arch, Ecosystem, Os, Platform, Provider, Runtime};
 
 #[test]
 fn test_go_runtime_creation() {
@@ -63,4 +63,20 @@ fn test_go_provider_get_runtime() {
 
     let unknown = provider.get_runtime("unknown");
     assert!(unknown.is_none());
+}
+
+/// Test that executable_relative_path returns correct path for Go archives
+/// Go archives extract to a `go/` subdirectory, so path should be `go/bin/go`
+#[rstest]
+#[case(Os::Linux, Arch::X86_64, "go/bin/go")]
+#[case(Os::Linux, Arch::Aarch64, "go/bin/go")]
+#[case(Os::MacOS, Arch::X86_64, "go/bin/go")]
+#[case(Os::MacOS, Arch::Aarch64, "go/bin/go")]
+#[case(Os::Windows, Arch::X86_64, "go/bin/go.exe")]
+#[case(Os::Windows, Arch::Aarch64, "go/bin/go.exe")]
+fn test_go_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
+    let runtime = GoRuntime::new();
+    let platform = Platform { os, arch };
+    let path = runtime.executable_relative_path("1.21.0", &platform);
+    assert_eq!(path, expected);
 }

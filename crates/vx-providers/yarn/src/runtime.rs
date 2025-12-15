@@ -14,6 +14,11 @@ impl YarnRuntime {
     pub fn new() -> Self {
         Self
     }
+
+    /// Get the directory name inside the archive for a given version
+    fn get_archive_dir_name(version: &str) -> String {
+        format!("yarn-v{}", version)
+    }
 }
 
 impl Default for YarnRuntime {
@@ -38,6 +43,17 @@ impl Runtime for YarnRuntime {
 
     fn aliases(&self) -> &[&str] {
         &[]
+    }
+
+    /// Yarn 1.x archives extract to `yarn-v{version}/bin/yarn`
+    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        let dir_name = Self::get_archive_dir_name(version);
+        let exe_name = if platform.os == vx_runtime::Os::Windows {
+            "yarn.cmd"
+        } else {
+            "yarn"
+        };
+        format!("{}/bin/{}", dir_name, exe_name)
     }
 
     async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
