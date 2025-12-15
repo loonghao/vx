@@ -220,8 +220,14 @@ impl CommandHandler {
                 let tool_args = &cli.args[1..];
 
                 // Use the executor to run the tool
-                let exit_code =
-                    execute::execute_tool(tool_name, tool_args, cli.use_system_path).await?;
+                let exit_code = execute::execute_tool(
+                    registry,
+                    context,
+                    tool_name,
+                    tool_args,
+                    cli.use_system_path,
+                )
+                .await?;
                 if exit_code != 0 {
                     std::process::exit(exit_code);
                 }
