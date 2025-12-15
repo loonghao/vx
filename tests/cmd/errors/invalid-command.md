@@ -5,6 +5,8 @@ Verify that `vx` handles invalid commands gracefully.
 ```console
 $ vx invalid-command-xyz
 ? failed
-[..]not found[..]
+[..]Auto-installing missing runtimes: ["invalid-command-xyz"]
+[..]Installing: invalid-command-xyz
+[..]Unknown runtime 'invalid-command-xyz'. Cannot auto-install.
 
 ```

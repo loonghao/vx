@@ -3,17 +3,18 @@
 use crate::ui::UI;
 use anyhow::Result;
 use tracing::{info_span, Instrument};
-use vx_plugin::BundleRegistry;
+use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 pub async fn handle(
-    registry: &BundleRegistry,
+    registry: &ProviderRegistry,
+    context: &RuntimeContext,
     tool_name: &str,
     version: Option<&str>,
     force: bool,
 ) -> Result<()> {
-    // Get the tool from registry
-    let tool = registry
-        .get_tool(tool_name)
+    // Get the runtime from registry
+    let runtime = registry
+        .get_runtime(tool_name)
         .ok_or_else(|| anyhow::anyhow!("Tool not found: {}", tool_name))?;
 
     // Determine version to install
@@ -24,7 +25,7 @@ pub async fn handle(
         let span = info_span!("Fetching latest version", tool = tool_name);
         let versions = async {
             UI::info(&format!("Fetching latest version for {}...", tool_name));
-            tool.fetch_versions(false).await
+            runtime.fetch_versions(context).await
         }
         .instrument(span)
         .await?;
@@ -32,13 +33,19 @@ pub async fn handle(
         if versions.is_empty() {
             return Err(anyhow::anyhow!("No versions found for tool: {}", tool_name));
         }
-        versions[0].version.clone()
+
+        // Find first non-prerelease version
+        versions
+            .iter()
+            .find(|v| !v.prerelease)
+            .map(|v| v.version.clone())
+            .unwrap_or_else(|| versions[0].version.clone())
     };
 
     UI::info(&format!("Installing {} {}...", tool_name, target_version));
 
     // Check if already installed
-    if !force && tool.is_version_installed(&target_version).await? {
+    if !force && runtime.is_installed(&target_version, context).await? {
         UI::success(&format!(
             "{} {} is already installed",
             tool_name, target_version
@@ -49,20 +56,19 @@ pub async fn handle(
 
     // Install the version with progress span
     let install_span = info_span!("Installing tool", tool = tool_name, version = %target_version);
-    let install_result = async { tool.install_version(&target_version, force).await }
+    let install_result = async { runtime.install(&target_version, context).await }
         .instrument(install_span)
         .await;
 
     match install_result {
-        Ok(()) => {
+        Ok(result) => {
             UI::success(&format!(
                 "Successfully installed {} {}",
                 tool_name, target_version
             ));
 
             // Show installation path
-            let install_dir = tool.get_version_install_dir(&target_version);
-            UI::detail(&format!("Installed to: {}", install_dir.display()));
+            UI::detail(&format!("Installed to: {}", result.install_path.display()));
 
             // Show usage hint
             UI::hint(&format!(

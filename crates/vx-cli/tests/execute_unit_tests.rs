@@ -13,7 +13,7 @@ fn test_execute_module_compilation() {
     let registry = create_test_registry();
 
     // Test basic registry operations
-    assert!(registry.get_tool("nonexistent").is_none());
+    assert!(registry.get_runtime("nonexistent").is_none());
 
     cleanup_test_env();
 }
@@ -25,9 +25,9 @@ fn test_registry_operations() {
     let registry = create_test_registry();
 
     // Test that registry handles invalid tool names gracefully
-    assert!(registry.get_tool("").is_none());
-    assert!(registry.get_tool("invalid/tool").is_none());
-    assert!(registry.get_tool("nonexistent-tool-12345").is_none());
+    assert!(registry.get_runtime("").is_none());
+    assert!(registry.get_runtime("invalid/tool").is_none());
+    assert!(registry.get_runtime("nonexistent-tool-12345").is_none());
 
     cleanup_test_env();
 }

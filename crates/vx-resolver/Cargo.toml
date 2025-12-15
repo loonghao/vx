@@ -1,0 +1,24 @@
+[package]
+name = "vx-resolver"
+version.workspace = true
+edition.workspace = true
+description = "Runtime resolver with dependency resolution and auto-installation"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+vx-runtime = { version = "0.4.0", path = "../vx-runtime" }
+vx-paths = { version = "0.3.1", path = "../vx-paths" }
+
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
+tracing = { workspace = true }
+which = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tokio-test = { workspace = true }
+tempfile = { workspace = true }

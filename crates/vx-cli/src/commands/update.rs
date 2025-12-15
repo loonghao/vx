@@ -2,10 +2,11 @@
 
 use crate::ui::UI;
 use anyhow::Result;
-use vx_plugin::BundleRegistry;
+use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 pub async fn handle(
-    _registry: &BundleRegistry,
+    _registry: &ProviderRegistry,
+    _context: &RuntimeContext,
     tool_name: Option<&str>,
     apply: bool,
 ) -> Result<()> {

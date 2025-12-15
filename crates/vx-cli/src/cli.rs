@@ -1,7 +1,7 @@
 // CLI module - modular command structure
 // Each command is implemented in its own module for better maintainability
 
-use crate::commands::{global::GlobalCommand, venv_cmd::VenvCommand};
+use crate::commands::{env::EnvCommand, global::GlobalCommand, venv_cmd::VenvCommand};
 use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(ValueEnum, Clone, Debug)]
@@ -264,6 +264,12 @@ pub enum Commands {
     Global {
         #[command(subcommand)]
         command: GlobalCommand,
+    },
+
+    /// Environment management
+    Env {
+        #[command(subcommand)]
+        command: EnvCommand,
     },
 }
 

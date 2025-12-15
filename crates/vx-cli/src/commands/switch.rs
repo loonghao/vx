@@ -2,9 +2,9 @@
 
 use crate::ui::UI;
 use anyhow::Result;
-use vx_plugin::BundleRegistry;
+use vx_runtime::ProviderRegistry;
 
-pub async fn handle(_registry: &BundleRegistry, tool_version: &str, global: bool) -> Result<()> {
+pub async fn handle(_registry: &ProviderRegistry, tool_version: &str, global: bool) -> Result<()> {
     // Parse tool@version format
     let (tool_name, version) = parse_tool_version(tool_version)?;
 

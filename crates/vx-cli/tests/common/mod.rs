@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::Once;
-use vx_plugin::BundleRegistry;
+use vx_runtime::{mock_context, ProviderRegistry, RuntimeContext};
 
 static INIT: Once = Once::new();
 
@@ -29,38 +29,19 @@ pub fn cleanup_test_env() {
 // Registry Helpers
 // ============================================================================
 
-/// Create a test bundle registry with all tools registered
-pub fn create_test_registry() -> BundleRegistry {
-    BundleRegistry::new()
+/// Create a test provider registry with all providers registered
+pub fn create_test_registry() -> ProviderRegistry {
+    vx_cli::create_registry()
 }
 
-/// Create a full registry with all available plugins
-pub async fn create_full_registry() -> BundleRegistry {
-    let registry = BundleRegistry::new();
+/// Create a full registry with all available providers (async version for compatibility)
+pub async fn create_full_registry() -> ProviderRegistry {
+    vx_cli::create_registry()
+}
 
-    let _ = registry
-        .register_bundle(Box::new(vx_tool_node::NodePlugin::new()))
-        .await;
-    let _ = registry
-        .register_bundle(Box::new(vx_tool_go::GoPlugin::new()))
-        .await;
-    let _ = registry
-        .register_bundle(Box::new(vx_tool_rust::RustPlugin::new()))
-        .await;
-    let _ = registry
-        .register_bundle(Box::new(vx_tool_uv::UvPlugin::new()))
-        .await;
-    let _ = registry
-        .register_bundle(Box::new(vx_tool_bun::BunPlugin::new()))
-        .await;
-    let _ = registry
-        .register_bundle(Box::<vx_tool_pnpm::PnpmPlugin>::default())
-        .await;
-    let _ = registry
-        .register_bundle(Box::<vx_tool_yarn::YarnPlugin>::default())
-        .await;
-
-    registry
+/// Create a test runtime context
+pub fn create_test_context() -> RuntimeContext {
+    mock_context()
 }
 
 // ============================================================================
@@ -260,13 +241,13 @@ pub fn tool_installed(tool: &str) -> bool {
 // Constants
 // ============================================================================
 
-/// Supported tools for testing (tools registered via VxTool, not package managers)
+/// Supported tools for testing (tools registered via Runtime, not package managers)
 pub const SUPPORTED_TOOLS: &[&str] = &["node", "go", "cargo", "uv", "bun"];
 
 /// Supported package managers for testing
 pub const SUPPORTED_PACKAGE_MANAGERS: &[&str] = &["npm", "pnpm", "yarn"];
 
-/// Get all registered tool names from the registry
-pub fn get_registered_tools(registry: &BundleRegistry) -> Vec<String> {
-    registry.list_tools()
+/// Get all registered runtime names from the registry
+pub fn get_registered_runtimes(registry: &ProviderRegistry) -> Vec<String> {
+    registry.runtime_names()
 }

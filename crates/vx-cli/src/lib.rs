@@ -2,10 +2,11 @@
 
 use anyhow::Result;
 use clap::Parser;
-use vx_plugin::BundleRegistry;
+use vx_runtime::ProviderRegistry;
 
 pub mod cli;
 pub mod commands;
+pub mod registry;
 pub mod tracing_setup;
 pub mod ui;
 
@@ -20,56 +21,36 @@ mod plugin_tests;
 
 // Re-export for convenience
 pub use cli::Cli;
+pub use registry::{create_context, create_registry, ProviderRegistryExt};
 pub use tracing_setup::setup_tracing;
 
 /// Main entry point for the VX CLI application
-/// This function sets up the plugin registry and runs the CLI
+/// This function sets up the provider registry and runs the CLI
 pub async fn main() -> anyhow::Result<()> {
     // Setup tracing
     setup_tracing();
 
-    // Create bundle registry with all available bundles
-    let registry = BundleRegistry::new();
+    // Create provider registry with all available providers
+    let registry = create_registry();
 
-    // Register Node.js bundle
-    let _ = registry
-        .register_bundle(Box::new(vx_tool_node::NodePlugin::new()))
-        .await;
-
-    // Register Go bundle
-    let _ = registry
-        .register_bundle(Box::new(vx_tool_go::GoPlugin::new()))
-        .await;
-
-    // Register Rust bundle
-    let _ = registry
-        .register_bundle(Box::new(vx_tool_rust::RustPlugin::new()))
-        .await;
-
-    // Register UV bundle
-    let _ = registry
-        .register_bundle(Box::new(vx_tool_uv::UvPlugin::new()))
-        .await;
-
-    // Register Bun bundle
-    let _ = registry
-        .register_bundle(Box::new(vx_tool_bun::BunPlugin::new()))
-        .await;
+    // Create runtime context
+    let context = create_context()?;
 
     // Create and run CLI
-    let cli = VxCli::new(registry);
+    let cli = VxCli::new(registry, context);
     cli.run().await
 }
 
 /// Main CLI application structure
 pub struct VxCli {
-    registry: BundleRegistry,
+    registry: ProviderRegistry,
+    context: vx_runtime::RuntimeContext,
 }
 
 impl VxCli {
-    /// Create a new VxCli instance with the given bundle registry
-    pub fn new(registry: BundleRegistry) -> Self {
-        Self { registry }
+    /// Create a new VxCli instance with the given provider registry
+    pub fn new(registry: ProviderRegistry, context: vx_runtime::RuntimeContext) -> Self {
+        Self { registry, context }
     }
 
     /// Run the CLI application
@@ -109,14 +90,26 @@ impl VxCli {
                 status,
                 installed: _,
                 available: _,
-            } => commands::list::handle(&self.registry, tool.as_deref(), status).await,
+            } => {
+                commands::list::handle(&self.registry, &self.context, tool.as_deref(), status).await
+            }
             Commands::Install {
                 tool,
                 version,
                 force,
-            } => commands::install::handle(&self.registry, &tool, version.as_deref(), force).await,
+            } => {
+                commands::install::handle(
+                    &self.registry,
+                    &self.context,
+                    &tool,
+                    version.as_deref(),
+                    force,
+                )
+                .await
+            }
             Commands::Update { tool, apply } => {
-                commands::update::handle(&self.registry, tool.as_deref(), apply).await
+                commands::update::handle(&self.registry, &self.context, tool.as_deref(), apply)
+                    .await
             }
 
             Commands::SelfUpdate {
@@ -131,7 +124,16 @@ impl VxCli {
                 tool,
                 version,
                 force,
-            } => commands::remove::handle(&self.registry, &tool, version.as_deref(), force).await,
+            } => {
+                commands::remove::handle(
+                    &self.registry,
+                    &self.context,
+                    &tool,
+                    version.as_deref(),
+                    force,
+                )
+                .await
+            }
 
             Commands::Which { tool, all } => {
                 commands::where_cmd::handle(&self.registry, &tool, all).await
@@ -146,6 +148,7 @@ impl VxCli {
             } => {
                 commands::fetch::handle(
                     &self.registry,
+                    &self.context,
                     &tool,
                     latest,
                     detailed,
@@ -207,6 +210,7 @@ impl VxCli {
             Commands::Plugin { command } => commands::plugin::handle(&self.registry, command).await,
             Commands::Venv { command } => commands::venv_cmd::handle(command).await,
             Commands::Global { command } => commands::global::handle(command).await,
+            Commands::Env { command } => commands::env::handle(command).await,
             Commands::Search {
                 query,
                 category,

@@ -257,9 +257,16 @@ mod error_handling_tests {
 
         assert!(!output.status.success());
 
+        let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
-        // Should contain helpful error message
-        assert!(stderr.contains("Tool not found") || stderr.contains("not found"));
+        let combined = format!("{}{}", stdout, stderr);
+        // Should contain helpful error message about unknown tool or auto-install failure
+        assert!(
+            combined.contains("Tool not found")
+                || combined.contains("not found")
+                || combined.contains("Unknown tool")
+                || combined.contains("Cannot auto-install")
+        );
     }
 
     #[test]
