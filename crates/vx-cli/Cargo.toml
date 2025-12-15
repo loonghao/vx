@@ -21,6 +21,8 @@ vx-tool-go = { version = "0.4.0", path = "../vx-tools/go" }
 vx-tool-rust = { version = "0.4.0", path = "../vx-tools/rust" }
 vx-tool-uv = { version = "0.4.0", path = "../vx-tools/uv" }
 vx-tool-bun = { version = "0.4.0", path = "../vx-tools/bun" }
+vx-tool-pnpm = { version = "0.4.0", path = "../vx-tools/pnpm" }
+vx-tool-yarn = { version = "0.4.0", path = "../vx-tools/yarn" }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
@@ -59,3 +61,5 @@ vx-tool-go = { version = "0.4.0", path = "../vx-tools/go" }
 vx-tool-rust = { version = "0.4.0", path = "../vx-tools/rust" }
 vx-tool-uv = { version = "0.4.0", path = "../vx-tools/uv" }
 vx-tool-bun = { version = "0.4.0", path = "../vx-tools/bun" }
+vx-tool-pnpm = { version = "0.4.0", path = "../vx-tools/pnpm" }
+vx-tool-yarn = { version = "0.4.0", path = "../vx-tools/yarn" }

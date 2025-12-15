@@ -561,7 +561,7 @@ fn test_shell_completions() {
 
     for shell in shells {
         let output = run_vx(&["shell", "completions", shell])
-            .expect(&format!("Failed to run vx shell completions {}", shell));
+            .unwrap_or_else(|_| panic!("Failed to run vx shell completions {}", shell));
 
         // Should succeed for all shells
         assert!(
@@ -582,7 +582,7 @@ fn test_shell_init() {
 
     for shell in shells {
         let output = run_vx(&["shell", "init", shell])
-            .expect(&format!("Failed to run vx shell init {}", shell));
+            .unwrap_or_else(|_| panic!("Failed to run vx shell init {}", shell));
 
         // Should succeed for all shells
         assert!(
