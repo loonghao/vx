@@ -11,6 +11,7 @@ repository.workspace = true
 async-trait = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
+tracing = { workspace = true }
 
 # Async runtime
 tokio = { workspace = true }
