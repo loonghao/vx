@@ -101,7 +101,7 @@ figment = { version = "0.10", features = ["toml", "env"] }
 which = "8.0"
 regex = "1.10"
 tempfile = "3.8"
-zip = "4.0"
+zip = "6.0"
 tar = "0.4"
 flate2 = "1.0"
 liblzma = "0.4"
