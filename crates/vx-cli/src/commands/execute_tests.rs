@@ -5,10 +5,17 @@ use crate::test_utils::*;
 
 #[tokio::test]
 async fn test_execute_tool_success() {
-    let _env = TestEnvironment::new();
+    let env = TestEnvironment::new();
 
     // Test successful tool execution
-    let result = execute_tool("echo", &["hello".to_string()], false).await;
+    let result = execute_tool(
+        &env.registry,
+        &env.context,
+        "echo",
+        &["hello".to_string()],
+        false,
+    )
+    .await;
 
     // Note: This test depends on system having 'echo' command
     // In a real implementation, we'd mock the command execution
@@ -23,10 +30,17 @@ async fn test_execute_tool_success() {
 
 #[tokio::test]
 async fn test_execute_tool_not_found() {
-    let _env = TestEnvironment::new();
+    let env = TestEnvironment::new();
 
     // Test tool not found
-    let result = execute_tool("nonexistent-tool-12345", &[], false).await;
+    let result = execute_tool(
+        &env.registry,
+        &env.context,
+        "nonexistent-tool-12345",
+        &[],
+        false,
+    )
+    .await;
 
     assert!(result.is_err());
     let error_msg = result.unwrap_err().to_string();
@@ -39,11 +53,11 @@ async fn test_execute_tool_not_found() {
 
 #[tokio::test]
 async fn test_execute_tool_with_args() {
-    let _env = TestEnvironment::new();
+    let env = TestEnvironment::new();
 
     // Test tool execution with arguments
     let args = vec!["--version".to_string()];
-    let result = execute_tool("echo", &args, false).await;
+    let result = execute_tool(&env.registry, &env.context, "echo", &args, false).await;
 
     // This should work if echo is available
     match result {
@@ -59,7 +73,14 @@ async fn test_handle_execute_success() {
     let env = TestEnvironment::new();
 
     // Test the handle function with a simple command
-    let result = handle(&env.registry, "echo", &["test".to_string()], false).await;
+    let result = handle(
+        &env.registry,
+        &env.context,
+        "echo",
+        &["test".to_string()],
+        false,
+    )
+    .await;
 
     // The handle function should not panic and should handle errors gracefully
     match result {
@@ -74,10 +95,17 @@ async fn test_handle_execute_success() {
 
 #[tokio::test]
 async fn test_execute_with_system_path_flag() {
-    let _env = TestEnvironment::new();
+    let env = TestEnvironment::new();
 
     // Test execution with use_system_path flag
-    let result = execute_tool("echo", &["test".to_string()], true).await;
+    let result = execute_tool(
+        &env.registry,
+        &env.context,
+        "echo",
+        &["test".to_string()],
+        true,
+    )
+    .await;
 
     match result {
         Ok(exit_code) => assert_eq!(exit_code, 0),
