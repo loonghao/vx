@@ -95,7 +95,7 @@ pub enum Commands {
     },
 
     /// Uninstall tool versions (preferred over remove)
-    #[command(alias = "rm")]
+    #[command(alias = "rm", alias = "remove")]
     Uninstall {
         /// Tool name
         tool: String,
