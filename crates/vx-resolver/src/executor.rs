@@ -148,6 +148,7 @@ impl<'a> Executor<'a> {
         if let (Some(registry), Some(context)) = (self.registry, self.context) {
             if let Some(runtime) = registry.get_runtime(runtime_name) {
                 // Fetch versions to get the latest
+                debug!("Fetching versions for {}", runtime_name);
                 let versions = runtime.fetch_versions(context).await?;
                 let version = versions
                     .iter()
@@ -162,7 +163,22 @@ impl<'a> Executor<'a> {
                 runtime.pre_install(&version, context).await?;
 
                 // Actually install the runtime
-                runtime.install(&version, context).await?;
+                debug!("Calling runtime.install() for {} {}", runtime_name, version);
+                let result = runtime.install(&version, context).await?;
+                debug!(
+                    "Install result: path={}, exe={}, already_installed={}",
+                    result.install_path.display(),
+                    result.executable_path.display(),
+                    result.already_installed
+                );
+
+                // Verify the installation actually succeeded
+                if !context.fs.exists(&result.executable_path) {
+                    return Err(anyhow::anyhow!(
+                        "Installation completed but executable not found at {}",
+                        result.executable_path.display()
+                    ));
+                }
 
                 // Run post-install hook
                 runtime.post_install(&version, context).await?;

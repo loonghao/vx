@@ -267,24 +267,49 @@ pub trait Runtime: Send + Sync {
     ///
     /// Default implementation downloads and extracts to the store.
     async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
+        use tracing::{debug, info};
+
         let install_path = ctx.paths.version_store_dir(self.name(), version);
+        debug!(
+            "Install path for {} {}: {}",
+            self.name(),
+            version,
+            install_path.display()
+        );
 
         // Check if already installed
         if ctx.fs.exists(&install_path) {
             let exe_path = ctx.paths.executable_path(self.name(), version);
-            return Ok(InstallResult::already_installed(
-                install_path,
-                exe_path,
-                version.to_string(),
-            ));
+            // Verify the executable actually exists
+            if ctx.fs.exists(&exe_path) {
+                debug!("Already installed: {}", exe_path.display());
+                return Ok(InstallResult::already_installed(
+                    install_path,
+                    exe_path,
+                    version.to_string(),
+                ));
+            } else {
+                // Directory exists but executable doesn't - clean up and reinstall
+                debug!(
+                    "Install directory exists but executable missing, cleaning up: {}",
+                    install_path.display()
+                );
+                if let Err(e) = std::fs::remove_dir_all(&install_path) {
+                    debug!("Failed to clean up directory: {}", e);
+                }
+            }
         }
 
         // Get download URL
         let platform = Platform::current();
+        debug!("Platform: {:?}", platform);
+
         let url = self
             .download_url(version, &platform)
             .await?
             .ok_or_else(|| anyhow::anyhow!("No download URL for {} {}", self.name(), version))?;
+
+        info!("Downloading {} {} from {}", self.name(), version, url);
 
         // Download and extract
         ctx.installer
@@ -292,6 +317,8 @@ pub trait Runtime: Send + Sync {
             .await?;
 
         let exe_path = ctx.paths.executable_path(self.name(), version);
+        debug!("Expected executable path: {}", exe_path.display());
+
         Ok(InstallResult::success(
             install_path,
             exe_path,
