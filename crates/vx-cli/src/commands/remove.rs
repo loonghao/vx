@@ -20,8 +20,14 @@ pub async fn handle(
         // Remove specific version
         UI::info(&format!("Removing {} {}...", tool_name, target_version));
 
+        // Run pre-uninstall hook
+        runtime.pre_uninstall(target_version, context).await?;
+
         match runtime.uninstall(target_version, context).await {
             Ok(()) => {
+                // Run post-uninstall hook
+                runtime.post_uninstall(target_version, context).await?;
+
                 UI::success(&format!(
                     "Successfully removed {} {}",
                     tool_name, target_version
@@ -58,8 +64,25 @@ pub async fn handle(
 
         let mut errors = Vec::new();
         for version in &installed_versions {
+            // Run pre-uninstall hook
+            if let Err(e) = runtime.pre_uninstall(version, context).await {
+                UI::error(&format!(
+                    "Pre-uninstall hook failed for {} {}: {}",
+                    tool_name, version, e
+                ));
+                errors.push(e);
+                continue;
+            }
+
             match runtime.uninstall(version, context).await {
                 Ok(()) => {
+                    // Run post-uninstall hook (best effort)
+                    if let Err(e) = runtime.post_uninstall(version, context).await {
+                        UI::warn(&format!(
+                            "Post-uninstall hook failed for {} {}: {}",
+                            tool_name, version, e
+                        ));
+                    }
                     UI::detail(&format!("Removed {} {}", tool_name, version));
                 }
                 Err(e) => {

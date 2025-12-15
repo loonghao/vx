@@ -8,16 +8,17 @@
 use crate::ui::UI;
 use anyhow::Result;
 use vx_resolver::{Executor, ResolverConfig};
-use vx_runtime::ProviderRegistry;
+use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 /// Handle the execute command
 pub async fn handle(
-    _registry: &ProviderRegistry,
+    registry: &ProviderRegistry,
+    context: &RuntimeContext,
     runtime_name: &str,
     args: &[String],
     use_system_path: bool,
 ) -> Result<()> {
-    let exit_code = execute_runtime(runtime_name, args, use_system_path).await?;
+    let exit_code = execute_runtime(registry, context, runtime_name, args, use_system_path).await?;
     if exit_code != 0 {
         std::process::exit(exit_code);
     }
@@ -31,6 +32,8 @@ pub async fn handle(
 /// 2. Auto-installs missing components if enabled
 /// 3. Forwards the command to the appropriate executable
 pub async fn execute_runtime(
+    registry: &ProviderRegistry,
+    context: &RuntimeContext,
     runtime_name: &str,
     args: &[String],
     use_system_path: bool,
@@ -44,8 +47,8 @@ pub async fn execute_runtime(
         ResolverConfig::default()
     };
 
-    // Create the executor
-    let executor = Executor::new(config)?;
+    // Create the executor with registry and context for auto-installation
+    let executor = Executor::with_registry_and_context(config, registry, context)?;
 
     // Execute the runtime
     executor.execute(runtime_name, args).await

@@ -273,6 +273,13 @@ impl VxCli {
         let tool_name = &args[0];
         let tool_args = &args[1..];
 
-        commands::execute::handle(&self.registry, tool_name, tool_args, use_system_path).await
+        commands::execute::handle(
+            &self.registry,
+            &self.context,
+            tool_name,
+            tool_args,
+            use_system_path,
+        )
+        .await
     }
 }

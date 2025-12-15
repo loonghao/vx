@@ -5,7 +5,7 @@
 
 mod common;
 
-use common::{cleanup_test_env, create_full_registry, init_test_env};
+use common::{cleanup_test_env, create_full_registry, create_test_context, init_test_env};
 use rstest::*;
 use vx_runtime::ProviderRegistry;
 
@@ -29,7 +29,8 @@ mod execute_tests {
     #[tokio::test]
     async fn test_execute_empty_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
-        let result = execute::handle(&registry, "", &[], false).await;
+        let context = create_test_context();
+        let result = execute::handle(&registry, &context, "", &[], false).await;
         assert!(result.is_err(), "Execute with empty tool should fail");
         cleanup_test_env();
     }
@@ -39,7 +40,8 @@ mod execute_tests {
     #[tokio::test]
     async fn test_execute_nonexistent_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
-        let result = execute::handle(&registry, "nonexistent-tool-xyz", &[], false).await;
+        let context = create_test_context();
+        let result = execute::handle(&registry, &context, "nonexistent-tool-xyz", &[], false).await;
         assert!(result.is_err(), "Execute nonexistent tool should fail");
         cleanup_test_env();
     }
@@ -49,8 +51,10 @@ mod execute_tests {
     #[tokio::test]
     async fn test_execute_with_system_path(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
+        let context = create_test_context();
         // This should attempt to use system PATH
-        let result = execute::handle(&registry, "echo", &["hello".to_string()], true).await;
+        let result =
+            execute::handle(&registry, &context, "echo", &["hello".to_string()], true).await;
         // May succeed or fail depending on system, but should not panic
         let _ = result;
         cleanup_test_env();

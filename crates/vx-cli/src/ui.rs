@@ -1,11 +1,232 @@
 //! User interface utilities
+//!
+//! This module provides:
+//! - Consistent output formatting (UI)
+//! - Progress indicators (ProgressSpinner, DownloadProgress, MultiProgress)
+//! - Global progress manager (ProgressManager)
 
 use colored::*;
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress as IndicatifMultiProgress, ProgressBar, ProgressStyle};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 static VERBOSE: AtomicBool = AtomicBool::new(false);
+
+// Global progress manager instance
+static PROGRESS_MANAGER: OnceLock<Arc<ProgressManager>> = OnceLock::new();
+
+/// Get the global progress manager
+pub fn progress_manager() -> Arc<ProgressManager> {
+    PROGRESS_MANAGER
+        .get_or_init(|| Arc::new(ProgressManager::new()))
+        .clone()
+}
+
+/// Global progress manager for coordinating multiple progress indicators
+pub struct ProgressManager {
+    multi: IndicatifMultiProgress,
+    active_bars: Mutex<Vec<ProgressBar>>,
+}
+
+impl ProgressManager {
+    /// Create a new progress manager
+    pub fn new() -> Self {
+        Self {
+            multi: IndicatifMultiProgress::new(),
+            active_bars: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Create a new spinner under this manager
+    pub fn add_spinner(&self, message: &str) -> ManagedSpinner {
+        let bar = self.multi.add(ProgressBar::new_spinner());
+        bar.set_style(
+            ProgressStyle::with_template("{spinner:.cyan} {msg}")
+                .unwrap()
+                .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
+        );
+        bar.set_message(message.to_string());
+        bar.enable_steady_tick(Duration::from_millis(80));
+
+        if let Ok(mut bars) = self.active_bars.lock() {
+            bars.push(bar.clone());
+        }
+
+        ManagedSpinner { bar }
+    }
+
+    /// Create a download progress bar under this manager
+    pub fn add_download(&self, total_size: u64, message: &str) -> ManagedDownload {
+        let bar = self.multi.add(ProgressBar::new(total_size));
+        bar.set_style(
+            ProgressStyle::with_template(
+                "{spinner:.green} {msg}\n{wide_bar:.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"
+            )
+            .unwrap()
+            .progress_chars("━━╺"),
+        );
+        bar.set_message(message.to_string());
+
+        if let Ok(mut bars) = self.active_bars.lock() {
+            bars.push(bar.clone());
+        }
+
+        ManagedDownload { bar }
+    }
+
+    /// Create a task progress bar under this manager
+    pub fn add_task(&self, total: u64, message: &str) -> ManagedTask {
+        let bar = self.multi.add(ProgressBar::new(total));
+        bar.set_style(
+            ProgressStyle::with_template("{spinner:.blue} {msg} [{bar:30.cyan/blue}] {pos}/{len}")
+                .unwrap()
+                .progress_chars("━━╺"),
+        );
+        bar.set_message(message.to_string());
+        bar.enable_steady_tick(Duration::from_millis(100));
+
+        if let Ok(mut bars) = self.active_bars.lock() {
+            bars.push(bar.clone());
+        }
+
+        ManagedTask { bar }
+    }
+
+    /// Clear all active progress bars
+    pub fn clear_all(&self) {
+        if let Ok(mut bars) = self.active_bars.lock() {
+            for bar in bars.drain(..) {
+                bar.finish_and_clear();
+            }
+        }
+    }
+
+    /// Suspend progress bars for clean output
+    pub fn suspend<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce() -> R,
+    {
+        self.multi.suspend(f)
+    }
+}
+
+impl Default for ProgressManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// A spinner managed by ProgressManager
+pub struct ManagedSpinner {
+    bar: ProgressBar,
+}
+
+impl ManagedSpinner {
+    pub fn set_message(&self, message: &str) {
+        self.bar.set_message(message.to_string());
+    }
+
+    pub fn finish_with_message(&self, message: &str) {
+        self.bar.finish_with_message(message.to_string());
+    }
+
+    pub fn finish_and_clear(&self) {
+        self.bar.finish_and_clear();
+    }
+
+    pub fn finish_success(&self, message: &str) {
+        self.bar
+            .finish_with_message(format!("{} {}", "✓".green(), message));
+    }
+
+    pub fn finish_error(&self, message: &str) {
+        self.bar
+            .finish_with_message(format!("{} {}", "✗".red(), message.red()));
+    }
+}
+
+impl Drop for ManagedSpinner {
+    fn drop(&mut self) {
+        if !self.bar.is_finished() {
+            self.bar.finish_and_clear();
+        }
+    }
+}
+
+/// A download progress bar managed by ProgressManager
+pub struct ManagedDownload {
+    bar: ProgressBar,
+}
+
+impl ManagedDownload {
+    pub fn set_length(&self, len: u64) {
+        self.bar.set_length(len);
+    }
+
+    pub fn set_position(&self, pos: u64) {
+        self.bar.set_position(pos);
+    }
+
+    pub fn inc(&self, delta: u64) {
+        self.bar.inc(delta);
+    }
+
+    pub fn set_message(&self, message: &str) {
+        self.bar.set_message(message.to_string());
+    }
+
+    pub fn finish_with_message(&self, message: &str) {
+        self.bar.finish_with_message(message.to_string());
+    }
+
+    pub fn finish_and_clear(&self) {
+        self.bar.finish_and_clear();
+    }
+}
+
+impl Drop for ManagedDownload {
+    fn drop(&mut self) {
+        if !self.bar.is_finished() {
+            self.bar.finish_and_clear();
+        }
+    }
+}
+
+/// A task progress bar managed by ProgressManager
+pub struct ManagedTask {
+    bar: ProgressBar,
+}
+
+impl ManagedTask {
+    pub fn set_position(&self, pos: u64) {
+        self.bar.set_position(pos);
+    }
+
+    pub fn inc(&self, delta: u64) {
+        self.bar.inc(delta);
+    }
+
+    pub fn set_message(&self, message: &str) {
+        self.bar.set_message(message.to_string());
+    }
+
+    pub fn finish_with_message(&self, message: &str) {
+        self.bar.finish_with_message(message.to_string());
+    }
+
+    pub fn finish_and_clear(&self) {
+        self.bar.finish_and_clear();
+    }
+}
+
+impl Drop for ManagedTask {
+    fn drop(&mut self) {
+        if !self.bar.is_finished() {
+            self.bar.finish_and_clear();
+        }
+    }
+}
 
 /// UI utilities for consistent output formatting
 pub struct UI;

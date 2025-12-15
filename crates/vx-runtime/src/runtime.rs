@@ -101,6 +101,168 @@ pub trait Runtime: Send + Sync {
         HashMap::new()
     }
 
+    // ========== Lifecycle Hooks ==========
+    //
+    // All hooks have default empty implementations.
+    // Providers can override these to add custom behavior.
+    // Return `Err` from pre_* hooks to abort the operation.
+
+    // --- Install Hooks ---
+
+    /// Called before installation begins
+    ///
+    /// Use this to:
+    /// - Check system dependencies
+    /// - Validate environment
+    /// - Clean up previous failed installations
+    /// - Create necessary directories
+    ///
+    /// Return `Err` to abort installation.
+    async fn pre_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
+        let _ = (version, ctx);
+        Ok(())
+    }
+
+    /// Called after successful installation
+    ///
+    /// Use this to:
+    /// - Set up PATH or symlinks
+    /// - Run initialization scripts
+    /// - Verify the installation works
+    /// - Install bundled tools (e.g., npm with node)
+    async fn post_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
+        let _ = (version, ctx);
+        Ok(())
+    }
+
+    // --- Uninstall Hooks ---
+
+    /// Called before uninstallation begins
+    ///
+    /// Use this to:
+    /// - Check if other tools depend on this version
+    /// - Backup configuration files
+    /// - Warn about data loss
+    ///
+    /// Return `Err` to abort uninstallation.
+    async fn pre_uninstall(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
+        let _ = (version, ctx);
+        Ok(())
+    }
+
+    /// Called after successful uninstallation
+    ///
+    /// Use this to:
+    /// - Remove symlinks
+    /// - Clean up cache files
+    /// - Update global configuration
+    async fn post_uninstall(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
+        let _ = (version, ctx);
+        Ok(())
+    }
+
+    // --- Execute Hooks ---
+
+    /// Called before command execution
+    ///
+    /// Use this to:
+    /// - Set up environment variables
+    /// - Validate arguments
+    /// - Check prerequisites
+    /// - Log execution start
+    ///
+    /// Return `Err` to abort execution.
+    async fn pre_execute(&self, args: &[String], ctx: &ExecutionContext) -> Result<()> {
+        let _ = (args, ctx);
+        Ok(())
+    }
+
+    /// Called after command execution (regardless of success/failure)
+    ///
+    /// Use this to:
+    /// - Clean up temporary files
+    /// - Log execution results
+    /// - Update statistics
+    async fn post_execute(
+        &self,
+        args: &[String],
+        result: &ExecutionResult,
+        ctx: &ExecutionContext,
+    ) -> Result<()> {
+        let _ = (args, result, ctx);
+        Ok(())
+    }
+
+    // --- Switch/Use Hooks ---
+
+    /// Called before switching to a different version
+    ///
+    /// Use this to:
+    /// - Validate the target version exists
+    /// - Check compatibility
+    /// - Backup current configuration
+    async fn pre_switch(
+        &self,
+        from_version: Option<&str>,
+        to_version: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<()> {
+        let _ = (from_version, to_version, ctx);
+        Ok(())
+    }
+
+    /// Called after switching to a different version
+    ///
+    /// Use this to:
+    /// - Update symlinks
+    /// - Rehash shell commands
+    /// - Notify user of changes
+    async fn post_switch(
+        &self,
+        from_version: Option<&str>,
+        to_version: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<()> {
+        let _ = (from_version, to_version, ctx);
+        Ok(())
+    }
+
+    // --- Update Hooks ---
+
+    /// Called before updating to a new version
+    ///
+    /// Use this to:
+    /// - Check if update is available
+    /// - Backup current version
+    /// - Validate update path
+    async fn pre_update(
+        &self,
+        from_version: &str,
+        to_version: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<()> {
+        let _ = (from_version, to_version, ctx);
+        Ok(())
+    }
+
+    /// Called after successful update
+    ///
+    /// Use this to:
+    /// - Migrate configuration
+    /// - Clean up old version (optional)
+    /// - Verify new version works
+    async fn post_update(
+        &self,
+        from_version: &str,
+        to_version: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<()> {
+        let _ = (from_version, to_version, ctx);
+        Ok(())
+    }
+
+    // ========== Core Operations ==========
+
     /// Install a specific version
     ///
     /// Default implementation downloads and extracts to the store.
