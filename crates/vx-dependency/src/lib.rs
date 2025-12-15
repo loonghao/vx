@@ -17,7 +17,7 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut resolver = DependencyResolver::new();
-//!     
+//!
 //!     // Register tools and their dependencies
 //!     resolver.register_tool(ToolSpec {
 //!         name: "yarn".to_string(),
@@ -26,11 +26,11 @@
 //!         ],
 //!         ..Default::default()
 //!     });
-//!     
+//!
 //!     // Resolve dependencies for yarn
 //!     let resolution = resolver.resolve("yarn").await?;
 //!     println!("Install order: {:?}", resolution.install_order);
-//!     
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -98,7 +98,9 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::const_is_empty)]
     fn test_version_info() {
+        // VERSION is a const string from Cargo.toml, verify it's valid
         assert!(!VERSION.is_empty());
     }
 }

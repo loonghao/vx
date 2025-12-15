@@ -53,6 +53,12 @@ pub async fn create_full_registry() -> BundleRegistry {
     let _ = registry
         .register_bundle(Box::new(vx_tool_bun::BunPlugin::new()))
         .await;
+    let _ = registry
+        .register_bundle(Box::<vx_tool_pnpm::PnpmPlugin>::default())
+        .await;
+    let _ = registry
+        .register_bundle(Box::<vx_tool_yarn::YarnPlugin>::default())
+        .await;
 
     registry
 }
@@ -72,6 +78,14 @@ pub fn binary_name() -> &'static str {
 
 /// Get the vx binary path
 pub fn vx_binary() -> PathBuf {
+    // Check VX_BINARY environment variable first (for CI artifact-based testing)
+    if let Ok(path) = std::env::var("VX_BINARY") {
+        let p = PathBuf::from(&path);
+        if p.exists() {
+            return p;
+        }
+    }
+
     let cargo_target = std::env::var("CARGO_TARGET_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("target"));
@@ -246,8 +260,11 @@ pub fn tool_installed(tool: &str) -> bool {
 // Constants
 // ============================================================================
 
-/// Supported tools for testing
-pub const SUPPORTED_TOOLS: &[&str] = &["node", "go", "cargo", "uv", "bun", "pnpm", "yarn"];
+/// Supported tools for testing (tools registered via VxTool, not package managers)
+pub const SUPPORTED_TOOLS: &[&str] = &["node", "go", "cargo", "uv", "bun"];
+
+/// Supported package managers for testing
+pub const SUPPORTED_PACKAGE_MANAGERS: &[&str] = &["npm", "pnpm", "yarn"];
 
 /// Get all registered tool names from the registry
 pub fn get_registered_tools(registry: &BundleRegistry) -> Vec<String> {

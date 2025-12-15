@@ -29,7 +29,7 @@ fn test_multiple_tools_version_sequence() {
         let mut full_args = vec![tool];
         full_args.extend(args);
 
-        let output = run_vx(&full_args).expect(&format!("Failed to run vx {}", tool));
+        let output = run_vx(&full_args).unwrap_or_else(|_| panic!("Failed to run vx {}", tool));
 
         // Just verify it doesn't crash - tool may or may not be installed
         let _ = combined_output(&output);
@@ -110,7 +110,8 @@ fn test_package_manager_switch() {
     let managers = ["npm", "pnpm", "yarn"];
 
     for manager in managers {
-        let output = run_vx(&[manager, "--version"]).expect(&format!("Failed to run {}", manager));
+        let output =
+            run_vx(&[manager, "--version"]).unwrap_or_else(|_| panic!("Failed to run {}", manager));
 
         // Just verify each works
         let _ = combined_output(&output);
@@ -457,7 +458,8 @@ fn test_which_multiple_tools() {
     let tools = ["node", "npm", "go", "cargo", "uv", "bun"];
 
     for tool in tools {
-        let output = run_vx(&["which", tool]).expect(&format!("Failed to run vx which {}", tool));
+        let output =
+            run_vx(&["which", tool]).unwrap_or_else(|_| panic!("Failed to run vx which {}", tool));
 
         // May succeed or fail depending on installation
         let _ = combined_output(&output);
