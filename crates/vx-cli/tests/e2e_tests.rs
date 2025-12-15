@@ -8,39 +8,13 @@
 
 mod common;
 
-use common::{cleanup_test_env, init_test_env};
+use common::{cleanup_test_env, init_test_env, vx_available, vx_binary};
 use rstest::*;
-use std::path::PathBuf;
 use std::process::Command;
 
-/// Get the vx binary path
-fn vx_binary() -> PathBuf {
-    // Try to find the vx binary in common locations
-    let cargo_target = std::env::var("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("target"));
-
-    let binary_name = if cfg!(windows) { "vx.exe" } else { "vx" };
-
-    // Check debug build first
-    let debug_binary = cargo_target.join("debug").join(binary_name);
-    if debug_binary.exists() {
-        return debug_binary;
-    }
-
-    // Check release build
-    let release_binary = cargo_target.join("release").join(binary_name);
-    if release_binary.exists() {
-        return release_binary;
-    }
-
-    // Fall back to system PATH
-    PathBuf::from(binary_name)
-}
-
-/// Check if vx binary exists
+/// Check if vx binary exists (use common module)
 fn vx_exists() -> bool {
-    vx_binary().exists() || Command::new("vx").arg("--version").output().is_ok()
+    vx_available()
 }
 
 // ============================================================================
