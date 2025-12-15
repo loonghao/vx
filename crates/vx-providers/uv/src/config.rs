@@ -15,21 +15,25 @@ impl UvUrlBuilder {
     }
 
     /// Generate download URL for UV version
+    /// UV download URLs format: https://github.com/astral-sh/uv/releases/download/{version}/uv-{platform}.{ext}
     pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
-        let filename = Self::get_filename(version, platform);
+        let filename = Self::get_filename(platform);
+        // Version in UV releases can be with or without 'v' prefix
+        // The release tag uses the version as-is (e.g., "0.9.17" not "v0.9.17")
+        let clean_version = version.trim_start_matches('v');
         Some(format!(
             "https://github.com/astral-sh/uv/releases/download/{}/{}",
-            version, filename
+            clean_version, filename
         ))
     }
 
-    /// Get platform-specific filename
-    pub fn get_filename(version: &str, platform: &Platform) -> String {
+    /// Get platform-specific filename (without version in filename)
+    pub fn get_filename(platform: &Platform) -> String {
         let platform_str = Self::get_platform_string(platform);
         if platform.os == vx_runtime::Os::Windows {
-            format!("uv-{}-{}.zip", platform_str, version)
+            format!("uv-{}.zip", platform_str)
         } else {
-            format!("uv-{}-{}.tar.gz", platform_str, version)
+            format!("uv-{}.tar.gz", platform_str)
         }
     }
 
