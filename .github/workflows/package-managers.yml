@@ -201,7 +201,7 @@ jobs:
     if: needs.check-release.outputs.should-publish == 'true'
     steps:
       - name: Publish to Homebrew
-        uses: Justintime50/homebrew-releaser@v2
+        uses: Justintime50/homebrew-releaser@v3
         with:
           homebrew_owner: loonghao
           homebrew_tap: homebrew-vx
