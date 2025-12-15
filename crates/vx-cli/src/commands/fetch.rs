@@ -1,6 +1,6 @@
 //! Fetch command implementation
 
-use crate::ui::UI;
+use crate::ui::{ProgressSpinner, UI};
 use anyhow::Result;
 use vx_runtime::{ProviderRegistry, RuntimeContext};
 
@@ -18,9 +18,9 @@ pub async fn handle(
         .get_runtime(tool_name)
         .ok_or_else(|| anyhow::anyhow!("Tool not found: {}", tool_name))?;
 
-    UI::info(&format!("Fetching versions for {}...", tool_name));
-
+    let spinner = ProgressSpinner::new(&format!("Fetching versions for {}...", tool_name));
     let mut versions = runtime.fetch_versions(context).await?;
+    spinner.finish_and_clear();
 
     // Filter out prereleases if not requested
     if !include_prerelease {
