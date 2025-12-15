@@ -243,6 +243,20 @@ pub struct VxConfig {
     pub registries: Vec<String>,
     /// Tool-specific configurations
     pub tools: HashMap<String, serde_json::Value>,
+    /// CDN acceleration settings
+    #[serde(default)]
+    pub cdn: CdnSettings,
+}
+
+/// CDN acceleration settings
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CdnSettings {
+    /// Whether CDN acceleration is enabled
+    #[serde(default)]
+    pub enabled: bool,
+    /// Preferred region (auto-detected if not set)
+    #[serde(default)]
+    pub region: Option<String>,
 }
 
 impl Default for VxConfig {
@@ -256,6 +270,7 @@ impl Default for VxConfig {
             platform: Platform::current(),
             registries: vec!["https://registry.vx.dev".to_string()],
             tools: HashMap::new(),
+            cdn: CdnSettings::default(),
         }
     }
 }

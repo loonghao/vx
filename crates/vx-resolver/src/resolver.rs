@@ -142,17 +142,86 @@ impl Resolver {
         let versions = self.path_manager.list_tool_versions(runtime_name).ok()?;
 
         if let Some(version) = versions.first() {
-            let path = self
+            // First try the simple path (e.g., ~/.vx/tools/node/18.17.0/node)
+            let simple_path = self
                 .path_manager
                 .tool_executable_path(runtime_name, version);
-            if path.exists() {
-                debug!("Found vx-managed {} version {}", runtime_name, version);
+            if simple_path.exists() {
+                debug!(
+                    "Found vx-managed {} version {} at simple path",
+                    runtime_name, version
+                );
                 return Some(RuntimeStatus::VxManaged {
                     version: version.clone(),
-                    path,
+                    path: simple_path,
+                });
+            }
+
+            // If not found, search for the executable in the version directory
+            // This handles cases like bun where the exe is in a subdirectory
+            let version_dir = self.path_manager.tool_version_dir(runtime_name, version);
+            if let Some(exe_path) = self.find_executable_in_dir(&version_dir, runtime_name) {
+                debug!(
+                    "Found vx-managed {} version {} at {}",
+                    runtime_name,
+                    version,
+                    exe_path.display()
+                );
+                return Some(RuntimeStatus::VxManaged {
+                    version: version.clone(),
+                    path: exe_path,
                 });
             }
         }
+        None
+    }
+
+    /// Search for an executable in a directory (recursively, up to 2 levels)
+    fn find_executable_in_dir(&self, dir: &PathBuf, exe_name: &str) -> Option<PathBuf> {
+        use std::fs;
+
+        if !dir.exists() {
+            return None;
+        }
+
+        let exe_name_with_ext = if cfg!(windows) {
+            format!("{}.exe", exe_name)
+        } else {
+            exe_name.to_string()
+        };
+
+        // Check direct children
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+
+                // Check if this is the executable
+                if path.is_file() {
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name == exe_name_with_ext || name == exe_name {
+                            return Some(path);
+                        }
+                    }
+                }
+
+                // Check one level deeper (for archives that extract to subdirectories)
+                if path.is_dir() {
+                    if let Ok(sub_entries) = fs::read_dir(&path) {
+                        for sub_entry in sub_entries.filter_map(|e| e.ok()) {
+                            let sub_path = sub_entry.path();
+                            if sub_path.is_file() {
+                                if let Some(name) = sub_path.file_name().and_then(|n| n.to_str()) {
+                                    if name == exe_name_with_ext || name == exe_name {
+                                        return Some(sub_path);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         None
     }
 

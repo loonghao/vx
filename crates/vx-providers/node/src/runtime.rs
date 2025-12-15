@@ -19,6 +19,12 @@ impl NodeRuntime {
     pub fn new() -> Self {
         Self
     }
+
+    /// Get the directory name inside the archive for a given version and platform
+    pub fn get_archive_dir_name(version: &str, platform: &Platform) -> String {
+        let platform_str = NodeUrlBuilder::get_platform_string(platform);
+        format!("node-v{}-{}", version, platform_str)
+    }
 }
 
 #[async_trait]
@@ -44,6 +50,17 @@ impl Runtime for NodeRuntime {
         meta.insert("homepage".to_string(), "https://nodejs.org/".to_string());
         meta.insert("ecosystem".to_string(), "javascript".to_string());
         meta
+    }
+
+    /// Node.js archives extract to `node-v{version}-{platform}/bin/node`
+    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        let dir_name = Self::get_archive_dir_name(version, platform);
+        let exe_name = if platform.os == vx_runtime::Os::Windows {
+            "node.exe"
+        } else {
+            "node"
+        };
+        format!("{}/bin/{}", dir_name, exe_name)
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
@@ -130,6 +147,17 @@ impl Runtime for NpmRuntime {
         meta
     }
 
+    /// NPM is bundled with Node.js, same archive structure
+    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        let dir_name = NodeRuntime::get_archive_dir_name(version, platform);
+        let exe_name = if platform.os == vx_runtime::Os::Windows {
+            "npm.cmd"
+        } else {
+            "npm"
+        };
+        format!("{}/bin/{}", dir_name, exe_name)
+    }
+
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
         // NPM is bundled with Node.js, so we fetch Node.js versions
         // and map them to the bundled npm versions
@@ -176,6 +204,17 @@ impl Runtime for NpxRuntime {
         meta.insert("ecosystem".to_string(), "javascript".to_string());
         meta.insert("bundled_with".to_string(), "node".to_string());
         meta
+    }
+
+    /// NPX is bundled with Node.js, same archive structure
+    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        let dir_name = NodeRuntime::get_archive_dir_name(version, platform);
+        let exe_name = if platform.os == vx_runtime::Os::Windows {
+            "npx.cmd"
+        } else {
+            "npx"
+        };
+        format!("{}/bin/{}", dir_name, exe_name)
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {

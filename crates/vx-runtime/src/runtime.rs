@@ -9,6 +9,42 @@ use crate::types::{ExecutionResult, InstallResult, RuntimeDependency, VersionInf
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::path::Path;
+
+/// Installation verification result
+#[derive(Debug, Clone)]
+pub struct VerificationResult {
+    /// Whether the installation is valid
+    pub valid: bool,
+    /// Path to the executable if found
+    pub executable_path: Option<std::path::PathBuf>,
+    /// List of issues found during verification
+    pub issues: Vec<String>,
+    /// Suggested fixes for the issues
+    pub suggestions: Vec<String>,
+}
+
+impl VerificationResult {
+    /// Create a successful verification result
+    pub fn success(executable_path: std::path::PathBuf) -> Self {
+        Self {
+            valid: true,
+            executable_path: Some(executable_path),
+            issues: vec![],
+            suggestions: vec![],
+        }
+    }
+
+    /// Create a failed verification result
+    pub fn failure(issues: Vec<String>, suggestions: Vec<String>) -> Self {
+        Self {
+            valid: false,
+            executable_path: None,
+            issues,
+            suggestions,
+        }
+    }
+}
 
 /// Core trait for implementing runtime support
 ///
@@ -152,6 +188,141 @@ pub trait Runtime: Send + Sync {
     async fn post_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
         let _ = (version, ctx);
         Ok(())
+    }
+
+    /// Verify that an installation is valid and complete
+    ///
+    /// This method checks:
+    /// 1. The executable exists at the expected path
+    /// 2. The executable is actually executable (has correct permissions)
+    /// 3. Any other runtime-specific requirements
+    ///
+    /// Override this for custom verification logic.
+    fn verify_installation(
+        &self,
+        version: &str,
+        install_path: &Path,
+        platform: &Platform,
+    ) -> VerificationResult {
+        let exe_relative = self.executable_relative_path(version, platform);
+        let exe_path = install_path.join(&exe_relative);
+
+        let mut issues = Vec::new();
+        let mut suggestions = Vec::new();
+
+        // Check if executable exists
+        if !exe_path.exists() {
+            issues.push(format!(
+                "Executable not found at expected path: {}",
+                exe_path.display()
+            ));
+
+            // Try to find the executable in the install directory
+            if let Some(found_path) = self.find_executable_in_install_dir(install_path) {
+                suggestions.push(format!(
+                    "Found executable at: {}. Consider overriding executable_relative_path() \
+                     to return the correct relative path.",
+                    found_path.display()
+                ));
+
+                // Calculate what the relative path should be
+                if let Ok(relative) = found_path.strip_prefix(install_path) {
+                    suggestions.push(format!(
+                        "Suggested executable_relative_path: \"{}\"",
+                        relative.display()
+                    ));
+                }
+            } else {
+                // List top-level contents for debugging
+                if let Ok(entries) = std::fs::read_dir(install_path) {
+                    let contents: Vec<_> = entries
+                        .filter_map(|e| e.ok())
+                        .map(|e| {
+                            let path = e.path();
+                            let is_dir = path.is_dir();
+                            format!(
+                                "{}{}",
+                                e.file_name().to_string_lossy(),
+                                if is_dir { "/" } else { "" }
+                            )
+                        })
+                        .collect();
+                    suggestions.push(format!(
+                        "Install directory contents: [{}]",
+                        contents.join(", ")
+                    ));
+                }
+            }
+
+            return VerificationResult::failure(issues, suggestions);
+        }
+
+        // Check if file is executable (Unix only)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Ok(metadata) = std::fs::metadata(&exe_path) {
+                let mode = metadata.permissions().mode();
+                if mode & 0o111 == 0 {
+                    issues.push(format!(
+                        "File exists but is not executable: {}",
+                        exe_path.display()
+                    ));
+                    suggestions.push("Try: chmod +x <path>".to_string());
+                    return VerificationResult::failure(issues, suggestions);
+                }
+            }
+        }
+
+        VerificationResult::success(exe_path)
+    }
+
+    /// Helper to find executable in install directory (searches up to 3 levels deep)
+    fn find_executable_in_install_dir(&self, install_path: &Path) -> Option<std::path::PathBuf> {
+        let exe_name = self.name();
+        let exe_name_with_ext = if cfg!(windows) {
+            format!("{}.exe", exe_name)
+        } else {
+            exe_name.to_string()
+        };
+
+        self.search_for_executable(install_path, &exe_name_with_ext, 0, 3)
+    }
+
+    /// Recursively search for an executable
+    fn search_for_executable(
+        &self,
+        dir: &Path,
+        exe_name: &str,
+        current_depth: usize,
+        max_depth: usize,
+    ) -> Option<std::path::PathBuf> {
+        if current_depth > max_depth || !dir.exists() {
+            return None;
+        }
+
+        let entries = std::fs::read_dir(dir).ok()?;
+
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    // Check for exact match or match without extension
+                    if name == exe_name || name == self.name() {
+                        return Some(path);
+                    }
+                }
+            } else if path.is_dir() {
+                if let Some(found) =
+                    self.search_for_executable(&path, exe_name, current_depth + 1, max_depth)
+                {
+                    return Some(found);
+                }
+            }
+        }
+
+        None
     }
 
     // --- Uninstall Hooks ---
@@ -340,9 +511,37 @@ pub trait Runtime: Send + Sync {
 
         debug!("Expected executable path: {}", exe_path.display());
 
+        // Use the verification framework to check installation
+        let verification = self.verify_installation(version, &install_path, &platform);
+
+        if !verification.valid {
+            // Build a detailed error message
+            let mut error_msg = format!(
+                "Installation of {} {} failed verification.\n",
+                self.name(),
+                version
+            );
+
+            error_msg.push_str("\nIssues found:\n");
+            for issue in &verification.issues {
+                error_msg.push_str(&format!("  - {}\n", issue));
+            }
+
+            if !verification.suggestions.is_empty() {
+                error_msg.push_str("\nSuggestions:\n");
+                for suggestion in &verification.suggestions {
+                    error_msg.push_str(&format!("  - {}\n", suggestion));
+                }
+            }
+
+            return Err(anyhow::anyhow!(error_msg));
+        }
+
+        let verified_exe_path = verification.executable_path.unwrap_or(exe_path);
+
         Ok(InstallResult::success(
             install_path,
-            exe_path,
+            verified_exe_path,
             version.to_string(),
         ))
     }
