@@ -49,6 +49,17 @@ impl Runtime for UvRuntime {
         meta
     }
 
+    /// UV archives extract to `uv-{platform}/uv`
+    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
+        let platform_str = UvUrlBuilder::get_platform_string(platform);
+        let exe_name = if platform.os == vx_runtime::Os::Windows {
+            "uv.exe"
+        } else {
+            "uv"
+        };
+        format!("uv-{}/{}", platform_str, exe_name)
+    }
+
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
         // Fetch from GitHub releases API
         let url = "https://api.github.com/repos/astral-sh/uv/releases";
@@ -124,6 +135,17 @@ impl Runtime for UvxRuntime {
         meta.insert("ecosystem".to_string(), "python".to_string());
         meta.insert("bundled_with".to_string(), "uv".to_string());
         meta
+    }
+
+    /// UVX archives extract to `uv-{platform}/uvx`
+    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
+        let platform_str = UvUrlBuilder::get_platform_string(platform);
+        let exe_name = if platform.os == vx_runtime::Os::Windows {
+            "uvx.exe"
+        } else {
+            "uvx"
+        };
+        format!("uv-{}/{}", platform_str, exe_name)
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {

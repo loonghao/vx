@@ -14,6 +14,19 @@ impl BunRuntime {
     pub fn new() -> Self {
         Self
     }
+
+    /// Get the platform-specific directory name inside the zip
+    fn get_archive_dir_name(platform: &Platform) -> &'static str {
+        use vx_runtime::{Arch, Os};
+        match (&platform.os, &platform.arch) {
+            (Os::Windows, Arch::X86_64) => "bun-windows-x64",
+            (Os::MacOS, Arch::X86_64) => "bun-darwin-x64",
+            (Os::MacOS, Arch::Aarch64) => "bun-darwin-aarch64",
+            (Os::Linux, Arch::X86_64) => "bun-linux-x64",
+            (Os::Linux, Arch::Aarch64) => "bun-linux-aarch64",
+            _ => "bun-linux-x64",
+        }
+    }
 }
 
 impl Default for BunRuntime {
@@ -38,6 +51,17 @@ impl Runtime for BunRuntime {
 
     fn aliases(&self) -> &[&str] {
         &[]
+    }
+
+    /// Bun archives extract to `bun-{platform}/bun`
+    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
+        let dir_name = Self::get_archive_dir_name(platform);
+        let exe_name = if platform.os == vx_runtime::Os::Windows {
+            "bun.exe"
+        } else {
+            "bun"
+        };
+        format!("{}/{}", dir_name, exe_name)
     }
 
     async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
@@ -88,6 +112,17 @@ impl Runtime for BunxRuntime {
 
     fn aliases(&self) -> &[&str] {
         &[]
+    }
+
+    /// Bunx is bundled with Bun, same archive structure
+    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
+        let dir_name = BunRuntime::get_archive_dir_name(platform);
+        let exe_name = if platform.os == vx_runtime::Os::Windows {
+            "bunx.exe"
+        } else {
+            "bunx"
+        };
+        format!("{}/{}", dir_name, exe_name)
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {

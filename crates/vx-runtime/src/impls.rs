@@ -438,8 +438,46 @@ impl Installer for RealInstaller {
         // Download
         self.http.download(url, &temp_path).await?;
 
-        // Extract
-        self.extract(&temp_path, dest).await?;
+        // Check if it's an archive or a single executable
+        let archive_str = archive_name.to_lowercase();
+        let is_archive = archive_str.ends_with(".tar.gz")
+            || archive_str.ends_with(".tgz")
+            || archive_str.ends_with(".tar.xz")
+            || archive_str.ends_with(".zip");
+
+        if is_archive {
+            // Extract archive
+            self.extract(&temp_path, dest).await?;
+        } else {
+            // Single executable file - copy to destination
+            std::fs::create_dir_all(dest)?;
+
+            // Determine the executable name (remove version suffix if present)
+            // e.g., "pnpm-linux-x64-9.0.0" -> "pnpm"
+            let exe_name = archive_name
+                .split('-')
+                .next()
+                .unwrap_or(archive_name)
+                .to_string();
+
+            let exe_name = if cfg!(windows) && !exe_name.ends_with(".exe") {
+                format!("{}.exe", exe_name)
+            } else {
+                exe_name
+            };
+
+            let dest_path = dest.join(&exe_name);
+            std::fs::copy(&temp_path, &dest_path)?;
+
+            // Make executable on Unix
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let mut perms = std::fs::metadata(&dest_path)?.permissions();
+                perms.set_mode(0o755);
+                std::fs::set_permissions(&dest_path, perms)?;
+            }
+        }
 
         Ok(())
     }

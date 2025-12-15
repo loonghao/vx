@@ -101,6 +101,25 @@ pub trait Runtime: Send + Sync {
         HashMap::new()
     }
 
+    /// Get the relative path to the executable within the install directory
+    ///
+    /// Override this if your runtime's archive extracts to a non-standard layout.
+    /// Default is `bin/{name}` (or `bin/{name}.exe` on Windows).
+    ///
+    /// # Examples
+    ///
+    /// - Node.js: `bin/node` (default)
+    /// - UV: `uv-{platform}/uv` (custom)
+    /// - Bun: `bun-{platform}/bun` (custom)
+    fn executable_relative_path(&self, _version: &str, _platform: &Platform) -> String {
+        let exe_name = if cfg!(windows) {
+            format!("{}.exe", self.name())
+        } else {
+            self.name().to_string()
+        };
+        format!("bin/{}", exe_name)
+    }
+
     // ========== Lifecycle Hooks ==========
     //
     // All hooks have default empty implementations.
@@ -270,16 +289,20 @@ pub trait Runtime: Send + Sync {
         use tracing::{debug, info};
 
         let install_path = ctx.paths.version_store_dir(self.name(), version);
+        let platform = Platform::current();
+        let exe_relative = self.executable_relative_path(version, &platform);
+        let exe_path = install_path.join(&exe_relative);
+
         debug!(
             "Install path for {} {}: {}",
             self.name(),
             version,
             install_path.display()
         );
+        debug!("Executable relative path: {}", exe_relative);
 
         // Check if already installed
         if ctx.fs.exists(&install_path) {
-            let exe_path = ctx.paths.executable_path(self.name(), version);
             // Verify the executable actually exists
             if ctx.fs.exists(&exe_path) {
                 debug!("Already installed: {}", exe_path.display());
@@ -301,7 +324,6 @@ pub trait Runtime: Send + Sync {
         }
 
         // Get download URL
-        let platform = Platform::current();
         debug!("Platform: {:?}", platform);
 
         let url = self
@@ -316,7 +338,6 @@ pub trait Runtime: Send + Sync {
             .download_and_extract(&url, &install_path)
             .await?;
 
-        let exe_path = ctx.paths.executable_path(self.name(), version);
         debug!("Expected executable path: {}", exe_path.display());
 
         Ok(InstallResult::success(
