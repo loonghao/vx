@@ -126,7 +126,7 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 tracing-indicatif = "0.3"
 
 # Testing frameworks and utilities
-rstest = "0.25"
+rstest = "0.26"
 tokio-test = "0.4"
 test-case = "3.3"
 pretty_assertions = "1.4"
