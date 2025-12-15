@@ -2,10 +2,11 @@
 
 use crate::cli::{Cli, Commands};
 use crate::ui::UI;
-use vx_plugin::BundleRegistry;
+use vx_runtime::ProviderRegistry;
 
 pub mod cleanup;
 pub mod config;
+pub mod env;
 pub mod execute;
 #[cfg(test)]
 mod execute_tests;
@@ -33,7 +34,11 @@ pub mod where_cmd;
 pub struct CommandHandler;
 
 impl CommandHandler {
-    pub async fn handle(cli: Cli, registry: &BundleRegistry) -> anyhow::Result<()> {
+    pub async fn handle(
+        cli: Cli,
+        registry: &ProviderRegistry,
+        context: &vx_runtime::RuntimeContext,
+    ) -> anyhow::Result<()> {
         // Set verbose mode
         UI::set_verbose(cli.verbose);
 
@@ -45,16 +50,16 @@ impl CommandHandler {
                 status,
                 installed: _,
                 available: _,
-            }) => list::handle(registry, tool.as_deref(), status).await,
+            }) => list::handle(registry, context, tool.as_deref(), status).await,
 
             Some(Commands::Install {
                 tool,
                 version,
                 force,
-            }) => install::handle(registry, &tool, version.as_deref(), force).await,
+            }) => install::handle(registry, context, &tool, version.as_deref(), force).await,
 
             Some(Commands::Update { tool, apply: _ }) => {
-                update::handle(registry, tool.as_deref(), false).await
+                update::handle(registry, context, tool.as_deref(), false).await
             }
 
             Some(Commands::SelfUpdate {
@@ -69,7 +74,7 @@ impl CommandHandler {
                 tool,
                 version,
                 force,
-            }) => remove::handle(registry, &tool, version.as_deref(), force).await,
+            }) => remove::handle(registry, context, &tool, version.as_deref(), force).await,
 
             Some(Commands::Which { tool, all }) => where_cmd::handle(registry, &tool, all).await,
 
@@ -79,7 +84,18 @@ impl CommandHandler {
                 prerelease,
                 detailed,
                 interactive,
-            }) => fetch::handle(registry, &tool, latest, detailed, interactive, prerelease).await,
+            }) => {
+                fetch::handle(
+                    registry,
+                    context,
+                    &tool,
+                    latest,
+                    detailed,
+                    interactive,
+                    prerelease,
+                )
+                .await
+            }
 
             Some(Commands::Switch {
                 tool_version,
@@ -106,11 +122,8 @@ impl CommandHandler {
                 format,
                 verbose,
             }) => {
-                // TODO: Get registry from context
-                // For now, create a minimal registry
-                let registry = BundleRegistry::new();
                 search::handle(
-                    &registry,
+                    registry,
                     query.clone(),
                     category.clone(),
                     installed_only,
@@ -129,10 +142,8 @@ impl CommandHandler {
                 no_parallel,
                 no_auto_install,
             }) => {
-                // TODO: Get registry from context
-                let registry = BundleRegistry::new();
                 sync::handle(
-                    &registry,
+                    registry,
                     check,
                     force,
                     dry_run,
@@ -193,6 +204,8 @@ impl CommandHandler {
 
             Some(Commands::Global { command }) => global::handle(command).await,
 
+            Some(Commands::Env { command }) => env::handle(command).await,
+
             None => {
                 // Handle tool execution
                 if cli.args.is_empty() {
@@ -208,8 +221,7 @@ impl CommandHandler {
 
                 // Use the executor to run the tool
                 let exit_code =
-                    execute::execute_tool(registry, tool_name, tool_args, cli.use_system_path)
-                        .await?;
+                    execute::execute_tool(tool_name, tool_args, cli.use_system_path).await?;
                 if exit_code != 0 {
                     std::process::exit(exit_code);
                 }

@@ -6,19 +6,23 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Output;
+use std::sync::Arc;
 use tempfile::TempDir;
-use vx_plugin::{BundleRegistry, ToolBundle, VxTool};
+use vx_runtime::{
+    mock_context, Ecosystem, Provider, ProviderRegistry, Runtime, RuntimeContext,
+    RuntimeDependency, VersionInfo,
+};
 
-/// Mock tool for testing
+/// Mock runtime for testing
 #[derive(Debug, Clone)]
-pub struct MockTool {
+pub struct MockRuntime {
     pub name: String,
     pub version: String,
     pub executable_path: Option<PathBuf>,
     pub should_fail: bool,
 }
 
-impl MockTool {
+impl MockRuntime {
     pub fn new(name: &str, version: &str) -> Self {
         Self {
             name: name.to_string(),
@@ -39,86 +43,82 @@ impl MockTool {
     }
 }
 
-/// Mock bundle for testing
-#[derive(Debug)]
-pub struct MockPlugin {
-    pub name: String,
-    pub tools: Vec<MockTool>,
+#[async_trait::async_trait]
+impl Runtime for MockRuntime {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn description(&self) -> &str {
+        "Mock runtime for testing"
+    }
+
+    fn ecosystem(&self) -> Ecosystem {
+        Ecosystem::Unknown
+    }
+
+    fn aliases(&self) -> &[&str] {
+        &[]
+    }
+
+    fn dependencies(&self) -> &[RuntimeDependency] {
+        &[]
+    }
+
+    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> anyhow::Result<Vec<VersionInfo>> {
+        Ok(vec![VersionInfo::new(&self.version)])
+    }
 }
 
-impl MockPlugin {
+/// Mock provider for testing
+pub struct MockProvider {
+    pub name: String,
+    pub runtimes: Vec<Arc<dyn Runtime>>,
+}
+
+impl std::fmt::Debug for MockProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MockProvider")
+            .field("name", &self.name)
+            .field("runtimes_count", &self.runtimes.len())
+            .finish()
+    }
+}
+
+impl MockProvider {
     pub fn new(name: &str) -> Self {
         Self {
             name: name.to_string(),
-            tools: Vec::new(),
+            runtimes: Vec::new(),
         }
     }
 
-    pub fn with_tool(mut self, tool: MockTool) -> Self {
-        self.tools.push(tool);
+    pub fn with_runtime(mut self, runtime: MockRuntime) -> Self {
+        self.runtimes.push(Arc::new(runtime));
         self
     }
 }
 
-impl ToolBundle for MockPlugin {
+impl Provider for MockProvider {
     fn name(&self) -> &str {
         &self.name
     }
 
     fn description(&self) -> &str {
-        "Mock plugin for testing"
+        "Mock provider for testing"
     }
 
-    fn tools(&self) -> Vec<Box<dyn VxTool>> {
-        self.tools
-            .iter()
-            .map(|tool| Box::new(tool.clone()) as Box<dyn VxTool>)
-            .collect()
-    }
-}
-
-#[async_trait::async_trait]
-impl VxTool for MockTool {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn description(&self) -> &str {
-        "Mock tool for testing"
-    }
-
-    async fn fetch_versions(
-        &self,
-        _include_prerelease: bool,
-    ) -> anyhow::Result<Vec<vx_version::VersionInfo>> {
-        // Return a mock version for testing
-        Ok(vec![vx_version::VersionInfo::new(self.version.clone())])
-    }
-
-    async fn get_executable_path(&self, _install_dir: &std::path::Path) -> anyhow::Result<PathBuf> {
-        self.executable_path
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("Tool not installed"))
-    }
-
-    async fn get_installed_versions(&self) -> anyhow::Result<Vec<String>> {
-        if self.executable_path.is_some() {
-            Ok(vec![self.version.clone()])
-        } else {
-            Ok(vec![])
-        }
-    }
-
-    async fn is_version_installed(&self, version: &str) -> anyhow::Result<bool> {
-        Ok(self.executable_path.is_some() && self.version == version)
+    fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
+        self.runtimes.clone()
     }
 }
 
 /// Test environment setup
 pub struct TestEnvironment {
     pub temp_dir: TempDir,
-    pub registry: BundleRegistry,
-    pub mock_tools: HashMap<String, MockTool>,
+    pub registry: ProviderRegistry,
+    pub context: RuntimeContext,
+    pub mock_runtimes: HashMap<String, MockRuntime>,
 }
 
 impl Default for TestEnvironment {
@@ -130,21 +130,23 @@ impl Default for TestEnvironment {
 impl TestEnvironment {
     pub fn new() -> Self {
         let temp_dir = TempDir::new().expect("Failed to create temp directory");
-        let registry = BundleRegistry::new();
+        let registry = ProviderRegistry::new();
+        let context = mock_context();
 
         Self {
             temp_dir,
             registry,
-            mock_tools: HashMap::new(),
+            context,
+            mock_runtimes: HashMap::new(),
         }
     }
 
-    pub fn add_mock_tool(&mut self, tool: MockTool) {
-        self.mock_tools.insert(tool.name.clone(), tool);
+    pub fn add_mock_runtime(&mut self, runtime: MockRuntime) {
+        self.mock_runtimes.insert(runtime.name.clone(), runtime);
     }
 
-    pub async fn setup_mock_plugin(&mut self, plugin: MockPlugin) {
-        let _ = self.registry.register_bundle(Box::new(plugin)).await;
+    pub fn setup_mock_provider(&mut self, provider: MockProvider) {
+        self.registry.register(Arc::new(provider));
     }
 
     pub fn temp_path(&self) -> &std::path::Path {
@@ -261,29 +263,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_mock_tool_creation() {
-        let tool = MockTool::new("node", "18.0.0");
-        assert_eq!(tool.name(), "node");
-        assert_eq!(tool.version, "18.0.0");
-        assert!(tool.executable_path.is_none());
+    fn test_mock_runtime_creation() {
+        let runtime = MockRuntime::new("node", "18.0.0");
+        assert_eq!(runtime.name, "node");
+        assert_eq!(runtime.version, "18.0.0");
+        assert!(runtime.executable_path.is_none());
     }
 
     #[test]
-    fn test_mock_tool_with_executable() {
+    fn test_mock_runtime_with_executable() {
         let path = PathBuf::from("/usr/bin/node");
-        let tool = MockTool::new("node", "18.0.0").with_executable(path.clone());
+        let runtime = MockRuntime::new("node", "18.0.0").with_executable(path.clone());
 
-        assert_eq!(tool.name(), "node");
-        assert_eq!(tool.executable_path, Some(path));
+        assert_eq!(runtime.name, "node");
+        assert_eq!(runtime.executable_path, Some(path));
     }
 
-    #[tokio::test]
-    async fn test_test_environment() {
+    #[test]
+    fn test_test_environment() {
         let mut env = TestEnvironment::new();
-        let tool = MockTool::new("test-tool", "1.0.0");
-        env.add_mock_tool(tool);
+        let runtime = MockRuntime::new("test-runtime", "1.0.0");
+        env.add_mock_runtime(runtime);
 
         assert!(env.temp_path().exists());
-        assert!(env.mock_tools.contains_key("test-tool"));
+        assert!(env.mock_runtimes.contains_key("test-runtime"));
     }
 }

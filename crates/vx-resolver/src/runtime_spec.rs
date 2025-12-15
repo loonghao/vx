@@ -1,0 +1,202 @@
+//! Runtime specification and dependency definitions
+//!
+//! This module defines the structure for runtime specifications including
+//! their dependencies, aliases, and installation requirements.
+
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// Specification for a runtime including its dependencies and metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RuntimeSpec {
+    /// Primary runtime name (e.g., "npm", "cargo", "uvx")
+    pub name: String,
+
+    /// Human-readable description
+    pub description: String,
+
+    /// Alternative names for this runtime (e.g., "nodejs" for "node")
+    pub aliases: Vec<String>,
+
+    /// Runtime dependencies required to execute this runtime
+    pub dependencies: Vec<RuntimeDependency>,
+
+    /// The actual executable name (may differ from runtime name)
+    /// e.g., "uvx" might execute as "uv tool run"
+    pub executable: Option<String>,
+
+    /// Command prefix to add before user arguments
+    /// e.g., uvx adds ["tool", "run"] prefix
+    pub command_prefix: Vec<String>,
+
+    /// Environment variables to set when executing
+    pub env_vars: HashMap<String, String>,
+
+    /// Whether this runtime can be auto-installed
+    pub auto_installable: bool,
+
+    /// Installation priority (higher = install first)
+    pub priority: i32,
+
+    /// Ecosystem this runtime belongs to
+    pub ecosystem: Ecosystem,
+}
+
+/// Runtime dependency specification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RuntimeDependency {
+    /// Name of the required runtime
+    pub runtime_name: String,
+
+    /// Minimum version required (semver constraint)
+    pub min_version: Option<String>,
+
+    /// Whether this dependency is required or optional
+    pub required: bool,
+
+    /// Reason for this dependency
+    pub reason: String,
+
+    /// The provider that provides this dependency
+    /// e.g., "npm" is provided by "node" provider
+    pub provided_by: Option<String>,
+}
+
+/// Ecosystem categorization for runtimes
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum Ecosystem {
+    /// Node.js ecosystem (npm, yarn, pnpm, bun)
+    Node,
+    /// Python ecosystem (uv, pip, poetry)
+    Python,
+    /// Rust ecosystem (cargo, rustup)
+    Rust,
+    /// Go ecosystem (go)
+    Go,
+    /// Generic/standalone runtimes
+    #[default]
+    Generic,
+}
+
+impl RuntimeSpec {
+    /// Create a new runtime specification
+    pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            description: description.into(),
+            aliases: Vec::new(),
+            dependencies: Vec::new(),
+            executable: None,
+            command_prefix: Vec::new(),
+            env_vars: HashMap::new(),
+            auto_installable: true,
+            priority: 0,
+            ecosystem: Ecosystem::Generic,
+        }
+    }
+
+    /// Add an alias for this runtime
+    pub fn with_alias(mut self, alias: impl Into<String>) -> Self {
+        self.aliases.push(alias.into());
+        self
+    }
+
+    /// Add multiple aliases
+    pub fn with_aliases(mut self, aliases: Vec<&str>) -> Self {
+        self.aliases.extend(aliases.into_iter().map(String::from));
+        self
+    }
+
+    /// Add a required runtime dependency
+    pub fn with_dependency(mut self, dep: RuntimeDependency) -> Self {
+        self.dependencies.push(dep);
+        self
+    }
+
+    /// Set the actual executable name
+    pub fn with_executable(mut self, exe: impl Into<String>) -> Self {
+        self.executable = Some(exe.into());
+        self
+    }
+
+    /// Set command prefix
+    pub fn with_command_prefix(mut self, prefix: Vec<&str>) -> Self {
+        self.command_prefix = prefix.into_iter().map(String::from).collect();
+        self
+    }
+
+    /// Set ecosystem
+    pub fn with_ecosystem(mut self, ecosystem: Ecosystem) -> Self {
+        self.ecosystem = ecosystem;
+        self
+    }
+
+    /// Set priority
+    pub fn with_priority(mut self, priority: i32) -> Self {
+        self.priority = priority;
+        self
+    }
+
+    /// Get the executable name (defaults to runtime name)
+    pub fn get_executable(&self) -> &str {
+        self.executable.as_deref().unwrap_or(&self.name)
+    }
+
+    /// Check if this runtime matches a given name or alias
+    pub fn matches(&self, name: &str) -> bool {
+        self.name == name || self.aliases.iter().any(|a| a == name)
+    }
+
+    /// Get all required dependencies
+    pub fn required_dependencies(&self) -> Vec<&RuntimeDependency> {
+        self.dependencies.iter().filter(|d| d.required).collect()
+    }
+}
+
+impl RuntimeDependency {
+    /// Create a required dependency
+    pub fn required(runtime_name: impl Into<String>, reason: impl Into<String>) -> Self {
+        Self {
+            runtime_name: runtime_name.into(),
+            min_version: None,
+            required: true,
+            reason: reason.into(),
+            provided_by: None,
+        }
+    }
+
+    /// Create an optional dependency
+    pub fn optional(runtime_name: impl Into<String>, reason: impl Into<String>) -> Self {
+        Self {
+            runtime_name: runtime_name.into(),
+            min_version: None,
+            required: false,
+            reason: reason.into(),
+            provided_by: None,
+        }
+    }
+
+    /// Set minimum version constraint
+    pub fn with_min_version(mut self, version: impl Into<String>) -> Self {
+        self.min_version = Some(version.into());
+        self
+    }
+
+    /// Set the provider
+    pub fn provided_by(mut self, provider: impl Into<String>) -> Self {
+        self.provided_by = Some(provider.into());
+        self
+    }
+}
+
+impl std::fmt::Display for Ecosystem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Ecosystem::Node => write!(f, "node"),
+            Ecosystem::Python => write!(f, "python"),
+            Ecosystem::Rust => write!(f, "rust"),
+            Ecosystem::Go => write!(f, "go"),
+            Ecosystem::Generic => write!(f, "generic"),
+        }
+    }
+}

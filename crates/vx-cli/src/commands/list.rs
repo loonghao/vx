@@ -3,10 +3,11 @@
 use crate::ui::UI;
 use anyhow::Result;
 use vx_paths::{PathManager, PathResolver};
-use vx_plugin::BundleRegistry;
+use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 pub async fn handle(
-    registry: &BundleRegistry,
+    registry: &ProviderRegistry,
+    _context: &RuntimeContext,
     tool: Option<&str>,
     show_status: bool,
 ) -> Result<()> {
@@ -29,19 +30,20 @@ pub async fn handle(
 }
 
 async fn list_tool_versions(
-    registry: &BundleRegistry,
+    registry: &ProviderRegistry,
     resolver: &PathResolver,
     tool_name: &str,
     show_status: bool,
 ) -> Result<()> {
     // Check if tool is supported
-    let tool = registry.get_tool(tool_name);
-    if tool.is_none() {
+    let runtime = registry.get_runtime(tool_name);
+    if runtime.is_none() {
         UI::error(&format!("Tool '{}' is not supported", tool_name));
         UI::hint("Use 'vx list' to see all supported tools");
         return Ok(());
     }
 
+    let runtime = runtime.unwrap();
     UI::info(&format!("📦 {}", tool_name));
 
     // Get installed versions
@@ -76,18 +78,19 @@ async fn list_tool_versions(
         ));
     }
 
+    let _ = runtime; // Silence unused warning
     Ok(())
 }
 
 async fn list_all_tools(
-    registry: &BundleRegistry,
+    registry: &ProviderRegistry,
     resolver: &PathResolver,
     show_status: bool,
 ) -> Result<()> {
     UI::info("📦 Available Tools:");
 
     // Get all supported tools from registry
-    let supported_tools = registry.list_tools();
+    let supported_tools = registry.runtime_names();
 
     // Get all installed tools
     let installed_tools = resolver.manager().list_installed_tools()?;
@@ -96,8 +99,13 @@ async fn list_all_tools(
         let is_installed = installed_tools.contains(tool_name);
         let status_icon = if is_installed { "✅" } else { "❌" };
 
-        if let Some(tool) = registry.get_tool(tool_name) {
-            println!("  {} {} - {}", status_icon, tool_name, tool.description());
+        if let Some(runtime) = registry.get_runtime(tool_name) {
+            println!(
+                "  {} {} - {}",
+                status_icon,
+                tool_name,
+                runtime.description()
+            );
 
             if show_status && is_installed {
                 let versions = resolver.manager().list_tool_versions(tool_name)?;

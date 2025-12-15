@@ -1,0 +1,44 @@
+[package]
+name = "vx-runtime"
+version.workspace = true
+edition.workspace = true
+description = "Runtime system for vx - provides Runtime/Provider traits and dependency injection"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Core
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+futures-util = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# HTTP client
+reqwest = { workspace = true }
+
+# Archive handling
+tar = { workspace = true }
+flate2 = { workspace = true }
+liblzma = { workspace = true }
+zip = "4.0"
+tempfile = { workspace = true }
+
+# Utilities
+chrono = { workspace = true }
+which = { workspace = true }
+
+# Internal dependencies
+vx-core = { path = "../vx-core" }
+vx-paths = { path = "../vx-paths" }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tokio-test = { workspace = true }
+tempfile = { workspace = true }

@@ -5,13 +5,15 @@
 
 mod common;
 
-use common::{cleanup_test_env, create_full_registry, init_test_env, SUPPORTED_TOOLS};
+use common::{
+    cleanup_test_env, create_full_registry, create_test_context, init_test_env, SUPPORTED_TOOLS,
+};
 use rstest::*;
-use vx_plugin::BundleRegistry;
+use vx_runtime::ProviderRegistry;
 
 /// Test fixture that provides a fully initialized registry
 #[fixture]
-pub async fn registry() -> BundleRegistry {
+pub async fn registry() -> ProviderRegistry {
     init_test_env();
     create_full_registry().await
 }
@@ -44,18 +46,20 @@ mod list_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_list_all_tools(#[future] registry: BundleRegistry) {
+    async fn test_list_all_tools(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
-        let result = list::handle(&registry, None, false).await;
+        let ctx = create_test_context();
+        let result = list::handle(&registry, &ctx, None, false).await;
         assert!(result.is_ok(), "List command should succeed");
         cleanup_test_env();
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_list_with_status(#[future] registry: BundleRegistry) {
+    async fn test_list_with_status(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
-        let result = list::handle(&registry, None, true).await;
+        let ctx = create_test_context();
+        let result = list::handle(&registry, &ctx, None, true).await;
         assert!(result.is_ok(), "List with status should succeed");
         cleanup_test_env();
     }
@@ -63,13 +67,17 @@ mod list_tests {
     #[rstest]
     #[case("node")]
     #[case("go")]
-    #[case("rust")]
+    #[case("rustc")]
     #[case("uv")]
     #[case("bun")]
     #[tokio::test]
-    async fn test_list_specific_tool(#[future] registry: BundleRegistry, #[case] tool_name: &str) {
+    async fn test_list_specific_tool(
+        #[future] registry: ProviderRegistry,
+        #[case] tool_name: &str,
+    ) {
         let registry = registry.await;
-        let result = list::handle(&registry, Some(tool_name), false).await;
+        let ctx = create_test_context();
+        let result = list::handle(&registry, &ctx, Some(tool_name), false).await;
         assert!(
             result.is_ok(),
             "List for {} should succeed: {:?}",
@@ -81,9 +89,10 @@ mod list_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_list_nonexistent_tool(#[future] registry: BundleRegistry) {
+    async fn test_list_nonexistent_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
-        let result = list::handle(&registry, Some("nonexistent-tool-xyz"), false).await;
+        let ctx = create_test_context();
+        let result = list::handle(&registry, &ctx, Some("nonexistent-tool-xyz"), false).await;
         // Should either succeed with empty result or return an error
         // The important thing is it doesn't panic
         let _ = result;
@@ -102,7 +111,7 @@ mod search_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_search_no_query(#[future] registry: BundleRegistry) {
+    async fn test_search_no_query(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let result = search::handle(
             &registry,
@@ -123,7 +132,7 @@ mod search_tests {
     #[case("python")]
     #[case("go")]
     #[tokio::test]
-    async fn test_search_with_query(#[future] registry: BundleRegistry, #[case] query: &str) {
+    async fn test_search_with_query(#[future] registry: ProviderRegistry, #[case] query: &str) {
         let registry = registry.await;
         let result = search::handle(
             &registry,
@@ -141,7 +150,7 @@ mod search_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_search_installed_only(#[future] registry: BundleRegistry) {
+    async fn test_search_installed_only(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let result = search::handle(
             &registry,
@@ -159,7 +168,7 @@ mod search_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_search_json_format(#[future] registry: BundleRegistry) {
+    async fn test_search_json_format(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let result = search::handle(
             &registry,
@@ -189,11 +198,13 @@ mod versions_tests {
     #[case("go")]
     #[case("uv")]
     #[tokio::test]
-    async fn test_fetch_versions(#[future] registry: BundleRegistry, #[case] tool_name: &str) {
+    async fn test_fetch_versions(#[future] registry: ProviderRegistry, #[case] tool_name: &str) {
         let registry = registry.await;
+        let ctx = create_test_context();
         // Fetch with latest=5 to limit network requests
         let result = fetch::handle(
             &registry,
+            &ctx,
             tool_name,
             Some(5), // latest
             false,   // detailed
@@ -208,10 +219,12 @@ mod versions_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_fetch_versions_with_prerelease(#[future] registry: BundleRegistry) {
+    async fn test_fetch_versions_with_prerelease(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
+        let ctx = create_test_context();
         let result = fetch::handle(
             &registry,
+            &ctx,
             "node",
             Some(3),
             false,
@@ -225,10 +238,12 @@ mod versions_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_fetch_nonexistent_tool(#[future] registry: BundleRegistry) {
+    async fn test_fetch_nonexistent_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
+        let ctx = create_test_context();
         let result = fetch::handle(
             &registry,
+            &ctx,
             "nonexistent-tool-xyz",
             Some(5),
             false,
@@ -421,7 +436,7 @@ mod stats_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_stats_command(#[future] registry: BundleRegistry) {
+    async fn test_stats_command(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let result = stats::handle(&registry).await;
         assert!(result.is_ok(), "Stats command should succeed");
@@ -440,7 +455,7 @@ mod plugin_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_plugin_list(#[future] registry: BundleRegistry) {
+    async fn test_plugin_list(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let result = plugin::handle(
             &registry,
@@ -456,7 +471,7 @@ mod plugin_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_plugin_list_enabled_only(#[future] registry: BundleRegistry) {
+    async fn test_plugin_list_enabled_only(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let result = plugin::handle(
             &registry,
@@ -472,7 +487,7 @@ mod plugin_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_plugin_stats(#[future] registry: BundleRegistry) {
+    async fn test_plugin_stats(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let result = plugin::handle(&registry, PluginCommand::Stats).await;
         assert!(result.is_ok(), "Plugin stats should succeed");
@@ -484,7 +499,7 @@ mod plugin_tests {
     #[case("go")]
     #[case("uv")]
     #[tokio::test]
-    async fn test_plugin_info(#[future] registry: BundleRegistry, #[case] plugin_name: &str) {
+    async fn test_plugin_info(#[future] registry: ProviderRegistry, #[case] plugin_name: &str) {
         let registry = registry.await;
         let result = plugin::handle(
             &registry,
@@ -500,7 +515,7 @@ mod plugin_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_plugin_search(#[future] registry: BundleRegistry) {
+    async fn test_plugin_search(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let result = plugin::handle(
             &registry,
@@ -597,7 +612,7 @@ mod switch_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_switch_invalid_format(#[future] registry: BundleRegistry) {
+    async fn test_switch_invalid_format(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         // Invalid format (missing version)
         let result = switch::handle(&registry, "node", false).await;
@@ -608,7 +623,7 @@ mod switch_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_switch_nonexistent_version(#[future] registry: BundleRegistry) {
+    async fn test_switch_nonexistent_version(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let result = switch::handle(&registry, "node@99.99.99", false).await;
         // Note: Switch command is not fully implemented yet, so it may succeed
@@ -629,7 +644,7 @@ mod sync_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_sync_check_no_config(#[future] registry: BundleRegistry) {
+    async fn test_sync_check_no_config(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let original_dir = std::env::current_dir().ok();
@@ -658,7 +673,7 @@ mod sync_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_sync_dry_run(#[future] registry: BundleRegistry) {
+    async fn test_sync_dry_run(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let original_dir = std::env::current_dir().ok();
@@ -706,9 +721,17 @@ mod install_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_install_nonexistent_tool(#[future] registry: BundleRegistry) {
+    async fn test_install_nonexistent_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
-        let result = install::handle(&registry, "nonexistent-tool-xyz", Some("1.0.0"), false).await;
+        let ctx = create_test_context();
+        let result = install::handle(
+            &registry,
+            &ctx,
+            "nonexistent-tool-xyz",
+            Some("1.0.0"),
+            false,
+        )
+        .await;
         assert!(result.is_err(), "Install nonexistent tool should fail");
         cleanup_test_env();
     }
@@ -727,10 +750,12 @@ mod uninstall_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_uninstall_nonexistent_tool(#[future] registry: BundleRegistry) {
+    async fn test_uninstall_nonexistent_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
+        let ctx = create_test_context();
         let result = remove::handle(
             &registry,
+            &ctx,
             "nonexistent-tool-xyz",
             None,
             true, // force
@@ -743,10 +768,12 @@ mod uninstall_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_uninstall_nonexistent_version(#[future] registry: BundleRegistry) {
+    async fn test_uninstall_nonexistent_version(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
+        let ctx = create_test_context();
         let result = remove::handle(
             &registry,
+            &ctx,
             "node",
             Some("99.99.99"),
             true, // force
@@ -767,17 +794,18 @@ mod registry_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_registry_has_all_tools(#[future] registry: BundleRegistry) {
+    async fn test_registry_has_all_tools(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
-        let tools = registry.list_tools();
+        let runtime_names = registry.runtime_names();
 
         // Verify all expected tools are registered
         for expected_tool in SUPPORTED_TOOLS {
-            let found = tools.iter().any(|t| t.contains(expected_tool));
+            let found = runtime_names.iter().any(|name| name == *expected_tool)
+                || registry.get_runtime(expected_tool).is_some();
             assert!(
                 found,
                 "Expected tool '{}' not found in registry. Available: {:?}",
-                expected_tool, tools
+                expected_tool, runtime_names
             );
         }
         cleanup_test_env();
@@ -785,14 +813,14 @@ mod registry_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_registry_get_tool(#[future] registry: BundleRegistry) {
+    async fn test_registry_get_runtime(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
 
         for tool_name in SUPPORTED_TOOLS {
-            let tool = registry.get_tool(tool_name);
+            let runtime = registry.get_runtime(tool_name);
             assert!(
-                tool.is_some(),
-                "Tool '{}' should be retrievable from registry",
+                runtime.is_some(),
+                "Runtime '{}' should be retrievable from registry",
                 tool_name
             );
         }
@@ -801,14 +829,14 @@ mod registry_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_registry_list_bundles(#[future] registry: BundleRegistry) {
+    async fn test_registry_list_providers(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
-        let bundles = registry.list_bundles();
+        let providers = registry.providers();
 
-        // Should have at least the registered bundles
+        // Should have at least the registered providers
         assert!(
-            !bundles.is_empty(),
-            "Registry should have registered bundles"
+            !providers.is_empty(),
+            "Registry should have registered providers"
         );
         cleanup_test_env();
     }
@@ -823,46 +851,46 @@ mod tool_specific_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_node_plugin_registered(#[future] registry: BundleRegistry) {
+    async fn test_node_plugin_registered(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
 
-        // Node bundle should provide node, npm, npx
-        let node = registry.get_tool("node");
-        assert!(node.is_some(), "Node tool should be registered");
+        // Node provider should provide node, npm, npx
+        let node = registry.get_runtime("node");
+        assert!(node.is_some(), "Node runtime should be registered");
 
-        let npm = registry.get_tool("npm");
-        assert!(npm.is_some(), "NPM tool should be registered");
+        let npm = registry.get_runtime("npm");
+        assert!(npm.is_some(), "NPM runtime should be registered");
 
-        let npx = registry.get_tool("npx");
-        assert!(npx.is_some(), "NPX tool should be registered");
+        let npx = registry.get_runtime("npx");
+        assert!(npx.is_some(), "NPX runtime should be registered");
 
         cleanup_test_env();
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_go_plugin_registered(#[future] registry: BundleRegistry) {
+    async fn test_go_plugin_registered(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
 
-        let go = registry.get_tool("go");
-        assert!(go.is_some(), "Go tool should be registered");
+        let go = registry.get_runtime("go");
+        assert!(go.is_some(), "Go runtime should be registered");
 
         cleanup_test_env();
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_rust_plugin_registered(#[future] registry: BundleRegistry) {
+    async fn test_rust_plugin_registered(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
 
-        let rustc = registry.get_tool("rustc");
-        let cargo = registry.get_tool("cargo");
-        let rustup = registry.get_tool("rustup");
+        let rustc = registry.get_runtime("rustc");
+        let cargo = registry.get_runtime("cargo");
+        let rustup = registry.get_runtime("rustup");
 
-        // At least one Rust tool should be registered
+        // At least one Rust runtime should be registered
         assert!(
             rustc.is_some() || cargo.is_some() || rustup.is_some(),
-            "At least one Rust tool should be registered"
+            "At least one Rust runtime should be registered"
         );
 
         cleanup_test_env();
@@ -870,27 +898,27 @@ mod tool_specific_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_uv_plugin_registered(#[future] registry: BundleRegistry) {
+    async fn test_uv_plugin_registered(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
 
-        let uv = registry.get_tool("uv");
-        assert!(uv.is_some(), "UV tool should be registered");
+        let uv = registry.get_runtime("uv");
+        assert!(uv.is_some(), "UV runtime should be registered");
 
-        let uvx = registry.get_tool("uvx");
-        assert!(uvx.is_some(), "UVX tool should be registered");
+        let uvx = registry.get_runtime("uvx");
+        assert!(uvx.is_some(), "UVX runtime should be registered");
 
         cleanup_test_env();
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_bun_plugin_registered(#[future] registry: BundleRegistry) {
+    async fn test_bun_plugin_registered(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
 
-        let bun = registry.get_tool("bun");
-        assert!(bun.is_some(), "Bun tool should be registered");
+        let bun = registry.get_runtime("bun");
+        assert!(bun.is_some(), "Bun runtime should be registered");
 
-        // Note: bunx is not a separate tool in the current implementation
+        // Note: bunx is not a separate runtime in the current implementation
         // It's executed as "bun x" command
 
         cleanup_test_env();
@@ -907,14 +935,24 @@ mod error_handling_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_graceful_error_on_invalid_tool(#[future] registry: BundleRegistry) {
+    async fn test_graceful_error_on_invalid_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
+        let ctx = create_test_context();
 
         // All these should fail gracefully without panicking
         // Note: where_cmd::handle uses process::exit, so we skip it here
-        let _ = fetch::handle(&registry, "invalid-tool-xyz", Some(5), false, false, false).await;
-        let _ = install::handle(&registry, "invalid-tool-xyz", None, false).await;
-        let _ = remove::handle(&registry, "invalid-tool-xyz", None, true).await;
+        let _ = fetch::handle(
+            &registry,
+            &ctx,
+            "invalid-tool-xyz",
+            Some(5),
+            false,
+            false,
+            false,
+        )
+        .await;
+        let _ = install::handle(&registry, &ctx, "invalid-tool-xyz", None, false).await;
+        let _ = remove::handle(&registry, &ctx, "invalid-tool-xyz", None, true).await;
         let _ = switch::handle(&registry, "invalid-tool-xyz", false).await;
 
         cleanup_test_env();
@@ -922,16 +960,17 @@ mod error_handling_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_graceful_error_on_special_characters(#[future] registry: BundleRegistry) {
+    async fn test_graceful_error_on_special_characters(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
+        let ctx = create_test_context();
 
         // Tools with special characters should be handled gracefully
         let special_names = vec!["../../../etc/passwd", "tool;rm -rf /", "tool$(whoami)"];
 
         for name in special_names {
             // These should return errors but not panic
-            let _ = install::handle(&registry, name, None, false).await;
-            let _ = remove::handle(&registry, name, None, true).await;
+            let _ = install::handle(&registry, &ctx, name, None, false).await;
+            let _ = remove::handle(&registry, &ctx, name, None, true).await;
         }
 
         cleanup_test_env();

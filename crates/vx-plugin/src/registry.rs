@@ -14,7 +14,7 @@ use std::sync::{Arc, RwLock};
 /// - Discovering tools and package managers
 /// - Managing bundle lifecycle
 /// - Resolving bundle dependencies
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct BundleRegistry {
     /// Map of bundle name to bundle instance
     bundles: Arc<RwLock<HashMap<String, Box<dyn ToolBundle>>>>,

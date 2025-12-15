@@ -2736,13 +2736,6 @@ dependencies = [
  "trycmd",
  "vx-cli",
  "vx-core",
- "vx-tool-bun",
- "vx-tool-go",
- "vx-tool-node",
- "vx-tool-pnpm",
- "vx-tool-rust",
- "vx-tool-uv",
- "vx-tool-yarn",
 ]
 
 [[package]]
@@ -2775,16 +2768,18 @@ dependencies = [
  "tracing-subscriber",
  "vx-core",
  "vx-paths",
- "vx-plugin",
- "vx-tool-bun",
- "vx-tool-go",
- "vx-tool-node",
- "vx-tool-pnpm",
- "vx-tool-rust",
- "vx-tool-uv",
- "vx-tool-yarn",
+ "vx-provider-bun",
+ "vx-provider-go",
+ "vx-provider-node",
+ "vx-provider-pnpm",
+ "vx-provider-rust",
+ "vx-provider-uv",
+ "vx-provider-yarn",
+ "vx-resolver",
+ "vx-runtime",
  "vx-version",
  "walkdir",
+ "which",
  "zip",
 ]
 
@@ -2837,6 +2832,25 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tokio-test",
+]
+
+[[package]]
+name = "vx-executor"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "vx-dependency",
+ "vx-paths",
+ "vx-plugin",
+ "which",
 ]
 
 [[package]]
@@ -2894,6 +2908,152 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-bun"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "tokio",
+ "vx-paths",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-go"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-installer",
+ "vx-runtime",
+ "vx-version",
+]
+
+[[package]]
+name = "vx-provider-node"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-installer",
+ "vx-runtime",
+ "vx-version",
+]
+
+[[package]]
+name = "vx-provider-pnpm"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "tokio",
+ "vx-paths",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-rust"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "tokio",
+ "vx-paths",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-uv"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-installer",
+ "vx-runtime",
+ "vx-version",
+]
+
+[[package]]
+name = "vx-provider-yarn"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "tokio",
+ "vx-paths",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-resolver"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "vx-paths",
+ "vx-runtime",
+ "which",
+]
+
+[[package]]
+name = "vx-runtime"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "flate2",
+ "futures-util",
+ "liblzma",
+ "reqwest",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tar",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-test",
+ "vx-core",
+ "vx-paths",
+ "which",
+ "zip",
+]
+
+[[package]]
 name = "vx-sdk"
 version = "0.4.1"
 dependencies = [
@@ -2909,114 +3069,6 @@ dependencies = [
  "tokio",
  "vx-core",
  "vx-installer",
- "which",
-]
-
-[[package]]
-name = "vx-tool-bun"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "serde",
- "serde_json",
- "tokio",
- "vx-core",
- "vx-plugin",
- "vx-version",
- "which",
-]
-
-[[package]]
-name = "vx-tool-go"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "vx-core",
- "vx-installer",
- "vx-plugin",
- "vx-version",
-]
-
-[[package]]
-name = "vx-tool-node"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "dirs",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "vx-core",
- "vx-installer",
- "vx-plugin",
- "vx-version",
- "which",
-]
-
-[[package]]
-name = "vx-tool-pnpm"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "serde",
- "serde_json",
- "tokio",
- "vx-core",
- "vx-installer",
- "vx-plugin",
- "which",
-]
-
-[[package]]
-name = "vx-tool-rust"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "vx-core",
- "vx-installer",
- "vx-plugin",
- "vx-version",
-]
-
-[[package]]
-name = "vx-tool-uv"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "tempfile",
- "vx-core",
- "vx-installer",
- "vx-plugin",
- "vx-version",
- "which",
-]
-
-[[package]]
-name = "vx-tool-yarn"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "serde",
- "serde_json",
- "tokio",
- "vx-core",
- "vx-plugin",
  "which",
 ]
 
