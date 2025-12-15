@@ -185,7 +185,7 @@ mod tests {
     fn test_filter_stable_only() {
         let versions = vec![
             VersionInfo::new("1.0.0".to_string()),
-            VersionInfo::new("1.1.0-alpha".to_string()).as_prerelease(),
+            VersionInfo::new("1.1.0-alpha".to_string()).with_prerelease(true),
             VersionInfo::new("1.1.0".to_string()),
         ];
 

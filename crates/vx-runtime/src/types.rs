@@ -56,6 +56,27 @@ impl VersionInfo {
         self.lts = lts;
         self
     }
+
+    /// Set the release date from a string
+    pub fn with_release_date(mut self, date: impl Into<String>) -> Self {
+        // Store date string in metadata for now
+        self.metadata
+            .insert("release_date".to_string(), date.into());
+        self
+    }
+
+    /// Set release notes
+    pub fn with_release_notes(mut self, notes: impl Into<String>) -> Self {
+        self.metadata
+            .insert("release_notes".to_string(), notes.into());
+        self
+    }
+
+    /// Add metadata
+    pub fn with_metadata(mut self, key: String, value: String) -> Self {
+        self.metadata.insert(key, value);
+        self
+    }
 }
 
 /// Runtime dependency specification

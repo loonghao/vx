@@ -53,7 +53,7 @@ impl NodeVersionParser {
                 let is_lts = lts_info.is_some() && lts_info != Some("false");
 
                 let mut version_info = if is_prerelease {
-                    VersionInfo::new(version).as_prerelease()
+                    VersionInfo::new(version).with_prerelease(true)
                 } else {
                     VersionInfo::new(version)
                 };
@@ -129,7 +129,7 @@ impl GoVersionParser {
                 }
 
                 let mut version_info = if is_prerelease {
-                    VersionInfo::new(version).as_prerelease()
+                    VersionInfo::new(version).with_prerelease(true)
                 } else {
                     VersionInfo::new(version)
                 }
@@ -215,7 +215,7 @@ impl GitHubVersionParser {
                 });
 
                 let mut version_info = if is_prerelease {
-                    VersionInfo::new(version).as_prerelease()
+                    VersionInfo::new(version).with_prerelease(true)
                 } else {
                     VersionInfo::new(version)
                 };

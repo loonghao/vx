@@ -54,8 +54,8 @@ pub use manager::VersionManager;
 pub use parser::{GitHubVersionParser, GoVersionParser, NodeVersionParser, VersionParser};
 pub use utils::VersionUtils;
 
-// Re-export VersionInfo from vx-plugin to avoid duplication
-pub use vx_plugin::types::VersionInfo;
+// Re-export VersionInfo from vx-runtime
+pub use vx_runtime::VersionInfo;
 
 /// Version of this crate
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
