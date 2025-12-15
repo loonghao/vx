@@ -41,10 +41,11 @@ impl Runtime for BunRuntime {
     }
 
     async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Would fetch from GitHub API
+        // Bun versions - would fetch from GitHub API in production
         Ok(vec![
+            VersionInfo::new("1.1.42").with_lts(true), // Latest stable
             VersionInfo::new("1.1.0"),
-            VersionInfo::new("1.0.0").with_lts(true),
+            VersionInfo::new("1.0.0"),
         ])
     }
 

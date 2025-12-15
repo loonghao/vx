@@ -41,10 +41,12 @@ impl Runtime for YarnRuntime {
     }
 
     async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Would fetch from GitHub/npm API
+        // Yarn 1.x is recommended for vx as it uses tar.gz archives
+        // Yarn 2+ (Berry) uses a single .js file which requires different handling
         Ok(vec![
-            VersionInfo::new("4.0.0"),
-            VersionInfo::new("1.22.19").with_lts(true),
+            VersionInfo::new("1.22.22").with_lts(true), // Latest Yarn 1.x (stable)
+            VersionInfo::new("1.22.21"),
+            VersionInfo::new("1.22.19"),
         ])
     }
 
