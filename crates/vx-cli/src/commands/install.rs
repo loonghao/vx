@@ -1,6 +1,6 @@
 //! Install command implementation
 
-use crate::ui::UI;
+use crate::ui::{ProgressSpinner, UI};
 use anyhow::Result;
 use tracing::{info_span, Instrument};
 use vx_runtime::{ProviderRegistry, RuntimeContext};
@@ -21,14 +21,14 @@ pub async fn handle(
     let target_version = if let Some(v) = version {
         v.to_string()
     } else {
-        // Get latest version with progress span
+        // Get latest version with progress spinner
+        let spinner =
+            ProgressSpinner::new(&format!("Fetching latest version for {}...", tool_name));
         let span = info_span!("Fetching latest version", tool = tool_name);
-        let versions = async {
-            UI::info(&format!("Fetching latest version for {}...", tool_name));
-            runtime.fetch_versions(context).await
-        }
-        .instrument(span)
-        .await?;
+        let versions = async { runtime.fetch_versions(context).await }
+            .instrument(span)
+            .await?;
+        spinner.finish_and_clear();
 
         if versions.is_empty() {
             return Err(anyhow::anyhow!("No versions found for tool: {}", tool_name));
@@ -42,8 +42,6 @@ pub async fn handle(
             .unwrap_or_else(|| versions[0].version.clone())
     };
 
-    UI::info(&format!("Installing {} {}...", tool_name, target_version));
-
     // Check if already installed
     if !force && runtime.is_installed(&target_version, context).await? {
         UI::success(&format!(
@@ -54,7 +52,9 @@ pub async fn handle(
         return Ok(());
     }
 
-    // Install the version with progress span
+    // Install the version with progress spinner
+    let spinner =
+        ProgressSpinner::new_install(&format!("Installing {} {}...", tool_name, target_version));
     let install_span = info_span!("Installing tool", tool = tool_name, version = %target_version);
     let install_result = async { runtime.install(&target_version, context).await }
         .instrument(install_span)
@@ -62,8 +62,8 @@ pub async fn handle(
 
     match install_result {
         Ok(result) => {
-            UI::success(&format!(
-                "Successfully installed {} {}",
+            spinner.finish_with_message(&format!(
+                "✓ Successfully installed {} {}",
                 tool_name, target_version
             ));
 
@@ -77,7 +77,7 @@ pub async fn handle(
             ));
         }
         Err(e) => {
-            UI::error(&format!(
+            spinner.finish_with_error(&format!(
                 "Failed to install {} {}: {}",
                 tool_name, target_version, e
             ));
