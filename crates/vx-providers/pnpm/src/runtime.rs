@@ -40,6 +40,16 @@ impl Runtime for PnpmRuntime {
         &[]
     }
 
+    /// PNPM is downloaded as a single executable file
+    /// The download_and_extract will rename it to just "pnpm"
+    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
+        if platform.os == vx_runtime::Os::Windows {
+            "pnpm.exe".to_string()
+        } else {
+            "pnpm".to_string()
+        }
+    }
+
     async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
         // Would fetch from GitHub API
         Ok(vec![
