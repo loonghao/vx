@@ -253,6 +253,7 @@ jobs:
         run: cargo test --package vx-cli --test real_tool_tests -- --ignored --nocapture --test-threads=1
         env:
           VX_BINARY: ${{ github.workspace }}/target/release/${{ matrix.binary }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         timeout-minutes: 30
 
   # ============================================================================
@@ -343,6 +344,8 @@ jobs:
         run: |
           echo "=== Installing ${{ matrix.tool }} ==="
           ./bin/${{ matrix.binary }} install ${{ matrix.tool }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Test ${{ matrix.tool }}
         shell: bash

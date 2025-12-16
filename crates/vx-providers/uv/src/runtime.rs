@@ -65,9 +65,22 @@ impl Runtime for UvRuntime {
         let url = "https://api.github.com/repos/astral-sh/uv/releases";
         let response = ctx.http.get_json_value(url).await?;
 
+        // Check for GitHub API error response (rate limiting, etc.)
+        if let Some(message) = response.get("message").and_then(|m| m.as_str()) {
+            return Err(anyhow::anyhow!(
+                "GitHub API error: {}. Try setting GITHUB_TOKEN environment variable.",
+                message
+            ));
+        }
+
         let versions: Vec<VersionInfo> = response
             .as_array()
-            .ok_or_else(|| anyhow::anyhow!("Invalid response format"))?
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Invalid response format from GitHub API. Response: {}",
+                    serde_json::to_string_pretty(&response).unwrap_or_default()
+                )
+            })?
             .iter()
             .filter_map(|release| {
                 let tag = release.get("tag_name")?.as_str()?;

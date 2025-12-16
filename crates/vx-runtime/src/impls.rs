@@ -117,13 +117,31 @@ impl Default for RealHttpClient {
 #[async_trait]
 impl HttpClient for RealHttpClient {
     async fn get(&self, url: &str) -> Result<String> {
-        let response = self.client.get(url).send().await?;
+        let mut request = self.client.get(url);
+
+        // Add GitHub token for GitHub API requests
+        if url.contains("api.github.com") {
+            if let Ok(token) = std::env::var("GITHUB_TOKEN") {
+                request = request.header("Authorization", format!("Bearer {}", token));
+            }
+        }
+
+        let response = request.send().await?;
         let text = response.text().await?;
         Ok(text)
     }
 
     async fn get_json_value(&self, url: &str) -> Result<serde_json::Value> {
-        let response = self.client.get(url).send().await?;
+        let mut request = self.client.get(url);
+
+        // Add GitHub token for GitHub API requests
+        if url.contains("api.github.com") {
+            if let Ok(token) = std::env::var("GITHUB_TOKEN") {
+                request = request.header("Authorization", format!("Bearer {}", token));
+            }
+        }
+
+        let response = request.send().await?;
         let json = response.json().await?;
         Ok(json)
     }
