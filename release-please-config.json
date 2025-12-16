@@ -3,7 +3,6 @@
   "release-type": "simple",
   "include-v-in-tag": true,
   "separate-pull-requests": false,
-  "pull-request-title-pattern": "chore(release): ${component} ${version}",
   "packages": {
     ".": {
       "package-name": "vx",
