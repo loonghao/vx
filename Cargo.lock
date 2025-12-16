@@ -3178,9 +3178,9 @@ dependencies = [
 
 [[package]]
 name = "turbo-cdn"
-version = "0.4.3"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e73f6cd2ad74b70829a9d8e03fb3592b29999583b50f87aeedbb654b7031579c"
+checksum = "40d0227daaa1952248b1980fa730e1b1e17a757ed86e3d9a74f8492aebd87264"
 dependencies = [
  "ahash",
  "anyhow",
@@ -3194,7 +3194,7 @@ dependencies = [
  "futures",
  "futures-util",
  "hickory-resolver",
- "indicatif 0.17.11",
+ "indicatif 0.18.3",
  "lru",
  "memmap2",
  "mimalloc",
