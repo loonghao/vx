@@ -1027,7 +1027,7 @@ mod cross_tool_tests {
                         "uv" => vec!["uv", "--version"],
                         _ => vec![],
                     };
-                    run_vx(&args.iter().map(|s| *s).collect::<Vec<_>>())
+                    run_vx(&args.to_vec())
                 })
             })
             .collect();
