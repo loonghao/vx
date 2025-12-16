@@ -3,6 +3,7 @@ name: Release
 # This workflow runs on main branch pushes and handles the complete release process:
 # 1. Regular commits to main: Runs release-please to check if a release PR should be created/updated
 # 2. release-please PR merge: Creates a release, builds binaries, and publishes to crates.io
+# 3. Manual trigger: Rebuild binaries for a specific tag (useful when build failed)
 #
 # Note: release-please creates tags in format "v0.4.1" (v format)
 
@@ -12,11 +13,16 @@ on:
       - main
   workflow_dispatch:
     inputs:
-      force-rebuild:
-        description: 'Force rebuild binaries'
+      tag:
+        description: 'Tag to rebuild (e.g., v0.4.1). Leave empty to use latest release.'
+        required: false
+        type: string
+        default: ''
+      skip-crates-publish:
+        description: 'Skip publishing to crates.io'
         required: false
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: write
@@ -31,10 +37,10 @@ env:
 
 jobs:
   # First job: Run release-please to create releases and tags
-  # This only runs on main branch pushes (not tag pushes)
+  # This only runs on main branch pushes (not tag pushes or manual triggers)
   release-please:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
@@ -47,13 +53,42 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # Build CLI binaries for all platforms
-  build-binaries:
-    name: Build (${{ matrix.platform.os_name }})
+  # Get the tag to build (from release-please or manual input)
+  get-tag:
+    runs-on: ubuntu-latest
     needs: [release-please]
     if: |
       always() &&
-      (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true')
+      (
+        (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
+        github.event_name == 'workflow_dispatch'
+      )
+    outputs:
+      tag_name: ${{ steps.get-tag.outputs.tag_name }}
+      version: ${{ steps.get-tag.outputs.version }}
+    steps:
+      - name: Get tag name
+        id: get-tag
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ -n "${{ inputs.tag }}" ]; then
+              TAG="${{ inputs.tag }}"
+            else
+              # Get latest release tag
+              TAG=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+            fi
+          else
+            TAG="${{ needs.release-please.outputs.tag_name }}"
+          fi
+          echo "tag_name=${TAG}" >> $GITHUB_OUTPUT
+          echo "version=${TAG#v}" >> $GITHUB_OUTPUT
+          echo "Building for tag: ${TAG}"
+
+  # Build CLI binaries for all platforms
+  build-binaries:
+    name: Build (${{ matrix.platform.os_name }})
+    needs: [get-tag]
+    if: needs.get-tag.result == 'success' && needs.get-tag.outputs.tag_name != ''
     runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
@@ -97,23 +132,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Get version from tag
-        id: tag_name
-        shell: bash
-        run: |
-          if [ "${{ needs.release-please.outputs.tag_name }}" != "" ]; then
-            echo "current_version=${needs.release-please.outputs.tag_name#v}" >> $GITHUB_OUTPUT
-          else
-            echo "current_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          fi
+        with:
+          ref: ${{ needs.get-tag.outputs.tag_name }}
 
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2
         with:
           validation_level: warn
-          version: ${{ steps.tag_name.outputs.current_version }}
+          version: ${{ needs.get-tag.outputs.version }}
           path: ./CHANGELOG.md
 
       # Install cross-compilation dependencies for ARM64 targets
@@ -146,6 +173,7 @@ jobs:
           changes-file: ""
           action-gh-release-parameters: |
             {
+              "tag_name": "${{ needs.get-tag.outputs.tag_name }}",
               "body": "${{ steps.changelog_reader.outputs.changes }}",
               "prerelease": false,
               "draft": false
@@ -159,11 +187,8 @@ jobs:
   github-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [release-please, build-binaries]
-    if: |
-      always() &&
-      (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') &&
-      needs.build-binaries.result == 'success'
+    needs: [get-tag, build-binaries]
+    if: needs.build-binaries.result == 'success'
     permissions:
       contents: write
       actions: read
@@ -171,12 +196,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.get-tag.outputs.tag_name }}
           fetch-depth: 0
-
-      - name: Determine tag name
-        id: tag
-        run: |
-          echo "TAG_NAME=${{ needs.release-please.outputs.tag_name }}" >> $GITHUB_OUTPUT
 
       - name: Generate changelog
         id: changelog
@@ -205,8 +226,8 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ steps.tag.outputs.TAG_NAME }}
-          name: ${{ steps.tag.outputs.TAG_NAME }}
+          tag: ${{ needs.get-tag.outputs.tag_name }}
+          name: ${{ needs.get-tag.outputs.tag_name }}
           body: |
             Comparing Changes: ${{ steps.changelog.outputs.compareurl }}
 
@@ -242,13 +263,14 @@ jobs:
   publish-crates:
     name: Publish to crates.io
     runs-on: ubuntu-latest
-    needs: [release-please, github-release]
+    needs: [get-tag, github-release]
     if: |
-      always() &&
-      (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') &&
-      needs.github-release.result == 'success'
+      needs.github-release.result == 'success' &&
+      (github.event_name != 'workflow_dispatch' || inputs.skip-crates-publish != true)
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.get-tag.outputs.tag_name }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
