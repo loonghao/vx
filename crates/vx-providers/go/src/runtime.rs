@@ -55,7 +55,12 @@ impl Runtime for GoRuntime {
 
         let versions: Vec<VersionInfo> = response
             .as_array()
-            .ok_or_else(|| anyhow::anyhow!("Invalid response format"))?
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Invalid response format from Go API. Response: {}",
+                    serde_json::to_string_pretty(&response).unwrap_or_default()
+                )
+            })?
             .iter()
             .filter_map(|v| {
                 let version_str = v.get("version")?.as_str()?;
