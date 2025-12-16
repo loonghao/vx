@@ -91,7 +91,7 @@ impl VxCli {
     }
 
     /// Handle a specific command
-    async fn handle_command(&self, command: cli::Commands, _cli: &Cli) -> Result<()> {
+    async fn handle_command(&self, command: cli::Commands, cli: &Cli) -> Result<()> {
         use cli::Commands;
 
         match command {
@@ -147,7 +147,7 @@ impl VxCli {
             }
 
             Commands::Which { tool, all } => {
-                commands::where_cmd::handle(&self.registry, &tool, all, false).await
+                commands::where_cmd::handle(&self.registry, &tool, all, cli.use_system_path).await
             }
 
             Commands::Versions {
