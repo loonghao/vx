@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.5.1](https://github.com/loonghao/vx/compare/vx-v0.5.0...vx-v0.5.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* **ci:** correctly extract version from tag name ([bb3f679](https://github.com/loonghao/vx/commit/bb3f67974a312d5c12ba2f36b7ad8c3a1a4b890c))
+* **ci:** remove custom pull-request-title-pattern ([8f8c23f](https://github.com/loonghao/vx/commit/8f8c23f061b2cd901ba1c0d02ee643bf6fe7db3a))
+* replace deprecated criterion::black_box with std::hint::black_box ([269888c](https://github.com/loonghao/vx/commit/269888c408f4b9c4cdea7dc5f65564e9eb5f0d7f))
+* use workspace dependencies for internal crates ([8791c47](https://github.com/loonghao/vx/commit/8791c47005e26fc3d6d627ae242954bd9f66aeaf))
+
 ## [0.5.0](https://github.com/loonghao/vx/compare/vx-v0.4.1...vx-v0.5.0) (2025-12-16)
 
 
