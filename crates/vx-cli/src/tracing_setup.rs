@@ -12,12 +12,17 @@ static INDICATIF_LAYER: OnceLock<IndicatifLayer<tracing_subscriber::Registry>> =
 
 /// Setup tracing with default settings
 pub fn setup_tracing() {
-    init_tracing(false);
+    init_tracing(false, false);
+}
+
+/// Setup tracing with debug mode
+pub fn setup_tracing_with_debug(debug: bool) {
+    init_tracing(debug, debug);
 }
 
 /// Initialize tracing with indicatif progress bars
 /// This follows Rust community best practices for structured logging
-pub fn init_tracing(verbose: bool) {
+pub fn init_tracing(verbose: bool, debug: bool) {
     use std::sync::Once;
     static INIT: Once = Once::new();
 
@@ -27,7 +32,14 @@ pub fn init_tracing(verbose: bool) {
         // Note: We can't store the layer globally due to generic constraints
         // This is fine as tracing-indicatif manages progress bars automatically
 
-        let env_filter = if verbose {
+        // Priority: debug > verbose > default
+        // Also respect RUST_LOG environment variable
+        let env_filter = if std::env::var("RUST_LOG").is_ok() {
+            // Use RUST_LOG if set
+            tracing_subscriber::EnvFilter::from_default_env()
+        } else if debug {
+            tracing_subscriber::EnvFilter::new("debug")
+        } else if verbose {
             tracing_subscriber::EnvFilter::new("vx=debug,info")
         } else {
             tracing_subscriber::EnvFilter::new("vx=info,warn,error")
@@ -38,8 +50,8 @@ pub fn init_tracing(verbose: bool) {
             .with(
                 tracing_subscriber::fmt::layer()
                     .with_writer(indicatif_layer.get_stderr_writer())
-                    .with_target(false)
-                    .with_level(verbose),
+                    .with_target(debug)
+                    .with_level(verbose || debug),
             )
             .with(indicatif_layer)
             .try_init()
@@ -137,7 +149,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_progress_span_macro() {
-        init_tracing(true);
+        init_tracing(true, false);
 
         let result = with_progress_span!("test_operation", async {
             // Use a shorter sleep to reduce test time and potential timing issues
@@ -152,7 +164,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_progress_events_macro() {
-        init_tracing(true);
+        init_tracing(true, false);
 
         let result = with_progress_events!(
             "test_operation_with_events",

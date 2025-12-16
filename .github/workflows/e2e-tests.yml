@@ -343,7 +343,7 @@ jobs:
         shell: bash
         run: |
           echo "=== Installing ${{ matrix.tool }} ==="
-          ./bin/${{ matrix.binary }} install ${{ matrix.tool }}
+          ./bin/${{ matrix.binary }} --debug install ${{ matrix.tool }}
           echo "=== Checking installation ==="
           echo "Store directory contents:"
           ls -la ~/.vx/store/ || echo "Store directory does not exist"
@@ -351,7 +351,6 @@ jobs:
           ls -laR ~/.vx/store/${{ matrix.tool }}/ || echo "Tool directory does not exist"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUST_LOG: debug
 
       - name: Test ${{ matrix.tool }}
         shell: bash
@@ -362,34 +361,34 @@ jobs:
           case "${{ matrix.tool }}" in
             uv)
               echo "=== UV version ==="
-              $VX uv --version
+              $VX --debug uv --version
 
               echo "=== UV venv ==="
               mkdir -p /tmp/test-uv && cd /tmp/test-uv
-              $VX uv venv .venv
+              $VX --debug uv venv .venv
               ls -la .venv || dir .venv
 
               echo "=== UVX ruff ==="
-              $VX uvx ruff --version
+              $VX --debug uvx ruff --version
               ;;
 
             node)
               echo "=== Node version ==="
-              $VX node --version
-              $VX npm --version
+              $VX --debug node --version
+              $VX --debug npm --version
 
               echo "=== Node inline ==="
-              $VX node -e "console.log('Hello from Node.js!')"
+              $VX --debug node -e "console.log('Hello from Node.js!')"
 
               echo "=== NPM init ==="
               mkdir -p /tmp/test-node && cd /tmp/test-node
-              $VX npm init -y
+              $VX --debug npm init -y
               cat package.json
               ;;
 
             go)
               echo "=== Go version ==="
-              $VX go version
+              $VX --debug go version
 
               echo "=== Go run ==="
               mkdir -p /tmp/test-go && cd /tmp/test-go
@@ -398,28 +397,26 @@ jobs:
           import "fmt"
           func main() { fmt.Println("Hello from Go!") }
           EOF
-              $VX go run main.go
+              $VX --debug go run main.go
 
               echo "=== Go mod init ==="
-              $VX go mod init example.com/test
+              $VX --debug go mod init example.com/test
               cat go.mod
               ;;
 
             bun)
               echo "=== Bun version ==="
-              $VX bun --version
+              $VX --debug bun --version
 
               echo "=== Bun inline ==="
-              $VX bun -e "console.log('Hello from Bun!')"
+              $VX --debug bun -e "console.log('Hello from Bun!')"
 
               echo "=== Bun TypeScript ==="
               mkdir -p /tmp/test-bun && cd /tmp/test-bun
               echo 'const x: string = "TS works!"; console.log(x);' > test.ts
-              $VX bun run test.ts
+              $VX --debug bun run test.ts
               ;;
           esac
-        env:
-          RUST_LOG: debug
 
       - name: Show stats
         shell: bash
