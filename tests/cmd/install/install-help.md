@@ -13,7 +13,7 @@ Arguments:
   [VERSION]  Version to install (e.g., 1.0.0, latest, lts)
 
 Options:
-      --force            Force reinstallation even if already installed
+  -f, --force            Force reinstallation even if already installed
       --use-system-path  Use system PATH to find tools instead of vx-managed versions
   -v, --verbose          Enable verbose output with detailed logging
       --debug            Enable debug output (equivalent to RUST_LOG=debug)
