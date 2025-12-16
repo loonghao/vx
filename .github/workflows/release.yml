@@ -81,8 +81,10 @@ jobs:
             TAG="${{ needs.release-please.outputs.tag_name }}"
           fi
           echo "tag_name=${TAG}" >> $GITHUB_OUTPUT
-          echo "version=${TAG#v}" >> $GITHUB_OUTPUT
-          echo "Building for tag: ${TAG}"
+          # Extract version number: vx-v0.5.0 -> 0.5.0, v0.5.0 -> 0.5.0
+          VERSION=$(echo "${TAG}" | sed -E 's/^(vx-)?v//')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building for tag: ${TAG}, version: ${VERSION}"
 
   # Build CLI binaries for all platforms
   build-binaries:
