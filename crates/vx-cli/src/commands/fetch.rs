@@ -14,9 +14,15 @@ pub async fn handle(
     detailed: bool,
     interactive: bool,
 ) -> Result<()> {
-    let runtime = registry
-        .get_runtime(tool_name)
-        .ok_or_else(|| anyhow::anyhow!("Tool not found: {}", tool_name))?;
+    let runtime = match registry.get_runtime(tool_name) {
+        Some(r) => r,
+        None => {
+            // Show friendly error with suggestions
+            let available_tools = registry.runtime_names();
+            UI::tool_not_found(tool_name, &available_tools);
+            return Err(anyhow::anyhow!("Tool not found: {}", tool_name));
+        }
+    };
 
     let spinner = ProgressSpinner::new(&format!("Fetching versions for {}...", tool_name));
     let mut versions = runtime.fetch_versions(context).await?;

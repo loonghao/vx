@@ -4,7 +4,9 @@
 //! - Consistent output formatting (UI)
 //! - Progress indicators (ProgressSpinner, DownloadProgress, MultiProgress)
 //! - Global progress manager (ProgressManager)
+//! - Tool suggestion display for friendly error messages
 
+use crate::suggestions::{self, ToolSuggestion};
 use colored::*;
 use indicatif::{MultiProgress as IndicatifMultiProgress, ProgressBar, ProgressStyle};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -324,6 +326,97 @@ impl UI {
     pub fn new_spinner(message: &str) -> SimpleSpinner {
         Self::spinner(message);
         SimpleSpinner
+    }
+
+    /// Display a friendly "tool not found" error with suggestions
+    ///
+    /// This function:
+    /// 1. Shows the error message
+    /// 2. Checks for known aliases (e.g., "rust" -> "cargo")
+    /// 3. Suggests similar tool names using fuzzy matching
+    /// 4. Provides a link to request new tool support
+    pub fn tool_not_found(tool_name: &str, available_tools: &[String]) {
+        // Use eprintln for all output to ensure consistent ordering
+        eprintln!(
+            "{} {}",
+            "✗".red(),
+            format!("Tool '{}' is not supported by vx", tool_name).red()
+        );
+
+        // Get suggestions
+        let suggestions_list = suggestions::get_tool_suggestions(tool_name, available_tools);
+
+        if !suggestions_list.is_empty() {
+            eprintln!();
+            for suggestion in &suggestions_list {
+                if suggestion.is_alias {
+                    // Alias match - more confident suggestion
+                    eprintln!(
+                        "{} Did you mean: {} ({})",
+                        "💡".cyan(),
+                        suggestion.suggested_tool.cyan().bold(),
+                        suggestion.description.dimmed()
+                    );
+                } else {
+                    // Fuzzy match
+                    eprintln!(
+                        "{} Did you mean: {}",
+                        "💡".cyan(),
+                        suggestion.suggested_tool.cyan().bold()
+                    );
+                }
+            }
+        }
+
+        // Show available tools hint
+        eprintln!();
+        eprintln!(
+            "{} {}",
+            "💡".cyan(),
+            "Use 'vx list' to see all supported tools".dimmed()
+        );
+
+        // Show feature request link
+        let issue_url = suggestions::get_feature_request_url(tool_name);
+        eprintln!(
+            "{} Request support for '{}': {}",
+            "💡".cyan(),
+            tool_name,
+            issue_url.dimmed()
+        );
+    }
+
+    /// Display a friendly "tool not found" error with suggestions (simpler version)
+    pub fn tool_not_found_simple(tool_name: &str, suggestion: Option<&ToolSuggestion>) {
+        eprintln!(
+            "{} {}",
+            "✗".red(),
+            format!("Tool '{}' is not supported", tool_name).red()
+        );
+
+        if let Some(s) = suggestion {
+            eprintln!();
+            if s.is_alias {
+                eprintln!(
+                    "{} Did you mean: {} ({})",
+                    "💡".cyan(),
+                    s.suggested_tool.cyan().bold(),
+                    s.description.dimmed()
+                );
+            } else {
+                eprintln!(
+                    "{} Did you mean: {}",
+                    "💡".cyan(),
+                    s.suggested_tool.cyan().bold()
+                );
+            }
+        }
+
+        eprintln!(
+            "{} {}",
+            "💡".cyan(),
+            "Use 'vx list' to see all supported tools".dimmed()
+        );
     }
 }
 

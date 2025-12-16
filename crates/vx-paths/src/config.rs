@@ -16,8 +16,6 @@ pub struct PathConfig {
     pub envs_dir: Option<PathBuf>,
     /// Custom bin directory
     pub bin_dir: Option<PathBuf>,
-    /// Custom tools directory (legacy)
-    pub tools_dir: Option<PathBuf>,
     /// Custom cache directory
     pub cache_dir: Option<PathBuf>,
     /// Custom config directory
@@ -34,7 +32,6 @@ impl PathConfig {
             store_dir: None,
             envs_dir: None,
             bin_dir: None,
-            tools_dir: None,
             cache_dir: None,
             config_dir: None,
             tmp_dir: None,
@@ -48,7 +45,6 @@ impl PathConfig {
             store_dir: None,
             envs_dir: None,
             bin_dir: None,
-            tools_dir: None,
             cache_dir: None,
             config_dir: None,
             tmp_dir: None,
@@ -75,7 +71,6 @@ impl PathConfig {
             store_dir: self.store_dir.clone().unwrap_or(default_paths.store_dir),
             envs_dir: self.envs_dir.clone().unwrap_or(default_paths.envs_dir),
             bin_dir: self.bin_dir.clone().unwrap_or(default_paths.bin_dir),
-            tools_dir: self.tools_dir.clone().unwrap_or(default_paths.tools_dir),
             cache_dir: self.cache_dir.clone().unwrap_or(default_paths.cache_dir),
             config_dir: self.config_dir.clone().unwrap_or(default_paths.config_dir),
             tmp_dir: self.tmp_dir.clone().unwrap_or(default_paths.tmp_dir),
@@ -89,7 +84,6 @@ impl PathConfig {
             store_dir: std::env::var("VX_STORE_DIR").ok().map(PathBuf::from),
             envs_dir: std::env::var("VX_ENVS_DIR").ok().map(PathBuf::from),
             bin_dir: std::env::var("VX_BIN_DIR").ok().map(PathBuf::from),
-            tools_dir: std::env::var("VX_TOOLS_DIR").ok().map(PathBuf::from),
             cache_dir: std::env::var("VX_CACHE_DIR").ok().map(PathBuf::from),
             config_dir: std::env::var("VX_CONFIG_DIR").ok().map(PathBuf::from),
             tmp_dir: std::env::var("VX_TMP_DIR").ok().map(PathBuf::from),
@@ -109,9 +103,6 @@ impl PathConfig {
         }
         if other.bin_dir.is_some() {
             self.bin_dir = other.bin_dir.clone();
-        }
-        if other.tools_dir.is_some() {
-            self.tools_dir = other.tools_dir.clone();
         }
         if other.cache_dir.is_some() {
             self.cache_dir = other.cache_dir.clone();

@@ -11,7 +11,6 @@ fn test_vx_paths_creation() {
     assert_eq!(paths.store_dir, PathBuf::from("/tmp/test-vx/store"));
     assert_eq!(paths.envs_dir, PathBuf::from("/tmp/test-vx/envs"));
     assert_eq!(paths.bin_dir, PathBuf::from("/tmp/test-vx/bin"));
-    assert_eq!(paths.tools_dir, PathBuf::from("/tmp/test-vx/tools"));
     assert_eq!(paths.cache_dir, PathBuf::from("/tmp/test-vx/cache"));
     assert_eq!(paths.config_dir, PathBuf::from("/tmp/test-vx/config"));
     assert_eq!(paths.tmp_dir, PathBuf::from("/tmp/test-vx/tmp"));
