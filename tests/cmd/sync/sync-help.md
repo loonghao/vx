@@ -10,7 +10,7 @@ Usage: vx[EXE] sync [OPTIONS]
 
 Options:
       --check            Only check, don't install
-      --force            Force reinstall all tools
+  -f, --force            Force reinstall all tools
       --dry-run          Preview operations without executing
   -v, --verbose          Show verbose output
       --no-parallel      Disable parallel installation
