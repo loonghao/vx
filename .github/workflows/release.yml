@@ -164,7 +164,7 @@ jobs:
         with:
           command: build
           target: ${{ matrix.platform.target }}
-          args: "--locked --release --bin vx"
+          args: "--release --bin vx"
           strip: true
 
       - name: Publish artifacts and release
