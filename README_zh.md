@@ -32,6 +32,7 @@
 ### 我们解决的问题
 
 每次开始新的开发项目时，我们都面临同样令人沮丧的循环：
+
 - 为前端工具安装 Node.js 和 npm
 - 为脚本和自动化设置 Python 和 pip/uv
 - 为后端服务配置 Go
@@ -83,6 +84,7 @@ vx go run main.go               # 需要时自动安装 Go
 - **🌍 跨平台**: 在 Windows、macOS 和 Linux 上无缝运行
 
 ### 🎯 核心特性
+
 - **🔄 通用接口**: 通过单一、一致的接口执行任何支持的工具
 - **📦 多版本管理**: 安装、管理和切换工具的多个版本
 - **⚡ 零配置**: 开箱即用，具有智能默认设置
@@ -93,6 +95,7 @@ vx go run main.go               # 需要时自动安装 Go
 - **📁 统一路径管理**: 跨所有平台的标准化工具安装路径
 
 ### 🛠️ 高级特性
+
 - **📊 包管理**: 类似 Chocolatey 的分层包管理
 - **🔍 智能发现**: 自动工具检测和版本解析
 - **⚙️ 配置管理**: 全局和项目级配置支持
@@ -107,11 +110,13 @@ vx go run main.go               # 需要时自动安装 Go
 #### 快速安装（推荐）
 
 **Linux/macOS:**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 ```
 
 **Windows (PowerShell):**
+
 ```powershell
 powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 ```
@@ -119,6 +124,7 @@ powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps
 #### 高级安装选项
 
 **安装特定版本:**
+
 ```bash
 # Linux/macOS
 VX_VERSION="0.1.0" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
@@ -128,6 +134,7 @@ $env:VX_VERSION="0.1.0"; powershell -c "irm https://raw.githubusercontent.com/lo
 ```
 
 **安装到自定义目录:**
+
 ```bash
 # Linux/macOS
 VX_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
@@ -139,28 +146,33 @@ $env:VX_INSTALL_DIR="C:\tools\vx"; powershell -c "irm https://raw.githubusercont
 #### 包管理器
 
 **Chocolatey (Windows):**
+
 ```powershell
 choco install vx
 ```
 
 **Scoop (Windows):**
+
 ```powershell
 scoop bucket add loonghao https://github.com/loonghao/scoop-vx.git
 scoop install vx
 ```
 
 **WinGet (Windows):**
+
 ```powershell
 winget install loonghao.vx
 ```
 
 **Homebrew (macOS):**
+
 ```bash
 brew tap loonghao/vx
 brew install vx
 ```
 
 **Arch Linux (AUR):**
+
 ```bash
 # 使用 yay
 yay -S vx-bin
@@ -170,8 +182,47 @@ paru -S vx-bin
 ```
 
 **Cargo (从源码):**
+
 ```bash
 cargo install --git https://github.com/loonghao/vx
+```
+
+**Docker:**
+
+```bash
+# Docker Hub
+docker pull loonghao/vx:latest
+docker run --rm loonghao/vx --version
+
+# GitHub Container Registry
+docker pull ghcr.io/loonghao/vx:latest
+docker run --rm ghcr.io/loonghao/vx --version
+```
+
+**Debian/Ubuntu (DEB):**
+
+```bash
+# 下载并安装最新版本
+curl -fsSLO https://github.com/loonghao/vx/releases/latest/download/vx_amd64.deb
+sudo dpkg -i vx_amd64.deb
+```
+
+**Fedora/RHEL (RPM):**
+
+```bash
+# 下载并安装最新版本
+curl -fsSLO https://github.com/loonghao/vx/releases/latest/download/vx.x86_64.rpm
+sudo rpm -i vx.x86_64.rpm
+```
+
+**Nix:**
+
+```bash
+# 使用 flakes
+nix profile install github:loonghao/vx
+
+# 或直接运行
+nix run github:loonghao/vx -- --version
 ```
 
 ### ⚡ 快速示例：相同命令，更好体验
@@ -242,6 +293,7 @@ vx 在设计时就考虑了 MCP（模型上下文协议）。许多 MCP 服务�
 ### MCP 挑战
 
 MCP 服务器通常需要多个工具生态系统：
+
 ```bash
 # 传统设置需要管理多个工具：
 npm install -g some-package     # 需要 Node.js 设置
@@ -254,6 +306,7 @@ uvx install some-python-tool    # 需要 Python/UV 设置
 使用 vx，您只需在现有命令前加上 `vx` - **无学习成本，无配置**：
 
 ### 之前（需要复杂设置）
+
 ```json
 {
   "mcpServers": {
@@ -270,6 +323,7 @@ uvx install some-python-tool    # 需要 Python/UV 设置
 ```
 
 ### 之后（使用 vx 零设置）
+
 ```json
 {
   "mcpServers": {
@@ -300,6 +354,7 @@ uvx install some-python-tool    # 需要 Python/UV 设置
 vx 包含强大的自更新系统，解决了在共享环境中常见的 GitHub API 速率限制问题。
 
 ### 🚀 快速更新
+
 ```bash
 # 检查更新
 vx self-update --check
@@ -386,6 +441,7 @@ auto_install = true
 ## 🎯 实际示例
 
 ### Python 开发（使用 UV）
+
 ```bash
 # 创建新的 Python 项目
 vx uv init my-python-app
@@ -403,6 +459,7 @@ vx uv run pytest
 ```
 
 ### Node.js 开发
+
 ```bash
 # 安装和使用 Node.js
 vx npm install express
@@ -438,6 +495,7 @@ cargo run -- --help
 ## 🚀 路线图
 
 ### 当前状态 (v0.3.0)
+
 - ✅ **核心插件架构** 具有基于特征的可扩展性
 - ✅ **6 个内置工具**（UV、UVX、Node.js、NPX、Go、Rust）
 - ✅ **完整环境隔离系统** 具有完整的 PATH 管理
@@ -456,6 +514,7 @@ cargo run -- --help
 ### 即将推出的功能
 
 #### 🔧 新工具支持（第7阶段）
+
 - [ ] **just** - 现代命令运行器和构建工具（`vx just --list`、`vx just build`）
 - [ ] **kubectl** - Kubernetes 命令行工具（`vx kubectl get pods`、`vx kubectl apply`）
 - [ ] **deno** - 现代 JavaScript/TypeScript 运行时（`vx deno run`、`vx deno task`）
@@ -463,6 +522,7 @@ cargo run -- --help
 - [ ] **zig** - 系统编程语言（`vx zig build`、`vx zig run`）
 
 #### 🚀 增强功能
+
 - [ ] **增强的包管理器**: pnpm、yarn、bun 与完整的 vx-installer 集成
 - [ ] **系统包管理器**: Homebrew、Chocolatey、apt、yum 支持
 - [ ] **专业工具**: 用于 VFX 的 Rez、用于 HPC 环境的 Spack
@@ -501,7 +561,7 @@ cargo run -- --help
 - 📖 **文档**: [完整文档](https://github.com/loonghao/vx/wiki)
 - 💬 **讨论**: [GitHub 讨论](https://github.com/loonghao/vx/discussions)
 - 🐛 **问题**: [错误报告](https://github.com/loonghao/vx/issues)
-- 📧 **联系**: hal.long@outlook.com
+- 📧 **联系**: <hal.long@outlook.com>
 
 ---
 

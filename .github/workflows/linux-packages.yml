@@ -1,0 +1,346 @@
+name: Linux Packages
+
+# Build and publish Linux packages (DEB, RPM, AUR)
+# Triggered after successful release or manually
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  check-release:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_short: ${{ steps.version.outputs.version_short }}
+    steps:
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/loonghao/vx/releases/latest" | \
+              jq -r '.tag_name // empty')
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_short=${VERSION#v}" >> $GITHUB_OUTPUT
+
+  # Build DEB packages
+  build-deb:
+    needs: check-release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download release binary
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+
+          if [[ "${{ matrix.arch }}" == "amd64" ]]; then
+            RUST_ARCH="x86_64-unknown-linux-gnu"
+          else
+            RUST_ARCH="aarch64-unknown-linux-gnu"
+          fi
+
+          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${RUST_ARCH}.tar.gz"
+          echo "Downloading from: $DOWNLOAD_URL"
+
+          curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz
+          tar -xzf vx.tar.gz
+
+      - name: Build DEB package
+        run: |
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+          ARCH="${{ matrix.arch }}"
+
+          # Create package structure
+          PKG_DIR="vx_${VERSION_SHORT}_${ARCH}"
+          mkdir -p "${PKG_DIR}/DEBIAN"
+          mkdir -p "${PKG_DIR}/usr/bin"
+          mkdir -p "${PKG_DIR}/usr/share/doc/vx"
+          mkdir -p "${PKG_DIR}/usr/share/bash-completion/completions"
+          mkdir -p "${PKG_DIR}/usr/share/zsh/vendor-completions"
+          mkdir -p "${PKG_DIR}/usr/share/fish/vendor_completions.d"
+
+          # Copy binary
+          cp vx "${PKG_DIR}/usr/bin/vx"
+          chmod 755 "${PKG_DIR}/usr/bin/vx"
+
+          # Copy docs
+          cp README.md "${PKG_DIR}/usr/share/doc/vx/"
+          cp LICENSE "${PKG_DIR}/usr/share/doc/vx/copyright"
+
+          # Create control file
+          cat > "${PKG_DIR}/DEBIAN/control" << EOF
+          Package: vx
+          Version: ${VERSION_SHORT}
+          Section: devel
+          Priority: optional
+          Architecture: ${ARCH}
+          Maintainer: Long Hao <hal.long@outlook.com>
+          Homepage: https://github.com/loonghao/vx
+          Description: Universal version manager for developer tools
+           vx is a fast, cross-platform version manager for developer tools
+           including Node.js (npm, pnpm, yarn, bun), Python (uv, pip), Go, Rust,
+           and more.
+          Depends: libc6 (>= 2.17)
+          Recommends: git, curl
+          EOF
+
+          # Create postinst script
+          cat > "${PKG_DIR}/DEBIAN/postinst" << 'EOF'
+          #!/bin/sh
+          set -e
+          if command -v vx >/dev/null 2>&1; then
+              vx completions bash > /usr/share/bash-completion/completions/vx 2>/dev/null || true
+              vx completions zsh > /usr/share/zsh/vendor-completions/_vx 2>/dev/null || true
+              vx completions fish > /usr/share/fish/vendor_completions.d/vx.fish 2>/dev/null || true
+          fi
+          EOF
+          chmod 755 "${PKG_DIR}/DEBIAN/postinst"
+
+          # Build package
+          dpkg-deb --build "${PKG_DIR}"
+
+          echo "Built: ${PKG_DIR}.deb"
+          ls -la *.deb
+
+      - name: Upload DEB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.arch }}
+          path: "*.deb"
+
+  # Build RPM packages
+  build-rpm:
+    needs: check-release
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - x86_64
+          - aarch64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          dnf install -y rpm-build rpmdevtools curl tar gzip
+
+      - name: Setup RPM build environment
+        run: |
+          rpmdev-setuptree
+
+      - name: Download release binary
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+
+          if [[ "${{ matrix.arch }}" == "x86_64" ]]; then
+            RUST_ARCH="x86_64-unknown-linux-gnu"
+          else
+            RUST_ARCH="aarch64-unknown-linux-gnu"
+          fi
+
+          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${RUST_ARCH}.tar.gz"
+          echo "Downloading from: $DOWNLOAD_URL"
+
+          # Download to SOURCES
+          curl -fsSL "$DOWNLOAD_URL" -o ~/rpmbuild/SOURCES/vx-${{ matrix.arch }}.tar.gz
+
+      - name: Create RPM spec
+        run: |
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+
+          cat > ~/rpmbuild/SPECS/vx.spec << EOF
+          Name:           vx
+          Version:        ${VERSION_SHORT}
+          Release:        1%{?dist}
+          Summary:        Universal version manager for developer tools
+
+          License:        MIT
+          URL:            https://github.com/loonghao/vx
+          Source0:        vx-${{ matrix.arch }}.tar.gz
+
+          %description
+          vx is a fast, cross-platform version manager for developer tools
+          including Node.js, Python, Go, Rust, and more.
+
+          %prep
+          %setup -q -c -T
+          tar -xzf %{SOURCE0}
+
+          %install
+          mkdir -p %{buildroot}%{_bindir}
+          install -m 755 vx %{buildroot}%{_bindir}/vx
+
+          %files
+          %{_bindir}/vx
+
+          %changelog
+          * $(date "+%a %b %d %Y") Long Hao <hal.long@outlook.com> - ${VERSION_SHORT}-1
+          - Release v${VERSION_SHORT}
+          EOF
+
+      - name: Build RPM
+        run: |
+          rpmbuild -bb ~/rpmbuild/SPECS/vx.spec --target ${{ matrix.arch }}
+
+          # Copy to workspace
+          find ~/rpmbuild/RPMS -name "*.rpm" -exec cp {} . \;
+          ls -la *.rpm
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-${{ matrix.arch }}
+          path: "*.rpm"
+
+  # Upload packages to GitHub Release
+  upload-to-release:
+    needs: [check-release, build-deb, build-rpm]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: packages
+
+      - name: List packages
+        run: |
+          find packages -type f \( -name "*.deb" -o -name "*.rpm" \)
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.check-release.outputs.version }}
+          files: |
+            packages/**/*.deb
+            packages/**/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Update AUR package
+  update-aur:
+    needs: check-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+
+      - name: Update AUR package
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+
+          # Clone AUR repo
+          git clone ssh://aur@aur.archlinux.org/vx-bin.git aur-repo || {
+            echo "AUR repo not found, skipping..."
+            exit 0
+          }
+
+          cd aur-repo
+
+          # Download and calculate checksums
+          X86_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-x86_64-unknown-linux-gnu.tar.gz"
+          ARM_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-aarch64-unknown-linux-gnu.tar.gz"
+
+          X86_SHA256=$(curl -fsSL "$X86_URL" | sha256sum | cut -d' ' -f1)
+          ARM_SHA256=$(curl -fsSL "$ARM_URL" | sha256sum | cut -d' ' -f1)
+
+          # Update PKGBUILD
+          sed -i "s/pkgver=.*/pkgver=${VERSION_SHORT}/" PKGBUILD
+          sed -i "s/sha256sums_x86_64=.*/sha256sums_x86_64=('${X86_SHA256}')/" PKGBUILD
+          sed -i "s/sha256sums_aarch64=.*/sha256sums_aarch64=('${ARM_SHA256}')/" PKGBUILD
+
+          # Update .SRCINFO
+          cat > .SRCINFO << EOF
+          pkgbase = vx-bin
+          	pkgdesc = Universal version manager for developer tools
+          	pkgver = ${VERSION_SHORT}
+          	pkgrel = 1
+          	url = https://github.com/loonghao/vx
+          	arch = x86_64
+          	arch = aarch64
+          	license = MIT
+          	depends = gcc-libs
+          	provides = vx
+          	conflicts = vx
+          	conflicts = vx-git
+          	source_x86_64 = vx-bin-${VERSION_SHORT}-x86_64.tar.gz::${X86_URL}
+          	source_aarch64 = vx-bin-${VERSION_SHORT}-aarch64.tar.gz::${ARM_URL}
+          	sha256sums_x86_64 = ${X86_SHA256}
+          	sha256sums_aarch64 = ${ARM_SHA256}
+
+          pkgname = vx-bin
+          EOF
+
+          # Commit and push
+          git config user.name "vx-bot"
+          git config user.email "vx-bot@users.noreply.github.com"
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update to ${VERSION}" || echo "No changes to commit"
+          git push || echo "Push failed, may need manual intervention"
+
+  summary:
+    needs: [check-release, build-deb, build-rpm, upload-to-release]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          echo "## Linux Packages Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation Commands" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Debian/Ubuntu:**" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# Download and install" >> $GITHUB_STEP_SUMMARY
+          echo "curl -fsSLO https://github.com/loonghao/vx/releases/download/${VERSION}/vx_\${VERSION#v}_amd64.deb" >> $GITHUB_STEP_SUMMARY
+          echo "sudo dpkg -i vx_*.deb" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Fedora/RHEL:**" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# Download and install" >> $GITHUB_STEP_SUMMARY
+          echo "curl -fsSLO https://github.com/loonghao/vx/releases/download/${VERSION}/vx-\${VERSION#v}-1.x86_64.rpm" >> $GITHUB_STEP_SUMMARY
+          echo "sudo rpm -i vx-*.rpm" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Arch Linux (AUR):**" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "yay -S vx-bin" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

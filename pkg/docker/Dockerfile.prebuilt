@@ -1,0 +1,43 @@
+# vx Docker image using pre-built binary
+# This Dockerfile is used by CI to create images from release binaries
+
+FROM alpine:3.20
+
+LABEL org.opencontainers.image.title="vx"
+LABEL org.opencontainers.image.description="Universal version manager for developer tools"
+LABEL org.opencontainers.image.url="https://github.com/loonghao/vx"
+LABEL org.opencontainers.image.source="https://github.com/loonghao/vx"
+LABEL org.opencontainers.image.vendor="loonghao"
+LABEL org.opencontainers.image.licenses="MIT"
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    ca-certificates \
+    git \
+    curl \
+    bash \
+    && rm -rf /var/cache/apk/*
+
+# Create non-root user
+RUN addgroup -g 1000 vx && \
+    adduser -D -s /bin/bash -u 1000 -G vx vx
+
+# Copy pre-built binary (passed via build context)
+COPY vx /usr/local/bin/vx
+
+# Ensure binary is executable
+RUN chmod +x /usr/local/bin/vx
+
+# Create vx directories
+RUN mkdir -p /home/vx/.vx && \
+    chown -R vx:vx /home/vx
+
+# Switch to non-root user
+USER vx
+WORKDIR /home/vx
+
+# Verify installation
+RUN vx --version
+
+ENTRYPOINT ["/usr/local/bin/vx"]
+CMD ["--help"]

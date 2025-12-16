@@ -71,41 +71,56 @@ timeout = { connect = 15, total = 60 }
 "macos-arm64" = "vx-macOS-arm64.tar.gz"
 
 # Package manager integrations
-[package_managers]
-# Homebrew
-homebrew = { 
-    enabled = true, 
-    formula_repo = "loonghao/homebrew-vx",
-    install_command = "brew install loonghao/vx/vx"
-}
+[package_managers.homebrew]
+enabled = true
+formula_repo = "loonghao/homebrew-vx"
+install_command = "brew install loonghao/vx/vx"
 
-# Chocolatey
-chocolatey = { 
-    enabled = true, 
-    package_id = "vx",
-    install_command = "choco install vx"
-}
+[package_managers.chocolatey]
+enabled = true
+package_id = "vx"
+install_command = "choco install vx"
 
-# Scoop
-scoop = { 
-    enabled = true, 
-    bucket_repo = "loonghao/scoop-vx",
-    install_command = "scoop install vx"
-}
+[package_managers.scoop]
+enabled = true
+bucket_repo = "loonghao/scoop-vx"
+install_command = "scoop install vx"
 
-# WinGet
-winget = { 
-    enabled = true, 
-    package_id = "loonghao.vx",
-    install_command = "winget install loonghao.vx"
-}
+[package_managers.winget]
+enabled = true
+package_id = "loonghao.vx"
+install_command = "winget install loonghao.vx"
 
-# Cargo
-cargo = { 
-    enabled = true, 
-    crate_name = "vx",
-    install_command = "cargo install vx"
-}
+[package_managers.cargo]
+enabled = true
+crate_name = "vx"
+install_command = "cargo install vx"
+
+[package_managers.aur]
+enabled = true
+package_name = "vx-bin"
+install_command = "yay -S vx-bin"
+
+[package_managers.apt]
+enabled = true
+package_name = "vx"
+install_command = "sudo dpkg -i vx_*.deb"
+
+[package_managers.rpm]
+enabled = true
+package_name = "vx"
+install_command = "sudo rpm -i vx-*.rpm"
+
+[package_managers.docker]
+enabled = true
+image_name = "loonghao/vx"
+ghcr_image = "ghcr.io/loonghao/vx"
+install_command = "docker pull loonghao/vx:latest"
+
+[package_managers.nix]
+enabled = true
+flake_url = "github:loonghao/vx"
+install_command = "nix profile install github:loonghao/vx"
 
 # Mirror configuration for different regions
 [mirrors]

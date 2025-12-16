@@ -1,0 +1,21 @@
+Package: vx
+Version: {{VERSION}}
+Section: devel
+Priority: optional
+Architecture: {{ARCH}}
+Maintainer: Long Hao <hal.long@outlook.com>
+Homepage: https://github.com/loonghao/vx
+Description: Universal version manager for developer tools
+ vx is a fast, cross-platform version manager for developer tools
+ including Node.js (npm, pnpm, yarn, bun), Python (uv, pip), Go, Rust,
+ and more. It automatically detects and installs the right tool versions
+ for your projects.
+ .
+ Features:
+  - Automatic version detection from project files
+  - Multi-ecosystem support (Node.js, Python, Go, Rust)
+  - Fast parallel downloads
+  - Cross-platform (Windows, macOS, Linux)
+  - Zero configuration required
+Depends: libc6 (>= 2.17), libgcc-s1
+Recommends: git, curl

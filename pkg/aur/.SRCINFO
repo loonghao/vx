@@ -1,0 +1,20 @@
+pkgbase = vx-bin
+	pkgdesc = Universal version manager for developer tools - Node.js, Python, Go, Rust and more
+	pkgver = {{VERSION}}
+	pkgrel = 1
+	url = https://github.com/loonghao/vx
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	depends = gcc-libs
+	optdepends = git: for cloning repositories
+	optdepends = curl: for downloading tools
+	provides = vx
+	conflicts = vx
+	conflicts = vx-git
+	source_x86_64 = vx-bin-{{VERSION}}-x86_64.tar.gz::https://github.com/loonghao/vx/releases/download/v{{VERSION}}/vx-x86_64-unknown-linux-gnu.tar.gz
+	source_aarch64 = vx-bin-{{VERSION}}-aarch64.tar.gz::https://github.com/loonghao/vx/releases/download/v{{VERSION}}/vx-aarch64-unknown-linux-gnu.tar.gz
+	sha256sums_x86_64 = SKIP
+	sha256sums_aarch64 = SKIP
+
+pkgname = vx-bin
