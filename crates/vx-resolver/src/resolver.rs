@@ -149,10 +149,36 @@ impl Resolver {
 
     /// Check the new store directory for installed runtimes
     fn check_store_dir(&self, runtime_name: &str) -> Option<RuntimeStatus> {
-        let versions = self.path_manager.list_store_versions(runtime_name).ok()?;
+        let store_dir = self.path_manager.runtime_store_dir(runtime_name);
+        debug!(
+            "Checking store directory for {}: {} (exists: {})",
+            runtime_name,
+            store_dir.display(),
+            store_dir.exists()
+        );
+
+        let versions = match self.path_manager.list_store_versions(runtime_name) {
+            Ok(v) => v,
+            Err(e) => {
+                debug!("Failed to list store versions for {}: {}", runtime_name, e);
+                return None;
+            }
+        };
+
+        debug!(
+            "Found {} versions for {} in store: {:?}",
+            versions.len(),
+            runtime_name,
+            versions
+        );
 
         for version in versions.iter() {
             let version_dir = self.path_manager.version_store_dir(runtime_name, version);
+            debug!(
+                "Checking version directory: {} (exists: {})",
+                version_dir.display(),
+                version_dir.exists()
+            );
 
             // Search for the executable in the version directory
             if let Some(exe_path) = self.find_executable_in_dir(&version_dir, runtime_name) {
@@ -166,6 +192,12 @@ impl Resolver {
                     version: version.clone(),
                     path: exe_path,
                 });
+            } else {
+                debug!(
+                    "Executable {} not found in version directory {}",
+                    runtime_name,
+                    version_dir.display()
+                );
             }
         }
         None
