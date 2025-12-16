@@ -444,6 +444,7 @@ pub fn mock_context() -> RuntimeContext {
         fs: fs.clone(),
         installer: Arc::new(MockInstaller::with_fs(fs)),
         config: RuntimeConfig::default(),
+        version_cache: None,
     }
 }
 

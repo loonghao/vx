@@ -4,6 +4,7 @@
 //! allowing for easy testing through mock implementations.
 
 use crate::traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProvider};
+use crate::version_cache::{CacheMode, VersionCache};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -22,6 +23,8 @@ pub struct RuntimeConfig {
     pub verify_checksum: bool,
     /// Whether to use verbose output
     pub verbose: bool,
+    /// Cache mode for version fetching
+    pub cache_mode: CacheMode,
 }
 
 impl Default for RuntimeConfig {
@@ -32,6 +35,7 @@ impl Default for RuntimeConfig {
             install_timeout: Duration::from_secs(300), // 5 minutes
             verify_checksum: true,
             verbose: false,
+            cache_mode: CacheMode::Normal,
         }
     }
 }
@@ -51,6 +55,8 @@ pub struct RuntimeContext {
     pub installer: Arc<dyn Installer>,
     /// Configuration
     pub config: RuntimeConfig,
+    /// Version cache for reducing API calls
+    pub version_cache: Option<VersionCache>,
 }
 
 impl RuntimeContext {
@@ -67,6 +73,7 @@ impl RuntimeContext {
             fs,
             installer,
             config: RuntimeConfig::default(),
+            version_cache: None,
         }
     }
 
@@ -74,6 +81,111 @@ impl RuntimeContext {
     pub fn with_config(mut self, config: RuntimeConfig) -> Self {
         self.config = config;
         self
+    }
+
+    /// Set version cache
+    pub fn with_version_cache(mut self, cache: VersionCache) -> Self {
+        self.version_cache = Some(cache);
+        self
+    }
+
+    /// Set cache mode (applies to version cache)
+    pub fn with_cache_mode(mut self, mode: CacheMode) -> Self {
+        self.config.cache_mode = mode;
+        if let Some(cache) = self.version_cache.take() {
+            self.version_cache = Some(cache.with_mode(mode));
+        }
+        self
+    }
+
+    /// Get cached versions or fetch from API
+    ///
+    /// This method respects the cache mode:
+    /// - `Normal`: Use cache if valid, otherwise fetch
+    /// - `Refresh`: Always fetch, ignore cache
+    /// - `Offline`: Use cache only, fail if not available
+    /// - `NoCache`: Never use cache
+    pub async fn get_cached_or_fetch<F, Fut>(
+        &self,
+        tool_name: &str,
+        fetch_fn: F,
+    ) -> anyhow::Result<serde_json::Value>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = anyhow::Result<serde_json::Value>>,
+    {
+        // Try to get from cache first (respects cache mode internally)
+        if let Some(cache) = &self.version_cache {
+            if let Some(cached) = cache.get(tool_name) {
+                tracing::debug!("Using cached versions for {} (cache hit)", tool_name);
+                return Ok(cached);
+            }
+
+            // In offline mode, fail if cache miss
+            if cache.mode() == CacheMode::Offline {
+                return Err(anyhow::anyhow!(
+                    "Offline mode: no cached versions available for {}. Run without --offline to fetch.",
+                    tool_name
+                ));
+            }
+        }
+
+        // Fetch from API
+        tracing::debug!("Fetching versions for {} from API", tool_name);
+        let data = fetch_fn().await?;
+
+        // Store in cache (respects cache mode internally)
+        if let Some(cache) = &self.version_cache {
+            if let Err(e) = cache.set(tool_name, data.clone()) {
+                tracing::warn!("Failed to cache versions for {}: {}", tool_name, e);
+            }
+        }
+
+        Ok(data)
+    }
+
+    /// Get cached versions or fetch with source URL tracking
+    pub async fn get_cached_or_fetch_with_url<F, Fut>(
+        &self,
+        tool_name: &str,
+        source_url: &str,
+        fetch_fn: F,
+    ) -> anyhow::Result<serde_json::Value>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = anyhow::Result<serde_json::Value>>,
+    {
+        // Try to get from cache first
+        if let Some(cache) = &self.version_cache {
+            if let Some(cached) = cache.get(tool_name) {
+                tracing::debug!(
+                    "Using cached versions for {} from {}",
+                    tool_name,
+                    source_url
+                );
+                return Ok(cached);
+            }
+
+            if cache.mode() == CacheMode::Offline {
+                return Err(anyhow::anyhow!(
+                    "Offline mode: no cached versions available for {}",
+                    tool_name
+                ));
+            }
+        }
+
+        // Fetch from API
+        let data = fetch_fn().await?;
+
+        // Store in cache with source URL
+        if let Some(cache) = &self.version_cache {
+            if let Err(e) = cache.set_with_options(tool_name, data.clone(), Some(source_url), None)
+            {
+                tracing::warn!("Failed to cache versions for {}: {}", tool_name, e);
+            }
+        }
+
+        Ok(data)
     }
 }
 

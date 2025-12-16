@@ -46,6 +46,7 @@ pub mod runtime;
 pub mod testing;
 pub mod traits;
 pub mod types;
+pub mod version_cache;
 
 // Re-exports
 pub use context::{ExecutionContext, RuntimeContext};
@@ -65,4 +66,7 @@ pub use types::{ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec, 
 pub use testing::{
     mock_context, MockCommandExecutor, MockFileSystem, MockHttpClient, MockInstaller,
     MockPathProvider,
+};
+pub use version_cache::{
+    CacheMode, CacheStats, VersionCache, DEFAULT_CACHE_TTL, LONG_CACHE_TTL, SHORT_CACHE_TTL,
 };
