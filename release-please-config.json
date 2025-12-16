@@ -12,11 +12,7 @@
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
       "extra-files": [
-        {
-          "type": "toml",
-          "path": "Cargo.toml",
-          "jsonpath": "$.workspace.package.version"
-        }
+        "Cargo.toml"
       ]
     }
   },
