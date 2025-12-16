@@ -110,7 +110,7 @@ walkdir = "2.4"
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"
 indicatif = "0.17"
-console = "0.15"
+console = "0.16"
 colored = "3.0"
 dialoguer = "0.11"
 futures-util = "0.3"
