@@ -138,16 +138,11 @@ impl Resolver {
 
     /// Check if a runtime is installed via vx
     fn check_vx_managed(&self, runtime_name: &str) -> Option<RuntimeStatus> {
-        // First check the new store directory (~/.vx/store/<runtime>/<version>)
-        if let Some(status) = self.check_store_dir(runtime_name) {
-            return Some(status);
-        }
-
-        // Fall back to legacy tools directory (~/.vx/tools/<tool>/<version>)
-        self.check_tools_dir(runtime_name)
+        // Check the store directory (~/.vx/store/<runtime>/<version>)
+        self.check_store_dir(runtime_name)
     }
 
-    /// Check the new store directory for installed runtimes
+    /// Check the store directory for installed runtimes
     fn check_store_dir(&self, runtime_name: &str) -> Option<RuntimeStatus> {
         let store_dir = self.path_manager.runtime_store_dir(runtime_name);
         debug!(
@@ -198,45 +193,6 @@ impl Resolver {
                     runtime_name,
                     version_dir.display()
                 );
-            }
-        }
-        None
-    }
-
-    /// Check the legacy tools directory for installed runtimes
-    fn check_tools_dir(&self, runtime_name: &str) -> Option<RuntimeStatus> {
-        let versions = self.path_manager.list_tool_versions(runtime_name).ok()?;
-
-        if let Some(version) = versions.first() {
-            // First try the simple path (e.g., ~/.vx/tools/node/18.17.0/node)
-            let simple_path = self
-                .path_manager
-                .tool_executable_path(runtime_name, version);
-            if simple_path.exists() {
-                debug!(
-                    "Found vx-managed {} version {} at simple path",
-                    runtime_name, version
-                );
-                return Some(RuntimeStatus::VxManaged {
-                    version: version.clone(),
-                    path: simple_path,
-                });
-            }
-
-            // If not found, search for the executable in the version directory
-            // This handles cases like bun where the exe is in a subdirectory
-            let version_dir = self.path_manager.tool_version_dir(runtime_name, version);
-            if let Some(exe_path) = self.find_executable_in_dir(&version_dir, runtime_name) {
-                debug!(
-                    "Found vx-managed {} version {} at {}",
-                    runtime_name,
-                    version,
-                    exe_path.display()
-                );
-                return Some(RuntimeStatus::VxManaged {
-                    version: version.clone(),
-                    path: exe_path,
-                });
             }
         }
         None

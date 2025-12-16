@@ -12,7 +12,6 @@ fn test_path_manager_creation() {
     assert!(manager.store_dir().exists());
     assert!(manager.envs_dir().exists());
     assert!(manager.bin_dir().exists());
-    assert!(manager.tools_dir().exists());
     assert!(manager.cache_dir().exists());
     assert!(manager.config_dir().exists());
     assert!(manager.tmp_dir().exists());
@@ -90,52 +89,4 @@ fn test_store_version_check() {
     assert!(manager.is_version_in_store("node", "20.0.0"));
     assert_eq!(manager.list_store_versions("node").unwrap(), vec!["20.0.0"]);
     assert_eq!(manager.list_store_runtimes().unwrap(), vec!["node"]);
-}
-
-#[test]
-fn test_legacy_tool_paths() {
-    let temp_dir = TempDir::new().unwrap();
-    let base_dir = temp_dir.path().join(".vx");
-    let manager = PathManager::with_base_dir(&base_dir).unwrap();
-
-    let tool_dir = manager.tool_dir("node");
-    let version_dir = manager.tool_version_dir("node", "18.17.0");
-    let exe_path = manager.tool_executable_path("node", "18.17.0");
-
-    assert_eq!(tool_dir, base_dir.join("tools/node"));
-    assert_eq!(version_dir, base_dir.join("tools/node/18.17.0"));
-
-    if cfg!(target_os = "windows") {
-        assert_eq!(exe_path, base_dir.join("tools/node/18.17.0/node.exe"));
-    } else {
-        assert_eq!(exe_path, base_dir.join("tools/node/18.17.0/node"));
-    }
-}
-
-#[test]
-fn test_legacy_tool_version_management() {
-    let temp_dir = TempDir::new().unwrap();
-    let base_dir = temp_dir.path().join(".vx");
-    let manager = PathManager::with_base_dir(&base_dir).unwrap();
-
-    // Initially no versions
-    assert!(!manager.is_tool_version_installed("node", "18.17.0"));
-    assert_eq!(
-        manager.list_tool_versions("node").unwrap(),
-        Vec::<String>::new()
-    );
-
-    // Create version directory and executable
-    let _version_dir = manager.create_tool_version_dir("node", "18.17.0").unwrap();
-    let exe_path = manager.tool_executable_path("node", "18.17.0");
-    std::fs::write(&exe_path, "fake executable").unwrap();
-
-    // Now it should be detected
-    assert!(manager.is_tool_version_installed("node", "18.17.0"));
-    assert_eq!(manager.list_tool_versions("node").unwrap(), vec!["18.17.0"]);
-    assert_eq!(
-        manager.get_latest_tool_version("node").unwrap(),
-        Some("18.17.0".to_string())
-    );
-    assert_eq!(manager.list_installed_tools().unwrap(), vec!["node"]);
 }

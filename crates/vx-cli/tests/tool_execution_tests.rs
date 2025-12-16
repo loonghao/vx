@@ -108,13 +108,13 @@ mod installation_path_tests {
 
         // All paths should be valid
         let base = &paths.base_dir;
-        let tools = &paths.tools_dir;
+        let store = &paths.store_dir;
         let cache = &paths.cache_dir;
 
         assert!(!base.as_os_str().is_empty(), "Base dir should not be empty");
         assert!(
-            !tools.as_os_str().is_empty(),
-            "Tools dir should not be empty"
+            !store.as_os_str().is_empty(),
+            "Store dir should not be empty"
         );
         assert!(
             !cache.as_os_str().is_empty(),
@@ -134,7 +134,7 @@ mod installation_path_tests {
         init_test_env();
 
         let paths = VxPaths::new().expect("Failed to create VxPaths");
-        let tool_dir = paths.tools_dir.join(tool_name);
+        let tool_dir = paths.store_dir.join(tool_name);
 
         assert!(
             tool_dir.ends_with(tool_name),

@@ -7,6 +7,7 @@ use vx_runtime::ProviderRegistry;
 pub mod cli;
 pub mod commands;
 pub mod registry;
+pub mod suggestions;
 pub mod tracing_setup;
 pub mod ui;
 

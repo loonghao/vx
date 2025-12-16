@@ -1,12 +1,14 @@
 //! Which command implementation - Find vx-managed tools
 
+use crate::suggestions;
 use crate::ui::UI;
 use anyhow::Result;
+use colored::Colorize;
 use vx_paths::{PathManager, PathResolver};
 use vx_runtime::ProviderRegistry;
 
 pub async fn handle(
-    _registry: &ProviderRegistry,
+    registry: &ProviderRegistry,
     tool: &str,
     all: bool,
     use_system_path: bool,
@@ -52,13 +54,52 @@ pub async fn handle(
                 return Ok(());
             }
             Err(_) => {
-                // Not found anywhere
-                UI::error(&format!(
-                    "Tool '{}' not found in vx-managed installations or system PATH",
-                    tool
-                ));
-                UI::hint("Use 'vx list' to see installed tools");
-                UI::hint(&format!("Use 'vx install {}' to install this tool", tool));
+                // Not found anywhere - show friendly error with suggestions
+                let available_tools = registry.runtime_names();
+                let tool_suggestions = suggestions::get_tool_suggestions(tool, &available_tools);
+
+                // Use eprintln for all output to ensure consistent ordering
+                eprintln!(
+                    "{} {}",
+                    "✗".red(),
+                    format!(
+                        "Tool '{}' not found in vx-managed installations or system PATH",
+                        tool
+                    )
+                    .red()
+                );
+
+                if !tool_suggestions.is_empty() {
+                    eprintln!();
+                    for suggestion in &tool_suggestions {
+                        if suggestion.is_alias {
+                            eprintln!(
+                                "{} Did you mean: {} ({})",
+                                "💡".cyan(),
+                                suggestion.suggested_tool.cyan().bold(),
+                                suggestion.description.dimmed()
+                            );
+                        } else {
+                            eprintln!(
+                                "{} Did you mean: {}",
+                                "💡".cyan(),
+                                suggestion.suggested_tool.cyan().bold()
+                            );
+                        }
+                    }
+                }
+
+                eprintln!();
+                eprintln!(
+                    "{} {}",
+                    "💡".cyan(),
+                    "Use 'vx list' to see installed tools".dimmed()
+                );
+                eprintln!(
+                    "{} {}",
+                    "💡".cyan(),
+                    format!("Use 'vx install {}' to install this tool", tool).dimmed()
+                );
                 std::process::exit(1);
             }
         }
