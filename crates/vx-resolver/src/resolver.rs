@@ -138,7 +138,41 @@ impl Resolver {
 
     /// Check if a runtime is installed via vx
     fn check_vx_managed(&self, runtime_name: &str) -> Option<RuntimeStatus> {
-        // Get installed versions
+        // First check the new store directory (~/.vx/store/<runtime>/<version>)
+        if let Some(status) = self.check_store_dir(runtime_name) {
+            return Some(status);
+        }
+
+        // Fall back to legacy tools directory (~/.vx/tools/<tool>/<version>)
+        self.check_tools_dir(runtime_name)
+    }
+
+    /// Check the new store directory for installed runtimes
+    fn check_store_dir(&self, runtime_name: &str) -> Option<RuntimeStatus> {
+        let versions = self.path_manager.list_store_versions(runtime_name).ok()?;
+
+        for version in versions.iter() {
+            let version_dir = self.path_manager.version_store_dir(runtime_name, version);
+
+            // Search for the executable in the version directory
+            if let Some(exe_path) = self.find_executable_in_dir(&version_dir, runtime_name) {
+                debug!(
+                    "Found vx-managed {} version {} in store at {}",
+                    runtime_name,
+                    version,
+                    exe_path.display()
+                );
+                return Some(RuntimeStatus::VxManaged {
+                    version: version.clone(),
+                    path: exe_path,
+                });
+            }
+        }
+        None
+    }
+
+    /// Check the legacy tools directory for installed runtimes
+    fn check_tools_dir(&self, runtime_name: &str) -> Option<RuntimeStatus> {
         let versions = self.path_manager.list_tool_versions(runtime_name).ok()?;
 
         if let Some(version) = versions.first() {
