@@ -126,7 +126,7 @@ jobs:
     if: needs.check-release.outputs.should-publish == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download Windows binary from release
         run: |
@@ -225,7 +225,7 @@ jobs:
     if: needs.check-release.outputs.should-publish == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Update Scoop Bucket
         uses: Ash258/Scoop-GithubActions@stable
