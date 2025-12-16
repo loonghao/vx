@@ -61,14 +61,17 @@ impl Runtime for UvRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Fetch from GitHub releases API
+        // Use cached versions if available
         let url = "https://api.github.com/repos/astral-sh/uv/releases";
-        let response = ctx.http.get_json_value(url).await?;
+
+        let response = ctx
+            .get_cached_or_fetch("uv", || async { ctx.http.get_json_value(url).await })
+            .await?;
 
         // Check for GitHub API error response (rate limiting, etc.)
         if let Some(message) = response.get("message").and_then(|m| m.as_str()) {
             return Err(anyhow::anyhow!(
-                "GitHub API error: {}. Try setting GITHUB_TOKEN environment variable.",
+                "GitHub API error: {}. Set GITHUB_TOKEN or GH_TOKEN environment variable to avoid rate limits.",
                 message
             ));
         }
