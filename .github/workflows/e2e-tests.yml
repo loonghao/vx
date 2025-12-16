@@ -61,7 +61,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -129,7 +129,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -208,7 +208,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -220,7 +220,7 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Cache vx tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.vx
           key: ${{ runner.os }}-vx-tools-v1-${{ github.sha }}
@@ -320,7 +320,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Cache vx tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.vx
           key: ${{ runner.os }}-vx-${{ matrix.tool }}-v1-${{ github.sha }}
