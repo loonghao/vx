@@ -344,6 +344,11 @@ jobs:
         run: |
           echo "=== Installing ${{ matrix.tool }} ==="
           ./bin/${{ matrix.binary }} install ${{ matrix.tool }}
+          echo "=== Checking installation ==="
+          echo "Store directory contents:"
+          ls -la ~/.vx/store/ || echo "Store directory does not exist"
+          echo "Tool directory contents:"
+          ls -laR ~/.vx/store/${{ matrix.tool }}/ || echo "Tool directory does not exist"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
