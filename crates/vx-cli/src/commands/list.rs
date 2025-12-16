@@ -46,10 +46,10 @@ async fn list_tool_versions(
     let runtime = runtime.unwrap();
     UI::info(&format!("📦 {}", tool_name));
 
-    // Get installed versions
-    let installed_versions = resolver.manager().list_tool_versions(tool_name)?;
+    // Get installed versions (checks both store and tools directories)
+    let installed_executables = resolver.find_tool_executables(tool_name)?;
 
-    if installed_versions.is_empty() {
+    if installed_executables.is_empty() {
         UI::hint("  No versions installed");
         if show_status {
             UI::hint(&format!(
@@ -61,12 +61,13 @@ async fn list_tool_versions(
     }
 
     // Show installed versions
-    for version in &installed_versions {
+    for exe_path in &installed_executables {
         let status_icon = if show_status { "✅" } else { "  " };
+        // Extract version from path if possible
+        let version = extract_version_from_path(exe_path);
         println!("  {} {}", status_icon, version);
 
         if show_status {
-            let exe_path = resolver.manager().tool_executable_path(tool_name, version);
             println!("     📁 {}", exe_path.display());
         }
     }
@@ -74,12 +75,31 @@ async fn list_tool_versions(
     if show_status {
         UI::success(&format!(
             "Total: {} version(s) installed",
-            installed_versions.len()
+            installed_executables.len()
         ));
     }
 
     let _ = runtime; // Silence unused warning
     Ok(())
+}
+
+/// Extract version from executable path
+/// Paths are like: ~/.vx/store/uv/0.9.17/uv-platform/uv
+/// or: ~/.vx/tools/node/18.17.0/node
+fn extract_version_from_path(path: &std::path::Path) -> String {
+    // Walk up the path to find a version-like component
+    for ancestor in path.ancestors() {
+        if let Some(name) = ancestor.file_name().and_then(|n| n.to_str()) {
+            // Check if this looks like a version (contains digits and dots)
+            if name.chars().any(|c| c.is_ascii_digit())
+                && (name.contains('.') || name.chars().all(|c| c.is_ascii_digit()))
+                && !name.contains('-')
+            {
+                return name.to_string();
+            }
+        }
+    }
+    "unknown".to_string()
 }
 
 async fn list_all_tools(
@@ -92,12 +112,22 @@ async fn list_all_tools(
     // Get all supported tools from registry
     let supported_tools = registry.runtime_names();
 
-    // Get all installed tools
-    let installed_tools = resolver.manager().list_installed_tools()?;
+    // Get all installed tools (from both store and tools directories)
+    let installed_tools_with_versions = resolver.get_installed_tools_with_versions()?;
+    let installed_tool_names: Vec<_> = installed_tools_with_versions
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .collect();
+
+    let mut installed_count = 0;
 
     for tool_name in &supported_tools {
-        let is_installed = installed_tools.contains(tool_name);
+        let is_installed = installed_tool_names.contains(&tool_name.as_str());
         let status_icon = if is_installed { "✅" } else { "❌" };
+
+        if is_installed {
+            installed_count += 1;
+        }
 
         if let Some(runtime) = registry.get_runtime(tool_name) {
             println!(
@@ -108,9 +138,14 @@ async fn list_all_tools(
             );
 
             if show_status && is_installed {
-                let versions = resolver.manager().list_tool_versions(tool_name)?;
-                if !versions.is_empty() {
-                    println!("     Versions: {}", versions.join(", "));
+                // Find versions for this tool
+                if let Some((_, versions)) = installed_tools_with_versions
+                    .iter()
+                    .find(|(name, _)| name == tool_name)
+                {
+                    if !versions.is_empty() {
+                        println!("     Versions: {}", versions.join(", "));
+                    }
                 }
             }
         }
@@ -119,10 +154,9 @@ async fn list_all_tools(
     // Show summary
     if show_status {
         let total_supported = supported_tools.len();
-        let total_installed = installed_tools.len();
         UI::info(&format!(
             "\n📊 Summary: {}/{} tools installed",
-            total_installed, total_supported
+            installed_count, total_supported
         ));
     }
 
