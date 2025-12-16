@@ -426,7 +426,6 @@ mod tests {
     #[test]
     fn test_cache_mode_offline() {
         let temp_dir = TempDir::new().unwrap();
-        let cache = VersionCache::new(temp_dir.path().to_path_buf());
 
         // Create an expired entry
         let data = serde_json::json!({"versions": ["1.0.0"]});
@@ -436,13 +435,14 @@ mod tests {
         let cache_file = temp_dir.path().join("test-tool.json");
         std::fs::write(&cache_file, serde_json::to_string(&entry).unwrap()).unwrap();
 
-        // Normal mode should not return expired cache
-        assert!(cache.get("test-tool").is_none());
-
         // Offline mode should return even expired cache
         let offline_cache =
             VersionCache::new(temp_dir.path().to_path_buf()).with_mode(CacheMode::Offline);
         assert!(offline_cache.get("test-tool").is_some());
+
+        // Normal mode should not return expired cache (and will delete it)
+        let normal_cache = VersionCache::new(temp_dir.path().to_path_buf());
+        assert!(normal_cache.get("test-tool").is_none());
     }
 
     #[test]
