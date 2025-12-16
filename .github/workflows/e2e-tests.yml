@@ -350,7 +350,8 @@ jobs:
       - name: Test ${{ matrix.tool }}
         shell: bash
         run: |
-          VX="./bin/${{ matrix.binary }}"
+          # Use absolute path to avoid issues when changing directories
+          VX="${{ github.workspace }}/bin/${{ matrix.binary }}"
 
           case "${{ matrix.tool }}" in
             uv)
@@ -415,7 +416,7 @@ jobs:
       - name: Show stats
         shell: bash
         run: |
-          ./bin/${{ matrix.binary }} list --status
+          ${{ github.workspace }}/bin/${{ matrix.binary }} list --status
 
   # ============================================================================
   # Summary
