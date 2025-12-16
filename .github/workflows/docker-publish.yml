@@ -1,0 +1,209 @@
+name: Docker Publish
+
+# Publish Docker images to Docker Hub and GitHub Container Registry
+# Triggered after successful release or manually
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  DOCKER_HUB_REPO: loonghao/vx
+  GHCR_REPO: ghcr.io/loonghao/vx
+
+jobs:
+  check-release:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_short: ${{ steps.version.outputs.version_short }}
+    steps:
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # Get the latest release tag from GitHub API
+            VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/loonghao/vx/releases/latest" | \
+              jq -r '.tag_name // empty')
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_short=${VERSION#v}" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+  build-and-push:
+    needs: check-release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download release binary
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+
+          # Determine architecture
+          if [[ "${{ matrix.platform }}" == "linux/amd64" ]]; then
+            ARCH="x86_64-unknown-linux-musl"
+          else
+            ARCH="aarch64-unknown-linux-musl"
+          fi
+
+          # Download binary
+          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${ARCH}.tar.gz"
+          echo "Downloading from: $DOWNLOAD_URL"
+
+          curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz
+          tar -xzf vx.tar.gz
+          chmod +x vx
+
+          # Verify binary
+          file vx
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract platform suffix
+        id: platform
+        run: |
+          PLATFORM="${{ matrix.platform }}"
+          SUFFIX="${PLATFORM//\//-}"
+          echo "suffix=$SUFFIX" >> $GITHUB_OUTPUT
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: pkg/docker/Dockerfile.prebuilt
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: |
+            ${{ env.DOCKER_HUB_REPO }}:${{ needs.check-release.outputs.version }}-${{ steps.platform.outputs.suffix }}
+            ${{ env.GHCR_REPO }}:${{ needs.check-release.outputs.version }}-${{ steps.platform.outputs.suffix }}
+          labels: |
+            org.opencontainers.image.version=${{ needs.check-release.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+  create-manifest:
+    needs: [check-release, build-and-push]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push Docker Hub manifest
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+
+          # Create versioned manifest
+          docker manifest create ${{ env.DOCKER_HUB_REPO }}:${VERSION} \
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION}-linux-amd64 \
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION}-linux-arm64
+          docker manifest push ${{ env.DOCKER_HUB_REPO }}:${VERSION}
+
+          # Create latest manifest
+          docker manifest create ${{ env.DOCKER_HUB_REPO }}:latest \
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION}-linux-amd64 \
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION}-linux-arm64
+          docker manifest push ${{ env.DOCKER_HUB_REPO }}:latest
+
+          # Create short version manifest (e.g., 0.4.1)
+          docker manifest create ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT} \
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION}-linux-amd64 \
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION}-linux-arm64
+          docker manifest push ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT}
+
+      - name: Create and push GHCR manifest
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+
+          # Create versioned manifest
+          docker manifest create ${{ env.GHCR_REPO }}:${VERSION} \
+            ${{ env.GHCR_REPO }}:${VERSION}-linux-amd64 \
+            ${{ env.GHCR_REPO }}:${VERSION}-linux-arm64
+          docker manifest push ${{ env.GHCR_REPO }}:${VERSION}
+
+          # Create latest manifest
+          docker manifest create ${{ env.GHCR_REPO }}:latest \
+            ${{ env.GHCR_REPO }}:${VERSION}-linux-amd64 \
+            ${{ env.GHCR_REPO }}:${VERSION}-linux-arm64
+          docker manifest push ${{ env.GHCR_REPO }}:latest
+
+          # Create short version manifest
+          docker manifest create ${{ env.GHCR_REPO }}:${VERSION_SHORT} \
+            ${{ env.GHCR_REPO }}:${VERSION}-linux-amd64 \
+            ${{ env.GHCR_REPO }}:${VERSION}-linux-arm64
+          docker manifest push ${{ env.GHCR_REPO }}:${VERSION_SHORT}
+
+  summary:
+    needs: [check-release, create-manifest]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          echo "## Docker Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pull Commands" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# Docker Hub" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull loonghao/vx:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull loonghao/vx:latest" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# GitHub Container Registry" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/loonghao/vx:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/loonghao/vx:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

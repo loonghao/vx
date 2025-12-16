@@ -1,0 +1,27 @@
+#!/bin/sh
+set -e
+
+# Generate shell completions if possible
+if command -v vx >/dev/null 2>&1; then
+    # Bash completions
+    if [ -d /usr/share/bash-completion/completions ]; then
+        vx completions bash > /usr/share/bash-completion/completions/vx 2>/dev/null || true
+    fi
+
+    # Zsh completions
+    if [ -d /usr/share/zsh/vendor-completions ]; then
+        vx completions zsh > /usr/share/zsh/vendor-completions/_vx 2>/dev/null || true
+    fi
+
+    # Fish completions
+    if [ -d /usr/share/fish/vendor_completions.d ]; then
+        vx completions fish > /usr/share/fish/vendor_completions.d/vx.fish 2>/dev/null || true
+    fi
+fi
+
+echo "vx has been installed successfully!"
+echo "Run 'vx --help' to get started."
+
+#DEBHELPER#
+
+exit 0

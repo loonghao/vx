@@ -258,6 +258,44 @@ paru -S vx-bin
 cargo install --git https://github.com/loonghao/vx
 ```
 
+**Docker:**
+
+```bash
+# Docker Hub
+docker pull loonghao/vx:latest
+docker run --rm loonghao/vx --version
+
+# GitHub Container Registry
+docker pull ghcr.io/loonghao/vx:latest
+docker run --rm ghcr.io/loonghao/vx --version
+```
+
+**Debian/Ubuntu (DEB):**
+
+```bash
+# Download and install the latest release
+curl -fsSLO https://github.com/loonghao/vx/releases/latest/download/vx_amd64.deb
+sudo dpkg -i vx_amd64.deb
+```
+
+**Fedora/RHEL (RPM):**
+
+```bash
+# Download and install the latest release
+curl -fsSLO https://github.com/loonghao/vx/releases/latest/download/vx.x86_64.rpm
+sudo rpm -i vx.x86_64.rpm
+```
+
+**Nix:**
+
+```bash
+# Using flakes
+nix profile install github:loonghao/vx
+
+# Or run directly
+nix run github:loonghao/vx -- --version
+```
+
 #### Manual Installation
 
 Download the latest release from [GitHub Releases](https://github.com/loonghao/vx/releases) and extract to your PATH.
