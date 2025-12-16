@@ -13,18 +13,18 @@ rust-version.workspace = true
 
 
 [dependencies]
-vx-core = { version = "0.4.0", path = "../vx-core" }
-vx-paths = { version = "0.3.1", path = "../vx-paths" }
-vx-resolver = { version = "0.4.0", path = "../vx-resolver" }
-vx-runtime = { version = "0.4.0", path = "../vx-runtime" }
+vx-core = { workspace = true }
+vx-paths = { workspace = true }
+vx-resolver = { workspace = true }
+vx-runtime = { workspace = true }
 # Providers
-vx-provider-node = { version = "0.4.0", path = "../vx-providers/node" }
-vx-provider-go = { version = "0.4.0", path = "../vx-providers/go" }
-vx-provider-rust = { version = "0.4.0", path = "../vx-providers/rust" }
-vx-provider-uv = { version = "0.4.0", path = "../vx-providers/uv" }
-vx-provider-bun = { version = "0.4.0", path = "../vx-providers/bun" }
-vx-provider-pnpm = { version = "0.4.0", path = "../vx-providers/pnpm" }
-vx-provider-yarn = { version = "0.4.0", path = "../vx-providers/yarn" }
+vx-provider-node = { workspace = true }
+vx-provider-go = { workspace = true }
+vx-provider-rust = { workspace = true }
+vx-provider-uv = { workspace = true }
+vx-provider-bun = { workspace = true }
+vx-provider-pnpm = { workspace = true }
+vx-provider-yarn = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
@@ -58,5 +58,5 @@ test-case = { workspace = true }
 pretty_assertions = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
-vx-version = { version = "0.2.2", path = "../vx-version" }
-vx-paths = { version = "0.3.1", path = "../vx-paths" }
+vx-version = { workspace = true }
+vx-paths = { workspace = true }

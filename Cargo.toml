@@ -47,7 +47,7 @@ name = "config_management_demo"
 path = "examples/config_management_demo.rs"
 
 [dependencies]
-vx-cli = { version = "0.4.0", path = "crates/vx-cli" }
+vx-cli = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 
@@ -57,7 +57,7 @@ tempfile = { workspace = true }
 # trycmd for CLI snapshot testing
 trycmd = { workspace = true }
 # Test dependencies for integration tests
-vx-core = { version = "0.4.0", path = "crates/vx-core" }
+vx-core = { workspace = true }
 
 
 [workspace.package]
@@ -76,6 +76,23 @@ rust-version = "1.80.0"
 
 
 [workspace.dependencies]
+# Internal crates
+vx-core = { path = "crates/vx-core" }
+vx-runtime = { path = "crates/vx-runtime" }
+vx-resolver = { path = "crates/vx-resolver" }
+vx-paths = { path = "crates/vx-paths" }
+vx-installer = { path = "crates/vx-installer" }
+vx-version = { path = "crates/vx-version" }
+vx-cli = { path = "crates/vx-cli" }
+vx-provider-node = { path = "crates/vx-providers/node" }
+vx-provider-go = { path = "crates/vx-providers/go" }
+vx-provider-uv = { path = "crates/vx-providers/uv" }
+vx-provider-pnpm = { path = "crates/vx-providers/pnpm" }
+vx-provider-yarn = { path = "crates/vx-providers/yarn" }
+vx-provider-bun = { path = "crates/vx-providers/bun" }
+vx-provider-rust = { path = "crates/vx-providers/rust" }
+
+# External dependencies
 clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"

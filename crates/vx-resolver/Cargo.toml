@@ -7,8 +7,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-vx-runtime = { version = "0.4.0", path = "../vx-runtime" }
-vx-paths = { version = "0.3.1", path = "../vx-paths" }
+vx-runtime = { workspace = true }
+vx-paths = { workspace = true }
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }
