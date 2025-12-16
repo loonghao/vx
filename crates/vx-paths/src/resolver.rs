@@ -169,7 +169,11 @@ impl PathResolver {
         &self.manager
     }
 
-    /// Search for an executable in a directory (recursively, up to 2 levels)
+    /// Search for an executable in a directory (recursively, up to 3 levels)
+    /// This handles various archive structures:
+    /// - Direct: ~/.vx/store/uv/0.9.17/uv
+    /// - One level: ~/.vx/store/uv/0.9.17/uv-platform/uv
+    /// - Two levels: ~/.vx/store/go/1.25.5/go/bin/go
     fn find_executable_in_dir(&self, dir: &std::path::Path, exe_name: &str) -> Option<PathBuf> {
         use crate::with_executable_extension;
 
@@ -179,7 +183,7 @@ impl PathResolver {
 
         let exe_name_with_ext = with_executable_extension(exe_name);
 
-        // Check direct children
+        // Check direct children (level 1)
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.filter_map(|e| e.ok()) {
                 let path = entry.path();
@@ -193,7 +197,7 @@ impl PathResolver {
                     }
                 }
 
-                // Check one level deeper (for archives that extract to subdirectories)
+                // Check one level deeper (level 2)
                 if path.is_dir() {
                     if let Ok(sub_entries) = std::fs::read_dir(&path) {
                         for sub_entry in sub_entries.filter_map(|e| e.ok()) {
@@ -202,6 +206,24 @@ impl PathResolver {
                                 if let Some(name) = sub_path.file_name().and_then(|n| n.to_str()) {
                                     if name == exe_name_with_ext || name == exe_name {
                                         return Some(sub_path);
+                                    }
+                                }
+                            }
+
+                            // Check two levels deeper (level 3) - for go/bin/go structure
+                            if sub_path.is_dir() {
+                                if let Ok(deep_entries) = std::fs::read_dir(&sub_path) {
+                                    for deep_entry in deep_entries.filter_map(|e| e.ok()) {
+                                        let deep_path = deep_entry.path();
+                                        if deep_path.is_file() {
+                                            if let Some(name) =
+                                                deep_path.file_name().and_then(|n| n.to_str())
+                                            {
+                                                if name == exe_name_with_ext || name == exe_name {
+                                                    return Some(deep_path);
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
