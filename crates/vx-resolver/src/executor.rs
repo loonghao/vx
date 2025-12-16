@@ -405,7 +405,28 @@ impl<'a> Executor<'a> {
         resolution: &crate::resolver::ResolutionResult,
         args: &[String],
     ) -> Result<Command> {
-        let mut cmd = Command::new(&resolution.executable);
+        let executable = &resolution.executable;
+
+        // On Windows, .cmd and .bat files need to be executed via cmd.exe
+        #[cfg(windows)]
+        let mut cmd = {
+            let ext = executable
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+
+            if ext == "cmd" || ext == "bat" {
+                let mut c = Command::new("cmd.exe");
+                c.arg("/c").arg(executable);
+                c
+            } else {
+                Command::new(executable)
+            }
+        };
+
+        #[cfg(not(windows))]
+        let mut cmd = Command::new(executable);
 
         // Add command prefix if any (e.g., "tool run" for uvx)
         for prefix in &resolution.command_prefix {
