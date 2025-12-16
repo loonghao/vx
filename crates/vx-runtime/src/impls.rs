@@ -114,14 +114,23 @@ impl Default for RealHttpClient {
     }
 }
 
+/// Get GitHub token from environment variables
+/// Checks in order: GITHUB_TOKEN, GH_TOKEN
+fn get_github_token() -> Option<String> {
+    std::env::var("GITHUB_TOKEN")
+        .ok()
+        .or_else(|| std::env::var("GH_TOKEN").ok())
+        .filter(|t| !t.is_empty())
+}
+
 #[async_trait]
 impl HttpClient for RealHttpClient {
     async fn get(&self, url: &str) -> Result<String> {
         let mut request = self.client.get(url);
 
         // Add GitHub token for GitHub API requests
-        if url.contains("api.github.com") {
-            if let Ok(token) = std::env::var("GITHUB_TOKEN") {
+        if url.contains("api.github.com") || url.contains("github.com") {
+            if let Some(token) = get_github_token() {
                 request = request.header("Authorization", format!("Bearer {}", token));
             }
         }
@@ -135,13 +144,31 @@ impl HttpClient for RealHttpClient {
         let mut request = self.client.get(url);
 
         // Add GitHub token for GitHub API requests
-        if url.contains("api.github.com") {
-            if let Ok(token) = std::env::var("GITHUB_TOKEN") {
+        if url.contains("api.github.com") || url.contains("github.com") {
+            if let Some(token) = get_github_token() {
                 request = request.header("Authorization", format!("Bearer {}", token));
             }
         }
 
         let response = request.send().await?;
+
+        // Check for rate limit errors
+        if response.status() == reqwest::StatusCode::FORBIDDEN
+            || response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS
+        {
+            let remaining = response
+                .headers()
+                .get("x-ratelimit-remaining")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.parse::<u32>().ok());
+
+            if remaining == Some(0) {
+                return Err(anyhow::anyhow!(
+                    "GitHub API rate limit exceeded. Set GITHUB_TOKEN or GH_TOKEN environment variable to increase limit (5000 requests/hour with token vs 60/hour without)."
+                ));
+            }
+        }
+
         let json = response.json().await?;
         Ok(json)
     }
@@ -526,6 +553,7 @@ impl Installer for RealInstaller {
 // ============================================================================
 
 use crate::context::RuntimeContext;
+use crate::version_cache::VersionCache;
 use std::sync::Arc;
 
 /// Create a real runtime context for production use
@@ -535,15 +563,24 @@ pub fn create_runtime_context() -> Result<RuntimeContext> {
     let fs = Arc::new(RealFileSystem::new());
     let installer = Arc::new(RealInstaller::new());
 
-    Ok(RuntimeContext::new(paths, http, fs, installer))
+    // Create version cache in the cache directory
+    let cache_dir = paths.cache_dir().join("versions");
+    let version_cache = VersionCache::new(cache_dir);
+
+    Ok(RuntimeContext::new(paths, http, fs, installer).with_version_cache(version_cache))
 }
 
 /// Create a real runtime context with custom base directory
 pub fn create_runtime_context_with_base(base_dir: impl AsRef<Path>) -> RuntimeContext {
+    let base_dir = base_dir.as_ref();
     let paths = Arc::new(RealPathProvider::with_base_dir(base_dir));
     let http = Arc::new(RealHttpClient::new());
     let fs = Arc::new(RealFileSystem::new());
     let installer = Arc::new(RealInstaller::new());
 
-    RuntimeContext::new(paths, http, fs, installer)
+    // Create version cache in the cache directory
+    let cache_dir = paths.cache_dir().join("versions");
+    let version_cache = VersionCache::new(cache_dir);
+
+    RuntimeContext::new(paths, http, fs, installer).with_version_cache(version_cache)
 }
