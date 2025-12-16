@@ -49,15 +49,18 @@ impl Runtime for UvRuntime {
         meta
     }
 
-    /// UV archives extract to `uv-{platform}/uv`
+    /// UV archives have different structures per platform:
+    /// - Windows (zip): uv.exe (direct, no subdirectory)
+    /// - Linux/macOS (tar.gz): uv-{platform}/uv (in subdirectory)
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        let platform_str = UvUrlBuilder::get_platform_string(platform);
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "uv.exe"
+        if platform.os == vx_runtime::Os::Windows {
+            // Windows zip extracts directly to install directory
+            "uv.exe".to_string()
         } else {
-            "uv"
-        };
-        format!("uv-{}/{}", platform_str, exe_name)
+            // Linux/macOS tar.gz extracts to a subdirectory
+            let platform_str = UvUrlBuilder::get_platform_string(platform);
+            format!("uv-{}/uv", platform_str)
+        }
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
@@ -153,15 +156,18 @@ impl Runtime for UvxRuntime {
         meta
     }
 
-    /// UVX archives extract to `uv-{platform}/uvx`
+    /// UVX archives have different structures per platform:
+    /// - Windows (zip): uvx.exe (direct, no subdirectory)
+    /// - Linux/macOS (tar.gz): uv-{platform}/uvx (in subdirectory)
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        let platform_str = UvUrlBuilder::get_platform_string(platform);
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "uvx.exe"
+        if platform.os == vx_runtime::Os::Windows {
+            // Windows zip extracts directly to install directory
+            "uvx.exe".to_string()
         } else {
-            "uvx"
-        };
-        format!("uv-{}/{}", platform_str, exe_name)
+            // Linux/macOS tar.gz extracts to a subdirectory
+            let platform_str = UvUrlBuilder::get_platform_string(platform);
+            format!("uv-{}/uvx", platform_str)
+        }
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
