@@ -254,22 +254,47 @@ impl Resolver {
             return None;
         }
 
-        let exe_name_with_ext = if cfg!(windows) {
-            format!("{}.exe", exe_name)
+        // Build list of possible executable names in priority order
+        // On Windows, .exe and .cmd should be preferred over extensionless files
+        // because extensionless files are typically shell scripts
+        let possible_names: Vec<String> = if cfg!(windows) {
+            vec![
+                format!("{}.exe", exe_name),
+                format!("{}.cmd", exe_name),
+                exe_name.to_string(),
+            ]
         } else {
-            exe_name.to_string()
+            vec![exe_name.to_string()]
         };
+
+        /// Helper to find the best matching executable from a list of candidates
+        /// Returns the one with highest priority (lowest index in possible_names)
+        fn find_best_match(candidates: &[PathBuf], possible_names: &[String]) -> Option<PathBuf> {
+            for name in possible_names {
+                for candidate in candidates {
+                    if let Some(file_name) = candidate.file_name().and_then(|n| n.to_str()) {
+                        if file_name == name {
+                            return Some(candidate.clone());
+                        }
+                    }
+                }
+            }
+            None
+        }
+
+        // Collect all matching files at each level, then pick the best one
+        let mut all_candidates: Vec<PathBuf> = Vec::new();
 
         // Check direct children (level 1)
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.filter_map(|e| e.ok()) {
                 let path = entry.path();
 
-                // Check if this is the executable
+                // Check if this is a matching executable
                 if path.is_file() {
                     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if name == exe_name_with_ext || name == exe_name {
-                            return Some(path);
+                        if possible_names.iter().any(|n| n == name) {
+                            all_candidates.push(path.clone());
                         }
                     }
                 }
@@ -281,8 +306,8 @@ impl Resolver {
                             let sub_path = sub_entry.path();
                             if sub_path.is_file() {
                                 if let Some(name) = sub_path.file_name().and_then(|n| n.to_str()) {
-                                    if name == exe_name_with_ext || name == exe_name {
-                                        return Some(sub_path);
+                                    if possible_names.iter().any(|n| n == name) {
+                                        all_candidates.push(sub_path.clone());
                                     }
                                 }
                             }
@@ -296,8 +321,8 @@ impl Resolver {
                                             if let Some(name) =
                                                 deep_path.file_name().and_then(|n| n.to_str())
                                             {
-                                                if name == exe_name_with_ext || name == exe_name {
-                                                    return Some(deep_path);
+                                                if possible_names.iter().any(|n| n == name) {
+                                                    all_candidates.push(deep_path);
                                                 }
                                             }
                                         }
@@ -310,7 +335,7 @@ impl Resolver {
             }
         }
 
-        None
+        find_best_match(&all_candidates, &possible_names)
     }
 
     /// Check if a runtime is available in system PATH
