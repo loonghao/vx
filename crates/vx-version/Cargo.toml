@@ -1,45 +1,40 @@
 [package]
 name = "vx-version"
-version = "0.2.2"
-edition = "2021"
-authors = ["Hal <hal.long@outlook.com>"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "Version management and parsing utilities for the vx universal tool manager"
-license = "MIT"
-repository = "https://github.com/loonghao/vx"
-homepage = "https://github.com/loonghao/vx"
-documentation = "https://docs.rs/vx-version"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 keywords = ["version", "semver", "parsing", "management", "tools"]
 categories = ["development-tools", "parsing"]
-readme = "README.md"
 
 [dependencies]
 # Core dependencies
-vx-runtime = { version = "0.4.0", path = "../vx-runtime" }
-serde = { version = "1.0", features = ["derive"] }
-anyhow = "1.0"
-async-trait = "0.1"
+vx-runtime = { workspace = true }
+serde = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
 
 # HTTP client for fetching versions - use rustls for better cross-compilation
-reqwest = { version = "0.12", features = [
-  "json",
-  "rustls-tls",
-], default-features = false }
+reqwest = { workspace = true }
 
 # JSON parsing
-serde_json = "1.0"
+serde_json = { workspace = true }
 
 # Regular expressions for version parsing
-regex = "1.0"
+regex = { workspace = true }
 
 # Command execution
-which = "8.0"
+which = { workspace = true }
 
 # Standard library collections
 indexmap = "2.0"
 
 [dev-dependencies]
-tokio = { version = "1.0", features = ["full"] }
-tempfile = "3.0"
+tokio = { workspace = true, features = ["test-util"] }
+tempfile = { workspace = true }
 
 [features]
 default = []
