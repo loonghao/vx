@@ -113,7 +113,7 @@ impl LifecycleTestContext {
     fn current_version(&self, tool: &str) -> Option<String> {
         self.run(&["current", tool])
             .ok()
-            .filter(|o| is_success(o))
+            .filter(is_success)
             .map(|o| stdout_str(&o).trim().to_string())
     }
 
@@ -122,7 +122,7 @@ impl LifecycleTestContext {
     fn list_versions(&self, tool: &str) -> Vec<String> {
         self.run(&["list", tool])
             .ok()
-            .filter(|o| is_success(o))
+            .filter(is_success)
             .map(|o| {
                 stdout_str(&o)
                     .lines()
