@@ -65,7 +65,7 @@ pub enum Commands {
         /// Version to install (e.g., 1.0.0, latest, lts)
         version: Option<String>,
         /// Force reinstallation even if already installed
-        #[arg(long)]
+        #[arg(short, long)]
         force: bool,
     },
 
@@ -94,7 +94,7 @@ pub enum Commands {
         #[arg(long)]
         prerelease: bool,
         /// Force update even if already up to date
-        #[arg(long)]
+        #[arg(short, long)]
         force: bool,
     },
 
@@ -106,16 +106,17 @@ pub enum Commands {
         /// Version to uninstall (optional, removes all if not specified)
         version: Option<String>,
         /// Force removal without confirmation
-        #[arg(long)]
+        #[arg(short, long)]
         force: bool,
     },
 
     /// Show which tool version is being used (preferred over where)
+    #[command(alias = "where")]
     Which {
         /// Tool name
         tool: String,
         /// Show all installed versions
-        #[arg(long)]
+        #[arg(short, long)]
         all: bool,
     },
 
@@ -180,7 +181,7 @@ pub enum Commands {
         #[arg(long)]
         check: bool,
         /// Force reinstall all tools
-        #[arg(long)]
+        #[arg(short, long)]
         force: bool,
         /// Preview operations without executing
         #[arg(long)]
@@ -199,16 +200,16 @@ pub enum Commands {
     /// Initialize vx configuration for current project
     Init {
         /// Interactive initialization
-        #[arg(long)]
+        #[arg(short, long)]
         interactive: bool,
         /// Use predefined template
-        #[arg(long)]
+        #[arg(short, long)]
         template: Option<String>,
         /// Specify tools to include (comma-separated)
         #[arg(long)]
         tools: Option<String>,
         /// Force overwrite existing configuration
-        #[arg(long)]
+        #[arg(short, long)]
         force: bool,
         /// Preview configuration without creating file
         #[arg(long)]
@@ -230,10 +231,10 @@ pub enum Commands {
         #[arg(long)]
         orphaned: bool,
         /// Clean all (cache + orphaned)
-        #[arg(long)]
+        #[arg(short, long)]
         all: bool,
         /// Force cleanup without confirmation
-        #[arg(long)]
+        #[arg(short, long)]
         force: bool,
         /// Clean files older than specified days
         #[arg(long)]

@@ -13,7 +13,7 @@ Arguments:
   [VERSION]  Version to uninstall (optional, removes all if not specified)
 
 Options:
-      --force            Force removal without confirmation
+  -f, --force            Force removal without confirmation
       --use-system-path  Use system PATH to find tools instead of vx-managed versions
   -v, --verbose          Enable verbose output with detailed logging
       --debug            Enable debug output (equivalent to RUST_LOG=debug)
