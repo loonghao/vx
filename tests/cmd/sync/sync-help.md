@@ -16,6 +16,7 @@ Options:
       --no-parallel      Disable parallel installation
       --no-auto-install  Disable auto-install
       --use-system-path  Use system PATH to find tools instead of vx-managed versions
+      --debug            Enable debug output (equivalent to RUST_LOG=debug)
   -h, --help             Print help
 
 ```
