@@ -6,6 +6,26 @@ use crate::common::*;
 use rstest::*;
 use tempfile::TempDir;
 
+/// Check if bun is available (either vx-managed or system)
+fn bun_available() -> bool {
+    // Check if bun is installed via vx or system PATH
+    if tool_installed("bun") {
+        return true;
+    }
+    // Also check system PATH directly
+    which::which("bun").is_ok()
+}
+
+/// Skip test if bun is not available
+macro_rules! skip_if_no_bun {
+    () => {
+        if !bun_available() {
+            eprintln!("Skipping: bun not installed");
+            return;
+        }
+    };
+}
+
 // ============================================================================
 // Bun Version Tests
 // ============================================================================
@@ -15,6 +35,7 @@ use tempfile::TempDir;
 #[test]
 fn test_bun_version() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let output = run_vx(&["bun", "--version"]).expect("Failed to run vx bun --version");
 
@@ -34,6 +55,7 @@ fn test_bun_version() {
 #[test]
 fn test_bun_version_short() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let output = run_vx(&["bun", "-v"]).expect("Failed to run vx bun -v");
 
@@ -56,6 +78,7 @@ fn test_bun_version_short() {
 #[test]
 fn test_bun_help() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let output = run_vx(&["bun", "--help"]).expect("Failed to run vx bun --help");
 
@@ -78,6 +101,7 @@ fn test_bun_help() {
 #[test]
 fn test_bun_eval() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let output =
         run_vx(&["bun", "-e", "console.log('hello from bun')"]).expect("Failed to run bun -e");
@@ -92,6 +116,7 @@ fn test_bun_eval() {
 #[test]
 fn test_bun_eval_json() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let output = run_vx(&["bun", "-e", "console.log(JSON.stringify({x:1,y:2}))"])
         .expect("Failed to run bun -e");
@@ -111,6 +136,7 @@ fn test_bun_eval_json() {
 #[test]
 fn test_bun_eval_env() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let output = run_vx_with_env(
         &["bun", "-e", "console.log(Bun.env.VX_TEST_VAR)"],
@@ -132,6 +158,7 @@ fn test_bun_eval_env() {
 #[test]
 fn test_bun_run_typescript() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let script = temp_dir.path().join("test.ts");
@@ -158,6 +185,7 @@ console.log(message);
 #[test]
 fn test_bun_run_javascript() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let script = temp_dir.path().join("test.js");
@@ -178,6 +206,7 @@ fn test_bun_run_javascript() {
 #[test]
 fn test_bun_run_with_args() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let script = temp_dir.path().join("args.ts");
@@ -205,6 +234,7 @@ fn test_bun_run_with_args() {
 #[test]
 fn test_bun_init() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -228,6 +258,7 @@ fn test_bun_init() {
 #[test]
 fn test_bun_install_empty() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -251,6 +282,7 @@ fn test_bun_install_empty() {
 #[ignore = "Requires network"]
 fn test_bun_add_package() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -280,6 +312,7 @@ fn test_bun_add_package() {
 #[test]
 fn test_bun_test() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -317,6 +350,7 @@ test("2 + 2", () => {
 #[test]
 fn test_bun_build() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -350,6 +384,7 @@ fn test_bun_build() {
 #[test]
 fn test_bunx_version() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     // bunx might be an alias or separate command
     let output = run_vx(&["bunx", "--version"]).expect("Failed to run vx bunx --version");
@@ -364,6 +399,7 @@ fn test_bunx_version() {
 #[ignore = "Requires network"]
 fn test_bunx_cowsay() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let output = run_vx(&["bunx", "cowsay", "hello"]).expect("Failed to run bunx cowsay");
 
@@ -386,6 +422,7 @@ fn test_bunx_cowsay() {
 #[test]
 fn test_bun_exit_code_zero() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     // Use a simple expression that exits cleanly
     let output = run_vx(&["bun", "-e", "console.log('ok')"]).expect("Failed to run bun");
@@ -399,6 +436,7 @@ fn test_bun_exit_code_zero() {
 #[test]
 fn test_bun_exit_code_one() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let output = run_vx(&["bun", "-e", "process.exit(1)"]).expect("Failed to run bun");
 
@@ -416,12 +454,11 @@ fn test_bun_exit_code_one() {
 #[test]
 fn test_bun_syntax_error() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let output = run_vx(&["bun", "-e", "console.log("]).expect("Failed to run bun with error");
 
-    if tool_installed("bun") {
-        assert!(!is_success(&output), "Syntax error should fail");
-    }
+    assert!(!is_success(&output), "Syntax error should fail");
 }
 
 /// Test: vx bun with runtime error
@@ -429,19 +466,18 @@ fn test_bun_syntax_error() {
 #[test]
 fn test_bun_runtime_error() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let output = run_vx(&["bun", "-e", "throw new Error('test error')"])
         .expect("Failed to run bun with error");
 
-    if tool_installed("bun") {
-        assert!(!is_success(&output), "Runtime error should fail");
-        let stderr = stderr_str(&output);
-        assert!(
-            stderr.contains("Error") || stderr.contains("error"),
-            "Should show error: {}",
-            stderr
-        );
-    }
+    assert!(!is_success(&output), "Runtime error should fail");
+    let stderr = stderr_str(&output);
+    assert!(
+        stderr.contains("Error") || stderr.contains("error"),
+        "Should show error: {}",
+        stderr
+    );
 }
 
 /// Test: vx bun run non-existent file
@@ -449,11 +485,10 @@ fn test_bun_runtime_error() {
 #[test]
 fn test_bun_file_not_found() {
     skip_if_no_vx!();
+    skip_if_no_bun!();
 
     let output = run_vx(&["bun", "run", "nonexistent_file.ts"])
         .expect("Failed to run bun with missing file");
 
-    if tool_installed("bun") {
-        assert!(!is_success(&output), "Missing file should fail");
-    }
+    assert!(!is_success(&output), "Missing file should fail");
 }
