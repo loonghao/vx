@@ -351,6 +351,7 @@ jobs:
           ls -laR ~/.vx/store/${{ matrix.tool }}/ || echo "Tool directory does not exist"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUST_LOG: debug
 
       - name: Test ${{ matrix.tool }}
         shell: bash
