@@ -49,8 +49,6 @@ pub struct VxPaths {
     pub envs_dir: PathBuf,
     /// Global shims directory (~/.vx/bin)
     pub bin_dir: PathBuf,
-    /// Tools installation directory (~/.vx/tools) - Legacy, use store_dir
-    pub tools_dir: PathBuf,
     /// Cache directory (~/.vx/cache)
     pub cache_dir: PathBuf,
     /// Configuration directory (~/.vx/config)
@@ -78,7 +76,6 @@ impl VxPaths {
             store_dir: base_dir.join("store"),
             envs_dir: base_dir.join("envs"),
             bin_dir: base_dir.join("bin"),
-            tools_dir: base_dir.join("tools"),
             cache_dir: base_dir.join("cache"),
             config_dir: base_dir.join("config"),
             tmp_dir: base_dir.join("tmp"),
@@ -94,7 +91,6 @@ impl VxPaths {
             store_dir: base_dir.join("store"),
             envs_dir: base_dir.join("envs"),
             bin_dir: base_dir.join("bin"),
-            tools_dir: base_dir.join("tools"),
             cache_dir: base_dir.join("cache"),
             config_dir: base_dir.join("config"),
             tmp_dir: base_dir.join("tmp"),
@@ -108,7 +104,6 @@ impl VxPaths {
         std::fs::create_dir_all(&self.store_dir)?;
         std::fs::create_dir_all(&self.envs_dir)?;
         std::fs::create_dir_all(&self.bin_dir)?;
-        std::fs::create_dir_all(&self.tools_dir)?;
         std::fs::create_dir_all(&self.cache_dir)?;
         std::fs::create_dir_all(&self.config_dir)?;
         std::fs::create_dir_all(&self.tmp_dir)?;

@@ -38,8 +38,9 @@ async fn list_tool_versions(
     // Check if tool is supported
     let runtime = registry.get_runtime(tool_name);
     if runtime.is_none() {
-        UI::error(&format!("Tool '{}' is not supported", tool_name));
-        UI::hint("Use 'vx list' to see all supported tools");
+        // Show friendly error with suggestions
+        let available_tools = registry.runtime_names();
+        UI::tool_not_found(tool_name, &available_tools);
         return Ok(());
     }
 
