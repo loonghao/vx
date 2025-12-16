@@ -18,21 +18,23 @@ pub struct PnpmUrlBuilder;
 
 impl PnpmUrlBuilder {
     /// Generate download URL for PNPM version
+    /// PNPM releases are named without version in filename:
+    /// e.g., https://github.com/pnpm/pnpm/releases/download/v9.0.0/pnpm-macos-arm64
     pub fn download_url(version: &str) -> Option<String> {
-        let filename = Self::get_filename(version);
+        let filename = Self::get_filename();
         Some(format!(
             "https://github.com/pnpm/pnpm/releases/download/v{}/{}",
             version, filename
         ))
     }
 
-    /// Get platform-specific filename
-    pub fn get_filename(version: &str) -> String {
+    /// Get platform-specific filename (without version number)
+    pub fn get_filename() -> String {
         let platform = Self::get_platform_string();
         if cfg!(windows) {
-            format!("pnpm-{}-{}.exe", platform, version)
+            format!("pnpm-{}.exe", platform)
         } else {
-            format!("pnpm-{}-{}", platform, version)
+            format!("pnpm-{}", platform)
         }
     }
 
