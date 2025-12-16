@@ -27,6 +27,10 @@ pub struct Cli {
     #[arg(short, long, global = true)]
     pub verbose: bool,
 
+    /// Enable debug output (equivalent to RUST_LOG=debug)
+    #[arg(long, global = true)]
+    pub debug: bool,
+
     /// Tool and arguments to execute
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     pub args: Vec<String>,
