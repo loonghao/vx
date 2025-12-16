@@ -1,7 +1,7 @@
 # vx Docker image using pre-built binary
 # This Dockerfile is used by CI to create images from release binaries
 
-FROM alpine:3.20
+FROM alpine:3.23
 
 LABEL org.opencontainers.image.title="vx"
 LABEL org.opencontainers.image.description="Universal version manager for developer tools"

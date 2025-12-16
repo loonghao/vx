@@ -17,7 +17,7 @@ RUN cargo build --release --locked --bin vx && \
 # ============================================
 # Stage 2: Runtime stage
 # ============================================
-FROM alpine:3.20 AS runtime
+FROM alpine:3.23 AS runtime
 
 LABEL org.opencontainers.image.title="vx"
 LABEL org.opencontainers.image.description="Universal version manager for developer tools"
