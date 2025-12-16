@@ -27,8 +27,15 @@ pub use tracing_setup::setup_tracing;
 /// Main entry point for the VX CLI application
 /// This function sets up the provider registry and runs the CLI
 pub async fn main() -> anyhow::Result<()> {
-    // Setup tracing
-    setup_tracing();
+    // Parse CLI first to check for --debug flag
+    let cli = Cli::parse();
+
+    // Setup tracing with debug mode if requested
+    if cli.debug {
+        tracing_setup::setup_tracing_with_debug(true);
+    } else {
+        setup_tracing();
+    }
 
     // Create provider registry with all available providers
     let registry = create_registry();
@@ -36,9 +43,9 @@ pub async fn main() -> anyhow::Result<()> {
     // Create runtime context
     let context = create_context()?;
 
-    // Create and run CLI
-    let cli = VxCli::new(registry, context);
-    cli.run().await
+    // Create and run CLI with pre-parsed args
+    let vx_cli = VxCli::new(registry, context);
+    vx_cli.run_with_cli(cli).await
 }
 
 /// Main CLI application structure
@@ -56,7 +63,11 @@ impl VxCli {
     /// Run the CLI application
     pub async fn run(self) -> Result<()> {
         let cli = Cli::parse();
+        self.run_with_cli(cli).await
+    }
 
+    /// Run the CLI application with pre-parsed CLI arguments
+    pub async fn run_with_cli(self, cli: Cli) -> Result<()> {
         // Handle global flags
         if cli.verbose {
             // Verbose logging is already set up in tracing_setup
