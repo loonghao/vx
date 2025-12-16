@@ -76,7 +76,9 @@ impl CommandHandler {
                 force,
             }) => remove::handle(registry, context, &tool, version.as_deref(), force).await,
 
-            Some(Commands::Which { tool, all }) => where_cmd::handle(registry, &tool, all).await,
+            Some(Commands::Which { tool, all }) => {
+                where_cmd::handle(registry, &tool, all, cli.use_system_path).await
+            }
 
             Some(Commands::Versions {
                 tool,

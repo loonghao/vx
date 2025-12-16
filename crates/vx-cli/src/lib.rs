@@ -147,7 +147,7 @@ impl VxCli {
             }
 
             Commands::Which { tool, all } => {
-                commands::where_cmd::handle(&self.registry, &tool, all).await
+                commands::where_cmd::handle(&self.registry, &tool, all, false).await
             }
 
             Commands::Versions {

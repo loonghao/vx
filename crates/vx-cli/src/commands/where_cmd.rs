@@ -5,8 +5,27 @@ use anyhow::Result;
 use vx_paths::{PathManager, PathResolver};
 use vx_runtime::ProviderRegistry;
 
-pub async fn handle(_registry: &ProviderRegistry, tool: &str, all: bool) -> Result<()> {
-    UI::debug(&format!("Looking for vx-managed tool: {}", tool));
+pub async fn handle(
+    _registry: &ProviderRegistry,
+    tool: &str,
+    all: bool,
+    use_system_path: bool,
+) -> Result<()> {
+    UI::debug(&format!("Looking for tool: {}", tool));
+
+    // If --use-system-path is specified, only check system PATH
+    if use_system_path {
+        match which::which(tool) {
+            Ok(path) => {
+                println!("{}", path.display());
+                return Ok(());
+            }
+            Err(_) => {
+                UI::error(&format!("Tool '{}' not found in system PATH", tool));
+                std::process::exit(1);
+            }
+        }
+    }
 
     // Create path manager and resolver
     let path_manager = PathManager::new()
@@ -25,13 +44,24 @@ pub async fn handle(_registry: &ProviderRegistry, tool: &str, all: bool) -> Resu
     };
 
     if locations.is_empty() {
-        UI::error(&format!(
-            "Tool '{}' not found in vx-managed installations",
-            tool
-        ));
-        UI::hint("Use 'vx list' to see installed tools");
-        UI::hint(&format!("Use 'vx install {}' to install this tool", tool));
-        std::process::exit(1);
+        // Not found in vx-managed installations, check system PATH as fallback
+        match which::which(tool) {
+            Ok(path) => {
+                // Found in system PATH
+                println!("{} (system)", path.display());
+                return Ok(());
+            }
+            Err(_) => {
+                // Not found anywhere
+                UI::error(&format!(
+                    "Tool '{}' not found in vx-managed installations or system PATH",
+                    tool
+                ));
+                UI::hint("Use 'vx list' to see installed tools");
+                UI::hint(&format!("Use 'vx install {}' to install this tool", tool));
+                std::process::exit(1);
+            }
+        }
     }
 
     for location in locations {

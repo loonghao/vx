@@ -18,6 +18,7 @@ Options:
       --force            Force update even if already up to date
       --use-system-path  Use system PATH to find tools instead of vx-managed versions
   -v, --verbose          Enable verbose output with detailed logging
+      --debug            Enable debug output (equivalent to RUST_LOG=debug)
   -h, --help             Print help
 
 ```
