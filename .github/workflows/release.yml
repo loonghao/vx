@@ -137,14 +137,6 @@ jobs:
         with:
           ref: ${{ needs.get-tag.outputs.tag_name }}
 
-      - name: Get Changelog Entry
-        id: changelog_reader
-        uses: mindsers/changelog-reader-action@v2
-        with:
-          validation_level: warn
-          version: ${{ needs.get-tag.outputs.version }}
-          path: ./CHANGELOG.md
-
       # Install cross-compilation dependencies for ARM64 targets
       - name: Install cross-compilation dependencies
         if: contains(matrix.platform.target, 'aarch64') && matrix.platform.os == 'ubuntu-latest'
@@ -176,7 +168,7 @@ jobs:
           action-gh-release-parameters: |
             {
               "tag_name": "${{ needs.get-tag.outputs.tag_name }}",
-              "body": ${{ toJSON(steps.changelog_reader.outputs.changes) }},
+              "body": "Release ${{ needs.get-tag.outputs.tag_name }}",
               "prerelease": false,
               "draft": false
             }
@@ -201,28 +193,32 @@ jobs:
           ref: ${{ needs.get-tag.outputs.tag_name }}
           fetch-depth: 0
 
-      - name: Generate changelog
+      - name: Extract changelog for version
         id: changelog
-        uses: jaywcjlove/changelog-generator@main
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          filter-author: (loonghao|renovate\\[bot\\]|dependabot\\[bot\\]|Renovate Bot)
-          filter: ''
-          template: |
-            ## Bugs
-            {{fix}}
+        run: |
+          VERSION="${{ needs.get-tag.outputs.version }}"
+          echo "Extracting changelog for version: $VERSION"
 
-            ## Feature
-            {{feat}}
+          # Extract the changelog section for this version
+          # Match from "## [VERSION]" or "## VERSION" until the next "## " or end of file
+          CHANGELOG=$(awk -v ver="$VERSION" '
+            BEGIN { found=0; output="" }
+            /^## \[?[0-9]+\.[0-9]+\.[0-9]+\]?/ {
+              if (found) exit
+              if (index($0, ver) > 0) { found=1; next }
+            }
+            found { output = output $0 "\n" }
+            END { print output }
+          ' CHANGELOG.md)
 
-            ## Improve
-            {{refactor,perf,clean}}
+          # If no changelog found, use a default message
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details."
+          fi
 
-            ## Misc
-            {{chore,style,ci,build||🔧 Nothing changed}}
-
-            ## Unknown
-            {{__unknown__}}
+          # Write to file to avoid escaping issues
+          echo "$CHANGELOG" > /tmp/changelog.md
+          echo "changelog_file=/tmp/changelog.md" >> $GITHUB_OUTPUT
 
       - name: Update GitHub Release
         uses: ncipollo/release-action@v1
@@ -230,10 +226,21 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ needs.get-tag.outputs.tag_name }}
           name: ${{ needs.get-tag.outputs.tag_name }}
-          body: |
-            Comparing Changes: ${{ steps.changelog.outputs.compareurl }}
+          bodyFile: ${{ steps.changelog.outputs.changelog_file }}
+          draft: false
+          prerelease: false
+          allowUpdates: true
+          skipIfReleaseExists: false
+          updateOnlyUnreleased: false
+          makeLatest: true
 
-            ${{ steps.changelog.outputs.changelog }}
+      - name: Append installation instructions
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ needs.get-tag.outputs.tag_name }}
+          name: ${{ needs.get-tag.outputs.tag_name }}
+          body: |
 
             ---
 
@@ -257,8 +264,8 @@ jobs:
           draft: false
           prerelease: false
           allowUpdates: true
-          skipIfReleaseExists: false
-          updateOnlyUnreleased: false
+          omitBodyDuringUpdate: false
+          appendBody: true
           makeLatest: true
 
   # Publish to crates.io
