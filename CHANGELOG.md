@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.5.5](https://github.com/loonghao/vx/compare/vx-v0.5.4...vx-v0.5.5) (2025-12-17)
+
+
+### Bug Fixes
+
+* **ci:** remove --locked flag from CI builds to handle crates.io index updates ([3ed7974](https://github.com/loonghao/vx/commit/3ed79746eebcacedcb19a4c9358240abec5bb133))
+
 ## [0.5.4](https://github.com/loonghao/vx/compare/vx-v0.5.3...vx-v0.5.4) (2025-12-17)
 
 
