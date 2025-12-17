@@ -176,7 +176,7 @@ jobs:
           action-gh-release-parameters: |
             {
               "tag_name": "${{ needs.get-tag.outputs.tag_name }}",
-              "body": "${{ steps.changelog_reader.outputs.changes }}",
+              "body": ${{ toJSON(steps.changelog_reader.outputs.changes) }},
               "prerelease": false,
               "draft": false
             }
