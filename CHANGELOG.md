@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.5.6](https://github.com/loonghao/vx/compare/vx-v0.5.5...vx-v0.5.6) (2025-12-18)
+
+
+### Bug Fixes
+
+* **ci:** use softprops/action-gh-release to upload release artifacts ([552b785](https://github.com/loonghao/vx/commit/552b7851ea6f18a02964f9d983ff3c18039d561c))
+
 ## [0.5.5](https://github.com/loonghao/vx/compare/vx-v0.5.4...vx-v0.5.5) (2025-12-17)
 
 
