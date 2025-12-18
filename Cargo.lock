@@ -3347,7 +3347,7 @@ dependencies = [
 
 [[package]]
 name = "vx"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "tempfile",
@@ -3359,7 +3359,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cli"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3390,6 +3390,7 @@ dependencies = [
  "vx-paths",
  "vx-provider-bun",
  "vx-provider-go",
+ "vx-provider-just",
  "vx-provider-node",
  "vx-provider-pnpm",
  "vx-provider-rust",
@@ -3406,7 +3407,7 @@ dependencies = [
 
 [[package]]
 name = "vx-core"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3425,7 +3426,7 @@ dependencies = [
 
 [[package]]
 name = "vx-installer"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3451,7 +3452,7 @@ dependencies = [
 
 [[package]]
 name = "vx-paths"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "dirs",
@@ -3462,7 +3463,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-bun"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3475,7 +3476,24 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-go"
-version = "0.5.7"
+version = "0.5.8"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-installer",
+ "vx-runtime",
+ "vx-version",
+]
+
+[[package]]
+name = "vx-provider-just"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3492,7 +3510,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-node"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3509,7 +3527,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-pnpm"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3522,7 +3540,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-rust"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3535,7 +3553,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-uv"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3552,7 +3570,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-vscode"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3569,7 +3587,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-yarn"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3582,7 +3600,7 @@ dependencies = [
 
 [[package]]
 name = "vx-resolver"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3600,7 +3618,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3626,7 +3644,7 @@ dependencies = [
 
 [[package]]
 name = "vx-version"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
