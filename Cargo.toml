@@ -17,6 +17,7 @@ members = [
   "crates/vx-providers/rust",
   "crates/vx-providers/vscode",
   "crates/vx-providers/just",
+  "crates/vx-providers/vite",
 ]
 resolver = "2"
 
@@ -95,6 +96,7 @@ vx-provider-bun = { path = "crates/vx-providers/bun" }
 vx-provider-rust = { path = "crates/vx-providers/rust" }
 vx-provider-vscode = { path = "crates/vx-providers/vscode" }
 vx-provider-just = { path = "crates/vx-providers/just" }
+vx-provider-vite = { path = "crates/vx-providers/vite" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }
