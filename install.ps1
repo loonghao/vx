@@ -1,10 +1,10 @@
-# vx installer script for Windows with multi-channel distribution support
+# vx installer script for Windows
 #
 # Basic usage:
 #   powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 #
-# With specific version:
-#   $env:VX_VERSION="0.1.0"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+# With specific version (use tag format like "vx-v0.5.7" or just "0.5.7"):
+#   $env:VX_VERSION="0.5.7"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 #
 # With GitHub token (to avoid rate limits):
 #   $env:GITHUB_TOKEN="your_token"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
@@ -91,6 +91,7 @@ function Get-Platform {
 }
 
 # Get latest version from GitHub API with optional authentication and fallback
+# Returns the full tag name (e.g., "vx-v0.5.7")
 function Get-LatestVersion {
     try {
         Write-ProgressInfo -Activity "Fetching latest version" -Status "Connecting to GitHub API..."
@@ -110,7 +111,8 @@ function Get-LatestVersion {
         # Make API request with optional authentication
         $response = Invoke-RestMethod -Uri $apiUrl -Method Get -Headers $headers -TimeoutSec 10
         Microsoft.PowerShell.Utility\Write-Progress -Activity "Fetching latest version" -Completed
-        return $response.tag_name -replace '^v', ''
+        # Return full tag name (e.g., "vx-v0.5.7")
+        return $response.tag_name
     }
     catch {
         Microsoft.PowerShell.Utility\Write-Progress -Activity "Fetching latest version" -Completed
@@ -123,30 +125,15 @@ function Get-LatestVersion {
         if ($isRateLimit) {
             Write-Warn "GitHub API rate limit exceeded. Trying alternative methods..."
 
-            # Try jsDelivr API as fallback
-            try {
-                Write-Info "Attempting to get version from jsDelivr API..."
-                $jsdelivrUrl = "https://data.jsdelivr.com/v1/package/gh/$RepoOwner/$RepoName"
-                $jsdelivrResponse = Invoke-RestMethod -Uri $jsdelivrUrl -Method Get -TimeoutSec 10
-                if ($jsdelivrResponse.versions -and $jsdelivrResponse.versions.Count -gt 0) {
-                    $latestVersion = $jsdelivrResponse.versions[0] -replace '^v', ''
-                    Write-Success "Got version from jsDelivr: $latestVersion"
-                    return $latestVersion
-                }
-            }
-            catch {
-                Write-Warn "jsDelivr API also failed: $_"
-            }
-
             # Provide helpful error message with solutions
             Write-Error "Unable to determine latest version automatically due to rate limiting."
             Write-Host ""
-            Write-Host "🔧 Solutions:" -ForegroundColor Yellow
+            Write-Host "Solutions:" -ForegroundColor Yellow
             Write-Host "1. Set GITHUB_TOKEN environment variable:" -ForegroundColor Gray
             Write-Host "   `$env:GITHUB_TOKEN='your_token_here'; .\install.ps1" -ForegroundColor Gray
             Write-Host ""
             Write-Host "2. Specify version explicitly:" -ForegroundColor Gray
-            Write-Host "   `$env:VX_VERSION='0.1.0'; .\install.ps1" -ForegroundColor Gray
+            Write-Host "   `$env:VX_VERSION='vx-v0.5.7'; .\install.ps1" -ForegroundColor Gray
             Write-Host ""
             Write-Host "3. Use package managers:" -ForegroundColor Gray
             Write-Host "   winget install loonghao.vx" -ForegroundColor Gray
@@ -208,27 +195,20 @@ function Build-FromSource {
 }
 
 # Download from multiple channels with fallback
+# Note: jsDelivr CDN doesn't support GitHub Release assets, only use GitHub Releases
 function Download-WithFallback {
     param(
-        [string]$Version,
+        [string]$TagName,
         [string]$Platform,
         [string]$ArchiveName,
         [string]$TempDir
     )
 
-    # Define download channels in order of preference
+    # Only use GitHub Releases (jsDelivr doesn't support release assets)
     $channels = @(
         @{
             Name = "GitHub Releases"
-            Url  = "$BaseUrl/download/v$Version/$ArchiveName"
-        },
-        @{
-            Name = "jsDelivr CDN"
-            Url  = "https://cdn.jsdelivr.net/gh/$RepoOwner/$RepoName@v$Version/$ArchiveName"
-        },
-        @{
-            Name = "Fastly CDN"
-            Url  = "https://fastly.jsdelivr.net/gh/$RepoOwner/$RepoName@v$Version/$ArchiveName"
+            Url  = "$BaseUrl/download/$TagName/$ArchiveName"
         }
     )
 
@@ -271,18 +251,30 @@ function Install-FromRelease {
     if ($Version -eq "latest") {
         Write-Info "Fetching latest version..."
         Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Fetching latest version..." -PercentComplete 10
-        $Version = Get-LatestVersion
-        if (-not $Version) {
+        $tagName = Get-LatestVersion
+        if (-not $tagName) {
             Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Completed
             Write-Error "Failed to get latest version"
             exit 1
         }
     }
+    else {
+        # User specified version - could be "vx-v0.5.7" or "0.5.7"
+        if ($Version -match '^vx-v') {
+            $tagName = $Version
+        }
+        elseif ($Version -match '^v') {
+            $tagName = "vx-$Version"
+        }
+        else {
+            $tagName = "vx-v$Version"
+        }
+    }
 
-    Write-Info "Installing vx v$Version for $platform..."
+    Write-Info "Installing vx $tagName for $platform..."
 
     # Construct archive name based on actual release asset naming
-    # Format: vx-{OS}-{variant}-{arch}.zip
+    # Format: vx-{target}.zip (e.g., vx-x86_64-pc-windows-msvc.zip)
     $archiveName = "vx-$platform.zip"
 
     # Create temporary directory
@@ -291,7 +283,7 @@ function Install-FromRelease {
 
     try {
         # Download with fallback channels
-        $archivePath = Download-WithFallback -Version $Version -Platform $platform -ArchiveName $archiveName -TempDir $tempDir
+        $archivePath = Download-WithFallback -TagName $tagName -Platform $platform -ArchiveName $archiveName -TempDir $tempDir
 
         # Extract
         Write-Info "Extracting to $InstallDir..."
@@ -316,7 +308,7 @@ function Install-FromRelease {
         Copy-Item -Path $sourcePath -Destination $destPath -Force
 
         Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Installation completed" -PercentComplete 100
-        Write-Success "vx v$Version installed to $destPath"
+        Write-Success "vx $tagName installed to $destPath"
     }
     catch {
         Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Completed
