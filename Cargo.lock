@@ -3395,6 +3395,7 @@ dependencies = [
  "vx-provider-pnpm",
  "vx-provider-rust",
  "vx-provider-uv",
+ "vx-provider-vite",
  "vx-provider-vscode",
  "vx-provider-yarn",
  "vx-resolver",
@@ -3553,6 +3554,23 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-uv"
+version = "0.5.8"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-installer",
+ "vx-runtime",
+ "vx-version",
+]
+
+[[package]]
+name = "vx-provider-vite"
 version = "0.5.8"
 dependencies = [
  "anyhow",

@@ -36,6 +36,9 @@ pub fn create_registry() -> ProviderRegistry {
     // Register Just provider
     registry.register(vx_provider_just::create_provider());
 
+    // Register Vite provider
+    registry.register(vx_provider_vite::create_provider());
+
     registry
 }
 
