@@ -6,8 +6,8 @@ Verify that `vx plugin stats` shows plugin statistics.
 $ vx plugin stats
 
 [..]
-  Total providers: 7
-  Total runtimes: 13
+  Total providers: 8
+  Total runtimes: 14
 
   Providers:
     node (3 runtimes)
@@ -17,5 +17,6 @@ $ vx plugin stats
     bun (2 runtimes)
     pnpm (1 runtimes)
     yarn (1 runtimes)
+    vscode (1 runtimes)
 
 ```
