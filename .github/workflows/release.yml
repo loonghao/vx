@@ -163,11 +163,13 @@ jobs:
         id: archive
         shell: bash
         run: |
+          # Use simple format: vx-{target}.{ext} (without version in filename)
+          # Version is already in the release tag, no need to duplicate
           if [[ "${{ matrix.platform.os }}" == "windows-latest" ]]; then
-            echo "name=vx-${{ needs.get-tag.outputs.tag_name }}-${{ matrix.platform.target }}.zip" >> $GITHUB_OUTPUT
+            echo "name=vx-${{ matrix.platform.target }}.zip" >> $GITHUB_OUTPUT
             echo "ext=zip" >> $GITHUB_OUTPUT
           else
-            echo "name=vx-${{ needs.get-tag.outputs.tag_name }}-${{ matrix.platform.target }}.tar.gz" >> $GITHUB_OUTPUT
+            echo "name=vx-${{ matrix.platform.target }}.tar.gz" >> $GITHUB_OUTPUT
             echo "ext=tar.gz" >> $GITHUB_OUTPUT
           fi
 
