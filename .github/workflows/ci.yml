@@ -24,7 +24,6 @@ env:
   CARGO_HTTP_TIMEOUT: '600'
   CARGO_NET_RETRY: '10'
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-  RUST_BACKTRACE: 1
 
 jobs:
   # Code quality checks - formatting, clippy, and documentation
