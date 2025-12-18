@@ -33,6 +33,9 @@ pub fn create_registry() -> ProviderRegistry {
     // Register VSCode provider
     registry.register(vx_provider_vscode::create_provider());
 
+    // Register Just provider
+    registry.register(vx_provider_just::create_provider());
+
     registry
 }
 

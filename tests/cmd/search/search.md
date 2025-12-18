@@ -20,5 +20,6 @@ $ vx search
   pnpm - Fast, disk space efficient package manager
   yarn - Fast, reliable, and secure dependency management
   code - Visual Studio Code - Code editing. Redefined.
+  just - Just - A handy way to save and run project-specific commands
 
 ```
