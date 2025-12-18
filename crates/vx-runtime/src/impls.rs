@@ -467,28 +467,64 @@ impl Installer for RealInstaller {
 
         let archive_str = archive.to_string_lossy();
 
-        if archive_str.ends_with(".tar.gz") || archive_str.ends_with(".tgz") {
-            // Extract tar.gz
-            let file = std::fs::File::open(archive)?;
-            let decoder = flate2::read::GzDecoder::new(file);
-            let mut archive = tar::Archive::new(decoder);
-            archive.unpack(dest)?;
+        // First try to determine format by extension
+        let format = if archive_str.ends_with(".tar.gz") || archive_str.ends_with(".tgz") {
+            Some("tar.gz")
         } else if archive_str.ends_with(".tar.xz") {
-            // Extract tar.xz
-            let file = std::fs::File::open(archive)?;
-            let decoder = liblzma::read::XzDecoder::new(file);
-            let mut archive = tar::Archive::new(decoder);
-            archive.unpack(dest)?;
+            Some("tar.xz")
         } else if archive_str.ends_with(".zip") {
-            // Extract zip
-            let file = std::fs::File::open(archive)?;
-            let mut archive = zip::ZipArchive::new(file)?;
-            archive.extract(dest)?;
+            Some("zip")
         } else {
-            return Err(anyhow::anyhow!(
-                "Unsupported archive format: {}",
-                archive_str
-            ));
+            // Try to detect by magic bytes
+            let file = std::fs::File::open(archive)?;
+            use std::io::Read;
+            let mut magic = [0u8; 4];
+            if (&file).take(4).read(&mut magic).is_ok() {
+                if magic[0] == 0x50 && magic[1] == 0x4B {
+                    // ZIP magic: PK\x03\x04
+                    Some("zip")
+                } else if magic[0] == 0x1f && magic[1] == 0x8b {
+                    // GZIP magic: \x1f\x8b
+                    Some("tar.gz")
+                } else if magic[0] == 0xFD
+                    && magic[1] == 0x37
+                    && magic[2] == 0x7A
+                    && magic[3] == 0x58
+                {
+                    // XZ magic: \xFD7zXZ
+                    Some("tar.xz")
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        match format {
+            Some("tar.gz") => {
+                let file = std::fs::File::open(archive)?;
+                let decoder = flate2::read::GzDecoder::new(file);
+                let mut archive = tar::Archive::new(decoder);
+                archive.unpack(dest)?;
+            }
+            Some("tar.xz") => {
+                let file = std::fs::File::open(archive)?;
+                let decoder = liblzma::read::XzDecoder::new(file);
+                let mut archive = tar::Archive::new(decoder);
+                archive.unpack(dest)?;
+            }
+            Some("zip") => {
+                let file = std::fs::File::open(archive)?;
+                let mut archive = zip::ZipArchive::new(file)?;
+                archive.extract(dest)?;
+            }
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Unsupported archive format: {}",
+                    archive_str
+                ));
+            }
         }
 
         Ok(())
@@ -497,18 +533,53 @@ impl Installer for RealInstaller {
     async fn download_and_extract(&self, url: &str, dest: &Path) -> Result<()> {
         // Create temp file for download
         let temp_dir = tempfile::tempdir()?;
-        let archive_name = url.split('/').next_back().unwrap_or("archive");
+
+        // Extract archive name from URL, handling URL fragments (e.g., #.zip hint)
+        let url_without_fragment = url.split('#').next().unwrap_or(url);
+        let archive_name = url_without_fragment
+            .split('/')
+            .next_back()
+            .unwrap_or("archive");
+
+        // Check for extension hint in URL fragment
+        let extension_hint = url.split('#').nth(1);
+
         let temp_path = temp_dir.path().join(archive_name);
 
         // Download
-        self.http.download(url, &temp_path).await?;
+        self.http.download(url_without_fragment, &temp_path).await?;
 
         // Check if it's an archive or a single executable
+        // First check the URL/filename, then check extension hint, then check file magic bytes
         let archive_str = archive_name.to_lowercase();
-        let is_archive = archive_str.ends_with(".tar.gz")
+        let mut is_archive = archive_str.ends_with(".tar.gz")
             || archive_str.ends_with(".tgz")
             || archive_str.ends_with(".tar.xz")
             || archive_str.ends_with(".zip");
+
+        // Check extension hint from URL fragment
+        if !is_archive {
+            if let Some(hint) = extension_hint {
+                is_archive = hint.ends_with(".tar.gz")
+                    || hint.ends_with(".tgz")
+                    || hint.ends_with(".tar.xz")
+                    || hint.ends_with(".zip");
+            }
+        }
+
+        // Check file magic bytes if still uncertain
+        if !is_archive {
+            if let Ok(mut file) = std::fs::File::open(&temp_path) {
+                use std::io::Read;
+                let mut magic = [0u8; 4];
+                if file.read_exact(&mut magic).is_ok() {
+                    // ZIP magic: PK\x03\x04
+                    // GZIP magic: \x1f\x8b
+                    is_archive = (magic[0] == 0x50 && magic[1] == 0x4B)  // ZIP
+                        || (magic[0] == 0x1f && magic[1] == 0x8b); // GZIP (tar.gz)
+                }
+            }
+        }
 
         if is_archive {
             // Extract archive

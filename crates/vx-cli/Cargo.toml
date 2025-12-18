@@ -25,6 +25,7 @@ vx-provider-uv = { workspace = true }
 vx-provider-bun = { workspace = true }
 vx-provider-pnpm = { workspace = true }
 vx-provider-yarn = { workspace = true }
+vx-provider-vscode = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
