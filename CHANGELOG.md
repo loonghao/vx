@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.5.7](https://github.com/loonghao/vx/compare/vx-v0.5.6...vx-v0.5.7) (2025-12-18)
+
+
+### Bug Fixes
+
+* **ci:** pin tracing-indicatif to 0.3.9 and remove RUST_BACKTRACE=1 ([6d4dc61](https://github.com/loonghao/vx/commit/6d4dc61f9abe43016449d096c8e761d789cd0373))
+
 ## [0.5.6](https://github.com/loonghao/vx/compare/vx-v0.5.5...vx-v0.5.6) (2025-12-18)
 
 
