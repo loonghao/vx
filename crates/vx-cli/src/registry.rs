@@ -30,6 +30,9 @@ pub fn create_registry() -> ProviderRegistry {
     // Register Yarn provider
     registry.register(vx_provider_yarn::create_provider());
 
+    // Register VSCode provider
+    registry.register(vx_provider_vscode::create_provider());
+
     registry
 }
 

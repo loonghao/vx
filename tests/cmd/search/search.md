@@ -19,5 +19,6 @@ $ vx search
   bunx - Bun package runner (like npx)
   pnpm - Fast, disk space efficient package manager
   yarn - Fast, reliable, and secure dependency management
+  code - Visual Studio Code - Code editing. Redefined.
 
 ```

@@ -15,6 +15,7 @@ members = [
   "crates/vx-providers/yarn",
   "crates/vx-providers/bun",
   "crates/vx-providers/rust",
+  "crates/vx-providers/vscode",
 ]
 resolver = "2"
 
@@ -91,6 +92,7 @@ vx-provider-pnpm = { path = "crates/vx-providers/pnpm" }
 vx-provider-yarn = { path = "crates/vx-providers/yarn" }
 vx-provider-bun = { path = "crates/vx-providers/bun" }
 vx-provider-rust = { path = "crates/vx-providers/rust" }
+vx-provider-vscode = { path = "crates/vx-providers/vscode" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }
