@@ -159,23 +159,44 @@ jobs:
           args: "--release --bin vx"
           strip: true
 
-      - name: Publish artifacts and release
-        uses: houseabsolute/actions-rust-release@v0
+      - name: Set archive name
+        id: archive
+        shell: bash
+        run: |
+          if [[ "${{ matrix.platform.os }}" == "windows-latest" ]]; then
+            echo "name=vx-${{ needs.get-tag.outputs.tag_name }}-${{ matrix.platform.target }}.zip" >> $GITHUB_OUTPUT
+            echo "ext=zip" >> $GITHUB_OUTPUT
+          else
+            echo "name=vx-${{ needs.get-tag.outputs.tag_name }}-${{ matrix.platform.target }}.tar.gz" >> $GITHUB_OUTPUT
+            echo "ext=tar.gz" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create archive (Unix)
+        if: matrix.platform.os != 'windows-latest'
+        run: |
+          cd target/${{ matrix.platform.target }}/release
+          tar -czvf ../../../${{ steps.archive.outputs.name }} vx
+          cd ../../..
+          sha256sum ${{ steps.archive.outputs.name }} > ${{ steps.archive.outputs.name }}.sha256
+
+      - name: Create archive (Windows)
+        if: matrix.platform.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cd target/${{ matrix.platform.target }}/release
+          Compress-Archive -Path vx.exe -DestinationPath ../../../${{ steps.archive.outputs.name }}
+          cd ../../..
+          $hash = (Get-FileHash ${{ steps.archive.outputs.name }} -Algorithm SHA256).Hash.ToLower()
+          "$hash  ${{ steps.archive.outputs.name }}" | Out-File -Encoding ASCII ${{ steps.archive.outputs.name }}.sha256
+
+      - name: Upload artifacts to release
+        uses: softprops/action-gh-release@v2
         with:
-          executable-name: vx
-          target: ${{ matrix.platform.target }}
-          changes-file: ""
-          action-gh-release-parameters: |
-            {
-              "tag_name": "${{ needs.get-tag.outputs.tag_name }}",
-              "body": "Release ${{ needs.get-tag.outputs.tag_name }}",
-              "prerelease": false,
-              "draft": false
-            }
-          extra-files: |
-            README.md
-            README_zh.md
-            LICENSE
+          tag_name: ${{ needs.get-tag.outputs.tag_name }}
+          files: |
+            ${{ steps.archive.outputs.name }}
+            ${{ steps.archive.outputs.name }}.sha256
+          fail_on_unmatched_files: true
 
   # Create GitHub Release with all artifacts
   github-release:
