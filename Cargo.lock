@@ -3393,6 +3393,7 @@ dependencies = [
  "vx-provider-just",
  "vx-provider-node",
  "vx-provider-pnpm",
+ "vx-provider-rez",
  "vx-provider-rust",
  "vx-provider-uv",
  "vx-provider-vite",
@@ -3537,6 +3538,24 @@ dependencies = [
  "tokio",
  "vx-paths",
  "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-rez"
+version = "0.5.8"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "vx-installer",
+ "vx-runtime",
+ "vx-version",
 ]
 
 [[package]]

@@ -2,16 +2,23 @@
 //!
 //! Vite is a next-generation frontend build tool that significantly improves
 //! the frontend development experience.
-//! <https://github.com/nicholasruunu/vite-standalone>
+//!
+//! This runtime installs Vite from npm as an isolated tool, similar to how
+//! pipx works for Python packages.
 
-use crate::config::ViteUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
+use vx_runtime::{
+    Ecosystem, InstallMethod, InstallResult, PackageRuntime, PathProvider, Platform, Runtime,
+    RuntimeContext, VerificationResult, VersionInfo,
+};
 
 /// Vite runtime implementation
+///
+/// Vite is installed as an npm package in an isolated environment,
+/// allowing it to be used without a global Node.js installation.
 #[derive(Debug, Clone, Default)]
 pub struct ViteRuntime;
 
@@ -20,6 +27,9 @@ impl ViteRuntime {
     pub fn new() -> Self {
         Self
     }
+
+    /// npm package name for vite
+    const PACKAGE_NAME: &'static str = "vite";
 }
 
 #[async_trait]
@@ -29,7 +39,7 @@ impl Runtime for ViteRuntime {
     }
 
     fn description(&self) -> &str {
-        "Vite - Next Generation Frontend Tooling"
+        "Vite - Next Generation Frontend Tooling (installed via npm)"
     }
 
     fn aliases(&self) -> &[&str] {
@@ -48,73 +58,85 @@ impl Runtime for ViteRuntime {
             "https://vitejs.dev/guide/".to_string(),
         );
         meta.insert("category".to_string(), "build-tool".to_string());
+        meta.insert("install_method".to_string(), "npm".to_string());
+        meta.insert("npm_package".to_string(), Self::PACKAGE_NAME.to_string());
         meta
     }
 
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        ViteUrlBuilder::get_executable_name(platform).to_string()
+        // For npm packages, the executable is in the bin directory
+        let exe_name = if platform.os == vx_runtime::Os::Windows {
+            "vite.cmd"
+        } else {
+            "vite"
+        };
+        format!("bin/{}", exe_name)
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        let url = "https://api.github.com/repos/nicholasruunu/vite-standalone/releases";
-        let response = ctx.http.get_json_value(url).await?;
+        // Fetch versions from npm registry
+        self.fetch_package_versions(ctx).await
+    }
 
-        let mut versions = Vec::new();
+    async fn download_url(&self, _version: &str, _platform: &Platform) -> Result<Option<String>> {
+        // npm packages don't have direct download URLs
+        Ok(None)
+    }
 
-        if let Some(releases) = response.as_array() {
-            for release in releases {
-                if release
-                    .get("draft")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false)
-                {
-                    continue;
-                }
+    async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
+        // Use npm package installation
+        self.install_package(version, ctx).await
+    }
 
-                let is_prerelease = release
-                    .get("prerelease")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
+    async fn is_installed(&self, version: &str, ctx: &RuntimeContext) -> Result<bool> {
+        let install_dir = ctx.paths.npm_tool_version_dir(Self::PACKAGE_NAME, version);
+        let bin_name = if cfg!(windows) { "vite.cmd" } else { "vite" };
+        let exe_path = ctx
+            .paths
+            .npm_tool_bin_dir(Self::PACKAGE_NAME, version)
+            .join(bin_name);
+        Ok(install_dir.exists() && exe_path.exists())
+    }
 
-                let tag_name = match release.get("tag_name").and_then(|v| v.as_str()) {
-                    Some(tag) => tag,
-                    None => continue,
-                };
-
-                let version = tag_name.strip_prefix('v').unwrap_or(tag_name).to_string();
-
-                let published_at = release
-                    .get("published_at")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-
-                let mut version_info = VersionInfo::new(version)
-                    .with_lts(false)
-                    .with_prerelease(is_prerelease);
-
-                if let Some(date) = published_at {
-                    version_info = version_info.with_release_date(date);
-                }
-
-                versions.push(version_info);
-            }
+    async fn installed_versions(&self, ctx: &RuntimeContext) -> Result<Vec<String>> {
+        let tool_dir = ctx.paths.npm_tool_dir(Self::PACKAGE_NAME);
+        if !ctx.fs.exists(&tool_dir) {
+            return Ok(vec![]);
         }
 
+        let entries = ctx.fs.read_dir(&tool_dir)?;
+        let mut versions: Vec<String> = entries
+            .into_iter()
+            .filter(|p| ctx.fs.is_dir(p))
+            .filter_map(|p| p.file_name().and_then(|n| n.to_str().map(String::from)))
+            .collect();
+
+        // Sort versions (newest first) using simple semver comparison
+        versions.sort_by(|a, b| compare_semver(b, a));
         Ok(versions)
     }
 
-    async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        Ok(ViteUrlBuilder::download_url(version, platform))
+    async fn uninstall(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
+        let install_dir = ctx.paths.npm_tool_version_dir(Self::PACKAGE_NAME, version);
+        if ctx.fs.exists(&install_dir) {
+            ctx.fs.remove_dir_all(&install_dir)?;
+        }
+        Ok(())
     }
 
     fn verify_installation(
         &self,
-        _version: &str,
-        install_path: &Path,
-        platform: &Platform,
+        version: &str,
+        _install_path: &Path,
+        _platform: &Platform,
     ) -> VerificationResult {
-        let exe_name = ViteUrlBuilder::get_executable_name(platform);
-        let exe_path = install_path.join(exe_name);
+        // Use package verification instead
+        // Note: This is called with the wrong install_path for npm packages,
+        // so we need to construct the correct path using RealPathProvider
+        let paths = vx_runtime::RealPathProvider::default();
+        let bin_dir = paths.npm_tool_bin_dir(Self::PACKAGE_NAME, version);
+        let exe_name = if cfg!(windows) { "vite.cmd" } else { "vite" };
+        let exe_path = bin_dir.join(exe_name);
 
         if exe_path.exists() {
             VerificationResult::success(exe_path)
@@ -124,8 +146,46 @@ impl Runtime for ViteRuntime {
                     "Vite executable not found at expected path: {}",
                     exe_path.display()
                 )],
-                vec!["Try reinstalling the runtime".to_string()],
+                vec!["Try reinstalling with: vx install vite".to_string()],
             )
         }
+    }
+}
+
+/// Simple semver comparison for sorting versions
+fn compare_semver(a: &str, b: &str) -> std::cmp::Ordering {
+    let parse_version = |v: &str| -> Vec<u64> {
+        v.split(|c: char| !c.is_ascii_digit())
+            .filter(|s| !s.is_empty())
+            .filter_map(|s| s.parse::<u64>().ok())
+            .collect()
+    };
+
+    let a_parts = parse_version(a);
+    let b_parts = parse_version(b);
+
+    for (a_part, b_part) in a_parts.iter().zip(b_parts.iter()) {
+        match a_part.cmp(b_part) {
+            std::cmp::Ordering::Equal => continue,
+            other => return other,
+        }
+    }
+
+    a_parts.len().cmp(&b_parts.len())
+}
+
+#[async_trait]
+impl PackageRuntime for ViteRuntime {
+    fn install_method(&self) -> InstallMethod {
+        InstallMethod::npm(Self::PACKAGE_NAME)
+    }
+
+    fn required_runtime(&self) -> &str {
+        "node"
+    }
+
+    fn required_runtime_version(&self) -> Option<&str> {
+        // Vite 5.x requires Node.js 18+
+        Some(">=18.0.0")
     }
 }

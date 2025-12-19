@@ -211,6 +211,110 @@ impl PathManager {
             .tmp_dir
             .join(format!("{}-{}", tool_name, version))
     }
+
+    // ========== npm-tools Paths ==========
+
+    /// Get the npm-tools directory
+    pub fn npm_tools_dir(&self) -> &Path {
+        &self.paths.npm_tools_dir
+    }
+
+    /// Get the npm-tools directory for a specific package
+    /// Returns: ~/.vx/npm-tools/<package>
+    pub fn npm_tool_dir(&self, package_name: &str) -> PathBuf {
+        self.paths.npm_tools_dir.join(package_name)
+    }
+
+    /// Get the npm-tools directory for a specific package version
+    /// Returns: ~/.vx/npm-tools/<package>/<version>
+    pub fn npm_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.npm_tool_dir(package_name).join(version)
+    }
+
+    /// Get the bin directory for an npm tool
+    /// Returns: ~/.vx/npm-tools/<package>/<version>/bin
+    pub fn npm_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.npm_tool_version_dir(package_name, version).join("bin")
+    }
+
+    /// List all installed versions of an npm tool
+    pub fn list_npm_tool_versions(&self, package_name: &str) -> Result<Vec<String>> {
+        let tool_dir = self.npm_tool_dir(package_name);
+        if !tool_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut versions = Vec::new();
+        for entry in std::fs::read_dir(&tool_dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                if let Some(version) = entry.file_name().to_str() {
+                    versions.push(version.to_string());
+                }
+            }
+        }
+
+        versions.sort();
+        Ok(versions)
+    }
+
+    // ========== pip-tools Paths ==========
+
+    /// Get the pip-tools directory
+    pub fn pip_tools_dir(&self) -> &Path {
+        &self.paths.pip_tools_dir
+    }
+
+    /// Get the pip-tools directory for a specific package
+    /// Returns: ~/.vx/pip-tools/<package>
+    pub fn pip_tool_dir(&self, package_name: &str) -> PathBuf {
+        self.paths.pip_tools_dir.join(package_name)
+    }
+
+    /// Get the pip-tools directory for a specific package version
+    /// Returns: ~/.vx/pip-tools/<package>/<version>
+    pub fn pip_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.pip_tool_dir(package_name).join(version)
+    }
+
+    /// Get the venv directory for a pip tool
+    /// Returns: ~/.vx/pip-tools/<package>/<version>/venv
+    pub fn pip_tool_venv_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.pip_tool_version_dir(package_name, version)
+            .join("venv")
+    }
+
+    /// Get the bin directory for a pip tool
+    /// Returns: ~/.vx/pip-tools/<package>/<version>/venv/Scripts (Windows) or venv/bin (Unix)
+    pub fn pip_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        let venv_dir = self.pip_tool_venv_dir(package_name, version);
+        if cfg!(windows) {
+            venv_dir.join("Scripts")
+        } else {
+            venv_dir.join("bin")
+        }
+    }
+
+    /// List all installed versions of a pip tool
+    pub fn list_pip_tool_versions(&self, package_name: &str) -> Result<Vec<String>> {
+        let tool_dir = self.pip_tool_dir(package_name);
+        if !tool_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut versions = Vec::new();
+        for entry in std::fs::read_dir(&tool_dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                if let Some(version) = entry.file_name().to_str() {
+                    versions.push(version.to_string());
+                }
+            }
+        }
+
+        versions.sort();
+        Ok(versions)
+    }
 }
 
 impl Default for PathManager {
