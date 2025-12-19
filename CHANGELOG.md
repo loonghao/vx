@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.5.9](https://github.com/loonghao/vx/compare/vx-v0.5.8...vx-v0.5.9) (2025-12-19)
+
+
+### Features
+
+* add just command runner provider ([2c9dc21](https://github.com/loonghao/vx/commit/2c9dc21838acf9b326b05b783708996a282c746b))
+* add rez provider ([4d342aa](https://github.com/loonghao/vx/commit/4d342aa7ae25e5db93b094ec1f486f64696cfc30))
+* **vite:** add Vite provider ([c7c37bb](https://github.com/loonghao/vx/commit/c7c37bbf5f9ae5abbe7f92dcaa8ed4fdedb76c6a))
+
+
+### Bug Fixes
+
+* make go tests more robust for CI ([1708bdc](https://github.com/loonghao/vx/commit/1708bdcab44c39b4a8adbba4a964cf9ec02bcc6e))
+* use derive macro for InstallMethod Default impl ([d7178b5](https://github.com/loonghao/vx/commit/d7178b5317da4c1b941035ae5003a508313813d4))
+
 ## [0.5.8](https://github.com/loonghao/vx/compare/vx-v0.5.7...vx-v0.5.8) (2025-12-18)
 
 
