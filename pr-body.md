@@ -1,48 +1,29 @@
 ## Summary
 
-Add a new VSCode provider to enable installation and management of Visual Studio Code through vx.
+Add rez package manager provider and centralize path management in vx-paths crate.
 
 ## Changes
 
-### New Files
+### New Features
+- **vx-provider-rez**: New crate for rez package manager support
+  - Install rez via pip in isolated virtual environment
+  - Auto-fix pip installation warning with production marker file
+  - Auto-fix memcache.py SyntaxWarning for Python 3.12+
 
-- `crates/vx-providers/vscode/` - New VSCode provider crate
-  - `src/provider.rs` - Provider metadata implementation
-  - `src/runtime.rs` - Runtime implementation with version fetching
-  - `src/config.rs` - URL builder for download URLs
-  - `tests/runtime_tests.rs` - 21 unit tests
+- **PackageRuntime trait**: New trait for npm/pip package installations
+  - Unified interface for package-based runtimes (vite, rez, etc.)
+  - Automatic dependency resolution (e.g., node for npm packages, uv for pip packages)
 
-### Modified Files
+### Improvements
+- **Centralized path management**: Unified ToolLocation API in vx-paths
+  - New `ToolLocation` struct with path, version, and source info
+  - New `ToolSource` enum (Store, NpmTools, PipTools)
+  - Simplified vx-resolver by removing duplicate path-finding logic
 
-- `crates/vx-runtime/src/impls.rs` - Enhanced extract functions with:
-  - URL fragment hints (`#.zip`) for file type detection
-  - Magic bytes detection (ZIP, GZIP) for archives without extensions
-- `crates/vx-cli/src/registry.rs` - Register VSCode provider
-- Updated snapshot tests for new provider count
-
-## Features
-
-- **Runtime names**: `code`, `vscode`, `vs-code`, `visual-studio-code`
-- **Version source**: Official VSCode SHA API with GitHub releases fallback
-- **Platform support**: Windows, macOS, Linux (x64, arm64)
-- **Archive handling**: Automatic ZIP extraction with magic bytes detection
+### Bug Fixes
+- Fix rez showing pip installation warning
+- Fix rez memcache.py SyntaxWarning in Python 3.12+
 
 ## Testing
-
-```bash
-# Install VSCode
-vx install code 1.107.1
-
-# List installed versions
-vx list code
-
-# Locate executable
-vx where code
-```
-
-## Checklist
-
-- [x] Code compiles without errors
-- [x] All 21 unit tests pass
-- [x] Integration tests pass
-- [x] Manual testing verified
+- `cargo run -- rez --version` works without warnings
+- `cargo run -- rez env` enters rez shell correctly

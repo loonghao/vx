@@ -13,9 +13,10 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 /// Installation method for a runtime
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum InstallMethod {
     /// Standalone binary download (default method)
+    #[default]
     Binary,
     /// npm package installation
     NpmPackage {
@@ -31,12 +32,6 @@ pub enum InstallMethod {
         /// Binary name if different from package name
         bin_name: Option<String>,
     },
-}
-
-impl Default for InstallMethod {
-    fn default() -> Self {
-        Self::Binary
-    }
 }
 
 impl InstallMethod {
