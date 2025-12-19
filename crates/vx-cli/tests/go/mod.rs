@@ -424,7 +424,11 @@ func main() {
                 return; // Skip - module initialization issue
             }
         }
-        assert!(is_success(&output), "go vet should succeed for valid code: {}", stderr_str(&output));
+        assert!(
+            is_success(&output),
+            "go vet should succeed for valid code: {}",
+            stderr_str(&output)
+        );
     }
 }
 
@@ -512,7 +516,9 @@ fn test_go_run_syntax_error() {
         // Error message could be in stdout or stderr depending on go version
         let combined = format!("{}{}", stdout, stderr);
         assert!(
-            combined.contains("syntax") || combined.contains("expected") || combined.contains("error"),
+            combined.contains("syntax")
+                || combined.contains("expected")
+                || combined.contains("error"),
             "Should show syntax error, got stdout: {}, stderr: {}",
             stdout,
             stderr
