@@ -6,8 +6,8 @@ Verify that `vx plugin stats` shows plugin statistics.
 $ vx plugin stats
 
 [..]
-  Total providers: 10
-  Total runtimes: 16
+  Total providers: 11
+  Total runtimes: 17
 
   Providers:
     node (3 runtimes)
@@ -20,5 +20,6 @@ $ vx plugin stats
     vscode (1 runtimes)
     just (1 runtimes)
     vite (1 runtimes)
+    rez (1 runtimes)
 
 ```

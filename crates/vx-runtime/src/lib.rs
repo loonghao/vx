@@ -39,6 +39,7 @@
 pub mod context;
 pub mod ecosystem;
 pub mod impls;
+pub mod package_runtime;
 pub mod platform;
 pub mod provider;
 pub mod registry;
@@ -55,6 +56,7 @@ pub use impls::{
     create_runtime_context, create_runtime_context_with_base, RealCommandExecutor, RealFileSystem,
     RealHttpClient, RealInstaller, RealPathProvider,
 };
+pub use package_runtime::{InstallMethod, PackageRuntime};
 pub use platform::{Arch, Os, Platform};
 pub use provider::Provider;
 pub use registry::ProviderRegistry;

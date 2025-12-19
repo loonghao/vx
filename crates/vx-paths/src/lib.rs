@@ -13,6 +13,18 @@
 //! │   ├── go/1.21.0/
 //! │   └── uv/0.5.0/
 //! │
+//! ├── npm-tools/                  # npm package tools (isolated environments)
+//! │   └── vite/
+//! │       └── 5.4.0/
+//! │           ├── node_modules/
+//! │           └── bin/vite        # shim script
+//! │
+//! ├── pip-tools/                  # pip package tools (isolated environments)
+//! │   └── rez/
+//! │       └── 2.114.0/
+//! │           ├── venv/
+//! │           └── bin/rez         # shim script
+//! │
 //! ├── envs/                       # Virtual environments (links to store)
 //! │   ├── default/               # Default environment
 //! │   │   └── node -> ../../store/node/20.0.0
@@ -36,7 +48,7 @@ pub mod resolver;
 pub use config::PathConfig;
 pub use link::{LinkResult, LinkStrategy};
 pub use manager::PathManager;
-pub use resolver::PathResolver;
+pub use resolver::{PathResolver, ToolLocation, ToolSource};
 
 /// Standard vx directory structure
 #[derive(Debug, Clone)]
@@ -45,6 +57,10 @@ pub struct VxPaths {
     pub base_dir: PathBuf,
     /// Global store directory (~/.vx/store) - Content-Addressable Storage
     pub store_dir: PathBuf,
+    /// npm package tools directory (~/.vx/npm-tools)
+    pub npm_tools_dir: PathBuf,
+    /// pip package tools directory (~/.vx/pip-tools)
+    pub pip_tools_dir: PathBuf,
     /// Virtual environments directory (~/.vx/envs)
     pub envs_dir: PathBuf,
     /// Global shims directory (~/.vx/bin)
@@ -74,6 +90,8 @@ impl VxPaths {
 
         Ok(Self {
             store_dir: base_dir.join("store"),
+            npm_tools_dir: base_dir.join("npm-tools"),
+            pip_tools_dir: base_dir.join("pip-tools"),
             envs_dir: base_dir.join("envs"),
             bin_dir: base_dir.join("bin"),
             cache_dir: base_dir.join("cache"),
@@ -89,6 +107,8 @@ impl VxPaths {
 
         Self {
             store_dir: base_dir.join("store"),
+            npm_tools_dir: base_dir.join("npm-tools"),
+            pip_tools_dir: base_dir.join("pip-tools"),
             envs_dir: base_dir.join("envs"),
             bin_dir: base_dir.join("bin"),
             cache_dir: base_dir.join("cache"),
@@ -102,6 +122,8 @@ impl VxPaths {
     pub fn ensure_dirs(&self) -> Result<()> {
         std::fs::create_dir_all(&self.base_dir)?;
         std::fs::create_dir_all(&self.store_dir)?;
+        std::fs::create_dir_all(&self.npm_tools_dir)?;
+        std::fs::create_dir_all(&self.pip_tools_dir)?;
         std::fs::create_dir_all(&self.envs_dir)?;
         std::fs::create_dir_all(&self.bin_dir)?;
         std::fs::create_dir_all(&self.cache_dir)?;
@@ -128,6 +150,51 @@ impl VxPaths {
     /// Get the default environment directory
     pub fn default_env_dir(&self) -> PathBuf {
         self.envs_dir.join("default")
+    }
+
+    // ========== npm-tools paths ==========
+
+    /// Get the npm-tools directory for a specific package
+    pub fn npm_tool_dir(&self, package_name: &str) -> PathBuf {
+        self.npm_tools_dir.join(package_name)
+    }
+
+    /// Get the npm-tools directory for a specific package version
+    pub fn npm_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.npm_tool_dir(package_name).join(version)
+    }
+
+    /// Get the bin directory for an npm tool
+    pub fn npm_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.npm_tool_version_dir(package_name, version).join("bin")
+    }
+
+    // ========== pip-tools paths ==========
+
+    /// Get the pip-tools directory for a specific package
+    pub fn pip_tool_dir(&self, package_name: &str) -> PathBuf {
+        self.pip_tools_dir.join(package_name)
+    }
+
+    /// Get the pip-tools directory for a specific package version
+    pub fn pip_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.pip_tool_dir(package_name).join(version)
+    }
+
+    /// Get the venv directory for a pip tool
+    pub fn pip_tool_venv_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.pip_tool_version_dir(package_name, version)
+            .join("venv")
+    }
+
+    /// Get the bin directory for a pip tool
+    pub fn pip_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        let venv_dir = self.pip_tool_venv_dir(package_name, version);
+        if cfg!(windows) {
+            venv_dir.join("Scripts")
+        } else {
+            venv_dir.join("bin")
+        }
     }
 }
 

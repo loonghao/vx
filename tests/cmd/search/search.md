@@ -21,6 +21,7 @@ $ vx search
   yarn - Fast, reliable, and secure dependency management
   code - Visual Studio Code - Code editing. Redefined.
   just - Just - A handy way to save and run project-specific commands
-  vite - Vite - Next Generation Frontend Tooling
+  vite - Vite - Next Generation Frontend Tooling (installed via npm)
+  rez - Rez - Cross-platform package manager (installed via pip)
 
 ```

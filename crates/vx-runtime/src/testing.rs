@@ -94,6 +94,52 @@ impl PathProvider for MockPathProvider {
     fn env_dir(&self, env_name: &str) -> PathBuf {
         self.envs_dir().join(env_name)
     }
+
+    // ========== npm-tools paths ==========
+
+    fn npm_tools_dir(&self) -> PathBuf {
+        self.base_dir.join("npm-tools")
+    }
+
+    fn npm_tool_dir(&self, package_name: &str) -> PathBuf {
+        self.npm_tools_dir().join(package_name)
+    }
+
+    fn npm_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.npm_tool_dir(package_name).join(version)
+    }
+
+    fn npm_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.npm_tool_version_dir(package_name, version).join("bin")
+    }
+
+    // ========== pip-tools paths ==========
+
+    fn pip_tools_dir(&self) -> PathBuf {
+        self.base_dir.join("pip-tools")
+    }
+
+    fn pip_tool_dir(&self, package_name: &str) -> PathBuf {
+        self.pip_tools_dir().join(package_name)
+    }
+
+    fn pip_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.pip_tool_dir(package_name).join(version)
+    }
+
+    fn pip_tool_venv_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.pip_tool_version_dir(package_name, version)
+            .join("venv")
+    }
+
+    fn pip_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        let venv_dir = self.pip_tool_venv_dir(package_name, version);
+        if cfg!(windows) {
+            venv_dir.join("Scripts")
+        } else {
+            venv_dir.join("bin")
+        }
+    }
 }
 
 // ============================================================================

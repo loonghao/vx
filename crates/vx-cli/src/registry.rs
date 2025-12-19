@@ -36,8 +36,11 @@ pub fn create_registry() -> ProviderRegistry {
     // Register Just provider
     registry.register(vx_provider_just::create_provider());
 
-    // Register Vite provider
+    // Register Vite provider (npm package)
     registry.register(vx_provider_vite::create_provider());
+
+    // Register Rez provider (pip package)
+    registry.register(vx_provider_rez::create_provider());
 
     registry
 }

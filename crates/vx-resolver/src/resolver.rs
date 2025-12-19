@@ -9,7 +9,7 @@ use crate::{ResolverConfig, Result, RuntimeMap, RuntimeSpec};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use tracing::{debug, trace};
-use vx_paths::PathManager;
+use vx_paths::PathResolver as VxPathResolver;
 
 /// Status of a runtime
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,8 +70,8 @@ pub struct Resolver {
     /// Runtime map for runtime specifications
     runtime_map: RuntimeMap,
 
-    /// Path manager for vx-managed runtimes
-    path_manager: PathManager,
+    /// Path resolver for vx-managed runtimes
+    path_resolver: VxPathResolver,
 
     /// Configuration
     config: ResolverConfig,
@@ -80,36 +80,29 @@ pub struct Resolver {
 impl Resolver {
     /// Create a new runtime resolver
     pub fn new(config: ResolverConfig) -> Result<Self> {
-        let path_manager = PathManager::new()?;
+        let path_resolver = VxPathResolver::default_paths()?;
         Ok(Self {
             runtime_map: RuntimeMap::new(),
-            path_manager,
+            path_resolver,
             config,
         })
     }
 
     /// Create a resolver with a custom runtime map (for testing)
     pub fn with_runtime_map(config: ResolverConfig, runtime_map: RuntimeMap) -> Result<Self> {
-        let path_manager = PathManager::new()?;
+        let path_resolver = VxPathResolver::default_paths()?;
         Ok(Self {
             runtime_map,
-            path_manager,
+            path_resolver,
             config,
         })
     }
 
     /// Check the status of a runtime
     pub fn check_runtime_status(&self, runtime_name: &str) -> RuntimeStatus {
-        // First, check if it's a known runtime
-        let spec = match self.runtime_map.get(runtime_name) {
-            Some(spec) => spec,
-            None => {
-                // Unknown runtime - check system PATH only
-                return self.check_system_path(runtime_name);
-            }
-        };
-
-        let executable_name = spec.get_executable();
+        // Get the runtime specification if known
+        let spec = self.runtime_map.get(runtime_name);
+        let executable_name = spec.map(|s| s.get_executable()).unwrap_or(runtime_name);
 
         // Check vx-managed installation first if preferred
         if self.config.prefer_vx_managed {
@@ -138,160 +131,30 @@ impl Resolver {
 
     /// Check if a runtime is installed via vx
     fn check_vx_managed(&self, runtime_name: &str) -> Option<RuntimeStatus> {
-        // Check the store directory (~/.vx/store/<runtime>/<version>)
-        self.check_store_dir(runtime_name)
-    }
-
-    /// Check the store directory for installed runtimes
-    fn check_store_dir(&self, runtime_name: &str) -> Option<RuntimeStatus> {
-        let store_dir = self.path_manager.runtime_store_dir(runtime_name);
-        debug!(
-            "Checking store directory for {}: {} (exists: {})",
-            runtime_name,
-            store_dir.display(),
-            store_dir.exists()
-        );
-
-        let versions = match self.path_manager.list_store_versions(runtime_name) {
-            Ok(v) => v,
+        // Use unified path resolver to find the tool
+        match self.path_resolver.find_tool(runtime_name) {
+            Ok(Some(location)) => {
+                debug!(
+                    "Found vx-managed {} version {} in {} at {}",
+                    runtime_name,
+                    location.version,
+                    location.source,
+                    location.path.display()
+                );
+                Some(RuntimeStatus::VxManaged {
+                    version: location.version,
+                    path: location.path,
+                })
+            }
+            Ok(None) => {
+                debug!("Tool {} not found in vx-managed directories", runtime_name);
+                None
+            }
             Err(e) => {
-                debug!("Failed to list store versions for {}: {}", runtime_name, e);
-                return None;
-            }
-        };
-
-        debug!(
-            "Found {} versions for {} in store: {:?}",
-            versions.len(),
-            runtime_name,
-            versions
-        );
-
-        for version in versions.iter() {
-            let version_dir = self.path_manager.version_store_dir(runtime_name, version);
-            debug!(
-                "Checking version directory: {} (exists: {})",
-                version_dir.display(),
-                version_dir.exists()
-            );
-
-            // Search for the executable in the version directory
-            if let Some(exe_path) = self.find_executable_in_dir(&version_dir, runtime_name) {
-                debug!(
-                    "Found vx-managed {} version {} in store at {}",
-                    runtime_name,
-                    version,
-                    exe_path.display()
-                );
-                return Some(RuntimeStatus::VxManaged {
-                    version: version.clone(),
-                    path: exe_path,
-                });
-            } else {
-                debug!(
-                    "Executable {} not found in version directory {}",
-                    runtime_name,
-                    version_dir.display()
-                );
+                debug!("Error checking vx-managed {}: {}", runtime_name, e);
+                None
             }
         }
-        None
-    }
-
-    /// Search for an executable in a directory (recursively, up to 3 levels)
-    /// This handles various archive structures:
-    /// - Direct: ~/.vx/store/uv/0.9.17/uv
-    /// - One level: ~/.vx/store/uv/0.9.17/uv-platform/uv
-    /// - Two levels: ~/.vx/store/go/1.25.5/go/bin/go
-    fn find_executable_in_dir(&self, dir: &PathBuf, exe_name: &str) -> Option<PathBuf> {
-        use std::fs;
-
-        if !dir.exists() {
-            return None;
-        }
-
-        // Build list of possible executable names in priority order
-        // On Windows, .exe and .cmd should be preferred over extensionless files
-        // because extensionless files are typically shell scripts
-        let possible_names: Vec<String> = if cfg!(windows) {
-            vec![
-                format!("{}.exe", exe_name),
-                format!("{}.cmd", exe_name),
-                exe_name.to_string(),
-            ]
-        } else {
-            vec![exe_name.to_string()]
-        };
-
-        /// Helper to find the best matching executable from a list of candidates
-        /// Returns the one with highest priority (lowest index in possible_names)
-        fn find_best_match(candidates: &[PathBuf], possible_names: &[String]) -> Option<PathBuf> {
-            for name in possible_names {
-                for candidate in candidates {
-                    if let Some(file_name) = candidate.file_name().and_then(|n| n.to_str()) {
-                        if file_name == name {
-                            return Some(candidate.clone());
-                        }
-                    }
-                }
-            }
-            None
-        }
-
-        // Collect all matching files at each level, then pick the best one
-        let mut all_candidates: Vec<PathBuf> = Vec::new();
-
-        // Check direct children (level 1)
-        if let Ok(entries) = fs::read_dir(dir) {
-            for entry in entries.filter_map(|e| e.ok()) {
-                let path = entry.path();
-
-                // Check if this is a matching executable
-                if path.is_file() {
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if possible_names.iter().any(|n| n == name) {
-                            all_candidates.push(path.clone());
-                        }
-                    }
-                }
-
-                // Check one level deeper (level 2)
-                if path.is_dir() {
-                    if let Ok(sub_entries) = fs::read_dir(&path) {
-                        for sub_entry in sub_entries.filter_map(|e| e.ok()) {
-                            let sub_path = sub_entry.path();
-                            if sub_path.is_file() {
-                                if let Some(name) = sub_path.file_name().and_then(|n| n.to_str()) {
-                                    if possible_names.iter().any(|n| n == name) {
-                                        all_candidates.push(sub_path.clone());
-                                    }
-                                }
-                            }
-
-                            // Check two levels deeper (level 3) - for go/bin/go structure
-                            if sub_path.is_dir() {
-                                if let Ok(deep_entries) = fs::read_dir(&sub_path) {
-                                    for deep_entry in deep_entries.filter_map(|e| e.ok()) {
-                                        let deep_path = deep_entry.path();
-                                        if deep_path.is_file() {
-                                            if let Some(name) =
-                                                deep_path.file_name().and_then(|n| n.to_str())
-                                            {
-                                                if possible_names.iter().any(|n| n == name) {
-                                                    all_candidates.push(deep_path);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        find_best_match(&all_candidates, &possible_names)
     }
 
     /// Check if a runtime is available in system PATH

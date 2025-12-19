@@ -125,6 +125,37 @@ pub trait PathProvider: Send + Sync {
 
     /// Get the environment directory
     fn env_dir(&self, env_name: &str) -> PathBuf;
+
+    // ========== npm-tools paths ==========
+
+    /// Get the npm-tools directory (~/.vx/npm-tools)
+    fn npm_tools_dir(&self) -> PathBuf;
+
+    /// Get the npm-tools directory for a specific package
+    fn npm_tool_dir(&self, package_name: &str) -> PathBuf;
+
+    /// Get the npm-tools directory for a specific package version
+    fn npm_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf;
+
+    /// Get the bin directory for an npm tool
+    fn npm_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf;
+
+    // ========== pip-tools paths ==========
+
+    /// Get the pip-tools directory (~/.vx/pip-tools)
+    fn pip_tools_dir(&self) -> PathBuf;
+
+    /// Get the pip-tools directory for a specific package
+    fn pip_tool_dir(&self, package_name: &str) -> PathBuf;
+
+    /// Get the pip-tools directory for a specific package version
+    fn pip_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf;
+
+    /// Get the venv directory for a pip tool
+    fn pip_tool_venv_dir(&self, package_name: &str, version: &str) -> PathBuf;
+
+    /// Get the bin directory for a pip tool
+    fn pip_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf;
 }
 
 /// Installer abstraction for testability

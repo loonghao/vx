@@ -28,6 +28,7 @@ vx-provider-yarn = { workspace = true }
 vx-provider-vscode = { workspace = true }
 vx-provider-just = { workspace = true }
 vx-provider-vite = { workspace = true }
+vx-provider-rez = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }

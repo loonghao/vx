@@ -69,6 +69,8 @@ impl PathConfig {
         Ok(VxPaths {
             base_dir: self.base_dir.clone().unwrap_or(default_paths.base_dir),
             store_dir: self.store_dir.clone().unwrap_or(default_paths.store_dir),
+            npm_tools_dir: default_paths.npm_tools_dir,
+            pip_tools_dir: default_paths.pip_tools_dir,
             envs_dir: self.envs_dir.clone().unwrap_or(default_paths.envs_dir),
             bin_dir: self.bin_dir.clone().unwrap_or(default_paths.bin_dir),
             cache_dir: self.cache_dir.clone().unwrap_or(default_paths.cache_dir),
