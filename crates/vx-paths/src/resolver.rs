@@ -1,8 +1,43 @@
 //! Path resolver for finding and resolving tool paths
+//!
+//! This module provides a unified interface for finding tool executables
+//! across all vx-managed directories (store, npm-tools, pip-tools).
 
 use crate::PathManager;
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+/// Result of finding a tool in vx-managed directories
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToolLocation {
+    /// The path to the executable
+    pub path: PathBuf,
+    /// The version of the tool
+    pub version: String,
+    /// The source of the tool (store, npm-tools, pip-tools)
+    pub source: ToolSource,
+}
+
+/// Source of a tool installation
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolSource {
+    /// Tool installed in ~/.vx/store
+    Store,
+    /// Tool installed in ~/.vx/npm-tools
+    NpmTools,
+    /// Tool installed in ~/.vx/pip-tools
+    PipTools,
+}
+
+impl std::fmt::Display for ToolSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ToolSource::Store => write!(f, "store"),
+            ToolSource::NpmTools => write!(f, "npm-tools"),
+            ToolSource::PipTools => write!(f, "pip-tools"),
+        }
+    }
+}
 
 /// Resolves tool paths and finds installed tools
 #[derive(Debug, Clone)]
@@ -16,44 +51,233 @@ impl PathResolver {
         Self { manager }
     }
 
-    /// Find all executable paths for a tool (all versions)
-    pub fn find_tool_executables(&self, tool_name: &str) -> Result<Vec<PathBuf>> {
-        let mut executables = Vec::new();
-
-        // Check store directory (~/.vx/store/<tool>/<version>)
-        let store_versions = self.manager.list_store_versions(tool_name)?;
-        for version in store_versions {
-            let version_dir = self.manager.version_store_dir(tool_name, &version);
-            if let Some(exe_path) = self.find_executable_in_dir(&version_dir, tool_name) {
-                executables.push(exe_path);
-            }
-        }
-
-        Ok(executables)
+    /// Create a PathResolver with default paths
+    pub fn default_paths() -> Result<Self> {
+        Ok(Self::new(PathManager::new()?))
     }
 
-    /// Find the latest executable for a tool
-    pub fn find_latest_executable(&self, tool_name: &str) -> Result<Option<PathBuf>> {
-        let store_versions = self.manager.list_store_versions(tool_name)?;
-        if let Some(version) = store_versions.last() {
+    /// Get the path manager
+    pub fn manager(&self) -> &PathManager {
+        &self.manager
+    }
+
+    // ========== Unified Tool Finding API ==========
+
+    /// Find a tool in any vx-managed directory
+    /// Returns the first found location with version info
+    pub fn find_tool(&self, tool_name: &str) -> Result<Option<ToolLocation>> {
+        // Check store directory first
+        if let Some(loc) = self.find_in_store(tool_name)? {
+            return Ok(Some(loc));
+        }
+
+        // Check npm-tools directory
+        if let Some(loc) = self.find_in_npm_tools(tool_name)? {
+            return Ok(Some(loc));
+        }
+
+        // Check pip-tools directory
+        if let Some(loc) = self.find_in_pip_tools(tool_name)? {
+            return Ok(Some(loc));
+        }
+
+        Ok(None)
+    }
+
+    /// Find all installations of a tool across all directories
+    pub fn find_all_tool_installations(&self, tool_name: &str) -> Result<Vec<ToolLocation>> {
+        let mut locations = Vec::new();
+
+        // Collect from store
+        locations.extend(self.find_all_in_store(tool_name)?);
+
+        // Collect from npm-tools
+        locations.extend(self.find_all_in_npm_tools(tool_name)?);
+
+        // Collect from pip-tools
+        locations.extend(self.find_all_in_pip_tools(tool_name)?);
+
+        Ok(locations)
+    }
+
+    /// Find the latest version of a tool
+    pub fn find_latest_tool(&self, tool_name: &str) -> Result<Option<ToolLocation>> {
+        let all = self.find_all_tool_installations(tool_name)?;
+        // Return the last one (highest version due to sorting)
+        Ok(all.into_iter().last())
+    }
+
+    /// Find a specific version of a tool
+    pub fn find_tool_version(&self, tool_name: &str, version: &str) -> Option<ToolLocation> {
+        // Check store
+        let store_dir = self.manager.version_store_dir(tool_name, version);
+        if let Some(path) = self.find_executable_in_dir(&store_dir, tool_name) {
+            return Some(ToolLocation {
+                path,
+                version: version.to_string(),
+                source: ToolSource::Store,
+            });
+        }
+
+        // Check npm-tools
+        let npm_bin = self.manager.npm_tool_bin_dir(tool_name, version);
+        if let Some(path) = self.find_npm_executable(&npm_bin, tool_name) {
+            return Some(ToolLocation {
+                path,
+                version: version.to_string(),
+                source: ToolSource::NpmTools,
+            });
+        }
+
+        // Check pip-tools
+        let pip_bin = self.manager.pip_tool_bin_dir(tool_name, version);
+        if let Some(path) = self.find_pip_executable(&pip_bin, tool_name) {
+            return Some(ToolLocation {
+                path,
+                version: version.to_string(),
+                source: ToolSource::PipTools,
+            });
+        }
+
+        None
+    }
+
+    /// Check if a tool is installed (any version, any source)
+    pub fn is_tool_installed(&self, tool_name: &str) -> Result<bool> {
+        Ok(self.find_tool(tool_name)?.is_some())
+    }
+
+    // ========== Store Directory Methods ==========
+
+    /// Find a tool in the store directory
+    pub fn find_in_store(&self, tool_name: &str) -> Result<Option<ToolLocation>> {
+        let versions = self.manager.list_store_versions(tool_name)?;
+        // Return the latest version (last after sort)
+        for version in versions.iter().rev() {
             let version_dir = self.manager.version_store_dir(tool_name, version);
-            if let Some(exe_path) = self.find_executable_in_dir(&version_dir, tool_name) {
-                return Ok(Some(exe_path));
+            if let Some(path) = self.find_executable_in_dir(&version_dir, tool_name) {
+                return Ok(Some(ToolLocation {
+                    path,
+                    version: version.clone(),
+                    source: ToolSource::Store,
+                }));
             }
         }
         Ok(None)
     }
 
-    /// Find executable for a specific tool version
-    pub fn find_version_executable(&self, tool_name: &str, version: &str) -> Option<PathBuf> {
-        let store_dir = self.manager.version_store_dir(tool_name, version);
-        self.find_executable_in_dir(&store_dir, tool_name)
+    /// Find all versions of a tool in the store directory
+    pub fn find_all_in_store(&self, tool_name: &str) -> Result<Vec<ToolLocation>> {
+        let mut locations = Vec::new();
+        let versions = self.manager.list_store_versions(tool_name)?;
+
+        for version in versions {
+            let version_dir = self.manager.version_store_dir(tool_name, &version);
+            if let Some(path) = self.find_executable_in_dir(&version_dir, tool_name) {
+                locations.push(ToolLocation {
+                    path,
+                    version,
+                    source: ToolSource::Store,
+                });
+            }
+        }
+
+        Ok(locations)
     }
 
-    /// Check if a tool is installed (any version)
-    pub fn is_tool_installed(&self, tool_name: &str) -> Result<bool> {
-        let store_versions = self.manager.list_store_versions(tool_name)?;
-        Ok(!store_versions.is_empty())
+    // ========== npm-tools Directory Methods ==========
+
+    /// Find a tool in the npm-tools directory
+    pub fn find_in_npm_tools(&self, tool_name: &str) -> Result<Option<ToolLocation>> {
+        let versions = self.manager.list_npm_tool_versions(tool_name)?;
+        // Return the latest version
+        for version in versions.iter().rev() {
+            let bin_dir = self.manager.npm_tool_bin_dir(tool_name, version);
+            if let Some(path) = self.find_npm_executable(&bin_dir, tool_name) {
+                return Ok(Some(ToolLocation {
+                    path,
+                    version: version.clone(),
+                    source: ToolSource::NpmTools,
+                }));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Find all versions of a tool in the npm-tools directory
+    pub fn find_all_in_npm_tools(&self, tool_name: &str) -> Result<Vec<ToolLocation>> {
+        let mut locations = Vec::new();
+        let versions = self.manager.list_npm_tool_versions(tool_name)?;
+
+        for version in versions {
+            let bin_dir = self.manager.npm_tool_bin_dir(tool_name, &version);
+            if let Some(path) = self.find_npm_executable(&bin_dir, tool_name) {
+                locations.push(ToolLocation {
+                    path,
+                    version,
+                    source: ToolSource::NpmTools,
+                });
+            }
+        }
+
+        Ok(locations)
+    }
+
+    // ========== pip-tools Directory Methods ==========
+
+    /// Find a tool in the pip-tools directory
+    pub fn find_in_pip_tools(&self, tool_name: &str) -> Result<Option<ToolLocation>> {
+        let versions = self.manager.list_pip_tool_versions(tool_name)?;
+        // Return the latest version
+        for version in versions.iter().rev() {
+            let bin_dir = self.manager.pip_tool_bin_dir(tool_name, version);
+            if let Some(path) = self.find_pip_executable(&bin_dir, tool_name) {
+                return Ok(Some(ToolLocation {
+                    path,
+                    version: version.clone(),
+                    source: ToolSource::PipTools,
+                }));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Find all versions of a tool in the pip-tools directory
+    pub fn find_all_in_pip_tools(&self, tool_name: &str) -> Result<Vec<ToolLocation>> {
+        let mut locations = Vec::new();
+        let versions = self.manager.list_pip_tool_versions(tool_name)?;
+
+        for version in versions {
+            let bin_dir = self.manager.pip_tool_bin_dir(tool_name, &version);
+            if let Some(path) = self.find_pip_executable(&bin_dir, tool_name) {
+                locations.push(ToolLocation {
+                    path,
+                    version,
+                    source: ToolSource::PipTools,
+                });
+            }
+        }
+
+        Ok(locations)
+    }
+
+    // ========== Legacy API (for backward compatibility) ==========
+
+    /// Find all executable paths for a tool (all versions)
+    pub fn find_tool_executables(&self, tool_name: &str) -> Result<Vec<PathBuf>> {
+        let locations = self.find_all_tool_installations(tool_name)?;
+        Ok(locations.into_iter().map(|loc| loc.path).collect())
+    }
+
+    /// Find the latest executable for a tool
+    pub fn find_latest_executable(&self, tool_name: &str) -> Result<Option<PathBuf>> {
+        Ok(self.find_latest_tool(tool_name)?.map(|loc| loc.path))
+    }
+
+    /// Find executable for a specific tool version
+    pub fn find_version_executable(&self, tool_name: &str, version: &str) -> Option<PathBuf> {
+        self.find_tool_version(tool_name, version)
+            .map(|loc| loc.path)
     }
 
     /// Get all installed tools with their versions
@@ -72,8 +296,6 @@ impl PathResolver {
     }
 
     /// Resolve tool path with version preference
-    /// If version is specified, try to find that specific version
-    /// Otherwise, return the latest version
     pub fn resolve_tool_path(
         &self,
         tool_name: &str,
@@ -85,9 +307,36 @@ impl PathResolver {
         }
     }
 
-    /// Get the path manager
-    pub fn manager(&self) -> &PathManager {
-        &self.manager
+    // ========== Internal Helper Methods ==========
+
+    /// Find npm executable in a bin directory
+    fn find_npm_executable(&self, bin_dir: &Path, tool_name: &str) -> Option<PathBuf> {
+        let exe_name = if cfg!(windows) {
+            format!("{}.cmd", tool_name)
+        } else {
+            tool_name.to_string()
+        };
+        let exe_path = bin_dir.join(&exe_name);
+        if exe_path.exists() {
+            Some(exe_path)
+        } else {
+            None
+        }
+    }
+
+    /// Find pip executable in a bin directory
+    fn find_pip_executable(&self, bin_dir: &Path, tool_name: &str) -> Option<PathBuf> {
+        let exe_name = if cfg!(windows) {
+            format!("{}.exe", tool_name)
+        } else {
+            tool_name.to_string()
+        };
+        let exe_path = bin_dir.join(&exe_name);
+        if exe_path.exists() {
+            Some(exe_path)
+        } else {
+            None
+        }
     }
 
     /// Search for an executable in a directory (recursively, up to 3 levels)
@@ -95,7 +344,7 @@ impl PathResolver {
     /// - Direct: ~/.vx/store/uv/0.9.17/uv
     /// - One level: ~/.vx/store/uv/0.9.17/uv-platform/uv
     /// - Two levels: ~/.vx/store/go/1.25.5/go/bin/go
-    fn find_executable_in_dir(&self, dir: &std::path::Path, exe_name: &str) -> Option<PathBuf> {
+    pub fn find_executable_in_dir(&self, dir: &Path, exe_name: &str) -> Option<PathBuf> {
         if !dir.exists() {
             return None;
         }
@@ -112,21 +361,6 @@ impl PathResolver {
         } else {
             vec![exe_name.to_string()]
         };
-
-        /// Helper to find the best matching executable from a list of candidates
-        /// Returns the one with highest priority (lowest index in possible_names)
-        fn find_best_match(candidates: &[PathBuf], possible_names: &[String]) -> Option<PathBuf> {
-            for name in possible_names {
-                for candidate in candidates {
-                    if let Some(file_name) = candidate.file_name().and_then(|n| n.to_str()) {
-                        if file_name == name {
-                            return Some(candidate.clone());
-                        }
-                    }
-                }
-            }
-            None
-        }
 
         // Collect all matching files at each level, then pick the best one
         let mut all_candidates: Vec<PathBuf> = Vec::new();
@@ -181,7 +415,22 @@ impl PathResolver {
             }
         }
 
-        find_best_match(&all_candidates, &possible_names)
+        Self::find_best_match(&all_candidates, &possible_names)
+    }
+
+    /// Helper to find the best matching executable from a list of candidates
+    /// Returns the one with highest priority (lowest index in possible_names)
+    fn find_best_match(candidates: &[PathBuf], possible_names: &[String]) -> Option<PathBuf> {
+        for name in possible_names {
+            for candidate in candidates {
+                if let Some(file_name) = candidate.file_name().and_then(|n| n.to_str()) {
+                    if file_name == name {
+                        return Some(candidate.clone());
+                    }
+                }
+            }
+        }
+        None
     }
 }
 
