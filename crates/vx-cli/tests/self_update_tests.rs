@@ -234,18 +234,22 @@ fn extract_version_from_url(url: &str) -> String {
                 return version_part.to_string();
             }
         }
-        // Handle "@vx-v1.2.3" format (CDN URL)
-        if part.starts_with("@vx-v") && part.len() > 5 {
-            let version_part = &part[5..];
-            if version_part.chars().next().unwrap_or('a').is_ascii_digit() {
-                return version_part.to_string();
+        // Handle CDN URL format: "repo@vx-v1.2.3" or "repo@v1.2.3"
+        if let Some(at_pos) = part.find('@') {
+            let after_at = &part[at_pos + 1..];
+            // Handle "@vx-v1.2.3" format
+            if after_at.starts_with("vx-v") && after_at.len() > 4 {
+                let version_part = &after_at[4..];
+                if version_part.chars().next().unwrap_or('a').is_ascii_digit() {
+                    return version_part.to_string();
+                }
             }
-        }
-        // Handle "@v1.2.3" format (CDN URL)
-        if part.starts_with("@v") && part.len() > 2 {
-            let version_part = &part[2..];
-            if version_part.chars().next().unwrap_or('a').is_ascii_digit() {
-                return version_part.to_string();
+            // Handle "@v1.2.3" format
+            if after_at.starts_with('v') && after_at.len() > 1 {
+                let version_part = &after_at[1..];
+                if version_part.chars().next().unwrap_or('a').is_ascii_digit() {
+                    return version_part.to_string();
+                }
             }
         }
     }
