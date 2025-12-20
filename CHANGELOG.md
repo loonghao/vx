@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.5.10](https://github.com/loonghao/vx/compare/vx-v0.5.9...vx-v0.5.10) (2025-12-20)
+
+
+### Bug Fixes
+
+* correct CDN URL version extraction for repo@tag format ([8082580](https://github.com/loonghao/vx/commit/808258039cca0429894bac951f8f4cd28e5b4ecf))
+* **deps:** update rust crate zip to v7 ([b0d135b](https://github.com/loonghao/vx/commit/b0d135b0f59cdb520c864a22a67029666e6dcec5))
+* improve self-update tag format handling ([23eeb89](https://github.com/loonghao/vx/commit/23eeb89bdeedae55ff6e0812cd656ed43bac183e))
+
 ## [0.5.9](https://github.com/loonghao/vx/compare/vx-v0.5.8...vx-v0.5.9) (2025-12-19)
 
 
