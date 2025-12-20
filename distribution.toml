@@ -55,20 +55,21 @@ sync_source = "manual"
 timeout = { connect = 15, total = 60 }
 
 # Platform-specific binary naming conventions
+# Format: vx-{target}.{ext} where target is the Rust target triple
 [binaries]
 # Windows binaries
-"windows-x64" = "vx-Windows-msvc-x86_64.zip"
-"windows-arm64" = "vx-Windows-msvc-arm64.zip"
+"windows-x64" = "vx-x86_64-pc-windows-msvc.zip"
+"windows-arm64" = "vx-aarch64-pc-windows-msvc.zip"
 
 # Linux binaries (prefer musl for static linking)
-"linux-x64" = "vx-Linux-musl-x86_64.tar.gz"
-"linux-x64-fallback" = "vx-Linux-gnu-x86_64.tar.gz"
-"linux-arm64" = "vx-Linux-musl-arm64.tar.gz"
-"linux-arm64-fallback" = "vx-Linux-gnu-arm64.tar.gz"
+"linux-x64" = "vx-x86_64-unknown-linux-musl.tar.gz"
+"linux-x64-fallback" = "vx-x86_64-unknown-linux-gnu.tar.gz"
+"linux-arm64" = "vx-aarch64-unknown-linux-musl.tar.gz"
+"linux-arm64-fallback" = "vx-aarch64-unknown-linux-gnu.tar.gz"
 
 # macOS binaries
-"macos-x64" = "vx-macOS-x86_64.tar.gz"
-"macos-arm64" = "vx-macOS-arm64.tar.gz"
+"macos-x64" = "vx-x86_64-apple-darwin.tar.gz"
+"macos-arm64" = "vx-aarch64-apple-darwin.tar.gz"
 
 # Package manager integrations
 [package_managers.homebrew]

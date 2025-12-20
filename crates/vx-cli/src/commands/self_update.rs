@@ -43,7 +43,12 @@ pub async fn handle(
     // Get latest release information with smart channel selection
     let release = get_latest_release(&client, prerelease, token.is_some()).await?;
 
-    let latest_version = release.tag_name.trim_start_matches('v');
+    // Parse version from tag_name (handles "vx-v0.5.9", "x-v0.5.9", and "v0.5.9" formats)
+    let latest_version = release
+        .tag_name
+        .trim_start_matches("vx-v")
+        .trim_start_matches("x-v")
+        .trim_start_matches('v');
     UI::detail(&format!("Latest version: {}", latest_version));
 
     // Check if update is needed
@@ -227,27 +232,45 @@ fn find_platform_asset(assets: &[GitHubAsset]) -> Result<&GitHubAsset> {
     let target_os = env::consts::OS;
     let target_arch = env::consts::ARCH;
 
-    // Define platform-specific patterns
-    let patterns = match (target_os, target_arch) {
-        ("windows", "x86_64") => vec!["windows", "win64", "x86_64-pc-windows"],
-        ("windows", "x86") => vec!["windows", "win32", "i686-pc-windows"],
-        ("macos", "x86_64") => vec!["macos", "darwin", "x86_64-apple-darwin"],
-        ("macos", "aarch64") => vec!["macos", "darwin", "aarch64-apple-darwin"],
-        ("linux", "x86_64") => vec!["linux", "x86_64-unknown-linux"],
-        ("linux", "aarch64") => vec!["linux", "aarch64-unknown-linux"],
-        _ => {
-            return Err(anyhow!(
-                "Unsupported platform: {}-{}",
-                target_os,
-                target_arch
-            ))
-        }
-    };
+    // Define platform-specific patterns with REQUIRED and EXCLUDED patterns
+    // The first pattern in required MUST match, and none of the excluded patterns should match
+    let (required_patterns, excluded_patterns): (Vec<&str>, Vec<&str>) =
+        match (target_os, target_arch) {
+            // Windows x86_64: must contain x86_64 AND windows, must NOT contain aarch64
+            ("windows", "x86_64") => (vec!["x86_64", "windows"], vec!["aarch64", "arm64"]),
+            // Windows x86: must contain i686 or win32, must NOT contain x86_64/aarch64
+            ("windows", "x86") => (vec!["i686", "windows"], vec!["x86_64", "aarch64", "arm64"]),
+            // Windows ARM64: must contain aarch64 AND windows
+            ("windows", "aarch64") => (vec!["aarch64", "windows"], vec!["x86_64", "i686"]),
+            // macOS x86_64: must contain x86_64 AND darwin/apple, must NOT contain aarch64
+            ("macos", "x86_64") => (vec!["x86_64", "apple"], vec!["aarch64", "arm64"]),
+            // macOS ARM64: must contain aarch64 AND darwin/apple
+            ("macos", "aarch64") => (vec!["aarch64", "apple"], vec!["x86_64"]),
+            // Linux x86_64: must contain x86_64 AND linux, must NOT contain aarch64
+            ("linux", "x86_64") => (vec!["x86_64", "linux"], vec!["aarch64", "arm64"]),
+            // Linux ARM64: must contain aarch64 AND linux
+            ("linux", "aarch64") => (vec!["aarch64", "linux"], vec!["x86_64"]),
+            _ => {
+                return Err(anyhow!(
+                    "Unsupported platform: {}-{}",
+                    target_os,
+                    target_arch
+                ))
+            }
+        };
 
-    // Find matching asset
+    // Find matching asset: ALL required patterns must match, NO excluded patterns should match
     for asset in assets {
         let name_lower = asset.name.to_lowercase();
-        if patterns.iter().any(|pattern| name_lower.contains(pattern)) {
+
+        let all_required_match = required_patterns
+            .iter()
+            .all(|pattern| name_lower.contains(pattern));
+        let no_excluded_match = excluded_patterns
+            .iter()
+            .all(|pattern| !name_lower.contains(pattern));
+
+        if all_required_match && no_excluded_match {
             return Ok(asset);
         }
     }
@@ -387,46 +410,100 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
         .as_array()
         .ok_or_else(|| anyhow!("No versions found in jsDelivr response"))?;
 
+    // Helper function to check if a version string is a prerelease
+    // Versions like "vx-v0.5.9", "x-v0.5.9" are stable releases
+    // Versions like "0.5.9-beta.1", "0.5.9-rc.1" are prereleases
+    let is_prerelease = |v: &str| -> bool {
+        // If it starts with "vx-v" or "x-v", it's a stable release (release-please format)
+        if v.starts_with("vx-v") || v.starts_with("x-v") {
+            return false;
+        }
+        // Otherwise, check for prerelease suffixes like -alpha, -beta, -rc
+        v.contains("-alpha")
+            || v.contains("-beta")
+            || v.contains("-rc")
+            || v.contains("-dev")
+            || v.contains("-pre")
+    };
+
+    // Helper function to extract semver for comparison
+    let extract_semver = |v: &str| -> Option<(u64, u64, u64)> {
+        let version_part = v
+            .trim_start_matches("vx-v")
+            .trim_start_matches("x-v")
+            .trim_start_matches('v');
+        let parts: Vec<&str> = version_part.split('.').collect();
+        if parts.len() >= 3 {
+            let major = parts[0].parse::<u64>().ok()?;
+            let minor = parts[1].parse::<u64>().ok()?;
+            let patch = parts[2].split('-').next()?.parse::<u64>().ok()?;
+            Some((major, minor, patch))
+        } else {
+            None
+        }
+    };
+
+    // Find the latest version based on prerelease flag
     let latest_version = if prerelease {
-        // For prerelease, get the first version (latest)
-        versions.first()
+        // For prerelease, find the highest version (including prereleases)
+        versions
+            .iter()
+            .filter_map(|v| v.as_str())
+            .filter(|v| extract_semver(v).is_some())
+            .max_by(|a, b| {
+                let a_ver = extract_semver(a).unwrap_or((0, 0, 0));
+                let b_ver = extract_semver(b).unwrap_or((0, 0, 0));
+                a_ver.cmp(&b_ver)
+            })
     } else {
-        // For stable, find the first non-prerelease version
-        versions.iter().find(|v| {
-            if let Some(version_str) = v.as_str() {
-                !version_str.contains("-") // Simple check for prerelease
-            } else {
-                false
-            }
-        })
+        // For stable, find the highest non-prerelease version
+        versions
+            .iter()
+            .filter_map(|v| v.as_str())
+            .filter(|v| !is_prerelease(v) && extract_semver(v).is_some())
+            .max_by(|a, b| {
+                let a_ver = extract_semver(a).unwrap_or((0, 0, 0));
+                let b_ver = extract_semver(b).unwrap_or((0, 0, 0));
+                a_ver.cmp(&b_ver)
+            })
     }
-    .and_then(|v| v.as_str())
     .ok_or_else(|| anyhow!("No suitable version found"))?;
 
+    // Extract the actual version number for asset URLs
+    let version_number = latest_version
+        .trim_start_matches("vx-v")
+        .trim_start_matches("x-v")
+        .trim_start_matches('v');
+
     // Create CDN-based assets for the version
-    let assets = create_cdn_assets(latest_version);
+    let assets = create_cdn_assets(version_number);
 
     // Create a minimal GitHubRelease structure from jsDelivr data
     Ok(GitHubRelease {
         tag_name: latest_version.to_string(),
-        name: format!("Release {}", latest_version),
+        name: format!("Release {}", version_number),
         body: "Release information retrieved from CDN".to_string(),
-        prerelease: latest_version.contains("-"),
+        prerelease: is_prerelease(latest_version),
         assets,
     })
 }
 
 fn create_cdn_assets(version: &str) -> Vec<GitHubAsset> {
-    let base_url = format!("https://cdn.jsdelivr.net/gh/loonghao/vx@v{}", version);
+    // Note: GitHub releases use tag format "vx-v{version}" (e.g., vx-v0.5.9)
+    let base_url = format!("https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}", version);
 
     // Define platform-specific asset names based on our release naming convention
+    // Format: vx-{target}.{ext} where target is the Rust target triple
     let asset_configs = vec![
-        ("vx-Windows-msvc-x86_64.zip", "windows", "x86_64"),
-        ("vx-Windows-msvc-arm64.zip", "windows", "aarch64"),
-        ("vx-Linux-musl-x86_64.tar.gz", "linux", "x86_64"),
-        ("vx-Linux-musl-arm64.tar.gz", "linux", "aarch64"),
-        ("vx-macOS-x86_64.tar.gz", "macos", "x86_64"),
-        ("vx-macOS-arm64.tar.gz", "macos", "aarch64"),
+        // Windows platforms
+        ("vx-x86_64-pc-windows-msvc.zip", "windows", "x86_64"),
+        ("vx-aarch64-pc-windows-msvc.zip", "windows", "aarch64"),
+        // Linux platforms (prefer musl for better portability)
+        ("vx-x86_64-unknown-linux-musl.tar.gz", "linux", "x86_64"),
+        ("vx-aarch64-unknown-linux-musl.tar.gz", "linux", "aarch64"),
+        // macOS platforms
+        ("vx-x86_64-apple-darwin.tar.gz", "macos", "x86_64"),
+        ("vx-aarch64-apple-darwin.tar.gz", "macos", "aarch64"),
     ];
 
     asset_configs
@@ -446,6 +523,7 @@ async fn download_with_fallback(client: &reqwest::Client, asset: &GitHubAsset) -
     // Define download channels in order of preference
     // If original URL is from CDN (jsDelivr), it means we got version info from CDN
     // so we should prefer CDN for downloads too
+    // Note: GitHub releases use tag format "vx-v{version}" (e.g., vx-v0.5.9)
     let channels = if asset.browser_download_url.contains("jsdelivr.net") {
         // CDN-first strategy (when version came from CDN)
         vec![
@@ -453,14 +531,14 @@ async fn download_with_fallback(client: &reqwest::Client, asset: &GitHubAsset) -
             (
                 "Fastly CDN",
                 format!(
-                    "https://fastly.jsdelivr.net/gh/loonghao/vx@v{}/{}",
+                    "https://fastly.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
                     version, asset.name
                 ),
             ),
             (
                 "GitHub Releases",
                 format!(
-                    "https://github.com/loonghao/vx/releases/download/v{}/{}",
+                    "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
                     version, asset.name
                 ),
             ),
@@ -472,14 +550,14 @@ async fn download_with_fallback(client: &reqwest::Client, asset: &GitHubAsset) -
             (
                 "jsDelivr CDN",
                 format!(
-                    "https://cdn.jsdelivr.net/gh/loonghao/vx@v{}/{}",
+                    "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
                     version, asset.name
                 ),
             ),
             (
                 "Fastly CDN",
                 format!(
-                    "https://fastly.jsdelivr.net/gh/loonghao/vx@v{}/{}",
+                    "https://fastly.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
                     version, asset.name
                 ),
             ),
@@ -535,14 +613,30 @@ async fn download_with_fallback(client: &reqwest::Client, asset: &GitHubAsset) -
 
 fn extract_version_from_url(url: &str) -> String {
     // Extract version from GitHub release URL or CDN URL
-    // Look for patterns like "/v1.2.3/" or "@v1.2.3"
+    // Look for patterns like "/vx-v1.2.3/", "/v1.2.3/", "@vx-v1.2.3", or "@v1.2.3"
     for part in url.split('/') {
+        // Handle "vx-v1.2.3" format (release-please format)
+        if part.starts_with("vx-v") && part.len() > 4 {
+            let version_part = &part[4..]; // Remove 'vx-v' prefix
+            if version_part.chars().next().unwrap_or('a').is_ascii_digit() {
+                return version_part.to_string();
+            }
+        }
+        // Handle "v1.2.3" format
         if part.starts_with('v') && part.len() > 1 {
             let version_part = &part[1..]; // Remove 'v' prefix
             if version_part.chars().next().unwrap_or('a').is_ascii_digit() {
                 return version_part.to_string();
             }
         }
+        // Handle "@vx-v1.2.3" format (CDN URL)
+        if part.starts_with("@vx-v") && part.len() > 5 {
+            let version_part = &part[5..]; // Remove '@vx-v' prefix
+            if version_part.chars().next().unwrap_or('a').is_ascii_digit() {
+                return version_part.to_string();
+            }
+        }
+        // Handle "@v1.2.3" format (CDN URL)
         if part.starts_with("@v") && part.len() > 2 {
             let version_part = &part[2..]; // Remove '@v' prefix
             if version_part.chars().next().unwrap_or('a').is_ascii_digit() {

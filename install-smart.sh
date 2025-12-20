@@ -56,13 +56,13 @@ detect_platform() {
 
     case "$arch" in
         x86_64|amd64) arch="x86_64" ;;
-        aarch64|arm64) arch="arm64" ;;
+        aarch64|arm64) arch="aarch64" ;;
         *) error "Unsupported architecture: $arch"; exit 1 ;;
     esac
 
     case "$os" in
-        linux) echo "Linux-musl-$arch" ;;
-        darwin) echo "macOS-$arch" ;;
+        linux) echo "linux-musl-$arch" ;;
+        darwin) echo "darwin-$arch" ;;
         *) error "Unsupported OS: $os"; exit 1 ;;
     esac
 }
@@ -70,13 +70,13 @@ detect_platform() {
 # Detect geographic region for optimal CDN selection
 detect_region() {
     local region="global"
-    
+
     # Try to detect region from various sources
     if command -v curl >/dev/null 2>&1; then
         # Try ipinfo.io for region detection
         local country
         country=$(curl -s --connect-timeout 3 --max-time 5 "https://ipinfo.io/country" 2>/dev/null || echo "")
-        
+
         case "$country" in
             CN|HK|TW|SG|JP|KR|MY|TH|VN|ID|PH) region="asia" ;;
             US|CA|MX|BR|AR|CL|PE|CO|VE) region="americas" ;;
@@ -85,7 +85,7 @@ detect_region() {
             *) region="global" ;;
         esac
     fi
-    
+
     debug "Detected region: $region"
     echo "$region"
 }
@@ -94,12 +94,12 @@ detect_region() {
 test_channel_speed() {
     local url="$1"
     local timeout="${2:-5}"
-    
+
     if command -v curl >/dev/null 2>&1; then
         # Test with a small HEAD request
         local start_time end_time duration
         start_time=$(date +%s%N 2>/dev/null || date +%s)
-        
+
         if curl -s --head --connect-timeout "$timeout" --max-time "$timeout" "$url" >/dev/null 2>&1; then
             end_time=$(date +%s%N 2>/dev/null || date +%s)
             if [[ "$start_time" =~ N ]]; then
@@ -111,7 +111,7 @@ test_channel_speed() {
             return 0
         fi
     fi
-    
+
     echo "999999"  # Return high value for failed tests
     return 1
 }
@@ -121,14 +121,14 @@ get_optimal_channels() {
     local region="$1"
     local version="$2"
     local platform="$3"
-    
+
     # Define all available channels
     local -A channels=(
         ["github"]="https://github.com/$REPO_OWNER/$REPO_NAME/releases/download/v$version"
         ["jsdelivr"]="https://cdn.jsdelivr.net/gh/$REPO_OWNER/$REPO_NAME@v$version"
         ["fastly"]="https://fastly.jsdelivr.net/gh/$REPO_OWNER/$REPO_NAME@v$version"
     )
-    
+
     # Region-specific channel preferences
     local channel_order
     case "$region" in
@@ -145,19 +145,19 @@ get_optimal_channels() {
             channel_order=("github" "jsdelivr" "fastly")
             ;;
     esac
-    
+
     # If user forced a specific channel, use it first
     if [[ -n "$VX_FORCE_CHANNEL" ]]; then
         debug "Using forced channel: $VX_FORCE_CHANNEL"
         echo "$VX_FORCE_CHANNEL ${channel_order[@]}" | tr ' ' '\n' | awk '!seen[$0]++'
         return
     fi
-    
+
     # Test channel speeds (optional, can be disabled for faster installs)
     if [[ "${VX_SPEED_TEST:-true}" == "true" ]]; then
         info "Testing channel speeds..."
         local -A speeds
-        
+
         for channel in "${channel_order[@]}"; do
             local test_url="${channels[$channel]}"
             local speed
@@ -165,7 +165,7 @@ get_optimal_channels() {
             speeds[$channel]=$speed
             debug "Channel $channel speed: ${speed}ms"
         done
-        
+
         # Sort channels by speed
         for channel in $(printf '%s\n' "${!speeds[@]}" | sort -k1,1 -t' ' | while read -r ch; do echo "$ch ${speeds[$ch]}"; done | sort -k2,2n | cut -d' ' -f1); do
             echo "$channel"
@@ -178,11 +178,11 @@ get_optimal_channels() {
 # Get latest version with intelligent fallback
 get_latest_version() {
     local region="$1"
-    
+
     # Try GitHub API first (with auth if available)
     local api_url="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
     local auth_header=""
-    
+
     if [[ -n "${GITHUB_TOKEN:-}" ]]; then
         auth_header="Authorization: Bearer $GITHUB_TOKEN"
         info "Using authenticated GitHub API request"
@@ -195,7 +195,7 @@ get_latest_version() {
         else
             response=$(curl -s "$api_url" 2>/dev/null || echo "")
         fi
-        
+
         if [[ -n "$response" ]] && ! echo "$response" | grep -q "rate limit\|429"; then
             local version
             version=$(echo "$response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//' || echo "")
@@ -210,7 +210,7 @@ get_latest_version() {
     # Fallback to jsDelivr API
     warn "GitHub API unavailable, trying jsDelivr API..."
     local jsdelivr_url="https://data.jsdelivr.com/v1/package/gh/$REPO_OWNER/$REPO_NAME"
-    
+
     if command -v curl >/dev/null 2>&1; then
         local jsdelivr_response
         jsdelivr_response=$(curl -s "$jsdelivr_url" 2>/dev/null || echo "")
@@ -243,13 +243,13 @@ download_with_smart_fallback() {
     local archive_name="$3"
     local temp_dir="$4"
     local region="$5"
-    
+
     local archive_path="$temp_dir/$archive_name"
     local channels
     readarray -t channels < <(get_optimal_channels "$region" "$version" "$platform")
-    
+
     info "Trying channels in optimal order for region: $region"
-    
+
     for channel in "${channels[@]}"; do
         local download_url
         case "$channel" in
@@ -267,9 +267,9 @@ download_with_smart_fallback() {
                 continue
                 ;;
         esac
-        
+
         info "Trying $channel: $download_url"
-        
+
         if command -v curl >/dev/null 2>&1; then
             if curl -fsSL --connect-timeout 10 --max-time 30 "$download_url" -o "$archive_path"; then
                 # Verify download
@@ -297,10 +297,10 @@ download_with_smart_fallback() {
                 fi
             fi
         fi
-        
+
         warn "Failed to download from $channel"
     done
-    
+
     return 1
 }
 
@@ -325,11 +325,12 @@ install_from_release() {
     info "Installing vx v$version for $platform (region: $region)"
 
     # Determine archive name based on platform
+    # Format: vx-{target}.tar.gz where target is the Rust target triple
     case "$platform" in
-        Linux-musl-x86_64) archive_name="vx-Linux-musl-x86_64.tar.gz" ;;
-        Linux-musl-arm64)   archive_name="vx-Linux-musl-arm64.tar.gz" ;;
-        macOS-x86_64)       archive_name="vx-macOS-x86_64.tar.gz" ;;
-        macOS-arm64)        archive_name="vx-macOS-arm64.tar.gz" ;;
+        linux-musl-x86_64)  archive_name="vx-x86_64-unknown-linux-musl.tar.gz" ;;
+        linux-musl-aarch64) archive_name="vx-aarch64-unknown-linux-musl.tar.gz" ;;
+        darwin-x86_64)      archive_name="vx-x86_64-apple-darwin.tar.gz" ;;
+        darwin-aarch64)     archive_name="vx-aarch64-apple-darwin.tar.gz" ;;
         *) error "Unsupported platform: $platform"; exit 1 ;;
     esac
 
@@ -340,12 +341,12 @@ install_from_release() {
     # Download with smart fallback
     if ! download_with_smart_fallback "$version" "$platform" "$archive_name" "$temp_dir" "$region"; then
         # Try fallback archive for Linux (musl -> gnu)
-        if [[ "$platform" == Linux-musl-* ]]; then
+        if [[ "$platform" == linux-musl-* ]]; then
             warn "Musl binary failed, trying GNU libc version..."
             local fallback_archive
             case "$platform" in
-                Linux-musl-x86_64) fallback_archive="vx-Linux-gnu-x86_64.tar.gz" ;;
-                Linux-musl-arm64)  fallback_archive="vx-Linux-gnu-arm64.tar.gz" ;;
+                linux-musl-x86_64)  fallback_archive="vx-x86_64-unknown-linux-gnu.tar.gz" ;;
+                linux-musl-aarch64) fallback_archive="vx-aarch64-unknown-linux-gnu.tar.gz" ;;
             esac
 
             if [[ -n "$fallback_archive" ]] && download_with_smart_fallback "$version" "$platform" "$fallback_archive" "$temp_dir" "$region"; then
