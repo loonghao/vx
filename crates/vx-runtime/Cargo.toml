@@ -28,7 +28,7 @@ reqwest = { workspace = true }
 tar = { workspace = true }
 flate2 = { workspace = true }
 liblzma = { workspace = true }
-zip = "6.0"
+zip = "7.0"
 tempfile = { workspace = true }
 
 # Utilities
