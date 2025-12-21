@@ -186,14 +186,14 @@ jobs:
 
   # MSRV check
   msrv:
-    name: MSRV (1.80.0)
+    name: MSRV (1.83.0)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
       - name: Setup Rust MSRV
-        uses: dtolnay/rust-toolchain@1.80.0
+        uses: dtolnay/rust-toolchain@1.83.0
 
       - name: Cache Rust
         uses: actions/cache@v5

@@ -3,13 +3,13 @@
 //! This command reads the .vx.toml configuration and installs all required
 //! tools, making the project ready for development.
 
-use crate::ui::UI;
+use crate::ui::{InstallProgress, UI};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::Instant;
 use vx_paths::PathManager;
@@ -262,33 +262,32 @@ async fn check_tool_status(
     Ok(statuses)
 }
 
-/// Install tools sequentially
+/// Install tools sequentially with modern progress display
 async fn install_tools_sequential(
     tools: &[ToolStatus],
-    verbose: bool,
+    _verbose: bool,
 ) -> Result<Vec<(ToolStatus, bool)>> {
     let mut results = Vec::new();
+    let mut progress = InstallProgress::new(tools.len(), "Installing tools");
 
     for tool in tools {
-        UI::info(&format!("Installing {}@{}...", tool.name, tool.version));
+        progress.start_tool(&tool.name, &tool.version);
 
-        let success = install_single_tool(&tool.name, &tool.version, verbose).await;
+        let success = install_single_tool(&tool.name, &tool.version, false).await;
+        progress.complete_tool(success, &tool.name, &tool.version);
         results.push((tool.clone(), success));
-
-        if success {
-            UI::success(&format!("  ✓ {}@{}", tool.name, tool.version));
-        } else {
-            UI::error(&format!("  ✗ {}@{}", tool.name, tool.version));
-        }
     }
+
+    let successful = results.iter().filter(|(_, ok)| *ok).count();
+    progress.finish(&format!("✓ {} tools installed", successful));
 
     Ok(results)
 }
 
-/// Install tools in parallel
+/// Install tools in parallel with modern progress display
 async fn install_tools_parallel(
     tools: &[ToolStatus],
-    verbose: bool,
+    _verbose: bool,
 ) -> Result<Vec<(ToolStatus, bool)>> {
     use tokio::task::JoinSet;
 
@@ -297,10 +296,9 @@ async fn install_tools_parallel(
 
     for tool in tools.iter() {
         let tool = tool.clone();
-        let v = verbose;
 
         join_set.spawn(async move {
-            let success = install_single_tool(&tool.name, &tool.version, v).await;
+            let success = install_single_tool(&tool.name, &tool.version, false).await;
             (tool, success)
         });
     }
@@ -327,9 +325,9 @@ async fn install_single_tool(name: &str, version: &str, _verbose: bool) -> bool 
     let mut cmd = Command::new(exe);
     cmd.args(["install", name, version]);
 
-    // Suppress output unless verbose
-    cmd.stdout(std::process::Stdio::null());
-    cmd.stderr(std::process::Stdio::null());
+    // Suppress output for clean progress display
+    cmd.stdout(Stdio::null());
+    cmd.stderr(Stdio::null());
 
     match cmd.status() {
         Ok(status) => status.success(),

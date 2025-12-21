@@ -2,7 +2,7 @@
 //!
 //! This module provides:
 //! - Consistent output formatting (UI)
-//! - Progress indicators (ProgressSpinner, DownloadProgress, MultiProgress)
+//! - Modern progress indicators (ProgressSpinner, DownloadProgress, MultiProgress)
 //! - Global progress manager (ProgressManager)
 //! - Tool suggestion display for friendly error messages
 
@@ -63,7 +63,7 @@ impl ProgressManager {
         let bar = self.multi.add(ProgressBar::new(total_size));
         bar.set_style(
             ProgressStyle::with_template(
-                "{spinner:.green} {msg}\n{wide_bar:.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"
+                "{spinner:.green} {msg}\n  {wide_bar:.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"
             )
             .unwrap()
             .progress_chars("━━╺"),
@@ -449,29 +449,29 @@ impl ProgressSpinner {
         Self { bar }
     }
 
-    /// Create a spinner for download operations
+    /// Create a spinner for download operations with modern style
     pub fn new_download(message: &str) -> Self {
         let bar = ProgressBar::new_spinner();
         bar.set_style(
             ProgressStyle::with_template("{spinner:.green} {msg}")
                 .unwrap()
-                .tick_strings(&["▹▹▹▹▹", "▸▹▹▹▹", "▹▸▹▹▹", "▹▹▸▹▹", "▹▹▹▸▹", "▹▹▹▹▸"]),
+                .tick_strings(&["◜", "◠", "◝", "◞", "◡", "◟"]),
         );
         bar.set_message(message.to_string());
-        bar.enable_steady_tick(Duration::from_millis(120));
+        bar.enable_steady_tick(Duration::from_millis(100));
         Self { bar }
     }
 
-    /// Create a spinner for installation operations
+    /// Create a spinner for installation operations with modern style
     pub fn new_install(message: &str) -> Self {
         let bar = ProgressBar::new_spinner();
         bar.set_style(
             ProgressStyle::with_template("{spinner:.blue} {msg}")
                 .unwrap()
-                .tick_strings(&["◐", "◓", "◑", "◒"]),
+                .tick_strings(&["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]),
         );
         bar.set_message(message.to_string());
-        bar.enable_steady_tick(Duration::from_millis(100));
+        bar.enable_steady_tick(Duration::from_millis(80));
         Self { bar }
     }
 
@@ -511,12 +511,12 @@ pub struct DownloadProgress {
 }
 
 impl DownloadProgress {
-    /// Create a new download progress bar
+    /// Create a new download progress bar with modern style
     pub fn new(total_size: u64, message: &str) -> Self {
         let bar = ProgressBar::new(total_size);
         bar.set_style(
             ProgressStyle::with_template(
-                "{spinner:.green} {msg}\n{wide_bar:.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"
+                "{spinner:.green} {msg}\n  {wide_bar:.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"
             )
             .unwrap()
             .progress_chars("━━╺"),
@@ -577,7 +577,7 @@ impl Drop for DownloadProgress {
     }
 }
 
-/// Multi-step progress indicator
+/// Multi-step progress indicator with modern style
 pub struct MultiProgress {
     steps: Vec<String>,
     current: usize,
@@ -626,6 +626,84 @@ impl Drop for MultiProgress {
     fn drop(&mut self) {
         if !self.bar.is_finished() {
             self.bar.finish_and_clear();
+        }
+    }
+}
+
+/// Installation progress tracker for multi-tool installations
+pub struct InstallProgress {
+    multi: IndicatifMultiProgress,
+    main_bar: ProgressBar,
+    current_bar: Option<ProgressBar>,
+}
+
+impl InstallProgress {
+    /// Create a new installation progress tracker
+    pub fn new(total_tools: usize, title: &str) -> Self {
+        let multi = IndicatifMultiProgress::new();
+
+        // Main progress bar showing overall progress
+        let main_bar = multi.add(ProgressBar::new(total_tools as u64));
+        main_bar.set_style(
+            ProgressStyle::with_template("{msg}\n  {wide_bar:.green/dim} {pos}/{len} tools")
+                .unwrap()
+                .progress_chars("━━╺"),
+        );
+        main_bar.set_message(title.to_string());
+
+        Self {
+            multi,
+            main_bar,
+            current_bar: None,
+        }
+    }
+
+    /// Start installing a tool
+    pub fn start_tool(&mut self, tool_name: &str, version: &str) {
+        // Clear previous tool bar if any
+        if let Some(bar) = self.current_bar.take() {
+            bar.finish_and_clear();
+        }
+
+        // Create new spinner for current tool
+        let bar = self.multi.add(ProgressBar::new_spinner());
+        bar.set_style(
+            ProgressStyle::with_template("  {spinner:.blue} Installing {msg}")
+                .unwrap()
+                .tick_strings(&["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]),
+        );
+        bar.set_message(format!("{}@{}", tool_name, version));
+        bar.enable_steady_tick(Duration::from_millis(80));
+        self.current_bar = Some(bar);
+    }
+
+    /// Mark current tool as completed
+    pub fn complete_tool(&mut self, success: bool, tool_name: &str, version: &str) {
+        if let Some(bar) = self.current_bar.take() {
+            if success {
+                bar.finish_with_message(format!("{} {}@{}", "✓".green(), tool_name, version));
+            } else {
+                bar.finish_with_message(format!("{} {}@{}", "✗".red(), tool_name, version));
+            }
+        }
+        self.main_bar.inc(1);
+    }
+
+    /// Finish all installations
+    pub fn finish(&self, message: &str) {
+        self.main_bar.finish_with_message(message.to_string());
+    }
+}
+
+impl Drop for InstallProgress {
+    fn drop(&mut self) {
+        if let Some(bar) = self.current_bar.take() {
+            if !bar.is_finished() {
+                bar.finish_and_clear();
+            }
+        }
+        if !self.main_bar.is_finished() {
+            self.main_bar.finish_and_clear();
         }
     }
 }

@@ -76,7 +76,7 @@ authors = ["Hal <hal.long@outlook.com>"]
 keywords = ["version", "manager", "development", "tools", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 readme = "README.md"
-rust-version = "1.80.0"
+rust-version = "1.83.0"
 
 
 [workspace.dependencies]

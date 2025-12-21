@@ -2,7 +2,6 @@
 
 use crate::ui::{ProgressSpinner, UI};
 use anyhow::Result;
-use tracing::{info_span, Instrument};
 use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 pub async fn handle(
@@ -30,10 +29,7 @@ pub async fn handle(
         // Get latest version with progress spinner
         let spinner =
             ProgressSpinner::new(&format!("Fetching latest version for {}...", tool_name));
-        let span = info_span!("Fetching latest version", tool = tool_name);
-        let versions = async { runtime.fetch_versions(context).await }
-            .instrument(span)
-            .await?;
+        let versions = runtime.fetch_versions(context).await?;
         spinner.finish_and_clear();
 
         if versions.is_empty() {
@@ -59,19 +55,12 @@ pub async fn handle(
     }
 
     // Run pre-install hook
-    let pre_install_span =
-        info_span!("Pre-install hook", tool = tool_name, version = %target_version);
-    async { runtime.pre_install(&target_version, context).await }
-        .instrument(pre_install_span)
-        .await?;
+    runtime.pre_install(&target_version, context).await?;
 
     // Install the version with progress spinner
     let spinner =
         ProgressSpinner::new_install(&format!("Installing {} {}...", tool_name, target_version));
-    let install_span = info_span!("Installing tool", tool = tool_name, version = %target_version);
-    let install_result = async { runtime.install(&target_version, context).await }
-        .instrument(install_span)
-        .await;
+    let install_result = runtime.install(&target_version, context).await;
 
     match install_result {
         Ok(result) => {
@@ -81,11 +70,7 @@ pub async fn handle(
             ));
 
             // Run post-install hook
-            let post_install_span =
-                info_span!("Post-install hook", tool = tool_name, version = %target_version);
-            async { runtime.post_install(&target_version, context).await }
-                .instrument(post_install_span)
-                .await?;
+            runtime.post_install(&target_version, context).await?;
 
             // Show installation path
             UI::detail(&format!("Installed to: {}", result.install_path.display()));

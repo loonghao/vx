@@ -162,7 +162,7 @@ For better performance, choose files ending with `_pgo` (Profile-Guided Optimiza
 ## 🔧 Build from Source
 
 ### Prerequisites
-- Rust 1.80.0 or later
+- Rust 1.83.0 or later
 - Git
 
 ### Build Steps
