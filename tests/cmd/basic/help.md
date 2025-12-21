@@ -29,6 +29,11 @@ Commands:
   venv         Virtual environment management
   global       Global tool management
   env          Environment management
+  dev          Enter development environment with all project tools
+  setup        Setup development environment (install all project tools)
+  add          Add a tool to project configuration
+  rm-tool      Remove a tool from project configuration
+  run          Run a script defined in .vx.toml
   help         Print this message or the help of the given subcommand(s)
 
 Arguments:
