@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.5.11](https://github.com/loonghao/vx/compare/vx-v0.5.10...vx-v0.5.11) (2025-12-21)
+
+
+### Features
+
+* **cli:** add project development environment commands ([0ad51e4](https://github.com/loonghao/vx/commit/0ad51e4d119b27df2ae673a440544373917f5674))
+
 ## [0.5.10](https://github.com/loonghao/vx/compare/vx-v0.5.9...vx-v0.5.10) (2025-12-20)
 
 
