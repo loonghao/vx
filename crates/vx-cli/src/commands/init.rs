@@ -1,11 +1,80 @@
-// Init command implementation
+// Init command implementation - Smart project initialization
+//
+// Detects project type and generates appropriate vx configuration
 
 use crate::ui::UI;
+use anyhow::Result;
 use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Write};
+use std::path::Path;
 
-use anyhow::Result;
+/// Project detection result
+#[derive(Debug, Clone)]
+pub struct ProjectDetection {
+    /// Detected project types
+    pub project_types: Vec<ProjectType>,
+    /// Recommended tools with versions
+    pub tools: HashMap<String, String>,
+    /// Detected package manager
+    pub package_manager: Option<PackageManager>,
+    /// Project name (from package.json, pyproject.toml, etc.)
+    pub project_name: Option<String>,
+    /// Additional configuration hints
+    pub hints: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ProjectType {
+    NodeJs,
+    Python,
+    Rust,
+    Go,
+    Justfile,
+    Mixed,
+}
+
+impl std::fmt::Display for ProjectType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProjectType::NodeJs => write!(f, "Node.js"),
+            ProjectType::Python => write!(f, "Python"),
+            ProjectType::Rust => write!(f, "Rust"),
+            ProjectType::Go => write!(f, "Go"),
+            ProjectType::Justfile => write!(f, "Justfile"),
+            ProjectType::Mixed => write!(f, "Mixed"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PackageManager {
+    Npm,
+    Yarn,
+    Pnpm,
+    Bun,
+    Uv,
+    Pip,
+    Poetry,
+    Cargo,
+    GoMod,
+}
+
+impl std::fmt::Display for PackageManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PackageManager::Npm => write!(f, "npm"),
+            PackageManager::Yarn => write!(f, "yarn"),
+            PackageManager::Pnpm => write!(f, "pnpm"),
+            PackageManager::Bun => write!(f, "bun"),
+            PackageManager::Uv => write!(f, "uv"),
+            PackageManager::Pip => write!(f, "pip"),
+            PackageManager::Poetry => write!(f, "poetry"),
+            PackageManager::Cargo => write!(f, "cargo"),
+            PackageManager::GoMod => write!(f, "go"),
+        }
+    }
+}
 
 pub async fn handle(
     interactive: bool,
@@ -57,8 +126,8 @@ pub async fn handle(
     println!();
     println!("Next steps:");
     println!("  1. Review the configuration: cat .vx.toml");
-    println!("  2. Install tools: vx sync");
-    println!("  3. Start using tools: vx <tool> --version");
+    println!("  2. Setup development environment: vx setup");
+    println!("  3. Or enter dev shell: vx dev");
     println!();
     println!("Optional:");
     println!("  - Add to version control: git add .vx.toml");
@@ -71,7 +140,11 @@ fn list_available_templates() -> Result<()> {
     UI::info("Available templates:");
     println!();
     println!("  node        - Node.js project with npm");
+    println!("  node-pnpm   - Node.js project with pnpm");
+    println!("  node-yarn   - Node.js project with yarn");
+    println!("  node-bun    - Node.js project with bun");
     println!("  python      - Python project with uv");
+    println!("  python-pip  - Python project with pip");
     println!("  rust        - Rust project with cargo");
     println!("  go          - Go project");
     println!("  fullstack   - Full-stack project (Node.js + Python)");
@@ -84,8 +157,32 @@ fn list_available_templates() -> Result<()> {
 async fn generate_interactive_config() -> Result<String> {
     UI::header("🚀 VX Project Initialization");
 
+    // First, show auto-detected configuration
+    let current_dir = std::env::current_dir()?;
+    let detection = detect_project(&current_dir)?;
+
+    if !detection.project_types.is_empty() {
+        println!();
+        UI::info(&format!(
+            "🔍 Detected project type: {}",
+            detection
+                .project_types
+                .iter()
+                .map(|t| t.to_string())
+                .collect::<Vec<_>>()
+                .join(" + ")
+        ));
+        if let Some(pm) = &detection.package_manager {
+            UI::info(&format!("📦 Package manager: {}", pm));
+        }
+        if let Some(name) = &detection.project_name {
+            UI::info(&format!("📁 Project name: {}", name));
+        }
+        println!();
+    }
+
     // Get project name
-    print!("Project name (optional): ");
+    print!("Project name (optional, press Enter to skip): ");
     io::stdout().flush().unwrap();
     let mut project_name = String::new();
     io::stdin().read_line(&mut project_name).unwrap();
@@ -98,31 +195,64 @@ async fn generate_interactive_config() -> Result<String> {
     io::stdin().read_line(&mut description).unwrap();
     let description = description.trim();
 
-    // Select tools
+    // Use detected tools or ask for selection
     println!();
-    println!("Select tools to include:");
+    println!("Select tools to include (detected tools are pre-selected):");
     let available_tools = vec![
-        ("node", "18.17.0", "Node.js JavaScript runtime"),
+        ("node", "20", "Node.js JavaScript runtime"),
         ("npm", "latest", "Node.js package manager"),
-        ("python", "3.11", "Python interpreter"),
+        (
+            "pnpm",
+            "latest",
+            "Fast, disk space efficient package manager",
+        ),
+        ("yarn", "latest", "Package manager for JavaScript"),
+        ("bun", "latest", "Fast JavaScript runtime & bundler"),
+        ("python", "3.12", "Python interpreter"),
         ("uv", "latest", "Fast Python package manager"),
         ("go", "latest", "Go programming language"),
-        ("cargo", "latest", "Rust package manager"),
+        ("rust", "latest", "Rust programming language"),
+        ("just", "latest", "Command runner"),
     ];
 
     let mut selected_tools = HashMap::new();
+
+    // Pre-select detected tools
+    for (tool, version) in &detection.tools {
+        selected_tools.insert(tool.clone(), version.clone());
+    }
+
     for (tool, default_version, desc) in &available_tools {
-        print!("Include {} ({})? (y/N): ", tool, desc);
+        let is_detected = detection.tools.contains_key(*tool);
+        let marker = if is_detected { " [detected]" } else { "" };
+        let default = if is_detected { "Y" } else { "n" };
+
+        print!(
+            "Include {} ({}){}? (y/N, default: {}): ",
+            tool, desc, marker, default
+        );
         io::stdout().flush().unwrap();
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
-        if input.trim().to_lowercase().starts_with('y') {
-            selected_tools.insert(tool.to_string(), default_version.to_string());
+        let input = input.trim().to_lowercase();
+
+        let should_include = if input.is_empty() {
+            is_detected
+        } else {
+            input.starts_with('y')
+        };
+
+        if should_include {
+            if !selected_tools.contains_key(*tool) {
+                selected_tools.insert(tool.to_string(), default_version.to_string());
+            }
+        } else {
+            selected_tools.remove(*tool);
         }
     }
 
     if selected_tools.is_empty() {
-        selected_tools.insert("node".to_string(), "18.17.0".to_string());
+        selected_tools.insert("node".to_string(), "20".to_string());
         UI::info("No tools selected, adding Node.js as default");
     }
 
@@ -133,19 +263,41 @@ fn generate_template_config(template_name: &str) -> Result<String> {
     let tools = match template_name {
         "node" => {
             let mut tools = HashMap::new();
-            tools.insert("node".to_string(), "18.17.0".to_string());
+            tools.insert("node".to_string(), "20".to_string());
             tools.insert("npm".to_string(), "latest".to_string());
+            tools
+        }
+        "node-pnpm" => {
+            let mut tools = HashMap::new();
+            tools.insert("node".to_string(), "20".to_string());
+            tools.insert("pnpm".to_string(), "latest".to_string());
+            tools
+        }
+        "node-yarn" => {
+            let mut tools = HashMap::new();
+            tools.insert("node".to_string(), "20".to_string());
+            tools.insert("yarn".to_string(), "latest".to_string());
+            tools
+        }
+        "node-bun" => {
+            let mut tools = HashMap::new();
+            tools.insert("bun".to_string(), "latest".to_string());
             tools
         }
         "python" => {
             let mut tools = HashMap::new();
-            tools.insert("python".to_string(), "3.11".to_string());
+            tools.insert("python".to_string(), "3.12".to_string());
             tools.insert("uv".to_string(), "latest".to_string());
+            tools
+        }
+        "python-pip" => {
+            let mut tools = HashMap::new();
+            tools.insert("python".to_string(), "3.12".to_string());
             tools
         }
         "rust" => {
             let mut tools = HashMap::new();
-            tools.insert("cargo".to_string(), "latest".to_string());
+            tools.insert("rust".to_string(), "latest".to_string());
             tools
         }
         "go" => {
@@ -155,8 +307,9 @@ fn generate_template_config(template_name: &str) -> Result<String> {
         }
         "fullstack" => {
             let mut tools = HashMap::new();
-            tools.insert("node".to_string(), "18.17.0".to_string());
-            tools.insert("python".to_string(), "3.11".to_string());
+            tools.insert("node".to_string(), "20".to_string());
+            tools.insert("pnpm".to_string(), "latest".to_string());
+            tools.insert("python".to_string(), "3.12".to_string());
             tools.insert("uv".to_string(), "latest".to_string());
             tools
         }
@@ -190,55 +343,411 @@ fn generate_tools_config(tools_str: &str) -> Result<String> {
     generate_config_content("", "", &tools, false)
 }
 
+/// Detect project type and recommended tools from the current directory
+pub fn detect_project(dir: &Path) -> Result<ProjectDetection> {
+    let mut detection = ProjectDetection {
+        project_types: Vec::new(),
+        tools: HashMap::new(),
+        package_manager: None,
+        project_name: None,
+        hints: Vec::new(),
+    };
+
+    // Check for Node.js project
+    if let Some(node_info) = detect_nodejs_project(dir)? {
+        detection.project_types.push(ProjectType::NodeJs);
+        detection.tools.extend(node_info.tools);
+        if detection.package_manager.is_none() {
+            detection.package_manager = node_info.package_manager;
+        }
+        if detection.project_name.is_none() {
+            detection.project_name = node_info.project_name;
+        }
+        detection.hints.extend(node_info.hints);
+    }
+
+    // Check for Python project
+    if let Some(python_info) = detect_python_project(dir)? {
+        detection.project_types.push(ProjectType::Python);
+        detection.tools.extend(python_info.tools);
+        if detection.package_manager.is_none() {
+            detection.package_manager = python_info.package_manager;
+        }
+        if detection.project_name.is_none() {
+            detection.project_name = python_info.project_name;
+        }
+        detection.hints.extend(python_info.hints);
+    }
+
+    // Check for Go project
+    if dir.join("go.mod").exists() {
+        detection.project_types.push(ProjectType::Go);
+        detection
+            .tools
+            .insert("go".to_string(), "latest".to_string());
+        if detection.package_manager.is_none() {
+            detection.package_manager = Some(PackageManager::GoMod);
+        }
+
+        // Try to get module name
+        if let Ok(content) = fs::read_to_string(dir.join("go.mod")) {
+            if let Some(line) = content.lines().next() {
+                if let Some(module_name) = line.strip_prefix("module ") {
+                    if detection.project_name.is_none() {
+                        detection.project_name = Some(module_name.trim().to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    // Check for Rust project
+    if dir.join("Cargo.toml").exists() {
+        detection.project_types.push(ProjectType::Rust);
+        detection
+            .tools
+            .insert("rust".to_string(), "latest".to_string());
+        if detection.package_manager.is_none() {
+            detection.package_manager = Some(PackageManager::Cargo);
+        }
+
+        // Try to get package name from Cargo.toml
+        if let Ok(content) = fs::read_to_string(dir.join("Cargo.toml")) {
+            for line in content.lines() {
+                if let Some(name) = line.strip_prefix("name = ") {
+                    let name = name.trim().trim_matches('"');
+                    if detection.project_name.is_none() {
+                        detection.project_name = Some(name.to_string());
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    // Check for Justfile
+    if dir.join("justfile").exists() || dir.join("Justfile").exists() {
+        detection.project_types.push(ProjectType::Justfile);
+        detection
+            .tools
+            .insert("just".to_string(), "latest".to_string());
+        detection
+            .hints
+            .push("Justfile detected - 'just' command runner will be available".to_string());
+    }
+
+    // Mark as mixed if multiple project types
+    if detection.project_types.len() > 1 {
+        detection.project_types.insert(0, ProjectType::Mixed);
+    }
+
+    Ok(detection)
+}
+
+#[derive(Debug)]
+struct NodeJsDetection {
+    tools: HashMap<String, String>,
+    package_manager: Option<PackageManager>,
+    project_name: Option<String>,
+    hints: Vec<String>,
+}
+
+fn detect_nodejs_project(dir: &Path) -> Result<Option<NodeJsDetection>> {
+    let package_json_path = dir.join("package.json");
+    if !package_json_path.exists() {
+        return Ok(None);
+    }
+
+    let mut detection = NodeJsDetection {
+        tools: HashMap::new(),
+        package_manager: None,
+        project_name: None,
+        hints: Vec::new(),
+    };
+
+    // Parse package.json
+    if let Ok(content) = fs::read_to_string(&package_json_path) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+            // Get project name
+            if let Some(name) = json.get("name").and_then(|v| v.as_str()) {
+                detection.project_name = Some(name.to_string());
+            }
+
+            // Check for packageManager field (corepack)
+            if let Some(pm) = json.get("packageManager").and_then(|v| v.as_str()) {
+                if pm.starts_with("pnpm") {
+                    detection.package_manager = Some(PackageManager::Pnpm);
+                    detection
+                        .tools
+                        .insert("pnpm".to_string(), "latest".to_string());
+                } else if pm.starts_with("yarn") {
+                    detection.package_manager = Some(PackageManager::Yarn);
+                    detection
+                        .tools
+                        .insert("yarn".to_string(), "latest".to_string());
+                } else if pm.starts_with("npm") {
+                    detection.package_manager = Some(PackageManager::Npm);
+                    detection
+                        .tools
+                        .insert("npm".to_string(), "latest".to_string());
+                } else if pm.starts_with("bun") {
+                    detection.package_manager = Some(PackageManager::Bun);
+                    detection
+                        .tools
+                        .insert("bun".to_string(), "latest".to_string());
+                }
+            }
+
+            // Check engines field for Node.js version
+            if let Some(engines) = json.get("engines") {
+                if let Some(node_version) = engines.get("node").and_then(|v| v.as_str()) {
+                    // Parse version constraint (e.g., ">=18.0.0", "^20.0.0", "20.x")
+                    let version = parse_node_version_constraint(node_version);
+                    detection.tools.insert("node".to_string(), version);
+                }
+            }
+        }
+    }
+
+    // Detect package manager from lock files
+    if detection.package_manager.is_none() {
+        if dir.join("pnpm-lock.yaml").exists() {
+            detection.package_manager = Some(PackageManager::Pnpm);
+            detection
+                .tools
+                .insert("pnpm".to_string(), "latest".to_string());
+            detection
+                .hints
+                .push("Detected pnpm from pnpm-lock.yaml".to_string());
+        } else if dir.join("yarn.lock").exists() {
+            detection.package_manager = Some(PackageManager::Yarn);
+            detection
+                .tools
+                .insert("yarn".to_string(), "latest".to_string());
+            detection
+                .hints
+                .push("Detected yarn from yarn.lock".to_string());
+        } else if dir.join("bun.lockb").exists() || dir.join("bun.lock").exists() {
+            detection.package_manager = Some(PackageManager::Bun);
+            detection
+                .tools
+                .insert("bun".to_string(), "latest".to_string());
+            detection
+                .hints
+                .push("Detected bun from bun.lockb".to_string());
+        } else if dir.join("package-lock.json").exists() {
+            detection.package_manager = Some(PackageManager::Npm);
+            detection
+                .tools
+                .insert("npm".to_string(), "latest".to_string());
+            detection
+                .hints
+                .push("Detected npm from package-lock.json".to_string());
+        } else {
+            // Default to npm
+            detection.package_manager = Some(PackageManager::Npm);
+            detection
+                .tools
+                .insert("npm".to_string(), "latest".to_string());
+        }
+    }
+
+    // Ensure node is added if not specified
+    if !detection.tools.contains_key("node") && !detection.tools.contains_key("bun") {
+        detection.tools.insert("node".to_string(), "20".to_string());
+    }
+
+    Ok(Some(detection))
+}
+
+fn parse_node_version_constraint(constraint: &str) -> String {
+    // Handle common version constraints
+    let constraint = constraint.trim();
+
+    // Remove operators
+    let version = constraint
+        .trim_start_matches(">=")
+        .trim_start_matches("<=")
+        .trim_start_matches('>')
+        .trim_start_matches('<')
+        .trim_start_matches('^')
+        .trim_start_matches('~')
+        .trim_start_matches('=')
+        .trim();
+
+    // Handle .x notation (e.g., "20.x" -> "20")
+    if let Some(base) = version.split('.').next() {
+        if let Ok(major) = base.parse::<u32>() {
+            return major.to_string();
+        }
+    }
+
+    // Return as-is if we can't parse
+    version.to_string()
+}
+
+#[derive(Debug)]
+struct PythonDetection {
+    tools: HashMap<String, String>,
+    package_manager: Option<PackageManager>,
+    project_name: Option<String>,
+    hints: Vec<String>,
+}
+
+fn detect_python_project(dir: &Path) -> Result<Option<PythonDetection>> {
+    let pyproject_path = dir.join("pyproject.toml");
+    let requirements_path = dir.join("requirements.txt");
+    let setup_py_path = dir.join("setup.py");
+
+    if !pyproject_path.exists() && !requirements_path.exists() && !setup_py_path.exists() {
+        return Ok(None);
+    }
+
+    let mut detection = PythonDetection {
+        tools: HashMap::new(),
+        package_manager: None,
+        project_name: None,
+        hints: Vec::new(),
+    };
+
+    // Default Python version
+    detection
+        .tools
+        .insert("python".to_string(), "3.12".to_string());
+
+    // Parse pyproject.toml
+    if pyproject_path.exists() {
+        if let Ok(content) = fs::read_to_string(&pyproject_path) {
+            // Check for uv
+            if content.contains("[tool.uv]") || dir.join("uv.lock").exists() {
+                detection.package_manager = Some(PackageManager::Uv);
+                detection
+                    .tools
+                    .insert("uv".to_string(), "latest".to_string());
+                detection
+                    .hints
+                    .push("Detected uv from pyproject.toml or uv.lock".to_string());
+            }
+            // Check for poetry
+            else if content.contains("[tool.poetry]") || dir.join("poetry.lock").exists() {
+                detection.package_manager = Some(PackageManager::Poetry);
+                detection
+                    .hints
+                    .push("Detected poetry from pyproject.toml".to_string());
+            }
+
+            // Try to get project name
+            for line in content.lines() {
+                if let Some(name) = line.strip_prefix("name = ") {
+                    let name = name.trim().trim_matches('"');
+                    detection.project_name = Some(name.to_string());
+                    break;
+                }
+            }
+
+            // Try to get Python version requirement
+            for line in content.lines() {
+                if line.contains("requires-python") || line.contains("python_requires") {
+                    if let Some(version) = extract_python_version(line) {
+                        detection.tools.insert("python".to_string(), version);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Check for uv.lock
+    if detection.package_manager.is_none() && dir.join("uv.lock").exists() {
+        detection.package_manager = Some(PackageManager::Uv);
+        detection
+            .tools
+            .insert("uv".to_string(), "latest".to_string());
+        detection.hints.push("Detected uv from uv.lock".to_string());
+    }
+
+    // Default to uv if no package manager detected (it's the fastest)
+    if detection.package_manager.is_none() {
+        detection.package_manager = Some(PackageManager::Uv);
+        detection
+            .tools
+            .insert("uv".to_string(), "latest".to_string());
+        detection
+            .hints
+            .push("Recommending uv as default Python package manager".to_string());
+    }
+
+    Ok(Some(detection))
+}
+
+fn extract_python_version(line: &str) -> Option<String> {
+    // Handle formats like: requires-python = ">=3.10"
+    if let Some(start) = line.find('"') {
+        if let Some(end) = line.rfind('"') {
+            if start < end {
+                let version_str = &line[start + 1..end];
+                // Parse version constraint
+                let version = version_str
+                    .trim_start_matches(">=")
+                    .trim_start_matches("<=")
+                    .trim_start_matches('>')
+                    .trim_start_matches('<')
+                    .trim_start_matches('^')
+                    .trim_start_matches('~')
+                    .trim_start_matches('=')
+                    .split(',')
+                    .next()
+                    .unwrap_or("3.12")
+                    .trim();
+                return Some(version.to_string());
+            }
+        }
+    }
+    None
+}
+
 async fn generate_auto_detected_config() -> Result<String> {
     let current_dir = std::env::current_dir()
         .map_err(|e| anyhow::anyhow!("Failed to get current directory: {}", e))?;
 
-    let mut tools = HashMap::new();
-    let mut detected_types = Vec::new();
+    let detection = detect_project(&current_dir)?;
 
-    // Check for Node.js project
-    if current_dir.join("package.json").exists() {
-        tools.insert("node".to_string(), "18.17.0".to_string());
-        tools.insert("npm".to_string(), "latest".to_string());
-        detected_types.push("Node.js");
-        UI::info("🔍 Detected Node.js project (package.json found)");
-    }
-
-    // Check for Python project
-    if current_dir.join("pyproject.toml").exists() || current_dir.join("requirements.txt").exists()
-    {
-        tools.insert("python".to_string(), "3.11".to_string());
-        tools.insert("uv".to_string(), "latest".to_string());
-        detected_types.push("Python");
-        UI::info("🔍 Detected Python project");
-    }
-
-    // Check for Go project
-    if current_dir.join("go.mod").exists() {
-        tools.insert("go".to_string(), "latest".to_string());
-        detected_types.push("Go");
-        UI::info("🔍 Detected Go project (go.mod found)");
-    }
-
-    // Check for Rust project
-    if current_dir.join("Cargo.toml").exists() {
-        tools.insert("cargo".to_string(), "latest".to_string());
-        detected_types.push("Rust");
-        UI::info("🔍 Detected Rust project (Cargo.toml found)");
-    }
-
-    if tools.is_empty() {
+    if detection.project_types.is_empty() {
         UI::info("No project type detected, creating minimal configuration");
-        tools.insert("node".to_string(), "18.17.0".to_string());
-    } else if detected_types.len() > 1 {
-        UI::info(&format!(
-            "🔍 Detected mixed project ({})",
-            detected_types.join(" + ")
-        ));
+        let mut tools = HashMap::new();
+        tools.insert("node".to_string(), "20".to_string());
+        return generate_config_content("", "", &tools, false);
     }
 
-    generate_config_content("", "", &tools, false)
+    // Show detection results
+    let project_types_str = detection
+        .project_types
+        .iter()
+        .filter(|t| **t != ProjectType::Mixed)
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>()
+        .join(" + ");
+
+    UI::info(&format!("🔍 Detected project type: {}", project_types_str));
+
+    if let Some(pm) = &detection.package_manager {
+        UI::info(&format!("📦 Package manager: {}", pm));
+    }
+
+    if let Some(name) = &detection.project_name {
+        UI::info(&format!("📁 Project: {}", name));
+    }
+
+    for hint in &detection.hints {
+        UI::hint(hint);
+    }
+
+    generate_config_content(
+        detection.project_name.as_deref().unwrap_or(""),
+        "",
+        &detection.tools,
+        false,
+    )
 }
 
 fn generate_config_content(
@@ -252,7 +761,8 @@ fn generate_config_content(
     // Header comment
     content.push_str("# VX Project Configuration\n");
     content.push_str("# This file defines the tools and versions required for this project.\n");
-    content.push_str("# Run 'vx sync' to install all required tools.\n");
+    content.push_str("# Run 'vx setup' to install all required tools.\n");
+    content.push_str("# Run 'vx dev' to enter the development environment.\n");
 
     if !project_name.is_empty() {
         content.push_str(&format!("# Project: {}\n", project_name));
@@ -267,11 +777,15 @@ fn generate_config_content(
     content.push_str("[tools]\n");
     if tools.is_empty() {
         content.push_str("# Add your tools here, for example:\n");
-        content.push_str("# node = \"18.17.0\"\n");
-        content.push_str("# python = \"3.11\"\n");
+        content.push_str("# node = \"20\"\n");
+        content.push_str("# python = \"3.12\"\n");
         content.push_str("# uv = \"latest\"\n");
     } else {
-        for (tool, version) in tools {
+        // Sort tools for consistent output
+        let mut sorted_tools: Vec<_> = tools.iter().collect();
+        sorted_tools.sort_by_key(|(k, _)| *k);
+
+        for (tool, version) in sorted_tools {
             content.push_str(&format!("{} = \"{}\"\n", tool, version));
         }
     }
@@ -280,23 +794,27 @@ fn generate_config_content(
 
     // Settings section
     content.push_str("[settings]\n");
+    content.push_str("# Automatically install missing tools when entering dev environment\n");
     content.push_str("auto_install = true\n");
+    content.push_str("# Cache duration for version checks\n");
     content.push_str("cache_duration = \"7d\"\n");
 
     if include_extras {
+        content.push_str("# Install tools in parallel\n");
         content.push_str("parallel_install = true\n");
         content.push('\n');
 
         // Scripts section
         content.push_str("[scripts]\n");
-        content.push_str("# Add custom scripts here\n");
-        content.push_str("# dev = \"vx node server.js\"\n");
-        content.push_str("# test = \"vx uv run pytest\"\n");
+        content.push_str("# Define custom scripts that can be run with 'vx run <script>'\n");
+        content.push_str("# dev = \"npm run dev\"\n");
+        content.push_str("# test = \"npm test\"\n");
+        content.push_str("# build = \"npm run build\"\n");
         content.push('\n');
 
         // Environment section
         content.push_str("[env]\n");
-        content.push_str("# Add environment variables here\n");
+        content.push_str("# Environment variables to set in the dev environment\n");
         content.push_str("# NODE_ENV = \"development\"\n");
         content.push_str("# DEBUG = \"true\"\n");
     }

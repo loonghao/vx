@@ -273,6 +273,30 @@ impl VxCli {
                     }
                 }
             }
+
+            Commands::Dev {
+                shell,
+                command,
+                no_install,
+                verbose,
+            } => commands::dev::handle(shell, command, no_install, verbose).await,
+
+            Commands::Setup {
+                force,
+                dry_run,
+                verbose,
+                no_parallel,
+            } => {
+                commands::setup::handle(&self.registry, force, dry_run, verbose, no_parallel).await
+            }
+
+            Commands::Add { tool, version } => {
+                commands::setup::add_tool(&tool, version.as_deref()).await
+            }
+
+            Commands::RemoveTool { tool } => commands::setup::remove_tool(&tool).await,
+
+            Commands::Run { script, args } => self.run_script(&script, &args).await,
         }
     }
 
@@ -293,5 +317,57 @@ impl VxCli {
             use_system_path,
         )
         .await
+    }
+
+    /// Run a script defined in .vx.toml
+    async fn run_script(&self, script_name: &str, args: &[String]) -> Result<()> {
+        use std::process::Command;
+
+        let current_dir = std::env::current_dir()?;
+        let config_path = current_dir.join(".vx.toml");
+
+        if !config_path.exists() {
+            return Err(anyhow::anyhow!("No .vx.toml found. Run 'vx init' first."));
+        }
+
+        let config = commands::setup::parse_vx_config(&config_path)?;
+
+        let script_cmd = config.scripts.get(script_name).ok_or_else(|| {
+            let available: Vec<_> = config.scripts.keys().collect();
+            if available.is_empty() {
+                anyhow::anyhow!("No scripts defined in .vx.toml")
+            } else {
+                anyhow::anyhow!(
+                    "Script '{}' not found. Available scripts: {}",
+                    script_name,
+                    available
+                        .iter()
+                        .map(|s| s.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
+        })?;
+
+        ui::UI::info(&format!("Running script '{}': {}", script_name, script_cmd));
+
+        // Parse the command
+        let shell = if cfg!(windows) { "cmd" } else { "sh" };
+        let shell_arg = if cfg!(windows) { "/C" } else { "-c" };
+
+        // Append additional args to the command
+        let full_cmd = if args.is_empty() {
+            script_cmd.clone()
+        } else {
+            format!("{} {}", script_cmd, args.join(" "))
+        };
+
+        let status = Command::new(shell).arg(shell_arg).arg(&full_cmd).status()?;
+
+        if !status.success() {
+            std::process::exit(status.code().unwrap_or(1));
+        }
+
+        Ok(())
     }
 }

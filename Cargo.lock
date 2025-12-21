@@ -3347,7 +3347,7 @@ dependencies = [
 
 [[package]]
 name = "vx"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "tempfile",
@@ -3359,7 +3359,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cli"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3409,7 +3409,7 @@ dependencies = [
 
 [[package]]
 name = "vx-core"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3428,7 +3428,7 @@ dependencies = [
 
 [[package]]
 name = "vx-installer"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3454,7 +3454,7 @@ dependencies = [
 
 [[package]]
 name = "vx-paths"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "dirs",
@@ -3465,7 +3465,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-bun"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3478,7 +3478,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-go"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3495,7 +3495,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-just"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3512,7 +3512,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-node"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3529,7 +3529,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-pnpm"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3542,7 +3542,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-rez"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3560,7 +3560,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-rust"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3573,7 +3573,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-uv"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3590,7 +3590,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-vite"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3607,7 +3607,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-vscode"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3624,7 +3624,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-yarn"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3637,7 +3637,7 @@ dependencies = [
 
 [[package]]
 name = "vx-resolver"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3655,7 +3655,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3681,7 +3681,7 @@ dependencies = [
 
 [[package]]
 name = "vx-version"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
