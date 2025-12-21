@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**终极开发工具管理器 - 一个工具统治所有工具**
+**一个命令统治所有工具 — 零设置，零学习成本**
 
 [English](README.md) | [📖 文档](https://docs.rs/vx) | [🚀 快速开始](#-快速开始) | [💡 示例](#-实际示例)
 
@@ -11,21 +11,12 @@
 [![Test](https://github.com/loonghao/vx/workflows/Test/badge.svg)](https://github.com/loonghao/vx/actions)
 [![Release](https://github.com/loonghao/vx/workflows/Release/badge.svg)](https://github.com/loonghao/vx/actions)
 [![codecov](https://codecov.io/gh/loonghao/vx/branch/main/graph/badge.svg)](https://codecov.io/gh/loonghao/vx)
-[![Security audit](https://github.com/loonghao/vx/workflows/Security%20audit/badge.svg)](https://github.com/loonghao/vx/actions)
 [![GitHub release](https://img.shields.io/github/release/loonghao/vx.svg)](https://github.com/loonghao/vx/releases)
 [![GitHub downloads](https://img.shields.io/github/downloads/loonghao/vx/total.svg)](https://github.com/loonghao/vx/releases)
-[![Crates.io](https://img.shields.io/crates/v/vx.svg)](https://crates.io/crates/vx)
-[![Documentation](https://docs.rs/vx/badge.svg)](https://docs.rs/vx)
-
-*闪电般快速、格式无关的开发工具管理器，具有美观的进度跟踪*
 
 </div>
 
 ---
-
-## 🎯 什么是 vx？
-
-**vx** 是一个强大、快速且可扩展的开发工具管理器，为跨不同语言和生态系统的开发工具管理、安装和执行提供统一接口。可以将其视为 `nvm`、`rustup`、`pyenv` 和包管理器的组合，全部集成在一个闪电般快速的工具中。
 
 ## 💡 设计理念
 
@@ -58,56 +49,11 @@ vx uvx ruff check .             # 需要时自动安装 UV
 vx go run main.go               # 需要时自动安装 Go
 ```
 
-### 🌟 为什么选择 vx？
-
-- **🔄 通用接口**: 通过单一、一致的接口执行任何支持的工具
-- **📚 零学习成本**: 使用您已经知道的完全相同的命令（`npx`、`uvx`、`go` 等）
-- **⚡ 闪电般快速**: 使用 Rust 构建，采用异步优先架构，实现最大性能
-- **🚀 自动安装**: 自动下载和安装缺失的工具，具有美观的进度条
-- **🔒 环境隔离**: 所有工具在 vx 管理的环境中运行（无系统 PATH 冲突）
-- **📦 格式无关**: 支持 ZIP、TAR.GZ、TAR.XZ、TAR.BZ2 和原始二进制文件
-- **🎨 美观的用户体验**: 丰富的进度条、彩色输出和直观的命令
-- **🤖 MCP 就绪**: 非常适合 MCP 服务器 - 只需在命令前加上 `vx`
-
-## ✨ 特性
-
-### 🚀 最新改进 (v0.3.0)
-
-- **🔄 自更新系统**: 内置自更新功能，支持 GitHub 令牌以避免速率限制
-- **📁 统一路径管理**: 新的 vx-paths 系统，提供标准化工具安装路径
-- **📊 增强的工具发现**: 改进的 `list` 和 `which` 命令，提供详细状态信息
-- **🏗️ 模块化架构**: 使用 vx-installer 引擎完全重写，提高可维护性
-- **📊 高级进度跟踪**: 美观的进度条，显示 ETA 和传输速率
-- **🔧 增强的安装系统**: 支持多种存档格式和安装方法
-- **🔌 插件系统**: 可扩展架构，支持内置和外部插件
-- **🛡️ 安全优先**: 内置校验和验证和安全下载
-- **🌍 跨平台**: 在 Windows、macOS 和 Linux 上无缝运行
-
-### 🎯 核心特性
-
-- **🔄 通用接口**: 通过单一、一致的接口执行任何支持的工具
-- **📦 多版本管理**: 安装、管理和切换工具的多个版本
-- **⚡ 零配置**: 开箱即用，具有智能默认设置
-- **🚀 自动安装**: 自动下载和安装缺失的工具
-- **🎯 项目特定**: 支持项目级工具配置
-- **🔌 插件架构**: 模块化设计，具有可扩展的插件系统
-- **🔄 自更新系统**: 内置更新功能，支持 GitHub 令牌以避免 API 速率限制
-- **📁 统一路径管理**: 跨所有平台的标准化工具安装路径
-
-### 🛠️ 高级特性
-
-- **📊 包管理**: 类似 Chocolatey 的分层包管理
-- **🔍 智能发现**: 自动工具检测和版本解析
-- **⚙️ 配置管理**: 全局和项目级配置支持
-- **📈 依赖跟踪**: 跟踪和管理工具依赖关系
-- **🧹 清理工具**: 孤立包清理和维护
-- **📋 丰富的 CLI**: 全面的命令行界面，输出有用信息
+---
 
 ## 🚀 快速开始
 
 ### 安装
-
-#### 快速安装（推荐）
 
 **Linux/macOS:**
 
@@ -121,189 +67,152 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 ```
 
-#### 高级安装选项
-
-**安装特定版本:**
+### 立即开始使用
 
 ```bash
-# Linux/macOS
-VX_VERSION="0.1.0" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-
-# Windows
-$env:VX_VERSION="0.1.0"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+# 无需设置 - 只需在命令前加上 'vx'
+vx node --version               # 自动安装 Node.js
+vx python --version             # 通过 UV 自动安装 Python
+vx go version                   # 自动安装 Go
+vx cargo --version              # 自动安装 Rust
 ```
 
-**安装到自定义目录:**
+---
+
+## 🎯 两种使用方式
+
+### 1️⃣ 直接执行（用于快速任务）
+
+只需在任何命令前加上 `vx` — 工具在首次使用时自动安装：
 
 ```bash
-# Linux/macOS
-VX_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-
-# Windows
-$env:VX_INSTALL_DIR="C:\tools\vx"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+# 即时运行任何工具
+vx npx create-react-app my-app
+vx uvx ruff check .
+vx go run main.go
+vx cargo build --release
 ```
 
-#### 包管理器
+### 2️⃣ 项目开发环境（用于团队协作）
 
-**Chocolatey (Windows):**
-
-```powershell
-choco install vx
-```
-
-**Scoop (Windows):**
-
-```powershell
-scoop bucket add loonghao https://github.com/loonghao/scoop-vx.git
-scoop install vx
-```
-
-**WinGet (Windows):**
-
-```powershell
-winget install loonghao.vx
-```
-
-**Homebrew (macOS):**
+创建 `.vx.toml` 文件来定义项目的工具需求：
 
 ```bash
-brew tap loonghao/vx
-brew install vx
+# 初始化新项目
+vx init
+
+# 或手动创建 .vx.toml
+cat > .vx.toml << 'EOF'
+[tools]
+node = "20"
+python = "3.12"
+uv = "latest"
+go = "1.21"
+
+[scripts]
+dev = "npm run dev"
+test = "npm test"
+lint = "uvx ruff check ."
+EOF
 ```
 
-**Arch Linux (AUR):**
+然后使用开发环境命令：
 
 ```bash
-# 使用 yay
-yay -S vx-bin
+# 一键设置：安装所有项目工具
+vx setup
 
-# 使用 paru
-paru -S vx-bin
+# 进入开发 shell，所有工具都可用
+vx dev
+
+# 运行项目脚本
+vx run dev
+vx run test
+vx run lint
+
+# 管理项目工具
+vx add bun                      # 添加工具
+vx rm-tool go                   # 移除工具
+vx sync                         # 同步工具与 .vx.toml
 ```
 
-**Cargo (从源码):**
+---
 
-```bash
-cargo install --git https://github.com/loonghao/vx
+## 📋 命令参考
+
+### 工具执行
+
+| 命令 | 描述 |
+|---------|-------------|
+| `vx <tool> [args...]` | 执行工具（需要时自动安装） |
+| `vx install <tool>[@version]` | 安装特定工具版本 |
+| `vx uninstall <tool> [version]` | 卸载工具版本 |
+| `vx switch <tool>@<version>` | 切换到不同版本 |
+| `vx which <tool>` | 显示正在使用的版本 |
+| `vx versions <tool>` | 显示可用版本 |
+| `vx list` | 列出所有支持的工具 |
+| `vx search <query>` | 搜索可用工具 |
+
+### 项目环境
+
+| 命令 | 描述 |
+|---------|-------------|
+| `vx init` | 初始化项目配置（`.vx.toml`） |
+| `vx setup` | 安装 `.vx.toml` 中定义的所有工具 |
+| `vx dev` | 进入带有项目工具的开发 shell |
+| `vx dev -c <cmd>` | 在开发环境中运行命令 |
+| `vx sync` | 同步已安装工具与 `.vx.toml` |
+| `vx add <tool>` | 添加工具到项目配置 |
+| `vx rm-tool <tool>` | 从项目配置移除工具 |
+| `vx run <script>` | 运行 `.vx.toml` 中定义的脚本 |
+
+### 系统管理
+
+| 命令 | 描述 |
+|---------|-------------|
+| `vx stats` | 显示磁盘使用和统计信息 |
+| `vx clean` | 清理缓存和孤立包 |
+| `vx config` | 管理全局配置 |
+| `vx self-update` | 更新 vx 本身 |
+| `vx plugin list` | 列出可用插件 |
+
+---
+
+## 📁 项目配置（`.vx.toml`）
+
+```toml
+# VX 项目配置
+# 运行 'vx setup' 安装所有工具
+# 运行 'vx dev' 进入开发环境
+
+[tools]
+node = "20"                     # 主版本号
+python = "3.12"                 # 次版本号
+uv = "latest"                   # 始终最新
+go = "1.21.6"                   # 精确版本
+rust = ">=1.70"                 # 版本范围
+
+[settings]
+auto_install = true             # 在 dev shell 中自动安装缺失工具
+parallel_install = true         # 并行安装工具
+
+[env]
+NODE_ENV = "development"
+DEBUG = "true"
+
+[scripts]
+dev = "npm run dev"
+test = "npm test && cargo test"
+build = "npm run build"
+lint = "uvx ruff check . && npm run lint"
+format = "uvx black . && npm run format"
 ```
 
-**Docker:**
+---
 
-```bash
-# Docker Hub
-docker pull loonghao/vx:latest
-docker run --rm loonghao/vx --version
+## 🔌 MCP 集成
 
-# GitHub Container Registry
-docker pull ghcr.io/loonghao/vx:latest
-docker run --rm ghcr.io/loonghao/vx --version
-```
-
-**Debian/Ubuntu (DEB):**
-
-```bash
-# 下载并安装最新版本
-curl -fsSLO https://github.com/loonghao/vx/releases/latest/download/vx_amd64.deb
-sudo dpkg -i vx_amd64.deb
-```
-
-**Fedora/RHEL (RPM):**
-
-```bash
-# 下载并安装最新版本
-curl -fsSLO https://github.com/loonghao/vx/releases/latest/download/vx.x86_64.rpm
-sudo rpm -i vx.x86_64.rpm
-```
-
-**Nix:**
-
-```bash
-# 使用 flakes
-nix profile install github:loonghao/vx
-
-# 或直接运行
-nix run github:loonghao/vx -- --version
-```
-
-### ⚡ 快速示例：相同命令，更好体验
-
-```bash
-# 🎯 使用您已经知道的完全相同的命令 - 只需添加 'vx'！
-
-# Python 开发（无需 Python 设置）
-vx uv pip install requests           # 需要时自动安装 UV
-vx uvx ruff check .                  # 通过 UV 自动安装 ruff
-vx uvx black --check .               # 通过 UV 自动安装 black
-
-# Node.js 开发（无需 Node.js 设置）
-vx npm install react                 # 需要时自动安装 Node.js
-vx npx create-react-app my-app       # 自动安装 create-react-app
-vx npx -y cowsay "Hello from vx!"    # 一次性工具执行
-
-# Go 开发（无需 Go 设置）
-vx go build                          # 需要时自动安装 Go
-vx go run main.go                    # 您知道的相同命令
-
-# Rust 开发（无需 Rust 设置）
-vx cargo run                         # 需要时自动安装 Rust
-vx cargo build --release             # 相同的 Cargo 命令
-
-# 🤖 非常适合 MCP 服务器 - 只需在前面加上 'vx'：
-# 不再使用: npx @browsermcp/mcp@latest
-# 改为使用: vx npx @browsermcp/mcp@latest
-# 不再使用: uvx some-python-tool
-# 改为使用: vx uvx some-python-tool
-
-# 🔧 需要时的高级功能
-vx --use-system-path python --version  # 需要时使用系统工具
-vx list --status                      # 显示所有工具及安装状态
-vx which node --all                   # 显示工具的所有已安装版本
-vx stats                              # 包统计和使用情况
-
-# 🔄 支持 GitHub 令牌的自更新（解决速率限制问题）
-vx self-update --check                # 检查更新
-vx self-update --token ghp_xxxx       # 使用 GitHub 令牌更新（推荐团队使用）
-vx self-update --prerelease           # 包含预发布版本
-
-# 🎯 具有美观进度条的版本管理
-vx install uv@0.7.12                 # 安装特定版本
-vx install node@20.0.0               # 丰富的进度跟踪
-vx switch node@18.19.0               # 即时版本切换
-
-# ⚙️ 项目配置
-vx init                               # 初始化项目配置
-vx config                             # 管理全局设置
-```
-
-## 📖 支持的工具
-
-### 🔧 内置插件
-
-| 工具 | 命令 | 类别 | 自动安装 | 描述 |
-|------|----------|----------|--------------|-------------|
-| **UV** | `vx uv pip`, `vx uv venv`, `vx uv run`, `vx uv add` | Python | ✅ | 极快的 Python 包安装器 |
-| **Node.js** | `vx node`, `vx npm`, `vx npx` | JavaScript | ✅ | JavaScript 运行时和包管理器 |
-| **Go** | `vx go build`, `vx go run`, `vx go test` | Go | ✅ | Go 编程语言工具链 |
-| **Rust** | `vx cargo build`, `vx cargo run`, `vx cargo test` | Rust | ✅ | Rust 编程语言和 Cargo |
-
-## 🔌 MCP 集成：完美解决方案
-
-vx 在设计时就考虑了 MCP（模型上下文协议）。许多 MCP 服务器需要 `uvx` 和 `npx`，但设置这些工具可能复杂且容易出错。vx 通过**零配置**和**零学习成本**解决了这个问题。
-
-### MCP 挑战
-
-MCP 服务器通常需要多个工具生态系统：
-
-```bash
-# 传统设置需要管理多个工具：
-npm install -g some-package     # 需要 Node.js 设置
-uvx install some-python-tool    # 需要 Python/UV 设置
-# 还要处理 PATH 冲突、版本不匹配等问题
-```
-
-### vx 解决方案：只需添加 `vx`
-
-使用 vx，您只需在现有命令前加上 `vx` - **无学习成本，无配置**：
+vx 在设计时就考虑了 MCP（模型上下文协议）。只需将命令从工具名改为 `vx`：
 
 ### 之前（需要复杂设置）
 
@@ -339,68 +248,117 @@ uvx install some-python-tool    # 需要 Python/UV 设置
 }
 ```
 
-### 🎯 您获得的好处
+---
 
-- **📚 零学习成本**: 使用您已经知道的完全相同的 `npx` 和 `uvx` 命令
-- **🚀 零配置**: 无需安装 Node.js、Python、UV 或管理 PATH
-- **🔒 完全隔离**: MCP 工具在隔离环境中运行，无冲突
-- **📊 美观进度**: 通过丰富的进度条查看具体发生的情况
-- **🛡️ 安全优先**: 自动校验和验证和安全下载
-- **🌍 跨平台**: 在 Windows、macOS 和 Linux 上行为完全一致
-- **⚡ 闪电般快速**: 并发下载和安装
+## 🎯 实际示例
 
-## 🔄 自更新系统
-
-vx 包含强大的自更新系统，解决了在共享环境中常见的 GitHub API 速率限制问题。
-
-### 🚀 快速更新
+### 团队入职
 
 ```bash
-# 检查更新
-vx self-update --check
+# 新团队成员加入项目
+git clone https://github.com/your-org/your-project
+cd your-project
 
-# 更新到最新版本
-vx self-update
+# 一个命令设置所有东西
+vx setup
 
-# 使用 GitHub 令牌更新（推荐团队/共享网络使用）
-vx self-update --token ghp_your_github_token_here
-
-# 包含预发布版本
-vx self-update --prerelease
-
-# 强制更新，即使已经是最新版本
-vx self-update --force
+# 开始开发
+vx dev
 ```
 
-### 🔐 GitHub 令牌支持
-
-**问题**: GitHub 的公共 API 对未认证用户有每小时 60 次请求的速率限制。在共享环境（办公室、学校、公寓）中，多个用户可能会达到此限制。
-
-**解决方案**: 使用 GitHub 令牌将速率限制提高到每小时 5,000 次请求：
+### 多语言项目
 
 ```bash
-# 在此处创建 GitHub 令牌：https://github.com/settings/tokens
-# 不需要特殊权限 - 只需基本访问权限
+# 前端 (Node.js) + 后端 (Go) + 脚本 (Python)
+cat > .vx.toml << 'EOF'
+[tools]
+node = "20"
+go = "1.21"
+uv = "latest"
 
-# 使用令牌进行更新
-vx self-update --token ghp_xxxxxxxxxxxxxxxxxxxx
+[scripts]
+frontend = "npm run dev"
+backend = "go run cmd/server/main.go"
+migrate = "uvx alembic upgrade head"
+EOF
 
-# 或设置为环境变量
-export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
-vx self-update
+# 安装所有东西
+vx setup
+
+# 运行不同部分
+vx run frontend
+vx run backend
+vx run migrate
 ```
 
-### 📊 更新功能
+### Python 开发
 
-- **🔍 智能检测**: 自动检测当前版本和最新版本
-- **📦 跨平台**: 支持 Windows、macOS 和 Linux 二进制文件
-- **🔒 安全下载**: 仅使用 HTTPS，自动验证
-- **📋 发布说明**: 显示新版本的更新日志
-- **🔄 备份和回滚**: 自动备份当前版本
-- **⚡ 快速下载**: 并发下载，带进度条
-- **🎯 格式支持**: ZIP、TAR.GZ 存档和原始二进制文件
+```bash
+vx uv init my-python-app
+cd my-python-app
+vx uv add fastapi uvicorn
+vx uv add --dev pytest black ruff
+vx uv run uvicorn main:app --reload
+vx uvx ruff check .
+```
 
-## ⚙️ 配置
+### Node.js 开发
+
+```bash
+vx npx create-react-app my-app
+cd my-app
+vx npm install
+vx npm run dev
+```
+
+### Go 开发
+
+```bash
+vx go mod init my-go-app
+vx go run main.go
+vx go build -o app
+```
+
+### Rust 开发
+
+```bash
+vx cargo new my-rust-app
+cd my-rust-app
+vx cargo add serde tokio
+vx cargo run
+```
+
+---
+
+## 📖 支持的工具
+
+| 工具 | 命令 | 类别 | 描述 |
+|------|----------|----------|-------------|
+| **Node.js** | `node`, `npm`, `npx` | JavaScript | JavaScript 运行时和包管理器 |
+| **UV** | `uv`, `uvx` | Python | 快速 Python 包管理器 |
+| **Go** | `go` | Go | Go 编程语言 |
+| **Rust** | `cargo`, `rustc`, `rustup` | Rust | Rust 工具链 |
+| **Bun** | `bun`, `bunx` | JavaScript | 快速 JavaScript 运行时 |
+| **pnpm** | `pnpm`, `pnpx` | JavaScript | 快速、磁盘高效的包管理器 |
+| **Yarn** | `yarn` | JavaScript | JavaScript 包管理器 |
+
+---
+
+## 🌟 为什么选择 vx？
+
+| 特性 | vx | nvm/pyenv 等 |
+|---------|-----|----------------|
+| **零学习成本** | ✅ 使用您熟悉的命令 | ❌ 需要学习新命令 |
+| **多语言支持** | ✅ 一个工具管理所有 | ❌ 每种语言一个工具 |
+| **自动安装** | ✅ 首次使用时安装 | ❌ 手动安装 |
+| **项目配置** | ✅ `.vx.toml` | ❌ 因工具而异 |
+| **团队同步** | ✅ `vx setup` | ❌ 手动协调 |
+| **MCP 就绪** | ✅ 只需添加 `vx` | ❌ 复杂设置 |
+| **跨平台** | ✅ Windows/macOS/Linux | ⚠️ 因工具而异 |
+
+---
+
+## ⚙️ 高级配置
 
 ### 全局配置
 
@@ -408,161 +366,93 @@ vx self-update
 
 ```toml
 [defaults]
-auto_install = true        # 自动安装缺失的工具
-check_updates = true       # 检查更新
-update_interval = "24h"    # 更新检查频率
-
-[tools.uv]
-version = "0.5.26"
-install_method = "official"
+auto_install = true
+check_updates = true
+update_interval = "24h"
 
 [tools.node]
-version = "20.11.0"
-install_method = "official"
+version = "20"
 
-[tools.go]
-version = "1.21.6"
+[tools.uv]
+version = "latest"
 ```
 
-### 项目配置
-
-`.vx.toml`:
-
-```toml
-[tools]
-uv = "0.5.26"
-node = "20.11.0"
-go = "1.21.6"
-
-[defaults]
-auto_install = true
-```
-
-## 🎯 实际示例
-
-### Python 开发（使用 UV）
+### Shell 集成
 
 ```bash
-# 创建新的 Python 项目
-vx uv init my-python-app
-cd my-python-app
-
-# 添加依赖
-vx uv add fastapi uvicorn
-vx uv add --dev pytest black
-
-# 运行应用程序
-vx uv run uvicorn main:app --reload
-
-# 运行测试
-vx uv run pytest
+# 添加到您的 shell 配置文件以启用自动补全
+eval "$(vx shell init bash)"   # Bash
+eval "$(vx shell init zsh)"    # Zsh
+vx shell init fish | source    # Fish
 ```
 
-### Node.js 开发
+### 使用 GitHub Token 自更新
 
 ```bash
-# 安装和使用 Node.js
-vx npm install express
-vx node server.js
+# 在共享环境中避免速率限制
+vx self-update --token ghp_your_token_here
 
-# 使用 npx 执行一次性工具
-vx npx create-react-app my-app
-vx npx -y typescript --init
+# 或设置环境变量
+export GITHUB_TOKEN=ghp_your_token_here
+vx self-update
 ```
 
-## 🛠️ 开发
+---
 
-### 前提条件
+## 📦 安装选项
 
-- Rust 1.70+
-- Cargo
-
-### 构建
+### 包管理器
 
 ```bash
-git clone https://github.com/loonghao/vx
-cd vx
-cargo build --release
+# Windows
+winget install loonghao.vx
+choco install vx
+scoop install vx
+
+# macOS
+brew tap loonghao/vx && brew install vx
+
+# Arch Linux
+yay -S vx-bin
+
+# Cargo
+cargo install --git https://github.com/loonghao/vx
 ```
 
-### 测试
+### Docker
 
 ```bash
-cargo test
-cargo run -- --help
+docker pull loonghao/vx:latest
+docker run --rm loonghao/vx --version
 ```
 
-## 🚀 路线图
-
-### 当前状态 (v0.3.0)
-
-- ✅ **核心插件架构** 具有基于特征的可扩展性
-- ✅ **6 个内置工具**（UV、UVX、Node.js、NPX、Go、Rust）
-- ✅ **完整环境隔离系统** 具有完整的 PATH 管理
-- ✅ **🆕 自更新系统** 支持 GitHub 令牌以避免速率限制
-- ✅ **🆕 统一路径管理** 使用 vx-paths 系统（`~/.vx/tools/<tool>/<version>/`）
-- ✅ **🆕 增强的工具发现** 改进的 `list --status` 和 `which --all` 命令
-- ✅ **vx-installer 引擎** 具有通用格式支持
-- ✅ **美观的进度条** 具有 ETA 和传输速率
-- ✅ **安全优先下载** 具有校验和验证
-- ✅ **异步安装系统** 具有并发操作
-- ✅ **多版本包管理** 具有智能切换
-- ✅ **MCP 集成支持** 用于无缝代理使用
-- ✅ **包运行器支持**（npx、uvx）具有环境隔离
-- ✅ **项目配置支持** 具有基于 TOML 的配置
-
-### 即将推出的功能
-
-#### 🔧 新工具支持（第7阶段）
-
-- [ ] **just** - 现代命令运行器和构建工具（`vx just --list`、`vx just build`）
-- [ ] **kubectl** - Kubernetes 命令行工具（`vx kubectl get pods`、`vx kubectl apply`）
-- [ ] **deno** - 现代 JavaScript/TypeScript 运行时（`vx deno run`、`vx deno task`）
-- [ ] **podman** - 容器管理（`vx podman run`、`vx podman build`）
-- [ ] **zig** - 系统编程语言（`vx zig build`、`vx zig run`）
-
-#### 🚀 增强功能
-
-- [ ] **增强的包管理器**: pnpm、yarn、bun 与完整的 vx-installer 集成
-- [ ] **系统包管理器**: Homebrew、Chocolatey、apt、yum 支持
-- [ ] **专业工具**: 用于 VFX 的 Rez、用于 HPC 环境的 Spack
-- [ ] **外部插件支持**: .dll、.so 和基于脚本的插件
-- [ ] **插件市场**: 社区驱动的插件生态系统
-- [ ] **高级安装方法**: Docker、容器和虚拟环境
-- [ ] **GUI 界面**: 具有可视化工具管理的桌面应用程序
-- [ ] **CI/CD 集成**: GitHub Actions、GitLab CI、Jenkins 插件
-- [ ] **团队配置同步**: 共享配置和工具版本
-- [ ] **性能优化**: 缓存、并行操作和智能更新
+---
 
 ## 🤝 贡献
 
-我们欢迎贡献！以下是您可以帮助的方式：
+我们欢迎贡献！请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 了解指南。
 
-1. **报告问题**: 发现了 bug？[提交问题](https://github.com/loonghao/vx/issues)
-2. **功能请求**: 有想法？[开始讨论](https://github.com/loonghao/vx/discussions)
-3. **插件开发**: 为新工具创建插件
-4. **文档**: 改进文档和示例
-5. **代码贡献**: 提交拉取请求
+1. **报告问题**: [提交问题](https://github.com/loonghao/vx/issues)
+2. **功能请求**: [开始讨论](https://github.com/loonghao/vx/discussions)
+3. **代码贡献**: 提交拉取请求
 
-详细指南请参见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+---
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 详情请参见 [LICENSE](LICENSE) 文件。
-
-## 🙏 致谢
-
-- 受 `asdf`、`mise`、`proto` 和 `chocolatey` 等工具启发
-- 使用 Rust 和现代开发实践构建，充满 ❤️
-- 特别感谢 Rust 社区和所有贡献者
+MIT 许可证 - 详情请参见 [LICENSE](LICENSE)。
 
 ## 📞 支持
 
-- 📖 **文档**: [完整文档](https://github.com/loonghao/vx/wiki)
-- 💬 **讨论**: [GitHub 讨论](https://github.com/loonghao/vx/discussions)
+- 📖 **文档**: [GitHub Wiki](https://github.com/loonghao/vx/wiki)
+- 💬 **讨论**: [GitHub Discussions](https://github.com/loonghao/vx/discussions)
 - 🐛 **问题**: [错误报告](https://github.com/loonghao/vx/issues)
 - 📧 **联系**: <hal.long@outlook.com>
 
 ---
 
+<div align="center">
+
 **由开发者为开发者制作，充满 ❤️**
+
+</div>

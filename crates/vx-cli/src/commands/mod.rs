@@ -6,6 +6,7 @@ use vx_runtime::ProviderRegistry;
 
 pub mod cleanup;
 pub mod config;
+pub mod dev;
 pub mod env;
 pub mod execute;
 #[cfg(test)]
@@ -19,6 +20,7 @@ pub mod plugin;
 pub mod remove;
 pub mod search;
 pub mod self_update;
+pub mod setup;
 pub mod shell;
 pub mod stats;
 pub mod switch;
@@ -208,6 +210,28 @@ impl CommandHandler {
 
             Some(Commands::Env { command }) => env::handle(command).await,
 
+            Some(Commands::Dev {
+                shell,
+                command,
+                no_install,
+                verbose,
+            }) => dev::handle(shell, command, no_install, verbose).await,
+
+            Some(Commands::Setup {
+                force,
+                dry_run,
+                verbose,
+                no_parallel,
+            }) => setup::handle(registry, force, dry_run, verbose, no_parallel).await,
+
+            Some(Commands::Add { tool, version }) => {
+                setup::add_tool(&tool, version.as_deref()).await
+            }
+
+            Some(Commands::RemoveTool { tool }) => setup::remove_tool(&tool).await,
+
+            Some(Commands::Run { script, args }) => run_script(&script, &args).await,
+
             None => {
                 // Handle tool execution
                 if cli.args.is_empty() {
@@ -247,4 +271,57 @@ impl CommandHandler {
             }
         }
     }
+}
+
+/// Run a script defined in .vx.toml
+async fn run_script(script_name: &str, args: &[String]) -> anyhow::Result<()> {
+    use std::env;
+    use std::process::Command;
+
+    let current_dir = env::current_dir()?;
+    let config_path = current_dir.join(".vx.toml");
+
+    if !config_path.exists() {
+        return Err(anyhow::anyhow!("No .vx.toml found. Run 'vx init' first."));
+    }
+
+    let config = setup::parse_vx_config(&config_path)?;
+
+    let script_cmd = config.scripts.get(script_name).ok_or_else(|| {
+        let available: Vec<_> = config.scripts.keys().collect();
+        if available.is_empty() {
+            anyhow::anyhow!("No scripts defined in .vx.toml")
+        } else {
+            anyhow::anyhow!(
+                "Script '{}' not found. Available scripts: {}",
+                script_name,
+                available
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        }
+    })?;
+
+    UI::info(&format!("Running script '{}': {}", script_name, script_cmd));
+
+    // Parse the command
+    let shell = if cfg!(windows) { "cmd" } else { "sh" };
+    let shell_arg = if cfg!(windows) { "/C" } else { "-c" };
+
+    // Append additional args to the command
+    let full_cmd = if args.is_empty() {
+        script_cmd.clone()
+    } else {
+        format!("{} {}", script_cmd, args.join(" "))
+    };
+
+    let status = Command::new(shell).arg(shell_arg).arg(&full_cmd).status()?;
+
+    if !status.success() {
+        std::process::exit(status.code().unwrap_or(1));
+    }
+
+    Ok(())
 }
