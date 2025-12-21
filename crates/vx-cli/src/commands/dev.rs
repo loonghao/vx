@@ -5,12 +5,12 @@
 //! managed tool versions.
 
 use crate::commands::setup::{parse_vx_config, VxConfig};
-use crate::ui::UI;
+use crate::ui::{InstallProgress, UI};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use vx_paths::PathManager;
 
 /// Handle the dev command
@@ -108,25 +108,27 @@ async fn check_and_install_tools(tools: &HashMap<String, String>, verbose: bool)
         return Ok(());
     }
 
-    UI::info(&format!(
-        "Installing {} missing tool(s)...",
-        missing_tools.len()
-    ));
+    // Use InstallProgress for modern progress display
+    let mut progress = InstallProgress::new(
+        missing_tools.len(),
+        &format!("Installing {} missing tool(s)", missing_tools.len()),
+    );
 
     for (tool, version) in &missing_tools {
-        UI::info(&format!("  Installing {}@{}...", tool, version));
+        progress.start_tool(tool, version);
 
-        // Use vx install command
+        // Use vx install command with suppressed output
         let status = Command::new(env::current_exe()?)
             .args(["install", tool, version])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .status()
             .with_context(|| format!("Failed to install {}@{}", tool, version))?;
 
-        if !status.success() {
-            UI::warn(&format!("Failed to install {}@{}", tool, version));
-        }
+        progress.complete_tool(status.success(), tool, version);
     }
 
+    progress.finish("✓ All tools installed");
     Ok(())
 }
 
