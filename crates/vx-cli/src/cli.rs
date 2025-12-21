@@ -276,6 +276,63 @@ pub enum Commands {
         #[command(subcommand)]
         command: EnvCommand,
     },
+
+    /// Enter development environment with all project tools
+    Dev {
+        /// Shell to use (auto-detected if not specified)
+        #[arg(long)]
+        shell: Option<String>,
+        /// Run a command in the dev environment instead of spawning a shell
+        #[arg(short, long, num_args = 1..)]
+        command: Option<Vec<String>>,
+        /// Don't install missing tools
+        #[arg(long)]
+        no_install: bool,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
+    /// Setup development environment (install all project tools)
+    Setup {
+        /// Force reinstall all tools
+        #[arg(short, long)]
+        force: bool,
+        /// Preview operations without executing
+        #[arg(long)]
+        dry_run: bool,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+        /// Disable parallel installation
+        #[arg(long)]
+        no_parallel: bool,
+    },
+
+    /// Add a tool to project configuration
+    Add {
+        /// Tool name (e.g., node, python, uv)
+        tool: String,
+        /// Version to use (default: latest)
+        #[arg(short, long)]
+        version: Option<String>,
+    },
+
+    /// Remove a tool from project configuration
+    #[command(name = "rm-tool")]
+    RemoveTool {
+        /// Tool name to remove
+        tool: String,
+    },
+
+    /// Run a script defined in .vx.toml
+    Run {
+        /// Script name
+        script: String,
+        /// Additional arguments to pass to the script
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+    },
 }
 
 #[derive(Subcommand, Clone)]
