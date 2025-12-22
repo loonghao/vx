@@ -41,12 +41,12 @@ impl Runtime for PnpmRuntime {
     }
 
     /// PNPM is downloaded as a single executable file
-    /// The download_and_extract will rename it to just "pnpm"
+    /// The installer places it in the bin/ subdirectory
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         if platform.os == vx_runtime::Os::Windows {
-            "pnpm.exe".to_string()
+            "bin/pnpm.exe".to_string()
         } else {
-            "pnpm".to_string()
+            "bin/pnpm".to_string()
         }
     }
 
