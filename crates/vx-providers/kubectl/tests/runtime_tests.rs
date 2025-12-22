@@ -9,7 +9,7 @@ fn test_kubectl_runtime_creation() {
     let runtime = KubectlRuntime::new();
     assert_eq!(runtime.name(), "kubectl");
     assert!(!runtime.description().is_empty());
-    assert_eq!(runtime.ecosystem(), Ecosystem::Other);
+    assert_eq!(runtime.ecosystem(), Ecosystem::Unknown);
 }
 
 #[test]
