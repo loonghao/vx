@@ -6,8 +6,8 @@ Verify that `vx plugin stats` shows plugin statistics.
 $ vx plugin stats
 
 [..]
-  Total providers: 11
-  Total runtimes: 17
+  Total providers: 18
+  Total runtimes: 24
 
   Providers:
     node (3 runtimes)
@@ -21,5 +21,12 @@ $ vx plugin stats
     just (1 runtimes)
     vite (1 runtimes)
     rez (1 runtimes)
+    deno (1 runtimes)
+    zig (1 runtimes)
+    java (1 runtimes)
+    terraform (1 runtimes)
+    kubectl (1 runtimes)
+    helm (1 runtimes)
+    rcedit (1 runtimes)
 
 ```
