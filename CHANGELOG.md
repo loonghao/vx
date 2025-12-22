@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.5.12](https://github.com/loonghao/vx/compare/vx-v0.5.11...vx-v0.5.12) (2025-12-22)
+
+
+### Features
+
+* add new providers (deno, helm, java, kubectl, rcedit, terraform, zig) ([176984b](https://github.com/loonghao/vx/commit/176984bf3f496dc9d5a7a7c49b9567587f5a7d77))
+
+
+### Bug Fixes
+
+* conditionally import BenchmarkId for cdn-acceleration feature ([61666af](https://github.com/loonghao/vx/commit/61666af67d37a40ac04af548d2be631b32b88ddb))
+* correct pnpm executable path to bin/pnpm ([8883d1e](https://github.com/loonghao/vx/commit/8883d1ebf528568b82002bd4c2fe0a5e22a22072))
+* update MSRV to 1.83.0 and modernize progress bars ([1ff77bf](https://github.com/loonghao/vx/commit/1ff77bf2c1c9fd4495a00d36f05a171bb0d1630a))
+* use actual downloaded filename for pnpm executable path ([6b4e5fa](https://github.com/loonghao/vx/commit/6b4e5fa50715552ede91c03d3a277bd342899cfe))
+* use Ecosystem::Unknown instead of Ecosystem::Other in provider tests ([ae9f6b6](https://github.com/loonghao/vx/commit/ae9f6b645fed71851fb62d6f64c8e9c198874159))
+
+
+### Documentation
+
+* fix dead links ([4870612](https://github.com/loonghao/vx/commit/4870612c6fe0f453c886431d498d4a4aa1792ae3))
+
 ## [0.5.11](https://github.com/loonghao/vx/compare/vx-v0.5.10...vx-v0.5.11) (2025-12-21)
 
 
