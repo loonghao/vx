@@ -3330,16 +3330,23 @@ dependencies = [
  "vx-core",
  "vx-paths",
  "vx-provider-bun",
+ "vx-provider-deno",
  "vx-provider-go",
+ "vx-provider-helm",
+ "vx-provider-java",
  "vx-provider-just",
+ "vx-provider-kubectl",
  "vx-provider-node",
  "vx-provider-pnpm",
+ "vx-provider-rcedit",
  "vx-provider-rez",
  "vx-provider-rust",
+ "vx-provider-terraform",
  "vx-provider-uv",
  "vx-provider-vite",
  "vx-provider-vscode",
  "vx-provider-yarn",
+ "vx-provider-zig",
  "vx-resolver",
  "vx-runtime",
  "vx-version",
@@ -3418,6 +3425,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-deno"
+version = "0.5.11"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-paths",
+ "vx-runtime",
+]
+
+[[package]]
 name = "vx-provider-go"
 version = "0.5.11"
 dependencies = [
@@ -3435,6 +3456,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-helm"
+version = "0.5.11"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-paths",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-java"
+version = "0.5.11"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-paths",
+ "vx-runtime",
+]
+
+[[package]]
 name = "vx-provider-just"
 version = "0.5.11"
 dependencies = [
@@ -3449,6 +3498,20 @@ dependencies = [
  "vx-installer",
  "vx-runtime",
  "vx-version",
+]
+
+[[package]]
+name = "vx-provider-kubectl"
+version = "0.5.11"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-paths",
+ "vx-runtime",
 ]
 
 [[package]]
@@ -3482,6 +3545,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-rcedit"
+version = "0.5.11"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-installer",
+ "vx-runtime",
+ "vx-version",
+]
+
+[[package]]
 name = "vx-provider-rez"
 version = "0.5.11"
 dependencies = [
@@ -3507,6 +3587,20 @@ dependencies = [
  "async-trait",
  "rstest",
  "serde",
+ "tokio",
+ "vx-paths",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-terraform"
+version = "0.5.11"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
  "tokio",
  "vx-paths",
  "vx-runtime",
@@ -3577,6 +3671,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-zig"
+version = "0.5.11"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-paths",
+ "vx-runtime",
+]
+
+[[package]]
 name = "vx-resolver"
 version = "0.5.11"
 dependencies = [
@@ -3603,6 +3711,7 @@ dependencies = [
  "chrono",
  "flate2",
  "futures-util",
+ "glob",
  "liblzma",
  "reqwest",
  "rstest",

@@ -233,6 +233,38 @@ impl RuntimeMap {
                 .with_priority(100),
         );
 
+        // ============ Java Ecosystem ============
+
+        // java - Java Development Kit (Eclipse Temurin)
+        self.register(
+            RuntimeSpec::new("java", "Java Development Kit (Eclipse Temurin)")
+                .with_alias("jdk")
+                .with_alias("temurin")
+                .with_alias("openjdk")
+                .with_ecosystem(Ecosystem::Java)
+                .with_priority(100),
+        );
+
+        // javac - Java compiler (bundled with JDK)
+        self.register(
+            RuntimeSpec::new("javac", "Java compiler")
+                .with_ecosystem(Ecosystem::Java)
+                .with_dependency(
+                    RuntimeDependency::required("java", "javac is bundled with JDK")
+                        .provided_by("java"),
+                ),
+        );
+
+        // jar - Java archive tool (bundled with JDK)
+        self.register(
+            RuntimeSpec::new("jar", "Java archive tool")
+                .with_ecosystem(Ecosystem::Java)
+                .with_dependency(
+                    RuntimeDependency::required("java", "jar is bundled with JDK")
+                        .provided_by("java"),
+                ),
+        );
+
         // ============ Generic Runtimes ============
 
         // git - Version control

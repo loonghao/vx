@@ -42,6 +42,27 @@ pub fn create_registry() -> ProviderRegistry {
     // Register Rez provider (pip package)
     registry.register(vx_provider_rez::create_provider());
 
+    // Register Deno provider
+    registry.register(vx_provider_deno::create_provider());
+
+    // Register Zig provider
+    registry.register(vx_provider_zig::create_provider());
+
+    // Register Java (Temurin JDK) provider
+    registry.register(vx_provider_java::create_provider());
+
+    // Register Terraform provider
+    registry.register(vx_provider_terraform::create_provider());
+
+    // Register kubectl provider
+    registry.register(vx_provider_kubectl::create_provider());
+
+    // Register Helm provider
+    registry.register(vx_provider_helm::create_provider());
+
+    // Register rcedit provider
+    registry.register(vx_provider_rcedit::create_provider());
+
     registry
 }
 
