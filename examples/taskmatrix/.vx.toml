@@ -1,0 +1,96 @@
+# VX Project Configuration - TaskMatrix Example
+# This demonstrates how to configure a complex ML project with vx
+#
+# Original setup:
+#   conda create -n visgpt python=3.8
+#   conda activate visgpt
+#   pip install -r requirements.txt
+#   pip install git+https://github.com/IDEA-Research/GroundingDINO.git
+#   pip install git+https://github.com/facebookresearch/segment-anything.git
+#   export OPENAI_API_KEY={Your_Private_Openai_Key}
+#   python visual_chatgpt.py --load "ImageCaptioning_cuda:0,Text2Image_cuda:0"
+#
+# With vx:
+#   vx setup
+#   vx run start-gpu
+
+[project]
+name = "visual-chatgpt"
+description = "TaskMatrix - Connects ChatGPT with Visual Foundation Models"
+version = "1.0.0"
+
+# ============================================
+# Tool Versions
+# ============================================
+[tools]
+uv = "latest" # Fast Python package manager (also manages Python versions)
+
+# ============================================
+# Python Environment (uv-based)
+# ============================================
+[python]
+version = "3.8" # Python version (installed via 'uv python install 3.8')
+venv = ".venv"  # Virtual environment directory
+
+[python.dependencies]
+# Standard requirements file
+requirements = ["requirements.txt"]
+
+# Git dependencies (equivalent to pip install git+...)
+git = [
+  "https://github.com/IDEA-Research/GroundingDINO.git",
+  "https://github.com/facebookresearch/segment-anything.git",
+]
+
+# ============================================
+# Environment Variables
+# ============================================
+[env]
+# Static environment variables
+PYTHONUNBUFFERED = "1"
+
+[env.required]
+# Required variables - setup will fail if not set
+OPENAI_API_KEY = "Your OpenAI API key (required)"
+
+[env.optional]
+# Optional variables - setup will warn if not set
+HF_TOKEN = "HuggingFace token for model downloads"
+CUDA_VISIBLE_DEVICES = "GPU device IDs to use"
+
+# ============================================
+# Scripts
+# ============================================
+[scripts]
+# Simple scripts
+install = "uv pip install -r requirements.txt"
+lint = "uvx ruff check ."
+
+# CPU mode (for development/testing)
+[scripts.start-cpu]
+command = "uv run python visual_chatgpt.py"
+description = "Start with CPU only (for testing)"
+args = ["--load", "ImageCaptioning_cpu,Text2Image_cpu"]
+
+# GPU mode - Single T4 (Google Colab)
+[scripts.start-gpu]
+command = "python visual_chatgpt.py"
+description = "Start with single GPU (T4 15GB)"
+args = ["--load", "ImageCaptioning_cuda:0,Text2Image_cuda:0"]
+
+# GPU mode - 4x V100
+[scripts.start-multi-gpu]
+command = "python visual_chatgpt.py"
+description = "Start with 4x V100 32GB"
+args = [
+  "--load",
+  "Text2Box_cuda:0,Segmenting_cuda:0,Inpainting_cuda:0,ImageCaptioning_cuda:0,Text2Image_cuda:1,Image2Canny_cpu,CannyText2Image_cuda:1,Image2Depth_cpu,DepthText2Image_cuda:1,VisualQuestionAnswering_cuda:2,InstructPix2Pix_cuda:2,Image2Scribble_cpu,ScribbleText2Image_cuda:2,SegText2Image_cuda:2,Image2Pose_cpu,PoseText2Image_cuda:2,Image2Hed_cpu,HedText2Image_cuda:3,Image2Normal_cpu,NormalText2Image_cuda:3,Image2Line_cpu,LineText2Image_cuda:3",
+]
+
+# ============================================
+# Settings
+# ============================================
+[settings]
+auto_install = true
+parallel_install = true
+cache_duration = "7d"
