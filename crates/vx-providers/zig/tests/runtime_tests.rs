@@ -9,7 +9,7 @@ fn test_zig_runtime_creation() {
     let runtime = ZigRuntime::new();
     assert_eq!(runtime.name(), "zig");
     assert!(!runtime.description().is_empty());
-    assert_eq!(runtime.ecosystem(), Ecosystem::Other);
+    assert_eq!(runtime.ecosystem(), Ecosystem::Unknown);
 }
 
 #[test]
