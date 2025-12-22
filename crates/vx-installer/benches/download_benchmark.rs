@@ -7,7 +7,9 @@
 //! For CDN-enabled benchmarks:
 //! cargo bench -p vx-installer --features cdn-acceleration
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, Criterion, Throughput};
+#[cfg(feature = "cdn-acceleration")]
+use criterion::BenchmarkId;
 use std::hint::black_box;
 use std::time::Duration;
 use tokio::runtime::Runtime;
