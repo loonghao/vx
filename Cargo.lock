@@ -3408,7 +3408,7 @@ dependencies = [
  "dirs",
  "serde",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -3719,7 +3719,7 @@ dependencies = [
  "serde_json",
  "tar",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-test",
  "tracing",
