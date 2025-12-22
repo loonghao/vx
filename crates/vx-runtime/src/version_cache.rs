@@ -5,7 +5,7 @@
 //!
 //! ## Cache Strategy (inspired by uv)
 //!
-//! - **Default TTL**: 30 minutes for version lists (balances freshness vs API limits)
+//! - **Default TTL**: 24 hours for version lists (balances freshness vs API limits)
 //! - **Refresh options**: `--refresh` to force re-fetch, `--offline` to use cache only
 //! - **Cache keys**: Based on tool name and optional source URL
 //! - **Thread safety**: File-based locking for concurrent access
@@ -26,14 +26,14 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
-/// Default cache TTL (30 minutes - balances freshness vs API rate limits)
-pub const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(30 * 60);
+/// Default cache TTL (24 hours - version lists don't change frequently)
+pub const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 
-/// Short cache TTL for frequently updated tools (10 minutes)
-pub const SHORT_CACHE_TTL: Duration = Duration::from_secs(10 * 60);
+/// Short cache TTL for frequently updated tools (1 hour)
+pub const SHORT_CACHE_TTL: Duration = Duration::from_secs(60 * 60);
 
-/// Long cache TTL for stable tools (2 hours)
-pub const LONG_CACHE_TTL: Duration = Duration::from_secs(2 * 60 * 60);
+/// Long cache TTL for stable tools (7 days)
+pub const LONG_CACHE_TTL: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
 /// Cache refresh mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

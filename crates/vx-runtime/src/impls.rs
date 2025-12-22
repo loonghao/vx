@@ -214,6 +214,11 @@ impl HttpClient for RealHttpClient {
     }
 
     async fn download(&self, url: &str, dest: &Path) -> Result<()> {
+        use futures_util::StreamExt;
+        use std::io::Write;
+        use std::time::Instant;
+        use tokio::io::AsyncWriteExt;
+
         let response = self.client.get(url).send().await?;
 
         // Check for successful response
@@ -225,13 +230,89 @@ impl HttpClient for RealHttpClient {
             ));
         }
 
-        let bytes = response.bytes().await?;
+        let total_size = response.content_length().unwrap_or(0);
 
         if let Some(parent) = dest.parent() {
             std::fs::create_dir_all(parent)?;
         }
 
-        std::fs::write(dest, bytes)?;
+        let mut file = tokio::fs::File::create(dest).await?;
+        let mut downloaded: u64 = 0;
+        let mut stream = response.bytes_stream();
+        let start_time = Instant::now();
+        let mut last_update = Instant::now();
+
+        // Print initial progress
+        if total_size > 0 {
+            print!(
+                "\r  ⏳ Downloading: 0% (0 / {:.1} MB) | -- MB/s | ETA: --",
+                total_size as f64 / 1_000_000.0
+            );
+            let _ = std::io::stdout().flush();
+        }
+
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk?;
+            file.write_all(&chunk).await?;
+            downloaded += chunk.len() as u64;
+
+            // Update progress every 100ms
+            let now = Instant::now();
+            if total_size > 0 && now.duration_since(last_update).as_millis() >= 100 {
+                last_update = now;
+                let elapsed = start_time.elapsed().as_secs_f64();
+                let speed = if elapsed > 0.0 {
+                    (downloaded as f64) / elapsed / 1_000_000.0
+                } else {
+                    0.0
+                };
+
+                let percent = (downloaded * 100) / total_size;
+                let remaining = total_size - downloaded;
+                let eta = if speed > 0.1 {
+                    (remaining as f64) / (speed * 1_000_000.0)
+                } else {
+                    0.0
+                };
+
+                let eta_str = if eta > 60.0 {
+                    format!("{}m{}s", (eta / 60.0) as u64, (eta % 60.0) as u64)
+                } else if eta > 0.0 {
+                    format!("{}s", eta as u64)
+                } else {
+                    "--".to_string()
+                };
+
+                print!(
+                    "\r  ⏳ Downloading: {}% ({:.1} / {:.1} MB) | {:.1} MB/s | ETA: {}     ",
+                    percent,
+                    downloaded as f64 / 1_000_000.0,
+                    total_size as f64 / 1_000_000.0,
+                    speed,
+                    eta_str
+                );
+                let _ = std::io::stdout().flush();
+            }
+        }
+
+        // Final summary
+        if total_size > 0 {
+            let elapsed = start_time.elapsed().as_secs_f64();
+            let avg_speed = if elapsed > 0.0 {
+                (downloaded as f64) / elapsed / 1_000_000.0
+            } else {
+                0.0
+            };
+            print!(
+                "\r  ✓ Downloaded {:.1} MB in {:.1}s ({:.1} MB/s)                              \n",
+                downloaded as f64 / 1_000_000.0,
+                elapsed,
+                avg_speed
+            );
+            let _ = std::io::stdout().flush();
+        }
+
+        file.flush().await?;
         Ok(())
     }
 
@@ -628,19 +709,9 @@ impl Installer for RealInstaller {
             // Single executable file - copy to destination
             std::fs::create_dir_all(dest)?;
 
-            // Determine the executable name (remove version suffix if present)
-            // e.g., "pnpm-linux-x64-9.0.0" -> "pnpm"
-            let exe_name = archive_name
-                .split('-')
-                .next()
-                .unwrap_or(archive_name)
-                .to_string();
-
-            let exe_name = if cfg!(windows) && !exe_name.ends_with(".exe") {
-                format!("{}.exe", exe_name)
-            } else {
-                exe_name
-            };
+            // Keep the original filename from URL
+            // e.g., "rcedit-x64.exe" stays as "rcedit-x64.exe"
+            let exe_name = archive_name.to_string();
 
             let dest_path = dest.join(&exe_name);
             std::fs::copy(&temp_path, &dest_path)?;

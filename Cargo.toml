@@ -19,6 +19,13 @@ members = [
   "crates/vx-providers/just",
   "crates/vx-providers/vite",
   "crates/vx-providers/rez",
+  "crates/vx-providers/deno",
+  "crates/vx-providers/zig",
+  "crates/vx-providers/java",
+  "crates/vx-providers/terraform",
+  "crates/vx-providers/kubectl",
+  "crates/vx-providers/helm",
+  "crates/vx-providers/rcedit",
 ]
 resolver = "2"
 
@@ -65,7 +72,7 @@ vx-core = { workspace = true }
 
 
 [workspace.package]
-version = "0.5.11"                                                # x-release-please-version
+version = "0.5.11"                                               # x-release-please-version
 edition = "2021"
 description = "Universal Development Tool Manager"
 license = "MIT"
@@ -99,6 +106,13 @@ vx-provider-vscode = { path = "crates/vx-providers/vscode" }
 vx-provider-just = { path = "crates/vx-providers/just" }
 vx-provider-vite = { path = "crates/vx-providers/vite" }
 vx-provider-rez = { path = "crates/vx-providers/rez" }
+vx-provider-deno = { path = "crates/vx-providers/deno" }
+vx-provider-zig = { path = "crates/vx-providers/zig" }
+vx-provider-java = { path = "crates/vx-providers/java" }
+vx-provider-terraform = { path = "crates/vx-providers/terraform" }
+vx-provider-kubectl = { path = "crates/vx-providers/kubectl" }
+vx-provider-helm = { path = "crates/vx-providers/helm" }
+vx-provider-rcedit = { path = "crates/vx-providers/rcedit" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }
@@ -131,6 +145,7 @@ tar = "0.4"
 flate2 = "1.0"
 liblzma = "0.4"
 walkdir = "2.4"
+glob = "0.3"
 # Optimize chrono - remove serde feature if not needed everywhere
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"

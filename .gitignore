@@ -37,3 +37,4 @@ node_modules/
 .shrimp-config.json
 dist/
 .codebuddy/
+.vitepress/

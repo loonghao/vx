@@ -29,6 +29,13 @@ vx-provider-vscode = { workspace = true }
 vx-provider-just = { workspace = true }
 vx-provider-vite = { workspace = true }
 vx-provider-rez = { workspace = true }
+vx-provider-deno = { workspace = true }
+vx-provider-zig = { workspace = true }
+vx-provider-java = { workspace = true }
+vx-provider-terraform = { workspace = true }
+vx-provider-kubectl = { workspace = true }
+vx-provider-helm = { workspace = true }
+vx-provider-rcedit = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
