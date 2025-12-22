@@ -31,16 +31,18 @@ jobs:
   build:
     name: Build Documentation
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Download vx
-        shell: bash
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Build vx
         run: |
-          curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-          echo "$HOME/.vx/bin" >> $GITHUB_PATH
+          cargo build --release --bin vx
+          echo "${{ github.workspace }}/target/release" >> $GITHUB_PATH
 
       - name: Install dependencies
         working-directory: docs
