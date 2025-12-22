@@ -1,7 +1,7 @@
 name: PR Checks
 
 # Fast PR validation workflow - runs on every PR
-# Optimized for quick feedback on code quality
+# Uses vx itself to manage the development environment (dogfooding)
 
 on:
   pull_request:
@@ -24,18 +24,90 @@ env:
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 jobs:
-  # Fast checks that run first (< 3 min)
-  quick-checks:
-    name: Quick Checks
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+  # ============================================================================
+  # Stage 1: Build vx binary for all platforms
+  # ============================================================================
+  build-vx:
+    name: Build vx (${{ matrix.platform.name }})
+    runs-on: ${{ matrix.platform.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Linux
+            os: ubuntu-latest
+            artifact: vx-linux
+            binary: vx
+          - name: Windows
+            os: windows-latest
+            artifact: vx-windows
+            binary: vx.exe
+          - name: macOS
+            os: macos-latest
+            artifact: vx-macos
+            binary: vx
+
     steps:
       - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: actions/cache@v5
         with:
-          components: rustfmt, clippy
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-build-
+
+      - name: Build vx release binary
+        run: cargo build --release
+
+      - name: Verify binary
+        shell: bash
+        run: |
+          ./target/release/${{ matrix.platform.binary }} --version
+          ./target/release/${{ matrix.platform.binary }} --help
+
+      - name: Upload vx binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.platform.artifact }}
+          path: target/release/${{ matrix.platform.binary }}
+          retention-days: 1
+
+  # ============================================================================
+  # Stage 2: Quick checks using vx (formatting, cargo check)
+  # ============================================================================
+  quick-checks:
+    name: Quick Checks (via vx)
+    runs-on: ubuntu-latest
+    needs: build-vx
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: vx-linux
+          path: ./bin
+
+      - name: Setup vx
+        run: |
+          chmod +x ./bin/vx
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+          ./bin/vx --version
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
 
       - name: Cache Rust
         uses: actions/cache@v5
@@ -48,19 +120,33 @@ jobs:
           key: ${{ runner.os }}-cargo-quick-${{ hashFiles('Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-quick-
 
-      - name: Check Rust formatting
-        run: cargo fmt --all -- --check
+      - name: Check Rust formatting (via vx)
+        run: vx run fmt-check
 
-      - name: Cargo check (fast compile check)
-        run: cargo check --workspace --all-features
+      - name: Cargo check (via vx)
+        run: vx run check
 
-  # Clippy runs in parallel with quick-checks
+  # ============================================================================
+  # Stage 3: Clippy lints using vx
+  # ============================================================================
   clippy:
-    name: Clippy Lints
+    name: Clippy Lints (via vx)
     runs-on: ubuntu-latest
+    needs: build-vx
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: vx-linux
+          path: ./bin
+
+      - name: Setup vx
+        run: |
+          chmod +x ./bin/vx
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -78,16 +164,30 @@ jobs:
           key: ${{ runner.os }}-cargo-clippy-${{ hashFiles('Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-clippy-
 
-      - name: Run Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Run Clippy (via vx)
+        run: vx run clippy
 
-  # Documentation check
+  # ============================================================================
+  # Stage 4: Documentation check
+  # ============================================================================
   docs:
     name: Documentation
     runs-on: ubuntu-latest
+    needs: build-vx
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: vx-linux
+          path: ./bin
+
+      - name: Setup vx
+        run: |
+          chmod +x ./bin/vx
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -108,70 +208,51 @@ jobs:
         env:
           RUSTDOCFLAGS: "-D warnings"
 
-  # Build binaries and upload as artifacts
-  build:
-    name: Build (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+  # ============================================================================
+  # Stage 5: Unit tests using vx on multiple platforms
+  # ============================================================================
+  unit-test:
+    name: Unit Test (${{ matrix.platform.name }}) via vx
+    runs-on: ${{ matrix.platform.os }}
+    needs: [build-vx, quick-checks]
     timeout-minutes: 20
-    needs: [quick-checks]
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
+        platform:
+          - name: Linux
+            os: ubuntu-latest
             artifact: vx-linux
             binary: vx
-          - os: windows-latest
+          - name: Windows
+            os: windows-latest
             artifact: vx-windows
             binary: vx.exe
-          - os: macos-latest
+          - name: macOS
+            os: macos-latest
             artifact: vx-macos
             binary: vx
+
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust
-        uses: actions/cache@v5
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
         with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-build-
+          name: ${{ matrix.platform.artifact }}
+          path: ./bin
 
-      - name: Build release
-        run: cargo build --release
-
-      - name: Test CLI (--help)
+      - name: Setup vx
         shell: bash
         run: |
-          ./target/release/${{ matrix.binary }} --help
-          ./target/release/${{ matrix.binary }} --version
+          chmod +x ./bin/${{ matrix.platform.binary }} 2>/dev/null || true
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
 
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ matrix.artifact }}
-          path: target/release/${{ matrix.binary }}
-          retention-days: 1
-
-  # Unit tests (no binary needed)
-  unit-test:
-    name: Unit Test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    needs: [quick-checks]
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    steps:
-      - uses: actions/checkout@v6
+      - name: Verify vx works
+        shell: bash
+        run: |
+          ./bin/${{ matrix.platform.binary }} --version
+          ./bin/${{ matrix.platform.binary }} list
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -187,30 +268,49 @@ jobs:
           key: ${{ runner.os }}-cargo-test-${{ hashFiles('Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-test-
 
-      - name: Run unit tests
-        run: cargo test --workspace --all-features --lib
+      - name: Run unit tests (via vx)
+        shell: bash
+        run: vx run test
 
-  # E2E tests (download binary artifact)
+  # ============================================================================
+  # Stage 6: E2E tests using vx
+  # ============================================================================
   e2e-test:
-    name: E2E Test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: E2E Test (${{ matrix.platform.name }}) via vx
+    runs-on: ${{ matrix.platform.os }}
+    needs: [build-vx, unit-test]
     timeout-minutes: 20
-    needs: [build]
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
+        platform:
+          - name: Linux
+            os: ubuntu-latest
             artifact: vx-linux
             binary: vx
-          - os: windows-latest
+          - name: Windows
+            os: windows-latest
             artifact: vx-windows
             binary: vx.exe
-          - os: macos-latest
+          - name: macOS
+            os: macos-latest
             artifact: vx-macos
             binary: vx
+
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ matrix.platform.artifact }}
+          path: ./bin
+
+      - name: Setup vx
+        shell: bash
+        run: |
+          chmod +x ./bin/${{ matrix.platform.binary }} 2>/dev/null || true
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -226,23 +326,97 @@ jobs:
           key: ${{ runner.os }}-cargo-e2e-${{ hashFiles('Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-e2e-
 
-      - name: Download binary artifact
-        uses: actions/download-artifact@v7
-        with:
-          name: ${{ matrix.artifact }}
-          path: ./bin
-
-      - name: Make binary executable
-        if: runner.os != 'Windows'
-        run: chmod +x ./bin/${{ matrix.binary }}
-
       - name: Run E2E tests
         shell: bash
         run: cargo test --workspace --all-features --test '*'
         env:
-          VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.binary }}
+          VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
 
-  # Security audit
+  # ============================================================================
+  # Stage 7: Dogfood test - use vx to run real tools
+  # ============================================================================
+  dogfood:
+    name: Dogfood (${{ matrix.platform.name }})
+    runs-on: ${{ matrix.platform.os }}
+    needs: build-vx
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Linux
+            os: ubuntu-latest
+            artifact: vx-linux
+            binary: vx
+          - name: Windows
+            os: windows-latest
+            artifact: vx-windows
+            binary: vx.exe
+          - name: macOS
+            os: macos-latest
+            artifact: vx-macos
+            binary: vx
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ matrix.platform.artifact }}
+          path: ./bin
+
+      - name: Setup vx
+        shell: bash
+        run: |
+          chmod +x ./bin/${{ matrix.platform.binary }} 2>/dev/null || true
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Cache vx tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.vx
+          key: ${{ runner.os }}-vx-dogfood-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-vx-dogfood-
+
+      - name: Test vx with Node.js
+        shell: bash
+        run: |
+          echo "=== Testing Node.js via vx ==="
+          vx node --version
+          vx node -e "console.log('Hello from Node.js via vx!')"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Test vx with Go
+        shell: bash
+        run: |
+          echo "=== Testing Go via vx ==="
+          vx go version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Test vx with UV
+        shell: bash
+        run: |
+          echo "=== Testing UV via vx ==="
+          vx uv --version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Show vx stats
+        shell: bash
+        run: |
+          vx stats
+          vx list --status
+
+  # ============================================================================
+  # Stage 8: Security audit
+  # ============================================================================
   security:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -255,11 +429,31 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Final gate - all critical checks must pass
+  # ============================================================================
+  # Stage 9: mdBook documentation build
+  # ============================================================================
+  mdbook:
+    name: mdBook Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: '0.4.40'
+
+      - name: Build documentation
+        run: mdbook build book
+
+  # ============================================================================
+  # PR Ready Gate
+  # ============================================================================
   pr-ready:
     name: PR Ready
     runs-on: ubuntu-latest
-    needs: [quick-checks, clippy, docs, unit-test, e2e-test, build, security]
+    needs: [build-vx, quick-checks, clippy, docs, unit-test, e2e-test, dogfood, security, mdbook]
     if: always()
     steps:
       - name: Check results
@@ -268,13 +462,15 @@ jobs:
 
           # Define required jobs
           declare -A jobs=(
+            ["build-vx"]="${{ needs.build-vx.result }}"
             ["quick-checks"]="${{ needs.quick-checks.result }}"
             ["clippy"]="${{ needs.clippy.result }}"
             ["docs"]="${{ needs.docs.result }}"
             ["unit-test"]="${{ needs.unit-test.result }}"
             ["e2e-test"]="${{ needs.e2e-test.result }}"
-            ["build"]="${{ needs.build.result }}"
+            ["dogfood"]="${{ needs.dogfood.result }}"
             ["security"]="${{ needs.security.result }}"
+            ["mdbook"]="${{ needs.mdbook.result }}"
           )
 
           failed=0
@@ -286,7 +482,10 @@ jobs:
               echo "- ⏭️ $job (skipped)" >> $GITHUB_STEP_SUMMARY
             else
               echo "- ❌ $job ($result)" >> $GITHUB_STEP_SUMMARY
-              failed=1
+              # dogfood failures are warnings, not blockers
+              if [[ "$job" != "dogfood" ]]; then
+                failed=1
+              fi
             fi
           done
 
