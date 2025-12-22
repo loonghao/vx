@@ -27,6 +27,7 @@ vx switch [OPTIONS] <TOOL@VERSION>
 ## 示例
 
 ### 临时切换版本
+
 ```bash
 # 在当前会话中切换到 Node.js 20.10.0
 vx switch node@20.10.0
@@ -36,6 +37,7 @@ vx switch node@20.10.0 --temporary
 ```
 
 ### 全局切换
+
 ```bash
 # 设置 Node.js 20.10.0 为全局默认
 vx switch node@20.10.0 --global
@@ -45,6 +47,7 @@ vx switch python@3.11 --global
 ```
 
 ### 项目级切换
+
 ```bash
 # 在当前项目中切换版本
 vx switch node@18.17.0 --project
@@ -63,12 +66,14 @@ vx switch node@18.17.0 --project
 ## 切换范围
 
 ### 会话级切换（默认）
+
 ```bash
 vx switch node@20.10.0
 # 仅在当前终端会话中生效
 ```
 
 ### 全局切换
+
 ```bash
 vx switch node@20.10.0 --global
 # 影响所有新的终端会话
@@ -76,6 +81,7 @@ vx switch node@20.10.0 --global
 ```
 
 ### 项目级切换
+
 ```bash
 vx switch node@18.17.0 --project
 # 仅在当前项目中生效
@@ -94,6 +100,7 @@ v20.10.0
 ```
 
 ### 全局切换示例
+
 ```bash
 $ vx switch node@20.10.0 --global
 设置 node 全局默认版本: 18.17.0 → 20.10.0
@@ -103,6 +110,7 @@ $ vx switch node@20.10.0 --global
 ```
 
 ### 项目切换示例
+
 ```bash
 $ vx switch node@18.17.0 --project
 更新项目配置: .vx.toml
@@ -158,5 +166,3 @@ vx switch node --reset-global
 
 - [`vx install`](./install.md) - 安装工具版本
 - [`vx list`](./list.md) - 列出已安装版本
-- [`vx version`](./version.md) - 查看版本信息
-- [`vx which`](./which.md) - 查看工具路径
