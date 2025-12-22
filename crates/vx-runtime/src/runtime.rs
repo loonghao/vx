@@ -205,57 +205,83 @@ pub trait Runtime: Send + Sync {
         platform: &Platform,
     ) -> VerificationResult {
         let exe_relative = self.executable_relative_path(version, platform);
-        let exe_path = install_path.join(&exe_relative);
 
         let mut issues = Vec::new();
         let mut suggestions = Vec::new();
 
-        // Check if executable exists
-        if !exe_path.exists() {
-            issues.push(format!(
-                "Executable not found at expected path: {}",
-                exe_path.display()
-            ));
+        // Handle glob patterns in executable path (e.g., "*/bin/java.exe")
+        let exe_path = if exe_relative.contains('*') {
+            let pattern = install_path.join(&exe_relative);
+            let pattern_str = pattern.to_string_lossy();
+            match glob::glob(&pattern_str) {
+                Ok(paths) => {
+                    let matches: Vec<_> = paths.filter_map(|p| p.ok()).collect();
+                    if matches.is_empty() {
+                        None
+                    } else {
+                        Some(matches[0].clone())
+                    }
+                }
+                Err(_) => None,
+            }
+        } else {
+            let path = install_path.join(&exe_relative);
+            if path.exists() {
+                Some(path)
+            } else {
+                None
+            }
+        };
 
-            // Try to find the executable in the install directory
-            if let Some(found_path) = self.find_executable_in_install_dir(install_path) {
-                suggestions.push(format!(
-                    "Found executable at: {}. Consider overriding executable_relative_path() \
-                     to return the correct relative path.",
-                    found_path.display()
+        // Check if executable exists
+        let exe_path = match exe_path {
+            Some(path) if path.exists() => path,
+            _ => {
+                issues.push(format!(
+                    "Executable not found at expected path: {}",
+                    install_path.join(&exe_relative).display()
                 ));
 
-                // Calculate what the relative path should be
-                if let Ok(relative) = found_path.strip_prefix(install_path) {
+                // Try to find the executable in the install directory
+                if let Some(found_path) = self.find_executable_in_install_dir(install_path) {
                     suggestions.push(format!(
-                        "Suggested executable_relative_path: \"{}\"",
-                        relative.display()
+                        "Found executable at: {}. Consider overriding executable_relative_path() \
+                         to return the correct relative path.",
+                        found_path.display()
                     ));
-                }
-            } else {
-                // List top-level contents for debugging
-                if let Ok(entries) = std::fs::read_dir(install_path) {
-                    let contents: Vec<_> = entries
-                        .filter_map(|e| e.ok())
-                        .map(|e| {
-                            let path = e.path();
-                            let is_dir = path.is_dir();
-                            format!(
-                                "{}{}",
-                                e.file_name().to_string_lossy(),
-                                if is_dir { "/" } else { "" }
-                            )
-                        })
-                        .collect();
-                    suggestions.push(format!(
-                        "Install directory contents: [{}]",
-                        contents.join(", ")
-                    ));
-                }
-            }
 
-            return VerificationResult::failure(issues, suggestions);
-        }
+                    // Calculate what the relative path should be
+                    if let Ok(relative) = found_path.strip_prefix(install_path) {
+                        suggestions.push(format!(
+                            "Suggested executable_relative_path: \"{}\"",
+                            relative.display()
+                        ));
+                    }
+                } else {
+                    // List top-level contents for debugging
+                    if let Ok(entries) = std::fs::read_dir(install_path) {
+                        let contents: Vec<_> = entries
+                            .filter_map(|e| e.ok())
+                            .map(|e| {
+                                let path = e.path();
+                                let is_dir = path.is_dir();
+                                format!(
+                                    "{}{}",
+                                    e.file_name().to_string_lossy(),
+                                    if is_dir { "/" } else { "" }
+                                )
+                            })
+                            .collect();
+                        suggestions.push(format!(
+                            "Install directory contents: [{}]",
+                            contents.join(", ")
+                        ));
+                    }
+                }
+
+                return VerificationResult::failure(issues, suggestions);
+            }
+        };
 
         // Check if file is executable (Unix only)
         #[cfg(unix)]
@@ -462,7 +488,6 @@ pub trait Runtime: Send + Sync {
         let install_path = ctx.paths.version_store_dir(self.name(), version);
         let platform = Platform::current();
         let exe_relative = self.executable_relative_path(version, &platform);
-        let exe_path = install_path.join(&exe_relative);
 
         debug!(
             "Install path for {} {}: {}",
@@ -474,8 +499,12 @@ pub trait Runtime: Send + Sync {
 
         // Check if already installed
         if ctx.fs.exists(&install_path) {
-            // Verify the executable actually exists
-            if ctx.fs.exists(&exe_path) {
+            // Use verify_installation to check if the executable exists (supports glob patterns)
+            let verification = self.verify_installation(version, &install_path, &platform);
+            if verification.valid {
+                let exe_path = verification
+                    .executable_path
+                    .unwrap_or_else(|| install_path.join(&exe_relative));
                 debug!("Already installed: {}", exe_path.display());
                 return Ok(InstallResult::already_installed(
                     install_path,
@@ -509,7 +538,7 @@ pub trait Runtime: Send + Sync {
             .download_and_extract(&url, &install_path)
             .await?;
 
-        debug!("Expected executable path: {}", exe_path.display());
+        debug!("Expected executable path pattern: {}", exe_relative);
 
         // Use the verification framework to check installation
         let verification = self.verify_installation(version, &install_path, &platform);
@@ -537,7 +566,9 @@ pub trait Runtime: Send + Sync {
             return Err(anyhow::anyhow!(error_msg));
         }
 
-        let verified_exe_path = verification.executable_path.unwrap_or(exe_path);
+        let verified_exe_path = verification
+            .executable_path
+            .unwrap_or_else(|| install_path.join(&exe_relative));
 
         Ok(InstallResult::success(
             install_path,
