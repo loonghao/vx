@@ -430,22 +430,34 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   # ============================================================================
-  # Stage 9: mdBook documentation build
+  # Stage 9: VitePress documentation build (using vx dogfooding)
   # ============================================================================
-  mdbook:
-    name: mdBook Documentation
+  vitepress:
+    name: VitePress Documentation
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    needs: build-vx
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@v2
+      - name: Download vx binary
+        uses: actions/download-artifact@v4
         with:
-          mdbook-version: '0.4.40'
+          name: vx-linux
+          path: ./bin
+
+      - name: Setup vx
+        run: |
+          chmod +x ./bin/vx
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        working-directory: docs
+        run: vx npm install
 
       - name: Build documentation
-        run: mdbook build book
+        working-directory: docs
+        run: vx npm run build
 
   # ============================================================================
   # PR Ready Gate
@@ -453,7 +465,7 @@ jobs:
   pr-ready:
     name: PR Ready
     runs-on: ubuntu-latest
-    needs: [build-vx, quick-checks, clippy, docs, unit-test, e2e-test, dogfood, security, mdbook]
+    needs: [build-vx, quick-checks, clippy, docs, unit-test, e2e-test, dogfood, security, vitepress]
     if: always()
     steps:
       - name: Check results
@@ -470,7 +482,7 @@ jobs:
             ["e2e-test"]="${{ needs.e2e-test.result }}"
             ["dogfood"]="${{ needs.dogfood.result }}"
             ["security"]="${{ needs.security.result }}"
-            ["mdbook"]="${{ needs.mdbook.result }}"
+            ["vitepress"]="${{ needs.vitepress.result }}"
           )
 
           failed=0
