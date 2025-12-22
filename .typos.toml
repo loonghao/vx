@@ -3,20 +3,15 @@
 
 [default]
 extend-ignore-identifiers-re = [
-    # Common false positives
-    "ba",
-    "ot",
+  # Common false positives
+  "ba",
+  "ot",
 ]
 
 [default.extend-words]
 # Allow specific words that are false positives
 nd = "nd"
+Hashi = "Hashi" # HashiCorp
 
 [files]
-extend-exclude = [
-    "Cargo.lock",
-    "target/",
-    "*.snap",
-    "*.min.js",
-    "*.min.css",
-]
+extend-exclude = ["Cargo.lock", "target/", "*.snap", "*.min.js", "*.min.css"]
