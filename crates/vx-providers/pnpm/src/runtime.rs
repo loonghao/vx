@@ -41,13 +41,10 @@ impl Runtime for PnpmRuntime {
     }
 
     /// PNPM is downloaded as a single executable file
-    /// The installer places it in the bin/ subdirectory
-    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        if platform.os == vx_runtime::Os::Windows {
-            "bin/pnpm.exe".to_string()
-        } else {
-            "bin/pnpm".to_string()
-        }
+    /// The filename matches the download URL (e.g., pnpm-linux-x64, pnpm-macos-arm64)
+    fn executable_relative_path(&self, _version: &str, _platform: &Platform) -> String {
+        // Return the actual downloaded filename
+        PnpmUrlBuilder::get_filename()
     }
 
     async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
