@@ -9,3 +9,17 @@ uv = "latest"
 [settings]
 auto_install = true
 cache_duration = "7d"
+
+[scripts]
+# Format check
+fmt-check = "cargo fmt --all -- --check"
+# Cargo check
+check = "cargo check --workspace --all-targets"
+# Clippy linting
+clippy = "cargo clippy --workspace --all-targets -- -D warnings"
+# Run tests
+test = "cargo test --workspace"
+# Build release
+release = "cargo build --release"
+# Build debug
+build = "cargo build"

@@ -104,6 +104,15 @@ jobs:
           echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
           ./bin/vx --version
 
+      - name: Debug - Check .vx.toml
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory:"
+          ls -la
+          echo ""
+          echo ".vx.toml contents:"
+          cat .vx.toml || echo "File not found"
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
