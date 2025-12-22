@@ -23,9 +23,9 @@ $ vx search
   just - Just - A handy way to save and run project-specific commands
   vite - Vite - Next Generation Frontend Tooling (installed via npm)
   rez - Rez - Cross-platform package manager (installed via pip)
-  deno - Deno - A modern runtime for JavaScript and TypeScript
-  zig - Zig - A general-purpose programming language and toolchain
-  java - Eclipse Temurin JDK - Production-ready OpenJDK distribution
+  deno - A secure runtime for JavaScript and TypeScript
+  zig - Zig programming language - a systems programming language
+  java - Java Development Kit (Eclipse Temurin)
   terraform - Terraform - Infrastructure as Code tool by HashiCorp
   kubectl - kubectl - Kubernetes command-line tool
   helm - Helm - The package manager for Kubernetes
