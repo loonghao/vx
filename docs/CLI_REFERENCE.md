@@ -5,14 +5,18 @@ VX 是一个通用的版本管理工具，提供透明的代理和项目配置�
 ## 🚀 核心概念
 
 ### 透明代理
+
 用户只需要 `vx <tool>` 就能自动处理一切：
+
 - 自动检测项目配置（`.vx.toml`）
 - 自动安装缺失工具
 - 自动使用正确版本
 - 透明代理到正确版本执行
 
 ### 项目配置驱动
+
 基于 `.vx.toml` 自动管理工具版本：
+
 ```toml
 [tools]
 node = "18.17.0"      # 精确版本
@@ -26,6 +30,7 @@ cache_duration = "7d" # 版本缓存时间
 ```
 
 ### 简化的架构
+
 ```
 ~/.vx/
 ├── tools/            # 全局工具存储
@@ -57,6 +62,7 @@ OPTIONS:
 ## 🛠️ 工具执行
 
 ### 直接执行工具
+
 ```bash
 # 完全透明的使用体验
 vx node --version                    # 自动使用项目配置的版本
@@ -79,6 +85,7 @@ $ vx node --version
 ```
 
 ### 执行流程（包含自动安装）
+
 1. 用户运行 `vx node --version`
 2. 查找项目配置文件（`.vx.toml`）
 3. 解析版本需求（`18.17.0` 或 `latest`）
@@ -94,6 +101,7 @@ $ vx node --version
 6. 透明代理到正确版本执行
 
 ### 自动安装配置
+
 ```toml
 # ~/.vx/config.toml
 [auto_install]
@@ -110,6 +118,7 @@ enabled = true                    # 项目级别开关
 ## 📦 工具管理
 
 ### 安装工具
+
 ```bash
 # 安装特定版本
 vx install node@18.17.0
@@ -124,6 +133,7 @@ vx install node@18.17.0 --force
 ```
 
 ### 列出工具
+
 ```bash
 # 列出支持的工具
 vx list
@@ -136,6 +146,7 @@ vx list --status
 ```
 
 ### 更新工具
+
 ```bash
 # 更新所有工具到最新版本
 vx update
@@ -148,6 +159,7 @@ vx update --apply
 ```
 
 ### 移除工具
+
 ```bash
 # 移除特定版本
 vx remove node@18.17.0
@@ -160,6 +172,7 @@ vx remove node --force
 ```
 
 ### 搜索工具
+
 ```bash
 # 搜索可用工具
 vx search python
@@ -169,6 +182,7 @@ vx search --category python
 ```
 
 ### 切换版本
+
 ```bash
 # 临时切换版本
 vx switch node@20.10.0
@@ -180,6 +194,7 @@ vx switch node@20.10.0 --global
 ## 🌍 虚拟环境管理
 
 ### 创建虚拟环境
+
 ```bash
 # 创建空的虚拟环境
 vx venv create myproject
@@ -192,6 +207,7 @@ vx venv create myproject --from-config
 ```
 
 ### 使用虚拟环境
+
 ```bash
 # 激活虚拟环境（设置当前shell）
 vx venv use myproject
@@ -204,6 +220,7 @@ vx venv shell myproject
 ```
 
 ### 管理虚拟环境
+
 ```bash
 # 列出所有虚拟环境
 vx venv list
@@ -227,6 +244,7 @@ vx venv remove myproject --force
 ## 🌐 全局工具管理
 
 ### 全局工具操作
+
 ```bash
 # 列出全局安装的工具
 vx global list
@@ -256,6 +274,7 @@ vx global cleanup --dry-run
 ## 🔧 项目管理
 
 ### 初始化项目
+
 ```bash
 # 在当前目录初始化vx配置
 vx init
@@ -268,6 +287,7 @@ vx init --template node
 ```
 
 ### 项目同步
+
 ```bash
 # 同步安装项目所需的所有工具
 vx sync
@@ -280,6 +300,7 @@ vx sync --force
 ```
 
 ### 配置管理
+
 ```bash
 # 显示当前配置
 vx config
@@ -297,6 +318,7 @@ vx config edit --local
 ## 🧹 维护命令
 
 ### 清理操作
+
 ```bash
 # 清理孤立的包和缓存
 vx cleanup
@@ -310,6 +332,7 @@ vx cleanup --orphaned-only
 ```
 
 ### 统计信息
+
 ```bash
 # 显示包统计和磁盘使用
 vx stats
@@ -324,6 +347,7 @@ vx stats --by-tool
 ## 🔌 插件管理
 
 ### 插件操作
+
 ```bash
 # 列出所有插件
 vx plugin list
@@ -353,6 +377,7 @@ vx plugin stats
 ## 📝 使用示例
 
 ### 日常开发工作流
+
 ```bash
 # 1. 进入项目目录
 cd my-project
@@ -374,6 +399,7 @@ vx uv pip install requests
 ```
 
 ### 虚拟环境工作流
+
 ```bash
 # 1. 创建虚拟环境
 vx venv create myproject --tools node@18.17.0,uv@latest
@@ -390,6 +416,7 @@ vx venv run myproject npm install
 ```
 
 ### 全局工具管理
+
 ```bash
 # 查看已安装的工具
 vx global list
@@ -414,6 +441,7 @@ vx global dependents node
 ### 常见问题
 
 #### 工具安装失败
+
 ```bash
 # 检查网络连接
 vx --verbose install node@18.17.0
@@ -427,6 +455,7 @@ vx --use-system-path node --version
 ```
 
 #### 虚拟环境问题
+
 ```bash
 # 检查虚拟环境状态
 vx venv list
@@ -441,6 +470,7 @@ eval "$(vx venv activate myproject)"
 ```
 
 #### 配置问题
+
 ```bash
 # 验证配置文件
 vx config validate
@@ -456,6 +486,7 @@ vx config init
 ### 调试技巧
 
 #### 启用详细日志
+
 ```bash
 # 全局启用详细输出
 export VX_VERBOSE=true
@@ -466,6 +497,7 @@ vx --verbose install node@18.17.0
 ```
 
 #### 检查工具路径
+
 ```bash
 # 显示工具实际路径
 vx which node
@@ -477,6 +509,7 @@ vx version --all
 ```
 
 #### 网络问题诊断
+
 ```bash
 # 测试网络连接
 vx test-connection
@@ -494,6 +527,7 @@ vx config set registries.node.url "https://npmmirror.com/mirrors/node/"
 ### Shell 集成
 
 #### Bash/Zsh 集成
+
 ```bash
 # 添加到 ~/.bashrc 或 ~/.zshrc
 eval "$(vx shell-init)"
@@ -504,6 +538,7 @@ source <(vx completion bash)  # 或 zsh
 ```
 
 #### Fish Shell 集成
+
 ```fish
 # 添加到 ~/.config/fish/config.fish
 vx shell-init | source
@@ -511,6 +546,7 @@ vx completion fish | source
 ```
 
 #### PowerShell 集成
+
 ```powershell
 # 添加到 PowerShell 配置文件
 Invoke-Expression (vx shell-init)
@@ -529,6 +565,7 @@ vx completion fish > ~/.config/fish/completions/vx.fish
 ### 钩子脚本
 
 #### 项目钩子
+
 ```bash
 # .vx/hooks/pre-install
 #!/bin/bash
@@ -541,6 +578,7 @@ npm install
 ```
 
 #### 全局钩子
+
 ```bash
 # ~/.config/vx/hooks/pre-tool-switch
 #!/bin/bash
@@ -554,6 +592,7 @@ echo "虚拟环境已激活: $VX_VENV_NAME"
 ### 批量操作
 
 #### 批量安装工具
+
 ```bash
 # 从文件安装
 vx install --from-file tools.txt
@@ -569,6 +608,7 @@ vx update --all --apply
 ```
 
 #### 批量虚拟环境管理
+
 ```bash
 # 批量创建虚拟环境
 for project in project1 project2 project3; do
@@ -579,11 +619,11 @@ done
 vx venv list --format=names | xargs -I {} vx venv remove {} --force
 ```
 
-## �🔗 相关文档
+## 🔗 相关文档
 
 - [安装指南](INSTALLATION.md)
 - [配置参考](CONFIG_REFERENCE.md)
 - [架构设计](architecture.md)
 - [插件开发](PLUGIN_DEVELOPMENT.md)
-- [故障排除指南](TROUBLESHOOTING.md)
-- [最佳实践](BEST_PRACTICES.md)
+- [故障排除指南](cli/troubleshooting.md)
+- [CLI 概览](cli/overview.md)

@@ -314,7 +314,7 @@ After successful installation:
 
 1. **Configure vx**: Run `vx config` to set up your preferences
 2. **Install tools**: Use `vx install <tool>` to install development tools
-3. **Explore features**: Check out the [User Guide](USER_GUIDE.md)
+3. **Explore features**: Check out the [Getting Started Guide](guide/getting-started.md)
 4. **Join the community**: Visit our [GitHub Discussions](https://github.com/loonghao/vx/discussions)
 
 ## 🤝 Contributing
