@@ -9,7 +9,7 @@ fn test_helm_runtime_creation() {
     let runtime = HelmRuntime::new();
     assert_eq!(runtime.name(), "helm");
     assert!(!runtime.description().is_empty());
-    assert_eq!(runtime.ecosystem(), Ecosystem::Other);
+    assert_eq!(runtime.ecosystem(), Ecosystem::Unknown);
 }
 
 #[test]

@@ -9,7 +9,7 @@ fn test_terraform_runtime_creation() {
     let runtime = TerraformRuntime::new();
     assert_eq!(runtime.name(), "terraform");
     assert!(!runtime.description().is_empty());
-    assert_eq!(runtime.ecosystem(), Ecosystem::Other);
+    assert_eq!(runtime.ecosystem(), Ecosystem::Unknown);
 }
 
 #[test]
