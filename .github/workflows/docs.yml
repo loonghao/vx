@@ -50,7 +50,7 @@ jobs:
 
       - name: Build documentation
         working-directory: docs
-        run: vx npm run docs:build
+        run: vx npm run build
 
       - name: Upload artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
