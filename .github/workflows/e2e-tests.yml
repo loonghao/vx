@@ -178,7 +178,84 @@ jobs:
           VX_BINARY: ${{ github.workspace }}/target/release/${{ matrix.binary }}
 
   # ============================================================================
-  # Stage 3: Real tool tests (requires network)
+  # Stage 3: Self-hosted vx tests (dogfooding)
+  # Uses vx itself to run tools, testing our own product
+  # ============================================================================
+  vx-dogfood:
+    name: vx Dogfood (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: e2e-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: vx-linux
+            binary: vx
+          - os: windows-latest
+            artifact: vx-windows
+            binary: vx.exe
+          - os: macos-latest
+            artifact: vx-macos
+            binary: vx
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: ./bin
+
+      - name: Setup vx in PATH
+        shell: bash
+        run: |
+          chmod +x ./bin/${{ matrix.binary }} 2>/dev/null || true
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Cache vx tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.vx
+          key: ${{ runner.os }}-vx-dogfood-v1-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-vx-dogfood-v1-
+
+      - name: Test vx with uv (Python linting)
+        shell: bash
+        run: |
+          echo "=== Using vx to run uvx ruff ==="
+          ./bin/${{ matrix.binary }} uvx ruff --version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test vx with node (if package.json exists)
+        shell: bash
+        run: |
+          echo "=== Using vx to run node ==="
+          ./bin/${{ matrix.binary }} node --version
+          ./bin/${{ matrix.binary }} npm --version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test vx with go
+        shell: bash
+        run: |
+          echo "=== Using vx to run go ==="
+          ./bin/${{ matrix.binary }} go version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show vx stats
+        shell: bash
+        run: |
+          ./bin/${{ matrix.binary }} stats
+          ./bin/${{ matrix.binary }} list --status
+
+  # ============================================================================
+  # Stage 4: Real tool tests (requires network)
   # ============================================================================
   real-tool-tests:
     name: Real Tool Tests (${{ matrix.os }})
@@ -256,7 +333,7 @@ jobs:
         timeout-minutes: 30
 
   # ============================================================================
-  # Stage 4: Tool-specific tests (parallel per tool)
+  # Stage 5: Tool-specific tests (parallel per tool)
   # ============================================================================
   tool-tests:
     name: ${{ matrix.tool }} (${{ matrix.os }})
@@ -428,7 +505,7 @@ jobs:
   summary:
     name: Summary
     runs-on: ubuntu-latest
-    needs: [build-and-smoke, e2e-tests, real-tool-tests, tool-tests]
+    needs: [build-and-smoke, e2e-tests, vx-dogfood, real-tool-tests, tool-tests]
     if: always()
 
     steps:
@@ -440,11 +517,12 @@ jobs:
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Build & Smoke | ${{ needs.build-and-smoke.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| E2E Tests | ${{ needs.e2e-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx Dogfood | ${{ needs.vx-dogfood.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Real Tool Tests | ${{ needs.real-tool-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Tool Tests | ${{ needs.tool-tests.result }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: Check critical tests
-        if: ${{ needs.build-and-smoke.result == 'failure' || needs.e2e-tests.result == 'failure' }}
+        if: ${{ needs.build-and-smoke.result == 'failure' || needs.e2e-tests.result == 'failure' || needs.vx-dogfood.result == 'failure' }}
         run: |
           echo "Critical tests failed!"
           exit 1
