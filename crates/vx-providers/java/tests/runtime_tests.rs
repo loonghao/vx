@@ -9,7 +9,7 @@ fn test_java_runtime_creation() {
     let runtime = JavaRuntime::new();
     assert_eq!(runtime.name(), "java");
     assert!(!runtime.description().is_empty());
-    assert_eq!(runtime.ecosystem(), Ecosystem::Unknown);
+    assert_eq!(runtime.ecosystem(), Ecosystem::Custom("java".to_string()));
 }
 
 #[test]
