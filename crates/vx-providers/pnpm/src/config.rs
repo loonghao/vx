@@ -1,6 +1,7 @@
 //! PNPM configuration
 
 use serde::{Deserialize, Serialize};
+use vx_runtime::{Arch, Os, Platform};
 
 /// PNPM configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -20,8 +21,8 @@ impl PnpmUrlBuilder {
     /// Generate download URL for PNPM version
     /// PNPM releases are named without version in filename:
     /// e.g., https://github.com/pnpm/pnpm/releases/download/v9.0.0/pnpm-macos-arm64
-    pub fn download_url(version: &str) -> Option<String> {
-        let filename = Self::get_filename();
+    pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
+        let filename = Self::get_filename(platform);
         Some(format!(
             "https://github.com/pnpm/pnpm/releases/download/v{}/{}",
             version, filename
@@ -29,25 +30,25 @@ impl PnpmUrlBuilder {
     }
 
     /// Get platform-specific filename (without version number)
-    pub fn get_filename() -> String {
-        let platform = Self::get_platform_string();
-        if cfg!(windows) {
-            format!("pnpm-{}.exe", platform)
+    pub fn get_filename(platform: &Platform) -> String {
+        let platform_str = Self::get_platform_string(platform);
+        if platform.os == Os::Windows {
+            format!("pnpm-{}.exe", platform_str)
         } else {
-            format!("pnpm-{}", platform)
+            format!("pnpm-{}", platform_str)
         }
     }
 
     /// Get platform string for PNPM downloads
-    pub fn get_platform_string() -> String {
-        match (std::env::consts::OS, std::env::consts::ARCH) {
-            ("windows", "x86_64") => "win-x64".to_string(),
-            ("windows", "aarch64") => "win-arm64".to_string(),
-            ("macos", "x86_64") => "macos-x64".to_string(),
-            ("macos", "aarch64") => "macos-arm64".to_string(),
-            ("linux", "x86_64") => "linux-x64".to_string(),
-            ("linux", "aarch64") => "linux-arm64".to_string(),
-            _ => "linux-x64".to_string(),
+    pub fn get_platform_string(platform: &Platform) -> &'static str {
+        match (&platform.os, &platform.arch) {
+            (Os::Windows, Arch::X86_64) => "win-x64",
+            (Os::Windows, Arch::Aarch64) => "win-arm64",
+            (Os::MacOS, Arch::X86_64) => "macos-x64",
+            (Os::MacOS, Arch::Aarch64) => "macos-arm64",
+            (Os::Linux, Arch::X86_64) => "linux-x64",
+            (Os::Linux, Arch::Aarch64) => "linux-arm64",
+            _ => "linux-x64",
         }
     }
 }

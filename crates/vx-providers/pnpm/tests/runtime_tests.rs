@@ -2,7 +2,7 @@
 
 use rstest::rstest;
 use vx_provider_pnpm::{PnpmProvider, PnpmRuntime};
-use vx_runtime::{Ecosystem, Provider, Runtime};
+use vx_runtime::{Arch, Ecosystem, Os, Platform, Provider, Runtime};
 
 #[rstest]
 fn test_pnpm_runtime_name() {
@@ -56,4 +56,37 @@ fn test_pnpm_provider_get_runtime() {
 
     let unknown = provider.get_runtime("unknown");
     assert!(unknown.is_none());
+}
+
+/// Test that executable_relative_path returns correct filename for each platform
+/// PNPM is a single executable with platform-specific naming
+#[rstest]
+#[case(Os::Linux, Arch::X86_64, "pnpm-linux-x64")]
+#[case(Os::Linux, Arch::Aarch64, "pnpm-linux-arm64")]
+#[case(Os::MacOS, Arch::X86_64, "pnpm-macos-x64")]
+#[case(Os::MacOS, Arch::Aarch64, "pnpm-macos-arm64")]
+#[case(Os::Windows, Arch::X86_64, "pnpm-win-x64.exe")]
+#[case(Os::Windows, Arch::Aarch64, "pnpm-win-arm64.exe")]
+fn test_pnpm_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
+    let runtime = PnpmRuntime::new();
+    let platform = Platform { os, arch };
+    let path = runtime.executable_relative_path("9.0.0", &platform);
+    assert_eq!(path, expected);
+}
+
+/// Test download URL format
+#[rstest]
+#[case(Os::Linux, Arch::X86_64, "pnpm-linux-x64")]
+#[case(Os::Windows, Arch::X86_64, "pnpm-win-x64.exe")]
+#[case(Os::MacOS, Arch::Aarch64, "pnpm-macos-arm64")]
+#[tokio::test]
+async fn test_pnpm_download_url(#[case] os: Os, #[case] arch: Arch, #[case] expected_suffix: &str) {
+    let runtime = PnpmRuntime::new();
+    let platform = Platform { os, arch };
+    let url = runtime.download_url("9.0.0", &platform).await.unwrap();
+    assert!(url.is_some());
+    let url = url.unwrap();
+    assert!(url.contains("github.com/pnpm/pnpm/releases"));
+    assert!(url.contains("v9.0.0"));
+    assert!(url.ends_with(expected_suffix));
 }
