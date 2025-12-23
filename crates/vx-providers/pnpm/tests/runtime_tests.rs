@@ -58,15 +58,15 @@ fn test_pnpm_provider_get_runtime() {
     assert!(unknown.is_none());
 }
 
-/// Test that executable_relative_path returns correct filename for each platform
-/// PNPM is a single executable with platform-specific naming
+/// Test that executable_relative_path returns standard name (after post_install rename)
+/// The downloaded file is renamed from platform-specific name to standard name
 #[rstest]
-#[case(Os::Linux, Arch::X86_64, "pnpm-linux-x64")]
-#[case(Os::Linux, Arch::Aarch64, "pnpm-linux-arm64")]
-#[case(Os::MacOS, Arch::X86_64, "pnpm-macos-x64")]
-#[case(Os::MacOS, Arch::Aarch64, "pnpm-macos-arm64")]
-#[case(Os::Windows, Arch::X86_64, "pnpm-win-x64.exe")]
-#[case(Os::Windows, Arch::Aarch64, "pnpm-win-arm64.exe")]
+#[case(Os::Linux, Arch::X86_64, "pnpm")]
+#[case(Os::Linux, Arch::Aarch64, "pnpm")]
+#[case(Os::MacOS, Arch::X86_64, "pnpm")]
+#[case(Os::MacOS, Arch::Aarch64, "pnpm")]
+#[case(Os::Windows, Arch::X86_64, "pnpm.exe")]
+#[case(Os::Windows, Arch::Aarch64, "pnpm.exe")]
 fn test_pnpm_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
     let runtime = PnpmRuntime::new();
     let platform = Platform { os, arch };
@@ -74,7 +74,7 @@ fn test_pnpm_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case
     assert_eq!(path, expected);
 }
 
-/// Test download URL format
+/// Test download URL format - still uses platform-specific naming
 #[rstest]
 #[case(Os::Linux, Arch::X86_64, "pnpm-linux-x64")]
 #[case(Os::Windows, Arch::X86_64, "pnpm-win-x64.exe")]
