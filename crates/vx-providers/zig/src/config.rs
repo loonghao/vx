@@ -26,10 +26,10 @@ impl ZigUrlBuilder {
             "tar.xz"
         };
 
-        // Format: zig-{arch}-{os}-{version}.{ext}
+        // Format: zig-{os}-{arch}-{version}.{ext}
         Some(format!(
             "https://ziglang.org/download/{}/zig-{}-{}-{}.{}",
-            version, arch_str, os_str, version, ext
+            version, os_str, arch_str, version, ext
         ))
     }
 
@@ -58,7 +58,7 @@ impl ZigUrlBuilder {
     /// Get the archive directory name
     pub fn get_archive_dir_name(version: &str, platform: &Platform) -> String {
         let (os_str, arch_str) = Self::get_platform_strings(platform);
-        // Format: zig-{arch}-{os}-{version}
-        format!("zig-{}-{}-{}", arch_str, os_str, version)
+        // Format: zig-{os}-{arch}-{version}
+        format!("zig-{}-{}-{}", os_str, arch_str, version)
     }
 }
