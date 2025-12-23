@@ -187,6 +187,4 @@ chmod 755 ~/.vx/tools/
 ## 相关命令
 
 - [list](./list.md) - 列出可用工具和版本
-- [remove](./remove.md) - 移除已安装的工具
-- [update](./update.md) - 更新工具到最新版本
-- [sync](./sync.md) - 同步项目所需工具
+- [run](./run.md) - 运行工具
