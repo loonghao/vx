@@ -13,16 +13,19 @@ Codecov integration is **optional** for the vx project. The CI will run successf
 ## Setting Up Codecov (Optional)
 
 ### 1. Create Codecov Account
+
 1. Go to [codecov.io](https://codecov.io)
 2. Sign in with your GitHub account
 3. Add the `loonghao/vx` repository
 
 ### 2. Get Repository Token
+
 1. Navigate to your repository on Codecov
 2. Go to Settings → General
 3. Copy the "Repository Upload Token"
 
 ### 3. Add Token to GitHub Secrets
+
 1. Go to GitHub repository: `https://github.com/loonghao/vx`
 2. Navigate to Settings → Secrets and variables → Actions
 3. Click "New repository secret"
@@ -31,6 +34,7 @@ Codecov integration is **optional** for the vx project. The CI will run successf
 6. Click "Add secret"
 
 ### 4. Verify Setup
+
 After adding the token, the next CI run will automatically upload coverage reports to Codecov.
 
 ## Benefits of Codecov Integration
@@ -58,14 +62,17 @@ cargo llvm-cov --all-features --workspace --html --open
 ## Troubleshooting
 
 ### CI Fails with Codecov Error
+
 - **Solution**: This is expected without token. The CI is configured to continue on Codecov errors.
 - **Status**: ✅ CI will still pass, only the coverage upload step will be skipped.
 
 ### Coverage Badge Shows "unknown"
+
 - **Cause**: No coverage data uploaded to Codecov
 - **Solution**: Add `CODECOV_TOKEN` secret or use local coverage reports
 
 ### Token Not Working
+
 1. Verify the token is correct in Codecov dashboard
 2. Ensure the secret name is exactly `CODECOV_TOKEN`
 3. Check that the repository is properly connected to Codecov
@@ -73,6 +80,7 @@ cargo llvm-cov --all-features --workspace --html --open
 ## Current Configuration
 
 The CI is configured to:
+
 - ✅ Generate coverage reports locally
 - ✅ Continue on Codecov upload errors
 - ✅ Not fail CI if Codecov is unavailable

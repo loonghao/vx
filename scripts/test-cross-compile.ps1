@@ -15,16 +15,16 @@ function Test-Target {
         [string]$Target,
         [string]$Description
     )
-    
+
     Write-Host "`n🎯 Testing $Description ($Target)..." -ForegroundColor Cyan
-    
+
     # Add the target if not already installed
     $installedTargets = rustup target list --installed
     if ($installedTargets -notcontains $Target) {
         Write-Host "Adding target $Target..." -ForegroundColor Yellow
         rustup target add $Target
     }
-    
+
     # Try to build
     try {
         if ($Verbose) {

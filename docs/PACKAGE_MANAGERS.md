@@ -18,31 +18,37 @@ This document explains how to set up automated publishing to various package man
 ### 1. WinGet (Windows Package Manager)
 
 **Prerequisites:**
+
 - At least one version of vx must already exist in [winget-pkgs](https://github.com/microsoft/winget-pkgs)
 - Fork [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) under your account
 
 **Required Secrets:**
+
 ```bash
 WINGET_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx  # GitHub PAT with public_repo scope
 ```
 
 **Configuration:**
+
 - Package identifier: `loonghao.vx`
 - Automatically detects new releases and creates PRs to winget-pkgs
 
 ### 2. Chocolatey
 
 **Prerequisites:**
+
 - Create account at [chocolatey.org](https://chocolatey.org/)
 - Create a Chocolatey package (.nupkg file)
 - Get API key from your Chocolatey account
 
 **Required Secrets:**
+
 ```bash
 CHOCOLATEY_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
 **Setup Steps:**
+
 1. Create `vx.nuspec` file in project root
 2. Build .nupkg file during release process
 3. Upload to Chocolatey via GitHub Actions
@@ -50,15 +56,18 @@ CHOCOLATEY_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ### 3. Homebrew (macOS)
 
 **Prerequisites:**
+
 - Create a Homebrew tap repository (e.g., `loonghao/homebrew-vx`)
 - Generate GitHub PAT with repo permissions
 
 **Required Secrets:**
+
 ```bash
 HOMEBREW_TAP_GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx  # GitHub PAT
 ```
 
 **Configuration:**
+
 - Tap repository: `loonghao/homebrew-vx`
 - Formula name: `vx`
 - Supports multiple architectures (Intel/ARM)
@@ -66,10 +75,12 @@ HOMEBREW_TAP_GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx  # GitHub PAT
 ### 4. Scoop (Windows)
 
 **Prerequisites:**
+
 - Create a Scoop bucket repository (e.g., `loonghao/scoop-vx`)
 - Generate Scoop manifest JSON
 
 **Status:** Requires manual setup
+
 - Consider using [Scoop-GithubActions](https://github.com/Ash258/Scoop-GithubActions)
 - Or implement custom bucket update script
 
@@ -122,6 +133,7 @@ For `WINGET_TOKEN`, `HOMEBREW_TAP_GITHUB_TOKEN`, and `SCOOP_BUCKET_TOKEN`:
 ## 🔍 Monitoring and Troubleshooting
 
 ### Check Workflow Status
+
 1. Go to Actions tab in GitHub
 2. Look for "Package Managers" workflow
 3. Check individual job status
@@ -129,16 +141,19 @@ For `WINGET_TOKEN`, `HOMEBREW_TAP_GITHUB_TOKEN`, and `SCOOP_BUCKET_TOKEN`:
 ### Common Issues
 
 **WinGet:**
+
 - Ensure package already exists in winget-pkgs
 - Check PAT permissions (public_repo scope)
 - Verify fork exists under correct account
 
 **Chocolatey:**
+
 - Verify API key is correct
 - Ensure .nupkg file is properly built
 - Check package naming conventions
 
 **Homebrew:**
+
 - Verify tap repository exists
 - Check PAT has repo permissions for tap
 - Ensure binary naming matches expectations

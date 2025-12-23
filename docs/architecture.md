@@ -39,6 +39,7 @@ VX 采用分层插件化架构，确保高度的可扩展性和模块化。
 **职责**: 提供核心抽象和基础设施
 
 **主要模块**:
+
 - `plugin.rs`: 插件系统的核心 traits
 - `config_figment.rs`: 基于 Figment 的配置管理
 - `registry.rs`: 插件注册和管理
@@ -54,6 +55,7 @@ VX 采用分层插件化架构，确保高度的可扩展性和模块化。
 **职责**: 命令行界面和用户交互
 
 **主要模块**:
+
 - `commands/`: 各种 CLI 命令实现
 - `ui.rs`: 用户界面和进度显示
 - `args.rs`: 命令行参数解析
@@ -63,6 +65,7 @@ VX 采用分层插件化架构，确保高度的可扩展性和模块化。
 **职责**: 具体工具的实现
 
 **当前实现**:
+
 - `vx-tool-node`: Node.js 工具支持
 - `vx-tool-go`: Go 工具支持
 - `vx-tool-rust`: Rust 工具支持（计划中）
@@ -73,6 +76,7 @@ VX 采用分层插件化架构，确保高度的可扩展性和模块化。
 **职责**: 包管理器的实现
 
 **当前实现**:
+
 - `vx-pm-npm`: npm 包管理器支持
 - `vx-pm-pnpm`: pnpm 包管理器支持（计划中）
 - `vx-pm-yarn`: yarn 包管理器支持（计划中）
@@ -206,11 +210,11 @@ pub struct PipPackageManager;
 impl VxPackageManager for PipPackageManager {
     fn name(&self) -> &str { "pip" }
     fn ecosystem(&self) -> Ecosystem { Ecosystem::Python }
-    
+
     async fn install_packages(&self, packages: &[PackageSpec], project_path: &Path) -> Result<()> {
         // pip install 实现
     }
-    
+
     fn is_preferred_for_project(&self, project_path: &Path) -> bool {
         // 检查 requirements.txt 或 pyproject.toml
     }
@@ -227,16 +231,19 @@ impl VxPlugin for PythonPlugin {
 ## 性能考虑
 
 ### 1. 懒加载
+
 - 插件按需加载
 - 工具实例按需创建
 - 配置按需解析
 
 ### 2. 缓存策略
+
 - 版本信息缓存
 - 配置解析结果缓存
 - HTTP 请求缓存
 
 ### 3. 并发处理
+
 - 异步 I/O 操作
 - 并行下载和安装
 - 非阻塞用户界面
@@ -244,6 +251,7 @@ impl VxPlugin for PythonPlugin {
 ## 错误处理
 
 ### 1. 分层错误处理
+
 ```rust
 pub enum VxError {
     ConfigError { message: String },
@@ -256,6 +264,7 @@ pub enum VxError {
 ```
 
 ### 2. 错误恢复
+
 - 配置错误时回退到默认配置
 - 网络错误时重试机制
 - 安装失败时清理机制
@@ -263,16 +272,19 @@ pub enum VxError {
 ## 测试策略
 
 ### 1. 单元测试
+
 - 每个模块独立测试
 - Mock 外部依赖
 - 覆盖边界条件
 
 ### 2. 集成测试
+
 - 插件系统集成测试
 - 配置系统集成测试
 - 端到端工作流测试
 
 ### 3. 性能测试
+
 - 启动时间测试
 - 内存使用测试
 - 并发性能测试

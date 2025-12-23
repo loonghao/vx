@@ -16,15 +16,15 @@ NC='\033[0m' # No Color
 test_target() {
     local target=$1
     local description=$2
-    
+
     echo -e "\n${YELLOW}Testing $description ($target)...${NC}"
-    
+
     # Add the target if not already installed
     if ! rustup target list --installed | grep -q "$target"; then
         echo "Adding target $target..."
         rustup target add "$target"
     fi
-    
+
     # Try to build
     if cargo build --target "$target" --release --bin vx; then
         echo -e "${GREEN}✅ $description build successful${NC}"
@@ -59,7 +59,7 @@ TOTAL_COUNT=${#TARGETS[@]}
 
 for target_info in "${TARGETS[@]}"; do
     IFS=':' read -r target description <<< "$target_info"
-    
+
     if test_target "$target" "$description"; then
         ((SUCCESS_COUNT++))
     fi

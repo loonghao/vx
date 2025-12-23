@@ -21,16 +21,19 @@ vx global <subcommand> [options]
 列出全局安装的工具。
 
 ### 语法
+
 ```bash
 vx global list [options]
 ```
 
 ### 选项
+
 - `--verbose` - 显示详细信息
 - `--size` - 显示磁盘使用情况
 - `--sort <field>` - 排序字段：`name`, `version`, `size`, `date`
 
 ### 示例
+
 ```bash
 # 列出所有全局工具
 vx global list
@@ -46,6 +49,7 @@ vx global list --sort size
 ```
 
 ### 输出示例
+
 ```bash
 $ vx global list --verbose
 Global Tools:
@@ -54,19 +58,19 @@ Global Tools:
     Size: 45.2 MB
     Installed: 2024-01-15 10:30:00
     Used by: 2 virtual environments
-    
+
   node@20.10.0
     Path: ~/.vx/tools/node/20.10.0/
     Size: 47.8 MB
     Installed: 2024-01-10 14:20:00
     Used by: 0 virtual environments
-    
+
   python@3.11.5
     Path: ~/.vx/tools/python/3.11.5/
     Size: 67.3 MB
     Installed: 2024-01-12 09:15:00
     Used by: 1 virtual environment
-    
+
   uv@0.1.0
     Path: ~/.vx/tools/uv/0.1.0/
     Size: 8.7 MB
@@ -81,11 +85,13 @@ Total: 4 tools, 168.0 MB
 显示特定工具的详细信息。
 
 ### 语法
+
 ```bash
 vx global info <tool>
 ```
 
 ### 示例
+
 ```bash
 # 显示node工具信息
 vx global info node
@@ -95,6 +101,7 @@ vx global info python
 ```
 
 ### 输出示例
+
 ```bash
 $ vx global info node
 Tool: node
@@ -106,7 +113,7 @@ Installed Versions:
     - Size: 45.2 MB
     - Installed: 2024-01-15 10:30:00
     - Checksum: sha256:abc123...
-    
+
   20.10.0 (unused)
     - Path: ~/.vx/tools/node/20.10.0/
     - Size: 47.8 MB
@@ -128,16 +135,19 @@ Configuration:
 移除全局工具。
 
 ### 语法
+
 ```bash
 vx global remove <tool>[@version] [options]
 ```
 
 ### 选项
+
 - `--force` - 强制移除，忽略虚拟环境引用
 - `--all` - 移除工具的所有版本
 - `--dry-run` - 预览移除操作
 
 ### 示例
+
 ```bash
 # 移除特定版本（仅当无虚拟环境引用时）
 vx global remove node@20.10.0
@@ -157,11 +167,13 @@ vx global remove node@20.10.0 --dry-run
 显示工具的依赖关系。
 
 ### 语法
+
 ```bash
 vx global dependents <tool>[@version]
 ```
 
 ### 示例
+
 ```bash
 # 显示node的依赖关系
 vx global dependents node
@@ -171,6 +183,7 @@ vx global dependents node@18.17.0
 ```
 
 ### 输出示例
+
 ```bash
 $ vx global dependents node@18.17.0
 Tool: node@18.17.0
@@ -179,7 +192,7 @@ Used by Virtual Environments:
   - myproject
     Created: 2024-01-15 10:30:00
     Last used: 2024-01-20 14:22:00
-    
+
   - webapp
     Created: 2024-01-18 09:15:00
     Last used: 2024-01-20 16:45:00
@@ -198,17 +211,20 @@ Dependencies:
 清理未使用的全局工具。
 
 ### 语法
+
 ```bash
 vx global cleanup [options]
 ```
 
 ### 选项
+
 - `--dry-run` - 预览清理操作，不实际删除
 - `--aggressive` - 激进清理，包括最近未使用的工具
 - `--older-than <duration>` - 清理超过指定时间的工具
 - `--size-threshold <size>` - 仅清理超过指定大小的工具
 
 ### 示例
+
 ```bash
 # 清理未使用的工具
 vx global cleanup
@@ -224,6 +240,7 @@ vx global cleanup --aggressive
 ```
 
 ### 输出示例
+
 ```bash
 $ vx global cleanup --dry-run
 🧹 Global Cleanup Preview
@@ -232,7 +249,7 @@ Will remove:
   📦 node@20.10.0 (47.8 MB)
     - Reason: Not used by any virtual environment
     - Last used: Never
-    
+
   📦 python@3.10.12 (65.1 MB)
     - Reason: Superseded by python@3.11.5
     - Last used: 2024-01-05 (15 days ago)
@@ -240,10 +257,10 @@ Will remove:
 Will keep:
   ✅ node@18.17.0 (45.2 MB)
     - Reason: Used by 2 virtual environments
-    
+
   ✅ python@3.11.5 (67.3 MB)
     - Reason: Used by 1 virtual environment
-    
+
   ✅ uv@0.1.0 (8.7 MB)
     - Reason: Used by 3 virtual environments
 
@@ -258,12 +275,14 @@ Run 'vx global cleanup' to execute this plan.
 ## 清理策略
 
 ### 自动清理规则
+
 1. **未引用工具** - 不被任何虚拟环境使用的工具
 2. **重复版本** - 同一工具的多个版本，保留最新和被使用的版本
 3. **过期工具** - 超过指定时间未使用的工具
 4. **损坏安装** - 安装不完整或损坏的工具
 
 ### 保护规则
+
 1. **活跃使用** - 被虚拟环境引用的工具
 2. **最近安装** - 7天内安装的工具
 3. **配置指定** - 在项目配置中明确指定的版本
@@ -287,6 +306,7 @@ Unused: 47.8 MB (28.3%)
 ## 故障排除
 
 ### 清理失败
+
 ```bash
 # 检查权限
 ls -la ~/.vx/tools/
@@ -299,6 +319,7 @@ rm -rf ~/.vx/tools/node/20.10.0/
 ```
 
 ### 依赖检查错误
+
 ```bash
 # 刷新依赖信息
 vx global dependents node --refresh

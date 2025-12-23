@@ -164,17 +164,20 @@ vx shell completions bash > /etc/bash_completion.d/vx
 基于用户反馈和使用模式，以下是推荐的命令优先级：
 
 ### 高频命令 (建议使用别名)
+
 - `vx i` (install)
 - `vx ls` (list)
 - `vx rm` (uninstall)
 - `vx up` (update)
 
 ### 中频命令 (标准命令)
+
 - `vx which` (位置查询)
 - `vx versions` (版本查询)
 - `vx clean` (系统清理)
 
 ### 低频命令 (保持完整名称)
+
 - `vx init`
 - `vx sync`
 - `vx config`
@@ -183,11 +186,13 @@ vx shell completions bash > /etc/bash_completion.d/vx
 ## 🔮 未来计划
 
 ### 即将推出
+
 - 更多智能别名
 - 上下文感知的命令建议
 - 自动命令纠错
 
 ### 长期规划
+
 - 插件系统的命令扩展
 - 自定义别名配置
 - 命令使用分析和优化建议

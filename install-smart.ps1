@@ -60,11 +60,11 @@ function Get-Platform {
 # Detect geographic region for optimal CDN selection
 function Get-Region {
     $region = "global"
-    
+
     try {
         # Try to detect region from ipinfo.io
         $response = Invoke-RestMethod -Uri "https://ipinfo.io/country" -TimeoutSec 3 -ErrorAction SilentlyContinue
-        
+
         switch ($response) {
             { $_ -in @("CN", "HK", "TW", "SG", "JP", "KR", "MY", "TH", "VN", "ID", "PH") } { $region = "asia" }
             { $_ -in @("US", "CA", "MX", "BR", "AR", "CL", "PE", "CO", "VE") } { $region = "americas" }
@@ -76,7 +76,7 @@ function Get-Region {
     catch {
         Write-Debug "Region detection failed, using global"
     }
-    
+
     Write-Debug "Detected region: $region"
     return $region
 }
@@ -87,12 +87,12 @@ function Test-ChannelSpeed {
         [string]$Url,
         [int]$TimeoutSec = 5
     )
-    
+
     try {
         $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         $response = Invoke-WebRequest -Uri $Url -Method Head -TimeoutSec $TimeoutSec -ErrorAction Stop
         $stopwatch.Stop()
-        
+
         if ($response.StatusCode -eq 200) {
             return $stopwatch.ElapsedMilliseconds
         }
@@ -100,7 +100,7 @@ function Test-ChannelSpeed {
     catch {
         Write-Debug "Speed test failed for $Url : $_"
     }
-    
+
     return 999999  # Return high value for failed tests
 }
 
@@ -111,14 +111,14 @@ function Get-OptimalChannels {
         [string]$Version,
         [string]$Platform
     )
-    
+
     # Define all available channels
     $channels = @{
         "github"   = "https://github.com/$RepoOwner/$RepoName/releases/download/v$Version"
         "jsdelivr" = "https://cdn.jsdelivr.net/gh/$RepoOwner/$RepoName@v$Version"
         "fastly"   = "https://fastly.jsdelivr.net/gh/$RepoOwner/$RepoName@v$Version"
     }
-    
+
     # Region-specific channel preferences
     $channelOrder = switch ($Region) {
         "asia" { @("jsdelivr", "fastly", "github") }
@@ -126,46 +126,46 @@ function Get-OptimalChannels {
         "americas" { @("github", "fastly", "jsdelivr") }
         default { @("github", "jsdelivr", "fastly") }
     }
-    
+
     # If user forced a specific channel, use it first
     if ($ForceChannel) {
         Write-Debug "Using forced channel: $ForceChannel"
         $channelOrder = @($ForceChannel) + ($channelOrder | Where-Object { $_ -ne $ForceChannel })
     }
-    
+
     # Test channel speeds (optional, can be disabled for faster installs)
     if ($env:VX_SPEED_TEST -ne "false") {
         Write-Info "Testing channel speeds..."
         $speeds = @{}
-        
+
         foreach ($channel in $channelOrder) {
             $testUrl = $channels[$channel]
             $speed = Test-ChannelSpeed -Url $testUrl -TimeoutSec 3
             $speeds[$channel] = $speed
             Write-Debug "Channel $channel speed: ${speed}ms"
         }
-        
+
         # Sort channels by speed
         $channelOrder = $speeds.GetEnumerator() | Sort-Object Value | ForEach-Object { $_.Key }
     }
-    
+
     return $channelOrder
 }
 
 # Get latest version with intelligent fallback
 function Get-LatestVersion {
     param([string]$Region)
-    
+
     # If no token is provided, prefer CDN to avoid rate limits
     if (-not $env:GITHUB_TOKEN) {
         Write-Info "🌐 No GitHub token provided, using CDN for version check..."
-        
+
         # Try jsDelivr API first when no token
         try {
             Write-Info "Attempting to get version from jsDelivr API..."
             $jsdelivrUrl = "https://data.jsdelivr.com/v1/package/gh/$RepoOwner/$RepoName"
             $jsdelivrResponse = Invoke-RestMethod -Uri $jsdelivrUrl -TimeoutSec 10
-            
+
             if ($jsdelivrResponse.versions -and $jsdelivrResponse.versions.Count -gt 0) {
                 $latestVersion = $jsdelivrResponse.versions[0] -replace '^v', ''
                 Write-Success "Got version from jsDelivr: $latestVersion"
@@ -177,17 +177,17 @@ function Get-LatestVersion {
             Write-Info "🔄 Falling back to GitHub API..."
         }
     }
-    
+
     # Try GitHub API
     try {
         $apiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
         $headers = @{}
-        
+
         if ($env:GITHUB_TOKEN) {
             $headers["Authorization"] = "Bearer $env:GITHUB_TOKEN"
             Write-Info "Using authenticated GitHub API request"
         }
-        
+
         $response = Invoke-RestMethod -Uri $apiUrl -Headers $headers -TimeoutSec 10
         $version = $response.tag_name -replace '^v', ''
         Write-Debug "Got version from GitHub API: $version"
@@ -204,7 +204,7 @@ function Get-LatestVersion {
             Write-Host "4. Build from source: .\install-smart.ps1 -BuildFromSource" -ForegroundColor Gray
             exit 1
         }
-        
+
         throw "Failed to get latest version: $_"
     }
 }
@@ -218,28 +218,28 @@ function Invoke-SmartDownload {
         [string]$TempDir,
         [string]$Region
     )
-    
+
     $archivePath = Join-Path $TempDir $ArchiveName
     $channels = Get-OptimalChannels -Region $Region -Version $Version -Platform $Platform
-    
+
     Write-Info "Trying channels in optimal order for region: $Region"
-    
+
     foreach ($channel in $channels) {
         $downloadUrl = switch ($channel) {
             "github" { "https://github.com/$RepoOwner/$RepoName/releases/download/v$Version/$ArchiveName" }
             "jsdelivr" { "https://cdn.jsdelivr.net/gh/$RepoOwner/$RepoName@v$Version/$ArchiveName" }
             "fastly" { "https://fastly.jsdelivr.net/gh/$RepoOwner/$RepoName@v$Version/$ArchiveName" }
-            default { 
+            default {
                 Write-Warn "Unknown channel: $channel"
                 continue
             }
         }
-        
+
         Write-Info "Trying $channel : $downloadUrl"
-        
+
         try {
             Invoke-WebRequest -Uri $downloadUrl -OutFile $archivePath -TimeoutSec 30
-            
+
             # Verify download
             if (Test-Path $archivePath) {
                 $fileSize = (Get-Item $archivePath).Length
@@ -260,7 +260,7 @@ function Invoke-SmartDownload {
             Remove-Item $archivePath -Force -ErrorAction SilentlyContinue
         }
     }
-    
+
     throw "Failed to download from all channels"
 }
 
@@ -268,7 +268,7 @@ function Invoke-SmartDownload {
 function Install-FromRelease {
     $platform = Get-Platform
     $region = Get-Region
-    
+
     if ($Version -eq "latest") {
         Write-Info "Fetching latest version..."
         $Version = Get-LatestVersion -Region $region
@@ -279,7 +279,7 @@ function Install-FromRelease {
     }
 
     Write-Info "Installing vx v$Version for $platform (region: $region)"
-    
+
     # Determine archive name based on platform
     # Try multiple naming conventions for Windows
     # houseabsolute/actions-rust-release uses format: {executable-name}-{target}.zip
@@ -295,10 +295,10 @@ function Install-FromRelease {
 
     $archiveName = $null
     $downloadSuccess = $false
-    
+
     # Create temporary directory
     $tempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
-    
+
     try {
         # Try different archive names until one works
         foreach ($tryArchive in $possibleArchives) {
@@ -325,7 +325,7 @@ function Install-FromRelease {
             Write-Host "4. Build from source (not implemented for Windows yet)" -ForegroundColor Gray
             exit 1
         }
-        
+
         # Extract
         Write-Info "Extracting to $InstallDir..."
         New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
@@ -370,12 +370,12 @@ function Install-FromRelease {
                 exit 1
             }
         }
-        
+
         if (-not $binaryPath -or -not (Test-Path $binaryPath)) {
             Write-Error "vx binary not found in archive"
             exit 1
         }
-        
+
         Write-Success "vx v$Version installed to $binaryPath"
     }
     finally {
@@ -387,21 +387,21 @@ function Install-FromRelease {
 # Update PATH
 function Update-Path {
     param([string]$InstallPath)
-    
+
     # Check if directory is already in PATH
     $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
     if ($currentPath -like "*$InstallPath*") {
         Write-Info "Install directory already in PATH"
         return
     }
-    
+
     # Add to user PATH
     $newPath = "$InstallPath;$currentPath"
     [Environment]::SetEnvironmentVariable("PATH", $newPath, "User")
-    
+
     # Update current session PATH
     $env:PATH = "$InstallPath;$env:PATH"
-    
+
     Write-Info "Added $InstallPath to PATH"
     Write-Info "Restart your terminal or run 'refreshenv' to use vx"
 }
@@ -409,7 +409,7 @@ function Update-Path {
 # Test installation
 function Test-Installation {
     param([string]$BinaryPath)
-    
+
     if (Test-Path $BinaryPath) {
         try {
             $versionOutput = & $BinaryPath --version 2>$null
@@ -434,7 +434,7 @@ function Test-Installation {
 function Main {
     Write-Info "vx smart installer for Windows"
     Write-Host ""
-    
+
     # Show configuration
     Write-Debug "Configuration:"
     Write-Debug "  Version: $Version"
@@ -442,7 +442,7 @@ function Main {
     Write-Debug "  Build from Source: $BuildFromSource"
     Write-Debug "  Force Channel: $ForceChannel"
     Write-Debug "  Speed Test: $($env:VX_SPEED_TEST -ne 'false')"
-    
+
     # Check if we should build from source
     if ($BuildFromSource) {
         Write-Error "Build from source not implemented for Windows. Please use the binary installation."
@@ -451,15 +451,15 @@ function Main {
     else {
         Install-FromRelease
     }
-    
+
     # Update PATH and test
     Update-Path -InstallPath $InstallDir
     Test-Installation -BinaryPath (Join-Path $InstallDir "vx.exe")
-    
+
     Write-Host ""
     Write-Success "vx installation completed!"
     Write-Info "Run 'vx --help' to get started"
-    
+
     # Show some helpful commands
     Write-Host ""
     Write-Host "📖 Quick start:" -ForegroundColor Yellow

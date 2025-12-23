@@ -148,21 +148,24 @@ cargo build --release --timings
 ### 常见问题排查
 
 1. **链接器问题**
+
    ```bash
    # 检查 LLD 是否安装
    which lld
-   
+
    # 安装 LLD (Ubuntu/Debian)
    sudo apt-get install lld
    ```
 
 2. **内存不足**
+
    ```bash
    # 减少并行度
    export CARGO_BUILD_JOBS=2
    ```
 
 3. **缓存问题**
+
    ```bash
    # 清理构建缓存
    cargo clean
@@ -181,12 +184,14 @@ cargo build --release --timings
 ### 1. 分布式构建 - sccache 集成
 
 **配置文件**: `.cargo/config.toml`
+
 ```toml
 [build]
 rustc-wrapper = "sccache"
 ```
 
 **GitHub Actions 配置**:
+
 ```yaml
 env:
   SCCACHE_GHA_ENABLED: "true"
@@ -198,6 +203,7 @@ steps:
 ```
 
 **本地使用**:
+
 ```bash
 # 安装 sccache
 make sccache-setup
@@ -209,16 +215,19 @@ sccache --show-stats
 ### 2. 交叉编译优化 - 构建矩阵
 
 **分布式构建工作流**: `.github/workflows/distributed-release.yml`
+
 - 并行构建多个目标平台
 - 每个平台使用最优配置
 - 自动处理交叉编译依赖
 
 **支持的目标平台**:
+
 - Linux: x86_64, ARM64 (GNU/musl)
 - macOS: x86_64, ARM64
 - Windows: x86_64 (MSVC/GNU)
 
 **使用方法**:
+
 ```bash
 # 构建所有目标平台
 make build-matrix
@@ -232,6 +241,7 @@ make build-windows
 ### 3. 二进制大小优化
 
 **UPX 压缩配置**: `.goreleaser.yml`
+
 ```yaml
 upx:
   - ids: [vx-pgo, vx-standard]
@@ -241,6 +251,7 @@ upx:
 ```
 
 **符号剥离**:
+
 ```bash
 # 自动剥离符号
 strip target/release/vx
@@ -250,6 +261,7 @@ aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/vx
 ```
 
 **优化效果**:
+
 - UPX 压缩: 50-70% 大小减少
 - 符号剥离: 20-30% 大小减少
 - 组合优化: 最多 80% 大小减少
@@ -257,11 +269,13 @@ aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/vx
 ### 4. BuildJet 加速构建
 
 **BuildJet 工作流**: `.github/workflows/buildjet-release.yml`
+
 - 16 核 CPU, 64GB RAM
 - NVMe SSD 存储
 - 全局缓存共享
 
 **性能提升**:
+
 - 构建速度: 4x 提升
 - 内存限制: 无约束
 - I/O 性能: 10x 提升
@@ -269,6 +283,7 @@ aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/vx
 ### 5. 高级构建脚本
 
 **使用 `scripts/advanced-build.sh`**:
+
 ```bash
 # 完整优化构建
 ./scripts/advanced-build.sh --pgo --target x86_64-unknown-linux-gnu --benchmark
@@ -285,6 +300,7 @@ aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/vx
 ```
 
 **支持的优化选项**:
+
 - `--pgo`: Profile-Guided Optimization
 - `--strip`: 符号剥离
 - `--upx`: UPX 压缩
@@ -323,6 +339,7 @@ aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/vx
 ## 🛠️ 快速开始
 
 ### 1. 设置开发环境
+
 ```bash
 # 安装所有优化工具
 make dev-setup
@@ -331,6 +348,7 @@ make upx-install
 ```
 
 ### 2. 本地优化构建
+
 ```bash
 # 快速优化构建
 make build-optimized
@@ -340,6 +358,7 @@ make advanced-build
 ```
 
 ### 3. 性能测试
+
 ```bash
 # 性能对比
 make perf-compare
@@ -351,6 +370,7 @@ make perf-compare
 ## 🔧 故障排除
 
 ### Clippy 问题
+
 ```bash
 # 运行 clippy 检查
 cargo clippy --all-targets --all-features -- -D warnings
@@ -370,12 +390,14 @@ make lint-strict
 ```
 
 **常见 Clippy 错误修复**:
+
 - ✅ 修复了 `.cargo/config.toml` 中的 `jobs = 0` 配置问题
 - ✅ 添加了自动 clippy 修复脚本 (支持 Unix 和 Windows)
 - ✅ 集成到 Makefile 和 CI 流程中
 - ✅ 支持严格模式和自定义 lint 规则
 
 ### sccache 问题
+
 ```bash
 # 重置 sccache
 sccache --stop-server
@@ -387,6 +409,7 @@ sccache --show-stats
 ```
 
 ### UPX 压缩失败
+
 ```bash
 # 检查 UPX 版本
 upx --version
@@ -396,6 +419,7 @@ upx --best --lzma target/release/vx
 ```
 
 ### 交叉编译问题
+
 ```bash
 # 安装交叉编译工具链
 sudo apt-get install gcc-aarch64-linux-gnu
