@@ -332,15 +332,48 @@ vx cargo run
 
 ## 📖 Supported Tools
 
-| Tool | Commands | Category | Description |
-|------|----------|----------|-------------|
-| **Node.js** | `node`, `npm`, `npx` | JavaScript | JavaScript runtime and package manager |
-| **UV** | `uv`, `uvx` | Python | Fast Python package manager |
-| **Go** | `go` | Go | Go programming language |
-| **Rust** | `cargo`, `rustc`, `rustup` | Rust | Rust toolchain |
-| **Bun** | `bun`, `bunx` | JavaScript | Fast JavaScript runtime |
-| **pnpm** | `pnpm`, `pnpx` | JavaScript | Fast, disk-efficient package manager |
-| **Yarn** | `yarn` | JavaScript | Package manager for JavaScript |
+### Language Runtimes
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **Node.js** | `node`, `npm`, `npx` | JavaScript runtime and package manager |
+| **Bun** | `bun`, `bunx` | Fast all-in-one JavaScript runtime |
+| **Deno** | `deno` | Secure JavaScript/TypeScript runtime |
+| **Go** | `go` | Go programming language |
+| **Rust** | `cargo`, `rustc`, `rustup` | Rust toolchain |
+| **Java** | `java`, `javac` | Java Development Kit |
+| **Zig** | `zig` | Zig programming language |
+
+### Package Managers
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **UV** | `uv`, `uvx` | Fast Python package manager |
+| **pnpm** | `pnpm`, `pnpx` | Fast, disk-efficient package manager |
+| **Yarn** | `yarn` | JavaScript package manager |
+
+### Build Tools
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **Vite** | `vite` | Next generation frontend tooling |
+| **Just** | `just` | Command runner for project tasks |
+
+### DevOps Tools
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **Terraform** | `terraform` | Infrastructure as Code |
+| **kubectl** | `kubectl` | Kubernetes CLI |
+| **Helm** | `helm` | Kubernetes package manager |
+
+### Other Tools
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **VS Code** | `code` | Visual Studio Code editor |
+| **Rez** | `rez` | Package management system |
+| **rcedit** | `rcedit` | Windows resource editor |
 
 ---
 
