@@ -3,6 +3,7 @@
 use crate::config::BunUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
+use std::collections::HashMap;
 use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// Bun runtime
@@ -112,6 +113,14 @@ impl Runtime for BunxRuntime {
 
     fn aliases(&self) -> &[&str] {
         &[]
+    }
+
+    fn metadata(&self) -> HashMap<String, String> {
+        let mut meta = HashMap::new();
+        meta.insert("homepage".to_string(), "https://bun.sh/".to_string());
+        meta.insert("ecosystem".to_string(), "javascript".to_string());
+        meta.insert("bundled_with".to_string(), "bun".to_string());
+        meta
     }
 
     /// Bunx is bundled with Bun, same archive structure
