@@ -236,6 +236,4 @@ vx list node --refresh
 ## 相关命令
 
 - [install](./install.md) - 安装工具
-- [update](./update.md) - 更新工具
-- [search](./search.md) - 搜索工具
-- [plugin](./plugin.md) - 插件管理
+- [run](./run.md) - 运行工具

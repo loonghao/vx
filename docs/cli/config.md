@@ -333,6 +333,5 @@ vx config validate
 
 ## 相关命令
 
-- [init](./init.md) - 初始化项目
-- [sync](./sync.md) - 同步项目配置
-- [global](./global.md) - 全局工具管理
+- [install](./install.md) - 安装工具
+- [list](./list.md) - 列出工具
