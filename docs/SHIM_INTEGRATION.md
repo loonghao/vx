@@ -164,6 +164,7 @@ export PATH="$HOME/.vx/shims:$PATH"
 ```
 
 On Windows:
+
 ```powershell
 # Add to your PowerShell profile
 $env:PATH = "$env:USERPROFILE\.vx\shims;$env:PATH"

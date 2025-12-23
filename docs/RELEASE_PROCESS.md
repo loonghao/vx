@@ -12,6 +12,7 @@ The release process is split into two main workflows:
 ## Automated Release Flow
 
 ### 1. Code Changes
+
 - Make changes following conventional commits format:
   - `feat:` for new features
   - `fix:` for bug fixes
@@ -19,9 +20,11 @@ The release process is split into two main workflows:
   - `chore:` for maintenance
 
 ### 2. release-plz Workflow
+
 **Trigger**: Push to `main` branch
 
 **What it does**:
+
 - ✅ Analyzes commits since last release
 - ✅ Determines next version using semantic versioning
 - ✅ Updates `Cargo.toml` version
@@ -31,9 +34,11 @@ The release process is split into two main workflows:
 - ❌ Does NOT publish to crates.io (manual step)
 
 ### 3. Package Manager Publishing
+
 **Trigger**: After GitHub release is created
 
 **What it does**:
+
 - ✅ Publishes to WinGet
 - ✅ Publishes to Chocolatey
 - ✅ Publishes to Homebrew
@@ -58,6 +63,7 @@ After a GitHub release is created, manually publish to crates.io:
 For the first release, you need to:
 
 1. **Set up GitHub Secrets**:
+
    ```
    CARGO_REGISTRY_TOKEN     # From crates.io
    CHOCOLATEY_API_KEY       # From chocolatey.org
@@ -67,10 +73,11 @@ For the first release, you need to:
    ```
 
 2. **Manually publish first version**:
+
    ```bash
    # Login to crates.io
    cargo login <your-token>
-   
+
    # Publish first version
    cargo publish
    ```
@@ -80,6 +87,7 @@ For the first release, you need to:
 ### release-plz Fails with "package not found"
 
 **Problem**:
+
 ```
 ERROR failed to update packages
 Caused by:
@@ -91,11 +99,13 @@ Caused by:
 **Root Cause**: release-plz tries to check all workspace packages on crates.io, but workspace members haven't been published yet.
 
 **Solution**:
+
 1. **Workspace Configuration**: Set `release = false` in `[workspace]` to disable processing of all packages by default
 2. **Main Package Only**: Set `release = true` only for the main `vx` package in `[[package]]` section
 3. **Separate Publishing**: Use our custom workflow to publish workspace members to crates.io
 
 **Current Configuration**:
+
 ```toml
 [workspace]
 release = false  # Disable all packages by default

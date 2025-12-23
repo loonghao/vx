@@ -170,6 +170,8 @@ impl<'a> Executor<'a> {
                 runtime.pre_install(&version, context).await?;
 
                 // Actually install the runtime
+                // Note: Runtime::install() calls post_extract() internally before verification,
+                // which handles file renaming (e.g., pnpm-macos-arm64 -> pnpm)
                 debug!("Calling runtime.install() for {} {}", runtime_name, version);
                 let result = runtime.install(&version, context).await?;
                 debug!(
@@ -187,7 +189,7 @@ impl<'a> Executor<'a> {
                     ));
                 }
 
-                // Run post-install hook
+                // Run post-install hook (for symlinks, PATH setup, etc.)
                 runtime.post_install(&version, context).await?;
 
                 info!("Successfully installed {} {}", runtime_name, version);

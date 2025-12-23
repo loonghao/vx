@@ -20,12 +20,14 @@
 ## ✨ Features
 
 ### 🔧 Core Functionality
+
 - **Universal Tool Execution**: Run any supported tool through a single, consistent interface
 - **🚀 Enhanced Auto-Installation**: Download and install missing tools with beautiful progress bars
 - **Version Management**: Install, switch, and manage multiple tool versions seamlessly
 - **Virtual Environments**: Create isolated environments for projects with complete PATH management
 
 ### 🎨 Enhanced User Experience
+
 - **📊 Beautiful Progress Bars**: Rich progress tracking with ETA, transfer rates, and visual feedback
 - **🌈 Colorful Output**: Intuitive color-coded messages and status indicators
 - **⚡ Lightning Performance**: Async-first architecture with concurrent operations
@@ -33,6 +35,7 @@
 - **💡 Smart Error Messages**: Helpful suggestions and clear error reporting with recovery hints
 
 ### 🛠️ Advanced Features
+
 - **Project Configuration**: Support for project-specific tool configurations with TOML
 - **Shell Integration**: Auto-completion and shell hooks for all major shells
 - **📦 Universal Format Support**: ZIP, TAR.GZ, TAR.XZ, TAR.BZ2, and raw binaries
@@ -41,11 +44,13 @@
 ## Installation
 
 ### From Crates.io
+
 ```bash
 cargo install vx-cli
 ```
 
 ### From Source
+
 ```bash
 git clone https://github.com/loonghao/vx
 cd vx
@@ -55,6 +60,7 @@ cargo install --path crates/vx-cli
 ## Quick Start
 
 ### ⚡ Basic Usage with Enhanced Experience
+
 ```bash
 # 🚀 Execute tools transparently with auto-installation and progress bars
 vx node --version                    # Beautiful progress if Node.js needs installation
@@ -74,6 +80,7 @@ vx venv create myproject --tools node@18.17.0,uv@latest
 ```
 
 ### Project Configuration
+
 ```bash
 # Initialize project configuration
 vx init
@@ -92,6 +99,7 @@ vx sync
 vx-cli is powered by the **vx-installer** engine, providing a state-of-the-art installation experience:
 
 ### 📊 Beautiful Progress Tracking
+
 ```bash
 # When installing tools, you'll see beautiful progress bars like:
 # 🚀 Downloading Node.js v18.17.0...
@@ -103,6 +111,7 @@ vx install node@18.17.0
 ```
 
 ### 🔒 Security & Verification
+
 ```bash
 # All downloads include automatic security features:
 # - HTTPS-only downloads
@@ -114,6 +123,7 @@ vx install go@1.21.0  # Automatically verified for integrity
 ```
 
 ### 📦 Universal Format Support
+
 ```bash
 # vx-cli handles multiple archive formats seamlessly:
 # - ZIP archives (Windows tools)
@@ -127,6 +137,7 @@ vx install uv@latest  # Automatically detects and handles format
 ## Commands
 
 ### Tool Execution
+
 ```bash
 # Direct tool execution (transparent proxy)
 vx <tool> [args...]
@@ -140,6 +151,7 @@ vx cargo test
 ```
 
 ### Tool Management
+
 ```bash
 # Install tools
 vx install <tool>[@version]
@@ -164,6 +176,7 @@ vx search --category python
 ```
 
 ### Virtual Environments
+
 ```bash
 # Create environments
 vx venv create myproject
@@ -179,6 +192,7 @@ vx venv remove myproject  # Remove environment
 ```
 
 ### Project Management
+
 ```bash
 # Initialize project
 vx init                   # Interactive setup
@@ -195,6 +209,7 @@ vx config edit --local    # Edit project config
 ```
 
 ### Maintenance
+
 ```bash
 # Statistics
 vx stats                  # Show usage statistics
@@ -212,6 +227,7 @@ vx global cleanup         # Clean unused tools
 ## Configuration
 
 ### Global Configuration
+
 Location: `~/.vx/config/global.toml`
 
 ```toml
@@ -231,6 +247,7 @@ use_colors = true
 ```
 
 ### Project Configuration
+
 Location: `.vx.toml` in project root
 
 ```toml
@@ -252,6 +269,7 @@ test = "npm test"
 ## Shell Integration
 
 ### Bash/Zsh
+
 ```bash
 # Add to ~/.bashrc or ~/.zshrc
 eval "$(vx shell-init)"
@@ -259,6 +277,7 @@ source <(vx completion bash)  # or zsh
 ```
 
 ### Fish
+
 ```fish
 # Add to ~/.config/fish/config.fish
 vx shell-init | source
@@ -266,6 +285,7 @@ vx completion fish | source
 ```
 
 ### PowerShell
+
 ```powershell
 # Add to PowerShell profile
 Invoke-Expression (vx shell-init)
@@ -275,17 +295,20 @@ vx completion powershell | Out-String | Invoke-Expression
 ## Supported Tools
 
 ### Languages & Runtimes
+
 - **Node.js**: JavaScript runtime and npm
 - **Python**: UV package manager and Python tools
 - **Go**: Go compiler and tools
 - **Rust**: Rust compiler and Cargo
 
 ### Package Managers
+
 - **npm**: Node.js package manager
 - **UV**: Fast Python package manager
 - **Cargo**: Rust package manager
 
 ### Package Runners
+
 - **npx**: Node.js package runner
 - **uvx**: Python application runner
 
@@ -294,17 +317,20 @@ vx completion powershell | Out-String | Invoke-Expression
 vx-cli is built on top of a modern, modular architecture:
 
 ### Core Components
+
 - **vx-core**: Core traits and functionality with enhanced error handling
 - **🆕 vx-installer**: Universal installation engine with progress tracking
 - **vx-config**: Advanced configuration management with TOML support
 - **vx-plugin**: Extensible plugin system with trait-based design
 
 ### Plugin Ecosystem
+
 - **Tool Plugins**: Individual tool implementations (Node.js, Go, Rust, UV)
 - **Package Manager Plugins**: Package manager integrations (npm, Cargo)
 - **UI Components**: Rich terminal interface with beautiful progress bars
 
 ### Installation Pipeline
+
 ```
 User Command → vx-cli → vx-core → vx-installer → Tool Installation
                                       ↓
@@ -314,21 +340,25 @@ User Command → vx-cli → vx-core → vx-installer → Tool Installation
 ## Development
 
 ### Building
+
 ```bash
 cargo build
 ```
 
 ### Testing
+
 ```bash
 cargo test
 ```
 
 ### Running
+
 ```bash
 cargo run -- --help
 ```
 
 ### Debugging
+
 ```bash
 # Enable verbose logging
 RUST_LOG=debug cargo run -- <command>
@@ -354,6 +384,7 @@ Suggestions:
 ## ⚡ Performance
 
 ### Enhanced Performance Features
+
 - **🚀 Lightning Startup**: Optimized for sub-second command execution
 - **📊 Concurrent Operations**: Multiple tools downloaded and installed simultaneously
 - **💾 Smart Caching**: Version information and downloads intelligently cached
@@ -361,6 +392,7 @@ Suggestions:
 - **⚡ Async Architecture**: Non-blocking operations with beautiful progress tracking
 
 ### Benchmarks
+
 | Operation | Time | Memory | Notes |
 |-----------|------|--------|-------|
 | Tool execution | <100ms | 8MB | Cached tools |
@@ -378,6 +410,7 @@ Suggestions:
 4. **Shell integration**: Ensure shell configuration is properly loaded
 
 ### Debug Mode
+
 ```bash
 # Enable debug logging
 vx --verbose <command>

@@ -199,7 +199,7 @@ pub trait PackageRuntime: Runtime {
                 let exe_name = if cfg!(windows) {
                     format!("{}.cmd", bin_name)
                 } else {
-                    bin_name.clone()
+                    bin_name
                 };
                 bin_dir.join(exe_name)
             }
@@ -208,7 +208,7 @@ pub trait PackageRuntime: Runtime {
                 let exe_name = if cfg!(windows) {
                     format!("{}.exe", bin_name)
                 } else {
-                    bin_name.clone()
+                    bin_name
                 };
                 bin_dir.join(exe_name)
             }

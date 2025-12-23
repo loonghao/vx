@@ -7,21 +7,25 @@
 ## 设计原则
 
 ### 1. 一致性 (Consistency)
+
 - 统一的命名约定
 - 一致的参数和选项设计
 - 标准化的输出格式
 
 ### 2. 直观性 (Intuitiveness)
+
 - 使用标准动词和名词
 - 清晰的命令分组
 - 符合用户期望的行为
 
 ### 3. 可发现性 (Discoverability)
+
 - 逻辑清晰的命令层次
 - 丰富的帮助信息
 - 智能的错误提示和建议
 
 ### 4. 简洁性 (Simplicity)
+
 - 避免不必要的复杂性
 - 提供合理的默认值
 - 支持常用操作的简写
@@ -29,15 +33,18 @@
 ## 当前问题分析
 
 ### 命名不一致
+
 - `shell-init` 使用连字符，其他命令不用
 - `where` 命令名不够标准（应该是 `which`）
 - `fetch` 与 `list` 功能重叠
 
 ### 命令分组不清晰
+
 - 工具管理、项目管理、环境管理混杂
 - 缺少清晰的功能边界
 
 ### 缺少标准约定
+
 - 没有遵循常见的CLI约定
 - 缺少常用命令的简写形式
 
@@ -118,6 +125,7 @@ vx plugin remove <name>         # 删除插件
 ## 全局选项标准化
 
 ### 通用选项
+
 ```bash
 -h, --help          # 显示帮助
 -V, --version       # 显示版本
@@ -130,6 +138,7 @@ vx plugin remove <name>         # 删除插件
 ```
 
 ### 输出格式选项
+
 ```bash
 --format <format>   # 输出格式: table, json, yaml
 --output <file>     # 输出到文件
@@ -138,9 +147,10 @@ vx plugin remove <name>         # 删除插件
 ## 别名和简写
 
 ### 常用命令别名
+
 ```bash
 vx i    -> vx install
-vx rm   -> vx uninstall  
+vx rm   -> vx uninstall
 vx ls   -> vx list
 vx up   -> vx update
 vx cfg  -> vx config
@@ -149,11 +159,13 @@ vx cfg  -> vx config
 ## 向后兼容性
 
 ### 迁移策略
+
 1. **阶段1**: 添加新命令，保留旧命令但显示弃用警告
 2. **阶段2**: 默认使用新命令，旧命令显示迁移提示
 3. **阶段3**: 移除旧命令（主版本更新）
 
 ### 弃用警告示例
+
 ```bash
 $ vx remove node
 Warning: 'vx remove' is deprecated. Use 'vx uninstall' instead.
@@ -163,16 +175,19 @@ This command will be removed in vx 1.0.0.
 ## 实施计划
 
 ### 优先级1 (高优先级)
+
 - [ ] 重命名核心命令 (remove -> uninstall, where -> which, etc.)
 - [ ] 统一命令命名约定
 - [ ] 标准化全局选项
 
-### 优先级2 (中优先级)  
+### 优先级2 (中优先级)
+
 - [ ] 重新组织环境管理命令
 - [ ] 添加新的项目管理命令 (run, exec)
 - [ ] 改进Shell集成命令
 
 ### 优先级3 (低优先级)
+
 - [ ] 添加别名支持
 - [ ] 实施弃用警告
 - [ ] 添加诊断命令 (doctor)

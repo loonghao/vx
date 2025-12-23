@@ -158,12 +158,12 @@ async fn fetch_python_versions() -> Result<Vec<Version>> {
         .await?
         .json::<Vec<PythonRelease>>()
         .await?;
-    
+
     let versions = response
         .into_iter()
         .map(|release| Version::parse(&release.version))
         .collect::<Result<Vec<_>, _>>()?;
-    
+
     Ok(versions)
 }
 
@@ -176,10 +176,10 @@ async fn download_and_install_python(
         "https://www.python.org/ftp/python/{}/Python-{}.tgz",
         version, version
     );
-    
+
     // 下载、解压、编译、安装
     // 具体实现省略...
-    
+
     Ok(())
 }
 
@@ -230,19 +230,19 @@ impl PackageManager for PipPackageManager {
     async fn install_package(&self, package: &str, version: Option<&str>) -> Result<()> {
         let version_spec = version.map(|v| format!("=={}", v)).unwrap_or_default();
         let package_spec = format!("{}{}", package, version_spec);
-        
+
         // 执行 pip install
         let output = tokio::process::Command::new("pip")
             .args(&["install", &package_spec])
             .output()
             .await?;
-            
+
         if !output.status.success() {
             return Err(vx_core::VxError::Other {
                 message: format!("Failed to install package: {}", package),
             });
         }
-        
+
         Ok(())
     }
 
@@ -252,13 +252,13 @@ impl PackageManager for PipPackageManager {
             .args(&["uninstall", "-y", package])
             .output()
             .await?;
-            
+
         if !output.status.success() {
             return Err(vx_core::VxError::Other {
                 message: format!("Failed to uninstall package: {}", package),
             });
         }
-        
+
         Ok(())
     }
 
@@ -268,19 +268,19 @@ impl PackageManager for PipPackageManager {
             .args(&["list", "--format=json"])
             .output()
             .await?;
-            
+
         if !output.status.success() {
             return Err(vx_core::VxError::Other {
                 message: "Failed to list packages".to_string(),
             });
         }
-        
+
         let packages: Vec<PipPackage> = serde_json::from_slice(&output.stdout)?;
         let result = packages
             .into_iter()
             .map(|pkg| (pkg.name, pkg.version))
             .collect();
-            
+
         Ok(result)
     }
 
@@ -290,13 +290,13 @@ impl PackageManager for PipPackageManager {
             .args(&["install", "--upgrade", package])
             .output()
             .await?;
-            
+
         if !output.status.success() {
             return Err(vx_core::VxError::Other {
                 message: format!("Failed to update package: {}", package),
             });
         }
-        
+
         Ok(())
     }
 }
@@ -371,9 +371,9 @@ use vx_python_plugin::PythonPlugin;
 async fn test_python_tool_registration() {
     let plugin = PythonPlugin;
     let mut registry = ToolRegistry::new();
-    
+
     plugin.register_tools(&mut registry);
-    
+
     assert!(registry.has_tool("python"));
     assert!(registry.has_tool("pip"));
 }
@@ -383,10 +383,10 @@ async fn test_python_version_listing() {
     let plugin = PythonPlugin;
     let mut registry = ToolRegistry::new();
     plugin.register_tools(&mut registry);
-    
+
     let tool = registry.get_tool("python").unwrap();
     let versions = tool.list_versions().await.unwrap();
-    
+
     assert!(!versions.is_empty());
 }
 
@@ -395,14 +395,14 @@ async fn test_python_installation() {
     let plugin = PythonPlugin;
     let mut registry = ToolRegistry::new();
     plugin.register_tools(&mut registry);
-    
+
     let tool = registry.get_tool("python").unwrap();
     let env = VxEnvironment::new().unwrap();
     let version = vx_core::Version::parse("3.11.0").unwrap();
-    
+
     // 注意：这个测试可能需要网络连接和较长时间
     tool.install(&version, &env).await.unwrap();
-    
+
     assert!(tool.verify_installation(&version, &env).await.unwrap());
 }
 ```
@@ -420,7 +420,7 @@ fn test_plugin_cli_integration() {
         .args(&["list", "python"])
         .output()
         .expect("Failed to execute vx command");
-        
+
     assert!(output.status.success());
     assert!(String::from_utf8_lossy(&output.stdout).contains("python"));
 }
@@ -475,7 +475,7 @@ impl Plugin for PythonPlugin {
         let plugin_config: PythonPluginConfig = config
             .get("plugins.python")
             .unwrap_or_default();
-        
+
         // 应用配置...
         Ok(())
     }
@@ -494,7 +494,7 @@ impl Plugin for PythonPlugin {
         }
         Ok(())
     }
-    
+
     async fn on_tool_uninstalled(&self, tool: &str, version: &str) -> Result<()> {
         // 卸载后的清理工作
         Ok(())
@@ -505,26 +505,31 @@ impl Plugin for PythonPlugin {
 ## 📚 最佳实践
 
 ### 1. 错误处理
+
 - 使用 `vx_core::Result` 类型
 - 提供详细的错误信息
 - 实现适当的重试机制
 
 ### 2. 异步编程
+
 - 所有 I/O 操作使用异步
 - 合理使用并发控制
 - 避免阻塞操作
 
 ### 3. 跨平台支持
+
 - 处理不同操作系统的差异
 - 使用标准库的跨平台 API
 - 测试多个平台
 
 ### 4. 性能优化
+
 - 缓存版本信息
 - 并行下载和安装
 - 最小化网络请求
 
 ### 5. 用户体验
+
 - 提供进度指示
 - 清晰的错误消息
 - 合理的默认配置
