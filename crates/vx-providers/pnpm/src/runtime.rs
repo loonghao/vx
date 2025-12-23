@@ -42,9 +42,9 @@ impl Runtime for PnpmRuntime {
 
     /// PNPM is downloaded as a single executable file
     /// The filename matches the download URL (e.g., pnpm-linux-x64, pnpm-macos-arm64)
-    fn executable_relative_path(&self, _version: &str, _platform: &Platform) -> String {
-        // Return the actual downloaded filename
-        PnpmUrlBuilder::get_filename()
+    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
+        // Return the actual downloaded filename based on platform
+        PnpmUrlBuilder::get_filename(platform)
     }
 
     async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
@@ -55,7 +55,7 @@ impl Runtime for PnpmRuntime {
         ])
     }
 
-    async fn download_url(&self, version: &str, _platform: &Platform) -> Result<Option<String>> {
-        Ok(PnpmUrlBuilder::download_url(version))
+    async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
+        Ok(PnpmUrlBuilder::download_url(version, platform))
     }
 }
