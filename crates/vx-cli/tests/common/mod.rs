@@ -227,6 +227,39 @@ macro_rules! skip_if_no_vx {
     };
 }
 
+/// Skip test if network tests are disabled
+/// Network tests run automatically in CI (when GITHUB_TOKEN is set) or when VX_NETWORK_TESTS=1
+#[macro_export]
+macro_rules! skip_if_no_network {
+    () => {
+        if !$crate::common::network_tests_enabled() {
+            eprintln!("Skipping: network tests disabled (set VX_NETWORK_TESTS=1 or GITHUB_TOKEN to enable)");
+            return;
+        }
+    };
+}
+
+/// Check if network tests should run
+/// Returns true if:
+/// - VX_NETWORK_TESTS=1 is set explicitly, OR
+/// - GITHUB_TOKEN or GH_TOKEN is set (CI environment), OR
+/// - CI=true is set (GitHub Actions, etc.)
+pub fn network_tests_enabled() -> bool {
+    // Explicit opt-in
+    if std::env::var("VX_NETWORK_TESTS")
+        .map(|v| v == "1")
+        .unwrap_or(false)
+    {
+        return true;
+    }
+
+    // CI environment with GitHub token (avoids rate limits)
+    let has_token = std::env::var("GITHUB_TOKEN").is_ok() || std::env::var("GH_TOKEN").is_ok();
+    let is_ci = std::env::var("CI").map(|v| v == "true").unwrap_or(false);
+
+    has_token || is_ci
+}
+
 /// Skip test if tool is not installed (check via vx which)
 pub fn tool_installed(tool: &str) -> bool {
     if !vx_available() {

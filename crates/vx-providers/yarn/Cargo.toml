@@ -13,7 +13,6 @@ rust-version.workspace = true
 
 [dependencies]
 vx-runtime = { workspace = true }
-vx-paths = { workspace = true }
 serde = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }

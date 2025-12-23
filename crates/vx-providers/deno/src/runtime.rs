@@ -4,7 +4,7 @@ use crate::config::DenoUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// Deno runtime
 #[derive(Debug, Clone)]
@@ -55,41 +55,17 @@ impl Runtime for DenoRuntime {
 
     /// Deno archives extract directly to the binary (no subdirectory)
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "deno.exe"
-        } else {
-            "deno"
-        };
-        exe_name.to_string()
+        platform.exe_name("deno")
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        let url = "https://api.github.com/repos/denoland/deno/releases?per_page=50";
-
-        let data = ctx
-            .get_cached_or_fetch_with_url(self.name(), url, || async {
-                ctx.http.get_json_value(url).await
-            })
-            .await?;
-
-        let versions: Vec<VersionInfo> = data
-            .as_array()
-            .ok_or_else(|| anyhow::anyhow!("Invalid response format from Deno GitHub API"))?
-            .iter()
-            .filter_map(|release| {
-                let tag = release.get("tag_name")?.as_str()?;
-                // Remove 'v' prefix
-                let version = tag.strip_prefix('v').unwrap_or(tag);
-                let prerelease = release
-                    .get("prerelease")
-                    .and_then(|p| p.as_bool())
-                    .unwrap_or(false);
-
-                Some(VersionInfo::new(version).with_prerelease(prerelease))
-            })
-            .collect();
-
-        Ok(versions)
+        ctx.fetch_github_releases(
+            "deno",
+            "denoland",
+            "deno",
+            GitHubReleaseOptions::new().strip_v_prefix(true),
+        )
+        .await
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

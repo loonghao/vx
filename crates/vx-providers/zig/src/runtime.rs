@@ -92,18 +92,16 @@ impl Runtime for ZigRuntime {
     /// Zig archives extract to a versioned directory
     fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
         let dir_name = ZigUrlBuilder::get_archive_dir_name(version, platform);
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "zig.exe"
-        } else {
-            "zig"
-        };
-        format!("{}/{}", dir_name, exe_name)
+        format!("{}/{}", dir_name, platform.exe_name("zig"))
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Fetch from Zig download index
+        // Fetch from Zig download index with caching
         let url = "https://ziglang.org/download/index.json";
-        let response = ctx.http.get_json_value(url).await?;
+
+        let response = ctx
+            .get_cached_or_fetch("zig", || async { ctx.http.get_json_value(url).await })
+            .await?;
 
         let mut versions: Vec<VersionInfo> = response
             .as_object()

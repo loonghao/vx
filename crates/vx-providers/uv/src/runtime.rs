@@ -8,7 +8,7 @@ use crate::config::UvUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// UV Python package installer runtime
 #[derive(Debug, Clone, Default)]
@@ -53,9 +53,9 @@ impl Runtime for UvRuntime {
     /// - Windows (zip): uv.exe (direct, no subdirectory)
     /// - Linux/macOS (tar.gz): uv-{platform}/uv (in subdirectory)
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        if platform.os == vx_runtime::Os::Windows {
+        if platform.is_windows() {
             // Windows zip extracts directly to install directory
-            "uv.exe".to_string()
+            platform.exe_name("uv")
         } else {
             // Linux/macOS tar.gz extracts to a subdirectory
             let platform_str = UvUrlBuilder::get_platform_string(platform);
@@ -64,56 +64,14 @@ impl Runtime for UvRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Use cached versions if available
-        let url = "https://api.github.com/repos/astral-sh/uv/releases";
-
-        let response = ctx
-            .get_cached_or_fetch("uv", || async { ctx.http.get_json_value(url).await })
-            .await?;
-
-        // Check for GitHub API error response (rate limiting, etc.)
-        if let Some(message) = response.get("message").and_then(|m| m.as_str()) {
-            return Err(anyhow::anyhow!(
-                "GitHub API error: {}. Set GITHUB_TOKEN or GH_TOKEN environment variable to avoid rate limits.",
-                message
-            ));
-        }
-
-        let versions: Vec<VersionInfo> = response
-            .as_array()
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Invalid response format from GitHub API. Response: {}",
-                    serde_json::to_string_pretty(&response).unwrap_or_default()
-                )
-            })?
-            .iter()
-            .filter_map(|release| {
-                let tag = release.get("tag_name")?.as_str()?;
-                let prerelease = release
-                    .get("prerelease")
-                    .and_then(|p| p.as_bool())
-                    .unwrap_or(false);
-                let published_at = release.get("published_at").and_then(|d| d.as_str());
-                let released_at = published_at.and_then(|d| {
-                    chrono::DateTime::parse_from_rfc3339(d)
-                        .ok()
-                        .map(|dt| dt.with_timezone(&chrono::Utc))
-                });
-
-                Some(VersionInfo {
-                    version: tag.to_string(),
-                    released_at,
-                    prerelease,
-                    lts: false,
-                    download_url: None,
-                    checksum: None,
-                    metadata: HashMap::new(),
-                })
-            })
-            .collect();
-
-        Ok(versions)
+        // UV tags don't have 'v' prefix (e.g., "0.5.0")
+        ctx.fetch_github_releases(
+            "uv",
+            "astral-sh",
+            "uv",
+            GitHubReleaseOptions::new().strip_v_prefix(false),
+        )
+        .await
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
@@ -160,9 +118,9 @@ impl Runtime for UvxRuntime {
     /// - Windows (zip): uvx.exe (direct, no subdirectory)
     /// - Linux/macOS (tar.gz): uv-{platform}/uvx (in subdirectory)
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        if platform.os == vx_runtime::Os::Windows {
+        if platform.is_windows() {
             // Windows zip extracts directly to install directory
-            "uvx.exe".to_string()
+            platform.exe_name("uvx")
         } else {
             // Linux/macOS tar.gz extracts to a subdirectory
             let platform_str = UvUrlBuilder::get_platform_string(platform);

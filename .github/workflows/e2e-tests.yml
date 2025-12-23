@@ -158,24 +158,28 @@ jobs:
         run: cargo test --package vx-cli --test e2e_tests -- --nocapture
         env:
           VX_BINARY: ${{ github.workspace }}/target/release/${{ matrix.binary }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run CLI integration tests
         shell: bash
         run: cargo test --package vx-cli --test cli_integration_tests -- --nocapture
         env:
           VX_BINARY: ${{ github.workspace }}/target/release/${{ matrix.binary }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tool execution tests
         shell: bash
         run: cargo test --package vx-cli --test tool_execution_tests -- --nocapture
         env:
           VX_BINARY: ${{ github.workspace }}/target/release/${{ matrix.binary }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tool E2E tests
         shell: bash
         run: cargo test --package vx-cli --test tool_e2e_tests -- --nocapture
         env:
           VX_BINARY: ${{ github.workspace }}/target/release/${{ matrix.binary }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ============================================================================
   # Stage 3: Self-hosted vx tests (dogfooding)

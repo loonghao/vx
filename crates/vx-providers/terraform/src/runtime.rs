@@ -58,12 +58,7 @@ impl Runtime for TerraformRuntime {
 
     /// Terraform archives extract directly to the binary (no subdirectory)
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "terraform.exe"
-        } else {
-            "terraform"
-        };
-        exe_name.to_string()
+        platform.exe_name("terraform")
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {

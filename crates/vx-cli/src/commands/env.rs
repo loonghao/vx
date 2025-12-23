@@ -11,7 +11,7 @@ use crate::ui::UI;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 use std::path::{Path, PathBuf};
-use vx_paths::PathManager;
+use vx_paths::{link, LinkStrategy, PathManager};
 
 /// Environment subcommands
 #[derive(Subcommand, Clone)]
@@ -148,23 +148,13 @@ fn clone_env_contents(source: &Path, target: &Path) -> Result<()> {
         let source_path = entry.path();
         let target_path = target.join(entry.file_name());
 
-        if source_path.is_symlink() || source_path.is_file() {
-            // Copy symlinks/files
-            if source_path.is_symlink() {
-                let link_target = std::fs::read_link(&source_path)?;
-                #[cfg(unix)]
-                std::os::unix::fs::symlink(&link_target, &target_path)?;
-                #[cfg(windows)]
-                {
-                    if link_target.is_dir() {
-                        std::os::windows::fs::symlink_dir(&link_target, &target_path)?;
-                    } else {
-                        std::os::windows::fs::symlink_file(&link_target, &target_path)?;
-                    }
-                }
-            } else {
-                std::fs::copy(&source_path, &target_path)?;
-            }
+        if source_path.is_symlink() {
+            // Recreate symlink pointing to the same target
+            let link_target = std::fs::read_link(&source_path)?;
+            link::create_link(&link_target, &target_path, LinkStrategy::SymLink)
+                .context("Failed to create symlink")?;
+        } else if source_path.is_file() {
+            std::fs::copy(&source_path, &target_path)?;
         } else if source_path.is_dir() {
             std::fs::create_dir_all(&target_path)?;
             clone_env_contents(&source_path, &target_path)?;
@@ -426,12 +416,9 @@ async fn add_runtime(runtime_version: &str, env_name: Option<&str>) -> Result<()
             .context("Failed to remove existing runtime link")?;
     }
 
-    // Create symlink
-    #[cfg(unix)]
-    std::os::unix::fs::symlink(&store_dir, &env_runtime_path)?;
-
-    #[cfg(windows)]
-    std::os::windows::fs::symlink_dir(&store_dir, &env_runtime_path)?;
+    // Create symlink using vx-paths link module
+    link::create_link(&store_dir, &env_runtime_path, LinkStrategy::SymLink)
+        .context("Failed to create symlink to runtime")?;
 
     UI::success(&format!(
         "Added {}@{} to environment '{}'",

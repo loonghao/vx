@@ -4,7 +4,7 @@ use crate::config::BunUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// Bun runtime
 #[derive(Debug, Clone)]
@@ -57,21 +57,18 @@ impl Runtime for BunRuntime {
     /// Bun archives extract to `bun-{platform}/bun`
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         let dir_name = Self::get_archive_dir_name(platform);
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "bun.exe"
-        } else {
-            "bun"
-        };
-        format!("{}/{}", dir_name, exe_name)
+        format!("{}/{}", dir_name, platform.exe_name("bun"))
     }
 
-    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Bun versions - would fetch from GitHub API in production
-        Ok(vec![
-            VersionInfo::new("1.3.4").with_lts(true), // Latest stable
-            VersionInfo::new("1.2.0"),
-            VersionInfo::new("1.1.0"),
-        ])
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // Bun tags are like "bun-v1.3.4"
+        ctx.fetch_github_releases(
+            "bun",
+            "oven-sh",
+            "bun",
+            GitHubReleaseOptions::new().tag_prefix("bun-v"),
+        )
+        .await
     }
 
     async fn download_url(&self, version: &str, _platform: &Platform) -> Result<Option<String>> {
@@ -126,12 +123,7 @@ impl Runtime for BunxRuntime {
     /// Bunx is bundled with Bun, same archive structure
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         let dir_name = BunRuntime::get_archive_dir_name(platform);
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "bunx.exe"
-        } else {
-            "bunx"
-        };
-        format!("{}/{}", dir_name, exe_name)
+        format!("{}/{}", dir_name, platform.exe_name("bunx"))
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
