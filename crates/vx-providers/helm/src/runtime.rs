@@ -4,7 +4,7 @@ use crate::config::HelmUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// Helm runtime
 #[derive(Debug, Clone)]
@@ -56,41 +56,17 @@ impl Runtime for HelmRuntime {
     /// Helm archives extract to {os}-{arch}/helm
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         let dir_name = HelmUrlBuilder::get_archive_dir_name(platform);
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "helm.exe"
-        } else {
-            "helm"
-        };
-        format!("{}/{}", dir_name, exe_name)
+        format!("{}/{}", dir_name, platform.exe_name("helm"))
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        let url = "https://api.github.com/repos/helm/helm/releases?per_page=50";
-
-        let data = ctx
-            .get_cached_or_fetch_with_url(self.name(), url, || async {
-                ctx.http.get_json_value(url).await
-            })
-            .await?;
-
-        let versions: Vec<VersionInfo> = data
-            .as_array()
-            .ok_or_else(|| anyhow::anyhow!("Invalid response format from Helm GitHub API"))?
-            .iter()
-            .filter_map(|release| {
-                let tag = release.get("tag_name")?.as_str()?;
-                // Remove 'v' prefix
-                let version = tag.strip_prefix('v').unwrap_or(tag);
-                let prerelease = release
-                    .get("prerelease")
-                    .and_then(|p| p.as_bool())
-                    .unwrap_or(false);
-
-                Some(VersionInfo::new(version).with_prerelease(prerelease))
-            })
-            .collect();
-
-        Ok(versions)
+        ctx.fetch_github_releases(
+            "helm",
+            "helm",
+            "helm",
+            GitHubReleaseOptions::new().strip_v_prefix(true),
+        )
+        .await
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

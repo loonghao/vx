@@ -4,7 +4,9 @@
 //! allowing for easy testing through mock implementations.
 
 use crate::traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProvider};
+use crate::types::VersionInfo;
 use crate::version_cache::{CacheMode, VersionCache};
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -186,6 +188,237 @@ impl RuntimeContext {
         }
 
         Ok(data)
+    }
+
+    /// Fetch versions from GitHub Releases API with caching
+    ///
+    /// This is a convenience method for the common case of fetching versions
+    /// from GitHub releases. It handles:
+    /// - Building the API URL
+    /// - Caching the response
+    /// - Parsing releases into `VersionInfo`
+    /// - Handling GitHub API errors (rate limiting, etc.)
+    ///
+    /// # Arguments
+    /// * `tool_name` - Name of the tool (used as cache key)
+    /// * `owner` - GitHub repository owner
+    /// * `repo` - GitHub repository name
+    /// * `options` - Options for parsing releases
+    ///
+    /// # Example
+    /// ```ignore
+    /// let versions = ctx.fetch_github_releases(
+    ///     "pnpm",
+    ///     "pnpm",
+    ///     "pnpm",
+    ///     GitHubReleaseOptions::default().strip_v_prefix(true),
+    /// ).await?;
+    /// ```
+    pub async fn fetch_github_releases(
+        &self,
+        tool_name: &str,
+        owner: &str,
+        repo: &str,
+        options: GitHubReleaseOptions,
+    ) -> anyhow::Result<Vec<VersionInfo>> {
+        let url = format!(
+            "https://api.github.com/repos/{}/{}/releases?per_page={}",
+            owner, repo, options.per_page
+        );
+
+        let response = self
+            .get_cached_or_fetch(tool_name, || async { self.http.get_json_value(&url).await })
+            .await?;
+
+        // Check for GitHub API error response (rate limiting, etc.)
+        if let Some(message) = response.get("message").and_then(|m| m.as_str()) {
+            return Err(anyhow::anyhow!(
+                "GitHub API error: {}. Set GITHUB_TOKEN or GH_TOKEN environment variable to avoid rate limits.",
+                message
+            ));
+        }
+
+        let releases = response.as_array().ok_or_else(|| {
+            anyhow::anyhow!(
+                "Invalid response format from GitHub API. Expected array, got: {}",
+                serde_json::to_string_pretty(&response).unwrap_or_default()
+            )
+        })?;
+
+        let versions: Vec<VersionInfo> = releases
+            .iter()
+            .filter_map(|release| {
+                // Skip drafts if configured
+                if options.skip_drafts
+                    && release
+                        .get("draft")
+                        .and_then(|d| d.as_bool())
+                        .unwrap_or(false)
+                {
+                    return None;
+                }
+
+                let tag = release.get("tag_name")?.as_str()?;
+
+                // Apply tag prefix stripping
+                let version = if let Some(prefix) = &options.tag_prefix {
+                    tag.strip_prefix(prefix).unwrap_or(tag)
+                } else if options.strip_v_prefix {
+                    tag.strip_prefix('v').unwrap_or(tag)
+                } else {
+                    tag
+                };
+
+                let prerelease = release
+                    .get("prerelease")
+                    .and_then(|p| p.as_bool())
+                    .unwrap_or(false);
+
+                // Skip prereleases if configured
+                if options.skip_prereleases && prerelease {
+                    return None;
+                }
+
+                let published_at = release.get("published_at").and_then(|d| d.as_str());
+                let released_at: Option<DateTime<Utc>> = published_at.and_then(|d| {
+                    DateTime::parse_from_rfc3339(d)
+                        .ok()
+                        .map(|dt| dt.with_timezone(&Utc))
+                });
+
+                // Determine LTS status
+                let lts = if let Some(lts_fn) = &options.lts_detector {
+                    lts_fn(version)
+                } else {
+                    false
+                };
+
+                Some(VersionInfo {
+                    version: version.to_string(),
+                    released_at,
+                    prerelease,
+                    lts,
+                    download_url: None,
+                    checksum: None,
+                    metadata: HashMap::new(),
+                })
+            })
+            .collect();
+
+        Ok(versions)
+    }
+
+    /// Fetch versions from a generic JSON API with caching
+    ///
+    /// This is a convenience method for fetching versions from any JSON API.
+    /// The caller provides a parser function to convert the response into versions.
+    ///
+    /// # Arguments
+    /// * `tool_name` - Name of the tool (used as cache key)
+    /// * `url` - API URL to fetch
+    /// * `parser` - Function to parse the JSON response into versions
+    pub async fn fetch_json_versions<F>(
+        &self,
+        tool_name: &str,
+        url: &str,
+        parser: F,
+    ) -> anyhow::Result<Vec<VersionInfo>>
+    where
+        F: FnOnce(serde_json::Value) -> anyhow::Result<Vec<VersionInfo>>,
+    {
+        let response = self
+            .get_cached_or_fetch(tool_name, || async { self.http.get_json_value(url).await })
+            .await?;
+
+        parser(response)
+    }
+}
+
+/// Options for parsing GitHub releases
+pub struct GitHubReleaseOptions {
+    /// Number of releases to fetch per page (max 100)
+    pub per_page: u32,
+    /// Whether to strip 'v' prefix from tags (e.g., "v1.0.0" -> "1.0.0")
+    pub strip_v_prefix: bool,
+    /// Custom tag prefix to strip (takes precedence over strip_v_prefix)
+    pub tag_prefix: Option<String>,
+    /// Whether to skip draft releases
+    pub skip_drafts: bool,
+    /// Whether to skip prerelease versions
+    pub skip_prereleases: bool,
+    /// Custom function to detect LTS versions
+    lts_detector: Option<Box<dyn Fn(&str) -> bool + Send + Sync>>,
+}
+
+impl std::fmt::Debug for GitHubReleaseOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GitHubReleaseOptions")
+            .field("per_page", &self.per_page)
+            .field("strip_v_prefix", &self.strip_v_prefix)
+            .field("tag_prefix", &self.tag_prefix)
+            .field("skip_drafts", &self.skip_drafts)
+            .field("skip_prereleases", &self.skip_prereleases)
+            .field("lts_detector", &self.lts_detector.is_some())
+            .finish()
+    }
+}
+
+impl Default for GitHubReleaseOptions {
+    fn default() -> Self {
+        Self {
+            per_page: 50,
+            strip_v_prefix: true,
+            tag_prefix: None,
+            skip_drafts: true,
+            skip_prereleases: false,
+            lts_detector: None,
+        }
+    }
+}
+
+impl GitHubReleaseOptions {
+    /// Create new options with default values
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the number of releases to fetch per page
+    pub fn per_page(mut self, count: u32) -> Self {
+        self.per_page = count.min(100);
+        self
+    }
+
+    /// Whether to strip 'v' prefix from tags
+    pub fn strip_v_prefix(mut self, strip: bool) -> Self {
+        self.strip_v_prefix = strip;
+        self
+    }
+
+    /// Set a custom tag prefix to strip
+    pub fn tag_prefix(mut self, prefix: impl Into<String>) -> Self {
+        self.tag_prefix = Some(prefix.into());
+        self
+    }
+
+    /// Whether to skip draft releases
+    pub fn skip_drafts(mut self, skip: bool) -> Self {
+        self.skip_drafts = skip;
+        self
+    }
+
+    /// Whether to skip prerelease versions
+    pub fn skip_prereleases(mut self, skip: bool) -> Self {
+        self.skip_prereleases = skip;
+        self
+    }
+
+    /// Set a custom LTS detector function
+    pub fn lts_detector<F>(mut self, detector: F) -> Self
+    where
+        F: Fn(&str) -> bool + Send + Sync + 'static,
+    {
+        self.lts_detector = Some(Box::new(detector));
+        self
     }
 }
 

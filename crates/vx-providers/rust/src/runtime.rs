@@ -3,7 +3,7 @@
 use crate::config::RustUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// Cargo runtime
 #[derive(Debug, Clone)]
@@ -48,22 +48,26 @@ impl Runtime for CargoRuntime {
     /// Rust archives extract to `rust-{version}-{platform}/cargo/bin/cargo`
     fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
         let dir_name = Self::get_archive_dir_name(version);
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "cargo.exe"
-        } else {
-            "cargo"
-        };
-        format!("{}/cargo/bin/{}", dir_name, exe_name)
+        format!("{}/cargo/bin/{}", dir_name, platform.exe_name("cargo"))
     }
 
-    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Rust uses channels: stable, beta, nightly
-        Ok(vec![
-            VersionInfo::new("stable").with_lts(true),
-            VersionInfo::new("beta").with_prerelease(true),
-            VersionInfo::new("nightly").with_prerelease(true),
-            VersionInfo::new("1.75.0"),
-        ])
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // Fetch from Rust GitHub releases
+        // Rust releases use tags like "1.75.0" without 'v' prefix
+        ctx.fetch_github_releases(
+            "rust",
+            "rust-lang",
+            "rust",
+            GitHubReleaseOptions::new()
+                .strip_v_prefix(false) // Rust tags don't have 'v' prefix
+                .skip_prereleases(false)
+                .lts_detector(|v| {
+                    // Stable releases are considered LTS-like
+                    // Beta and nightly are handled via prerelease flag
+                    !v.contains("beta") && !v.contains("nightly")
+                }),
+        )
+        .await
     }
 
     async fn download_url(&self, version: &str, _platform: &Platform) -> Result<Option<String>> {
@@ -108,12 +112,7 @@ impl Runtime for RustcRuntime {
     /// Rust archives extract to `rust-{version}-{platform}/rustc/bin/rustc`
     fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
         let dir_name = CargoRuntime::get_archive_dir_name(version);
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "rustc.exe"
-        } else {
-            "rustc"
-        };
-        format!("{}/rustc/bin/{}", dir_name, exe_name)
+        format!("{}/rustc/bin/{}", dir_name, platform.exe_name("rustc"))
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
@@ -161,16 +160,18 @@ impl Runtime for RustupRuntime {
 
     /// Rustup is a single executable downloaded directly
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        if platform.os == vx_runtime::Os::Windows {
-            "rustup-init.exe".to_string()
-        } else {
-            "rustup-init".to_string()
-        }
+        platform.exe_name("rustup-init")
     }
 
-    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Rustup has its own versioning
-        Ok(vec![VersionInfo::new("1.26.0").with_lts(true)])
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // Fetch rustup versions from GitHub releases
+        ctx.fetch_github_releases(
+            "rustup",
+            "rust-lang",
+            "rustup",
+            GitHubReleaseOptions::new().strip_v_prefix(false),
+        )
+        .await
     }
 
     async fn download_url(&self, _version: &str, _platform: &Platform) -> Result<Option<String>> {

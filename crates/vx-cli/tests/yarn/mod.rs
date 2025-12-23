@@ -175,9 +175,9 @@ fn test_yarn_implicit_install() {
 /// Test: vx yarn add package
 #[rstest]
 #[test]
-#[ignore = "Requires network"]
 fn test_yarn_add_package() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -199,9 +199,9 @@ fn test_yarn_add_package() {
 /// Test: vx yarn add -D (dev dependency)
 #[rstest]
 #[test]
-#[ignore = "Requires network"]
 fn test_yarn_add_dev() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -335,9 +335,9 @@ fn test_yarn_list_depth() {
 /// Test: vx yarn info lodash
 #[rstest]
 #[test]
-#[ignore = "Requires network"]
 fn test_yarn_info() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let output = run_vx(&["yarn", "info", "lodash"]).expect("Failed to run yarn info");
 
@@ -417,9 +417,9 @@ fn test_yarn_config_get() {
 /// Test: vx yarn dlx cowsay
 #[rstest]
 #[test]
-#[ignore = "Requires network and Yarn 2+"]
 fn test_yarn_dlx() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let output = run_vx(&["yarn", "dlx", "cowsay", "hello"]).expect("Failed to run yarn dlx");
 
@@ -440,9 +440,9 @@ fn test_yarn_dlx() {
 /// Test: vx yarn why (requires installed package)
 #[rstest]
 #[test]
-#[ignore = "Requires installed packages"]
 fn test_yarn_why() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -488,9 +488,9 @@ fn test_yarn_invalid_subcommand() {
 /// Test: vx yarn add non-existent package
 #[rstest]
 #[test]
-#[ignore = "Requires network"]
 fn test_yarn_add_nonexistent() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 

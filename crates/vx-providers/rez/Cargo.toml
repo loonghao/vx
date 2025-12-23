@@ -13,8 +13,6 @@ rust-version.workspace = true
 
 [dependencies]
 vx-runtime = { workspace = true }
-vx-installer = { workspace = true }
-vx-version = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

@@ -55,17 +55,15 @@ impl Runtime for NodeRuntime {
     /// Node.js archives extract to `node-v{version}-{platform}/bin/node`
     fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
         let dir_name = Self::get_archive_dir_name(version, platform);
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "node.exe"
-        } else {
-            "node"
-        };
-        format!("{}/bin/{}", dir_name, exe_name)
+        format!("{}/bin/{}", dir_name, platform.exe_name("node"))
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
         let url = "https://nodejs.org/dist/index.json";
-        let response = ctx.http.get_json_value(url).await?;
+
+        let response = ctx
+            .get_cached_or_fetch("node", || async { ctx.http.get_json_value(url).await })
+            .await?;
 
         let versions: Vec<VersionInfo> = response
             .as_array()
@@ -150,6 +148,7 @@ impl Runtime for NpmRuntime {
     /// NPM is bundled with Node.js, same archive structure
     fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
         let dir_name = NodeRuntime::get_archive_dir_name(version, platform);
+        // NPM uses .cmd on Windows
         let exe_name = if platform.os == vx_runtime::Os::Windows {
             "npm.cmd"
         } else {
@@ -209,6 +208,7 @@ impl Runtime for NpxRuntime {
     /// NPX is bundled with Node.js, same archive structure
     fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
         let dir_name = NodeRuntime::get_archive_dir_name(version, platform);
+        // NPX uses .cmd on Windows
         let exe_name = if platform.os == vx_runtime::Os::Windows {
             "npx.cmd"
         } else {

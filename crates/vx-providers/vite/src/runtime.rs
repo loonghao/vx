@@ -11,8 +11,8 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use vx_runtime::{
-    Ecosystem, InstallMethod, InstallResult, PackageRuntime, PathProvider, Platform, Runtime,
-    RuntimeContext, VerificationResult, VersionInfo,
+    compare_semver, Ecosystem, InstallMethod, InstallResult, PackageRuntime, PathProvider,
+    Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
 };
 
 /// Vite runtime implementation
@@ -150,28 +150,6 @@ impl Runtime for ViteRuntime {
             )
         }
     }
-}
-
-/// Simple semver comparison for sorting versions
-fn compare_semver(a: &str, b: &str) -> std::cmp::Ordering {
-    let parse_version = |v: &str| -> Vec<u64> {
-        v.split(|c: char| !c.is_ascii_digit())
-            .filter(|s| !s.is_empty())
-            .filter_map(|s| s.parse::<u64>().ok())
-            .collect()
-    };
-
-    let a_parts = parse_version(a);
-    let b_parts = parse_version(b);
-
-    for (a_part, b_part) in a_parts.iter().zip(b_parts.iter()) {
-        match a_part.cmp(b_part) {
-            std::cmp::Ordering::Equal => continue,
-            other => return other,
-        }
-    }
-
-    a_parts.len().cmp(&b_parts.len())
 }
 
 #[async_trait]

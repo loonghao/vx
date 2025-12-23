@@ -8,7 +8,10 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
+use vx_runtime::{
+    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
+    VersionInfo,
+};
 
 /// Just runtime implementation
 #[derive(Debug, Clone, Default)]
@@ -59,57 +62,16 @@ impl Runtime for JustRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        let url = "https://api.github.com/repos/casey/just/releases";
-        let response = ctx.http.get_json_value(url).await?;
-
-        let mut versions = Vec::new();
-
-        if let Some(releases) = response.as_array() {
-            for release in releases {
-                // Skip drafts and prereleases
-                if release
-                    .get("draft")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false)
-                {
-                    continue;
-                }
-                if release
-                    .get("prerelease")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false)
-                {
-                    continue;
-                }
-
-                // Get tag name (version)
-                let tag_name = match release.get("tag_name").and_then(|v| v.as_str()) {
-                    Some(tag) => tag,
-                    None => continue,
-                };
-
-                // Just uses plain version numbers without 'v' prefix
-                let version = tag_name.to_string();
-
-                // Get published date
-                let published_at = release
-                    .get("published_at")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-
-                let mut version_info = VersionInfo::new(version)
-                    .with_lts(false)
-                    .with_prerelease(false);
-
-                if let Some(date) = published_at {
-                    version_info = version_info.with_release_date(date);
-                }
-
-                versions.push(version_info);
-            }
-        }
-
-        Ok(versions)
+        // Just uses plain version numbers without 'v' prefix, skip prereleases
+        ctx.fetch_github_releases(
+            "just",
+            "casey",
+            "just",
+            GitHubReleaseOptions::new()
+                .strip_v_prefix(false)
+                .skip_prereleases(true),
+        )
+        .await
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

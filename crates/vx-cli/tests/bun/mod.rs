@@ -279,10 +279,10 @@ fn test_bun_install_empty() {
 /// Test: vx bun add (install package)
 #[rstest]
 #[test]
-#[ignore = "Requires network"]
 fn test_bun_add_package() {
     skip_if_no_vx!();
     skip_if_no_bun!();
+    skip_if_no_network!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -396,10 +396,10 @@ fn test_bunx_version() {
 /// Test: vx bunx cowsay (popular package)
 #[rstest]
 #[test]
-#[ignore = "Requires network"]
 fn test_bunx_cowsay() {
     skip_if_no_vx!();
     skip_if_no_bun!();
+    skip_if_no_network!();
 
     let output = run_vx(&["bunx", "cowsay", "hello"]).expect("Failed to run bunx cowsay");
 

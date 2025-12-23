@@ -3348,7 +3348,6 @@ dependencies = [
  "vx-provider-zig",
  "vx-resolver",
  "vx-runtime",
- "vx-version",
  "walkdir",
  "which",
  "zip",
@@ -3419,7 +3418,6 @@ dependencies = [
  "rstest",
  "serde",
  "tokio",
- "vx-paths",
  "vx-runtime",
 ]
 
@@ -3433,7 +3431,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-paths",
  "vx-runtime",
 ]
 
@@ -3449,9 +3446,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-installer",
  "vx-runtime",
- "vx-version",
 ]
 
 [[package]]
@@ -3464,7 +3459,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-paths",
  "vx-runtime",
 ]
 
@@ -3478,7 +3472,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-paths",
  "vx-runtime",
 ]
 
@@ -3494,9 +3487,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-installer",
  "vx-runtime",
- "vx-version",
 ]
 
 [[package]]
@@ -3509,7 +3500,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-paths",
  "vx-runtime",
 ]
 
@@ -3525,9 +3515,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-installer",
  "vx-runtime",
- "vx-version",
 ]
 
 [[package]]
@@ -3539,7 +3527,6 @@ dependencies = [
  "rstest",
  "serde",
  "tokio",
- "vx-paths",
  "vx-runtime",
 ]
 
@@ -3555,9 +3542,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-installer",
  "vx-runtime",
- "vx-version",
 ]
 
 [[package]]
@@ -3573,9 +3558,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
- "vx-installer",
  "vx-runtime",
- "vx-version",
 ]
 
 [[package]]
@@ -3587,7 +3570,6 @@ dependencies = [
  "rstest",
  "serde",
  "tokio",
- "vx-paths",
  "vx-runtime",
 ]
 
@@ -3601,7 +3583,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-paths",
  "vx-runtime",
 ]
 
@@ -3617,9 +3598,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-installer",
  "vx-runtime",
- "vx-version",
 ]
 
 [[package]]
@@ -3634,9 +3613,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-installer",
  "vx-runtime",
- "vx-version",
 ]
 
 [[package]]
@@ -3651,9 +3628,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-installer",
  "vx-runtime",
- "vx-version",
 ]
 
 [[package]]
@@ -3665,7 +3640,6 @@ dependencies = [
  "rstest",
  "serde",
  "tokio",
- "vx-paths",
  "vx-runtime",
 ]
 
@@ -3679,7 +3653,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-paths",
  "vx-runtime",
 ]
 
@@ -3726,23 +3699,6 @@ dependencies = [
  "vx-paths",
  "which",
  "zip",
-]
-
-[[package]]
-name = "vx-version"
-version = "0.5.12"
-dependencies = [
- "anyhow",
- "async-trait",
- "indexmap",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "vx-runtime",
- "which",
 ]
 
 [[package]]

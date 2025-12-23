@@ -252,9 +252,9 @@ fn test_uvx_help() {
 /// Test: vx uvx ruff --version (popular Python linter)
 #[rstest]
 #[test]
-#[ignore = "Requires network to download ruff"]
 fn test_uvx_ruff_version() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let output = run_vx(&["uvx", "ruff", "--version"]).expect("Failed to run vx uvx ruff");
 
@@ -271,9 +271,9 @@ fn test_uvx_ruff_version() {
 /// Test: vx uvx ruff check
 #[rstest]
 #[test]
-#[ignore = "Requires network to download ruff"]
 fn test_uvx_ruff_check() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let py_file = temp_dir.path().join("test.py");
@@ -291,9 +291,9 @@ fn test_uvx_ruff_check() {
 /// Test: vx uvx black --version
 #[rstest]
 #[test]
-#[ignore = "Requires network to download black"]
 fn test_uvx_black_version() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let output = run_vx(&["uvx", "black", "--version"]).expect("Failed to run vx uvx black");
 
@@ -451,9 +451,9 @@ fn test_uv_invalid_subcommand() {
 /// Test: vx uv pip install non-existent package
 #[rstest]
 #[test]
-#[ignore = "Requires network"]
 fn test_uv_pip_install_nonexistent() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 

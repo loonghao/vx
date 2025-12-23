@@ -3,7 +3,7 @@
 use crate::config::PnpmUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
-use vx_runtime::{Ecosystem, Os, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// PNPM runtime
 #[derive(Debug, Clone)]
@@ -13,15 +13,6 @@ impl PnpmRuntime {
     /// Create a new PNPM runtime
     pub fn new() -> Self {
         Self
-    }
-
-    /// Get the standard executable name for the current platform
-    fn get_standard_exe_name(platform: &Platform) -> &'static str {
-        if platform.os == Os::Windows {
-            "pnpm.exe"
-        } else {
-            "pnpm"
-        }
     }
 }
 
@@ -51,15 +42,17 @@ impl Runtime for PnpmRuntime {
 
     /// PNPM executable path - uses standard name after post_install rename
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        Self::get_standard_exe_name(platform).to_string()
+        platform.exe_name("pnpm")
     }
 
-    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Would fetch from GitHub API
-        Ok(vec![
-            VersionInfo::new("9.0.0"),
-            VersionInfo::new("8.15.0").with_lts(true),
-        ])
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        ctx.fetch_github_releases(
+            "pnpm",
+            "pnpm",
+            "pnpm",
+            GitHubReleaseOptions::new().strip_v_prefix(true),
+        )
+        .await
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
@@ -76,8 +69,8 @@ impl Runtime for PnpmRuntime {
         let downloaded_path = install_dir.join(&downloaded_name);
 
         // Standard filename (e.g., pnpm, pnpm.exe)
-        let standard_name = Self::get_standard_exe_name(&platform);
-        let standard_path = install_dir.join(standard_name);
+        let standard_name = platform.exe_name("pnpm");
+        let standard_path = install_dir.join(&standard_name);
 
         // Rename if the downloaded file exists and standard doesn't
         if downloaded_path.exists() && !standard_path.exists() {

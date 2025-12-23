@@ -159,9 +159,9 @@ fn test_pnpm_install_alias() {
 /// Test: vx pnpm add package
 #[rstest]
 #[test]
-#[ignore = "Requires network"]
 fn test_pnpm_add_package() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -184,9 +184,9 @@ fn test_pnpm_add_package() {
 /// Test: vx pnpm add -D (dev dependency)
 #[rstest]
 #[test]
-#[ignore = "Requires network"]
 fn test_pnpm_add_dev() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -383,9 +383,9 @@ fn test_pnpm_dlx_help() {
 /// Test: vx pnpm dlx cowsay
 #[rstest]
 #[test]
-#[ignore = "Requires network"]
 fn test_pnpm_dlx_cowsay() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let output = run_vx(&["pnpm", "dlx", "cowsay", "hello"]).expect("Failed to run pnpm dlx");
 
@@ -420,9 +420,9 @@ fn test_pnpm_invalid_subcommand() {
 /// Test: vx pnpm install non-existent package
 #[rstest]
 #[test]
-#[ignore = "Requires network"]
 fn test_pnpm_add_nonexistent() {
     skip_if_no_vx!();
+    skip_if_no_network!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 

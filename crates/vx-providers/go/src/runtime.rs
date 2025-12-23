@@ -49,9 +49,12 @@ impl Runtime for GoRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Fetch from Go download page API
+        // Fetch from Go download page API with caching
         let url = "https://go.dev/dl/?mode=json";
-        let response = ctx.http.get_json_value(url).await?;
+
+        let response = ctx
+            .get_cached_or_fetch("go", || async { ctx.http.get_json_value(url).await })
+            .await?;
 
         let versions: Vec<VersionInfo> = response
             .as_array()
@@ -86,12 +89,7 @@ impl Runtime for GoRuntime {
     /// Go archives extract to a `go/` subdirectory
     /// e.g., go1.21.0.darwin-arm64.tar.gz extracts to: go/bin/go
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "go.exe"
-        } else {
-            "go"
-        };
-        format!("go/bin/{}", exe_name)
+        format!("go/bin/{}", platform.exe_name("go"))
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

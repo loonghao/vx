@@ -126,10 +126,68 @@ impl Platform {
     pub fn is_linux(&self) -> bool {
         self.os == Os::Linux
     }
+
+    /// Get executable name with platform-appropriate extension
+    ///
+    /// On Windows, appends ".exe" to the base name.
+    /// On other platforms, returns the base name unchanged.
+    ///
+    /// # Example
+    /// ```
+    /// use vx_runtime::{Platform, Os, Arch};
+    ///
+    /// let windows = Platform::new(Os::Windows, Arch::X86_64);
+    /// assert_eq!(windows.exe_name("cargo"), "cargo.exe");
+    ///
+    /// let linux = Platform::new(Os::Linux, Arch::X86_64);
+    /// assert_eq!(linux.exe_name("cargo"), "cargo");
+    /// ```
+    pub fn exe_name(&self, base: &str) -> String {
+        if self.os == Os::Windows {
+            format!("{}.exe", base)
+        } else {
+            base.to_string()
+        }
+    }
 }
 
 impl Default for Platform {
     fn default() -> Self {
         Self::current()
     }
+}
+
+/// Simple semver comparison for sorting versions
+///
+/// This function compares two version strings by parsing numeric components.
+/// It handles various version formats like "1.2.3", "1.2.3-beta", etc.
+///
+/// # Example
+/// ```
+/// use vx_runtime::compare_semver;
+/// use std::cmp::Ordering;
+///
+/// assert_eq!(compare_semver("1.2.3", "1.2.4"), Ordering::Less);
+/// assert_eq!(compare_semver("2.0.0", "1.9.9"), Ordering::Greater);
+/// assert_eq!(compare_semver("1.0.0", "1.0.0"), Ordering::Equal);
+/// ```
+pub fn compare_semver(a: &str, b: &str) -> std::cmp::Ordering {
+    let parse_version = |v: &str| -> Vec<u64> {
+        v.split(|c: char| !c.is_ascii_digit())
+            .filter(|s| !s.is_empty())
+            .filter_map(|s| s.parse::<u64>().ok())
+            .collect()
+    };
+
+    let a_parts = parse_version(a);
+    let b_parts = parse_version(b);
+
+    for (a_part, b_part) in a_parts.iter().zip(b_parts.iter()) {
+        match a_part.cmp(b_part) {
+            std::cmp::Ordering::Equal => continue,
+            other => return other,
+        }
+    }
+
+    a_parts.len().cmp(&b_parts.len())
 }

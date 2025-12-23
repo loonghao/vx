@@ -3,7 +3,7 @@
 use crate::config::YarnUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// Yarn runtime
 #[derive(Debug, Clone)]
@@ -48,6 +48,7 @@ impl Runtime for YarnRuntime {
     /// Yarn 1.x archives extract to `yarn-v{version}/bin/yarn`
     fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
         let dir_name = Self::get_archive_dir_name(version);
+        // Yarn uses .cmd on Windows
         let exe_name = if platform.os == vx_runtime::Os::Windows {
             "yarn.cmd"
         } else {
@@ -56,14 +57,18 @@ impl Runtime for YarnRuntime {
         format!("{}/bin/{}", dir_name, exe_name)
     }
 
-    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Yarn 1.x is recommended for vx as it uses tar.gz archives
-        // Yarn 2+ (Berry) uses a single .js file which requires different handling
-        Ok(vec![
-            VersionInfo::new("1.22.22").with_lts(true), // Latest Yarn 1.x (stable)
-            VersionInfo::new("1.22.21"),
-            VersionInfo::new("1.22.19"),
-        ])
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // Yarn 1.x uses yarnpkg/yarn repo
+        // Mark 1.22.x as LTS (latest stable Yarn 1.x)
+        ctx.fetch_github_releases(
+            "yarn",
+            "yarnpkg",
+            "yarn",
+            GitHubReleaseOptions::new()
+                .strip_v_prefix(true)
+                .lts_detector(|v| v.starts_with("1.22.")),
+        )
+        .await
     }
 
     async fn download_url(&self, version: &str, _platform: &Platform) -> Result<Option<String>> {
