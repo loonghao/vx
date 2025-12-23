@@ -1,55 +1,55 @@
 # Supported Tools Overview
 
-vx supports a wide range of development tools across multiple ecosystems.
+vx supports a wide range of development tools across multiple ecosystems. All tools are automatically installed on first use.
 
 ## Tool Categories
 
 ### Language Runtimes
 
-| Tool | Description | Auto-Install |
-|------|-------------|--------------|
-| `node` | Node.js JavaScript runtime | âœ?|
-| `go` | Go programming language | âœ?|
-| `rust` | Rust programming language | âœ?|
-| `deno` | Secure JavaScript/TypeScript runtime | âœ?|
-| `bun` | All-in-one JavaScript runtime | âœ?|
-| `java` | Java Development Kit | âœ?|
-| `zig` | Zig programming language | âœ?|
+| Tool | Commands | Description | Auto-Install |
+|------|----------|-------------|--------------|
+| `node` | `node`, `npm`, `npx` | Node.js JavaScript runtime | âœ… |
+| `bun` | `bun`, `bunx` | Fast all-in-one JavaScript runtime | âœ… |
+| `deno` | `deno` | Secure JavaScript/TypeScript runtime | âœ… |
+| `go` | `go` | Go programming language | âœ… |
+| `rust` | `cargo`, `rustc`, `rustup` | Rust programming language | âœ… |
+| `java` | `java`, `javac` | Java Development Kit | âœ… |
+| `zig` | `zig` | Zig programming language | âœ… |
 
 ### Package Managers
 
-| Tool | Description | Requires |
-|------|-------------|----------|
-| `npm` | Node.js package manager | node |
-| `npx` | Node.js package runner | node |
-| `pnpm` | Fast, disk space efficient package manager | - |
-| `yarn` | JavaScript package manager | - |
-| `uv` | Fast Python package manager | - |
-| `uvx` | Python tool runner | uv |
-| `cargo` | Rust package manager | rust |
+| Tool | Commands | Description | Requires |
+|------|----------|-------------|----------|
+| `npm` | `npm` | Node.js package manager | node |
+| `npx` | `npx` | Node.js package runner | node |
+| `pnpm` | `pnpm`, `pnpx` | Fast, disk space efficient package manager | - |
+| `yarn` | `yarn` | JavaScript package manager | - |
+| `uv` | `uv` | Fast Python package manager | - |
+| `uvx` | `uvx` | Python tool runner | uv |
+| `cargo` | `cargo` | Rust package manager | rust |
 
 ### Build Tools
 
-| Tool | Description | Auto-Install |
-|------|-------------|--------------|
-| `vite` | Next generation frontend tooling | âœ?|
-| `just` | Command runner | âœ?|
+| Tool | Commands | Description | Auto-Install |
+|------|----------|-------------|--------------|
+| `vite` | `vite` | Next generation frontend tooling | âœ… |
+| `just` | `just` | Command runner for project tasks | âœ… |
 
 ### DevOps Tools
 
-| Tool | Description | Auto-Install |
-|------|-------------|--------------|
-| `terraform` | Infrastructure as Code | âœ?|
-| `kubectl` | Kubernetes CLI | âœ?|
-| `helm` | Kubernetes package manager | âœ?|
+| Tool | Commands | Description | Auto-Install |
+|------|----------|-------------|--------------|
+| `terraform` | `terraform` | Infrastructure as Code | âœ… |
+| `kubectl` | `kubectl` | Kubernetes CLI | âœ… |
+| `helm` | `helm` | Kubernetes package manager | âœ… |
 
 ### Other Tools
 
-| Tool | Description | Auto-Install |
-|------|-------------|--------------|
-| `vscode` | Visual Studio Code | âœ?|
-| `rez` | Package management system | âœ?|
-| `rcedit` | Windows resource editor | âœ?|
+| Tool | Commands | Description | Auto-Install |
+|------|----------|-------------|--------------|
+| `vscode` | `code` | Visual Studio Code | âœ… |
+| `rez` | `rez` | Package management system | âœ… |
+| `rcedit` | `rcedit` | Windows resource editor | âœ… |
 
 ## Checking Available Tools
 
@@ -69,9 +69,9 @@ vx list node
 Some tools have dependencies on others:
 
 ```
-npm, npx â†?node
-cargo, rustc, rustup â†?rust
-uvx â†?uv
+npm, npx â†’ node
+cargo, rustc, rustup â†’ rust
+uvx â†’ uv
 ```
 
 vx automatically installs dependencies when needed.
@@ -91,4 +91,4 @@ vx install rust stable      # Channel (Rust)
 
 ## Adding New Tools
 
-vx uses a plugin system for tool support. See [Plugin Development](/advanced/plugin-development) for information on adding new tools.
+vx uses a provider-based plugin system for tool support. See [Provider Development](/advanced/plugin-development) for information on adding new tools.

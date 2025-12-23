@@ -12,27 +12,22 @@ This directory contains all the Rust crates that make up the vx universal develo
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                          vx-core                                 │
-│              (Core Engine, Traits, Tool Management)              │
+│                         vx-runtime                               │
+│           (Provider Registry, Runtime Context, Executor)         │
 └─────────────────────────────────────────────────────────────────┘
          │              │              │              │
          ▼              ▼              ▼              ▼
 ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
-│ vx-installer│ │  vx-config  │ │  vx-plugin  │ │ vx-version  │
-│ (Downloads) │ │  (Config)   │ │  (Plugins)  │ │ (Versions)  │
+│ vx-installer│ │  vx-core    │ │ vx-resolver │ │  vx-paths   │
+│ (Downloads) │ │  (Types)    │ │ (Versions)  │ │  (Paths)    │
 └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
-                                       │
-                                       ▼
-                              ┌─────────────┐
-                              │   vx-sdk    │
-                              │ (Tool SDK)  │
-                              └─────────────┘
                                        │
          ┌─────────────────────────────┼─────────────────────────────┐
          ▼                             ▼                             ▼
 ┌─────────────────┐           ┌─────────────────┐           ┌─────────────────┐
-│   vx-tools/*    │           │  vx-dependency  │           │    vx-paths     │
-│ (Tool Plugins)  │           │ (Dep Resolution)│           │ (Path Handling) │
+│  vx-providers   │           │  vx-providers   │           │  vx-providers   │
+│     /node       │           │      /go        │           │      /uv        │
+│ (Node.js, npm)  │           │  (Go language)  │           │ (UV, Python)    │
 └─────────────────┘           └─────────────────┘           └─────────────────┘
 ```
 
@@ -43,98 +38,121 @@ This directory contains all the Rust crates that make up the vx universal develo
 | Crate | Description | When to Use |
 |-------|-------------|-------------|
 | **vx-cli** | Command-line interface with beautiful UX | Entry point for users |
-| **vx-core** | Core engine, traits, and tool management | Building core functionality |
-| **vx-config** | Configuration management with TOML support | Managing user/project settings |
+| **vx-runtime** | Runtime management, provider registry, execution context | Core runtime operations |
+| **vx-core** | Core types, traits, and abstractions | Shared types across crates |
 
 ### Infrastructure Crates
 
 | Crate | Description | When to Use |
 |-------|-------------|-------------|
 | **vx-installer** | Universal download and installation engine | Downloading and extracting tools |
-| **vx-version** | Version parsing, fetching, and comparison | Managing tool versions |
+| **vx-resolver** | Version parsing, resolution, and comparison | Managing tool versions |
 | **vx-paths** | Cross-platform path management | Resolving tool installation paths |
-| **vx-dependency** | Dependency resolution engine | Handling tool dependencies |
 
-### Plugin System
+### Tool Providers (vx-providers)
 
-| Crate | Description | When to Use |
-|-------|-------------|-------------|
-| **vx-plugin** | Plugin architecture (legacy API) | Internal plugin system |
-| **vx-sdk** | Tool Development SDK (recommended) | Creating new tool plugins |
+All tool providers are located in `vx-providers/` directory:
 
-### Tool Plugins (vx-tools)
+| Provider | Tools | Description |
+|----------|-------|-------------|
+| **node** | `node`, `npm`, `npx` | Node.js JavaScript runtime |
+| **bun** | `bun`, `bunx` | Fast JavaScript runtime |
+| **deno** | `deno` | Secure JavaScript/TypeScript runtime |
+| **go** | `go` | Go programming language |
+| **rust** | `cargo`, `rustc`, `rustup` | Rust toolchain |
+| **java** | `java`, `javac` | Java Development Kit |
+| **zig** | `zig` | Zig programming language |
+| **uv** | `uv`, `uvx` | Fast Python package manager |
+| **pnpm** | `pnpm`, `pnpx` | Fast, disk-efficient package manager |
+| **yarn** | `yarn` | JavaScript package manager |
+| **vite** | `vite` | Next generation frontend tooling |
+| **just** | `just` | Command runner |
+| **terraform** | `terraform` | Infrastructure as Code |
+| **kubectl** | `kubectl` | Kubernetes CLI |
+| **helm** | `helm` | Kubernetes package manager |
+| **vscode** | `code` | Visual Studio Code |
+| **rez** | `rez` | Package management system |
+| **rcedit** | `rcedit` | Windows resource editor |
 
-| Crate | Description |
-|-------|-------------|
-| **vx-tool-node** | Node.js runtime and npm/npx support |
-| **vx-tool-go** | Go toolchain support |
-| **vx-tool-rust** | Rust and Cargo support |
-| **vx-tool-uv** | UV Python package manager |
-| **vx-tool-pnpm** | pnpm package manager |
-| **vx-tool-yarn** | Yarn package manager |
-| **vx-tool-bun** | Bun JavaScript runtime |
+## For Provider Developers
 
-## For Plugin Developers
-
-If you want to create a new tool plugin for vx, use **vx-sdk**:
+If you want to create a new tool provider for vx, implement the `Provider` and `Runtime` traits from `vx-runtime`:
 
 ```rust
-use vx_sdk::{Tool, VersionInfo, Result};
+use vx_runtime::{Provider, Runtime, RuntimeContext, VersionInfo};
 use async_trait::async_trait;
+use std::sync::Arc;
 
-struct MyTool;
+// 1. Implement the Runtime trait
+pub struct MyToolRuntime;
 
 #[async_trait]
-impl Tool for MyTool {
+impl Runtime for MyToolRuntime {
     fn name(&self) -> &str {
         "mytool"
     }
 
-    async fn fetch_versions(&self, include_prerelease: bool) -> Result<Vec<VersionInfo>> {
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> anyhow::Result<Vec<VersionInfo>> {
+        // Fetch versions from official API
         Ok(vec![VersionInfo::new("1.0.0")])
+    }
+}
+
+// 2. Implement the Provider trait
+pub struct MyToolProvider;
+
+impl Provider for MyToolProvider {
+    fn name(&self) -> &str {
+        "mytool"
+    }
+
+    fn description(&self) -> &str {
+        "My Tool description"
+    }
+
+    fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
+        vec![Arc::new(MyToolRuntime)]
     }
 }
 ```
 
-See [vx-sdk/README.md](vx-sdk/README.md) for detailed documentation.
+See [Provider Development Guide](../docs/advanced/plugin-development.md) for detailed documentation.
 
 ## For vx Contributors
 
 ### Adding a New Tool
 
-1. Create a new crate under `vx-tools/`:
+1. Create a new crate under `vx-providers/`:
 
    ```text
-   crates/vx-tools/mytool/
+   crates/vx-providers/mytool/
    ├── Cargo.toml
-   ├── README.md
    └── src/
        ├── lib.rs
-       ├── tool.rs
-       └── config.rs
+       ├── provider.rs
+       └── runtime.rs
    ```
 
-2. Implement the `Tool` trait from `vx-sdk`
+2. Implement the `Runtime` trait (required methods: `name()`, `fetch_versions()`)
 
-3. Register the tool in `vx-core`
+3. Implement the `Provider` trait
 
-4. Add CLI commands in `vx-cli`
+4. Register the provider in `vx-cli/src/registry.rs`
+
+5. Add tests in `tests/` directory
 
 ### Crate Dependencies
 
 ```text
 vx-cli
-  └── vx-core
+  └── vx-runtime
         ├── vx-installer
-        ├── vx-config
-        ├── vx-plugin
-        │     └── vx-sdk
-        ├── vx-version
-        ├── vx-paths
-        └── vx-dependency
+        ├── vx-core
+        ├── vx-resolver
+        └── vx-paths
 
-vx-tools/*
-  └── vx-sdk
+vx-providers/*
+  └── vx-runtime
 ```
 
 ## Versioning
