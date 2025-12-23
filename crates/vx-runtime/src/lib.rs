@@ -50,14 +50,14 @@ pub mod types;
 pub mod version_cache;
 
 // Re-exports
-pub use context::{ExecutionContext, RuntimeContext};
+pub use context::{ExecutionContext, GitHubReleaseOptions, RuntimeContext};
 pub use ecosystem::Ecosystem;
 pub use impls::{
     create_runtime_context, create_runtime_context_with_base, RealCommandExecutor, RealFileSystem,
     RealHttpClient, RealInstaller, RealPathProvider,
 };
 pub use package_runtime::{InstallMethod, PackageRuntime};
-pub use platform::{Arch, Os, Platform};
+pub use platform::{compare_semver, Arch, Os, Platform};
 pub use provider::Provider;
 pub use registry::ProviderRegistry;
 pub use runtime::{Runtime, VerificationResult};

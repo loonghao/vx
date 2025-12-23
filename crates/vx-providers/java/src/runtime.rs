@@ -60,11 +60,7 @@ impl Runtime for JavaRuntime {
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         // The actual directory name varies, so we use a pattern
         // The installer should handle finding the correct directory
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "java.exe"
-        } else {
-            "java"
-        };
+        let exe_name = platform.exe_name("java");
         // On macOS, the structure is different (Contents/Home/bin/java)
         if platform.os == vx_runtime::Os::MacOS {
             format!("*/Contents/Home/bin/{}", exe_name)
@@ -74,9 +70,12 @@ impl Runtime for JavaRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Fetch available feature versions from Adoptium API
+        // Fetch available feature versions from Adoptium API with caching
         let url = "https://api.adoptium.net/v3/info/available_releases";
-        let response = ctx.http.get_json_value(url).await?;
+
+        let response = ctx
+            .get_cached_or_fetch("java", || async { ctx.http.get_json_value(url).await })
+            .await?;
 
         let mut versions = Vec::new();
 

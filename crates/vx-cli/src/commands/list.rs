@@ -65,7 +65,10 @@ async fn list_tool_versions(
                     let version = extract_version_from_path(exe_path);
                     installed_executables.push(exe_path.clone());
                     let status_icon = if show_status { "✅" } else { "  " };
-                    println!("  {} {} (bundled with {})", status_icon, version, parent_tool);
+                    println!(
+                        "  {} {} (bundled with {})",
+                        status_icon, version, parent_tool
+                    );
                 }
 
                 if show_status {
@@ -157,8 +160,9 @@ async fn list_all_tools(
         .collect();
 
     // Build a set of tools that are available (either directly installed or bundled with an installed tool)
-    let mut available_tools: HashSet<String> = directly_installed.iter().map(|s| s.to_string()).collect();
-    
+    let mut available_tools: HashSet<String> =
+        directly_installed.iter().map(|s| s.to_string()).collect();
+
     // Check for bundled tools - if a parent tool is installed, its bundled tools are also available
     for tool_name in &supported_tools {
         if let Some(runtime) = registry.get_runtime(tool_name) {
@@ -208,7 +212,11 @@ async fn list_all_tools(
                             .find(|(name, _)| name == parent_tool)
                         {
                             if !versions.is_empty() {
-                                println!("     Versions: {} (via {})", versions.join(", "), parent_tool);
+                                println!(
+                                    "     Versions: {} (via {})",
+                                    versions.join(", "),
+                                    parent_tool
+                                );
                             }
                         }
                     }

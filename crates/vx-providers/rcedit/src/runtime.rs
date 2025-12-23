@@ -9,7 +9,8 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use vx_runtime::{
-    Ecosystem, Os, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
+    Ecosystem, GitHubReleaseOptions, Os, Platform, Runtime, RuntimeContext, VerificationResult,
+    VersionInfo,
 };
 
 /// rcedit runtime implementation
@@ -61,56 +62,13 @@ impl Runtime for RceditRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        let url = "https://api.github.com/repos/electron/rcedit/releases";
-        let response = ctx.http.get_json_value(url).await?;
-
-        let mut versions = Vec::new();
-
-        if let Some(releases) = response.as_array() {
-            for release in releases {
-                // Skip drafts
-                if release
-                    .get("draft")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false)
-                {
-                    continue;
-                }
-
-                // Check if prerelease
-                let is_prerelease = release
-                    .get("prerelease")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
-
-                // Get tag name (version)
-                let tag_name = match release.get("tag_name").and_then(|v| v.as_str()) {
-                    Some(tag) => tag,
-                    None => continue,
-                };
-
-                // rcedit uses 'v' prefix in tags, strip it
-                let version = tag_name.strip_prefix('v').unwrap_or(tag_name).to_string();
-
-                // Get published date
-                let published_at = release
-                    .get("published_at")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-
-                let mut version_info = VersionInfo::new(version)
-                    .with_lts(false)
-                    .with_prerelease(is_prerelease);
-
-                if let Some(date) = published_at {
-                    version_info = version_info.with_release_date(date);
-                }
-
-                versions.push(version_info);
-            }
-        }
-
-        Ok(versions)
+        ctx.fetch_github_releases(
+            "rcedit",
+            "electron",
+            "rcedit",
+            GitHubReleaseOptions::new().strip_v_prefix(true),
+        )
+        .await
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
