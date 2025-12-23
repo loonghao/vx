@@ -323,18 +323,21 @@ vx-installer is designed for speed and efficiency:
 vx-installer prioritizes security in all operations:
 
 ### Download Security
+
 - **HTTPS Only**: All downloads use secure HTTPS connections
 - **Checksum Verification**: SHA256 verification of downloaded files
 - **User Agent**: Proper user agent identification
 - **Timeout Protection**: Configurable timeouts prevent hanging
 
 ### Installation Security
+
 - **Permission Validation**: Verify write permissions before installation
 - **Path Sanitization**: Prevent directory traversal attacks
 - **Executable Permissions**: Proper executable permissions on Unix systems
 - **Cleanup**: Automatic cleanup of temporary files
 
 ### Example with Security
+
 ```rust
 let config = InstallConfig::builder()
     .tool_name("secure-tool")

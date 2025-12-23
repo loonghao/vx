@@ -9,7 +9,7 @@ vx (main package)
 ├── vx-core ✅ (published)
 ├── vx-cli
 ├── vx-tool-node
-├── vx-tool-go  
+├── vx-tool-go
 ├── vx-tool-rust
 ├── vx-tool-uv
 └── vx-pm-npm
@@ -24,21 +24,24 @@ vx (main package)
 **Goal**: Get all packages published to crates.io for the first time.
 
 **Steps**:
+
 1. ✅ **vx-core** - Already published
 2. 🔄 **Publish remaining packages** using our automated script
 3. 🔄 **Publish main vx package** last
 
 **Command**:
+
 ```bash
 # Use our automated publishing script
 DRY_RUN=false scripts/publish-workspace.sh
 ```
 
 **Publishing Order** (dependency-based):
+
 ```
 1. vx-core ✅ (skip - already published)
 2. vx-tool-go
-3. vx-tool-rust  
+3. vx-tool-rust
 4. vx-tool-uv
 5. vx-pm-npm
 6. vx-tool-node (depends on vx-pm-npm)
@@ -50,7 +53,8 @@ DRY_RUN=false scripts/publish-workspace.sh
 
 **Goal**: Set up release-plz for future automated releases.
 
-**Strategy**: 
+**Strategy**:
+
 - **release-plz**: Handles GitHub releases and version management
 - **Manual workflow**: Handles crates.io publishing
 - **Package managers**: Auto-publish to WinGet, Chocolatey, etc.
@@ -97,16 +101,19 @@ git_tag_enable = true
 ## 🛡️ **Safety Measures**
 
 ### **Version Consistency**
+
 - All packages use unified version (0.1.36)
 - Workspace dependencies specify exact versions
 - Publishing script validates versions
 
 ### **Dependency Order**
+
 - Script publishes in correct dependency order
 - Waits 30 seconds between publishes
 - Skips already-published packages
 
 ### **Error Handling**
+
 - Dry-run mode for testing
 - Build and test before publishing
 - Duplicate detection

@@ -5,24 +5,29 @@ This project has multiple release workflows to ensure reliable releases. Choose 
 ## Available Release Workflows
 
 ### 1. Main Release Workflow (Recommended)
+
 **File**: `.github/workflows/release.yml`
 **Trigger**: Automatic on push to main branch
-**Features**: 
+**Features**:
+
 - ✅ Uses release-please for automated versioning
 - ✅ Integrates with GoReleaser for multi-platform builds
 - ✅ Supports Homebrew and Scoop package managers
 - ✅ Comprehensive cross-compilation
 
 **How it works**:
+
 1. Push commits with conventional commit messages to main
 2. release-please creates a PR with version bump and changelog
 3. Merge the PR to trigger the actual release
 4. GoReleaser builds and publishes binaries
 
 ### 2. GoReleaser Release (Recommended for Manual Releases)
+
 **File**: `.github/workflows/tag-release.yml`
 **Trigger**: Manual tag creation or workflow dispatch
 **Features**:
+
 - ✅ **PGO-optimized builds** for maximum performance
 - ✅ **Multi-platform releases** (Linux, Windows, macOS, FreeBSD)
 - ✅ **Package manager integration** (Homebrew, Scoop, Chocolatey, AUR, Winget)
@@ -32,6 +37,7 @@ This project has multiple release workflows to ensure reliable releases. Choose 
 - ✅ **Comprehensive distribution** via GoReleaser
 
 **How to use**:
+
 ```bash
 # Create and push tag
 git tag v0.1.0
@@ -42,14 +48,17 @@ git push origin v0.1.0
 ```
 
 ### 3. Simple Release-Please (Fallback)
+
 **File**: `.github/workflows/simple-release.yml`
 **Trigger**: Manual workflow dispatch
 **Features**:
+
 - ✅ Simplified release-please configuration
 - ✅ Manual trigger for testing
 - ✅ Basic binary uploads
 
 **How to use**:
+
 1. Go to Actions tab in GitHub
 2. Select "Simple Release" workflow
 3. Click "Run workflow"
@@ -88,6 +97,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 ```
 
 **Types**:
+
 - `feat`: New features
 - `fix`: Bug fixes
 - `docs`: Documentation changes

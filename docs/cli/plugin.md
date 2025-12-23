@@ -24,21 +24,25 @@ vx plugin <SUBCOMMAND> [OPTIONS] [ARGS]
 ## 选项
 
 ### 全局选项
+
 - `-v, --verbose` - 显示详细输出
 - `--format <FORMAT>` - 输出格式 (table, json, yaml)
 
 ### list 子命令选项
+
 - `--enabled` - 仅显示已启用的插件
 - `--disabled` - 仅显示已禁用的插件
 - `--category <CATEGORY>` - 按类别过滤
 
 ### search 子命令选项
+
 - `--category <CATEGORY>` - 按类别搜索
 - `--official-only` - 仅搜索官方插件
 
 ## 示例
 
 ### 列出插件
+
 ```bash
 # 列出所有插件
 vx plugin list
@@ -51,6 +55,7 @@ vx plugin list --category python
 ```
 
 ### 插件信息
+
 ```bash
 # 显示插件详细信息
 vx plugin info uv
@@ -60,6 +65,7 @@ vx plugin info node python go
 ```
 
 ### 启用/禁用插件
+
 ```bash
 # 启用插件
 vx plugin enable uv
@@ -72,6 +78,7 @@ vx plugin enable node python go
 ```
 
 ### 搜索插件
+
 ```bash
 # 搜索插件
 vx plugin search python
@@ -84,6 +91,7 @@ vx plugin search --official-only
 ```
 
 ### 插件统计
+
 ```bash
 # 显示插件统计信息
 vx plugin stats
@@ -95,6 +103,7 @@ vx plugin stats --verbose
 ## 输出示例
 
 ### 列出插件
+
 ```bash
 $ vx plugin list
 VX 插件列表
@@ -114,6 +123,7 @@ VX 插件列表
 ```
 
 ### 插件信息
+
 ```bash
 $ vx plugin info uv
 插件信息: uv
@@ -151,6 +161,7 @@ $ vx plugin info uv
 ```
 
 ### 搜索插件
+
 ```bash
 $ vx plugin search python
 搜索插件: python
@@ -173,6 +184,7 @@ $ vx plugin search python
 vx 支持以下插件类别：
 
 ### 编程语言
+
 - `javascript` - JavaScript/Node.js 生态
 - `python` - Python 生态
 - `go` - Go 语言生态
@@ -181,6 +193,7 @@ vx 支持以下插件类别：
 - `dotnet` - .NET 生态
 
 ### 工具类型
+
 - `package-manager` - 包管理器
 - `build-tool` - 构建工具
 - `runtime` - 运行时环境
@@ -190,12 +203,14 @@ vx 支持以下插件类别：
 ## 插件状态
 
 ### 启用状态
+
 - `启用` - 插件已启用，可以使用
 - `禁用` - 插件已禁用，不可使用
 - `可用` - 插件可安装但未启用
 - `错误` - 插件配置错误
 
 ### 插件来源
+
 - `官方` - vx 官方维护的插件
 - `社区` - 社区贡献的插件
 - `本地` - 本地自定义插件
@@ -203,6 +218,7 @@ vx 支持以下插件类别：
 ## 插件配置
 
 ### 全局插件配置
+
 ```toml
 # ~/.vx/config/plugins.toml
 [plugins.uv]
@@ -217,6 +233,7 @@ default_version = "lts"
 ```
 
 ### 项目插件配置
+
 ```toml
 # .vx.toml
 [plugins]
@@ -230,6 +247,7 @@ version_constraint = ">=18.0.0"
 ## 插件开发
 
 ### 插件结构
+
 ```
 my-plugin/
 ├── plugin.toml          # 插件配置
@@ -239,6 +257,7 @@ my-plugin/
 ```
 
 ### 插件配置示例
+
 ```toml
 # plugin.toml
 [plugin]

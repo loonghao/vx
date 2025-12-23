@@ -46,19 +46,19 @@ if (-not (Test-Path "Cargo.toml")) {
 # Build test command based on parameters
 function Build-TestCommand {
     param([string]$TestType)
-    
+
     $cmd = "cargo test"
-    
+
     # Add package filter if specified
     if ($Package) {
         $cmd += " -p $Package"
     }
-    
+
     # Add test filter if specified
     if ($Test) {
         $cmd += " $Test"
     }
-    
+
     # Add type-specific flags
     switch ($TestType) {
         "unit" { $cmd += " --lib" }
@@ -66,36 +66,36 @@ function Build-TestCommand {
         "doc" { $cmd += " --doc" }
         "all" { $cmd += " --all" }
     }
-    
+
     # Add verbose flag if requested
     if ($Verbose) {
         $cmd += " -- --nocapture"
     }
-    
+
     # Add serial execution if requested
     if ($Serial) {
         $cmd += " -- --test-threads=1"
     }
-    
+
     return $cmd
 }
 
 # Run tests with error handling
 function Run-Tests {
     param([string]$Command, [string]$Description)
-    
+
     Write-Status "Running $Description..."
     Write-Status "Command: $Command"
-    
+
     $startTime = Get-Date
-    
+
     try {
         Invoke-Expression $Command
         $exitCode = $LASTEXITCODE
-        
+
         $endTime = Get-Date
         $duration = $endTime - $startTime
-        
+
         if ($exitCode -eq 0) {
             Write-Success "$Description completed successfully in $($duration.TotalSeconds.ToString('F2')) seconds"
             return $true
@@ -136,12 +136,12 @@ switch ($Type.ToLower()) {
             @{Type = "integration"; Description = "integration tests"},
             @{Type = "doc"; Description = "documentation tests"}
         )
-        
+
         foreach ($testType in $testTypes) {
             $cmd = Build-TestCommand $testType.Type
             $result = Run-Tests $cmd $testType.Description
             $success = $success -and $result
-            
+
             if (-not $result) {
                 Write-Warning "Continuing with remaining tests..."
             }

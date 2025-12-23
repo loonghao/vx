@@ -20,12 +20,14 @@
 ## ✨ Features
 
 ### 🔧 Core Functionality
+
 - **Tool Management**: Advanced traits for tool installation, version management, and execution
 - **Plugin Architecture**: Extensible plugin system with trait-based design for adding new tools
 - **Configuration Management**: Unified configuration system using Figment with TOML support
 - **Version Handling**: Semantic version parsing, comparison, and constraint resolution
 
 ### 🚀 Enhanced Installation System (via vx-installer)
+
 - **🎨 Beautiful Progress Bars**: Rich progress tracking with ETA and transfer rates
 - **📦 Universal Format Support**: ZIP, TAR.GZ, TAR.XZ, TAR.BZ2, and raw binaries
 - **🔒 Security First**: Built-in checksum verification and secure HTTPS downloads
@@ -33,6 +35,7 @@
 - **🎯 Flexible Methods**: Support for archives, binaries, scripts, and package managers
 
 ### 🛠️ Advanced Features
+
 - **Virtual Environments**: Symlink-based virtual environment management with isolation
 - **Cross-Platform**: Seamless operation on Windows, macOS, and Linux
 - **Error Handling**: Comprehensive error types with recovery suggestions
@@ -41,6 +44,7 @@
 ## Core Traits
 
 ### Tool Management
+
 ```rust
 use vx_core::{Tool, ToolManager, Version};
 
@@ -55,6 +59,7 @@ impl Tool for MyTool {
 ```
 
 ### Plugin System
+
 ```rust
 use vx_core::{Plugin, PluginManager};
 
@@ -70,6 +75,7 @@ impl Plugin for MyPlugin {
 ```
 
 ### Configuration
+
 ```rust
 use vx_core::config::{Config, ConfigManager};
 
@@ -81,11 +87,13 @@ let auto_install = config.auto_install.enabled;
 ## Key Components
 
 ### Version Management
+
 - **Version**: Semantic version representation
 - **VersionManager**: Version comparison and resolution
 - **VersionParser**: Parse version strings and constraints
 
 ### Tool Installation (Enhanced with vx-installer)
+
 - **InstallerAdapter**: Bridge to the powerful vx-installer engine
 - **Universal Installation**: Support for multiple archive formats and installation methods
 - **Progress Tracking**: Beautiful progress bars with customizable styles
@@ -93,10 +101,12 @@ let auto_install = config.auto_install.enabled;
 - **Platform**: Cross-platform path and architecture detection with smart defaults
 
 ### Virtual Environments
+
 - **VirtualEnvironment**: Manage isolated tool environments
 - **SymlinkVenv**: Symlink-based virtual environment implementation
 
 ### Configuration System
+
 - **Config**: Global and project-specific configuration
 - **ConfigFigment**: Figment-based configuration loading
 - **InstallConfigs**: Tool-specific installation configurations
@@ -133,27 +143,29 @@ async fn main() -> anyhow::Result<()> {
 ```
 
 ### Basic Tool Management
+
 ```rust
 use vx_core::{ToolManager, GlobalToolManager};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let manager = GlobalToolManager::new()?;
-    
+
     // Install a tool
     manager.install_tool("node", "18.17.0").await?;
-    
+
     // List installed tools
     let tools = manager.list_installed_tools()?;
     for tool in tools {
         println!("{}: {}", tool.name, tool.version);
     }
-    
+
     Ok(())
 }
 ```
 
 ### Configuration Management
+
 ```rust
 use vx_core::config::ConfigManager;
 
@@ -171,6 +183,7 @@ if let Some(node_config) = config.tools.get("node") {
 ```
 
 ### Virtual Environment
+
 ```rust
 use vx_core::{VirtualEnvironment, SymlinkVenv};
 
@@ -193,6 +206,7 @@ vx-core uses a hierarchical configuration system:
 3. **Environment Variables**: `VX_*` prefixed variables
 
 ### Example Configuration
+
 ```toml
 [auto_install]
 enabled = true
@@ -230,6 +244,7 @@ fn example() -> anyhow::Result<()> {
 ## 📦 Dependencies
 
 ### Core Dependencies
+
 - **vx-installer**: Universal installation engine with progress tracking
 - **vx-config**: Configuration management system
 - **vx-plugin**: Plugin system and trait definitions
@@ -238,28 +253,33 @@ fn example() -> anyhow::Result<()> {
 - **anyhow**: Comprehensive error handling
 
 ### Installation & HTTP
+
 - **reqwest**: HTTP client for downloads
 - **figment**: Advanced configuration management
 - **dirs**: Platform-specific directory handling
 - **walkdir**: Directory traversal utilities
 
 ### Development Dependencies
+
 - **tempfile**: Temporary file handling for tests
 - **tokio-test**: Async testing utilities
 
 ## Development
 
 ### Building
+
 ```bash
 cargo build
 ```
 
 ### Testing
+
 ```bash
 cargo test
 ```
 
 ### Documentation
+
 ```bash
 cargo doc --open
 ```

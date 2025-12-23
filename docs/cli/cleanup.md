@@ -24,6 +24,7 @@ vx cleanup [OPTIONS]
 ## 清理类型
 
 ### 缓存清理
+
 ```bash
 # 清理所有缓存
 vx cleanup --cache-only
@@ -33,6 +34,7 @@ vx cleanup --cache-only --older-than 7
 ```
 
 ### 孤立文件清理
+
 ```bash
 # 清理孤立的工具版本
 vx cleanup --orphaned-only
@@ -42,6 +44,7 @@ vx cleanup --orphaned-only --dry-run
 ```
 
 ### 完整清理
+
 ```bash
 # 清理所有类型的文件
 vx cleanup
@@ -53,6 +56,7 @@ vx cleanup --dry-run
 ## 示例
 
 ### 基本清理
+
 ```bash
 # 交互式清理
 vx cleanup
@@ -62,6 +66,7 @@ vx cleanup --force
 ```
 
 ### 预览操作
+
 ```bash
 # 预览将要清理的内容
 vx cleanup --dry-run
@@ -71,6 +76,7 @@ vx cleanup --dry-run --verbose
 ```
 
 ### 选择性清理
+
 ```bash
 # 仅清理缓存
 vx cleanup --cache-only
@@ -85,18 +91,21 @@ vx cleanup --older-than 30
 ## 清理内容
 
 ### 缓存文件
+
 - 工具版本信息缓存
 - 下载临时文件
 - 安装包缓存
 - 元数据缓存
 
 ### 孤立文件
+
 - 未被任何虚拟环境引用的工具版本
 - 损坏的安装文件
 - 不完整的下载文件
 - 过期的符号链接
 
 ### 临时文件
+
 - 安装过程中的临时文件
 - 解压缓存
 - 日志文件（超过保留期限）
@@ -136,6 +145,7 @@ $ vx cleanup --dry-run
 ```
 
 ### 实际清理输出
+
 ```bash
 $ vx cleanup
 扫描清理目标...
@@ -154,16 +164,19 @@ $ vx cleanup
 ## 安全措施
 
 ### 依赖检查
+
 - 检查虚拟环境依赖
 - 验证工具版本引用
 - 保护活跃的安装
 
 ### 确认机制
+
 - 默认需要用户确认
 - 显示详细的清理列表
 - 提供预览模式
 
 ### 备份保护
+
 - 不清理最近使用的版本
 - 保留全局默认版本
 - 保护项目配置引用的版本
@@ -171,6 +184,7 @@ $ vx cleanup
 ## 自动清理
 
 ### 定期清理
+
 ```bash
 # 设置自动清理
 vx config set auto_cleanup.enabled true
@@ -179,6 +193,7 @@ vx config set auto_cleanup.max_cache_age "30d"
 ```
 
 ### 清理策略
+
 ```toml
 # ~/.vx/config/global.toml
 [auto_cleanup]

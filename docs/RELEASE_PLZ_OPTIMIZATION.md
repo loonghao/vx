@@ -14,6 +14,7 @@
 ### 1. 工作空间配置优化
 
 #### 智能发布触发
+
 ```toml
 # 只在发现 conventional commits 时创建发布
 release_commits = "^(feat|fix|docs|style|refactor|perf|test|chore|build|ci)[(:]"
@@ -26,6 +27,7 @@ pr_name = "chore: release{% if package and version %} {{ package }} v{{ version 
 ```
 
 #### 依赖管理优化
+
 ```toml
 # 跳过需要 registry 访问的依赖检查
 dependencies_update = false
@@ -37,6 +39,7 @@ release_always = true
 ### 2. 变更日志配置增强
 
 #### 提交消息预处理
+
 ```toml
 commit_preprocessors = [
     # 自动链接 PR 和 issue
@@ -51,6 +54,7 @@ commit_preprocessors = [
 ```
 
 #### 增强的提交分类
+
 ```toml
 commit_parsers = [
     # 使用 emoji 图标增强可读性
@@ -65,7 +69,7 @@ commit_parsers = [
     { message = "^ci", group = "👷 CI/CD" },
     { message = "^security", group = "🔒 Security" },
     { message = ".*!:", group = "💥 Breaking Changes" },
-    
+
     # 跳过发布相关的提交
     { message = "^chore\\(release\\): prepare for", skip = true },
     { message = "^chore: release", skip = true },
@@ -73,6 +77,7 @@ commit_parsers = [
 ```
 
 #### 变更日志保护和排序
+
 ```toml
 # 始终包含 breaking changes
 protect_breaking_commits = true
@@ -84,6 +89,7 @@ sort_commits = "newest"
 ### 3. 包配置优化
 
 #### 主包配置
+
 ```toml
 [[package]]
 name = "vx"
@@ -97,6 +103,7 @@ git_release_type = "auto"
 ### 4. GitHub 发布模板增强
 
 #### 丰富的发布说明
+
 ```toml
 git_release_body = """
 ## 🚀 What's New in {{ version }}
@@ -125,13 +132,16 @@ cargo install vx
 ```
 
 ### 💾 Download Binary
+
 Download the appropriate binary for your platform from the assets below.
 
 ## 🔗 Links
-- **Full Changelog**: https://github.com/loonghao/vx/compare/{{ previous_tag }}...{{ tag }}
-- **Documentation**: https://github.com/loonghao/vx#readme
-- **Issues**: https://github.com/loonghao/vx/issues
+
+- **Full Changelog**: <https://github.com/loonghao/vx/compare/{{> previous_tag }}...{{ tag }}
+- **Documentation**: <https://github.com/loonghao/vx#readme>
+- **Issues**: <https://github.com/loonghao/vx/issues>
 """
+
 ```
 
 ## 🚀 优化效果
@@ -184,6 +194,7 @@ git commit -m "feat!: change API interface (BREAKING CHANGE)"
 ```
 
 ### 发布流程
+
 1. **开发阶段**：使用 conventional commits 进行提交
 2. **自动检测**：release-plz 自动检测有意义的提交
 3. **PR 创建**：自动创建带有标签的发布 PR

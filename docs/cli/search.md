@@ -27,6 +27,7 @@ vx search [OPTIONS] [QUERY]
 ## 示例
 
 ### 基本搜索
+
 ```bash
 # 搜索所有工具
 vx search
@@ -39,6 +40,7 @@ vx search node
 ```
 
 ### 按类别搜索
+
 ```bash
 # 搜索 Python 类别的工具
 vx search --category python
@@ -51,6 +53,7 @@ vx search --category
 ```
 
 ### 过滤搜索
+
 ```bash
 # 仅显示已安装的工具
 vx search --installed-only
@@ -63,6 +66,7 @@ vx search python --installed-only
 ```
 
 ### 输出格式
+
 ```bash
 # 表格格式（默认）
 vx search python
@@ -109,6 +113,7 @@ $ vx search python
 ```
 
 ### 详细信息输出
+
 ```bash
 $ vx search python --verbose
 搜索工具: python
@@ -119,7 +124,7 @@ python (python)
   最新版本: 3.12.1
   可用版本: 3.8.18, 3.9.18, 3.10.13, 3.11.7, 3.12.1
   官网: https://python.org
-  
+
 uv (python)
   状态: 已安装 (0.1.5)
   描述: 极快的 Python 包管理器
@@ -131,6 +136,7 @@ uv (python)
 ## 搜索技巧
 
 ### 模糊搜索
+
 ```bash
 # 搜索包含 "js" 的工具
 vx search js
@@ -140,6 +146,7 @@ vx search build
 ```
 
 ### 组合搜索
+
 ```bash
 # 搜索已安装的构建工具
 vx search build --installed-only --category build-tool

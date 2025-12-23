@@ -23,6 +23,7 @@ vx list [tool] [options]
 ## 示例
 
 ### 基本使用
+
 ```bash
 # 列出所有支持的工具
 vx list
@@ -34,6 +35,7 @@ vx list go
 ```
 
 ### 显示安装状态
+
 ```bash
 # 显示所有工具的安装状态
 vx list --status
@@ -46,6 +48,7 @@ vx list --available-only
 ```
 
 ### 详细信息
+
 ```bash
 # 显示详细信息
 vx list --verbose
@@ -60,6 +63,7 @@ vx list node --verbose
 ## 输出格式
 
 ### 默认输出
+
 ```
 Available Tools:
   node     Node.js JavaScript runtime
@@ -76,6 +80,7 @@ Installed Tools:
 ```
 
 ### 状态输出
+
 ```bash
 $ vx list --status
 Tool     Status      Active Version    Available Versions
@@ -86,6 +91,7 @@ uv       installed   0.1.0            0.1.0, 0.1.1
 ```
 
 ### 详细输出
+
 ```bash
 $ vx list node --verbose
 Tool: node
@@ -118,12 +124,14 @@ Configuration:
 VX 支持的工具按类别组织：
 
 ### 运行时环境
+
 - **node** - Node.js JavaScript runtime
 - **python** - Python programming language
 - **go** - Go programming language
 - **rust** - Rust programming language
 
 ### 包管理器
+
 - **npm** - Node.js package manager
 - **yarn** - Fast, reliable package manager
 - **pnpm** - Fast, disk space efficient package manager
@@ -131,16 +139,19 @@ VX 支持的工具按类别组织：
 - **uv** - Fast Python package installer
 
 ### 构建工具
+
 - **cargo** - Rust package manager and build tool
 - **go** - Go compiler and tools
 
 ### 开发工具
+
 - **rustc** - Rust compiler
 - **gofmt** - Go code formatter
 
 ## 过滤和搜索
 
 ### 按类别过滤
+
 ```bash
 # 显示特定类别的工具
 vx list --category runtime
@@ -149,6 +160,7 @@ vx list --category build-tool
 ```
 
 ### 按状态过滤
+
 ```bash
 # 仅显示已安装的工具
 vx list --installed-only
@@ -199,6 +211,7 @@ $ vx list --format json
 ## 故障排除
 
 ### 工具列表为空
+
 ```bash
 # 检查插件状态
 vx plugin list
@@ -211,6 +224,7 @@ vx --verbose list
 ```
 
 ### 版本信息不准确
+
 ```bash
 # 刷新版本缓存
 vx update --refresh-cache

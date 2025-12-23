@@ -335,6 +335,7 @@ impl RuntimeContext {
 }
 
 /// Options for parsing GitHub releases
+#[allow(clippy::type_complexity)]
 pub struct GitHubReleaseOptions {
     /// Number of releases to fetch per page (max 100)
     pub per_page: u32,

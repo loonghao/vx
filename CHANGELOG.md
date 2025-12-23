@@ -5,14 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-
 ## [0.5.12](https://github.com/loonghao/vx/compare/vx-v0.5.11...vx-v0.5.12) (2025-12-22)
-
 
 ### Features
 
 * add new providers (deno, helm, java, kubectl, rcedit, terraform, zig) ([176984b](https://github.com/loonghao/vx/commit/176984bf3f496dc9d5a7a7c49b9567587f5a7d77))
-
 
 ### Bug Fixes
 
@@ -22,20 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * use actual downloaded filename for pnpm executable path ([6b4e5fa](https://github.com/loonghao/vx/commit/6b4e5fa50715552ede91c03d3a277bd342899cfe))
 * use Ecosystem::Unknown instead of Ecosystem::Other in provider tests ([ae9f6b6](https://github.com/loonghao/vx/commit/ae9f6b645fed71851fb62d6f64c8e9c198874159))
 
-
 ### Documentation
 
 * fix dead links ([4870612](https://github.com/loonghao/vx/commit/4870612c6fe0f453c886431d498d4a4aa1792ae3))
 
 ## [0.5.11](https://github.com/loonghao/vx/compare/vx-v0.5.10...vx-v0.5.11) (2025-12-21)
 
-
 ### Features
 
 * **cli:** add project development environment commands ([0ad51e4](https://github.com/loonghao/vx/commit/0ad51e4d119b27df2ae673a440544373917f5674))
 
 ## [0.5.10](https://github.com/loonghao/vx/compare/vx-v0.5.9...vx-v0.5.10) (2025-12-20)
-
 
 ### Bug Fixes
 
@@ -45,13 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.9](https://github.com/loonghao/vx/compare/vx-v0.5.8...vx-v0.5.9) (2025-12-19)
 
-
 ### Features
 
 * add just command runner provider ([2c9dc21](https://github.com/loonghao/vx/commit/2c9dc21838acf9b326b05b783708996a282c746b))
 * add rez provider ([4d342aa](https://github.com/loonghao/vx/commit/4d342aa7ae25e5db93b094ec1f486f64696cfc30))
 * **vite:** add Vite provider ([c7c37bb](https://github.com/loonghao/vx/commit/c7c37bbf5f9ae5abbe7f92dcaa8ed4fdedb76c6a))
-
 
 ### Bug Fixes
 
@@ -60,11 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.8](https://github.com/loonghao/vx/compare/vx-v0.5.7...vx-v0.5.8) (2025-12-18)
 
-
 ### Features
 
 * **vscode:** add VSCode provider ([08d2178](https://github.com/loonghao/vx/commit/08d21781fb9d1c2b216f7426c26df17ffc1e03cc))
-
 
 ### Bug Fixes
 
@@ -72,13 +62,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.7](https://github.com/loonghao/vx/compare/vx-v0.5.6...vx-v0.5.7) (2025-12-18)
 
-
 ### Bug Fixes
 
 * **ci:** pin tracing-indicatif to 0.3.9 and remove RUST_BACKTRACE=1 ([6d4dc61](https://github.com/loonghao/vx/commit/6d4dc61f9abe43016449d096c8e761d789cd0373))
 
 ## [0.5.6](https://github.com/loonghao/vx/compare/vx-v0.5.5...vx-v0.5.6) (2025-12-18)
-
 
 ### Bug Fixes
 
@@ -86,13 +74,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.5](https://github.com/loonghao/vx/compare/vx-v0.5.4...vx-v0.5.5) (2025-12-17)
 
-
 ### Bug Fixes
 
 * **ci:** remove --locked flag from CI builds to handle crates.io index updates ([3ed7974](https://github.com/loonghao/vx/commit/3ed79746eebcacedcb19a4c9358240abec5bb133))
 
 ## [0.5.4](https://github.com/loonghao/vx/compare/vx-v0.5.3...vx-v0.5.4) (2025-12-17)
-
 
 ### Bug Fixes
 
@@ -100,20 +86,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.3](https://github.com/loonghao/vx/compare/vx-v0.5.2...vx-v0.5.3) (2025-12-17)
 
-
 ### Bug Fixes
 
 * **ci:** escape changelog content with toJSON() in release workflow ([a21aa29](https://github.com/loonghao/vx/commit/a21aa295e58b7532707d63c0b7fd8af2ea8c5d14))
 
 ## [0.5.2](https://github.com/loonghao/vx/compare/vx-v0.5.1...vx-v0.5.2) (2025-12-16)
 
-
 ### Bug Fixes
 
 * **ci:** remove --locked flag from release build to handle crates.io index updates ([fc4dea7](https://github.com/loonghao/vx/commit/fc4dea7e0f597278025735b6377cda947b2253dd))
 
 ## [0.5.1](https://github.com/loonghao/vx/compare/vx-v0.5.0...vx-v0.5.1) (2025-12-16)
-
 
 ### Bug Fixes
 
@@ -123,7 +106,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * use workspace dependencies for internal crates ([8791c47](https://github.com/loonghao/vx/commit/8791c47005e26fc3d6d627ae242954bd9f66aeaf))
 
 ## [0.5.0](https://github.com/loonghao/vx/compare/vx-v0.4.1...vx-v0.5.0) (2025-12-16)
-
 
 ### ⚠ BREAKING CHANGES
 
@@ -204,7 +186,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * unify all workspace versions to 0.1.36 ([7240bcd](https://github.com/loonghao/vx/commit/7240bcdd401d9dece4c5b8a3454574d8c0d17822))
 * use GoReleaser extra_files best practice for pre-built binaries ([46d4b90](https://github.com/loonghao/vx/commit/46d4b90aadbbd84775de92426854fe1083f09aa0))
 * use softprops/action-gh-release for reliable binary asset uploads ([0d229e6](https://github.com/loonghao/vx/commit/0d229e6ae3ec01a09cd915f356c616431c0ca663))
-
 
 ### Bug Fixes
 
@@ -388,7 +369,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **which:** fallback to system PATH when tool not found in vx-managed installations ([db91013](https://github.com/loonghao/vx/commit/db910136a8a24b52bc6493840b6e870e0fd4f549))
 * **windows:** support .cmd files and fix uv archive structure ([4f38c84](https://github.com/loonghao/vx/commit/4f38c841113aae66fe2e04e3adb8156eeb2eec80))
 
-
 ### Code Refactoring
 
 * add vx-sdk and cleanup deprecated code ([5f07376](https://github.com/loonghao/vx/commit/5f073762831fde0e1f74600675444309946b55ba))
@@ -397,7 +377,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * restructure tests to dedicated tests/ directories ([b1d4c93](https://github.com/loonghao/vx/commit/b1d4c9316273371bc881659ffa510176f7e6ea1b))
 * simplify main package by reusing vx-cli main function ([7893190](https://github.com/loonghao/vx/commit/78931901ea98da330fa8d3e64e513a1c7c0d08e7))
 * simplify release-plz.toml following shimexe best practices ([5bbe1c5](https://github.com/loonghao/vx/commit/5bbe1c50acf5145924516d9a1ce4f5ee480a75a8))
-
 
 ### Documentation
 
@@ -414,113 +393,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- prevent tag-release-assets workflow from triggering on individual crate tags
-- configure release-plz to only create GitHub releases for main vx package
+* prevent tag-release-assets workflow from triggering on individual crate tags
+* configure release-plz to only create GitHub releases for main vx package
 
 ## [0.4.0](https://github.com/loonghao/vx/compare/v0.3.0...v0.4.0) - 2025-06-19
 
 ### Added
 
-- implement unified path management and complete crate documentation ([#112](https://github.com/loonghao/vx/pull/112))
+* implement unified path management and complete crate documentation ([#112](https://github.com/loonghao/vx/pull/112))
 
 ## [0.3.0](https://github.com/loonghao/vx/compare/v0.2.6...v0.3.0) - 2025-06-19
 
 ### Added
 
-- fix compilation errors and add comprehensive test suite
-- refactor vx-core architecture with closed-loop toolchain design
-- complete vx project modular refactoring
-- [**breaking**] remove vx-shim and improve GitHub API handling
-- optimize core logic with shimexe-core integration and progress bars
+* fix compilation errors and add comprehensive test suite
+* refactor vx-core architecture with closed-loop toolchain design
+* complete vx project modular refactoring
+* [**breaking**] remove vx-shim and improve GitHub API handling
+* optimize core logic with shimexe-core integration and progress bars
 
 ### Fixed
 
-- resolve release-plz configuration and dependency version issues
-- *(deps)* update rust crate which to v8
-- *(deps)* update rust crate dirs to v6
-- resolve coverage testing compilation errors and warnings
-- resolve Linux musl cross-compilation OpenSSL issues
-- resolve import errors and clippy warnings in tool packages
+* resolve release-plz configuration and dependency version issues
+* *(deps)* update rust crate which to v8
+* *(deps)* update rust crate dirs to v6
+* resolve coverage testing compilation errors and warnings
+* resolve Linux musl cross-compilation OpenSSL issues
+* resolve import errors and clippy warnings in tool packages
 
 ### Other
 
-- *(deps)* update codecov/codecov-action action to v5
-- update README with upcoming tool support
+* *(deps)* update codecov/codecov-action action to v5
+* update README with upcoming tool support
 
 ## [0.2.6](https://github.com/loonghao/vx/compare/v0.2.5...v0.2.6) - 2025-06-18
 
 ### Added
 
-- improve install scripts with better platform detection and fallback
-- optimize release configuration for single vx package releases
+* improve install scripts with better platform detection and fallback
+* optimize release configuration for single vx package releases
 
 ### Other
 
-- simplify release-plz.toml following shimexe best practices
+* simplify release-plz.toml following shimexe best practices
 
 ## [0.2.5](https://github.com/loonghao/vx/compare/v0.2.4...v0.2.5) - 2025-06-18
 
 ### Fixed
 
-- Installer script for powershell
-- simplify release-plz.toml following shimexe best practices
-- optimize release-plz configuration to prevent duplicate CI triggers
-- improve CI checkout for fork PRs and optimize release workflows
+* Installer script for powershell
+* simplify release-plz.toml following shimexe best practices
+* optimize release-plz configuration to prevent duplicate CI triggers
+* improve CI checkout for fork PRs and optimize release workflows
 
 ## [0.2.4](https://github.com/loonghao/vx/compare/v0.2.3...v0.2.4) - 2025-06-17
 
 ### Added
 
-- simplify release-plz configuration based on shimexe best practices
-- simplify release workflow based on shimexe best practices
-- improve CI configuration based on shimexe best practices
+* simplify release-plz configuration based on shimexe best practices
+* simplify release workflow based on shimexe best practices
+* improve CI configuration based on shimexe best practices
 
 ### Fixed
 
-- separate cross-compilation build from native testing
-- add cross-compilation dependencies for ARM64 target
-- temporarily disable ARM64 cross-compilation due to linker issues
-- use correct release-plz action and resolve version sync issues
-- move release-plz dry-run to CI and enhance token troubleshooting
+* separate cross-compilation build from native testing
+* add cross-compilation dependencies for ARM64 target
+* temporarily disable ARM64 cross-compilation due to linker issues
+* use correct release-plz action and resolve version sync issues
+* move release-plz dry-run to CI and enhance token troubleshooting
 
 ### Other
 
-- update README installation instructions
+* update README installation instructions
+
 ## [Unreleased]
 
 ## [0.2.3](https://github.com/loonghao/vx/compare/v0.2.2...v0.2.3) - 2025-06-16
 
 ### 🐛 Bug Fixes
 
-- remove invalid release_commits field from package section
-- improve release-plz commit detection configuration
+* remove invalid release_commits field from package section
+* improve release-plz commit detection configuration
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
-
 
 ## [0.2.0](https://github.com/loonghao/vx/compare/v0.1.36...v0.2.0) - 2025-06-15
 
 ### Bug Fixes
 
-- *(deps)* update rust crate zip to v4.1.0
-- add missing dev-dependencies for integration tests
-- remove deprecated use command and fix binary installation
-- resolve venv test failures and improve workspace publishing script
-- resolve release-plz workspace dependency issues
-- configure release-plz to handle workspace packages correctly
-- resolve release-plz configuration and package manager issues
+* *(deps)* update rust crate zip to v4.1.0
+* add missing dev-dependencies for integration tests
+* remove deprecated use command and fix binary installation
+* resolve venv test failures and improve workspace publishing script
+* resolve release-plz workspace dependency issues
+* configure release-plz to handle workspace packages correctly
+* resolve release-plz configuration and package manager issues
 
 ### Features
 
-- add Windows-compatible publishing scripts and environment testing
-- unify all workspace versions to 0.1.36
-- add version numbers to workspace dependencies and automated publishing
-- implement separate crates.io publishing workflow
+* add Windows-compatible publishing scripts and environment testing
+* unify all workspace versions to 0.1.36
+* add version numbers to workspace dependencies and automated publishing
+* implement separate crates.io publishing workflow
 
 ### Refactor
 
-- simplify main package by reusing vx-cli main function
+* simplify main package by reusing vx-cli main function
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
@@ -548,80 +528,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 0.1.1 (2025-06-11)
 
 ## What's Changed
-* fix: resolve GoReleaser and release-please workflow issues by @loonghao in https://github.com/loonghao/vx/pull/31
-* fix: enhance CI permissions and configure release-please for PR-only mode by @loonghao in https://github.com/loonghao/vx/pull/33
-* fix: resolve CI shell syntax errors and remove test workflows by @loonghao in https://github.com/loonghao/vx/pull/34
-* fix: implement release-please best practices for output handling by @loonghao in https://github.com/loonghao/vx/pull/35
 
+* fix: resolve GoReleaser and release-please workflow issues by @loonghao in <https://github.com/loonghao/vx/pull/31>
+* fix: enhance CI permissions and configure release-please for PR-only mode by @loonghao in <https://github.com/loonghao/vx/pull/33>
+* fix: resolve CI shell syntax errors and remove test workflows by @loonghao in <https://github.com/loonghao/vx/pull/34>
+* fix: implement release-please best practices for output handling by @loonghao in <https://github.com/loonghao/vx/pull/35>
 
-**Full Changelog**: https://github.com/loonghao/vx/compare/v0.1.0...v0.1.1
+**Full Changelog**: <https://github.com/loonghao/vx/compare/v0.1.0...v0.1.1>
 
 ## 0.1.0 (2025-06-11)
 
 ## What's Changed
-* chore: Configure Renovate by @renovate in https://github.com/loonghao/vx/pull/1
-* fix(deps): update rust crate dirs to v6 by @renovate in https://github.com/loonghao/vx/pull/3
-* fix(deps): update rust crate reqwest to 0.12 by @renovate in https://github.com/loonghao/vx/pull/2
-* feat: Add GoReleaser CI/CD and improve CLI user experience by @loonghao in https://github.com/loonghao/vx/pull/5
-* fix(deps): update rust crate reqwest to v0.12.20 by @renovate in https://github.com/loonghao/vx/pull/9
-* fix(deps): update rust crate which to v8 by @renovate in https://github.com/loonghao/vx/pull/6
-* chore(deps): update dependency go to 1.24 by @renovate in https://github.com/loonghao/vx/pull/19
-* fix(deps): update rust crate zip to v4 - autoclosed by @renovate in https://github.com/loonghao/vx/pull/7
-* chore(deps): update goreleaser/goreleaser-action action to v6 by @renovate in https://github.com/loonghao/vx/pull/20
-* fix: resolve CI release-please configuration issues by @loonghao in https://github.com/loonghao/vx/pull/21
+
+* chore: Configure Renovate by @renovate in <https://github.com/loonghao/vx/pull/1>
+* fix(deps): update rust crate dirs to v6 by @renovate in <https://github.com/loonghao/vx/pull/3>
+* fix(deps): update rust crate reqwest to 0.12 by @renovate in <https://github.com/loonghao/vx/pull/2>
+* feat: Add GoReleaser CI/CD and improve CLI user experience by @loonghao in <https://github.com/loonghao/vx/pull/5>
+* fix(deps): update rust crate reqwest to v0.12.20 by @renovate in <https://github.com/loonghao/vx/pull/9>
+* fix(deps): update rust crate which to v8 by @renovate in <https://github.com/loonghao/vx/pull/6>
+* chore(deps): update dependency go to 1.24 by @renovate in <https://github.com/loonghao/vx/pull/19>
+* fix(deps): update rust crate zip to v4 - autoclosed by @renovate in <https://github.com/loonghao/vx/pull/7>
+* chore(deps): update goreleaser/goreleaser-action action to v6 by @renovate in <https://github.com/loonghao/vx/pull/20>
+* fix: resolve CI release-please configuration issues by @loonghao in <https://github.com/loonghao/vx/pull/21>
 
 ## New Contributors
-* @renovate made their first contribution in https://github.com/loonghao/vx/pull/1
-* @loonghao made their first contribution in https://github.com/loonghao/vx/pull/5
 
-**Full Changelog**: https://github.com/loonghao/vx/commits/vx-v0.1.0
+* @renovate made their first contribution in <https://github.com/loonghao/vx/pull/1>
+* @loonghao made their first contribution in <https://github.com/loonghao/vx/pull/5>
+
+**Full Changelog**: <https://github.com/loonghao/vx/commits/vx-v0.1.0>
 
 ## [Unreleased]
 
 ### Features
 
-- **Virtual Environment Support**: Added `vx venv` command for creating and managing isolated development environments
-  - `vx venv create <name>` - Create new virtual environment with specific tool versions
-  - `vx venv activate <name>` - Generate activation script for shell integration
-  - `vx venv list` - List all virtual environments
-  - `vx venv remove <name>` - Remove virtual environment
-  - `vx venv current` - Show current active environment
-- **Rust Toolchain Separation**: Split Rust tool into separate `cargo` and `rustc` tools
-  - `vx cargo` - Rust package manager and build tool
-  - `vx rustc` - Rust compiler
-- **Environment Isolation Improvements**: Enhanced tool execution to better support isolated environments
-- Initial implementation of vx - Universal Development Tool Manager
-- Support for UV (Python package manager)
-- Support for Node.js and npm
-- Support for Go toolchain
-- Support for Rust and Cargo
-- Plugin architecture for extensibility
-- Multi-platform support (Linux, macOS, Windows, FreeBSD)
-- Automatic tool installation and version management
-- Project-specific configuration support
+* **Virtual Environment Support**: Added `vx venv` command for creating and managing isolated development environments
+  * `vx venv create <name>` - Create new virtual environment with specific tool versions
+  * `vx venv activate <name>` - Generate activation script for shell integration
+  * `vx venv list` - List all virtual environments
+  * `vx venv remove <name>` - Remove virtual environment
+  * `vx venv current` - Show current active environment
+* **Rust Toolchain Separation**: Split Rust tool into separate `cargo` and `rustc` tools
+  * `vx cargo` - Rust package manager and build tool
+  * `vx rustc` - Rust compiler
+* **Environment Isolation Improvements**: Enhanced tool execution to better support isolated environments
+* Initial implementation of vx - Universal Development Tool Manager
+* Support for UV (Python package manager)
+* Support for Node.js and npm
+* Support for Go toolchain
+* Support for Rust and Cargo
+* Plugin architecture for extensibility
+* Multi-platform support (Linux, macOS, Windows, FreeBSD)
+* Automatic tool installation and version management
+* Project-specific configuration support
 
 ### Documentation
 
-- Comprehensive README with installation instructions
-- Chinese translation (README_zh.md)
-- Plugin documentation and examples
+* Comprehensive README with installation instructions
+* Chinese translation (README_zh.md)
+* Plugin documentation and examples
 
 ### Build System
 
-- GoReleaser configuration for multi-platform releases
-- GitHub Actions CI/CD pipeline
-- Docker image support
-- Package manager integration (Homebrew, Scoop)
+* GoReleaser configuration for multi-platform releases
+* GitHub Actions CI/CD pipeline
+* Docker image support
+* Package manager integration (Homebrew, Scoop)
 
 ## [0.1.0] - 2025-01-09
 
 ### Features
 
-- Initial release of vx
-- Basic plugin system
-- Core tool support (UV, Node.js, Go, Rust)
-- Command-line interface
-- Configuration management
+* Initial release of vx
+* Basic plugin system
+* Core tool support (UV, Node.js, Go, Rust)
+* Command-line interface
+* Configuration management
 
 [Unreleased]: https://github.com/loonghao/vx/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/loonghao/vx/releases/tag/v0.1.0

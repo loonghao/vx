@@ -8,5 +8,5 @@ doc-valid-idents = [
   "URL",
   "HTTP",
   "HTTPS",
-  ".." # Include the defaults
+  "..",    # Include the defaults
 ]

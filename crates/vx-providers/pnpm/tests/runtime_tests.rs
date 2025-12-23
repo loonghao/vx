@@ -58,7 +58,7 @@ fn test_pnpm_provider_get_runtime() {
     assert!(unknown.is_none());
 }
 
-/// Test that executable_relative_path returns standard name (after post_install rename)
+/// Test that executable_relative_path returns standard name (after post_extract rename)
 /// The downloaded file is renamed from platform-specific name to standard name
 #[rstest]
 #[case(Os::Linux, Arch::X86_64, "pnpm")]

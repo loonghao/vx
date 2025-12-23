@@ -26,11 +26,13 @@ The smart installer automatically selects the optimal channel based on geographi
 ### 1. Standard Installer
 
 **Features:**
+
 - GitHub API with optional authentication
 - Single-channel download with basic fallback
 - Suitable for most users
 
 **Usage:**
+
 ```bash
 # Linux/macOS
 curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
@@ -42,12 +44,14 @@ powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps
 ### 2. Smart Installer (Recommended)
 
 **Features:**
+
 - Automatic geographic detection
 - Multi-channel speed testing
 - Intelligent fallback system
 - Detailed progress reporting
 
 **Usage:**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
 ```
@@ -55,11 +59,13 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh |
 ### 3. Package Managers
 
 **Features:**
+
 - Native package manager integration
 - Automatic updates
 - System-wide installation
 
 **Available Packages:**
+
 - **Windows**: WinGet, Chocolatey, Scoop
 - **macOS**: Homebrew
 - **Linux**: Cargo (cross-platform)
@@ -73,28 +79,34 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh |
 **Solutions:**
 
 1. **GitHub Token Authentication:**
+
    ```bash
    GITHUB_TOKEN="ghp_xxxxxxxxxxxx" ./install.sh
    ```
+
    - Increases limit to 5000 requests/hour
    - Recommended for CI/CD and team environments
 
 2. **CDN Fallback:**
+
    ```bash
    # Automatic fallback to jsDelivr API
    curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh | bash
    ```
 
 3. **Version Specification:**
+
    ```bash
    VX_VERSION="0.1.0" ./install.sh
    ```
+
    - Bypasses latest version API call
    - Direct download from known version
 
 ### Download Failures
 
 **Automatic Fallback Chain:**
+
 1. Primary channel (based on region)
 2. Secondary channel (speed-tested)
 3. Tertiary channel (last resort)
@@ -147,15 +159,18 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install-smart.sh |
 ### China-Specific Optimizations
 
 **Challenges:**
+
 - GitHub access restrictions
 - Slow international CDN performance
 
 **Solutions:**
+
 - jsDelivr CDN as primary channel (has China presence)
 - Fastly CDN as secondary (good Asia-Pacific performance)
 - Mirror script URLs via CDN
 
 **Usage:**
+
 ```bash
 # Optimized for China
 VX_FORCE_CHANNEL="jsdelivr" curl -fsSL https://fastly.jsdelivr.net/gh/loonghao/vx@main/install-smart.sh | bash
@@ -164,11 +179,13 @@ VX_FORCE_CHANNEL="jsdelivr" curl -fsSL https://fastly.jsdelivr.net/gh/loonghao/v
 ### Corporate Networks
 
 **Common Issues:**
+
 - Proxy servers
 - Certificate validation
 - Firewall restrictions
 
 **Solutions:**
+
 - Multiple channel options
 - Package manager alternatives
 - Source build option
@@ -185,6 +202,7 @@ VX_FORCE_CHANNEL="jsdelivr" curl -fsSL https://fastly.jsdelivr.net/gh/loonghao/v
 ### Fallback Triggers
 
 Automatic fallback occurs on:
+
 - HTTP 429 (Rate Limited)
 - HTTP 404 (Not Found)
 - HTTP 500+ (Server Errors)
@@ -261,11 +279,13 @@ vx self-update --force
 For distribution-related issues:
 
 1. **Enable Debug Mode:**
+
    ```bash
    VX_DEBUG=true ./install-smart.sh
    ```
 
 2. **Force Specific Channel:**
+
    ```bash
    VX_FORCE_CHANNEL="jsdelivr" ./install-smart.sh
    ```

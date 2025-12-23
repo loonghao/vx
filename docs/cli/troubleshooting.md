@@ -7,6 +7,7 @@ VX 常见问题的诊断和解决方案。
 ### 工具安装失败
 
 #### 网络连接问题
+
 ```bash
 # 检查网络连接
 vx --verbose install node@18.17.0
@@ -22,6 +23,7 @@ vx install node@18.17.0
 ```
 
 #### 权限问题
+
 ```bash
 # 检查安装目录权限
 ls -la ~/.vx/tools/
@@ -33,6 +35,7 @@ vx install node@18.17.0
 ```
 
 #### 磁盘空间不足
+
 ```bash
 # 检查磁盘空间
 df -h ~/.vx/
@@ -47,6 +50,7 @@ vx global cleanup
 ### 虚拟环境问题
 
 #### 环境创建失败
+
 ```bash
 # 检查虚拟环境目录
 ls -la ~/.vx/venvs/
@@ -60,6 +64,7 @@ chmod -R 755 ~/.vx/venvs/
 ```
 
 #### 激活失败
+
 ```bash
 # 检查环境是否存在
 vx venv list
@@ -72,6 +77,7 @@ echo $VX_VENV
 ```
 
 #### 工具版本错误
+
 ```bash
 # 检查环境配置
 vx venv list --verbose
@@ -84,6 +90,7 @@ vx venv add myproject node@18.17.0
 ### 配置问题
 
 #### 配置文件语法错误
+
 ```bash
 # 验证配置文件
 vx config validate
@@ -97,6 +104,7 @@ vx config init
 ```
 
 #### 配置不生效
+
 ```bash
 # 检查配置层次
 vx config --sources
@@ -109,6 +117,7 @@ vx config validate
 ```
 
 #### 项目配置冲突
+
 ```bash
 # 显示有效配置
 vx config show
@@ -124,6 +133,7 @@ vx init
 ### 版本管理问题
 
 #### 版本不存在
+
 ```bash
 # 列出可用版本
 vx list node
@@ -136,6 +146,7 @@ vx update --refresh-cache
 ```
 
 #### 版本切换失败
+
 ```bash
 # 检查已安装版本
 vx list node --installed-only
@@ -148,6 +159,7 @@ vx switch node@20.10.0
 ```
 
 #### 版本冲突
+
 ```bash
 # 检查版本要求
 vx config get tools.node
@@ -162,6 +174,7 @@ vx sync
 ## 🔍 诊断工具
 
 ### 系统信息
+
 ```bash
 # 显示系统信息
 vx --version
@@ -174,6 +187,7 @@ echo $PATH
 ```
 
 ### 详细日志
+
 ```bash
 # 启用详细日志
 export VX_VERBOSE=true
@@ -187,6 +201,7 @@ tail -f ~/.vx/logs/vx.log
 ```
 
 ### 网络诊断
+
 ```bash
 # 测试网络连接
 curl -I https://nodejs.org/dist/
@@ -200,6 +215,7 @@ vx --verbose install node@18.17.0
 ```
 
 ### 路径诊断
+
 ```bash
 # 显示工具路径
 vx which node
@@ -216,6 +232,7 @@ vx version --all
 ## 🛠️ 修复工具
 
 ### 重置VX
+
 ```bash
 # 备份配置
 cp -r ~/.vx ~/.vx.backup
@@ -228,6 +245,7 @@ vx config init
 ```
 
 ### 修复安装
+
 ```bash
 # 清理缓存
 vx cleanup --cache-only
@@ -240,6 +258,7 @@ vx node --version
 ```
 
 ### 修复虚拟环境
+
 ```bash
 # 重新创建环境
 vx venv remove myproject --force
@@ -253,6 +272,7 @@ vx venv use myproject
 ## 📊 性能问题
 
 ### 安装速度慢
+
 ```bash
 # 使用镜像源
 vx config set mirrors.node "https://npmmirror.com/mirrors/node/"
@@ -266,6 +286,7 @@ vx config set install.timeout 600
 ```
 
 ### 磁盘使用过多
+
 ```bash
 # 检查磁盘使用
 vx stats --detailed
@@ -281,6 +302,7 @@ vx cleanup --orphaned-only
 ```
 
 ### 内存使用过多
+
 ```bash
 # 减少并行下载数
 vx config set install.parallel_downloads 2
@@ -295,11 +317,13 @@ vx --use-system-path node --version
 ## 🆘 获取帮助
 
 ### 社区支持
-- GitHub Issues: https://github.com/loonghao/vx/issues
-- 讨论区: https://github.com/loonghao/vx/discussions
-- 文档: https://vx.dev/docs
+
+- GitHub Issues: <https://github.com/loonghao/vx/issues>
+- 讨论区: <https://github.com/loonghao/vx/discussions>
+- 文档: <https://vx.dev/docs>
 
 ### 报告问题
+
 ```bash
 # 收集诊断信息
 vx --version
@@ -311,6 +335,7 @@ vx diagnose --output vx-report.txt
 ```
 
 ### 调试模式
+
 ```bash
 # 启用调试模式
 export VX_DEBUG=true
@@ -326,6 +351,7 @@ cat ~/.vx/logs/debug.log
 ## 🔄 恢复策略
 
 ### 从备份恢复
+
 ```bash
 # 恢复配置
 cp ~/.vx.backup/config/global.toml ~/.vx/config/
@@ -338,6 +364,7 @@ vx list --status
 ```
 
 ### 重新安装
+
 ```bash
 # 完全重新安装
 rm -rf ~/.vx

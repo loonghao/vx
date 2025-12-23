@@ -5,6 +5,7 @@
 ## 🎯 核心概念
 
 ### Conventional Commits
+
 我们使用 [Conventional Commits](https://www.conventionalcommits.org/) 规范来自动生成版本号和变更日志：
 
 ```
@@ -16,6 +17,7 @@
 ```
 
 ### 版本升级规则
+
 - `feat:` → 升级 **minor** 版本 (0.1.0 → 0.2.0)
 - `fix:` → 升级 **patch** 版本 (0.1.0 → 0.1.1)
 - `feat!:` 或 `BREAKING CHANGE:` → 升级 **major** 版本 (0.1.0 → 1.0.0)
@@ -23,6 +25,7 @@
 ## 🚀 发布流程
 
 ### 1. 开发阶段
+
 按照 Conventional Commits 规范提交代码：
 
 ```bash
@@ -89,21 +92,26 @@ npx release-please github-release
 ## 🔧 配置文件说明
 
 ### `release-please-config.json`
+
 主配置文件，定义：
+
 - 发布类型（rust）
 - 变更日志格式
 - 版本升级规则
 - 额外文件更新
 
 ### `.release-please-manifest.json`
+
 版本清单文件，记录当前版本号
 
 ### `CHANGELOG.md`
+
 自动生成的变更日志
 
 ## 🎨 最佳实践
 
 ### 1. 提交信息规范
+
 ```bash
 # ✅ 好的提交信息
 feat(uv): add support for virtual environments
@@ -117,7 +125,9 @@ add feature
 ```
 
 ### 2. 作用域使用
+
 常用作用域：
+
 - `uv` - UV插件相关
 - `node` - Node.js插件相关
 - `go` - Go插件相关
@@ -129,6 +139,7 @@ add feature
 - `docs` - 文档相关
 
 ### 3. 破坏性变更
+
 ```bash
 # 方式1：使用感叹号
 feat!: redesign plugin API
@@ -140,6 +151,7 @@ BREAKING CHANGE: Plugin interface has changed, see migration guide
 ```
 
 ### 4. 多行提交信息
+
 ```bash
 feat: add plugin marketplace support
 
@@ -154,6 +166,7 @@ Closes #123
 ## 🔍 监控和调试
 
 ### 查看 Release Please 状态
+
 ```bash
 # 检查配置是否正确
 npx release-please config-check

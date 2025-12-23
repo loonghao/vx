@@ -32,6 +32,7 @@ vx install <tool1>[@version1] <tool2>[@version2] ... [options]
 ## 示例
 
 ### 基本安装
+
 ```bash
 # 安装最新版本
 vx install node
@@ -45,6 +46,7 @@ vx install go@1.21.6
 ```
 
 ### 批量安装
+
 ```bash
 # 安装多个工具
 vx install node@18.17.0 uv@latest go@1.21.6
@@ -54,6 +56,7 @@ vx install --from-config
 ```
 
 ### 高级选项
+
 ```bash
 # 强制重新安装
 vx install node@18.17.0 --force
@@ -68,12 +71,14 @@ vx install node@18.17.0 --dry-run
 ## 版本格式
 
 ### 精确版本
+
 ```bash
 vx install node@18.17.0          # 必须是这个版本
 vx install uv@0.1.0             # 必须是这个版本
 ```
 
 ### 语义化版本范围
+
 ```bash
 vx install node@^18.0.0          # 兼容 18.x.x
 vx install go@~1.21.0            # 兼容 1.21.x
@@ -81,6 +86,7 @@ vx install uv@>=0.1.0            # 大于等于 0.1.0
 ```
 
 ### 特殊版本标识
+
 ```bash
 vx install node@latest           # 最新稳定版本
 vx install node@lts              # 最新LTS版本（如果支持）
@@ -90,11 +96,13 @@ vx install python@3              # 最新的3.x版本
 ## 安装位置
 
 工具将被安装到以下位置：
+
 ```
 ~/.vx/tools/<tool>/<version>/
 ```
 
 例如：
+
 ```
 ~/.vx/tools/node/18.17.0/
 ~/.vx/tools/uv/0.1.0/
@@ -114,6 +122,7 @@ vx install python@3              # 最新的3.x版本
 ## 配置
 
 ### 安装源配置
+
 ```toml
 # ~/.vx/config.toml
 [registries]
@@ -128,6 +137,7 @@ python = "https://npmmirror.com/mirrors/python/"
 ```
 
 ### 安装选项
+
 ```toml
 [install]
 timeout = 300                    # 下载超时时间（秒）
@@ -139,6 +149,7 @@ parallel_downloads = 4           # 并行下载数
 ## 故障排除
 
 ### 安装失败
+
 ```bash
 # 检查网络连接
 vx --verbose install node@18.17.0
@@ -153,6 +164,7 @@ vx install node@18.17.0
 ```
 
 ### 版本不存在
+
 ```bash
 # 列出可用版本
 vx list node
@@ -162,6 +174,7 @@ vx search node --version 18
 ```
 
 ### 权限问题
+
 ```bash
 # 检查安装目录权限
 ls -la ~/.vx/tools/

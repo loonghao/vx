@@ -178,6 +178,19 @@ pub trait Runtime: Send + Sync {
         Ok(())
     }
 
+    /// Called immediately after download and extraction, before verification
+    ///
+    /// This is a synchronous hook that runs before the installation is verified.
+    /// Use this for operations that must happen before verification, such as:
+    /// - Renaming downloaded files to standard names (e.g., pnpm-macos-arm64 -> pnpm)
+    /// - Setting executable permissions
+    /// - Moving files to expected locations
+    ///
+    /// Unlike `post_install`, this runs before verification and is synchronous.
+    fn post_extract(&self, _version: &str, _install_path: &std::path::PathBuf) -> Result<()> {
+        Ok(())
+    }
+
     /// Called after successful installation
     ///
     /// Use this to:
@@ -537,6 +550,9 @@ pub trait Runtime: Send + Sync {
         ctx.installer
             .download_and_extract(&url, &install_path)
             .await?;
+
+        // Run post-extract hook (e.g., rename downloaded files to standard names)
+        self.post_extract(version, &install_path)?;
 
         debug!("Expected executable path pattern: {}", exe_relative);
 

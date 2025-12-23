@@ -26,6 +26,7 @@ vx update [OPTIONS] [TOOL...]
 ## 示例
 
 ### 更新所有工具
+
 ```bash
 # 检查所有工具的可用更新
 vx update
@@ -35,6 +36,7 @@ vx update --apply
 ```
 
 ### 更新特定工具
+
 ```bash
 # 更新 Node.js
 vx update node
@@ -44,6 +46,7 @@ vx update node uv go
 ```
 
 ### 检查更新
+
 ```bash
 # 仅检查可用更新，不执行
 vx update --check-only
@@ -53,6 +56,7 @@ vx update --check-only --verbose
 ```
 
 ### 强制更新
+
 ```bash
 # 强制重新安装最新版本
 vx update node --force

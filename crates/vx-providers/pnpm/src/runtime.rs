@@ -3,6 +3,7 @@
 use crate::config::PnpmUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
+use std::path::PathBuf;
 use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// PNPM runtime
@@ -40,7 +41,7 @@ impl Runtime for PnpmRuntime {
         &[]
     }
 
-    /// PNPM executable path - uses standard name after post_install rename
+    /// PNPM executable path - uses standard name after post_extract rename
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         platform.exe_name("pnpm")
     }
@@ -59,18 +60,17 @@ impl Runtime for PnpmRuntime {
         Ok(PnpmUrlBuilder::download_url(version, platform))
     }
 
-    /// Rename the downloaded file to standard name
-    async fn post_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
+    /// Rename the downloaded file to standard name (runs before verification)
+    fn post_extract(&self, _version: &str, install_path: &PathBuf) -> Result<()> {
         let platform = Platform::current();
-        let install_dir = ctx.paths.version_store_dir(self.name(), version);
 
         // Downloaded filename (e.g., pnpm-linux-x64, pnpm-win-x64.exe)
         let downloaded_name = PnpmUrlBuilder::get_filename(&platform);
-        let downloaded_path = install_dir.join(&downloaded_name);
+        let downloaded_path = install_path.join(&downloaded_name);
 
         // Standard filename (e.g., pnpm, pnpm.exe)
         let standard_name = platform.exe_name("pnpm");
-        let standard_path = install_dir.join(&standard_name);
+        let standard_path = install_path.join(&standard_name);
 
         // Rename if the downloaded file exists and standard doesn't
         if downloaded_path.exists() && !standard_path.exists() {

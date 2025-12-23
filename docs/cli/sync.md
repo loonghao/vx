@@ -24,6 +24,7 @@ vx sync [options]
 ## 示例
 
 ### 基本同步
+
 ```bash
 # 同步安装项目所需的所有工具
 vx sync
@@ -36,6 +37,7 @@ vx sync --dry-run
 ```
 
 ### 高级选项
+
 ```bash
 # 强制重新安装所有工具
 vx sync --force
@@ -61,6 +63,7 @@ vx sync --no-auto-install
 ## 项目配置格式
 
 ### 基本配置
+
 ```toml
 # .vx.toml
 [tools]
@@ -76,6 +79,7 @@ parallel_install = true   # 并行安装
 ```
 
 ### 高级配置
+
 ```toml
 [tools]
 node = "18.17.0"
@@ -100,6 +104,7 @@ PYTHONPATH = "./src"
 ## 同步输出
 
 ### 成功同步
+
 ```bash
 $ vx sync
 🔍 Reading project configuration (.vx.toml)
@@ -111,7 +116,7 @@ $ vx sync
   ⬇️  uv@latest (resolving version...)
 
 ✅ node@18.17.0 installed successfully
-✅ python@3.11.5 installed successfully  
+✅ python@3.11.5 installed successfully
 ✅ uv@0.1.1 installed successfully
 
 🎉 Project sync completed! All tools are ready.
@@ -123,6 +128,7 @@ Next steps:
 ```
 
 ### 检查模式
+
 ```bash
 $ vx sync --check
 🔍 Checking project requirements...
@@ -135,11 +141,12 @@ Required tools:
 Summary:
   - 1 tool already installed
   - 2 tools need installation
-  
+
 Run 'vx sync' to install missing tools.
 ```
 
 ### 预览模式
+
 ```bash
 $ vx sync --dry-run
 🔍 Sync plan preview:
@@ -149,7 +156,7 @@ Will install:
     - Download from: https://www.python.org/ftp/python/3.11.5/
     - Install to: ~/.vx/tools/python/3.11.5/
     - Estimated size: 25.4 MB
-    
+
   📦 uv@0.1.1 (latest)
     - Download from: https://github.com/astral-sh/uv/releases/
     - Install to: ~/.vx/tools/uv/0.1.1/
@@ -167,23 +174,25 @@ Run 'vx sync' to execute this plan.
 ## 错误处理
 
 ### 配置文件错误
+
 ```bash
 $ vx sync
 ❌ Error: Invalid .vx.toml file
-   
+
    Line 3: Invalid version format 'node = "invalid"'
    Expected: semantic version (e.g., "18.17.0", "latest", "^18.0.0")
-   
+
    Fix the configuration and try again.
 ```
 
 ### 网络错误
+
 ```bash
 $ vx sync
 ❌ Error: Failed to download node@18.17.0
-   
+
    Network error: Connection timeout
-   
+
    Suggestions:
    - Check your internet connection
    - Try again with: vx sync --verbose
@@ -195,6 +204,7 @@ $ vx sync
 VX 会自动检测项目类型并建议配置：
 
 ### Node.js 项目
+
 ```bash
 $ vx sync
 🔍 Detected Node.js project (package.json found)
@@ -208,6 +218,7 @@ Would you like to create .vx.toml with these settings? (y/N)
 ```
 
 ### Python 项目
+
 ```bash
 $ vx sync
 🔍 Detected Python project (pyproject.toml found)
@@ -223,6 +234,7 @@ Would you like to create .vx.toml with these settings? (y/N)
 ## 故障排除
 
 ### 同步失败
+
 ```bash
 # 显示详细错误信息
 vx sync --verbose
@@ -236,6 +248,7 @@ vx config validate --local
 ```
 
 ### 版本冲突
+
 ```bash
 # 检查版本要求
 vx list node
@@ -246,6 +259,7 @@ vx sync
 ```
 
 ### 权限问题
+
 ```bash
 # 检查安装目录权限
 ls -la ~/.vx/tools/

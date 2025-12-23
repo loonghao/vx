@@ -25,16 +25,19 @@ vx venv <subcommand> [options]
 创建新的虚拟环境。
 
 ### 语法
+
 ```bash
 vx venv create <name> [options]
 ```
 
 ### 选项
+
 - `--tools <tool1@version1,tool2@version2>` - 指定要安装的工具
 - `--from-config` - 基于当前项目配置创建
 - `--force` - 强制创建，覆盖已存在的环境
 
 ### 示例
+
 ```bash
 # 创建空的虚拟环境
 vx venv create myproject
@@ -51,15 +54,18 @@ vx venv create myproject --from-config
 列出所有虚拟环境。
 
 ### 语法
+
 ```bash
 vx venv list [options]
 ```
 
 ### 选项
+
 - `--verbose` - 显示详细信息
 - `--active-only` - 仅显示当前激活的环境
 
 ### 示例
+
 ```bash
 # 列出所有虚拟环境
 vx venv list
@@ -73,11 +79,13 @@ vx venv list --verbose
 激活虚拟环境。
 
 ### 语法
+
 ```bash
 vx venv use <name>
 ```
 
 ### 示例
+
 ```bash
 # 激活虚拟环境
 vx venv use myproject
@@ -91,11 +99,13 @@ vx node --version  # 使用虚拟环境中的node版本
 显示当前激活的虚拟环境。
 
 ### 语法
+
 ```bash
 vx venv current
 ```
 
 ### 示例
+
 ```bash
 $ vx venv current
 myproject
@@ -106,11 +116,13 @@ myproject
 在指定虚拟环境中运行命令。
 
 ### 语法
+
 ```bash
 vx venv run <name> <command> [args...]
 ```
 
 ### 示例
+
 ```bash
 # 在虚拟环境中运行命令
 vx venv run myproject node --version
@@ -123,11 +135,13 @@ vx venv run myproject uv pip install requests
 在虚拟环境中启动交互式shell。
 
 ### 语法
+
 ```bash
 vx venv shell <name>
 ```
 
 ### 示例
+
 ```bash
 # 在虚拟环境中启动shell
 vx venv shell myproject
@@ -139,11 +153,13 @@ vx venv shell myproject
 向虚拟环境添加工具。
 
 ### 语法
+
 ```bash
 vx venv add <name> <tool>[@version]
 ```
 
 ### 示例
+
 ```bash
 # 向虚拟环境添加工具
 vx venv add myproject uv@latest
@@ -155,11 +171,13 @@ vx venv add myproject python@3.11
 从虚拟环境移除工具。
 
 ### 语法
+
 ```bash
 vx venv remove-tool <name> <tool>
 ```
 
 ### 示例
+
 ```bash
 # 从虚拟环境移除工具
 vx venv remove-tool myproject uv
@@ -170,14 +188,17 @@ vx venv remove-tool myproject uv
 删除虚拟环境。
 
 ### 语法
+
 ```bash
 vx venv remove <name> [options]
 ```
 
 ### 选项
+
 - `--force` - 强制删除，不询问确认
 
 ### 示例
+
 ```bash
 # 删除虚拟环境
 vx venv remove myproject
@@ -189,6 +210,7 @@ vx venv remove myproject --force
 ## 虚拟环境工作流
 
 ### 创建和使用
+
 ```bash
 # 1. 创建虚拟环境
 vx venv create myproject --tools node@18.17.0,uv@latest
@@ -205,6 +227,7 @@ vx venv run myproject npm install
 ```
 
 ### 环境管理
+
 ```bash
 # 查看所有环境
 vx venv list
@@ -222,11 +245,13 @@ vx venv remove-tool myproject python
 ## 环境配置
 
 虚拟环境配置存储在：
+
 ```
 ~/.vx/venvs/<name>/config/venv.toml
 ```
 
 配置格式：
+
 ```toml
 name = "myproject"
 created_at = "2024-01-15T10:30:00Z"
@@ -250,6 +275,7 @@ VX 虚拟环境提供以下隔离：
 ## 故障排除
 
 ### 环境创建失败
+
 ```bash
 # 检查权限
 ls -la ~/.vx/venvs/
@@ -260,6 +286,7 @@ vx venv create myproject --tools node@18.17.0
 ```
 
 ### 激活失败
+
 ```bash
 # 检查环境是否存在
 vx venv list

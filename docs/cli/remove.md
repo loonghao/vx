@@ -28,6 +28,7 @@ vx remove [OPTIONS] <TOOL[@VERSION]>...
 ## 示例
 
 ### 移除特定版本
+
 ```bash
 # 移除 Node.js 18.17.0
 vx remove node@18.17.0
@@ -37,6 +38,7 @@ vx remove node@18.17.0 uv@0.1.0
 ```
 
 ### 移除所有版本
+
 ```bash
 # 移除 Node.js 的所有版本
 vx remove node --all
@@ -46,6 +48,7 @@ vx remove node uv go --all
 ```
 
 ### 强制移除
+
 ```bash
 # 强制移除，忽略虚拟环境依赖
 vx remove node@18.17.0 --force
@@ -55,6 +58,7 @@ vx remove node --all --force
 ```
 
 ### 预览操作
+
 ```bash
 # 预览将要移除的内容
 vx remove node --all --dry-run

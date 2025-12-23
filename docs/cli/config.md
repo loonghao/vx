@@ -23,17 +23,20 @@ vx config [subcommand] [options]
 显示当前有效配置。
 
 ### 语法
+
 ```bash
 vx config [show] [options]
 ```
 
 ### 选项
+
 - `--sources` - 显示配置来源
 - `--format <format>` - 输出格式：`toml`, `json`, `yaml`
 - `--local` - 仅显示项目配置
 - `--global` - 仅显示全局配置
 
 ### 示例
+
 ```bash
 # 显示当前配置
 vx config
@@ -50,16 +53,19 @@ vx config --format json
 编辑配置文件。
 
 ### 语法
+
 ```bash
 vx config edit [options]
 ```
 
 ### 选项
+
 - `--local` - 编辑项目配置（.vx.toml）
 - `--global` - 编辑全局配置
 - `--editor <editor>` - 指定编辑器
 
 ### 示例
+
 ```bash
 # 编辑全局配置
 vx config edit
@@ -76,15 +82,18 @@ vx config edit --editor vim
 设置配置项。
 
 ### 语法
+
 ```bash
 vx config set <key> <value> [options]
 ```
 
 ### 选项
+
 - `--local` - 设置项目配置
 - `--global` - 设置全局配置（默认）
 
 ### 示例
+
 ```bash
 # 设置全局配置
 vx config set defaults.auto_install true
@@ -100,11 +109,13 @@ vx config set settings.auto_install false --local
 获取配置项。
 
 ### 语法
+
 ```bash
 vx config get <key> [options]
 ```
 
 ### 示例
+
 ```bash
 # 获取配置项
 vx config get defaults.auto_install
@@ -117,16 +128,19 @@ vx config get registries.node.url
 验证配置文件语法和内容。
 
 ### 语法
+
 ```bash
 vx config validate [options]
 ```
 
 ### 选项
+
 - `--local` - 验证项目配置
 - `--global` - 验证全局配置
 - `--strict` - 严格模式验证
 
 ### 示例
+
 ```bash
 # 验证所有配置
 vx config validate
@@ -143,17 +157,20 @@ vx config validate --strict
 初始化配置文件。
 
 ### 语法
+
 ```bash
 vx config init [options]
 ```
 
 ### 选项
+
 - `--local` - 初始化项目配置
 - `--global` - 初始化全局配置
 - `--template <template>` - 使用模板
 - `--interactive` - 交互式初始化
 
 ### 示例
+
 ```bash
 # 初始化项目配置
 vx config init --local
@@ -168,6 +185,7 @@ vx config init --template node
 ## 配置文件位置
 
 ### 全局配置
+
 ```bash
 # Linux/macOS
 ~/.config/vx/config.toml
@@ -177,6 +195,7 @@ vx config init --template node
 ```
 
 ### 项目配置
+
 ```bash
 # 项目根目录
 .vx.toml
@@ -201,6 +220,7 @@ VX 使用分层配置系统，按以下优先级顺序合并：
 ## 配置格式
 
 ### 全局配置示例
+
 ```toml
 [defaults]
 auto_install = true
@@ -236,6 +256,7 @@ go = "https://golang.org/dl/"
 ```
 
 ### 项目配置示例
+
 ```toml
 [tools]
 node = "18.17.0"          # 精确版本
@@ -284,6 +305,7 @@ export VX_TOOLS_PYTHON_VERSION="3.11"
 ## 故障排除
 
 ### 配置文件错误
+
 ```bash
 # 验证配置文件
 vx config validate
@@ -297,6 +319,7 @@ vx config init
 ```
 
 ### 配置不生效
+
 ```bash
 # 检查配置层次
 vx config --sources

@@ -111,17 +111,17 @@ fi
 build_test_command() {
     local test_type="$1"
     local cmd="cargo test"
-    
+
     # Add package filter if specified
     if [[ -n "$PACKAGE" ]]; then
         cmd+=" -p $PACKAGE"
     fi
-    
+
     # Add test filter if specified
     if [[ -n "$TEST" ]]; then
         cmd+=" $TEST"
     fi
-    
+
     # Add type-specific flags
     case "$test_type" in
         "unit")
@@ -137,17 +137,17 @@ build_test_command() {
             cmd+=" --all"
             ;;
     esac
-    
+
     # Add verbose flag if requested
     if [[ "$VERBOSE" == true ]]; then
         cmd+=" -- --nocapture"
     fi
-    
+
     # Add serial execution if requested
     if [[ "$SERIAL" == true ]]; then
         cmd+=" -- --test-threads=1"
     fi
-    
+
     echo "$cmd"
 }
 
@@ -155,12 +155,12 @@ build_test_command() {
 run_tests() {
     local command="$1"
     local description="$2"
-    
+
     log_info "Running $description..."
     log_info "Command: $command"
-    
+
     local start_time=$(date +%s)
-    
+
     if eval "$command"; then
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
@@ -194,7 +194,7 @@ case "${TYPE,,}" in
     "all")
         # Run all test types
         test_types=("unit:unit tests" "integration:integration tests" "doc:documentation tests")
-        
+
         for test_type in "${test_types[@]}"; do
             IFS=':' read -r type description <<< "$test_type"
             cmd=$(build_test_command "$type")
