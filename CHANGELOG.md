@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.13](https://github.com/loonghao/vx/compare/vx-v0.5.12...vx-v0.5.13) (2025-12-23)
+
+
+### Features
+
+* **list:** show bundled tools as installed when parent is installed ([78895bf](https://github.com/loonghao/vx/commit/78895bf8ee49657d0a3d470e06e236163f13ee35))
+
+
+### Bug Fixes
+
+* **java:** update test to expect Ecosystem::Custom instead of Unknown ([0405b6e](https://github.com/loonghao/vx/commit/0405b6e94d6fbf9c5544ff127dd05273b281fbf4))
+* move clippy allow attribute to struct level for Rust 1.92 compatibility ([a59afae](https://github.com/loonghao/vx/commit/a59afaea82cd32a51246733aa9f9e37d37801fa2))
+* **pnpm:** rename downloaded file to standard name in post_install ([eb4ae55](https://github.com/loonghao/vx/commit/eb4ae5589161b94ef38658bd119cab0f86772024))
+* **pnpm:** use Platform parameter for executable path and download URL ([dea9e19](https://github.com/loonghao/vx/commit/dea9e190383c0be8e35a8e19d75a25fa22292a82))
+* resolve CI issues and clean up old docs ([5b8c2df](https://github.com/loonghao/vx/commit/5b8c2df87155e47147c09ab39e5e9d5941380e05))
+* resolve zig URL format and docs dead links ([fe7677e](https://github.com/loonghao/vx/commit/fe7677e6ee1ec56d3d1b85506b3db6926adedf22))
+
+
+### Code Refactoring
+
+* consolidate platform utilities and improve tests ([b7e783d](https://github.com/loonghao/vx/commit/b7e783dc612b8c5a9c69cbc2272f1ef2531608e5))
+
 ## [0.5.12](https://github.com/loonghao/vx/compare/vx-v0.5.11...vx-v0.5.12) (2025-12-22)
 
 ### Features
