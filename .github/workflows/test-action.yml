@@ -1,0 +1,129 @@
+name: Test Setup Action
+
+# Test the setup-vx action to ensure it works correctly
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'action.yml'
+      - '.github/workflows/test-action.yml'
+      - 'install.sh'
+      - 'install.ps1'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'action.yml'
+      - '.github/workflows/test-action.yml'
+      - 'install.sh'
+      - 'install.ps1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-action:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Test 1: Basic installation with latest version
+      - name: Setup vx (latest)
+        uses: ./
+        id: setup-latest
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify vx installation
+        shell: bash
+        run: |
+          echo "Installed version: ${{ steps.setup-latest.outputs.version }}"
+          vx --version
+          vx --help
+          vx list
+
+      # Test 2: Use vx to run tools
+      - name: Test Node.js via vx
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          vx node --version
+          vx node -e "console.log('Hello from Node.js via vx!')"
+
+      - name: Test UV via vx
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          vx uv --version
+          vx uvx ruff --version
+
+      - name: Test Go via vx
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          vx go version
+
+      # Test 3: Show vx stats
+      - name: Show vx stats
+        shell: bash
+        run: |
+          vx stats
+          vx list --status
+
+  test-action-with-tools:
+    name: Test with pre-installed tools (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Test: Installation with pre-installed tools
+      - name: Setup vx with tools
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          tools: 'node uv'
+          cache: 'true'
+
+      - name: Verify pre-installed tools
+        shell: bash
+        run: |
+          echo "Verifying pre-installed tools..."
+          vx node --version
+          vx uv --version
+          vx list --status
+
+  test-action-specific-version:
+    name: Test specific version
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Test: Installation with specific version (if available)
+      - name: Setup vx (specific version)
+        uses: ./
+        id: setup-specific
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Use latest for now, can be changed to specific version when needed
+          version: 'latest'
+
+      - name: Verify installation
+        run: |
+          echo "Installed version: ${{ steps.setup-specific.outputs.version }}"
+          vx --version
