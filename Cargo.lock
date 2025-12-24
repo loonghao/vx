@@ -3337,6 +3337,7 @@ dependencies = [
  "vx-core",
  "vx-paths",
  "vx-provider-bun",
+ "vx-provider-choco",
  "vx-provider-deno",
  "vx-provider-git",
  "vx-provider-go",
@@ -3426,6 +3427,19 @@ dependencies = [
  "async-trait",
  "rstest",
  "serde",
+ "tokio",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-choco"
+version = "0.5.15"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
  "tokio",
  "vx-runtime",
 ]

@@ -31,5 +31,6 @@ $ vx search
   helm - Helm - The package manager for Kubernetes
   rcedit - rcedit - Command-line tool to edit resources of Windows executables
   git - Git - Distributed version control system
+  choco - Chocolatey - The package manager for Windows
 
 ```
