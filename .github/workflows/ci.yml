@@ -1,12 +1,20 @@
 name: CI
 
-# Main CI workflow - runs on main branch pushes and manual triggers
-# Uses vx itself to manage the development environment (dogfooding)
+# Unified CI workflow with path-based conditional execution
+# - Detects changes and runs only necessary jobs
+# - Supports both push to main/develop and pull requests
+# - Uses vx itself to manage the development environment (dogfooding)
 
 on:
   push:
     branches: [main, develop]
+  pull_request:
   workflow_dispatch:
+    inputs:
+      force_full_ci:
+        description: 'Force full CI run (ignore path filters)'
+        type: boolean
+        default: false
   workflow_call:
 
 permissions:
@@ -14,9 +22,9 @@ permissions:
   actions: read
   security-events: write
 
-# Cancel in-progress runs for the same branch
+# Cancel in-progress runs for the same branch/PR
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -27,11 +35,101 @@ env:
 
 jobs:
   # ============================================================================
-  # Stage 1: Build vx binary for all platforms
+  # Stage 0: Detect changes to determine which jobs to run
+  # ============================================================================
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      docs: ${{ steps.filter.outputs.docs }}
+      ci: ${{ steps.filter.outputs.ci }}
+      scripts: ${{ steps.filter.outputs.scripts }}
+      should_build: ${{ steps.decide.outputs.should_build }}
+      should_test: ${{ steps.decide.outputs.should_test }}
+      should_docs: ${{ steps.decide.outputs.should_docs }}
+      is_main: ${{ steps.decide.outputs.is_main }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust:
+              - 'crates/**'
+              - 'src/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'tests/**'
+              - 'examples/**'
+              - 'clippy.toml'
+              - 'rust-toolchain.toml'
+            docs:
+              - 'docs/**'
+            ci:
+              - '.github/workflows/**'
+              - 'action.yml'
+            scripts:
+              - 'scripts/**'
+              - 'install*.sh'
+              - 'install*.ps1'
+
+      - name: Decide what to run
+        id: decide
+        shell: bash
+        run: |
+          # Force full CI if requested or on workflow_dispatch without filters
+          FORCE_FULL="${{ github.event.inputs.force_full_ci || 'false' }}"
+
+          # Check if this is main branch
+          IS_MAIN="false"
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            IS_MAIN="true"
+          fi
+          echo "is_main=$IS_MAIN" >> $GITHUB_OUTPUT
+
+          # Determine what to build/test
+          RUST_CHANGED="${{ steps.filter.outputs.rust }}"
+          DOCS_CHANGED="${{ steps.filter.outputs.docs }}"
+          CI_CHANGED="${{ steps.filter.outputs.ci }}"
+
+          # Build if rust changed, CI changed, or forced
+          if [[ "$RUST_CHANGED" == "true" || "$CI_CHANGED" == "true" || "$FORCE_FULL" == "true" ]]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "should_test=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "should_test=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Docs if docs changed or forced
+          if [[ "$DOCS_CHANGED" == "true" || "$FORCE_FULL" == "true" ]]; then
+            echo "should_docs=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_docs=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Summary
+          echo "## Change Detection Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Changed |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Rust Code | $RUST_CHANGED |" >> $GITHUB_STEP_SUMMARY
+          echo "| Documentation | $DOCS_CHANGED |" >> $GITHUB_STEP_SUMMARY
+          echo "| CI Config | $CI_CHANGED |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Is Main:** $IS_MAIN" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Stage 1: Build vx binary (only if rust/ci changed)
   # ============================================================================
   build-vx:
     name: Build vx (${{ matrix.platform.name }})
     runs-on: ${{ matrix.platform.os }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.should_build == 'true'
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -97,12 +195,13 @@ jobs:
           retention-days: 1
 
   # ============================================================================
-  # Stage 2: Code quality checks using vx
+  # Stage 2: Code quality checks (only if rust changed)
   # ============================================================================
   code-quality:
     name: Code Quality (via vx)
     runs-on: ubuntu-latest
-    needs: build-vx
+    needs: [detect-changes, build-vx]
+    if: needs.detect-changes.outputs.should_build == 'true'
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
@@ -159,12 +258,13 @@ jobs:
           RUSTDOCFLAGS: "-D warnings"
 
   # ============================================================================
-  # Stage 3: Tests using vx on multiple platforms
+  # Stage 3: Tests on multiple platforms (only if rust changed)
   # ============================================================================
   test-matrix:
     name: Test (${{ matrix.platform.name }}) via vx
     runs-on: ${{ matrix.platform.os }}
-    needs: build-vx
+    needs: [detect-changes, build-vx]
+    if: needs.detect-changes.outputs.should_test == 'true'
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -240,12 +340,13 @@ jobs:
         run: vx run release
 
   # ============================================================================
-  # Stage 4: Dogfood tests - use vx to run real tools
+  # Stage 4: Dogfood tests (only if rust changed)
   # ============================================================================
   dogfood:
     name: Dogfood (${{ matrix.platform.name }})
     runs-on: ${{ matrix.platform.os }}
-    needs: build-vx
+    needs: [detect-changes, build-vx]
+    if: needs.detect-changes.outputs.should_build == 'true'
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -330,12 +431,15 @@ jobs:
           vx list --status
 
   # ============================================================================
-  # Stage 5: Cross-compilation verification
+  # Stage 5: Cross-compilation (main branch only, if rust changed)
   # ============================================================================
   cross-build:
     name: Cross Build (${{ matrix.target }})
     runs-on: ubuntu-latest
-    needs: build-vx
+    needs: [detect-changes, build-vx]
+    if: |
+      needs.detect-changes.outputs.should_build == 'true' &&
+      needs.detect-changes.outputs.is_main == 'true'
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -385,11 +489,13 @@ jobs:
         run: cross build --release --target ${{ matrix.target }}
 
   # ============================================================================
-  # Stage 6: Security audit
+  # Stage 6: Security audit (only if rust changed)
   # ============================================================================
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.should_build == 'true'
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
@@ -408,11 +514,15 @@ jobs:
           cargo audit --deny warnings || echo "::warning::Security audit found warnings"
 
   # ============================================================================
-  # Stage 7: MSRV check
+  # Stage 7: MSRV check (main branch only)
   # ============================================================================
   msrv:
     name: MSRV (1.83.0)
     runs-on: ubuntu-latest
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.should_build == 'true' &&
+      needs.detect-changes.outputs.is_main == 'true'
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
@@ -438,12 +548,15 @@ jobs:
         run: cargo check --workspace --all-features
 
   # ============================================================================
-  # Stage 8: Code coverage using vx
+  # Stage 8: Code coverage (main branch only)
   # ============================================================================
   coverage:
     name: Code Coverage (via vx)
     runs-on: ubuntu-latest
-    needs: build-vx
+    needs: [detect-changes, build-vx]
+    if: |
+      needs.detect-changes.outputs.should_build == 'true' &&
+      needs.detect-changes.outputs.is_main == 'true'
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
@@ -493,18 +606,90 @@ jobs:
           name: codecov-umbrella
 
   # ============================================================================
+  # Stage 9: Documentation build (only if docs changed)
+  # ============================================================================
+  docs-build:
+    name: Documentation Build
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build-vx]
+    if: |
+      needs.detect-changes.outputs.should_docs == 'true' &&
+      needs.detect-changes.outputs.should_build == 'true'
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: vx-linux-x64
+          path: ./bin
+
+      - name: Setup vx
+        run: |
+          chmod +x ./bin/vx
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        working-directory: docs
+        run: vx npm install
+
+      - name: Build documentation
+        working-directory: docs
+        run: vx npm run build
+
+  # Docs build without vx binary (when only docs changed)
+  docs-build-standalone:
+    name: Documentation Build (standalone)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.should_docs == 'true' &&
+      needs.detect-changes.outputs.should_build == 'false'
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs
+        run: npm install
+
+      - name: Build documentation
+        working-directory: docs
+        run: npm run build
+
+  # ============================================================================
   # CI Success Gate
   # ============================================================================
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [build-vx, code-quality, test-matrix, dogfood, cross-build, security-audit, msrv, coverage]
+    needs:
+      - detect-changes
+      - build-vx
+      - code-quality
+      - test-matrix
+      - dogfood
+      - cross-build
+      - security-audit
+      - msrv
+      - coverage
+      - docs-build
+      - docs-build-standalone
     if: always()
     steps:
       - name: Check results
         shell: bash
         run: |
           echo "## CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
           failed=0
 
@@ -518,18 +703,31 @@ jobs:
               echo "- ⏭️ $job_name (skipped)" >> $GITHUB_STEP_SUMMARY
             else
               echo "- ❌ $job_name ($result)" >> $GITHUB_STEP_SUMMARY
-              failed=1
+              # Don't fail on skipped jobs
+              if [[ "$result" != "skipped" && "$result" != "" ]]; then
+                failed=1
+              fi
             fi
           }
 
+          echo "### Core Jobs" >> $GITHUB_STEP_SUMMARY
+          check_job "detect-changes" "${{ needs.detect-changes.result }}"
           check_job "build-vx" "${{ needs.build-vx.result }}"
           check_job "code-quality" "${{ needs.code-quality.result }}"
           check_job "test-matrix" "${{ needs.test-matrix.result }}"
           check_job "dogfood" "${{ needs.dogfood.result }}"
-          check_job "cross-build" "${{ needs.cross-build.result }}"
           check_job "security-audit" "${{ needs.security-audit.result }}"
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Main Branch Only" >> $GITHUB_STEP_SUMMARY
+          check_job "cross-build" "${{ needs.cross-build.result }}"
           check_job "msrv" "${{ needs.msrv.result }}"
           check_job "coverage" "${{ needs.coverage.result }}"
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Documentation" >> $GITHUB_STEP_SUMMARY
+          check_job "docs-build" "${{ needs.docs-build.result }}"
+          check_job "docs-build-standalone" "${{ needs.docs-build-standalone.result }}"
 
           if [[ $failed -eq 1 ]]; then
             echo "" >> $GITHUB_STEP_SUMMARY

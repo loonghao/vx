@@ -1,16 +1,12 @@
 name: Documentation
 
 # Build and deploy documentation to GitHub Pages
-# - On push to main: Build and deploy to GitHub Pages
-# - On PR: Build only (test that docs compile)
+# - On push to main with docs changes: Build and deploy
+# - Standalone workflow for documentation deployment only
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'docs/**'
-      - '.github/workflows/docs.yml'
-  pull_request:
     paths:
       - 'docs/**'
       - '.github/workflows/docs.yml'
@@ -36,32 +32,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build vx
-        run: |
-          cargo build --release --bin vx
-          echo "${{ github.workspace }}/target/release" >> $GITHUB_PATH
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: docs/package-lock.json
 
       - name: Install dependencies
         working-directory: docs
-        run: vx npm install
+        run: npm install
 
       - name: Build documentation
         working-directory: docs
-        run: vx npm run build
+        run: npm run build
 
       - name: Upload artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
 
-  # Deploy to GitHub Pages (only on main branch push)
+  # Deploy to GitHub Pages
   deploy:
     name: Deploy to GitHub Pages
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -73,16 +66,10 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  # Summary for PR checks
-  docs-check:
-    name: Documentation Check
-    if: github.event_name == 'pull_request'
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Documentation builds successfully
+      - name: Summary
         run: |
-          echo "## Documentation Build" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Documentation built successfully with VitePress!" >> $GITHUB_STEP_SUMMARY
+          echo "## Documentation Deployed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The documentation will be deployed to GitHub Pages when merged to main." >> $GITHUB_STEP_SUMMARY
+          echo "✅ Documentation has been deployed to GitHub Pages!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 **URL:** ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
