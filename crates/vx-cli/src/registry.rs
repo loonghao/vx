@@ -63,6 +63,9 @@ pub fn create_registry() -> ProviderRegistry {
     // Register rcedit provider
     registry.register(vx_provider_rcedit::create_provider());
 
+    // Register Git provider
+    registry.register(vx_provider_git::create_provider());
+
     registry
 }
 
