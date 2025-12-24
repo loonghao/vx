@@ -11,10 +11,23 @@ permissions:
 
 jobs:
   cargo-audit:
-    name: Cargo Audit
+    name: Cargo Audit (via vx)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - name: Setup vx
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache vx tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.vx
+          key: ${{ runner.os }}-vx-audit-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-vx-audit-
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -24,7 +37,7 @@ jobs:
         with:
           tool: cargo-audit
 
-      - name: Run cargo audit
+      - name: Run cargo audit (via vx)
         run: |
-          cargo generate-lockfile || true
-          cargo audit --deny warnings || true
+          vx cargo generate-lockfile || true
+          vx cargo audit --deny warnings || true
