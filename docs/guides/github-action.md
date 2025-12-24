@@ -1,3 +1,7 @@
+---
+outline: deep
+---
+
 # Using vx in GitHub Actions
 
 vx provides an official GitHub Action that makes it easy to use vx in your CI/CD workflows. This allows you to have consistent development tool versions across local development and CI environments.
@@ -9,7 +13,7 @@ Add the following to your GitHub Actions workflow:
 ```yaml
 - uses: loonghao/vx@v1
   with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
+    github-token: ${{secrets.GITHUB_TOKEN}}
 ```
 
 Then use vx to run any supported tool:
@@ -40,7 +44,7 @@ jobs:
       # Setup vx with caching
       - uses: loonghao/vx@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node uv'  # Pre-install these tools
           cache: 'true'
 
@@ -60,7 +64,7 @@ jobs:
 | Input | Description | Default |
 |-------|-------------|---------|
 | `version` | vx version to install (e.g., "0.5.7", "latest") | `latest` |
-| `github-token` | GitHub token for API requests (avoids rate limiting) | `${{ github.token }}` |
+| `github-token` | GitHub token for API requests (avoids rate limiting) | `github.token` |
 | `tools` | Space-separated list of tools to pre-install (e.g., "node go uv") | `''` |
 | `cache` | Enable caching of vx tools directory | `true` |
 | `cache-key-prefix` | Custom prefix for cache key | `vx-tools` |
@@ -85,7 +89,7 @@ jobs:
 
       - uses: loonghao/vx@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node'
 
       - run: vx npm ci
@@ -104,7 +108,7 @@ jobs:
 
       - uses: loonghao/vx@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'uv'
 
       - run: vx uv sync
@@ -123,7 +127,7 @@ jobs:
 
       - uses: loonghao/vx@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'go'
 
       - run: vx go build ./...
@@ -141,7 +145,7 @@ jobs:
 
       - uses: loonghao/vx@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node uv go'
 
       # Frontend
@@ -161,7 +165,7 @@ jobs:
 ```yaml
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{matrix.os}}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -170,7 +174,7 @@ jobs:
 
       - uses: loonghao/vx@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{secrets.GITHUB_TOKEN}}
 
       # Same commands work on all platforms!
       - run: vx node --version
@@ -199,7 +203,7 @@ jobs:
 
       - uses: loonghao/vx@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{secrets.GITHUB_TOKEN}}
 
       # vx will use versions from .vx.toml
       - run: vx node --version  # Uses 20.10.0
@@ -234,7 +238,7 @@ If you encounter GitHub API rate limiting, make sure to provide a GitHub token:
 ```yaml
 - uses: loonghao/vx@v1
   with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
+    github-token: ${{secrets.GITHUB_TOKEN}}
 ```
 
 ### Tool Installation Failures
