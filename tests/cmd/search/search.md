@@ -30,5 +30,6 @@ $ vx search
   kubectl - kubectl - Kubernetes command-line tool
   helm - Helm - The package manager for Kubernetes
   rcedit - rcedit - Command-line tool to edit resources of Windows executables
+  git - Git - Distributed version control system
 
 ```
