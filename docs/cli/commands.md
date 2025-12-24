@@ -22,6 +22,7 @@ List supported tools.
 ```bash
 vx list
 vx list --status
+vx list --all              # Include unsupported platforms
 vx list node
 ```
 

@@ -55,6 +55,9 @@ pub enum Commands {
         /// Show only available tools
         #[arg(long)]
         available: bool,
+        /// Show all tools including those not supported on current platform
+        #[arg(long, short = 'a')]
+        all: bool,
     },
 
     /// Install a specific tool version
