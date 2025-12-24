@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.14](https://github.com/loonghao/vx/compare/vx-v0.5.13...vx-v0.5.14) (2025-12-24)
+
+
+### Features
+
+* add GitHub Action for easy CI/CD integration ([36f1061](https://github.com/loonghao/vx/commit/36f1061efd588ef5a3fc857af072ee2b53191006))
+
+
+### Bug Fixes
+
+* escape template syntax in docs for VitePress compatibility ([ebd54ef](https://github.com/loonghao/vx/commit/ebd54ef24882f12448506f3d5a9b68d66efb8d1a))
+* use authenticated download in action and install script ([0ac69ec](https://github.com/loonghao/vx/commit/0ac69ecfc4d4b1966e9e62e59c8557dd2ad76644))
+
+
+### Documentation
+
+* update documentation with complete tool list and provider development guide ([55d7798](https://github.com/loonghao/vx/commit/55d779826faa562a2763c8ff835d54ae87785d0e))
+
 ## [0.5.13](https://github.com/loonghao/vx/compare/vx-v0.5.12...vx-v0.5.13) (2025-12-23)
 
 
