@@ -52,7 +52,8 @@ impl CommandHandler {
                 status,
                 installed: _,
                 available: _,
-            }) => list::handle(registry, context, tool.as_deref(), status).await,
+                all,
+            }) => list::handle(registry, context, tool.as_deref(), status, all).await,
 
             Some(Commands::Install {
                 tool,

@@ -102,8 +102,10 @@ impl VxCli {
                 status,
                 installed: _,
                 available: _,
+                all,
             } => {
-                commands::list::handle(&self.registry, &self.context, tool.as_deref(), status).await
+                commands::list::handle(&self.registry, &self.context, tool.as_deref(), status, all)
+                    .await
             }
             Commands::Install {
                 tool,

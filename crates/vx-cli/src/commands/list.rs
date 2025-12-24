@@ -4,13 +4,14 @@ use crate::ui::UI;
 use anyhow::Result;
 use std::collections::HashSet;
 use vx_paths::{PathManager, PathResolver};
-use vx_runtime::{ProviderRegistry, RuntimeContext};
+use vx_runtime::{Platform, ProviderRegistry, RuntimeContext};
 
 pub async fn handle(
     registry: &ProviderRegistry,
     _context: &RuntimeContext,
     tool: Option<&str>,
     show_status: bool,
+    show_all: bool,
 ) -> Result<()> {
     // Create path manager and resolver
     let path_manager = PathManager::new()
@@ -19,12 +20,12 @@ pub async fn handle(
 
     match tool {
         Some(tool_name) => {
-            // List versions for a specific tool
+            // List versions for a specific tool (always show regardless of platform)
             list_tool_versions(registry, &resolver, tool_name, show_status).await?;
         }
         None => {
-            // List all tools
-            list_all_tools(registry, &resolver, show_status).await?;
+            // List all tools with optional platform filtering
+            list_all_tools(registry, &resolver, show_status, show_all).await?;
         }
     }
     Ok(())
@@ -46,7 +47,19 @@ async fn list_tool_versions(
     }
 
     let runtime = runtime.unwrap();
-    UI::info(&format!("📦 {}", tool_name));
+    let current_platform = Platform::current();
+    let platform_supported = runtime.is_platform_supported(&current_platform);
+
+    // Show tool name with platform support indicator
+    if platform_supported {
+        UI::info(&format!("📦 {}", tool_name));
+    } else {
+        UI::info(&format!(
+            "📦 {} ⚠️  (not supported on {})",
+            tool_name,
+            current_platform.as_str()
+        ));
+    }
 
     // Check if this tool is bundled with another tool
     let bundled_with = runtime.metadata().get("bundled_with").cloned();
@@ -91,10 +104,15 @@ async fn list_tool_versions(
                     "  This tool is bundled with '{}'. Install {} to get {}.",
                     parent_tool, parent_tool, tool_name
                 ));
-            } else {
+            } else if platform_supported {
                 UI::hint(&format!(
                     "  Use 'vx install {}' to install this tool",
                     tool_name
+                ));
+            } else {
+                UI::hint(&format!(
+                    "  This tool is not available on {}",
+                    current_platform.as_str()
                 ));
             }
         }
@@ -146,8 +164,9 @@ async fn list_all_tools(
     registry: &ProviderRegistry,
     resolver: &PathResolver,
     show_status: bool,
+    show_all: bool,
 ) -> Result<()> {
-    UI::info("📦 Available Tools:");
+    let current_platform = Platform::current();
 
     // Get all supported tools from registry
     let supported_tools = registry.runtime_names();
@@ -175,26 +194,82 @@ async fn list_all_tools(
     }
 
     let mut installed_count = 0;
+    let mut shown_count = 0;
+    let mut hidden_count = 0;
 
+    // First pass: count and collect tools to display
+    let mut tools_to_display = Vec::new();
     for tool_name in &supported_tools {
-        let is_directly_installed = directly_installed.contains(tool_name.as_str());
+        // Check platform support
+        let platform_supported = if let Some(runtime) = registry.get_runtime(tool_name) {
+            runtime.is_platform_supported(&current_platform)
+        } else {
+            true
+        };
+
+        // If not supported and not showing all, skip
+        if !platform_supported && !show_all {
+            hidden_count += 1;
+            continue;
+        }
+
+        tools_to_display.push((tool_name.clone(), platform_supported));
+    }
+
+    // Print header
+    if show_all && hidden_count == 0 {
+        UI::info("📦 Available Tools:");
+    } else if show_all {
+        UI::info(&format!(
+            "📦 Available Tools (showing all, including {} unsupported):",
+            hidden_count
+        ));
+        // Reset hidden_count since we're showing all
+        hidden_count = 0;
+    } else {
+        UI::info(&format!(
+            "📦 Available Tools ({})",
+            current_platform.as_str()
+        ));
+    }
+
+    // Second pass: display tools
+    for (tool_name, platform_supported) in &tools_to_display {
         let is_available = available_tools.contains(tool_name);
-        let status_icon = if is_available { "✅" } else { "❌" };
+
+        shown_count += 1;
+
+        // Status icon: ✅ installed, ❌ not installed, ⚠️ not supported on this platform
+        let status_icon = if is_available {
+            "✅"
+        } else if !platform_supported {
+            "⚠️ "
+        } else {
+            "❌"
+        };
 
         if is_available {
             installed_count += 1;
         }
 
         if let Some(runtime) = registry.get_runtime(tool_name) {
+            let platform_note = if !platform_supported {
+                format!(" (not supported on {})", current_platform.as_str())
+            } else {
+                String::new()
+            };
+
             println!(
-                "  {} {} - {}",
+                "  {} {} - {}{}",
                 status_icon,
                 tool_name,
-                runtime.description()
+                runtime.description(),
+                platform_note
             );
 
             if show_status && is_available {
                 // Find versions for this tool
+                let is_directly_installed = directly_installed.contains(tool_name.as_str());
                 if is_directly_installed {
                     if let Some((_, versions)) = installed_tools_with_versions
                         .iter()
@@ -227,10 +302,18 @@ async fn list_all_tools(
 
     // Show summary
     if show_status {
-        let total_supported = supported_tools.len();
         UI::info(&format!(
             "\n📊 Summary: {}/{} tools installed",
-            installed_count, total_supported
+            installed_count, shown_count
+        ));
+    }
+
+    // Show hint about hidden tools
+    if hidden_count > 0 && !show_all {
+        UI::hint(&format!(
+            "   {} tools hidden (not supported on {}). Use --all to show all.",
+            hidden_count,
+            current_platform.as_str()
         ));
     }
 
