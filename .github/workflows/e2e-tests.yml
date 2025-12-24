@@ -124,6 +124,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: ./bin
+
+      - name: Setup vx in PATH
+        shell: bash
+        run: |
+          chmod +x ./bin/${{ matrix.binary }} 2>/dev/null || true
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+          # Also copy to target/release for test compatibility
+          mkdir -p target/release
+          cp ./bin/${{ matrix.binary }} target/release/
+
+      - name: Cache vx tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.vx
+          key: ${{ runner.os }}-vx-e2e-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-vx-e2e-
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -139,44 +162,34 @@ jobs:
             ${{ runner.os }}-cargo-e2e-
             ${{ runner.os }}-cargo-
 
-      - name: Download vx binary
-        uses: actions/download-artifact@v7
-        with:
-          name: ${{ matrix.artifact }}
-          path: target/release
-
-      - name: Make binary executable
-        if: runner.os != 'Windows'
-        run: chmod +x target/release/${{ matrix.binary }}
-
-      - name: Verify binary works
+      - name: Verify vx works
         shell: bash
-        run: ./target/release/${{ matrix.binary }} --version
+        run: vx --version
 
-      - name: Run E2E tests
+      - name: Run E2E tests (via vx)
         shell: bash
-        run: cargo test --package vx-cli --test e2e_tests -- --nocapture
+        run: vx cargo test --package vx-cli --test e2e_tests -- --nocapture
         env:
           VX_BINARY: ${{ github.workspace }}/target/release/${{ matrix.binary }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run CLI integration tests
+      - name: Run CLI integration tests (via vx)
         shell: bash
-        run: cargo test --package vx-cli --test cli_integration_tests -- --nocapture
+        run: vx cargo test --package vx-cli --test cli_integration_tests -- --nocapture
         env:
           VX_BINARY: ${{ github.workspace }}/target/release/${{ matrix.binary }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run tool execution tests
+      - name: Run tool execution tests (via vx)
         shell: bash
-        run: cargo test --package vx-cli --test tool_execution_tests -- --nocapture
+        run: vx cargo test --package vx-cli --test tool_execution_tests -- --nocapture
         env:
           VX_BINARY: ${{ github.workspace }}/target/release/${{ matrix.binary }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run tool E2E tests
+      - name: Run tool E2E tests (via vx)
         shell: bash
-        run: cargo test --package vx-cli --test tool_e2e_tests -- --nocapture
+        run: vx cargo test --package vx-cli --test tool_e2e_tests -- --nocapture
         env:
           VX_BINARY: ${{ github.workspace }}/target/release/${{ matrix.binary }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -284,6 +297,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: ./bin
+
+      - name: Setup vx in PATH
+        shell: bash
+        run: |
+          chmod +x ./bin/${{ matrix.binary }} 2>/dev/null || true
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+          mkdir -p target/release
+          cp ./bin/${{ matrix.binary }} target/release/
+
+      - name: Cache vx tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.vx
+          key: ${{ runner.os }}-vx-real-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-vx-real-
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -299,38 +334,13 @@ jobs:
             ${{ runner.os }}-cargo-real-
             ${{ runner.os }}-cargo-
 
-      - name: Cache vx tools
-        uses: actions/cache@v5
-        with:
-          path: ~/.vx
-          key: ${{ runner.os }}-vx-tools-v1-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-vx-tools-v1-
-
-      - name: Download vx binary
-        uses: actions/download-artifact@v7
-        with:
-          name: ${{ matrix.artifact }}
-          path: target/release
-
-      - name: Setup vx in PATH
-        shell: bash
-        run: |
-          chmod +x target/release/${{ matrix.binary }} 2>/dev/null || true
-          mkdir -p ~/.local/bin
-          cp target/release/${{ matrix.binary }} ~/.local/bin/
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
       - name: Verify vx works
         shell: bash
-        run: |
-          echo "Binary location:"
-          which vx || which vx.exe || echo "vx not in PATH, using direct path"
-          ~/.local/bin/${{ matrix.binary }} --version
+        run: vx --version
 
-      - name: Run real tool tests
+      - name: Run real tool tests (via vx)
         shell: bash
-        run: cargo test --package vx-cli --test real_tool_tests -- --ignored --nocapture --test-threads=1
+        run: vx cargo test --package vx-cli --test real_tool_tests -- --ignored --nocapture --test-threads=1
         env:
           VX_BINARY: ${{ github.workspace }}/target/release/${{ matrix.binary }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
