@@ -20,7 +20,7 @@ permissions:
   packages: write
 
 env:
-  DOCKER_HUB_REPO: loonghao/vx
+  DOCKER_HUB_REPO: longhal/vx
   GHCR_REPO: ghcr.io/loonghao/vx
 
 jobs:
