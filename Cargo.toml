@@ -25,6 +25,7 @@ members = [
   "crates/vx-providers/kubectl",
   "crates/vx-providers/helm",
   "crates/vx-providers/rcedit",
+  "crates/vx-providers/git",
 ]
 resolver = "2"
 
@@ -111,6 +112,7 @@ vx-provider-terraform = { path = "crates/vx-providers/terraform" }
 vx-provider-kubectl = { path = "crates/vx-providers/kubectl" }
 vx-provider-helm = { path = "crates/vx-providers/helm" }
 vx-provider-rcedit = { path = "crates/vx-providers/rcedit" }
+vx-provider-git = { path = "crates/vx-providers/git" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }
