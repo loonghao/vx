@@ -31,6 +31,14 @@ const enSidebar = {
       ]
     }
   ],
+  '/guides/': [
+    {
+      text: 'Guides',
+      items: [
+        { text: 'GitHub Action', link: '/guides/github-action' }
+      ]
+    }
+  ],
   '/cli/': [
     {
       text: 'CLI Reference',
@@ -206,6 +214,7 @@ export default defineConfig({
           { text: 'CLI', link: '/zh/cli/overview' },
           { text: '配置', link: '/zh/config/vx-toml' },
           { text: '工具', link: '/zh/tools/overview' },
+          { text: 'GitHub Action', link: '/guides/github-action' },
           {
             text: '更多',
             items: [
@@ -252,6 +261,7 @@ export default defineConfig({
       { text: 'CLI', link: '/cli/overview' },
       { text: 'Config', link: '/config/vx-toml' },
       { text: 'Tools', link: '/tools/overview' },
+      { text: 'GitHub Action', link: '/guides/github-action' },
       {
         text: 'More',
         items: [

@@ -210,6 +210,84 @@ jobs:
       - run: vx uv --version    # Uses 0.4.0
 ```
 
+### One-Click Setup with vx setup
+
+The most powerful way to use vx in CI is with `vx setup`. This command reads your `.vx.toml` and automatically:
+
+1. Installs all required tools with pinned versions
+2. Sets up Python virtual environment (if configured)
+3. Installs Python dependencies
+4. Verifies environment variables
+
+**Example `.vx.toml`:**
+
+```toml
+[project]
+name = "my-fullstack-app"
+description = "A full-stack application"
+
+[tools]
+node = "20"
+uv = "latest"
+go = "1.22"
+
+[python]
+version = "3.11"
+venv = ".venv"
+
+[python.dependencies]
+requirements = ["requirements.txt", "requirements-dev.txt"]
+packages = ["pytest", "black", "ruff"]
+
+[env]
+NODE_ENV = "production"
+
+[scripts]
+test = "pytest"
+build = "npm run build"
+lint = "ruff check ."
+```
+
+**GitHub Actions workflow:**
+
+```yaml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: loonghao/vx@v1
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+
+      # One command to setup everything!
+      - name: Setup development environment
+        run: vx setup
+
+      # Now run your scripts
+      - run: vx run lint
+      - run: vx run test
+      - run: vx run build
+```
+
+This approach ensures:
+
+- **Consistency**: Local and CI environments use identical tool versions
+- **Simplicity**: One command replaces multiple setup actions
+- **Reproducibility**: Just copy `.vx.toml` to any project for the same setup
+
+::: tip Share Your Configuration
+Commit `.vx.toml` to your repository. New team members can run `vx setup` to get the exact same development environment in seconds.
+:::
+
 ## Caching
 
 The action automatically caches the vx tools directory (`~/.vx`) to speed up subsequent runs. You can customize the cache behavior:
