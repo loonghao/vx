@@ -226,10 +226,18 @@ install_from_release() {
     download_success=false
     local download_url="$BASE_URL/download/$tag_name/$archive_name"
 
+    # Prepare auth header for download if token is available
+    local curl_auth_opts=""
+    local wget_auth_opts=""
+    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+        curl_auth_opts="-H \"Authorization: Bearer $GITHUB_TOKEN\""
+        wget_auth_opts="--header=\"Authorization: Bearer $GITHUB_TOKEN\""
+    fi
+
     info "Downloading from GitHub Releases: $download_url"
 
     if command -v curl >/dev/null 2>&1; then
-        if curl -fsSL --connect-timeout 10 --max-time 60 "$download_url" -o "$temp_dir/$archive_name" 2>/dev/null; then
+        if eval curl -fsSL --connect-timeout 10 --max-time 120 $curl_auth_opts "\"$download_url\"" -o "\"$temp_dir/$archive_name\"" 2>/dev/null; then
             # Verify download
             if [[ -f "$temp_dir/$archive_name" ]] && [[ $(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0) -gt 1024 ]]; then
                 local file_size=$(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0)
@@ -238,7 +246,7 @@ install_from_release() {
             fi
         fi
     elif command -v wget >/dev/null 2>&1; then
-        if wget -q --timeout=60 "$download_url" -O "$temp_dir/$archive_name" 2>/dev/null; then
+        if eval wget -q --timeout=120 $wget_auth_opts "\"$download_url\"" -O "\"$temp_dir/$archive_name\"" 2>/dev/null; then
             # Verify download
             if [[ -f "$temp_dir/$archive_name" ]] && [[ $(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0) -gt 1024 ]]; then
                 local file_size=$(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0)
@@ -259,7 +267,7 @@ install_from_release() {
         info "Downloading fallback from GitHub Releases: $fallback_url"
 
         if command -v curl >/dev/null 2>&1; then
-            if curl -fsSL --connect-timeout 10 --max-time 60 "$fallback_url" -o "$temp_dir/$fallback_archive" 2>/dev/null; then
+            if eval curl -fsSL --connect-timeout 10 --max-time 120 $curl_auth_opts "\"$fallback_url\"" -o "\"$temp_dir/$fallback_archive\"" 2>/dev/null; then
                 if [[ -f "$temp_dir/$fallback_archive" ]] && [[ $(stat -f%z "$temp_dir/$fallback_archive" 2>/dev/null || stat -c%s "$temp_dir/$fallback_archive" 2>/dev/null || echo 0) -gt 1024 ]]; then
                     archive_name="$fallback_archive"
                     success "Successfully downloaded fallback"
@@ -267,7 +275,7 @@ install_from_release() {
                 fi
             fi
         elif command -v wget >/dev/null 2>&1; then
-            if wget -q --timeout=60 "$fallback_url" -O "$temp_dir/$fallback_archive" 2>/dev/null; then
+            if eval wget -q --timeout=120 $wget_auth_opts "\"$fallback_url\"" -O "\"$temp_dir/$fallback_archive\"" 2>/dev/null; then
                 if [[ -f "$temp_dir/$fallback_archive" ]] && [[ $(stat -f%z "$temp_dir/$fallback_archive" 2>/dev/null || stat -c%s "$temp_dir/$fallback_archive" 2>/dev/null || echo 0) -gt 1024 ]]; then
                     archive_name="$fallback_archive"
                     success "Successfully downloaded fallback"

@@ -60,30 +60,97 @@ runs:
       shell: bash
       env:
         VX_VERSION: ${{ inputs.version }}
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-        VX_INSTALL_DIR: ${{ runner.temp }}/vx-bin
+        GH_TOKEN: ${{ inputs.github-token }}
       run: |
+        set -e
+
+        INSTALL_DIR="$HOME/.local/bin"
+        mkdir -p "$INSTALL_DIR"
+
         # Skip download if already cached
-        if [ -f "$HOME/.local/bin/vx" ]; then
+        if [ -f "$INSTALL_DIR/vx" ]; then
           echo "vx already installed (from cache)"
-          VX_BIN="$HOME/.local/bin/vx"
         else
-          echo "Installing vx $VX_VERSION..."
+          echo "Installing vx..."
 
-          # Create install directory
-          mkdir -p "$VX_INSTALL_DIR"
+          # Determine version
+          if [ "$VX_VERSION" = "latest" ]; then
+            echo "Fetching latest version..."
+            TAG_NAME=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/loonghao/vx/releases/latest" | \
+              grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          else
+            # Handle version format
+            if [[ "$VX_VERSION" =~ ^vx-v ]]; then
+              TAG_NAME="$VX_VERSION"
+            elif [[ "$VX_VERSION" =~ ^v ]]; then
+              TAG_NAME="vx-$VX_VERSION"
+            else
+              TAG_NAME="vx-v$VX_VERSION"
+            fi
+          fi
 
-          # Download and run installer
-          curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+          echo "Installing vx $TAG_NAME..."
 
-          VX_BIN="$HOME/.local/bin/vx"
+          # Detect platform
+          OS=$(uname -s)
+          ARCH=$(uname -m)
+
+          case "$OS" in
+            Linux)
+              case "$ARCH" in
+                x86_64)  TARGET="x86_64-unknown-linux-musl" ;;
+                aarch64) TARGET="aarch64-unknown-linux-musl" ;;
+                *)       echo "Unsupported architecture: $ARCH"; exit 1 ;;
+              esac
+              ;;
+            Darwin)
+              case "$ARCH" in
+                x86_64)  TARGET="x86_64-apple-darwin" ;;
+                arm64)   TARGET="aarch64-apple-darwin" ;;
+                *)       echo "Unsupported architecture: $ARCH"; exit 1 ;;
+              esac
+              ;;
+            *)
+              echo "Unsupported OS: $OS"
+              exit 1
+              ;;
+          esac
+
+          ARCHIVE_NAME="vx-${TARGET}.tar.gz"
+          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/${ARCHIVE_NAME}"
+
+          echo "Downloading from: $DOWNLOAD_URL"
+
+          # Download with authentication
+          TEMP_DIR=$(mktemp -d)
+          trap 'rm -rf "$TEMP_DIR"' EXIT
+
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/octet-stream" \
+            "$DOWNLOAD_URL" -o "$TEMP_DIR/$ARCHIVE_NAME"
+
+          # Extract
+          tar -xzf "$TEMP_DIR/$ARCHIVE_NAME" -C "$TEMP_DIR"
+
+          # Find and install binary
+          BINARY_PATH=$(find "$TEMP_DIR" -name "vx" -type f | head -n1)
+          if [ -z "$BINARY_PATH" ]; then
+            echo "vx binary not found in archive"
+            exit 1
+          fi
+
+          cp "$BINARY_PATH" "$INSTALL_DIR/vx"
+          chmod +x "$INSTALL_DIR/vx"
+
+          echo "vx installed to $INSTALL_DIR/vx"
         fi
 
         # Add to PATH
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        echo "$INSTALL_DIR" >> $GITHUB_PATH
 
         # Verify installation
-        "$VX_BIN" --version
+        "$INSTALL_DIR/vx" --version
 
     # Install vx on Windows
     - name: Install vx (Windows)
@@ -92,21 +159,77 @@ runs:
       shell: pwsh
       env:
         VX_VERSION: ${{ inputs.version }}
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GH_TOKEN: ${{ inputs.github-token }}
       run: |
+        $ErrorActionPreference = "Stop"
+
+        $InstallDir = "$env:USERPROFILE\.local\bin"
+        New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+
+        $vxPath = "$InstallDir\vx.exe"
+
         # Skip download if already cached
-        $vxPath = "$env:USERPROFILE\.local\bin\vx.exe"
         if (Test-Path $vxPath) {
           Write-Host "vx already installed (from cache)"
         } else {
-          Write-Host "Installing vx $env:VX_VERSION..."
+          Write-Host "Installing vx..."
 
-          # Download and run installer
-          irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+          # Determine version
+          if ($env:VX_VERSION -eq "latest") {
+            Write-Host "Fetching latest version..."
+            $headers = @{ "Authorization" = "Bearer $env:GH_TOKEN" }
+            $response = Invoke-RestMethod -Uri "https://api.github.com/repos/loonghao/vx/releases/latest" -Headers $headers
+            $TagName = $response.tag_name
+          } else {
+            if ($env:VX_VERSION -match '^vx-v') {
+              $TagName = $env:VX_VERSION
+            } elseif ($env:VX_VERSION -match '^v') {
+              $TagName = "vx-$env:VX_VERSION"
+            } else {
+              $TagName = "vx-v$env:VX_VERSION"
+            }
+          }
+
+          Write-Host "Installing vx $TagName..."
+
+          # Detect architecture
+          $arch = if ([Environment]::Is64BitOperatingSystem) { "x86_64" } else { "i686" }
+          $Target = "$arch-pc-windows-msvc"
+          $ArchiveName = "vx-$Target.zip"
+          $DownloadUrl = "https://github.com/loonghao/vx/releases/download/$TagName/$ArchiveName"
+
+          Write-Host "Downloading from: $DownloadUrl"
+
+          # Download with authentication
+          $TempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
+          $ArchivePath = Join-Path $TempDir $ArchiveName
+
+          $headers = @{
+            "Authorization" = "Bearer $env:GH_TOKEN"
+            "Accept" = "application/octet-stream"
+          }
+          Invoke-WebRequest -Uri $DownloadUrl -OutFile $ArchivePath -Headers $headers
+
+          # Extract
+          Expand-Archive -Path $ArchivePath -DestinationPath $TempDir -Force
+
+          # Find and install binary
+          $BinaryPath = Get-ChildItem -Path $TempDir -Name "vx.exe" -Recurse | Select-Object -First 1
+          if (-not $BinaryPath) {
+            Write-Error "vx.exe not found in archive"
+            exit 1
+          }
+
+          Copy-Item -Path (Join-Path $TempDir $BinaryPath) -Destination $vxPath -Force
+
+          # Cleanup
+          Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+
+          Write-Host "vx installed to $vxPath"
         }
 
         # Add to PATH
-        "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        $InstallDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
         # Verify installation
         & $vxPath --version
