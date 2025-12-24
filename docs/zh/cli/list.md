@@ -68,4 +68,3 @@ Rust Ecosystem:
 ## 参见
 
 - [install](./install) - 安装工具
-- [versions](./versions) - 显示可用版本

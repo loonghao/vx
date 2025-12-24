@@ -56,4 +56,3 @@ vx install node --force
 ## 参见
 
 - [list](./list) - 列出可用工具
-- [uninstall](./uninstall) - 卸载工具

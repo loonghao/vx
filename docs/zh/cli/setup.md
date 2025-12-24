@@ -45,5 +45,4 @@ vx setup --verbose
 
 ## 参见
 
-- [init](./init) - 初始化项目配置
 - [项目环境](/zh/guide/project-environments) - 项目环境配置
