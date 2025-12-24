@@ -1,0 +1,139 @@
+name: 'Setup vx'
+description: 'Setup vx - Universal Development Tool Manager for your CI/CD workflows'
+author: 'loonghao'
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  version:
+    description: 'vx version to install (e.g., "0.5.7", "latest")'
+    required: false
+    default: 'latest'
+  github-token:
+    description: 'GitHub token for API requests (avoids rate limiting)'
+    required: false
+    default: ${{ github.token }}
+  tools:
+    description: 'Space-separated list of tools to pre-install (e.g., "node go uv")'
+    required: false
+    default: ''
+  cache:
+    description: 'Enable caching of vx tools directory'
+    required: false
+    default: 'true'
+  cache-key-prefix:
+    description: 'Custom prefix for cache key'
+    required: false
+    default: 'vx-tools'
+
+outputs:
+  version:
+    description: 'The installed vx version'
+    value: ${{ steps.setup.outputs.version }}
+  cache-hit:
+    description: 'Whether the cache was hit'
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: 'composite'
+  steps:
+    # Cache vx tools directory
+    - name: Cache vx tools
+      if: inputs.cache == 'true'
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.vx
+          ~/.local/bin/vx
+          ~/.local/bin/vx.exe
+        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ inputs.version }}-${{ inputs.tools }}
+        restore-keys: |
+          ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ inputs.version }}-
+          ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
+
+    # Install vx on Linux/macOS
+    - name: Install vx (Unix)
+      if: runner.os != 'Windows'
+      id: install-unix
+      shell: bash
+      env:
+        VX_VERSION: ${{ inputs.version }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        VX_INSTALL_DIR: ${{ runner.temp }}/vx-bin
+      run: |
+        # Skip download if already cached
+        if [ -f "$HOME/.local/bin/vx" ]; then
+          echo "vx already installed (from cache)"
+          VX_BIN="$HOME/.local/bin/vx"
+        else
+          echo "Installing vx $VX_VERSION..."
+
+          # Create install directory
+          mkdir -p "$VX_INSTALL_DIR"
+
+          # Download and run installer
+          curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+          VX_BIN="$HOME/.local/bin/vx"
+        fi
+
+        # Add to PATH
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+        # Verify installation
+        "$VX_BIN" --version
+
+    # Install vx on Windows
+    - name: Install vx (Windows)
+      if: runner.os == 'Windows'
+      id: install-windows
+      shell: pwsh
+      env:
+        VX_VERSION: ${{ inputs.version }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        # Skip download if already cached
+        $vxPath = "$env:USERPROFILE\.local\bin\vx.exe"
+        if (Test-Path $vxPath) {
+          Write-Host "vx already installed (from cache)"
+        } else {
+          Write-Host "Installing vx $env:VX_VERSION..."
+
+          # Download and run installer
+          irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+        }
+
+        # Add to PATH
+        "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+        # Verify installation
+        & $vxPath --version
+
+    # Get installed version
+    - name: Get vx version
+      id: setup
+      shell: bash
+      run: |
+        VERSION=$(vx --version | head -1 | awk '{print $2}')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "vx version: $VERSION"
+
+    # Pre-install specified tools
+    - name: Pre-install tools
+      if: inputs.tools != ''
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        echo "Pre-installing tools: ${{ inputs.tools }}"
+        for tool in ${{ inputs.tools }}; do
+          echo "Installing $tool..."
+          vx $tool --version || echo "Warning: Failed to install $tool"
+        done
+
+        # Show installed tools
+        echo ""
+        echo "Installed tools:"
+        vx list --status

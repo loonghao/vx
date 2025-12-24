@@ -459,6 +459,22 @@ docker pull loonghao/vx:latest
 docker run --rm loonghao/vx --version
 ```
 
+### GitHub Actions
+
+在 CI/CD 工作流中使用 vx：
+
+```yaml
+- uses: loonghao/vx@v1
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+
+- run: vx node --version
+- run: vx npm ci
+- run: vx npm test
+```
+
+详细文档请参阅 [GitHub Action 指南](docs/guides/github-action.md)。
+
 ---
 
 ## 🤝 贡献
