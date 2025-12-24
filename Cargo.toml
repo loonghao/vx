@@ -26,6 +26,7 @@ members = [
   "crates/vx-providers/helm",
   "crates/vx-providers/rcedit",
   "crates/vx-providers/git",
+  "crates/vx-providers/choco",
 ]
 resolver = "2"
 
@@ -113,6 +114,7 @@ vx-provider-kubectl = { path = "crates/vx-providers/kubectl" }
 vx-provider-helm = { path = "crates/vx-providers/helm" }
 vx-provider-rcedit = { path = "crates/vx-providers/rcedit" }
 vx-provider-git = { path = "crates/vx-providers/git" }
+vx-provider-choco = { path = "crates/vx-providers/choco" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }

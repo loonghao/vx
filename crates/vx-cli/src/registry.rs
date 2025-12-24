@@ -66,6 +66,9 @@ pub fn create_registry() -> ProviderRegistry {
     // Register Git provider
     registry.register(vx_provider_git::create_provider());
 
+    // Register Chocolatey provider
+    registry.register(vx_provider_choco::create_provider());
+
     registry
 }
 
