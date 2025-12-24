@@ -48,7 +48,8 @@ async fn list_tool_versions(
 
     let runtime = runtime.unwrap();
     let current_platform = Platform::current();
-    let platform_supported = runtime.is_platform_supported(&current_platform);
+    let platform_supported = runtime.supported_platforms().contains(&current_platform)
+        || runtime.supported_platforms().is_empty();
 
     // Show tool name with platform support indicator
     if platform_supported {
@@ -202,7 +203,8 @@ async fn list_all_tools(
     for tool_name in &supported_tools {
         // Check platform support
         let platform_supported = if let Some(runtime) = registry.get_runtime(tool_name) {
-            runtime.is_platform_supported(&current_platform)
+            let platforms = runtime.supported_platforms();
+            platforms.is_empty() || platforms.contains(&current_platform)
         } else {
             true
         };
@@ -269,7 +271,8 @@ async fn list_all_tools(
 
             if show_status && is_available {
                 // Find versions for this tool
-                let is_directly_installed = directly_installed.contains(tool_name.as_str());
+                let tool_name_str: &str = tool_name;
+                let is_directly_installed = directly_installed.contains(tool_name_str);
                 if is_directly_installed {
                     if let Some((_, versions)) = installed_tools_with_versions
                         .iter()
