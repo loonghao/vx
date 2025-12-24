@@ -3,8 +3,15 @@
 use crate::ui::UI;
 use anyhow::Result;
 use std::collections::HashSet;
+use std::sync::Arc;
 use vx_paths::{PathManager, PathResolver};
-use vx_runtime::{Platform, ProviderRegistry, RuntimeContext};
+use vx_runtime::{Platform, ProviderRegistry, Runtime, RuntimeContext};
+
+/// Check if a runtime supports the given platform
+fn is_platform_supported(runtime: &Arc<dyn Runtime>, platform: &Platform) -> bool {
+    let platforms = runtime.supported_platforms();
+    platforms.is_empty() || platforms.iter().any(|p| p.matches(platform))
+}
 
 pub async fn handle(
     registry: &ProviderRegistry,
@@ -48,8 +55,7 @@ async fn list_tool_versions(
 
     let runtime = runtime.unwrap();
     let current_platform = Platform::current();
-    let platform_supported = runtime.supported_platforms().contains(&current_platform)
-        || runtime.supported_platforms().is_empty();
+    let platform_supported = is_platform_supported(&runtime, &current_platform);
 
     // Show tool name with platform support indicator
     if platform_supported {
@@ -202,9 +208,8 @@ async fn list_all_tools(
     let mut tools_to_display = Vec::new();
     for tool_name in &supported_tools {
         // Check platform support
-        let platform_supported = if let Some(runtime) = registry.get_runtime(tool_name) {
-            let platforms = runtime.supported_platforms();
-            platforms.is_empty() || platforms.contains(&current_platform)
+        let platform_supported = if let Some(ref runtime) = registry.get_runtime(tool_name) {
+            is_platform_supported(runtime, &current_platform)
         } else {
             true
         };
