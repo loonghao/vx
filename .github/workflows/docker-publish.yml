@@ -43,9 +43,15 @@ jobs:
               jq -r '.tag_name // empty')
           fi
 
+          echo "Raw version from release: $VERSION"
+
+          # Store original version for downloading release assets
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "version_short=${VERSION#v}" >> $GITHUB_OUTPUT
-          echo "Detected version: $VERSION"
+
+          # Extract short version: vx-v0.5.15 -> 0.5.15, v0.5.15 -> 0.5.15
+          VERSION_SHORT=$(echo "${VERSION}" | sed -E 's/^(vx-)?v//')
+          echo "version_short=${VERSION_SHORT}" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION, short version: $VERSION_SHORT"
 
   build-and-push:
     needs: check-release
@@ -116,10 +122,10 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: true
           tags: |
-            ${{ env.DOCKER_HUB_REPO }}:${{ needs.check-release.outputs.version }}-${{ steps.platform.outputs.suffix }}
-            ${{ env.GHCR_REPO }}:${{ needs.check-release.outputs.version }}-${{ steps.platform.outputs.suffix }}
+            ${{ env.DOCKER_HUB_REPO }}:${{ needs.check-release.outputs.version_short }}-${{ steps.platform.outputs.suffix }}
+            ${{ env.GHCR_REPO }}:${{ needs.check-release.outputs.version_short }}-${{ steps.platform.outputs.suffix }}
           labels: |
-            org.opencontainers.image.version=${{ needs.check-release.outputs.version }}
+            org.opencontainers.image.version=${{ needs.check-release.outputs.version_short }}
             org.opencontainers.image.revision=${{ github.sha }}
 
   create-manifest:
@@ -141,49 +147,39 @@ jobs:
 
       - name: Create and push Docker Hub manifest
         run: |
-          VERSION="${{ needs.check-release.outputs.version }}"
           VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
 
-          # Create versioned manifest
-          docker manifest create ${{ env.DOCKER_HUB_REPO }}:${VERSION} \
-            ${{ env.DOCKER_HUB_REPO }}:${VERSION}-linux-amd64 \
-            ${{ env.DOCKER_HUB_REPO }}:${VERSION}-linux-arm64
-          docker manifest push ${{ env.DOCKER_HUB_REPO }}:${VERSION}
+          echo "Creating Docker Hub manifests for version: ${VERSION_SHORT}"
+
+          # Create versioned manifest (e.g., 0.5.15)
+          docker manifest create ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT} \
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT}-linux-amd64 \
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT}-linux-arm64
+          docker manifest push ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT}
 
           # Create latest manifest
           docker manifest create ${{ env.DOCKER_HUB_REPO }}:latest \
-            ${{ env.DOCKER_HUB_REPO }}:${VERSION}-linux-amd64 \
-            ${{ env.DOCKER_HUB_REPO }}:${VERSION}-linux-arm64
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT}-linux-amd64 \
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT}-linux-arm64
           docker manifest push ${{ env.DOCKER_HUB_REPO }}:latest
-
-          # Create short version manifest (e.g., 0.4.1)
-          docker manifest create ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT} \
-            ${{ env.DOCKER_HUB_REPO }}:${VERSION}-linux-amd64 \
-            ${{ env.DOCKER_HUB_REPO }}:${VERSION}-linux-arm64
-          docker manifest push ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT}
 
       - name: Create and push GHCR manifest
         run: |
-          VERSION="${{ needs.check-release.outputs.version }}"
           VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
 
-          # Create versioned manifest
-          docker manifest create ${{ env.GHCR_REPO }}:${VERSION} \
-            ${{ env.GHCR_REPO }}:${VERSION}-linux-amd64 \
-            ${{ env.GHCR_REPO }}:${VERSION}-linux-arm64
-          docker manifest push ${{ env.GHCR_REPO }}:${VERSION}
+          echo "Creating GHCR manifests for version: ${VERSION_SHORT}"
+
+          # Create versioned manifest (e.g., 0.5.15)
+          docker manifest create ${{ env.GHCR_REPO }}:${VERSION_SHORT} \
+            ${{ env.GHCR_REPO }}:${VERSION_SHORT}-linux-amd64 \
+            ${{ env.GHCR_REPO }}:${VERSION_SHORT}-linux-arm64
+          docker manifest push ${{ env.GHCR_REPO }}:${VERSION_SHORT}
 
           # Create latest manifest
           docker manifest create ${{ env.GHCR_REPO }}:latest \
-            ${{ env.GHCR_REPO }}:${VERSION}-linux-amd64 \
-            ${{ env.GHCR_REPO }}:${VERSION}-linux-arm64
+            ${{ env.GHCR_REPO }}:${VERSION_SHORT}-linux-amd64 \
+            ${{ env.GHCR_REPO }}:${VERSION_SHORT}-linux-arm64
           docker manifest push ${{ env.GHCR_REPO }}:latest
-
-          # Create short version manifest
-          docker manifest create ${{ env.GHCR_REPO }}:${VERSION_SHORT} \
-            ${{ env.GHCR_REPO }}:${VERSION}-linux-amd64 \
-            ${{ env.GHCR_REPO }}:${VERSION}-linux-arm64
-          docker manifest push ${{ env.GHCR_REPO }}:${VERSION_SHORT}
 
   summary:
     needs: [check-release, create-manifest]
@@ -192,18 +188,18 @@ jobs:
     steps:
       - name: Summary
         run: |
-          VERSION="${{ needs.check-release.outputs.version }}"
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
           echo "## Docker Image Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Pull Commands" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
           echo "# Docker Hub" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull loonghao/vx:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull loonghao/vx:${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
           echo "docker pull loonghao/vx:latest" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "# GitHub Container Registry" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ghcr.io/loonghao/vx:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/loonghao/vx:${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
           echo "docker pull ghcr.io/loonghao/vx:latest" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
