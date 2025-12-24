@@ -37,6 +37,7 @@ vx-provider-kubectl = { workspace = true }
 vx-provider-helm = { workspace = true }
 vx-provider-rcedit = { workspace = true }
 vx-provider-git = { workspace = true }
+vx-provider-choco = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }

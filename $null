@@ -1,0 +1,15 @@
+    Checking vx-provider-choco v0.5.15 (C:\github\vx\crates\vx-providers\choco)
+error[E0195]: lifetime parameters or bounds on method `verify_installation` do not match the trait declaration
+  --> crates\vx-providers\choco\src\runtime.rs:85:14
+   |
+85 |       async fn verify_installation(
+   |  ______________^
+86 | |         &self,
+87 | |         _version: &str,
+88 | |         install_path: &Path,
+89 | |         platform: &Platform,
+90 | |     ) -> Result<VerificationResult> {
+   | |_____^ lifetimes do not match method in trait
+
+For more information about this error, try `rustc --explain E0195`.
+error: could not compile `vx-provider-choco` (lib) due to 1 previous error
