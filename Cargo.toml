@@ -27,6 +27,11 @@ members = [
   "crates/vx-providers/rcedit",
   "crates/vx-providers/git",
   "crates/vx-providers/choco",
+  # Cloud & Container providers (P0)
+  "crates/vx-providers/docker",
+  "crates/vx-providers/awscli",
+  "crates/vx-providers/azcli",
+  "crates/vx-providers/gcloud",
 ]
 resolver = "2"
 
@@ -115,6 +120,10 @@ vx-provider-helm = { path = "crates/vx-providers/helm" }
 vx-provider-rcedit = { path = "crates/vx-providers/rcedit" }
 vx-provider-git = { path = "crates/vx-providers/git" }
 vx-provider-choco = { path = "crates/vx-providers/choco" }
+vx-provider-docker = { path = "crates/vx-providers/docker" }
+vx-provider-awscli = { path = "crates/vx-providers/awscli" }
+vx-provider-azcli = { path = "crates/vx-providers/azcli" }
+vx-provider-gcloud = { path = "crates/vx-providers/gcloud" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }
