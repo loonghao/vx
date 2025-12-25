@@ -123,7 +123,7 @@ mod path_environment_tests {
         let separator = if cfg!(windows) { ";" } else { ":" };
 
         // Build a mock PATH
-        let paths = vec!["/usr/bin", "/home/user/.vx/bin", "/opt/tools"];
+        let paths = ["/usr/bin", "/home/user/.vx/bin", "/opt/tools"];
         let joined = paths.join(separator);
 
         if cfg!(windows) {
@@ -343,11 +343,10 @@ mod script_env_tests {
 
         // Simulate what build_script_environment does
         let mut env_vars: HashMap<String, String> = HashMap::new();
-        let mut path_entries: Vec<String> = Vec::new();
-
-        // Add mock tool paths
-        path_entries.push("/home/user/.vx/store/uv/0.7.12/bin".to_string());
-        path_entries.push("/home/user/.vx/store/node/22.0.0/bin".to_string());
+        let path_entries = vec![
+            "/home/user/.vx/store/uv/0.7.12/bin".to_string(),
+            "/home/user/.vx/store/node/22.0.0/bin".to_string(),
+        ];
 
         let separator = if cfg!(windows) { ";" } else { ":" };
         let current_path = std::env::var("PATH").unwrap_or_default();
