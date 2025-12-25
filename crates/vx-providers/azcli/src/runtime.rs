@@ -61,14 +61,7 @@ impl Runtime for AzCliRuntime {
     }
 
     fn supported_platforms(&self) -> Vec<Platform> {
-        vec![
-            Platform::linux_x64(),
-            Platform::linux_arm64(),
-            Platform::macos_x64(),
-            Platform::macos_arm64(),
-            Platform::windows_x64(),
-            Platform::windows_arm64(),
-        ]
+        Platform::all_common()
     }
 
     /// Azure CLI executable path varies by platform
@@ -110,12 +103,15 @@ impl Runtime for AzCliRuntime {
     ) -> VerificationResult {
         let exe_path = install_path.join(self.executable_relative_path(version, platform));
         if exe_path.exists() {
-            VerificationResult::success()
+            VerificationResult::success(exe_path)
         } else {
-            VerificationResult::failure(format!(
-                "Azure CLI executable not found at {}",
-                exe_path.display()
-            ))
+            VerificationResult::failure(
+                vec![format!(
+                    "Azure CLI executable not found at {}",
+                    exe_path.display()
+                )],
+                vec![],
+            )
         }
     }
 }

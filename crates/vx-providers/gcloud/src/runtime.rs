@@ -19,10 +19,6 @@ impl GcloudRuntime {
 
     /// Fetch versions from Google Cloud SDK version API
     async fn fetch_gcloud_versions(&self) -> Result<Vec<VersionInfo>> {
-        // Google Cloud SDK provides a version manifest
-        // We'll fetch recent versions from their API
-        let client = reqwest::Client::new();
-
         // Google doesn't have a public version API, so we'll use known stable versions
         // In production, this could be enhanced to scrape the downloads page or use a cache
         let versions = vec![
@@ -32,12 +28,7 @@ impl GcloudRuntime {
 
         Ok(versions
             .into_iter()
-            .map(|v| VersionInfo {
-                version: v.to_string(),
-                release_date: None,
-                prerelease: false,
-                yanked: false,
-            })
+            .map(|v| VersionInfo::new(v))
             .collect())
     }
 }
@@ -82,14 +73,7 @@ impl Runtime for GcloudRuntime {
     }
 
     fn supported_platforms(&self) -> Vec<Platform> {
-        vec![
-            Platform::linux_x64(),
-            Platform::linux_arm64(),
-            Platform::macos_x64(),
-            Platform::macos_arm64(),
-            Platform::windows_x64(),
-            Platform::windows_arm64(),
-        ]
+        Platform::all_common()
     }
 
     /// gcloud executable path - SDK extracts to google-cloud-sdk/
@@ -112,11 +96,8 @@ impl Runtime for GcloudRuntime {
 
     /// Custom post-install for gcloud
     /// gcloud requires running install.sh/install.bat
-    async fn post_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
-        tracing::info!(
-            "Google Cloud SDK {} installed. Run 'gcloud init' to configure.",
-            version
-        );
+    async fn post_install(&self, _version: &str, _ctx: &RuntimeContext) -> Result<()> {
+        // Google Cloud SDK installed. User should run 'gcloud init' to configure.
         Ok(())
     }
 
@@ -128,12 +109,15 @@ impl Runtime for GcloudRuntime {
     ) -> VerificationResult {
         let exe_path = install_path.join(self.executable_relative_path(version, platform));
         if exe_path.exists() {
-            VerificationResult::success()
+            VerificationResult::success(exe_path)
         } else {
-            VerificationResult::failure(format!(
-                "gcloud executable not found at {}",
-                exe_path.display()
-            ))
+            VerificationResult::failure(
+                vec![format!(
+                    "gcloud executable not found at {}",
+                    exe_path.display()
+                )],
+                vec![],
+            )
         }
     }
 }

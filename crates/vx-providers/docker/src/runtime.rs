@@ -57,14 +57,7 @@ impl Runtime for DockerRuntime {
     }
 
     fn supported_platforms(&self) -> Vec<Platform> {
-        vec![
-            Platform::linux_x64(),
-            Platform::linux_arm64(),
-            Platform::macos_x64(),
-            Platform::macos_arm64(),
-            Platform::windows_x64(),
-            Platform::windows_arm64(),
-        ]
+        Platform::all_common()
     }
 
     /// Docker is extracted from archive to docker/docker
