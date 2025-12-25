@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use vx_runtime::{
-    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
+    Arch, Ecosystem, GitHubReleaseOptions, Os, Platform, Runtime, RuntimeContext, VerificationResult,
     VersionInfo,
 };
 
@@ -62,11 +62,11 @@ impl Runtime for AwsCliRuntime {
 
     fn supported_platforms(&self) -> Vec<Platform> {
         vec![
-            Platform::linux_x64(),
-            Platform::linux_arm64(),
-            Platform::macos_x64(),
-            Platform::macos_arm64(),
-            Platform::windows_x64(),
+            Platform::new(Os::Linux, Arch::X86_64),
+            Platform::new(Os::Linux, Arch::Aarch64),
+            Platform::new(Os::MacOS, Arch::X86_64),
+            Platform::new(Os::MacOS, Arch::Aarch64),
+            Platform::new(Os::Windows, Arch::X86_64),
         ]
     }
 
@@ -102,21 +102,9 @@ impl Runtime for AwsCliRuntime {
 
     /// Custom post-install for AWS CLI
     /// AWS CLI requires running an installer script on Linux
-    async fn post_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
-        use vx_runtime::Os;
-
-        let platform = Platform::current();
-
-        // On Linux, we need to run the install script
-        if platform.os == Os::Linux {
-            // The install script is at aws/install
-            // We'll handle this in the installer module
-            tracing::info!(
-                "AWS CLI {} installed. You may need to run the install script manually.",
-                version
-            );
-        }
-
+    async fn post_install(&self, _version: &str, _ctx: &RuntimeContext) -> Result<()> {
+        // On Linux, users may need to run the install script manually
+        // The install script is at aws/install
         Ok(())
     }
 
@@ -128,12 +116,15 @@ impl Runtime for AwsCliRuntime {
     ) -> VerificationResult {
         let exe_path = install_path.join(self.executable_relative_path(version, platform));
         if exe_path.exists() {
-            VerificationResult::success()
+            VerificationResult::success(exe_path)
         } else {
-            VerificationResult::failure(format!(
-                "AWS CLI executable not found at {}",
-                exe_path.display()
-            ))
+            VerificationResult::failure(
+                vec![format!(
+                    "AWS CLI executable not found at {}",
+                    exe_path.display()
+                )],
+                vec![],
+            )
         }
     }
 }
