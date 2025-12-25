@@ -6,8 +6,8 @@ Verify that `vx plugin stats` shows plugin statistics.
 $ vx plugin stats
 
 [..]
-  Total providers: 20
-  Total runtimes: 26
+  Total providers: 24
+  Total runtimes: 30
 
   Providers:
     node (3 runtimes)
@@ -30,5 +30,9 @@ $ vx plugin stats
     rcedit (1 runtimes)
     git (1 runtimes)
     choco (1 runtimes)
+    docker (1 runtimes)
+    awscli (1 runtimes)
+    azcli (1 runtimes)
+    gcloud (1 runtimes)
 
 ```
