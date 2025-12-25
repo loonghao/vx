@@ -343,7 +343,7 @@ mod script_env_tests {
 
         // Simulate what build_script_environment does
         let mut env_vars: HashMap<String, String> = HashMap::new();
-        let path_entries = vec![
+        let path_entries = [
             "/home/user/.vx/store/uv/0.7.12/bin".to_string(),
             "/home/user/.vx/store/node/22.0.0/bin".to_string(),
         ];
