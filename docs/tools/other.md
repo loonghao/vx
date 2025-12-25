@@ -2,7 +2,9 @@
 
 vx supports various other development tools.
 
-## Deno
+## Language Runtimes
+
+### Deno
 
 Secure JavaScript/TypeScript runtime.
 
@@ -15,7 +17,7 @@ vx deno compile script.ts
 vx deno task dev
 ```
 
-## Zig
+### Zig
 
 Zig programming language.
 
@@ -27,7 +29,7 @@ vx zig build
 vx zig run main.zig
 ```
 
-## Java
+### Java
 
 Java Development Kit.
 
@@ -40,7 +42,9 @@ vx javac Main.java
 vx java Main
 ```
 
-## Vite
+## Build Tools
+
+### Vite
 
 Next generation frontend tooling.
 
@@ -52,7 +56,7 @@ vx vite build
 vx vite preview
 ```
 
-## Just
+### Just
 
 Command runner (like make, but simpler).
 
@@ -62,6 +66,57 @@ vx install just latest
 vx just --list
 vx just build
 vx just test
+```
+
+### Task (go-task)
+
+Task runner / build tool alternative to Make.
+
+```bash
+vx install task latest
+
+vx task --version
+vx task build
+vx task test
+vx task --list
+```
+
+### CMake
+
+Cross-platform build system generator.
+
+```bash
+vx install cmake latest
+
+vx cmake --version
+vx cmake -B build -S .
+vx cmake --build build
+vx cmake --install build
+```
+
+### Ninja
+
+Small build system with a focus on speed.
+
+```bash
+vx install ninja latest
+
+vx ninja --version
+vx ninja -C build
+vx ninja -C build clean
+```
+
+### protoc
+
+Protocol Buffers compiler.
+
+```bash
+vx install protoc latest
+
+vx protoc --version
+vx protoc --cpp_out=. message.proto
+vx protoc --python_out=. message.proto
+vx protoc --go_out=. message.proto
 ```
 
 ## DevOps Tools
@@ -103,7 +158,78 @@ vx helm install my-release chart/
 vx helm upgrade my-release chart/
 ```
 
-## VS Code
+### Docker
+
+Container runtime and tooling.
+
+```bash
+vx install docker latest
+
+vx docker --version
+vx docker build -t myapp .
+vx docker run -it myapp
+vx docker compose up -d
+```
+
+## Cloud CLI Tools
+
+### AWS CLI
+
+Amazon Web Services command-line interface.
+
+```bash
+vx install awscli latest
+
+vx aws --version
+vx aws configure
+vx aws s3 ls
+vx aws ec2 describe-instances
+```
+
+### Azure CLI
+
+Microsoft Azure command-line interface.
+
+```bash
+vx install azcli latest
+
+vx az --version
+vx az login
+vx az group list
+vx az vm list
+```
+
+### gcloud
+
+Google Cloud Platform command-line interface.
+
+```bash
+vx install gcloud latest
+
+vx gcloud --version
+vx gcloud auth login
+vx gcloud projects list
+vx gcloud compute instances list
+```
+
+## Code Quality Tools
+
+### pre-commit
+
+Framework for managing pre-commit hooks.
+
+```bash
+vx install pre-commit latest
+
+vx pre-commit --version
+vx pre-commit install
+vx pre-commit run --all-files
+vx pre-commit autoupdate
+```
+
+## Editor & IDE
+
+### VS Code
 
 Visual Studio Code (CLI).
 
@@ -114,7 +240,9 @@ vx code .
 vx code --install-extension ms-python.python
 ```
 
-## rez
+## Specialized Tools
+
+### rez
 
 Package management system for VFX/animation.
 
@@ -125,7 +253,7 @@ vx rez --version
 vx rez env package
 ```
 
-## rcedit
+### rcedit
 
 Windows resource editor.
 
@@ -144,9 +272,17 @@ deno = "latest"
 terraform = "1.6"
 kubectl = "latest"
 helm = "latest"
+docker = "latest"
+awscli = "latest"
+pre-commit = "latest"
+cmake = "latest"
+task = "latest"
 
 [scripts]
 dev = "deno task dev"
 deploy = "terraform apply -auto-approve"
 k8s-status = "kubectl get pods -A"
+docker-build = "docker build -t myapp ."
+lint = "pre-commit run --all-files"
+build = "cmake -B build && cmake --build build"
 ```
