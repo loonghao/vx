@@ -483,7 +483,7 @@ docker run --rm loonghao/vx --version
 在 CI/CD 工作流中使用 vx：
 
 ```yaml
-- uses: loonghao/vx@v1
+- uses: loonghao/vx@vx-v0.5.15
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -491,6 +491,8 @@ docker run --rm loonghao/vx --version
 - run: vx npm ci
 - run: vx npm test
 ```
+
+> **注意**: 请使用具体的版本标签（如 `vx-v0.5.15`）而不是 `v1`。查看 [releases](https://github.com/loonghao/vx/releases) 获取最新版本。
 
 详细文档请参阅 [GitHub Action 指南](docs/guides/github-action.md)。
 
