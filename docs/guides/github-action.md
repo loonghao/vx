@@ -11,10 +11,12 @@ vx provides an official GitHub Action that makes it easy to use vx in your CI/CD
 Add the following to your GitHub Actions workflow:
 
 ```yaml
-- uses: loonghao/vx@v1
+- uses: loonghao/vx@vx-v0.5.15
   with:
     github-token: ${{secrets.GITHUB_TOKEN}}
 ```
+
+> **Note**: Use a specific version tag (e.g., `vx-v0.5.15`) instead of `v1`. Check [releases](https://github.com/loonghao/vx/releases) for the latest version.
 
 Then use vx to run any supported tool:
 
@@ -42,7 +44,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # Setup vx with caching
-      - uses: loonghao/vx@v1
+      - uses: loonghao/vx@vx-v0.5.15
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node uv'  # Pre-install these tools
@@ -87,7 +89,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@v1
+      - uses: loonghao/vx@vx-v0.5.15
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node'
@@ -106,7 +108,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@v1
+      - uses: loonghao/vx@vx-v0.5.15
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'uv'
@@ -125,7 +127,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@v1
+      - uses: loonghao/vx@vx-v0.5.15
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'go'
@@ -143,7 +145,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@v1
+      - uses: loonghao/vx@vx-v0.5.15
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node uv go'
@@ -172,7 +174,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@v1
+      - uses: loonghao/vx@vx-v0.5.15
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
 
@@ -201,7 +203,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@v1
+      - uses: loonghao/vx@vx-v0.5.15
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
 
@@ -264,7 +266,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@v1
+      - uses: loonghao/vx@vx-v0.5.15
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
 
@@ -293,7 +295,7 @@ Commit `.vx.toml` to your repository. New team members can run `vx setup` to get
 The action automatically caches the vx tools directory (`~/.vx`) to speed up subsequent runs. You can customize the cache behavior:
 
 ```yaml
-- uses: loonghao/vx@v1
+- uses: loonghao/vx@vx-v0.5.15
   with:
     cache: 'true'
     cache-key-prefix: 'my-project-vx'
@@ -302,7 +304,7 @@ The action automatically caches the vx tools directory (`~/.vx`) to speed up sub
 To disable caching:
 
 ```yaml
-- uses: loonghao/vx@v1
+- uses: loonghao/vx@vx-v0.5.15
   with:
     cache: 'false'
 ```
@@ -314,7 +316,7 @@ To disable caching:
 If you encounter GitHub API rate limiting, make sure to provide a GitHub token:
 
 ```yaml
-- uses: loonghao/vx@v1
+- uses: loonghao/vx@vx-v0.5.15
   with:
     github-token: ${{secrets.GITHUB_TOKEN}}
 ```
@@ -365,7 +367,7 @@ Before:
 After:
 
 ```yaml
-- uses: loonghao/vx@v1
+- uses: loonghao/vx@vx-v0.5.15
 - run: vx npm ci
 ```
 
@@ -383,7 +385,7 @@ Before:
 After:
 
 ```yaml
-- uses: loonghao/vx@v1
+- uses: loonghao/vx@vx-v0.5.15
 - run: vx uv pip install -r requirements.txt
 ```
 
@@ -401,7 +403,7 @@ Before:
 After:
 
 ```yaml
-- uses: loonghao/vx@v1
+- uses: loonghao/vx@vx-v0.5.15
 - run: vx go build ./...
 ```
 
