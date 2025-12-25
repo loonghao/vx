@@ -26,10 +26,7 @@ impl GcloudRuntime {
             "503.0.0", "502.0.0", "501.0.0", "500.0.0", "499.0.0", "498.0.0", "497.0.0",
         ];
 
-        Ok(versions
-            .into_iter()
-            .map(|v| VersionInfo::new(v))
-            .collect())
+        Ok(versions.into_iter().map(|v| VersionInfo::new(v)).collect())
     }
 }
 

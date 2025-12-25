@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use vx_runtime::{
-    Arch, Ecosystem, GitHubReleaseOptions, Os, Platform, Runtime, RuntimeContext, VerificationResult,
-    VersionInfo,
+    Arch, Ecosystem, GitHubReleaseOptions, Os, Platform, Runtime, RuntimeContext,
+    VerificationResult, VersionInfo,
 };
 
 /// AWS CLI runtime
