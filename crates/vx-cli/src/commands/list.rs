@@ -9,8 +9,8 @@ use vx_runtime::{Platform, ProviderRegistry, Runtime, RuntimeContext};
 
 /// Check if a runtime supports the given platform
 fn is_platform_supported(runtime: &Arc<dyn Runtime>, platform: &Platform) -> bool {
-    let platforms = runtime.supported_platforms();
-    platforms.is_empty() || platforms.iter().any(|p| p.matches(platform))
+    // Use the trait method directly via deref coercion
+    runtime.as_ref().is_platform_supported(platform)
 }
 
 pub async fn handle(

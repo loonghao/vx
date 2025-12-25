@@ -157,6 +157,48 @@ impl Default for Platform {
     }
 }
 
+impl Platform {
+    /// Returns all commonly supported platforms
+    ///
+    /// This includes the major OS/architecture combinations that most tools support.
+    pub fn all_common() -> Vec<Platform> {
+        vec![
+            Platform::new(Os::Windows, Arch::X86_64),
+            Platform::new(Os::Windows, Arch::Aarch64),
+            Platform::new(Os::MacOS, Arch::X86_64),
+            Platform::new(Os::MacOS, Arch::Aarch64),
+            Platform::new(Os::Linux, Arch::X86_64),
+            Platform::new(Os::Linux, Arch::Aarch64),
+        ]
+    }
+
+    /// Returns all Windows platforms
+    pub fn windows_only() -> Vec<Platform> {
+        vec![
+            Platform::new(Os::Windows, Arch::X86_64),
+            Platform::new(Os::Windows, Arch::Aarch64),
+            Platform::new(Os::Windows, Arch::X86),
+        ]
+    }
+
+    /// Returns all Unix-like platforms (macOS + Linux)
+    pub fn unix_only() -> Vec<Platform> {
+        vec![
+            Platform::new(Os::MacOS, Arch::X86_64),
+            Platform::new(Os::MacOS, Arch::Aarch64),
+            Platform::new(Os::Linux, Arch::X86_64),
+            Platform::new(Os::Linux, Arch::Aarch64),
+        ]
+    }
+
+    /// Check if this platform matches another (for supported_platforms checks)
+    ///
+    /// This is a simple equality check, but can be extended for more complex matching.
+    pub fn matches(&self, other: &Platform) -> bool {
+        self.os == other.os && self.arch == other.arch
+    }
+}
+
 /// Simple semver comparison for sorting versions
 ///
 /// This function compares two version strings by parsing numeric components.

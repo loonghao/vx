@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use vx_runtime::{
-    Ecosystem, GitHubReleaseOptions, Os, Platform, Runtime, RuntimeContext, VerificationResult,
+    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
     VersionInfo,
 };
 
@@ -56,6 +56,11 @@ impl Runtime for RceditRuntime {
         meta
     }
 
+    /// rcedit only supports Windows
+    fn supported_platforms(&self) -> Vec<Platform> {
+        Platform::windows_only()
+    }
+
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         // rcedit is a single executable, no subdirectory
         RceditUrlBuilder::get_executable_name(platform).to_string()
@@ -82,7 +87,7 @@ impl Runtime for RceditRuntime {
         platform: &Platform,
     ) -> VerificationResult {
         // rcedit only supports Windows
-        if platform.os != Os::Windows {
+        if !self.is_platform_supported(platform) {
             return VerificationResult::failure(
                 vec!["rcedit is only available for Windows".to_string()],
                 vec!["Use a Windows system to install rcedit".to_string()],

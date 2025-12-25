@@ -24,11 +24,13 @@ fn test_cli_list_command() {
             status,
             installed,
             available,
+            all,
         }) => {
             assert!(tool.is_none());
             assert!(!status);
             assert!(!installed);
             assert!(!available);
+            assert!(!all);
         }
         _ => panic!("Expected List command"),
     }
@@ -45,11 +47,13 @@ fn test_cli_list_with_options() {
             status,
             installed,
             available,
+            all,
         }) => {
             assert_eq!(tool, Some("node".to_string()));
             assert!(status);
             assert!(installed);
             assert!(!available);
+            assert!(!all);
         }
         _ => panic!("Expected List command"),
     }
