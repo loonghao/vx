@@ -6,8 +6,8 @@ Verify that `vx plugin stats` shows plugin statistics.
 $ vx plugin stats
 
 [..]
-  Total providers: 24
-  Total runtimes: 30
+  Total providers: 29
+  Total runtimes: 35
 
   Providers:
     node (3 runtimes)
@@ -34,5 +34,10 @@ $ vx plugin stats
     awscli (1 runtimes)
     azcli (1 runtimes)
     gcloud (1 runtimes)
+    ninja (1 runtimes)
+    cmake (1 runtimes)
+    protoc (1 runtimes)
+    task (1 runtimes)
+    pre-commit (1 runtimes)
 
 ```

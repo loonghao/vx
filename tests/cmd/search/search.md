@@ -36,5 +36,10 @@ $ vx search
   aws - AWS CLI v2 - Amazon Web Services command-line interface
   az - Azure CLI - Microsoft Azure command-line interface
   gcloud - Google Cloud CLI - Google Cloud Platform command-line interface
+  ninja - Ninja - A small build system with a focus on speed
+  cmake - CMake - Cross-platform build system generator
+  protoc - Protocol Buffers Compiler - Google's data interchange format
+  task - Task - A task runner / simpler Make alternative written in Go
+  pre-commit - pre-commit - A framework for managing and maintaining multi-language pre-commit hooks
 
 ```

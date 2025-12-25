@@ -81,6 +81,21 @@ pub fn create_registry() -> ProviderRegistry {
     // Register Google Cloud CLI provider
     registry.register(vx_provider_gcloud::create_provider());
 
+    // Register Ninja provider
+    registry.register(vx_provider_ninja::create_provider());
+
+    // Register CMake provider
+    registry.register(vx_provider_cmake::create_provider());
+
+    // Register protoc provider
+    registry.register(vx_provider_protoc::create_provider());
+
+    // Register Task (go-task) provider
+    registry.register(vx_provider_task::create_provider());
+
+    // Register pre-commit provider
+    registry.register(vx_provider_pre_commit::create_provider());
+
     registry
 }
 
