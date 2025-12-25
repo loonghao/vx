@@ -42,6 +42,11 @@ vx-provider-docker = { workspace = true }
 vx-provider-awscli = { workspace = true }
 vx-provider-azcli = { workspace = true }
 vx-provider-gcloud = { workspace = true }
+vx-provider-ninja = { workspace = true }
+vx-provider-cmake = { workspace = true }
+vx-provider-protoc = { workspace = true }
+vx-provider-task = { workspace = true }
+vx-provider-pre-commit = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
