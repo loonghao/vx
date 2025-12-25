@@ -334,10 +334,8 @@ jobs:
         run: vx run test
         env:
           CARGO_TARGET_DIR: target
-
-      - name: Build release (via vx)
-        shell: bash
-        run: vx run release
+          # Use the pre-built vx binary for testing
+          VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
 
   # ============================================================================
   # Stage 4: Dogfood tests (only if rust changed)
