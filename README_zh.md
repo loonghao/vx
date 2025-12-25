@@ -358,14 +358,33 @@ vx cargo run
 |------|----------|-------------|
 | **Vite** | `vite` | 下一代前端工具 |
 | **Just** | `just` | 项目任务命令运行器 |
+| **Task** | `task` | 任务运行器 / 构建工具 (go-task) |
+| **CMake** | `cmake` | 跨平台构建系统生成器 |
+| **Ninja** | `ninja` | 专注于速度的小型构建系统 |
+| **protoc** | `protoc` | Protocol Buffers 编译器 |
 
 ### DevOps 工具
 
 | 工具 | 命令 | 描述 |
 |------|----------|-------------|
+| **Docker** | `docker` | 容器运行时和工具 |
 | **Terraform** | `terraform` | 基础设施即代码 |
 | **kubectl** | `kubectl` | Kubernetes 命令行工具 |
 | **Helm** | `helm` | Kubernetes 包管理器 |
+
+### 云 CLI 工具
+
+| 工具 | 命令 | 描述 |
+|------|----------|-------------|
+| **AWS CLI** | `aws` | 亚马逊云服务 CLI |
+| **Azure CLI** | `az` | 微软 Azure CLI |
+| **gcloud** | `gcloud` | 谷歌云平台 CLI |
+
+### 代码质量工具
+
+| 工具 | 命令 | 描述 |
+|------|----------|-------------|
+| **pre-commit** | `pre-commit` | 预提交钩子框架 |
 
 ### 其他工具
 

@@ -34,14 +34,33 @@ vx supports a wide range of development tools across multiple ecosystems. All to
 |------|----------|-------------|--------------|
 | `vite` | `vite` | Next generation frontend tooling | ✅ |
 | `just` | `just` | Command runner for project tasks | ✅ |
+| `task` | `task` | Task runner / build tool (go-task) | ✅ |
+| `cmake` | `cmake` | Cross-platform build system generator | ✅ |
+| `ninja` | `ninja` | Small build system focused on speed | ✅ |
+| `protoc` | `protoc` | Protocol Buffers compiler | ✅ |
 
 ### DevOps Tools
 
 | Tool | Commands | Description | Auto-Install |
 |------|----------|-------------|--------------|
+| `docker` | `docker` | Container runtime and tooling | ✅ |
 | `terraform` | `terraform` | Infrastructure as Code | ✅ |
 | `kubectl` | `kubectl` | Kubernetes CLI | ✅ |
 | `helm` | `helm` | Kubernetes package manager | ✅ |
+
+### Cloud CLI Tools
+
+| Tool | Commands | Description | Auto-Install |
+|------|----------|-------------|--------------|
+| `awscli` | `aws` | Amazon Web Services CLI | ✅ |
+| `azcli` | `az` | Microsoft Azure CLI | ✅ |
+| `gcloud` | `gcloud` | Google Cloud Platform CLI | ✅ |
+
+### Code Quality Tools
+
+| Tool | Commands | Description | Auto-Install |
+|------|----------|-------------|--------------|
+| `pre-commit` | `pre-commit` | Pre-commit hook framework | ✅ |
 
 ### Other Tools
 

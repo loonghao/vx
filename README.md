@@ -358,14 +358,33 @@ vx cargo run
 |------|----------|-------------|
 | **Vite** | `vite` | Next generation frontend tooling |
 | **Just** | `just` | Command runner for project tasks |
+| **Task** | `task` | Task runner / build tool (go-task) |
+| **CMake** | `cmake` | Cross-platform build system generator |
+| **Ninja** | `ninja` | Small build system focused on speed |
+| **protoc** | `protoc` | Protocol Buffers compiler |
 
 ### DevOps Tools
 
 | Tool | Commands | Description |
 |------|----------|-------------|
+| **Docker** | `docker` | Container runtime and tooling |
 | **Terraform** | `terraform` | Infrastructure as Code |
 | **kubectl** | `kubectl` | Kubernetes CLI |
 | **Helm** | `helm` | Kubernetes package manager |
+
+### Cloud CLI Tools
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **AWS CLI** | `aws` | Amazon Web Services CLI |
+| **Azure CLI** | `az` | Microsoft Azure CLI |
+| **gcloud** | `gcloud` | Google Cloud Platform CLI |
+
+### Code Quality Tools
+
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **pre-commit** | `pre-commit` | Pre-commit hook framework |
 
 ### Other Tools
 
