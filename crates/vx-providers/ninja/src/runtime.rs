@@ -1,0 +1,106 @@
+//! Ninja runtime implementation
+//!
+//! Ninja is a small build system with a focus on speed.
+//! https://github.com/ninja-build/ninja
+
+use crate::config::NinjaUrlBuilder;
+use anyhow::Result;
+use async_trait::async_trait;
+use std::collections::HashMap;
+use std::path::Path;
+use vx_runtime::{
+    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
+    VersionInfo,
+};
+
+/// Ninja runtime implementation
+#[derive(Debug, Clone, Default)]
+pub struct NinjaRuntime;
+
+impl NinjaRuntime {
+    /// Create a new Ninja runtime
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+#[async_trait]
+impl Runtime for NinjaRuntime {
+    fn name(&self) -> &str {
+        "ninja"
+    }
+
+    fn description(&self) -> &str {
+        "Ninja - A small build system with a focus on speed"
+    }
+
+    fn aliases(&self) -> &[&str] {
+        &["ninja-build"]
+    }
+
+    fn ecosystem(&self) -> Ecosystem {
+        Ecosystem::System
+    }
+
+    fn metadata(&self) -> HashMap<String, String> {
+        let mut meta = HashMap::new();
+        meta.insert(
+            "homepage".to_string(),
+            "https://ninja-build.org/".to_string(),
+        );
+        meta.insert(
+            "documentation".to_string(),
+            "https://ninja-build.org/manual.html".to_string(),
+        );
+        meta.insert(
+            "repository".to_string(),
+            "https://github.com/ninja-build/ninja".to_string(),
+        );
+        meta.insert("category".to_string(), "build-system".to_string());
+        meta
+    }
+
+    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
+        // Ninja extracts directly without subdirectory
+        NinjaUrlBuilder::get_executable_name(platform).to_string()
+    }
+
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // Ninja uses 'v' prefix in tags, strip it for version display
+        ctx.fetch_github_releases(
+            "ninja",
+            "ninja-build",
+            "ninja",
+            GitHubReleaseOptions::new()
+                .strip_v_prefix(true)
+                .skip_prereleases(true),
+        )
+        .await
+    }
+
+    async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
+        Ok(NinjaUrlBuilder::download_url(version, platform))
+    }
+
+    fn verify_installation(
+        &self,
+        _version: &str,
+        install_path: &Path,
+        platform: &Platform,
+    ) -> VerificationResult {
+        let exe_name = NinjaUrlBuilder::get_executable_name(platform);
+        let exe_path = install_path.join(exe_name);
+
+        if exe_path.exists() {
+            VerificationResult::success(exe_path)
+        } else {
+            VerificationResult::failure(
+                vec![format!(
+                    "Ninja executable not found at expected path: {}",
+                    exe_path.display()
+                )],
+                vec!["Try reinstalling the runtime".to_string()],
+            )
+        }
+    }
+}

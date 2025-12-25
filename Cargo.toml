@@ -32,6 +32,12 @@ members = [
   "crates/vx-providers/awscli",
   "crates/vx-providers/azcli",
   "crates/vx-providers/gcloud",
+  # Build tools & Task runners (P1)
+  "crates/vx-providers/ninja",
+  "crates/vx-providers/cmake",
+  "crates/vx-providers/protoc",
+  "crates/vx-providers/task",
+  "crates/vx-providers/pre-commit",
 ]
 resolver = "2"
 
@@ -124,6 +130,11 @@ vx-provider-docker = { path = "crates/vx-providers/docker" }
 vx-provider-awscli = { path = "crates/vx-providers/awscli" }
 vx-provider-azcli = { path = "crates/vx-providers/azcli" }
 vx-provider-gcloud = { path = "crates/vx-providers/gcloud" }
+vx-provider-ninja = { path = "crates/vx-providers/ninja" }
+vx-provider-cmake = { path = "crates/vx-providers/cmake" }
+vx-provider-protoc = { path = "crates/vx-providers/protoc" }
+vx-provider-task = { path = "crates/vx-providers/task" }
+vx-provider-pre-commit = { path = "crates/vx-providers/pre-commit" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }
