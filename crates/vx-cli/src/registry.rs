@@ -69,6 +69,18 @@ pub fn create_registry() -> ProviderRegistry {
     // Register Chocolatey provider
     registry.register(vx_provider_choco::create_provider());
 
+    // Register Docker provider
+    registry.register(vx_provider_docker::create_provider());
+
+    // Register AWS CLI provider
+    registry.register(vx_provider_awscli::create_provider());
+
+    // Register Azure CLI provider
+    registry.register(vx_provider_azcli::create_provider());
+
+    // Register Google Cloud CLI provider
+    registry.register(vx_provider_gcloud::create_provider());
+
     registry
 }
 

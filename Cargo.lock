@@ -3336,9 +3336,13 @@ dependencies = [
  "tracing-subscriber",
  "vx-core",
  "vx-paths",
+ "vx-provider-awscli",
+ "vx-provider-azcli",
  "vx-provider-bun",
  "vx-provider-choco",
  "vx-provider-deno",
+ "vx-provider-docker",
+ "vx-provider-gcloud",
  "vx-provider-git",
  "vx-provider-go",
  "vx-provider-helm",
@@ -3420,6 +3424,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-awscli"
+version = "0.5.15"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-azcli"
+version = "0.5.15"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+]
+
+[[package]]
 name = "vx-provider-bun"
 version = "0.5.15"
 dependencies = [
@@ -3450,6 +3480,33 @@ version = "0.5.15"
 dependencies = [
  "anyhow",
  "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-docker"
+version = "0.5.15"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-gcloud"
+version = "0.5.15"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest",
  "rstest",
  "serde",
  "serde_json",
