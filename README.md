@@ -483,7 +483,7 @@ docker run --rm loonghao/vx --version
 Use vx in your CI/CD workflows:
 
 ```yaml
-- uses: loonghao/vx@v1
+- uses: loonghao/vx@vx-v0.5.15
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -491,6 +491,8 @@ Use vx in your CI/CD workflows:
 - run: vx npm ci
 - run: vx npm test
 ```
+
+> **Note**: Use a specific version tag (e.g., `vx-v0.5.15`) instead of `v1`. Check [releases](https://github.com/loonghao/vx/releases) for the latest version.
 
 See [GitHub Action Guide](docs/guides/github-action.md) for full documentation.
 
