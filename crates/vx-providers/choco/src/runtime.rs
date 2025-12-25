@@ -56,6 +56,11 @@ impl Runtime for ChocoRuntime {
         meta
     }
 
+    /// Chocolatey only supports Windows
+    fn supported_platforms(&self) -> Vec<Platform> {
+        Platform::windows_only()
+    }
+
     /// Chocolatey archives extract to `tools/choco.exe`
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         let dir_name = ChocoUrlBuilder::get_archive_dir_name();
@@ -76,7 +81,7 @@ impl Runtime for ChocoRuntime {
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         // Check if platform is supported
-        if !ChocoUrlBuilder::is_platform_supported(platform) {
+        if !self.is_platform_supported(platform) {
             return Ok(None);
         }
         Ok(ChocoUrlBuilder::download_url(version, platform))
@@ -89,7 +94,7 @@ impl Runtime for ChocoRuntime {
         platform: &Platform,
     ) -> VerificationResult {
         // Check if platform is supported
-        if !ChocoUrlBuilder::is_platform_supported(platform) {
+        if !self.is_platform_supported(platform) {
             return VerificationResult::failure(
                 vec!["Chocolatey is only supported on Windows".to_string()],
                 vec!["Use a Windows system to install Chocolatey".to_string()],

@@ -137,6 +137,32 @@ pub trait Runtime: Send + Sync {
         HashMap::new()
     }
 
+    /// Returns the platforms this runtime supports
+    ///
+    /// By default, returns all common platforms (Windows, macOS, Linux on x64 and arm64).
+    /// Override this for platform-specific tools (e.g., Chocolatey is Windows-only).
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// fn supported_platforms(&self) -> Vec<Platform> {
+    ///     // Windows-only tool
+    ///     Platform::windows_only()
+    /// }
+    /// ```
+    fn supported_platforms(&self) -> Vec<Platform> {
+        Platform::all_common()
+    }
+
+    /// Check if this runtime supports the given platform
+    ///
+    /// Default implementation checks if the platform is in `supported_platforms()`.
+    fn is_platform_supported(&self, platform: &Platform) -> bool {
+        self.supported_platforms()
+            .iter()
+            .any(|p| p.matches(platform))
+    }
+
     /// Get the relative path to the executable within the install directory
     ///
     /// Override this if your runtime's archive extracts to a non-standard layout.
