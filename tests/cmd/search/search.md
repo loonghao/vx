@@ -32,5 +32,9 @@ $ vx search
   rcedit - rcedit - Command-line tool to edit resources of Windows executables
   git - Git - Distributed version control system
   choco - Chocolatey - The package manager for Windows
+  docker - Docker CLI - Container runtime command-line interface
+  aws - AWS CLI v2 - Amazon Web Services command-line interface
+  az - Azure CLI - Microsoft Azure command-line interface
+  gcloud - Google Cloud CLI - Google Cloud Platform command-line interface
 
 ```
