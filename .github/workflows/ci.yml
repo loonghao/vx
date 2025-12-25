@@ -15,7 +15,6 @@ on:
         description: 'Force full CI run (ignore path filters)'
         type: boolean
         default: false
-  workflow_call:
 
 permissions:
   contents: read
