@@ -6,8 +6,8 @@ Verify that `vx plugin stats` shows plugin statistics.
 $ vx plugin stats
 
 [..]
-  Total providers: 29
-  Total runtimes: 35
+  Total providers: 30
+  Total runtimes: 36
 
   Providers:
     node (3 runtimes)
@@ -39,5 +39,6 @@ $ vx plugin stats
     protoc (1 runtimes)
     task (1 runtimes)
     pre-commit (1 runtimes)
+    ollama (1 runtimes)
 
 ```

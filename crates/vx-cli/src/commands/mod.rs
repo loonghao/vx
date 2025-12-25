@@ -307,6 +307,9 @@ async fn run_script(script_name: &str, args: &[String]) -> anyhow::Result<()> {
 
     UI::info(&format!("Running script '{}': {}", script_name, script_cmd));
 
+    // Build environment with vx-managed tools in PATH
+    let env_vars = dev::build_script_environment(&config)?;
+
     // Parse the command
     let shell = if cfg!(windows) { "cmd" } else { "sh" };
     let shell_arg = if cfg!(windows) { "/C" } else { "-c" };
@@ -318,7 +321,15 @@ async fn run_script(script_name: &str, args: &[String]) -> anyhow::Result<()> {
         format!("{} {}", script_cmd, args.join(" "))
     };
 
-    let status = Command::new(shell).arg(shell_arg).arg(&full_cmd).status()?;
+    let mut command = Command::new(shell);
+    command.arg(shell_arg).arg(&full_cmd);
+
+    // Set environment variables including PATH with vx tools
+    for (key, value) in &env_vars {
+        command.env(key, value);
+    }
+
+    let status = command.status()?;
 
     if !status.success() {
         std::process::exit(status.code().unwrap_or(1));

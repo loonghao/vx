@@ -96,6 +96,9 @@ pub fn create_registry() -> ProviderRegistry {
     // Register pre-commit provider
     registry.register(vx_provider_pre_commit::create_provider());
 
+    // Register Ollama provider (AI tools)
+    registry.register(vx_provider_ollama::create_provider());
+
     registry
 }
 
