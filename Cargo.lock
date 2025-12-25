@@ -3352,6 +3352,7 @@ dependencies = [
  "vx-provider-kubectl",
  "vx-provider-ninja",
  "vx-provider-node",
+ "vx-provider-ollama",
  "vx-provider-pnpm",
  "vx-provider-pre-commit",
  "vx-provider-protoc",
@@ -3640,6 +3641,20 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "reqwest",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-ollama"
+version = "0.5.15"
+dependencies = [
+ "anyhow",
+ "async-trait",
  "reqwest",
  "rstest",
  "serde",

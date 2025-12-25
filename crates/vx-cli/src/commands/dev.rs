@@ -211,6 +211,71 @@ fn build_dev_environment(config: &VxConfig, verbose: bool) -> Result<HashMap<Str
     Ok(env_vars)
 }
 
+/// Build environment variables for script execution (simplified version of build_dev_environment)
+///
+/// This function builds the PATH environment variable to include vx-managed tools,
+/// allowing scripts defined in .vx.toml to use tools installed by vx.
+pub fn build_script_environment(config: &VxConfig) -> Result<HashMap<String, String>> {
+    let path_manager = PathManager::new()?;
+    let mut env_vars = HashMap::new();
+
+    // Collect all tool bin directories
+    let mut path_entries = Vec::new();
+
+    for (tool, version) in &config.tools {
+        let tool_path = if version == "latest" {
+            // Find the latest installed version
+            let versions = path_manager.list_store_versions(tool)?;
+            if let Some(latest) = versions.last() {
+                get_tool_bin_path(&path_manager, tool, latest)?
+            } else {
+                continue;
+            }
+        } else {
+            get_tool_bin_path(&path_manager, tool, version)?
+        };
+
+        if let Some(path) = tool_path {
+            if path.exists() {
+                path_entries.push(path.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    // Build PATH
+    let current_path = env::var("PATH").unwrap_or_default();
+    let new_path = if path_entries.is_empty() {
+        current_path
+    } else {
+        let separator = if cfg!(windows) { ";" } else { ":" };
+        format!(
+            "{}{}{}",
+            path_entries.join(separator),
+            separator,
+            current_path
+        )
+    };
+    env_vars.insert("PATH".to_string(), new_path);
+
+    // Add vx bin directory to PATH
+    let vx_bin = path_manager.bin_dir();
+    if vx_bin.exists() {
+        let path = env_vars.get("PATH").cloned().unwrap_or_default();
+        let separator = if cfg!(windows) { ";" } else { ":" };
+        env_vars.insert(
+            "PATH".to_string(),
+            format!("{}{}{}", vx_bin.display(), separator, path),
+        );
+    }
+
+    // Add custom environment variables from config
+    for (key, value) in &config.env {
+        env_vars.insert(key.clone(), value.clone());
+    }
+
+    Ok(env_vars)
+}
+
 /// Get the bin path for a tool
 fn get_tool_bin_path(
     path_manager: &PathManager,

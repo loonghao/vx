@@ -41,5 +41,6 @@ $ vx search
   protoc - Protocol Buffers Compiler - Google's data interchange format
   task - Task - A task runner / simpler Make alternative written in Go
   pre-commit - pre-commit - A framework for managing and maintaining multi-language pre-commit hooks
+  ollama - Ollama - Run large language models locally
 
 ```
