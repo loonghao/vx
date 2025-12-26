@@ -89,7 +89,7 @@ fn find_vx_config(start_dir: &Path) -> Result<PathBuf> {
 /// Handle --export mode: output shell script for environment activation
 fn handle_export(config: &VxConfig, format: Option<String>) -> Result<()> {
     let export_format = match format {
-        Some(f) => ExportFormat::from_str(&f).ok_or_else(|| {
+        Some(f) => ExportFormat::parse(&f).ok_or_else(|| {
             anyhow::anyhow!(
                 "Unknown format: {}. Use: shell, powershell, batch, or github",
                 f
@@ -529,7 +529,7 @@ impl ExportFormat {
     }
 
     /// Parse format from string
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "shell" | "sh" | "bash" | "zsh" => Some(Self::Shell),
             "powershell" | "pwsh" | "ps1" => Some(Self::PowerShell),
