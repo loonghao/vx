@@ -99,6 +99,9 @@ pub fn create_registry() -> ProviderRegistry {
     // Register Ollama provider (AI tools)
     registry.register(vx_provider_ollama::create_provider());
 
+    // Register Spack provider (HPC/Scientific computing)
+    registry.register(vx_provider_spack::create_provider());
+
     registry
 }
 

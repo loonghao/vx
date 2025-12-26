@@ -48,6 +48,7 @@ vx-provider-protoc = { workspace = true }
 vx-provider-task = { workspace = true }
 vx-provider-pre-commit = { workspace = true }
 vx-provider-ollama = { workspace = true }
+vx-provider-spack = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }

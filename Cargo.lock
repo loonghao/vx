@@ -3359,6 +3359,7 @@ dependencies = [
  "vx-provider-rcedit",
  "vx-provider-rez",
  "vx-provider-rust",
+ "vx-provider-spack",
  "vx-provider-task",
  "vx-provider-terraform",
  "vx-provider-uv",
@@ -3745,6 +3746,21 @@ dependencies = [
  "async-trait",
  "rstest",
  "serde",
+ "tokio",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-spack"
+version = "0.5.15"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest",
+ "rstest",
+ "serde",
+ "serde_json",
  "tokio",
  "vx-runtime",
 ]

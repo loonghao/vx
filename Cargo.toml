@@ -40,6 +40,8 @@ members = [
   "crates/vx-providers/pre-commit",
   # AI tools (P2)
   "crates/vx-providers/ollama",
+  # HPC/Scientific computing
+  "crates/vx-providers/spack",
 ]
 resolver = "2"
 
@@ -138,6 +140,7 @@ vx-provider-protoc = { path = "crates/vx-providers/protoc" }
 vx-provider-task = { path = "crates/vx-providers/task" }
 vx-provider-pre-commit = { path = "crates/vx-providers/pre-commit" }
 vx-provider-ollama = { path = "crates/vx-providers/ollama" }
+vx-provider-spack = { path = "crates/vx-providers/spack" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }

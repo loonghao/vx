@@ -7,7 +7,7 @@ pub mod config;
 mod provider;
 mod runtime;
 
-pub use config::GcloudConfig;
+pub use config::{GcloudConfig, GcloudUrlBuilder};
 pub use provider::GcloudProvider;
 pub use runtime::GcloudRuntime;
 

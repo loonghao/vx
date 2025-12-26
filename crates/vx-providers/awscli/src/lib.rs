@@ -7,7 +7,7 @@ pub mod config;
 mod provider;
 mod runtime;
 
-pub use config::AwsCliConfig;
+pub use config::{AwsCliConfig, AwsCliUrlBuilder};
 pub use provider::AwsCliProvider;
 pub use runtime::AwsCliRuntime;
 
