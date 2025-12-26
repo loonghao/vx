@@ -82,17 +82,18 @@ fn test_zig_provider_get_runtime() {
 }
 
 /// Test that executable_relative_path returns correct path for Zig archives
-/// Zig archives extract to a versioned directory like zig-linux-x86_64-0.11.0/
+/// Zig archives extract to a versioned directory like zig-x86_64-linux-0.11.0/
+/// Note: Zig uses {arch}-{os} order, NOT {os}-{arch}
 #[rstest]
-#[case(Os::Linux, Arch::X86_64, "0.11.0", "zig-linux-x86_64-0.11.0/zig")]
-#[case(Os::Linux, Arch::Aarch64, "0.11.0", "zig-linux-aarch64-0.11.0/zig")]
-#[case(Os::MacOS, Arch::X86_64, "0.11.0", "zig-macos-x86_64-0.11.0/zig")]
-#[case(Os::MacOS, Arch::Aarch64, "0.11.0", "zig-macos-aarch64-0.11.0/zig")]
+#[case(Os::Linux, Arch::X86_64, "0.11.0", "zig-x86_64-linux-0.11.0/zig")]
+#[case(Os::Linux, Arch::Aarch64, "0.11.0", "zig-aarch64-linux-0.11.0/zig")]
+#[case(Os::MacOS, Arch::X86_64, "0.11.0", "zig-x86_64-macos-0.11.0/zig")]
+#[case(Os::MacOS, Arch::Aarch64, "0.11.0", "zig-aarch64-macos-0.11.0/zig")]
 #[case(
     Os::Windows,
     Arch::X86_64,
     "0.11.0",
-    "zig-windows-x86_64-0.11.0/zig.exe"
+    "zig-x86_64-windows-0.11.0/zig.exe"
 )]
 fn test_zig_executable_relative_path(
     #[case] os: Os,
@@ -119,7 +120,8 @@ async fn test_zig_download_url_format() {
     let url = url.unwrap();
     assert!(url.contains("ziglang.org/download"));
     assert!(url.contains("0.11.0"));
-    assert!(url.contains("linux-x86_64"));
+    // Note: Zig uses {arch}-{os} order: x86_64-linux
+    assert!(url.contains("x86_64-linux"));
     assert!(url.ends_with(".tar.xz"));
 }
 
@@ -134,6 +136,46 @@ async fn test_zig_download_url_windows() {
     let url = runtime.download_url("0.11.0", &platform).await.unwrap();
     assert!(url.is_some());
     let url = url.unwrap();
-    assert!(url.contains("windows-x86_64"));
+    // Note: Zig uses {arch}-{os} order: x86_64-windows
+    assert!(url.contains("x86_64-windows"));
     assert!(url.ends_with(".zip"));
+}
+
+/// Test the exact download URL format matches Zig's official format
+#[tokio::test]
+async fn test_zig_download_url_exact_format() {
+    let runtime = ZigRuntime::new();
+
+    // Test Linux x86_64
+    let platform = Platform {
+        os: Os::Linux,
+        arch: Arch::X86_64,
+    };
+    let url = runtime.download_url("0.15.2", &platform).await.unwrap();
+    assert_eq!(
+        url,
+        Some("https://ziglang.org/download/0.15.2/zig-x86_64-linux-0.15.2.tar.xz".to_string())
+    );
+
+    // Test Windows x86_64
+    let platform = Platform {
+        os: Os::Windows,
+        arch: Arch::X86_64,
+    };
+    let url = runtime.download_url("0.15.2", &platform).await.unwrap();
+    assert_eq!(
+        url,
+        Some("https://ziglang.org/download/0.15.2/zig-x86_64-windows-0.15.2.zip".to_string())
+    );
+
+    // Test macOS aarch64
+    let platform = Platform {
+        os: Os::MacOS,
+        arch: Arch::Aarch64,
+    };
+    let url = runtime.download_url("0.15.2", &platform).await.unwrap();
+    assert_eq!(
+        url,
+        Some("https://ziglang.org/download/0.15.2/zig-aarch64-macos-0.15.2.tar.xz".to_string())
+    );
 }
