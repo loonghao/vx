@@ -71,6 +71,13 @@ runs:
         echo "$INSTALL_DIR" >> $GITHUB_PATH
         export PATH="$INSTALL_DIR:$PATH"
 
+        # Add vx managed tools bin directory to PATH
+        # This allows tools installed by vx (like uv, node, etc.) to be found
+        VX_BIN_DIR="$HOME/.vx/bin"
+        mkdir -p "$VX_BIN_DIR"
+        echo "$VX_BIN_DIR" >> $GITHUB_PATH
+        export PATH="$VX_BIN_DIR:$PATH"
+
         # Skip download if already cached
         if [ -f "$INSTALL_DIR/vx" ]; then
           echo "vx already installed (from cache)"
@@ -186,6 +193,13 @@ runs:
         # Add to PATH immediately for current step and subsequent steps
         $InstallDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         $env:PATH = "$InstallDir;$env:PATH"
+
+        # Add vx managed tools bin directory to PATH
+        # This allows tools installed by vx (like uv, node, etc.) to be found
+        $VxBinDir = "$env:USERPROFILE\.vx\bin"
+        New-Item -ItemType Directory -Path $VxBinDir -Force | Out-Null
+        $VxBinDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        $env:PATH = "$VxBinDir;$env:PATH"
 
         $vxPath = "$InstallDir\vx.exe"
 
@@ -308,6 +322,9 @@ runs:
           fi
         fi
 
+        # Add vx managed tools to PATH
+        export PATH="$HOME/.vx/bin:$PATH"
+
         VERSION=$(vx --version | head -1 | awk '{print $2}')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "vx version: $VERSION"
@@ -330,6 +347,9 @@ runs:
             export PATH="$HOME/.local/bin:$PATH"
           fi
         fi
+
+        # Add vx managed tools to PATH
+        export PATH="$HOME/.vx/bin:$PATH"
 
         echo "Pre-installing tools: ${{ inputs.tools }}"
         for tool in ${{ inputs.tools }}; do

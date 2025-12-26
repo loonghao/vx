@@ -286,16 +286,46 @@ fn get_tool_bin_path(
     let store_dir = path_manager.version_store_dir(tool, version);
     if store_dir.exists() {
         // Different tools have different bin directory structures
-        let bin_candidates = vec![
+        // Priority order:
+        // 1. bin/ subdirectory (standard layout)
+        // 2. Direct in version directory (some tools like uv on Windows)
+        // 3. Subdirectories matching tool-* pattern (uv on Linux/macOS: uv-{platform}/)
+        let mut bin_candidates = vec![
             store_dir.join("bin"),
             store_dir.clone(), // Some tools put executables directly in the version dir
         ];
 
-        for bin_dir in bin_candidates {
-            if bin_dir.exists() {
-                return Ok(Some(bin_dir));
+        // Add subdirectories that might contain the executable
+        // This handles cases like uv where the executable is in uv-{platform}/ subdirectory
+        if let Ok(entries) = std::fs::read_dir(&store_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                if path.is_dir() {
+                    let dir_name = path.file_name().unwrap_or_default().to_string_lossy();
+                    // Check for tool-* pattern (e.g., uv-x86_64-unknown-linux-gnu)
+                    if dir_name.starts_with(&format!("{}-", tool)) {
+                        bin_candidates.push(path);
+                    }
+                }
             }
         }
+
+        for bin_dir in bin_candidates {
+            if bin_dir.exists() {
+                // Verify the directory actually contains an executable
+                let exe_name = if cfg!(windows) {
+                    format!("{}.exe", tool)
+                } else {
+                    tool.to_string()
+                };
+                if bin_dir.join(&exe_name).exists() || bin_dir == store_dir {
+                    return Ok(Some(bin_dir));
+                }
+            }
+        }
+
+        // Fallback: if store_dir exists, return it (the tool might use a different executable name)
+        return Ok(Some(store_dir));
     }
 
     // Check npm-tools
