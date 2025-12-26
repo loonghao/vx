@@ -168,7 +168,9 @@ fn build_dev_environment(config: &VxConfig, verbose: bool) -> Result<HashMap<Str
 
     // Build PATH
     let current_path = env::var("PATH").unwrap_or_default();
+    eprintln!("[vx debug] path_entries: {:?}", path_entries);
     let new_path = if path_entries.is_empty() {
+        eprintln!("[vx debug] No tool paths found, using current PATH");
         current_path
     } else {
         let separator = if cfg!(windows) { ";" } else { ":" };
@@ -463,4 +465,219 @@ fn detect_shell() -> String {
         // Default to bash on Unix
         "/bin/bash".to_string()
     }
+}
+
+/// Output format for environment export
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportFormat {
+    /// Shell script (bash/zsh compatible)
+    Shell,
+    /// PowerShell script
+    PowerShell,
+    /// Windows batch file
+    Batch,
+    /// GitHub Actions format (GITHUB_ENV and GITHUB_PATH)
+    GithubActions,
+}
+
+impl ExportFormat {
+    /// Detect the best format based on the current environment
+    pub fn detect() -> Self {
+        // Check if running in GitHub Actions
+        if env::var("GITHUB_ACTIONS").is_ok() {
+            return Self::GithubActions;
+        }
+
+        #[cfg(windows)]
+        {
+            // Check if running in PowerShell
+            if env::var("PSModulePath").is_ok() {
+                return Self::PowerShell;
+            }
+            Self::Batch
+        }
+
+        #[cfg(not(windows))]
+        {
+            Self::Shell
+        }
+    }
+
+    /// Parse format from string
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "shell" | "sh" | "bash" | "zsh" => Some(Self::Shell),
+            "powershell" | "pwsh" | "ps1" => Some(Self::PowerShell),
+            "batch" | "bat" | "cmd" => Some(Self::Batch),
+            "github" | "github-actions" | "gha" => Some(Self::GithubActions),
+            _ => None,
+        }
+    }
+}
+
+/// Generate environment export script for the given config
+///
+/// This function generates a script that can be sourced/executed to set up
+/// the environment with all vx-managed tools in PATH.
+///
+/// Usage:
+/// - Bash/Zsh: `eval "$(vx env --export)"`
+/// - PowerShell: `Invoke-Expression (vx env --export --format powershell)`
+/// - GitHub Actions: `vx env --export --format github >> $GITHUB_ENV`
+pub fn generate_env_export(config: &VxConfig, format: ExportFormat) -> Result<String> {
+    let path_manager = PathManager::new()?;
+    let mut path_entries = Vec::new();
+
+    // Add vx bin directory first
+    let vx_bin = path_manager.bin_dir();
+    if vx_bin.exists() {
+        path_entries.push(vx_bin.to_string_lossy().to_string());
+    }
+
+    // Collect all tool bin directories
+    for (tool, version) in &config.tools {
+        let tool_path = if version == "latest" {
+            let versions = path_manager.list_store_versions(tool)?;
+            if let Some(latest) = versions.last() {
+                get_tool_bin_path(&path_manager, tool, latest)?
+            } else {
+                continue;
+            }
+        } else {
+            get_tool_bin_path(&path_manager, tool, version)?
+        };
+
+        if let Some(path) = tool_path {
+            if path.exists() {
+                path_entries.push(path.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    // Generate output based on format
+    let output = match format {
+        ExportFormat::Shell => generate_shell_export(&path_entries, &config.env),
+        ExportFormat::PowerShell => generate_powershell_export(&path_entries, &config.env),
+        ExportFormat::Batch => generate_batch_export(&path_entries, &config.env),
+        ExportFormat::GithubActions => generate_github_actions_export(&path_entries, &config.env),
+    };
+
+    Ok(output)
+}
+
+fn generate_shell_export(path_entries: &[String], env_vars: &HashMap<String, String>) -> String {
+    let mut output = String::new();
+
+    // Export PATH
+    if !path_entries.is_empty() {
+        let paths = path_entries.join(":");
+        output.push_str(&format!("export PATH=\"{}:$PATH\"\n", paths));
+    }
+
+    // Export custom environment variables
+    for (key, value) in env_vars {
+        // Escape special characters in value
+        let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
+        output.push_str(&format!("export {}=\"{}\"\n", key, escaped));
+    }
+
+    output
+}
+
+fn generate_powershell_export(
+    path_entries: &[String],
+    env_vars: &HashMap<String, String>,
+) -> String {
+    let mut output = String::new();
+
+    // Export PATH
+    if !path_entries.is_empty() {
+        let paths = path_entries.join(";");
+        output.push_str(&format!(
+            "$env:PATH = \"{};$env:PATH\"\n",
+            paths.replace('\\', "\\\\")
+        ));
+    }
+
+    // Export custom environment variables
+    for (key, value) in env_vars {
+        let escaped = value.replace('\\', "\\\\").replace('"', "`\"");
+        output.push_str(&format!("$env:{} = \"{}\"\n", key, escaped));
+    }
+
+    output
+}
+
+fn generate_batch_export(path_entries: &[String], env_vars: &HashMap<String, String>) -> String {
+    let mut output = String::new();
+
+    // Export PATH
+    if !path_entries.is_empty() {
+        let paths = path_entries.join(";");
+        output.push_str(&format!("set PATH={};%PATH%\n", paths));
+    }
+
+    // Export custom environment variables
+    for (key, value) in env_vars {
+        output.push_str(&format!("set {}={}\n", key, value));
+    }
+
+    output
+}
+
+fn generate_github_actions_export(
+    path_entries: &[String],
+    env_vars: &HashMap<String, String>,
+) -> String {
+    let mut output = String::new();
+
+    // For GitHub Actions, we output in a format that can be appended to GITHUB_ENV and GITHUB_PATH
+    // The caller should redirect this appropriately
+
+    // PATH entries (one per line for GITHUB_PATH)
+    output.push_str("# Add the following to GITHUB_PATH:\n");
+    for path in path_entries {
+        output.push_str(&format!("# {}\n", path));
+    }
+
+    // Generate shell commands that work in GitHub Actions
+    output.push_str("\n# Shell commands to set environment:\n");
+    if !path_entries.is_empty() {
+        for path in path_entries {
+            output.push_str(&format!("echo \"{}\" >> $GITHUB_PATH\n", path));
+        }
+        // Also export for current step
+        let paths = path_entries.join(":");
+        output.push_str(&format!("export PATH=\"{}:$PATH\"\n", paths));
+    }
+
+    // Environment variables
+    for (key, value) in env_vars {
+        output.push_str(&format!("echo \"{}={}\" >> $GITHUB_ENV\n", key, value));
+        output.push_str(&format!("export {}=\"{}\"\n", key, value));
+    }
+
+    output
+}
+
+/// Handle the env export command
+pub fn handle_env_export(format: Option<String>) -> Result<()> {
+    let current_dir = env::current_dir().context("Failed to get current directory")?;
+    let config_path = find_vx_config(&current_dir)?;
+    let config = parse_vx_config(&config_path)?;
+
+    let export_format = match format {
+        Some(f) => ExportFormat::from_str(&f).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Unknown format: {}. Use: shell, powershell, batch, or github",
+                f
+            )
+        })?,
+        None => ExportFormat::detect(),
+    };
+
+    let output = generate_env_export(&config, export_format)?;
+    print!("{}", output);
+
+    Ok(())
 }
