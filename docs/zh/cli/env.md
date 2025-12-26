@@ -2,6 +2,15 @@
 
 管理 vx 环境。
 
+## 概述
+
+vx 支持两种类型的环境：
+
+- **项目环境**：创建在项目目录下的 `.vx/env/`。当存在 `.vx.toml` 时，这是默认选项。
+- **全局环境**：创建在 `~/.vx/envs/`，用于跨项目使用。
+
+所有工具都全局存储在 `~/.vx/store/`（内容寻址存储）。环境包含指向全局 store 的软链接，节省磁盘空间的同时允许每个项目有独立的工具配置。
+
 ## 语法
 
 ```bash
@@ -12,55 +21,91 @@ vx env <subcommand> [options]
 
 | 子命令 | 说明 |
 |--------|------|
-| `create` | 创建新环境 |
+| `create` | 创建新环境（项目或全局） |
 | `use` | 激活环境 |
 | `list` | 列出所有环境 |
 | `delete` | 删除环境 |
 | `show` | 显示环境详情 |
 | `add` | 向环境添加工具 |
 | `remove` | 从环境删除工具 |
-| `export` | 导出环境变量用于 shell 激活 |
-| `import` | 导入环境配置 |
-| `activate` | 生成 shell 激活脚本（export 的别名） |
+| `sync` | 从 .vx.toml 同步项目环境 |
+
+> **注意**：如需 shell 激活（导出 PATH），请使用 `vx dev --export`。详见 [dev](dev)。
 
 ## create
 
 创建新环境。
 
 ```bash
-vx env create <name> [options]
+vx env create [NAME] [OPTIONS]
 ```
 
 选项：
 
-- `--from <env>` - 从现有环境克隆
-- `--set-default` - 设为默认环境
+- `-g`, `--global` - 创建全局环境（需要 NAME）
+- `--from <ENV>` - 从现有环境克隆
+- `--set-default` - 创建后设为默认
+
+**项目环境（默认）：**
+
+当存在 `.vx.toml` 时，在 `.vx/env/` 创建项目本地环境：
+
+```bash
+# 在有 .vx.toml 的项目中
+vx env create              # 创建 .vx/env/
+vx env create --from dev   # 从全局 'dev' 环境克隆
+```
+
+**全局环境：**
+
+```bash
+vx env create --global my-env
+vx env create -g dev --from default
+vx env create -g production --set-default
+```
+
+## sync
+
+从 `.vx.toml` 同步项目环境。为配置中定义的所有工具在 `.vx/env/` 创建软链接。
+
+```bash
+vx env sync
+```
+
+此命令：
+
+1. 从 `.vx.toml` 读取工具版本
+2. 在 `.vx/env/` 创建/更新指向 `~/.vx/store/` 的软链接
+3. 报告需要安装的缺失工具
 
 示例：
 
 ```bash
-vx env create my-env
-vx env create new-env --from existing-env
-vx env create my-env --set-default
+# 运行 'vx setup' 安装工具后
+vx env sync
+
+# 输出：
+# Synced 3 tool(s) to project environment
 ```
 
 ## use
 
-切换到环境。
+激活环境。
 
 ```bash
-vx env use <name> [--global]
+vx env use [NAME] [OPTIONS]
 ```
 
 选项：
 
-- `--global` - 设为全局默认
+- `--global` - 使用全局环境
 
 示例：
 
 ```bash
-vx env use my-env
-vx env use my-env --global
+vx env use                  # 使用项目环境
+vx env use --global dev     # 使用全局 'dev' 环境
+vx env use my-env           # 按名称使用全局环境
 ```
 
 ## list
@@ -68,18 +113,34 @@ vx env use my-env --global
 列出所有环境。
 
 ```bash
-vx env list [--detailed]
+vx env list [OPTIONS]
 ```
 
 选项：
 
 - `--detailed` - 显示详细信息
+- `--global` - 仅显示全局环境
 
 示例：
 
 ```bash
 vx env list
 vx env list --detailed
+vx env list --global
+```
+
+输出：
+
+```
+Project Environment:
+
+* project (active)
+
+Global Environments:
+
+* default (default)
+  dev
+  production
 ```
 
 ## delete
@@ -87,18 +148,20 @@ vx env list --detailed
 删除环境。
 
 ```bash
-vx env delete <name> [--force]
+vx env delete [NAME] [OPTIONS]
 ```
 
 选项：
 
+- `-g`, `--global` - 删除全局环境
 - `--force` - 强制删除，不需确认
 
 示例：
 
 ```bash
-vx env delete my-env
-vx env delete my-env --force
+vx env delete                    # 删除项目环境
+vx env delete --global dev       # 删除全局 'dev' 环境
+vx env delete -g old-env --force
 ```
 
 ## show
@@ -106,14 +169,26 @@ vx env delete my-env --force
 显示环境详情。
 
 ```bash
-vx env show [name]
+vx env show [NAME]
 ```
 
 示例：
 
 ```bash
-vx env show           # 显示当前环境
-vx env show my-env    # 显示指定环境
+vx env show           # 显示项目或默认环境
+vx env show dev       # 显示全局 'dev' 环境
+```
+
+输出：
+
+```
+Environment: project
+Type: project
+Path: /path/to/project/.vx/env
+
+Tools:
+  node -> /home/user/.vx/store/node/20.0.0
+  uv -> /home/user/.vx/store/uv/0.5.14
 ```
 
 ## add
@@ -121,18 +196,24 @@ vx env show my-env    # 显示指定环境
 向环境添加工具。
 
 ```bash
-vx env add <tool>@<version> [--env <name>]
+vx env add <TOOL>@<VERSION> [OPTIONS]
 ```
 
 选项：
 
-- `--env <name>` - 目标环境（默认为当前环境）
+- `-g`, `--global` - 添加到全局环境（需要 `--env`）
+- `--env <NAME>` - 目标全局环境名称
 
 示例：
 
 ```bash
-vx env add node@20
-vx env add go@1.21 --env my-env
+# 添加到项目环境（默认）
+vx env add node@20.0.0
+vx env add uv@0.5.14
+
+# 添加到全局环境
+vx env add node@20 --global --env dev
+vx env add go@1.21 --env production
 ```
 
 ## remove
@@ -140,175 +221,47 @@ vx env add go@1.21 --env my-env
 从环境删除工具。
 
 ```bash
-vx env remove <tool> [--env <name>]
+vx env remove <TOOL> [OPTIONS]
 ```
 
 选项：
 
-- `--env <name>` - 目标环境（默认为当前环境）
+- `-g`, `--global` - 从全局环境删除
+- `--env <NAME>` - 目标全局环境名称
 
 示例：
 
 ```bash
-vx env remove node
-vx env remove node --env my-env
+vx env remove node              # 从项目环境删除
+vx env remove node --global --env dev
 ```
 
-## export
-
-导出环境变量用于 shell 激活。此命令读取当前目录的 `.vx.toml` 配置，生成设置 PATH 的 shell 脚本，使所有配置的工具可用。
-
-```bash
-vx env export [OPTIONS]
-```
-
-选项：
-
-- `-f`, `--format <FORMAT>` - 输出格式（未指定时自动检测）：
-  - `shell` - Bash/Zsh 兼容格式（Unix 默认）
-  - `powershell` - PowerShell 兼容格式（Windows 默认）
-  - `batch` - Windows CMD 批处理格式
-  - `github` - GitHub Actions 格式（追加到 `$GITHUB_PATH`）
-
-### Shell 激活
-
-export 命令的设计类似于 Python 虚拟环境的激活方式。使用 `eval` 在当前 shell 中激活环境：
-
-**Bash/Zsh:**
-
-```bash
-eval "$(vx env export)"
-```
-
-**Fish:**
-
-```fish
-vx env export | source
-```
-
-**PowerShell:**
-
-```powershell
-Invoke-Expression (vx env export --format powershell)
-```
-
-**Windows CMD:**
-
-```batch
-vx env export --format batch > activate.bat && activate.bat
-```
-
-### GitHub Actions 集成
-
-在 CI/CD 流水线中，使用 `github` 格式自动将工具路径添加到 `$GITHUB_PATH`：
-
-```yaml
-- name: 设置 vx 环境
-  run: |
-    if [ -f ".vx.toml" ]; then
-      vx env export --format github >> $GITHUB_PATH
-    fi
-```
-
-### 工作原理
-
-1. 从当前目录读取 `.vx.toml`
-2. 将所有配置的工具解析为 `~/.vx/store/` 中的安装路径
-3. 生成 shell 命令将这些路径添加到 `PATH` 前面
-
-### 输出示例
-
-对于配置了 `uv` 和 `node` 的项目：
-
-**Shell 格式:**
-
-```bash
-# vx environment activation
-# Generated from: /path/to/project/.vx.toml
-export PATH="/home/user/.vx/store/uv/0.5.14:/home/user/.vx/store/node/22.12.0/bin:$PATH"
-```
-
-**PowerShell 格式:**
-
-```powershell
-# vx environment activation
-# Generated from: C:\path\to\project\.vx.toml
-$env:PATH = "C:\Users\user\.vx\store\uv\0.5.14;C:\Users\user\.vx\store\node\22.12.0;$env:PATH"
-```
-
-**GitHub Actions 格式:**
+## 目录结构
 
 ```
-/home/runner/.vx/store/uv/0.5.14
-/home/runner/.vx/store/node/22.12.0/bin
-```
+~/.vx/
+├── store/                    # 全局工具存储（内容寻址）
+│   ├── node/20.0.0/
+│   ├── uv/0.5.14/
+│   └── go/1.21.0/
+├── envs/                     # 全局环境
+│   ├── default/
+│   │   └── node -> ../../store/node/20.0.0
+│   └── dev/
+│       ├── node -> ../../store/node/20.0.0
+│       └── go -> ../../store/go/1.21.0
+└── ...
 
-### 使用场景
-
-1. **Shell 会话**：为交互式开发激活工具
-2. **CI/CD**：确保工具在后续工作流步骤中可用
-3. **脚本**：在运行项目脚本前 source 激活脚本
-4. **IDE 集成**：配置终端配置文件以自动激活
-
-示例：
-
-```bash
-# 在当前 shell 激活
-eval "$(vx env export)"
-
-# 查看将使用的格式
-vx env export --format shell
-
-# 在 CI 中使用
-vx env export --format github >> $GITHUB_PATH
-```
-
-## import
-
-导入环境配置。
-
-```bash
-vx env import <file> [--name <name>] [--force]
-```
-
-选项：
-
-- `-n`, `--name <name>` - 环境名称（默认使用文件中的名称）
-- `-f`, `--force` - 如果存在则强制覆盖
-
-示例：
-
-```bash
-vx env import my-env.toml
-vx env import my-env.toml --name new-env
-vx env import my-env.toml --force
-```
-
-## 完整示例
-
-```bash
-# 创建环境
-vx env create my-project
-
-# 添加工具
-vx env add node@20 --env my-project
-vx env add go@1.21 --env my-project
-
-# 切换环境
-vx env use my-project
-
-# 导出环境用于 shell 激活
-eval "$(vx env export)"
-
-# 导出环境配置到文件
-vx env export my-project -o env.toml
-
-# 导入环境
-vx env import env.toml
+/path/to/project/
+├── .vx.toml                  # 项目配置
+├── .vx/
+│   └── env/                  # 项目环境（软链接）
+│       ├── node -> ~/.vx/store/node/20.0.0
+│       └── uv -> ~/.vx/store/uv/0.5.14
+└── src/
 ```
 
 ## 参见
 
-- [环境管理](/zh/guide/environment-management) - 环境管理指南
-- [Shell 集成](/zh/guide/shell-integration) - Shell 设置指南
-- [GitHub Actions](/zh/guides/github-action) - CI/CD 集成指南
+- [dev](dev) - 进入开发环境（包含 `--export` 用于 shell 激活）
+- [setup](setup) - 安装项目工具

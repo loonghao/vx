@@ -294,6 +294,14 @@ pub enum Commands {
         /// Show verbose output
         #[arg(short, long)]
         verbose: bool,
+        /// Export environment variables for shell activation instead of spawning a shell
+        /// Usage: eval "$(vx dev --export)" (bash/zsh)
+        ///        Invoke-Expression (vx dev --export --format powershell)
+        #[arg(long, short = 'e')]
+        export: bool,
+        /// Output format for --export: shell, powershell, batch, github
+        #[arg(long, short = 'f')]
+        format: Option<String>,
     },
 
     /// Setup development environment (install all project tools)

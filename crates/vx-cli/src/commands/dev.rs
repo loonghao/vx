@@ -19,6 +19,8 @@ pub async fn handle(
     command: Option<Vec<String>>,
     no_install: bool,
     verbose: bool,
+    export: bool,
+    format: Option<String>,
 ) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
 
@@ -30,6 +32,11 @@ pub async fn handle(
         UI::warn("No tools configured in .vx.toml");
         UI::hint("Run 'vx init' to initialize the project configuration");
         return Ok(());
+    }
+
+    // Handle --export mode
+    if export {
+        return handle_export(&config, format);
     }
 
     // Check and install missing tools if needed
@@ -77,6 +84,24 @@ fn find_vx_config(start_dir: &Path) -> Result<PathBuf> {
         "No .vx.toml found in current directory or parent directories.\n\
          Run 'vx init' to create one."
     ))
+}
+
+/// Handle --export mode: output shell script for environment activation
+fn handle_export(config: &VxConfig, format: Option<String>) -> Result<()> {
+    let export_format = match format {
+        Some(f) => ExportFormat::from_str(&f).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Unknown format: {}. Use: shell, powershell, batch, or github",
+                f
+            )
+        })?,
+        None => ExportFormat::detect(),
+    };
+
+    let output = generate_env_export(config, export_format)?;
+    print!("{}", output);
+
+    Ok(())
 }
 
 /// Check if tools are installed and install missing ones
@@ -658,26 +683,4 @@ fn generate_github_actions_export(
     }
 
     output
-}
-
-/// Handle the env export command
-pub fn handle_env_export(format: Option<String>) -> Result<()> {
-    let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = find_vx_config(&current_dir)?;
-    let config = parse_vx_config(&config_path)?;
-
-    let export_format = match format {
-        Some(f) => ExportFormat::from_str(&f).ok_or_else(|| {
-            anyhow::anyhow!(
-                "Unknown format: {}. Use: shell, powershell, batch, or github",
-                f
-            )
-        })?,
-        None => ExportFormat::detect(),
-    };
-
-    let output = generate_env_export(&config, export_format)?;
-    print!("{}", output);
-
-    Ok(())
 }
