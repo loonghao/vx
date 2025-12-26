@@ -1,14 +1,22 @@
 //! Environment management commands
 //!
 //! This module provides commands for managing vx environments:
-//! - create: Create a new environment
+//! - create: Create a new environment (project-local or global)
 //! - use: Activate an environment
 //! - list: List all environments
 //! - delete: Remove an environment
 //! - show: Show current environment details
-//! - export: Export environment variables for shell activation
+//!
+//! ## Environment Types
+//!
+//! - **Project Environment**: Created in `.vx/env/` under the project directory (default when .vx.toml exists)
+//! - **Global Environment**: Created in `~/.vx/envs/` for cross-project use
+//!
+//! ## Storage Model
+//!
+//! All tools are stored globally in `~/.vx/store/` (content-addressable).
+//! Environments contain symlinks to the global store, saving disk space.
 
-use crate::commands::dev::{generate_env_export, ExportFormat};
 use crate::commands::setup::parse_vx_config;
 use crate::ui::UI;
 use anyhow::{Context, Result};
@@ -17,13 +25,22 @@ use std::env;
 use std::path::{Path, PathBuf};
 use vx_paths::{link, LinkStrategy, PathManager};
 
+/// Project environment directory name
+const PROJECT_ENV_DIR: &str = ".vx/env";
+
 /// Environment subcommands
 #[derive(Subcommand, Clone)]
 pub enum EnvCommand {
     /// Create a new environment
+    ///
+    /// By default, creates a project-local environment in `.vx/env/` if `.vx.toml` exists.
+    /// Use `--global` to create a named global environment in `~/.vx/envs/`.
     Create {
-        /// Environment name
-        name: String,
+        /// Environment name (optional for project environments)
+        name: Option<String>,
+        /// Create a global environment instead of project-local
+        #[arg(long, short)]
+        global: bool,
         /// Clone from an existing environment
         #[arg(long)]
         from: Option<String>,
@@ -34,8 +51,8 @@ pub enum EnvCommand {
 
     /// Activate an environment
     Use {
-        /// Environment name
-        name: String,
+        /// Environment name (optional, uses project env if available)
+        name: Option<String>,
         /// Set as the global default
         #[arg(long)]
         global: bool,
@@ -47,16 +64,22 @@ pub enum EnvCommand {
         /// Show detailed information
         #[arg(long)]
         detailed: bool,
+        /// Show only global environments
+        #[arg(long)]
+        global: bool,
     },
 
     /// Delete an environment
     #[command(alias = "rm")]
     Delete {
-        /// Environment name
-        name: String,
+        /// Environment name (optional for project environment)
+        name: Option<String>,
         /// Force deletion without confirmation
         #[arg(long)]
         force: bool,
+        /// Delete global environment
+        #[arg(long, short)]
+        global: bool,
     },
 
     /// Show current environment details
@@ -69,32 +92,30 @@ pub enum EnvCommand {
     Add {
         /// Runtime and version (e.g., node@20.0.0)
         runtime_version: String,
-        /// Environment name (defaults to current)
+        /// Target global environment name
         #[arg(long)]
         env: Option<String>,
+        /// Add to global environment instead of project
+        #[arg(long, short)]
+        global: bool,
     },
 
     /// Remove a runtime from an environment
     Remove {
         /// Runtime name
         runtime: String,
-        /// Environment name (defaults to current)
+        /// Target global environment name
         #[arg(long)]
         env: Option<String>,
+        /// Remove from global environment
+        #[arg(long, short)]
+        global: bool,
     },
 
-    /// Export environment variables for shell activation
+    /// Sync project environment from .vx.toml
     ///
-    /// Usage:
-    ///   Bash/Zsh: eval "$(vx env export)"
-    ///   PowerShell: Invoke-Expression (vx env export --format powershell)
-    ///   GitHub Actions: vx env export --format github | source /dev/stdin
-    #[command(alias = "activate")]
-    Export {
-        /// Output format: shell, powershell, batch, github (auto-detected if not specified)
-        #[arg(long, short)]
-        format: Option<String>,
-    },
+    /// Creates symlinks in `.vx/env/` for all tools defined in `.vx.toml`
+    Sync,
 }
 
 /// Handle environment commands
@@ -102,87 +123,104 @@ pub async fn handle(command: EnvCommand) -> Result<()> {
     match command {
         EnvCommand::Create {
             name,
+            global,
             from,
             set_default,
-        } => create_env(&name, from.as_deref(), set_default).await,
-        EnvCommand::Use { name, global } => use_env(&name, global).await,
-        EnvCommand::List { detailed } => list_envs(detailed).await,
-        EnvCommand::Delete { name, force } => delete_env(&name, force).await,
+        } => create_env(name.as_deref(), global, from.as_deref(), set_default).await,
+        EnvCommand::Use { name, global } => use_env(name.as_deref(), global).await,
+        EnvCommand::List { detailed, global } => list_envs(detailed, global).await,
+        EnvCommand::Delete {
+            name,
+            force,
+            global,
+        } => delete_env(name.as_deref(), force, global).await,
         EnvCommand::Show { name } => show_env(name.as_deref()).await,
         EnvCommand::Add {
             runtime_version,
             env,
-        } => add_runtime(&runtime_version, env.as_deref()).await,
-        EnvCommand::Remove { runtime, env } => remove_runtime(&runtime, env.as_deref()).await,
-        EnvCommand::Export { format } => export_env(format).await,
+            global,
+        } => add_runtime(&runtime_version, env.as_deref(), global).await,
+        EnvCommand::Remove {
+            runtime,
+            env,
+            global,
+        } => remove_runtime(&runtime, env.as_deref(), global).await,
+        EnvCommand::Sync => sync_env().await,
     }
 }
 
-/// Export environment variables for shell activation
-async fn export_env(format: Option<String>) -> Result<()> {
-    let current_dir = env::current_dir().context("Failed to get current directory")?;
+// ========== Helper Functions ==========
+
+/// Get the project environment directory if in a project with .vx.toml
+fn get_project_env_dir() -> Option<PathBuf> {
+    let current_dir = env::current_dir().ok()?;
     let config_path = current_dir.join(".vx.toml");
 
-    if !config_path.exists() {
-        anyhow::bail!("No .vx.toml found in current directory. Run 'vx init' first.");
+    if config_path.exists() {
+        Some(current_dir.join(PROJECT_ENV_DIR))
+    } else {
+        None
     }
-
-    let config = parse_vx_config(&config_path)?;
-
-    let export_format = match format {
-        Some(f) => ExportFormat::from_str(&f).ok_or_else(|| {
-            anyhow::anyhow!(
-                "Unknown format: {}. Use: shell, powershell, batch, or github",
-                f
-            )
-        })?,
-        None => ExportFormat::detect(),
-    };
-
-    let output = generate_env_export(&config, export_format)?;
-    print!("{}", output);
-
-    Ok(())
 }
 
-/// Create a new environment
-async fn create_env(name: &str, from: Option<&str>, set_default: bool) -> Result<()> {
+/// Set the default global environment
+fn set_default_env(name: &str) -> Result<()> {
     let path_manager = PathManager::new()?;
+    let config_dir = path_manager.config_dir();
+    let default_file = config_dir.join("default-env");
 
-    // Check if environment already exists
-    if path_manager.env_exists(name) {
-        anyhow::bail!("Environment '{}' already exists", name);
-    }
-
-    // Create the environment directory
-    let env_dir = path_manager.create_env(name)?;
-    UI::success(&format!(
-        "Created environment '{}' at {}",
-        name,
-        env_dir.display()
-    ));
-
-    // Clone from existing environment if specified
-    if let Some(source) = from {
-        if !path_manager.env_exists(source) {
-            anyhow::bail!("Source environment '{}' does not exist", source);
-        }
-
-        let source_dir = path_manager.env_dir(source);
-        clone_env_contents(&source_dir, &env_dir)?;
-        UI::info(&format!("Cloned from environment '{}'", source));
-    }
-
-    // Set as default if requested
-    if set_default {
-        set_default_env(name)?;
-        UI::info(&format!("Set '{}' as default environment", name));
-    }
+    std::fs::create_dir_all(config_dir)?;
+    std::fs::write(&default_file, name)?;
 
     Ok(())
 }
 
-/// Clone environment contents
+/// Get the current default global environment
+fn get_default_env() -> Result<String> {
+    let path_manager = PathManager::new()?;
+    let config_dir = path_manager.config_dir();
+    let default_file = config_dir.join("default-env");
+
+    if default_file.exists() {
+        let name = std::fs::read_to_string(&default_file)?;
+        Ok(name.trim().to_string())
+    } else {
+        Ok("default".to_string())
+    }
+}
+
+/// List runtimes in an environment directory
+fn list_env_runtimes(env_dir: &Path) -> Result<Vec<String>> {
+    let mut runtimes = Vec::new();
+
+    if !env_dir.exists() {
+        return Ok(runtimes);
+    }
+
+    for entry in std::fs::read_dir(env_dir)? {
+        let entry = entry?;
+        if let Some(name) = entry.file_name().to_str() {
+            runtimes.push(name.to_string());
+        }
+    }
+
+    runtimes.sort();
+    Ok(runtimes)
+}
+
+/// Parse runtime@version string
+fn parse_runtime_version(s: &str) -> Result<(String, String)> {
+    let parts: Vec<&str> = s.splitn(2, '@').collect();
+    if parts.len() != 2 {
+        anyhow::bail!(
+            "Invalid format '{}'. Expected '<runtime>@<version>' (e.g., node@20.0.0)",
+            s
+        );
+    }
+    Ok((parts[0].to_string(), parts[1].to_string()))
+}
+
+/// Clone environment contents (symlinks)
 fn clone_env_contents(source: &Path, target: &Path) -> Result<()> {
     if !source.exists() {
         return Ok(());
@@ -209,158 +247,284 @@ fn clone_env_contents(source: &Path, target: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Set the default environment
-fn set_default_env(name: &str) -> Result<()> {
-    let path_manager = PathManager::new()?;
-    let config_dir = path_manager.config_dir();
-    let default_file = config_dir.join("default-env");
+// ========== Command Implementations ==========
 
-    std::fs::create_dir_all(config_dir)?;
-    std::fs::write(&default_file, name)?;
+/// Create a new environment
+async fn create_env(
+    name: Option<&str>,
+    global: bool,
+    from: Option<&str>,
+    set_default: bool,
+) -> Result<()> {
+    let path_manager = PathManager::new()?;
+
+    if global {
+        // Create global environment
+        let env_name = name.ok_or_else(|| {
+            anyhow::anyhow!("Environment name is required for global environments")
+        })?;
+
+        if path_manager.env_exists(env_name) {
+            anyhow::bail!("Global environment '{}' already exists", env_name);
+        }
+
+        let env_dir = path_manager.create_env(env_name)?;
+        UI::success(&format!(
+            "Created global environment '{}' at {}",
+            env_name,
+            env_dir.display()
+        ));
+
+        if let Some(source) = from {
+            if !path_manager.env_exists(source) {
+                anyhow::bail!("Source environment '{}' does not exist", source);
+            }
+            let source_dir = path_manager.env_dir(source);
+            clone_env_contents(&source_dir, &env_dir)?;
+            UI::info(&format!("Cloned from environment '{}'", source));
+        }
+
+        if set_default {
+            set_default_env(env_name)?;
+            UI::info(&format!("Set '{}' as default global environment", env_name));
+        }
+    } else {
+        // Create project environment
+        let current_dir = env::current_dir().context("Failed to get current directory")?;
+        let config_path = current_dir.join(".vx.toml");
+
+        if !config_path.exists() {
+            anyhow::bail!(
+                "No .vx.toml found. Create one with 'vx init' or use '--global' for a global environment"
+            );
+        }
+
+        let env_dir = current_dir.join(PROJECT_ENV_DIR);
+
+        if env_dir.exists() {
+            anyhow::bail!(
+                "Project environment already exists at {}",
+                env_dir.display()
+            );
+        }
+
+        std::fs::create_dir_all(&env_dir)?;
+        UI::success(&format!(
+            "Created project environment at {}",
+            env_dir.display()
+        ));
+
+        // If from is specified, clone from a global environment
+        if let Some(source) = from {
+            if !path_manager.env_exists(source) {
+                anyhow::bail!("Source global environment '{}' does not exist", source);
+            }
+            let source_dir = path_manager.env_dir(source);
+            clone_env_contents(&source_dir, &env_dir)?;
+            UI::info(&format!("Cloned from global environment '{}'", source));
+        }
+
+        UI::hint("Run 'vx env sync' to populate from .vx.toml, or 'vx env add <tool>@<version>' to add tools");
+    }
 
     Ok(())
 }
 
-/// Get the current default environment
-fn get_default_env() -> Result<String> {
-    let path_manager = PathManager::new()?;
-    let config_dir = path_manager.config_dir();
-    let default_file = config_dir.join("default-env");
-
-    if default_file.exists() {
-        let name = std::fs::read_to_string(&default_file)?;
-        Ok(name.trim().to_string())
-    } else {
-        Ok("default".to_string())
-    }
-}
-
 /// Activate an environment
-async fn use_env(name: &str, global: bool) -> Result<()> {
+async fn use_env(name: Option<&str>, global: bool) -> Result<()> {
     let path_manager = PathManager::new()?;
 
-    // Check if environment exists
-    if !path_manager.env_exists(name) {
-        anyhow::bail!(
-            "Environment '{}' does not exist. Create it with 'vx env create {}'",
-            name,
-            name
-        );
-    }
+    let (env_dir, env_display_name) = if global {
+        let env_name =
+            name.ok_or_else(|| anyhow::anyhow!("Environment name is required with --global"))?;
 
-    if global {
-        set_default_env(name)?;
-        UI::success(&format!("Set '{}' as the default environment", name));
+        if !path_manager.env_exists(env_name) {
+            anyhow::bail!(
+                "Global environment '{}' does not exist. Create it with 'vx env create --global {}'",
+                env_name,
+                env_name
+            );
+        }
+
+        (
+            path_manager.env_dir(env_name),
+            format!("global:{}", env_name),
+        )
+    } else if let Some(env_name) = name {
+        // Check global environment
+        if !path_manager.env_exists(env_name) {
+            anyhow::bail!("Environment '{}' does not exist", env_name);
+        }
+        (path_manager.env_dir(env_name), env_name.to_string())
     } else {
-        // Print shell activation instructions
-        let env_dir = path_manager.env_dir(name);
-        UI::info(&format!(
-            "To activate environment '{}' in current shell:",
-            name
-        ));
-
-        #[cfg(windows)]
-        {
-            println!("  $env:VX_ENV = \"{}\"", name);
-            println!("  $env:PATH = \"{};$env:PATH\"", env_dir.display());
+        // Use project environment if available
+        if let Some(project_env) = get_project_env_dir() {
+            if project_env.exists() {
+                (project_env, "project".to_string())
+            } else {
+                anyhow::bail!("No project environment found. Create one with 'vx env create'");
+            }
+        } else {
+            anyhow::bail!("No .vx.toml found. Use 'vx env use <name>' for a global environment");
         }
+    };
 
-        #[cfg(not(windows))]
-        {
-            println!("  export VX_ENV=\"{}\"", name);
-            println!("  export PATH=\"{}:$PATH\"", env_dir.display());
-        }
+    UI::info(&format!(
+        "To activate environment '{}' in current shell:",
+        env_display_name
+    ));
 
-        println!();
-        UI::hint(
-            "Or add 'eval \"$(vx shell init)\"' to your shell profile for automatic activation",
-        );
+    #[cfg(windows)]
+    {
+        println!("  $env:VX_ENV = \"{}\"", env_display_name);
+        println!("  $env:PATH = \"{};$env:PATH\"", env_dir.display());
     }
+
+    #[cfg(not(windows))]
+    {
+        println!("  export VX_ENV=\"{}\"", env_display_name);
+        println!("  export PATH=\"{}:$PATH\"", env_dir.display());
+    }
+
+    println!();
+    UI::hint("Or use 'eval \"$(vx dev --export)\"' if you have .vx.toml");
 
     Ok(())
 }
 
 /// List all environments
-async fn list_envs(detailed: bool) -> Result<()> {
+async fn list_envs(detailed: bool, global_only: bool) -> Result<()> {
     let path_manager = PathManager::new()?;
-    let envs = path_manager.list_envs()?;
     let current_env = get_default_env().unwrap_or_else(|_| "default".to_string());
 
-    if envs.is_empty() {
-        UI::info("No environments found. Create one with 'vx env create <name>'");
+    // Show project environment first (unless global_only)
+    if !global_only {
+        if let Some(project_env) = get_project_env_dir() {
+            if project_env.exists() {
+                println!("Project Environment:");
+                println!();
+
+                if detailed {
+                    let runtimes = list_env_runtimes(&project_env)?;
+                    println!("  project (active)");
+                    println!("    Path: {}", project_env.display());
+
+                    if runtimes.is_empty() {
+                        println!("    Tools: (none)");
+                    } else {
+                        println!("    Tools:");
+                        for runtime in runtimes {
+                            let runtime_path = project_env.join(&runtime);
+                            if runtime_path.is_symlink() {
+                                if let Ok(target) = std::fs::read_link(&runtime_path) {
+                                    println!("      - {} -> {}", runtime, target.display());
+                                } else {
+                                    println!("      - {}", runtime);
+                                }
+                            } else {
+                                println!("      - {}", runtime);
+                            }
+                        }
+                    }
+                } else {
+                    println!("* project (active)");
+                }
+                println!();
+            }
+        }
+    }
+
+    // Show global environments
+    let envs = path_manager.list_envs()?;
+
+    if envs.is_empty() && global_only {
+        UI::info("No global environments found. Create one with 'vx env create --global <name>'");
         return Ok(());
     }
 
-    println!("Environments:");
-    println!();
+    if !envs.is_empty() {
+        println!("Global Environments:");
+        println!();
 
-    for env_name in &envs {
-        let is_current = env_name == &current_env;
-        let marker = if is_current { " (active)" } else { "" };
+        for env_name in &envs {
+            let is_default = env_name == &current_env;
+            let marker = if is_default { " (default)" } else { "" };
 
-        if detailed {
-            let env_dir = path_manager.env_dir(env_name);
-            let runtimes = list_env_runtimes(&env_dir)?;
+            if detailed {
+                let env_dir = path_manager.env_dir(env_name);
+                let runtimes = list_env_runtimes(&env_dir)?;
 
-            println!("  {}{}", env_name, marker);
-            println!("    Path: {}", env_dir.display());
+                println!("  {}{}", env_name, marker);
+                println!("    Path: {}", env_dir.display());
 
-            if runtimes.is_empty() {
-                println!("    Runtimes: (none)");
-            } else {
-                println!("    Runtimes:");
-                for runtime in runtimes {
-                    println!("      - {}", runtime);
+                if runtimes.is_empty() {
+                    println!("    Tools: (none)");
+                } else {
+                    println!("    Tools:");
+                    for runtime in runtimes {
+                        let runtime_path = env_dir.join(&runtime);
+                        if runtime_path.is_symlink() {
+                            if let Ok(target) = std::fs::read_link(&runtime_path) {
+                                println!("      - {} -> {}", runtime, target.display());
+                            } else {
+                                println!("      - {}", runtime);
+                            }
+                        } else {
+                            println!("      - {}", runtime);
+                        }
+                    }
                 }
+                println!();
+            } else {
+                let prefix = if is_default { "* " } else { "  " };
+                println!("{}{}{}", prefix, env_name, marker);
             }
-            println!();
-        } else {
-            let prefix = if is_current { "* " } else { "  " };
-            println!("{}{}{}", prefix, env_name, marker);
         }
     }
 
     Ok(())
 }
 
-/// List runtimes in an environment
-fn list_env_runtimes(env_dir: &PathBuf) -> Result<Vec<String>> {
-    let mut runtimes = Vec::new();
-
-    if !env_dir.exists() {
-        return Ok(runtimes);
-    }
-
-    for entry in std::fs::read_dir(env_dir)? {
-        let entry = entry?;
-        if let Some(name) = entry.file_name().to_str() {
-            runtimes.push(name.to_string());
-        }
-    }
-
-    runtimes.sort();
-    Ok(runtimes)
-}
-
 /// Delete an environment
-async fn delete_env(name: &str, force: bool) -> Result<()> {
+async fn delete_env(name: Option<&str>, force: bool, global: bool) -> Result<()> {
     let path_manager = PathManager::new()?;
 
-    // Prevent deleting the default environment
-    if name == "default" {
-        anyhow::bail!("Cannot delete the 'default' environment");
-    }
+    let (env_dir, env_display) = if global {
+        let env_name =
+            name.ok_or_else(|| anyhow::anyhow!("Environment name is required with --global"))?;
 
-    // Check if environment exists
-    if !path_manager.env_exists(name) {
-        anyhow::bail!("Environment '{}' does not exist", name);
-    }
+        if env_name == "default" {
+            anyhow::bail!("Cannot delete the 'default' global environment");
+        }
+
+        if !path_manager.env_exists(env_name) {
+            anyhow::bail!("Global environment '{}' does not exist", env_name);
+        }
+
+        (
+            path_manager.env_dir(env_name),
+            format!("global:{}", env_name),
+        )
+    } else {
+        // Delete project environment
+        let project_env = get_project_env_dir().ok_or_else(|| {
+            anyhow::anyhow!(
+                "No .vx.toml found. Use '--global <name>' to delete a global environment"
+            )
+        })?;
+
+        if !project_env.exists() {
+            anyhow::bail!("Project environment does not exist");
+        }
+
+        (project_env, "project".to_string())
+    };
 
     // Confirm deletion
     if !force {
         UI::warning(&format!(
             "This will delete environment '{}' and all its contents.",
-            name
+            env_display
         ));
         print!("Are you sure? [y/N] ");
         use std::io::Write;
@@ -375,8 +539,14 @@ async fn delete_env(name: &str, force: bool) -> Result<()> {
         }
     }
 
-    path_manager.remove_env(name)?;
-    UI::success(&format!("Deleted environment '{}'", name));
+    if global {
+        let env_name = name.unwrap();
+        path_manager.remove_env(env_name)?;
+    } else {
+        std::fs::remove_dir_all(&env_dir)?;
+    }
+
+    UI::success(&format!("Deleted environment '{}'", env_display));
 
     Ok(())
 }
@@ -384,30 +554,45 @@ async fn delete_env(name: &str, force: bool) -> Result<()> {
 /// Show environment details
 async fn show_env(name: Option<&str>) -> Result<()> {
     let path_manager = PathManager::new()?;
-    let env_name = name
-        .map(String::from)
-        .unwrap_or_else(|| get_default_env().unwrap_or_else(|_| "default".to_string()));
 
-    if !path_manager.env_exists(&env_name) {
-        anyhow::bail!("Environment '{}' does not exist", env_name);
-    }
+    let (env_dir, env_name, env_type) = if let Some(n) = name {
+        // Show specific global environment
+        if !path_manager.env_exists(n) {
+            anyhow::bail!("Global environment '{}' does not exist", n);
+        }
+        (path_manager.env_dir(n), n.to_string(), "global")
+    } else {
+        // Show project environment if available, otherwise default global
+        if let Some(project_env) = get_project_env_dir() {
+            if project_env.exists() {
+                (project_env, "project".to_string(), "project")
+            } else {
+                let default_env = get_default_env()?;
+                (path_manager.env_dir(&default_env), default_env, "global")
+            }
+        } else {
+            let default_env = get_default_env()?;
+            (path_manager.env_dir(&default_env), default_env, "global")
+        }
+    };
 
-    let env_dir = path_manager.env_dir(&env_name);
     let runtimes = list_env_runtimes(&env_dir)?;
-    let is_active = get_default_env().map(|e| e == env_name).unwrap_or(false);
 
     println!("Environment: {}", env_name);
+    println!("Type: {}", env_type);
     println!("Path: {}", env_dir.display());
-    println!("Active: {}", if is_active { "yes" } else { "no" });
     println!();
 
     if runtimes.is_empty() {
-        println!("Runtimes: (none)");
-        UI::hint("Add runtimes with 'vx env add <runtime>@<version>'");
+        println!("Tools: (none)");
+        if env_type == "project" {
+            UI::hint("Run 'vx env sync' to populate from .vx.toml");
+        } else {
+            UI::hint("Add tools with 'vx env add <tool>@<version>'");
+        }
     } else {
-        println!("Runtimes:");
+        println!("Tools:");
         for runtime in runtimes {
-            // Try to get version info
             let runtime_path = env_dir.join(&runtime);
             if runtime_path.is_symlink() {
                 if let Ok(target) = std::fs::read_link(&runtime_path) {
@@ -425,19 +610,9 @@ async fn show_env(name: Option<&str>) -> Result<()> {
 }
 
 /// Add a runtime to an environment
-async fn add_runtime(runtime_version: &str, env_name: Option<&str>) -> Result<()> {
+async fn add_runtime(runtime_version: &str, env_name: Option<&str>, global: bool) -> Result<()> {
     let path_manager = PathManager::new()?;
-    let env = env_name
-        .map(String::from)
-        .unwrap_or_else(|| get_default_env().unwrap_or_else(|_| "default".to_string()));
-
-    // Parse runtime@version
     let (runtime, version) = parse_runtime_version(runtime_version)?;
-
-    // Check if environment exists
-    if !path_manager.env_exists(&env) {
-        anyhow::bail!("Environment '{}' does not exist", env);
-    }
 
     // Check if runtime version is installed in store
     if !path_manager.is_version_in_store(&runtime, &version) {
@@ -450,9 +625,43 @@ async fn add_runtime(runtime_version: &str, env_name: Option<&str>) -> Result<()
         );
     }
 
+    let (env_dir, env_display) = if global {
+        let name = env_name
+            .ok_or_else(|| anyhow::anyhow!("Environment name is required with --global"))?;
+
+        if !path_manager.env_exists(name) {
+            anyhow::bail!("Global environment '{}' does not exist", name);
+        }
+
+        (path_manager.env_dir(name), format!("global:{}", name))
+    } else if let Some(name) = env_name {
+        // Add to specified global environment
+        if !path_manager.env_exists(name) {
+            anyhow::bail!("Global environment '{}' does not exist", name);
+        }
+        (path_manager.env_dir(name), name.to_string())
+    } else {
+        // Add to project environment (create if needed)
+        let project_env = get_project_env_dir().ok_or_else(|| {
+            anyhow::anyhow!(
+                "No .vx.toml found. Use '--global' or '--env <name>' for global environments"
+            )
+        })?;
+
+        if !project_env.exists() {
+            std::fs::create_dir_all(&project_env)?;
+            UI::info(&format!(
+                "Created project environment at {}",
+                project_env.display()
+            ));
+        }
+
+        (project_env, "project".to_string())
+    };
+
     // Create link from environment to store
     let store_dir = path_manager.version_store_dir(&runtime, &version);
-    let env_runtime_path = path_manager.env_runtime_path(&env, &runtime);
+    let env_runtime_path = env_dir.join(&runtime);
 
     // Remove existing link if present
     if env_runtime_path.exists() || env_runtime_path.is_symlink() {
@@ -461,53 +670,136 @@ async fn add_runtime(runtime_version: &str, env_name: Option<&str>) -> Result<()
             .context("Failed to remove existing runtime link")?;
     }
 
-    // Create symlink using vx-paths link module
+    // Create symlink
     link::create_link(&store_dir, &env_runtime_path, LinkStrategy::SymLink)
         .context("Failed to create symlink to runtime")?;
 
     UI::success(&format!(
         "Added {}@{} to environment '{}'",
-        runtime, version, env
+        runtime, version, env_display
     ));
 
     Ok(())
 }
 
 /// Remove a runtime from an environment
-async fn remove_runtime(runtime: &str, env_name: Option<&str>) -> Result<()> {
+async fn remove_runtime(runtime: &str, env_name: Option<&str>, global: bool) -> Result<()> {
     let path_manager = PathManager::new()?;
-    let env = env_name
-        .map(String::from)
-        .unwrap_or_else(|| get_default_env().unwrap_or_else(|_| "default".to_string()));
 
-    // Check if environment exists
-    if !path_manager.env_exists(&env) {
-        anyhow::bail!("Environment '{}' does not exist", env);
-    }
+    let (env_dir, env_display) = if global {
+        let name = env_name
+            .ok_or_else(|| anyhow::anyhow!("Environment name is required with --global"))?;
 
-    let env_runtime_path = path_manager.env_runtime_path(&env, runtime);
+        if !path_manager.env_exists(name) {
+            anyhow::bail!("Global environment '{}' does not exist", name);
+        }
+
+        (path_manager.env_dir(name), format!("global:{}", name))
+    } else if let Some(name) = env_name {
+        if !path_manager.env_exists(name) {
+            anyhow::bail!("Global environment '{}' does not exist", name);
+        }
+        (path_manager.env_dir(name), name.to_string())
+    } else {
+        let project_env = get_project_env_dir().ok_or_else(|| {
+            anyhow::anyhow!(
+                "No .vx.toml found. Use '--global' or '--env <name>' for global environments"
+            )
+        })?;
+
+        if !project_env.exists() {
+            anyhow::bail!("Project environment does not exist");
+        }
+
+        (project_env, "project".to_string())
+    };
+
+    let env_runtime_path = env_dir.join(runtime);
 
     if !env_runtime_path.exists() && !env_runtime_path.is_symlink() {
-        anyhow::bail!("Runtime '{}' is not in environment '{}'", runtime, env);
+        anyhow::bail!(
+            "Runtime '{}' is not in environment '{}'",
+            runtime,
+            env_display
+        );
     }
 
     std::fs::remove_file(&env_runtime_path)
         .or_else(|_| std::fs::remove_dir_all(&env_runtime_path))
         .context("Failed to remove runtime from environment")?;
 
-    UI::success(&format!("Removed {} from environment '{}'", runtime, env));
+    UI::success(&format!(
+        "Removed {} from environment '{}'",
+        runtime, env_display
+    ));
 
     Ok(())
 }
 
-/// Parse runtime@version string
-fn parse_runtime_version(s: &str) -> Result<(String, String)> {
-    let parts: Vec<&str> = s.splitn(2, '@').collect();
-    if parts.len() != 2 {
-        anyhow::bail!(
-            "Invalid format '{}'. Expected '<runtime>@<version>' (e.g., node@20.0.0)",
-            s
-        );
+/// Sync project environment from .vx.toml
+async fn sync_env() -> Result<()> {
+    let current_dir = env::current_dir().context("Failed to get current directory")?;
+    let config_path = current_dir.join(".vx.toml");
+
+    if !config_path.exists() {
+        anyhow::bail!("No .vx.toml found in current directory");
     }
-    Ok((parts[0].to_string(), parts[1].to_string()))
+
+    let config = parse_vx_config(&config_path)?;
+    let path_manager = PathManager::new()?;
+    let env_dir = current_dir.join(PROJECT_ENV_DIR);
+
+    // Create project environment directory if needed
+    if !env_dir.exists() {
+        std::fs::create_dir_all(&env_dir)?;
+        UI::info(&format!(
+            "Created project environment at {}",
+            env_dir.display()
+        ));
+    }
+
+    let mut synced = 0;
+    let mut missing = Vec::new();
+
+    for (tool_name, version) in &config.tools {
+        let store_dir = path_manager.version_store_dir(tool_name, version);
+
+        if !store_dir.exists() {
+            missing.push(format!("{}@{}", tool_name, version));
+            continue;
+        }
+
+        let env_tool_path = env_dir.join(tool_name);
+
+        // Remove existing link if present
+        if env_tool_path.exists() || env_tool_path.is_symlink() {
+            std::fs::remove_file(&env_tool_path)
+                .or_else(|_| std::fs::remove_dir_all(&env_tool_path))
+                .ok();
+        }
+
+        // Create symlink
+        link::create_link(&store_dir, &env_tool_path, LinkStrategy::SymLink)
+            .with_context(|| format!("Failed to create symlink for {}", tool_name))?;
+
+        synced += 1;
+    }
+
+    if synced > 0 {
+        UI::success(&format!("Synced {} tool(s) to project environment", synced));
+    }
+
+    if !missing.is_empty() {
+        UI::warning(&format!(
+            "The following tools are not installed: {}",
+            missing.join(", ")
+        ));
+        UI::hint("Run 'vx setup' to install missing tools");
+    }
+
+    if synced == 0 && missing.is_empty() {
+        UI::info("No tools defined in .vx.toml");
+    }
+
+    Ok(())
 }

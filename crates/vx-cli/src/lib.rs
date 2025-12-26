@@ -281,7 +281,9 @@ impl VxCli {
                 command,
                 no_install,
                 verbose,
-            } => commands::dev::handle(shell, command, no_install, verbose).await,
+                export,
+                format,
+            } => commands::dev::handle(shell, command, no_install, verbose, export, format).await,
 
             Commands::Setup {
                 force,
