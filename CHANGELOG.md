@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.17](https://github.com/loonghao/vx/compare/vx-v0.5.16...vx-v0.5.17) (2025-12-26)
+
+
+### Bug Fixes
+
+* improve install scripts and GitHub Action reliability ([e87b9ac](https://github.com/loonghao/vx/commit/e87b9ac9a8c484acb7c2523828f464d7f63fe58f))
+
 ## [0.5.16](https://github.com/loonghao/vx/compare/vx-v0.5.15...vx-v0.5.16) (2025-12-26)
 
 
