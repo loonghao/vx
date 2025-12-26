@@ -216,7 +216,9 @@ impl CommandHandler {
                 command,
                 no_install,
                 verbose,
-            }) => dev::handle(shell, command, no_install, verbose).await,
+                export,
+                format,
+            }) => dev::handle(shell, command, no_install, verbose, export, format).await,
 
             Some(Commands::Setup {
                 force,

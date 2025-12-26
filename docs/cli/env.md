@@ -2,6 +2,15 @@
 
 Manage vx environments.
 
+## Overview
+
+vx supports two types of environments:
+
+- **Project Environment**: Created in `.vx/env/` under the project directory. This is the default when `.vx.toml` exists.
+- **Global Environment**: Created in `~/.vx/envs/` for cross-project use.
+
+All tools are stored globally in `~/.vx/store/` (content-addressable storage). Environments contain symlinks to the global store, saving disk space while allowing per-project tool configurations.
+
 ## Synopsis
 
 ```bash
@@ -12,36 +21,71 @@ vx env <SUBCOMMAND> [OPTIONS]
 
 | Subcommand | Description |
 |------------|-------------|
-| `create` | Create a new environment |
+| `create` | Create a new environment (project or global) |
 | `use` | Activate an environment |
 | `list` | List all environments |
 | `delete` | Remove an environment |
 | `show` | Show environment details |
-| `add` | Add a runtime to an environment |
-| `remove` | Remove a runtime from an environment |
-| `export` | Export environment variables for shell activation |
-| `import` | Import environment from a file |
-| `activate` | Alias for `export` |
+| `add` | Add a tool to an environment |
+| `remove` | Remove a tool from an environment |
+| `sync` | Sync project environment from .vx.toml |
+
+> **Note**: For shell activation (exporting PATH), use `vx dev --export` instead. See [dev](dev) for details.
 
 ## create
 
 Create a new environment.
 
 ```bash
-vx env create <NAME> [OPTIONS]
+vx env create [NAME] [OPTIONS]
 ```
 
 Options:
 
+- `-g`, `--global` - Create a global environment (requires NAME)
 - `--from <ENV>` - Clone from existing environment
 - `--set-default` - Set as default after creation
 
-Examples:
+**Project Environment (default):**
+
+When `.vx.toml` exists, creates a project-local environment in `.vx/env/`:
 
 ```bash
-vx env create my-env
-vx env create new-env --from existing-env
-vx env create my-env --set-default
+# In a project with .vx.toml
+vx env create              # Creates .vx/env/
+vx env create --from dev   # Clone from global 'dev' environment
+```
+
+**Global Environment:**
+
+```bash
+vx env create --global my-env
+vx env create -g dev --from default
+vx env create -g production --set-default
+```
+
+## sync
+
+Sync project environment from `.vx.toml`. Creates symlinks in `.vx/env/` for all tools defined in the config.
+
+```bash
+vx env sync
+```
+
+This command:
+
+1. Reads tool versions from `.vx.toml`
+2. Creates/updates symlinks in `.vx/env/` pointing to `~/.vx/store/`
+3. Reports any missing tools that need to be installed
+
+Example:
+
+```bash
+# After running 'vx setup' to install tools
+vx env sync
+
+# Output:
+# Synced 3 tool(s) to project environment
 ```
 
 ## use
@@ -49,18 +93,19 @@ vx env create my-env --set-default
 Activate an environment.
 
 ```bash
-vx env use <NAME> [OPTIONS]
+vx env use [NAME] [OPTIONS]
 ```
 
 Options:
 
-- `--global` - Set as global default
+- `--global` - Use a global environment
 
 Examples:
 
 ```bash
-vx env use my-env
-vx env use my-env --global
+vx env use                  # Use project environment
+vx env use --global dev     # Use global 'dev' environment
+vx env use my-env           # Use global environment by name
 ```
 
 ## list
@@ -74,12 +119,28 @@ vx env list [OPTIONS]
 Options:
 
 - `--detailed` - Show detailed information
+- `--global` - Show only global environments
 
 Examples:
 
 ```bash
 vx env list
 vx env list --detailed
+vx env list --global
+```
+
+Output:
+
+```
+Project Environment:
+
+* project (active)
+
+Global Environments:
+
+* default (default)
+  dev
+  production
 ```
 
 ## delete
@@ -87,18 +148,20 @@ vx env list --detailed
 Remove an environment.
 
 ```bash
-vx env delete <NAME> [OPTIONS]
+vx env delete [NAME] [OPTIONS]
 ```
 
 Options:
 
+- `-g`, `--global` - Delete a global environment
 - `--force` - Force deletion without confirmation
 
 Examples:
 
 ```bash
-vx env delete my-env
-vx env delete my-env --force
+vx env delete                    # Delete project environment
+vx env delete --global dev       # Delete global 'dev' environment
+vx env delete -g old-env --force
 ```
 
 ## show
@@ -112,199 +175,93 @@ vx env show [NAME]
 Examples:
 
 ```bash
-vx env show           # Show current environment
-vx env show my-env    # Show specific environment
+vx env show           # Show project or default environment
+vx env show dev       # Show global 'dev' environment
+```
+
+Output:
+
+```
+Environment: project
+Type: project
+Path: /path/to/project/.vx/env
+
+Tools:
+  node -> /home/user/.vx/store/node/20.0.0
+  uv -> /home/user/.vx/store/uv/0.5.14
 ```
 
 ## add
 
-Add a runtime to an environment.
+Add a tool to an environment.
 
 ```bash
-vx env add <RUNTIME>@<VERSION> [OPTIONS]
+vx env add <TOOL>@<VERSION> [OPTIONS]
 ```
 
 Options:
 
-- `--env <NAME>` - Target environment (defaults to current)
+- `-g`, `--global` - Add to global environment (requires `--env`)
+- `--env <NAME>` - Target global environment name
 
 Examples:
 
 ```bash
-vx env add node@20
-vx env add go@1.21 --env my-env
+# Add to project environment (default)
+vx env add node@20.0.0
+vx env add uv@0.5.14
+
+# Add to global environment
+vx env add node@20 --global --env dev
+vx env add go@1.21 --env production
 ```
 
 ## remove
 
-Remove a runtime from an environment.
+Remove a tool from an environment.
 
 ```bash
-vx env remove <RUNTIME> [OPTIONS]
+vx env remove <TOOL> [OPTIONS]
 ```
 
 Options:
 
-- `--env <NAME>` - Target environment (defaults to current)
+- `-g`, `--global` - Remove from global environment
+- `--env <NAME>` - Target global environment name
 
 Examples:
 
 ```bash
-vx env remove node
-vx env remove node --env my-env
+vx env remove node              # Remove from project environment
+vx env remove node --global --env dev
 ```
 
-## export
-
-Export environment variables for shell activation. This command reads the `.vx.toml` configuration in the current directory and generates shell scripts that set up PATH to include all configured tools.
-
-```bash
-vx env export [OPTIONS]
-```
-
-Options:
-
-- `-f`, `--format <FORMAT>` - Output format (auto-detected if not specified):
-  - `shell` - Bash/Zsh compatible (default on Unix)
-  - `powershell` - PowerShell compatible (default on Windows)
-  - `batch` - Windows CMD batch file
-  - `github` - GitHub Actions format (appends to `$GITHUB_PATH`)
-
-### Shell Activation
-
-The export command is designed to work like Python's virtual environment activation. Use `eval` to activate the environment in your current shell:
-
-**Bash/Zsh:**
-
-```bash
-eval "$(vx env export)"
-```
-
-**Fish:**
-
-```fish
-vx env export | source
-```
-
-**PowerShell:**
-
-```powershell
-Invoke-Expression (vx env export --format powershell)
-```
-
-**Windows CMD:**
-
-```batch
-vx env export --format batch > activate.bat && activate.bat
-```
-
-### GitHub Actions Integration
-
-For CI/CD pipelines, use the `github` format to automatically add tool paths to `$GITHUB_PATH`:
-
-```yaml
-- name: Setup vx environment
-  run: |
-    if [ -f ".vx.toml" ]; then
-      vx env export --format github >> $GITHUB_PATH
-    fi
-```
-
-### How It Works
-
-1. Reads `.vx.toml` from the current directory
-2. Resolves all configured tools to their installation paths in `~/.vx/store/`
-3. Generates shell commands to prepend these paths to `PATH`
-
-### Example Output
-
-For a project with `uv` and `node` configured:
-
-**Shell format:**
-
-```bash
-# vx environment activation
-# Generated from: /path/to/project/.vx.toml
-export PATH="/home/user/.vx/store/uv/0.5.14:/home/user/.vx/store/node/22.12.0/bin:$PATH"
-```
-
-**PowerShell format:**
-
-```powershell
-# vx environment activation
-# Generated from: C:\path\to\project\.vx.toml
-$env:PATH = "C:\Users\user\.vx\store\uv\0.5.14;C:\Users\user\.vx\store\node\22.12.0;$env:PATH"
-```
-
-**GitHub Actions format:**
+## Directory Structure
 
 ```
-/home/runner/.vx/store/uv/0.5.14
-/home/runner/.vx/store/node/22.12.0/bin
-```
+~/.vx/
+├── store/                    # Global tool storage (content-addressable)
+│   ├── node/20.0.0/
+│   ├── uv/0.5.14/
+│   └── go/1.21.0/
+├── envs/                     # Global environments
+│   ├── default/
+│   │   └── node -> ../../store/node/20.0.0
+│   └── dev/
+│       ├── node -> ../../store/node/20.0.0
+│       └── go -> ../../store/go/1.21.0
+└── ...
 
-### Use Cases
-
-1. **Shell sessions**: Activate tools for interactive development
-2. **CI/CD**: Ensure tools are available in subsequent workflow steps
-3. **Scripts**: Source the activation before running project scripts
-4. **IDE integration**: Configure terminal profiles to auto-activate
-
-Examples:
-
-```bash
-# Activate in current shell
-eval "$(vx env export)"
-
-# Check which format will be used
-vx env export --format shell
-
-# Use in CI
-vx env export --format github >> $GITHUB_PATH
-```
-
-## import
-
-Import environment from a file.
-
-```bash
-vx env import <FILE> [OPTIONS]
-```
-
-Options:
-
-- `-n`, `--name <NAME>` - Environment name (defaults to name in file)
-- `-f`, `--force` - Force overwrite if exists
-
-Examples:
-
-```bash
-vx env import my-env.toml
-vx env import my-env.toml --name new-env
-vx env import my-env.toml --force
-```
-
-## activate
-
-Alias for `export`. Generate shell activation script.
-
-```bash
-vx env activate [OPTIONS]
-```
-
-This is equivalent to `vx env export`. See [export](#export) for full documentation.
-
-Examples:
-
-```bash
-# Activate in current shell
-eval "$(vx env activate)"
-
-# With specific format
-vx env activate --format powershell
+/path/to/project/
+├── .vx.toml                  # Project configuration
+├── .vx/
+│   └── env/                  # Project environment (symlinks)
+│       ├── node -> ~/.vx/store/node/20.0.0
+│       └── uv -> ~/.vx/store/uv/0.5.14
+└── src/
 ```
 
 ## See Also
 
-- [Environment Management](../guide/environment-management) - Guide
-- [Shell Integration](../guide/shell-integration) - Shell setup
+- [dev](dev) - Enter development environment (includes `--export` for shell activation)
+- [setup](setup) - Install project tools
