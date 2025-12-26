@@ -342,6 +342,10 @@ async fn run_script(script_name: &str, args: &[String]) -> anyhow::Result<()> {
 /// script that sets up the environment and then executes the command. This ensures
 /// that environment variables like PATH are properly available to the command and
 /// any subprocesses it spawns.
+///
+/// Platform-specific shells used:
+/// - Windows: PowerShell (pwsh/powershell) - modern default, better error handling
+/// - Linux/macOS: bash - standard default with pipefail support
 fn execute_with_env_script(
     cmd: &str,
     env_vars: &std::collections::HashMap<String, String>,
@@ -359,7 +363,7 @@ fn execute_with_env_script(
         .unwrap_or(0);
 
     #[cfg(windows)]
-    let script_path = temp_dir.join(format!("vx_run_{}_{}.bat", script_id, timestamp));
+    let script_path = temp_dir.join(format!("vx_run_{}_{}.ps1", script_id, timestamp));
 
     #[cfg(not(windows))]
     let script_path = temp_dir.join(format!("vx_run_{}_{}.sh", script_id, timestamp));
@@ -382,14 +386,54 @@ fn execute_with_env_script(
         fs::set_permissions(&script_path, perms)?;
     }
 
-    // Execute the script
+    // Execute the script using platform-appropriate shell
     #[cfg(windows)]
-    let status = Command::new("cmd")
-        .args(["/C", script_path.to_str().unwrap()])
-        .status();
+    let status = {
+        // Try pwsh (PowerShell Core) first, fall back to powershell (Windows PowerShell)
+        let script_path_str = script_path.to_string_lossy();
+        let pwsh_result = Command::new("pwsh")
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                &script_path_str,
+            ])
+            .status();
+
+        match pwsh_result {
+            Ok(status) => Ok(status),
+            Err(_) => {
+                // Fall back to Windows PowerShell
+                Command::new("powershell")
+                    .args([
+                        "-NoProfile",
+                        "-NonInteractive",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-File",
+                        &script_path_str,
+                    ])
+                    .status()
+            }
+        }
+    };
 
     #[cfg(not(windows))]
-    let status = Command::new("sh").arg(&script_path).status();
+    let status = {
+        // Use bash with pipefail for better error handling
+        // Fall back to sh if bash is not available
+        let bash_result = Command::new("bash").arg(&script_path).status();
+
+        match bash_result {
+            Ok(status) => Ok(status),
+            Err(_) => {
+                // Fall back to sh
+                Command::new("sh").arg(&script_path).status()
+            }
+        }
+    };
 
     // Clean up the temporary script
     let _ = fs::remove_file(&script_path);
@@ -399,6 +443,10 @@ fn execute_with_env_script(
 
 /// Generate a platform-specific wrapper script that sets environment variables
 /// and executes the command
+///
+/// Platform-specific formats:
+/// - Windows: PowerShell script (.ps1) with $env:VAR syntax
+/// - Linux/macOS: Bash script (.sh) with export VAR syntax
 fn generate_wrapper_script(
     cmd: &str,
     env_vars: &std::collections::HashMap<String, String>,
@@ -407,34 +455,40 @@ fn generate_wrapper_script(
 
     #[cfg(windows)]
     {
-        // Windows batch script
-        script.push_str("@echo off\r\n");
+        // PowerShell script
+        // Set error action preference for better error handling
+        script.push_str("$ErrorActionPreference = 'Stop'\r\n");
 
-        // Set environment variables
+        // Set environment variables using PowerShell syntax
         for (key, value) in env_vars {
-            // Escape special characters for batch
-            let escaped_value = value.replace('%', "%%");
-            script.push_str(&format!("SET \"{}={}\"\r\n", key, escaped_value));
+            // Escape special characters for PowerShell
+            // Single quotes are literal in PowerShell, double the single quotes to escape
+            let escaped_value = value.replace('\'', "''");
+            script.push_str(&format!("$env:{} = '{}'\r\n", key, escaped_value));
         }
 
-        // Execute the command
-        script.push_str(&format!("{}\r\n", cmd));
+        // Execute the command using Invoke-Expression for complex commands
+        // or cmd /c for shell commands that may use cmd syntax
+        script.push_str(&format!("cmd /c \"{}\"\r\n", cmd.replace('"', "\\\"")));
+        script.push_str("exit $LASTEXITCODE\r\n");
     }
 
     #[cfg(not(windows))]
     {
-        // Unix shell script
-        script.push_str("#!/bin/sh\n");
+        // Bash script with strict error handling
+        script.push_str("#!/usr/bin/env bash\n");
+        script.push_str("set -euo pipefail\n\n");
 
         // Set environment variables
         for (key, value) in env_vars {
             // Escape special characters for shell
-            let escaped_value = value.replace('\\', "\\\\").replace('"', "\\\"");
-            script.push_str(&format!("export {}=\"{}\"\n", key, escaped_value));
+            // Use single quotes and escape single quotes within
+            let escaped_value = value.replace('\'', "'\\''");
+            script.push_str(&format!("export {}='{}'\n", key, escaped_value));
         }
 
         // Execute the command
-        script.push_str(&format!("{}\n", cmd));
+        script.push_str(&format!("\n{}\n", cmd));
     }
 
     script
