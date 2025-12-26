@@ -88,7 +88,7 @@ vx-core = { workspace = true }
 
 
 [workspace.package]
-version = "0.5.17"                                               # x-release-please-version
+version = "0.5.18"                                               # x-release-please-version
 edition = "2021"
 description = "Universal Development Tool Manager"
 license = "MIT"
