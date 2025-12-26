@@ -132,18 +132,13 @@ impl Downloader {
         let url = url.to_string();
         let output_path = output_path.to_path_buf();
 
-        (|| async {
-            self.download_once(&url, &output_path, progress).await
-        })
-        .retry(self.build_retry_strategy())
-        .notify(|err: &Error, dur: Duration| {
-            warn!(
-                "Download failed: {}, retrying in {:?}",
-                err, dur
-            );
-        })
-        .when(|e| e.is_recoverable())
-        .await
+        (|| async { self.download_once(&url, &output_path, progress).await })
+            .retry(self.build_retry_strategy())
+            .notify(|err: &Error, dur: Duration| {
+                warn!("Download failed: {}, retrying in {:?}", err, dur);
+            })
+            .when(|e| e.is_recoverable())
+            .await
     }
 
     /// Internal single download attempt without retry logic
@@ -164,20 +159,17 @@ impl Downloader {
         }
 
         // Start the download request
-        let response = self
-            .client
-            .get(&download_url)
-            .send()
-            .await
-            .map_err(|e| {
-                if e.is_timeout() {
-                    Error::NetworkTimeout { url: download_url.clone() }
-                } else if e.is_connect() || e.is_request() {
-                    Error::download_failed(&download_url, format!("Connection error: {}", e))
-                } else {
-                    Error::download_failed(&download_url, e.to_string())
+        let response = self.client.get(&download_url).send().await.map_err(|e| {
+            if e.is_timeout() {
+                Error::NetworkTimeout {
+                    url: download_url.clone(),
                 }
-            })?;
+            } else if e.is_connect() || e.is_request() {
+                Error::download_failed(&download_url, format!("Connection error: {}", e))
+            } else {
+                Error::download_failed(&download_url, e.to_string())
+            }
+        })?;
 
         // Check response status
         if !response.status().is_success() {
@@ -205,7 +197,9 @@ impl Downloader {
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.map_err(|e| {
                 if e.is_timeout() {
-                    Error::NetworkTimeout { url: url.to_string() }
+                    Error::NetworkTimeout {
+                        url: url.to_string(),
+                    }
                 } else {
                     Error::download_failed(url, format!("Stream error: {}", e))
                 }
