@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.16](https://github.com/loonghao/vx/compare/vx-v0.5.15...vx-v0.5.16) (2025-12-26)
+
+
+### Features
+
+* add P0 cloud and container providers (Docker, AWS CLI, Azure CLI, gcloud) ([84f4940](https://github.com/loonghao/vx/commit/84f494036d5a8519b31f12338d7d89b0f808ccc4))
+* add P1 providers (ninja, cmake, protoc, task, pre-commit) ([0ccf7eb](https://github.com/loonghao/vx/commit/0ccf7eb2b87ce3142e3fdf95bbafb736904945c7))
+* add spack provider and unit tests for multiple providers ([03af547](https://github.com/loonghao/vx/commit/03af547cdda6fba70bb47ffdefe6e362bcccd53a))
+* **list:** add --all flag to show unsupported platform tools ([3d1ad50](https://github.com/loonghao/vx/commit/3d1ad506ce249bfcc9d662af83b4cc6eef2cf2b5))
+* **ollama:** add ollama provider for local LLM management ([ff5ed86](https://github.com/loonghao/vx/commit/ff5ed8637989066e9e971a6b88e4e454130f26cf))
+* **provider:** add Chocolatey package manager provider ([4396fa2](https://github.com/loonghao/vx/commit/4396fa25b69fd6212d4167f4f12cde512c0bcbc4))
+* **provider:** add git provider for version management ([f7881b4](https://github.com/loonghao/vx/commit/f7881b4d4afa2b104b8cfe481be9f4ac0c7b8831))
+
+
+### Bug Fixes
+
+* add rez-release to provider supports ([e6934ec](https://github.com/loonghao/vx/commit/e6934ec8e0d9adf6d81496b204df6cc7bd1cd971))
+* address clippy warnings in dev_environment_tests ([68533b6](https://github.com/loonghao/vx/commit/68533b64c8d28e5f04478dd6caf53a9fcd66b69c))
+* **docker:** update Docker Hub repository to longhal/vx ([f2212c6](https://github.com/loonghao/vx/commit/f2212c650ab29aafad989ff44f50726300fcf8c3))
+* **docker:** use short version format for Docker tags ([650361f](https://github.com/loonghao/vx/commit/650361fee3a297583ed4b906ba3766ab2d1b3a53))
+* **docs:** remove dead links in Chinese documentation ([7e33316](https://github.com/loonghao/vx/commit/7e33316addb4539eebc4341695c5082556ca7194))
+* **list:** fix compilation errors for platform support check ([3bf0638](https://github.com/loonghao/vx/commit/3bf06389df595ee8f5d8f3745b9cbdeb8edd0b83))
+* **list:** use helper function for platform support check ([2ea3e4c](https://github.com/loonghao/vx/commit/2ea3e4cd49554c2791fc4f92138042184e0b7678))
+* resolve compilation errors in cloud providers ([c98b6be](https://github.com/loonghao/vx/commit/c98b6be0f10329f093af2fbf35f7806f97abd2ee))
+* update release-please PR title pattern to include v prefix ([e757238](https://github.com/loonghao/vx/commit/e75723829f60fb92045c6241c993df8aa06d1fac))
+* use array instead of vec for path_entries ([fba551d](https://github.com/loonghao/vx/commit/fba551d3b55aa340477dcb074458ab11873ff62e))
+* use as_ref for trait method call ([8d4a53e](https://github.com/loonghao/vx/commit/8d4a53eb45a0ecdeb434cb8274e4581827f1bcda))
+* use method reference instead of redundant closure ([d2d6b26](https://github.com/loonghao/vx/commit/d2d6b26ce9b1c2d7c8c73914977dd50c02febce4))
+
+
+### Documentation
+
+* add documentation for new tool providers ([07f058c](https://github.com/loonghao/vx/commit/07f058c2d16d575046ade915987474fbe8426bd7))
+* add GitHub Action guide and fix CI issues ([bd49925](https://github.com/loonghao/vx/commit/bd499259ad3638ad937327e011d8843e60319003))
+* **i18n:** add Chinese documentation ([8ba8e7e](https://github.com/loonghao/vx/commit/8ba8e7e1b0034c48a6d2f17bb0f6a0e67eebc052))
+* update GitHub Action usage to use specific version tag ([aecef6f](https://github.com/loonghao/vx/commit/aecef6f7b2de52c023bf685f0ffe8aad506ce4bd))
+
 ## [0.5.15](https://github.com/loonghao/vx/compare/vx-v0.5.14...vx-v0.5.15) (2025-12-24)
 
 
