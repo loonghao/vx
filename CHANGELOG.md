@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.20](https://github.com/loonghao/vx/compare/vx-v0.5.19...vx-v0.5.20) (2025-12-26)
+
+
+### Bug Fixes
+
+* make test_generate_script_backslash_in_value Windows-only ([1ccc70e](https://github.com/loonghao/vx/commit/1ccc70e60154a18625d61c295f243f9d77db3844))
+* use rez-style dynamic script generation for vx run ([135eb6d](https://github.com/loonghao/vx/commit/135eb6dda63329ba525267ded9a233d196d5e311))
+
+
+### Code Refactoring
+
+* use modern shells for script execution ([f667588](https://github.com/loonghao/vx/commit/f6675882e96eb763583fec737b4c9f5c158c9455))
+
 ## [0.5.19](https://github.com/loonghao/vx/compare/vx-v0.5.18...vx-v0.5.19) (2025-12-26)
 
 
