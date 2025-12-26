@@ -290,6 +290,47 @@ This approach ensures:
 Commit `.vx.toml` to your repository. New team members can run `vx setup` to get the exact same development environment in seconds.
 :::
 
+### Environment Export for Subsequent Steps
+
+When you need tools to be available in subsequent workflow steps without the `vx` prefix, use `vx env export`:
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: loonghao/vx@vx-v0.5.15
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+
+      - name: Setup development environment
+        run: vx setup
+
+      # Export tool paths to GITHUB_PATH
+      - name: Setup vx environment
+        run: |
+          if [ -f ".vx.toml" ]; then
+            vx env export --format github >> $GITHUB_PATH
+          fi
+
+      # Now tools are available directly!
+      - run: node --version   # No 'vx' prefix needed
+      - run: uv --version
+      - run: npm ci
+```
+
+This is particularly useful when:
+
+- Using tools that don't work well with the `vx` prefix
+- Running scripts that expect tools to be directly in PATH
+- Integrating with other actions that invoke tools directly
+
+::: info How it works
+`vx env export --format github` outputs tool paths (one per line) that GitHub Actions appends to `$GITHUB_PATH`. These paths become available in all subsequent steps.
+:::
+
 ## Caching
 
 The action automatically caches the vx tools directory (`~/.vx`) to speed up subsequent runs. You can customize the cache behavior:
