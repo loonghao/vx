@@ -79,7 +79,28 @@ const enSidebar = {
         { text: 'Node.js', link: '/tools/nodejs' },
         { text: 'Python', link: '/tools/python' },
         { text: 'Go', link: '/tools/go' },
-        { text: 'Rust', link: '/tools/rust' },
+        { text: 'Rust', link: '/tools/rust' }
+      ]
+    },
+    {
+      text: 'DevOps & Cloud',
+      items: [
+        { text: 'DevOps Tools', link: '/tools/devops' },
+        { text: 'Cloud CLI', link: '/tools/cloud' }
+      ]
+    },
+    {
+      text: 'Build & Quality',
+      items: [
+        { text: 'Build Tools', link: '/tools/build-tools' },
+        { text: 'Code Quality', link: '/tools/quality' }
+      ]
+    },
+    {
+      text: 'Specialized',
+      items: [
+        { text: 'AI Tools', link: '/tools/ai' },
+        { text: 'Scientific & HPC', link: '/tools/scientific' },
         { text: 'Other Tools', link: '/tools/other' }
       ]
     }
@@ -168,7 +189,28 @@ const zhSidebar = {
         { text: 'Node.js', link: '/zh/tools/nodejs' },
         { text: 'Python', link: '/zh/tools/python' },
         { text: 'Go', link: '/zh/tools/go' },
-        { text: 'Rust', link: '/zh/tools/rust' },
+        { text: 'Rust', link: '/zh/tools/rust' }
+      ]
+    },
+    {
+      text: 'DevOps & 云',
+      items: [
+        { text: 'DevOps 工具', link: '/zh/tools/devops' },
+        { text: '云 CLI', link: '/zh/tools/cloud' }
+      ]
+    },
+    {
+      text: '构建 & 质量',
+      items: [
+        { text: '构建工具', link: '/zh/tools/build-tools' },
+        { text: '代码质量', link: '/zh/tools/quality' }
+      ]
+    },
+    {
+      text: '专业工具',
+      items: [
+        { text: 'AI 工具', link: '/zh/tools/ai' },
+        { text: '科学计算 & HPC', link: '/zh/tools/scientific' },
         { text: '其他工具', link: '/zh/tools/other' }
       ]
     }
