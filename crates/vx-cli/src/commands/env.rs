@@ -6,10 +6,14 @@
 //! - list: List all environments
 //! - delete: Remove an environment
 //! - show: Show current environment details
+//! - export: Export environment variables for shell activation
 
+use crate::commands::dev::{generate_env_export, ExportFormat};
+use crate::commands::setup::parse_vx_config;
 use crate::ui::UI;
 use anyhow::{Context, Result};
 use clap::Subcommand;
+use std::env;
 use std::path::{Path, PathBuf};
 use vx_paths::{link, LinkStrategy, PathManager};
 
@@ -78,6 +82,19 @@ pub enum EnvCommand {
         #[arg(long)]
         env: Option<String>,
     },
+
+    /// Export environment variables for shell activation
+    ///
+    /// Usage:
+    ///   Bash/Zsh: eval "$(vx env export)"
+    ///   PowerShell: Invoke-Expression (vx env export --format powershell)
+    ///   GitHub Actions: vx env export --format github | source /dev/stdin
+    #[command(alias = "activate")]
+    Export {
+        /// Output format: shell, powershell, batch, github (auto-detected if not specified)
+        #[arg(long, short)]
+        format: Option<String>,
+    },
 }
 
 /// Handle environment commands
@@ -97,7 +114,35 @@ pub async fn handle(command: EnvCommand) -> Result<()> {
             env,
         } => add_runtime(&runtime_version, env.as_deref()).await,
         EnvCommand::Remove { runtime, env } => remove_runtime(&runtime, env.as_deref()).await,
+        EnvCommand::Export { format } => export_env(format).await,
     }
+}
+
+/// Export environment variables for shell activation
+async fn export_env(format: Option<String>) -> Result<()> {
+    let current_dir = env::current_dir().context("Failed to get current directory")?;
+    let config_path = current_dir.join(".vx.toml");
+
+    if !config_path.exists() {
+        anyhow::bail!("No .vx.toml found in current directory. Run 'vx init' first.");
+    }
+
+    let config = parse_vx_config(&config_path)?;
+
+    let export_format = match format {
+        Some(f) => ExportFormat::from_str(&f).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Unknown format: {}. Use: shell, powershell, batch, or github",
+                f
+            )
+        })?,
+        None => ExportFormat::detect(),
+    };
+
+    let output = generate_env_export(&config, export_format)?;
+    print!("{}", output);
+
+    Ok(())
 }
 
 /// Create a new environment
