@@ -4,14 +4,25 @@ use crate::{cdn::CdnOptimizer, progress::ProgressContext, Error, Result, USER_AG
 use futures_util::StreamExt;
 use sha2::Digest;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
+use tracing::{debug, warn};
 
 /// HTTP downloader for fetching files from URLs
 pub struct Downloader {
     client: reqwest::Client,
     cdn_optimizer: CdnOptimizer,
+    /// Maximum number of retry attempts for failed downloads
+    max_retries: u32,
+    /// Delay between retry attempts (with exponential backoff)
+    retry_delay: Duration,
 }
 
 impl Downloader {
+    /// Default maximum retry attempts
+    const DEFAULT_MAX_RETRIES: u32 = 3;
+    /// Default initial retry delay (1 second)
+    const DEFAULT_RETRY_DELAY: Duration = Duration::from_secs(1);
+
     /// Create a new downloader with default configuration
     pub fn new() -> Result<Self> {
         let client = reqwest::Client::builder()
@@ -22,6 +33,8 @@ impl Downloader {
         Ok(Self {
             client,
             cdn_optimizer: CdnOptimizer::default(),
+            max_retries: Self::DEFAULT_MAX_RETRIES,
+            retry_delay: Self::DEFAULT_RETRY_DELAY,
         })
     }
 
@@ -35,6 +48,8 @@ impl Downloader {
         Ok(Self {
             client,
             cdn_optimizer: CdnOptimizer::new(cdn_enabled),
+            max_retries: Self::DEFAULT_MAX_RETRIES,
+            retry_delay: Self::DEFAULT_RETRY_DELAY,
         })
     }
 
@@ -43,6 +58,8 @@ impl Downloader {
         Self {
             client,
             cdn_optimizer: CdnOptimizer::default(),
+            max_retries: Self::DEFAULT_MAX_RETRIES,
+            retry_delay: Self::DEFAULT_RETRY_DELAY,
         }
     }
 
@@ -51,7 +68,21 @@ impl Downloader {
         Self {
             client,
             cdn_optimizer,
+            max_retries: Self::DEFAULT_MAX_RETRIES,
+            retry_delay: Self::DEFAULT_RETRY_DELAY,
         }
+    }
+
+    /// Set the maximum number of retry attempts
+    pub fn with_max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = max_retries;
+        self
+    }
+
+    /// Set the initial retry delay (will use exponential backoff)
+    pub fn with_retry_delay(mut self, delay: Duration) -> Self {
+        self.retry_delay = delay;
+        self
     }
 
     /// Enable or disable CDN acceleration
@@ -67,7 +98,48 @@ impl Downloader {
     /// Download a file from URL to the specified path
     ///
     /// If CDN acceleration is enabled, the URL will be optimized before downloading.
+    /// Automatically retries on network failures with exponential backoff.
     pub async fn download(
+        &self,
+        url: &str,
+        output_path: &Path,
+        progress: &ProgressContext,
+    ) -> Result<()> {
+        let mut last_error = None;
+
+        for attempt in 0..=self.max_retries {
+            if attempt > 0 {
+                // Calculate delay with exponential backoff: delay * 2^(attempt-1)
+                let delay = self.retry_delay * 2u32.pow(attempt - 1);
+                warn!(
+                    "Download failed, retrying in {:?} (attempt {}/{})",
+                    delay,
+                    attempt + 1,
+                    self.max_retries + 1
+                );
+                tokio::time::sleep(delay).await;
+            }
+
+            match self.download_once(url, output_path, progress).await {
+                Ok(()) => return Ok(()),
+                Err(e) => {
+                    if e.is_recoverable() && attempt < self.max_retries {
+                        debug!("Recoverable error on attempt {}: {}", attempt + 1, e);
+                        last_error = Some(e);
+                        continue;
+                    }
+                    return Err(e);
+                }
+            }
+        }
+
+        Err(last_error.unwrap_or_else(|| {
+            Error::download_failed(url, "Max retries exceeded")
+        }))
+    }
+
+    /// Internal single download attempt without retry logic
+    async fn download_once(
         &self,
         url: &str,
         output_path: &Path,
@@ -87,7 +159,15 @@ impl Downloader {
             .get(&download_url)
             .send()
             .await
-            .map_err(|e| Error::download_failed(&download_url, e.to_string()))?;
+            .map_err(|e| {
+                if e.is_timeout() {
+                    Error::NetworkTimeout { url: download_url.clone() }
+                } else if e.is_connect() || e.is_request() {
+                    Error::download_failed(&download_url, format!("Connection error: {}", e))
+                } else {
+                    Error::download_failed(&download_url, e.to_string())
+                }
+            })?;
 
         // Check response status
         if !response.status().is_success() {
@@ -113,7 +193,13 @@ impl Downloader {
 
         // Download with progress tracking
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| Error::download_failed(url, e.to_string()))?;
+            let chunk = chunk.map_err(|e| {
+                if e.is_timeout() {
+                    Error::NetworkTimeout { url: url.to_string() }
+                } else {
+                    Error::download_failed(url, format!("Stream error: {}", e))
+                }
+            })?;
 
             std::io::Write::write_all(&mut file, &chunk)?;
             downloaded += chunk.len() as u64;
