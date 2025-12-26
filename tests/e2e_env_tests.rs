@@ -1,6 +1,10 @@
 //! E2E tests for the env command
 //!
 //! These tests verify the environment management functionality.
+//!
+//! Note: These tests use `--global` flag to create environments in VX_HOME,
+//! which is isolated via tempdir. Project-local environments would require
+//! changing the working directory, which is more complex.
 
 use std::env;
 use std::path::PathBuf;
@@ -21,15 +25,17 @@ fn vx_binary() -> PathBuf {
     path
 }
 
-/// E2E test environment with isolated VX_HOME
+/// E2E test environment with isolated VX_HOME and working directory
 struct E2ETestEnv {
     home: TempDir,
+    workdir: TempDir,
 }
 
 impl E2ETestEnv {
     fn new() -> Self {
         Self {
-            home: TempDir::new().expect("Failed to create temp dir"),
+            home: TempDir::new().expect("Failed to create temp dir for home"),
+            workdir: TempDir::new().expect("Failed to create temp dir for workdir"),
         }
     }
 
@@ -37,6 +43,7 @@ impl E2ETestEnv {
         Command::new(vx_binary())
             .args(args)
             .env("VX_HOME", self.home.path())
+            .current_dir(self.workdir.path())
             .output()
             .expect("Failed to execute vx command")
     }
@@ -54,6 +61,12 @@ impl E2ETestEnv {
             );
         }
         stdout
+    }
+
+    /// Create a .vx.toml file in the workdir to enable project environment commands
+    fn create_vx_config(&self) {
+        let config_path = self.workdir.path().join(".vx.toml");
+        std::fs::write(&config_path, "[tools]\n").expect("Failed to create .vx.toml");
     }
 }
 
@@ -75,9 +88,22 @@ fn test_env_list_empty() {
 #[test]
 fn test_env_create() {
     let env = E2ETestEnv::new();
+    env.create_vx_config();
 
-    // Create a new environment
-    let output = env.run(&["env", "create", "test-env"]);
+    // Create a project environment (requires .vx.toml)
+    let output = env.run(&["env", "create"]);
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Created") || stdout.contains("project"));
+}
+
+#[test]
+fn test_env_create_global() {
+    let env = E2ETestEnv::new();
+
+    // Create a global environment
+    let output = env.run(&["env", "create", "--global", "test-env"]);
     assert!(output.status.success());
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -88,8 +114,8 @@ fn test_env_create() {
 fn test_env_create_and_list() {
     let env = E2ETestEnv::new();
 
-    // Create environment
-    let _ = env.run_success(&["env", "create", "my-project"]);
+    // Create global environment
+    let _ = env.run_success(&["env", "create", "--global", "my-project"]);
 
     // List environments
     let output = env.run(&["env", "list"]);
@@ -103,8 +129,8 @@ fn test_env_create_and_list() {
 fn test_env_show() {
     let env = E2ETestEnv::new();
 
-    // Create environment first
-    let _ = env.run_success(&["env", "create", "show-test"]);
+    // Create global environment first
+    let _ = env.run_success(&["env", "create", "--global", "show-test"]);
 
     // Show environment details
     let output = env.run(&["env", "show", "show-test"]);
@@ -118,11 +144,11 @@ fn test_env_show() {
 fn test_env_delete() {
     let env = E2ETestEnv::new();
 
-    // Create environment
-    let _ = env.run_success(&["env", "create", "to-delete"]);
+    // Create global environment
+    let _ = env.run_success(&["env", "create", "--global", "to-delete"]);
 
     // Delete environment
-    let output = env.run(&["env", "delete", "to-delete", "--force"]);
+    let output = env.run(&["env", "delete", "--global", "to-delete", "--force"]);
     assert!(output.status.success());
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -133,16 +159,16 @@ fn test_env_delete() {
 fn test_env_use() {
     let env = E2ETestEnv::new();
 
-    // Create environment
-    let _ = env.run_success(&["env", "create", "use-test"]);
+    // Create global environment
+    let _ = env.run_success(&["env", "create", "--global", "use-test"]);
 
     // Use/activate environment
-    let output = env.run(&["env", "use", "use-test"]);
+    let output = env.run(&["env", "use", "--global", "use-test"]);
     assert!(output.status.success());
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("Activated") || stdout.contains("use-test") || stdout.contains("Using")
+        stdout.contains("Activated") || stdout.contains("use-test") || stdout.contains("activate")
     );
 }
 
@@ -150,11 +176,11 @@ fn test_env_use() {
 fn test_env_create_duplicate() {
     let env = E2ETestEnv::new();
 
-    // Create environment
-    let _ = env.run_success(&["env", "create", "duplicate-test"]);
+    // Create global environment
+    let _ = env.run_success(&["env", "create", "--global", "duplicate-test"]);
 
     // Try to create same environment again
-    let output = env.run(&["env", "create", "duplicate-test"]);
+    let output = env.run(&["env", "create", "--global", "duplicate-test"]);
 
     // Should fail or warn about existing environment
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -173,8 +199,8 @@ fn test_env_create_duplicate() {
 fn test_env_delete_nonexistent() {
     let env = E2ETestEnv::new();
 
-    // Try to delete non-existent environment
-    let output = env.run(&["env", "delete", "nonexistent-env", "--force"]);
+    // Try to delete non-existent global environment
+    let output = env.run(&["env", "delete", "--global", "nonexistent-env", "--force"]);
 
     // Should fail with error message
     let stderr = String::from_utf8_lossy(&output.stderr);
