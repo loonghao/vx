@@ -38,7 +38,7 @@ impl Provider for RezProvider {
     }
 
     fn supports(&self, name: &str) -> bool {
-        name == "rez" || name == "rez-env" || name == "rez-build"
+        name == "rez" || name == "rez-env" || name == "rez-build" || name == "rez-release"
     }
 
     fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
