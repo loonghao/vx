@@ -170,9 +170,11 @@ build_from_source() {
     success "vx built and installed from source to: $VX_INSTALL_DIR"
 }
 
-# Download and install vx from GitHub releases
+# Download and install vx from GitHub releases with retry
 install_from_release() {
     local platform tag_name archive_name download_url temp_dir
+    local max_retries=3
+    local retry_delay=2
 
     platform=$(detect_platform)
 
@@ -222,7 +224,7 @@ install_from_release() {
     temp_dir=$(mktemp -d)
     trap 'rm -rf "$temp_dir"' EXIT
 
-    # Download from GitHub Releases only (jsDelivr doesn't support release assets)
+    # Download from GitHub Releases with retry
     download_success=false
     local download_url="$BASE_URL/download/$tag_name/$archive_name"
 
@@ -234,59 +236,84 @@ install_from_release() {
         wget_auth_opts="--header=\"Authorization: Bearer $GITHUB_TOKEN\""
     fi
 
-    info "Downloading from GitHub Releases: $download_url"
+    # Download with retry
+    for retry in $(seq 1 $max_retries); do
+        if [[ $retry -gt 1 ]]; then
+            info "Retry attempt $retry of $max_retries..."
+            sleep $retry_delay
+        fi
 
-    if command -v curl >/dev/null 2>&1; then
-        if eval curl -fsSL --connect-timeout 10 --max-time 120 $curl_auth_opts "\"$download_url\"" -o "\"$temp_dir/$archive_name\"" 2>/dev/null; then
-            # Verify download
-            if [[ -f "$temp_dir/$archive_name" ]] && [[ $(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0) -gt 1024 ]]; then
-                local file_size=$(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0)
-                success "Successfully downloaded ($(echo "scale=2; $file_size/1024/1024" | bc 2>/dev/null || echo "unknown") MB)"
-                download_success=true
+        info "Downloading from GitHub Releases: $download_url"
+
+        if command -v curl >/dev/null 2>&1; then
+            if eval curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-delay 2 $curl_auth_opts "\"$download_url\"" -o "\"$temp_dir/$archive_name\"" 2>/dev/null; then
+                # Verify download
+                if [[ -f "$temp_dir/$archive_name" ]] && [[ $(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0) -gt 1024 ]]; then
+                    local file_size=$(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0)
+                    success "Successfully downloaded ($(echo "scale=2; $file_size/1024/1024" | bc 2>/dev/null || echo "unknown") MB)"
+                    download_success=true
+                    break
+                fi
             fi
-        fi
-    elif command -v wget >/dev/null 2>&1; then
-        if eval wget -q --timeout=120 $wget_auth_opts "\"$download_url\"" -O "\"$temp_dir/$archive_name\"" 2>/dev/null; then
-            # Verify download
-            if [[ -f "$temp_dir/$archive_name" ]] && [[ $(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0) -gt 1024 ]]; then
-                local file_size=$(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0)
-                success "Successfully downloaded ($(echo "scale=2; $file_size/1024/1024" | bc 2>/dev/null || echo "unknown") MB)"
-                download_success=true
+        elif command -v wget >/dev/null 2>&1; then
+            if eval wget -q --timeout=120 --tries=3 --waitretry=2 $wget_auth_opts "\"$download_url\"" -O "\"$temp_dir/$archive_name\"" 2>/dev/null; then
+                # Verify download
+                if [[ -f "$temp_dir/$archive_name" ]] && [[ $(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0) -gt 1024 ]]; then
+                    local file_size=$(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0)
+                    success "Successfully downloaded ($(echo "scale=2; $file_size/1024/1024" | bc 2>/dev/null || echo "unknown") MB)"
+                    download_success=true
+                    break
+                fi
             fi
+        else
+            error "Neither curl nor wget is available"
+            exit 1
         fi
-    else
-        error "Neither curl nor wget is available"
-        exit 1
-    fi
+
+        warn "Download attempt $retry failed, cleaning up..."
+        rm -f "$temp_dir/$archive_name"
+    done
 
     # Try fallback archive if primary failed and fallback exists
     if [[ "$download_success" != "true" ]] && [[ -n "${fallback_archive:-}" ]]; then
         warn "Primary archive failed, trying fallback archive..."
         local fallback_url="$BASE_URL/download/$tag_name/$fallback_archive"
 
-        info "Downloading fallback from GitHub Releases: $fallback_url"
+        for retry in $(seq 1 $max_retries); do
+            if [[ $retry -gt 1 ]]; then
+                info "Retry attempt $retry of $max_retries..."
+                sleep $retry_delay
+            fi
 
-        if command -v curl >/dev/null 2>&1; then
-            if eval curl -fsSL --connect-timeout 10 --max-time 120 $curl_auth_opts "\"$fallback_url\"" -o "\"$temp_dir/$fallback_archive\"" 2>/dev/null; then
-                if [[ -f "$temp_dir/$fallback_archive" ]] && [[ $(stat -f%z "$temp_dir/$fallback_archive" 2>/dev/null || stat -c%s "$temp_dir/$fallback_archive" 2>/dev/null || echo 0) -gt 1024 ]]; then
-                    archive_name="$fallback_archive"
-                    success "Successfully downloaded fallback"
-                    download_success=true
+            info "Downloading fallback from GitHub Releases: $fallback_url"
+
+            if command -v curl >/dev/null 2>&1; then
+                if eval curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-delay 2 $curl_auth_opts "\"$fallback_url\"" -o "\"$temp_dir/$fallback_archive\"" 2>/dev/null; then
+                    if [[ -f "$temp_dir/$fallback_archive" ]] && [[ $(stat -f%z "$temp_dir/$fallback_archive" 2>/dev/null || stat -c%s "$temp_dir/$fallback_archive" 2>/dev/null || echo 0) -gt 1024 ]]; then
+                        archive_name="$fallback_archive"
+                        success "Successfully downloaded fallback"
+                        download_success=true
+                        break
+                    fi
+                fi
+            elif command -v wget >/dev/null 2>&1; then
+                if eval wget -q --timeout=120 --tries=3 --waitretry=2 $wget_auth_opts "\"$fallback_url\"" -O "\"$temp_dir/$fallback_archive\"" 2>/dev/null; then
+                    if [[ -f "$temp_dir/$fallback_archive" ]] && [[ $(stat -f%z "$temp_dir/$fallback_archive" 2>/dev/null || stat -c%s "$temp_dir/$fallback_archive" 2>/dev/null || echo 0) -gt 1024 ]]; then
+                        archive_name="$fallback_archive"
+                        success "Successfully downloaded fallback"
+                        download_success=true
+                        break
+                    fi
                 fi
             fi
-        elif command -v wget >/dev/null 2>&1; then
-            if eval wget -q --timeout=120 $wget_auth_opts "\"$fallback_url\"" -O "\"$temp_dir/$fallback_archive\"" 2>/dev/null; then
-                if [[ -f "$temp_dir/$fallback_archive" ]] && [[ $(stat -f%z "$temp_dir/$fallback_archive" 2>/dev/null || stat -c%s "$temp_dir/$fallback_archive" 2>/dev/null || echo 0) -gt 1024 ]]; then
-                    archive_name="$fallback_archive"
-                    success "Successfully downloaded fallback"
-                    download_success=true
-                fi
-            fi
-        fi
+
+            warn "Fallback download attempt $retry failed, cleaning up..."
+            rm -f "$temp_dir/$fallback_archive"
+        done
     fi
 
     if [[ "$download_success" != "true" ]]; then
-        error "Failed to download vx binary"
+        error "Failed to download vx binary after $max_retries retries"
         error "Try building from source with: BUILD_FROM_SOURCE=true $0"
         exit 1
     fi
@@ -320,6 +347,7 @@ install_from_release() {
 update_path() {
     local install_path="$1"
     local shell_config
+    local path_export="export PATH=\"$install_path:\$PATH\""
 
     # Detect shell and config file
     case "$SHELL" in
@@ -329,13 +357,44 @@ update_path() {
         *) shell_config="$HOME/.profile" ;;
     esac
 
-    # Check if install directory is in PATH
-    if [[ ":$PATH:" != *":$install_path:"* ]]; then
-        warn "Add $install_path to your PATH to use vx from anywhere:"
-        echo "  echo 'export PATH=\"$install_path:\$PATH\"' >> $shell_config"
-        echo "  source $shell_config"
-        echo ""
-        echo "Or add it manually to your shell configuration file"
+    # Check if install directory is already in PATH
+    if [[ ":$PATH:" == *":$install_path:"* ]]; then
+        info "Install directory already in PATH"
+        return
+    fi
+
+    # Check if already configured in shell config
+    if [[ -f "$shell_config" ]] && grep -q "$install_path" "$shell_config" 2>/dev/null; then
+        info "PATH already configured in $shell_config"
+        # Update current session
+        export PATH="$install_path:$PATH"
+        return
+    fi
+
+    # Automatically add to shell config
+    if [[ -f "$shell_config" ]] || [[ -w "$(dirname "$shell_config")" ]]; then
+        echo "" >> "$shell_config"
+        echo "# Added by vx installer" >> "$shell_config"
+        if [[ "$shell_config" == *"fish"* ]]; then
+            echo "set -gx PATH \"$install_path\" \$PATH" >> "$shell_config"
+        else
+            echo "$path_export" >> "$shell_config"
+        fi
+        success "Added $install_path to PATH in $shell_config"
+
+        # Update current session
+        export PATH="$install_path:$PATH"
+        info "Updated current session PATH"
+    else
+        warn "Could not automatically update PATH"
+        echo "  Add this to your shell configuration:"
+        echo "  $path_export"
+    fi
+
+    # Also check for CI environments (GitHub Actions, GitLab CI, etc.)
+    if [[ -n "${GITHUB_PATH:-}" ]]; then
+        echo "$install_path" >> "$GITHUB_PATH"
+        info "Added to GITHUB_PATH for subsequent steps"
     fi
 }
 

@@ -67,6 +67,10 @@ runs:
         INSTALL_DIR="$HOME/.local/bin"
         mkdir -p "$INSTALL_DIR"
 
+        # Add to PATH immediately for current step and subsequent steps
+        echo "$INSTALL_DIR" >> $GITHUB_PATH
+        export PATH="$INSTALL_DIR:$PATH"
+
         # Skip download if already cached
         if [ -f "$INSTALL_DIR/vx" ]; then
           echo "vx already installed (from cache)"
@@ -76,9 +80,21 @@ runs:
           # Determine version
           if [ "$VX_VERSION" = "latest" ]; then
             echo "Fetching latest version..."
-            TAG_NAME=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" \
-              "https://api.github.com/repos/loonghao/vx/releases/latest" | \
-              grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+            # Retry logic for API requests
+            for i in 1 2 3; do
+              TAG_NAME=$(curl -sS --retry 3 --retry-delay 2 -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/loonghao/vx/releases/latest" | \
+                grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+              if [ -n "$TAG_NAME" ]; then
+                break
+              fi
+              echo "Retry $i: Failed to fetch latest version..."
+              sleep 2
+            done
+            if [ -z "$TAG_NAME" ]; then
+              echo "Failed to fetch latest version after 3 retries"
+              exit 1
+            fi
           else
             # Handle version format
             if [[ "$VX_VERSION" =~ ^vx-v ]]; then
@@ -122,11 +138,12 @@ runs:
 
           echo "Downloading from: $DOWNLOAD_URL"
 
-          # Download with authentication
+          # Download with authentication and retry
           TEMP_DIR=$(mktemp -d)
           trap 'rm -rf "$TEMP_DIR"' EXIT
 
-          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+          curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors \
+            -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/octet-stream" \
             "$DOWNLOAD_URL" -o "$TEMP_DIR/$ARCHIVE_NAME"
 
@@ -146,11 +163,11 @@ runs:
           echo "vx installed to $INSTALL_DIR/vx"
         fi
 
-        # Add to PATH
-        echo "$INSTALL_DIR" >> $GITHUB_PATH
-
-        # Verify installation
+        # Verify installation using full path (PATH update via GITHUB_PATH only affects subsequent steps)
         "$INSTALL_DIR/vx" --version
+
+        # Export install dir for subsequent steps
+        echo "VX_INSTALL_DIR=$INSTALL_DIR" >> $GITHUB_ENV
 
     # Install vx on Windows
     - name: Install vx (Windows)
@@ -166,6 +183,10 @@ runs:
         $InstallDir = "$env:USERPROFILE\.local\bin"
         New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 
+        # Add to PATH immediately for current step and subsequent steps
+        $InstallDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        $env:PATH = "$InstallDir;$env:PATH"
+
         $vxPath = "$InstallDir\vx.exe"
 
         # Skip download if already cached
@@ -174,12 +195,29 @@ runs:
         } else {
           Write-Host "Installing vx..."
 
-          # Determine version
+          # Determine version with retry
+          $maxRetries = 3
+          $TagName = $null
+
           if ($env:VX_VERSION -eq "latest") {
             Write-Host "Fetching latest version..."
             $headers = @{ "Authorization" = "Bearer $env:GH_TOKEN" }
-            $response = Invoke-RestMethod -Uri "https://api.github.com/repos/loonghao/vx/releases/latest" -Headers $headers
-            $TagName = $response.tag_name
+
+            for ($i = 1; $i -le $maxRetries; $i++) {
+              try {
+                $response = Invoke-RestMethod -Uri "https://api.github.com/repos/loonghao/vx/releases/latest" -Headers $headers -TimeoutSec 30
+                $TagName = $response.tag_name
+                if ($TagName) { break }
+              } catch {
+                Write-Host "Retry $i`: Failed to fetch latest version: $_"
+                if ($i -lt $maxRetries) { Start-Sleep -Seconds 2 }
+              }
+            }
+
+            if (-not $TagName) {
+              Write-Error "Failed to fetch latest version after $maxRetries retries"
+              exit 1
+            }
           } else {
             if ($env:VX_VERSION -match '^vx-v') {
               $TagName = $env:VX_VERSION
@@ -200,7 +238,7 @@ runs:
 
           Write-Host "Downloading from: $DownloadUrl"
 
-          # Download with authentication
+          # Download with authentication and retry
           $TempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
           $ArchivePath = Join-Path $TempDir $ArchiveName
 
@@ -208,7 +246,26 @@ runs:
             "Authorization" = "Bearer $env:GH_TOKEN"
             "Accept" = "application/octet-stream"
           }
-          Invoke-WebRequest -Uri $DownloadUrl -OutFile $ArchivePath -Headers $headers
+
+          $downloadSuccess = $false
+          for ($i = 1; $i -le $maxRetries; $i++) {
+            try {
+              Invoke-WebRequest -Uri $DownloadUrl -OutFile $ArchivePath -Headers $headers -TimeoutSec 120
+              if ((Test-Path $ArchivePath) -and ((Get-Item $ArchivePath).Length -gt 1024)) {
+                $downloadSuccess = $true
+                break
+              }
+            } catch {
+              Write-Host "Retry $i`: Download failed: $_"
+              Remove-Item $ArchivePath -Force -ErrorAction SilentlyContinue
+              if ($i -lt $maxRetries) { Start-Sleep -Seconds 2 }
+            }
+          }
+
+          if (-not $downloadSuccess) {
+            Write-Error "Failed to download vx after $maxRetries retries"
+            exit 1
+          }
 
           # Extract
           Expand-Archive -Path $ArchivePath -DestinationPath $TempDir -Force
@@ -228,17 +285,29 @@ runs:
           Write-Host "vx installed to $vxPath"
         }
 
-        # Add to PATH
-        $InstallDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-        # Verify installation
+        # Verify installation using full path (PATH update via GITHUB_PATH only affects subsequent steps)
         & $vxPath --version
+
+        # Export install dir for subsequent steps
+        "VX_INSTALL_DIR=$InstallDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
     # Get installed version
     - name: Get vx version
       id: setup
       shell: bash
       run: |
+        # Ensure PATH includes vx install directory (in case GITHUB_PATH hasn't taken effect yet)
+        if [ -n "$VX_INSTALL_DIR" ]; then
+          export PATH="$VX_INSTALL_DIR:$PATH"
+        fi
+
+        # Fallback: check common install locations
+        if ! command -v vx &> /dev/null; then
+          if [ -f "$HOME/.local/bin/vx" ]; then
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+        fi
+
         VERSION=$(vx --version | head -1 | awk '{print $2}')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "vx version: $VERSION"
@@ -250,6 +319,18 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
+        # Ensure PATH includes vx install directory
+        if [ -n "$VX_INSTALL_DIR" ]; then
+          export PATH="$VX_INSTALL_DIR:$PATH"
+        fi
+
+        # Fallback: check common install locations
+        if ! command -v vx &> /dev/null; then
+          if [ -f "$HOME/.local/bin/vx" ]; then
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+        fi
+
         echo "Pre-installing tools: ${{ inputs.tools }}"
         for tool in ${{ inputs.tools }}; do
           echo "Installing $tool..."

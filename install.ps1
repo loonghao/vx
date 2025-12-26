@@ -194,7 +194,7 @@ function Build-FromSource {
     Write-Success "vx built and installed from source to: $InstallDir"
 }
 
-# Download from multiple channels with fallback
+# Download from multiple channels with fallback and retry
 # Note: jsDelivr CDN doesn't support GitHub Release assets, only use GitHub Releases
 function Download-WithFallback {
     param(
@@ -213,35 +213,67 @@ function Download-WithFallback {
     )
 
     $archivePath = Join-Path $TempDir $ArchiveName
+    $maxRetries = 3
+    $retryDelay = 2
 
     foreach ($channel in $channels) {
-        try {
-            Write-Info "Trying $($channel.Name): $($channel.Url)"
-            Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Downloading from $($channel.Name)..." -PercentComplete 30
-
-            Invoke-WebRequest -Uri $channel.Url -OutFile $archivePath -UseBasicParsing -TimeoutSec 30
-
-            # Verify download
-            if (Test-Path $archivePath) {
-                $fileSize = (Get-Item $archivePath).Length
-                if ($fileSize -gt 1024) {
-                    # At least 1KB
-                    Write-Success "Successfully downloaded from $($channel.Name) ($([math]::Round($fileSize/1MB, 2)) MB)"
-                    return $archivePath
+        for ($retry = 1; $retry -le $maxRetries; $retry++) {
+            try {
+                if ($retry -gt 1) {
+                    Write-Info "Retry attempt $retry of $maxRetries..."
+                    Start-Sleep -Seconds $retryDelay
                 }
-                else {
-                    Write-Warn "Downloaded file too small, trying next channel..."
-                    Remove-Item $archivePath -Force -ErrorAction SilentlyContinue
+
+                Write-Info "Trying $($channel.Name): $($channel.Url)"
+                Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Downloading from $($channel.Name) (attempt $retry)..." -PercentComplete 30
+
+                # Use more robust download with timeout and retry
+                $webClient = New-Object System.Net.WebClient
+                $webClient.Headers.Add("User-Agent", "vx-installer/1.0")
+
+                # Add GitHub token if available
+                if ($env:GITHUB_TOKEN) {
+                    $webClient.Headers.Add("Authorization", "Bearer $env:GITHUB_TOKEN")
+                }
+
+                $webClient.DownloadFile($channel.Url, $archivePath)
+
+                # Verify download
+                if (Test-Path $archivePath) {
+                    $fileSize = (Get-Item $archivePath).Length
+                    if ($fileSize -gt 1024) {
+                        # At least 1KB
+                        Write-Success "Successfully downloaded from $($channel.Name) ($([math]::Round($fileSize/1MB, 2)) MB)"
+                        return $archivePath
+                    }
+                    else {
+                        Write-Warn "Downloaded file too small, retrying..."
+                        Remove-Item $archivePath -Force -ErrorAction SilentlyContinue
+                    }
+                }
+            }
+            catch {
+                $errorMessage = $_.Exception.Message
+                Write-Warn "Attempt $retry failed: $errorMessage"
+                Remove-Item $archivePath -Force -ErrorAction SilentlyContinue
+
+                # Check for specific network errors that warrant retry
+                $shouldRetry = $errorMessage -like "*timeout*" -or
+                               $errorMessage -like "*connection*" -or
+                               $errorMessage -like "*network*" -or
+                               $errorMessage -like "*503*" -or
+                               $errorMessage -like "*502*" -or
+                               $errorMessage -like "*504*"
+
+                if (-not $shouldRetry -and $retry -lt $maxRetries) {
+                    Write-Warn "Non-retryable error, trying next channel..."
+                    break
                 }
             }
         }
-        catch {
-            Write-Warn "Failed to download from $($channel.Name): $_"
-            Remove-Item $archivePath -Force -ErrorAction SilentlyContinue
-        }
     }
 
-    throw "Failed to download from all channels"
+    throw "Failed to download from all channels after $maxRetries retries"
 }
 
 # Download and install vx from releases with multiple channel support
@@ -333,11 +365,28 @@ function Update-Path {
     # Check if install directory is in PATH
     $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
     if ($currentPath -notlike "*$InstallPath*") {
-        Write-Warn "Add $InstallPath to your PATH to use vx from anywhere:"
-        Write-Host "  Run this command in an elevated PowerShell:"
-        Write-Host "  [Environment]::SetEnvironmentVariable('PATH', `$env:PATH + ';$InstallPath', 'User')"
-        Write-Host ""
-        Write-Host "Or add it manually through System Properties > Environment Variables"
+        # Automatically add to user PATH
+        try {
+            $newPath = "$InstallPath;$currentPath"
+            [Environment]::SetEnvironmentVariable("PATH", $newPath, "User")
+            Write-Success "Added $InstallPath to user PATH"
+
+            # Update current session PATH
+            $env:PATH = "$InstallPath;$env:PATH"
+            Write-Info "Updated current session PATH"
+        }
+        catch {
+            Write-Warn "Could not automatically update PATH: $_"
+            Write-Host ""
+            Write-Host "Please add $InstallPath to your PATH manually:" -ForegroundColor Yellow
+            Write-Host "  Run this command in an elevated PowerShell:" -ForegroundColor Gray
+            Write-Host "  [Environment]::SetEnvironmentVariable('PATH', `$env:PATH + ';$InstallPath', 'User')" -ForegroundColor Gray
+            Write-Host ""
+            Write-Host "Or add it manually through System Properties > Environment Variables" -ForegroundColor Gray
+        }
+    }
+    else {
+        Write-Info "Install directory already in PATH"
     }
 
     Microsoft.PowerShell.Utility\Write-Progress -Activity "Finalizing installation" -Completed

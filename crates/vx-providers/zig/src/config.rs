@@ -18,6 +18,8 @@ pub struct ZigUrlBuilder;
 impl ZigUrlBuilder {
     /// Generate download URL for Zig version
     /// Zig releases are hosted on ziglang.org
+    /// URL format: https://ziglang.org/download/{version}/zig-{arch}-{os}-{version}.{ext}
+    /// Example: https://ziglang.org/download/0.15.2/zig-x86_64-windows-0.15.2.zip
     pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
         let (os_str, arch_str) = Self::get_platform_strings(platform);
         let ext = if platform.os == vx_runtime::Os::Windows {
@@ -26,10 +28,11 @@ impl ZigUrlBuilder {
             "tar.xz"
         };
 
-        // Format: zig-{os}-{arch}-{version}.{ext}
+        // Format: zig-{arch}-{os}-{version}.{ext}
+        // Note: Zig uses {arch}-{os} order, NOT {os}-{arch}
         Some(format!(
             "https://ziglang.org/download/{}/zig-{}-{}-{}.{}",
-            version, os_str, arch_str, version, ext
+            version, arch_str, os_str, version, ext
         ))
     }
 
@@ -56,9 +59,11 @@ impl ZigUrlBuilder {
     }
 
     /// Get the archive directory name
+    /// Format: zig-{arch}-{os}-{version}
+    /// Example: zig-x86_64-linux-0.15.2
     pub fn get_archive_dir_name(version: &str, platform: &Platform) -> String {
         let (os_str, arch_str) = Self::get_platform_strings(platform);
-        // Format: zig-{os}-{arch}-{version}
-        format!("zig-{}-{}-{}", os_str, arch_str, version)
+        // Format: zig-{arch}-{os}-{version}
+        format!("zig-{}-{}-{}", arch_str, os_str, version)
     }
 }
