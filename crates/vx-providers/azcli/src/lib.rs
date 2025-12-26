@@ -7,7 +7,7 @@ pub mod config;
 mod provider;
 mod runtime;
 
-pub use config::AzCliConfig;
+pub use config::{AzCliConfig, AzCliUrlBuilder};
 pub use provider::AzCliProvider;
 pub use runtime::AzCliRuntime;
 
