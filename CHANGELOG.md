@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.19](https://github.com/loonghao/vx/compare/vx-v0.5.18...vx-v0.5.19) (2025-12-26)
+
+
+### Features
+
+* add vx env export command ([c23168c](https://github.com/loonghao/vx/commit/c23168ca143d3644ef0d0cb10d1241af131227e4))
+* **installer:** add automatic retry with exponential backoff for downloads ([cea2949](https://github.com/loonghao/vx/commit/cea2949b64384e07f19c1239614fb93a1a5c458a))
+
+
+### Bug Fixes
+
+* isolate e2e env tests with separate workdir ([e1eb7a9](https://github.com/loonghao/vx/commit/e1eb7a92f9b8d8e85a3213e249135cae659e9182))
+* rename from_str to parse to avoid clippy warning ([4ca6e00](https://github.com/loonghao/vx/commit/4ca6e00818f1dac9de6e374b6c22367b41e7bbee))
+
+
+### Code Refactoring
+
+* **installer:** use backon for retry logic with exponential backoff ([3460c33](https://github.com/loonghao/vx/commit/3460c3304742ac5b05b3de2ab1b17e15e50d022e))
+* merge vx env export into vx dev --export ([a2c8422](https://github.com/loonghao/vx/commit/a2c8422a38270fff2b5e1cc7d1e62e7ed491a6a5))
+
+
+### Documentation
+
+* add vx env export documentation ([383df76](https://github.com/loonghao/vx/commit/383df76737e9eb24ab11eeef532c31a616f934a5))
+
 ## [0.5.18](https://github.com/loonghao/vx/compare/vx-v0.5.17...vx-v0.5.18) (2025-12-26)
 
 
