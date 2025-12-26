@@ -379,12 +379,12 @@ runs:
         if [ -f ".vx.toml" ]; then
           echo "Found .vx.toml, exporting tool paths..."
 
-          # Use vx env export to get the paths and add them to GITHUB_PATH
+          # Use vx dev --export to get the paths and add them to GITHUB_PATH
           # This ensures tools installed by vx setup are available in subsequent steps
-          eval "$(vx env export --format shell 2>/dev/null || true)"
+          eval "$(vx dev --export --format shell 2>/dev/null || true)"
 
           # Also add paths to GITHUB_PATH for subsequent steps
-          vx env export --format github 2>/dev/null | grep -E '^echo.*GITHUB_PATH' | while read -r line; do
+          vx dev --export --format github 2>/dev/null | grep -E '^echo.*GITHUB_PATH' | while read -r line; do
             # Extract the path from the echo command
             path=$(echo "$line" | sed 's/echo "\(.*\)" >> \$GITHUB_PATH/\1/')
             if [ -n "$path" ] && [ -d "$path" ]; then

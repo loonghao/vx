@@ -193,9 +193,7 @@ fn build_dev_environment(config: &VxConfig, verbose: bool) -> Result<HashMap<Str
 
     // Build PATH
     let current_path = env::var("PATH").unwrap_or_default();
-    eprintln!("[vx debug] path_entries: {:?}", path_entries);
     let new_path = if path_entries.is_empty() {
-        eprintln!("[vx debug] No tool paths found, using current PATH");
         current_path
     } else {
         let separator = if cfg!(windows) { ";" } else { ":" };

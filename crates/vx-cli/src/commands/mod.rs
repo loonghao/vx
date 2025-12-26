@@ -277,9 +277,15 @@ impl CommandHandler {
 }
 
 /// Run a script defined in .vx.toml
+///
+/// This function generates a platform-specific wrapper script that:
+/// 1. Sets up the environment variables (including PATH with vx-managed tools)
+/// 2. Executes the user's command
+///
+/// This approach (inspired by rez) ensures environment variables are properly
+/// set in the shell context, avoiding issues with subprocess environment inheritance.
 async fn run_script(script_name: &str, args: &[String]) -> anyhow::Result<()> {
     use std::env;
-    use std::process::Command;
 
     let current_dir = env::current_dir()?;
     let config_path = current_dir.join(".vx.toml");
@@ -312,10 +318,6 @@ async fn run_script(script_name: &str, args: &[String]) -> anyhow::Result<()> {
     // Build environment with vx-managed tools in PATH
     let env_vars = dev::build_script_environment(&config)?;
 
-    // Parse the command
-    let shell = if cfg!(windows) { "cmd" } else { "sh" };
-    let shell_arg = if cfg!(windows) { "/C" } else { "-c" };
-
     // Append additional args to the command
     let full_cmd = if args.is_empty() {
         script_cmd.clone()
@@ -323,19 +325,117 @@ async fn run_script(script_name: &str, args: &[String]) -> anyhow::Result<()> {
         format!("{} {}", script_cmd, args.join(" "))
     };
 
-    let mut command = Command::new(shell);
-    command.arg(shell_arg).arg(&full_cmd);
-
-    // Set environment variables including PATH with vx tools
-    for (key, value) in &env_vars {
-        command.env(key, value);
-    }
-
-    let status = command.status()?;
+    // Generate and execute a platform-specific wrapper script
+    // This ensures environment variables are properly set in the shell context
+    let status = execute_with_env_script(&full_cmd, &env_vars)?;
 
     if !status.success() {
         std::process::exit(status.code().unwrap_or(1));
     }
 
     Ok(())
+}
+
+/// Execute a command by generating a platform-specific wrapper script
+///
+/// This approach (inspired by rez's shell execution model) generates a temporary
+/// script that sets up the environment and then executes the command. This ensures
+/// that environment variables like PATH are properly available to the command and
+/// any subprocesses it spawns.
+fn execute_with_env_script(
+    cmd: &str,
+    env_vars: &std::collections::HashMap<String, String>,
+) -> anyhow::Result<std::process::ExitStatus> {
+    use std::fs;
+    use std::io::Write;
+    use std::process::Command;
+
+    // Create a temporary directory for the script
+    let temp_dir = std::env::temp_dir();
+    let script_id = std::process::id();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+
+    #[cfg(windows)]
+    let script_path = temp_dir.join(format!("vx_run_{}_{}.bat", script_id, timestamp));
+
+    #[cfg(not(windows))]
+    let script_path = temp_dir.join(format!("vx_run_{}_{}.sh", script_id, timestamp));
+
+    // Generate the script content
+    let script_content = generate_wrapper_script(cmd, env_vars);
+
+    // Write the script
+    {
+        let mut file = fs::File::create(&script_path)?;
+        file.write_all(script_content.as_bytes())?;
+    }
+
+    // Make executable on Unix
+    #[cfg(not(windows))]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&script_path)?.permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&script_path, perms)?;
+    }
+
+    // Execute the script
+    #[cfg(windows)]
+    let status = Command::new("cmd")
+        .args(["/C", script_path.to_str().unwrap()])
+        .status();
+
+    #[cfg(not(windows))]
+    let status = Command::new("sh").arg(&script_path).status();
+
+    // Clean up the temporary script
+    let _ = fs::remove_file(&script_path);
+
+    status.map_err(|e| anyhow::anyhow!("Failed to execute script: {}", e))
+}
+
+/// Generate a platform-specific wrapper script that sets environment variables
+/// and executes the command
+fn generate_wrapper_script(
+    cmd: &str,
+    env_vars: &std::collections::HashMap<String, String>,
+) -> String {
+    let mut script = String::new();
+
+    #[cfg(windows)]
+    {
+        // Windows batch script
+        script.push_str("@echo off\r\n");
+
+        // Set environment variables
+        for (key, value) in env_vars {
+            // Escape special characters for batch
+            let escaped_value = value.replace('%', "%%");
+            script.push_str(&format!("SET \"{}={}\"\r\n", key, escaped_value));
+        }
+
+        // Execute the command
+        script.push_str(&format!("{}\r\n", cmd));
+    }
+
+    #[cfg(not(windows))]
+    {
+        // Unix shell script
+        script.push_str("#!/bin/sh\n");
+
+        // Set environment variables
+        for (key, value) in env_vars {
+            // Escape special characters for shell
+            let escaped_value = value.replace('\\', "\\\\").replace('"', "\\\"");
+            script.push_str(&format!("export {}=\"{}\"\n", key, escaped_value));
+        }
+
+        // Execute the command
+        script.push_str(&format!("{}\n", cmd));
+    }
+
+    script
 }
