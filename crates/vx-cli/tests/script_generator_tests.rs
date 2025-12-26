@@ -224,6 +224,7 @@ fn test_generate_script_empty_command() {
 /// Test script generation with value containing backslashes (Windows paths)
 #[rstest]
 #[test]
+#[cfg(windows)]
 fn test_generate_script_backslash_in_value() {
     let mut env_vars: HashMap<String, String> = HashMap::new();
     env_vars.insert(
@@ -235,11 +236,8 @@ fn test_generate_script_backslash_in_value() {
 
     let script = generate_wrapper_script(cmd, &env_vars);
 
-    #[cfg(windows)]
-    {
-        // Backslashes should be preserved in PowerShell single-quoted strings
-        assert!(script.contains(r"C:\Users\test\projects\my-app"));
-    }
+    // Backslashes should be preserved in PowerShell single-quoted strings
+    assert!(script.contains(r"C:\Users\test\projects\my-app"));
 
     cleanup_test_env();
 }
