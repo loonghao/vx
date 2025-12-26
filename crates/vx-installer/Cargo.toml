@@ -45,6 +45,9 @@ thiserror = "2.0"
 # Logging (for CDN module)
 tracing = { workspace = true }
 
+# Retry with backoff
+backon = { workspace = true }
+
 # CDN acceleration (optional)
 turbo-cdn = { version = "0.5", optional = true }
 
