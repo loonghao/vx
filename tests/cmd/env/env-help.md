@@ -16,6 +16,7 @@ Commands:
   show    Show current environment details
   add     Add a runtime to an environment
   remove  Remove a runtime from an environment
+  sync    Sync project environment from .vx.toml
   help    Print this message or the help of the given subcommand(s)
 
 Options:

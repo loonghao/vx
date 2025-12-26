@@ -1,6 +1,7 @@
 //! Download utilities for vx-installer
 
 use crate::{cdn::CdnOptimizer, progress::ProgressContext, Error, Result, USER_AGENT};
+use backon::{ExponentialBuilder, Retryable};
 use futures_util::StreamExt;
 use sha2::Digest;
 use std::path::{Path, PathBuf};
@@ -12,16 +13,20 @@ pub struct Downloader {
     client: reqwest::Client,
     cdn_optimizer: CdnOptimizer,
     /// Maximum number of retry attempts for failed downloads
-    max_retries: u32,
-    /// Delay between retry attempts (with exponential backoff)
-    retry_delay: Duration,
+    max_retries: usize,
+    /// Minimum delay between retry attempts
+    min_delay: Duration,
+    /// Maximum delay between retry attempts
+    max_delay: Duration,
 }
 
 impl Downloader {
     /// Default maximum retry attempts
-    const DEFAULT_MAX_RETRIES: u32 = 3;
-    /// Default initial retry delay (1 second)
-    const DEFAULT_RETRY_DELAY: Duration = Duration::from_secs(1);
+    const DEFAULT_MAX_RETRIES: usize = 3;
+    /// Default minimum retry delay (1 second)
+    const DEFAULT_MIN_DELAY: Duration = Duration::from_secs(1);
+    /// Default maximum retry delay (30 seconds)
+    const DEFAULT_MAX_DELAY: Duration = Duration::from_secs(30);
 
     /// Create a new downloader with default configuration
     pub fn new() -> Result<Self> {
@@ -34,7 +39,8 @@ impl Downloader {
             client,
             cdn_optimizer: CdnOptimizer::default(),
             max_retries: Self::DEFAULT_MAX_RETRIES,
-            retry_delay: Self::DEFAULT_RETRY_DELAY,
+            min_delay: Self::DEFAULT_MIN_DELAY,
+            max_delay: Self::DEFAULT_MAX_DELAY,
         })
     }
 
@@ -49,7 +55,8 @@ impl Downloader {
             client,
             cdn_optimizer: CdnOptimizer::new(cdn_enabled),
             max_retries: Self::DEFAULT_MAX_RETRIES,
-            retry_delay: Self::DEFAULT_RETRY_DELAY,
+            min_delay: Self::DEFAULT_MIN_DELAY,
+            max_delay: Self::DEFAULT_MAX_DELAY,
         })
     }
 
@@ -59,7 +66,8 @@ impl Downloader {
             client,
             cdn_optimizer: CdnOptimizer::default(),
             max_retries: Self::DEFAULT_MAX_RETRIES,
-            retry_delay: Self::DEFAULT_RETRY_DELAY,
+            min_delay: Self::DEFAULT_MIN_DELAY,
+            max_delay: Self::DEFAULT_MAX_DELAY,
         }
     }
 
@@ -69,19 +77,26 @@ impl Downloader {
             client,
             cdn_optimizer,
             max_retries: Self::DEFAULT_MAX_RETRIES,
-            retry_delay: Self::DEFAULT_RETRY_DELAY,
+            min_delay: Self::DEFAULT_MIN_DELAY,
+            max_delay: Self::DEFAULT_MAX_DELAY,
         }
     }
 
     /// Set the maximum number of retry attempts
-    pub fn with_max_retries(mut self, max_retries: u32) -> Self {
+    pub fn with_max_retries(mut self, max_retries: usize) -> Self {
         self.max_retries = max_retries;
         self
     }
 
-    /// Set the initial retry delay (will use exponential backoff)
-    pub fn with_retry_delay(mut self, delay: Duration) -> Self {
-        self.retry_delay = delay;
+    /// Set the minimum retry delay
+    pub fn with_min_delay(mut self, delay: Duration) -> Self {
+        self.min_delay = delay;
+        self
+    }
+
+    /// Set the maximum retry delay
+    pub fn with_max_delay(mut self, delay: Duration) -> Self {
+        self.max_delay = delay;
         self
     }
 
@@ -95,6 +110,15 @@ impl Downloader {
         self.cdn_optimizer.is_enabled()
     }
 
+    /// Build the retry strategy using backon
+    fn build_retry_strategy(&self) -> ExponentialBuilder {
+        ExponentialBuilder::default()
+            .with_min_delay(self.min_delay)
+            .with_max_delay(self.max_delay)
+            .with_max_times(self.max_retries)
+            .with_jitter()
+    }
+
     /// Download a file from URL to the specified path
     ///
     /// If CDN acceleration is enabled, the URL will be optimized before downloading.
@@ -105,37 +129,21 @@ impl Downloader {
         output_path: &Path,
         progress: &ProgressContext,
     ) -> Result<()> {
-        let mut last_error = None;
+        let url = url.to_string();
+        let output_path = output_path.to_path_buf();
 
-        for attempt in 0..=self.max_retries {
-            if attempt > 0 {
-                // Calculate delay with exponential backoff: delay * 2^(attempt-1)
-                let delay = self.retry_delay * 2u32.pow(attempt - 1);
-                warn!(
-                    "Download failed, retrying in {:?} (attempt {}/{})",
-                    delay,
-                    attempt + 1,
-                    self.max_retries + 1
-                );
-                tokio::time::sleep(delay).await;
-            }
-
-            match self.download_once(url, output_path, progress).await {
-                Ok(()) => return Ok(()),
-                Err(e) => {
-                    if e.is_recoverable() && attempt < self.max_retries {
-                        debug!("Recoverable error on attempt {}: {}", attempt + 1, e);
-                        last_error = Some(e);
-                        continue;
-                    }
-                    return Err(e);
-                }
-            }
-        }
-
-        Err(last_error.unwrap_or_else(|| {
-            Error::download_failed(url, "Max retries exceeded")
-        }))
+        (|| async {
+            self.download_once(&url, &output_path, progress).await
+        })
+        .retry(self.build_retry_strategy())
+        .notify(|err: &Error, dur: Duration| {
+            warn!(
+                "Download failed: {}, retrying in {:?}",
+                err, dur
+            );
+        })
+        .when(|e| e.is_recoverable())
+        .await
     }
 
     /// Internal single download attempt without retry logic
@@ -147,6 +155,8 @@ impl Downloader {
     ) -> Result<()> {
         // Optimize URL with CDN if enabled
         let download_url = self.cdn_optimizer.optimize_url(url).await?;
+
+        debug!("Downloading from: {}", download_url);
 
         // Ensure parent directory exists
         if let Some(parent) = output_path.parent() {
@@ -256,21 +266,28 @@ impl Downloader {
 
     /// Get the size of a remote file without downloading it
     pub async fn get_file_size(&self, url: &str) -> Result<Option<u64>> {
-        let response = self
-            .client
-            .head(url)
-            .send()
-            .await
-            .map_err(|e| Error::download_failed(url, e.to_string()))?;
+        let url = url.to_string();
 
-        if !response.status().is_success() {
-            return Err(Error::download_failed(
-                url,
-                format!("HTTP {}", response.status()),
-            ));
-        }
+        (|| async {
+            let response = self
+                .client
+                .head(&url)
+                .send()
+                .await
+                .map_err(|e| Error::download_failed(&url, e.to_string()))?;
 
-        Ok(response.content_length())
+            if !response.status().is_success() {
+                return Err(Error::download_failed(
+                    &url,
+                    format!("HTTP {}", response.status()),
+                ));
+            }
+
+            Ok(response.content_length())
+        })
+        .retry(self.build_retry_strategy())
+        .when(|e: &Error| e.is_recoverable())
+        .await
     }
 
     /// Check if a URL is accessible
@@ -334,7 +351,7 @@ pub struct DownloadConfig {
     /// Expected checksum (optional)
     pub checksum: Option<String>,
     /// Maximum number of retry attempts
-    pub max_retries: u32,
+    pub max_retries: usize,
     /// Timeout for the download operation
     pub timeout: std::time::Duration,
     /// Whether to overwrite existing files
@@ -361,7 +378,7 @@ impl DownloadConfig {
     }
 
     /// Set the maximum number of retries
-    pub fn with_max_retries(mut self, max_retries: u32) -> Self {
+    pub fn with_max_retries(mut self, max_retries: usize) -> Self {
         self.max_retries = max_retries;
         self
     }
@@ -413,5 +430,17 @@ mod tests {
         assert_eq!(config.checksum, Some("abc123".to_string()));
         assert_eq!(config.max_retries, 5);
         assert!(config.overwrite);
+    }
+
+    #[test]
+    fn test_retry_strategy() {
+        let downloader = Downloader::default()
+            .with_max_retries(5)
+            .with_min_delay(Duration::from_millis(100))
+            .with_max_delay(Duration::from_secs(10));
+
+        assert_eq!(downloader.max_retries, 5);
+        assert_eq!(downloader.min_delay, Duration::from_millis(100));
+        assert_eq!(downloader.max_delay, Duration::from_secs(10));
     }
 }
