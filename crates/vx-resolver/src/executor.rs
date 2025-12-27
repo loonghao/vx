@@ -9,7 +9,7 @@ use crate::{Resolver, ResolverConfig, Result};
 use std::process::{ExitStatus, Stdio};
 use tokio::process::Command;
 use tracing::{debug, info, warn};
-use vx_runtime::{Platform, ProviderRegistry, RuntimeContext};
+use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 /// Executor for runtime command forwarding
 pub struct Executor<'a> {
@@ -93,20 +93,8 @@ impl<'a> Executor<'a> {
         // Check platform support before any operation
         if let Some(registry) = self.registry {
             if let Some(runtime) = registry.get_runtime(runtime_name) {
-                let current_platform = Platform::current();
-                if !runtime.is_platform_supported(&current_platform) {
-                    return Err(anyhow::anyhow!(
-                        "Runtime '{}' does not support the current platform ({:?} {:?}). \
-                        Supported platforms: {:?}",
-                        runtime_name,
-                        current_platform.os,
-                        current_platform.arch,
-                        runtime
-                            .supported_platforms()
-                            .iter()
-                            .map(|p| format!("{:?}-{:?}", p.os, p.arch))
-                            .collect::<Vec<_>>()
-                    ));
+                if let Err(e) = runtime.check_platform_support() {
+                    return Err(anyhow::anyhow!("{}", e));
                 }
             }
         }
@@ -168,6 +156,7 @@ impl<'a> Executor<'a> {
         Ok(())
     }
 
+
     /// Install a single runtime
     async fn install_runtime(&self, runtime_name: &str) -> Result<()> {
         info!("Installing: {}", runtime_name);
@@ -176,20 +165,8 @@ impl<'a> Executor<'a> {
         if let (Some(registry), Some(context)) = (self.registry, self.context) {
             if let Some(runtime) = registry.get_runtime(runtime_name) {
                 // Check platform support before attempting installation
-                let current_platform = Platform::current();
-                if !runtime.is_platform_supported(&current_platform) {
-                    return Err(anyhow::anyhow!(
-                        "Runtime '{}' does not support the current platform ({:?} {:?}). \
-                        Supported platforms: {:?}",
-                        runtime_name,
-                        current_platform.os,
-                        current_platform.arch,
-                        runtime
-                            .supported_platforms()
-                            .iter()
-                            .map(|p| format!("{:?}-{:?}", p.os, p.arch))
-                            .collect::<Vec<_>>()
-                    ));
+                if let Err(e) = runtime.check_platform_support() {
+                    return Err(anyhow::anyhow!("{}", e));
                 }
 
                 // Fetch versions to get the latest

@@ -163,6 +163,37 @@ pub trait Runtime: Send + Sync {
             .any(|p| p.matches(platform))
     }
 
+    /// Check platform support and return an error if not supported
+    ///
+    /// This is a convenience method that returns a detailed error message
+    /// when the current platform is not supported.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// // In your provider code:
+    /// runtime.check_platform_support()?;
+    /// ```
+    fn check_platform_support(&self) -> Result<(), String> {
+        let current = Platform::current();
+        if self.is_platform_supported(&current) {
+            Ok(())
+        } else {
+            let supported: Vec<String> = self
+                .supported_platforms()
+                .iter()
+                .map(|p| format!("{}-{}", p.os.as_str(), p.arch.as_str()))
+                .collect();
+            Err(format!(
+                "Runtime '{}' does not support the current platform ({}-{}). Supported platforms: {}",
+                self.name(),
+                current.os.as_str(),
+                current.arch.as_str(),
+                supported.join(", ")
+            ))
+        }
+    }
+
     /// Get the relative path to the executable within the install directory
     ///
     /// Override this if your runtime's archive extracts to a non-standard layout.
