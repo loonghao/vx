@@ -1014,7 +1014,7 @@ async fn collect_vulnerabilities(
                             id: v["advisory"]["id"].as_str().unwrap_or("").to_string(),
                             package: v["package"]["name"].as_str().unwrap_or("").to_string(),
                             version: v["package"]["version"].as_str().unwrap_or("").to_string(),
-                            severity: vx_config::Severity::from_str(
+                            severity: vx_config::Severity::parse(
                                 v["advisory"]["severity"].as_str().unwrap_or("medium"),
                             )
                             .unwrap_or(vx_config::Severity::Medium),
@@ -1057,7 +1057,7 @@ async fn collect_vulnerabilities(
                                 .unwrap_or_default(),
                             package: name.clone(),
                             version: info["range"].as_str().unwrap_or("").to_string(),
-                            severity: vx_config::Severity::from_str(
+                            severity: vx_config::Severity::parse(
                                 info["severity"].as_str().unwrap_or("medium"),
                             )
                             .unwrap_or(vx_config::Severity::Medium),
@@ -1095,7 +1095,7 @@ async fn collect_vulnerabilities(
                                 .unwrap_or("")
                                 .to_string(),
                             version: "".to_string(),
-                            severity: vx_config::Severity::from_str(
+                            severity: vx_config::Severity::parse(
                                 osv["database_specific"]["severity"]
                                     .as_str()
                                     .unwrap_or("medium"),
@@ -1149,7 +1149,7 @@ async fn collect_vulnerabilities(
                                             id: v["id"].as_str().unwrap_or("").to_string(),
                                             package: pkg_name.to_string(),
                                             version: pkg_version.to_string(),
-                                            severity: vx_config::Severity::from_str(
+                                            severity: vx_config::Severity::parse(
                                                 v["database_specific"]["severity"]
                                                     .as_str()
                                                     .unwrap_or("medium"),

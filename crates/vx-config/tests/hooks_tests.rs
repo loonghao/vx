@@ -159,8 +159,9 @@ fn test_execute_with_environment_variable() {
     let temp_dir = TempDir::new().unwrap();
     let executor = HookExecutor::new(temp_dir.path()).env("MY_TEST_VAR", "my_test_value");
 
+    // PowerShell on Windows, sh on Unix
     let cmd = if cfg!(windows) {
-        "echo %MY_TEST_VAR%"
+        "echo $env:MY_TEST_VAR"
     } else {
         "echo $MY_TEST_VAR"
     };
@@ -568,8 +569,12 @@ fn test_execute_in_working_directory() {
 
     let executor = HookExecutor::new(&subdir);
 
-    // List files in current directory
-    let cmd = if cfg!(windows) { "dir /b" } else { "ls" };
+    // List files in current directory (PowerShell on Windows, sh on Unix)
+    let cmd = if cfg!(windows) {
+        "Get-ChildItem -Name"
+    } else {
+        "ls"
+    };
     let hook = HookCommand::Single(cmd.to_string());
     let result = executor.execute("test", &hook).unwrap();
 
