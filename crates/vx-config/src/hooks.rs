@@ -556,11 +556,7 @@ mod tests {
     #[test]
     fn test_hook_executor_failing_command() {
         let executor = HookExecutor::new(env::current_dir().unwrap());
-        let hook = if cfg!(windows) {
-            HookCommand::Single("exit 1".to_string())
-        } else {
-            HookCommand::Single("exit 1".to_string())
-        };
+        let hook = HookCommand::Single("exit 1".to_string());
         let result = executor.execute("test", &hook).unwrap();
         assert!(!result.success);
         assert!(result.error.is_some());
