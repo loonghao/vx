@@ -80,7 +80,8 @@ impl ToolEnvironment {
     /// Add multiple tools from a HashMap (e.g., from .vx.toml)
     pub fn tools(mut self, tools: &HashMap<String, String>) -> Self {
         for (name, version) in tools {
-            self.tools.push(ToolSpec::new(name.clone(), version.clone()));
+            self.tools
+                .push(ToolSpec::new(name.clone(), version.clone()));
         }
         self
     }
@@ -267,7 +268,10 @@ mod tests {
             .warn_missing(false);
 
         assert_eq!(builder.tools.len(), 2);
-        assert_eq!(builder.env_vars.get("NODE_ENV"), Some(&"production".to_string()));
+        assert_eq!(
+            builder.env_vars.get("NODE_ENV"),
+            Some(&"production".to_string())
+        );
         assert!(!builder.include_vx_bin);
         assert!(!builder.warn_missing);
     }

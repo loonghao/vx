@@ -96,13 +96,13 @@ import os
 
 def main():
     args = sys.argv[1:]
-    
+
     if not args:
         print("Usage: vx x my-extension <hello|greet> [args...]")
         sys.exit(1)
-    
+
     cmd = args[0]
-    
+
     if cmd == "hello":
         print("Hello from my extension!")
     elif cmd == "greet":
@@ -275,11 +275,11 @@ def get_templates_dir() -> Path:
 def list_templates():
     """List all available templates."""
     templates_dir = get_templates_dir()
-    
+
     if not templates_dir.exists():
         print("No templates directory found")
         return
-    
+
     print("Available templates:")
     for template in templates_dir.iterdir():
         if template.is_dir():
@@ -289,35 +289,35 @@ def create_project(template_name: str, project_name: str):
     """Create a new project from a template."""
     templates_dir = get_templates_dir()
     src = templates_dir / template_name
-    
+
     if not src.exists():
         print(f"Error: Template '{template_name}' not found")
         print("Available templates:")
         list_templates()
         sys.exit(1)
-    
+
     dst = Path.cwd() / project_name
-    
+
     if dst.exists():
         print(f"Error: Directory '{project_name}' already exists")
         sys.exit(1)
-    
+
     shutil.copytree(src, dst)
     print(f"✓ Created '{project_name}' from template '{template_name}'")
     print(f"  cd {project_name}")
 
 def main():
     args = sys.argv[1:]
-    
+
     if not args:
         print("Usage: vx x scaffold <create|list> [args...]")
         print("\nCommands:")
         print("  list              List available templates")
         print("  create <t> <n>    Create project <n> from template <t>")
         sys.exit(1)
-    
+
     cmd = args[0]
-    
+
     if cmd == "list":
         list_templates()
     elif cmd == "create":
@@ -396,14 +396,14 @@ def run_compose(args: list[str]):
 
 def main():
     args = sys.argv[1:]
-    
+
     if not args:
         print("Usage: vx x docker-compose <up|down|logs> [args...]")
         sys.exit(1)
-    
+
     cmd = args[0]
     extra_args = args[1:]
-    
+
     if cmd == "up":
         run_compose(["up", "-d"] + extra_args)
     elif cmd == "down":
@@ -468,13 +468,13 @@ def output_json(data):
 
 def output_table(headers, rows):
     """Output data as a formatted table."""
-    widths = [max(len(str(cell)) for cell in col) 
+    widths = [max(len(str(cell)) for cell in col)
               for col in zip(headers, *rows)]
-    
+
     # Print header
     print(" | ".join(h.ljust(w) for h, w in zip(headers, widths)))
     print("-+-".join("-" * w for w in widths))
-    
+
     # Print rows
     for row in rows:
         print(" | ".join(str(c).ljust(w) for c, w in zip(row, widths)))
@@ -492,12 +492,12 @@ def load_config():
         Path.cwd() / ".my-extension.toml",
         Path.home() / ".config" / "my-extension" / "config.toml",
     ]
-    
+
     for config_path in config_locations:
         if config_path.exists():
             # Load and return config
             pass
-    
+
     return {}  # Default config
 ```
 
@@ -574,5 +574,4 @@ chmod +x ~/.vx/extensions/my-extension/main.py
 ## See Also
 
 - [CLI Reference: ext command](/cli/ext)
-- [RFC 0002: Extension System Design](/rfcs/0002-extension-system)
 - [Provider Development Guide](./plugin-development)

@@ -96,13 +96,13 @@ import os
 
 def main():
     args = sys.argv[1:]
-    
+
     if not args:
         print("用法: vx x my-extension <hello|greet> [args...]")
         sys.exit(1)
-    
+
     cmd = args[0]
-    
+
     if cmd == "hello":
         print("来自我的扩展的问候！")
     elif cmd == "greet":
@@ -275,11 +275,11 @@ def get_templates_dir() -> Path:
 def list_templates():
     """列出所有可用模板。"""
     templates_dir = get_templates_dir()
-    
+
     if not templates_dir.exists():
         print("未找到模板目录")
         return
-    
+
     print("可用模板:")
     for template in templates_dir.iterdir():
         if template.is_dir():
@@ -289,35 +289,35 @@ def create_project(template_name: str, project_name: str):
     """从模板创建新项目。"""
     templates_dir = get_templates_dir()
     src = templates_dir / template_name
-    
+
     if not src.exists():
         print(f"错误: 未找到模板 '{template_name}'")
         print("可用模板:")
         list_templates()
         sys.exit(1)
-    
+
     dst = Path.cwd() / project_name
-    
+
     if dst.exists():
         print(f"错误: 目录 '{project_name}' 已存在")
         sys.exit(1)
-    
+
     shutil.copytree(src, dst)
     print(f"✓ 从模板 '{template_name}' 创建了 '{project_name}'")
     print(f"  cd {project_name}")
 
 def main():
     args = sys.argv[1:]
-    
+
     if not args:
         print("用法: vx x scaffold <create|list> [args...]")
         print("\n命令:")
         print("  list              列出可用模板")
         print("  create <t> <n>    从模板 <t> 创建项目 <n>")
         sys.exit(1)
-    
+
     cmd = args[0]
-    
+
     if cmd == "list":
         list_templates()
     elif cmd == "create":
@@ -464,5 +464,4 @@ chmod +x ~/.vx/extensions/my-extension/main.py
 ## 参见
 
 - [CLI 参考: ext 命令](/zh/cli/ext)
-- [RFC 0002: 扩展系统设计](/rfcs/0002-extension-system)
 - [Provider 开发指南](./plugin-development)
