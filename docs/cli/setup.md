@@ -253,8 +253,7 @@ This content-addressable storage allows:
 | Code | Meaning |
 |------|---------|
 | 0 | Success - all tools installed |
-| 1 | Error - some tools failed to install |
-| 2 | Error - hook execution failed |
+| 1 | Error - some tools failed to install or hook execution failed |
 
 ## Tips
 
