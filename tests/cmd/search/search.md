@@ -43,5 +43,6 @@ $ vx search
   pre-commit - pre-commit - A framework for managing and maintaining multi-language pre-commit hooks
   ollama - Ollama - Run large language models locally
   spack - Spack - A flexible package manager for HPC and scientific computing
+  release-please - release-please - Automate releases based on conventional commits (installed via npm)
 
 ```
