@@ -15,7 +15,6 @@ fn test_hook_executor_creation() {
     let temp_dir = TempDir::new().unwrap();
     let _executor = HookExecutor::new(temp_dir.path());
     // Should create without error
-    assert!(true);
 }
 
 #[test]
@@ -23,7 +22,6 @@ fn test_hook_executor_with_verbose() {
     let temp_dir = TempDir::new().unwrap();
     let _executor = HookExecutor::new(temp_dir.path()).verbose(true);
     // Should create without error
-    assert!(true);
 }
 
 #[test]
@@ -33,7 +31,6 @@ fn test_hook_executor_with_env() {
         .env("TEST_VAR", "test_value")
         .env("ANOTHER_VAR", "another_value");
     // Should create without error
-    assert!(true);
 }
 
 #[test]
@@ -46,7 +43,6 @@ fn test_hook_executor_with_shell() {
     };
     let _executor = HookExecutor::new(temp_dir.path()).shell(shell);
     // Should create without error
-    assert!(true);
 }
 
 // ============================================
@@ -86,7 +82,7 @@ fn test_execute_failing_command() {
     let executor = HookExecutor::new(temp_dir.path());
 
     // Use a command that will fail
-    let cmd = if cfg!(windows) { "exit 1" } else { "exit 1" };
+    let cmd = "exit 1";
     let hook = HookCommand::Single(cmd.to_string());
     let result = executor.execute("test_hook", &hook).unwrap();
 
@@ -120,7 +116,7 @@ fn test_execute_multiple_commands_stops_on_failure() {
     let temp_dir = TempDir::new().unwrap();
     let executor = HookExecutor::new(temp_dir.path());
 
-    let fail_cmd = if cfg!(windows) { "exit 1" } else { "exit 1" };
+    let fail_cmd = "exit 1";
     let hook = HookCommand::Multiple(vec![
         "echo first".to_string(),
         fail_cmd.to_string(),
@@ -247,7 +243,6 @@ fn test_git_hook_installer_creation() {
     let temp_dir = TempDir::new().unwrap();
     let _installer = GitHookInstaller::new(temp_dir.path());
     // Should create without error
-    assert!(true);
 }
 
 #[test]
@@ -375,7 +370,6 @@ fn test_enter_hook_manager_creation() {
     let temp_dir = TempDir::new().unwrap();
     let _manager = EnterHookManager::new(temp_dir.path());
     // Should create without error
-    assert!(true);
 }
 
 #[test]
@@ -518,7 +512,7 @@ fn test_hook_result_failure() {
     let temp_dir = TempDir::new().unwrap();
     let executor = HookExecutor::new(temp_dir.path());
 
-    let cmd = if cfg!(windows) { "exit 42" } else { "exit 42" };
+    let cmd = "exit 42";
     let hook = HookCommand::Single(cmd.to_string());
     let result = executor.execute("test", &hook).unwrap();
 
