@@ -5,7 +5,7 @@
 //! - Review rules
 //! - Convention enforcement
 
-use crate::{CodeOwnersConfig, ConventionsConfig, ReviewConfig};
+use crate::{CodeOwnersConfig, ConventionsConfig, ReviewConfig, TeamConfig};
 use std::collections::HashMap;
 
 /// Team configuration manager
@@ -126,6 +126,15 @@ impl TeamManager {
 
         summary
     }
+}
+
+/// Generate CODEOWNERS file content from TeamConfig
+pub fn generate_codeowners(config: &TeamConfig) -> String {
+    let Some(code_owners) = &config.code_owners else {
+        return String::new();
+    };
+
+    TeamManager::generate_codeowners(code_owners)
 }
 
 #[cfg(test)]

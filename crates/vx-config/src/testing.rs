@@ -146,7 +146,7 @@ impl TestRunner {
                 "go-test" | "go" => TestFramework::GoTest,
                 "vitest" => TestFramework::Vitest,
                 "mocha" => TestFramework::Mocha,
-                "auto" | _ => TestFramework::detect(project_root),
+                _ => TestFramework::detect(project_root),
             }
         } else {
             TestFramework::detect(project_root)

@@ -420,6 +420,135 @@ impl VxCli {
                     ContainerCommand::Tags { all } => commands::container::handle_tags(all).await,
                 }
             }
+
+            Commands::Security { command } => {
+                use crate::cli::SecurityCommand;
+                match command {
+                    SecurityCommand::Scan {
+                        verbose,
+                        fix,
+                        format,
+                    } => commands::security::handle_scan(verbose, fix, format).await,
+                    SecurityCommand::Audit { verbose, json } => {
+                        commands::security::handle_audit(verbose, json).await
+                    }
+                    SecurityCommand::Secrets {
+                        path,
+                        baseline,
+                        update_baseline,
+                        verbose,
+                    } => {
+                        commands::security::handle_secrets(path, baseline, update_baseline, verbose)
+                            .await
+                    }
+                    SecurityCommand::Licenses { verbose, format } => {
+                        commands::security::handle_licenses(verbose, format).await
+                    }
+                    SecurityCommand::Report { output, format } => {
+                        commands::security::handle_report(output, format).await
+                    }
+                }
+            }
+
+            Commands::Team { command } => {
+                use crate::cli::TeamCommand;
+                match command {
+                    TeamCommand::Codeowners {
+                        output,
+                        dry_run,
+                        verbose,
+                    } => commands::team::handle_codeowners(output, dry_run, verbose).await,
+                    TeamCommand::Validate {
+                        commit,
+                        branch,
+                        all,
+                        verbose,
+                    } => commands::team::handle_validate(commit, branch, all, verbose).await,
+                    TeamCommand::ReviewRules { verbose } => {
+                        commands::team::handle_review_rules(verbose).await
+                    }
+                    TeamCommand::Status { verbose } => commands::team::handle_status(verbose).await,
+                }
+            }
+
+            Commands::Remote { command } => {
+                use crate::cli::RemoteCommand;
+                match command {
+                    RemoteCommand::Generate {
+                        target,
+                        output,
+                        dry_run,
+                        verbose,
+                    } => commands::remote::handle_generate(target, output, dry_run, verbose).await,
+                    RemoteCommand::Status { verbose } => {
+                        commands::remote::handle_status(verbose).await
+                    }
+                }
+            }
+
+            Commands::Test {
+                command,
+                filter,
+                coverage,
+                watch,
+                verbose,
+                parallel,
+            } => {
+                use crate::cli::TestCommand;
+                match command {
+                    Some(TestCommand::Run {
+                        filter: cmd_filter,
+                        coverage: cmd_coverage,
+                        watch: cmd_watch,
+                        verbose: cmd_verbose,
+                        parallel: cmd_parallel,
+                    }) => {
+                        commands::test::handle_run(
+                            cmd_filter,
+                            cmd_coverage,
+                            cmd_watch,
+                            cmd_verbose,
+                            cmd_parallel,
+                        )
+                        .await
+                    }
+                    Some(TestCommand::Coverage {
+                        format,
+                        output,
+                        verbose,
+                    }) => commands::test::handle_coverage(format, output, verbose).await,
+                    Some(TestCommand::Status { verbose }) => {
+                        commands::test::handle_status(verbose).await
+                    }
+                    None => {
+                        // Default to running tests with top-level args
+                        commands::test::handle_run(filter, coverage, watch, verbose, parallel).await
+                    }
+                }
+            }
+
+            Commands::Deps { command } => {
+                use crate::cli::DepsCommand;
+                match command {
+                    DepsCommand::Install {
+                        frozen,
+                        dev,
+                        prod,
+                        verbose,
+                    } => commands::deps::handle_install(frozen, dev, prod, verbose).await,
+                    DepsCommand::Audit { fix, verbose } => {
+                        commands::deps::handle_audit(fix, verbose).await
+                    }
+                    DepsCommand::Update {
+                        packages,
+                        major,
+                        dry_run,
+                        verbose,
+                    } => commands::deps::handle_update(packages, major, dry_run, verbose).await,
+                    DepsCommand::Lock { verbose } => commands::deps::handle_lock(verbose).await,
+                    DepsCommand::Status { verbose } => commands::deps::handle_status(verbose).await,
+                }
+            }
         }
     }
 

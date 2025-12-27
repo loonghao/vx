@@ -1,25 +1,23 @@
-# VX Project Configuration
-# This file defines the tools and versions required for this project.
-# Run 'vx sync' to install all required tools.
+# VX Project Configuration (v2)
+# This file defines the tools and environment for this project.
+# Run 'vx setup' to install all required tools.
+# Documentation: https://github.com/loonghao/vx/docs/config
 
+# Tool versions
 [tools]
 python = "3.11"
 uv = "latest"
 
+# Behavior settings
 [settings]
 auto_install = true
 cache_duration = "7d"
 
+# Script definitions
 [scripts]
-# Format check
-fmt-check = "cargo fmt --all -- --check"
-# Cargo check
-check = "cargo check --workspace --all-targets"
-# Clippy linting
-clippy = "cargo clippy --workspace --all-targets -- -D warnings"
-# Run tests
-test = "cargo test --workspace"
-# Build release
-release = "cargo build --release"
-# Build debug
 build = "cargo build"
+check = "cargo check --workspace --all-targets"
+fmt-check = "cargo fmt --all -- --check"
+release = "cargo build --release"
+test = "cargo test --workspace"
+clippy = "cargo clippy --workspace --all-targets -- -D warnings"
