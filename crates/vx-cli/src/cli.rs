@@ -1,7 +1,12 @@
 // CLI module - modular command structure
 // Each command is implemented in its own module for better maintainability
 
-use crate::commands::{env::EnvCommand, global::GlobalCommand, venv_cmd::VenvCommand};
+use crate::commands::{
+    env::EnvCommand, global::GlobalCommand, venv_cmd::VenvCommand, CommandContext, CommandHandler,
+    GlobalOptions,
+};
+use anyhow::Result;
+use async_trait::async_trait;
 use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(ValueEnum, Clone, Debug)]
@@ -34,6 +39,23 @@ pub struct Cli {
     /// Tool and arguments to execute
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     pub args: Vec<String>,
+}
+
+/// Convert Cli to GlobalOptions
+///
+/// This allows easy extraction of global options from CLI args.
+/// When adding new global options:
+/// 1. Add field to Cli struct
+/// 2. Add field to GlobalOptions struct
+/// 3. Update this implementation
+impl From<&Cli> for GlobalOptions {
+    fn from(cli: &Cli) -> Self {
+        GlobalOptions {
+            use_system_path: cli.use_system_path,
+            verbose: cli.verbose,
+            debug: cli.debug,
+        }
+    }
 }
 
 #[derive(Subcommand, Clone)]
@@ -328,7 +350,7 @@ pub enum Commands {
         /// Tool name (e.g., node, python, uv)
         tool: String,
         /// Version to use (default: latest)
-        #[arg(short, long)]
+        #[arg(long)]
         version: Option<String>,
     },
 
@@ -364,56 +386,6 @@ pub enum Commands {
     Container {
         #[command(subcommand)]
         command: ContainerCommand,
-    },
-
-    /// Security scanning and auditing
-    Security {
-        #[command(subcommand)]
-        command: SecurityCommand,
-    },
-
-    /// Team collaboration tools
-    Team {
-        #[command(subcommand)]
-        command: TeamCommand,
-    },
-
-    /// Remote development configuration
-    Remote {
-        #[command(subcommand)]
-        command: RemoteCommand,
-    },
-
-    /// Test running and coverage
-    Test {
-        #[command(subcommand)]
-        command: Option<TestCommand>,
-
-        /// Filter tests by name
-        #[arg(short, long)]
-        filter: Option<String>,
-
-        /// Generate coverage report
-        #[arg(long)]
-        coverage: bool,
-
-        /// Watch mode
-        #[arg(short, long)]
-        watch: bool,
-
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-
-        /// Run tests in parallel (use --no-parallel to disable)
-        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
-        parallel: bool,
-    },
-
-    /// Dependency management
-    Deps {
-        #[command(subcommand)]
-        command: DepsCommand,
     },
 
     /// Extension management
@@ -691,226 +663,6 @@ pub enum ContainerCommand {
 }
 
 #[derive(Subcommand, Clone)]
-pub enum SecurityCommand {
-    /// Run security scan
-    Scan {
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-        /// Attempt to fix vulnerabilities
-        #[arg(long)]
-        fix: bool,
-        /// Output format (text, json, sarif)
-        #[arg(long)]
-        format: Option<String>,
-    },
-    /// Audit dependencies for vulnerabilities
-    Audit {
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-        /// Output as JSON
-        #[arg(long)]
-        json: bool,
-    },
-    /// Detect secrets in codebase
-    Secrets {
-        /// Path to scan (default: current directory)
-        path: Option<String>,
-        /// Use baseline file
-        #[arg(long)]
-        baseline: bool,
-        /// Update baseline file
-        #[arg(long)]
-        update_baseline: bool,
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    /// Check license compliance
-    Licenses {
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-        /// Output format (text, json)
-        #[arg(long)]
-        format: Option<String>,
-    },
-    /// Generate security report
-    Report {
-        /// Output file path
-        #[arg(short, long)]
-        output: Option<String>,
-        /// Output format (markdown, json, sarif)
-        #[arg(long)]
-        format: Option<String>,
-    },
-}
-
-#[derive(Subcommand, Clone)]
-pub enum TeamCommand {
-    /// Generate CODEOWNERS file
-    Codeowners {
-        /// Output path (default: auto-detect)
-        #[arg(short, long)]
-        output: Option<String>,
-        /// Preview without writing
-        #[arg(long)]
-        dry_run: bool,
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    /// Validate conventions (commit messages, branch names)
-    Validate {
-        /// Validate commit message
-        #[arg(long)]
-        commit: bool,
-        /// Validate branch name
-        #[arg(long)]
-        branch: bool,
-        /// Validate all conventions
-        #[arg(short, long)]
-        all: bool,
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    /// Show review rules
-    ReviewRules {
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    /// Show team configuration status
-    Status {
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-}
-
-#[derive(Subcommand, Clone)]
-pub enum RemoteCommand {
-    /// Generate remote development configuration
-    Generate {
-        /// Target platform (codespaces, gitpod, all)
-        #[arg(short, long)]
-        target: Option<String>,
-        /// Output path
-        #[arg(short, long)]
-        output: Option<String>,
-        /// Preview without writing
-        #[arg(long)]
-        dry_run: bool,
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    /// Show remote configuration status
-    Status {
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-}
-
-#[derive(Subcommand, Clone)]
-pub enum TestCommand {
-    /// Run tests
-    Run {
-        /// Filter tests by name
-        #[arg(short, long)]
-        filter: Option<String>,
-        /// Generate coverage report
-        #[arg(long)]
-        coverage: bool,
-        /// Watch mode
-        #[arg(short, long)]
-        watch: bool,
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-        /// Run tests in parallel (use --no-parallel to disable)
-        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
-        parallel: bool,
-    },
-    /// Generate coverage report
-    Coverage {
-        /// Output format (html, xml, lcov)
-        #[arg(long)]
-        format: Option<String>,
-        /// Output path
-        #[arg(short, long)]
-        output: Option<String>,
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    /// Show test configuration status
-    Status {
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-}
-
-#[derive(Subcommand, Clone)]
-pub enum DepsCommand {
-    /// Install dependencies
-    Install {
-        /// Use frozen lockfile
-        #[arg(long)]
-        frozen: bool,
-        /// Install dev dependencies only
-        #[arg(long)]
-        dev: bool,
-        /// Install production dependencies only
-        #[arg(long)]
-        prod: bool,
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    /// Audit dependencies for vulnerabilities
-    Audit {
-        /// Attempt to fix vulnerabilities
-        #[arg(long)]
-        fix: bool,
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    /// Update dependencies
-    Update {
-        /// Packages to update (all if not specified)
-        #[arg(num_args = 0..)]
-        packages: Vec<String>,
-        /// Allow major version updates
-        #[arg(long)]
-        major: bool,
-        /// Preview without applying
-        #[arg(long)]
-        dry_run: bool,
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    /// Lock dependencies
-    Lock {
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    /// Show dependency status
-    Status {
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-}
-
-#[derive(Subcommand, Clone)]
 pub enum ExtCommand {
     /// List installed extensions
     #[command(alias = "ls")]
@@ -942,4 +694,436 @@ pub enum ExtCommand {
         /// Extension name
         name: String,
     },
+}
+
+// =============================================================================
+// CommandHandler Implementation for Commands
+// =============================================================================
+
+use crate::commands;
+
+#[async_trait]
+impl CommandHandler for Commands {
+    fn name(&self) -> &'static str {
+        match self {
+            Commands::Version => "version",
+            Commands::List { .. } => "list",
+            Commands::Install { .. } => "install",
+            Commands::Update { .. } => "update",
+            Commands::SelfUpdate { .. } => "self-update",
+            Commands::Uninstall { .. } => "uninstall",
+            Commands::Which { .. } => "which",
+            Commands::Versions { .. } => "versions",
+            Commands::Switch { .. } => "switch",
+            Commands::Config { .. } => "config",
+            Commands::Search { .. } => "search",
+            Commands::Sync { .. } => "sync",
+            Commands::Init { .. } => "init",
+            Commands::Clean { .. } => "clean",
+            Commands::Stats => "stats",
+            Commands::Plugin { .. } => "plugin",
+            Commands::Shell { .. } => "shell",
+            Commands::Venv { .. } => "venv",
+            Commands::Global { .. } => "global",
+            Commands::Env { .. } => "env",
+            Commands::Dev { .. } => "dev",
+            Commands::Setup { .. } => "setup",
+            Commands::Add { .. } => "add",
+            Commands::RemoveTool { .. } => "rm-tool",
+            Commands::Run { .. } => "run",
+            Commands::Services { .. } => "services",
+            Commands::Hook { .. } => "hook",
+            Commands::Container { .. } => "container",
+            Commands::Ext { .. } => "ext",
+            Commands::X { .. } => "x",
+        }
+    }
+
+    async fn execute(&self, ctx: &CommandContext) -> Result<()> {
+        match self {
+            Commands::Version => commands::version::handle().await,
+
+            Commands::List {
+                tool,
+                status,
+                installed: _,
+                available: _,
+                all,
+            } => {
+                commands::list::handle(
+                    ctx.registry(),
+                    ctx.runtime_context(),
+                    tool.as_deref(),
+                    *status,
+                    *all,
+                )
+                .await
+            }
+
+            Commands::Install {
+                tool,
+                version,
+                force,
+            } => {
+                commands::install::handle(
+                    ctx.registry(),
+                    ctx.runtime_context(),
+                    tool,
+                    version.as_deref(),
+                    *force,
+                )
+                .await
+            }
+
+            Commands::Update { tool, apply } => {
+                commands::update::handle(
+                    ctx.registry(),
+                    ctx.runtime_context(),
+                    tool.as_deref(),
+                    *apply,
+                )
+                .await
+            }
+
+            Commands::SelfUpdate {
+                check,
+                version: _,
+                token,
+                prerelease,
+                force,
+            } => commands::self_update::handle(token.as_deref(), *prerelease, *force, *check).await,
+
+            Commands::Uninstall {
+                tool,
+                version,
+                force,
+            } => {
+                commands::remove::handle(
+                    ctx.registry(),
+                    ctx.runtime_context(),
+                    tool,
+                    version.as_deref(),
+                    *force,
+                )
+                .await
+            }
+
+            Commands::Which { tool, all } => {
+                commands::where_cmd::handle(ctx.registry(), tool, *all, ctx.use_system_path()).await
+            }
+
+            Commands::Versions {
+                tool,
+                latest,
+                prerelease,
+                detailed,
+                interactive,
+            } => {
+                commands::fetch::handle(
+                    ctx.registry(),
+                    ctx.runtime_context(),
+                    tool,
+                    *latest,
+                    *detailed,
+                    *interactive,
+                    *prerelease,
+                )
+                .await
+            }
+
+            Commands::Switch {
+                tool_version,
+                global,
+            } => commands::switch::handle(ctx.registry(), tool_version, *global).await,
+
+            Commands::Config { command } => match command {
+                Some(ConfigCommand::Show) | None => commands::config::handle().await,
+                Some(ConfigCommand::Set { key, value }) => {
+                    commands::config::handle_set(key, value).await
+                }
+                Some(ConfigCommand::Get { key }) => commands::config::handle_get(key).await,
+                Some(ConfigCommand::Reset { key }) => {
+                    commands::config::handle_reset(key.clone()).await
+                }
+                Some(ConfigCommand::Edit) => commands::config::handle_edit().await,
+                Some(ConfigCommand::Migrate {
+                    path,
+                    dry_run,
+                    backup,
+                    force,
+                }) => {
+                    commands::config::handle_migrate(path.clone(), *dry_run, *backup, *force).await
+                }
+                Some(ConfigCommand::Validate { path, verbose }) => {
+                    commands::config::handle_validate(path.clone(), *verbose).await
+                }
+                Some(ConfigCommand::Schema { output }) => {
+                    commands::config::handle_schema(output.clone()).await
+                }
+            },
+
+            Commands::Init {
+                interactive,
+                template,
+                tools,
+                force,
+                dry_run,
+                list_templates,
+            } => {
+                commands::init::handle(
+                    *interactive,
+                    template.clone(),
+                    tools.clone(),
+                    *force,
+                    *dry_run,
+                    *list_templates,
+                )
+                .await
+            }
+
+            Commands::Clean {
+                dry_run,
+                cache,
+                orphaned,
+                all,
+                force,
+                older_than,
+                verbose,
+            } => {
+                let cache_only = *cache && !*all;
+                let orphaned_only = *orphaned && !*all;
+                commands::cleanup::handle(
+                    *dry_run,
+                    cache_only,
+                    orphaned_only,
+                    *force,
+                    *older_than,
+                    *verbose,
+                )
+                .await
+            }
+
+            Commands::Stats => commands::stats::handle(ctx.registry()).await,
+
+            Commands::Plugin { command } => {
+                commands::plugin::handle(ctx.registry(), command.clone()).await
+            }
+
+            Commands::Venv { command } => commands::venv_cmd::handle(command.clone()).await,
+
+            Commands::Global { command } => commands::global::handle(command.clone()).await,
+
+            Commands::Env { command } => commands::env::handle(command.clone()).await,
+
+            Commands::Search {
+                query,
+                category,
+                installed_only,
+                available_only,
+                format,
+                verbose,
+            } => {
+                commands::search::handle(
+                    ctx.registry(),
+                    query.clone(),
+                    category.clone(),
+                    *installed_only,
+                    *available_only,
+                    format.clone(),
+                    *verbose,
+                )
+                .await
+            }
+
+            Commands::Sync {
+                check,
+                force,
+                dry_run,
+                verbose,
+                no_parallel,
+                no_auto_install,
+            } => {
+                commands::sync::handle(
+                    ctx.registry(),
+                    *check,
+                    *force,
+                    *dry_run,
+                    *verbose,
+                    *no_parallel,
+                    *no_auto_install,
+                )
+                .await
+            }
+
+            Commands::Shell { command } => match command {
+                ShellCommand::Init { shell } => {
+                    commands::shell::handle_shell_init(shell.clone()).await
+                }
+                ShellCommand::Completions { shell } => {
+                    commands::shell::handle_completion(shell.clone()).await
+                }
+            },
+
+            Commands::Dev {
+                shell,
+                command,
+                no_install,
+                verbose,
+                export,
+                format,
+            } => {
+                commands::dev::handle(
+                    shell.clone(),
+                    command.clone(),
+                    *no_install,
+                    *verbose,
+                    *export,
+                    format.clone(),
+                )
+                .await
+            }
+
+            Commands::Setup {
+                force,
+                dry_run,
+                verbose,
+                no_parallel,
+                no_hooks,
+            } => {
+                commands::setup::handle(
+                    ctx.registry(),
+                    *force,
+                    *dry_run,
+                    *verbose,
+                    *no_parallel,
+                    *no_hooks,
+                )
+                .await
+            }
+
+            Commands::Add { tool, version } => {
+                commands::setup::add_tool(tool, version.as_deref()).await
+            }
+
+            Commands::RemoveTool { tool } => commands::setup::remove_tool(tool).await,
+
+            Commands::Run { script, args } => commands::run::handle(script, args).await,
+
+            Commands::Services { command } => match command {
+                ServicesCommand::Start {
+                    services,
+                    foreground,
+                    force,
+                    verbose,
+                } => {
+                    let services = if services.is_empty() {
+                        None
+                    } else {
+                        Some(services.clone())
+                    };
+                    commands::services::handle_start(services, !*foreground, *force, *verbose).await
+                }
+                ServicesCommand::Stop { services, verbose } => {
+                    let services = if services.is_empty() {
+                        None
+                    } else {
+                        Some(services.clone())
+                    };
+                    commands::services::handle_stop(services, *verbose).await
+                }
+                ServicesCommand::Status { verbose } => {
+                    commands::services::handle_status(*verbose).await
+                }
+                ServicesCommand::Logs {
+                    service,
+                    follow,
+                    tail,
+                } => commands::services::handle_logs(service, *follow, *tail).await,
+                ServicesCommand::Restart { services, verbose } => {
+                    let services = if services.is_empty() {
+                        None
+                    } else {
+                        Some(services.clone())
+                    };
+                    commands::services::handle_restart(services, *verbose).await
+                }
+            },
+
+            Commands::Hook { command } => match command {
+                HookCommand::PreCommit => commands::hook::handle_pre_commit().await,
+                HookCommand::Enter => commands::hook::handle_enter().await,
+                HookCommand::Install { force } => commands::hook::handle_install(*force).await,
+                HookCommand::Uninstall => commands::hook::handle_uninstall().await,
+                HookCommand::Status => commands::hook::handle_status().await,
+                HookCommand::Run { name } => commands::hook::handle_run(name).await,
+                HookCommand::ShellInit { shell } => {
+                    commands::hook::handle_shell_init(shell.clone()).await
+                }
+            },
+
+            Commands::Container { command } => match command {
+                ContainerCommand::Generate {
+                    output,
+                    with_ignore,
+                    dry_run,
+                    template,
+                } => {
+                    commands::container::handle_generate(
+                        output.clone(),
+                        *with_ignore,
+                        *dry_run,
+                        template.clone(),
+                    )
+                    .await
+                }
+                ContainerCommand::Build {
+                    tag,
+                    target,
+                    build_arg,
+                    platform,
+                    no_cache,
+                    push,
+                    verbose,
+                } => {
+                    commands::container::handle_build(
+                        tag.clone(),
+                        target.clone(),
+                        build_arg.clone(),
+                        platform.clone(),
+                        *no_cache,
+                        *push,
+                        *verbose,
+                    )
+                    .await
+                }
+                ContainerCommand::Push { tag, verbose } => {
+                    commands::container::handle_push(tag.clone(), *verbose).await
+                }
+                ContainerCommand::Status => commands::container::handle_status().await,
+                ContainerCommand::Login {
+                    registry,
+                    username,
+                    password,
+                } => {
+                    commands::container::handle_login(
+                        registry.clone(),
+                        username.clone(),
+                        password.clone(),
+                    )
+                    .await
+                }
+                ContainerCommand::Tags { all } => commands::container::handle_tags(*all).await,
+            },
+
+            Commands::Ext { command } => match command {
+                ExtCommand::List { verbose } => commands::ext::handle_list(*verbose).await,
+                ExtCommand::Info { name } => commands::ext::handle_info(name).await,
+                ExtCommand::Dev { path, unlink } => commands::ext::handle_dev(path, *unlink).await,
+                ExtCommand::Install { source } => commands::ext::handle_install(source).await,
+                ExtCommand::Uninstall { name } => commands::ext::handle_uninstall(name).await,
+            },
+
+            Commands::X { extension, args } => commands::ext::handle_execute(extension, args).await,
+        }
+    }
 }

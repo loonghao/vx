@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use vx_env::ToolEnvironment;
 use vx_paths::PathManager;
 
 /// Handle the dev command
@@ -66,7 +67,23 @@ pub async fn handle(
 }
 
 /// Find .vx.toml in current directory or parent directories
+///
+/// If VX_PROJECT_ROOT is set, only search in the current directory
+/// (used for test isolation).
 fn find_vx_config(start_dir: &Path) -> Result<PathBuf> {
+    // Check if VX_PROJECT_ROOT is set (test isolation mode)
+    if std::env::var("VX_PROJECT_ROOT").is_ok() {
+        let config_path = start_dir.join(".vx.toml");
+        if config_path.exists() {
+            return Ok(config_path);
+        }
+        return Err(anyhow::anyhow!(
+            "No .vx.toml found in current directory.\n\
+             Run 'vx init' to create one."
+        ));
+    }
+
+    // Normal mode: search up the directory tree
     let mut current = start_dir.to_path_buf();
 
     loop {
@@ -158,64 +175,15 @@ async fn check_and_install_tools(tools: &HashMap<String, String>, verbose: bool)
 }
 
 /// Build environment variables for the dev shell
+///
+/// Uses vx-env's ToolEnvironment for consistent environment building.
 fn build_dev_environment(config: &VxConfig, verbose: bool) -> Result<HashMap<String, String>> {
-    let path_manager = PathManager::new()?;
-    let mut env_vars = HashMap::new();
-
-    // Collect all tool bin directories
-    let mut path_entries = Vec::new();
-
-    for (tool, version) in &config.tools {
-        let tool_path = if version == "latest" {
-            // Find the latest installed version
-            let versions = path_manager.list_store_versions(tool)?;
-            if let Some(latest) = versions.last() {
-                get_tool_bin_path(&path_manager, tool, latest)?
-            } else {
-                if verbose {
-                    UI::warn(&format!("Tool {} not installed", tool));
-                }
-                continue;
-            }
-        } else {
-            get_tool_bin_path(&path_manager, tool, version)?
-        };
-
-        if let Some(path) = tool_path {
-            if path.exists() {
-                path_entries.push(path.to_string_lossy().to_string());
-                if verbose {
-                    UI::info(&format!("  {} -> {}", tool, path.display()));
-                }
-            }
-        }
-    }
-
-    // Build PATH
-    let current_path = env::var("PATH").unwrap_or_default();
-    let new_path = if path_entries.is_empty() {
-        current_path
-    } else {
-        let separator = if cfg!(windows) { ";" } else { ":" };
-        format!(
-            "{}{}{}",
-            path_entries.join(separator),
-            separator,
-            current_path
-        )
-    };
-    env_vars.insert("PATH".to_string(), new_path);
-
-    // Add vx bin directory to PATH
-    let vx_bin = path_manager.bin_dir();
-    if vx_bin.exists() {
-        let path = env_vars.get("PATH").cloned().unwrap_or_default();
-        let separator = if cfg!(windows) { ";" } else { ":" };
-        env_vars.insert(
-            "PATH".to_string(),
-            format!("{}{}{}", vx_bin.display(), separator, path),
-        );
-    }
+    // Use ToolEnvironment from vx-env
+    let mut env_vars = ToolEnvironment::new()
+        .tools(&config.tools)
+        .env_vars(&config.env)
+        .warn_missing(verbose)
+        .build()?;
 
     // Set VX_DEV environment variable to indicate we're in a dev shell
     env_vars.insert("VX_DEV".to_string(), "1".to_string());
@@ -228,158 +196,30 @@ fn build_dev_environment(config: &VxConfig, verbose: bool) -> Result<HashMap<Str
         );
     }
 
-    // Add custom environment variables from config
-    for (key, value) in &config.env {
-        env_vars.insert(key.clone(), value.clone());
+    // Log tool paths if verbose
+    if verbose {
+        if let Some(path) = env_vars.get("PATH") {
+            let sep = if cfg!(windows) { ";" } else { ":" };
+            for entry in path.split(sep).take(config.tools.len() + 1) {
+                UI::info(&format!("  PATH: {}", entry));
+            }
+        }
     }
 
     Ok(env_vars)
 }
 
-/// Build environment variables for script execution (simplified version of build_dev_environment)
+/// Build environment variables for script execution
 ///
 /// This function builds the PATH environment variable to include vx-managed tools,
 /// allowing scripts defined in .vx.toml to use tools installed by vx.
+///
+/// Uses vx-env's ToolEnvironment for consistent environment building.
 pub fn build_script_environment(config: &VxConfig) -> Result<HashMap<String, String>> {
-    let path_manager = PathManager::new()?;
-    let mut env_vars = HashMap::new();
-
-    // Collect all tool bin directories
-    let mut path_entries = Vec::new();
-    let mut missing_tools = Vec::new();
-
-    for (tool, version) in &config.tools {
-        let tool_path = if version == "latest" {
-            // Find the latest installed version
-            let versions = path_manager.list_store_versions(tool)?;
-            if let Some(latest) = versions.last() {
-                get_tool_bin_path(&path_manager, tool, latest)?
-            } else {
-                missing_tools.push(tool.clone());
-                continue;
-            }
-        } else {
-            get_tool_bin_path(&path_manager, tool, version)?
-        };
-
-        if let Some(path) = tool_path {
-            if path.exists() {
-                path_entries.push(path.to_string_lossy().to_string());
-            } else {
-                missing_tools.push(tool.clone());
-            }
-        } else {
-            missing_tools.push(tool.clone());
-        }
-    }
-
-    // Warn about missing tools
-    if !missing_tools.is_empty() {
-        tracing::warn!(
-            "Some tools from .vx.toml are not installed: {}. Run 'vx setup' to install them.",
-            missing_tools.join(", ")
-        );
-    }
-
-    // Build PATH
-    let current_path = env::var("PATH").unwrap_or_default();
-    let new_path = if path_entries.is_empty() {
-        current_path
-    } else {
-        let separator = if cfg!(windows) { ";" } else { ":" };
-        format!(
-            "{}{}{}",
-            path_entries.join(separator),
-            separator,
-            current_path
-        )
-    };
-    env_vars.insert("PATH".to_string(), new_path);
-
-    // Add vx bin directory to PATH
-    let vx_bin = path_manager.bin_dir();
-    if vx_bin.exists() {
-        let path = env_vars.get("PATH").cloned().unwrap_or_default();
-        let separator = if cfg!(windows) { ";" } else { ":" };
-        env_vars.insert(
-            "PATH".to_string(),
-            format!("{}{}{}", vx_bin.display(), separator, path),
-        );
-    }
-
-    // Add custom environment variables from config
-    for (key, value) in &config.env {
-        env_vars.insert(key.clone(), value.clone());
-    }
-
-    Ok(env_vars)
-}
-
-/// Get the bin path for a tool
-fn get_tool_bin_path(
-    path_manager: &PathManager,
-    tool: &str,
-    version: &str,
-) -> Result<Option<PathBuf>> {
-    // Check store first
-    let store_dir = path_manager.version_store_dir(tool, version);
-    if store_dir.exists() {
-        // Different tools have different bin directory structures
-        // Priority order:
-        // 1. bin/ subdirectory (standard layout)
-        // 2. Direct in version directory (some tools like uv on Windows)
-        // 3. Subdirectories matching tool-* pattern (uv on Linux/macOS: uv-{platform}/)
-        let mut bin_candidates = vec![
-            store_dir.join("bin"),
-            store_dir.clone(), // Some tools put executables directly in the version dir
-        ];
-
-        // Add subdirectories that might contain the executable
-        // This handles cases like uv where the executable is in uv-{platform}/ subdirectory
-        if let Ok(entries) = std::fs::read_dir(&store_dir) {
-            for entry in entries.filter_map(|e| e.ok()) {
-                let path = entry.path();
-                if path.is_dir() {
-                    let dir_name = path.file_name().unwrap_or_default().to_string_lossy();
-                    // Check for tool-* pattern (e.g., uv-x86_64-unknown-linux-gnu)
-                    if dir_name.starts_with(&format!("{}-", tool)) {
-                        bin_candidates.push(path);
-                    }
-                }
-            }
-        }
-
-        for bin_dir in bin_candidates {
-            if bin_dir.exists() {
-                // Verify the directory actually contains an executable
-                let exe_name = if cfg!(windows) {
-                    format!("{}.exe", tool)
-                } else {
-                    tool.to_string()
-                };
-                if bin_dir.join(&exe_name).exists() || bin_dir == store_dir {
-                    return Ok(Some(bin_dir));
-                }
-            }
-        }
-
-        // Fallback: if store_dir exists, return it (the tool might use a different executable name)
-        return Ok(Some(store_dir));
-    }
-
-    // Check npm-tools
-    let npm_bin = path_manager.npm_tool_bin_dir(tool, version);
-    if npm_bin.exists() {
-        return Ok(Some(npm_bin));
-    }
-
-    // Check pip-tools
-    let pip_bin = path_manager.pip_tool_bin_dir(tool, version);
-    if pip_bin.exists() {
-        return Ok(Some(pip_bin));
-    }
-
-    Ok(None)
+    ToolEnvironment::new()
+        .tools(&config.tools)
+        .env_vars(&config.env)
+        .build()
 }
 
 /// Execute a command in the dev environment
@@ -562,34 +402,24 @@ impl ExportFormat {
 /// - PowerShell: `Invoke-Expression (vx env --export --format powershell)`
 /// - GitHub Actions: `vx env --export --format github >> $GITHUB_ENV`
 pub fn generate_env_export(config: &VxConfig, format: ExportFormat) -> Result<String> {
-    let path_manager = PathManager::new()?;
-    let mut path_entries = Vec::new();
+    // Build environment using ToolEnvironment
+    let env_vars = ToolEnvironment::new()
+        .tools(&config.tools)
+        .env_vars(&config.env)
+        .warn_missing(false)
+        .build()?;
 
-    // Add vx bin directory first
-    let vx_bin = path_manager.bin_dir();
-    if vx_bin.exists() {
-        path_entries.push(vx_bin.to_string_lossy().to_string());
-    }
+    // Extract PATH entries for export formatting
+    let path = env_vars.get("PATH").cloned().unwrap_or_default();
+    let sep = if cfg!(windows) { ";" } else { ":" };
+    let current_path = std::env::var("PATH").unwrap_or_default();
 
-    // Collect all tool bin directories
-    for (tool, version) in &config.tools {
-        let tool_path = if version == "latest" {
-            let versions = path_manager.list_store_versions(tool)?;
-            if let Some(latest) = versions.last() {
-                get_tool_bin_path(&path_manager, tool, latest)?
-            } else {
-                continue;
-            }
-        } else {
-            get_tool_bin_path(&path_manager, tool, version)?
-        };
-
-        if let Some(path) = tool_path {
-            if path.exists() {
-                path_entries.push(path.to_string_lossy().to_string());
-            }
-        }
-    }
+    // Get only the new path entries (before current PATH)
+    let path_entries: Vec<String> = path
+        .split(sep)
+        .take_while(|p| !current_path.starts_with(*p))
+        .map(|s| s.to_string())
+        .collect();
 
     // Generate output based on format
     let output = match format {
