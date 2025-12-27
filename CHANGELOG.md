@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.21](https://github.com/loonghao/vx/compare/vx-v0.5.20...vx-v0.5.21) (2025-12-27)
+
+
+### Features
+
+* vx.toml v2 configuration enhancement ([e55f621](https://github.com/loonghao/vx/commit/e55f621f3a924daaf64f3cb0bdef1a68c6e22e80))
+
+
+### Bug Fixes
+
+* **cli:** correct bool flag defaults for parallel and backup ([7f63f88](https://github.com/loonghao/vx/commit/7f63f88633dcf0fbedbf8b5dd6606858dc4e4d39))
+* **clippy:** move generate_dockerfile before tests and remove duplicate if branches ([af2962b](https://github.com/loonghao/vx/commit/af2962be1accef980b90d6ef2fce28983a401528))
+* **executor:** add platform check at execute() entry point ([4a20a18](https://github.com/loonghao/vx/commit/4a20a18fbeedac2c12cba33d1b0067c9fa9dc778))
+* **executor:** check platform support before installing runtime ([96e0495](https://github.com/loonghao/vx/commit/96e049517960863956aafb4ebc043c945c7b0c02))
+* pin backon to 1.4.0 for MSRV 1.83 compatibility ([74d65f5](https://github.com/loonghao/vx/commit/74d65f58e6635ba2f0e05012d6de2c93c811c92d))
+* resolve clippy dead_code and should_implement_trait warnings ([26e3221](https://github.com/loonghao/vx/commit/26e322135f9e5584ed9cd31293e82126b74da6f1))
+* resolve clippy warnings (redundant closure, single match, collapsible if, assertions) ([46e3e1f](https://github.com/loonghao/vx/commit/46e3e1f6cdc2e77971d11f04be7fc414db358a31))
+* resolve clippy warnings and use PowerShell syntax for Windows tests ([2e84cc8](https://github.com/loonghao/vx/commit/2e84cc8060bcd9c9fcac55f35a18ece14d2da716))
+* **spack:** restrict to Unix platforms only (Linux/macOS) ([ce27acf](https://github.com/loonghao/vx/commit/ce27acf48fe9014c5a7494b9e17d434e2d016f4b))
+* **tests:** resolve unused imports, variables and private module access ([bbf5933](https://github.com/loonghao/vx/commit/bbf593361e740dc18aa8254d333674b9d75d3699))
+* update help.md snapshot with new subcommands ([8ff8d56](https://github.com/loonghao/vx/commit/8ff8d569f7937b08f516c2314c06bce3754058a8))
+* use valid TOML key name in script validation test ([3c1fdea](https://github.com/loonghao/vx/commit/3c1fdeac05bebe6177a19d1345623d20541fa947))
+
+
+### Code Refactoring
+
+* **runtime:** add check_platform_support() helper and platform utils ([75c61e3](https://github.com/loonghao/vx/commit/75c61e341e5c7e700167accc0a2d4ee054c0b3a9))
+* split types.rs into modular types/ directory ([ea1a506](https://github.com/loonghao/vx/commit/ea1a506d5f925a84707153ca244871e134700bbc))
+
 ## [0.5.20](https://github.com/loonghao/vx/compare/vx-v0.5.19...vx-v0.5.20) (2025-12-26)
 
 
