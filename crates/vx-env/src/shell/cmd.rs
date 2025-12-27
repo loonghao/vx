@@ -47,7 +47,9 @@ pub fn generate_activation_script(env_vars: &HashMap<String, String>) -> String 
 
     script.push_str("@echo off\r\n");
     script.push_str("REM vx environment activation script for cmd.exe\r\n");
-    script.push_str("REM Run this file: vx env activate --shell cmd > activate.bat && activate.bat\r\n\r\n");
+    script.push_str(
+        "REM Run this file: vx env activate --shell cmd > activate.bat && activate.bat\r\n\r\n",
+    );
 
     for (key, value) in env_vars {
         let escaped_value = escape_batch_value(value);
