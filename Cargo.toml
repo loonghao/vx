@@ -192,7 +192,7 @@ tracing-indicatif = "0.3.9"
 
 # Retry with backoff - similar to Python's tenacity
 # Pin to 1.4.x - versions 1.5+ require Rust 2024 Edition (incompatible with MSRV 1.83)
-backon = "=1.4.0"
+backon = "=1.6.0"
 
 # Testing frameworks and utilities
 rstest = "0.26"
