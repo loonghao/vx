@@ -330,7 +330,7 @@ jobs:
     steps:
       - name: Generate and push Scoop manifest
         env:
-          GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN }}
         run: |
           VERSION="${{ needs.check-release.outputs.version }}"
           # Remove 'v' prefix for version number

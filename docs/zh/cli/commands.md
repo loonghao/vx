@@ -231,3 +231,62 @@ vx shell init <shell>
 ```bash
 vx shell completions <shell>
 ```
+
+## Extension 管理
+
+### ext list
+
+列出已安装的扩展。
+
+```bash
+vx ext list
+vx ext ls
+vx ext list --verbose
+```
+
+### ext info
+
+显示扩展信息。
+
+```bash
+vx ext info <名称>
+vx ext info docker-compose
+```
+
+### ext dev
+
+链接本地扩展用于开发。
+
+```bash
+vx ext dev <路径>
+vx ext dev /path/to/my-extension
+vx ext dev --unlink my-extension
+```
+
+### ext install
+
+从远程源安装扩展。
+
+```bash
+vx ext install <源>
+vx ext install github:user/repo
+```
+
+### ext uninstall
+
+卸载扩展。
+
+```bash
+vx ext uninstall <名称>
+vx ext uninstall my-extension
+```
+
+### x
+
+执行扩展命令。
+
+```bash
+vx x <扩展> [命令] [参数...]
+vx x docker-compose up -d
+vx x scaffold create react-app my-app
+```

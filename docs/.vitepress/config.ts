@@ -64,7 +64,8 @@ const enSidebar = {
         { text: 'setup', link: '/cli/setup' },
         { text: 'env', link: '/cli/env' },
         { text: 'config', link: '/cli/config' },
-        { text: 'shell', link: '/cli/shell' }
+        { text: 'shell', link: '/cli/shell' },
+        { text: 'ext', link: '/cli/ext' }
       ]
     }
   ],
@@ -116,9 +117,16 @@ const enSidebar = {
     {
       text: 'Advanced',
       items: [
-        { text: 'Plugin Development', link: '/advanced/plugin-development' },
         { text: 'Architecture', link: '/advanced/architecture' },
         { text: 'Contributing', link: '/advanced/contributing' }
+      ]
+    },
+    {
+      text: 'Developer Guide',
+      items: [
+        { text: 'Provider Development', link: '/advanced/plugin-development' },
+        { text: 'CLI Command Development', link: '/advanced/cli-development' },
+        { text: 'Extension Development', link: '/advanced/extension-development' }
       ]
     }
   ],
@@ -183,6 +191,12 @@ const zhSidebar = {
         { text: 'config', link: '/zh/cli/config' },
         { text: 'shell', link: '/zh/cli/shell' }
       ]
+    },
+    {
+      text: 'Extension',
+      items: [
+        { text: 'ext', link: '/zh/cli/ext' }
+      ]
     }
   ],
   '/zh/config/': [
@@ -233,9 +247,16 @@ const zhSidebar = {
     {
       text: '高级',
       items: [
-        { text: '插件开发', link: '/zh/advanced/plugin-development' },
         { text: '架构', link: '/zh/advanced/architecture' },
         { text: '贡献指南', link: '/zh/advanced/contributing' }
+      ]
+    },
+    {
+      text: '开发者指南',
+      items: [
+        { text: 'Provider 开发', link: '/zh/advanced/plugin-development' },
+        { text: 'CLI 命令开发', link: '/zh/advanced/cli-development' },
+        { text: 'Extension 开发', link: '/zh/advanced/extension-development' }
       ]
     }
   ],
@@ -254,6 +275,11 @@ export default defineConfig({
   ...sharedConfig,
   title: 'vx',
   description: 'Universal Development Tool Manager with Zero Learning Curve',
+
+  // Ignore dead links to local-only RFC documents
+  ignoreDeadLinks: [
+    /\/rfcs\//
+  ],
 
   locales: {
     root: {

@@ -15,6 +15,8 @@ rust-version.workspace = true
 [dependencies]
 vx-core = { workspace = true }
 vx-config = { workspace = true }
+vx-env = { workspace = true }
+vx-extension = { workspace = true }
 vx-paths = { workspace = true }
 vx-resolver = { workspace = true }
 vx-runtime = { workspace = true }
@@ -73,6 +75,7 @@ dirs = { workspace = true }
 regex = { workspace = true }
 which = { workspace = true }
 strsim = "0.11"
+async-trait = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
@@ -82,5 +85,4 @@ tokio-test = { workspace = true }
 test-case = { workspace = true }
 pretty_assertions = { workspace = true }
 anyhow = { workspace = true }
-async-trait = { workspace = true }
 vx-paths = { workspace = true }

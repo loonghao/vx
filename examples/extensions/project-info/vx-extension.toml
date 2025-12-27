@@ -1,0 +1,21 @@
+[extension]
+name = "project-info"
+version = "1.0.0"
+description = "Display project information and statistics"
+type = "command"
+authors = ["vx contributors"]
+license = "MIT"
+
+[runtime]
+requires = "node >= 16"
+
+[entrypoint]
+main = "main.js"
+
+[commands.deps]
+description = "Show project dependencies"
+script = "deps.js"
+
+[commands.size]
+description = "Show project size statistics"
+script = "size.js"

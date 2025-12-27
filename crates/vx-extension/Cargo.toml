@@ -1,0 +1,33 @@
+[package]
+name = "vx-extension"
+version.workspace = true
+edition.workspace = true
+description = "Extension system for vx - execute scripts using vx-managed runtimes"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+vx-core = { workspace = true }
+vx-paths = { workspace = true }
+vx-runtime = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+toml = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Utilities
+tracing = { workspace = true }
+walkdir = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }
