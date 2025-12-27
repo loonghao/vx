@@ -405,8 +405,8 @@ pub enum Commands {
         #[arg(short, long)]
         verbose: bool,
 
-        /// Run tests in parallel
-        #[arg(long, default_value = "true")]
+        /// Run tests in parallel (use --no-parallel to disable)
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         parallel: bool,
     },
 
@@ -502,8 +502,8 @@ pub enum ConfigCommand {
         /// Preview changes without writing
         #[arg(long)]
         dry_run: bool,
-        /// Create backup before migration
-        #[arg(long, default_value = "true")]
+        /// Create backup before migration (use --no-backup to disable)
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         backup: bool,
         /// Force migration even if already v2
         #[arg(short, long)]
@@ -814,8 +814,8 @@ pub enum TestCommand {
         /// Verbose output
         #[arg(short, long)]
         verbose: bool,
-        /// Run tests in parallel
-        #[arg(long, default_value = "true")]
+        /// Run tests in parallel (use --no-parallel to disable)
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         parallel: bool,
     },
     /// Generate coverage report
