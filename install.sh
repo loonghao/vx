@@ -74,9 +74,9 @@ detect_platform() {
 }
 
 # Get latest version from GitHub API with optional authentication and fallback
-# Returns the full tag name (e.g., "vx-v0.5.7")
+# Returns the full tag name (e.g., "vx-v0.5.7") of a release that has assets
 get_latest_version() {
-    local api_url="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
+    local api_url="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases?per_page=10"
     local auth_header=""
 
     # Check for GitHub token
@@ -87,7 +87,7 @@ get_latest_version() {
         info "Using unauthenticated GitHub API request (rate limited)"
     fi
 
-    # Try GitHub API first
+    # Try GitHub API - get releases list and find one with assets
     local response
     if command -v curl >/dev/null 2>&1; then
         if [[ -n "$auth_header" ]]; then
@@ -98,9 +98,27 @@ get_latest_version() {
 
         # Check for rate limit error
         if [[ -n "$response" ]] && ! echo "$response" | grep -q "rate limit\|429"; then
-            # Return full tag name (e.g., "vx-v0.5.7")
-            echo "$response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' || echo ""
-            return
+            # Find the first non-prerelease with assets using jq if available
+            if command -v jq >/dev/null 2>&1; then
+                local tag_name
+                tag_name=$(echo "$response" | jq -r '
+                    [.[] | select(.assets | length > 0) | select(.prerelease == false)] |
+                    first | .tag_name // empty
+                ')
+                if [[ -n "$tag_name" && "$tag_name" != "null" ]]; then
+                    echo "$tag_name"
+                    return
+                fi
+            else
+                # Fallback: use grep/sed to find first release with assets
+                # This is less reliable but works without jq
+                local tag_name
+                tag_name=$(echo "$response" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+                if [[ -n "$tag_name" ]]; then
+                    echo "$tag_name"
+                    return
+                fi
+            fi
         fi
     elif command -v wget >/dev/null 2>&1; then
         if [[ -n "$auth_header" ]]; then
@@ -111,9 +129,24 @@ get_latest_version() {
 
         # Check for rate limit error
         if [[ -n "$response" ]] && ! echo "$response" | grep -q "rate limit\|429"; then
-            # Return full tag name (e.g., "vx-v0.5.7")
-            echo "$response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' || echo ""
-            return
+            if command -v jq >/dev/null 2>&1; then
+                local tag_name
+                tag_name=$(echo "$response" | jq -r '
+                    [.[] | select(.assets | length > 0) | select(.prerelease == false)] |
+                    first | .tag_name // empty
+                ')
+                if [[ -n "$tag_name" && "$tag_name" != "null" ]]; then
+                    echo "$tag_name"
+                    return
+                fi
+            else
+                local tag_name
+                tag_name=$(echo "$response" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+                if [[ -n "$tag_name" ]]; then
+                    echo "$tag_name"
+                    return
+                fi
+            fi
         fi
     fi
 
