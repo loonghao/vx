@@ -1124,42 +1124,6 @@ fn test_cli_x_command() {
 }
 
 // ============================================
-// Test Command Tests
-// ============================================
-
-#[test]
-fn test_cli_test_command() {
-    let args = vec!["vx", "test", "--coverage", "--watch"];
-    let cli = Cli::try_parse_from(args).unwrap();
-
-    match cli.command {
-        Some(Commands::Test {
-            coverage, watch, ..
-        }) => {
-            assert!(coverage);
-            assert!(watch);
-        }
-        _ => panic!("Expected Test command"),
-    }
-}
-
-#[test]
-fn test_cli_test_run_subcommand() {
-    let args = vec!["vx", "test", "run", "--filter", "unit"];
-    let cli = Cli::try_parse_from(args).unwrap();
-
-    match cli.command {
-        Some(Commands::Test {
-            command: Some(TestCommand::Run { filter, .. }),
-            ..
-        }) => {
-            assert_eq!(filter, Some("unit".to_string()));
-        }
-        _ => panic!("Expected Test Run command"),
-    }
-}
-
-// ============================================
 // Container Subcommand Tests
 // ============================================
 
@@ -1211,79 +1175,6 @@ fn test_cli_container_build() {
             assert!(no_cache);
         }
         _ => panic!("Expected Container Build command"),
-    }
-}
-
-// ============================================
-// Security Subcommand Tests
-// ============================================
-
-#[test]
-fn test_cli_security_scan() {
-    let args = vec!["vx", "security", "scan", "--fix", "--format", "json"];
-    let cli = Cli::try_parse_from(args).unwrap();
-
-    match cli.command {
-        Some(Commands::Security {
-            command: SecurityCommand::Scan { fix, format, .. },
-        }) => {
-            assert!(fix);
-            assert_eq!(format, Some("json".to_string()));
-        }
-        _ => panic!("Expected Security Scan command"),
-    }
-}
-
-#[test]
-fn test_cli_security_audit() {
-    let args = vec!["vx", "security", "audit", "--json"];
-    let cli = Cli::try_parse_from(args).unwrap();
-
-    match cli.command {
-        Some(Commands::Security {
-            command: SecurityCommand::Audit { json, .. },
-        }) => {
-            assert!(json);
-        }
-        _ => panic!("Expected Security Audit command"),
-    }
-}
-
-// ============================================
-// Deps Subcommand Tests
-// ============================================
-
-#[test]
-fn test_cli_deps_install() {
-    let args = vec!["vx", "deps", "install", "--frozen", "--prod"];
-    let cli = Cli::try_parse_from(args).unwrap();
-
-    match cli.command {
-        Some(Commands::Deps {
-            command: DepsCommand::Install { frozen, prod, .. },
-        }) => {
-            assert!(frozen);
-            assert!(prod);
-        }
-        _ => panic!("Expected Deps Install command"),
-    }
-}
-
-#[test]
-fn test_cli_deps_update() {
-    let args = vec!["vx", "deps", "update", "lodash", "react", "--major"];
-    let cli = Cli::try_parse_from(args).unwrap();
-
-    match cli.command {
-        Some(Commands::Deps {
-            command: DepsCommand::Update {
-                packages, major, ..
-            },
-        }) => {
-            assert_eq!(packages, vec!["lodash", "react"]);
-            assert!(major);
-        }
-        _ => panic!("Expected Deps Update command"),
     }
 }
 
