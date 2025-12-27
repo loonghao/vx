@@ -200,9 +200,11 @@ jobs:
     runs-on: ubuntu-latest
     if: needs.check-release.outputs.should-publish == 'true'
     steps:
-      - name: Generate and push Homebrew formula
-        env:
-          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate Homebrew formula
+        id: generate
         run: |
           VERSION="${{ needs.check-release.outputs.version }}"
           VERSION_NUM="${VERSION#v}"
@@ -227,7 +229,7 @@ jobs:
           fi
 
           # Create Homebrew formula
-          cat > vx.rb << 'FORMULA_EOF'
+          cat > vx.rb << EOF
           # typed: false
           # frozen_string_literal: true
 
@@ -235,23 +237,23 @@ jobs:
             desc "Universal development tool manager - run any dev tool with automatic runtime management"
             homepage "https://github.com/loonghao/vx"
             license "MIT"
-            version "VERSION_PLACEHOLDER"
+            version "${VERSION_NUM}"
 
             on_macos do
               on_intel do
-                url "DARWIN_AMD64_URL_PLACEHOLDER"
-                sha256 "DARWIN_AMD64_SHA256_PLACEHOLDER"
+                url "${BASE_URL}/vx-x86_64-apple-darwin.tar.gz"
+                sha256 "${DARWIN_AMD64_SHA256}"
               end
               on_arm do
-                url "DARWIN_ARM64_URL_PLACEHOLDER"
-                sha256 "DARWIN_ARM64_SHA256_PLACEHOLDER"
+                url "${BASE_URL}/vx-aarch64-apple-darwin.tar.gz"
+                sha256 "${DARWIN_ARM64_SHA256}"
               end
             end
 
             on_linux do
               on_intel do
-                url "LINUX_AMD64_URL_PLACEHOLDER"
-                sha256 "LINUX_AMD64_SHA256_PLACEHOLDER"
+                url "${BASE_URL}/vx-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${LINUX_AMD64_SHA256}"
               end
             end
 
@@ -263,16 +265,7 @@ jobs:
               assert_match "vx", shell_output("#{bin}/vx --version")
             end
           end
-          FORMULA_EOF
-
-          # Replace placeholders
-          sed -i "s|VERSION_PLACEHOLDER|${VERSION_NUM}|g" vx.rb
-          sed -i "s|DARWIN_AMD64_URL_PLACEHOLDER|${BASE_URL}/vx-x86_64-apple-darwin.tar.gz|g" vx.rb
-          sed -i "s|DARWIN_AMD64_SHA256_PLACEHOLDER|${DARWIN_AMD64_SHA256}|g" vx.rb
-          sed -i "s|DARWIN_ARM64_URL_PLACEHOLDER|${BASE_URL}/vx-aarch64-apple-darwin.tar.gz|g" vx.rb
-          sed -i "s|DARWIN_ARM64_SHA256_PLACEHOLDER|${DARWIN_ARM64_SHA256}|g" vx.rb
-          sed -i "s|LINUX_AMD64_URL_PLACEHOLDER|${BASE_URL}/vx-x86_64-unknown-linux-gnu.tar.gz|g" vx.rb
-          sed -i "s|LINUX_AMD64_SHA256_PLACEHOLDER|${LINUX_AMD64_SHA256}|g" vx.rb
+          EOF
 
           # Remove leading whitespace from heredoc
           sed -i 's/^          //' vx.rb
@@ -280,11 +273,37 @@ jobs:
           echo "Generated formula:"
           cat vx.rb
 
-          # Clone the homebrew tap and update
+          echo "version=${VERSION_NUM}" >> $GITHUB_OUTPUT
+
+      - name: Push to Homebrew tap
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+        with:
+          source-directory: '.'
+          destination-github-username: 'loonghao'
+          destination-repository-name: 'homebrew-vx'
+          user-email: github-actions[bot]@users.noreply.github.com
+          user-name: github-actions[bot]
+          target-branch: main
+          commit-message: "Update vx to ${{ steps.generate.outputs.version }}"
+        continue-on-error: true
+
+      - name: Fallback - Push using token
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          VERSION_NUM="${{ steps.generate.outputs.version }}"
+
+          # Setup git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/loonghao/homebrew-vx.git" homebrew-tap
+          # Clone using token (ensure no newlines in URL)
+          CLEAN_TOKEN=$(echo "$GITHUB_TOKEN" | tr -d '\n\r')
+          git clone "https://x-access-token:${CLEAN_TOKEN}@github.com/loonghao/homebrew-vx.git" homebrew-tap
+
           cd homebrew-tap
 
           # Create Formula directory if not exists
@@ -375,7 +394,9 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/loonghao/scoop-vx.git" scoop-bucket
+          # Clean token to remove any newlines
+          CLEAN_TOKEN=$(echo "$GITHUB_TOKEN" | tr -d '\n\r')
+          git clone "https://x-access-token:${CLEAN_TOKEN}@github.com/loonghao/scoop-vx.git" scoop-bucket
           cd scoop-bucket
 
           # Create bucket directory if not exists
