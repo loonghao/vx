@@ -164,7 +164,7 @@ reqwest = { version = "0.12", features = [
   "stream",
   "rustls-tls",
 ], default-features = false }
-serde_json = "1.0"
+serde_json = "1.0.148"
 anyhow = "1.0"
 thiserror = "2.0"
 dirs = "6.0"
@@ -194,8 +194,7 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 tracing-indicatif = "0.3.9"
 
 # Retry with backoff - similar to Python's tenacity
-# Pin to 1.4.x - versions 1.5+ require Rust 2024 Edition (incompatible with MSRV 1.83)
-backon = "=1.4.0"
+backon = "1.6.0"
 
 # Testing frameworks and utilities
 rstest = "0.26"
