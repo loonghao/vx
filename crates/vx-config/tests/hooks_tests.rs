@@ -13,7 +13,7 @@ use vx_config::{EnterHookManager, GitHookInstaller, HookCommand, HookExecutor};
 #[test]
 fn test_hook_executor_creation() {
     let temp_dir = TempDir::new().unwrap();
-    let executor = HookExecutor::new(temp_dir.path());
+    let _executor = HookExecutor::new(temp_dir.path());
     // Should create without error
     assert!(true);
 }
@@ -21,7 +21,7 @@ fn test_hook_executor_creation() {
 #[test]
 fn test_hook_executor_with_verbose() {
     let temp_dir = TempDir::new().unwrap();
-    let executor = HookExecutor::new(temp_dir.path()).verbose(true);
+    let _executor = HookExecutor::new(temp_dir.path()).verbose(true);
     // Should create without error
     assert!(true);
 }
@@ -29,7 +29,7 @@ fn test_hook_executor_with_verbose() {
 #[test]
 fn test_hook_executor_with_env() {
     let temp_dir = TempDir::new().unwrap();
-    let executor = HookExecutor::new(temp_dir.path())
+    let _executor = HookExecutor::new(temp_dir.path())
         .env("TEST_VAR", "test_value")
         .env("ANOTHER_VAR", "another_value");
     // Should create without error
@@ -44,7 +44,7 @@ fn test_hook_executor_with_shell() {
     } else {
         "/bin/sh"
     };
-    let executor = HookExecutor::new(temp_dir.path()).shell(shell);
+    let _executor = HookExecutor::new(temp_dir.path()).shell(shell);
     // Should create without error
     assert!(true);
 }
@@ -244,7 +244,7 @@ fn test_execute_custom_hook() {
 #[test]
 fn test_git_hook_installer_creation() {
     let temp_dir = TempDir::new().unwrap();
-    let installer = GitHookInstaller::new(temp_dir.path());
+    let _installer = GitHookInstaller::new(temp_dir.path());
     // Should create without error
     assert!(true);
 }
@@ -372,7 +372,7 @@ fn test_git_hook_preserves_existing_hook() {
 #[test]
 fn test_enter_hook_manager_creation() {
     let temp_dir = TempDir::new().unwrap();
-    let manager = EnterHookManager::new(temp_dir.path());
+    let _manager = EnterHookManager::new(temp_dir.path());
     // Should create without error
     assert!(true);
 }
