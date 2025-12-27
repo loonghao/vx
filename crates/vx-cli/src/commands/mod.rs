@@ -7,6 +7,7 @@ use vx_runtime::ProviderRegistry;
 pub mod cleanup;
 pub mod config;
 pub mod container;
+pub mod deps;
 pub mod dev;
 pub mod env;
 pub mod execute;
@@ -19,8 +20,10 @@ pub mod init;
 pub mod install;
 pub mod list;
 pub mod plugin;
+pub mod remote;
 pub mod remove;
 pub mod search;
+pub mod security;
 pub mod self_update;
 pub mod services;
 pub mod setup;
@@ -28,6 +31,8 @@ pub mod shell;
 pub mod stats;
 pub mod switch;
 pub mod sync;
+pub mod team;
+pub mod test;
 
 pub mod update;
 pub mod venv_cmd;
@@ -382,6 +387,114 @@ impl CommandHandler {
                         password,
                     } => container::handle_login(registry, username, password).await,
                     ContainerCommand::Tags { all } => container::handle_tags(all).await,
+                }
+            }
+
+            Some(Commands::Security { command }) => {
+                use crate::cli::SecurityCommand;
+                match command {
+                    SecurityCommand::Scan {
+                        verbose,
+                        fix,
+                        format,
+                    } => security::handle_scan(verbose, fix, format).await,
+                    SecurityCommand::Audit { verbose, json } => {
+                        security::handle_audit(verbose, json).await
+                    }
+                    SecurityCommand::Secrets {
+                        path,
+                        baseline,
+                        update_baseline,
+                        verbose,
+                    } => security::handle_secrets(path, baseline, update_baseline, verbose).await,
+                    SecurityCommand::Licenses { verbose, format } => {
+                        security::handle_licenses(verbose, format).await
+                    }
+                    SecurityCommand::Report { output, format } => {
+                        security::handle_report(output, format).await
+                    }
+                }
+            }
+
+            Some(Commands::Team { command }) => {
+                use crate::cli::TeamCommand;
+                match command {
+                    TeamCommand::Codeowners {
+                        output,
+                        dry_run,
+                        verbose,
+                    } => team::handle_codeowners(output, dry_run, verbose).await,
+                    TeamCommand::Validate {
+                        commit,
+                        branch,
+                        all,
+                        verbose,
+                    } => team::handle_validate(commit, branch, all, verbose).await,
+                    TeamCommand::ReviewRules { verbose } => {
+                        team::handle_review_rules(verbose).await
+                    }
+                    TeamCommand::Status { verbose } => team::handle_status(verbose).await,
+                }
+            }
+
+            Some(Commands::Remote { command }) => {
+                use crate::cli::RemoteCommand;
+                match command {
+                    RemoteCommand::Generate {
+                        target,
+                        output,
+                        dry_run,
+                        verbose,
+                    } => remote::handle_generate(target, output, dry_run, verbose).await,
+                    RemoteCommand::Status { verbose } => remote::handle_status(verbose).await,
+                }
+            }
+
+            Some(Commands::Test {
+                command,
+                filter,
+                coverage,
+                watch,
+                verbose,
+                parallel,
+            }) => {
+                use crate::cli::TestCommand;
+                match command {
+                    Some(TestCommand::Run {
+                        filter: f,
+                        coverage: c,
+                        watch: w,
+                        verbose: v,
+                        parallel: p,
+                    }) => test::handle_run(f, c, w, v, p).await,
+                    Some(TestCommand::Coverage {
+                        format,
+                        output,
+                        verbose: v,
+                    }) => test::handle_coverage(format, output, v).await,
+                    Some(TestCommand::Status { verbose: v }) => test::handle_status(v).await,
+                    None => test::handle_run(filter, coverage, watch, verbose, parallel).await,
+                }
+            }
+
+            Some(Commands::Deps { command }) => {
+                use crate::cli::DepsCommand;
+                match command {
+                    DepsCommand::Install {
+                        frozen,
+                        dev,
+                        prod,
+                        verbose,
+                    } => deps::handle_install(frozen, dev, prod, verbose).await,
+                    DepsCommand::Audit { fix, verbose } => deps::handle_audit(fix, verbose).await,
+                    DepsCommand::Update {
+                        packages,
+                        major,
+                        dry_run,
+                        verbose,
+                    } => deps::handle_update(packages, major, dry_run, verbose).await,
+                    DepsCommand::Lock { verbose } => deps::handle_lock(verbose).await,
+                    DepsCommand::Status { verbose } => deps::handle_status(verbose).await,
                 }
             }
         }

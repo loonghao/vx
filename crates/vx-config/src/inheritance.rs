@@ -12,9 +12,6 @@ use std::path::Path;
 pub struct InheritanceManager {
     /// Cache directory for remote presets
     cache_dir: std::path::PathBuf,
-    /// HTTP client for fetching remote configs
-    #[cfg(feature = "http")]
-    client: reqwest::Client,
 }
 
 /// Remote preset source
@@ -70,8 +67,6 @@ impl InheritanceManager {
     pub fn new(cache_dir: impl AsRef<Path>) -> Self {
         Self {
             cache_dir: cache_dir.as_ref().to_path_buf(),
-            #[cfg(feature = "http")]
-            client: reqwest::Client::new(),
         }
     }
 
@@ -247,8 +242,6 @@ impl InheritanceManager {
 
 /// Built-in presets
 pub mod presets {
-    use super::*;
-
     /// Get built-in preset by name
     pub fn get_builtin(name: &str) -> Option<&'static str> {
         match name {
