@@ -5,6 +5,7 @@ members = [
   "crates/vx-resolver",
   "crates/vx-paths",
   "crates/vx-installer",
+  "crates/vx-config",
   "crates/vx-cli",
   # Providers
   "crates/vx-providers/node",
@@ -109,6 +110,7 @@ vx-runtime = { path = "crates/vx-runtime" }
 vx-resolver = { path = "crates/vx-resolver" }
 vx-paths = { path = "crates/vx-paths" }
 vx-installer = { path = "crates/vx-installer" }
+vx-config = { path = "crates/vx-config" }
 vx-cli = { path = "crates/vx-cli" }
 vx-provider-node = { path = "crates/vx-providers/node" }
 vx-provider-go = { path = "crates/vx-providers/go" }

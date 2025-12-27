@@ -2,20 +2,33 @@
 //!
 //! This command reads the .vx.toml configuration and installs all required
 //! tools, making the project ready for development.
+//!
+//! `vx setup` internally calls `vx sync` for tool installation, then performs
+//! additional setup tasks like showing next steps.
+//!
+//! ## Lifecycle Hooks
+//!
+//! The setup command supports lifecycle hooks:
+//! - `pre_setup`: Runs before tool installation
+//! - `post_setup`: Runs after tool installation
+//!
+//! Use `--no-hooks` to skip hook execution.
 
-use crate::ui::{InstallProgress, UI};
+use crate::commands::sync;
+use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::sync::Arc;
-use std::time::Instant;
-use vx_paths::PathManager;
+use vx_config::{parse_config, HookExecutor, VxConfig as VxConfigV2};
 use vx_runtime::ProviderRegistry;
 
-/// Configuration from .vx.toml
+// Re-export the new config type for backward compatibility
+pub use vx_config::VxConfig as VxConfigNew;
+
+/// Legacy configuration type for backward compatibility
+/// This wraps the new VxConfigV2 and provides the old interface
 #[derive(Debug, Default, Clone)]
 pub struct VxConfig {
     pub tools: HashMap<String, String>,
@@ -24,127 +37,111 @@ pub struct VxConfig {
     pub scripts: HashMap<String, String>,
 }
 
-/// Tool installation status
-#[derive(Debug, Clone)]
-pub struct ToolStatus {
-    pub name: String,
-    pub version: String,
-    pub installed: bool,
-    pub path: Option<PathBuf>,
+impl From<VxConfigV2> for VxConfig {
+    fn from(config: VxConfigV2) -> Self {
+        VxConfig {
+            tools: config.tools_as_hashmap(),
+            settings: config.settings_as_hashmap(),
+            env: config.env_as_hashmap(),
+            scripts: config.scripts_as_hashmap(),
+        }
+    }
 }
 
 /// Handle the setup command
+///
+/// This command delegates to `vx sync` for tool installation, then shows
+/// additional setup guidance like next steps and available scripts.
+///
+/// ## Arguments
+///
+/// - `registry`: Provider registry for tool installation
+/// - `force`: Force reinstall even if already installed
+/// - `dry_run`: Show what would be done without making changes
+/// - `verbose`: Show detailed output
+/// - `no_parallel`: Disable parallel installation
+/// - `no_hooks`: Skip lifecycle hooks (pre_setup, post_setup)
 pub async fn handle(
     registry: &ProviderRegistry,
     force: bool,
     dry_run: bool,
     verbose: bool,
     no_parallel: bool,
+    no_hooks: bool,
 ) -> Result<()> {
-    let start_time = Instant::now();
     let current_dir = env::current_dir().context("Failed to get current directory")?;
 
     // Find and parse .vx.toml
     let config_path = find_vx_config(&current_dir)?;
-    let config = parse_vx_config(&config_path)?;
+    let config_v2 = parse_vx_config_v2(&config_path)?;
+    let config = VxConfig::from(config_v2.clone());
 
     UI::header("🚀 VX Development Environment Setup");
     println!();
 
-    if config.tools.is_empty() {
-        UI::warn("No tools configured in .vx.toml");
-        UI::hint("Add tools to the [tools] section in .vx.toml");
-        return Ok(());
-    }
-
-    // Check current status
-    UI::info("Checking tool status...");
-    let tool_statuses = check_tool_status(&config.tools, registry).await?;
-
-    // Show status
-    println!();
-    println!("Tools:");
-    let mut tools_to_install = Vec::new();
-
-    for status in &tool_statuses {
-        let status_icon = if status.installed { "✓" } else { "✗" };
-        let status_text = if status.installed {
-            "installed"
-        } else {
-            "missing"
-        };
-
-        println!(
-            "  {} {}@{} ({})",
-            status_icon, status.name, status.version, status_text
-        );
-
-        if !status.installed || force {
-            tools_to_install.push(status.clone());
+    // Execute pre_setup hook
+    if !no_hooks && !dry_run {
+        if let Some(hooks) = &config_v2.hooks {
+            if let Some(pre_setup) = &hooks.pre_setup {
+                UI::info("Running pre_setup hook...");
+                let executor = HookExecutor::new(&current_dir).verbose(verbose);
+                let result = executor.execute_pre_setup(pre_setup)?;
+                if !result.success {
+                    if let Some(err) = result.error {
+                        return Err(anyhow::anyhow!("pre_setup hook failed: {}", err));
+                    }
+                    return Err(anyhow::anyhow!("pre_setup hook failed"));
+                }
+                UI::success("pre_setup hook completed");
+                println!();
+            }
         }
     }
-    println!();
 
-    if tools_to_install.is_empty() {
-        UI::success("All tools are already installed!");
+    // Delegate to sync command for tool installation
+    // sync handles: checking status, installing missing tools, showing progress
+    sync::handle(
+        registry,
+        false,       // check: false - we want to install, not just check
+        force,       // force: pass through
+        dry_run,     // dry_run: pass through
+        verbose,     // verbose: pass through (sync will show status when verbose)
+        no_parallel, // no_parallel: pass through
+        false,       // no_auto_install: false - we want auto install
+    )
+    .await?;
+
+    // Execute post_setup hook
+    if !no_hooks && !dry_run {
+        if let Some(hooks) = &config_v2.hooks {
+            if let Some(post_setup) = &hooks.post_setup {
+                println!();
+                UI::info("Running post_setup hook...");
+                let executor = HookExecutor::new(&current_dir).verbose(verbose);
+                let result = executor.execute_post_setup(post_setup)?;
+                if !result.success {
+                    if let Some(err) = result.error {
+                        UI::warn(&format!("post_setup hook failed: {}", err));
+                    } else {
+                        UI::warn("post_setup hook failed");
+                    }
+                } else {
+                    UI::success("post_setup hook completed");
+                }
+            }
+        }
+    }
+
+    // Show next steps after successful sync (setup-specific feature)
+    if !dry_run {
         show_next_steps(&config);
-        return Ok(());
     }
 
-    if dry_run {
-        UI::info(&format!(
-            "Would install {} tool(s):",
-            tools_to_install.len()
-        ));
-        for tool in &tools_to_install {
-            println!("  - {}@{}", tool.name, tool.version);
-        }
-        return Ok(());
-    }
-
-    // Install missing tools
-    UI::info(&format!("Installing {} tool(s)...", tools_to_install.len()));
-    println!();
-
-    let install_results = if no_parallel {
-        install_tools_sequential(&tools_to_install, verbose).await?
-    } else {
-        install_tools_parallel(&tools_to_install, verbose).await?
-    };
-
-    // Show results
-    println!();
-    let successful = install_results.iter().filter(|(_, ok)| *ok).count();
-    let failed = install_results.len() - successful;
-
-    if failed == 0 {
-        UI::success(&format!(
-            "Successfully installed {} tool(s) in {:.1}s",
-            successful,
-            start_time.elapsed().as_secs_f64()
-        ));
-    } else {
-        UI::warn(&format!(
-            "Installed {}/{} tools ({} failed)",
-            successful,
-            install_results.len(),
-            failed
-        ));
-    }
-
-    // Show failed tools
-    for (tool, ok) in &install_results {
-        if !ok {
-            UI::error(&format!("  Failed: {}@{}", tool.name, tool.version));
-        }
-    }
-
-    show_next_steps(&config);
     Ok(())
 }
 
 /// Find .vx.toml in current directory or parent directories
-fn find_vx_config(start_dir: &Path) -> Result<PathBuf> {
+pub fn find_vx_config(start_dir: &Path) -> Result<PathBuf> {
     let mut current = start_dir.to_path_buf();
 
     loop {
@@ -164,175 +161,18 @@ fn find_vx_config(start_dir: &Path) -> Result<PathBuf> {
     ))
 }
 
-/// Parse .vx.toml configuration
+/// Parse .vx.toml configuration using the new serde-based parser
 pub fn parse_vx_config(path: &Path) -> Result<VxConfig> {
-    let content =
-        fs::read_to_string(path).with_context(|| format!("Failed to read {}", path.display()))?;
+    let config_v2 = parse_config(path)
+        .with_context(|| format!("Failed to parse configuration file: {}", path.display()))?;
 
-    let mut config = VxConfig::default();
-    let mut current_section = String::new();
-
-    for line in content.lines() {
-        let line = line.trim();
-
-        // Skip comments and empty lines
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-
-        // Section header
-        if line.starts_with('[') && line.ends_with(']') {
-            current_section = line[1..line.len() - 1].to_string();
-            continue;
-        }
-
-        // Key-value pair
-        if let Some((key, value)) = parse_key_value(line) {
-            match current_section.as_str() {
-                "tools" => {
-                    config.tools.insert(key, value);
-                }
-                "settings" => {
-                    config.settings.insert(key, value);
-                }
-                "env" => {
-                    config.env.insert(key, value);
-                }
-                "scripts" => {
-                    config.scripts.insert(key, value);
-                }
-                _ => {}
-            }
-        }
-    }
-
-    Ok(config)
+    Ok(VxConfig::from(config_v2))
 }
 
-/// Parse a key = "value" line
-fn parse_key_value(line: &str) -> Option<(String, String)> {
-    let parts: Vec<&str> = line.splitn(2, '=').collect();
-    if parts.len() != 2 {
-        return None;
-    }
-
-    let key = parts[0].trim().to_string();
-    let value = parts[1]
-        .trim()
-        .trim_matches('"')
-        .trim_matches('\'')
-        .to_string();
-
-    Some((key, value))
-}
-
-/// Check the installation status of all tools
-async fn check_tool_status(
-    tools: &HashMap<String, String>,
-    _registry: &ProviderRegistry,
-) -> Result<Vec<ToolStatus>> {
-    let path_manager = PathManager::new()?;
-    let mut statuses = Vec::new();
-
-    for (name, version) in tools {
-        let (installed, path) = if version == "latest" {
-            // For latest, check if any version is installed
-            let versions = path_manager.list_store_versions(name)?;
-            if let Some(latest) = versions.last() {
-                let store_path = path_manager.version_store_dir(name, latest);
-                (true, Some(store_path))
-            } else {
-                (false, None)
-            }
-        } else {
-            let store_path = path_manager.version_store_dir(name, version);
-            (store_path.exists(), Some(store_path))
-        };
-
-        statuses.push(ToolStatus {
-            name: name.clone(),
-            version: version.clone(),
-            installed,
-            path: if installed { path } else { None },
-        });
-    }
-
-    // Sort by name
-    statuses.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(statuses)
-}
-
-/// Install tools sequentially with modern progress display
-async fn install_tools_sequential(
-    tools: &[ToolStatus],
-    _verbose: bool,
-) -> Result<Vec<(ToolStatus, bool)>> {
-    let mut results = Vec::new();
-    let mut progress = InstallProgress::new(tools.len(), "Installing tools");
-
-    for tool in tools {
-        progress.start_tool(&tool.name, &tool.version);
-
-        let success = install_single_tool(&tool.name, &tool.version, false).await;
-        progress.complete_tool(success, &tool.name, &tool.version);
-        results.push((tool.clone(), success));
-    }
-
-    let successful = results.iter().filter(|(_, ok)| *ok).count();
-    progress.finish(&format!("✓ {} tools installed", successful));
-
-    Ok(results)
-}
-
-/// Install tools in parallel with modern progress display
-async fn install_tools_parallel(
-    tools: &[ToolStatus],
-    _verbose: bool,
-) -> Result<Vec<(ToolStatus, bool)>> {
-    use tokio::task::JoinSet;
-
-    let mut join_set = JoinSet::new();
-    let tools = Arc::new(tools.to_vec());
-
-    for tool in tools.iter() {
-        let tool = tool.clone();
-
-        join_set.spawn(async move {
-            let success = install_single_tool(&tool.name, &tool.version, false).await;
-            (tool, success)
-        });
-    }
-
-    let mut results = Vec::new();
-    while let Some(result) = join_set.join_next().await {
-        if let Ok((tool, success)) = result {
-            let icon = if success { "✓" } else { "✗" };
-            println!("  {} {}@{}", icon, tool.name, tool.version);
-            results.push((tool, success));
-        }
-    }
-
-    Ok(results)
-}
-
-/// Install a single tool
-async fn install_single_tool(name: &str, version: &str, _verbose: bool) -> bool {
-    let exe = match env::current_exe() {
-        Ok(e) => e,
-        Err(_) => return false,
-    };
-
-    let mut cmd = Command::new(exe);
-    cmd.args(["install", name, version]);
-
-    // Suppress output for clean progress display
-    cmd.stdout(Stdio::null());
-    cmd.stderr(Stdio::null());
-
-    match cmd.status() {
-        Ok(status) => status.success(),
-        Err(_) => false,
-    }
+/// Parse .vx.toml configuration and return the new typed config
+pub fn parse_vx_config_v2(path: &Path) -> Result<VxConfigV2> {
+    parse_config(path)
+        .with_context(|| format!("Failed to parse configuration file: {}", path.display()))
 }
 
 /// Show next steps after setup

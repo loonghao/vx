@@ -1,0 +1,24 @@
+[package]
+name = "vx-config"
+version.workspace = true
+edition.workspace = true
+description = "Configuration management for vx"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_yaml = "0.9"
+toml = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+schemars = { version = "0.8", features = ["derive"] }
+regex = { workspace = true }
+sha2 = "0.10"
+chrono = { workspace = true }
+dirs = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tempfile = { workspace = true }

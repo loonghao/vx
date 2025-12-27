@@ -1,0 +1,54 @@
+# Full-stack preset for vx
+# Use with: team.extends = "vx:fullstack"
+
+[tools]
+node = "lts"
+pnpm = "latest"
+python = "3.12"
+uv = "latest"
+
+[python]
+venv = ".venv"
+package_manager = "uv"
+
+[dependencies.node]
+package_manager = "pnpm"
+
+[scripts]
+dev = "pnpm dev"
+build = "pnpm build"
+test = "pnpm test && uv run pytest"
+lint = "pnpm lint && uv run ruff check ."
+
+[hooks]
+post_setup = ["pnpm install", "uv sync"]
+
+[services.postgres]
+image = "postgres:16"
+ports = ["5432:5432"]
+env = { POSTGRES_PASSWORD = "dev", POSTGRES_DB = "app" }
+healthcheck = "pg_isready -U postgres"
+
+[services.redis]
+image = "redis:7"
+ports = ["6379:6379"]
+healthcheck = "redis-cli ping"
+
+[settings]
+auto_install = true
+parallel_install = true
+
+[remote.devcontainer]
+enabled = true
+image = "mcr.microsoft.com/devcontainers/javascript-node:20"
+
+[remote.devcontainer.features]
+"ghcr.io/devcontainers/features/python:1" = { version = "3.12" }
+
+[remote.devcontainer.customizations.vscode]
+extensions = [
+  "dbaeumer.vscode-eslint",
+  "esbenp.prettier-vscode",
+  "ms-python.python",
+  "ms-python.vscode-pylance",
+]

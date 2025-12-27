@@ -1,0 +1,29 @@
+# Go preset for vx
+# Use with: team.extends = "vx:go"
+
+[tools]
+go = "1.22"
+
+[scripts]
+dev = "go run ."
+build = "go build -o bin/"
+test = "go test ./..."
+lint = "golangci-lint run"
+format = "gofmt -w ."
+
+[hooks]
+post_setup = "go mod download"
+
+[settings]
+auto_install = true
+
+[test]
+framework = "go-test"
+parallel = true
+
+[remote.devcontainer]
+enabled = true
+image = "mcr.microsoft.com/devcontainers/go:1.22"
+
+[remote.devcontainer.customizations.vscode]
+extensions = ["golang.go"]

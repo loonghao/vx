@@ -1,0 +1,28 @@
+# Node.js preset for vx
+# Use with: team.extends = "vx:node"
+
+[tools]
+node = "lts"
+pnpm = "latest"
+
+[dependencies.node]
+package_manager = "pnpm"
+
+[scripts]
+dev = "pnpm dev"
+build = "pnpm build"
+test = "pnpm test"
+lint = "pnpm lint"
+
+[hooks]
+post_setup = "pnpm install"
+
+[settings]
+auto_install = true
+
+[remote.devcontainer]
+enabled = true
+image = "mcr.microsoft.com/devcontainers/javascript-node:20"
+
+[remote.devcontainer.customizations.vscode]
+extensions = ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
