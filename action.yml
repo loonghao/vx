@@ -86,20 +86,28 @@ runs:
 
           # Determine version
           if [ "$VX_VERSION" = "latest" ]; then
-            echo "Fetching latest version..."
-            # Retry logic for API requests
+            echo "Fetching latest version with available assets..."
+            # Get releases and find one with assets available
             for i in 1 2 3; do
-              TAG_NAME=$(curl -sS --retry 3 --retry-delay 2 -H "Authorization: Bearer $GH_TOKEN" \
-                "https://api.github.com/repos/loonghao/vx/releases/latest" | \
-                grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-              if [ -n "$TAG_NAME" ]; then
+              # Get list of releases (not just latest) to find one with assets
+              RELEASES_JSON=$(curl -sS --retry 3 --retry-delay 2 -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/loonghao/vx/releases?per_page=10")
+
+              # Find the first release that has assets (assets array is not empty)
+              TAG_NAME=$(echo "$RELEASES_JSON" | jq -r '
+                [.[] | select(.assets | length > 0) | select(.prerelease == false)] |
+                first | .tag_name // empty
+              ')
+
+              if [ -n "$TAG_NAME" ] && [ "$TAG_NAME" != "null" ]; then
+                echo "Found release with assets: $TAG_NAME"
                 break
               fi
-              echo "Retry $i: Failed to fetch latest version..."
+              echo "Retry $i: No release with assets found..."
               sleep 2
             done
-            if [ -z "$TAG_NAME" ]; then
-              echo "Failed to fetch latest version after 3 retries"
+            if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" = "null" ]; then
+              echo "Failed to find a release with assets after 3 retries"
               exit 1
             fi
           else
@@ -214,22 +222,31 @@ runs:
           $TagName = $null
 
           if ($env:VX_VERSION -eq "latest") {
-            Write-Host "Fetching latest version..."
+            Write-Host "Fetching latest version with available assets..."
             $headers = @{ "Authorization" = "Bearer $env:GH_TOKEN" }
 
             for ($i = 1; $i -le $maxRetries; $i++) {
               try {
-                $response = Invoke-RestMethod -Uri "https://api.github.com/repos/loonghao/vx/releases/latest" -Headers $headers -TimeoutSec 30
-                $TagName = $response.tag_name
+                # Get list of releases to find one with assets
+                $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/loonghao/vx/releases?per_page=10" -Headers $headers -TimeoutSec 30
+
+                # Find the first non-prerelease with assets
+                foreach ($release in $releases) {
+                  if (-not $release.prerelease -and $release.assets.Count -gt 0) {
+                    $TagName = $release.tag_name
+                    Write-Host "Found release with assets: $TagName"
+                    break
+                  }
+                }
                 if ($TagName) { break }
               } catch {
-                Write-Host "Retry $i`: Failed to fetch latest version: $_"
+                Write-Host "Retry $i`: Failed to fetch releases: $_"
                 if ($i -lt $maxRetries) { Start-Sleep -Seconds 2 }
               }
             }
 
             if (-not $TagName) {
-              Write-Error "Failed to fetch latest version after $maxRetries retries"
+              Write-Error "Failed to find a release with assets after $maxRetries retries"
               exit 1
             }
           } else {
