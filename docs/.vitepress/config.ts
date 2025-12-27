@@ -276,6 +276,11 @@ export default defineConfig({
   title: 'vx',
   description: 'Universal Development Tool Manager with Zero Learning Curve',
 
+  // Ignore dead links to local-only RFC documents
+  ignoreDeadLinks: [
+    /\/rfcs\//
+  ],
+
   locales: {
     root: {
       label: 'English',
