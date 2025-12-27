@@ -63,7 +63,7 @@ pub enum AutoUpdateStrategy {
 
 impl AutoUpdateStrategy {
     /// Parse from string
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "patch" => Self::Patch,
             "minor" => Self::Minor,
@@ -103,7 +103,7 @@ impl DependencyManager {
         self.config
             .auto_update
             .as_ref()
-            .map(|s| AutoUpdateStrategy::from_str(s))
+            .map(|s| AutoUpdateStrategy::parse(s))
             .unwrap_or(AutoUpdateStrategy::None)
     }
 
@@ -668,27 +668,27 @@ mod tests {
     #[test]
     fn test_auto_update_strategy() {
         assert_eq!(
-            AutoUpdateStrategy::from_str("none"),
+            AutoUpdateStrategy::parse("none"),
             AutoUpdateStrategy::None
         );
         assert_eq!(
-            AutoUpdateStrategy::from_str("patch"),
+            AutoUpdateStrategy::parse("patch"),
             AutoUpdateStrategy::Patch
         );
         assert_eq!(
-            AutoUpdateStrategy::from_str("minor"),
+            AutoUpdateStrategy::parse("minor"),
             AutoUpdateStrategy::Minor
         );
         assert_eq!(
-            AutoUpdateStrategy::from_str("major"),
+            AutoUpdateStrategy::parse("major"),
             AutoUpdateStrategy::Major
         );
         assert_eq!(
-            AutoUpdateStrategy::from_str("PATCH"),
+            AutoUpdateStrategy::parse("PATCH"),
             AutoUpdateStrategy::Patch
         );
         assert_eq!(
-            AutoUpdateStrategy::from_str("invalid"),
+            AutoUpdateStrategy::parse("invalid"),
             AutoUpdateStrategy::None
         );
     }
