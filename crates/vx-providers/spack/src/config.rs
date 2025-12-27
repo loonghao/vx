@@ -5,8 +5,8 @@
 //! Download URL format:
 //! - Source tarball: https://github.com/spack/spack/releases/download/v{version}/spack-{version}.tar.gz
 //!
-//! Note: Spack is a Python-based tool and is platform-independent.
-//! The same tarball works on all platforms (Linux, macOS, Windows with WSL).
+//! Note: Spack is a Python-based tool that uses Unix shell scripts.
+//! It only supports Linux and macOS. Windows users should use WSL.
 
 use vx_runtime::{Os, Platform};
 

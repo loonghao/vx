@@ -4,6 +4,9 @@
 //! It makes installing scientific software easy by automatically handling dependencies,
 //! multiple versions, configurations, platforms, and compilers.
 //!
+//! **Note**: Spack does not natively support Windows. On Windows, use WSL (Windows
+//! Subsystem for Linux) to run Spack.
+//!
 //! Homepage: https://spack.io
 //! Repository: https://github.com/spack/spack
 
@@ -45,6 +48,12 @@ impl Runtime for SpackRuntime {
     fn ecosystem(&self) -> Ecosystem {
         // Spack is a system tool for HPC/scientific computing
         Ecosystem::System
+    }
+
+    fn supported_platforms(&self) -> Vec<Platform> {
+        // Spack is a Python-based tool that uses Unix shell scripts.
+        // It does not natively support Windows (requires WSL).
+        Platform::unix_only()
     }
 
     fn metadata(&self) -> HashMap<String, String> {
