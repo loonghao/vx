@@ -289,11 +289,8 @@ pub async fn handle_licenses(verbose: bool, format: Option<String>) -> Result<()
             );
         }
 
-        match format.as_deref() {
-            Some("json") => {
-                println!("\n{}", serde_json::to_string_pretty(&violations)?);
-            }
-            _ => {}
+        if let Some("json") = format.as_deref() {
+            println!("\n{}", serde_json::to_string_pretty(&violations)?);
         }
 
         return Err(anyhow::anyhow!(

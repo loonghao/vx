@@ -256,7 +256,7 @@ pub async fn handle_run(name: &str) -> Result<()> {
 
 /// Handle shell integration script generation
 pub async fn handle_shell_init(shell: Option<String>) -> Result<()> {
-    let shell = shell.unwrap_or_else(|| detect_shell());
+    let shell = shell.unwrap_or_else(detect_shell);
 
     let script = EnterHookManager::generate_shell_integration(&shell);
 
