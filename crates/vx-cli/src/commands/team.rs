@@ -404,8 +404,7 @@ async fn validate_branch_name(team_config: &vx_config::TeamConfig, verbose: bool
 
     // Check protected branches from review config
     if let Some(review) = &team_config.review {
-        if !review.protected_branches.is_empty()
-            && review.protected_branches.contains(&branch_name)
+        if !review.protected_branches.is_empty() && review.protected_branches.contains(&branch_name)
         {
             UI::warn(&format!(
                 "Branch '{}' is protected. Consider creating a feature branch.",
