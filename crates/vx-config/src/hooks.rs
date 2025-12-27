@@ -249,11 +249,7 @@ impl GitHookInstaller {
         let hooks_dir = self.hooks_dir();
         std::fs::create_dir_all(&hooks_dir)?;
 
-        let hook_path = hooks_dir.join(if cfg!(windows) {
-            "pre-commit"
-        } else {
-            "pre-commit"
-        });
+        let hook_path = hooks_dir.join("pre-commit");
 
         let hook_content = self.generate_pre_commit_script();
 

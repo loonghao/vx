@@ -11,6 +11,7 @@ use std::path::Path;
 /// Configuration inheritance manager
 pub struct InheritanceManager {
     /// Cache directory for remote presets
+    #[allow(dead_code)]
     cache_dir: std::path::PathBuf,
 }
 
@@ -241,6 +242,7 @@ impl InheritanceManager {
 }
 
 /// Built-in presets
+#[allow(dead_code)]
 pub mod presets {
     /// Get built-in preset by name
     pub fn get_builtin(name: &str) -> Option<&'static str> {
