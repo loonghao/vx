@@ -1,9 +1,11 @@
 name: Security Audit
 
+# NOTE: PR security audit is handled by ci.yml to avoid duplication
+# This workflow only runs on schedule and manual dispatch
+
 on:
-  pull_request:
   schedule:
-    - cron: '0 2 * * 1' # Weekly
+    - cron: '0 2 * * 1' # Weekly on Monday at 2:00 AM UTC
   workflow_dispatch:
 
 permissions:
