@@ -307,8 +307,8 @@ impl GitHookInstaller {
 
     /// Generate the pre-commit hook script
     fn generate_pre_commit_script(&self) -> String {
-        if cfg!(windows) {
-            r#"#!/bin/sh
+        // Same script works for both Windows (via Git Bash) and Unix
+        r#"#!/bin/sh
 # vx-managed pre-commit hook
 # This hook is managed by vx. Do not edit manually.
 
@@ -329,31 +329,7 @@ done
 echo "Warning: vx not found, skipping pre-commit hook"
 exit 0
 "#
-            .to_string()
-        } else {
-            r#"#!/bin/sh
-# vx-managed pre-commit hook
-# This hook is managed by vx. Do not edit manually.
-
-# Run vx pre-commit hook
-if command -v vx >/dev/null 2>&1; then
-    vx hook pre-commit
-    exit $?
-fi
-
-# Fallback: try to find vx in common locations
-for vx_path in "$HOME/.vx/bin/vx" "$HOME/.local/bin/vx" "/usr/local/bin/vx"; do
-    if [ -x "$vx_path" ]; then
-        "$vx_path" hook pre-commit
-        exit $?
-    fi
-done
-
-echo "Warning: vx not found, skipping pre-commit hook"
-exit 0
-"#
-            .to_string()
-        }
+        .to_string()
     }
 
     /// Generate a wrapper script that calls both the backup and vx hook
