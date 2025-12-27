@@ -1,0 +1,33 @@
+# Python preset for vx
+# Use with: team.extends = "vx:python"
+
+[tools]
+python = "3.12"
+uv = "latest"
+
+[python]
+venv = ".venv"
+package_manager = "uv"
+
+[scripts]
+dev = "uv run python -m app"
+test = "uv run pytest"
+lint = "uv run ruff check ."
+format = "uv run ruff format ."
+
+[hooks]
+post_setup = "uv sync"
+
+[settings]
+auto_install = true
+
+[remote.devcontainer]
+enabled = true
+image = "mcr.microsoft.com/devcontainers/python:3.12"
+
+[remote.devcontainer.customizations.vscode]
+extensions = [
+  "ms-python.python",
+  "ms-python.vscode-pylance",
+  "charliermarsh.ruff",
+]

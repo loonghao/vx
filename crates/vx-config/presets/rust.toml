@@ -1,0 +1,38 @@
+# Rust preset for vx
+# Use with: team.extends = "vx:rust"
+
+[tools]
+rust = "stable"
+
+[scripts]
+dev = "cargo run"
+build = "cargo build --release"
+test = "cargo test"
+lint = "cargo clippy"
+format = "cargo fmt"
+
+[hooks]
+post_setup = "cargo fetch"
+
+[settings]
+auto_install = true
+
+[test]
+framework = "cargo-test"
+parallel = true
+
+[test.coverage]
+enabled = true
+tool = "llvm-cov"
+threshold = 80
+
+[remote.devcontainer]
+enabled = true
+image = "mcr.microsoft.com/devcontainers/rust:latest"
+
+[remote.devcontainer.customizations.vscode]
+extensions = [
+  "rust-lang.rust-analyzer",
+  "tamasfe.even-better-toml",
+  "serayuzgur.crates",
+]
