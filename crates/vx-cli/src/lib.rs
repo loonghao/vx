@@ -549,6 +549,23 @@ impl VxCli {
                     DepsCommand::Status { verbose } => commands::deps::handle_status(verbose).await,
                 }
             }
+
+            Commands::Ext { command } => {
+                use crate::cli::ExtCommand;
+                match command {
+                    ExtCommand::List { verbose } => commands::ext::handle_list(verbose).await,
+                    ExtCommand::Info { name } => commands::ext::handle_info(&name).await,
+                    ExtCommand::Dev { path, unlink } => {
+                        commands::ext::handle_dev(&path, unlink).await
+                    }
+                    ExtCommand::Install { source } => commands::ext::handle_install(&source).await,
+                    ExtCommand::Uninstall { name } => commands::ext::handle_uninstall(&name).await,
+                }
+            }
+
+            Commands::X { extension, args } => {
+                commands::ext::handle_execute(&extension, &args).await
+            }
         }
     }
 
