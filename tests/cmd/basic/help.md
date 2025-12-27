@@ -34,6 +34,14 @@ Commands:
   add          Add a tool to project configuration
   rm-tool      Remove a tool from project configuration
   run          Run a script defined in .vx.toml
+  services     Manage development services (Docker/Podman)
+  hook         Execute or manage lifecycle hooks
+  container    Container and Dockerfile management
+  security     Security scanning and auditing
+  team         Team collaboration tools
+  remote       Remote development configuration
+  test         Test running and coverage
+  deps         Dependency management
   help         Print this message or the help of the given subcommand(s)
 
 Arguments:
