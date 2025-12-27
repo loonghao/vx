@@ -90,6 +90,27 @@ impl<'a> Executor<'a> {
     pub async fn execute(&self, runtime_name: &str, args: &[String]) -> Result<i32> {
         debug!("Executing: {} {}", runtime_name, args.join(" "));
 
+        // Check platform support before any operation
+        if let Some(registry) = self.registry {
+            if let Some(runtime) = registry.get_runtime(runtime_name) {
+                let current_platform = Platform::current();
+                if !runtime.is_platform_supported(&current_platform) {
+                    return Err(anyhow::anyhow!(
+                        "Runtime '{}' does not support the current platform ({:?} {:?}). \
+                        Supported platforms: {:?}",
+                        runtime_name,
+                        current_platform.os,
+                        current_platform.arch,
+                        runtime
+                            .supported_platforms()
+                            .iter()
+                            .map(|p| format!("{:?}-{:?}", p.os, p.arch))
+                            .collect::<Vec<_>>()
+                    ));
+                }
+            }
+        }
+
         // Resolve the runtime
         let mut resolution = self.resolver.resolve(runtime_name)?;
 
