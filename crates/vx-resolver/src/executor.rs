@@ -156,7 +156,6 @@ impl<'a> Executor<'a> {
         Ok(())
     }
 
-
     /// Install a single runtime
     async fn install_runtime(&self, runtime_name: &str) -> Result<()> {
         info!("Installing: {}", runtime_name);
