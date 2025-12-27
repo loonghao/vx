@@ -234,3 +234,62 @@ vx self-update
 vx self-update --check
 vx self-update --force
 ```
+
+## Extension Management
+
+### ext list
+
+List installed extensions.
+
+```bash
+vx ext list
+vx ext ls
+vx ext list --verbose
+```
+
+### ext info
+
+Show extension information.
+
+```bash
+vx ext info <NAME>
+vx ext info docker-compose
+```
+
+### ext dev
+
+Link a local extension for development.
+
+```bash
+vx ext dev <PATH>
+vx ext dev /path/to/my-extension
+vx ext dev --unlink my-extension
+```
+
+### ext install
+
+Install an extension from a remote source.
+
+```bash
+vx ext install <SOURCE>
+vx ext install github:user/repo
+```
+
+### ext uninstall
+
+Uninstall an extension.
+
+```bash
+vx ext uninstall <NAME>
+vx ext uninstall my-extension
+```
+
+### x
+
+Execute an extension command.
+
+```bash
+vx x <EXTENSION> [COMMAND] [ARGS...]
+vx x docker-compose up -d
+vx x scaffold create react-app my-app
+```

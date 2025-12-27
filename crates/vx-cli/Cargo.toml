@@ -15,6 +15,7 @@ rust-version.workspace = true
 [dependencies]
 vx-core = { workspace = true }
 vx-config = { workspace = true }
+vx-extension = { workspace = true }
 vx-paths = { workspace = true }
 vx-resolver = { workspace = true }
 vx-runtime = { workspace = true }

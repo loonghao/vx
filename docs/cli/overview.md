@@ -64,6 +64,13 @@ vx [OPTIONS] <TOOL> [TOOL_ARGS]
 | [`config`](./config) | Manage configuration |
 | [`shell`](./shell) | Shell integration |
 
+### Extension Management
+
+| Command | Description |
+|---------|-------------|
+| [`ext`](./ext) | Manage extensions |
+| `x` | Execute extension command |
+
 ### Maintenance
 
 | Command | Description |
