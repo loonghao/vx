@@ -9,7 +9,7 @@ use crate::{Resolver, ResolverConfig, Result};
 use std::process::{ExitStatus, Stdio};
 use tokio::process::Command;
 use tracing::{debug, info, warn};
-use vx_runtime::{ProviderRegistry, RuntimeContext};
+use vx_runtime::{Platform, ProviderRegistry, RuntimeContext};
 
 /// Executor for runtime command forwarding
 pub struct Executor<'a> {
@@ -154,6 +154,23 @@ impl<'a> Executor<'a> {
         // Try using the provider registry first
         if let (Some(registry), Some(context)) = (self.registry, self.context) {
             if let Some(runtime) = registry.get_runtime(runtime_name) {
+                // Check platform support before attempting installation
+                let current_platform = Platform::current();
+                if !runtime.is_platform_supported(&current_platform) {
+                    return Err(anyhow::anyhow!(
+                        "Runtime '{}' does not support the current platform ({:?} {:?}). \
+                        Supported platforms: {:?}",
+                        runtime_name,
+                        current_platform.os,
+                        current_platform.arch,
+                        runtime
+                            .supported_platforms()
+                            .iter()
+                            .map(|p| format!("{:?}-{:?}", p.os, p.arch))
+                            .collect::<Vec<_>>()
+                    ));
+                }
+
                 // Fetch versions to get the latest
                 debug!("Fetching versions for {}", runtime_name);
                 let versions = runtime.fetch_versions(context).await?;
