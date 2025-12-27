@@ -224,16 +224,90 @@ jobs:
     runs-on: ubuntu-latest
     if: needs.check-release.outputs.should-publish == 'true'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - name: Generate and push Scoop manifest
+        env:
+          GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          # Remove 'v' prefix for version number
+          VERSION_NUM="${VERSION#v}"
 
-      - name: Update Scoop Bucket
-        uses: Ash258/Scoop-GithubActions@stable
-        with:
-          bucket_repository: loonghao/scoop-vx
-          app_name: vx
-          github_token: ${{ secrets.SCOOP_BUCKET_TOKEN }}
-          # Automatically generates manifest from GitHub release
+          echo "Generating Scoop manifest for version: $VERSION_NUM"
+
+          # Download SHA256 checksums from release
+          BASE_URL="https://github.com/loonghao/vx/releases/download/${VERSION}"
+
+          # Get SHA256 for Windows x64
+          WIN_X64_SHA256=$(curl -sL "${BASE_URL}/vx-x86_64-pc-windows-msvc.zip.sha256" | awk '{print $1}')
+          # Get SHA256 for Windows ARM64
+          WIN_ARM64_SHA256=$(curl -sL "${BASE_URL}/vx-aarch64-pc-windows-msvc.zip.sha256" | awk '{print $1}')
+
+          echo "Windows x64 SHA256: $WIN_X64_SHA256"
+          echo "Windows ARM64 SHA256: $WIN_ARM64_SHA256"
+
+          # Validate checksums
+          if [[ -z "$WIN_X64_SHA256" || "$WIN_X64_SHA256" == "null" ]]; then
+            echo "Failed to get Windows x64 SHA256"
+            exit 1
+          fi
+
+          # Create Scoop manifest
+          cat > vx.json << EOF
+          {
+              "version": "${VERSION_NUM}",
+              "description": "Universal development tool manager - run any dev tool with automatic runtime management",
+              "homepage": "https://github.com/loonghao/vx",
+              "license": "MIT",
+              "architecture": {
+                  "64bit": {
+                      "url": "${BASE_URL}/vx-x86_64-pc-windows-msvc.zip",
+                      "hash": "${WIN_X64_SHA256}"
+                  },
+                  "arm64": {
+                      "url": "${BASE_URL}/vx-aarch64-pc-windows-msvc.zip",
+                      "hash": "${WIN_ARM64_SHA256}"
+                  }
+              },
+              "bin": "vx.exe",
+              "checkver": "github",
+              "autoupdate": {
+                  "architecture": {
+                      "64bit": {
+                          "url": "https://github.com/loonghao/vx/releases/download/v\$version/vx-x86_64-pc-windows-msvc.zip"
+                      },
+                      "arm64": {
+                          "url": "https://github.com/loonghao/vx/releases/download/v\$version/vx-aarch64-pc-windows-msvc.zip"
+                      }
+                  }
+              }
+          }
+          EOF
+
+          echo "Generated manifest:"
+          cat vx.json
+
+          # Clone the scoop bucket repo and update
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/loonghao/scoop-vx.git" scoop-bucket
+          cd scoop-bucket
+
+          # Create bucket directory if not exists
+          mkdir -p bucket
+
+          # Copy manifest to bucket
+          cp ../vx.json bucket/vx.json
+
+          # Commit and push
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update vx to ${VERSION_NUM}"
+            git push
+            echo "Successfully updated Scoop bucket"
+          fi
 
   # Summary job
   publish-summary:
