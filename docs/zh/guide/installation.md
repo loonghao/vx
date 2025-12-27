@@ -21,7 +21,14 @@ irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
 ### Homebrew (macOS/Linux)
 
 ```bash
-brew install loonghao/tap/vx
+brew tap loonghao/vx
+brew install vx
+```
+
+或直接安装：
+
+```bash
+brew install loonghao/vx/vx
 ```
 
 ### Scoop (Windows)
