@@ -5,7 +5,7 @@
 //! - GitPod (.gitpod.yml)
 //! - DevContainer (devcontainer.json)
 
-use crate::{CodespacesConfig, DevContainerConfig, GitpodConfig, VxConfig};
+use crate::{CodespacesConfig, DevContainerConfig, GitpodConfig, RemoteConfig, VxConfig};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
@@ -360,6 +360,22 @@ impl RemoteGenerator {
 
         files
     }
+}
+
+/// Generate devcontainer.json content as a string
+pub fn generate_devcontainer_json(config: &VxConfig, remote_config: &RemoteConfig) -> String {
+    let devcontainer = remote_config.devcontainer.clone().unwrap_or_default();
+
+    let content = RemoteGenerator::generate_devcontainer(config, &devcontainer);
+    serde_json::to_string_pretty(&content).unwrap_or_default()
+}
+
+/// Generate .gitpod.yml content as a string
+pub fn generate_gitpod_yml(config: &VxConfig, remote_config: &RemoteConfig) -> String {
+    let gitpod = remote_config.gitpod.clone().unwrap_or_default();
+
+    let content = RemoteGenerator::generate_gitpod(config, &gitpod);
+    serde_yaml::to_string(&content).unwrap_or_default()
 }
 
 #[cfg(test)]

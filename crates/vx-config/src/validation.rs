@@ -44,12 +44,12 @@ pub fn validate_config(config: &VxConfig) -> ValidationResult {
     }
 
     // Validate tool versions
-    for (name, _version) in &config.tools {
+    for name in config.tools.keys() {
         validate_tool_name(name, &mut result);
     }
 
     // Validate scripts
-    for (name, _script) in &config.scripts {
+    for name in config.scripts.keys() {
         validate_script_name(name, &mut result);
     }
 

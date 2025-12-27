@@ -322,6 +322,26 @@ impl UI {
         Self::warn(message);
     }
 
+    /// Format a header string (returns colored string)
+    pub fn format_header(message: &str) -> String {
+        message.bold().underline().to_string()
+    }
+
+    /// Format a success string (returns colored string)
+    pub fn format_success(message: &str) -> String {
+        message.green().to_string()
+    }
+
+    /// Format a warning string (returns colored string)
+    pub fn format_warn(message: &str) -> String {
+        message.yellow().to_string()
+    }
+
+    /// Format an error string (returns colored string)
+    pub fn format_error(message: &str) -> String {
+        message.red().to_string()
+    }
+
     /// Create a new spinner (returns a simple message for now)
     pub fn new_spinner(message: &str) -> SimpleSpinner {
         Self::spinner(message);

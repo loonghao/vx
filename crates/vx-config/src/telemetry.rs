@@ -58,16 +58,12 @@ pub struct Span {
 /// Span status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum SpanStatus {
+    #[default]
     Unset,
     Ok,
     Error,
-}
-
-impl Default for SpanStatus {
-    fn default() -> Self {
-        SpanStatus::Unset
-    }
 }
 
 /// Build timing data

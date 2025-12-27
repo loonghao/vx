@@ -365,6 +365,56 @@ pub enum Commands {
         #[command(subcommand)]
         command: ContainerCommand,
     },
+
+    /// Security scanning and auditing
+    Security {
+        #[command(subcommand)]
+        command: SecurityCommand,
+    },
+
+    /// Team collaboration tools
+    Team {
+        #[command(subcommand)]
+        command: TeamCommand,
+    },
+
+    /// Remote development configuration
+    Remote {
+        #[command(subcommand)]
+        command: RemoteCommand,
+    },
+
+    /// Test running and coverage
+    Test {
+        #[command(subcommand)]
+        command: Option<TestCommand>,
+
+        /// Filter tests by name
+        #[arg(short, long)]
+        filter: Option<String>,
+
+        /// Generate coverage report
+        #[arg(long)]
+        coverage: bool,
+
+        /// Watch mode
+        #[arg(short, long)]
+        watch: bool,
+
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+
+        /// Run tests in parallel
+        #[arg(long, default_value = "true")]
+        parallel: bool,
+    },
+
+    /// Dependency management
+    Deps {
+        #[command(subcommand)]
+        command: DepsCommand,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -620,5 +670,225 @@ pub enum ContainerCommand {
         /// Show all possible tags
         #[arg(short, long)]
         all: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum SecurityCommand {
+    /// Run security scan
+    Scan {
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+        /// Attempt to fix vulnerabilities
+        #[arg(long)]
+        fix: bool,
+        /// Output format (text, json, sarif)
+        #[arg(long)]
+        format: Option<String>,
+    },
+    /// Audit dependencies for vulnerabilities
+    Audit {
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Detect secrets in codebase
+    Secrets {
+        /// Path to scan (default: current directory)
+        path: Option<String>,
+        /// Use baseline file
+        #[arg(long)]
+        baseline: bool,
+        /// Update baseline file
+        #[arg(long)]
+        update_baseline: bool,
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Check license compliance
+    Licenses {
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+        /// Output format (text, json)
+        #[arg(long)]
+        format: Option<String>,
+    },
+    /// Generate security report
+    Report {
+        /// Output file path
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Output format (markdown, json, sarif)
+        #[arg(long)]
+        format: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum TeamCommand {
+    /// Generate CODEOWNERS file
+    Codeowners {
+        /// Output path (default: auto-detect)
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Preview without writing
+        #[arg(long)]
+        dry_run: bool,
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Validate conventions (commit messages, branch names)
+    Validate {
+        /// Validate commit message
+        #[arg(long)]
+        commit: bool,
+        /// Validate branch name
+        #[arg(long)]
+        branch: bool,
+        /// Validate all conventions
+        #[arg(short, long)]
+        all: bool,
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show review rules
+    ReviewRules {
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show team configuration status
+    Status {
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum RemoteCommand {
+    /// Generate remote development configuration
+    Generate {
+        /// Target platform (codespaces, gitpod, all)
+        #[arg(short, long)]
+        target: Option<String>,
+        /// Output path
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Preview without writing
+        #[arg(long)]
+        dry_run: bool,
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show remote configuration status
+    Status {
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum TestCommand {
+    /// Run tests
+    Run {
+        /// Filter tests by name
+        #[arg(short, long)]
+        filter: Option<String>,
+        /// Generate coverage report
+        #[arg(long)]
+        coverage: bool,
+        /// Watch mode
+        #[arg(short, long)]
+        watch: bool,
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+        /// Run tests in parallel
+        #[arg(long, default_value = "true")]
+        parallel: bool,
+    },
+    /// Generate coverage report
+    Coverage {
+        /// Output format (html, xml, lcov)
+        #[arg(long)]
+        format: Option<String>,
+        /// Output path
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show test configuration status
+    Status {
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum DepsCommand {
+    /// Install dependencies
+    Install {
+        /// Use frozen lockfile
+        #[arg(long)]
+        frozen: bool,
+        /// Install dev dependencies only
+        #[arg(long)]
+        dev: bool,
+        /// Install production dependencies only
+        #[arg(long)]
+        prod: bool,
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Audit dependencies for vulnerabilities
+    Audit {
+        /// Attempt to fix vulnerabilities
+        #[arg(long)]
+        fix: bool,
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Update dependencies
+    Update {
+        /// Packages to update (all if not specified)
+        #[arg(num_args = 0..)]
+        packages: Vec<String>,
+        /// Allow major version updates
+        #[arg(long)]
+        major: bool,
+        /// Preview without applying
+        #[arg(long)]
+        dry_run: bool,
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Lock dependencies
+    Lock {
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show dependency status
+    Status {
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
     },
 }
