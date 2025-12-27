@@ -43,6 +43,8 @@ members = [
   "crates/vx-providers/ollama",
   # HPC/Scientific computing
   "crates/vx-providers/spack",
+  # DevOps tools
+  "crates/vx-providers/release-please",
 ]
 resolver = "2"
 
@@ -143,6 +145,7 @@ vx-provider-task = { path = "crates/vx-providers/task" }
 vx-provider-pre-commit = { path = "crates/vx-providers/pre-commit" }
 vx-provider-ollama = { path = "crates/vx-providers/ollama" }
 vx-provider-spack = { path = "crates/vx-providers/spack" }
+vx-provider-release-please = { path = "crates/vx-providers/release-please" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }

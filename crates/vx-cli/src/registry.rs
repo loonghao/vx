@@ -102,6 +102,9 @@ pub fn create_registry() -> ProviderRegistry {
     // Register Spack provider (HPC/Scientific computing)
     registry.register(vx_provider_spack::create_provider());
 
+    // Register release-please provider (DevOps tools)
+    registry.register(vx_provider_release_please::create_provider());
+
     registry
 }
 
