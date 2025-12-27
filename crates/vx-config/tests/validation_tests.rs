@@ -128,7 +128,7 @@ fn test_validate_unusual_tool_name_warning() {
 #[case("test")]
 #[case("build-prod")]
 #[case("pre_commit")]
-#[case("test:unit")]
+#[case("test_unit")]
 fn test_validate_valid_script_names(#[case] name: &str) {
     let content = format!(
         r#"
