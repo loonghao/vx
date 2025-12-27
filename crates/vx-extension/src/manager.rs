@@ -1,8 +1,8 @@
 //! Extension manager - high-level API for managing extensions
 
-use crate::{Extension, ExtensionDiscovery, ExtensionExecutor, ExtensionSource};
+use crate::{Extension, ExtensionDiscovery, ExtensionExecutor};
 use std::path::PathBuf;
-use tracing::{debug, info};
+use tracing::info;
 
 /// Extension manager - main entry point for extension operations
 pub struct ExtensionManager {

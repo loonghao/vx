@@ -132,11 +132,11 @@ impl ExtensionConfig {
     /// Load extension config from a file
     pub fn from_file(path: &Path) -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(path)?;
-        Self::from_str(&content)
+        Self::parse(&content)
     }
 
     /// Parse extension config from a string
-    pub fn from_str(content: &str) -> anyhow::Result<Self> {
+    pub fn parse(content: &str) -> anyhow::Result<Self> {
         let config: ExtensionConfig = toml::from_str(content)?;
         Ok(config)
     }
@@ -177,7 +177,7 @@ script = "hello.py"
 args = ["--verbose"]
 "#;
 
-        let config = ExtensionConfig::from_str(toml).unwrap();
+        let config = ExtensionConfig::parse(toml).unwrap();
         assert_eq!(config.extension.name, "test-extension");
         assert_eq!(config.extension.version, "1.0.0");
         assert_eq!(config.extension.extension_type, ExtensionType::Command);
@@ -193,7 +193,7 @@ args = ["--verbose"]
 name = "minimal"
 "#;
 
-        let config = ExtensionConfig::from_str(toml).unwrap();
+        let config = ExtensionConfig::parse(toml).unwrap();
         assert_eq!(config.extension.name, "minimal");
         assert_eq!(config.extension.version, "0.1.0");
         assert_eq!(config.extension.extension_type, ExtensionType::Command);

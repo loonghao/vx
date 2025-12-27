@@ -141,13 +141,24 @@ pub async fn handle(
 }
 
 /// Find .vx.toml in current directory or parent directories
+///
+/// If `VX_PROJECT_ROOT` environment variable is set, only search in the current directory
+/// without traversing parent directories. This is useful for testing and CI environments.
 pub fn find_vx_config(start_dir: &Path) -> Result<PathBuf> {
     let mut current = start_dir.to_path_buf();
+
+    // If VX_PROJECT_ROOT is set, only check the current directory
+    let no_parent_search = env::var("VX_PROJECT_ROOT").is_ok();
 
     loop {
         let config_path = current.join(".vx.toml");
         if config_path.exists() {
             return Ok(config_path);
+        }
+
+        // Don't traverse parent directories if VX_PROJECT_ROOT is set
+        if no_parent_search {
+            break;
         }
 
         if !current.pop() {
