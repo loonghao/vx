@@ -81,7 +81,7 @@ pub enum Severity {
 
 impl Severity {
     /// Parse severity from string
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "low" => Some(Severity::Low),
             "medium" => Some(Severity::Medium),
@@ -122,7 +122,7 @@ impl SecurityScanner {
         self.config
             .fail_on
             .as_ref()
-            .and_then(|s| Severity::from_str(s))
+            .and_then(|s| Severity::parse(s))
             .unwrap_or(Severity::High)
     }
 
