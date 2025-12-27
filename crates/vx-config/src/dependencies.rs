@@ -667,10 +667,7 @@ mod tests {
 
     #[test]
     fn test_auto_update_strategy() {
-        assert_eq!(
-            AutoUpdateStrategy::parse("none"),
-            AutoUpdateStrategy::None
-        );
+        assert_eq!(AutoUpdateStrategy::parse("none"), AutoUpdateStrategy::None);
         assert_eq!(
             AutoUpdateStrategy::parse("patch"),
             AutoUpdateStrategy::Patch
