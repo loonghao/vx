@@ -3,7 +3,7 @@
 //! Tests for parsing `.vx.toml` configuration files.
 
 use rstest::rstest;
-use vx_config::{parse_config, parse_config_str, VxConfig};
+use vx_config::{parse_config, parse_config_str};
 
 // ============================================
 // Basic Parsing Tests
