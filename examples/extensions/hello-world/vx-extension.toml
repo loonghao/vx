@@ -1,0 +1,21 @@
+[extension]
+name = "hello-world"
+version = "1.0.0"
+description = "A simple hello world extension example"
+type = "command"
+authors = ["vx contributors"]
+license = "MIT"
+
+[runtime]
+requires = "python >= 3.8"
+
+[entrypoint]
+main = "main.py"
+
+[commands.greet]
+description = "Greet someone by name"
+script = "greet.py"
+
+[commands.info]
+description = "Show extension info"
+script = "info.py"

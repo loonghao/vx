@@ -26,6 +26,10 @@ inputs:
     description: 'Custom prefix for cache key'
     required: false
     default: 'vx-tools'
+  setup:
+    description: 'Run vx setup to install tools from .vx.toml and export tool paths to GITHUB_PATH. Set to "true" to enable, "false" to disable (default)'
+    required: false
+    default: 'false'
 
 outputs:
   version:
@@ -380,9 +384,12 @@ runs:
         vx list --status
 
     # Setup environment for .vx.toml projects
-    # This step exports tool paths to GITHUB_PATH so subsequent steps can use them
+    # This step runs vx setup (if enabled or auto-detected) and exports tool paths to GITHUB_PATH
     - name: Setup vx environment
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        VX_SETUP: ${{ inputs.setup }}
       run: |
         # Ensure PATH includes vx install directory
         if [ -n "$VX_INSTALL_DIR" ]; then
@@ -392,20 +399,65 @@ runs:
           export PATH="$HOME/.local/bin:$PATH"
         fi
 
+        # Add vx bin directory to PATH (for shims)
+        export PATH="$HOME/.vx/bin:$PATH"
+
         # Check if .vx.toml exists in the current directory
         if [ -f ".vx.toml" ]; then
-          echo "Found .vx.toml, exporting tool paths..."
+          echo "Found .vx.toml, setting up vx environment..."
 
-          # Use vx dev --export to get the paths and add them to GITHUB_PATH
-          # This ensures tools installed by vx setup are available in subsequent steps
-          eval "$(vx dev --export --format shell 2>/dev/null || true)"
+          # Run vx setup if enabled
+          # 'true' means run setup and export tool paths
+          # 'false' means skip setup (default)
+          if [ "$VX_SETUP" = "true" ]; then
+            echo "Running vx setup..."
+            vx setup || echo "Warning: vx setup failed"
+          else
+            echo "Skipping vx setup (set setup: 'true' to enable)"
+          fi
 
-          # Also add paths to GITHUB_PATH for subsequent steps
-          vx dev --export --format github 2>/dev/null | grep -E '^echo.*GITHUB_PATH' | while read -r line; do
-            # Extract the path from the echo command
-            path=$(echo "$line" | sed 's/echo "\(.*\)" >> \$GITHUB_PATH/\1/')
-            if [ -n "$path" ] && [ -d "$path" ]; then
-              echo "$path" >> $GITHUB_PATH
+          # Export tool paths to GITHUB_PATH only if setup is enabled
+          if [ "$VX_SETUP" = "true" ]; then
+            VX_STORE_DIR="$HOME/.vx/store"
+            if [ -d "$VX_STORE_DIR" ]; then
+              echo "Exporting tool paths from $VX_STORE_DIR..."
+              # Find all tool bin directories and add them to GITHUB_PATH
+              for tool_dir in "$VX_STORE_DIR"/*/; do
+                if [ ! -d "$tool_dir" ]; then
+                  continue
+                fi
+                tool_name=$(basename "$tool_dir")
+                # Get the latest version directory
+                latest_version=$(ls -1 "$tool_dir" 2>/dev/null | sort -V | tail -n1)
+                if [ -n "$latest_version" ]; then
+                  version_dir="$tool_dir$latest_version"
+
+                  # Check for bin subdirectory first
+                  if [ -d "$version_dir/bin" ]; then
+                    echo "$version_dir/bin" >> $GITHUB_PATH
+                    echo "Added $tool_name bin: $version_dir/bin"
+                  fi
+
+                  # Check for tool-* subdirectories (e.g., uv-x86_64-unknown-linux-gnu)
+                  for subdir in "$version_dir"/${tool_name}-*/; do
+                    if [ -d "$subdir" ]; then
+                      echo "$subdir" >> $GITHUB_PATH
+                      echo "Added $tool_name subdir: $subdir"
+                    fi
+                  done
+
+                  # Also add the version directory itself (some tools put executables directly there)
+                  if [ -f "$version_dir/$tool_name" ] || [ -f "$version_dir/${tool_name}.exe" ]; then
+                    echo "$version_dir" >> $GITHUB_PATH
+                    echo "Added $tool_name dir: $version_dir"
+                  fi
+                fi
+              done
             fi
-          done || true
+
+            # Also add vx bin directory
+            echo "$HOME/.vx/bin" >> $GITHUB_PATH
+          fi
+        else
+          echo "No .vx.toml found, skipping vx setup"
         fi

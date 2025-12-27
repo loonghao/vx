@@ -169,7 +169,7 @@ async fn generate_devcontainer(
         return Ok(());
     }
 
-    let output_path = if let Some(path) = output.clone() {
+    let output_path = if let Some(path) = output {
         Path::new(&path).to_path_buf()
     } else {
         let devcontainer_dir = dir.join(".devcontainer");
