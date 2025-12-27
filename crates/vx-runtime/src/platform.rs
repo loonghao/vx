@@ -191,6 +191,22 @@ impl Platform {
         ]
     }
 
+    /// Returns all Linux platforms
+    pub fn linux_only() -> Vec<Platform> {
+        vec![
+            Platform::new(Os::Linux, Arch::X86_64),
+            Platform::new(Os::Linux, Arch::Aarch64),
+        ]
+    }
+
+    /// Returns all macOS platforms
+    pub fn macos_only() -> Vec<Platform> {
+        vec![
+            Platform::new(Os::MacOS, Arch::X86_64),
+            Platform::new(Os::MacOS, Arch::Aarch64),
+        ]
+    }
+
     /// Check if this platform matches another (for supported_platforms checks)
     ///
     /// This is a simple equality check, but can be extended for more complex matching.
