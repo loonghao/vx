@@ -93,7 +93,10 @@ mod tests {
     #[test]
     fn test_parse_complex() {
         let args = parse_command(r#"npm run build --env="production" --flag"#).unwrap();
-        assert_eq!(args, vec!["npm", "run", "build", "--env=production", "--flag"]);
+        assert_eq!(
+            args,
+            vec!["npm", "run", "build", "--env=production", "--flag"]
+        );
     }
 
     #[test]

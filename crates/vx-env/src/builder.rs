@@ -168,9 +168,7 @@ mod tests {
 
     #[test]
     fn test_builder_path_append() {
-        let env = EnvBuilder::clean()
-            .path_append("/last")
-            .build();
+        let env = EnvBuilder::clean().path_append("/last").build();
 
         let path = env.get("PATH").unwrap();
         assert!(path.ends_with("/last"));

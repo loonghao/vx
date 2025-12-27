@@ -55,7 +55,7 @@ pub struct CommandContext {
 pub trait CommandHandler: Send + Sync {
     /// Execute the command
     async fn execute(&self, ctx: &CommandContext) -> Result<()>;
-    
+
     /// Get the command name (for logging)
     fn name(&self) -> &'static str {
         "unknown"
@@ -72,7 +72,7 @@ All commands are defined in `cli.rs` as variants of the `Commands` enum:
 pub enum Commands {
     /// Show version information
     Version,
-    
+
     /// Install a specific tool version
     #[command(alias = "i")]
     Install {
@@ -81,7 +81,7 @@ pub enum Commands {
         #[arg(short, long)]
         force: bool,
     },
-    
+
     // ... more commands
 }
 ```
@@ -98,17 +98,17 @@ Add a new variant to the `Commands` enum:
 #[derive(Subcommand, Clone)]
 pub enum Commands {
     // ... existing commands ...
-    
+
     /// My new command description
     #[command(alias = "my")]  // Optional: short alias
     MyCommand {
         /// Required argument
         name: String,
-        
+
         /// Optional argument with default
         #[arg(long, default_value = "default")]
         option: String,
-        
+
         /// Boolean flag
         #[arg(short, long)]
         verbose: bool,
@@ -141,7 +141,7 @@ Add the execution logic in the `execute()` method:
 async fn execute(&self, ctx: &CommandContext) -> Result<()> {
     match self {
         // ... existing matches ...
-        
+
         Commands::MyCommand {
             name,
             option,
@@ -182,10 +182,10 @@ pub async fn handle(
     if verbose {
         UI::info(&format!("Running my-command with name={}, option={}", name, option));
     }
-    
+
     // Your implementation here
     UI::success(&format!("Successfully processed: {}", name));
-    
+
     Ok(())
 }
 ```
@@ -256,10 +256,10 @@ pub async fn handle(
     // Get runtime from registry
     let runtime = registry.get_runtime(tool_name)
         .ok_or_else(|| anyhow::anyhow!("Tool not found: {}", tool_name))?;
-    
+
     // Use the runtime
     let versions = runtime.fetch_versions(&ctx).await?;
-    
+
     Ok(())
 }
 ```
@@ -271,12 +271,12 @@ use crate::ui::{ProgressSpinner, UI};
 
 pub async fn handle(name: &str) -> Result<()> {
     let spinner = ProgressSpinner::new(&format!("Processing {}...", name));
-    
+
     // Do work...
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-    
+
     spinner.finish_with_message(&format!("✓ Completed {}", name));
-    
+
     Ok(())
 }
 ```
@@ -384,7 +384,7 @@ pub async fn handle(tool: &str, version: Option<&str>) -> Result<()> {
     if tool.is_empty() {
         return Err(anyhow::anyhow!("Tool name cannot be empty"));
     }
-    
+
     // Continue with valid inputs
     Ok(())
 }

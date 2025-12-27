@@ -55,7 +55,7 @@ pub struct CommandContext {
 pub trait CommandHandler: Send + Sync {
     /// 执行命令
     async fn execute(&self, ctx: &CommandContext) -> Result<()>;
-    
+
     /// 获取命令名称（用于日志）
     fn name(&self) -> &'static str {
         "unknown"
@@ -72,7 +72,7 @@ pub trait CommandHandler: Send + Sync {
 pub enum Commands {
     /// 显示版本信息
     Version,
-    
+
     /// 安装指定工具版本
     #[command(alias = "i")]
     Install {
@@ -81,7 +81,7 @@ pub enum Commands {
         #[arg(short, long)]
         force: bool,
     },
-    
+
     // ... 更多命令
 }
 ```
@@ -98,17 +98,17 @@ pub enum Commands {
 #[derive(Subcommand, Clone)]
 pub enum Commands {
     // ... 现有命令 ...
-    
+
     /// 我的新命令描述
     #[command(alias = "my")]  // 可选：短别名
     MyCommand {
         /// 必需参数
         name: String,
-        
+
         /// 带默认值的可选参数
         #[arg(long, default_value = "default")]
         option: String,
-        
+
         /// 布尔标志
         #[arg(short, long)]
         verbose: bool,
@@ -141,7 +141,7 @@ fn name(&self) -> &'static str {
 async fn execute(&self, ctx: &CommandContext) -> Result<()> {
     match self {
         // ... 现有匹配 ...
-        
+
         Commands::MyCommand {
             name,
             option,
@@ -182,10 +182,10 @@ pub async fn handle(
     if verbose {
         UI::info(&format!("运行 my-command，name={}，option={}", name, option));
     }
-    
+
     // 你的实现代码
     UI::success(&format!("成功处理: {}", name));
-    
+
     Ok(())
 }
 ```
@@ -253,12 +253,12 @@ use crate::ui::{ProgressSpinner, UI};
 
 pub async fn handle(name: &str) -> Result<()> {
     let spinner = ProgressSpinner::new(&format!("正在处理 {}...", name));
-    
+
     // 执行工作...
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-    
+
     spinner.finish_with_message(&format!("✓ 完成 {}", name));
-    
+
     Ok(())
 }
 ```
@@ -366,7 +366,7 @@ pub async fn handle(tool: &str, version: Option<&str>) -> Result<()> {
     if tool.is_empty() {
         return Err(anyhow::anyhow!("工具名称不能为空"));
     }
-    
+
     // 继续处理有效输入
     Ok(())
 }
