@@ -415,6 +415,23 @@ pub enum Commands {
         #[command(subcommand)]
         command: DepsCommand,
     },
+
+    /// Extension management
+    #[command(alias = "extension")]
+    Ext {
+        #[command(subcommand)]
+        command: ExtCommand,
+    },
+
+    /// Execute an extension command
+    #[command(name = "x")]
+    X {
+        /// Extension name
+        extension: String,
+        /// Arguments to pass to the extension
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -890,5 +907,39 @@ pub enum DepsCommand {
         /// Verbose output
         #[arg(short, long)]
         verbose: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum ExtCommand {
+    /// List installed extensions
+    #[command(alias = "ls")]
+    List {
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show extension information
+    Info {
+        /// Extension name
+        name: String,
+    },
+    /// Link a local extension for development
+    Dev {
+        /// Path to the extension directory
+        path: String,
+        /// Unlink instead of link
+        #[arg(long)]
+        unlink: bool,
+    },
+    /// Install an extension from a remote source (future)
+    Install {
+        /// Extension source (e.g., github:user/repo)
+        source: String,
+    },
+    /// Uninstall an extension
+    Uninstall {
+        /// Extension name
+        name: String,
     },
 }

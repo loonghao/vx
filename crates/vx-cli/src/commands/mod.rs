@@ -13,6 +13,7 @@ pub mod env;
 pub mod execute;
 #[cfg(test)]
 mod execute_tests;
+pub mod ext;
 pub mod fetch;
 pub mod global;
 pub mod hook;
@@ -497,6 +498,19 @@ impl CommandHandler {
                     DepsCommand::Status { verbose } => deps::handle_status(verbose).await,
                 }
             }
+
+            Some(Commands::Ext { command }) => {
+                use crate::cli::ExtCommand;
+                match command {
+                    ExtCommand::List { verbose } => ext::handle_list(verbose).await,
+                    ExtCommand::Info { name } => ext::handle_info(&name).await,
+                    ExtCommand::Dev { path, unlink } => ext::handle_dev(&path, unlink).await,
+                    ExtCommand::Install { source } => ext::handle_install(&source).await,
+                    ExtCommand::Uninstall { name } => ext::handle_uninstall(&name).await,
+                }
+            }
+
+            Some(Commands::X { extension, args }) => ext::handle_execute(&extension, &args).await,
         }
     }
 }

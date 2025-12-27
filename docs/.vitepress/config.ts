@@ -64,7 +64,8 @@ const enSidebar = {
         { text: 'setup', link: '/cli/setup' },
         { text: 'env', link: '/cli/env' },
         { text: 'config', link: '/cli/config' },
-        { text: 'shell', link: '/cli/shell' }
+        { text: 'shell', link: '/cli/shell' },
+        { text: 'ext', link: '/cli/ext' }
       ]
     }
   ],
@@ -181,7 +182,8 @@ const zhSidebar = {
         { text: 'setup', link: '/zh/cli/setup' },
         { text: 'env', link: '/zh/cli/env' },
         { text: 'config', link: '/zh/cli/config' },
-        { text: 'shell', link: '/zh/cli/shell' }
+        { text: 'shell', link: '/zh/cli/shell' },
+        { text: 'ext', link: '/zh/cli/ext' }
       ]
     }
   ],
