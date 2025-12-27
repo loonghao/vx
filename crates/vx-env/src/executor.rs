@@ -1,9 +1,11 @@
-//! Script generator for platform-specific wrapper scripts
+//! Script executor for platform-specific wrapper scripts
 //!
 //! This module provides functions to generate and execute platform-specific
 //! wrapper scripts that set up environment variables before running commands.
 //! Inspired by rez's shell execution model.
 
+use crate::error::EnvError;
+use crate::shell;
 use std::collections::HashMap;
 
 /// Execute a command by generating a platform-specific wrapper script
@@ -13,13 +15,27 @@ use std::collections::HashMap;
 /// that environment variables like PATH are properly available to the command and
 /// any subprocesses it spawns.
 ///
-/// Platform-specific shells used:
+/// # Platform-specific shells
+///
 /// - Windows: PowerShell (pwsh/powershell) - modern default, better error handling
 /// - Linux/macOS: bash - standard default with pipefail support
-pub fn execute_with_env_script(
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use vx_env::execute_with_env;
+/// use std::collections::HashMap;
+///
+/// let mut env = HashMap::new();
+/// env.insert("MY_VAR".to_string(), "my_value".to_string());
+///
+/// let status = execute_with_env("echo $MY_VAR", &env).unwrap();
+/// assert!(status.success());
+/// ```
+pub fn execute_with_env(
     cmd: &str,
     env_vars: &HashMap<String, String>,
-) -> anyhow::Result<std::process::ExitStatus> {
+) -> Result<std::process::ExitStatus, EnvError> {
     use std::fs;
     use std::io::Write;
     use std::process::Command;
@@ -108,57 +124,40 @@ pub fn execute_with_env_script(
     // Clean up the temporary script
     let _ = fs::remove_file(&script_path);
 
-    status.map_err(|e| anyhow::anyhow!("Failed to execute script: {}", e))
+    status.map_err(|e| EnvError::Execution(e.to_string()))
 }
 
 /// Generate a platform-specific wrapper script that sets environment variables
 /// and executes the command
 ///
-/// Platform-specific formats:
+/// # Platform-specific formats
+///
 /// - Windows: PowerShell script (.ps1) with $env:VAR syntax
 /// - Linux/macOS: Bash script (.sh) with export VAR syntax
+///
+/// # Example
+///
+/// ```rust
+/// use vx_env::generate_wrapper_script;
+/// use std::collections::HashMap;
+///
+/// let mut env = HashMap::new();
+/// env.insert("NODE_ENV".to_string(), "production".to_string());
+///
+/// let script = generate_wrapper_script("node app.js", &env);
+/// // On Unix: contains "export NODE_ENV='production'"
+/// // On Windows: contains "$env:NODE_ENV = 'production'"
+/// ```
 pub fn generate_wrapper_script(cmd: &str, env_vars: &HashMap<String, String>) -> String {
-    let mut script = String::new();
-
     #[cfg(windows)]
     {
-        // PowerShell script
-        // Set error action preference for better error handling
-        script.push_str("$ErrorActionPreference = 'Stop'\r\n");
-
-        // Set environment variables using PowerShell syntax
-        for (key, value) in env_vars {
-            // Escape special characters for PowerShell
-            // Single quotes are literal in PowerShell, double the single quotes to escape
-            let escaped_value = value.replace('\'', "''");
-            script.push_str(&format!("$env:{} = '{}'\r\n", key, escaped_value));
-        }
-
-        // Execute the command using Invoke-Expression for complex commands
-        // or cmd /c for shell commands that may use cmd syntax
-        script.push_str(&format!("cmd /c \"{}\"\r\n", cmd.replace('"', "\\\"")));
-        script.push_str("exit $LASTEXITCODE\r\n");
+        shell::powershell::generate_script(cmd, env_vars)
     }
 
     #[cfg(not(windows))]
     {
-        // Bash script with strict error handling
-        script.push_str("#!/usr/bin/env bash\n");
-        script.push_str("set -euo pipefail\n\n");
-
-        // Set environment variables
-        for (key, value) in env_vars {
-            // Escape special characters for shell
-            // Use single quotes and escape single quotes within
-            let escaped_value = value.replace('\'', "'\\''");
-            script.push_str(&format!("export {}='{}'\n", key, escaped_value));
-        }
-
-        // Execute the command
-        script.push_str(&format!("\n{}\n", cmd));
+        shell::bash::generate_script(cmd, env_vars)
     }
-
-    script
 }
 
 #[cfg(test)]
