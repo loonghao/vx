@@ -26,6 +26,7 @@ pub fn parse_config_str(content: &str) -> ConfigResult<VxConfig> {
 }
 
 /// Find .vx.toml in current directory or parent directories
+#[allow(dead_code)]
 pub fn find_config<P: AsRef<Path>>(start_dir: P) -> ConfigResult<std::path::PathBuf> {
     let mut current = start_dir.as_ref().to_path_buf();
 
@@ -46,6 +47,7 @@ pub fn find_config<P: AsRef<Path>>(start_dir: P) -> ConfigResult<std::path::Path
 }
 
 /// Load configuration from current directory or parent directories
+#[allow(dead_code)]
 pub fn load_config<P: AsRef<Path>>(start_dir: P) -> ConfigResult<VxConfig> {
     let config_path = find_config(start_dir)?;
     parse_config(&config_path)
