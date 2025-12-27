@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.24](https://github.com/loonghao/vx/compare/vx-v0.5.23...vx-v0.5.24) (2025-12-27)
+
+
+### Bug Fixes
+
+* **ci:** only use releases with available assets ([e10afcd](https://github.com/loonghao/vx/commit/e10afcdb0fe89bbc23789a4c383322a464c49ab2))
+* **ci:** replace Ash258/Scoop-GithubActions with custom script ([eb960c2](https://github.com/loonghao/vx/commit/eb960c23b966527135a0d8a277bf13bd4ee33325))
+* **ci:** replace Justintime50/homebrew-releaser with custom script ([7aa8441](https://github.com/loonghao/vx/commit/7aa844135d657b6e02ca558e6de6be65a653d9e8))
+
 ## [0.5.23](https://github.com/loonghao/vx/compare/vx-v0.5.22...vx-v0.5.23) (2025-12-27)
 
 
