@@ -31,8 +31,8 @@ pub async fn handle_list(verbose: bool) -> Result<()> {
         }
     } else {
         println!(
-            "{:<20} {:<10} {:<8} {:<10} {:<10} {}",
-            "NAME", "VERSION", "TYPE", "SOURCE", "COMMANDS", "DESCRIPTION"
+            "{:<20} {:<10} {:<8} {:<10} {:<10} DESCRIPTION",
+            "NAME", "VERSION", "TYPE", "SOURCE", "COMMANDS"
         );
         println!("{}", "-".repeat(80));
 

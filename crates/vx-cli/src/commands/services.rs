@@ -443,7 +443,7 @@ fn start_service(
     }
 
     args.push("--name".to_string());
-    args.push(container_name.clone());
+    args.push(container_name);
 
     // Add ports
     for port in &config.ports {

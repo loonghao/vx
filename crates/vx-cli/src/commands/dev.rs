@@ -246,6 +246,7 @@ pub fn build_script_environment(config: &VxConfig) -> Result<HashMap<String, Str
 
     // Collect all tool bin directories
     let mut path_entries = Vec::new();
+    let mut missing_tools = Vec::new();
 
     for (tool, version) in &config.tools {
         let tool_path = if version == "latest" {
@@ -254,6 +255,7 @@ pub fn build_script_environment(config: &VxConfig) -> Result<HashMap<String, Str
             if let Some(latest) = versions.last() {
                 get_tool_bin_path(&path_manager, tool, latest)?
             } else {
+                missing_tools.push(tool.clone());
                 continue;
             }
         } else {
@@ -263,8 +265,20 @@ pub fn build_script_environment(config: &VxConfig) -> Result<HashMap<String, Str
         if let Some(path) = tool_path {
             if path.exists() {
                 path_entries.push(path.to_string_lossy().to_string());
+            } else {
+                missing_tools.push(tool.clone());
             }
+        } else {
+            missing_tools.push(tool.clone());
         }
+    }
+
+    // Warn about missing tools
+    if !missing_tools.is_empty() {
+        tracing::warn!(
+            "Some tools from .vx.toml are not installed: {}. Run 'vx setup' to install them.",
+            missing_tools.join(", ")
+        );
     }
 
     // Build PATH

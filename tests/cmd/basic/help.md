@@ -42,6 +42,8 @@ Commands:
   remote       Remote development configuration
   test         Test running and coverage
   deps         Dependency management
+  ext          Extension management
+  x            Execute an extension command
   help         Print this message or the help of the given subcommand(s)
 
 Arguments:

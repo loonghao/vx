@@ -41,6 +41,7 @@ impl E2ETestEnv {
         Command::new(vx_binary())
             .args(args)
             .env("VX_HOME", self.home.path())
+            .env("VX_PROJECT_ROOT", self.workdir.path())
             .current_dir(self.workdir.path())
             .output()
             .expect("Failed to execute vx command")
