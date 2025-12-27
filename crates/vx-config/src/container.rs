@@ -902,55 +902,6 @@ impl Default for GoDockerConfig {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_sanitize_tag() {
-        assert_eq!(sanitize_tag("feature/test"), "feature-test");
-        assert_eq!(sanitize_tag("v1.0.0"), "v1.0.0");
-        assert_eq!(sanitize_tag("main"), "main");
-        assert_eq!(sanitize_tag("feature/test-123"), "feature-test-123");
-    }
-
-    #[test]
-    fn test_nodejs_dockerfile() {
-        let config = NodejsDockerConfig::default();
-        let dockerfile = DockerfileGenerator::nodejs(&config);
-        assert!(dockerfile.contains("FROM node:20-alpine"));
-        assert!(dockerfile.contains("npm ci"));
-        assert!(dockerfile.contains("EXPOSE 3000"));
-    }
-
-    #[test]
-    fn test_python_dockerfile() {
-        let config = PythonDockerConfig::default();
-        let dockerfile = DockerfileGenerator::python(&config);
-        assert!(dockerfile.contains("FROM python:3.12-slim"));
-        assert!(dockerfile.contains("uv sync"));
-        assert!(dockerfile.contains("EXPOSE 8000"));
-    }
-
-    #[test]
-    fn test_rust_dockerfile() {
-        let config = RustDockerConfig::default();
-        let dockerfile = DockerfileGenerator::rust(&config);
-        assert!(dockerfile.contains("FROM rust:1.75"));
-        assert!(dockerfile.contains("cargo build --release"));
-        assert!(dockerfile.contains("EXPOSE 8080"));
-    }
-
-    #[test]
-    fn test_go_dockerfile() {
-        let config = GoDockerConfig::default();
-        let dockerfile = DockerfileGenerator::go(&config);
-        assert!(dockerfile.contains("FROM golang:1.22-alpine"));
-        assert!(dockerfile.contains("go mod download"));
-        assert!(dockerfile.contains("CGO_ENABLED=0"));
-    }
-}
-
 /// Generate Dockerfile content from VxConfig
 pub fn generate_dockerfile(config: &VxConfig) -> String {
     if let Some(manager) = ContainerManager::from_vx_config(config) {
@@ -1035,4 +986,53 @@ COPY . .
 CMD ["/bin/bash"]
 "#
     .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sanitize_tag() {
+        assert_eq!(sanitize_tag("feature/test"), "feature-test");
+        assert_eq!(sanitize_tag("v1.0.0"), "v1.0.0");
+        assert_eq!(sanitize_tag("main"), "main");
+        assert_eq!(sanitize_tag("feature/test-123"), "feature-test-123");
+    }
+
+    #[test]
+    fn test_nodejs_dockerfile() {
+        let config = NodejsDockerConfig::default();
+        let dockerfile = DockerfileGenerator::nodejs(&config);
+        assert!(dockerfile.contains("FROM node:20-alpine"));
+        assert!(dockerfile.contains("npm ci"));
+        assert!(dockerfile.contains("EXPOSE 3000"));
+    }
+
+    #[test]
+    fn test_python_dockerfile() {
+        let config = PythonDockerConfig::default();
+        let dockerfile = DockerfileGenerator::python(&config);
+        assert!(dockerfile.contains("FROM python:3.12-slim"));
+        assert!(dockerfile.contains("uv sync"));
+        assert!(dockerfile.contains("EXPOSE 8000"));
+    }
+
+    #[test]
+    fn test_rust_dockerfile() {
+        let config = RustDockerConfig::default();
+        let dockerfile = DockerfileGenerator::rust(&config);
+        assert!(dockerfile.contains("FROM rust:1.75"));
+        assert!(dockerfile.contains("cargo build --release"));
+        assert!(dockerfile.contains("EXPOSE 8080"));
+    }
+
+    #[test]
+    fn test_go_dockerfile() {
+        let config = GoDockerConfig::default();
+        let dockerfile = DockerfileGenerator::go(&config);
+        assert!(dockerfile.contains("FROM golang:1.22-alpine"));
+        assert!(dockerfile.contains("go mod download"));
+        assert!(dockerfile.contains("CGO_ENABLED=0"));
+    }
 }
