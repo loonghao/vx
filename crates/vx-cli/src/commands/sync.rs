@@ -1,14 +1,14 @@
 //! Sync command implementation
 //!
 //! Synchronizes project tools from .vx.toml configuration.
-//! This is an alias for `vx setup` with check functionality.
+//! This is the core tool installation logic, also used by `vx setup`.
 
-use crate::commands::setup::parse_vx_config;
+use crate::commands::setup::{find_vx_config, parse_vx_config};
 use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 use vx_paths::PathManager;
 use vx_runtime::ProviderRegistry;
@@ -115,27 +115,6 @@ pub async fn handle(
     }
 
     Ok(())
-}
-
-/// Find .vx.toml in current directory or parent directories
-fn find_vx_config(start_dir: &Path) -> Result<PathBuf> {
-    let mut current = start_dir.to_path_buf();
-
-    loop {
-        let config_path = current.join(".vx.toml");
-        if config_path.exists() {
-            return Ok(config_path);
-        }
-
-        if !current.pop() {
-            break;
-        }
-    }
-
-    Err(anyhow::anyhow!(
-        "No .vx.toml found in current directory or parent directories.\n\
-         Run 'vx init' to create one."
-    ))
 }
 
 /// Check the installation status of all tools

@@ -1,6 +1,6 @@
 # setup
 
-Install all project tools from `.vx.toml`.
+Install all project tools and run setup hooks from `.vx.toml`.
 
 ## Synopsis
 
@@ -12,9 +12,11 @@ vx setup [OPTIONS]
 
 The `vx setup` command is the **first command to run** when joining a project or after cloning a repository. It reads the project's `.vx.toml` configuration and:
 
-1. Checks which tools are already installed
-2. Installs all missing tools to `~/.vx/store/`
-3. Reports installation status
+1. Runs `pre_setup` hooks (if defined)
+2. Checks which tools are already installed
+3. Installs all missing tools to `~/.vx/store/`
+4. Runs `post_setup` hooks (if defined)
+5. Reports installation status
 
 This ensures all team members have the exact same tool versions.
 
@@ -26,6 +28,7 @@ This ensures all team members have the exact same tool versions.
 | `--dry-run` | Preview operations without executing |
 | `-v`, `--verbose` | Show verbose output |
 | `--no-parallel` | Disable parallel installation |
+| `--no-hooks` | Skip pre/post setup hooks |
 
 ## Usage Scenarios
 
@@ -44,6 +47,9 @@ Output:
 ```
 🚀 VX Development Environment Setup
 
+Running pre-setup hooks...
+  ✓ echo 'Starting setup...'
+
 Checking tool status...
 
 Tools:
@@ -54,6 +60,10 @@ Tools:
 Installing 2 tool(s)...
   ✓ uv@0.5.14
   ✓ go@1.21.5
+
+Running post-setup hooks...
+  ✓ vx run db:migrate
+  ✓ vx run seed
 
 ✓ Successfully installed 2 tool(s) in 12.3s
 
@@ -82,7 +92,7 @@ jobs:
         run: curl -fsSL https://get.vx.dev | bash
 
       - name: Setup project tools
-        run: vx setup
+        run: vx setup --no-hooks  # Skip hooks in CI if needed
 
       - name: Build
         run: vx dev -c "npm run build"
@@ -119,6 +129,18 @@ Tools:
 Would install 2 tool(s):
   - uv@0.5.14
   - go@1.21.5
+
+Would run post-setup hooks:
+  - vx run db:migrate
+  - vx run seed
+```
+
+### Scenario 5: Skip Hooks
+
+If you only want to install tools without running hooks:
+
+```bash
+vx setup --no-hooks
 ```
 
 ## Configuration
@@ -135,10 +157,40 @@ go = "1.21"
 auto_install = true    # Auto-install missing tools in vx dev
 parallel_install = true # Install tools in parallel
 
+[hooks]
+pre_setup = "echo 'Preparing environment...'"
+post_setup = ["vx run db:migrate", "vx run seed"]
+
 [scripts]
 dev = "npm run dev"
 test = "pytest"
 build = "npm run build"
+db:migrate = "prisma migrate dev"
+seed = "prisma db seed"
+```
+
+### Hooks Configuration
+
+Setup supports lifecycle hooks:
+
+| Hook | When it runs |
+|------|--------------|
+| `pre_setup` | Before installing tools |
+| `post_setup` | After all tools are installed |
+
+Hooks can be a single command or an array:
+
+```toml
+[hooks]
+# Single command
+pre_setup = "echo 'Starting...'"
+
+# Multiple commands (run in order)
+post_setup = [
+  "vx run db:migrate",
+  "vx run seed",
+  "vx run build"
+]
 ```
 
 ## Tool Storage
@@ -191,7 +243,7 @@ This content-addressable storage allows:
 
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
-| `vx setup` | Install tools | First time, after `.vx.toml` changes |
+| `vx setup` | Install tools + run hooks | First time, after `.vx.toml` changes |
 | `vx dev` | Enter environment | Daily development |
 | `vx dev --export` | Activate in current shell | IDE integration, scripts |
 | `vx run <script>` | Run defined scripts | Build, test, deploy |
@@ -202,6 +254,7 @@ This content-addressable storage allows:
 |------|---------|
 | 0 | Success - all tools installed |
 | 1 | Error - some tools failed to install |
+| 2 | Error - hook execution failed |
 
 ## Tips
 
@@ -211,12 +264,11 @@ This content-addressable storage allows:
    git pull && vx setup
    ```
 
-2. **Use in git hooks**: Auto-setup on checkout:
+2. **Use git hooks for auto-setup**: Configure `enter` hook:
 
-   ```bash
-   # .git/hooks/post-checkout
-   #!/bin/sh
-   vx setup --dry-run | grep -q "missing" && vx setup
+   ```toml
+   [hooks]
+   enter = "vx sync --check"
    ```
 
 3. **Verbose mode for debugging**:
@@ -227,8 +279,17 @@ This content-addressable storage allows:
 
 4. **Parallel is faster**: By default, tools install in parallel. Use `--no-parallel` only if you encounter issues.
 
+5. **Use post_setup for database migrations**:
+
+   ```toml
+   [hooks]
+   post_setup = ["vx run db:migrate", "vx run seed"]
+   ```
+
 ## See Also
 
 - [init](../cli/commands#init) - Initialize project configuration
 - [dev](dev) - Enter development environment
 - [sync](../cli/commands#sync) - Sync tools with configuration
+- [hook](../cli/commands#hook) - Manage git hooks
+- [services](../cli/commands#services) - Manage development services

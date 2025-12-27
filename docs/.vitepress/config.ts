@@ -29,6 +29,13 @@ const enSidebar = {
         { text: 'Environment Management', link: '/guide/environment-management' },
         { text: 'Shell Integration', link: '/guide/shell-integration' }
       ]
+    },
+    {
+      text: 'Advanced',
+      items: [
+        { text: 'Migration Guide', link: '/guide/migration' },
+        { text: 'Best Practices', link: '/guide/best-practices' }
+      ]
     }
   ],
   '/guides/': [
@@ -146,6 +153,13 @@ const zhSidebar = {
         { text: '项目环境', link: '/zh/guide/project-environments' },
         { text: '环境管理', link: '/zh/guide/environment-management' },
         { text: 'Shell 集成', link: '/zh/guide/shell-integration' }
+      ]
+    },
+    {
+      text: '进阶',
+      items: [
+        { text: '迁移指南', link: '/zh/guide/migration' },
+        { text: '最佳实践', link: '/zh/guide/best-practices' }
       ]
     }
   ],

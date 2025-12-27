@@ -318,6 +318,9 @@ pub enum Commands {
         /// Disable parallel installation
         #[arg(long)]
         no_parallel: bool,
+        /// Skip lifecycle hooks (pre_setup, post_setup)
+        #[arg(long)]
+        no_hooks: bool,
     },
 
     /// Add a tool to project configuration
@@ -344,6 +347,78 @@ pub enum Commands {
         #[arg(trailing_var_arg = true)]
         args: Vec<String>,
     },
+
+    /// Manage development services (Docker/Podman)
+    Services {
+        #[command(subcommand)]
+        command: ServicesCommand,
+    },
+
+    /// Execute or manage lifecycle hooks
+    Hook {
+        #[command(subcommand)]
+        command: HookCommand,
+    },
+
+    /// Container and Dockerfile management
+    Container {
+        #[command(subcommand)]
+        command: ContainerCommand,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum ServicesCommand {
+    /// Start services
+    Start {
+        /// Service names (start all if not specified)
+        #[arg(num_args = 0..)]
+        services: Vec<String>,
+        /// Run in foreground (default: detached)
+        #[arg(long)]
+        foreground: bool,
+        /// Force restart if already running
+        #[arg(short, long)]
+        force: bool,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Stop services
+    Stop {
+        /// Service names (stop all if not specified)
+        #[arg(num_args = 0..)]
+        services: Vec<String>,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show service status
+    Status {
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show service logs
+    Logs {
+        /// Service name
+        service: String,
+        /// Follow log output
+        #[arg(short, long)]
+        follow: bool,
+        /// Number of lines to show
+        #[arg(long)]
+        tail: Option<usize>,
+    },
+    /// Restart services
+    Restart {
+        /// Service names (restart all if not specified)
+        #[arg(num_args = 0..)]
+        services: Vec<String>,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -369,6 +444,36 @@ pub enum ConfigCommand {
     },
     /// Edit configuration file
     Edit,
+    /// Migrate .vx.toml to v2 format
+    Migrate {
+        /// Path to .vx.toml file (default: current directory)
+        #[arg(short, long)]
+        path: Option<String>,
+        /// Preview changes without writing
+        #[arg(long)]
+        dry_run: bool,
+        /// Create backup before migration
+        #[arg(long, default_value = "true")]
+        backup: bool,
+        /// Force migration even if already v2
+        #[arg(short, long)]
+        force: bool,
+    },
+    /// Validate .vx.toml configuration
+    Validate {
+        /// Path to .vx.toml file (default: current directory)
+        #[arg(short, long)]
+        path: Option<String>,
+        /// Show verbose validation output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Generate JSON Schema for .vx.toml
+    Schema {
+        /// Output file path (default: stdout)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -417,5 +522,103 @@ pub enum ShellCommand {
     Completions {
         /// Shell type
         shell: String,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum HookCommand {
+    /// Run pre-commit hook
+    PreCommit,
+    /// Run enter hook (directory change)
+    Enter,
+    /// Install git hooks
+    Install {
+        /// Force reinstall even if already installed
+        #[arg(short, long)]
+        force: bool,
+    },
+    /// Uninstall git hooks
+    Uninstall,
+    /// Show hook status
+    Status,
+    /// Run a custom hook by name
+    Run {
+        /// Hook name
+        name: String,
+    },
+    /// Generate shell integration script for enter hook
+    ShellInit {
+        /// Shell type (auto-detected if not specified)
+        shell: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum ContainerCommand {
+    /// Generate Dockerfile from configuration
+    Generate {
+        /// Output path (default: Dockerfile)
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Generate .dockerignore as well
+        #[arg(long)]
+        with_ignore: bool,
+        /// Preview without writing
+        #[arg(long)]
+        dry_run: bool,
+        /// Use ecosystem-specific template (node, python, rust, go)
+        #[arg(long)]
+        template: Option<String>,
+    },
+    /// Build container image
+    Build {
+        /// Additional tags
+        #[arg(short, long)]
+        tag: Vec<String>,
+        /// Build target (for multi-stage)
+        #[arg(long)]
+        target: Option<String>,
+        /// Build arguments (KEY=VALUE)
+        #[arg(long)]
+        build_arg: Vec<String>,
+        /// Platform(s) to build for
+        #[arg(long)]
+        platform: Vec<String>,
+        /// Don't use cache
+        #[arg(long)]
+        no_cache: bool,
+        /// Push after build
+        #[arg(long)]
+        push: bool,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Push container image to registry
+    Push {
+        /// Image tag to push (default: all configured tags)
+        tag: Option<String>,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show container configuration status
+    Status,
+    /// Login to container registry
+    Login {
+        /// Registry URL (default: from config)
+        registry: Option<String>,
+        /// Username
+        #[arg(short, long)]
+        username: Option<String>,
+        /// Password (or use stdin)
+        #[arg(short, long)]
+        password: Option<String>,
+    },
+    /// List generated image tags
+    Tags {
+        /// Show all possible tags
+        #[arg(short, long)]
+        all: bool,
     },
 }

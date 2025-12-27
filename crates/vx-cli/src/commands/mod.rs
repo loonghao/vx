@@ -6,6 +6,7 @@ use vx_runtime::ProviderRegistry;
 
 pub mod cleanup;
 pub mod config;
+pub mod container;
 pub mod dev;
 pub mod env;
 pub mod execute;
@@ -13,6 +14,7 @@ pub mod execute;
 mod execute_tests;
 pub mod fetch;
 pub mod global;
+pub mod hook;
 pub mod init;
 pub mod install;
 pub mod list;
@@ -20,6 +22,7 @@ pub mod plugin;
 pub mod remove;
 pub mod search;
 pub mod self_update;
+pub mod services;
 pub mod setup;
 pub mod shell;
 pub mod stats;
@@ -123,6 +126,18 @@ impl CommandHandler {
                     config::handle_reset(key.clone()).await
                 }
                 Some(crate::cli::ConfigCommand::Edit) => config::handle_edit().await,
+                Some(crate::cli::ConfigCommand::Migrate {
+                    path,
+                    dry_run,
+                    backup,
+                    force,
+                }) => config::handle_migrate(path, dry_run, backup, force).await,
+                Some(crate::cli::ConfigCommand::Validate { path, verbose }) => {
+                    config::handle_validate(path, verbose).await
+                }
+                Some(crate::cli::ConfigCommand::Schema { output }) => {
+                    config::handle_schema(output).await
+                }
             },
 
             Some(Commands::Search {
@@ -231,7 +246,8 @@ impl CommandHandler {
                 dry_run,
                 verbose,
                 no_parallel,
-            }) => setup::handle(registry, force, dry_run, verbose, no_parallel).await,
+                no_hooks,
+            }) => setup::handle(registry, force, dry_run, verbose, no_parallel, no_hooks).await,
 
             Some(Commands::Add { tool, version }) => {
                 setup::add_tool(&tool, version.as_deref()).await
@@ -276,6 +292,96 @@ impl CommandHandler {
                     ShellCommand::Completions { shell } => {
                         shell::handle_completion(shell.clone()).await
                     }
+                }
+            }
+
+            Some(Commands::Services { command }) => {
+                use crate::cli::ServicesCommand;
+                match command {
+                    ServicesCommand::Start {
+                        services,
+                        foreground,
+                        force,
+                        verbose,
+                    } => {
+                        let services = if services.is_empty() {
+                            None
+                        } else {
+                            Some(services)
+                        };
+                        services::handle_start(services, !foreground, force, verbose).await
+                    }
+                    ServicesCommand::Stop { services, verbose } => {
+                        let services = if services.is_empty() {
+                            None
+                        } else {
+                            Some(services)
+                        };
+                        services::handle_stop(services, verbose).await
+                    }
+                    ServicesCommand::Status { verbose } => services::handle_status(verbose).await,
+                    ServicesCommand::Logs {
+                        service,
+                        follow,
+                        tail,
+                    } => services::handle_logs(&service, follow, tail).await,
+                    ServicesCommand::Restart { services, verbose } => {
+                        let services = if services.is_empty() {
+                            None
+                        } else {
+                            Some(services)
+                        };
+                        services::handle_restart(services, verbose).await
+                    }
+                }
+            }
+
+            Some(Commands::Hook { command }) => {
+                use crate::cli::HookCommand;
+                match command {
+                    HookCommand::PreCommit => hook::handle_pre_commit().await,
+                    HookCommand::Enter => hook::handle_enter().await,
+                    HookCommand::Install { force } => hook::handle_install(force).await,
+                    HookCommand::Uninstall => hook::handle_uninstall().await,
+                    HookCommand::Status => hook::handle_status().await,
+                    HookCommand::Run { name } => hook::handle_run(&name).await,
+                    HookCommand::ShellInit { shell } => hook::handle_shell_init(shell).await,
+                }
+            }
+
+            Some(Commands::Container { command }) => {
+                use crate::cli::ContainerCommand;
+                match command {
+                    ContainerCommand::Generate {
+                        output,
+                        with_ignore,
+                        dry_run,
+                        template,
+                    } => container::handle_generate(output, with_ignore, dry_run, template).await,
+                    ContainerCommand::Build {
+                        tag,
+                        target,
+                        build_arg,
+                        platform,
+                        no_cache,
+                        push,
+                        verbose,
+                    } => {
+                        container::handle_build(
+                            tag, target, build_arg, platform, no_cache, push, verbose,
+                        )
+                        .await
+                    }
+                    ContainerCommand::Push { tag, verbose } => {
+                        container::handle_push(tag, verbose).await
+                    }
+                    ContainerCommand::Status => container::handle_status().await,
+                    ContainerCommand::Login {
+                        registry,
+                        username,
+                        password,
+                    } => container::handle_login(registry, username, password).await,
+                    ContainerCommand::Tags { all } => container::handle_tags(all).await,
                 }
             }
         }

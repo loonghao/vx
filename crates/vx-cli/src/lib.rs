@@ -185,6 +185,18 @@ impl VxCli {
                     commands::config::handle_reset(key.clone()).await
                 }
                 Some(cli::ConfigCommand::Edit) => commands::config::handle_edit().await,
+                Some(cli::ConfigCommand::Migrate {
+                    path,
+                    dry_run,
+                    backup,
+                    force,
+                }) => commands::config::handle_migrate(path, dry_run, backup, force).await,
+                Some(cli::ConfigCommand::Validate { path, verbose }) => {
+                    commands::config::handle_validate(path, verbose).await
+                }
+                Some(cli::ConfigCommand::Schema { output }) => {
+                    commands::config::handle_schema(output).await
+                }
             },
             Commands::Init {
                 interactive,
@@ -290,8 +302,17 @@ impl VxCli {
                 dry_run,
                 verbose,
                 no_parallel,
+                no_hooks,
             } => {
-                commands::setup::handle(&self.registry, force, dry_run, verbose, no_parallel).await
+                commands::setup::handle(
+                    &self.registry,
+                    force,
+                    dry_run,
+                    verbose,
+                    no_parallel,
+                    no_hooks,
+                )
+                .await
             }
 
             Commands::Add { tool, version } => {
@@ -301,6 +322,104 @@ impl VxCli {
             Commands::RemoveTool { tool } => commands::setup::remove_tool(&tool).await,
 
             Commands::Run { script, args } => self.run_script(&script, &args).await,
+
+            Commands::Services { command } => {
+                use crate::cli::ServicesCommand;
+                match command {
+                    ServicesCommand::Start {
+                        services,
+                        foreground,
+                        force,
+                        verbose,
+                    } => {
+                        let services = if services.is_empty() {
+                            None
+                        } else {
+                            Some(services)
+                        };
+                        commands::services::handle_start(services, !foreground, force, verbose)
+                            .await
+                    }
+                    ServicesCommand::Stop { services, verbose } => {
+                        let services = if services.is_empty() {
+                            None
+                        } else {
+                            Some(services)
+                        };
+                        commands::services::handle_stop(services, verbose).await
+                    }
+                    ServicesCommand::Status { verbose } => {
+                        commands::services::handle_status(verbose).await
+                    }
+                    ServicesCommand::Logs {
+                        service,
+                        follow,
+                        tail,
+                    } => commands::services::handle_logs(&service, follow, tail).await,
+                    ServicesCommand::Restart { services, verbose } => {
+                        let services = if services.is_empty() {
+                            None
+                        } else {
+                            Some(services)
+                        };
+                        commands::services::handle_restart(services, verbose).await
+                    }
+                }
+            }
+
+            Commands::Hook { command } => {
+                use crate::cli::HookCommand;
+                match command {
+                    HookCommand::PreCommit => commands::hook::handle_pre_commit().await,
+                    HookCommand::Enter => commands::hook::handle_enter().await,
+                    HookCommand::Install { force } => commands::hook::handle_install(force).await,
+                    HookCommand::Uninstall => commands::hook::handle_uninstall().await,
+                    HookCommand::Status => commands::hook::handle_status().await,
+                    HookCommand::Run { name } => commands::hook::handle_run(&name).await,
+                    HookCommand::ShellInit { shell } => {
+                        commands::hook::handle_shell_init(shell).await
+                    }
+                }
+            }
+
+            Commands::Container { command } => {
+                use crate::cli::ContainerCommand;
+                match command {
+                    ContainerCommand::Generate {
+                        output,
+                        with_ignore,
+                        dry_run,
+                        template,
+                    } => {
+                        commands::container::handle_generate(output, with_ignore, dry_run, template)
+                            .await
+                    }
+                    ContainerCommand::Build {
+                        tag,
+                        target,
+                        build_arg,
+                        platform,
+                        no_cache,
+                        push,
+                        verbose,
+                    } => {
+                        commands::container::handle_build(
+                            tag, target, build_arg, platform, no_cache, push, verbose,
+                        )
+                        .await
+                    }
+                    ContainerCommand::Push { tag, verbose } => {
+                        commands::container::handle_push(tag, verbose).await
+                    }
+                    ContainerCommand::Status => commands::container::handle_status().await,
+                    ContainerCommand::Login {
+                        registry,
+                        username,
+                        password,
+                    } => commands::container::handle_login(registry, username, password).await,
+                    ContainerCommand::Tags { all } => commands::container::handle_tags(all).await,
+                }
+            }
         }
     }
 

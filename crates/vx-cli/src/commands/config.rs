@@ -2,6 +2,8 @@
 
 use crate::ui::UI;
 use anyhow::Result;
+use std::env;
+use std::path::PathBuf;
 
 pub async fn handle() -> Result<()> {
     UI::warning("Config command not yet implemented in new architecture");
@@ -51,6 +53,189 @@ pub async fn handle_edit() -> Result<()> {
     UI::warning("Config edit command not yet implemented in new architecture");
     UI::hint("Manually edit .vx.toml files for now");
     Ok(())
+}
+
+/// Handle config migrate command
+pub async fn handle_migrate(
+    path: Option<String>,
+    dry_run: bool,
+    backup: bool,
+    force: bool,
+) -> Result<()> {
+    use vx_config::{ConfigMigrator, MigrationOptions};
+
+    let config_path = resolve_config_path(path)?;
+
+    UI::header("🔄 Configuration Migration");
+    println!();
+
+    let migrator = ConfigMigrator::new();
+
+    // Detect current version
+    let content = std::fs::read_to_string(&config_path)?;
+    let version = migrator.detect_version(&content);
+
+    UI::info(&format!("Config file: {}", config_path.display()));
+    UI::info(&format!("Current version: {}", version));
+    println!();
+
+    let options = MigrationOptions {
+        backup,
+        force,
+        dry_run,
+        add_comments: true,
+    };
+
+    let result = migrator.migrate_file(&config_path, &options)?;
+
+    if !result.migrated {
+        UI::success("Configuration is already in v2 format");
+        if !result.warnings.is_empty() {
+            println!();
+            UI::warn("Warnings:");
+            for warning in &result.warnings {
+                println!("  • {}", warning);
+            }
+        }
+        return Ok(());
+    }
+
+    // Show changes
+    if !result.changes.is_empty() {
+        UI::info("Changes:");
+        for change in &result.changes {
+            println!("  • {}", change);
+        }
+        println!();
+    }
+
+    // Show warnings
+    if !result.warnings.is_empty() {
+        UI::warn("Warnings:");
+        for warning in &result.warnings {
+            println!("  • {}", warning);
+        }
+        println!();
+    }
+
+    if dry_run {
+        UI::info("Dry run - no changes written");
+        println!();
+        UI::info("Migrated content preview:");
+        println!("---");
+        println!("{}", result.content);
+        println!("---");
+    } else {
+        if let Some(backup_path) = &result.backup_path {
+            UI::info(&format!("Backup created: {}", backup_path));
+        }
+        UI::success(&format!(
+            "Migrated {} → {}",
+            result.from_version, result.to_version
+        ));
+    }
+
+    Ok(())
+}
+
+/// Handle config validate command
+pub async fn handle_validate(path: Option<String>, verbose: bool) -> Result<()> {
+    use vx_config::{parse_config, validate_config, ConfigMigrator};
+
+    let config_path = resolve_config_path(path)?;
+
+    UI::header("🔍 Configuration Validation");
+    println!();
+
+    UI::info(&format!("Validating: {}", config_path.display()));
+    println!();
+
+    // Parse config
+    let config = parse_config(&config_path)?;
+
+    // Detect version
+    let content = std::fs::read_to_string(&config_path)?;
+    let migrator = ConfigMigrator::new();
+    let version = migrator.detect_version(&content);
+
+    if verbose {
+        UI::info(&format!("Detected version: {}", version));
+        UI::info(&format!("Tools: {}", config.tools.len()));
+        UI::info(&format!("Scripts: {}", config.scripts.len()));
+        UI::info(&format!("Services: {}", config.services.len()));
+        println!();
+    }
+
+    // Validate
+    let result = validate_config(&config);
+
+    if !result.errors.is_empty() {
+        UI::error("Validation errors:");
+        for error in &result.errors {
+            println!("  ✗ {}", error);
+        }
+        println!();
+    }
+
+    if !result.warnings.is_empty() {
+        UI::warn("Validation warnings:");
+        for warning in &result.warnings {
+            println!("  ⚠ {}", warning);
+        }
+        println!();
+    }
+
+    if result.is_ok() {
+        UI::success("Configuration is valid");
+        if result.warnings.is_empty() {
+            println!("  ✓ No errors or warnings");
+        }
+    } else {
+        return Err(anyhow::anyhow!("Configuration validation failed"));
+    }
+
+    Ok(())
+}
+
+/// Handle config schema command
+pub async fn handle_schema(output: Option<String>) -> Result<()> {
+    use vx_config::schemars::schema_for;
+    use vx_config::VxConfig;
+
+    UI::header("📋 JSON Schema Generation");
+    println!();
+
+    let schema = schema_for!(VxConfig);
+    let schema_json = serde_json::to_string_pretty(&schema)?;
+
+    if let Some(output_path) = output {
+        std::fs::write(&output_path, &schema_json)?;
+        UI::success(&format!("Schema written to: {}", output_path));
+    } else {
+        println!("{}", schema_json);
+    }
+
+    Ok(())
+}
+
+/// Resolve config path from option or current directory
+fn resolve_config_path(path: Option<String>) -> Result<PathBuf> {
+    if let Some(p) = path {
+        let path = PathBuf::from(p);
+        if !path.exists() {
+            return Err(anyhow::anyhow!("Config file not found: {}", path.display()));
+        }
+        Ok(path)
+    } else {
+        let current_dir = env::current_dir()?;
+        let config_path = current_dir.join(".vx.toml");
+        if !config_path.exists() {
+            return Err(anyhow::anyhow!(
+                "No .vx.toml found in current directory. Run 'vx init' to create one."
+            ));
+        }
+        Ok(config_path)
+    }
 }
 
 fn generate_default_config(tools: &[String]) -> Result<String> {
