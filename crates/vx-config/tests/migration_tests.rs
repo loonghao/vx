@@ -2,9 +2,8 @@
 //!
 //! Tests for migrating `.vx.toml` from v1 to v2 format.
 
-use rstest::rstest;
 use tempfile::TempDir;
-use vx_config::migration::{ConfigMigrator, ConfigVersion, MigrationOptions};
+use vx_config::{ConfigMigrator, ConfigVersion, MigrationOptions};
 
 // ============================================
 // Version Detection Tests
@@ -448,7 +447,7 @@ node = "20"
     let result = migrator.migrate_file(&config_path, &options).unwrap();
 
     assert!(!result.migrated);
-    assert!(result.warnings.iter().any(|w| w.contains("already v2")));
+    assert!(result.warnings.iter().any(|w: &String| w.contains("already v2")));
 }
 
 #[test]

@@ -46,6 +46,7 @@ impl E2ETestEnv {
             .expect("Failed to execute vx command")
     }
 
+    #[allow(dead_code)]
     fn run_success(&self, args: &[&str]) -> String {
         let output = self.run(args);
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
@@ -61,6 +62,7 @@ impl E2ETestEnv {
         stdout
     }
 
+    #[allow(dead_code)]
     fn workdir(&self) -> &std::path::Path {
         self.workdir.path()
     }
@@ -72,6 +74,7 @@ impl E2ETestEnv {
     }
 
     /// Read a file from the workdir
+    #[allow(dead_code)]
     fn read_file(&self, name: &str) -> String {
         let path = self.workdir.path().join(name);
         fs::read_to_string(&path).unwrap_or_default()
@@ -94,8 +97,8 @@ fn test_workflow_init_setup_run() {
     // Step 1: Initialize project
     let output = env.run(&["init"]);
     // init might be interactive or require flags
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let _stdout = String::from_utf8_lossy(&output.stdout);
+    let _stderr = String::from_utf8_lossy(&output.stderr);
 
     // If init requires interaction, create config manually
     if !output.status.success() {
@@ -590,7 +593,7 @@ index_url = "https://pypi.org/simple"
 
     // Verify the comprehensive config is valid
     let output = env.run(&["config", "validate"]);
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let _stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
 
     // Should parse without critical errors

@@ -2,8 +2,7 @@
 //!
 //! Tests for service orchestration configuration parsing and validation.
 
-use rstest::rstest;
-use vx_config::{parse_config_str, validate_config, ServiceConfig};
+use vx_config::{parse_config_str, validate_config};
 
 // ============================================
 // Basic Service Configuration Tests
