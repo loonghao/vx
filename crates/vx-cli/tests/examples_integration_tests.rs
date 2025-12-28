@@ -28,10 +28,9 @@ fn examples_dir() -> PathBuf {
 
 /// Load VxConfig from a .vx.toml file
 fn load_config_from_file(config_path: &std::path::Path) -> VxConfig {
-    parse_vx_config(config_path).expect(&format!(
-        "Failed to parse config: {}",
-        config_path.display()
-    ))
+    parse_vx_config(config_path).unwrap_or_else(|_| {
+        panic!("Failed to parse config: {}", config_path.display())
+    })
 }
 
 // ============================================================================
