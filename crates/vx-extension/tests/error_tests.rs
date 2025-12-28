@@ -159,7 +159,7 @@ fn test_io_error() {
 
 #[test]
 fn test_io_error_no_path() {
-    let io_err = std::io::Error::new(std::io::ErrorKind::Other, "unknown error");
+    let io_err = std::io::Error::other("unknown error");
     let err = ExtensionError::io("Something went wrong", None, io_err);
 
     let diag = err.diagnostic();
