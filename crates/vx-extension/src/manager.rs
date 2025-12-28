@@ -1,5 +1,6 @@
 //! Extension manager - high-level API for managing extensions
 
+use crate::error::{ExtensionError, ExtensionResult};
 use crate::{Extension, ExtensionDiscovery, ExtensionExecutor};
 use std::path::PathBuf;
 use tracing::info;
@@ -12,7 +13,7 @@ pub struct ExtensionManager {
 
 impl ExtensionManager {
     /// Create a new extension manager
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new() -> ExtensionResult<Self> {
         Ok(Self {
             discovery: ExtensionDiscovery::new()?,
             executor: ExtensionExecutor::new(),
@@ -20,7 +21,7 @@ impl ExtensionManager {
     }
 
     /// Create an extension manager with a project directory
-    pub fn with_project_dir(project_dir: PathBuf) -> anyhow::Result<Self> {
+    pub fn with_project_dir(project_dir: PathBuf) -> ExtensionResult<Self> {
         Ok(Self {
             discovery: ExtensionDiscovery::new()?.with_project_dir(project_dir),
             executor: ExtensionExecutor::new(),
@@ -28,23 +29,22 @@ impl ExtensionManager {
     }
 
     /// List all discovered extensions
-    pub async fn list_extensions(&self) -> anyhow::Result<Vec<Extension>> {
+    pub async fn list_extensions(&self) -> ExtensionResult<Vec<Extension>> {
         self.discovery.discover_all().await
     }
 
     /// Find an extension by name
-    pub async fn find_extension(&self, name: &str) -> anyhow::Result<Option<Extension>> {
+    pub async fn find_extension(&self, name: &str) -> ExtensionResult<Option<Extension>> {
         self.discovery.find_extension(name).await
     }
 
     /// Execute an extension command
-    pub async fn execute(&self, extension_name: &str, args: &[String]) -> anyhow::Result<i32> {
-        // Find the extension
+    pub async fn execute(&self, extension_name: &str, args: &[String]) -> ExtensionResult<i32> {
+        // Find the extension with detailed error
         let extension = self
             .discovery
-            .find_extension(extension_name)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Extension '{}' not found", extension_name))?;
+            .find_extension_or_error(extension_name)
+            .await?;
 
         // Parse subcommand from args
         let (subcommand, remaining_args) = if args.is_empty() {
@@ -70,19 +70,22 @@ impl ExtensionManager {
     }
 
     /// Link a local development extension
-    pub async fn link_dev_extension(&self, source_path: PathBuf) -> anyhow::Result<()> {
+    pub async fn link_dev_extension(&self, source_path: PathBuf) -> ExtensionResult<()> {
         let dev_dir = self.discovery.dev_extensions_dir();
 
         // Ensure dev directory exists
-        std::fs::create_dir_all(dev_dir)?;
+        std::fs::create_dir_all(dev_dir).map_err(|e| {
+            ExtensionError::io(
+                "Failed to create dev extensions directory",
+                Some(dev_dir.to_path_buf()),
+                e,
+            )
+        })?;
 
         // Load the extension config to get the name
         let config_path = source_path.join("vx-extension.toml");
         if !config_path.exists() {
-            anyhow::bail!(
-                "No vx-extension.toml found in {:?}. Is this an extension directory?",
-                source_path
-            );
+            return Err(ExtensionError::config_not_found(&source_path));
         }
 
         let config = crate::ExtensionConfig::from_file(&config_path)?;
@@ -95,20 +98,48 @@ impl ExtensionManager {
             // Remove existing link
             if link_path.is_symlink() {
                 #[cfg(unix)]
-                std::fs::remove_file(&link_path)?;
+                std::fs::remove_file(&link_path).map_err(|e| {
+                    ExtensionError::io(
+                        "Failed to remove existing symlink",
+                        Some(link_path.clone()),
+                        e,
+                    )
+                })?;
                 #[cfg(windows)]
-                std::fs::remove_dir(&link_path)?;
+                std::fs::remove_dir(&link_path).map_err(|e| {
+                    ExtensionError::io(
+                        "Failed to remove existing symlink",
+                        Some(link_path.clone()),
+                        e,
+                    )
+                })?;
             } else {
-                anyhow::bail!("Path {:?} already exists and is not a symlink", link_path);
+                return Err(ExtensionError::link_failed(
+                    &source_path,
+                    &link_path,
+                    "Target path already exists and is not a symlink",
+                ));
             }
         }
 
         // Create the symlink
         #[cfg(unix)]
-        std::os::unix::fs::symlink(&source_path, &link_path)?;
+        std::os::unix::fs::symlink(&source_path, &link_path).map_err(|e| {
+            ExtensionError::link_failed(
+                &source_path,
+                &link_path,
+                format!("Failed to create symlink: {}", e),
+            )
+        })?;
 
         #[cfg(windows)]
-        std::os::windows::fs::symlink_dir(&source_path, &link_path)?;
+        std::os::windows::fs::symlink_dir(&source_path, &link_path).map_err(|e| {
+            ExtensionError::link_failed(
+                &source_path,
+                &link_path,
+                format!("Failed to create symlink: {}", e),
+            )
+        })?;
 
         info!(
             "Linked development extension '{}' from {:?}",
@@ -119,25 +150,42 @@ impl ExtensionManager {
     }
 
     /// Unlink a development extension
-    pub async fn unlink_dev_extension(&self, name: &str) -> anyhow::Result<()> {
+    pub async fn unlink_dev_extension(&self, name: &str) -> ExtensionResult<()> {
         let link_path = self.discovery.dev_extensions_dir().join(name);
 
         if !link_path.exists() {
-            anyhow::bail!("Development extension '{}' not found", name);
+            // Collect available dev extensions for error message
+            let available = self
+                .list_extensions()
+                .await?
+                .into_iter()
+                .filter(|e| e.source == crate::ExtensionSource::Dev)
+                .map(|e| e.name)
+                .collect();
+
+            return Err(ExtensionError::extension_not_found(
+                name,
+                available,
+                vec![self.discovery.dev_extensions_dir().to_path_buf()],
+            ));
         }
 
         if !link_path.is_symlink() {
-            anyhow::bail!(
-                "Path {:?} is not a symlink. Only symlinked extensions can be unlinked.",
-                link_path
-            );
+            return Err(ExtensionError::NotADevLink {
+                name: name.to_string(),
+                path: link_path,
+            });
         }
 
         #[cfg(unix)]
-        std::fs::remove_file(&link_path)?;
+        std::fs::remove_file(&link_path).map_err(|e| {
+            ExtensionError::io("Failed to remove symlink", Some(link_path.clone()), e)
+        })?;
 
         #[cfg(windows)]
-        std::fs::remove_dir(&link_path)?;
+        std::fs::remove_dir(&link_path).map_err(|e| {
+            ExtensionError::io("Failed to remove symlink", Some(link_path.clone()), e)
+        })?;
 
         info!("Unlinked development extension '{}'", name);
 

@@ -1,5 +1,6 @@
 //! Extension discovery - finds and loads extensions from various sources
 
+use crate::error::{ExtensionError, ExtensionResult};
 use crate::{Extension, ExtensionConfig, ExtensionSource};
 use std::path::{Path, PathBuf};
 use tracing::{debug, trace, warn};
@@ -17,8 +18,14 @@ pub struct ExtensionDiscovery {
 
 impl ExtensionDiscovery {
     /// Create a new extension discovery service
-    pub fn new() -> anyhow::Result<Self> {
-        let vx_paths = VxPaths::new()?;
+    pub fn new() -> ExtensionResult<Self> {
+        let vx_paths = VxPaths::new().map_err(|e| {
+            ExtensionError::io(
+                format!("Failed to initialize vx paths: {}", e),
+                None,
+                std::io::Error::other(e.to_string()),
+            )
+        })?;
         let base_dir = &vx_paths.base_dir;
 
         Ok(Self {
@@ -28,6 +35,15 @@ impl ExtensionDiscovery {
         })
     }
 
+    /// Create extension discovery with custom directories (for testing)
+    pub fn with_dirs(user_dir: PathBuf, dev_dir: PathBuf, project_dir: Option<PathBuf>) -> Self {
+        Self {
+            user_dir,
+            dev_dir,
+            project_dir,
+        }
+    }
+
     /// Set the project directory for project-level extension discovery
     pub fn with_project_dir(mut self, project_dir: PathBuf) -> Self {
         self.project_dir = Some(project_dir.join(".vx").join("extensions"));
@@ -35,7 +51,7 @@ impl ExtensionDiscovery {
     }
 
     /// Discover all extensions from all sources
-    pub async fn discover_all(&self) -> anyhow::Result<Vec<Extension>> {
+    pub async fn discover_all(&self) -> ExtensionResult<Vec<Extension>> {
         let mut extensions = Vec::new();
 
         // 1. Dev extensions (highest priority)
@@ -74,7 +90,7 @@ impl ExtensionDiscovery {
     }
 
     /// Find a specific extension by name
-    pub async fn find_extension(&self, name: &str) -> anyhow::Result<Option<Extension>> {
+    pub async fn find_extension(&self, name: &str) -> ExtensionResult<Option<Extension>> {
         // Search in priority order: dev -> project -> user -> builtin
 
         // 1. Dev extensions
@@ -106,19 +122,52 @@ impl ExtensionDiscovery {
         Ok(None)
     }
 
+    /// Find extension by name, returning detailed error if not found
+    pub async fn find_extension_or_error(&self, name: &str) -> ExtensionResult<Extension> {
+        if let Some(ext) = self.find_extension(name).await? {
+            return Ok(ext);
+        }
+
+        // Collect available extensions for error message
+        let available = self
+            .discover_all()
+            .await?
+            .into_iter()
+            .map(|e| e.name)
+            .collect();
+
+        // Collect searched paths
+        let mut searched_paths = vec![self.dev_dir.clone(), self.user_dir.clone()];
+        if let Some(ref project_dir) = self.project_dir {
+            searched_paths.push(project_dir.clone());
+        }
+
+        Err(ExtensionError::extension_not_found(
+            name,
+            available,
+            searched_paths,
+        ))
+    }
+
     /// Scan a directory for extensions
     async fn scan_directory(
         &self,
         dir: &Path,
         source: ExtensionSource,
-    ) -> anyhow::Result<Vec<Extension>> {
+    ) -> ExtensionResult<Vec<Extension>> {
         let mut extensions = Vec::new();
 
         if !dir.exists() {
             return Ok(extensions);
         }
 
-        let entries = std::fs::read_dir(dir)?;
+        let entries = std::fs::read_dir(dir).map_err(|e| {
+            ExtensionError::io(
+                format!("Failed to read extensions directory: {}", e),
+                Some(dir.to_path_buf()),
+                e,
+            )
+        })?;
 
         for entry in entries.flatten() {
             let path = entry.path();
@@ -146,7 +195,7 @@ impl ExtensionDiscovery {
         dir: &Path,
         name: &str,
         source: ExtensionSource,
-    ) -> anyhow::Result<Option<Extension>> {
+    ) -> ExtensionResult<Option<Extension>> {
         let ext_path = dir.join(name);
 
         // Follow symlinks
@@ -168,7 +217,7 @@ impl ExtensionDiscovery {
         &self,
         path: &Path,
         source: ExtensionSource,
-    ) -> anyhow::Result<Option<Extension>> {
+    ) -> ExtensionResult<Option<Extension>> {
         let config_path = path.join("vx-extension.toml");
 
         if !config_path.exists() {
@@ -190,6 +239,8 @@ impl ExtensionDiscovery {
             }
             Err(e) => {
                 warn!("Failed to load extension from {:?}: {}", path, e);
+                // Return None instead of error to allow discovery to continue
+                // The error is logged for debugging
                 Ok(None)
             }
         }

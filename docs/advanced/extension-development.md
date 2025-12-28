@@ -553,6 +553,72 @@ ls ~/.vx/extensions/my-extension/
 cat ~/.vx/extensions/my-extension/vx-extension.toml
 ```
 
+When an extension is not found, vx provides detailed diagnostic information:
+
+```
+Extension 'my-extension' not found.
+
+Available extensions:
+  - docker-compose
+  - scaffold
+
+Searched in:
+  - /home/user/.vx/extensions-dev/
+  - /home/user/.vx/extensions/
+  - /project/.vx/extensions/
+
+To install an extension:
+  vx ext install <extension-name>
+
+To create a local extension:
+  mkdir -p ~/.vx/extensions/my-extension
+  # Create vx-extension.toml in that directory
+```
+
+### Subcommand Not Found
+
+When you try to run a subcommand that doesn't exist:
+
+```
+Subcommand 'invalid' not found in extension 'docker-compose'.
+
+Available commands:
+  vx x docker-compose up
+  vx x docker-compose down
+  vx x docker-compose logs
+```
+
+### No Entrypoint Defined
+
+If your extension has no main entrypoint and you don't specify a subcommand:
+
+```
+Extension 'my-ext' has no main entrypoint defined.
+
+Use one of the available commands:
+  vx x my-ext build
+  vx x my-ext test
+```
+
+To fix this, add an entrypoint to your `vx-extension.toml`:
+
+```toml
+[entrypoint]
+main = "main.py"
+```
+
+### Script Not Found
+
+When the script file specified in the configuration doesn't exist:
+
+```
+Script 'scripts/run.py' not found for extension 'my-ext'.
+
+Expected at: /home/user/.vx/extensions/my-ext/scripts/run.py
+
+Make sure the script file exists and the path in vx-extension.toml is correct.
+```
+
 ### Runtime Not Available
 
 ```bash
@@ -563,6 +629,27 @@ vx list python
 vx install python 3.12
 ```
 
+When a required runtime is not installed:
+
+```
+Runtime 'python >= 3.10' required by extension 'my-ext' is not available.
+
+Install it with:
+  vx install python >= 3.10
+```
+
+### Configuration Errors
+
+If your `vx-extension.toml` has syntax errors:
+
+```
+Invalid configuration in '/home/user/.vx/extensions/my-ext/vx-extension.toml' at position 15
+
+Error: expected `=`
+
+Tip: Validate your TOML syntax at https://www.toml-lint.com/
+```
+
 ### Permission Denied
 
 On Unix systems, ensure scripts are executable:
@@ -570,6 +657,248 @@ On Unix systems, ensure scripts are executable:
 ```bash
 chmod +x ~/.vx/extensions/my-extension/main.py
 ```
+
+### Development Link Errors
+
+When trying to unlink an extension that isn't a development link:
+
+```
+Extension 'my-ext' at '/home/user/.vx/extensions/my-ext' is not a development link.
+
+Only symlinked extensions (created with 'vx ext dev') can be unlinked.
+To remove a regular extension, delete its directory manually.
+```
+
+## Error Exit Codes
+
+Extensions should use standard exit codes for consistency:
+
+| Exit Code | Meaning |
+|-----------|---------|
+| 0 | Success |
+| 1 | General error |
+| 64 | Usage error (invalid command/arguments) |
+| 65 | Data error (invalid configuration) |
+| 66 | Input error (file not found) |
+| 69 | Unavailable (runtime not installed) |
+| 73 | Cannot create (link failed) |
+| 74 | IO error |
+| 77 | Permission denied |
+| 78 | Configuration error |
+
+## Advanced Topics
+
+### Multiple Runtime Support
+
+Extensions can work with different runtimes. Here's how to create a Node.js extension:
+
+```toml
+[extension]
+name = "npm-scripts"
+version = "1.0.0"
+description = "Run npm scripts with enhancements"
+type = "command"
+
+[runtime]
+requires = "node >= 18"
+
+[entrypoint]
+main = "index.js"
+```
+
+```javascript
+#!/usr/bin/env node
+// index.js
+const { execSync } = require('child_process');
+
+const args = process.argv.slice(2);
+const command = args[0];
+
+if (command === 'run') {
+    const script = args[1];
+    console.log(`Running npm script: ${script}`);
+    execSync(`npm run ${script}`, { stdio: 'inherit' });
+} else {
+    console.log('Usage: vx x npm-scripts run <script-name>');
+    process.exit(1);
+}
+```
+
+### Shell Script Extensions
+
+For simple automation tasks, you can use shell scripts:
+
+```toml
+[extension]
+name = "git-helpers"
+version = "1.0.0"
+description = "Git workflow helpers"
+type = "command"
+
+[runtime]
+requires = "bash"
+
+[commands.sync]
+description = "Sync with upstream"
+script = "sync.sh"
+
+[commands.cleanup]
+description = "Clean up merged branches"
+script = "cleanup.sh"
+```
+
+```bash
+#!/bin/bash
+# sync.sh
+git fetch upstream
+git rebase upstream/main
+git push origin main
+```
+
+### Extension Dependencies
+
+If your extension needs Python packages, document them:
+
+```toml
+[extension]
+name = "api-client"
+version = "1.0.0"
+type = "command"
+
+[runtime]
+requires = "python >= 3.10"
+dependencies = ["requests", "pyyaml", "rich"]
+
+[entrypoint]
+main = "main.py"
+```
+
+Users should install dependencies before using:
+
+```bash
+# Using uv (recommended)
+vx uv pip install requests pyyaml rich
+
+# Or using pip
+vx pip install requests pyyaml rich
+```
+
+### Testing Extensions
+
+Create a test script for your extension:
+
+```python
+#!/usr/bin/env python3
+# test_extension.py
+import subprocess
+import sys
+
+def test_list_command():
+    result = subprocess.run(
+        ["vx", "x", "my-extension", "list"],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0
+    assert "Available" in result.stdout
+
+def test_invalid_command():
+    result = subprocess.run(
+        ["vx", "x", "my-extension", "invalid"],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode != 0
+
+if __name__ == "__main__":
+    test_list_command()
+    test_invalid_command()
+    print("All tests passed!")
+```
+
+### Publishing Extensions
+
+While vx doesn't yet have a central registry, you can share extensions via Git:
+
+```bash
+# Create a repository for your extension
+cd ~/.vx/extensions/my-extension
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/user/vx-ext-my-extension
+git push -u origin main
+```
+
+Others can install by cloning:
+
+```bash
+git clone https://github.com/user/vx-ext-my-extension ~/.vx/extensions/my-extension
+```
+
+## API Reference
+
+### ExtensionConfig Structure
+
+The complete configuration schema:
+
+```toml
+[extension]
+name = "string"              # Required: unique identifier (kebab-case)
+version = "string"           # Semver version (default: "0.1.0")
+description = "string"       # Short description
+type = "command|hook|provider"  # Extension type (default: "command")
+authors = ["string"]         # List of authors
+license = "string"           # SPDX license identifier
+
+[runtime]
+requires = "string"          # Runtime requirement (e.g., "python >= 3.10")
+dependencies = ["string"]    # Package dependencies
+
+[entrypoint]
+main = "string"              # Main script file
+args = ["string"]            # Default arguments
+
+[commands.<name>]
+description = "string"       # Command description
+script = "string"            # Script file to execute
+args = ["string"]            # Default arguments for this command
+
+[hooks]
+<hook-name> = "string"       # Hook script mappings
+```
+
+### Environment Variables Reference
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `VX_VERSION` | String | Current vx version (e.g., "0.5.26") |
+| `VX_EXTENSION_DIR` | Path | Absolute path to extension directory |
+| `VX_EXTENSION_NAME` | String | Extension name from config |
+| `VX_PROJECT_DIR` | Path | Current working directory |
+| `VX_RUNTIMES_DIR` | Path | Path to `~/.vx/store/` |
+| `VX_HOME` | Path | Path to `~/.vx/` |
+
+### Error Types
+
+The extension system provides detailed error diagnostics:
+
+| Error Type | Exit Code | Description |
+|------------|-----------|-------------|
+| `ConfigNotFound` | 64 | vx-extension.toml not found |
+| `ConfigInvalid` | 65 | TOML syntax error |
+| `ConfigMissingField` | 65 | Required field missing |
+| `ExtensionNotFound` | 66 | Extension not in any search path |
+| `DuplicateExtension` | 65 | Same name in multiple locations |
+| `SubcommandNotFound` | 64 | Unknown subcommand |
+| `NoEntrypoint` | 78 | No main script defined |
+| `ScriptNotFound` | 66 | Script file doesn't exist |
+| `RuntimeNotAvailable` | 69 | Required runtime not installed |
+| `ExecutionFailed` | varies | Script returned non-zero |
+| `LinkFailed` | 73 | Failed to create symlink |
+| `NotADevLink` | 64 | Cannot unlink non-symlink |
+| `Io` | 74 | File system error |
+| `PermissionDenied` | 77 | Insufficient permissions |
 
 ## See Also
 
