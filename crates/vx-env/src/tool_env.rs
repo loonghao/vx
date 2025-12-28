@@ -238,7 +238,7 @@ fn find_bin_dir(store_dir: &PathBuf, tool: &str) -> PathBuf {
 }
 
 /// Check if a directory contains the tool executable
-fn has_executable(dir: &PathBuf, tool: &str) -> bool {
+fn has_executable(dir: &std::path::Path, tool: &str) -> bool {
     let exe_name = if cfg!(windows) {
         format!("{}.exe", tool)
     } else {

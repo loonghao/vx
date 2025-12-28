@@ -38,7 +38,8 @@
 //!     let extensions = manager.list_extensions().await?;
 //!
 //!     // Execute an extension command
-//!     manager.execute("my-extension", &["subcommand", "arg1"]).await?;
+//!     let args: Vec<String> = vec!["subcommand".to_string(), "arg1".to_string()];
+//!     manager.execute("my-extension", &args).await?;
 //!
 //!     Ok(())
 //! }
