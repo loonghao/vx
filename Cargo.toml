@@ -86,8 +86,9 @@ anyhow = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = { workspace = true }
-# trycmd for CLI snapshot testing
-trycmd = { workspace = true }
+# assert_cmd for cross-platform CLI testing
+assert_cmd = { workspace = true }
+predicates = { workspace = true }
 # Test dependencies for integration tests
 vx-core = { workspace = true }
 
@@ -208,7 +209,8 @@ pretty_assertions = "1.4"
 mockall = "0.13"
 wiremock = "0.6"
 serial_test = "3.0"
-trycmd = "0.15"
+assert_cmd = "2.0"
+predicates = "3.1"
 
 
 # Optimize compilation times

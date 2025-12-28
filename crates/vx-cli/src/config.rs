@@ -379,11 +379,11 @@ impl VxConfig {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read {}", path.display()))?;
 
-        Self::from_str(&content)
+        Self::parse(&content)
     }
 
     /// Parse configuration from a string
-    pub fn from_str(content: &str) -> Result<Self> {
+    pub fn parse(content: &str) -> Result<Self> {
         toml::from_str(content).context("Failed to parse .vx.toml")
     }
 
