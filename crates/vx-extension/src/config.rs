@@ -1,5 +1,6 @@
 //! Extension configuration parsing (vx-extension.toml)
 
+use crate::error::{ExtensionError, ExtensionResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -130,15 +131,35 @@ pub struct CommandConfig {
 
 impl ExtensionConfig {
     /// Load extension config from a file
-    pub fn from_file(path: &Path) -> anyhow::Result<Self> {
-        let content = std::fs::read_to_string(path)?;
-        Self::parse(&content)
+    pub fn from_file(path: &Path) -> ExtensionResult<Self> {
+        let content = std::fs::read_to_string(path).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                ExtensionError::config_not_found(path)
+            } else {
+                ExtensionError::io(
+                    format!("Failed to read extension config: {}", e),
+                    Some(path.to_path_buf()),
+                    e,
+                )
+            }
+        })?;
+        Self::parse(&content, Some(path))
     }
 
     /// Parse extension config from a string
-    pub fn parse(content: &str) -> anyhow::Result<Self> {
-        let config: ExtensionConfig = toml::from_str(content)?;
-        Ok(config)
+    pub fn parse(content: &str, path: Option<&Path>) -> ExtensionResult<Self> {
+        toml::from_str(content).map_err(|e| {
+            if let Some(p) = path {
+                ExtensionError::config_invalid(p, &e)
+            } else {
+                ExtensionError::ConfigInvalid {
+                    path: std::path::PathBuf::from("<string>"),
+                    reason: e.message().to_string(),
+                    line: e.span().map(|s| s.start),
+                    column: None,
+                }
+            }
+        })
     }
 
     /// Get the script for a subcommand
@@ -177,7 +198,7 @@ script = "hello.py"
 args = ["--verbose"]
 "#;
 
-        let config = ExtensionConfig::parse(toml).unwrap();
+        let config = ExtensionConfig::parse(toml, None).unwrap();
         assert_eq!(config.extension.name, "test-extension");
         assert_eq!(config.extension.version, "1.0.0");
         assert_eq!(config.extension.extension_type, ExtensionType::Command);
@@ -193,7 +214,7 @@ args = ["--verbose"]
 name = "minimal"
 "#;
 
-        let config = ExtensionConfig::parse(toml).unwrap();
+        let config = ExtensionConfig::parse(toml, None).unwrap();
         assert_eq!(config.extension.name, "minimal");
         assert_eq!(config.extension.version, "0.1.0");
         assert_eq!(config.extension.extension_type, ExtensionType::Command);
@@ -207,5 +228,17 @@ name = "minimal"
         };
         assert_eq!(req.runtime_name(), Some("node"));
         assert_eq!(req.version_constraint(), Some(">= 18.0.0"));
+    }
+
+    #[test]
+    fn test_parse_invalid_toml() {
+        let invalid_toml = r#"
+[extension
+name = "broken"
+"#;
+        let result = ExtensionConfig::parse(invalid_toml, None);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, ExtensionError::ConfigInvalid { .. }));
     }
 }
