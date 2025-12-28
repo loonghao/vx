@@ -17,6 +17,7 @@ vx-core = { workspace = true }
 vx-config = { workspace = true }
 vx-env = { workspace = true }
 vx-extension = { workspace = true }
+vx-migration = { workspace = true }
 vx-paths = { workspace = true }
 vx-project-analyzer = { workspace = true }
 vx-resolver = { workspace = true }
