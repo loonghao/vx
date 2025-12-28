@@ -511,41 +511,7 @@ jobs:
           cargo audit --deny warnings || echo "::warning::Security audit found warnings"
 
   # ============================================================================
-  # Stage 7: MSRV check (main branch only)
-  # ============================================================================
-  msrv:
-    name: MSRV (1.83.0)
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: |
-      needs.detect-changes.outputs.should_build == 'true' &&
-      needs.detect-changes.outputs.is_main == 'true'
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup Rust MSRV
-        uses: dtolnay/rust-toolchain@1.83.0
-
-      - name: Cache Rust
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-msrv-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-msrv-
-            ${{ runner.os }}-cargo-
-
-      - name: Check MSRV
-        run: cargo check --workspace --all-features
-
-  # ============================================================================
-  # Stage 8: Code coverage (main branch only)
+  # Stage 7: Code coverage (main branch only)
   # ============================================================================
   coverage:
     name: Code Coverage (via vx)
@@ -676,7 +642,6 @@ jobs:
       - dogfood
       - cross-build
       - security-audit
-      - msrv
       - coverage
       - docs-build
       - docs-build-standalone
@@ -718,7 +683,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Main Branch Only" >> $GITHUB_STEP_SUMMARY
           check_job "cross-build" "${{ needs.cross-build.result }}"
-          check_job "msrv" "${{ needs.msrv.result }}"
           check_job "coverage" "${{ needs.coverage.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY

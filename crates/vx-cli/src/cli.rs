@@ -414,6 +414,25 @@ pub enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+
+    /// Migrate configuration and data to latest format
+    Migrate {
+        /// Path to project directory (default: current directory)
+        #[arg(short, long)]
+        path: Option<String>,
+        /// Preview changes without writing
+        #[arg(long)]
+        dry_run: bool,
+        /// Create backup before migration
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        backup: bool,
+        /// Only check which migrations are needed
+        #[arg(long)]
+        check: bool,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -493,21 +512,6 @@ pub enum ConfigCommand {
     },
     /// Edit configuration file
     Edit,
-    /// Migrate .vx.toml to v2 format
-    Migrate {
-        /// Path to .vx.toml file (default: current directory)
-        #[arg(short, long)]
-        path: Option<String>,
-        /// Preview changes without writing
-        #[arg(long)]
-        dry_run: bool,
-        /// Create backup before migration (use --no-backup to disable)
-        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
-        backup: bool,
-        /// Force migration even if already v2
-        #[arg(short, long)]
-        force: bool,
-    },
     /// Validate .vx.toml configuration
     Validate {
         /// Path to .vx.toml file (default: current directory)
@@ -747,6 +751,7 @@ impl CommandHandler for Commands {
             Commands::Container { .. } => "container",
             Commands::Ext { .. } => "ext",
             Commands::X { .. } => "x",
+            Commands::Migrate { .. } => "migrate",
         }
     }
 
@@ -859,14 +864,6 @@ impl CommandHandler for Commands {
                     commands::config::handle_reset(key.clone()).await
                 }
                 Some(ConfigCommand::Edit) => commands::config::handle_edit().await,
-                Some(ConfigCommand::Migrate {
-                    path,
-                    dry_run,
-                    backup,
-                    force,
-                }) => {
-                    commands::config::handle_migrate(path.clone(), *dry_run, *backup, *force).await
-                }
                 Some(ConfigCommand::Validate { path, verbose }) => {
                     commands::config::handle_validate(path.clone(), *verbose).await
                 }
@@ -1137,6 +1134,14 @@ impl CommandHandler for Commands {
             },
 
             Commands::X { extension, args } => commands::ext::handle_execute(extension, args).await,
+
+            Commands::Migrate {
+                path,
+                dry_run,
+                backup,
+                check,
+                verbose,
+            } => commands::migrate::handle(path.clone(), *dry_run, *backup, *check, *verbose).await,
         }
     }
 }
