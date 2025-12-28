@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.27](https://github.com/loonghao/vx/compare/vx-v0.5.26...vx-v0.5.27) (2025-12-28)
+
+
+### Features
+
+* **extension:** complete phase 2 with error handling and 81 tests ([48cfbcd](https://github.com/loonghao/vx/commit/48cfbcdd8fca06fa2dbc622357b4eb7d2d4e44c6))
+* **vx-project-analyzer:** implement RFC 0003 project analyzer ([efc2ca0](https://github.com/loonghao/vx/commit/efc2ca0b0b3235151e41c7b2b3ea1a77226765e3))
+
+
+### Bug Fixes
+
+* **vx-extension:** use std::io::Error::other for clippy ([9363106](https://github.com/loonghao/vx/commit/9363106bf6e8c1f3e690b6b179dbb54c187bf0d0))
+
 ## [0.5.26](https://github.com/loonghao/vx/compare/vx-v0.5.25...vx-v0.5.26) (2025-12-28)
 
 
