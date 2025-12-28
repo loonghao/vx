@@ -86,3 +86,4 @@ test-case = { workspace = true }
 pretty_assertions = { workspace = true }
 anyhow = { workspace = true }
 vx-paths = { workspace = true }
+serial_test = { workspace = true }

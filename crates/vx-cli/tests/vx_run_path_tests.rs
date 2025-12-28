@@ -3,11 +3,15 @@
 //! These tests verify that `vx run` correctly resolves tool paths from the vx store
 //! after `vx setup` has installed tools. This is critical for CI/CD environments
 //! where tools are installed via vx and then used in subsequent steps.
+//!
+//! Note: All tests that modify VX_HOME environment variable must run serially
+//! to avoid race conditions.
 
 mod common;
 
 use common::{cleanup_test_env, init_test_env};
 use rstest::*;
+use serial_test::serial;
 use std::fs;
 use tempfile::TempDir;
 use vx_cli::commands::dev::build_script_environment;
@@ -140,6 +144,7 @@ mod path_resolution_tests {
     /// Test that build_script_environment includes tool paths in PATH (bin/ structure)
     #[rstest]
     #[test]
+    #[serial]
     fn test_build_script_environment_includes_tool_paths_bin_structure() {
         init_test_env();
 
@@ -174,6 +179,7 @@ mod path_resolution_tests {
     /// Test that build_script_environment handles platform-specific tool structure
     #[rstest]
     #[test]
+    #[serial]
     fn test_build_script_environment_handles_platform_structure() {
         init_test_env();
 
@@ -216,6 +222,7 @@ mod latest_version_tests {
     /// Test that "latest" version resolves to the most recent installed version
     #[rstest]
     #[test]
+    #[serial]
     fn test_latest_version_resolves_correctly() {
         init_test_env();
 
@@ -261,6 +268,7 @@ mod latest_version_tests {
     /// Test build_script_environment with "latest" version
     #[rstest]
     #[test]
+    #[serial]
     fn test_build_script_environment_with_latest() {
         init_test_env();
 
@@ -319,6 +327,7 @@ mod missing_tool_tests {
     /// Test that completely missing tools (no directory at all) are not in PATH
     #[rstest]
     #[test]
+    #[serial]
     fn test_completely_missing_tool_not_in_path() {
         init_test_env();
 
@@ -387,6 +396,7 @@ mod missing_tool_tests {
     /// This is expected behavior - the fallback logic adds the directory for tools with non-standard names
     #[rstest]
     #[test]
+    #[serial]
     fn test_partial_install_directory_added_as_fallback() {
         init_test_env();
 
@@ -432,6 +442,7 @@ mod script_execution_tests {
     /// Test that generated wrapper script sets PATH correctly
     #[rstest]
     #[test]
+    #[serial]
     fn test_wrapper_script_sets_path() {
         init_test_env();
 
@@ -483,6 +494,7 @@ mod script_execution_tests {
     /// Test that wrapper script can find tool in PATH
     #[rstest]
     #[test]
+    #[serial]
     fn test_wrapper_script_tool_in_path() {
         init_test_env();
 
@@ -525,6 +537,7 @@ mod ci_scenario_tests {
     /// This test verifies that after tools are installed, vx run can find them
     #[rstest]
     #[test]
+    #[serial]
     fn test_ci_scenario_setup_then_run() {
         init_test_env();
 
@@ -561,6 +574,7 @@ mod ci_scenario_tests {
     /// (vx run should use its own PATH construction, not rely on external PATH)
     #[rstest]
     #[test]
+    #[serial]
     fn test_vx_run_independent_of_github_path() {
         init_test_env();
 
@@ -606,6 +620,7 @@ mod ci_scenario_tests {
     /// 2. vx run test - runs "uv run nox -s tests"
     #[rstest]
     #[test]
+    #[serial]
     fn test_shotgrid_mcp_server_ci_scenario() {
         init_test_env();
 
