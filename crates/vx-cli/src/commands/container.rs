@@ -14,6 +14,7 @@ use vx_config::{
     parse_config, ContainerManager, DockerfileGenerator, GitInfo, GoDockerConfig,
     NodejsDockerConfig, PythonDockerConfig, RustDockerConfig,
 };
+use vx_paths::find_config_file;
 
 /// Handle `vx container generate` command
 pub async fn handle_generate(
@@ -23,7 +24,7 @@ pub async fn handle_generate(
     template: Option<String>,
 ) -> anyhow::Result<()> {
     let current_dir = env::current_dir()?;
-    let config_path = current_dir.join(".vx.toml");
+    let config_path = find_config_file(&current_dir);
 
     // Check if using ecosystem template
     if let Some(tpl) = &template {
@@ -69,23 +70,22 @@ pub async fn handle_generate(
         return Ok(());
     }
 
-    // Use configuration from .vx.toml
-    if !config_path.exists() {
-        return Err(anyhow::anyhow!(
-            "No .vx.toml found. Use --template to generate without config, or run 'vx init' first."
-        ));
-    }
+    // Use configuration from vx.toml
+    let config_path = config_path.ok_or_else(|| {
+        anyhow::anyhow!(
+            "No vx.toml found. Use --template to generate without config, or run 'vx init' first."
+        )
+    })?;
 
-    let config_content = std::fs::read_to_string(&config_path)?;
-    let config = parse_config(&config_content)?;
+    let config = parse_config(&config_path)?;
 
     let manager = ContainerManager::from_vx_config(&config).ok_or_else(|| {
-        anyhow::anyhow!("No [container] section found in .vx.toml. Add container configuration or use --template.")
+        anyhow::anyhow!("No [container] section found in vx.toml. Add container configuration or use --template.")
     })?;
 
     if !manager.is_enabled() {
         return Err(anyhow::anyhow!(
-            "Container support is disabled. Set container.enabled = true in .vx.toml"
+            "Container support is disabled. Set container.enabled = true in vx.toml"
         ));
     }
 
@@ -166,12 +166,11 @@ pub async fn handle_build(
     verbose: bool,
 ) -> anyhow::Result<()> {
     let current_dir = env::current_dir()?;
-    let config_path = current_dir.join(".vx.toml");
+    let config_path = find_config_file(&current_dir);
 
     // Determine runtime and image tags
-    let (runtime, image_tags) = if config_path.exists() {
-        let config_content = std::fs::read_to_string(&config_path)?;
-        let config = parse_config(&config_content)?;
+    let (runtime, image_tags) = if let Some(ref config_path) = config_path {
+        let config = parse_config(config_path)?;
 
         if let Some(manager) = ContainerManager::from_vx_config(&config) {
             let git_info = GitInfo::from_current_dir();
@@ -263,13 +262,12 @@ pub async fn handle_build(
 /// Handle `vx container push` command
 pub async fn handle_push(tag: Option<String>, verbose: bool) -> anyhow::Result<()> {
     let current_dir = env::current_dir()?;
-    let config_path = current_dir.join(".vx.toml");
+    let config_path = find_config_file(&current_dir);
 
     let (runtime, tags_to_push) = if let Some(t) = tag {
         ("docker".to_string(), vec![t])
-    } else if config_path.exists() {
-        let config_content = std::fs::read_to_string(&config_path)?;
-        let config = parse_config(&config_content)?;
+    } else if let Some(ref config_path) = config_path {
+        let config = parse_config(config_path)?;
 
         if let Some(manager) = ContainerManager::from_vx_config(&config) {
             let git_info = GitInfo::from_current_dir();
@@ -279,11 +277,11 @@ pub async fn handle_push(tag: Option<String>, verbose: bool) -> anyhow::Result<(
             )
         } else {
             return Err(anyhow::anyhow!(
-                "No container configuration found. Specify a tag or configure in .vx.toml"
+                "No container configuration found. Specify a tag or configure in vx.toml"
             ));
         }
     } else {
-        return Err(anyhow::anyhow!("No tag specified and no .vx.toml found"));
+        return Err(anyhow::anyhow!("No tag specified and no vx.toml found"));
     };
 
     if tags_to_push.is_empty() {
@@ -311,7 +309,7 @@ pub async fn handle_push(tag: Option<String>, verbose: bool) -> anyhow::Result<(
 /// Handle `vx container status` command
 pub async fn handle_status() -> anyhow::Result<()> {
     let current_dir = env::current_dir()?;
-    let config_path = current_dir.join(".vx.toml");
+    let config_path = find_config_file(&current_dir);
 
     // Check container runtime availability
     let docker_available = Command::new("docker")
@@ -350,12 +348,12 @@ pub async fn handle_status() -> anyhow::Result<()> {
     println!();
 
     // Check configuration
-    if config_path.exists() {
-        let config_content = std::fs::read_to_string(&config_path)?;
-        let config = parse_config(&config_content)?;
+    if let Some(ref config_path) = config_path {
+        let config = parse_config(config_path)?;
+        let config_name = config_path.file_name().unwrap().to_string_lossy();
 
         if let Some(container) = &config.container {
-            println!("Configuration (.vx.toml):");
+            println!("Configuration ({}):", config_name);
             println!(
                 "  Enabled: {}",
                 if container.enabled.unwrap_or(false) {
@@ -404,10 +402,10 @@ pub async fn handle_status() -> anyhow::Result<()> {
                 }
             }
         } else {
-            println!("Configuration: No [container] section in .vx.toml");
+            println!("Configuration: No [container] section in {}", config_name);
         }
     } else {
-        println!("Configuration: No .vx.toml found");
+        println!("Configuration: No vx.toml found");
     }
 
     // Check for existing Dockerfile
@@ -442,12 +440,11 @@ pub async fn handle_login(
     password: Option<String>,
 ) -> anyhow::Result<()> {
     let current_dir = env::current_dir()?;
-    let config_path = current_dir.join(".vx.toml");
+    let config_path = find_config_file(&current_dir);
 
     // Determine runtime and registry
-    let (runtime, registry_url) = if config_path.exists() {
-        let config_content = std::fs::read_to_string(&config_path)?;
-        let config = parse_config(&config_content)?;
+    let (runtime, registry_url) = if let Some(ref config_path) = config_path {
+        let config = parse_config(config_path)?;
 
         if let Some(manager) = ContainerManager::from_vx_config(&config) {
             let url = registry.or_else(|| {
@@ -499,17 +496,13 @@ pub async fn handle_login(
 /// Handle `vx container tags` command
 pub async fn handle_tags(all: bool) -> anyhow::Result<()> {
     let current_dir = env::current_dir()?;
-    let config_path = current_dir.join(".vx.toml");
+    let config_path =
+        find_config_file(&current_dir).ok_or_else(|| anyhow::anyhow!("No vx.toml found"))?;
 
-    if !config_path.exists() {
-        return Err(anyhow::anyhow!("No .vx.toml found"));
-    }
-
-    let config_content = std::fs::read_to_string(&config_path)?;
-    let config = parse_config(&config_content)?;
+    let config = parse_config(&config_path)?;
 
     let manager = ContainerManager::from_vx_config(&config)
-        .ok_or_else(|| anyhow::anyhow!("No [container] section found in .vx.toml"))?;
+        .ok_or_else(|| anyhow::anyhow!("No [container] section found in vx.toml"))?;
 
     let git_info = GitInfo::from_current_dir();
     let tags = manager.generate_tags(&git_info);

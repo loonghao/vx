@@ -4,10 +4,11 @@ use crate::ui::UI;
 use anyhow::Result;
 use std::env;
 use std::path::PathBuf;
+use vx_paths::{find_config_file, CONFIG_FILE_NAME};
 
 pub async fn handle() -> Result<()> {
     UI::warning("Config command not yet implemented in new architecture");
-    UI::hint("Use .vx.toml files for project configuration");
+    UI::hint("Use vx.toml files for project configuration");
     Ok(())
 }
 
@@ -20,10 +21,13 @@ pub async fn handle_init(tools: Vec<String>, template: Option<String>) -> Result
         generate_default_config(&tools)?
     };
 
-    std::fs::write(".vx.toml", config_content)?;
+    std::fs::write(CONFIG_FILE_NAME, config_content)?;
     spinner.finish_and_clear();
 
-    UI::success("Initialized .vx.toml in current directory");
+    UI::success(&format!(
+        "Initialized {} in current directory",
+        CONFIG_FILE_NAME
+    ));
     Ok(())
 }
 
@@ -51,7 +55,7 @@ pub async fn handle_reset(key: Option<String>) -> Result<()> {
 
 pub async fn handle_edit() -> Result<()> {
     UI::warning("Config edit command not yet implemented in new architecture");
-    UI::hint("Manually edit .vx.toml files for now");
+    UI::hint("Manually edit vx.toml files for now");
     Ok(())
 }
 
@@ -145,13 +149,12 @@ fn resolve_config_path(path: Option<String>) -> Result<PathBuf> {
         Ok(path)
     } else {
         let current_dir = env::current_dir()?;
-        let config_path = current_dir.join(".vx.toml");
-        if !config_path.exists() {
-            return Err(anyhow::anyhow!(
-                "No .vx.toml found in current directory. Run 'vx init' to create one."
-            ));
-        }
-        Ok(config_path)
+        find_config_file(&current_dir).ok_or_else(|| {
+            anyhow::anyhow!(
+                "No {} found in current directory. Run 'vx init' to create one.",
+                CONFIG_FILE_NAME
+            )
+        })
     }
 }
 

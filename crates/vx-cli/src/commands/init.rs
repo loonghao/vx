@@ -88,15 +88,31 @@ pub async fn handle(
         return list_available_templates();
     }
 
-    let config_path = std::env::current_dir()
-        .map_err(|e| anyhow::anyhow!("Failed to get current directory: {}", e))?
-        .join(".vx.toml");
+    let current_dir = std::env::current_dir()
+        .map_err(|e| anyhow::anyhow!("Failed to get current directory: {}", e))?;
+    let config_path = current_dir.join("vx.toml");
 
-    // Check if config already exists
-    if config_path.exists() && !force {
-        UI::warn("Configuration file .vx.toml already exists");
-        UI::info("Use --force to overwrite or edit the existing file");
-        return Ok(());
+    // Check if config already exists (check both vx.toml and .vx.toml)
+    let existing_config = if config_path.exists() {
+        Some(config_path.clone())
+    } else {
+        let legacy_path = current_dir.join(".vx.toml");
+        if legacy_path.exists() {
+            Some(legacy_path)
+        } else {
+            None
+        }
+    };
+
+    if let Some(ref existing) = existing_config {
+        if !force {
+            UI::warn(&format!(
+                "Configuration file {} already exists",
+                existing.file_name().unwrap().to_string_lossy()
+            ));
+            UI::info("Use --force to overwrite or edit the existing file");
+            return Ok(());
+        }
     }
 
     let config_content = if interactive {
@@ -110,17 +126,17 @@ pub async fn handle(
     };
 
     if dry_run {
-        UI::info("Preview of .vx.toml configuration:");
+        UI::info("Preview of vx.toml configuration:");
         println!();
         println!("{}", config_content);
         return Ok(());
     }
 
     // Write configuration file
-    fs::write(&config_path, config_content)
-        .map_err(|e| anyhow::anyhow!("Failed to write .vx.toml: {}", e))?;
+    fs::write(&config_path, &config_content)
+        .map_err(|e| anyhow::anyhow!("Failed to write vx.toml: {}", e))?;
 
-    UI::success("✅ Created .vx.toml configuration file");
+    UI::success("✅ Created vx.toml configuration file");
 
     // Show next steps
     println!();

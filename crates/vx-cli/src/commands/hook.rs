@@ -9,16 +9,15 @@ use crate::ui::UI;
 use anyhow::Result;
 use std::env;
 use vx_config::{EnterHookManager, GitHookInstaller, HookExecutor};
+use vx_paths::find_config_file;
 
 /// Handle pre-commit hook execution
 pub async fn handle_pre_commit() -> Result<()> {
     let current_dir = env::current_dir()?;
-    let config_path = current_dir.join(".vx.toml");
-
-    if !config_path.exists() {
-        // No config, skip silently (allow commit)
-        return Ok(());
-    }
+    let config_path = match find_config_file(&current_dir) {
+        Some(path) => path,
+        None => return Ok(()), // No config, skip silently (allow commit)
+    };
 
     let config = vx_config::parse_config(&config_path)?;
 
@@ -47,11 +46,10 @@ pub async fn handle_pre_commit() -> Result<()> {
 /// Handle enter hook execution
 pub async fn handle_enter() -> Result<()> {
     let current_dir = env::current_dir()?;
-    let config_path = current_dir.join(".vx.toml");
-
-    if !config_path.exists() {
-        return Ok(());
-    }
+    let config_path = match find_config_file(&current_dir) {
+        Some(path) => path,
+        None => return Ok(()),
+    };
 
     // Check if we should trigger the hook
     let vx_paths = vx_paths::VxPaths::new()?;
@@ -135,7 +133,7 @@ pub async fn handle_uninstall() -> Result<()> {
 /// Handle hook status display
 pub async fn handle_status() -> Result<()> {
     let current_dir = env::current_dir()?;
-    let config_path = current_dir.join(".vx.toml");
+    let config_path = find_config_file(&current_dir);
 
     println!("Hook Status");
     println!("===========\n");
@@ -162,10 +160,11 @@ pub async fn handle_status() -> Result<()> {
     println!();
 
     // Config hooks status
-    if config_path.exists() {
+    if let Some(config_path) = config_path {
         let config = vx_config::parse_config(&config_path)?;
+        let config_name = config_path.file_name().unwrap().to_string_lossy();
 
-        println!("Configured Hooks (.vx.toml):");
+        println!("Configured Hooks ({}):", config_name);
         if let Some(hooks) = &config.hooks {
             if hooks.pre_setup.is_some() {
                 println!("  pre_setup: ✓ configured");
@@ -187,7 +186,7 @@ pub async fn handle_status() -> Result<()> {
             println!("  No hooks configured");
         }
     } else {
-        println!("Config: No .vx.toml found");
+        println!("Config: No vx.toml found");
     }
 
     Ok(())
@@ -196,18 +195,15 @@ pub async fn handle_status() -> Result<()> {
 /// Handle custom hook execution
 pub async fn handle_run(name: &str) -> Result<()> {
     let current_dir = env::current_dir()?;
-    let config_path = current_dir.join(".vx.toml");
-
-    if !config_path.exists() {
-        return Err(anyhow::anyhow!("No .vx.toml found in current directory"));
-    }
+    let config_path = find_config_file(&current_dir)
+        .ok_or_else(|| anyhow::anyhow!("No vx.toml found in current directory"))?;
 
     let config = vx_config::parse_config(&config_path)?;
 
     let hooks = config
         .hooks
         .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("No hooks configured in .vx.toml"))?;
+        .ok_or_else(|| anyhow::anyhow!("No hooks configured in vx.toml"))?;
 
     // Check built-in hooks first
     let hook = match name {
