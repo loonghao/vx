@@ -63,6 +63,16 @@ pub enum Commands {
     /// Show version information
     Version,
 
+    /// Analyze project dependencies, scripts, and tools
+    Analyze {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
     /// List supported tools
     #[command(alias = "ls")]
     List {
@@ -707,6 +717,7 @@ impl CommandHandler for Commands {
     fn name(&self) -> &'static str {
         match self {
             Commands::Version => "version",
+            Commands::Analyze { .. } => "analyze",
             Commands::List { .. } => "list",
             Commands::Install { .. } => "install",
             Commands::Update { .. } => "update",
@@ -742,6 +753,8 @@ impl CommandHandler for Commands {
     async fn execute(&self, ctx: &CommandContext) -> Result<()> {
         match self {
             Commands::Version => commands::version::handle().await,
+
+            Commands::Analyze { json, verbose } => commands::analyze::handle(*json, *verbose).await,
 
             Commands::List {
                 tool,
