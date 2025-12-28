@@ -23,10 +23,9 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 use std::env;
 use std::path::{Path, PathBuf};
-use vx_paths::{link, LinkStrategy, PathManager};
-
-/// Project environment directory name
-const PROJECT_ENV_DIR: &str = ".vx/env";
+use vx_paths::{
+    find_config_file, link, project_env_dir, LinkStrategy, PathManager, PROJECT_ENV_DIR,
+};
 
 /// Environment subcommands
 #[derive(Subcommand, Clone)]
@@ -151,13 +150,12 @@ pub async fn handle(command: EnvCommand) -> Result<()> {
 
 // ========== Helper Functions ==========
 
-/// Get the project environment directory if in a project with .vx.toml
+/// Get the project environment directory if in a project with vx.toml
 fn get_project_env_dir() -> Option<PathBuf> {
     let current_dir = env::current_dir().ok()?;
-    let config_path = current_dir.join(".vx.toml");
 
-    if config_path.exists() {
-        Some(current_dir.join(PROJECT_ENV_DIR))
+    if find_config_file(&current_dir).is_some() {
+        Some(project_env_dir(&current_dir))
     } else {
         None
     }
@@ -291,11 +289,10 @@ async fn create_env(
     } else {
         // Create project environment
         let current_dir = env::current_dir().context("Failed to get current directory")?;
-        let config_path = current_dir.join(".vx.toml");
 
-        if !config_path.exists() {
+        if find_config_file(&current_dir).is_none() {
             anyhow::bail!(
-                "No .vx.toml found. Create one with 'vx init' or use '--global' for a global environment"
+                "No vx.toml found. Create one with 'vx init' or use '--global' for a global environment"
             );
         }
 
@@ -736,14 +733,11 @@ async fn remove_runtime(runtime: &str, env_name: Option<&str>, global: bool) -> 
     Ok(())
 }
 
-/// Sync project environment from .vx.toml
+/// Sync project environment from vx.toml
 async fn sync_env() -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = current_dir.join(".vx.toml");
-
-    if !config_path.exists() {
-        anyhow::bail!("No .vx.toml found in current directory");
-    }
+    let config_path = find_config_file(&current_dir)
+        .ok_or_else(|| anyhow::anyhow!("No vx.toml found in current directory"))?;
 
     let config = parse_vx_config(&config_path)?;
     let path_manager = PathManager::new()?;

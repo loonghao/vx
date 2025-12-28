@@ -26,9 +26,10 @@
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Stdio};
 use vx_config::{parse_config, ServiceConfig, VxConfig};
+use vx_paths::find_config_file_upward;
 
 use crate::ui::UI;
 
@@ -340,19 +341,9 @@ pub async fn handle_restart(services: Option<Vec<String>>, verbose: bool) -> Res
 // Helper functions
 // ============================================
 
-fn find_vx_config(start_dir: &Path) -> Result<PathBuf> {
-    let mut current = start_dir.to_path_buf();
-    loop {
-        let config_path = current.join(".vx.toml");
-        if config_path.exists() {
-            return Ok(config_path);
-        }
-        if !current.pop() {
-            return Err(anyhow::anyhow!(
-                "No .vx.toml found. Run 'vx init' to create one."
-            ));
-        }
-    }
+fn find_vx_config(start_dir: &Path) -> Result<std::path::PathBuf> {
+    find_config_file_upward(start_dir)
+        .ok_or_else(|| anyhow::anyhow!("No vx.toml found. Run 'vx init' to create one."))
 }
 
 fn parse_vx_config(path: &Path) -> Result<VxConfig> {

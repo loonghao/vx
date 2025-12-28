@@ -22,6 +22,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use vx_config::{parse_config, HookExecutor, VxConfig as VxConfigV2};
+use vx_paths::{find_config_file, find_config_file_upward};
 use vx_runtime::ProviderRegistry;
 
 // Re-export the new config type for backward compatibility
@@ -140,36 +141,35 @@ pub async fn handle(
     Ok(())
 }
 
-/// Find .vx.toml in current directory or parent directories
+/// Find vx.toml or .vx.toml in current directory or parent directories
 ///
+/// Searches for config files in order: vx.toml (preferred), .vx.toml (legacy)
 /// If `VX_PROJECT_ROOT` environment variable is set, only search in the current directory
 /// without traversing parent directories. This is useful for testing and CI environments.
 pub fn find_vx_config(start_dir: &Path) -> Result<PathBuf> {
-    let mut current = start_dir.to_path_buf();
-
     // If VX_PROJECT_ROOT is set, only check the current directory
-    let no_parent_search = env::var("VX_PROJECT_ROOT").is_ok();
-
-    loop {
-        let config_path = current.join(".vx.toml");
-        if config_path.exists() {
-            return Ok(config_path);
-        }
-
-        // Don't traverse parent directories if VX_PROJECT_ROOT is set
-        if no_parent_search {
-            break;
-        }
-
-        if !current.pop() {
-            break;
-        }
+    if env::var("VX_PROJECT_ROOT").is_ok() {
+        return find_config_file(start_dir).ok_or_else(|| {
+            anyhow::anyhow!(
+                "No vx.toml found in current directory.\n\
+                 Run 'vx init' to create one."
+            )
+        });
     }
 
-    Err(anyhow::anyhow!(
-        "No .vx.toml found in current directory or parent directories.\n\
-         Run 'vx init' to create one."
-    ))
+    // Normal mode: search up the directory tree
+    find_config_file_upward(start_dir).ok_or_else(|| {
+        anyhow::anyhow!(
+            "No vx.toml found in current directory or parent directories.\n\
+             Run 'vx init' to create one."
+        )
+    })
+}
+
+/// Find config file in current directory only (for add/remove/update operations)
+fn find_config_in_current_dir(current_dir: &Path) -> Result<PathBuf> {
+    find_config_file(current_dir)
+        .ok_or_else(|| anyhow::anyhow!("No vx.toml found. Run 'vx init' first."))
 }
 
 /// Parse .vx.toml configuration using the new serde-based parser
@@ -205,11 +205,7 @@ fn show_next_steps(config: &VxConfig) {
 /// Add a tool to the project configuration
 pub async fn add_tool(tool: &str, version: Option<&str>) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = current_dir.join(".vx.toml");
-
-    if !config_path.exists() {
-        return Err(anyhow::anyhow!("No .vx.toml found. Run 'vx init' first."));
-    }
+    let config_path = find_config_in_current_dir(&current_dir)?;
 
     let version = version.unwrap_or("latest");
     let mut config = parse_vx_config(&config_path)?;
@@ -229,7 +225,12 @@ pub async fn add_tool(tool: &str, version: Option<&str>) -> Result<()> {
     // Rewrite config file
     write_vx_config(&config_path, &config)?;
 
-    UI::success(&format!("Added {}@{} to .vx.toml", tool, version));
+    UI::success(&format!(
+        "Added {}@{} to {}",
+        tool,
+        version,
+        config_path.file_name().unwrap().to_string_lossy()
+    ));
     UI::hint("Run 'vx setup' to install the tool");
 
     Ok(())
@@ -238,11 +239,7 @@ pub async fn add_tool(tool: &str, version: Option<&str>) -> Result<()> {
 /// Remove a tool from the project configuration
 pub async fn remove_tool(tool: &str) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = current_dir.join(".vx.toml");
-
-    if !config_path.exists() {
-        return Err(anyhow::anyhow!("No .vx.toml found."));
-    }
+    let config_path = find_config_in_current_dir(&current_dir)?;
 
     let mut config = parse_vx_config(&config_path)?;
 
@@ -254,7 +251,11 @@ pub async fn remove_tool(tool: &str) -> Result<()> {
     config.tools.remove(tool);
     write_vx_config(&config_path, &config)?;
 
-    UI::success(&format!("Removed '{}' from .vx.toml", tool));
+    UI::success(&format!(
+        "Removed '{}' from {}",
+        tool,
+        config_path.file_name().unwrap().to_string_lossy()
+    ));
 
     Ok(())
 }
@@ -262,11 +263,7 @@ pub async fn remove_tool(tool: &str) -> Result<()> {
 /// Update a tool version in the project configuration
 pub async fn update_tool(tool: &str, version: &str) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = current_dir.join(".vx.toml");
-
-    if !config_path.exists() {
-        return Err(anyhow::anyhow!("No .vx.toml found."));
-    }
+    let config_path = find_config_in_current_dir(&current_dir)?;
 
     let mut config = parse_vx_config(&config_path)?;
 

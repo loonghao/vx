@@ -10,6 +10,7 @@ use crate::commands::dev::build_script_environment;
 use crate::commands::setup::parse_vx_config;
 use crate::ui::UI;
 use vx_env::execute_with_env;
+use vx_paths::{find_config_file, CONFIG_NAMES};
 
 /// Handle the run command - execute a script from .vx.toml
 ///
@@ -64,19 +65,19 @@ pub async fn handle(script_name: &str, args: &[String]) -> Result<()> {
     Ok(())
 }
 
-/// Find .vx.toml in current directory or parent directories
+/// Find vx.toml or .vx.toml in current directory or parent directories
 ///
+/// Searches for config files in order: vx.toml (preferred), .vx.toml (legacy)
 /// If VX_PROJECT_ROOT is set, only search in the current directory
 /// (used for test isolation).
 fn find_vx_config(start_dir: &Path) -> Result<std::path::PathBuf> {
     // Check if VX_PROJECT_ROOT is set (test isolation mode)
     if std::env::var("VX_PROJECT_ROOT").is_ok() {
-        let config_path = start_dir.join(".vx.toml");
-        if config_path.exists() {
+        if let Some(config_path) = find_config_file(start_dir) {
             return Ok(config_path);
         }
         return Err(anyhow::anyhow!(
-            "No .vx.toml found in current directory.\n\
+            "No vx.toml found in current directory.\n\
              Run 'vx init' to create one."
         ));
     }
@@ -85,9 +86,11 @@ fn find_vx_config(start_dir: &Path) -> Result<std::path::PathBuf> {
     let mut current = start_dir.to_path_buf();
 
     loop {
-        let config_path = current.join(".vx.toml");
-        if config_path.exists() {
-            return Ok(config_path);
+        for name in CONFIG_NAMES {
+            let config_path = current.join(name);
+            if config_path.exists() {
+                return Ok(config_path);
+            }
         }
 
         if !current.pop() {
@@ -96,7 +99,7 @@ fn find_vx_config(start_dir: &Path) -> Result<std::path::PathBuf> {
     }
 
     Err(anyhow::anyhow!(
-        "No .vx.toml found in current directory or parent directories.\n\
+        "No vx.toml found in current directory or parent directories.\n\
          Run 'vx init' to create one."
     ))
 }

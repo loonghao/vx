@@ -12,7 +12,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use vx_env::ToolEnvironment;
-use vx_paths::PathManager;
+use vx_paths::{find_config_file, find_config_file_upward, PathManager, CONFIG_FILE_NAME};
 
 /// Handle the dev command
 pub async fn handle(
@@ -66,41 +66,31 @@ pub async fn handle(
     Ok(())
 }
 
-/// Find .vx.toml in current directory or parent directories
+/// Find vx.toml or .vx.toml in current directory or parent directories
 ///
+/// Searches for config files in order: vx.toml (preferred), .vx.toml (legacy)
 /// If VX_PROJECT_ROOT is set, only search in the current directory
 /// (used for test isolation).
 fn find_vx_config(start_dir: &Path) -> Result<PathBuf> {
     // Check if VX_PROJECT_ROOT is set (test isolation mode)
     if std::env::var("VX_PROJECT_ROOT").is_ok() {
-        let config_path = start_dir.join(".vx.toml");
-        if config_path.exists() {
-            return Ok(config_path);
-        }
-        return Err(anyhow::anyhow!(
-            "No .vx.toml found in current directory.\n\
-             Run 'vx init' to create one."
-        ));
+        return find_config_file(start_dir).ok_or_else(|| {
+            anyhow::anyhow!(
+                "No {} found in current directory.\n\
+                 Run 'vx init' to create one.",
+                CONFIG_FILE_NAME
+            )
+        });
     }
 
     // Normal mode: search up the directory tree
-    let mut current = start_dir.to_path_buf();
-
-    loop {
-        let config_path = current.join(".vx.toml");
-        if config_path.exists() {
-            return Ok(config_path);
-        }
-
-        if !current.pop() {
-            break;
-        }
-    }
-
-    Err(anyhow::anyhow!(
-        "No .vx.toml found in current directory or parent directories.\n\
-         Run 'vx init' to create one."
-    ))
+    find_config_file_upward(start_dir).ok_or_else(|| {
+        anyhow::anyhow!(
+            "No {} found in current directory or parent directories.\n\
+             Run 'vx init' to create one.",
+            CONFIG_FILE_NAME
+        )
+    })
 }
 
 /// Handle --export mode: output shell script for environment activation

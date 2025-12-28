@@ -43,11 +43,18 @@ use std::path::{Path, PathBuf};
 pub mod config;
 pub mod link;
 pub mod manager;
+pub mod project;
 pub mod resolver;
 
 pub use config::PathConfig;
 pub use link::{LinkResult, LinkStrategy};
 pub use manager::PathManager;
+pub use project::{
+    find_config_file, find_config_file_upward, find_project_root, is_in_vx_project,
+    project_env_dir, CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY, CONFIG_NAMES, LOCK_FILE_NAME,
+    LOCK_FILE_NAMES, LOCK_FILE_NAME_LEGACY, PROJECT_BIN_DIR, PROJECT_CACHE_DIR, PROJECT_ENV_DIR,
+    PROJECT_VX_DIR,
+};
 pub use resolver::{PathResolver, ToolLocation, ToolSource};
 
 /// Standard vx directory structure
