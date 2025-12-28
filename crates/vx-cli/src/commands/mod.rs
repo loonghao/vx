@@ -8,6 +8,7 @@ mod handler;
 pub use handler::{CommandContext, CommandHandler, GlobalOptions};
 
 // Command modules
+pub mod analyze;
 pub mod cleanup;
 pub mod config;
 pub mod container;
