@@ -21,12 +21,12 @@ pub struct Downloader {
 }
 
 impl Downloader {
-    /// Default maximum retry attempts
-    const DEFAULT_MAX_RETRIES: usize = 3;
-    /// Default minimum retry delay (1 second)
-    const DEFAULT_MIN_DELAY: Duration = Duration::from_secs(1);
-    /// Default maximum retry delay (30 seconds)
-    const DEFAULT_MAX_DELAY: Duration = Duration::from_secs(30);
+    /// Default maximum retry attempts (increased for CI environments with transient network issues)
+    const DEFAULT_MAX_RETRIES: usize = 5;
+    /// Default minimum retry delay (2 seconds for better recovery from DNS issues)
+    const DEFAULT_MIN_DELAY: Duration = Duration::from_secs(2);
+    /// Default maximum retry delay (60 seconds)
+    const DEFAULT_MAX_DELAY: Duration = Duration::from_secs(60);
 
     /// Create a new downloader with default configuration
     pub fn new() -> Result<Self> {
