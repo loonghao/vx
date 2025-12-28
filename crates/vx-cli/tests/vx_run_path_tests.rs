@@ -376,9 +376,13 @@ mod missing_tool_tests {
         // Note: This behavior depends on the implementation - if the implementation adds
         // paths for missing tools, this test documents that behavior
         let temp_path_str = temp_dir.path().to_string_lossy();
-        let contains_temp_uv_path = path.contains(&format!("{}{}store", temp_path_str, std::path::MAIN_SEPARATOR));
-        
-        // If the path contains our temp directory's store path for uv, 
+        let contains_temp_uv_path = path.contains(&format!(
+            "{}{}store",
+            temp_path_str,
+            std::path::MAIN_SEPARATOR
+        ));
+
+        // If the path contains our temp directory's store path for uv,
         // verify the directory actually exists (it shouldn't for a missing tool)
         if contains_temp_uv_path && path.contains("uv") {
             // This is acceptable if the implementation adds paths optimistically
