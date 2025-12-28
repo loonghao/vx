@@ -1,5 +1,6 @@
 //! Extension executor - runs extension scripts using vx-managed runtimes
 
+use crate::error::{ExtensionError, ExtensionResult};
 use crate::{Extension, ExtensionConfig};
 use std::collections::HashMap;
 use std::path::Path;
@@ -27,11 +28,20 @@ impl ExtensionExecutor {
         extension: &Extension,
         subcommand: Option<&str>,
         args: &[String],
-    ) -> anyhow::Result<i32> {
+    ) -> ExtensionResult<i32> {
         let config = &extension.config;
 
         // Determine which script to run
         let (script_path, script_args) = self.resolve_script(extension, subcommand)?;
+
+        // Verify script exists
+        if !script_path.exists() {
+            return Err(ExtensionError::script_not_found(
+                &extension.name,
+                &script_path,
+                &extension.path,
+            ));
+        }
 
         // Get the runtime to use
         let runtime = config.runtime.runtime_name().unwrap_or("python");
@@ -58,9 +68,24 @@ impl ExtensionExecutor {
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .status()
-            .await?;
+            .await
+            .map_err(|e| {
+                ExtensionError::io(
+                    format!("Failed to execute extension '{}': {}", extension.name, e),
+                    Some(script_path.clone()),
+                    e,
+                )
+            })?;
 
-        Ok(status.code().unwrap_or(1))
+        let exit_code = status.code().unwrap_or(1);
+        if !status.success() {
+            debug!(
+                "Extension '{}' exited with code {}",
+                extension.name, exit_code
+            );
+        }
+
+        Ok(exit_code)
     }
 
     /// Resolve which script to execute
@@ -68,7 +93,7 @@ impl ExtensionExecutor {
         &self,
         extension: &Extension,
         subcommand: Option<&str>,
-    ) -> anyhow::Result<(std::path::PathBuf, Vec<String>)> {
+    ) -> ExtensionResult<(std::path::PathBuf, Vec<String>)> {
         let config = &extension.config;
 
         if let Some(subcmd) = subcommand {
@@ -86,17 +111,11 @@ impl ExtensionExecutor {
                 return Ok((script_path, args));
             }
 
-            anyhow::bail!(
-                "Subcommand '{}' not found in extension '{}'. Available commands: {}",
+            return Err(ExtensionError::subcommand_not_found(
+                &extension.name,
                 subcmd,
-                extension.name,
-                config
-                    .commands
-                    .keys()
-                    .cloned()
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            );
+                get_available_commands(config),
+            ));
         }
 
         // No subcommand - use main entrypoint
@@ -105,16 +124,10 @@ impl ExtensionExecutor {
             return Ok((script_path, config.entrypoint.args.clone()));
         }
 
-        anyhow::bail!(
-            "Extension '{}' has no main entrypoint. Use a subcommand: {}",
-            extension.name,
-            config
-                .commands
-                .keys()
-                .cloned()
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
+        Err(ExtensionError::no_entrypoint(
+            &extension.name,
+            get_available_commands(config),
+        ))
     }
 
     /// Build the execution command
@@ -124,10 +137,10 @@ impl ExtensionExecutor {
         script_path: &Path,
         script_args: &[String],
         user_args: &[String],
-    ) -> anyhow::Result<Command> {
+    ) -> ExtensionResult<Command> {
         // For now, we'll use the runtime directly
         // In the future, this should integrate with vx-runtime to get the correct path
-        let interpreter = self.get_interpreter(runtime)?;
+        let interpreter = self.get_interpreter(runtime);
 
         let mut cmd = Command::new(&interpreter);
 
@@ -144,7 +157,7 @@ impl ExtensionExecutor {
     }
 
     /// Get the interpreter for a runtime
-    fn get_interpreter(&self, runtime: &str) -> anyhow::Result<String> {
+    fn get_interpreter(&self, runtime: &str) -> String {
         // Map runtime names to interpreter commands
         // In the future, this should use vx-runtime to get the actual path
         let interpreter = match runtime {
@@ -171,7 +184,7 @@ impl ExtensionExecutor {
             other => other,
         };
 
-        Ok(interpreter.to_string())
+        interpreter.to_string()
     }
 
     /// Inject environment variables into the command

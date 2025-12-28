@@ -47,12 +47,14 @@
 
 pub mod config;
 pub mod discovery;
+pub mod error;
 pub mod executor;
 pub mod manager;
 
 // Re-exports
 pub use config::{ExtensionConfig, ExtensionType, RuntimeRequirement};
 pub use discovery::ExtensionDiscovery;
+pub use error::{ExtensionError, ExtensionResult};
 pub use executor::ExtensionExecutor;
 pub use manager::ExtensionManager;
 

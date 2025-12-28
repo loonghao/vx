@@ -443,6 +443,72 @@ ls ~/.vx/extensions/my-extension/
 cat ~/.vx/extensions/my-extension/vx-extension.toml
 ```
 
+当扩展未找到时，vx 会提供详细的诊断信息：
+
+```
+Extension 'my-extension' not found.
+
+Available extensions:
+  - docker-compose
+  - scaffold
+
+Searched in:
+  - /home/user/.vx/extensions-dev/
+  - /home/user/.vx/extensions/
+  - /project/.vx/extensions/
+
+To install an extension:
+  vx ext install <extension-name>
+
+To create a local extension:
+  mkdir -p ~/.vx/extensions/my-extension
+  # Create vx-extension.toml in that directory
+```
+
+### 子命令未找到
+
+当你尝试运行不存在的子命令时：
+
+```
+Subcommand 'invalid' not found in extension 'docker-compose'.
+
+Available commands:
+  vx x docker-compose up
+  vx x docker-compose down
+  vx x docker-compose logs
+```
+
+### 未定义入口点
+
+如果你的扩展没有主入口点且你没有指定子命令：
+
+```
+Extension 'my-ext' has no main entrypoint defined.
+
+Use one of the available commands:
+  vx x my-ext build
+  vx x my-ext test
+```
+
+要修复此问题，在 `vx-extension.toml` 中添加入口点：
+
+```toml
+[entrypoint]
+main = "main.py"
+```
+
+### 脚本未找到
+
+当配置中指定的脚本文件不存在时：
+
+```
+Script 'scripts/run.py' not found for extension 'my-ext'.
+
+Expected at: /home/user/.vx/extensions/my-ext/scripts/run.py
+
+Make sure the script file exists and the path in vx-extension.toml is correct.
+```
+
 ### 运行时不可用
 
 ```bash
@@ -453,6 +519,27 @@ vx list python
 vx install python 3.12
 ```
 
+当所需运行时未安装时：
+
+```
+Runtime 'python >= 3.10' required by extension 'my-ext' is not available.
+
+Install it with:
+  vx install python >= 3.10
+```
+
+### 配置错误
+
+如果你的 `vx-extension.toml` 有语法错误：
+
+```
+Invalid configuration in '/home/user/.vx/extensions/my-ext/vx-extension.toml' at position 15
+
+Error: expected `=`
+
+Tip: Validate your TOML syntax at https://www.toml-lint.com/
+```
+
 ### 权限被拒绝
 
 在 Unix 系统上，确保脚本可执行：
@@ -460,6 +547,248 @@ vx install python 3.12
 ```bash
 chmod +x ~/.vx/extensions/my-extension/main.py
 ```
+
+### 开发链接错误
+
+当尝试取消链接一个不是开发链接的扩展时：
+
+```
+Extension 'my-ext' at '/home/user/.vx/extensions/my-ext' is not a development link.
+
+Only symlinked extensions (created with 'vx ext dev') can be unlinked.
+To remove a regular extension, delete its directory manually.
+```
+
+## 错误退出码
+
+扩展应使用标准退出码以保持一致性：
+
+| 退出码 | 含义 |
+|--------|------|
+| 0 | 成功 |
+| 1 | 一般错误 |
+| 64 | 使用错误（无效的命令/参数） |
+| 65 | 数据错误（无效的配置） |
+| 66 | 输入错误（文件未找到） |
+| 69 | 不可用（运行时未安装） |
+| 73 | 无法创建（链接失败） |
+| 74 | IO 错误 |
+| 77 | 权限被拒绝 |
+| 78 | 配置错误 |
+
+## 高级主题
+
+### 多运行时支持
+
+扩展可以使用不同的运行时。以下是创建 Node.js 扩展的方法：
+
+```toml
+[extension]
+name = "npm-scripts"
+version = "1.0.0"
+description = "增强的 npm 脚本运行器"
+type = "command"
+
+[runtime]
+requires = "node >= 18"
+
+[entrypoint]
+main = "index.js"
+```
+
+```javascript
+#!/usr/bin/env node
+// index.js
+const { execSync } = require('child_process');
+
+const args = process.argv.slice(2);
+const command = args[0];
+
+if (command === 'run') {
+    const script = args[1];
+    console.log(`运行 npm 脚本: ${script}`);
+    execSync(`npm run ${script}`, { stdio: 'inherit' });
+} else {
+    console.log('用法: vx x npm-scripts run <script-name>');
+    process.exit(1);
+}
+```
+
+### Shell 脚本扩展
+
+对于简单的自动化任务，可以使用 shell 脚本：
+
+```toml
+[extension]
+name = "git-helpers"
+version = "1.0.0"
+description = "Git 工作流助手"
+type = "command"
+
+[runtime]
+requires = "bash"
+
+[commands.sync]
+description = "与上游同步"
+script = "sync.sh"
+
+[commands.cleanup]
+description = "清理已合并的分支"
+script = "cleanup.sh"
+```
+
+```bash
+#!/bin/bash
+# sync.sh
+git fetch upstream
+git rebase upstream/main
+git push origin main
+```
+
+### 扩展依赖
+
+如果你的扩展需要 Python 包，请在配置中说明：
+
+```toml
+[extension]
+name = "api-client"
+version = "1.0.0"
+type = "command"
+
+[runtime]
+requires = "python >= 3.10"
+dependencies = ["requests", "pyyaml", "rich"]
+
+[entrypoint]
+main = "main.py"
+```
+
+用户在使用前应安装依赖：
+
+```bash
+# 使用 uv（推荐）
+vx uv pip install requests pyyaml rich
+
+# 或使用 pip
+vx pip install requests pyyaml rich
+```
+
+### 测试扩展
+
+为你的扩展创建测试脚本：
+
+```python
+#!/usr/bin/env python3
+# test_extension.py
+import subprocess
+import sys
+
+def test_list_command():
+    result = subprocess.run(
+        ["vx", "x", "my-extension", "list"],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0
+    assert "Available" in result.stdout
+
+def test_invalid_command():
+    result = subprocess.run(
+        ["vx", "x", "my-extension", "invalid"],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode != 0
+
+if __name__ == "__main__":
+    test_list_command()
+    test_invalid_command()
+    print("所有测试通过！")
+```
+
+### 发布扩展
+
+虽然 vx 尚未有中央仓库，但你可以通过 Git 分享扩展：
+
+```bash
+# 为你的扩展创建仓库
+cd ~/.vx/extensions/my-extension
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/user/vx-ext-my-extension
+git push -u origin main
+```
+
+其他人可以通过克隆安装：
+
+```bash
+git clone https://github.com/user/vx-ext-my-extension ~/.vx/extensions/my-extension
+```
+
+## API 参考
+
+### ExtensionConfig 结构
+
+完整的配置模式：
+
+```toml
+[extension]
+name = "string"              # 必需：唯一标识符（kebab-case）
+version = "string"           # 语义化版本（默认："0.1.0"）
+description = "string"       # 简短描述
+type = "command|hook|provider"  # 扩展类型（默认："command"）
+authors = ["string"]         # 作者列表
+license = "string"           # SPDX 许可证标识符
+
+[runtime]
+requires = "string"          # 运行时要求（如 "python >= 3.10"）
+dependencies = ["string"]    # 包依赖
+
+[entrypoint]
+main = "string"              # 主脚本文件
+args = ["string"]            # 默认参数
+
+[commands.<name>]
+description = "string"       # 命令描述
+script = "string"            # 要执行的脚本文件
+args = ["string"]            # 此命令的默认参数
+
+[hooks]
+<hook-name> = "string"       # Hook 脚本映射
+```
+
+### 环境变量参考
+
+| 变量 | 类型 | 描述 |
+|------|------|------|
+| `VX_VERSION` | String | 当前 vx 版本（如 "0.5.26"） |
+| `VX_EXTENSION_DIR` | Path | 扩展目录的绝对路径 |
+| `VX_EXTENSION_NAME` | String | 配置中的扩展名称 |
+| `VX_PROJECT_DIR` | Path | 当前工作目录 |
+| `VX_RUNTIMES_DIR` | Path | `~/.vx/store/` 的路径 |
+| `VX_HOME` | Path | `~/.vx/` 的路径 |
+
+### 错误类型
+
+扩展系统提供详细的错误诊断：
+
+| 错误类型 | 退出码 | 描述 |
+|----------|--------|------|
+| `ConfigNotFound` | 64 | 未找到 vx-extension.toml |
+| `ConfigInvalid` | 65 | TOML 语法错误 |
+| `ConfigMissingField` | 65 | 缺少必需字段 |
+| `ExtensionNotFound` | 66 | 扩展不在任何搜索路径中 |
+| `DuplicateExtension` | 65 | 同名扩展在多个位置 |
+| `SubcommandNotFound` | 64 | 未知子命令 |
+| `NoEntrypoint` | 78 | 未定义主脚本 |
+| `ScriptNotFound` | 66 | 脚本文件不存在 |
+| `RuntimeNotAvailable` | 69 | 所需运行时未安装 |
+| `ExecutionFailed` | 不定 | 脚本返回非零值 |
+| `LinkFailed` | 73 | 创建符号链接失败 |
+| `NotADevLink` | 64 | 无法取消非符号链接 |
+| `Io` | 74 | 文件系统错误 |
+| `PermissionDenied` | 77 | 权限不足 |
 
 ## 参见
 
