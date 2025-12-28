@@ -2,6 +2,42 @@
 
 This guide helps you migrate your `.vx.toml` configuration from older versions to the latest format.
 
+## Migration Framework
+
+vx includes a built-in migration framework (`vx-migration`) that automatically handles configuration upgrades. The framework supports:
+
+- **Automatic version detection** - Detects your current config format
+- **Plugin-based migrations** - Extensible migration system
+- **Dry-run mode** - Preview changes before applying
+- **Rollback support** - Revert changes if needed
+- **History tracking** - Track all migration operations
+
+### Quick Migration Commands
+
+```bash
+# Check what migrations are needed
+vx migrate --check
+
+# Preview changes (dry-run)
+vx migrate --dry-run
+
+# Execute migrations
+vx migrate
+
+# Execute with backup
+vx migrate --backup
+
+# Rollback to previous version
+vx migrate --rollback v1.0.0
+```
+
+### Built-in Migrations
+
+| Migration ID | Description | Version Range |
+|-------------|-------------|---------------|
+| `file-rename` | Renames `.vx.toml` to `vx.toml` | any |
+| `config-v1-to-v2` | Converts `[tools]` to `[runtimes]` | 1.x → 2.0 |
+
 ## Version History
 
 | Version | Release | Key Changes |

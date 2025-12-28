@@ -927,21 +927,6 @@ fn test_cli_config_set() {
 }
 
 #[test]
-fn test_cli_config_migrate() {
-    let args = vec!["vx", "config", "migrate", "--dry-run"];
-    let cli = Cli::try_parse_from(args).unwrap();
-
-    match cli.command {
-        Some(Commands::Config {
-            command: Some(ConfigCommand::Migrate { dry_run, .. }),
-        }) => {
-            assert!(dry_run);
-        }
-        _ => panic!("Expected Config Migrate command"),
-    }
-}
-
-#[test]
 fn test_cli_config_alias() {
     let args = vec!["vx", "cfg", "show"];
     let cli = Cli::try_parse_from(args).unwrap();
@@ -1120,6 +1105,52 @@ fn test_cli_x_command() {
             assert_eq!(args, vec!["arg1", "arg2"]);
         }
         _ => panic!("Expected X command"),
+    }
+}
+
+// ============================================
+// Migrate Command Tests
+// ============================================
+
+#[test]
+fn test_cli_migrate_check() {
+    let args = vec!["vx", "migrate", "--check"];
+    let cli = Cli::try_parse_from(args).unwrap();
+
+    match cli.command {
+        Some(Commands::Migrate { check, dry_run, .. }) => {
+            assert!(check);
+            assert!(!dry_run);
+        }
+        _ => panic!("Expected Migrate command"),
+    }
+}
+
+#[test]
+fn test_cli_migrate_dry_run() {
+    let args = vec!["vx", "migrate", "--dry-run"];
+    let cli = Cli::try_parse_from(args).unwrap();
+
+    match cli.command {
+        Some(Commands::Migrate { dry_run, check, .. }) => {
+            assert!(dry_run);
+            assert!(!check);
+        }
+        _ => panic!("Expected Migrate command"),
+    }
+}
+
+#[test]
+fn test_cli_migrate_with_path() {
+    let args = vec!["vx", "migrate", "--path", "/some/path", "--verbose"];
+    let cli = Cli::try_parse_from(args).unwrap();
+
+    match cli.command {
+        Some(Commands::Migrate { path, verbose, .. }) => {
+            assert_eq!(path, Some("/some/path".to_string()));
+            assert!(verbose);
+        }
+        _ => panic!("Expected Migrate command"),
     }
 }
 

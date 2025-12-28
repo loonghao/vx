@@ -6,6 +6,7 @@ members = [
   "crates/vx-paths",
   "crates/vx-installer",
   "crates/vx-config",
+  "crates/vx-migration",
   "crates/vx-env",
   "crates/vx-extension",
   "crates/vx-project-analyzer",
@@ -117,6 +118,7 @@ vx-resolver = { path = "crates/vx-resolver" }
 vx-paths = { path = "crates/vx-paths" }
 vx-installer = { path = "crates/vx-installer" }
 vx-config = { path = "crates/vx-config" }
+vx-migration = { path = "crates/vx-migration" }
 vx-env = { path = "crates/vx-env" }
 vx-extension = { path = "crates/vx-extension" }
 vx-project-analyzer = { path = "crates/vx-project-analyzer" }
@@ -199,6 +201,9 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 # Pin to 0.3.9 - versions 0.3.10+ require Rust 2024 Edition (incompatible with MSRV 1.80)
 tracing-indicatif = "0.3.9"
+
+# Semantic versioning
+semver = "1.0"
 
 # Retry with backoff - similar to Python's tenacity
 backon = "1.6.0"
