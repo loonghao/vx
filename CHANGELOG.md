@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.26](https://github.com/loonghao/vx/compare/vx-v0.5.25...vx-v0.5.26) (2025-12-28)
+
+
+### Features
+
+* **extension:** implement vx extension system ([a23dccb](https://github.com/loonghao/vx/commit/a23dccbfd5d8e00d9eb8abdc6d73dd681bc18656))
+
+
+### Bug Fixes
+
+* add serial_test to prevent env var race conditions in tests ([49eb42b](https://github.com/loonghao/vx/commit/49eb42b231c6793cb2a44f6f495bf96267eacf38))
+* **ci:** remove tests for non-existent commands and ignore RFC dead links ([da29e22](https://github.com/loonghao/vx/commit/da29e2261941f2b6d712958e083d9263fcf4a6f5))
+* increase retry count and delay for network resilience ([1687749](https://github.com/loonghao/vx/commit/1687749e5075059a06dad02a720e18de23b64929))
+* remove dead links and format code ([7a56b7e](https://github.com/loonghao/vx/commit/7a56b7e6b4264c626b5caca4f697950d6e8f4db0))
+* resolve clippy warnings and doctest error ([7ebdf3e](https://github.com/loonghao/vx/commit/7ebdf3e729850015bc0fb7488bbab5ed42c5cc0c))
+* resolve compilation errors and update documentation ([5cf23f2](https://github.com/loonghao/vx/commit/5cf23f24ee8c5c959b74cb61b5c138996d0c306f))
+* resolve test failures and clippy warnings ([9b09ade](https://github.com/loonghao/vx/commit/9b09adee28147f3684aaf16f2a18e22a7549f707))
+* **tests:** prevent parent directory config search in e2e tests ([84086af](https://github.com/loonghao/vx/commit/84086af1e94b476b557e0b566d169de5fd12e27b))
+
 ## [0.5.25](https://github.com/loonghao/vx/compare/vx-v0.5.24...vx-v0.5.25) (2025-12-27)
 
 
