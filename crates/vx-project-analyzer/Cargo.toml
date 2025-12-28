@@ -1,0 +1,48 @@
+[package]
+name = "vx-project-analyzer"
+version.workspace = true
+edition.workspace = true
+description = "Project analyzer for vx - detects dependencies, scripts, and tools"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+vx-core = { workspace = true }
+vx-config = { workspace = true }
+vx-paths = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# File system
+walkdir = { workspace = true }
+glob = { workspace = true }
+
+# Regex for script parsing
+regex = { workspace = true }
+
+# Tracing
+tracing = { workspace = true }
+
+# Tool detection
+which = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = [
+  "test-util",
+  "rt-multi-thread",
+  "macros",
+] }
+pretty_assertions = { workspace = true }

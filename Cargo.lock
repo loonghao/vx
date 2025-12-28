@@ -3379,6 +3379,7 @@ dependencies = [
  "vx-env",
  "vx-extension",
  "vx-paths",
+ "vx-project-analyzer",
  "vx-provider-awscli",
  "vx-provider-azcli",
  "vx-provider-bun",
@@ -3525,6 +3526,30 @@ dependencies = [
  "serde",
  "tempfile",
  "thiserror 2.0.17",
+]
+
+[[package]]
+name = "vx-project-analyzer"
+version = "0.5.26"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "glob",
+ "pretty_assertions",
+ "regex",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tokio",
+ "toml",
+ "tracing",
+ "vx-config",
+ "vx-core",
+ "vx-paths",
+ "walkdir",
+ "which",
 ]
 
 [[package]]
