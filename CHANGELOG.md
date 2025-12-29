@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.28](https://github.com/loonghao/vx/compare/vx-v0.5.27...vx-v0.5.28) (2025-12-29)
+
+
+### Features
+
+* add C++ analyzer and refactor language modules ([b9fdb7a](https://github.com/loonghao/vx/commit/b9fdb7a65dfdff1f2ad27c2c2a06b197f00c0efd))
+* add vx-migration crate ([b34a1e0](https://github.com/loonghao/vx/commit/b34a1e03c68353c22597f9e6e360f407e364a391))
+
+
+### Bug Fixes
+
+* add missing PathBuf import in services tests ([d7eed59](https://github.com/loonghao/vx/commit/d7eed5970b65a43c4b0a03424c35116d4e52bec6))
+* check both vx.toml and .vx.toml in workflow test ([2a3dafc](https://github.com/loonghao/vx/commit/2a3dafc66bab3bc25c1cfda1cd6dc0b5d6959c96))
+* update tests to use vx.toml (new format) instead of .vx.toml ([9a214f6](https://github.com/loonghao/vx/commit/9a214f64c3eaad66ab27cc14b90a2d3fa2016a24))
+
+
+### Code Refactoring
+
+* **vx-paths:** centralize config file constants and discovery functions ([87dbf54](https://github.com/loonghao/vx/commit/87dbf547967e13e9fa566c0d83744557576564fa))
+
 ## [0.5.27](https://github.com/loonghao/vx/compare/vx-v0.5.26...vx-v0.5.27) (2025-12-28)
 
 
