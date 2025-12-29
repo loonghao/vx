@@ -102,11 +102,11 @@ fn test_hook_context_to_env_vars_empty() {
     let env = context.to_env_vars();
 
     // Empty context should not have these keys
-    assert!(env.get("VX_HOOK_RUNTIME").is_none());
-    assert!(env.get("VX_HOOK_VERSION").is_none());
-    assert!(env.get("VX_HOOK_COMMAND").is_none());
-    assert!(env.get("VX_HOOK_ARGS").is_none());
-    assert!(env.get("VX_HOOK_PROJECT_DIR").is_none());
+    assert!(!env.contains_key("VX_HOOK_RUNTIME"));
+    assert!(!env.contains_key("VX_HOOK_VERSION"));
+    assert!(!env.contains_key("VX_HOOK_COMMAND"));
+    assert!(!env.contains_key("VX_HOOK_ARGS"));
+    assert!(!env.contains_key("VX_HOOK_PROJECT_DIR"));
 }
 
 #[test]
