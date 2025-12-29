@@ -36,9 +36,20 @@ chrono = { workspace = true }
 which = { workspace = true }
 glob = { workspace = true }
 
+# Progress indicator
+indicatif = { workspace = true }
+
 # Internal dependencies
 vx-core = { path = "../vx-core" }
 vx-paths = { path = "../vx-paths" }
+
+# CDN acceleration (optional)
+turbo-cdn = { version = "0.6", optional = true }
+
+[features]
+default = []
+# Feature for CDN acceleration - enables turbo-cdn for faster downloads in China
+cdn-acceleration = ["turbo-cdn"]
 
 [dev-dependencies]
 rstest = { workspace = true }

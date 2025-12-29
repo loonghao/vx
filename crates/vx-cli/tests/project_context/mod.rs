@@ -688,8 +688,7 @@ fn test_setup_requires_vx_toml() {
 
     // Create an empty vx.toml in temp dir to prevent searching parent directories
     // This simulates a project without any tools configured
-    std::fs::write(temp_dir.path().join("vx.toml"), "[tools]\n")
-        .expect("Failed to write vx.toml");
+    std::fs::write(temp_dir.path().join("vx.toml"), "[tools]\n").expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["setup"]).expect("Failed to run vx setup");
 

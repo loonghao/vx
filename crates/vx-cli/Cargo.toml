@@ -21,7 +21,7 @@ vx-migration = { workspace = true }
 vx-paths = { workspace = true }
 vx-project-analyzer = { workspace = true }
 vx-resolver = { workspace = true }
-vx-runtime = { workspace = true }
+vx-runtime = { workspace = true, features = ["cdn-acceleration"] }
 vx-setup = { workspace = true }
 vx-args = { path = "../vx-args" }
 # Providers

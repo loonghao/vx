@@ -14,6 +14,32 @@ vx respects various environment variables for configuration and behavior.
 | `VX_DEBUG` | Enable debug output | `false` |
 | `VX_ENV` | Current environment name | `default` |
 
+## CDN Acceleration
+
+vx supports CDN acceleration for downloads via [turbo-cdn](https://github.com/loonghao/turbo-cdn), which can significantly improve download speeds especially in regions with slow access to GitHub (e.g., China).
+
+### How It Works
+
+When CDN acceleration is enabled:
+
+1. Download URLs are automatically optimized to use the best available CDN mirror
+2. Progress display shows `[CDN]` indicator when CDN is active
+3. Falls back to original URL if CDN optimization fails
+
+### Enabling CDN Acceleration
+
+CDN acceleration is enabled by default when vx is compiled with the `cdn-acceleration` feature. The official release binaries include this feature.
+
+### Supported Sources
+
+CDN acceleration works with:
+
+- GitHub Releases (e.g., Node.js, Go, Zig, Rust tools)
+- GitHub raw content
+- npm registry
+- PyPI packages
+- And more (via turbo-cdn's mirror network)
+
 ## Data Directories
 
 ### Default Locations

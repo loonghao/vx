@@ -19,6 +19,32 @@ vx 支持以下环境变量来配置其行为。
 | `VX_VERBOSE` | 启用详细输出 | `false` |
 | `VX_DEBUG` | 启用调试输出 | `false` |
 
+## CDN 加速
+
+vx 通过 [turbo-cdn](https://github.com/loonghao/turbo-cdn) 支持 CDN 加速下载，这可以显著提高下载速度，尤其是在访问 GitHub 较慢的地区（如中国）。
+
+### 工作原理
+
+当 CDN 加速启用时：
+
+1. 下载 URL 会自动优化为使用最佳可用的 CDN 镜像
+2. 进度显示会在 CDN 激活时显示 `[CDN]` 标识
+3. 如果 CDN 优化失败，会自动回退到原始 URL
+
+### 启用 CDN 加速
+
+当 vx 使用 `cdn-acceleration` 特性编译时，CDN 加速默认启用。官方发布的二进制文件包含此特性。
+
+### 支持的源
+
+CDN 加速适用于：
+
+- GitHub Releases（如 Node.js、Go、Zig、Rust 工具）
+- GitHub 原始内容
+- npm 仓库
+- PyPI 包
+- 更多源（通过 turbo-cdn 的镜像网络）
+
 ## 运行时变量
 
 这些变量在环境激活时由 vx 设置：

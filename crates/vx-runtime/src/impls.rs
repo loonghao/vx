@@ -131,19 +131,78 @@ impl PathProvider for RealPathProvider {
 // Real HTTP Client
 // ============================================================================
 
-/// Real HTTP client using reqwest
+/// Real HTTP client using reqwest with optional CDN acceleration
 pub struct RealHttpClient {
     client: reqwest::Client,
+    /// Whether CDN acceleration is enabled (controlled by cdn-acceleration feature)
+    cdn_enabled: bool,
 }
 
 impl RealHttpClient {
     /// Create a new real HTTP client
+    ///
+    /// CDN acceleration is automatically enabled when the `cdn-acceleration` feature is active.
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::builder()
                 .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
                 .build()
                 .expect("Failed to create HTTP client"),
+            cdn_enabled: cfg!(feature = "cdn-acceleration"),
+        }
+    }
+
+    /// Create a new HTTP client with explicit CDN setting
+    pub fn with_cdn(cdn_enabled: bool) -> Self {
+        Self {
+            client: reqwest::Client::builder()
+                .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
+                .build()
+                .expect("Failed to create HTTP client"),
+            cdn_enabled: cdn_enabled && cfg!(feature = "cdn-acceleration"),
+        }
+    }
+
+    /// Check if CDN acceleration is enabled
+    pub fn is_cdn_enabled(&self) -> bool {
+        self.cdn_enabled
+    }
+
+    /// Optimize a download URL using CDN mirrors (if enabled)
+    ///
+    /// When CDN acceleration is enabled and the `cdn-acceleration` feature is active,
+    /// this will return an optimized URL from the best available CDN mirror.
+    /// Otherwise, it returns the original URL.
+    async fn optimize_url(&self, url: &str) -> String {
+        if !self.cdn_enabled {
+            return url.to_string();
+        }
+
+        #[cfg(feature = "cdn-acceleration")]
+        {
+            match turbo_cdn::async_api::quick::optimize_url(url).await {
+                Ok(optimized) => {
+                    tracing::debug!(
+                        original = url,
+                        optimized = %optimized,
+                        "CDN URL optimized"
+                    );
+                    optimized
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        url = url,
+                        error = %e,
+                        "CDN optimization failed, using original URL"
+                    );
+                    url.to_string()
+                }
+            }
+        }
+
+        #[cfg(not(feature = "cdn-acceleration"))]
+        {
+            url.to_string()
         }
     }
 }
@@ -215,18 +274,28 @@ impl HttpClient for RealHttpClient {
 
     async fn download(&self, url: &str, dest: &Path) -> Result<()> {
         use futures_util::StreamExt;
-        use std::io::Write;
-        use std::time::Instant;
+        use indicatif::{ProgressBar, ProgressStyle};
         use tokio::io::AsyncWriteExt;
 
-        let response = self.client.get(url).send().await?;
+        // Optimize URL with CDN if enabled
+        let download_url = self.optimize_url(url).await;
+        let using_cdn = download_url != url;
+        if using_cdn {
+            tracing::info!(
+                original = url,
+                optimized = %download_url,
+                "Using CDN accelerated URL"
+            );
+        }
+
+        let response = self.client.get(&download_url).send().await?;
 
         // Check for successful response
         if !response.status().is_success() {
             return Err(anyhow::anyhow!(
                 "Download failed: HTTP {} for {}",
                 response.status(),
-                url
+                if using_cdn { &download_url } else { url }
             ));
         }
 
@@ -237,80 +306,45 @@ impl HttpClient for RealHttpClient {
         }
 
         let mut file = tokio::fs::File::create(dest).await?;
-        let mut downloaded: u64 = 0;
         let mut stream = response.bytes_stream();
-        let start_time = Instant::now();
-        let mut last_update = Instant::now();
 
-        // Print initial progress
-        if total_size > 0 {
-            print!(
-                "\r  ⏳ Downloading: 0% (0 / {:.1} MB) | -- MB/s | ETA: --",
-                total_size as f64 / 1_000_000.0
+        // Create progress bar with indicatif
+        let cdn_indicator = if using_cdn { " [CDN]" } else { "" };
+        let progress_bar = if total_size > 0 {
+            let pb = ProgressBar::new(total_size);
+            pb.set_style(
+                ProgressStyle::with_template(
+                    &format!("  {{spinner:.green}} Downloading{cdn_indicator} {{wide_bar:.cyan/blue}} {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})")
+                )
+                .unwrap_or_else(|_| ProgressStyle::default_bar())
+                .progress_chars("━━╺"),
             );
-            let _ = std::io::stdout().flush();
-        }
+            pb
+        } else {
+            let pb = ProgressBar::new_spinner();
+            pb.set_style(
+                ProgressStyle::with_template(&format!(
+                    "  {{spinner:.green}} Downloading{cdn_indicator} {{bytes}} ({{bytes_per_sec}})"
+                ))
+                .unwrap_or_else(|_| ProgressStyle::default_spinner()),
+            );
+            pb.enable_steady_tick(std::time::Duration::from_millis(100));
+            pb
+        };
 
         while let Some(chunk) = stream.next().await {
             let chunk = chunk?;
             file.write_all(&chunk).await?;
-            downloaded += chunk.len() as u64;
-
-            // Update progress every 100ms
-            let now = Instant::now();
-            if total_size > 0 && now.duration_since(last_update).as_millis() >= 100 {
-                last_update = now;
-                let elapsed = start_time.elapsed().as_secs_f64();
-                let speed = if elapsed > 0.0 {
-                    (downloaded as f64) / elapsed / 1_000_000.0
-                } else {
-                    0.0
-                };
-
-                let percent = (downloaded * 100) / total_size;
-                let remaining = total_size - downloaded;
-                let eta = if speed > 0.1 {
-                    (remaining as f64) / (speed * 1_000_000.0)
-                } else {
-                    0.0
-                };
-
-                let eta_str = if eta > 60.0 {
-                    format!("{}m{}s", (eta / 60.0) as u64, (eta % 60.0) as u64)
-                } else if eta > 0.0 {
-                    format!("{}s", eta as u64)
-                } else {
-                    "--".to_string()
-                };
-
-                print!(
-                    "\r  ⏳ Downloading: {}% ({:.1} / {:.1} MB) | {:.1} MB/s | ETA: {}     ",
-                    percent,
-                    downloaded as f64 / 1_000_000.0,
-                    total_size as f64 / 1_000_000.0,
-                    speed,
-                    eta_str
-                );
-                let _ = std::io::stdout().flush();
-            }
+            progress_bar.inc(chunk.len() as u64);
         }
 
-        // Final summary
-        if total_size > 0 {
-            let elapsed = start_time.elapsed().as_secs_f64();
-            let avg_speed = if elapsed > 0.0 {
-                (downloaded as f64) / elapsed / 1_000_000.0
-            } else {
-                0.0
-            };
-            print!(
-                "\r  ✓ Downloaded {:.1} MB in {:.1}s ({:.1} MB/s)                              \n",
-                downloaded as f64 / 1_000_000.0,
-                elapsed,
-                avg_speed
-            );
-            let _ = std::io::stdout().flush();
-        }
+        // Finish with summary
+        let downloaded = progress_bar.position();
+        progress_bar.finish_with_message(format!(
+            "Downloaded{} {:.1} MB",
+            cdn_indicator,
+            downloaded as f64 / 1_000_000.0
+        ));
 
         file.flush().await?;
         Ok(())
@@ -324,14 +358,24 @@ impl HttpClient for RealHttpClient {
     ) -> Result<()> {
         use tokio::io::AsyncWriteExt;
 
-        let response = self.client.get(url).send().await?;
+        // Optimize URL with CDN if enabled
+        let download_url = self.optimize_url(url).await;
+        if download_url != url {
+            tracing::info!(
+                original = url,
+                optimized = %download_url,
+                "Using CDN accelerated URL"
+            );
+        }
+
+        let response = self.client.get(&download_url).send().await?;
 
         // Check for successful response
         if !response.status().is_success() {
             return Err(anyhow::anyhow!(
                 "Download failed: HTTP {} for {}",
                 response.status(),
-                url
+                &download_url
             ));
         }
 
