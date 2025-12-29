@@ -206,11 +206,43 @@ vx clean [options]
 
 ### self-update
 
-更新 vx 本身。
+更新 vx 本身到最新版本，具有增强功能：
+
+- **多渠道下载**：自动在 GitHub Releases、jsDelivr CDN 和 Fastly CDN 之间切换
+- **进度条显示**：实时显示下载进度、速度和预计剩余时间
+- **校验和验证**：对下载的二进制文件进行 SHA256 验证（如果可用）
+- **指定版本**：可以安装特定版本而不是最新版本
+- **安全替换**：使用 `self_replace` 在 Windows 上可靠地替换二进制文件
 
 ```bash
-vx self-update [--check]
+# 更新到最新版本
+vx self-update
+
+# 仅检查更新，不安装
+vx self-update --check
+
+# 强制更新，即使已是最新版本
+vx self-update --force
+
+# 安装指定版本
+vx self-update 0.5.28
+
+# 包含预发布版本
+vx self-update --prerelease
+
+# 使用 GitHub token 避免 API 速率限制
+vx self-update --token <GITHUB_TOKEN>
 ```
+
+选项：
+
+| 选项 | 描述 |
+|------|------|
+| `--check` | 仅检查更新，不安装 |
+| `--force`, `-f` | 强制更新，即使已是最新版本 |
+| `--prerelease` | 包含预发布版本 |
+| `--token <TOKEN>` | 用于认证 API 请求的 GitHub token |
+| `<VERSION>` | 要安装的特定版本（例如 `0.5.28`） |
 
 ## Shell 命令
 

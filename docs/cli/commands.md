@@ -227,13 +227,43 @@ vx stats
 
 ### self-update
 
-Update vx itself.
+Update vx itself to the latest version with enhanced features:
+
+- **Multi-channel download**: Automatic fallback between GitHub Releases, jsDelivr CDN, and Fastly CDN
+- **Progress bar**: Real-time download progress with speed and ETA display
+- **Checksum verification**: SHA256 verification for downloaded binaries (when available)
+- **Specific version**: Install a specific version instead of latest
+- **Safe replacement**: Uses `self_replace` for reliable binary replacement on Windows
 
 ```bash
+# Update to latest version
 vx self-update
+
+# Check for updates without installing
 vx self-update --check
+
+# Force update even if already up to date
 vx self-update --force
+
+# Install a specific version
+vx self-update 0.5.28
+
+# Include pre-release versions
+vx self-update --prerelease
+
+# Use GitHub token to avoid API rate limits
+vx self-update --token <GITHUB_TOKEN>
 ```
+
+Options:
+
+| Option | Description |
+|--------|-------------|
+| `--check` | Only check for updates, don't install |
+| `--force`, `-f` | Force update even if already up to date |
+| `--prerelease` | Include pre-release versions |
+| `--token <TOKEN>` | GitHub token for authenticated API requests |
+| `<VERSION>` | Specific version to install (e.g., `0.5.28`) |
 
 ## Extension Management
 
