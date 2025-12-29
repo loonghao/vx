@@ -87,6 +87,11 @@ vx-cli = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 
+[features]
+default = ["cdn-acceleration"]
+# CDN acceleration for faster downloads in China (requires OpenSSL on some platforms)
+cdn-acceleration = ["vx-cli/cdn-acceleration"]
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = { workspace = true }

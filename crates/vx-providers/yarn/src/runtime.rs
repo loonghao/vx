@@ -45,16 +45,15 @@ impl Runtime for YarnRuntime {
         &[]
     }
 
-    /// Yarn 1.x archives extract to `yarn-v{version}/bin/yarn`
-    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+    /// Yarn uses .cmd on Windows
+    fn executable_extensions(&self) -> &[&str] {
+        &[".cmd", ".exe"]
+    }
+
+    /// Yarn 1.x archives extract to `yarn-v{version}/bin/`
+    fn executable_dir_path(&self, version: &str, _platform: &Platform) -> Option<String> {
         let dir_name = Self::get_archive_dir_name(version);
-        // Yarn uses .cmd on Windows
-        let exe_name = if platform.os == vx_runtime::Os::Windows {
-            "yarn.cmd"
-        } else {
-            "yarn"
-        };
-        format!("{}/bin/{}", dir_name, exe_name)
+        Some(format!("{}/bin", dir_name))
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {

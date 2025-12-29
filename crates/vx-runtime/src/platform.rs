@@ -149,6 +149,64 @@ impl Platform {
             base.to_string()
         }
     }
+
+    /// Get executable name with custom extension options for Windows
+    ///
+    /// On Windows, returns the base name with the first extension from the list.
+    /// On other platforms, returns the base name unchanged.
+    ///
+    /// This is useful for tools like npm, npx, yarn that use `.cmd` instead of `.exe`.
+    ///
+    /// # Example
+    /// ```
+    /// use vx_runtime::{Platform, Os, Arch};
+    ///
+    /// let windows = Platform::new(Os::Windows, Arch::X86_64);
+    /// // npm uses .cmd on Windows
+    /// assert_eq!(windows.executable_with_extensions("npm", &[".cmd", ".exe"]), "npm.cmd");
+    ///
+    /// let linux = Platform::new(Os::Linux, Arch::X86_64);
+    /// assert_eq!(linux.executable_with_extensions("npm", &[".cmd", ".exe"]), "npm");
+    /// ```
+    pub fn executable_with_extensions(&self, base: &str, extensions: &[&str]) -> String {
+        if self.os == Os::Windows {
+            let ext = extensions.first().copied().unwrap_or(".exe");
+            format!("{}{}", base, ext)
+        } else {
+            base.to_string()
+        }
+    }
+
+    /// Get all possible executable names for this platform
+    ///
+    /// On Windows, returns names with all provided extensions.
+    /// On other platforms, returns just the base name.
+    ///
+    /// # Example
+    /// ```
+    /// use vx_runtime::{Platform, Os, Arch};
+    ///
+    /// let windows = Platform::new(Os::Windows, Arch::X86_64);
+    /// let names = windows.all_executable_names("npm", &[".cmd", ".exe"]);
+    /// assert_eq!(names, vec!["npm.cmd", "npm.exe", "npm"]);
+    ///
+    /// let linux = Platform::new(Os::Linux, Arch::X86_64);
+    /// let names = linux.all_executable_names("npm", &[".cmd", ".exe"]);
+    /// assert_eq!(names, vec!["npm"]);
+    /// ```
+    pub fn all_executable_names(&self, base: &str, extensions: &[&str]) -> Vec<String> {
+        if self.os == Os::Windows {
+            let mut names: Vec<String> = extensions
+                .iter()
+                .map(|ext| format!("{}{}", base, ext))
+                .collect();
+            // Also include the base name without extension as fallback
+            names.push(base.to_string());
+            names
+        } else {
+            vec![base.to_string()]
+        }
+    }
 }
 
 impl Default for Platform {
