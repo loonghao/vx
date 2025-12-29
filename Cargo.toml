@@ -9,6 +9,7 @@ members = [
   "crates/vx-migration",
   "crates/vx-env",
   "crates/vx-extension",
+  "crates/vx-args",
   "crates/vx-project-analyzer",
   "crates/vx-cli",
   # Providers

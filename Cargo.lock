@@ -1405,6 +1405,8 @@ checksum = "0ad4bb2b565bca0645f4d68c5c9af97fba094e9791da685bf83cb5f3ce74acf2"
 dependencies = [
  "equivalent",
  "hashbrown 0.16.1",
+ "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -3354,6 +3356,19 @@ dependencies = [
  "tokio",
  "vx-cli",
  "vx-core",
+]
+
+[[package]]
+name = "vx-args"
+version = "0.5.28"
+dependencies = [
+ "indexmap",
+ "regex",
+ "rstest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.17",
+ "vx-paths",
 ]
 
 [[package]]

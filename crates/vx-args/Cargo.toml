@@ -1,0 +1,18 @@
+[package]
+name = "vx-args"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Argument parsing and variable interpolation for vx scripts"
+
+[dependencies]
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+regex = { workspace = true }
+indexmap = { version = "2.0", features = ["serde"] }
+vx-paths = { path = "../vx-paths" }
+
+[dev-dependencies]
+rstest = { workspace = true }
