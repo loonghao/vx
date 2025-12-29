@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info};
+use vx_paths::project::{CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY};
 
 /// Configuration for the project analyzer
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -174,7 +175,12 @@ impl ProjectAnalyzer {
 
         // Generate sync actions
         if self.config.generate_sync_actions {
-            let vx_config_path = root.join(".vx.toml");
+            // Prefer existing config file, otherwise use new format
+            let vx_config_path = if root.join(CONFIG_FILE_NAME_LEGACY).exists() {
+                root.join(CONFIG_FILE_NAME_LEGACY)
+            } else {
+                root.join(CONFIG_FILE_NAME)
+            };
             let existing = VxConfigSnapshot::load(&vx_config_path).await?;
             analysis.sync_actions = self
                 .sync_manager

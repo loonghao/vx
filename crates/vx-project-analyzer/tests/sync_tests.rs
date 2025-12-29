@@ -149,7 +149,8 @@ test = "pytest"
         .await
         .unwrap();
 
-    // Dry run should not create .vx.toml
+    // Dry run should not create vx.toml or .vx.toml
+    assert!(!root.join("vx.toml").exists());
     assert!(!root.join(".vx.toml").exists());
     assert!(!result.would_apply.is_empty());
 }
@@ -189,7 +190,7 @@ test = "pytest"
         .await
         .unwrap();
 
-    // Should create .vx.toml
-    assert!(root.join(".vx.toml").exists());
+    // Should create vx.toml (new format)
+    assert!(root.join("vx.toml").exists());
     assert!(!result.applied.is_empty());
 }

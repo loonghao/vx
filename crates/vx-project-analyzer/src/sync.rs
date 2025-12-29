@@ -1,4 +1,4 @@
-//! Configuration synchronization between project files and .vx.toml
+//! Configuration synchronization between project files and vx.toml
 
 use crate::error::AnalyzerResult;
 use crate::types::ProjectAnalysis;
@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::info;
+use vx_paths::project::{CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY};
 
 /// Sync action to apply
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -320,14 +321,19 @@ impl SyncManager {
         actions
     }
 
-    /// Apply sync actions to .vx.toml
+    /// Apply sync actions to vx.toml
     pub async fn apply_actions(
         &self,
         root: &Path,
         actions: &[SyncAction],
         dry_run: bool,
     ) -> AnalyzerResult<ApplyResult> {
-        let vx_config_path = root.join(".vx.toml");
+        // Prefer existing config file, otherwise use new format
+        let vx_config_path = if root.join(CONFIG_FILE_NAME_LEGACY).exists() {
+            root.join(CONFIG_FILE_NAME_LEGACY)
+        } else {
+            root.join(CONFIG_FILE_NAME)
+        };
         let mut result = ApplyResult::default();
 
         if dry_run {

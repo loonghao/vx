@@ -128,9 +128,10 @@ fn test_init_creates_vx_toml() {
         .expect("Failed to run vx init");
 
     if is_success(&output) {
+        // Check for either vx.toml (new) or .vx.toml (legacy)
         assert!(
-            temp_dir.path().join(".vx.toml").exists(),
-            "vx init should create .vx.toml"
+            temp_dir.path().join("vx.toml").exists() || temp_dir.path().join(".vx.toml").exists(),
+            "vx init should create vx.toml or .vx.toml"
         );
     }
 }
