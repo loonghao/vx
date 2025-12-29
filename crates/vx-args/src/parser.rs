@@ -183,10 +183,8 @@ impl ArgParser {
                     v.to_string()
                 } else if idx + 1 < args.len() && !args[idx + 1].starts_with('-') {
                     let v = args[idx + 1].to_string();
-                    return Ok(idx + 1).map(|i| {
-                        result.append_array(&lookup_name, v);
-                        i
-                    });
+                    result.append_array(&lookup_name, v);
+                    return Ok(idx + 1);
                 } else {
                     return Err(ArgError::invalid_value(
                         &lookup_name,
@@ -518,8 +516,8 @@ fn levenshtein(a: &str, b: &str) -> usize {
     for (i, row) in matrix.iter_mut().enumerate() {
         row[0] = i;
     }
-    for j in 0..=b.len() {
-        matrix[0][j] = j;
+    for (j, cell) in matrix[0].iter_mut().enumerate() {
+        *cell = j;
     }
 
     for i in 1..=a.len() {
