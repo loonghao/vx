@@ -698,15 +698,31 @@ pub enum ExtCommand {
         #[arg(long)]
         unlink: bool,
     },
-    /// Install an extension from a remote source (future)
+    /// Install an extension from a remote source
     Install {
-        /// Extension source (e.g., github:user/repo)
+        /// Extension source (e.g., github:user/repo, https://github.com/user/repo)
         source: String,
     },
     /// Uninstall an extension
     Uninstall {
         /// Extension name
         name: String,
+    },
+    /// Update an installed extension
+    Update {
+        /// Extension name (or --all to update all)
+        name: Option<String>,
+        /// Update all extensions
+        #[arg(long)]
+        all: bool,
+    },
+    /// Check for extension updates
+    Check {
+        /// Extension name (or --all to check all)
+        name: Option<String>,
+        /// Check all extensions
+        #[arg(long)]
+        all: bool,
     },
 }
 
@@ -1131,6 +1147,12 @@ impl CommandHandler for Commands {
                 ExtCommand::Dev { path, unlink } => commands::ext::handle_dev(path, *unlink).await,
                 ExtCommand::Install { source } => commands::ext::handle_install(source).await,
                 ExtCommand::Uninstall { name } => commands::ext::handle_uninstall(name).await,
+                ExtCommand::Update { name, all } => {
+                    commands::ext::handle_update(name.as_deref(), *all).await
+                }
+                ExtCommand::Check { name, all } => {
+                    commands::ext::handle_check(name.as_deref(), *all).await
+                }
             },
 
             Commands::X { extension, args } => commands::ext::handle_execute(extension, args).await,

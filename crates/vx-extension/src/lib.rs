@@ -8,7 +8,7 @@
 //! ## Extension Types
 //!
 //! - **Command**: Provides new CLI commands via `vx x <extension> [subcommand]`
-//! - **Hook**: Executes at specific lifecycle events (future)
+//! - **Hook**: Executes at specific lifecycle events
 //! - **Provider**: Provides new runtime support (future)
 //!
 //! ## Directory Structure
@@ -23,7 +23,10 @@
 //! ├── extensions-dev/       # Local development extensions (symlinks)
 //! │   └── dev-ext -> /path/to/dev/extension
 //! │
-//! └── extensions-cache/     # Remote extension cache (future)
+//! └── extensions-cache/     # Remote extension cache
+//!     └── github.com/
+//!         └── user/
+//!             └── repo/
 //! ```
 //!
 //! ## Example
@@ -46,17 +49,26 @@
 //! ```
 
 pub mod config;
+pub mod dependencies;
 pub mod discovery;
 pub mod error;
 pub mod executor;
+pub mod hooks;
 pub mod manager;
+pub mod remote;
 
 // Re-exports
 pub use config::{ExtensionConfig, ExtensionType, RuntimeRequirement};
+pub use dependencies::{
+    CircularDependency, DependencyResolution, DependencyResolver, ExtensionDependency,
+    MissingDependency, VersionConflict,
+};
 pub use discovery::ExtensionDiscovery;
 pub use error::{ExtensionError, ExtensionResult};
 pub use executor::ExtensionExecutor;
+pub use hooks::{execute_hooks, HookContext, HookEvent, HookExecutor, HookResult};
 pub use manager::ExtensionManager;
+pub use remote::{InstalledExtension, RemoteInstaller, RemoteSource, UpdateInfo};
 
 /// Extension metadata loaded from vx-extension.toml
 #[derive(Debug, Clone)]
