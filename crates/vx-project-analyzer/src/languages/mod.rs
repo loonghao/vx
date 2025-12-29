@@ -1,9 +1,24 @@
 //! Language-specific analyzers
+//!
+//! This module provides a framework for analyzing projects in different languages.
+//! Each language has its own analyzer that implements the `LanguageAnalyzer` trait.
+//!
+//! ## Adding a new language
+//!
+//! 1. Create a new directory under `languages/` (e.g., `languages/go/`)
+//! 2. Implement the `LanguageAnalyzer` trait
+//! 3. Define script detection rules using `ScriptRule`
+//! 4. Register the analyzer in `all_analyzers()`
 
+mod cpp;
+mod go;
 mod nodejs;
 mod python;
+pub mod rules;
 mod rust;
 
+pub use cpp::CppAnalyzer;
+pub use go::GoAnalyzer;
 pub use nodejs::NodeJsAnalyzer;
 pub use python::PythonAnalyzer;
 pub use rust::RustAnalyzer;
@@ -42,5 +57,7 @@ pub fn all_analyzers() -> Vec<Box<dyn LanguageAnalyzer>> {
         Box::new(PythonAnalyzer::new()),
         Box::new(NodeJsAnalyzer::new()),
         Box::new(RustAnalyzer::new()),
+        Box::new(GoAnalyzer::new()),
+        Box::new(CppAnalyzer::new()),
     ]
 }

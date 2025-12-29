@@ -88,6 +88,9 @@ pub enum DependencySource {
         /// Path to the source file
         path: PathBuf,
     },
+
+    /// From go.mod (Go)
+    GoMod,
 }
 
 impl std::fmt::Display for DependencySource {
@@ -107,6 +110,9 @@ impl std::fmt::Display for DependencySource {
             }
             DependencySource::SourceImport { path } => {
                 write!(f, "import in {}", path.display())
+            }
+            DependencySource::GoMod => {
+                write!(f, "go.mod")
             }
         }
     }
@@ -139,6 +145,12 @@ pub enum InstallMethod {
         command: String,
     },
 
+    /// Install via go install (Go)
+    Go {
+        /// Command to run
+        command: String,
+    },
+
     /// Install via vx (managed tool)
     Vx {
         /// Tool name
@@ -152,6 +164,12 @@ pub enum InstallMethod {
         /// Instructions
         instructions: String,
     },
+
+    /// System package manager (apt, brew, choco, etc.)
+    System {
+        /// Instructions for installation
+        instructions: String,
+    },
 }
 
 impl InstallMethod {
@@ -162,6 +180,7 @@ impl InstallMethod {
             InstallMethod::Pip { command } => command.clone(),
             InstallMethod::Npm { command } => command.clone(),
             InstallMethod::Cargo { command } => command.clone(),
+            InstallMethod::Go { command } => command.clone(),
             InstallMethod::Vx { tool, version } => {
                 if let Some(v) = version {
                     format!("vx install {}@{}", tool, v)
@@ -170,6 +189,7 @@ impl InstallMethod {
                 }
             }
             InstallMethod::Manual { instructions } => instructions.clone(),
+            InstallMethod::System { instructions } => instructions.clone(),
         }
     }
 
