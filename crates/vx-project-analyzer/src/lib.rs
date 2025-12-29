@@ -27,6 +27,7 @@
 //! ```
 
 mod analyzer;
+mod common;
 mod dependency;
 mod ecosystem;
 mod error;
@@ -36,6 +37,7 @@ mod sync;
 mod types;
 
 pub use analyzer::{AnalyzerConfig, ProjectAnalyzer};
+pub use common::JustfileAnalyzer;
 pub use dependency::{Dependency, DependencySource, InstallMethod};
 pub use ecosystem::Ecosystem;
 pub use error::{AnalyzerError, AnalyzerResult};
