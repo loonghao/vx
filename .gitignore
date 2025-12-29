@@ -39,6 +39,5 @@ dist/
 .codebuddy/
 .vitepress/
 $null
-rfcs/
-docs/rfcs/
+
 *.txt
