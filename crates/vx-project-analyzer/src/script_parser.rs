@@ -92,6 +92,7 @@ struct ScriptPatterns {
     npx: Regex,
     python_m: Regex,
     pnpm_exec: Regex,
+    pnpm_run: Regex, // Added to detect pnpm run <script>
     yarn_exec: Regex,
     bunx: Regex,
 }
@@ -106,8 +107,10 @@ static PATTERNS: LazyLock<ScriptPatterns> = LazyLock::new(|| ScriptPatterns {
     npx: Regex::new(r"npx\s+(?:--yes\s+)?([a-zA-Z0-9@/_-]+)(?:\s+(.*))?").unwrap(),
     // python -m <module> [args...]
     python_m: Regex::new(r"python(?:3)?\s+-m\s+([a-zA-Z0-9_]+)(?:\s+(.*))?").unwrap(),
-    // pnpm exec <tool> [args...]
-    pnpm_exec: Regex::new(r"pnpm\s+(?:exec\s+)?([a-zA-Z0-9_-]+)(?:\s+(.*))?").unwrap(),
+    // pnpm exec <tool> [args...] - only matches explicit exec
+    pnpm_exec: Regex::new(r"pnpm\s+exec\s+([a-zA-Z0-9_-]+)(?:\s+(.*))?").unwrap(),
+    // pnpm run <script> or pnpm <script> - to detect internal script references
+    pnpm_run: Regex::new(r"pnpm\s+(?:run\s+)?([a-zA-Z0-9_:-]+)(?:\s+(.*))?").unwrap(),
     // yarn [exec] <tool> [args...]
     yarn_exec: Regex::new(r"yarn\s+(?:exec\s+)?([a-zA-Z0-9_-]+)(?:\s+(.*))?").unwrap(),
     // bunx <tool> [args...]
@@ -130,6 +133,7 @@ impl ScriptParser {
                 npx: PATTERNS.npx.clone(),
                 python_m: PATTERNS.python_m.clone(),
                 pnpm_exec: PATTERNS.pnpm_exec.clone(),
+                pnpm_run: PATTERNS.pnpm_run.clone(),
                 yarn_exec: PATTERNS.yarn_exec.clone(),
                 bunx: PATTERNS.bunx.clone(),
             },
@@ -138,6 +142,15 @@ impl ScriptParser {
 
     /// Parse a script command and extract tool dependencies
     pub fn parse(&self, command: &str) -> Vec<ScriptTool> {
+        self.parse_with_context(command, &[])
+    }
+
+    /// Parse a script command with context about known script names.
+    ///
+    /// When `known_scripts` is provided, references to those scripts via
+    /// package manager commands (pnpm, yarn, npm) will be filtered out
+    /// since they are internal script references, not external tools.
+    pub fn parse_with_context(&self, command: &str, known_scripts: &[&str]) -> Vec<ScriptTool> {
         let mut tools = Vec::new();
 
         // Split by common command separators
@@ -158,9 +171,9 @@ impl ScriptParser {
                 tools.push(tool);
             } else if let Some(tool) = self.try_python_m(part) {
                 tools.push(tool);
-            } else if let Some(tool) = self.try_pnpm_exec(part) {
+            } else if let Some(tool) = self.try_pnpm_exec(part, known_scripts) {
                 tools.push(tool);
-            } else if let Some(tool) = self.try_yarn_exec(part) {
+            } else if let Some(tool) = self.try_yarn_exec(part, known_scripts) {
                 tools.push(tool);
             } else if let Some(tool) = self.try_bunx(part) {
                 tools.push(tool);
@@ -249,34 +262,94 @@ impl ScriptParser {
         })
     }
 
-    fn try_pnpm_exec(&self, command: &str) -> Option<ScriptTool> {
-        // Skip if it's a pnpm built-in command
+    fn try_pnpm_exec(&self, command: &str, known_scripts: &[&str]) -> Option<ScriptTool> {
+        // pnpm built-in commands that should not be treated as tools
         let builtins = [
-            "install", "add", "remove", "update", "run", "exec", "init", "publish", "pack",
+            "install",
+            "add",
+            "remove",
+            "update",
+            "run",
+            "exec",
+            "init",
+            "publish",
+            "pack",
+            "test",
+            "start",
+            "build",
+            "dev",
+            "lint",
+            "format",
+            "typecheck",
         ];
 
-        self.patterns.pnpm_exec.captures(command).and_then(|caps| {
+        // First try explicit exec pattern
+        if let Some(caps) = self.patterns.pnpm_exec.captures(command) {
             let name = caps.get(1).unwrap().as_str();
-            if builtins.contains(&name) {
+            if builtins.contains(&name) || known_scripts.contains(&name) {
                 return None;
             }
             let args = caps
                 .get(2)
                 .map(|m| self.parse_args(m.as_str()))
                 .unwrap_or_default();
-            Some(ScriptTool::new(name.to_string(), ToolInvocation::PnpmExec).with_args(args))
-        })
+            return Some(
+                ScriptTool::new(name.to_string(), ToolInvocation::PnpmExec).with_args(args),
+            );
+        }
+
+        // Then try pnpm run pattern - but filter out known scripts
+        if let Some(caps) = self.patterns.pnpm_run.captures(command) {
+            let name = caps.get(1).unwrap().as_str();
+            // If it's a builtin or a known script, skip it
+            if builtins.contains(&name) || known_scripts.contains(&name) {
+                return None;
+            }
+            // If the name contains special chars like : or -, it's likely a script name
+            // Skip these as they are usually internal scripts
+            if name.contains(':') || name.contains('-') {
+                return None;
+            }
+            let args = caps
+                .get(2)
+                .map(|m| self.parse_args(m.as_str()))
+                .unwrap_or_default();
+            return Some(
+                ScriptTool::new(name.to_string(), ToolInvocation::PnpmExec).with_args(args),
+            );
+        }
+
+        None
     }
 
-    fn try_yarn_exec(&self, command: &str) -> Option<ScriptTool> {
-        // Skip if it's a yarn built-in command
+    fn try_yarn_exec(&self, command: &str, known_scripts: &[&str]) -> Option<ScriptTool> {
+        // yarn built-in commands that should not be treated as tools
         let builtins = [
-            "install", "add", "remove", "upgrade", "run", "exec", "init", "publish", "pack",
+            "install",
+            "add",
+            "remove",
+            "upgrade",
+            "run",
+            "exec",
+            "init",
+            "publish",
+            "pack",
+            "test",
+            "start",
+            "build",
+            "dev",
+            "lint",
+            "format",
+            "typecheck",
         ];
 
         self.patterns.yarn_exec.captures(command).and_then(|caps| {
             let name = caps.get(1).unwrap().as_str();
-            if builtins.contains(&name) {
+            if builtins.contains(&name) || known_scripts.contains(&name) {
+                return None;
+            }
+            // If the name contains special chars, it's likely a script name
+            if name.contains(':') || name.contains('-') {
                 return None;
             }
             let args = caps

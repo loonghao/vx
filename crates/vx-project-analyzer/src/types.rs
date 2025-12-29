@@ -120,6 +120,9 @@ pub enum ScriptSource {
     /// From Makefile
     Makefile,
 
+    /// From justfile (language-agnostic task runner)
+    Justfile,
+
     /// Auto-detected (e.g., noxfile.py exists)
     Detected { reason: String },
 }
@@ -132,6 +135,7 @@ impl std::fmt::Display for ScriptSource {
             ScriptSource::PackageJson => write!(f, "package.json"),
             ScriptSource::CargoToml => write!(f, "Cargo.toml"),
             ScriptSource::Makefile => write!(f, "Makefile"),
+            ScriptSource::Justfile => write!(f, "justfile"),
             ScriptSource::Detected { reason } => write!(f, "detected ({})", reason),
         }
     }

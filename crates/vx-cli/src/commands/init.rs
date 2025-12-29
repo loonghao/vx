@@ -7,7 +7,10 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use vx_config::{parse_config, VxConfig};
+use vx_paths::project::{CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY};
+use vx_project_analyzer::{AnalyzerConfig, ProjectAnalyzer};
 
 /// Project detection result
 #[derive(Debug, Clone)]
@@ -90,19 +93,10 @@ pub async fn handle(
 
     let current_dir = std::env::current_dir()
         .map_err(|e| anyhow::anyhow!("Failed to get current directory: {}", e))?;
-    let config_path = current_dir.join("vx.toml");
 
     // Check if config already exists (check both vx.toml and .vx.toml)
-    let existing_config = if config_path.exists() {
-        Some(config_path.clone())
-    } else {
-        let legacy_path = current_dir.join(".vx.toml");
-        if legacy_path.exists() {
-            Some(legacy_path)
-        } else {
-            None
-        }
-    };
+    // Prefer vx.toml but respect existing .vx.toml
+    let (config_path, existing_config) = find_or_create_config_path(&current_dir);
 
     if let Some(ref existing) = existing_config {
         if !force {
@@ -115,41 +109,71 @@ pub async fn handle(
         }
     }
 
-    let config_content = if interactive {
-        generate_interactive_config().await?
-    } else if let Some(template_name) = template {
-        generate_template_config(&template_name)?
-    } else if let Some(tools_str) = tools {
-        generate_tools_config(&tools_str)?
+    // When force is used with existing config, merge with existing configuration
+    let existing_vx_config = if force {
+        existing_config.as_ref().and_then(|p| parse_config(p).ok())
     } else {
-        generate_auto_detected_config().await?
+        None
     };
 
+    let config_content = if interactive {
+        generate_interactive_config(existing_vx_config.as_ref()).await?
+    } else if let Some(template_name) = template {
+        generate_template_config(&template_name, existing_vx_config.as_ref())?
+    } else if let Some(tools_str) = tools {
+        generate_tools_config(&tools_str, existing_vx_config.as_ref())?
+    } else {
+        generate_auto_detected_config(existing_vx_config.as_ref()).await?
+    };
+
+    // Determine which file to write to
+    let target_path = existing_config.as_ref().unwrap_or(&config_path);
+    let target_filename = target_path.file_name().unwrap().to_string_lossy();
+
     if dry_run {
-        UI::info("Preview of vx.toml configuration:");
+        UI::info(&format!("Preview of {} configuration:", target_filename));
         println!();
         println!("{}", config_content);
         return Ok(());
     }
 
     // Write configuration file
-    fs::write(&config_path, &config_content)
-        .map_err(|e| anyhow::anyhow!("Failed to write vx.toml: {}", e))?;
+    fs::write(target_path, &config_content)
+        .map_err(|e| anyhow::anyhow!("Failed to write {}: {}", target_filename, e))?;
 
-    UI::success("✅ Created vx.toml configuration file");
+    UI::success(&format!(
+        "✅ Created {} configuration file",
+        target_filename
+    ));
 
     // Show next steps
     println!();
     println!("Next steps:");
-    println!("  1. Review the configuration: cat .vx.toml");
+    println!("  1. Review the configuration: cat {}", target_filename);
     println!("  2. Setup development environment: vx setup");
     println!("  3. Or enter dev shell: vx dev");
     println!();
     println!("Optional:");
-    println!("  - Add to version control: git add .vx.toml");
+    println!("  - Add to version control: git add {}", target_filename);
     println!("  - Customize configuration: vx config edit --local");
 
     Ok(())
+}
+
+/// Find existing config or determine path for new config
+fn find_or_create_config_path(dir: &Path) -> (PathBuf, Option<PathBuf>) {
+    let vx_toml = dir.join(CONFIG_FILE_NAME);
+    let legacy_toml = dir.join(CONFIG_FILE_NAME_LEGACY);
+
+    if vx_toml.exists() {
+        (vx_toml.clone(), Some(vx_toml))
+    } else if legacy_toml.exists() {
+        // Respect existing .vx.toml
+        (legacy_toml.clone(), Some(legacy_toml))
+    } else {
+        // New config uses vx.toml
+        (vx_toml, None)
+    }
 }
 
 fn list_available_templates() -> Result<()> {
@@ -170,7 +194,7 @@ fn list_available_templates() -> Result<()> {
     Ok(())
 }
 
-async fn generate_interactive_config() -> Result<String> {
+async fn generate_interactive_config(existing: Option<&VxConfig>) -> Result<String> {
     UI::header("🚀 VX Project Initialization");
 
     // First, show auto-detected configuration
@@ -272,10 +296,17 @@ async fn generate_interactive_config() -> Result<String> {
         UI::info("No tools selected, adding Node.js as default");
     }
 
-    generate_config_content(project_name, description, &selected_tools, true)
+    generate_config_content(
+        project_name,
+        description,
+        &selected_tools,
+        &HashMap::new(),
+        true,
+        existing,
+    )
 }
 
-fn generate_template_config(template_name: &str) -> Result<String> {
+fn generate_template_config(template_name: &str, existing: Option<&VxConfig>) -> Result<String> {
     let tools = match template_name {
         "node" => {
             let mut tools = HashMap::new();
@@ -338,10 +369,10 @@ fn generate_template_config(template_name: &str) -> Result<String> {
         }
     };
 
-    generate_config_content("", "", &tools, false)
+    generate_config_content("", "", &tools, &HashMap::new(), false, existing)
 }
 
-fn generate_tools_config(tools_str: &str) -> Result<String> {
+fn generate_tools_config(tools_str: &str, existing: Option<&VxConfig>) -> Result<String> {
     let mut tools = HashMap::new();
 
     for tool_spec in tools_str.split(',') {
@@ -356,7 +387,7 @@ fn generate_tools_config(tools_str: &str) -> Result<String> {
         }
     }
 
-    generate_config_content("", "", &tools, false)
+    generate_config_content("", "", &tools, &HashMap::new(), false, existing)
 }
 
 /// Detect project type and recommended tools from the current directory
@@ -722,7 +753,7 @@ fn extract_python_version(line: &str) -> Option<String> {
     None
 }
 
-async fn generate_auto_detected_config() -> Result<String> {
+async fn generate_auto_detected_config(existing: Option<&VxConfig>) -> Result<String> {
     let current_dir = std::env::current_dir()
         .map_err(|e| anyhow::anyhow!("Failed to get current directory: {}", e))?;
 
@@ -732,7 +763,7 @@ async fn generate_auto_detected_config() -> Result<String> {
         UI::info("No project type detected, creating minimal configuration");
         let mut tools = HashMap::new();
         tools.insert("node".to_string(), "20".to_string());
-        return generate_config_content("", "", &tools, false);
+        return generate_config_content("", "", &tools, &HashMap::new(), false, existing);
     }
 
     // Show detection results
@@ -758,19 +789,47 @@ async fn generate_auto_detected_config() -> Result<String> {
         UI::hint(hint);
     }
 
+    // Use ProjectAnalyzer to detect scripts
+    let analyzer_config = AnalyzerConfig {
+        check_installed: false,
+        check_tools: false,
+        generate_sync_actions: false,
+        max_depth: 1,
+    };
+    let analyzer = ProjectAnalyzer::new(analyzer_config);
+    let analysis_result = analyzer.analyze(&current_dir).await;
+
+    // Extract scripts from analysis
+    let detected_scripts: HashMap<String, String> = match analysis_result {
+        Ok(a) => a.scripts.into_iter().map(|s| (s.name, s.command)).collect(),
+        Err(e) => {
+            // Log error but continue without scripts
+            tracing::debug!("Failed to analyze project for scripts: {}", e);
+            HashMap::new()
+        }
+    };
+
+    if !detected_scripts.is_empty() {
+        UI::info(&format!("📜 Detected {} script(s)", detected_scripts.len()));
+    }
+
     generate_config_content(
         detection.project_name.as_deref().unwrap_or(""),
         "",
         &detection.tools,
+        &detected_scripts,
         false,
+        existing,
     )
 }
 
 fn generate_config_content(
     project_name: &str,
     description: &str,
-    tools: &HashMap<String, String>,
+    detected_tools: &HashMap<String, String>,
+    detected_scripts: &HashMap<String, String>,
     include_extras: bool,
+    existing: Option<&VxConfig>,
 ) -> Result<String> {
     let mut content = String::new();
 
@@ -788,6 +847,15 @@ fn generate_config_content(
     }
 
     content.push('\n');
+
+    // Merge tools: existing config takes priority for version numbers
+    let mut tools = detected_tools.clone();
+    if let Some(existing_config) = existing {
+        // Preserve existing tool versions (user-specified versions take priority)
+        for (name, version) in existing_config.tools_as_hashmap() {
+            tools.insert(name, version);
+        }
+    }
 
     // Tools section
     content.push_str("[tools]\n");
@@ -808,27 +876,72 @@ fn generate_config_content(
 
     content.push('\n');
 
-    // Settings section
+    // Settings section - merge with existing
     content.push_str("[settings]\n");
-    content.push_str("# Automatically install missing tools when entering dev environment\n");
-    content.push_str("auto_install = true\n");
-    content.push_str("# Cache duration for version checks\n");
-    content.push_str("cache_duration = \"7d\"\n");
+    if let Some(existing_config) = existing {
+        let settings = existing_config.settings_as_hashmap();
+        if !settings.is_empty() {
+            let mut sorted_settings: Vec<_> = settings.iter().collect();
+            sorted_settings.sort_by_key(|(k, _)| *k);
+            for (key, value) in sorted_settings {
+                content.push_str(&format!("{} = {}\n", key, format_value(value)));
+            }
+        } else {
+            content
+                .push_str("# Automatically install missing tools when entering dev environment\n");
+            content.push_str("auto_install = true\n");
+            content.push_str("# Cache duration for version checks\n");
+            content.push_str("cache_duration = \"7d\"\n");
+        }
+    } else {
+        content.push_str("# Automatically install missing tools when entering dev environment\n");
+        content.push_str("auto_install = true\n");
+        content.push_str("# Cache duration for version checks\n");
+        content.push_str("cache_duration = \"7d\"\n");
+    }
 
     if include_extras {
         content.push_str("# Install tools in parallel\n");
         content.push_str("parallel_install = true\n");
-        content.push('\n');
+    }
 
-        // Scripts section
+    // Scripts section - merge existing scripts with detected scripts
+    let mut scripts = detected_scripts.clone();
+    // Existing scripts take priority
+    if let Some(existing_config) = existing {
+        for (name, cmd) in existing_config.scripts_as_hashmap() {
+            scripts.insert(name, cmd);
+        }
+    }
+    if !scripts.is_empty() {
+        content.push('\n');
+        content.push_str("[scripts]\n");
+        let mut sorted_scripts: Vec<_> = scripts.iter().collect();
+        sorted_scripts.sort_by_key(|(k, _)| *k);
+        for (name, cmd) in sorted_scripts {
+            content.push_str(&format!("{} = \"{}\"\n", name, escape_toml_string(cmd)));
+        }
+    } else if include_extras {
+        content.push('\n');
         content.push_str("[scripts]\n");
         content.push_str("# Define custom scripts that can be run with 'vx run <script>'\n");
         content.push_str("# dev = \"npm run dev\"\n");
         content.push_str("# test = \"npm test\"\n");
         content.push_str("# build = \"npm run build\"\n");
-        content.push('\n');
+    }
 
-        // Environment section
+    // Env section - preserve existing env vars
+    let env_vars = existing.map(|c| c.env_as_hashmap()).unwrap_or_default();
+    if !env_vars.is_empty() {
+        content.push('\n');
+        content.push_str("[env]\n");
+        let mut sorted_env: Vec<_> = env_vars.iter().collect();
+        sorted_env.sort_by_key(|(k, _)| *k);
+        for (key, value) in sorted_env {
+            content.push_str(&format!("{} = \"{}\"\n", key, escape_toml_string(value)));
+        }
+    } else if include_extras {
+        content.push('\n');
         content.push_str("[env]\n");
         content.push_str("# Environment variables to set in the dev environment\n");
         content.push_str("# NODE_ENV = \"development\"\n");
@@ -836,4 +949,23 @@ fn generate_config_content(
     }
 
     Ok(content)
+}
+
+/// Format a value for TOML output
+fn format_value(value: &str) -> String {
+    // Try to parse as bool, number, or leave as string
+    if value == "true"
+        || value == "false"
+        || value.parse::<i64>().is_ok()
+        || value.parse::<f64>().is_ok()
+    {
+        value.to_string()
+    } else {
+        format!("\"{}\"", escape_toml_string(value))
+    }
+}
+
+/// Escape special characters in TOML strings
+fn escape_toml_string(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
 }

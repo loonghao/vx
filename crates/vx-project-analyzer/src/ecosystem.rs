@@ -13,6 +13,8 @@ pub enum Ecosystem {
     Rust,
     /// Go ecosystem
     Go,
+    /// C++ ecosystem (cmake, meson, make)
+    Cpp,
     /// Java ecosystem (maven, gradle)
     Java,
     /// Unknown/Other
@@ -27,6 +29,7 @@ impl Ecosystem {
             Ecosystem::NodeJs => "Node.js",
             Ecosystem::Rust => "Rust",
             Ecosystem::Go => "Go",
+            Ecosystem::Cpp => "C++",
             Ecosystem::Java => "Java",
             Ecosystem::Unknown => "Unknown",
         }
@@ -52,6 +55,7 @@ impl Ecosystem {
             ],
             Ecosystem::Rust => &["Cargo.toml", "Cargo.lock"],
             Ecosystem::Go => &["go.mod", "go.sum"],
+            Ecosystem::Cpp => &["CMakeLists.txt", "meson.build", "Makefile"],
             Ecosystem::Java => &["pom.xml", "build.gradle", "build.gradle.kts"],
             Ecosystem::Unknown => &[],
         }
