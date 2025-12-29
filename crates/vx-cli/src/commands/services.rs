@@ -612,6 +612,7 @@ fn get_service_status(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn test_container_runtime_command() {
