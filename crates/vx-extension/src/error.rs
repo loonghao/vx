@@ -159,6 +159,78 @@ pub enum ExtensionError {
         /// Path involved
         path: PathBuf,
     },
+
+    // ============ Remote Installation Errors ============
+    /// Failed to install remote extension
+    #[error("Failed to install extension from '{src}'")]
+    RemoteInstallFailed {
+        /// Source URL or identifier
+        src: String,
+        /// Reason for failure
+        reason: String,
+    },
+
+    /// Git operation failed
+    #[error("Git operation '{operation}' failed")]
+    GitOperationFailed {
+        /// Git operation (clone, fetch, checkout, etc.)
+        operation: String,
+        /// Reason for failure
+        reason: String,
+    },
+
+    /// Failed to update extension
+    #[error("Failed to update extension '{name}'")]
+    UpdateFailed {
+        /// Extension name
+        name: String,
+        /// Reason for failure
+        reason: String,
+    },
+
+    // ============ Dependency Errors ============
+    /// Missing extension dependency
+    #[error("Extension '{extension}' requires '{dependency}' which is not installed")]
+    MissingDependency {
+        /// Extension that has the dependency
+        extension: String,
+        /// Missing dependency name
+        dependency: String,
+        /// Version constraint if any
+        version_constraint: Option<String>,
+    },
+
+    /// Circular dependency detected
+    #[error("Circular dependency detected: {chain}")]
+    CircularDependency {
+        /// Dependency chain showing the cycle
+        chain: String,
+    },
+
+    /// Version conflict
+    #[error("Version conflict for '{dependency}': required {required}, found {found}")]
+    VersionConflict {
+        /// Dependency name
+        dependency: String,
+        /// Required version
+        required: String,
+        /// Found version
+        found: String,
+    },
+
+    // ============ Hook Errors ============
+    /// Hook execution failed
+    #[error("Hook '{hook}' failed for extension '{extension}'")]
+    HookFailed {
+        /// Extension name
+        extension: String,
+        /// Hook event
+        hook: String,
+        /// Exit code if available
+        exit_code: Option<i32>,
+        /// Error message
+        message: Option<String>,
+    },
 }
 
 impl ExtensionError {
@@ -506,6 +578,103 @@ impl ExtensionError {
 
                 msg
             }
+
+            Self::RemoteInstallFailed { src, reason } => {
+                format!(
+                    "Failed to install extension from '{}'.\n\n\
+                     Reason: {}\n\n\
+                     Make sure:\n\
+                     - The source URL is correct\n\
+                     - You have internet connectivity\n\
+                     - Git is installed and accessible",
+                    src, reason
+                )
+            }
+
+            Self::GitOperationFailed { operation, reason } => {
+                format!(
+                    "Git {} operation failed.\n\n\
+                     Error: {}\n\n\
+                     Make sure:\n\
+                     - Git is installed and in your PATH\n\
+                     - You have network access (for remote operations)\n\
+                     - The repository URL is correct",
+                    operation, reason
+                )
+            }
+
+            Self::UpdateFailed { name, reason } => {
+                format!(
+                    "Failed to update extension '{}'.\n\n\
+                     Reason: {}\n\n\
+                     Try reinstalling the extension:\n\
+                     vx ext uninstall {}\n\
+                     vx ext install <source>",
+                    name, reason, name
+                )
+            }
+
+            Self::MissingDependency {
+                extension,
+                dependency,
+                version_constraint,
+            } => {
+                let constraint = version_constraint
+                    .as_ref()
+                    .map(|c| format!(" {}", c))
+                    .unwrap_or_default();
+
+                format!(
+                    "Extension '{}' requires '{}{}' which is not installed.\n\n\
+                     Install the dependency:\n\
+                     vx ext install {}",
+                    extension, dependency, constraint, dependency
+                )
+            }
+
+            Self::CircularDependency { chain } => {
+                format!(
+                    "Circular dependency detected:\n\n\
+                     {}\n\n\
+                     This creates an infinite loop in dependency resolution.\n\
+                     Review the extension dependencies and remove the cycle.",
+                    chain
+                )
+            }
+
+            Self::VersionConflict {
+                dependency,
+                required,
+                found,
+            } => {
+                format!(
+                    "Version conflict for '{}'.\n\n\
+                     Required: {}\n\
+                     Found: {}\n\n\
+                     Try updating the extension or its dependencies.",
+                    dependency, required, found
+                )
+            }
+
+            Self::HookFailed {
+                extension,
+                hook,
+                exit_code,
+                message,
+            } => {
+                let mut msg = format!("Hook '{}' failed for extension '{}'", hook, extension);
+
+                if let Some(code) = exit_code {
+                    msg.push_str(&format!(" (exit code: {})", code));
+                }
+                msg.push_str(".\n");
+
+                if let Some(err) = message {
+                    msg.push_str(&format!("\nError: {}", err));
+                }
+
+                msg
+            }
         }
     }
 
@@ -532,10 +701,17 @@ impl ExtensionError {
             Self::ScriptNotFound { .. } => 66,      // EX_NOINPUT
             Self::RuntimeNotAvailable { .. } => 69, // EX_UNAVAILABLE
             Self::ExecutionFailed { exit_code, .. } => exit_code.unwrap_or(1),
-            Self::LinkFailed { .. } => 73,       // EX_CANTCREAT
-            Self::NotADevLink { .. } => 64,      // EX_USAGE
-            Self::Io { .. } => 74,               // EX_IOERR
-            Self::PermissionDenied { .. } => 77, // EX_NOPERM
+            Self::LinkFailed { .. } => 73,          // EX_CANTCREAT
+            Self::NotADevLink { .. } => 64,         // EX_USAGE
+            Self::Io { .. } => 74,                  // EX_IOERR
+            Self::PermissionDenied { .. } => 77,    // EX_NOPERM
+            Self::RemoteInstallFailed { .. } => 70, // EX_SOFTWARE
+            Self::GitOperationFailed { .. } => 70,  // EX_SOFTWARE
+            Self::UpdateFailed { .. } => 70,        // EX_SOFTWARE
+            Self::MissingDependency { .. } => 69,   // EX_UNAVAILABLE
+            Self::CircularDependency { .. } => 65,  // EX_DATAERR
+            Self::VersionConflict { .. } => 65,     // EX_DATAERR
+            Self::HookFailed { exit_code, .. } => exit_code.unwrap_or(1),
         }
     }
 }
