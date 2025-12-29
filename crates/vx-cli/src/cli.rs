@@ -133,8 +133,7 @@ pub enum Commands {
         force: bool,
     },
 
-    /// Uninstall tool versions (preferred over remove)
-    #[command(alias = "rm", alias = "remove")]
+    /// Uninstall tool versions from global store
     Uninstall {
         /// Tool name
         tool: String,
@@ -359,7 +358,7 @@ pub enum Commands {
         ci: bool,
     },
 
-    /// Add a tool to project configuration
+    /// Add a tool to project configuration (.vx.toml)
     Add {
         /// Tool name (e.g., node, python, uv)
         tool: String,
@@ -368,9 +367,9 @@ pub enum Commands {
         version: Option<String>,
     },
 
-    /// Remove a tool from project configuration
-    #[command(name = "rm-tool")]
-    RemoveTool {
+    /// Remove a tool from project configuration (.vx.toml)
+    #[command(alias = "rm")]
+    Remove {
         /// Tool name to remove
         tool: String,
     },
@@ -764,7 +763,7 @@ impl CommandHandler for Commands {
             Commands::Dev { .. } => "dev",
             Commands::Setup { .. } => "setup",
             Commands::Add { .. } => "add",
-            Commands::RemoveTool { .. } => "rm-tool",
+            Commands::Remove { .. } => "remove",
             Commands::Run { .. } => "run",
             Commands::Services { .. } => "services",
             Commands::Hook { .. } => "hook",
@@ -1046,7 +1045,7 @@ impl CommandHandler for Commands {
                 commands::setup::add_tool(tool, version.as_deref()).await
             }
 
-            Commands::RemoveTool { tool } => commands::setup::remove_tool(tool).await,
+            Commands::Remove { tool } => commands::setup::remove_tool(tool).await,
 
             Commands::Run { script, args } => commands::run::handle(script, args).await,
 

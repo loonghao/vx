@@ -185,19 +185,14 @@ fn test_cli_uninstall_command() {
 }
 
 #[test]
-fn test_cli_uninstall_alias_rm() {
+fn test_cli_uninstall_no_alias() {
+    // After refactoring, `rm` should NOT be an alias for uninstall
+    // Instead, `rm` is now an alias for `remove` (project config removal)
     let args = vec!["vx", "rm", "node"];
     let cli = Cli::try_parse_from(args).unwrap();
 
-    assert!(matches!(cli.command, Some(Commands::Uninstall { .. })));
-}
-
-#[test]
-fn test_cli_uninstall_alias_remove() {
-    let args = vec!["vx", "remove", "node"];
-    let cli = Cli::try_parse_from(args).unwrap();
-
-    assert!(matches!(cli.command, Some(Commands::Uninstall { .. })));
+    // `rm` should now be the Remove command, not Uninstall
+    assert!(matches!(cli.command, Some(Commands::Remove { .. })));
 }
 
 // ============================================
@@ -707,7 +702,7 @@ fn test_cli_dev_with_command() {
 }
 
 // ============================================
-// Add/RemoveTool Command Tests
+// Add/Remove Command Tests
 // ============================================
 
 #[test]
@@ -739,15 +734,28 @@ fn test_cli_add_without_version() {
 }
 
 #[test]
-fn test_cli_rm_tool_command() {
-    let args = vec!["vx", "rm-tool", "node"];
+fn test_cli_remove_command() {
+    let args = vec!["vx", "remove", "node"];
     let cli = Cli::try_parse_from(args).unwrap();
 
     match cli.command {
-        Some(Commands::RemoveTool { tool }) => {
+        Some(Commands::Remove { tool }) => {
             assert_eq!(tool, "node");
         }
-        _ => panic!("Expected RemoveTool command"),
+        _ => panic!("Expected Remove command"),
+    }
+}
+
+#[test]
+fn test_cli_remove_alias_rm() {
+    let args = vec!["vx", "rm", "python"];
+    let cli = Cli::try_parse_from(args).unwrap();
+
+    match cli.command {
+        Some(Commands::Remove { tool }) => {
+            assert_eq!(tool, "python");
+        }
+        _ => panic!("Expected Remove command (via rm alias)"),
     }
 }
 

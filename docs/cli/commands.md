@@ -28,7 +28,7 @@ vx list node
 
 ### uninstall
 
-Remove a tool version.
+Remove a tool version from global store.
 
 ```bash
 vx uninstall <TOOL> [VERSION]
@@ -102,7 +102,7 @@ vx sync --force
 
 ### add
 
-Add a tool to project.
+Add a tool to project configuration (.vx.toml).
 
 ```bash
 vx add <TOOL>
@@ -110,13 +110,14 @@ vx add node
 vx add node --version 20
 ```
 
-### rm-tool
+### remove
 
-Remove a tool from project.
+Remove a tool from project configuration (.vx.toml).
 
 ```bash
-vx rm-tool <TOOL>
-vx rm-tool node
+vx remove <TOOL>
+vx remove node
+vx rm node           # rm is an alias for remove
 ```
 
 ## Script Execution

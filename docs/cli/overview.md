@@ -39,8 +39,8 @@ vx [OPTIONS] <TOOL> [TOOL_ARGS]
 | `init` | Initialize project configuration |
 | [`setup`](./setup) | Install all project tools |
 | `sync` | Sync tools with configuration |
-| `add` | Add a tool to project |
-| `rm-tool` | Remove a tool from project |
+| `add` | Add a tool to project configuration |
+| `remove` | Remove a tool from project configuration |
 
 ### Script Execution
 

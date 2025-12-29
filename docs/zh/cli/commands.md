@@ -56,7 +56,7 @@ vx list [tool]
 
 ### uninstall
 
-卸载工具版本。
+从全局存储卸载工具版本。
 
 ```bash
 vx uninstall <tool>[@version]
@@ -103,6 +103,26 @@ vx setup [options]
 | `--dry-run` | 仅显示将执行的操作 |
 | `--force` | 强制重新安装 |
 | `--no-parallel` | 顺序安装 |
+
+### add
+
+添加工具到项目配置 (.vx.toml)。
+
+```bash
+vx add <tool>
+vx add node
+vx add node --version 20
+```
+
+### remove
+
+从项目配置 (.vx.toml) 移除工具。
+
+```bash
+vx remove <tool>
+vx remove node
+vx rm node           # rm 是 remove 的别名
+```
 
 ### run
 
