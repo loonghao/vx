@@ -193,7 +193,7 @@ pub async fn handle_build(
 
     if image_tags.is_empty() {
         return Err(anyhow::anyhow!(
-            "No image tags specified. Use -t/--tag or configure in .vx.toml"
+            "No image tags specified. Use -t/--tag or configure in vx.toml"
         ));
     }
 

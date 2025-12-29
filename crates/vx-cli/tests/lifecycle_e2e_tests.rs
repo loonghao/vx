@@ -842,8 +842,8 @@ mod project_context_tests {
             skip_test!("Node 20.11.0 installation failed");
         }
 
-        // Create .vx.toml with pinned version
-        let vx_toml = ctx.work_path().join(".vx.toml");
+        // Create vx.toml with pinned version
+        let vx_toml = ctx.work_path().join("vx.toml");
         fs::write(
             &vx_toml,
             r#"
@@ -851,7 +851,7 @@ mod project_context_tests {
 node = "20.10.0"
 "#,
         )
-        .expect("Failed to write .vx.toml");
+        .expect("Failed to write vx.toml");
 
         // Run node in project directory - should use pinned version
         let output = ctx
@@ -880,8 +880,8 @@ node = "20.10.0"
             skip_test!("Node installation failed");
         }
 
-        // Create .vx.toml with version range
-        let vx_toml = ctx.work_path().join(".vx.toml");
+        // Create vx.toml with version range
+        let vx_toml = ctx.work_path().join("vx.toml");
         fs::write(
             &vx_toml,
             r#"
@@ -889,7 +889,7 @@ node = "20.10.0"
 node = ">=20.0.0"
 "#,
         )
-        .expect("Failed to write .vx.toml");
+        .expect("Failed to write vx.toml");
 
         // Run node - should use compatible version
         let output = ctx
@@ -921,8 +921,8 @@ node = ">=20.0.0"
             skip_test!("Node 20.11.0 installation failed");
         }
 
-        // Create parent .vx.toml
-        let parent_toml = ctx.work_path().join(".vx.toml");
+        // Create parent vx.toml
+        let parent_toml = ctx.work_path().join("vx.toml");
         fs::write(
             &parent_toml,
             r#"
@@ -930,13 +930,13 @@ node = ">=20.0.0"
 node = "20.10.0"
 "#,
         )
-        .expect("Failed to write parent .vx.toml");
+        .expect("Failed to write parent vx.toml");
 
-        // Create nested directory with its own .vx.toml
+        // Create nested directory with its own vx.toml
         let nested_dir = ctx.work_path().join("nested");
         fs::create_dir_all(&nested_dir).expect("Failed to create nested dir");
 
-        let nested_toml = nested_dir.join(".vx.toml");
+        let nested_toml = nested_dir.join("vx.toml");
         fs::write(
             &nested_toml,
             r#"
@@ -944,7 +944,7 @@ node = "20.10.0"
 node = "20.11.0"
 "#,
         )
-        .expect("Failed to write nested .vx.toml");
+        .expect("Failed to write nested vx.toml");
 
         // Run in nested directory - should use nested version
         use std::process::Command;

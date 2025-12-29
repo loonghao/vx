@@ -6,7 +6,7 @@
 //! - **Project Analysis**: Detect project type, dependencies, and scripts
 //! - **Script Parsing**: Parse script commands to identify required tools
 //! - **Dependency Detection**: Identify missing dependencies and suggest installations
-//! - **Configuration Sync**: Sync project configuration with `.vx.toml`
+//! - **Configuration Sync**: Sync project configuration with `vx.toml`
 //!
 //! ## Example
 //!

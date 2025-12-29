@@ -255,7 +255,7 @@ vx env import team-env.toml
 
 1. **使用描述性名称**：`project-name` 或 `purpose-version`
 2. **重大更改前导出**：备份你的环境
-3. **使用项目配置**：对于项目特定环境，优先使用 `.vx.toml`
+3. **使用项目配置**：对于项目特定环境，优先使用 `vx.toml`
 4. **清理未使用的环境**：`vx env delete old-env`
 
 ## 下一步

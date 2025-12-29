@@ -289,11 +289,11 @@ index_url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
 ## Team Collaboration
 
-### Commit .vx.toml to Git
+### Commit vx.toml to Git
 
 ```bash
-# .gitignore - do NOT ignore .vx.toml
-# .vx.toml  # Don't add this!
+# .gitignore - do NOT ignore vx.toml
+# vx.toml  # Don't add this!
 
 # DO ignore local overrides
 .vx.local.toml

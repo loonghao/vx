@@ -68,10 +68,10 @@ impl E2ETestEnv {
         self.workdir.path()
     }
 
-    /// Create a .vx.toml file with the given content
+    /// Create a vx.toml file with the given content
     fn create_config(&self, content: &str) {
-        let config_path = self.workdir.path().join(".vx.toml");
-        fs::write(&config_path, content).expect("Failed to create .vx.toml");
+        let config_path = self.workdir.path().join("vx.toml");
+        fs::write(&config_path, content).expect("Failed to create vx.toml");
     }
 
     /// Read a file from the workdir
@@ -86,9 +86,9 @@ impl E2ETestEnv {
         self.workdir.path().join(name).exists()
     }
 
-    /// Check if vx config exists (either vx.toml or .vx.toml)
+    /// Check if vx config exists (either vx.toml or vx.toml)
     fn config_exists(&self) -> bool {
-        self.file_exists("vx.toml") || self.file_exists(".vx.toml")
+        self.file_exists("vx.toml") || self.file_exists("vx.toml")
     }
 }
 
@@ -123,7 +123,7 @@ hello = "echo Hello from vx"
         );
     }
 
-    // Step 2: Verify config exists (vx.toml or .vx.toml)
+    // Step 2: Verify config exists (vx.toml or vx.toml)
     assert!(env.config_exists());
 
     // Step 3: Run setup (dry-run to avoid actual installation)
@@ -633,9 +633,9 @@ fn test_workflow_missing_config() {
     let combined = format!("{}{}", stdout, stderr);
 
     assert!(
-        combined.contains(".vx.toml")
+        combined.contains("vx.toml")
             || combined.contains("not found")
-            || combined.contains("No .vx.toml")
+            || combined.contains("No vx.toml")
             || combined.contains("init")
     );
 }

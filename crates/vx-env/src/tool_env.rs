@@ -77,7 +77,7 @@ impl ToolEnvironment {
         self
     }
 
-    /// Add multiple tools from a HashMap (e.g., from .vx.toml)
+    /// Add multiple tools from a HashMap (e.g., from vx.toml)
     pub fn tools(mut self, tools: &HashMap<String, String>) -> Self {
         for (name, version) in tools {
             self.tools

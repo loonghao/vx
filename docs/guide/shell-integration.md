@@ -44,7 +44,7 @@ Your PATH is configured to find vx-managed tools:
 
 ### 2. Directory-Based Environment Switching
 
-When you `cd` into a directory with `.vx.toml`, the environment automatically activates:
+When you `cd` into a directory with `vx.toml`, the environment automatically activates:
 
 ```bash
 cd my-project/  # Activates project environment

@@ -1,6 +1,6 @@
 # Project Environments
 
-For team projects, vx supports project-specific tool configurations through `.vx.toml` files.
+For team projects, vx supports project-specific tool configurations through `vx.toml` files.
 
 ## Creating a Project Configuration
 
@@ -31,7 +31,7 @@ vx init --template fullstack
 
 ### Manual Creation
 
-Create a `.vx.toml` file:
+Create a `vx.toml` file:
 
 ```toml
 [project]
@@ -49,7 +49,7 @@ test = "npm test"
 
 ## Setting Up the Environment
 
-After creating `.vx.toml`, run:
+After creating `vx.toml`, run:
 
 ```bash
 vx setup
@@ -80,7 +80,7 @@ vx setup --no-parallel
 
 ## Running Scripts
 
-Define scripts in `.vx.toml`:
+Define scripts in `vx.toml`:
 
 ```toml
 [scripts]
@@ -207,7 +207,7 @@ vx remove node
 
 ### Update Tools
 
-Edit `.vx.toml` and run:
+Edit `vx.toml` and run:
 
 ```bash
 vx setup
@@ -215,7 +215,7 @@ vx setup
 
 ## Syncing with Team
 
-When you clone a project with `.vx.toml`:
+When you clone a project with `vx.toml`:
 
 ```bash
 git clone https://github.com/team/project
@@ -231,8 +231,8 @@ vx sync --check
 
 ## Best Practices
 
-::: tip Commit .vx.toml
-Share tool versions with your team by committing `.vx.toml` to version control.
+::: tip Commit vx.toml
+Share tool versions with your team by committing `vx.toml` to version control.
 :::
 
 ::: tip Use Specific Versions
@@ -288,4 +288,4 @@ test-backend = "cd backend && pytest"
 ## Next Steps
 
 - [Environment Management](/guide/environment-management) - Managing multiple environments
-- [.vx.toml Reference](/config/vx-toml) - Complete configuration reference
+- [vx.toml Reference](/config/vx-toml) - Complete configuration reference

@@ -60,7 +60,7 @@ vx config edit [options]
 
 ### 选项
 
-- `--local` - 编辑项目配置（.vx.toml）
+- `--local` - 编辑项目配置（vx.toml）
 - `--global` - 编辑全局配置
 - `--editor <editor>` - 指定编辑器
 
@@ -198,7 +198,7 @@ vx config init --template node
 
 ```bash
 # 项目根目录
-.vx.toml
+vx.toml
 ```
 
 ## 配置层次结构
@@ -208,7 +208,7 @@ VX 使用分层配置系统，按以下优先级顺序合并：
 ```
 环境变量 (VX_*)              ← 最高优先级
          ↓
-项目配置 (.vx.toml)
+项目配置 (vx.toml)
          ↓
 项目检测 (pyproject.toml, Cargo.toml, etc.)
          ↓

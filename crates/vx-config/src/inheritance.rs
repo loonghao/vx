@@ -75,9 +75,9 @@ impl InheritanceManager {
     pub fn resolve_preset_url(url: &str) -> PresetSource {
         // Handle shorthand formats
         let resolved_url = if url.starts_with("github:") {
-            // github:owner/repo -> https://raw.githubusercontent.com/owner/repo/main/.vx.toml
+            // github:owner/repo -> https://raw.githubusercontent.com/owner/repo/main/vx.toml
             let path = url.strip_prefix("github:").unwrap();
-            format!("https://raw.githubusercontent.com/{}/main/.vx.toml", path)
+            format!("https://raw.githubusercontent.com/{}/main/vx.toml", path)
         } else if url.starts_with("vx:") {
             // vx:preset-name -> official vx preset
             let name = url.strip_prefix("vx:").unwrap();

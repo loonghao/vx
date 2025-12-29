@@ -1,7 +1,7 @@
 //! Analyze command implementation
 //!
 //! Analyzes project dependencies, scripts, and tools to provide
-//! insights and suggestions for .vx.toml configuration.
+//! insights and suggestions for vx.toml configuration.
 
 use anyhow::{Context, Result};
 use colored::Colorize;
@@ -141,7 +141,7 @@ pub async fn analyze_project(root: &Path, json: bool, verbose: bool) -> Result<(
         for (i, action) in analysis.sync_actions.iter().enumerate() {
             let suggestion = match action {
                 SyncAction::AddTool { name, version } => {
-                    format!("Add [tools] {} = \"{}\" to .vx.toml", name, version)
+                    format!("Add [tools] {} = \"{}\" to vx.toml", name, version)
                 }
                 SyncAction::UpdateTool {
                     name,
@@ -154,7 +154,7 @@ pub async fn analyze_project(root: &Path, json: bool, verbose: bool) -> Result<(
                     )
                 }
                 SyncAction::AddScript { name, command } => {
-                    format!("Add [scripts] {} = \"{}\" to .vx.toml", name, command)
+                    format!("Add [scripts] {} = \"{}\" to vx.toml", name, command)
                 }
                 SyncAction::UpdateScript {
                     name,

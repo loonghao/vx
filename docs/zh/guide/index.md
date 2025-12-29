@@ -43,7 +43,7 @@ vx go run main.go
 
 ### 2. 项目开发环境（适用于团队）
 
-创建 `.vx.toml` 文件来定义项目的工具需求：
+创建 `vx.toml` 文件来定义项目的工具需求：
 
 ```toml
 [project]
@@ -84,4 +84,4 @@ vx 支持广泛的开发工具：
 
 - [安装](/zh/guide/installation) - 在你的系统上安装 vx
 - [快速上手](/zh/guide/getting-started) - 几分钟内开始使用
-- [配置](/zh/guide/configuration) - 了解 `.vx.toml`
+- [配置](/zh/guide/configuration) - 了解 `vx.toml`

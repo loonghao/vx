@@ -165,12 +165,12 @@ export PATH="/home/runner/.vx/bin:/home/runner/.vx/store/node/20.0.0/bin:/home/r
 1. **PATH 更新**：添加 `~/.vx/store/` 中的项目工具版本
 2. **VX_DEV=1**：表示处于活动环境
 3. **VX_PROJECT_ROOT**：设置为项目目录
-4. **自定义环境变量**：来自 `.vx.toml` 的 `[env]` 部分
+4. **自定义环境变量**：来自 `vx.toml` 的 `[env]` 部分
 5. **自动安装缺失工具**（除非使用 `--no-install`）
 
 ## 配置
 
-开发环境由 `.vx.toml` 配置：
+开发环境由 `vx.toml` 配置：
 
 ```toml
 [tools]
@@ -193,7 +193,7 @@ auto_install = true
 | 用途 | 开发环境 | 运行定义的脚本 |
 | 范围 | 所有工具在 PATH 中 | 特定脚本 |
 | 交互式 | 是（shell 模式） | 否 |
-| 脚本 | 任意命令 | 仅 `.vx.toml` 中定义的 |
+| 脚本 | 任意命令 | 仅 `vx.toml` 中定义的 |
 
 **使用 `vx dev`**：
 
@@ -213,7 +213,7 @@ auto_install = true
 
    ```bash
    # ~/.bashrc 或 ~/.zshrc
-   if [ -f ".vx.toml" ]; then
+   if [ -f "vx.toml" ]; then
      eval "$(vx dev --export)"
    fi
    ```

@@ -104,7 +104,7 @@ Settings are resolved in this order (later overrides earlier):
 
 1. Built-in defaults
 2. Global config (`~/.config/vx/config.toml`)
-3. Project config (`.vx.toml`)
+3. Project config (`vx.toml`)
 4. Environment variables
 5. Command-line flags
 

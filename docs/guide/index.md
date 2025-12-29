@@ -33,7 +33,7 @@ vx uvx ruff check .
 
 ### 1. Direct Execution (For Quick Tasks)
 
-Just prefix any command with `vx` â€?tools are auto-installed on first use:
+Just prefix any command with `vx` ï¿½?tools are auto-installed on first use:
 
 ```bash
 vx npx create-react-app my-app
@@ -43,7 +43,7 @@ vx go run main.go
 
 ### 2. Project Development Environment (For Teams)
 
-Create a `.vx.toml` file to define your project's tool requirements:
+Create a `vx.toml` file to define your project's tool requirements:
 
 ```toml
 [project]
@@ -84,4 +84,4 @@ vx supports a wide range of development tools:
 
 - [Installation](/guide/installation) - Install vx on your system
 - [Quick Start](/guide/getting-started) - Get up and running in minutes
-- [Configuration](/guide/configuration) - Learn about `.vx.toml`
+- [Configuration](/guide/configuration) - Learn about `vx.toml`

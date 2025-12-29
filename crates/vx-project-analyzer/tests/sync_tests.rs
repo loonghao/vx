@@ -90,7 +90,7 @@ async fn test_vx_config_snapshot_load() {
     let dir = TempDir::new().unwrap();
     let root = dir.path();
 
-    // Create a .vx.toml file
+    // Create a vx.toml file
     let vx_toml = r#"
 [tools]
 node = "20.0.0"
@@ -100,11 +100,11 @@ uv = "0.4.0"
 test = "npm test"
 build = "npm run build"
 "#;
-    tokio::fs::write(root.join(".vx.toml"), vx_toml)
+    tokio::fs::write(root.join("vx.toml"), vx_toml)
         .await
         .unwrap();
 
-    let snapshot = VxConfigSnapshot::load(&root.join(".vx.toml"))
+    let snapshot = VxConfigSnapshot::load(&root.join("vx.toml"))
         .await
         .unwrap()
         .unwrap();
@@ -149,9 +149,9 @@ test = "pytest"
         .await
         .unwrap();
 
-    // Dry run should not create vx.toml or .vx.toml
+    // Dry run should not create vx.toml or vx.toml
     assert!(!root.join("vx.toml").exists());
-    assert!(!root.join(".vx.toml").exists());
+    assert!(!root.join("vx.toml").exists());
     assert!(!result.would_apply.is_empty());
 }
 

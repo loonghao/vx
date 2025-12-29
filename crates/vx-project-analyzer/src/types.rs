@@ -105,7 +105,7 @@ impl Script {
 /// Source of a script definition
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ScriptSource {
-    /// From .vx.toml
+    /// From vx.toml
     VxConfig,
 
     /// From pyproject.toml [project.scripts] or [tool.uv.scripts]
@@ -130,7 +130,7 @@ pub enum ScriptSource {
 impl std::fmt::Display for ScriptSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ScriptSource::VxConfig => write!(f, ".vx.toml"),
+            ScriptSource::VxConfig => write!(f, "vx.toml"),
             ScriptSource::PyprojectToml { section } => write!(f, "pyproject.toml [{}]", section),
             ScriptSource::PackageJson => write!(f, "package.json"),
             ScriptSource::CargoToml => write!(f, "Cargo.toml"),

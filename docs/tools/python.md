@@ -142,7 +142,7 @@ vx uvx pytest --cov=src
 
 ## Virtual Environment Setup
 
-When `[python]` is configured in `.vx.toml`, `vx setup` will:
+When `[python]` is configured in `vx.toml`, `vx setup` will:
 
 1. Create the virtual environment
 2. Install from requirements files
@@ -157,5 +157,5 @@ vx setup
 ## Tips
 
 1. **Use uvx for tools**: Run linters, formatters, etc. with `uvx` instead of installing globally
-2. **Pin Python version**: Specify version in `.vx.toml` for reproducibility
+2. **Pin Python version**: Specify version in `vx.toml` for reproducibility
 3. **Use uv for speed**: uv is significantly faster than pip

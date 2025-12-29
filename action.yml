@@ -384,7 +384,7 @@ runs:
         echo "Installed tools:"
         vx list --status
 
-    # Setup environment for .vx.toml projects
+    # Setup environment for vx.toml projects
     # This step runs vx setup (if enabled or auto-detected) and exports tool paths to GITHUB_PATH
     - name: Setup vx environment
       shell: bash
@@ -424,5 +424,5 @@ runs:
             echo "$HOME/.vx/bin" >> $GITHUB_PATH
           fi
         else
-          echo "No .vx.toml found, skipping vx setup"
+          echo "No vx.toml found, skipping vx setup"
         fi

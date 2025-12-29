@@ -1,6 +1,6 @@
 //! Configuration migration tests
 //!
-//! Tests for migrating `.vx.toml` from v1 to v2 format.
+//! Tests for migrating `vx.toml` from v1 to v2 format.
 
 use tempfile::TempDir;
 use vx_config::{ConfigMigrator, ConfigVersion, MigrationOptions};
@@ -326,7 +326,7 @@ node = "20"
 #[test]
 fn test_migrate_file_dry_run() {
     let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join(".vx.toml");
+    let config_path = temp_dir.path().join("vx.toml");
 
     // Write v1 config
     std::fs::write(
@@ -362,7 +362,7 @@ dev = "npm run dev"
 #[test]
 fn test_migrate_file_with_backup() {
     let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join(".vx.toml");
+    let config_path = temp_dir.path().join("vx.toml");
 
     // Write v1 config
     std::fs::write(
@@ -395,7 +395,7 @@ node = "20"
 #[test]
 fn test_migrate_file_without_backup() {
     let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join(".vx.toml");
+    let config_path = temp_dir.path().join("vx.toml");
 
     // Write v1 config
     std::fs::write(
@@ -424,7 +424,7 @@ node = "20"
 #[test]
 fn test_migrate_already_v2_skips() {
     let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join(".vx.toml");
+    let config_path = temp_dir.path().join("vx.toml");
 
     // Write v2 config
     std::fs::write(
@@ -456,7 +456,7 @@ node = "20"
 #[test]
 fn test_migrate_already_v2_with_force() {
     let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join(".vx.toml");
+    let config_path = temp_dir.path().join("vx.toml");
 
     // Write v2 config
     std::fs::write(

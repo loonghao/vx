@@ -1,6 +1,6 @@
 //! Configuration migration utilities
 //!
-//! This module provides tools for migrating `.vx.toml` configurations
+//! This module provides tools for migrating `vx.toml` configurations
 //! from v1 format to v2 format.
 //!
 //! ## Migration Process
@@ -17,7 +17,7 @@
 //! use vx_config::migration::{ConfigMigrator, MigrationOptions};
 //!
 //! let migrator = ConfigMigrator::new();
-//! let result = migrator.migrate_file("path/to/.vx.toml", &MigrationOptions::default())?;
+//! let result = migrator.migrate_file("path/to/vx.toml", &MigrationOptions::default())?;
 //! ```
 
 use crate::error::{ConfigError, ConfigResult};

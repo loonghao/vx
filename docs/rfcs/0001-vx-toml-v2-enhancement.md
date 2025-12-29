@@ -1,4 +1,4 @@
-# RFC 0001: .vx.toml v2 配置增强方案
+# RFC 0001: vx.toml v2 配置增强方案
 
 > **状态**: Draft
 > **作者**: vx team
@@ -7,13 +7,13 @@
 
 ## 摘要
 
-本 RFC 提出对 `.vx.toml` 配置格式进行全面增强，以适应 2025 年 AI 时代全栈开发的需求。增强内容包括：AI 代码生成集成、智能依赖管理、自动化测试流水线、团队协作规则、远程开发环境同步、性能监控、安全扫描、文档自动生成、容器化部署和版本控制策略。
+本 RFC 提出对 `vx.toml` 配置格式进行全面增强，以适应 2025 年 AI 时代全栈开发的需求。增强内容包括：AI 代码生成集成、智能依赖管理、自动化测试流水线、团队协作规则、远程开发环境同步、性能监控、安全扫描、文档自动生成、容器化部署和版本控制策略。
 
 ## 动机
 
 ### 当前状态分析
 
-现有 `.vx.toml` 支持的配置项：
+现有 `vx.toml` 支持的配置项：
 
 ```toml
 [project]        # 项目元数据
@@ -46,7 +46,7 @@
 ### 完整配置结构预览
 
 ```toml
-# .vx.toml v2 完整示例
+# vx.toml v2 完整示例
 min_version = "0.6.0"
 
 [project]
@@ -87,7 +87,7 @@ provider = "auto"  # auto | openai | anthropic | local
 include = [
   "docs/architecture.md",
   "docs/api-spec.md",
-  ".vx.toml",
+  "vx.toml",
 ]
 exclude = ["node_modules", "dist", ".git"]
 

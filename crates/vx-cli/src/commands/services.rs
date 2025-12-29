@@ -1,6 +1,6 @@
 //! Services command - Manage development services
 //!
-//! This command manages services defined in `.vx.toml` using Docker/Podman.
+//! This command manages services defined in `vx.toml` using Docker/Podman.
 //!
 //! ## Configuration Example
 //!
@@ -103,7 +103,7 @@ pub async fn handle_start(
     if config.services.is_empty() {
         UI::warn("No services defined in vx.toml");
         println!();
-        println!("Add services to your .vx.toml:");
+        println!("Add services to your vx.toml:");
         println!();
         println!("  [services.postgres]");
         println!("  image = \"postgres:15\"");
@@ -617,10 +617,10 @@ mod tests {
 
     #[test]
     fn test_get_project_name() {
-        let path = PathBuf::from("/home/user/my-project/.vx.toml");
+        let path = PathBuf::from("/home/user/my-project/vx.toml");
         assert_eq!(get_project_name(&path), "my-project");
 
-        let path = PathBuf::from("/home/user/My Project/.vx.toml");
+        let path = PathBuf::from("/home/user/My Project/vx.toml");
         assert_eq!(get_project_name(&path), "my-project");
     }
 

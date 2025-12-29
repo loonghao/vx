@@ -25,7 +25,7 @@ features:
     details: Tools are installed automatically on first use. No manual installation needed.
   - icon: "\U0001F4E6"
     title: Version Management
-    details: Pin specific versions per project with .vx.toml configuration.
+    details: Pin specific versions per project with vx.toml configuration.
   - icon: "\U0001F310"
     title: Cross-Platform
     details: Works seamlessly on Windows, macOS, and Linux.

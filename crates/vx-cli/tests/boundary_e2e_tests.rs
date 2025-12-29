@@ -264,7 +264,7 @@ mod switch_boundary_tests {
 mod init_boundary_tests {
     use super::*;
 
-    /// Test vx init in directory with existing .vx.toml
+    /// Test vx init in directory with existing vx.toml
     #[rstest]
     #[test]
     fn test_init_existing_config() {
@@ -274,7 +274,7 @@ mod init_boundary_tests {
         }
 
         let temp_dir = TempDir::new().unwrap();
-        let config_path = temp_dir.path().join(".vx.toml");
+        let config_path = temp_dir.path().join("vx.toml");
         std::fs::write(&config_path, "[tools]\nnode = \"20\"").unwrap();
 
         // Without --force, should fail or warn
@@ -342,7 +342,7 @@ mod init_boundary_tests {
 mod sync_boundary_tests {
     use super::*;
 
-    /// Test vx sync in directory without .vx.toml
+    /// Test vx sync in directory without vx.toml
     #[rstest]
     #[test]
     fn test_sync_no_config() {
@@ -360,7 +360,7 @@ mod sync_boundary_tests {
         cleanup_test_env();
     }
 
-    /// Test vx sync with malformed .vx.toml
+    /// Test vx sync with malformed vx.toml
     #[rstest]
     #[test]
     fn test_sync_malformed_config() {
@@ -370,7 +370,7 @@ mod sync_boundary_tests {
         }
 
         let temp_dir = TempDir::new().unwrap();
-        let config_path = temp_dir.path().join(".vx.toml");
+        let config_path = temp_dir.path().join("vx.toml");
         std::fs::write(&config_path, "this is not valid toml [[[").unwrap();
 
         let output = run_vx_in_dir(temp_dir.path(), &["sync"]).unwrap();
@@ -380,7 +380,7 @@ mod sync_boundary_tests {
         cleanup_test_env();
     }
 
-    /// Test vx sync with empty .vx.toml
+    /// Test vx sync with empty vx.toml
     #[rstest]
     #[test]
     fn test_sync_empty_config() {
@@ -390,7 +390,7 @@ mod sync_boundary_tests {
         }
 
         let temp_dir = TempDir::new().unwrap();
-        let config_path = temp_dir.path().join(".vx.toml");
+        let config_path = temp_dir.path().join("vx.toml");
         std::fs::write(&config_path, "").unwrap();
 
         let output = run_vx_in_dir(temp_dir.path(), &["sync"]).unwrap();
@@ -410,7 +410,7 @@ mod sync_boundary_tests {
         }
 
         let temp_dir = TempDir::new().unwrap();
-        let config_path = temp_dir.path().join(".vx.toml");
+        let config_path = temp_dir.path().join("vx.toml");
         std::fs::write(&config_path, "[tools]\nnode = \"20\"").unwrap();
 
         let output = run_vx_in_dir(temp_dir.path(), &["sync", "--check"]).unwrap();

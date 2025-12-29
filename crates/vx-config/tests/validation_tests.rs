@@ -1,6 +1,6 @@
 //! Configuration validation tests
 //!
-//! Tests for validating `.vx.toml` configuration files.
+//! Tests for validating `vx.toml` configuration files.
 
 use rstest::rstest;
 use vx_config::{parse_config_str, validate_config};

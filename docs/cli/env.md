@@ -6,7 +6,7 @@ Manage vx environments.
 
 vx supports two types of environments:
 
-- **Project Environment**: Created in `.vx/env/` under the project directory. This is the default when `.vx.toml` exists.
+- **Project Environment**: Created in `.vx/env/` under the project directory. This is the default when `vx.toml` exists.
 - **Global Environment**: Created in `~/.vx/envs/` for cross-project use.
 
 All tools are stored globally in `~/.vx/store/` (content-addressable storage). Environments contain symlinks to the global store, saving disk space while allowing per-project tool configurations.
@@ -28,7 +28,7 @@ vx env <SUBCOMMAND> [OPTIONS]
 | `show` | Show environment details |
 | `add` | Add a tool to an environment |
 | `remove` | Remove a tool from an environment |
-| `sync` | Sync project environment from .vx.toml |
+| `sync` | Sync project environment from vx.toml |
 
 > **Note**: For shell activation (exporting PATH), use `vx dev --export` instead. See [dev](dev) for details.
 
@@ -48,10 +48,10 @@ Options:
 
 **Project Environment (default):**
 
-When `.vx.toml` exists, creates a project-local environment in `.vx/env/`:
+When `vx.toml` exists, creates a project-local environment in `.vx/env/`:
 
 ```bash
-# In a project with .vx.toml
+# In a project with vx.toml
 vx env create              # Creates .vx/env/
 vx env create --from dev   # Clone from global 'dev' environment
 ```
@@ -66,7 +66,7 @@ vx env create -g production --set-default
 
 ## sync
 
-Sync project environment from `.vx.toml`. Creates symlinks in `.vx/env/` for all tools defined in the config.
+Sync project environment from `vx.toml`. Creates symlinks in `.vx/env/` for all tools defined in the config.
 
 ```bash
 vx env sync
@@ -74,7 +74,7 @@ vx env sync
 
 This command:
 
-1. Reads tool versions from `.vx.toml`
+1. Reads tool versions from `vx.toml`
 2. Creates/updates symlinks in `.vx/env/` pointing to `~/.vx/store/`
 3. Reports any missing tools that need to be installed
 
@@ -253,7 +253,7 @@ vx env remove node --global --env dev
 └── ...
 
 /path/to/project/
-├── .vx.toml                  # Project configuration
+├── vx.toml                  # Project configuration
 ├── .vx/
 │   └── env/                  # Project environment (symlinks)
 │       ├── node -> ~/.vx/store/node/20.0.0

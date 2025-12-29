@@ -11,20 +11,20 @@ use vx_paths::project::{CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY};
 /// Sync action to apply
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SyncAction {
-    /// Add a tool to .vx.toml
+    /// Add a tool to vx.toml
     AddTool { name: String, version: String },
 
-    /// Update tool version in .vx.toml
+    /// Update tool version in vx.toml
     UpdateTool {
         name: String,
         old_version: String,
         new_version: String,
     },
 
-    /// Add a script to .vx.toml
+    /// Add a script to vx.toml
     AddScript { name: String, command: String },
 
-    /// Update script command in .vx.toml
+    /// Update script command in vx.toml
     UpdateScript {
         name: String,
         old_command: String,
@@ -96,7 +96,7 @@ impl std::fmt::Display for SyncAction {
 /// Conflict resolution strategy
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub enum ConflictResolution {
-    /// Keep the value in .vx.toml
+    /// Keep the value in vx.toml
     KeepLocal,
     /// Use the value from project config
     UseProject,
@@ -388,7 +388,7 @@ impl SyncManager {
                     result.install_commands.push(command.clone());
                 }
                 SyncAction::AddProjectDependency { .. } => {
-                    // These modify project files, not .vx.toml
+                    // These modify project files, not vx.toml
                     result.skipped.push(action.clone());
                 }
             }
@@ -421,7 +421,7 @@ pub struct ApplyResult {
     pub install_commands: Vec<String>,
 }
 
-/// Snapshot of existing .vx.toml for comparison
+/// Snapshot of existing vx.toml for comparison
 #[derive(Debug, Default)]
 pub struct VxConfigSnapshot {
     pub tools: HashMap<String, String>,
@@ -429,7 +429,7 @@ pub struct VxConfigSnapshot {
 }
 
 impl VxConfigSnapshot {
-    /// Load from .vx.toml file
+    /// Load from vx.toml file
     pub async fn load(path: &Path) -> AnalyzerResult<Option<Self>> {
         if !path.exists() {
             return Ok(None);

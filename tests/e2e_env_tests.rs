@@ -63,10 +63,10 @@ impl E2ETestEnv {
         stdout
     }
 
-    /// Create a .vx.toml file in the workdir to enable project environment commands
+    /// Create a vx.toml file in the workdir to enable project environment commands
     fn create_vx_config(&self) {
-        let config_path = self.workdir.path().join(".vx.toml");
-        std::fs::write(&config_path, "[tools]\n").expect("Failed to create .vx.toml");
+        let config_path = self.workdir.path().join("vx.toml");
+        std::fs::write(&config_path, "[tools]\n").expect("Failed to create vx.toml");
     }
 }
 
@@ -90,7 +90,7 @@ fn test_env_create() {
     let env = E2ETestEnv::new();
     env.create_vx_config();
 
-    // Create a project environment (requires .vx.toml)
+    // Create a project environment (requires vx.toml)
     let output = env.run(&["env", "create"]);
     assert!(output.status.success());
 

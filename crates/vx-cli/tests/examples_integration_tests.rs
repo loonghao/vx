@@ -26,7 +26,7 @@ fn examples_dir() -> PathBuf {
         .join("examples")
 }
 
-/// Load VxConfig from a .vx.toml file
+/// Load VxConfig from a vx.toml file
 fn load_config_from_file(config_path: &std::path::Path) -> VxConfig {
     parse_vx_config(config_path)
         .unwrap_or_else(|_| panic!("Failed to parse config: {}", config_path.display()))
@@ -39,11 +39,11 @@ fn load_config_from_file(config_path: &std::path::Path) -> VxConfig {
 mod taskmatrix_tests {
     use super::*;
 
-    /// Test that taskmatrix .vx.toml can be parsed correctly
+    /// Test that taskmatrix vx.toml can be parsed correctly
     #[rstest]
     #[test]
     fn test_taskmatrix_config_parsing() {
-        let config_path = examples_dir().join("taskmatrix").join(".vx.toml");
+        let config_path = examples_dir().join("taskmatrix").join("vx.toml");
 
         if !config_path.exists() {
             eprintln!("Skipping test: {} not found", config_path.display());
@@ -75,7 +75,7 @@ mod taskmatrix_tests {
     fn test_taskmatrix_build_environment() {
         init_test_env();
 
-        let config_path = examples_dir().join("taskmatrix").join(".vx.toml");
+        let config_path = examples_dir().join("taskmatrix").join("vx.toml");
 
         if !config_path.exists() {
             eprintln!("Skipping test: {} not found", config_path.display());
@@ -111,7 +111,7 @@ mod taskmatrix_tests {
     #[rstest]
     #[test]
     fn test_taskmatrix_scripts() {
-        let config_path = examples_dir().join("taskmatrix").join(".vx.toml");
+        let config_path = examples_dir().join("taskmatrix").join("vx.toml");
 
         if !config_path.exists() {
             eprintln!("Skipping test: {} not found", config_path.display());
@@ -248,7 +248,7 @@ mod config_robustness_tests {
     fn test_all_example_configs_parseable() {
         let examples = examples_dir();
 
-        // Find all .vx.toml files
+        // Find all vx.toml files
         let vx_toml_files = find_vx_toml_files(&examples);
 
         for config_path in vx_toml_files {
@@ -262,7 +262,7 @@ mod config_robustness_tests {
         }
     }
 
-    /// Find all .vx.toml files in a directory recursively
+    /// Find all vx.toml files in a directory recursively
     fn find_vx_toml_files(dir: &std::path::Path) -> Vec<PathBuf> {
         let mut files = Vec::new();
 
@@ -271,7 +271,7 @@ mod config_robustness_tests {
                 let path = entry.path();
                 if path.is_dir() {
                     files.extend(find_vx_toml_files(&path));
-                } else if path.file_name() == Some(std::ffi::OsStr::new(".vx.toml")) {
+                } else if path.file_name() == Some(std::ffi::OsStr::new("vx.toml")) {
                     files.push(path);
                 }
             }

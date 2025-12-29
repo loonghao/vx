@@ -461,7 +461,7 @@ async fn test_vx_project_sync_actions() {
     let analysis = analyzer.analyze(&root).await.unwrap();
 
     // Should generate some sync actions
-    // (unless .vx.toml is already perfectly in sync)
+    // (unless vx.toml is already perfectly in sync)
     println!(
         "Generated {} sync actions for VX project",
         analysis.sync_actions.len()

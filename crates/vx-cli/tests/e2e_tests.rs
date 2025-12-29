@@ -302,9 +302,9 @@ mod init_e2e_tests {
         // Dry run should succeed
         let _ = output.status.success();
 
-        // Should not create .vx.toml file
+        // Should not create vx.toml file
         assert!(
-            !temp_dir.path().join(".vx.toml").exists(),
+            !temp_dir.path().join("vx.toml").exists(),
             "Dry run should not create files"
         );
 

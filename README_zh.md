@@ -95,14 +95,14 @@ vx cargo build --release
 
 ### 2️⃣ 项目开发环境（用于团队协作）
 
-创建 `.vx.toml` 文件来定义项目的工具需求：
+创建 `vx.toml` 文件来定义项目的工具需求：
 
 ```bash
 # 初始化新项目
 vx init
 
-# 或手动创建 .vx.toml
-cat > .vx.toml << 'EOF'
+# 或手动创建 vx.toml
+cat > vx.toml << 'EOF'
 [tools]
 node = "20"
 python = "3.12"
@@ -132,8 +132,8 @@ vx run lint
 
 # 管理项目工具
 vx add bun                      # 添加工具
-vx rm-tool go                   # 移除工具
-vx sync                         # 同步工具与 .vx.toml
+vx remove go                    # 移除工具
+vx sync                         # 同步工具与 vx.toml
 ```
 
 ---
@@ -157,14 +157,14 @@ vx sync                         # 同步工具与 .vx.toml
 
 | 命令 | 描述 |
 |---------|-------------|
-| `vx init` | 初始化项目配置（`.vx.toml`） |
-| `vx setup` | 安装 `.vx.toml` 中定义的所有工具 |
+| `vx init` | 初始化项目配置（`vx.toml`） |
+| `vx setup` | 安装 `vx.toml` 中定义的所有工具 |
 | `vx dev` | 进入带有项目工具的开发 shell |
 | `vx dev -c <cmd>` | 在开发环境中运行命令 |
-| `vx sync` | 同步已安装工具与 `.vx.toml` |
+| `vx sync` | 同步已安装工具与 `vx.toml` |
 | `vx add <tool>` | 添加工具到项目配置 |
-| `vx rm-tool <tool>` | 从项目配置移除工具 |
-| `vx run <script>` | 运行 `.vx.toml` 中定义的脚本 |
+| `vx remove <tool>` | 从项目配置移除工具 |
+| `vx run <script>` | 运行 `vx.toml` 中定义的脚本 |
 
 ### 系统管理
 
@@ -178,7 +178,7 @@ vx sync                         # 同步工具与 .vx.toml
 
 ---
 
-## 📁 项目配置（`.vx.toml`）
+## 📁 项目配置（`vx.toml`）
 
 ```toml
 # VX 项目配置
@@ -270,7 +270,7 @@ vx dev
 
 ```bash
 # 前端 (Node.js) + 后端 (Go) + 脚本 (Python)
-cat > .vx.toml << 'EOF'
+cat > vx.toml << 'EOF'
 [tools]
 node = "20"
 go = "1.21"
@@ -403,7 +403,7 @@ vx cargo run
 | **零学习成本** | ✅ 使用您熟悉的命令 | ❌ 需要学习新命令 |
 | **多语言支持** | ✅ 一个工具管理所有 | ❌ 每种语言一个工具 |
 | **自动安装** | ✅ 首次使用时安装 | ❌ 手动安装 |
-| **项目配置** | ✅ `.vx.toml` | ❌ 因工具而异 |
+| **项目配置** | ✅ `vx.toml` | ❌ 因工具而异 |
 | **团队同步** | ✅ `vx setup` | ❌ 手动协调 |
 | **MCP 就绪** | ✅ 只需添加 `vx` | ❌ 复杂设置 |
 | **跨平台** | ✅ Windows/macOS/Linux | ⚠️ 因工具而异 |

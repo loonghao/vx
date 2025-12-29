@@ -2,12 +2,12 @@
 
 vx 使用简单的基于 TOML 的配置系统，分为两个级别：
 
-1. **项目配置** (`.vx.toml`) - 每个项目的设置
+1. **项目配置** (`vx.toml`) - 每个项目的设置
 2. **全局配置** (`~/.config/vx/config.toml`) - 用户级默认设置
 
-## 项目配置 (.vx.toml)
+## 项目配置 (vx.toml)
 
-在项目根目录创建 `.vx.toml` 文件：
+在项目根目录创建 `vx.toml` 文件：
 
 ```toml
 [project]
@@ -191,7 +191,7 @@ vx 支持以下环境变量：
 
 1. 内置默认值
 2. 全局配置 (`~/.config/vx/config.toml`)
-3. 项目配置 (`.vx.toml`)
+3. 项目配置 (`vx.toml`)
 4. 环境变量
 5. 命令行标志
 
@@ -214,6 +214,6 @@ vx init --tools node,uv,go
 
 ## 下一步
 
-- [.vx.toml 参考](/zh/config/vx-toml) - 完整配置参考
+- [vx.toml 参考](/zh/config/vx-toml) - 完整配置参考
 - [环境变量](/zh/config/env-vars) - 所有环境变量
 - [项目环境](/zh/guide/project-environments) - 使用项目环境

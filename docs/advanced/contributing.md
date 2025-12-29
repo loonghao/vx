@@ -107,12 +107,12 @@ cargo doc --all-features --no-deps
 ```
 vx/
 ├── crates/
-�?  ├── vx-cli/         # CLI application
-�?  ├── vx-core/        # Core types and traits
-�?  ├── vx-paths/       # Path management
-�?  ├── vx-resolver/    # Version resolution
-�?  ├── vx-runtime/     # Runtime management
-�?  └── vx-providers/   # Tool providers
+�?  ├── vx-cli/         # CLI application
+�?  ├── vx-core/        # Core types and traits
+�?  ├── vx-paths/       # Path management
+�?  ├── vx-resolver/    # Version resolution
+�?  ├── vx-runtime/     # Runtime management
+�?  └── vx-providers/   # Tool providers
 ├── book/               # Documentation (mdBook)
 ├── tests/              # Integration tests
 └── examples/           # Example configurations

@@ -289,11 +289,11 @@ index_url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
 ## 团队协作
 
-### 将 .vx.toml 提交到 Git
+### 将 vx.toml 提交到 Git
 
 ```bash
-# .gitignore - 不要忽略 .vx.toml
-# .vx.toml  # 不要添加这行！
+# .gitignore - 不要忽略 vx.toml
+# vx.toml  # 不要添加这行！
 
 # 忽略本地覆盖
 .vx.local.toml

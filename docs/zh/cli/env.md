@@ -6,7 +6,7 @@
 
 vx 支持两种类型的环境：
 
-- **项目环境**：创建在项目目录下的 `.vx/env/`。当存在 `.vx.toml` 时，这是默认选项。
+- **项目环境**：创建在项目目录下的 `.vx/env/`。当存在 `vx.toml` 时，这是默认选项。
 - **全局环境**：创建在 `~/.vx/envs/`，用于跨项目使用。
 
 所有工具都全局存储在 `~/.vx/store/`（内容寻址存储）。环境包含指向全局 store 的软链接，节省磁盘空间的同时允许每个项目有独立的工具配置。
@@ -28,7 +28,7 @@ vx env <subcommand> [options]
 | `show` | 显示环境详情 |
 | `add` | 向环境添加工具 |
 | `remove` | 从环境删除工具 |
-| `sync` | 从 .vx.toml 同步项目环境 |
+| `sync` | 从 vx.toml 同步项目环境 |
 
 > **注意**：如需 shell 激活（导出 PATH），请使用 `vx dev --export`。详见 [dev](dev)。
 
@@ -48,10 +48,10 @@ vx env create [NAME] [OPTIONS]
 
 **项目环境（默认）：**
 
-当存在 `.vx.toml` 时，在 `.vx/env/` 创建项目本地环境：
+当存在 `vx.toml` 时，在 `.vx/env/` 创建项目本地环境：
 
 ```bash
-# 在有 .vx.toml 的项目中
+# 在有 vx.toml 的项目中
 vx env create              # 创建 .vx/env/
 vx env create --from dev   # 从全局 'dev' 环境克隆
 ```
@@ -66,7 +66,7 @@ vx env create -g production --set-default
 
 ## sync
 
-从 `.vx.toml` 同步项目环境。为配置中定义的所有工具在 `.vx/env/` 创建软链接。
+从 `vx.toml` 同步项目环境。为配置中定义的所有工具在 `.vx/env/` 创建软链接。
 
 ```bash
 vx env sync
@@ -74,7 +74,7 @@ vx env sync
 
 此命令：
 
-1. 从 `.vx.toml` 读取工具版本
+1. 从 `vx.toml` 读取工具版本
 2. 在 `.vx/env/` 创建/更新指向 `~/.vx/store/` 的软链接
 3. 报告需要安装的缺失工具
 
@@ -253,7 +253,7 @@ vx env remove node --global --env dev
 └── ...
 
 /path/to/project/
-├── .vx.toml                  # 项目配置
+├── vx.toml                  # 项目配置
 ├── .vx/
 │   └── env/                  # 项目环境（软链接）
 │       ├── node -> ~/.vx/store/node/20.0.0

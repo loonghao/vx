@@ -1,6 +1,6 @@
 # Migration Guide
 
-This guide helps you migrate your `.vx.toml` configuration from older versions to the latest format.
+This guide helps you migrate your `vx.toml` configuration from older versions to the latest format.
 
 ## Migration Framework
 
@@ -35,7 +35,7 @@ vx migrate --rollback v1.0.0
 
 | Migration ID | Description | Version Range |
 |-------------|-------------|---------------|
-| `file-rename` | Renames `.vx.toml` to `vx.toml` | any |
+| `file-rename` | Renames `vx.toml` to `vx.toml` | any |
 | `config-v1-to-v2` | Converts `[tools]` to `[runtimes]` | 1.x → 2.0 |
 
 ## Version History
@@ -124,7 +124,7 @@ If you were using docker-compose separately, integrate it:
 #     ports:
 #       - "5432:5432"
 
-# After (.vx.toml)
+# After (vx.toml)
 [services.database]
 image = "postgres:16"
 ports = ["5432:5432"]
@@ -299,7 +299,7 @@ test = "pytest"
 ```
 
 ```toml
-# .vx.toml equivalent
+# vx.toml equivalent
 [tools]
 node = "20"
 
@@ -320,7 +320,7 @@ golang 1.21.5
 ```
 
 ```toml
-# .vx.toml equivalent
+# vx.toml equivalent
 [tools]
 node = "20.10.0"
 go = "1.21.5"

@@ -425,7 +425,7 @@ impl EnterHookManager {
             "bash" => r#"
 # vx enter hook integration for bash
 __vx_enter_hook() {
-    if [ -f "vx.toml" ] || [ -f ".vx.toml" ]; then
+    if [ -f "vx.toml" ] || [ -f "vx.toml" ]; then
         vx hook enter 2>/dev/null
     fi
 }
@@ -440,7 +440,7 @@ fi
             "zsh" => r#"
 # vx enter hook integration for zsh
 __vx_enter_hook() {
-    if [ -f "vx.toml" ] || [ -f ".vx.toml" ]; then
+    if [ -f "vx.toml" ] || [ -f "vx.toml" ]; then
         vx hook enter 2>/dev/null
     fi
 }
@@ -457,7 +457,7 @@ __vx_enter_hook
             "fish" => r#"
 # vx enter hook integration for fish
 function __vx_enter_hook --on-variable PWD
-    if test -f "vx.toml"; or test -f ".vx.toml"
+    if test -f "vx.toml"; or test -f "vx.toml"
         vx hook enter 2>/dev/null
     end
 end
@@ -470,7 +470,7 @@ __vx_enter_hook
             "pwsh" | "powershell" => r#"
 # vx enter hook integration for PowerShell
 function __vx_enter_hook {
-    if ((Test-Path "vx.toml") -or (Test-Path ".vx.toml")) {
+    if ((Test-Path "vx.toml") -or (Test-Path "vx.toml")) {
         vx hook enter 2>$null
     }
 }

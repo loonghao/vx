@@ -1,6 +1,6 @@
 //! Sync command implementation
 //!
-//! Synchronizes project tools from .vx.toml configuration.
+//! Synchronizes project tools from vx.toml configuration.
 //! This is the core tool installation logic, also used by `vx setup`.
 
 use crate::commands::setup::{find_vx_config, parse_vx_config};
@@ -28,7 +28,7 @@ pub async fn handle(
 ) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
 
-    // Find .vx.toml
+    // Find vx.toml
     let config_path = find_vx_config(&current_dir)?;
     let config = parse_vx_config(&config_path)?;
 

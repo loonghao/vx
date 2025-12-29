@@ -1,23 +1,23 @@
 //! Project Context E2E Tests for vx CLI
 //!
-//! Tests for .vx.toml project configuration and context-aware behavior
+//! Tests for vx.toml project configuration and context-aware behavior
 
 use crate::common::*;
 use rstest::*;
 use tempfile::TempDir;
 
 // ============================================================================
-// .vx.toml Basic Tests
+// vx.toml Basic Tests
 // ============================================================================
 
-/// Test: vx list in directory with .vx.toml
+/// Test: vx list in directory with vx.toml
 #[rstest]
 #[test]
 fn test_list_with_vx_toml() {
     skip_if_no_vx!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let vx_toml = temp_dir.path().join(".vx.toml");
+    let vx_toml = temp_dir.path().join("vx.toml");
 
     std::fs::write(
         &vx_toml,
@@ -25,7 +25,7 @@ fn test_list_with_vx_toml() {
 node = "20"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output =
         run_vx_in_dir(temp_dir.path(), &["list"]).expect("Failed to run vx list in project");
@@ -37,7 +37,7 @@ node = "20"
     );
 }
 
-/// Test: vx reads .vx.toml configuration
+/// Test: vx reads vx.toml configuration
 #[rstest]
 #[test]
 fn test_vx_toml_read() {
@@ -46,14 +46,14 @@ fn test_vx_toml_read() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 go = "1.21"
 uv = "latest"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     // vx list should show project tools
     let output = run_vx_in_dir(temp_dir.path(), &["list"]).expect("Failed to run vx list");
@@ -74,13 +74,13 @@ fn test_sync_check() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 uv = "latest"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["sync", "--check"])
         .expect("Failed to run vx sync --check");
@@ -98,12 +98,12 @@ fn test_sync_dry_run() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["sync", "--dry-run"])
         .expect("Failed to run vx sync --dry-run");
@@ -116,7 +116,7 @@ node = "20"
 // vx init Tests
 // ============================================================================
 
-/// Test: vx init creates .vx.toml
+/// Test: vx init creates vx.toml
 #[rstest]
 #[test]
 fn test_init_creates_vx_toml() {
@@ -128,10 +128,10 @@ fn test_init_creates_vx_toml() {
         .expect("Failed to run vx init");
 
     if is_success(&output) {
-        // Check for either vx.toml (new) or .vx.toml (legacy)
+        // Check for either vx.toml (new) or vx.toml (legacy)
         assert!(
-            temp_dir.path().join("vx.toml").exists() || temp_dir.path().join(".vx.toml").exists(),
-            "vx init should create vx.toml or .vx.toml"
+            temp_dir.path().join("vx.toml").exists() || temp_dir.path().join("vx.toml").exists(),
+            "vx init should create vx.toml or vx.toml"
         );
     }
 }
@@ -150,9 +150,9 @@ fn test_init_dry_run() {
     // Should succeed
     let _ = is_success(&output);
 
-    // Should not create .vx.toml
+    // Should not create vx.toml
     assert!(
-        !temp_dir.path().join(".vx.toml").exists(),
+        !temp_dir.path().join("vx.toml").exists(),
         "vx init --dry-run should not create files"
     );
 }
@@ -198,7 +198,7 @@ fn test_init_with_template() {
 // Nested Project Tests
 // ============================================================================
 
-/// Test: vx respects closest .vx.toml in nested directories
+/// Test: vx respects closest vx.toml in nested directories
 #[rstest]
 #[test]
 fn test_nested_vx_toml() {
@@ -206,26 +206,26 @@ fn test_nested_vx_toml() {
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Create parent .vx.toml
+    // Create parent vx.toml
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "18"
 "#,
     )
-    .expect("Failed to write parent .vx.toml");
+    .expect("Failed to write parent vx.toml");
 
-    // Create nested directory with its own .vx.toml
+    // Create nested directory with its own vx.toml
     let nested_dir = temp_dir.path().join("nested");
     std::fs::create_dir(&nested_dir).expect("Failed to create nested dir");
 
     std::fs::write(
-        nested_dir.join(".vx.toml"),
+        nested_dir.join("vx.toml"),
         r#"[tools]
 node = "20"
 "#,
     )
-    .expect("Failed to write nested .vx.toml");
+    .expect("Failed to write nested vx.toml");
 
     // Run vx list in nested directory
     let output =
@@ -234,7 +234,7 @@ node = "20"
     assert!(is_success(&output), "vx list should succeed in nested dir");
 }
 
-/// Test: vx walks up directory tree to find .vx.toml
+/// Test: vx walks up directory tree to find vx.toml
 #[rstest]
 #[test]
 fn test_vx_toml_discovery() {
@@ -242,25 +242,25 @@ fn test_vx_toml_discovery() {
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Create .vx.toml at root
+    // Create vx.toml at root
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
-    // Create deep nested directory without .vx.toml
+    // Create deep nested directory without vx.toml
     let deep_dir = temp_dir.path().join("a").join("b").join("c");
     std::fs::create_dir_all(&deep_dir).expect("Failed to create deep dir");
 
-    // Run vx list from deep directory - should find parent .vx.toml
+    // Run vx list from deep directory - should find parent vx.toml
     let output = run_vx_in_dir(&deep_dir, &["list"]).expect("Failed to run vx list in deep dir");
 
     assert!(
         is_success(&output),
-        "vx list should succeed finding parent .vx.toml"
+        "vx list should succeed finding parent vx.toml"
     );
 }
 
@@ -268,7 +268,7 @@ node = "20"
 // Tool Version Pinning Tests
 // ============================================================================
 
-/// Test: .vx.toml with specific version
+/// Test: vx.toml with specific version
 #[rstest]
 #[test]
 fn test_version_pinning() {
@@ -277,12 +277,12 @@ fn test_version_pinning() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20.10.0"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     // vx should recognize the pinned version
     let output = run_vx_in_dir(temp_dir.path(), &["list"]).expect("Failed to run vx list");
@@ -293,7 +293,7 @@ node = "20.10.0"
     );
 }
 
-/// Test: .vx.toml with version range
+/// Test: vx.toml with version range
 #[rstest]
 #[test]
 fn test_version_range() {
@@ -302,12 +302,12 @@ fn test_version_range() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = ">=18"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["list"]).expect("Failed to run vx list");
 
@@ -317,7 +317,7 @@ node = ">=18"
     );
 }
 
-/// Test: .vx.toml with "latest"
+/// Test: vx.toml with "latest"
 #[rstest]
 #[test]
 fn test_version_latest() {
@@ -326,13 +326,13 @@ fn test_version_latest() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "latest"
 uv = "latest"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["list"]).expect("Failed to run vx list");
 
@@ -343,7 +343,7 @@ uv = "latest"
 // Multiple Tools Configuration
 // ============================================================================
 
-/// Test: .vx.toml with multiple tools
+/// Test: vx.toml with multiple tools
 #[rstest]
 #[test]
 fn test_multiple_tools_config() {
@@ -352,7 +352,7 @@ fn test_multiple_tools_config() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 go = "1.21"
@@ -361,7 +361,7 @@ bun = "1"
 cargo = "latest"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["list"]).expect("Failed to run vx list");
 
@@ -375,7 +375,7 @@ cargo = "latest"
 // Invalid Configuration Tests
 // ============================================================================
 
-/// Test: Invalid .vx.toml syntax
+/// Test: Invalid vx.toml syntax
 #[rstest]
 #[test]
 fn test_invalid_vx_toml_syntax() {
@@ -384,10 +384,10 @@ fn test_invalid_vx_toml_syntax() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"this is not valid toml {"#,
     )
-    .expect("Failed to write invalid .vx.toml");
+    .expect("Failed to write invalid vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["list"]).expect("Failed to run vx list");
 
@@ -395,7 +395,7 @@ fn test_invalid_vx_toml_syntax() {
     let _ = combined_output(&output);
 }
 
-/// Test: .vx.toml with unknown tool
+/// Test: vx.toml with unknown tool
 #[rstest]
 #[test]
 fn test_unknown_tool_in_config() {
@@ -404,12 +404,12 @@ fn test_unknown_tool_in_config() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 unknown-tool-xyz = "1.0"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["list"]).expect("Failed to run vx list");
 
@@ -442,12 +442,12 @@ fn test_config_show_in_project() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output =
         run_vx_in_dir(temp_dir.path(), &["config", "show"]).expect("Failed to run vx config show");
@@ -480,12 +480,12 @@ fn test_stats_in_project() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["stats"]).expect("Failed to run vx stats");
 
@@ -598,7 +598,7 @@ fn test_shell_init() {
 // vx dev Tests
 // ============================================================================
 
-/// Test: vx dev requires .vx.toml
+/// Test: vx dev requires vx.toml
 #[rstest]
 #[test]
 fn test_dev_requires_vx_toml() {
@@ -606,15 +606,15 @@ fn test_dev_requires_vx_toml() {
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Running vx dev without .vx.toml should fail
+    // Running vx dev without vx.toml should fail
     let output = run_vx_in_dir(temp_dir.path(), &["dev", "--command", "echo", "test"])
         .expect("Failed to run vx dev");
 
-    // Should fail because no .vx.toml exists
+    // Should fail because no vx.toml exists
     let combined = combined_output(&output);
     assert!(
-        !is_success(&output) || combined.contains("No .vx.toml"),
-        "vx dev should fail or warn without .vx.toml: {}",
+        !is_success(&output) || combined.contains("No vx.toml"),
+        "vx dev should fail or warn without vx.toml: {}",
         combined
     );
 }
@@ -628,12 +628,12 @@ fn test_dev_with_command() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     // Run a simple command in dev environment
     let output = run_vx_in_dir(
@@ -655,12 +655,12 @@ fn test_dev_empty_tools() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 # No tools configured
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["dev", "--command", "echo", "test"])
         .expect("Failed to run vx dev");
@@ -678,7 +678,7 @@ fn test_dev_empty_tools() {
 // vx setup Tests
 // ============================================================================
 
-/// Test: vx setup requires .vx.toml
+/// Test: vx setup requires vx.toml
 #[rstest]
 #[test]
 fn test_setup_requires_vx_toml() {
@@ -686,10 +686,10 @@ fn test_setup_requires_vx_toml() {
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Create an empty .vx.toml in temp dir to prevent searching parent directories
+    // Create an empty vx.toml in temp dir to prevent searching parent directories
     // This simulates a project without any tools configured
-    std::fs::write(temp_dir.path().join(".vx.toml"), "[tools]\n")
-        .expect("Failed to write .vx.toml");
+    std::fs::write(temp_dir.path().join("vx.toml"), "[tools]\n")
+        .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["setup"]).expect("Failed to run vx setup");
 
@@ -711,13 +711,13 @@ fn test_setup_dry_run() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 uv = "latest"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["setup", "--dry-run"])
         .expect("Failed to run vx setup --dry-run");
@@ -740,12 +740,12 @@ fn test_setup_empty_tools() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 # No tools
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["setup"]).expect("Failed to run vx setup");
 
@@ -762,7 +762,7 @@ fn test_setup_empty_tools() {
 // vx add/rm-tool Tests
 // ============================================================================
 
-/// Test: vx add adds tool to .vx.toml
+/// Test: vx add adds tool to vx.toml
 #[rstest]
 #[test]
 fn test_add_tool() {
@@ -770,30 +770,30 @@ fn test_add_tool() {
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Create initial .vx.toml
+    // Create initial vx.toml
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["add", "uv", "--version", "latest"])
         .expect("Failed to run vx add");
 
     if is_success(&output) {
         // Verify tool was added
-        let config_content = std::fs::read_to_string(temp_dir.path().join(".vx.toml"))
-            .expect("Failed to read .vx.toml");
+        let config_content = std::fs::read_to_string(temp_dir.path().join("vx.toml"))
+            .expect("Failed to read vx.toml");
         assert!(
             config_content.contains("uv"),
-            "uv should be added to .vx.toml"
+            "uv should be added to vx.toml"
         );
     }
 }
 
-/// Test: vx add requires .vx.toml
+/// Test: vx add requires vx.toml
 #[rstest]
 #[test]
 fn test_add_requires_vx_toml() {
@@ -803,16 +803,16 @@ fn test_add_requires_vx_toml() {
 
     let output = run_vx_in_dir(temp_dir.path(), &["add", "node"]).expect("Failed to run vx add");
 
-    // Should fail because no .vx.toml exists
+    // Should fail because no vx.toml exists
     let combined = combined_output(&output);
     assert!(
-        !is_success(&output) || combined.contains("No .vx.toml"),
-        "vx add should fail without .vx.toml: {}",
+        !is_success(&output) || combined.contains("No vx.toml"),
+        "vx add should fail without vx.toml: {}",
         combined
     );
 }
 
-/// Test: vx rm-tool removes tool from .vx.toml
+/// Test: vx rm-tool removes tool from vx.toml
 #[rstest]
 #[test]
 fn test_remove_tool() {
@@ -820,30 +820,30 @@ fn test_remove_tool() {
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Create .vx.toml with multiple tools
+    // Create vx.toml with multiple tools
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 uv = "latest"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output =
         run_vx_in_dir(temp_dir.path(), &["rm-tool", "uv"]).expect("Failed to run vx rm-tool");
 
     if is_success(&output) {
         // Verify tool was removed
-        let config_content = std::fs::read_to_string(temp_dir.path().join(".vx.toml"))
-            .expect("Failed to read .vx.toml");
+        let config_content = std::fs::read_to_string(temp_dir.path().join("vx.toml"))
+            .expect("Failed to read vx.toml");
         assert!(
             !config_content.contains("uv ="),
-            "uv should be removed from .vx.toml"
+            "uv should be removed from vx.toml"
         );
         assert!(
             config_content.contains("node"),
-            "node should still be in .vx.toml"
+            "node should still be in vx.toml"
         );
     }
 }
@@ -856,9 +856,9 @@ fn test_add_tool_preserves_boolean_settings() {
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Create initial .vx.toml with boolean settings
+    // Create initial vx.toml with boolean settings
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 
@@ -867,15 +867,15 @@ auto_install = true
 cache_duration = "7d"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["add", "uv", "--version", "latest"])
         .expect("Failed to run vx add");
 
     if is_success(&output) {
         // Verify config can still be parsed (boolean values are not quoted)
-        let config_content = std::fs::read_to_string(temp_dir.path().join(".vx.toml"))
-            .expect("Failed to read .vx.toml");
+        let config_content = std::fs::read_to_string(temp_dir.path().join("vx.toml"))
+            .expect("Failed to read vx.toml");
 
         // Check that auto_install is not quoted as a string
         assert!(
@@ -908,9 +908,9 @@ fn test_add_tool_preserves_numeric_settings() {
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Create initial .vx.toml with numeric settings
+    // Create initial vx.toml with numeric settings
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 
@@ -920,15 +920,15 @@ parallel_install = false
 cache_duration = "7d"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["add", "go", "--version", "latest"])
         .expect("Failed to run vx add");
 
     if is_success(&output) {
         // Verify both boolean values are preserved correctly
-        let config_content = std::fs::read_to_string(temp_dir.path().join(".vx.toml"))
-            .expect("Failed to read .vx.toml");
+        let config_content = std::fs::read_to_string(temp_dir.path().join("vx.toml"))
+            .expect("Failed to read vx.toml");
 
         assert!(
             config_content.contains("auto_install = true"),
@@ -947,7 +947,7 @@ cache_duration = "7d"
 // vx run Tests
 // ============================================================================
 
-/// Test: vx run executes script from .vx.toml
+/// Test: vx run executes script from vx.toml
 #[rstest]
 #[test]
 fn test_run_script() {
@@ -956,7 +956,7 @@ fn test_run_script() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 
@@ -964,7 +964,7 @@ node = "20"
 hello = "echo hello world"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output = run_vx_in_dir(temp_dir.path(), &["run", "hello"]).expect("Failed to run vx run");
 
@@ -986,12 +986,12 @@ fn test_run_missing_script() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     std::fs::write(
-        temp_dir.path().join(".vx.toml"),
+        temp_dir.path().join("vx.toml"),
         r#"[tools]
 node = "20"
 "#,
     )
-    .expect("Failed to write .vx.toml");
+    .expect("Failed to write vx.toml");
 
     let output =
         run_vx_in_dir(temp_dir.path(), &["run", "nonexistent"]).expect("Failed to run vx run");
@@ -1005,7 +1005,7 @@ node = "20"
     );
 }
 
-/// Test: vx run requires .vx.toml
+/// Test: vx run requires vx.toml
 #[rstest]
 #[test]
 fn test_run_requires_vx_toml() {
@@ -1015,11 +1015,11 @@ fn test_run_requires_vx_toml() {
 
     let output = run_vx_in_dir(temp_dir.path(), &["run", "test"]).expect("Failed to run vx run");
 
-    // Should fail because no .vx.toml exists
+    // Should fail because no vx.toml exists
     let combined = combined_output(&output);
     assert!(
-        !is_success(&output) || combined.contains("No .vx.toml"),
-        "vx run should fail without .vx.toml: {}",
+        !is_success(&output) || combined.contains("No vx.toml"),
+        "vx run should fail without vx.toml: {}",
         combined
     );
 }

@@ -1,6 +1,6 @@
 # run
 
-Run a script defined in `.vx.toml`.
+Run a script defined in `vx.toml`.
 
 ## Synopsis
 
@@ -12,7 +12,7 @@ vx run --list
 
 ## Description
 
-Executes a script defined in the `[scripts]` section of `.vx.toml`. The script runs with:
+Executes a script defined in the `[scripts]` section of `vx.toml`. The script runs with:
 
 - Project environment variables (from `[env]` and `.env` files)
 - Variable interpolation support (`\{\{var\}\}` syntax)
@@ -112,7 +112,7 @@ env = { PORT = "3000" }  # Script-specific
 
 ## Configuration
 
-Define scripts in `.vx.toml`:
+Define scripts in `vx.toml`:
 
 ```toml
 [scripts]
@@ -202,4 +202,4 @@ API_KEY=newkey vx run deploy
 - [dev](./dev) - Enter development environment
 - [setup](./setup) - Install project tools
 - [ext](./ext) - Run extensions
-- [Configuration](/config/vx-toml) - .vx.toml reference
+- [Configuration](/config/vx-toml) - vx.toml reference

@@ -380,7 +380,7 @@ let engine = MigrationEngine::new()
 | 迁移 ID | 描述 | 版本范围 |
 |---------|------|----------|
 | `config-v1-to-v2` | 配置格式 v1 → v2 | 1.x → 2.0 |
-| `file-rename` | `.vx.toml` → `vx.toml` | any |
+| `file-rename` | `vx.toml` → `vx.toml` | any |
 | `legacy-paths` | 旧路径结构迁移 | < 0.5 |
 
 ### 迁移历史

@@ -68,7 +68,7 @@ fn create_mock_vx_home() -> TempDir {
     temp_dir
 }
 
-/// Create a .vx.toml config file
+/// Create a vx.toml config file
 fn create_vx_config(dir: &std::path::Path, tools: &[(&str, &str)], env: &[(&str, &str)]) {
     let mut config = String::from("[tools]\n");
     for (tool, version) in tools {
@@ -82,8 +82,8 @@ fn create_vx_config(dir: &std::path::Path, tools: &[(&str, &str)], env: &[(&str,
         }
     }
 
-    let config_path = dir.join(".vx.toml");
-    fs::write(config_path, config).expect("Failed to write .vx.toml");
+    let config_path = dir.join("vx.toml");
+    fs::write(config_path, config).expect("Failed to write vx.toml");
 }
 
 // ============================================================================
@@ -194,7 +194,7 @@ mod path_environment_tests {
 mod custom_env_tests {
     use super::*;
 
-    /// Test that custom env vars from .vx.toml are included
+    /// Test that custom env vars from vx.toml are included
     #[rstest]
     #[test]
     fn test_custom_env_vars() {
@@ -213,7 +213,7 @@ mod custom_env_tests {
 
         // Read and parse config
         let config_content =
-            fs::read_to_string(project_dir.path().join(".vx.toml")).expect("Failed to read config");
+            fs::read_to_string(project_dir.path().join("vx.toml")).expect("Failed to read config");
 
         assert!(
             config_content.contains("MY_VAR"),
@@ -244,10 +244,10 @@ PATH_EXTRA = "/path/with spaces/bin"
 QUOTED_VAR = "value with \"quotes\""
 "#;
 
-        fs::write(project_dir.path().join(".vx.toml"), config).expect("Failed to write config");
+        fs::write(project_dir.path().join("vx.toml"), config).expect("Failed to write config");
 
         let config_content =
-            fs::read_to_string(project_dir.path().join(".vx.toml")).expect("Failed to read config");
+            fs::read_to_string(project_dir.path().join("vx.toml")).expect("Failed to read config");
 
         assert!(
             config_content.contains("PATH_EXTRA"),
@@ -306,7 +306,7 @@ mod version_resolution_tests {
         );
 
         let config_content =
-            fs::read_to_string(project_dir.path().join(".vx.toml")).expect("Failed to read config");
+            fs::read_to_string(project_dir.path().join("vx.toml")).expect("Failed to read config");
 
         assert!(
             config_content.contains("0.7.12"),
@@ -544,7 +544,7 @@ mod edge_case_tests {
         create_vx_config(project_dir.path(), &[], &[]);
 
         let config_content =
-            fs::read_to_string(project_dir.path().join(".vx.toml")).expect("Failed to read config");
+            fs::read_to_string(project_dir.path().join("vx.toml")).expect("Failed to read config");
 
         assert!(
             config_content.contains("[tools]"),

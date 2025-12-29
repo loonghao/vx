@@ -1,6 +1,6 @@
 # setup 命令
 
-从 `.vx.toml` 安装所有项目工具。
+从 `vx.toml` 安装所有项目工具。
 
 ## 语法
 
@@ -10,7 +10,7 @@ vx setup [OPTIONS]
 
 ## 描述
 
-`vx setup` 命令是**加入项目或克隆仓库后首先要运行的命令**。它读取项目的 `.vx.toml` 配置并：
+`vx setup` 命令是**加入项目或克隆仓库后首先要运行的命令**。它读取项目的 `vx.toml` 配置并：
 
 1. 检查哪些工具已安装
 2. 将所有缺失的工具安装到 `~/.vx/store/`
@@ -31,7 +31,7 @@ vx setup [OPTIONS]
 
 ### 场景 1：初始项目设置
 
-克隆带有 `.vx.toml` 的项目时：
+克隆带有 `vx.toml` 的项目时：
 
 ```bash
 git clone https://github.com/example/project.git
@@ -123,7 +123,7 @@ Would install 2 tool(s):
 
 ## 配置
 
-setup 从 `.vx.toml` 读取：
+setup 从 `vx.toml` 读取：
 
 ```toml
 [tools]
@@ -191,7 +191,7 @@ build = "npm run build"
 
 | 命令 | 用途 | 使用时机 |
 |------|------|----------|
-| `vx setup` | 安装工具 | 首次使用、`.vx.toml` 变更后 |
+| `vx setup` | 安装工具 | 首次使用、`vx.toml` 变更后 |
 | `vx dev` | 进入环境 | 日常开发 |
 | `vx dev --export` | 在当前 shell 激活 | IDE 集成、脚本 |
 | `vx run <script>` | 运行定义的脚本 | 构建、测试、部署 |
@@ -205,7 +205,7 @@ build = "npm run build"
 
 ## 提示
 
-1. **git pull 后运行**：如果 `.vx.toml` 可能已更改：
+1. **git pull 后运行**：如果 `vx.toml` 可能已更改：
 
    ```bash
    git pull && vx setup

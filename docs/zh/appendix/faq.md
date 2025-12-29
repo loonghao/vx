@@ -65,7 +65,7 @@ vx python@3.11 script.py
 
 ### 如何在项目中固定工具版本？
 
-创建 `.vx.toml` 文件：
+创建 `vx.toml` 文件：
 
 ```toml
 [tools]

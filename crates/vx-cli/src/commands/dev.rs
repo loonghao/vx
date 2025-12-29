@@ -174,7 +174,7 @@ fn build_dev_environment(config: &VxConfig, verbose: bool) -> Result<HashMap<Str
 /// Build environment variables for script execution
 ///
 /// This function builds the PATH environment variable to include vx-managed tools,
-/// allowing scripts defined in .vx.toml to use tools installed by vx.
+/// allowing scripts defined in vx.toml to use tools installed by vx.
 ///
 /// Uses vx-env's ToolEnvironment for consistent environment building.
 pub fn build_script_environment(config: &VxConfig) -> Result<HashMap<String, String>> {
