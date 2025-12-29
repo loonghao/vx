@@ -19,6 +19,7 @@ impl VarSource for HashMap<String, String> {
 }
 
 /// Environment variable source
+#[allow(dead_code)]
 pub struct EnvVarSource;
 
 impl VarSource for EnvVarSource {
@@ -33,10 +34,12 @@ pub struct CombinedSource<'a> {
 }
 
 impl<'a> CombinedSource<'a> {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self { sources: vec![] }
     }
 
+    #[allow(dead_code)]
     pub fn add(&mut self, source: &'a dyn VarSource) {
         self.sources.push(source);
     }

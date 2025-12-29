@@ -755,6 +755,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dotenvy"
+version = "0.15.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
+
+[[package]]
 name = "dyn-clone"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2631,6 +2637,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc6fe69c597f9c37bfeeeeeb33da3530379845f10be461a66d16d03eca2ded77"
 
 [[package]]
+name = "shellexpand"
+version = "3.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b1fdf65dd6331831494dd616b30351c38e96e45921a27745cf98490458b90bb"
+dependencies = [
+ "dirs",
+]
+
+[[package]]
 name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3381,6 +3396,7 @@ dependencies = [
  "colored",
  "dialoguer",
  "dirs",
+ "dotenvy",
  "flate2",
  "indicatif 0.17.11",
  "pretty_assertions",
@@ -3400,6 +3416,7 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber",
+ "vx-args",
  "vx-config",
  "vx-core",
  "vx-env",
@@ -3441,6 +3458,7 @@ dependencies = [
  "vx-provider-zig",
  "vx-resolver",
  "vx-runtime",
+ "vx-setup",
  "walkdir",
  "which",
  "zip",
@@ -3460,6 +3478,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2",
+ "shellexpand",
  "tempfile",
  "thiserror 2.0.17",
  "toml",
@@ -3504,6 +3523,7 @@ version = "0.5.28"
 dependencies = [
  "anyhow",
  "async-trait",
+ "dotenvy",
  "rstest",
  "serde",
  "tempfile",
@@ -3511,6 +3531,7 @@ dependencies = [
  "tokio",
  "toml",
  "tracing",
+ "vx-args",
  "vx-core",
  "vx-paths",
  "vx-runtime",
@@ -4091,6 +4112,22 @@ dependencies = [
  "vx-paths",
  "which",
  "zip",
+]
+
+[[package]]
+name = "vx-setup"
+version = "0.5.28"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "rstest",
+ "serde",
+ "serde_json",
+ "shellexpand",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tokio",
+ "vx-paths",
 ]
 
 [[package]]

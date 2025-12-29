@@ -22,6 +22,8 @@ vx-paths = { workspace = true }
 vx-project-analyzer = { workspace = true }
 vx-resolver = { workspace = true }
 vx-runtime = { workspace = true }
+vx-setup = { workspace = true }
+vx-args = { path = "../vx-args" }
 # Providers
 vx-provider-node = { workspace = true }
 vx-provider-go = { workspace = true }
@@ -78,6 +80,7 @@ regex = { workspace = true }
 which = { workspace = true }
 strsim = "0.11"
 async-trait = { workspace = true }
+dotenvy = "0.15"
 
 [dev-dependencies]
 tempfile = { workspace = true }

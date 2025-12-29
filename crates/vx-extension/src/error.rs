@@ -231,6 +231,23 @@ pub enum ExtensionError {
         /// Error message
         message: Option<String>,
     },
+
+    // ============ Argument Errors ============
+    /// Argument parsing failed
+    #[error("Argument error in extension '{extension}': {message}")]
+    ArgumentError {
+        /// Extension name
+        extension: String,
+        /// Error message
+        message: String,
+    },
+
+    /// Variable interpolation failed
+    #[error("Interpolation error: {message}")]
+    InterpolationError {
+        /// Error message
+        message: String,
+    },
 }
 
 impl ExtensionError {
@@ -675,6 +692,22 @@ impl ExtensionError {
 
                 msg
             }
+
+            Self::ArgumentError { extension, message } => {
+                format!(
+                    "Argument error in extension '{}':\n\n{}\n\n\
+                     Run 'vx x {} --help' for usage information.",
+                    extension, message, extension
+                )
+            }
+
+            Self::InterpolationError { message } => {
+                format!(
+                    "Variable interpolation failed:\n\n{}\n\n\
+                     Check your variable syntax ({{{{var}}}} format) and ensure all referenced variables exist.",
+                    message
+                )
+            }
         }
     }
 
@@ -712,6 +745,8 @@ impl ExtensionError {
             Self::CircularDependency { .. } => 65,  // EX_DATAERR
             Self::VersionConflict { .. } => 65,     // EX_DATAERR
             Self::HookFailed { exit_code, .. } => exit_code.unwrap_or(1),
+            Self::ArgumentError { .. } => 64,      // EX_USAGE
+            Self::InterpolationError { .. } => 65, // EX_DATAERR
         }
     }
 }

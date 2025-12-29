@@ -6,6 +6,7 @@ members = [
   "crates/vx-paths",
   "crates/vx-installer",
   "crates/vx-config",
+  "crates/vx-setup",
   "crates/vx-migration",
   "crates/vx-env",
   "crates/vx-extension",
@@ -119,6 +120,7 @@ vx-resolver = { path = "crates/vx-resolver" }
 vx-paths = { path = "crates/vx-paths" }
 vx-installer = { path = "crates/vx-installer" }
 vx-config = { path = "crates/vx-config" }
+vx-setup = { path = "crates/vx-setup" }
 vx-migration = { path = "crates/vx-migration" }
 vx-env = { path = "crates/vx-env" }
 vx-extension = { path = "crates/vx-extension" }
