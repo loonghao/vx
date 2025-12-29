@@ -396,7 +396,7 @@ fn write_vx_config(path: &Path, config: &VxConfig) -> Result<()> {
         let mut settings: Vec<_> = config.settings.iter().collect();
         settings.sort_by_key(|(k, _)| *k);
         for (key, value) in settings {
-            content.push_str(&format!("{} = \"{}\"\n", key, value));
+            content.push_str(&format!("{} = {}\n", key, format_toml_value(value)));
         }
         content.push('\n');
     }
@@ -424,4 +424,25 @@ fn write_vx_config(path: &Path, config: &VxConfig) -> Result<()> {
 
     fs::write(path, content)?;
     Ok(())
+}
+
+/// Format a value for TOML output, detecting booleans and numbers
+fn format_toml_value(value: &str) -> String {
+    // Check if it's a boolean
+    if value == "true" || value == "false" {
+        return value.to_string();
+    }
+
+    // Check if it's an integer
+    if value.parse::<i64>().is_ok() {
+        return value.to_string();
+    }
+
+    // Check if it's a float
+    if value.parse::<f64>().is_ok() {
+        return value.to_string();
+    }
+
+    // Otherwise, quote it as a string
+    format!("\"{}\"", value)
 }

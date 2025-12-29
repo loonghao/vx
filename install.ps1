@@ -305,17 +305,30 @@ function Install-FromRelease {
 
     Write-Info "Installing vx $tagName for $platform..."
 
-    # Construct archive name based on actual release asset naming
-    # Format: vx-{target}.zip (e.g., vx-x86_64-pc-windows-msvc.zip)
-    $archiveName = "vx-$platform.zip"
+    # Extract version number from tag (e.g., "vx-v0.5.7" -> "0.5.7", "v0.5.7" -> "0.5.7")
+    $versionNumber = $tagName -replace '^(vx-)?v', ''
+
+    # Construct archive names - try versioned format first, then fallback to legacy format
+    # New format: vx-{version}-{target}.zip (e.g., vx-0.5.7-x86_64-pc-windows-msvc.zip)
+    # Legacy format: vx-{target}.zip (e.g., vx-x86_64-pc-windows-msvc.zip)
+    $archiveNameVersioned = "vx-$versionNumber-$platform.zip"
+    $archiveNameLegacy = "vx-$platform.zip"
 
     # Create temporary directory
     Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Preparing download..." -PercentComplete 20
     $tempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
 
     try {
-        # Download with fallback channels
-        $archivePath = Download-WithFallback -TagName $tagName -Platform $platform -ArchiveName $archiveName -TempDir $tempDir
+        # Try versioned archive first, then fallback to legacy
+        $archiveName = $archiveNameVersioned
+        try {
+            $archivePath = Download-WithFallback -TagName $tagName -Platform $platform -ArchiveName $archiveName -TempDir $tempDir
+        }
+        catch {
+            Write-Info "Versioned archive not found, trying legacy format..."
+            $archiveName = $archiveNameLegacy
+            $archivePath = Download-WithFallback -TagName $tagName -Platform $platform -ArchiveName $archiveName -TempDir $tempDir
+        }
 
         # Extract
         Write-Info "Extracting to $InstallDir..."

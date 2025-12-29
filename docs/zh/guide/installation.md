@@ -52,6 +52,15 @@ cargo install vx
 
 1. 前往 [Releases 页面](https://github.com/loonghao/vx/releases)
 2. 下载适合你平台的二进制文件：
+
+   **带版本号格式（推荐）：**
+   - `vx-{version}-x86_64-unknown-linux-gnu.tar.gz` - Linux x64
+   - `vx-{version}-aarch64-unknown-linux-gnu.tar.gz` - Linux ARM64
+   - `vx-{version}-x86_64-apple-darwin.tar.gz` - macOS x64
+   - `vx-{version}-aarch64-apple-darwin.tar.gz` - macOS ARM64 (Apple Silicon)
+   - `vx-{version}-x86_64-pc-windows-msvc.zip` - Windows x64
+
+   **旧版格式（同样可用）：**
    - `vx-x86_64-unknown-linux-gnu.tar.gz` - Linux x64
    - `vx-aarch64-unknown-linux-gnu.tar.gz` - Linux ARM64
    - `vx-x86_64-apple-darwin.tar.gz` - macOS x64
