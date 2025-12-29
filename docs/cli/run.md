@@ -201,5 +201,5 @@ API_KEY=newkey vx run deploy
 
 - [dev](./dev) - Enter development environment
 - [setup](./setup) - Install project tools
-- [x](./x) - Run extensions
+- [ext](./ext) - Run extensions
 - [Configuration](/config/vx-toml) - .vx.toml reference

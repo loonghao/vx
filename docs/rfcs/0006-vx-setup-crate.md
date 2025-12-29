@@ -239,7 +239,6 @@ use vx_setup::ci::CiProvider;
 
 ## 参考资料
 
-- [vx-config 当前实现](../../crates/vx-config/src/setup_pipeline.rs)
 - [RFC 0001: vx.toml v2 增强](./0001-vx-toml-v2-enhancement.md)
 
 ## 更新记录
