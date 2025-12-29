@@ -85,6 +85,11 @@ impl E2ETestEnv {
     fn file_exists(&self, name: &str) -> bool {
         self.workdir.path().join(name).exists()
     }
+
+    /// Check if vx config exists (either vx.toml or .vx.toml)
+    fn config_exists(&self) -> bool {
+        self.file_exists("vx.toml") || self.file_exists(".vx.toml")
+    }
 }
 
 // ============================================
@@ -118,8 +123,8 @@ hello = "echo Hello from vx"
         );
     }
 
-    // Step 2: Verify config exists
-    assert!(env.file_exists(".vx.toml"));
+    // Step 2: Verify config exists (vx.toml or .vx.toml)
+    assert!(env.config_exists());
 
     // Step 3: Run setup (dry-run to avoid actual installation)
     let output = env.run(&["setup", "--dry-run"]);
