@@ -214,7 +214,7 @@ fn output_ci_paths(config: &VxConfig) -> Result<()> {
     let mut exported_paths = Vec::new();
 
     // Iterate through configured tools and find their paths
-    for (tool_name, _version) in &config.tools {
+    for tool_name in config.tools.keys() {
         let tool_dir = store_dir.join(tool_name);
 
         if !tool_dir.exists() {
