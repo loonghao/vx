@@ -15,7 +15,7 @@ vx run --list
 Executes a script defined in the `[scripts]` section of `.vx.toml`. The script runs with:
 
 - Project environment variables (from `[env]` and `.env` files)
-- Variable interpolation support (`{{var}}` syntax)
+- Variable interpolation support (`\{\{var\}\}` syntax)
 - Python venv activated (if configured)
 - Tool paths configured
 
@@ -35,42 +35,42 @@ Executes a script defined in the `[scripts]` section of `.vx.toml`. The script r
 
 ## Variable Interpolation
 
-Scripts support variable interpolation using `{{var}}` syntax:
+Scripts support variable interpolation using `\{\{var\}\}` syntax:
 
 ```toml
 [scripts]
-build = "cargo build -p {{project.name}}"
-tag = "git tag v{{arg1}}"
-info = "echo 'Building on {{os.name}} ({{os.arch}})'"
+build = "cargo build -p \{\{project.name\}\}"
+tag = "git tag v\{\{arg1\}\}"
+info = "echo 'Building on \{\{os.name\}\} (\{\{os.arch\}\})'"
 ```
 
 ### Built-in Variables
 
 | Variable | Description |
 |----------|-------------|
-| `{{vx.version}}` | vx version |
-| `{{vx.home}}` | vx home directory (~/.vx) |
-| `{{vx.runtimes}}` | Runtimes directory |
-| `{{project.root}}` | Project root directory |
-| `{{project.name}}` | Project name (directory name) |
-| `{{os.name}}` | Operating system (linux, macos, windows) |
-| `{{os.arch}}` | CPU architecture (x86_64, aarch64) |
-| `{{home}}` | User home directory |
-| `{{timestamp}}` | Current Unix timestamp |
+| `\{\{vx.version\}\}` | vx version |
+| `\{\{vx.home\}\}` | vx home directory (~/.vx) |
+| `\{\{vx.runtimes\}\}` | Runtimes directory |
+| `\{\{project.root\}\}` | Project root directory |
+| `\{\{project.name\}\}` | Project name (directory name) |
+| `\{\{os.name\}\}` | Operating system (linux, macos, windows) |
+| `\{\{os.arch\}\}` | CPU architecture (x86_64, aarch64) |
+| `\{\{home\}\}` | User home directory |
+| `\{\{timestamp\}\}` | Current Unix timestamp |
 
 ### Argument Variables
 
 | Variable | Description |
 |----------|-------------|
-| `{{arg1}}`, `{{arg2}}`, ... | Positional arguments |
-| `{{@}}` | All arguments as a string |
-| `{{#}}` | Number of arguments |
+| `\{\{arg1\}\}`, `\{\{arg2\}\}`, ... | Positional arguments |
+| `\{\{@\}\}` | All arguments as a string |
+| `\{\{#\}\}` | Number of arguments |
 
 ### Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `{{env.VAR}}` | Environment variable VAR |
+| `\{\{env.VAR\}\}` | Environment variable VAR |
 
 ### Command Interpolation
 
@@ -122,7 +122,7 @@ test = "pytest"
 build = "go build -o app"
 
 # With variable interpolation
-deploy = "kubectl apply -f k8s/{{arg1}}.yaml"
+deploy = "kubectl apply -f k8s/\{\{arg1\}\}.yaml"
 ```
 
 ## Examples
@@ -136,7 +136,7 @@ vx run dev
 ### Pass Arguments
 
 ```bash
-# Arguments are interpolated if script uses {{arg1}}, {{arg2}}, etc.
+# Arguments are interpolated if script uses \{\{arg1\}\}, \{\{arg2\}\}, etc.
 vx run deploy production
 
 # Or passed directly
@@ -151,24 +151,24 @@ vx run deploy --help
 
 Output:
 
-```
+```text
 Script: deploy
-Command: kubectl apply -f k8s/{{arg1}}.yaml
+Command: kubectl apply -f k8s/\{\{arg1\}\}.yaml
 
 Usage: vx run deploy [args...]
 
 Arguments are passed directly to the script.
 
 Variable Interpolation:
-  {{arg1}}          First argument
-  {{arg2}}          Second argument
-  {{@}}             All arguments
-  {{#}}             Number of arguments
-  {{env.VAR}}       Environment variable VAR
-  {{project.root}}  Project root directory
-  {{project.name}}  Project name
-  {{os.name}}       Operating system
-  {{vx.version}}    VX version
+  \{\{arg1\}\}          First argument
+  \{\{arg2\}\}          Second argument
+  \{\{@\}\}             All arguments
+  \{\{#\}\}             Number of arguments
+  \{\{env.VAR\}\}       Environment variable VAR
+  \{\{project.root\}\}  Project root directory
+  \{\{project.name\}\}  Project name
+  \{\{os.name\}\}       Operating system
+  \{\{vx.version\}\}    VX version
 ```
 
 ### List Available Scripts
@@ -179,7 +179,7 @@ vx run --list
 
 Output:
 
-```
+```text
 Available scripts:
   dev = "npm run dev"
   test = "pytest"
