@@ -116,6 +116,7 @@ You should see output like:
 vx 0.5.11
 ```
 
+
 ## Updating vx
 
 To update vx to the latest version:
@@ -129,6 +130,18 @@ Or check for updates without installing:
 ```bash
 vx self-update --check
 ```
+
+Install a specific version:
+
+```bash
+vx self-update 0.5.28
+```
+
+The self-update command features:
+- Multi-channel download with automatic fallback (GitHub → jsDelivr → Fastly)
+- Download progress bar with speed and ETA
+- SHA256 checksum verification (when available)
+- Safe binary replacement on Windows
 
 ## Uninstalling
 
