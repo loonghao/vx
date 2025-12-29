@@ -29,7 +29,7 @@ vx ext list --verbose  # show detailed info
 
 **Output:**
 
-```
+```text
 Extensions:
   docker-compose (v1.0.0) - Docker Compose wrapper [dev]
   scaffold (v2.1.0) - Project scaffolding tool [user]
@@ -47,7 +47,7 @@ vx ext info docker-compose
 
 **Output:**
 
-```
+```text
 Extension: docker-compose
   Version: 1.0.0
   Description: Docker Compose wrapper with vx integration
@@ -177,7 +177,7 @@ vx ext check --all
 
 **Output:**
 
-```
+```text
 Updates Available:
   docker-compose: 1.0.0 -> 1.1.0
   scaffold: 2.0.0 -> 2.1.0
@@ -257,7 +257,7 @@ args = ["--production"]
 # Environment variables
 [env]
 MY_VAR = "value"
-API_URL = "{{env.API_URL}}"  # Variable interpolation
+API_URL = "\{\{env.API_URL\}\}"  # Variable interpolation
 
 # Configuration inheritance
 extends = "github:company/base-extension/vx-extension.toml"
@@ -321,12 +321,12 @@ vx x docker-compose up --help
 
 ## Variable Interpolation
 
-Extensions support `{{var}}` syntax for variable interpolation:
+Extensions support `\{\{var\}\}` syntax for variable interpolation:
 
 ```toml
 [env]
-PROJECT = "{{project.name}}"
-BUILD_DIR = "{{project.root}}/dist"
+PROJECT = "\{\{project.name\}\}"
+BUILD_DIR = "\{\{project.root\}\}/dist"
 VERSION = "`git describe --tags`"  # Command interpolation
 ```
 
@@ -334,13 +334,13 @@ VERSION = "`git describe --tags`"  # Command interpolation
 
 | Variable | Description |
 |----------|-------------|
-| `{{vx.version}}` | vx version |
-| `{{vx.home}}` | vx home directory |
-| `{{project.root}}` | Project root |
-| `{{project.name}}` | Project name |
-| `{{os.name}}` | Operating system |
-| `{{os.arch}}` | CPU architecture |
-| `{{env.VAR}}` | Environment variable |
+| `\{\{vx.version\}\}` | vx version |
+| `\{\{vx.home\}\}` | vx home directory |
+| `\{\{project.root\}\}` | Project root |
+| `\{\{project.name\}\}` | Project name |
+| `\{\{os.name\}\}` | Operating system |
+| `\{\{os.arch\}\}` | CPU architecture |
+| `\{\{env.VAR\}\}` | Environment variable |
 
 ## Configuration Inheritance
 
@@ -453,7 +453,7 @@ Extensions receive these environment variables:
 
 **Example structure:**
 
-```
+```text
 my-extension/
 ├── vx-extension.toml
 ├── main.py           # main entrypoint
