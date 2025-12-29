@@ -348,7 +348,7 @@ impl SetupPipeline {
         let mut paths = Vec::new();
         let mut output_lines = Vec::new();
 
-        for (tool_name, _version) in &self.config.tools {
+        for tool_name in self.config.tools.keys() {
             let tool_dir = self.store_dir.join(tool_name);
 
             if !tool_dir.exists() {
