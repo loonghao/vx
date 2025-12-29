@@ -1,10 +1,10 @@
-# .vx.toml Reference
+# vx.toml Reference
 
-Complete reference for the `.vx.toml` project configuration file.
+Complete reference for the `vx.toml` project configuration file.
 
 ## File Location
 
-Place `.vx.toml` in your project root. vx searches for it in the current directory and parent directories.
+Place `vx.toml` in your project root. vx searches for it in the current directory and parent directories.
 
 ## Version Requirement
 
@@ -430,7 +430,7 @@ The following sections are planned for future releases:
 
 ## Validation
 
-vx validates `.vx.toml` on load. Common errors:
+vx validates `vx.toml` on load. Common errors:
 
 - Invalid TOML syntax
 - Unknown tool names

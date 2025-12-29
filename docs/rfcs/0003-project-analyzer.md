@@ -5,7 +5,7 @@
 本 RFC 提出 **vx-project-analyzer** crate，用于：
 
 1. 分析项目依赖和工具需求
-2. 自动同步 `.vx.toml` 配置
+2. 自动同步 `vx.toml` 配置
 3. 确保所有依赖正确安装
 
 ## 问题背景
@@ -31,14 +31,14 @@ $ vx run test
 
 ```bash
 uv add --group dev pytest  # 用户手动添加了 pytest
-vx sync                     # 应该更新 .vx.toml
+vx sync                     # 应该更新 vx.toml
 ```
 
-### 场景 4: 已有 .vx.toml 需要更新
+### 场景 4: 已有 vx.toml 需要更新
 
 ```bash
 # pyproject.toml 新增了 scripts
-# .vx.toml 需要自动同步这些变化
+# vx.toml 需要自动同步这些变化
 ```
 
 ## 核心设计
@@ -143,11 +143,11 @@ pub struct RequiredTool {
 
 /// 同步动作
 pub enum SyncAction {
-    /// 添加工具到 .vx.toml
+    /// 添加工具到 vx.toml
     AddTool { name: String, version: String },
     /// 更新工具版本
     UpdateTool { name: String, old_version: String, new_version: String },
-    /// 添加脚本到 .vx.toml
+    /// 添加脚本到 vx.toml
     AddScript { name: String, command: String },
     /// 更新脚本
     UpdateScript { name: String, old_command: String, new_command: String },
@@ -287,7 +287,7 @@ Changes detected:
 
 Apply changes? [Y/n] y
 
-✅ Updated .vx.toml
+✅ Updated vx.toml
 ✅ Installing missing dependencies...
    Running: uv add --group dev nox
    Running: uv sync
@@ -324,18 +324,18 @@ $ vx watch
 
 [12:34:56] pyproject.toml changed
            + Added dependency: pytest
-           Syncing .vx.toml...
+           Syncing vx.toml...
            ✅ Updated
 
 [12:35:10] package.json changed
            + Added script: "format": "prettier --write ."
-           Syncing .vx.toml...
+           Syncing vx.toml...
            ✅ Updated
 ```
 
 ## 配置同步策略
 
-### .vx.toml 同步规则
+### vx.toml 同步规则
 
 ```toml
 [sync]
@@ -373,7 +373,7 @@ confirm_install = true
 
 ```rust
 pub enum ConflictResolution {
-    /// 保留 .vx.toml 中的值
+    /// 保留 vx.toml 中的值
     KeepLocal,
     /// 使用项目配置中的值
     UseProject,
@@ -395,7 +395,7 @@ pub enum ConflictResolution {
 
 ### Phase 2: 配置同步 (1 周)
 
-- [ ] .vx.toml 读写
+- [ ] vx.toml 读写
 - [ ] 同步策略实现
 - [ ] 冲突检测和解决
 - [ ] `vx sync` 命令
@@ -443,7 +443,7 @@ pub async fn handle_init() -> Result<()> {
     // 1. 运行项目分析
     let analysis = ProjectAnalyzer::new().analyze(&current_dir).await?;
 
-    // 2. 生成 .vx.toml
+    // 2. 生成 vx.toml
     let config = generate_config_from_analysis(&analysis)?;
 
     // 3. 显示检测结果和建议
@@ -492,7 +492,7 @@ pub async fn handle_run(script_name: &str) -> Result<()> {
 
 ```rust
 pub async fn handle_setup() -> Result<()> {
-    // 1. 安装 .vx.toml 中的工具
+    // 1. 安装 vx.toml 中的工具
     install_vx_tools().await?;
 
     // 2. 分析项目并安装项目依赖
@@ -539,7 +539,7 @@ async fn test_python_project_analysis() {
 `vx-project-analyzer` 提供：
 
 1. **全面的项目分析** - 支持多语言、多生态系统
-2. **智能配置同步** - 自动保持 `.vx.toml` 与项目配置一致
+2. **智能配置同步** - 自动保持 `vx.toml` 与项目配置一致
 3. **依赖管理** - 检测、安装、验证依赖
 4. **无缝集成** - 增强现有 `vx init`, `vx run`, `vx setup` 命令
 5. **可扩展架构** - 易于添加新语言支持

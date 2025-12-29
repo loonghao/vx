@@ -2,12 +2,12 @@
 
 vx uses a simple TOML-based configuration system with two levels:
 
-1. **Project Configuration** (`.vx.toml`) - Per-project settings
+1. **Project Configuration** (`vx.toml`) - Per-project settings
 2. **Global Configuration** (`~/.config/vx/config.toml`) - User-wide defaults
 
-## Project Configuration (.vx.toml)
+## Project Configuration (vx.toml)
 
-Create a `.vx.toml` file in your project root:
+Create a `vx.toml` file in your project root:
 
 ```toml
 min_version = "0.6.0"
@@ -286,7 +286,7 @@ Configuration is resolved in this order (later overrides earlier):
 
 1. Built-in defaults
 2. Global config (`~/.config/vx/config.toml`)
-3. Project config (`.vx.toml`)
+3. Project config (`vx.toml`)
 4. Environment variables
 5. Command-line flags
 
@@ -309,7 +309,7 @@ vx init --tools node,uv,go
 
 ## Migrating from Older Versions
 
-If you have an older `.vx.toml`, you can migrate to the new format:
+If you have an older `vx.toml`, you can migrate to the new format:
 
 ```bash
 # Check compatibility
@@ -326,7 +326,7 @@ See the [Migration Guide](/guide/migration) for detailed instructions.
 
 ## Next Steps
 
-- [.vx.toml Reference](/config/vx-toml) - Complete configuration reference
+- [vx.toml Reference](/config/vx-toml) - Complete configuration reference
 - [Environment Variables](/config/env-vars) - All environment variables
 - [Project Environments](/guide/project-environments) - Working with project environments
 - [Best Practices](/guide/best-practices) - Configuration best practices

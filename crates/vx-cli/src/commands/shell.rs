@@ -81,7 +81,7 @@ fi
 __vx_detect_project() {{
     local dir="$PWD"
     while [[ "$dir" != "/" ]]; do
-        if [[ -f "$dir/.vx.toml" ]]; then
+        if [[ -f "$dir/vx.toml" ]]; then
             export VX_PROJECT_ROOT="$dir"
             return 0
         fi
@@ -93,7 +93,7 @@ __vx_detect_project() {{
 
 # Auto-sync on directory change
 __vx_auto_sync() {{
-    if __vx_detect_project && [[ -f "$VX_PROJECT_ROOT/.vx.toml" ]]; then
+    if __vx_detect_project && [[ -f "$VX_PROJECT_ROOT/vx.toml" ]]; then
         if command -v vx >/dev/null 2>&1; then
             vx sync --check --quiet 2>/dev/null || true
         fi
@@ -146,7 +146,7 @@ fi
 __vx_detect_project() {{
     local dir="$PWD"
     while [[ "$dir" != "/" ]]; do
-        if [[ -f "$dir/.vx.toml" ]]; then
+        if [[ -f "$dir/vx.toml" ]]; then
             export VX_PROJECT_ROOT="$dir"
             return 0
         fi
@@ -158,7 +158,7 @@ __vx_detect_project() {{
 
 # Auto-sync on directory change
 __vx_auto_sync() {{
-    if __vx_detect_project && [[ -f "$VX_PROJECT_ROOT/.vx.toml" ]]; then
+    if __vx_detect_project && [[ -f "$VX_PROJECT_ROOT/vx.toml" ]]; then
         if command -v vx >/dev/null 2>&1; then
             vx sync --check --quiet 2>/dev/null || true
         fi
@@ -208,7 +208,7 @@ end
 function __vx_detect_project
     set dir (pwd)
     while test "$dir" != "/"
-        if test -f "$dir/.vx.toml"
+        if test -f "$dir/vx.toml"
             set -gx VX_PROJECT_ROOT "$dir"
             return 0
         end
@@ -220,7 +220,7 @@ end
 
 # Auto-sync on directory change
 function __vx_auto_sync
-    if __vx_detect_project; and test -f "$VX_PROJECT_ROOT/.vx.toml"
+    if __vx_detect_project; and test -f "$VX_PROJECT_ROOT/vx.toml"
         if command -v vx >/dev/null 2>&1
             vx sync --check --quiet 2>/dev/null; or true
         end
@@ -274,7 +274,7 @@ if ($env:PATH -notlike "*$vxBinPath*") {{
 function Find-VxProject {{
     $dir = Get-Location
     while ($dir.Path -ne $dir.Root.Name) {{
-        $vxConfig = Join-Path $dir.Path ".vx.toml"
+        $vxConfig = Join-Path $dir.Path "vx.toml"
         if (Test-Path $vxConfig) {{
             $env:VX_PROJECT_ROOT = $dir.Path
             return $true
@@ -287,7 +287,7 @@ function Find-VxProject {{
 
 # Auto-sync on directory change
 function Invoke-VxAutoSync {{
-    if (Find-VxProject -and (Test-Path "$env:VX_PROJECT_ROOT\.vx.toml")) {{
+    if (Find-VxProject -and (Test-Path "$env:VX_PROJECT_ROOT\vx.toml")) {{
         if (Get-Command vx -ErrorAction SilentlyContinue) {{
             try {{
                 vx sync --check --quiet 2>$null

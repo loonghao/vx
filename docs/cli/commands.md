@@ -102,7 +102,7 @@ vx sync --force
 
 ### add
 
-Add a tool to project configuration (.vx.toml).
+Add a tool to project configuration (vx.toml).
 
 ```bash
 vx add <TOOL>
@@ -112,7 +112,7 @@ vx add node --version 20
 
 ### remove
 
-Remove a tool from project configuration (.vx.toml).
+Remove a tool from project configuration (vx.toml).
 
 ```bash
 vx remove <TOOL>
@@ -124,7 +124,7 @@ vx rm node           # rm is an alias for remove
 
 ### run
 
-Run a script from `.vx.toml`.
+Run a script from `vx.toml`.
 
 ```bash
 vx run <SCRIPT> [ARGS]

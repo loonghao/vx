@@ -85,10 +85,10 @@ vx venv create myproject --tools node@18.17.0,uv@latest
 # Initialize project configuration
 vx init
 
-# Edit .vx.toml
+# Edit vx.toml
 echo '[tools]
 node = "18.17.0"
-uv = "latest"' > .vx.toml
+uv = "latest"' > vx.toml
 
 # Sync project tools
 vx sync
@@ -248,7 +248,7 @@ use_colors = true
 
 ### Project Configuration
 
-Location: `.vx.toml` in project root
+Location: `vx.toml` in project root
 
 ```toml
 [tools]

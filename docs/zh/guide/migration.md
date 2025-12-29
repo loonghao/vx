@@ -1,6 +1,6 @@
 # 迁移指南
 
-本指南帮助你将 `.vx.toml` 配置从旧版本迁移到最新格式。
+本指南帮助你将 `vx.toml` 配置从旧版本迁移到最新格式。
 
 ## 迁移框架
 
@@ -35,7 +35,7 @@ vx migrate --rollback v1.0.0
 
 | 迁移 ID | 描述 | 版本范围 |
 |---------|------|----------|
-| `file-rename` | 将 `.vx.toml` 重命名为 `vx.toml` | 任意 |
+| `file-rename` | 将 `vx.toml` 重命名为 `vx.toml` | 任意 |
 | `config-v1-to-v2` | 将 `[tools]` 转换为 `[runtimes]` | 1.x → 2.0 |
 
 ## 版本历史
@@ -124,7 +124,7 @@ post_setup = ["npm install", "vx run db:migrate", "vx run seed"]
 #     ports:
 #       - "5432:5432"
 
-# 之后（.vx.toml）
+# 之后（vx.toml）
 [services.database]
 image = "postgres:16"
 ports = ["5432:5432"]

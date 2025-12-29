@@ -186,10 +186,10 @@ jobs:
 
 ### Using with Version Pinning
 
-If your project has a `.vx.toml` configuration file, vx will automatically use the versions specified there:
+If your project has a `vx.toml` configuration file, vx will automatically use the versions specified there:
 
 ```toml
-# .vx.toml
+# vx.toml
 [tools]
 node = "20.10.0"
 uv = "0.4.0"
@@ -207,21 +207,21 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
 
-      # vx will use versions from .vx.toml
+      # vx will use versions from vx.toml
       - run: vx node --version  # Uses 20.10.0
       - run: vx uv --version    # Uses 0.4.0
 ```
 
 ### One-Click Setup with vx setup
 
-The most powerful way to use vx in CI is with `vx setup`. This command reads your `.vx.toml` and automatically:
+The most powerful way to use vx in CI is with `vx setup`. This command reads your `vx.toml` and automatically:
 
 1. Installs all required tools with pinned versions
 2. Sets up Python virtual environment (if configured)
 3. Installs Python dependencies
 4. Verifies environment variables
 
-**Example `.vx.toml`:**
+**Example `vx.toml`:**
 
 ```toml
 [project]
@@ -284,10 +284,10 @@ This approach ensures:
 
 - **Consistency**: Local and CI environments use identical tool versions
 - **Simplicity**: One command replaces multiple setup actions
-- **Reproducibility**: Just copy `.vx.toml` to any project for the same setup
+- **Reproducibility**: Just copy `vx.toml` to any project for the same setup
 
 ::: tip Share Your Configuration
-Commit `.vx.toml` to your repository. New team members can run `vx setup` to get the exact same development environment in seconds.
+Commit `vx.toml` to your repository. New team members can run `vx setup` to get the exact same development environment in seconds.
 :::
 
 ### Environment Export for Subsequent Steps
@@ -311,7 +311,7 @@ jobs:
       # Export tool paths to GITHUB_PATH
       - name: Setup vx environment
         run: |
-          if [ -f ".vx.toml" ]; then
+          if [ -f "vx.toml" ]; then
             vx env export --format github >> $GITHUB_PATH
           fi
 

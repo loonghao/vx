@@ -1,6 +1,6 @@
 //! VX Project Configuration
 //!
-//! This module provides configuration parsing for `.vx.toml` files with support for:
+//! This module provides configuration parsing for `vx.toml` files with support for:
 //! - Project metadata
 //! - Tool version management
 //! - Custom setup tasks (cargo install, pip, npm, winget, custom scripts)
@@ -16,7 +16,7 @@ use std::path::Path;
 
 /// VX Project Configuration
 ///
-/// Example `.vx.toml`:
+/// Example `vx.toml`:
 /// ```toml
 /// [project]
 /// name = "my-project"
@@ -384,7 +384,7 @@ impl VxConfig {
 
     /// Parse configuration from a string
     pub fn parse(content: &str) -> Result<Self> {
-        toml::from_str(content).context("Failed to parse .vx.toml")
+        toml::from_str(content).context("Failed to parse vx.toml")
     }
 
     /// Write configuration to a file

@@ -46,7 +46,7 @@ vx uvx ruff check .
 
 ## Step 3: Set Up a Project (Optional)
 
-For team projects, create a `.vx.toml` file to ensure everyone uses the same tool versions:
+For team projects, create a `vx.toml` file to ensure everyone uses the same tool versions:
 
 ```bash
 # Initialize a new project configuration
@@ -85,8 +85,8 @@ vx run dev
 | `vx <tool> [args]` | Run a tool (auto-installs if needed) |
 | `vx install <tool>` | Install a specific tool |
 | `vx list` | List available tools |
-| `vx setup` | Install all project tools from `.vx.toml` |
-| `vx run <script>` | Run a script defined in `.vx.toml` |
+| `vx setup` | Install all project tools from `vx.toml` |
+| `vx run <script>` | Run a script defined in `vx.toml` |
 | `vx dev` | Enter development environment |
 | `vx --help` | Show help |
 
@@ -126,6 +126,6 @@ vx go test ./...
 
 ## Next Steps
 
-- [Configuration Guide](/guide/configuration) - Learn about `.vx.toml` configuration
+- [Configuration Guide](/guide/configuration) - Learn about `vx.toml` configuration
 - [CLI Reference](/cli/overview) - Complete command reference
 - [Shell Integration](/guide/shell-integration) - Set up shell integration

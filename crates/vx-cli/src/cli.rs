@@ -209,7 +209,7 @@ pub enum Commands {
         verbose: bool,
     },
 
-    /// Sync project tools from .vx.toml
+    /// Sync project tools from vx.toml
     Sync {
         /// Only check, don't install
         #[arg(long)]
@@ -358,7 +358,7 @@ pub enum Commands {
         ci: bool,
     },
 
-    /// Add a tool to project configuration (.vx.toml)
+    /// Add a tool to project configuration (vx.toml)
     Add {
         /// Tool name (e.g., node, python, uv)
         tool: String,
@@ -367,14 +367,14 @@ pub enum Commands {
         version: Option<String>,
     },
 
-    /// Remove a tool from project configuration (.vx.toml)
+    /// Remove a tool from project configuration (vx.toml)
     #[command(alias = "rm")]
     Remove {
         /// Tool name to remove
         tool: String,
     },
 
-    /// Run a script defined in .vx.toml
+    /// Run a script defined in vx.toml
     Run {
         /// Script name
         script: String,
@@ -515,16 +515,16 @@ pub enum ConfigCommand {
     },
     /// Edit configuration file
     Edit,
-    /// Validate .vx.toml configuration
+    /// Validate vx.toml configuration
     Validate {
-        /// Path to .vx.toml file (default: current directory)
+        /// Path to vx.toml file (default: current directory)
         #[arg(short, long)]
         path: Option<String>,
         /// Show verbose validation output
         #[arg(short, long)]
         verbose: bool,
     },
-    /// Generate JSON Schema for .vx.toml
+    /// Generate JSON Schema for vx.toml
     Schema {
         /// Output file path (default: stdout)
         #[arg(short, long)]

@@ -202,7 +202,7 @@ venv.activate()?;
 vx-core uses a hierarchical configuration system:
 
 1. **Global Config**: `~/.vx/config/global.toml`
-2. **Project Config**: `.vx.toml` in project root
+2. **Project Config**: `vx.toml` in project root
 3. **Environment Variables**: `VX_*` prefixed variables
 
 ### Example Configuration

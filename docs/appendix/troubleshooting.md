@@ -117,7 +117,7 @@ The tool was installed but can't be found.
    vx --verbose <tool> --version
    ```
 
-2. Check `.vx.toml` in current directory
+2. Check `vx.toml` in current directory
 3. Check global config:
 
    ```bash
@@ -142,7 +142,7 @@ The tool was installed but can't be found.
 
 ## Configuration Issues
 
-### ".vx.toml not found"
+### "vx.toml not found"
 
 **Solutions:**
 
@@ -169,7 +169,7 @@ TOML syntax error.
 
 **Solutions:**
 
-1. Check `[env]` section in `.vx.toml`
+1. Check `[env]` section in `vx.toml`
 2. Verify with:
 
    ```bash

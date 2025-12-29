@@ -46,7 +46,7 @@ vx uvx ruff check .
 
 ## 步骤 3：设置项目（可选）
 
-对于团队项目，创建 `.vx.toml` 文件以确保每个人使用相同的工具版本：
+对于团队项目，创建 `vx.toml` 文件以确保每个人使用相同的工具版本：
 
 ```bash
 # 初始化新的项目配置
@@ -85,8 +85,8 @@ vx run dev
 | `vx <tool> [args]` | 运行工具（如果需要则自动安装） |
 | `vx install <tool>` | 安装特定工具 |
 | `vx list` | 列出可用工具 |
-| `vx setup` | 从 `.vx.toml` 安装所有项目工具 |
-| `vx run <script>` | 运行 `.vx.toml` 中定义的脚本 |
+| `vx setup` | 从 `vx.toml` 安装所有项目工具 |
+| `vx run <script>` | 运行 `vx.toml` 中定义的脚本 |
 | `vx dev` | 进入开发环境 |
 | `vx --help` | 显示帮助 |
 
@@ -126,6 +126,6 @@ vx go test ./...
 
 ## 下一步
 
-- [配置指南](/zh/guide/configuration) - 了解 `.vx.toml` 配置
+- [配置指南](/zh/guide/configuration) - 了解 `vx.toml` 配置
 - [CLI 参考](/zh/cli/overview) - 完整命令参考
 - [Shell 集成](/zh/guide/shell-integration) - 设置 Shell 集成

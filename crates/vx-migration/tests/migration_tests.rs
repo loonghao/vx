@@ -136,7 +136,7 @@ mod engine_tests {
     #[tokio::test]
     async fn test_engine_check() {
         let temp = TempDir::new().unwrap();
-        tokio::fs::write(temp.path().join(".vx.toml"), "[tools]\nnode = \"18\"")
+        tokio::fs::write(temp.path().join("vx.toml"), "[tools]\nnode = \"18\"")
             .await
             .unwrap();
 
@@ -149,7 +149,7 @@ mod engine_tests {
     #[tokio::test]
     async fn test_engine_migrate() {
         let temp = TempDir::new().unwrap();
-        tokio::fs::write(temp.path().join(".vx.toml"), "[tools]\nnode = \"18\"")
+        tokio::fs::write(temp.path().join("vx.toml"), "[tools]\nnode = \"18\"")
             .await
             .unwrap();
 
@@ -161,7 +161,7 @@ mod engine_tests {
 
         assert!(result.success);
         assert!(temp.path().join("vx.toml").exists());
-        assert!(!temp.path().join(".vx.toml").exists());
+        assert!(!temp.path().join("vx.toml").exists());
 
         let content = tokio::fs::read_to_string(temp.path().join("vx.toml"))
             .await
@@ -172,7 +172,7 @@ mod engine_tests {
     #[tokio::test]
     async fn test_engine_dry_run() {
         let temp = TempDir::new().unwrap();
-        tokio::fs::write(temp.path().join(".vx.toml"), "[tools]\nnode = \"18\"")
+        tokio::fs::write(temp.path().join("vx.toml"), "[tools]\nnode = \"18\"")
             .await
             .unwrap();
 
@@ -184,14 +184,14 @@ mod engine_tests {
 
         assert!(result.success);
         // Files should not be changed in dry-run
-        assert!(temp.path().join(".vx.toml").exists());
+        assert!(temp.path().join("vx.toml").exists());
         assert!(!temp.path().join("vx.toml").exists());
     }
 
     #[tokio::test]
     async fn test_engine_skip_migration() {
         let temp = TempDir::new().unwrap();
-        tokio::fs::write(temp.path().join(".vx.toml"), "[tools]\nnode = \"18\"")
+        tokio::fs::write(temp.path().join("vx.toml"), "[tools]\nnode = \"18\"")
             .await
             .unwrap();
 
@@ -202,8 +202,8 @@ mod engine_tests {
         let result = engine.migrate(temp.path(), &options).await.unwrap();
 
         assert!(result.success);
-        // file-rename was skipped, so .vx.toml should still exist
-        assert!(temp.path().join(".vx.toml").exists());
+        // file-rename was skipped, so vx.toml should still exist
+        assert!(temp.path().join("vx.toml").exists());
     }
 }
 
@@ -214,7 +214,7 @@ mod migration_tests {
     #[tokio::test]
     async fn test_file_rename_migration() {
         let temp = TempDir::new().unwrap();
-        tokio::fs::write(temp.path().join(".vx.toml"), "[tools]")
+        tokio::fs::write(temp.path().join("vx.toml"), "[tools]")
             .await
             .unwrap();
 
@@ -225,7 +225,7 @@ mod migration_tests {
 
         let result = migration.migrate(&mut ctx).await.unwrap();
         assert!(result.success);
-        assert!(!temp.path().join(".vx.toml").exists());
+        assert!(!temp.path().join("vx.toml").exists());
         assert!(temp.path().join("vx.toml").exists());
     }
 

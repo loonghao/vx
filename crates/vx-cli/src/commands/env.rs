@@ -9,7 +9,7 @@
 //!
 //! ## Environment Types
 //!
-//! - **Project Environment**: Created in `.vx/env/` under the project directory (default when .vx.toml exists)
+//! - **Project Environment**: Created in `.vx/env/` under the project directory (default when vx.toml exists)
 //! - **Global Environment**: Created in `~/.vx/envs/` for cross-project use
 //!
 //! ## Storage Model
@@ -32,7 +32,7 @@ use vx_paths::{
 pub enum EnvCommand {
     /// Create a new environment
     ///
-    /// By default, creates a project-local environment in `.vx/env/` if `.vx.toml` exists.
+    /// By default, creates a project-local environment in `.vx/env/` if `vx.toml` exists.
     /// Use `--global` to create a named global environment in `~/.vx/envs/`.
     Create {
         /// Environment name (optional for project environments)
@@ -111,9 +111,9 @@ pub enum EnvCommand {
         global: bool,
     },
 
-    /// Sync project environment from .vx.toml
+    /// Sync project environment from vx.toml
     ///
-    /// Creates symlinks in `.vx/env/` for all tools defined in `.vx.toml`
+    /// Creates symlinks in `.vx/env/` for all tools defined in `vx.toml`
     Sync,
 }
 
@@ -321,7 +321,7 @@ async fn create_env(
             UI::info(&format!("Cloned from global environment '{}'", source));
         }
 
-        UI::hint("Run 'vx env sync' to populate from .vx.toml, or 'vx env add <tool>@<version>' to add tools");
+        UI::hint("Run 'vx env sync' to populate from vx.toml, or 'vx env add <tool>@<version>' to add tools");
     }
 
     Ok(())
@@ -362,7 +362,7 @@ async fn use_env(name: Option<&str>, global: bool) -> Result<()> {
                 anyhow::bail!("No project environment found. Create one with 'vx env create'");
             }
         } else {
-            anyhow::bail!("No .vx.toml found. Use 'vx env use <name>' for a global environment");
+            anyhow::bail!("No vx.toml found. Use 'vx env use <name>' for a global environment");
         }
     };
 
@@ -384,7 +384,7 @@ async fn use_env(name: Option<&str>, global: bool) -> Result<()> {
     }
 
     println!();
-    UI::hint("Or use 'eval \"$(vx dev --export)\"' if you have .vx.toml");
+    UI::hint("Or use 'eval \"$(vx dev --export)\"' if you have vx.toml");
 
     Ok(())
 }
@@ -506,7 +506,7 @@ async fn delete_env(name: Option<&str>, force: bool, global: bool) -> Result<()>
         // Delete project environment
         let project_env = get_project_env_dir().ok_or_else(|| {
             anyhow::anyhow!(
-                "No .vx.toml found. Use '--global <name>' to delete a global environment"
+                "No vx.toml found. Use '--global <name>' to delete a global environment"
             )
         })?;
 
@@ -583,7 +583,7 @@ async fn show_env(name: Option<&str>) -> Result<()> {
     if runtimes.is_empty() {
         println!("Tools: (none)");
         if env_type == "project" {
-            UI::hint("Run 'vx env sync' to populate from .vx.toml");
+            UI::hint("Run 'vx env sync' to populate from vx.toml");
         } else {
             UI::hint("Add tools with 'vx env add <tool>@<version>'");
         }
@@ -641,7 +641,7 @@ async fn add_runtime(runtime_version: &str, env_name: Option<&str>, global: bool
         // Add to project environment (create if needed)
         let project_env = get_project_env_dir().ok_or_else(|| {
             anyhow::anyhow!(
-                "No .vx.toml found. Use '--global' or '--env <name>' for global environments"
+                "No vx.toml found. Use '--global' or '--env <name>' for global environments"
             )
         })?;
 
@@ -700,7 +700,7 @@ async fn remove_runtime(runtime: &str, env_name: Option<&str>, global: bool) -> 
     } else {
         let project_env = get_project_env_dir().ok_or_else(|| {
             anyhow::anyhow!(
-                "No .vx.toml found. Use '--global' or '--env <name>' for global environments"
+                "No vx.toml found. Use '--global' or '--env <name>' for global environments"
             )
         })?;
 
@@ -792,7 +792,7 @@ async fn sync_env() -> Result<()> {
     }
 
     if synced == 0 && missing.is_empty() {
-        UI::info("No tools defined in .vx.toml");
+        UI::info("No tools defined in vx.toml");
     }
 
     Ok(())
