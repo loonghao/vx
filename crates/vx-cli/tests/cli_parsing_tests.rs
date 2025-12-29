@@ -597,12 +597,14 @@ fn test_cli_setup_command() {
             verbose,
             no_parallel,
             no_hooks,
+            ci,
         }) => {
             assert!(!force);
             assert!(!dry_run);
             assert!(!verbose);
             assert!(!no_parallel);
             assert!(!no_hooks);
+            assert!(!ci);
         }
         _ => panic!("Expected Setup command"),
     }

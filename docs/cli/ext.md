@@ -225,14 +225,42 @@ dependencies = ["requests", "pyyaml"]  # runtime dependencies
 main = "main.py"  # main entry point
 args = ["--config", "config.yaml"]  # default arguments
 
+# Argument definitions for main entrypoint
+[[entrypoint.arguments]]
+name = "target"
+type = "string"
+required = true
+positional = true
+help = "Target to process"
+
+[[entrypoint.arguments]]
+name = "verbose"
+type = "flag"
+short = "v"
+help = "Enable verbose output"
+
 [commands.hello]
 description = "Say hello"
 script = "commands/hello.py"
+
+[[commands.hello.arguments]]
+name = "name"
+type = "string"
+default = "World"
+help = "Name to greet"
 
 [commands.build]
 description = "Build the project"
 script = "commands/build.sh"
 args = ["--production"]
+
+# Environment variables
+[env]
+MY_VAR = "value"
+API_URL = "{{env.API_URL}}"  # Variable interpolation
+
+# Configuration inheritance
+extends = "github:company/base-extension/vx-extension.toml"
 
 # Hook extension type
 [hooks]
@@ -241,6 +269,103 @@ post-install = "hooks/post-install.py"
 pre-run = "hooks/pre-run.sh"
 post-run = "hooks/post-run.sh"
 ```
+
+## Argument System
+
+Extensions support declarative argument definitions:
+
+### Argument Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `string` | String value (default) | `name = { type = "string" }` |
+| `flag` | Boolean flag | `verbose = { type = "flag", short = "v" }` |
+| `array` | Multiple values | `files = { type = "array" }` |
+| `number` | Numeric value | `port = { type = "number", default = "8080" }` |
+
+### Argument Properties
+
+```toml
+[[commands.deploy.arguments]]
+name = "environment"
+type = "string"
+required = true           # Required argument
+default = "dev"           # Default value
+choices = ["dev", "prod"] # Valid choices
+env = "DEPLOY_ENV"        # Read from env var
+short = "e"               # Short flag (-e)
+help = "Target environment"
+pattern = "^[a-z]+$"      # Regex validation
+positional = true         # Positional argument
+```
+
+### Usage Examples
+
+```bash
+# Positional arguments
+vx x docker-compose up prod
+
+# Named arguments
+vx x docker-compose up --environment prod
+
+# Flags
+vx x docker-compose up -v --dry-run
+
+# Array arguments
+vx x docker-compose up --services api --services web
+
+# View help
+vx x docker-compose --help
+vx x docker-compose up --help
+```
+
+## Variable Interpolation
+
+Extensions support `{{var}}` syntax for variable interpolation:
+
+```toml
+[env]
+PROJECT = "{{project.name}}"
+BUILD_DIR = "{{project.root}}/dist"
+VERSION = "`git describe --tags`"  # Command interpolation
+```
+
+### Built-in Variables
+
+| Variable | Description |
+|----------|-------------|
+| `{{vx.version}}` | vx version |
+| `{{vx.home}}` | vx home directory |
+| `{{project.root}}` | Project root |
+| `{{project.name}}` | Project name |
+| `{{os.name}}` | Operating system |
+| `{{os.arch}}` | CPU architecture |
+| `{{env.VAR}}` | Environment variable |
+
+## Configuration Inheritance
+
+Extensions can inherit from other configurations:
+
+```toml
+# Local file
+extends = "./base.toml"
+
+# Installed extension
+extends = "ext:base-extension"
+
+# GitHub
+extends = "github:user/repo/path/to/config.toml@v1.0"
+
+# URL
+extends = "https://example.com/config.toml"
+```
+
+### Merge Rules
+
+- **commands**: Deep merge, child overrides parent
+- **env**: Deep merge, child takes priority
+- **entrypoint**: Child wins if set
+- **hooks**: Merged, child overrides same keys
 
 ## Extension Types
 

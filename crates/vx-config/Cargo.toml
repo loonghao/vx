@@ -18,6 +18,7 @@ regex = { workspace = true }
 sha2 = "0.10"
 chrono = { workspace = true }
 dirs = { workspace = true }
+shellexpand = "3.1"
 
 [dev-dependencies]
 rstest = { workspace = true }

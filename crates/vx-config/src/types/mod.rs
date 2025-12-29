@@ -1,6 +1,6 @@
 //! Configuration type definitions
 //!
-//! This module defines all configuration structures for `.vx.toml` files.
+//! This module defines all configuration structures for `vx.toml` files.
 //! All fields are optional to maintain backward compatibility.
 //!
 //! ## Module Structure
@@ -40,6 +40,7 @@ mod script;
 mod security;
 mod service;
 mod settings;
+mod setup;
 mod team;
 mod telemetry;
 mod test;
@@ -61,6 +62,7 @@ pub use script::*;
 pub use security::*;
 pub use service::*;
 pub use settings::*;
+pub use setup::*;
 pub use team::*;
 pub use telemetry::*;
 pub use test::*;

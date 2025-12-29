@@ -180,4 +180,47 @@ check = "cargo check --workspace --all-targets"
         let settings = config.settings_as_hashmap();
         assert_eq!(settings.get("auto_install"), Some(&"true".to_string()));
     }
+
+    #[test]
+    fn test_runtimes_alias() {
+        // Test that [runtimes] works as an alias for [tools]
+        let content = r#"
+[runtimes]
+python = "3.11"
+uv = "latest"
+
+[scripts]
+test = "cargo test"
+"#;
+        let config = parse_config_str(content).unwrap();
+
+        // Should be accessible via tools_as_hashmap
+        let tools = config.tools_as_hashmap();
+        assert_eq!(tools.get("python"), Some(&"3.11".to_string()));
+        assert_eq!(tools.get("uv"), Some(&"latest".to_string()));
+
+        // Should also work with get_tool_version
+        assert_eq!(config.get_tool_version("python"), Some("3.11".to_string()));
+        assert_eq!(config.get_tool_version("uv"), Some("latest".to_string()));
+    }
+
+    #[test]
+    fn test_tools_takes_priority_over_runtimes() {
+        // Test that [tools] takes priority over [runtimes]
+        let content = r#"
+[runtimes]
+python = "3.10"
+uv = "0.1.0"
+
+[tools]
+python = "3.11"
+"#;
+        let config = parse_config_str(content).unwrap();
+
+        let tools = config.tools_as_hashmap();
+        // python from [tools] should override [runtimes]
+        assert_eq!(tools.get("python"), Some(&"3.11".to_string()));
+        // uv only in [runtimes] should still be available
+        assert_eq!(tools.get("uv"), Some(&"0.1.0".to_string()));
+    }
 }

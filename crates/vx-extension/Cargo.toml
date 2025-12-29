@@ -10,6 +10,7 @@ repository.workspace = true
 vx-core = { workspace = true }
 vx-paths = { workspace = true }
 vx-runtime = { workspace = true }
+vx-args = { path = "../vx-args" }
 
 # Serialization
 serde = { workspace = true }
@@ -26,6 +27,7 @@ thiserror = { workspace = true }
 # Utilities
 tracing = { workspace = true }
 walkdir = { workspace = true }
+dotenvy = "0.15"
 
 [dev-dependencies]
 rstest = { workspace = true }
