@@ -14,7 +14,7 @@
 ### 当前限制
 
 1. **参数传递受限**：`vx run test arg1 arg2` 只是简单拼接，无法定义位置参数、可选参数、默认值
-2. **无变量插值**：脚本中无法使用 `{{variable}}` 语法引用变量
+2. **无变量插值**：脚本中无法使用 `\{\{variable\}\}` 语法引用变量
 3. **环境变量手动管理**：需要手动设置环境变量，无法自动从配置文件加载
 4. **无配置继承**：无法从远程或本地模板继承配置
 
@@ -22,7 +22,7 @@
 
 | 工具 | 参数系统 | 变量插值 | 环境变量 | 配置继承 |
 |------|----------|----------|----------|----------|
-| **just** | 位置参数、默认值、可变参数 | `{{var}}` 语法 | `env()` 函数、`.env` 文件 | `import` 语句 |
+| **just** | 位置参数、默认值、可变参数 | `\{\{var\}\}` 语法 | `env()` 函数、`.env` 文件 | `import` 语句 |
 | **mise** | usage spec 声明式参数 | Tera 模板 | 内置变量、`.env` 支持 | 无 |
 | **cargo-make** | `${@}` 获取参数 | `${var}` 语法 | `[env]` 块、env_files | `extend` 属性 |
 | **npm scripts** | `-- args` 传递 | 无 | `cross-env` | 无 |
@@ -35,7 +35,7 @@
 
 ```toml
 [scripts.deploy]
-run = "deploy.sh {{environment}} {{region}}"
+run = "deploy.sh \{\{environment\}\} \{\{region\}\}"
 description = "Deploy to cloud"
 
 [scripts.deploy.args]
@@ -96,28 +96,28 @@ vx run deploy --help
 [vars]
 project = "my-app"
 version = "1.0.0"
-build_dir = "dist/{{project}}"
+build_dir = "dist/\{\{project\}\}"
 
 [scripts]
-build = "cargo build --release -p {{project}}"
-tag = "git tag v{{version}}"
-clean = "rm -rf {{build_dir}}"
+build = "cargo build --release -p \{\{project\}\}"
+tag = "git tag v\{\{version\}\}"
+clean = "rm -rf \{\{build_dir\}\}"
 ```
 
 #### 2.2 内置变量
 
 | 变量 | 说明 |
 |------|------|
-| `{{vx.version}}` | vx 版本 |
-| `{{vx.home}}` | vx 主目录 |
-| `{{vx.runtimes}}` | 运行时目录 |
-| `{{project.root}}` | 项目根目录 |
-| `{{project.name}}` | 项目名称 |
-| `{{os.name}}` | 操作系统名称 |
-| `{{os.arch}}` | CPU 架构 |
-| `{{env.VAR}}` | 环境变量 |
-| `{{date}}` | 当前日期 (YYYY-MM-DD) |
-| `{{timestamp}}` | Unix 时间戳 |
+| `\{\{vx.version\}\}` | vx 版本 |
+| `\{\{vx.home\}\}` | vx 主目录 |
+| `\{\{vx.runtimes\}\}` | 运行时目录 |
+| `\{\{project.root\}\}` | 项目根目录 |
+| `\{\{project.name\}\}` | 项目名称 |
+| `\{\{os.name\}\}` | 操作系统名称 |
+| `\{\{os.arch\}\}` | CPU 架构 |
+| `\{\{env.VAR\}\}` | 环境变量 |
+| `\{\{date\}\}` | 当前日期 (YYYY-MM-DD) |
+| `\{\{timestamp\}\}` | Unix 时间戳 |
 
 #### 2.3 命令插值
 
@@ -127,7 +127,7 @@ git_hash = { cmd = "git rev-parse --short HEAD" }
 branch = { cmd = "git branch --show-current" }
 
 [scripts]
-info = "echo 'Building {{project}} ({{git_hash}}) on {{branch}}'"
+info = "echo 'Building \{\{project\}\} (\{\{git_hash\}\}) on \{\{branch\}\}'"
 ```
 
 #### 2.4 条件表达式
@@ -137,7 +137,7 @@ info = "echo 'Building {{project}} ({{git_hash}}) on {{branch}}'"
 compiler = { if = "os.name == 'windows'", then = "cl", else = "gcc" }
 
 [scripts]
-compile = "{{compiler}} -o app main.c"
+compile = "\{\{compiler\}\} -o app main.c"
 ```
 
 ### 3. 环境变量系统
@@ -278,7 +278,7 @@ vx run <script> [args...]
 
 #### 6.2 帮助系统
 
-```bash
+```text
 $ vx run deploy --help
 
 Usage: vx run deploy <environment> [options]
