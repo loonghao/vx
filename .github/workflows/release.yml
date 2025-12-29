@@ -163,13 +163,16 @@ jobs:
         id: archive
         shell: bash
         run: |
-          # Use simple format: vx-{target}.{ext} (without version in filename)
-          # Version is already in the release tag, no need to duplicate
+          VERSION="${{ needs.get-tag.outputs.version }}"
+          # Use format with version: vx-{version}-{target}.{ext}
+          # Also create a symlink/copy without version for backward compatibility
           if [[ "${{ matrix.platform.os }}" == "windows-latest" ]]; then
-            echo "name=vx-${{ matrix.platform.target }}.zip" >> $GITHUB_OUTPUT
+            echo "name=vx-${VERSION}-${{ matrix.platform.target }}.zip" >> $GITHUB_OUTPUT
+            echo "name_compat=vx-${{ matrix.platform.target }}.zip" >> $GITHUB_OUTPUT
             echo "ext=zip" >> $GITHUB_OUTPUT
           else
-            echo "name=vx-${{ matrix.platform.target }}.tar.gz" >> $GITHUB_OUTPUT
+            echo "name=vx-${VERSION}-${{ matrix.platform.target }}.tar.gz" >> $GITHUB_OUTPUT
+            echo "name_compat=vx-${{ matrix.platform.target }}.tar.gz" >> $GITHUB_OUTPUT
             echo "ext=tar.gz" >> $GITHUB_OUTPUT
           fi
 
@@ -177,19 +180,28 @@ jobs:
         if: matrix.platform.os != 'windows-latest'
         run: |
           cd target/${{ matrix.platform.target }}/release
+          # Create versioned archive
           tar -czvf ../../../${{ steps.archive.outputs.name }} vx
           cd ../../..
           sha256sum ${{ steps.archive.outputs.name }} > ${{ steps.archive.outputs.name }}.sha256
+          # Create backward-compatible archive (copy without version)
+          cp ${{ steps.archive.outputs.name }} ${{ steps.archive.outputs.name_compat }}
+          sha256sum ${{ steps.archive.outputs.name_compat }} > ${{ steps.archive.outputs.name_compat }}.sha256
 
       - name: Create archive (Windows)
         if: matrix.platform.os == 'windows-latest'
         shell: pwsh
         run: |
           cd target/${{ matrix.platform.target }}/release
+          # Create versioned archive
           Compress-Archive -Path vx.exe -DestinationPath ../../../${{ steps.archive.outputs.name }}
           cd ../../..
           $hash = (Get-FileHash ${{ steps.archive.outputs.name }} -Algorithm SHA256).Hash.ToLower()
           "$hash  ${{ steps.archive.outputs.name }}" | Out-File -Encoding ASCII ${{ steps.archive.outputs.name }}.sha256
+          # Create backward-compatible archive (copy without version)
+          Copy-Item ${{ steps.archive.outputs.name }} ${{ steps.archive.outputs.name_compat }}
+          $hashCompat = (Get-FileHash ${{ steps.archive.outputs.name_compat }} -Algorithm SHA256).Hash.ToLower()
+          "$hashCompat  ${{ steps.archive.outputs.name_compat }}" | Out-File -Encoding ASCII ${{ steps.archive.outputs.name_compat }}.sha256
 
       - name: Upload artifacts to release
         uses: softprops/action-gh-release@v2
@@ -198,6 +210,8 @@ jobs:
           files: |
             ${{ steps.archive.outputs.name }}
             ${{ steps.archive.outputs.name }}.sha256
+            ${{ steps.archive.outputs.name_compat }}
+            ${{ steps.archive.outputs.name_compat }}.sha256
           fail_on_unmatched_files: true
 
   # Create GitHub Release with all artifacts

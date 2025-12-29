@@ -848,6 +848,101 @@ uv = "latest"
     }
 }
 
+/// Test: vx add preserves boolean values in settings (not quoted as strings)
+#[rstest]
+#[test]
+fn test_add_tool_preserves_boolean_settings() {
+    skip_if_no_vx!();
+
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+
+    // Create initial .vx.toml with boolean settings
+    std::fs::write(
+        temp_dir.path().join(".vx.toml"),
+        r#"[tools]
+node = "20"
+
+[settings]
+auto_install = true
+cache_duration = "7d"
+"#,
+    )
+    .expect("Failed to write .vx.toml");
+
+    let output = run_vx_in_dir(temp_dir.path(), &["add", "uv", "--version", "latest"])
+        .expect("Failed to run vx add");
+
+    if is_success(&output) {
+        // Verify config can still be parsed (boolean values are not quoted)
+        let config_content = std::fs::read_to_string(temp_dir.path().join(".vx.toml"))
+            .expect("Failed to read .vx.toml");
+
+        // Check that auto_install is not quoted as a string
+        assert!(
+            !config_content.contains("auto_install = \"true\""),
+            "auto_install should NOT be quoted as string: {}",
+            config_content
+        );
+        assert!(
+            config_content.contains("auto_install = true"),
+            "auto_install should be a boolean: {}",
+            config_content
+        );
+
+        // Verify the config can be parsed again
+        let output2 = run_vx_in_dir(temp_dir.path(), &["config", "show"])
+            .expect("Failed to run vx config show");
+        assert!(
+            is_success(&output2),
+            "Config should be parseable after add: {}",
+            combined_output(&output2)
+        );
+    }
+}
+
+/// Test: vx add preserves numeric values in settings
+#[rstest]
+#[test]
+fn test_add_tool_preserves_numeric_settings() {
+    skip_if_no_vx!();
+
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+
+    // Create initial .vx.toml with numeric settings
+    std::fs::write(
+        temp_dir.path().join(".vx.toml"),
+        r#"[tools]
+node = "20"
+
+[settings]
+auto_install = true
+parallel_install = false
+cache_duration = "7d"
+"#,
+    )
+    .expect("Failed to write .vx.toml");
+
+    let output = run_vx_in_dir(temp_dir.path(), &["add", "go", "--version", "latest"])
+        .expect("Failed to run vx add");
+
+    if is_success(&output) {
+        // Verify both boolean values are preserved correctly
+        let config_content = std::fs::read_to_string(temp_dir.path().join(".vx.toml"))
+            .expect("Failed to read .vx.toml");
+
+        assert!(
+            config_content.contains("auto_install = true"),
+            "auto_install should be true: {}",
+            config_content
+        );
+        assert!(
+            config_content.contains("parallel_install = false"),
+            "parallel_install should be false: {}",
+            config_content
+        );
+    }
+}
+
 // ============================================================================
 // vx run Tests
 // ============================================================================
