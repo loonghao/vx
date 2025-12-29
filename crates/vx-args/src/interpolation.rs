@@ -401,12 +401,8 @@ mod tests {
         let interpolator = Interpolator::new();
         let vars = HashMap::new();
 
-        // Simple echo command
-        let cmd = if cfg!(windows) {
-            "echo hello"
-        } else {
-            "echo hello"
-        };
+        // Simple echo command (same on all platforms)
+        let cmd = "echo hello";
 
         let result = interpolator
             .interpolate(&format!("Output: `{}`", cmd), &vars)
