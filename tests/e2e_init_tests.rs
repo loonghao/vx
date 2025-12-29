@@ -176,17 +176,19 @@ uv = "0.7.12"
 fn test_init_force_writes_to_existing_file_location() {
     let env = E2ETestEnv::new();
 
-    // Create existing vx.toml (legacy location)
+    // Create existing vx.toml
     env.create_config("vx.toml", "[tools]\nnode = \"18\"\n");
 
     // Run init --force
     let output = env.run(&["init", "--force"]);
     assert!(output.status.success());
 
-    // Should update vx.toml, not create vx.toml
+    // Should update vx.toml
     assert!(env.file_exists("vx.toml"));
-    // vx.toml should not be created
-    assert!(!env.file_exists("vx.toml"));
+
+    // Verify the file was updated (should still contain tools section)
+    let content = env.read_file("vx.toml");
+    assert!(content.contains("[tools]"));
 }
 
 #[test]
@@ -360,8 +362,8 @@ format = "uv run ruff format ."
     // Verify the specific uv version is preserved
     assert!(config_content.contains("uv = \"0.7.12\""));
 
-    // Verify we didn't create a new vx.toml
-    assert!(!env.file_exists("vx.toml"));
+    // Verify vx.toml exists (was updated in place)
+    assert!(env.file_exists("vx.toml"));
 }
 
 #[test]
