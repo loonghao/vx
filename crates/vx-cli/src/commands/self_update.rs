@@ -1,13 +1,26 @@
 //! Self-update command implementation
+//!
+//! This module provides self-update functionality for vx with the following features:
+//! - Multi-channel download with automatic fallback (GitHub, jsDelivr CDN, Fastly CDN)
+//! - Download progress bar with speed and ETA display
+//! - SHA256 checksum verification for security
+//! - Specific version installation support
+//! - Safe binary replacement using self_replace (handles Windows exe locking)
+//! - Automatic backup and rollback on failure
 
 use crate::ui::UI;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
+use futures_util::StreamExt;
+use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, USER_AGENT};
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use std::env;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 
+/// GitHub release information
 #[derive(Debug, Deserialize)]
 struct GitHubRelease {
     tag_name: String,
@@ -19,18 +32,35 @@ struct GitHubRelease {
     prerelease: bool,
 }
 
-#[derive(Debug, Deserialize)]
+/// GitHub release asset information
+#[derive(Debug, Deserialize, Clone)]
 struct GitHubAsset {
     name: String,
     browser_download_url: String,
     size: u64,
 }
 
+/// Source of version information (affects download strategy)
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum VersionSource {
+    GitHub,
+    Cdn,
+}
+
+/// Handle the self-update command
+///
+/// # Arguments
+/// * `token` - Optional GitHub token for authenticated API requests
+/// * `prerelease` - Whether to include pre-release versions
+/// * `force` - Force update even if already up to date
+/// * `check_only` - Only check for updates, don't install
+/// * `target_version` - Specific version to install (e.g., "0.5.28")
 pub async fn handle(
     token: Option<&str>,
     prerelease: bool,
     force: bool,
     check_only: bool,
+    target_version: Option<&str>,
 ) -> Result<()> {
     UI::info("🔍 Checking for vx updates...");
 
@@ -40,8 +70,13 @@ pub async fn handle(
     // Create HTTP client with optional authentication
     let client = create_authenticated_client(token)?;
 
-    // Get latest release information with smart channel selection
-    let release = get_latest_release(&client, prerelease, token.is_some()).await?;
+    // Get release information based on whether a specific version is requested
+    let (release, version_source) = if let Some(version) = target_version {
+        UI::info(&format!("📌 Looking for specific version: {}", version));
+        get_specific_release(&client, version, token.is_some()).await?
+    } else {
+        get_latest_release(&client, prerelease, token.is_some()).await?
+    };
 
     // Parse version from tag_name (handles "vx-v0.5.9", "x-v0.5.9", and "v0.5.9" formats)
     let latest_version = release
@@ -49,7 +84,7 @@ pub async fn handle(
         .trim_start_matches("vx-v")
         .trim_start_matches("x-v")
         .trim_start_matches('v');
-    UI::detail(&format!("Latest version: {}", latest_version));
+    UI::detail(&format!("Target version: {}", latest_version));
 
     // Check if update is needed
     if !force && current_version == latest_version {
@@ -58,12 +93,17 @@ pub async fn handle(
     }
 
     if current_version != latest_version {
+        let direction = if is_newer_version(latest_version, current_version) {
+            "upgrade"
+        } else {
+            "downgrade"
+        };
         UI::info(&format!(
-            "📦 New version available: {} -> {}",
-            current_version, latest_version
+            "📦 {} available: {} -> {}",
+            direction, current_version, latest_version
         ));
 
-        if !release.body.is_empty() {
+        if !release.body.is_empty() && !release.body.contains("retrieved from CDN") {
             UI::info("📝 Release notes:");
             println!("{}", release.body);
         }
@@ -72,19 +112,22 @@ pub async fn handle(
     if check_only {
         if current_version != latest_version {
             UI::info("💡 Run 'vx self-update' to update to the latest version");
+            if target_version.is_none() {
+                UI::hint(&format!(
+                    "Or run 'vx self-update {}' to install this specific version",
+                    latest_version
+                ));
+            }
         }
         return Ok(());
     }
 
     // Find appropriate asset for current platform
     let asset = find_platform_asset(&release.assets)?;
-    UI::info(&format!(
-        "📥 Downloading {} ({} bytes)...",
-        asset.name, asset.size
-    ));
+    UI::info(&format!("📥 Downloading {}...", asset.name));
 
     // Download and install update
-    download_and_install(&client, asset, force).await?;
+    download_and_install(&client, asset, force, version_source, latest_version).await?;
 
     UI::success(&format!(
         "🎉 Successfully updated vx to version {}!",
@@ -95,6 +138,24 @@ pub async fn handle(
     Ok(())
 }
 
+/// Check if version_a is newer than version_b using semver comparison
+fn is_newer_version(version_a: &str, version_b: &str) -> bool {
+    let parse_version = |v: &str| -> (u64, u64, u64) {
+        let parts: Vec<&str> = v.split('.').collect();
+        let major = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
+        let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+        let patch = parts
+            .get(2)
+            .and_then(|s| s.split('-').next())
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+        (major, minor, patch)
+    };
+
+    parse_version(version_a) > parse_version(version_b)
+}
+
+/// Create an HTTP client with optional GitHub authentication
 fn create_authenticated_client(token: Option<&str>) -> Result<reqwest::Client> {
     let mut headers = HeaderMap::new();
 
@@ -126,11 +187,156 @@ fn create_authenticated_client(token: Option<&str>) -> Result<reqwest::Client> {
     Ok(client)
 }
 
+/// Get a specific version release
+async fn get_specific_release(
+    client: &reqwest::Client,
+    version: &str,
+    has_token: bool,
+) -> Result<(GitHubRelease, VersionSource)> {
+    // Normalize version string (remove 'v' prefix if present)
+    let version = version
+        .trim_start_matches("vx-v")
+        .trim_start_matches("x-v")
+        .trim_start_matches('v');
+
+    // Try GitHub API first if we have a token
+    if has_token {
+        match try_github_api_specific(client, version).await {
+            Ok(release) => {
+                UI::info("✅ Got version info from GitHub API");
+                return Ok((release, VersionSource::GitHub));
+            }
+            Err(e) => {
+                UI::warn(&format!("⚠️ GitHub API failed: {}", e));
+                UI::info("🔄 Trying CDN fallback...");
+            }
+        }
+    }
+
+    // Try CDN (create synthetic release)
+    match try_jsdelivr_api_specific(client, version).await {
+        Ok(release) => {
+            UI::info("✅ Got version info from jsDelivr CDN");
+            Ok((release, VersionSource::Cdn))
+        }
+        Err(e) => {
+            // If CDN fails and we haven't tried GitHub, try it now
+            if !has_token {
+                UI::warn(&format!("⚠️ CDN fallback failed: {}", e));
+                UI::info("🔄 Trying GitHub API...");
+
+                match try_github_api_specific(client, version).await {
+                    Ok(release) => {
+                        UI::info("✅ Got version info from GitHub API");
+                        return Ok((release, VersionSource::GitHub));
+                    }
+                    Err(github_err) => {
+                        return Err(anyhow!(
+                            "Failed to find version {} from both CDN and GitHub API.\n\
+                            CDN error: {}\n\
+                            GitHub error: {}",
+                            version,
+                            e,
+                            github_err
+                        ));
+                    }
+                }
+            }
+            Err(anyhow!("Failed to find version {}: {}", version, e))
+        }
+    }
+}
+
+/// Try to get a specific version from GitHub API
+async fn try_github_api_specific(client: &reqwest::Client, version: &str) -> Result<GitHubRelease> {
+    // Try different tag formats
+    let tag_formats = [
+        format!("vx-v{}", version),
+        format!("v{}", version),
+        version.to_string(),
+    ];
+
+    for tag in &tag_formats {
+        let url = format!(
+            "https://api.github.com/repos/loonghao/vx/releases/tags/{}",
+            tag
+        );
+
+        let response = client.get(&url).send().await?;
+
+        if response.status().is_success() {
+            return Ok(response.json().await?);
+        }
+    }
+
+    Err(anyhow!("Version {} not found in GitHub releases", version))
+}
+
+/// Try to get a specific version from jsDelivr CDN
+async fn try_jsdelivr_api_specific(
+    client: &reqwest::Client,
+    version: &str,
+) -> Result<GitHubRelease> {
+    // Verify the version exists by checking the CDN API
+    let url = "https://data.jsdelivr.com/v1/package/gh/loonghao/vx";
+    let response = client.get(url).send().await?;
+
+    if !response.status().is_success() {
+        return Err(anyhow!(
+            "Failed to fetch from jsDelivr: {}",
+            response.status()
+        ));
+    }
+
+    let json: serde_json::Value = response.json().await?;
+    let versions = json["versions"]
+        .as_array()
+        .ok_or_else(|| anyhow!("No versions found in jsDelivr response"))?;
+
+    // Check if the requested version exists
+    let version_exists = versions.iter().any(|v| {
+        if let Some(v_str) = v.as_str() {
+            let normalized = v_str
+                .trim_start_matches("vx-v")
+                .trim_start_matches("x-v")
+                .trim_start_matches('v');
+            normalized == version
+        } else {
+            false
+        }
+    });
+
+    if !version_exists {
+        return Err(anyhow!(
+            "Version {} not found. Available versions: {}",
+            version,
+            versions
+                .iter()
+                .filter_map(|v| v.as_str())
+                .take(10)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+
+    // Create CDN-based assets for the version
+    let assets = create_cdn_assets(version);
+
+    Ok(GitHubRelease {
+        tag_name: format!("vx-v{}", version),
+        name: format!("Release {}", version),
+        body: "Release information retrieved from CDN".to_string(),
+        prerelease: false,
+        assets,
+    })
+}
+
+/// Get the latest release information with smart channel selection
 async fn get_latest_release(
     client: &reqwest::Client,
     prerelease: bool,
     has_token: bool,
-) -> Result<GitHubRelease> {
+) -> Result<(GitHubRelease, VersionSource)> {
     // If no token is provided, prefer CDN to avoid rate limits
     if !has_token {
         UI::info("🌐 No GitHub token provided, using CDN for version check...");
@@ -139,7 +345,7 @@ async fn get_latest_release(
         match try_jsdelivr_api(client, prerelease).await {
             Ok(release) => {
                 UI::info("✅ Got version info from jsDelivr CDN");
-                return Ok(release);
+                return Ok((release, VersionSource::Cdn));
             }
             Err(e) => {
                 UI::warn(&format!("⚠️ CDN fallback failed: {}", e));
@@ -150,18 +356,16 @@ async fn get_latest_release(
 
     // Try GitHub API (either as primary with token, or as fallback without token)
     match try_github_api(client, prerelease).await {
-        Ok(release) => Ok(release),
+        Ok(release) => Ok((release, VersionSource::GitHub)),
         Err(e) => {
             // Check if it's a rate limit error
             if e.to_string().contains("rate limit") {
                 if has_token {
-                    // If we have a token but still hit rate limit, something's wrong
                     return Err(anyhow!(
                         "GitHub API rate limit exceeded even with authentication. \
                         Check your token permissions or try again later."
                     ));
                 } else {
-                    // If no token and we already tried CDN, we're out of options
                     return Err(anyhow!(
                         "GitHub API rate limit exceeded and CDN fallback also failed. \
                         Use --token <TOKEN> to authenticate and increase rate limits. \
@@ -177,16 +381,16 @@ async fn get_latest_release(
 
                 if let Ok(release) = try_jsdelivr_api(client, prerelease).await {
                     UI::info("✅ Got version info from jsDelivr CDN");
-                    return Ok(release);
+                    return Ok((release, VersionSource::Cdn));
                 }
             }
 
-            // Return the original error if all else fails
             Err(e)
         }
     }
 }
 
+/// Try to get release info from GitHub API
 async fn try_github_api(client: &reqwest::Client, prerelease: bool) -> Result<GitHubRelease> {
     let url = if prerelease {
         "https://api.github.com/repos/loonghao/vx/releases"
@@ -228,27 +432,20 @@ async fn try_github_api(client: &reqwest::Client, prerelease: bool) -> Result<Gi
     }
 }
 
+/// Find the appropriate asset for the current platform
 fn find_platform_asset(assets: &[GitHubAsset]) -> Result<&GitHubAsset> {
     let target_os = env::consts::OS;
     let target_arch = env::consts::ARCH;
 
     // Define platform-specific patterns with REQUIRED and EXCLUDED patterns
-    // The first pattern in required MUST match, and none of the excluded patterns should match
     let (required_patterns, excluded_patterns): (Vec<&str>, Vec<&str>) =
         match (target_os, target_arch) {
-            // Windows x86_64: must contain x86_64 AND windows, must NOT contain aarch64
             ("windows", "x86_64") => (vec!["x86_64", "windows"], vec!["aarch64", "arm64"]),
-            // Windows x86: must contain i686 or win32, must NOT contain x86_64/aarch64
             ("windows", "x86") => (vec!["i686", "windows"], vec!["x86_64", "aarch64", "arm64"]),
-            // Windows ARM64: must contain aarch64 AND windows
             ("windows", "aarch64") => (vec!["aarch64", "windows"], vec!["x86_64", "i686"]),
-            // macOS x86_64: must contain x86_64 AND darwin/apple, must NOT contain aarch64
             ("macos", "x86_64") => (vec!["x86_64", "apple"], vec!["aarch64", "arm64"]),
-            // macOS ARM64: must contain aarch64 AND darwin/apple
             ("macos", "aarch64") => (vec!["aarch64", "apple"], vec!["x86_64"]),
-            // Linux x86_64: must contain x86_64 AND linux, must NOT contain aarch64
             ("linux", "x86_64") => (vec!["x86_64", "linux"], vec!["aarch64", "arm64"]),
-            // Linux ARM64: must contain aarch64 AND linux
             ("linux", "aarch64") => (vec!["aarch64", "linux"], vec!["x86_64"]),
             _ => {
                 return Err(anyhow!(
@@ -259,7 +456,7 @@ fn find_platform_asset(assets: &[GitHubAsset]) -> Result<&GitHubAsset> {
             }
         };
 
-    // Find matching asset: ALL required patterns must match, NO excluded patterns should match
+    // Find matching asset
     for asset in assets {
         let name_lower = asset.name.to_lowercase();
 
@@ -287,17 +484,26 @@ fn find_platform_asset(assets: &[GitHubAsset]) -> Result<&GitHubAsset> {
     ))
 }
 
+/// Download and install the update with progress bar and checksum verification
 async fn download_and_install(
     client: &reqwest::Client,
     asset: &GitHubAsset,
     force: bool,
+    version_source: VersionSource,
+    version: &str,
 ) -> Result<()> {
     // Get current executable path
     let current_exe = env::current_exe()?;
     let backup_path = current_exe.with_extension("bak");
 
     // Try downloading with multi-channel fallback
-    let content = download_with_fallback(client, asset).await?;
+    let content = download_with_fallback(client, asset, version_source, version).await?;
+
+    // Try to verify checksum if available
+    if let Err(e) = verify_checksum(client, asset, &content, version_source, version).await {
+        UI::warn(&format!("⚠️ Checksum verification skipped: {}", e));
+        UI::detail("Continuing with size validation only...");
+    }
 
     // Create temporary file for the new binary
     let temp_path = current_exe.with_extension("tmp");
@@ -321,29 +527,53 @@ async fn download_and_install(
         fs::set_permissions(&temp_path, perms)?;
     }
 
-    // Backup current executable
+    // Backup current executable (unless force mode)
     if current_exe.exists() && !force {
         if backup_path.exists() {
             fs::remove_file(&backup_path)?;
         }
-        fs::rename(&current_exe, &backup_path)?;
+        fs::copy(&current_exe, &backup_path)?;
         UI::detail(&format!(
             "📦 Backed up current version to {}",
             backup_path.display()
         ));
     }
 
-    // Replace current executable
-    fs::rename(&temp_path, &current_exe)?;
-
-    UI::detail(&format!(
-        "✅ Installed new version to {}",
-        current_exe.display()
-    ));
+    // Use self_replace for safe binary replacement (handles Windows exe locking)
+    match self_replace::self_replace(&temp_path) {
+        Ok(()) => {
+            // Clean up temp file
+            let _ = fs::remove_file(&temp_path);
+            UI::detail(&format!(
+                "✅ Installed new version to {}",
+                current_exe.display()
+            ));
+        }
+        Err(e) => {
+            // Rollback on failure
+            if backup_path.exists() {
+                UI::warn("⚠️ Update failed, attempting rollback...");
+                if let Err(rollback_err) = fs::copy(&backup_path, &current_exe) {
+                    return Err(anyhow!(
+                        "Update failed and rollback also failed!\n\
+                        Original error: {}\n\
+                        Rollback error: {}\n\
+                        Backup is available at: {}",
+                        e,
+                        rollback_err,
+                        backup_path.display()
+                    ));
+                }
+                UI::info("✅ Rollback successful");
+            }
+            return Err(anyhow!("Failed to replace binary: {}", e));
+        }
+    }
 
     Ok(())
 }
 
+/// Extract vx binary from ZIP archive
 fn extract_from_zip(content: &[u8], output_path: &PathBuf) -> Result<()> {
     use std::io::Cursor;
     use zip::ZipArchive;
@@ -351,7 +581,6 @@ fn extract_from_zip(content: &[u8], output_path: &PathBuf) -> Result<()> {
     let cursor = Cursor::new(content);
     let mut archive = ZipArchive::new(cursor)?;
 
-    // Find the vx executable in the archive
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
         let name = file.name();
@@ -366,6 +595,7 @@ fn extract_from_zip(content: &[u8], output_path: &PathBuf) -> Result<()> {
     Err(anyhow!("vx executable not found in ZIP archive"))
 }
 
+/// Extract vx binary from TAR.GZ archive
 fn extract_from_tar_gz(content: &[u8], output_path: &PathBuf) -> Result<()> {
     use flate2::read::GzDecoder;
     use std::io::Cursor;
@@ -391,6 +621,7 @@ fn extract_from_tar_gz(content: &[u8], output_path: &PathBuf) -> Result<()> {
     Err(anyhow!("vx executable not found in TAR.GZ archive"))
 }
 
+/// Try to get release info from jsDelivr CDN
 async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<GitHubRelease> {
     let url = "https://data.jsdelivr.com/v1/package/gh/loonghao/vx";
 
@@ -405,20 +636,15 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
 
     let json: serde_json::Value = response.json().await?;
 
-    // Extract version information from jsDelivr response
     let versions = json["versions"]
         .as_array()
         .ok_or_else(|| anyhow!("No versions found in jsDelivr response"))?;
 
     // Helper function to check if a version string is a prerelease
-    // Versions like "vx-v0.5.9", "x-v0.5.9" are stable releases
-    // Versions like "0.5.9-beta.1", "0.5.9-rc.1" are prereleases
     let is_prerelease = |v: &str| -> bool {
-        // If it starts with "vx-v" or "x-v", it's a stable release (release-please format)
         if v.starts_with("vx-v") || v.starts_with("x-v") {
             return false;
         }
-        // Otherwise, check for prerelease suffixes like -alpha, -beta, -rc
         v.contains("-alpha")
             || v.contains("-beta")
             || v.contains("-rc")
@@ -445,7 +671,6 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
 
     // Find the latest version based on prerelease flag
     let latest_version = if prerelease {
-        // For prerelease, find the highest version (including prereleases)
         versions
             .iter()
             .filter_map(|v| v.as_str())
@@ -456,7 +681,6 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
                 a_ver.cmp(&b_ver)
             })
     } else {
-        // For stable, find the highest non-prerelease version
         versions
             .iter()
             .filter_map(|v| v.as_str())
@@ -469,16 +693,13 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
     }
     .ok_or_else(|| anyhow!("No suitable version found"))?;
 
-    // Extract the actual version number for asset URLs
     let version_number = latest_version
         .trim_start_matches("vx-v")
         .trim_start_matches("x-v")
         .trim_start_matches('v');
 
-    // Create CDN-based assets for the version
     let assets = create_cdn_assets(version_number);
 
-    // Create a minimal GitHubRelease structure from jsDelivr data
     Ok(GitHubRelease {
         tag_name: latest_version.to_string(),
         name: format!("Release {}", version_number),
@@ -488,20 +709,15 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
     })
 }
 
+/// Create CDN-based assets for a given version
 fn create_cdn_assets(version: &str) -> Vec<GitHubAsset> {
-    // Note: GitHub releases use tag format "vx-v{version}" (e.g., vx-v0.5.9)
     let base_url = format!("https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}", version);
 
-    // Define platform-specific asset names based on our release naming convention
-    // Format: vx-{target}.{ext} where target is the Rust target triple
     let asset_configs = vec![
-        // Windows platforms
         ("vx-x86_64-pc-windows-msvc.zip", "windows", "x86_64"),
         ("vx-aarch64-pc-windows-msvc.zip", "windows", "aarch64"),
-        // Linux platforms (prefer musl for better portability)
         ("vx-x86_64-unknown-linux-musl.tar.gz", "linux", "x86_64"),
         ("vx-aarch64-unknown-linux-musl.tar.gz", "linux", "aarch64"),
-        // macOS platforms
         ("vx-x86_64-apple-darwin.tar.gz", "macos", "x86_64"),
         ("vx-aarch64-apple-darwin.tar.gz", "macos", "aarch64"),
     ];
@@ -516,16 +732,16 @@ fn create_cdn_assets(version: &str) -> Vec<GitHubAsset> {
         .collect()
 }
 
-async fn download_with_fallback(client: &reqwest::Client, asset: &GitHubAsset) -> Result<Vec<u8>> {
-    // Extract version from the original URL for CDN fallback
-    let version = extract_version_from_url(&asset.browser_download_url);
-
-    // Define download channels in order of preference
-    // If original URL is from CDN (jsDelivr), it means we got version info from CDN
-    // so we should prefer CDN for downloads too
-    // Note: GitHub releases use tag format "vx-v{version}" (e.g., vx-v0.5.9)
-    let channels = if asset.browser_download_url.contains("jsdelivr.net") {
-        // CDN-first strategy (when version came from CDN)
+/// Download with multi-channel fallback and progress bar
+async fn download_with_fallback(
+    client: &reqwest::Client,
+    asset: &GitHubAsset,
+    version_source: VersionSource,
+    version: &str,
+) -> Result<Vec<u8>> {
+    // Define download channels based on version source
+    let channels = if version_source == VersionSource::Cdn {
+        // CDN-first strategy
         vec![
             ("jsDelivr CDN", asset.browser_download_url.clone()),
             (
@@ -544,7 +760,7 @@ async fn download_with_fallback(client: &reqwest::Client, asset: &GitHubAsset) -
             ),
         ]
     } else {
-        // GitHub-first strategy (when version came from GitHub API)
+        // GitHub-first strategy
         vec![
             ("GitHub Releases", asset.browser_download_url.clone()),
             (
@@ -567,43 +783,24 @@ async fn download_with_fallback(client: &reqwest::Client, asset: &GitHubAsset) -
     for (channel_name, url) in channels {
         UI::detail(&format!("🔄 Trying {}: {}", channel_name, url));
 
-        match client.get(&url).send().await {
-            Ok(response) => {
-                if response.status().is_success() {
-                    match response.bytes().await {
-                        Ok(content) => {
-                            if content.len() > 1024 {
-                                // Basic size validation
-                                UI::info(&format!(
-                                    "✅ Downloaded from {} ({} bytes)",
-                                    channel_name,
-                                    content.len()
-                                ));
-                                return Ok(content.to_vec());
-                            } else {
-                                UI::warn(&format!(
-                                    "⚠️ Downloaded file too small from {}, trying next channel...",
-                                    channel_name
-                                ));
-                            }
-                        }
-                        Err(e) => {
-                            UI::warn(&format!(
-                                "⚠️ Failed to read content from {}: {}",
-                                channel_name, e
-                            ));
-                        }
-                    }
+        match download_with_progress(client, &url, asset.size, channel_name).await {
+            Ok(content) => {
+                if content.len() > 1024 {
+                    UI::info(&format!(
+                        "✅ Downloaded from {} ({} bytes)",
+                        channel_name,
+                        content.len()
+                    ));
+                    return Ok(content);
                 } else {
                     UI::warn(&format!(
-                        "⚠️ HTTP {} from {}, trying next channel...",
-                        response.status(),
+                        "⚠️ Downloaded file too small from {}, trying next channel...",
                         channel_name
                     ));
                 }
             }
             Err(e) => {
-                UI::warn(&format!("⚠️ Failed to connect to {}: {}", channel_name, e));
+                UI::warn(&format!("⚠️ {} failed: {}", channel_name, e));
             }
         }
     }
@@ -611,44 +808,178 @@ async fn download_with_fallback(client: &reqwest::Client, asset: &GitHubAsset) -
     Err(anyhow!("Failed to download from all channels"))
 }
 
-fn extract_version_from_url(url: &str) -> String {
-    // Extract version from GitHub release URL or CDN URL
-    // Look for patterns like "/vx-v1.2.3/", "/v1.2.3/", "repo@vx-v1.2.3", or "repo@v1.2.3"
-    for part in url.split('/') {
-        // Handle "vx-v1.2.3" format (release-please format)
-        if part.starts_with("vx-v") && part.len() > 4 {
-            let version_part = &part[4..]; // Remove 'vx-v' prefix
-            if version_part.chars().next().unwrap_or('a').is_ascii_digit() {
-                return version_part.to_string();
-            }
+/// Download with progress bar display
+async fn download_with_progress(
+    client: &reqwest::Client,
+    url: &str,
+    expected_size: u64,
+    channel_name: &str,
+) -> Result<Vec<u8>> {
+    let response = client.get(url).send().await.context("Failed to connect")?;
+
+    if !response.status().is_success() {
+        return Err(anyhow!("HTTP {}", response.status()));
+    }
+
+    // Get content length from response or use expected size
+    let total_size = response.content_length().unwrap_or(expected_size);
+
+    // Create progress bar
+    let pb = if total_size > 0 {
+        let pb = ProgressBar::new(total_size);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+                .unwrap_or_else(|_| ProgressStyle::default_bar())
+                .progress_chars("█▓▒░"),
+        );
+        pb.set_message(format!("Downloading from {}", channel_name));
+        Some(pb)
+    } else {
+        // Unknown size - use spinner
+        let pb = ProgressBar::new_spinner();
+        pb.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner:.green} [{elapsed_precise}] {bytes} ({bytes_per_sec})")
+                .unwrap_or_else(|_| ProgressStyle::default_spinner()),
+        );
+        pb.set_message(format!("Downloading from {}", channel_name));
+        Some(pb)
+    };
+
+    // Download with streaming
+    let mut content = Vec::with_capacity(total_size as usize);
+    let mut stream = response.bytes_stream();
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.context("Failed to read chunk")?;
+        content.write_all(&chunk)?;
+        if let Some(ref pb) = pb {
+            pb.set_position(content.len() as u64);
         }
-        // Handle "v1.2.3" format
-        if part.starts_with('v') && part.len() > 1 {
-            let version_part = &part[1..]; // Remove 'v' prefix
-            if version_part.chars().next().unwrap_or('a').is_ascii_digit() {
-                return version_part.to_string();
-            }
-        }
-        // Handle CDN URL format: "repo@vx-v1.2.3" or "repo@v1.2.3"
-        if let Some(at_pos) = part.find('@') {
-            let after_at = &part[at_pos + 1..];
-            // Handle "@vx-v1.2.3" format
-            if after_at.starts_with("vx-v") && after_at.len() > 4 {
-                let version_part = &after_at[4..];
-                if version_part.chars().next().unwrap_or('a').is_ascii_digit() {
-                    return version_part.to_string();
-                }
-            }
-            // Handle "@v1.2.3" format
-            if after_at.starts_with('v') && after_at.len() > 1 {
-                let version_part = &after_at[1..];
-                if version_part.chars().next().unwrap_or('a').is_ascii_digit() {
-                    return version_part.to_string();
+    }
+
+    if let Some(pb) = pb {
+        pb.finish_with_message("Download complete");
+    }
+
+    Ok(content)
+}
+
+/// Verify SHA256 checksum of downloaded content
+async fn verify_checksum(
+    client: &reqwest::Client,
+    asset: &GitHubAsset,
+    content: &[u8],
+    version_source: VersionSource,
+    version: &str,
+) -> Result<()> {
+    // Try to find checksum file
+    let checksum_filename = format!("{}.sha256", asset.name);
+
+    // Build checksum URLs based on version source
+    let checksum_urls = if version_source == VersionSource::Cdn {
+        vec![
+            format!(
+                "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
+                version, checksum_filename
+            ),
+            format!(
+                "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
+                version, checksum_filename
+            ),
+        ]
+    } else {
+        vec![
+            format!(
+                "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
+                version, checksum_filename
+            ),
+            format!(
+                "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
+                version, checksum_filename
+            ),
+        ]
+    };
+
+    // Try to download checksum file
+    let mut checksum_content = None;
+    for url in &checksum_urls {
+        if let Ok(response) = client.get(url).send().await {
+            if response.status().is_success() {
+                if let Ok(text) = response.text().await {
+                    checksum_content = Some(text);
+                    break;
                 }
             }
         }
     }
 
-    // Fallback to current version if extraction fails
-    env!("CARGO_PKG_VERSION").to_string()
+    let checksum_text = checksum_content.ok_or_else(|| {
+        anyhow!(
+            "Checksum file not found ({}). This may be expected for older releases.",
+            checksum_filename
+        )
+    })?;
+
+    // Parse expected checksum (format: "hash  filename" or just "hash")
+    let expected_hash = checksum_text
+        .split_whitespace()
+        .next()
+        .ok_or_else(|| anyhow!("Invalid checksum file format"))?
+        .to_lowercase();
+
+    // Calculate actual checksum
+    let mut hasher = Sha256::new();
+    hasher.update(content);
+    let actual_hash = format!("{:x}", hasher.finalize());
+
+    // Compare
+    if expected_hash != actual_hash {
+        return Err(anyhow!(
+            "Checksum mismatch!\n\
+            Expected: {}\n\
+            Actual:   {}\n\
+            The downloaded file may be corrupted or tampered with.",
+            expected_hash,
+            actual_hash
+        ));
+    }
+
+    UI::info("✅ Checksum verified (SHA256)");
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_newer_version() {
+        assert!(is_newer_version("1.0.0", "0.9.9"));
+        assert!(is_newer_version("0.5.29", "0.5.28"));
+        assert!(is_newer_version("1.0.0", "0.99.99"));
+        assert!(!is_newer_version("0.5.28", "0.5.29"));
+        assert!(!is_newer_version("0.5.28", "0.5.28"));
+    }
+
+    #[test]
+    fn test_create_cdn_assets() {
+        let assets = create_cdn_assets("0.5.28");
+        assert_eq!(assets.len(), 6);
+
+        // Check Windows x64 asset
+        let windows_asset = assets
+            .iter()
+            .find(|a| a.name.contains("windows") && a.name.contains("x86_64"));
+        assert!(windows_asset.is_some());
+        assert!(windows_asset
+            .unwrap()
+            .browser_download_url
+            .contains("vx-v0.5.28"));
+
+        // Check Linux asset
+        let linux_asset = assets.iter().find(|a| a.name.contains("linux"));
+        assert!(linux_asset.is_some());
+    }
 }

@@ -116,6 +116,7 @@ vx --version
 vx 0.5.11
 ```
 
+
 ## 更新 vx
 
 要将 vx 更新到最新版本：
@@ -129,6 +130,18 @@ vx self-update
 ```bash
 vx self-update --check
 ```
+
+安装指定版本：
+
+```bash
+vx self-update 0.5.28
+```
+
+self-update 命令特性：
+- 多渠道下载，自动回退（GitHub → jsDelivr → Fastly）
+- 下载进度条，显示速度和预计剩余时间
+- SHA256 校验和验证（如果可用）
+- Windows 上安全的二进制文件替换
 
 ## 卸载
 

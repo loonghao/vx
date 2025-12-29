@@ -90,13 +90,13 @@ pub async fn handle(script_name: &str, args: &[String]) -> Result<()> {
 
     // Build the full command with remaining arguments
     let full_cmd = if args.is_empty() {
-        interpolated_cmd.clone()
+        interpolated_cmd
     } else {
         // Check if script uses argument placeholders
         let uses_placeholders = script_cmd.contains("{{") && script_cmd.contains("}}");
         if uses_placeholders {
             // Arguments already interpolated
-            interpolated_cmd.clone()
+            interpolated_cmd
         } else {
             // Append arguments directly
             format!("{} {}", interpolated_cmd, args.join(" "))

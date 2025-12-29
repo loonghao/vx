@@ -1,4 +1,10 @@
 //! Unit tests for self-update command functionality
+//!
+//! Tests cover:
+//! - Platform asset selection
+//! - Version extraction from URLs
+//! - Version comparison logic
+//! - Checksum verification format parsing
 
 use rstest::rstest;
 
@@ -282,4 +288,260 @@ fn test_extract_version_from_url(#[case] url: &str, #[case] expected_version: &s
         "Failed to extract version from URL: {}",
         url
     );
+}
+
+// ============================================================================
+// Version comparison tests
+// ============================================================================
+
+/// Check if version_a is newer than version_b using semver comparison
+fn is_newer_version(version_a: &str, version_b: &str) -> bool {
+    let parse_version = |v: &str| -> (u64, u64, u64) {
+        let parts: Vec<&str> = v.split('.').collect();
+        let major = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
+        let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+        let patch = parts
+            .get(2)
+            .and_then(|s| s.split('-').next())
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+        (major, minor, patch)
+    };
+
+    parse_version(version_a) > parse_version(version_b)
+}
+
+#[rstest]
+#[case("1.0.0", "0.9.9", true)]
+#[case("0.5.29", "0.5.28", true)]
+#[case("1.0.0", "0.99.99", true)]
+#[case("2.0.0", "1.99.99", true)]
+#[case("0.6.0", "0.5.99", true)]
+#[case("0.5.28", "0.5.29", false)]
+#[case("0.5.28", "0.5.28", false)]
+#[case("0.4.0", "0.5.0", false)]
+#[case("0.5.28-beta", "0.5.28", false)] // Pre-release handling
+fn test_is_newer_version(#[case] version_a: &str, #[case] version_b: &str, #[case] expected: bool) {
+    assert_eq!(
+        is_newer_version(version_a, version_b),
+        expected,
+        "is_newer_version({}, {}) should be {}",
+        version_a,
+        version_b,
+        expected
+    );
+}
+
+// ============================================================================
+// Checksum parsing tests
+// ============================================================================
+
+/// Parse checksum from checksum file content
+fn parse_checksum(content: &str) -> Option<String> {
+    content.split_whitespace().next().map(|s| s.to_lowercase())
+}
+
+#[rstest]
+#[case("abc123def456  vx-x86_64-pc-windows-msvc.zip", "abc123def456")]
+#[case("ABC123DEF456  vx-x86_64-pc-windows-msvc.zip", "abc123def456")]
+#[case("abc123def456", "abc123def456")]
+#[case("  abc123def456  ", "abc123def456")]
+fn test_parse_checksum(#[case] content: &str, #[case] expected: &str) {
+    let result = parse_checksum(content);
+    assert!(result.is_some());
+    assert_eq!(result.unwrap(), expected);
+}
+
+#[rstest]
+fn test_parse_checksum_empty() {
+    let result = parse_checksum("");
+    assert!(result.is_none());
+
+    let result = parse_checksum("   ");
+    assert!(result.is_none());
+}
+
+// ============================================================================
+// CDN asset creation tests
+// ============================================================================
+
+/// Create CDN-based assets for a given version (test version)
+fn create_cdn_assets(_version: &str) -> Vec<TestAsset> {
+    let asset_configs = vec![
+        "vx-x86_64-pc-windows-msvc.zip",
+        "vx-aarch64-pc-windows-msvc.zip",
+        "vx-x86_64-unknown-linux-musl.tar.gz",
+        "vx-aarch64-unknown-linux-musl.tar.gz",
+        "vx-x86_64-apple-darwin.tar.gz",
+        "vx-aarch64-apple-darwin.tar.gz",
+    ];
+
+    asset_configs
+        .into_iter()
+        .map(|name| TestAsset {
+            name: name.to_string(),
+        })
+        .collect()
+}
+
+#[rstest]
+fn test_create_cdn_assets() {
+    let assets = create_cdn_assets("0.5.28");
+    assert_eq!(assets.len(), 6);
+
+    // Check Windows x64 asset exists
+    let windows_asset = assets
+        .iter()
+        .find(|a| a.name.contains("windows") && a.name.contains("x86_64"));
+    assert!(windows_asset.is_some());
+
+    // Check Linux asset exists
+    let linux_asset = assets.iter().find(|a| a.name.contains("linux"));
+    assert!(linux_asset.is_some());
+
+    // Check macOS asset exists
+    let macos_asset = assets.iter().find(|a| a.name.contains("apple"));
+    assert!(macos_asset.is_some());
+}
+
+// ============================================================================
+// Version normalization tests
+// ============================================================================
+
+/// Normalize version string by removing common prefixes
+fn normalize_version(version: &str) -> &str {
+    version
+        .trim_start_matches("vx-v")
+        .trim_start_matches("x-v")
+        .trim_start_matches('v')
+}
+
+#[rstest]
+#[case("vx-v0.5.28", "0.5.28")]
+#[case("x-v0.5.28", "0.5.28")]
+#[case("v0.5.28", "0.5.28")]
+#[case("0.5.28", "0.5.28")]
+#[case("vx-v1.0.0-beta.1", "1.0.0-beta.1")]
+fn test_normalize_version(#[case] input: &str, #[case] expected: &str) {
+    assert_eq!(normalize_version(input), expected);
+}
+
+// ============================================================================
+// Prerelease detection tests
+// ============================================================================
+
+/// Check if a version string represents a prerelease
+fn is_prerelease(v: &str) -> bool {
+    // If it starts with "vx-v" or "x-v", it's a stable release (release-please format)
+    if v.starts_with("vx-v") || v.starts_with("x-v") {
+        return false;
+    }
+    // Otherwise, check for prerelease suffixes
+    v.contains("-alpha")
+        || v.contains("-beta")
+        || v.contains("-rc")
+        || v.contains("-dev")
+        || v.contains("-pre")
+}
+
+#[rstest]
+#[case("vx-v0.5.28", false)]
+#[case("x-v0.5.28", false)]
+#[case("v0.5.28", false)]
+#[case("0.5.28", false)]
+#[case("0.5.28-alpha.1", true)]
+#[case("0.5.28-beta.1", true)]
+#[case("0.5.28-rc.1", true)]
+#[case("0.5.28-dev", true)]
+#[case("0.5.28-pre.1", true)]
+fn test_is_prerelease(#[case] version: &str, #[case] expected: bool) {
+    assert_eq!(
+        is_prerelease(version),
+        expected,
+        "is_prerelease({}) should be {}",
+        version,
+        expected
+    );
+}
+
+// ============================================================================
+// Download channel URL generation tests
+// ============================================================================
+
+/// Generate download URLs for different channels
+fn generate_download_urls(version: &str, asset_name: &str) -> Vec<(&'static str, String)> {
+    vec![
+        (
+            "GitHub Releases",
+            format!(
+                "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
+                version, asset_name
+            ),
+        ),
+        (
+            "jsDelivr CDN",
+            format!(
+                "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
+                version, asset_name
+            ),
+        ),
+        (
+            "Fastly CDN",
+            format!(
+                "https://fastly.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
+                version, asset_name
+            ),
+        ),
+    ]
+}
+
+#[rstest]
+fn test_generate_download_urls() {
+    let urls = generate_download_urls("0.5.28", "vx-x86_64-pc-windows-msvc.zip");
+
+    assert_eq!(urls.len(), 3);
+
+    // Check GitHub URL
+    assert!(urls[0].1.contains("github.com"));
+    assert!(urls[0].1.contains("vx-v0.5.28"));
+
+    // Check jsDelivr URL
+    assert!(urls[1].1.contains("cdn.jsdelivr.net"));
+    assert!(urls[1].1.contains("@vx-v0.5.28"));
+
+    // Check Fastly URL
+    assert!(urls[2].1.contains("fastly.jsdelivr.net"));
+    assert!(urls[2].1.contains("@vx-v0.5.28"));
+}
+
+// ============================================================================
+// Checksum file URL generation tests
+// ============================================================================
+
+/// Generate checksum file URLs
+fn generate_checksum_urls(version: &str, asset_name: &str) -> Vec<String> {
+    let checksum_filename = format!("{}.sha256", asset_name);
+    vec![
+        format!(
+            "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
+            version, checksum_filename
+        ),
+        format!(
+            "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
+            version, checksum_filename
+        ),
+    ]
+}
+
+#[rstest]
+fn test_generate_checksum_urls() {
+    let urls = generate_checksum_urls("0.5.28", "vx-x86_64-pc-windows-msvc.zip");
+
+    assert_eq!(urls.len(), 2);
+
+    // All URLs should end with .sha256
+    for url in &urls {
+        assert!(url.ends_with(".sha256"));
+        assert!(url.contains("vx-x86_64-pc-windows-msvc.zip.sha256"));
+    }
 }

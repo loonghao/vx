@@ -208,6 +208,12 @@ tracing-indicatif = "0.3.9"
 # Semantic versioning
 semver = "1.0"
 
+# Self-replacement for binary updates (handles Windows exe locking)
+self-replace = "1.5"
+
+# SHA256 checksum verification
+sha2 = "0.10"
+
 # Retry with backoff - similar to Python's tenacity
 backon = "1.6.0"
 

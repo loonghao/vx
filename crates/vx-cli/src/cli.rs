@@ -825,11 +825,20 @@ impl CommandHandler for Commands {
 
             Commands::SelfUpdate {
                 check,
-                version: _,
+                version,
                 token,
                 prerelease,
                 force,
-            } => commands::self_update::handle(token.as_deref(), *prerelease, *force, *check).await,
+            } => {
+                commands::self_update::handle(
+                    token.as_deref(),
+                    *prerelease,
+                    *force,
+                    *check,
+                    version.as_deref(),
+                )
+                .await
+            }
 
             Commands::Uninstall {
                 tool,
