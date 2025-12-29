@@ -116,6 +116,77 @@ pub fn find_project_root(start_dir: &Path) -> Option<PathBuf> {
     })
 }
 
+/// Find vx config file with environment variable support
+///
+/// This is the recommended function for finding vx configuration files.
+/// It respects the `VX_PROJECT_ROOT` environment variable for CI and test environments.
+///
+/// Behavior:
+/// - If `VX_PROJECT_ROOT` is set: only search in the specified directory (no upward search)
+/// - Otherwise: search upward from `start_dir` to find the config file
+///
+/// # Arguments
+/// * `start_dir` - The directory to start searching from
+///
+/// # Returns
+/// * `Ok(PathBuf)` - Path to the found config file
+/// * `Err` - If no config file is found
+///
+/// # Example
+/// ```rust,no_run
+/// use std::path::Path;
+/// use vx_paths::find_vx_config;
+///
+/// let config_path = find_vx_config(Path::new(".")).expect("No vx.toml found");
+/// println!("Config at: {}", config_path.display());
+/// ```
+pub fn find_vx_config(start_dir: &Path) -> Result<PathBuf, ConfigNotFoundError> {
+    // If VX_PROJECT_ROOT is set, only check the current directory
+    if std::env::var("VX_PROJECT_ROOT").is_ok() {
+        return find_config_file(start_dir).ok_or_else(|| ConfigNotFoundError {
+            search_dir: start_dir.to_path_buf(),
+            upward_search: false,
+        });
+    }
+
+    // Normal mode: search up the directory tree
+    find_config_file_upward(start_dir).ok_or_else(|| ConfigNotFoundError {
+        search_dir: start_dir.to_path_buf(),
+        upward_search: true,
+    })
+}
+
+/// Error returned when no vx configuration file is found
+#[derive(Debug, Clone)]
+pub struct ConfigNotFoundError {
+    /// The directory where the search started
+    pub search_dir: PathBuf,
+    /// Whether upward search was performed
+    pub upward_search: bool,
+}
+
+impl std::fmt::Display for ConfigNotFoundError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.upward_search {
+            write!(
+                f,
+                "No {} found in '{}' or parent directories.\nRun 'vx init' to create one.",
+                CONFIG_FILE_NAME,
+                self.search_dir.display()
+            )
+        } else {
+            write!(
+                f,
+                "No {} found in '{}'.\nRun 'vx init' to create one.",
+                CONFIG_FILE_NAME,
+                self.search_dir.display()
+            )
+        }
+    }
+}
+
+impl std::error::Error for ConfigNotFoundError {}
+
 /// Get the project environment directory path
 ///
 /// Returns the `.vx/env` directory path for a project root.

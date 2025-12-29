@@ -4,7 +4,7 @@
 # Documentation: https://github.com/loonghao/vx/docs/config
 
 # Tool versions
-[runtimes]
+[tools]
 python = "3.11"
 uv = "latest"
 

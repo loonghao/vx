@@ -27,7 +27,7 @@ inputs:
     required: false
     default: 'vx-tools'
   setup:
-    description: 'Run vx setup to install tools from .vx.toml and export tool paths to GITHUB_PATH. Set to "true" to enable, "false" to disable (default)'
+    description: 'Run vx setup --ci to install tools from vx.toml and export tool paths to GITHUB_PATH. Set to "true" to enable, "false" to disable (default)'
     required: false
     default: 'false'
 
@@ -403,60 +403,24 @@ runs:
         # Add vx bin directory to PATH (for shims)
         export PATH="$HOME/.vx/bin:$PATH"
 
-        # Check if .vx.toml exists in the current directory
-        if [ -f ".vx.toml" ]; then
-          echo "Found .vx.toml, setting up vx environment..."
+        # Check if vx.toml or .vx.toml exists in the current directory
+        if [ -f "vx.toml" ] || [ -f ".vx.toml" ]; then
+          echo "Found vx configuration, setting up vx environment..."
 
           # Run vx setup if enabled
           # 'true' means run setup and export tool paths
           # 'false' means skip setup (default)
           if [ "$VX_SETUP" = "true" ]; then
-            echo "Running vx setup..."
-            vx setup || echo "Warning: vx setup failed"
+            echo "Running vx setup --ci..."
+            vx setup --ci || echo "Warning: vx setup failed"
           else
             echo "Skipping vx setup (set setup: 'true' to enable)"
           fi
 
           # Export tool paths to GITHUB_PATH only if setup is enabled
+          # Note: vx setup --ci already handles GITHUB_PATH export
           if [ "$VX_SETUP" = "true" ]; then
-            VX_STORE_DIR="$HOME/.vx/store"
-            if [ -d "$VX_STORE_DIR" ]; then
-              echo "Exporting tool paths from $VX_STORE_DIR..."
-              # Find all tool bin directories and add them to GITHUB_PATH
-              for tool_dir in "$VX_STORE_DIR"/*/; do
-                if [ ! -d "$tool_dir" ]; then
-                  continue
-                fi
-                tool_name=$(basename "$tool_dir")
-                # Get the latest version directory
-                latest_version=$(ls -1 "$tool_dir" 2>/dev/null | sort -V | tail -n1)
-                if [ -n "$latest_version" ]; then
-                  version_dir="$tool_dir$latest_version"
-
-                  # Check for bin subdirectory first
-                  if [ -d "$version_dir/bin" ]; then
-                    echo "$version_dir/bin" >> $GITHUB_PATH
-                    echo "Added $tool_name bin: $version_dir/bin"
-                  fi
-
-                  # Check for tool-* subdirectories (e.g., uv-x86_64-unknown-linux-gnu)
-                  for subdir in "$version_dir"/${tool_name}-*/; do
-                    if [ -d "$subdir" ]; then
-                      echo "$subdir" >> $GITHUB_PATH
-                      echo "Added $tool_name subdir: $subdir"
-                    fi
-                  done
-
-                  # Also add the version directory itself (some tools put executables directly there)
-                  if [ -f "$version_dir/$tool_name" ] || [ -f "$version_dir/${tool_name}.exe" ]; then
-                    echo "$version_dir" >> $GITHUB_PATH
-                    echo "Added $tool_name dir: $version_dir"
-                  fi
-                fi
-              done
-            fi
-
-            # Also add vx bin directory
+            # Also add vx bin directory as fallback
             echo "$HOME/.vx/bin" >> $GITHUB_PATH
           fi
         else

@@ -7,10 +7,11 @@ use std::collections::HashMap;
 use super::{
     AiConfig, ContainerConfig, DependenciesConfig, DocsConfig, EnvConfig, HooksConfig,
     ProjectConfig, PythonConfig, RemoteConfig, ScriptConfig, SecurityConfig, ServiceConfig,
-    SettingsConfig, TeamConfig, TelemetryConfig, TestConfig, ToolVersion, VersioningConfig,
+    SettingsConfig, SetupConfig, TeamConfig, TelemetryConfig, TestConfig, ToolVersion,
+    VersioningConfig,
 };
 
-/// Root configuration structure for `.vx.toml`
+/// Root configuration structure for `vx.toml`
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(default)]
 pub struct VxConfig {
@@ -22,9 +23,14 @@ pub struct VxConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project: Option<ProjectConfig>,
 
-    /// Tool versions
+    /// Tool versions (primary field)
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub tools: HashMap<String, ToolVersion>,
+
+    /// Tool versions (alias for backward compatibility with [runtimes])
+    /// This field is merged into `tools` during deserialization
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub runtimes: HashMap<String, ToolVersion>,
 
     /// Python environment configuration
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -46,6 +52,10 @@ pub struct VxConfig {
     /// Lifecycle hooks
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hooks: Option<HooksConfig>,
+
+    /// Setup pipeline configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub setup: Option<SetupConfig>,
 
     /// Service definitions
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
@@ -103,24 +113,40 @@ pub struct VxConfig {
 impl VxConfig {
     /// Get tool version as string
     pub fn get_tool_version(&self, name: &str) -> Option<String> {
-        self.tools.get(name).map(|v| match v {
-            ToolVersion::Simple(s) => s.clone(),
-            ToolVersion::Detailed(d) => d.version.clone(),
-        })
+        // Check tools first, then runtimes (for backward compatibility)
+        self.tools
+            .get(name)
+            .or_else(|| self.runtimes.get(name))
+            .map(|v| match v {
+                ToolVersion::Simple(s) => s.clone(),
+                ToolVersion::Detailed(d) => d.version.clone(),
+            })
     }
 
     /// Get all tools as simple HashMap (for backward compatibility)
+    /// Merges both `tools` and `runtimes` sections, with `tools` taking priority
     pub fn tools_as_hashmap(&self) -> HashMap<String, String> {
-        self.tools
-            .iter()
-            .map(|(k, v)| {
-                let version = match v {
-                    ToolVersion::Simple(s) => s.clone(),
-                    ToolVersion::Detailed(d) => d.version.clone(),
-                };
-                (k.clone(), version)
-            })
-            .collect()
+        let mut result = HashMap::new();
+
+        // Add runtimes first (lower priority)
+        for (k, v) in &self.runtimes {
+            let version = match v {
+                ToolVersion::Simple(s) => s.clone(),
+                ToolVersion::Detailed(d) => d.version.clone(),
+            };
+            result.insert(k.clone(), version);
+        }
+
+        // Add tools (higher priority, overwrites runtimes)
+        for (k, v) in &self.tools {
+            let version = match v {
+                ToolVersion::Simple(s) => s.clone(),
+                ToolVersion::Detailed(d) => d.version.clone(),
+            };
+            result.insert(k.clone(), version);
+        }
+
+        result
     }
 
     /// Get script command

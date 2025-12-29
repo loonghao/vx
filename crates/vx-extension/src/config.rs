@@ -4,6 +4,7 @@ use crate::error::{ExtensionError, ExtensionResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
+use vx_args::{ArgDef, ArgType};
 
 /// Extension configuration from vx-extension.toml
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,6 +23,12 @@ pub struct ExtensionConfig {
     /// Hook definitions (future)
     #[serde(default)]
     pub hooks: HashMap<String, String>,
+    /// Environment variables
+    #[serde(default)]
+    pub env: HashMap<String, String>,
+    /// Configuration inheritance
+    #[serde(default)]
+    pub extends: Option<String>,
 }
 
 /// Extension metadata
@@ -114,6 +121,91 @@ pub struct EntrypointConfig {
     /// Default arguments
     #[serde(default)]
     pub args: Vec<String>,
+    /// Argument definitions
+    #[serde(default)]
+    pub arguments: Vec<ArgumentDef>,
+}
+
+/// Argument definition in TOML format
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArgumentDef {
+    /// Argument name
+    pub name: String,
+    /// Argument type (string, flag, array, number)
+    #[serde(default, rename = "type")]
+    pub arg_type: String,
+    /// Whether the argument is required
+    #[serde(default)]
+    pub required: bool,
+    /// Default value
+    #[serde(default)]
+    pub default: Option<String>,
+    /// Valid choices
+    #[serde(default)]
+    pub choices: Vec<String>,
+    /// Environment variable to read from
+    #[serde(default)]
+    pub env: Option<String>,
+    /// Short flag (single character)
+    #[serde(default)]
+    pub short: Option<String>,
+    /// Help text
+    #[serde(default)]
+    pub help: Option<String>,
+    /// Validation pattern (regex)
+    #[serde(default)]
+    pub pattern: Option<String>,
+    /// Whether this is a positional argument
+    #[serde(default)]
+    pub positional: bool,
+}
+
+impl ArgumentDef {
+    /// Convert to vx_args::ArgDef
+    pub fn to_arg_def(&self) -> ArgDef {
+        let mut arg = ArgDef::new(&self.name);
+
+        // Set type
+        arg = match self.arg_type.as_str() {
+            "flag" | "bool" | "boolean" => arg.arg_type(ArgType::Flag),
+            "array" | "list" => arg.arg_type(ArgType::Array),
+            "number" | "int" | "float" => arg.arg_type(ArgType::Number),
+            _ => arg.arg_type(ArgType::String),
+        };
+
+        // Set other properties
+        arg = arg.required(self.required);
+
+        if let Some(ref default) = self.default {
+            arg = arg.default(default);
+        }
+
+        if !self.choices.is_empty() {
+            arg = arg.choices(self.choices.clone());
+        }
+
+        if let Some(ref env) = self.env {
+            arg = arg.env(env);
+        }
+
+        if let Some(ref short) = self.short {
+            if let Some(c) = short.chars().next() {
+                arg = arg.short(c);
+            }
+        }
+
+        if let Some(ref help) = self.help {
+            arg = arg.help(help);
+        }
+
+        if let Some(ref pattern) = self.pattern {
+            arg = arg.pattern(pattern);
+        }
+
+        arg = arg.positional(self.positional);
+
+        arg
+    }
 }
 
 /// Command configuration
@@ -127,6 +219,12 @@ pub struct CommandConfig {
     /// Default arguments
     #[serde(default)]
     pub args: Vec<String>,
+    /// Argument definitions
+    #[serde(default)]
+    pub arguments: Vec<ArgumentDef>,
+    /// Command-specific environment variables
+    #[serde(default)]
+    pub env: HashMap<String, String>,
 }
 
 impl ExtensionConfig {

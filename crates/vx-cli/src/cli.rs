@@ -353,6 +353,10 @@ pub enum Commands {
         /// Skip lifecycle hooks (pre_setup, post_setup)
         #[arg(long)]
         no_hooks: bool,
+        /// CI mode: output tool paths for CI environment (GitHub Actions, etc.)
+        /// Outputs paths in a format suitable for GITHUB_PATH or similar
+        #[arg(long)]
+        ci: bool,
     },
 
     /// Add a tool to project configuration
@@ -1015,6 +1019,7 @@ impl CommandHandler for Commands {
                 verbose,
                 no_parallel,
                 no_hooks,
+                ci,
             } => {
                 commands::setup::handle(
                     ctx.registry(),
@@ -1023,6 +1028,7 @@ impl CommandHandler for Commands {
                     *verbose,
                     *no_parallel,
                     *no_hooks,
+                    *ci,
                 )
                 .await
             }

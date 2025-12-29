@@ -1,6 +1,6 @@
 //! Setup command - One-click development environment setup
 //!
-//! This command reads the .vx.toml configuration and installs all required
+//! This command reads the vx.toml configuration and installs all required
 //! tools, making the project ready for development.
 //!
 //! `vx setup` internally calls `vx sync` for tool installation, then performs
@@ -22,8 +22,9 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use vx_config::{parse_config, HookExecutor, VxConfig as VxConfigV2};
-use vx_paths::{find_config_file, find_config_file_upward};
+use vx_paths::{find_config_file, find_vx_config as find_vx_config_path};
 use vx_runtime::ProviderRegistry;
+use vx_setup::ci::{CiProvider, PathExporter};
 
 // Re-export the new config type for backward compatibility
 pub use vx_config::VxConfig as VxConfigNew;
@@ -62,6 +63,7 @@ impl From<VxConfigV2> for VxConfig {
 /// - `verbose`: Show detailed output
 /// - `no_parallel`: Disable parallel installation
 /// - `no_hooks`: Skip lifecycle hooks (pre_setup, post_setup)
+/// - `ci`: CI mode - output tool paths for CI environment (GitHub Actions, etc.)
 pub async fn handle(
     registry: &ProviderRegistry,
     force: bool,
@@ -69,6 +71,7 @@ pub async fn handle(
     verbose: bool,
     no_parallel: bool,
     no_hooks: bool,
+    ci: bool,
 ) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
 
@@ -135,7 +138,12 @@ pub async fn handle(
 
     // Show next steps after successful sync (setup-specific feature)
     if !dry_run {
-        show_next_steps(&config);
+        if ci {
+            // CI mode: output tool paths for GitHub Actions
+            output_ci_paths(&config)?;
+        } else {
+            show_next_steps(&config);
+        }
     }
 
     Ok(())
@@ -143,27 +151,10 @@ pub async fn handle(
 
 /// Find vx.toml or .vx.toml in current directory or parent directories
 ///
-/// Searches for config files in order: vx.toml (preferred), .vx.toml (legacy)
-/// If `VX_PROJECT_ROOT` environment variable is set, only search in the current directory
-/// without traversing parent directories. This is useful for testing and CI environments.
+/// This is a wrapper around `vx_paths::find_vx_config` that converts the error
+/// to `anyhow::Result` for consistency with other CLI commands.
 pub fn find_vx_config(start_dir: &Path) -> Result<PathBuf> {
-    // If VX_PROJECT_ROOT is set, only check the current directory
-    if env::var("VX_PROJECT_ROOT").is_ok() {
-        return find_config_file(start_dir).ok_or_else(|| {
-            anyhow::anyhow!(
-                "No vx.toml found in current directory.\n\
-                 Run 'vx init' to create one."
-            )
-        });
-    }
-
-    // Normal mode: search up the directory tree
-    find_config_file_upward(start_dir).ok_or_else(|| {
-        anyhow::anyhow!(
-            "No vx.toml found in current directory or parent directories.\n\
-             Run 'vx init' to create one."
-        )
-    })
+    find_vx_config_path(start_dir).map_err(|e| anyhow::anyhow!("{}", e))
 }
 
 /// Find config file in current directory only (for add/remove/update operations)
@@ -200,6 +191,106 @@ fn show_next_steps(config: &VxConfig) {
             println!("  vx run {} -> {}", name, cmd);
         }
     }
+}
+
+/// Output tool paths for CI environment (GitHub Actions, etc.)
+///
+/// This function uses vx-setup's PathExporter for CI path export.
+fn output_ci_paths(config: &VxConfig) -> Result<()> {
+    use vx_paths::VxPaths;
+
+    let paths = VxPaths::new()?;
+    let store_dir = &paths.store_dir;
+
+    // Detect CI provider
+    let ci_provider = CiProvider::detect();
+
+    if ci_provider.is_ci() {
+        UI::info(&format!("CI mode: {} detected", ci_provider));
+    } else {
+        UI::info("CI mode: Outputting tool paths");
+    }
+
+    let mut exported_paths = Vec::new();
+
+    // Iterate through configured tools and find their paths
+    for (tool_name, _version) in &config.tools {
+        let tool_dir = store_dir.join(tool_name);
+
+        if !tool_dir.exists() {
+            UI::warn(&format!("Tool '{}' not found in store", tool_name));
+            continue;
+        }
+
+        // Find the latest version directory
+        let versions: Vec<_> = fs::read_dir(&tool_dir)?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+            .filter_map(|e| e.file_name().into_string().ok())
+            .collect();
+
+        if versions.is_empty() {
+            continue;
+        }
+
+        // Sort versions and get the latest
+        let mut sorted_versions = versions;
+        sorted_versions.sort();
+        let latest_version = sorted_versions.last().unwrap();
+        let version_dir = tool_dir.join(latest_version);
+
+        // Check for bin subdirectory
+        let bin_dir = version_dir.join("bin");
+        if bin_dir.exists() {
+            exported_paths.push(bin_dir.clone());
+            println!("  {} -> {}", tool_name, bin_dir.display());
+        }
+
+        // Check for tool-specific subdirectories (e.g., uv-x86_64-unknown-linux-gnu)
+        if let Ok(entries) = fs::read_dir(&version_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let entry_name = entry.file_name().to_string_lossy().to_string();
+                if entry_name.starts_with(&format!("{}-", tool_name))
+                    && entry.file_type().map(|t| t.is_dir()).unwrap_or(false)
+                {
+                    let subdir = entry.path();
+                    exported_paths.push(subdir.clone());
+                    println!("  {} -> {}", tool_name, subdir.display());
+                }
+            }
+        }
+
+        // Also check if executable exists directly in version directory
+        let exe_name = if cfg!(windows) {
+            format!("{}.exe", tool_name)
+        } else {
+            tool_name.to_string()
+        };
+        if version_dir.join(&exe_name).exists() {
+            exported_paths.push(version_dir.clone());
+            println!("  {} -> {}", tool_name, version_dir.display());
+        }
+    }
+
+    // Also add vx bin directory
+    let vx_bin_dir = paths.bin_dir.clone();
+    if vx_bin_dir.exists() {
+        exported_paths.push(vx_bin_dir.clone());
+        println!("  vx bin -> {}", vx_bin_dir.display());
+    }
+
+    // Use PathExporter from vx-setup
+    let exporter = PathExporter::new(ci_provider);
+    let result = exporter.export(&exported_paths)?;
+
+    if result.target_file.is_some() {
+        UI::success(&result.message);
+    } else if let Some(commands) = &result.shell_commands {
+        println!();
+        println!("{}", commands);
+    }
+
+    Ok(())
 }
 
 /// Add a tool to the project configuration
@@ -274,7 +365,7 @@ pub async fn update_tool(tool: &str, version: &str) -> Result<()> {
     if let Some(old) = old_version {
         UI::success(&format!("Updated {} from {} to {}", tool, old, version));
     } else {
-        UI::success(&format!("Added {}@{} to .vx.toml", tool, version));
+        UI::success(&format!("Added {}@{} to vx.toml", tool, version));
     }
 
     UI::hint("Run 'vx setup' to install the updated tool");

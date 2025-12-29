@@ -1,6 +1,6 @@
 //! VX Configuration Management
 //!
-//! This crate provides typed configuration parsing for `.vx.toml` files.
+//! This crate provides typed configuration parsing for `vx.toml` files.
 //! It supports both v1 (legacy) and v2 (enhanced) configuration formats.
 //!
 //! # Example
@@ -8,7 +8,7 @@
 //! ```rust,ignore
 //! use vx_config::VxConfig;
 //!
-//! let config = VxConfig::from_file(".vx.toml")?;
+//! let config = VxConfig::from_file("vx.toml")?;
 //! println!("Tools: {:?}", config.tools);
 //! ```
 
@@ -21,6 +21,7 @@ mod migration;
 mod parser;
 mod remote;
 mod security;
+mod setup_pipeline;
 mod team;
 mod telemetry;
 mod testing;
@@ -42,6 +43,7 @@ pub use security::{
     generate_report as generate_security_report, patterns, LicenseViolation, ScanStatus,
     SecretFinding, SecurityScanResult, SecurityScanner, Severity, Vulnerability,
 };
+pub use setup_pipeline::{SetupHookResult, SetupPipeline, SetupPipelineResult};
 pub use team::{generate_codeowners, TeamManager};
 pub use telemetry::{BuildTiming, BuildTracker, Metric, OtlpExporter, Span, TelemetryCollector};
 pub use testing::{CoverageReporter, TestFramework, TestResult, TestRunner};

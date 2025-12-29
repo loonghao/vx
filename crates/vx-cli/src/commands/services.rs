@@ -29,7 +29,7 @@ use std::env;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use vx_config::{parse_config, ServiceConfig, VxConfig};
-use vx_paths::find_config_file_upward;
+use vx_paths::find_vx_config;
 
 use crate::ui::UI;
 
@@ -97,11 +97,11 @@ pub async fn handle_start(
     verbose: bool,
 ) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = find_vx_config(&current_dir)?;
+    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
     let config = parse_vx_config(&config_path)?;
 
     if config.services.is_empty() {
-        UI::warn("No services defined in .vx.toml");
+        UI::warn("No services defined in vx.toml");
         println!();
         println!("Add services to your .vx.toml:");
         println!();
@@ -163,11 +163,11 @@ pub async fn handle_start(
 /// Handle services stop command
 pub async fn handle_stop(services: Option<Vec<String>>, verbose: bool) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = find_vx_config(&current_dir)?;
+    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
     let config = parse_vx_config(&config_path)?;
 
     if config.services.is_empty() {
-        UI::warn("No services defined in .vx.toml");
+        UI::warn("No services defined in vx.toml");
         return Ok(());
     }
 
@@ -217,11 +217,11 @@ pub async fn handle_stop(services: Option<Vec<String>>, verbose: bool) -> Result
 /// Handle services status command
 pub async fn handle_status(verbose: bool) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = find_vx_config(&current_dir)?;
+    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
     let config = parse_vx_config(&config_path)?;
 
     if config.services.is_empty() {
-        UI::warn("No services defined in .vx.toml");
+        UI::warn("No services defined in vx.toml");
         return Ok(());
     }
 
@@ -279,7 +279,7 @@ pub async fn handle_status(verbose: bool) -> Result<()> {
 /// Handle services logs command
 pub async fn handle_logs(service: &str, follow: bool, tail: Option<usize>) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = find_vx_config(&current_dir)?;
+    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
     let config = parse_vx_config(&config_path)?;
 
     if !config.services.contains_key(service) {
@@ -341,15 +341,10 @@ pub async fn handle_restart(services: Option<Vec<String>>, verbose: bool) -> Res
 // Helper functions
 // ============================================
 
-fn find_vx_config(start_dir: &Path) -> Result<std::path::PathBuf> {
-    find_config_file_upward(start_dir)
-        .ok_or_else(|| anyhow::anyhow!("No vx.toml found. Run 'vx init' to create one."))
-}
-
 fn parse_vx_config(path: &Path) -> Result<VxConfig> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read {}", path.display()))?;
-    parse_config(&content).context("Failed to parse .vx.toml")
+    parse_config(&content).context("Failed to parse vx.toml")
 }
 
 fn get_project_name(config_path: &Path) -> String {

@@ -1,0 +1,32 @@
+[package]
+name = "vx-setup"
+version.workspace = true
+edition.workspace = true
+description = "Setup pipeline and CI environment support for vx"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords = ["vx", "setup", "ci", "pipeline"]
+categories = ["development-tools"]
+
+[dependencies]
+# Internal crates
+vx-paths = { workspace = true }
+
+# External dependencies
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+shellexpand = "3.1"
+chrono = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = [
+  "test-util",
+  "rt-multi-thread",
+  "macros",
+] }

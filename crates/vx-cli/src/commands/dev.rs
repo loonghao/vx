@@ -1,7 +1,7 @@
 //! Dev command - Enter the development environment
 //!
 //! This command creates a shell environment with all project tools available.
-//! It reads the .vx.toml configuration and sets up PATH to include all
+//! It reads the vx.toml configuration and sets up PATH to include all
 //! managed tool versions.
 
 use crate::commands::setup::{parse_vx_config, VxConfig};
@@ -9,10 +9,9 @@ use crate::ui::{InstallProgress, UI};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
-use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use vx_env::ToolEnvironment;
-use vx_paths::{find_config_file, find_config_file_upward, PathManager, CONFIG_FILE_NAME};
+use vx_paths::{find_vx_config, PathManager};
 
 /// Handle the dev command
 pub async fn handle(
@@ -25,12 +24,12 @@ pub async fn handle(
 ) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
 
-    // Find and parse .vx.toml
-    let config_path = find_vx_config(&current_dir)?;
+    // Find and parse vx.toml using unified function from vx-paths
+    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
     let config = parse_vx_config(&config_path)?;
 
     if config.tools.is_empty() {
-        UI::warn("No tools configured in .vx.toml");
+        UI::warn("No tools configured in vx.toml");
         UI::hint("Run 'vx init' to initialize the project configuration");
         return Ok(());
     }
@@ -64,33 +63,6 @@ pub async fn handle(
     }
 
     Ok(())
-}
-
-/// Find vx.toml or .vx.toml in current directory or parent directories
-///
-/// Searches for config files in order: vx.toml (preferred), .vx.toml (legacy)
-/// If VX_PROJECT_ROOT is set, only search in the current directory
-/// (used for test isolation).
-fn find_vx_config(start_dir: &Path) -> Result<PathBuf> {
-    // Check if VX_PROJECT_ROOT is set (test isolation mode)
-    if std::env::var("VX_PROJECT_ROOT").is_ok() {
-        return find_config_file(start_dir).ok_or_else(|| {
-            anyhow::anyhow!(
-                "No {} found in current directory.\n\
-                 Run 'vx init' to create one.",
-                CONFIG_FILE_NAME
-            )
-        });
-    }
-
-    // Normal mode: search up the directory tree
-    find_config_file_upward(start_dir).ok_or_else(|| {
-        anyhow::anyhow!(
-            "No {} found in current directory or parent directories.\n\
-             Run 'vx init' to create one.",
-            CONFIG_FILE_NAME
-        )
-    })
 }
 
 /// Handle --export mode: output shell script for environment activation

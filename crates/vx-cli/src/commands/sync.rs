@@ -33,7 +33,7 @@ pub async fn handle(
     let config = parse_vx_config(&config_path)?;
 
     if config.tools.is_empty() {
-        UI::info("No tools configured in .vx.toml");
+        UI::info("No tools configured in vx.toml");
         return Ok(());
     }
 

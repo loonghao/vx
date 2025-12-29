@@ -60,14 +60,6 @@ repos:
       - id: taplo-format
         exclude: ^(Cargo\.lock)$
 
-  # Markdown linting
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.43.0
-    hooks:
-      - id: markdownlint
-        args: ['--fix', '--disable', 'MD013', 'MD024', 'MD025', 'MD033', 'MD036', 'MD040', 'MD041', 'MD051', '--']
-        exclude: ^(.*CHANGELOG\.md)$
-
 # CI configuration
 ci:
   autofix_commit_msg: |
