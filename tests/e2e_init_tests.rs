@@ -51,7 +51,7 @@ impl E2ETestEnv {
         self.workdir.path()
     }
 
-    /// Create a .vx.toml file with the given content
+    /// Create a vx.toml file with the given content
     fn create_config(&self, filename: &str, content: &str) {
         let config_path = self.workdir.path().join(filename);
         fs::write(&config_path, content).expect("Failed to create config file");
@@ -106,8 +106,8 @@ fn test_init_respects_existing_vx_toml() {
 fn test_init_respects_existing_dot_vx_toml() {
     let env = E2ETestEnv::new();
 
-    // Create existing .vx.toml (legacy format)
-    env.create_config(".vx.toml", "[tools]\nnode = \"18\"\n");
+    // Create existing vx.toml (legacy format)
+    env.create_config("vx.toml", "[tools]\nnode = \"18\"\n");
 
     // Run init without --force
     let output = env.run(&["init"]);
@@ -115,16 +115,16 @@ fn test_init_respects_existing_dot_vx_toml() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     // Should warn about existing config
-    assert!(stdout.contains("already exists") || stdout.contains(".vx.toml"));
+    assert!(stdout.contains("already exists") || stdout.contains("vx.toml"));
 }
 
 #[test]
 fn test_init_force_preserves_scripts() {
     let env = E2ETestEnv::new();
 
-    // Create existing .vx.toml with scripts
+    // Create existing vx.toml with scripts
     env.create_config(
-        ".vx.toml",
+        "vx.toml",
         r#"[tools]
 uv = "0.7.12"
 
@@ -140,7 +140,7 @@ test = "uv run nox -s tests"
     assert!(output.status.success());
 
     // Read the updated config
-    let config_content = env.read_file(".vx.toml");
+    let config_content = env.read_file("vx.toml");
 
     // Should preserve scripts
     assert!(config_content.contains("[scripts]"));
@@ -153,9 +153,9 @@ test = "uv run nox -s tests"
 fn test_init_force_preserves_tool_versions() {
     let env = E2ETestEnv::new();
 
-    // Create existing .vx.toml with specific tool version
+    // Create existing vx.toml with specific tool version
     env.create_config(
-        ".vx.toml",
+        "vx.toml",
         r#"[tools]
 uv = "0.7.12"
 "#,
@@ -166,7 +166,7 @@ uv = "0.7.12"
     assert!(output.status.success());
 
     // Read the updated config
-    let config_content = env.read_file(".vx.toml");
+    let config_content = env.read_file("vx.toml");
 
     // Should preserve the specific version (0.7.12), not change to "latest"
     assert!(config_content.contains("uv = \"0.7.12\""));
@@ -176,15 +176,15 @@ uv = "0.7.12"
 fn test_init_force_writes_to_existing_file_location() {
     let env = E2ETestEnv::new();
 
-    // Create existing .vx.toml (legacy location)
-    env.create_config(".vx.toml", "[tools]\nnode = \"18\"\n");
+    // Create existing vx.toml (legacy location)
+    env.create_config("vx.toml", "[tools]\nnode = \"18\"\n");
 
     // Run init --force
     let output = env.run(&["init", "--force"]);
     assert!(output.status.success());
 
-    // Should update .vx.toml, not create vx.toml
-    assert!(env.file_exists(".vx.toml"));
+    // Should update vx.toml, not create vx.toml
+    assert!(env.file_exists("vx.toml"));
     // vx.toml should not be created
     assert!(!env.file_exists("vx.toml"));
 }
@@ -206,32 +206,32 @@ fn test_init_new_project_creates_vx_toml() {
 fn test_init_output_message_shows_correct_filename() {
     let env = E2ETestEnv::new();
 
-    // Create existing .vx.toml
-    env.create_config(".vx.toml", "[tools]\n");
+    // Create existing vx.toml
+    env.create_config("vx.toml", "[tools]\n");
 
     // Run init --force
     let output = env.run(&["init", "--force"]);
     assert!(output.status.success());
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    // Should mention .vx.toml in the output
-    assert!(stdout.contains(".vx.toml"));
+    // Should mention vx.toml in the output
+    assert!(stdout.contains("vx.toml"));
 }
 
 #[test]
 fn test_init_dry_run_shows_correct_filename() {
     let env = E2ETestEnv::new();
 
-    // Create existing .vx.toml
-    env.create_config(".vx.toml", "[tools]\n");
+    // Create existing vx.toml
+    env.create_config("vx.toml", "[tools]\n");
 
     // Run init --force --dry-run
     let output = env.run(&["init", "--force", "--dry-run"]);
     assert!(output.status.success());
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    // Should mention .vx.toml in the preview
-    assert!(stdout.contains(".vx.toml"));
+    // Should mention vx.toml in the preview
+    assert!(stdout.contains("vx.toml"));
 }
 
 // ============================================
@@ -315,9 +315,9 @@ dev-dependencies = ["pytest", "nox"]
     // 2. Create uv.lock
     env.create_config("uv.lock", "version = 1\n");
 
-    // 3. Create existing .vx.toml with scripts
+    // 3. Create existing vx.toml with scripts
     env.create_config(
-        ".vx.toml",
+        "vx.toml",
         r#"# VX Project Configuration (v2)
 
 # This file defines the tools and environment for this project.
@@ -345,7 +345,7 @@ format = "uv run ruff format ."
     assert!(output.status.success());
 
     // Read the updated config
-    let config_content = env.read_file(".vx.toml");
+    let config_content = env.read_file("vx.toml");
 
     // Verify scripts are preserved
     assert!(config_content.contains("[scripts]"));
@@ -368,9 +368,9 @@ format = "uv run ruff format ."
 fn test_sync_with_shotgrid_style_config() {
     let env = E2ETestEnv::new();
 
-    // Create .vx.toml similar to shotgrid-mcp-server
+    // Create vx.toml similar to shotgrid-mcp-server
     env.create_config(
-        ".vx.toml",
+        "vx.toml",
         r#"[tools]
 uv = "0.7.12"
 
@@ -401,9 +401,9 @@ test = "uv run nox -s tests"
 fn test_setup_with_shotgrid_style_config() {
     let env = E2ETestEnv::new();
 
-    // Create .vx.toml similar to shotgrid-mcp-server
+    // Create vx.toml similar to shotgrid-mcp-server
     env.create_config(
-        ".vx.toml",
+        "vx.toml",
         r#"[tools]
 uv = "0.7.12"
 
@@ -452,9 +452,9 @@ fn test_init_template_python() {
 fn test_init_template_preserves_existing_scripts() {
     let env = E2ETestEnv::new();
 
-    // Create existing .vx.toml with scripts
+    // Create existing vx.toml with scripts
     env.create_config(
-        ".vx.toml",
+        "vx.toml",
         r#"[tools]
 node = "18"
 
@@ -468,7 +468,7 @@ custom = "echo custom script"
     assert!(output.status.success());
 
     // Read the updated config
-    let config_content = env.read_file(".vx.toml");
+    let config_content = env.read_file("vx.toml");
 
     // Should preserve custom script
     assert!(config_content.contains("custom"));

@@ -111,7 +111,7 @@ fn create_mock_vx_home_with_platform_structure() -> TempDir {
     temp_dir
 }
 
-/// Create a .vx.toml config file
+/// Create a vx.toml config file
 fn create_vx_toml(dir: &std::path::Path, tools: &[(&str, &str)], scripts: &[(&str, &str)]) {
     let mut config = String::from("[tools]\n");
     for (tool, version) in tools {
@@ -125,13 +125,13 @@ fn create_vx_toml(dir: &std::path::Path, tools: &[(&str, &str)], scripts: &[(&st
         }
     }
 
-    fs::write(dir.join(".vx.toml"), config).expect("Failed to write .vx.toml");
+    fs::write(dir.join("vx.toml"), config).expect("Failed to write vx.toml");
 }
 
 /// Load VxConfig from a directory
 fn load_config(dir: &std::path::Path) -> VxConfig {
-    let config_path = dir.join(".vx.toml");
-    parse_vx_config(&config_path).expect("Failed to parse .vx.toml")
+    let config_path = dir.join("vx.toml");
+    parse_vx_config(&config_path).expect("Failed to parse vx.toml")
 }
 
 // ============================================================================
@@ -151,7 +151,7 @@ mod path_resolution_tests {
         let vx_home = create_mock_vx_home_with_bin_structure();
         std::env::set_var("VX_HOME", vx_home.path());
 
-        // Create a project directory with .vx.toml
+        // Create a project directory with vx.toml
         let project_dir = TempDir::new().expect("Failed to create project dir");
         create_vx_toml(
             project_dir.path(),
@@ -186,7 +186,7 @@ mod path_resolution_tests {
         let vx_home = create_mock_vx_home_with_platform_structure();
         std::env::set_var("VX_HOME", vx_home.path());
 
-        // Create a project directory with .vx.toml
+        // Create a project directory with vx.toml
         let project_dir = TempDir::new().expect("Failed to create project dir");
         create_vx_toml(
             project_dir.path(),
@@ -549,7 +549,7 @@ mod ci_scenario_tests {
         let vx_home = create_mock_vx_home_with_platform_structure();
         std::env::set_var("VX_HOME", vx_home.path());
 
-        // Step 2: Create project with .vx.toml (like shotgrid-mcp-server)
+        // Step 2: Create project with vx.toml (like shotgrid-mcp-server)
         let project_dir = TempDir::new().expect("Failed to create project dir");
         create_vx_toml(
             project_dir.path(),
@@ -632,7 +632,7 @@ mod ci_scenario_tests {
         let vx_home = create_mock_vx_home_with_platform_structure();
         std::env::set_var("VX_HOME", vx_home.path());
 
-        // Create .vx.toml matching shotgrid-mcp-server
+        // Create vx.toml matching shotgrid-mcp-server
         let project_dir = TempDir::new().expect("Failed to create project dir");
         let vx_toml = r#"[tools]
 uv = "0.7.12"
@@ -646,7 +646,7 @@ format = "uv run ruff format ."
 check = "uv run ruff check ."
 typecheck = "uv run mypy src"
 "#;
-        fs::write(project_dir.path().join(".vx.toml"), vx_toml).expect("Failed to write .vx.toml");
+        fs::write(project_dir.path().join("vx.toml"), vx_toml).expect("Failed to write vx.toml");
 
         // Load config and build environment
         let config = load_config(project_dir.path());

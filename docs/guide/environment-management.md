@@ -255,7 +255,7 @@ vx env import team-env.toml
 
 1. **Use descriptive names**: `project-name` or `purpose-version`
 2. **Export before major changes**: Backup your environment
-3. **Use project configs**: For project-specific environments, prefer `.vx.toml`
+3. **Use project configs**: For project-specific environments, prefer `vx.toml`
 4. **Clean up unused environments**: `vx env delete old-env`
 
 ## Next Steps

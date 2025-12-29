@@ -26,7 +26,7 @@
    - 各种 `vx_binary()`, `run_vx()` 函数重复实现
 
 2. **配置文件名不一致**：
-   - 部分测试检查 `.vx.toml`（旧格式）
+   - 部分测试检查 `vx.toml`（旧格式）
    - 部分测试检查 `vx.toml`（新格式）
    - 每次格式变更需要修改多处
 
@@ -203,7 +203,7 @@ use std::path::Path;
 
 /// 配置文件名常量
 pub const CONFIG_FILE_NAME: &str = "vx.toml";
-pub const CONFIG_FILE_NAME_LEGACY: &str = ".vx.toml";
+pub const CONFIG_FILE_NAME_LEGACY: &str = "vx.toml";
 
 /// 检查配置文件是否存在（兼容新旧格式）
 pub fn config_exists(dir: &Path) -> bool {
@@ -435,10 +435,10 @@ impl E2ETestEnv {
         fs::write(&config_path, content).expect("Failed to create vx.toml");
     }
 
-    /// 创建旧格式配置文件（.vx.toml）
+    /// 创建旧格式配置文件（vx.toml）
     pub fn create_legacy_config(&self, content: &str) {
-        let config_path = self.workdir.path().join(".vx.toml");
-        fs::write(&config_path, content).expect("Failed to create .vx.toml");
+        let config_path = self.workdir.path().join("vx.toml");
+        fs::write(&config_path, content).expect("Failed to create vx.toml");
     }
 
     /// 创建文件
@@ -463,7 +463,7 @@ impl E2ETestEnv {
 
     /// 检查配置文件是否存在（兼容新旧格式）
     pub fn config_exists(&self) -> bool {
-        self.file_exists("vx.toml") || self.file_exists(".vx.toml")
+        self.file_exists("vx.toml") || self.file_exists("vx.toml")
     }
 
     /// 获取配置文件路径
@@ -531,7 +531,7 @@ macro_rules! assert_config_exists {
     ($env:expr) => {
         assert!(
             $env.config_exists(),
-            "Config file should exist (vx.toml or .vx.toml)"
+            "Config file should exist (vx.toml or vx.toml)"
         );
     };
     ($path:expr) => {
@@ -855,7 +855,7 @@ pub fn exit_code(output: &Output) -> Option<i32> {
 pub const CONFIG_FILE_NAME: &str = "vx.toml";
 
 /// 配置文件名（旧格式）
-pub const CONFIG_FILE_NAME_LEGACY: &str = ".vx.toml";
+pub const CONFIG_FILE_NAME_LEGACY: &str = "vx.toml";
 
 /// 支持的运行时工具
 pub const SUPPORTED_RUNTIMES: &[&str] = &["node", "go", "cargo", "uv", "bun"];

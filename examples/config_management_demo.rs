@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n📋 场景1: 配置层次结构");
     println!("VX 使用分层配置系统，按以下优先级合并：");
     println!("  1. 环境变量 (VX_*)              ← 最高优先级");
-    println!("  2. 项目配置 (.vx.toml)");
+    println!("  2. 项目配置 (vx.toml)");
     println!("  3. 项目检测 (pyproject.toml, Cargo.toml, etc.)");
     println!("  4. 用户配置 (~/.config/vx/config.toml)");
     println!("  5. 内置默认值                    ← 最低优先级");
@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("命令: vx init");
     println!("功能:");
     println!("  • 自动检测项目类型和现有工具");
-    println!("  • 生成 .vx.toml 配置文件");
+    println!("  • 生成 vx.toml 配置文件");
     println!("  • 设置合理的默认值");
 
     simulate_project_init()?;
@@ -89,7 +89,7 @@ fn simulate_config_layers() -> Result<(), Box<dyn std::error::Error>> {
     println!("     [defaults]");
     println!("     auto_install = false  # 用户禁用自动安装");
 
-    println!("  📁 项目配置 (.vx.toml):");
+    println!("  📁 项目配置 (vx.toml):");
     println!("     [tools]");
     println!("     node = \"18.17.0\"");
     println!("     python = \"3.11.5\"");
@@ -116,7 +116,7 @@ fn simulate_project_init() -> Result<(), Box<dyn std::error::Error>> {
     println!("📦 发现 pyproject.toml - Python 项目");
     println!("📦 项目类型: Mixed (Node.js + Python)");
 
-    println!("\n📝 生成 .vx.toml 配置文件:");
+    println!("\n📝 生成 vx.toml 配置文件:");
     println!("```toml");
     println!("# VX Project Configuration");
     println!("# This file defines the tools and versions required for this project.");
@@ -131,7 +131,7 @@ fn simulate_project_init() -> Result<(), Box<dyn std::error::Error>> {
     println!("cache_duration = \"7d\"");
     println!("```");
 
-    println!("\n✅ 配置文件已创建: .vx.toml");
+    println!("\n✅ 配置文件已创建: vx.toml");
 
     Ok(())
 }
@@ -151,7 +151,7 @@ fn simulate_config_validation() -> Result<(), Box<dyn std::error::Error>> {
     println!("   • 工具 'go' 版本为空，建议指定具体版本");
 
     println!("\n💡 建议:");
-    println!("   • 在 .vx.toml 中为 'go' 指定版本: go = \"1.21.6\"");
+    println!("   • 在 vx.toml 中为 'go' 指定版本: go = \"1.21.6\"");
 
     Ok(())
 }
@@ -203,7 +203,7 @@ fn simulate_config_commands() -> Result<(), Box<dyn std::error::Error>> {
     println!("```");
     println!("Configuration Sources (by priority):");
     println!("  1. Environment Variables: 1 setting");
-    println!("  2. Project Config (.vx.toml): 2 tools");
+    println!("  2. Project Config (vx.toml): 2 tools");
     println!("  3. User Config: 1 setting");
     println!("  4. Built-in Defaults: all others");
     println!("```");

@@ -94,8 +94,8 @@ pub async fn handle(
     let current_dir = std::env::current_dir()
         .map_err(|e| anyhow::anyhow!("Failed to get current directory: {}", e))?;
 
-    // Check if config already exists (check both vx.toml and .vx.toml)
-    // Prefer vx.toml but respect existing .vx.toml
+    // Check if config already exists (check both vx.toml and vx.toml)
+    // Prefer vx.toml but respect existing vx.toml
     let (config_path, existing_config) = find_or_create_config_path(&current_dir);
 
     if let Some(ref existing) = existing_config {
@@ -168,7 +168,7 @@ fn find_or_create_config_path(dir: &Path) -> (PathBuf, Option<PathBuf>) {
     if vx_toml.exists() {
         (vx_toml.clone(), Some(vx_toml))
     } else if legacy_toml.exists() {
-        // Respect existing .vx.toml
+        // Respect existing vx.toml
         (legacy_toml.clone(), Some(legacy_toml))
     } else {
         // New config uses vx.toml

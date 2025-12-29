@@ -73,14 +73,14 @@ impl VersionDetector for VxVersionDetector {
             }
         }
 
-        // Check for .vx.toml (old format)
-        let dot_vx_toml = path.join(".vx.toml");
+        // Check for vx.toml (old format)
+        let dot_vx_toml = path.join("vx.toml");
         if dot_vx_toml.exists() {
             if let Ok(content) = tokio::fs::read_to_string(&dot_vx_toml).await {
                 if let Some(version) = self.detect_from_content(&content) {
                     return Ok(Some(version));
                 }
-                // If .vx.toml exists but no version detected, assume v1
+                // If vx.toml exists but no version detected, assume v1
                 return Ok(Some(Version::new(1, 0, 0)));
             }
         }
@@ -155,7 +155,7 @@ node = "18.0.0"
 [tools]
 node = "18.0.0"
 "#;
-        tokio::fs::write(temp.path().join(".vx.toml"), config)
+        tokio::fs::write(temp.path().join("vx.toml"), config)
             .await
             .unwrap();
 

@@ -44,7 +44,7 @@ Invoke-Expression (& vx shell init powershell | Out-String)
 
 ### 2. 基于目录的环境切换
 
-当你 `cd` 进入包含 `.vx.toml` 的目录时，环境会自动激活：
+当你 `cd` 进入包含 `vx.toml` 的目录时，环境会自动激活：
 
 ```bash
 cd my-project/  # 激活项目环境

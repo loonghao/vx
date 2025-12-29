@@ -55,8 +55,8 @@ impl E2ETestEnv {
     }
 
     fn create_config(&self, content: &str) {
-        let config_path = self.workdir.path().join(".vx.toml");
-        fs::write(&config_path, content).expect("Failed to create .vx.toml");
+        let config_path = self.workdir.path().join("vx.toml");
+        fs::write(&config_path, content).expect("Failed to create vx.toml");
     }
 }
 

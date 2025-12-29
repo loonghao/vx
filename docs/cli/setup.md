@@ -1,6 +1,6 @@
 # setup
 
-Install all project tools and run setup hooks from `.vx.toml`.
+Install all project tools and run setup hooks from `vx.toml`.
 
 ## Synopsis
 
@@ -10,7 +10,7 @@ vx setup [OPTIONS]
 
 ## Description
 
-The `vx setup` command is the **first command to run** when joining a project or after cloning a repository. It reads the project's `.vx.toml` configuration and:
+The `vx setup` command is the **first command to run** when joining a project or after cloning a repository. It reads the project's `vx.toml` configuration and:
 
 1. Runs `pre_setup` hooks (if defined)
 2. Checks which tools are already installed
@@ -34,7 +34,7 @@ This ensures all team members have the exact same tool versions.
 
 ### Scenario 1: Initial Project Setup
 
-When you clone a project with `.vx.toml`:
+When you clone a project with `vx.toml`:
 
 ```bash
 git clone https://github.com/example/project.git
@@ -145,7 +145,7 @@ vx setup --no-hooks
 
 ## Configuration
 
-Setup reads from `.vx.toml`:
+Setup reads from `vx.toml`:
 
 ```toml
 [tools]
@@ -243,7 +243,7 @@ This content-addressable storage allows:
 
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
-| `vx setup` | Install tools + run hooks | First time, after `.vx.toml` changes |
+| `vx setup` | Install tools + run hooks | First time, after `vx.toml` changes |
 | `vx dev` | Enter environment | Daily development |
 | `vx dev --export` | Activate in current shell | IDE integration, scripts |
 | `vx run <script>` | Run defined scripts | Build, test, deploy |
@@ -257,7 +257,7 @@ This content-addressable storage allows:
 
 ## Tips
 
-1. **Run after git pull**: If `.vx.toml` might have changed:
+1. **Run after git pull**: If `vx.toml` might have changed:
 
    ```bash
    git pull && vx setup

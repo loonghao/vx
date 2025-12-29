@@ -17,16 +17,16 @@ vx maintains a **version store** where all installed tool versions are kept:
 ```
 ~/.local/share/vx/
 ├── store/
-�?  ├── node/
-�?  �?  ├── 18.19.0/
-�?  �?  └── 20.10.0/
-�?  ├── go/
-�?  �?  └── 1.21.5/
-�?  └── uv/
-�?      └── 0.1.24/
+�?  ├── node/
+�?  �?  ├── 18.19.0/
+�?  �?  └── 20.10.0/
+�?  ├── go/
+�?  �?  └── 1.21.5/
+�?  └── uv/
+�?      └── 0.1.24/
 ├── envs/
-�?  ├── default/
-�?  └── my-project/
+�?  ├── default/
+�?  └── my-project/
 └── cache/
 ```
 
@@ -37,7 +37,7 @@ Multiple versions can coexist without conflicts.
 An **environment** is a collection of tool versions that work together:
 
 - **Default Environment**: Used when no project config is present
-- **Project Environment**: Defined by `.vx.toml` in a project
+- **Project Environment**: Defined by `vx.toml` in a project
 - **Named Environments**: Custom environments you create
 
 ```bash
@@ -76,7 +76,7 @@ vx node --version
 vx resolves tool versions in this order:
 
 1. **Explicit version**: `vx node@18 --version`
-2. **Project config**: `.vx.toml` in current or parent directory
+2. **Project config**: `vx.toml` in current or parent directory
 3. **Global config**: `~/.config/vx/config.toml`
 4. **Latest stable**: If no version specified
 
@@ -120,7 +120,7 @@ node script.js  # Actually runs through vx
 
 ## Project Configuration
 
-A `.vx.toml` file defines project-specific tool requirements:
+A `vx.toml` file defines project-specific tool requirements:
 
 ```toml
 [project]
@@ -135,7 +135,7 @@ dev = "npm run dev"
 test = "npm test"
 ```
 
-When you enter a directory with `.vx.toml`, vx automatically uses those tool versions.
+When you enter a directory with `vx.toml`, vx automatically uses those tool versions.
 
 ## Dependency Resolution
 

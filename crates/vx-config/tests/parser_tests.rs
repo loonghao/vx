@@ -1,6 +1,6 @@
 //! Configuration parsing tests
 //!
-//! Tests for parsing `.vx.toml` configuration files.
+//! Tests for parsing `vx.toml` configuration files.
 
 use rstest::rstest;
 use vx_config::{parse_config, parse_config_str};
@@ -485,7 +485,7 @@ node = "20"
 
 #[test]
 fn test_parse_nonexistent_file() {
-    let result = parse_config("/nonexistent/path/.vx.toml");
+    let result = parse_config("/nonexistent/path/vx.toml");
     assert!(result.is_err());
 }
 

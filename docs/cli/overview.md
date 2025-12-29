@@ -46,7 +46,7 @@ vx [OPTIONS] <TOOL> [TOOL_ARGS]
 
 | Command | Description |
 |---------|-------------|
-| [`run`](./run) | Run a script from `.vx.toml` |
+| [`run`](./run) | Run a script from `vx.toml` |
 | [`dev`](./dev) | Enter development environment |
 
 ### Environment Management

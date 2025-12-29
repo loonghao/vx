@@ -64,7 +64,7 @@ vx node@18 --version
 vx go@1.21 build
 ```
 
-Or configure in `.vx.toml`:
+Or configure in `vx.toml`:
 
 ```toml
 [tools]
@@ -89,7 +89,7 @@ vx --use-system-path node --version
 
 ## Configuration
 
-### What is .vx.toml?
+### What is vx.toml?
 
 A project configuration file that defines tool versions and scripts for your project. See [Configuration](/guide/configuration).
 

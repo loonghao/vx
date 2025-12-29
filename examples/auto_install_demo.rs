@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 演示场景2：项目特定版本
     println!("\n📋 场景2: 项目特定版本自动安装");
-    println!("项目配置 (.vx.toml):");
+    println!("项目配置 (vx.toml):");
     println!("  [tools]");
     println!("  node = \"18.17.0\"");
     println!("  python = \"3.11.5\"");

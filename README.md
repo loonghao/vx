@@ -95,14 +95,14 @@ vx cargo build --release
 
 ### 2️⃣ Project Development Environment (For Teams)
 
-Create a `.vx.toml` file to define your project's tool requirements:
+Create a `vx.toml` file to define your project's tool requirements:
 
 ```bash
 # Initialize a new project
 vx init
 
-# Or create .vx.toml manually
-cat > .vx.toml << 'EOF'
+# Or create vx.toml manually
+cat > vx.toml << 'EOF'
 [tools]
 node = "20"
 python = "3.12"
@@ -132,8 +132,8 @@ vx run lint
 
 # Manage project tools
 vx add bun                      # Add a tool
-vx rm-tool go                   # Remove a tool
-vx sync                         # Sync tools with .vx.toml
+vx remove go                    # Remove a tool
+vx sync                         # Sync tools with vx.toml
 ```
 
 ---
@@ -157,14 +157,14 @@ vx sync                         # Sync tools with .vx.toml
 
 | Command | Description |
 |---------|-------------|
-| `vx init` | Initialize project configuration (`.vx.toml`) |
-| `vx setup` | Install all tools defined in `.vx.toml` |
+| `vx init` | Initialize project configuration (`vx.toml`) |
+| `vx setup` | Install all tools defined in `vx.toml` |
 | `vx dev` | Enter development shell with project tools |
 | `vx dev -c <cmd>` | Run a command in the dev environment |
-| `vx sync` | Sync installed tools with `.vx.toml` |
+| `vx sync` | Sync installed tools with `vx.toml` |
 | `vx add <tool>` | Add a tool to project configuration |
-| `vx rm-tool <tool>` | Remove a tool from project configuration |
-| `vx run <script>` | Run a script defined in `.vx.toml` |
+| `vx remove <tool>` | Remove a tool from project configuration |
+| `vx run <script>` | Run a script defined in `vx.toml` |
 
 ### System Management
 
@@ -178,7 +178,7 @@ vx sync                         # Sync tools with .vx.toml
 
 ---
 
-## 📁 Project Configuration (`.vx.toml`)
+## 📁 Project Configuration (`vx.toml`)
 
 ```toml
 # VX Project Configuration
@@ -270,7 +270,7 @@ vx dev
 
 ```bash
 # Frontend (Node.js) + Backend (Go) + Scripts (Python)
-cat > .vx.toml << 'EOF'
+cat > vx.toml << 'EOF'
 [tools]
 node = "20"
 go = "1.21"
@@ -403,7 +403,7 @@ vx cargo run
 | **Zero Learning Curve** | ✅ Same commands you know | ❌ New commands to learn |
 | **Multi-Language** | ✅ One tool for all | ❌ One tool per language |
 | **Auto-Install** | ✅ On first use | ❌ Manual installation |
-| **Project Config** | ✅ `.vx.toml` | ❌ Varies by tool |
+| **Project Config** | ✅ `vx.toml` | ❌ Varies by tool |
 | **Team Sync** | ✅ `vx setup` | ❌ Manual coordination |
 | **MCP Ready** | ✅ Just add `vx` | ❌ Complex setup |
 | **Cross-Platform** | ✅ Windows/macOS/Linux | ⚠️ Varies |

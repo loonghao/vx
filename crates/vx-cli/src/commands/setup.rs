@@ -75,7 +75,7 @@ pub async fn handle(
 ) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
 
-    // Find and parse .vx.toml
+    // Find and parse vx.toml
     let config_path = find_vx_config(&current_dir)?;
     let config_v2 = parse_vx_config_v2(&config_path)?;
     let config = VxConfig::from(config_v2.clone());
@@ -149,7 +149,7 @@ pub async fn handle(
     Ok(())
 }
 
-/// Find vx.toml or .vx.toml in current directory or parent directories
+/// Find vx.toml or vx.toml in current directory or parent directories
 ///
 /// This is a wrapper around `vx_paths::find_vx_config` that converts the error
 /// to `anyhow::Result` for consistency with other CLI commands.
@@ -163,7 +163,7 @@ fn find_config_in_current_dir(current_dir: &Path) -> Result<PathBuf> {
         .ok_or_else(|| anyhow::anyhow!("No vx.toml found. Run 'vx init' first."))
 }
 
-/// Parse .vx.toml configuration using the new serde-based parser
+/// Parse vx.toml configuration using the new serde-based parser
 pub fn parse_vx_config(path: &Path) -> Result<VxConfig> {
     let config_v2 = parse_config(path)
         .with_context(|| format!("Failed to parse configuration file: {}", path.display()))?;
@@ -171,7 +171,7 @@ pub fn parse_vx_config(path: &Path) -> Result<VxConfig> {
     Ok(VxConfig::from(config_v2))
 }
 
-/// Parse .vx.toml configuration and return the new typed config
+/// Parse vx.toml configuration and return the new typed config
 pub fn parse_vx_config_v2(path: &Path) -> Result<VxConfigV2> {
     parse_config(path)
         .with_context(|| format!("Failed to parse configuration file: {}", path.display()))
@@ -373,7 +373,7 @@ pub async fn update_tool(tool: &str, version: &str) -> Result<()> {
     Ok(())
 }
 
-/// Write configuration back to .vx.toml
+/// Write configuration back to vx.toml
 fn write_vx_config(path: &Path, config: &VxConfig) -> Result<()> {
     let mut content = String::new();
 

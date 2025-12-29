@@ -1,6 +1,6 @@
 # 项目环境
 
-对于团队项目，vx 通过 `.vx.toml` 文件支持项目特定的工具配置。
+对于团队项目，vx 通过 `vx.toml` 文件支持项目特定的工具配置。
 
 ## 创建项目配置
 
@@ -31,7 +31,7 @@ vx init --template fullstack
 
 ### 手动创建
 
-创建 `.vx.toml` 文件：
+创建 `vx.toml` 文件：
 
 ```toml
 [project]
@@ -49,7 +49,7 @@ test = "npm test"
 
 ## 设置环境
 
-创建 `.vx.toml` 后，运行：
+创建 `vx.toml` 后，运行：
 
 ```bash
 vx setup
@@ -80,7 +80,7 @@ vx setup --no-parallel
 
 ## 运行脚本
 
-在 `.vx.toml` 中定义脚本：
+在 `vx.toml` 中定义脚本：
 
 ```toml
 [scripts]
@@ -207,7 +207,7 @@ vx remove node
 
 ### 更新工具
 
-编辑 `.vx.toml` 并运行：
+编辑 `vx.toml` 并运行：
 
 ```bash
 vx setup
@@ -215,7 +215,7 @@ vx setup
 
 ## 与团队同步
 
-克隆包含 `.vx.toml` 的项目时：
+克隆包含 `vx.toml` 的项目时：
 
 ```bash
 git clone https://github.com/team/project
@@ -231,8 +231,8 @@ vx sync --check
 
 ## 最佳实践
 
-::: tip 提交 .vx.toml
-通过将 `.vx.toml` 提交到版本控制来与团队共享工具版本。
+::: tip 提交 vx.toml
+通过将 `vx.toml` 提交到版本控制来与团队共享工具版本。
 :::
 
 ::: tip 使用特定版本
@@ -288,4 +288,4 @@ test-backend = "cd backend && pytest"
 ## 下一步
 
 - [环境管理](/zh/guide/environment-management) - 管理多个环境
-- [.vx.toml 参考](/zh/config/vx-toml) - 完整配置参考
+- [vx.toml 参考](/zh/config/vx-toml) - 完整配置参考

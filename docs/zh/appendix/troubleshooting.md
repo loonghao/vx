@@ -123,7 +123,7 @@ eval "$(vx shell init bash)"
 **解决方案**：
 
 1. 确保 shell 集成已启用
-2. 检查 `.vx.toml` 文件存在
+2. 检查 `vx.toml` 文件存在
 3. 重启终端
 
 ### 补全不工作

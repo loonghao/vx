@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 pub const CONFIG_FILE_NAME: &str = "vx.toml";
 
 /// Legacy vx configuration file name (for backward compatibility)
-pub const CONFIG_FILE_NAME_LEGACY: &str = ".vx.toml";
+pub const CONFIG_FILE_NAME_LEGACY: &str = "vx.toml";
 
 /// Standard vx configuration file names in order of preference
 pub const CONFIG_NAMES: &[&str] = &[CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY];
@@ -53,7 +53,7 @@ pub const LOCK_FILE_NAMES: &[&str] = &[LOCK_FILE_NAME, LOCK_FILE_NAME_LEGACY];
 
 /// Find vx config file in a directory
 ///
-/// Searches for config files in order of preference: `vx.toml`, `.vx.toml`
+/// Searches for config files in order of preference: `vx.toml`, `vx.toml`
 ///
 /// # Example
 /// ```
@@ -218,7 +218,7 @@ mod tests {
     #[test]
     fn test_find_config_file_dot_vx_toml() {
         let dir = tempdir().unwrap();
-        let config_path = dir.path().join(".vx.toml");
+        let config_path = dir.path().join("vx.toml");
         fs::write(&config_path, "[runtimes]").unwrap();
 
         let found = find_config_file(dir.path());
@@ -229,7 +229,7 @@ mod tests {
     fn test_find_config_file_prefers_vx_toml() {
         let dir = tempdir().unwrap();
         let vx_toml = dir.path().join("vx.toml");
-        let dot_vx_toml = dir.path().join(".vx.toml");
+        let dot_vx_toml = dir.path().join("vx.toml");
         fs::write(&vx_toml, "[runtimes]").unwrap();
         fs::write(&dot_vx_toml, "[runtimes]").unwrap();
 

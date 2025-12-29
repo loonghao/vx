@@ -106,7 +106,7 @@ vx setup [options]
 
 ### add
 
-添加工具到项目配置 (.vx.toml)。
+添加工具到项目配置 (vx.toml)。
 
 ```bash
 vx add <tool>
@@ -116,7 +116,7 @@ vx add node --version 20
 
 ### remove
 
-从项目配置 (.vx.toml) 移除工具。
+从项目配置 (vx.toml) 移除工具。
 
 ```bash
 vx remove <tool>
@@ -126,7 +126,7 @@ vx rm node           # rm 是 remove 的别名
 
 ### run
 
-运行 `.vx.toml` 中定义的脚本。
+运行 `vx.toml` 中定义的脚本。
 
 ```bash
 vx run <script> [-- args...]

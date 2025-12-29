@@ -9,7 +9,7 @@
 //! - pnpm/    - pnpm package manager tests
 //! - yarn/    - Yarn package manager tests
 //! - cross_tool/      - Cross-tool scenarios
-//! - project_context/ - .vx.toml and project configuration tests
+//! - project_context/ - vx.toml and project configuration tests
 //!
 //! # Running Tests
 //!

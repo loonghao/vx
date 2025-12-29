@@ -165,12 +165,12 @@ When you enter the dev environment (interactive or command mode):
 1. **PATH is updated** with project tool versions from `~/.vx/store/`
 2. **VX_DEV=1** is set to indicate active environment
 3. **VX_PROJECT_ROOT** is set to the project directory
-4. **Custom environment variables** from `.vx.toml` `[env]` section are set
+4. **Custom environment variables** from `vx.toml` `[env]` section are set
 5. **Missing tools are auto-installed** (unless `--no-install`)
 
 ## Configuration
 
-The dev environment is configured by `.vx.toml`:
+The dev environment is configured by `vx.toml`:
 
 ```toml
 [tools]
@@ -193,7 +193,7 @@ auto_install = true
 | Purpose | Development environment | Run defined scripts |
 | Scope | All tools in PATH | Script-specific |
 | Interactive | Yes (shell mode) | No |
-| Scripts | Any command | Only from `.vx.toml` |
+| Scripts | Any command | Only from `vx.toml` |
 
 **Use `vx dev`** for:
 
@@ -213,7 +213,7 @@ auto_install = true
 
    ```bash
    # ~/.bashrc or ~/.zshrc
-   if [ -f ".vx.toml" ]; then
+   if [ -f "vx.toml" ]; then
      eval "$(vx dev --export)"
    fi
    ```

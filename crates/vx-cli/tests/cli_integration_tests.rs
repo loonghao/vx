@@ -679,8 +679,8 @@ mod sync_tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let original_dir = std::env::current_dir().ok();
 
-        // Create a .vx.toml file
-        let config_path = temp_dir.path().join(".vx.toml");
+        // Create a vx.toml file
+        let config_path = temp_dir.path().join("vx.toml");
         std::fs::write(
             &config_path,
             r#"
