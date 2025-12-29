@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.29](https://github.com/loonghao/vx/compare/vx-v0.5.28...vx-v0.5.29) (2025-12-29)
+
+
+### Features
+
+* add vx-setup crate for setup pipeline and CI support ([63939b7](https://github.com/loonghao/vx/commit/63939b7de08ae0a663d4ddd70c13834e4d36316c))
+* **extension:** phase 3 and 4 ([157fbd7](https://github.com/loonghao/vx/commit/157fbd703b22838a4281517ec79f8b22d8178b67))
+* vx-args ([dace989](https://github.com/loonghao/vx/commit/dace98932dd5d76039f5febb43c20a14f4b8c41a))
+
+
+### Bug Fixes
+
+* **deps:** update rust crate turbo-cdn to 0.6 ([e864c99](https://github.com/loonghao/vx/commit/e864c994f90dd65d39aa1b506e81e9296e041b30))
+* escape mustache syntax in docs for VitePress compatibility ([b453ecd](https://github.com/loonghao/vx/commit/b453ecd7c39eef0f18b4b13e824d67989ee6e2c5))
+* remove dead links in docs ([ba3a15c](https://github.com/loonghao/vx/commit/ba3a15caa84745812bc265971b41d6f47cd82e60))
+* remove redundant if_same_then_else in test ([81ba2fe](https://github.com/loonghao/vx/commit/81ba2fea3443aa233475e42d2dd1408425875a88))
+* resolve clippy for_kv_map warning in vx-cli setup ([fb01cec](https://github.com/loonghao/vx/commit/fb01cec0a5898b173597d206c387cad62be955fe))
+* resolve clippy for_kv_map warning in vx-setup ([3d2de48](https://github.com/loonghao/vx/commit/3d2de480858adff79f2fe70e287889380ba6344c))
+* resolve clippy unnecessary_get_then_check in tests ([063e5ce](https://github.com/loonghao/vx/commit/063e5cef37dddfda794fc8b6657af6845aeb9400))
+* resolve clippy warnings (io_other_error, for_kv_map) ([e2c7b10](https://github.com/loonghao/vx/commit/e2c7b1026847d3e8c8162ad84d24430362919ddd))
+* resolve clippy warnings in vx-args parser ([ff3526e](https://github.com/loonghao/vx/commit/ff3526e52b63857e0f166d788e11c1465c30132e))
+
 ## [0.5.28](https://github.com/loonghao/vx/compare/vx-v0.5.27...vx-v0.5.28) (2025-12-29)
 
 
