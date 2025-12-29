@@ -2,7 +2,7 @@
 
 use rstest::rstest;
 use vx_provider_yarn::{YarnProvider, YarnRuntime};
-use vx_runtime::{Ecosystem, Provider, Runtime};
+use vx_runtime::{Arch, Ecosystem, Os, Platform, Provider, Runtime};
 
 #[rstest]
 fn test_yarn_runtime_name() {
@@ -56,4 +56,43 @@ fn test_yarn_provider_get_runtime() {
 
     let unknown = provider.get_runtime("unknown");
     assert!(unknown.is_none());
+}
+
+// ============================================================================
+// Executable path tests
+// ============================================================================
+
+/// Test that Yarn executable path is correct for all platforms
+/// Yarn archives extract to `yarn-v{version}/bin/` on all platforms
+/// Windows uses .cmd extension
+#[rstest]
+#[case("1.22.19", Os::Windows, Arch::X86_64, "yarn-v1.22.19/bin/yarn.cmd")]
+#[case("1.22.19", Os::Windows, Arch::Aarch64, "yarn-v1.22.19/bin/yarn.cmd")]
+#[case("1.22.19", Os::Linux, Arch::X86_64, "yarn-v1.22.19/bin/yarn")]
+#[case("1.22.19", Os::MacOS, Arch::Aarch64, "yarn-v1.22.19/bin/yarn")]
+fn test_yarn_executable_relative_path(
+    #[case] version: &str,
+    #[case] os: Os,
+    #[case] arch: Arch,
+    #[case] expected: &str,
+) {
+    let runtime = YarnRuntime::new();
+    let platform = Platform::new(os, arch);
+    let path = runtime.executable_relative_path(version, &platform);
+    assert_eq!(path, expected);
+}
+
+/// Test executable_extensions returns .cmd first for Windows
+#[test]
+fn test_yarn_executable_extensions() {
+    let runtime = YarnRuntime::new();
+    let extensions = runtime.executable_extensions();
+    assert_eq!(extensions, &[".cmd", ".exe"]);
+}
+
+/// Test executable_name returns "yarn"
+#[test]
+fn test_yarn_executable_name() {
+    let runtime = YarnRuntime::new();
+    assert_eq!(runtime.executable_name(), "yarn");
 }

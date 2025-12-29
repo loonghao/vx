@@ -21,7 +21,7 @@ vx-migration = { workspace = true }
 vx-paths = { workspace = true }
 vx-project-analyzer = { workspace = true }
 vx-resolver = { workspace = true }
-vx-runtime = { workspace = true, features = ["cdn-acceleration"] }
+vx-runtime = { workspace = true }
 vx-setup = { workspace = true }
 vx-args = { path = "../vx-args" }
 # Providers
@@ -84,6 +84,11 @@ dotenvy = "0.15"
 self-replace = { workspace = true }
 sha2 = { workspace = true }
 futures-util = { workspace = true }
+
+[features]
+default = ["cdn-acceleration"]
+# CDN acceleration for faster downloads in China (requires OpenSSL on some platforms)
+cdn-acceleration = ["vx-runtime/cdn-acceleration"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

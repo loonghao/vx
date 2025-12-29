@@ -1,6 +1,20 @@
 //! Runtime trait definition
 //!
 //! The `Runtime` trait is the core abstraction for executable runtimes in vx.
+//!
+//! # Executable Path Resolution
+//!
+//! The framework provides a unified approach to handle executable paths across platforms:
+//!
+//! 1. **Simple case**: Override `executable_name()` to return the base name (e.g., "node")
+//! 2. **Custom extensions**: Override `executable_extensions()` for tools that use `.cmd`/`.bat` on Windows
+//! 3. **Custom directory**: Override `executable_dir_path()` if the executable is not in the root
+//! 4. **Full control**: Override `executable_relative_path()` for complex cases
+//!
+//! The framework automatically handles:
+//! - Platform-specific extensions (`.exe`, `.cmd`, `.bat` on Windows)
+//! - Searching for executables in install directories
+//! - Verification of installations
 
 use crate::context::{ExecutionContext, RuntimeContext};
 use crate::ecosystem::Ecosystem;
@@ -194,23 +208,86 @@ pub trait Runtime: Send + Sync {
         }
     }
 
+    // ========== Executable Path Configuration ==========
+    //
+    // These methods provide a layered approach to configure executable paths.
+    // Most providers only need to override one or two of these methods.
+
+    /// Get the base name of the executable (without extension)
+    ///
+    /// Default returns `self.name()`. Override if the executable name differs
+    /// from the runtime name.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// fn executable_name(&self) -> &str {
+    ///     "python3"  // Different from runtime name "python"
+    /// }
+    /// ```
+    fn executable_name(&self) -> &str {
+        self.name()
+    }
+
+    /// Get the list of executable extensions to search for on Windows
+    ///
+    /// Default returns `[".exe"]`. Override for tools that use `.cmd` or `.bat`.
+    /// On non-Windows platforms, this is ignored and no extension is used.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// fn executable_extensions(&self) -> &[&str] {
+    ///     &[".cmd", ".exe"]  // npm, npx, yarn use .cmd on Windows
+    /// }
+    /// ```
+    fn executable_extensions(&self) -> &[&str] {
+        &[".exe"]
+    }
+
+    /// Get the directory path (relative to install root) where the executable is located
+    ///
+    /// Default returns `None`, meaning the executable is in the install root.
+    /// Override to specify a subdirectory.
+    ///
+    /// # Arguments
+    /// * `version` - The version being installed
+    /// * `platform` - The target platform
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// fn executable_dir_path(&self, version: &str, platform: &Platform) -> Option<String> {
+    ///     // Node.js: node-v22.0.0-linux-x64/bin/
+    ///     let dir = format!("node-v{}-{}", version, platform.as_str());
+    ///     if platform.is_windows() {
+    ///         Some(dir)  // Windows: no bin subdirectory
+    ///     } else {
+    ///         Some(format!("{}/bin", dir))
+    ///     }
+    /// }
+    /// ```
+    fn executable_dir_path(&self, _version: &str, _platform: &Platform) -> Option<String> {
+        None
+    }
+
     /// Get the relative path to the executable within the install directory
     ///
-    /// Override this if your runtime's archive extracts to a non-standard layout.
-    /// Default is `bin/{name}` (or `bin/{name}.exe` on Windows).
+    /// **Most providers should NOT override this method.**
+    /// Instead, override `executable_name()`, `executable_extensions()`, or `executable_dir_path()`.
     ///
-    /// # Examples
+    /// This method combines the above methods to construct the full relative path.
+    /// Only override this for complex cases that can't be handled by the simpler methods.
     ///
-    /// - Node.js: `bin/node` (default)
-    /// - UV: `uv-{platform}/uv` (custom)
-    /// - Bun: `bun-{platform}/bun` (custom)
-    fn executable_relative_path(&self, _version: &str, _platform: &Platform) -> String {
-        let exe_name = if cfg!(windows) {
-            format!("{}.exe", self.name())
-        } else {
-            self.name().to_string()
-        };
-        format!("bin/{}", exe_name)
+    /// # Default behavior
+    /// - Constructs path from `executable_dir_path()` + `executable_name()` + extension
+    /// - On Windows: tries extensions from `executable_extensions()` in order
+    /// - On Unix: no extension
+    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        let exe_name = self.executable_name();
+        let full_name = platform.executable_with_extensions(exe_name, self.executable_extensions());
+
+        match self.executable_dir_path(version, platform) {
+            Some(dir) => format!("{}/{}", dir, full_name),
+            None => full_name,
+        }
     }
 
     // ========== Lifecycle Hooks ==========
@@ -375,14 +452,16 @@ pub trait Runtime: Send + Sync {
 
     /// Helper to find executable in install directory (searches up to 3 levels deep)
     fn find_executable_in_install_dir(&self, install_path: &Path) -> Option<std::path::PathBuf> {
-        let exe_name = self.name();
-        let exe_name_with_ext = if cfg!(windows) {
-            format!("{}.exe", exe_name)
-        } else {
-            exe_name.to_string()
-        };
+        let platform = Platform::current();
+        let exe_names =
+            platform.all_executable_names(self.executable_name(), self.executable_extensions());
 
-        self.search_for_executable(install_path, &exe_name_with_ext, 0, 3)
+        for exe_name in &exe_names {
+            if let Some(path) = self.search_for_executable(install_path, exe_name, 0, 3) {
+                return Some(path);
+            }
+        }
+        None
     }
 
     /// Recursively search for an executable

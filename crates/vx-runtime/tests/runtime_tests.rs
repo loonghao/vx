@@ -1,7 +1,10 @@
 //! Runtime trait tests
 
 use async_trait::async_trait;
-use vx_runtime::{mock_context, Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use rstest::rstest;
+use vx_runtime::{
+    mock_context, Arch, Ecosystem, Os, Platform, Runtime, RuntimeContext, VersionInfo,
+};
 
 /// Test runtime implementation
 struct TestRuntime {
@@ -127,4 +130,73 @@ fn test_ecosystem_primary_runtime() {
     assert_eq!(Ecosystem::Python.primary_runtime(), Some("uv"));
     assert_eq!(Ecosystem::Go.primary_runtime(), Some("go"));
     assert_eq!(Ecosystem::Unknown.primary_runtime(), None);
+}
+
+// ============================================================================
+// Platform helper method tests
+// ============================================================================
+
+/// Test executable_with_extensions for Windows
+#[rstest]
+#[case(Os::Windows, "npm", &[".cmd", ".exe"], "npm.cmd")]
+#[case(Os::Windows, "node", &[".exe"], "node.exe")]
+#[case(Os::Windows, "cargo", &[".exe"], "cargo.exe")]
+#[case(Os::Linux, "npm", &[".cmd", ".exe"], "npm")]
+#[case(Os::MacOS, "npm", &[".cmd", ".exe"], "npm")]
+fn test_executable_with_extensions(
+    #[case] os: Os,
+    #[case] base: &str,
+    #[case] extensions: &[&str],
+    #[case] expected: &str,
+) {
+    let platform = Platform::new(os, Arch::X86_64);
+    let result = platform.executable_with_extensions(base, extensions);
+    assert_eq!(result, expected);
+}
+
+/// Test all_executable_names for Windows
+#[rstest]
+#[case(Os::Windows, "npm", &[".cmd", ".exe"], vec!["npm.cmd", "npm.exe", "npm"])]
+#[case(Os::Windows, "node", &[".exe"], vec!["node.exe", "node"])]
+#[case(Os::Linux, "npm", &[".cmd", ".exe"], vec!["npm"])]
+#[case(Os::MacOS, "node", &[".exe"], vec!["node"])]
+fn test_all_executable_names(
+    #[case] os: Os,
+    #[case] base: &str,
+    #[case] extensions: &[&str],
+    #[case] expected: Vec<&str>,
+) {
+    let platform = Platform::new(os, Arch::X86_64);
+    let result = platform.all_executable_names(base, extensions);
+    assert_eq!(result, expected);
+}
+
+/// Test exe_name (legacy method)
+#[rstest]
+#[case(Os::Windows, "cargo", "cargo.exe")]
+#[case(Os::Linux, "cargo", "cargo")]
+#[case(Os::MacOS, "cargo", "cargo")]
+fn test_exe_name(#[case] os: Os, #[case] base: &str, #[case] expected: &str) {
+    let platform = Platform::new(os, Arch::X86_64);
+    let result = platform.exe_name(base);
+    assert_eq!(result, expected);
+}
+
+/// Test is_windows, is_linux, is_macos
+#[test]
+fn test_platform_os_checks() {
+    let windows = Platform::new(Os::Windows, Arch::X86_64);
+    assert!(windows.is_windows());
+    assert!(!windows.is_linux());
+    assert!(!windows.is_macos());
+
+    let linux = Platform::new(Os::Linux, Arch::X86_64);
+    assert!(!linux.is_windows());
+    assert!(linux.is_linux());
+    assert!(!linux.is_macos());
+
+    let macos = Platform::new(Os::MacOS, Arch::Aarch64);
+    assert!(!macos.is_windows());
+    assert!(!macos.is_linux());
+    assert!(macos.is_macos());
 }

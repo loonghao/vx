@@ -16,6 +16,9 @@ use vx_runtime::ProviderRegistry;
 /// Tool status tuple: (name, version, installed, path)
 type ToolStatusTuple = (String, String, bool, Option<PathBuf>);
 
+/// Install result with optional error message
+type InstallResult = (String, bool, Option<String>);
+
 /// Handle the sync command
 pub async fn handle(
     _registry: &ProviderRegistry,
@@ -95,7 +98,7 @@ pub async fn handle(
     };
 
     // Show results
-    let successful = results.iter().filter(|(_, ok)| *ok).count();
+    let successful = results.iter().filter(|(_, ok, _)| *ok).count();
     let failed = results.len() - successful;
 
     if failed == 0 {
@@ -107,11 +110,28 @@ pub async fn handle(
             results.len(),
             failed
         ));
+
+        // Show detailed error information for failed tools
+        println!();
+        UI::error("Failed installations:");
         for (result, tool) in results.iter().zip(missing.iter()) {
             if !result.1 {
-                UI::error(&format!("  Failed: {}@{}", tool.0, tool.1));
+                println!("  ✗ {}@{}", tool.0, tool.1);
+                if let Some(error) = &result.2 {
+                    // Show error details, indented
+                    for line in error.lines().take(5) {
+                        // Skip empty lines and spinner characters
+                        let trimmed = line.trim();
+                        if !trimmed.is_empty() && !trimmed.starts_with('�') {
+                            println!("    {}", trimmed);
+                        }
+                    }
+                }
             }
         }
+
+        println!();
+        UI::hint("Run 'vx install <tool> <version>' for more details on specific failures");
     }
 
     Ok(())
@@ -154,7 +174,7 @@ fn check_tool_status(tools: &HashMap<String, String>) -> Result<Vec<ToolStatusTu
 async fn install_sequential(
     tools: &[&(String, String, bool, Option<PathBuf>)],
     verbose: bool,
-) -> Result<Vec<(String, bool)>> {
+) -> Result<Vec<InstallResult>> {
     let mut results = Vec::new();
 
     for (name, version, _, _) in tools {
@@ -162,8 +182,8 @@ async fn install_sequential(
             UI::info(&format!("Installing {}@{}...", name, version));
         }
 
-        let success = install_tool(name, version).await;
-        results.push((name.clone(), success));
+        let (success, error) = install_tool(name, version).await;
+        results.push((name.clone(), success, error.clone()));
 
         if success {
             if verbose {
@@ -171,6 +191,12 @@ async fn install_sequential(
             }
         } else {
             UI::error(&format!("  ✗ {}@{}", name, version));
+            if let Some(err) = &error {
+                // Show first line of error for brief context
+                if let Some(first_line) = err.lines().next() {
+                    UI::detail(&format!("    {}", first_line));
+                }
+            }
         }
     }
 
@@ -181,7 +207,7 @@ async fn install_sequential(
 async fn install_parallel(
     tools: &[&(String, String, bool, Option<PathBuf>)],
     _verbose: bool,
-) -> Result<Vec<(String, bool)>> {
+) -> Result<Vec<InstallResult>> {
     use tokio::task::JoinSet;
 
     let mut join_set = JoinSet::new();
@@ -191,40 +217,62 @@ async fn install_parallel(
         let version = version.clone();
 
         join_set.spawn(async move {
-            let success = install_tool(&name, &version).await;
-            (name, success)
+            let (success, error) = install_tool(&name, &version).await;
+            (name, success, error)
         });
     }
 
     let mut results = Vec::new();
     while let Some(result) = join_set.join_next().await {
-        if let Ok((name, success)) = result {
+        if let Ok((name, success, error)) = result {
             let icon = if success { "✓" } else { "✗" };
             println!("  {} {}", icon, name);
-            results.push((name, success));
+            results.push((name, success, error));
         }
     }
 
     Ok(results)
 }
 
-/// Install a single tool
-async fn install_tool(name: &str, version: &str) -> bool {
+/// Install a single tool, returns (success, error_message)
+async fn install_tool(name: &str, version: &str) -> (bool, Option<String>) {
     let exe = match env::current_exe() {
         Ok(e) => e,
-        Err(_) => return false,
+        Err(e) => return (false, Some(format!("Failed to get current exe: {}", e))),
     };
 
     let mut cmd = Command::new(exe);
     cmd.args(["install", name, version]);
 
-    // Suppress output
-    cmd.stdout(std::process::Stdio::null());
-    cmd.stderr(std::process::Stdio::null());
+    // Capture output instead of suppressing it
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
 
-    match cmd.status() {
-        Ok(status) => status.success(),
-        Err(_) => false,
+    match cmd.output() {
+        Ok(output) => {
+            if output.status.success() {
+                (true, None)
+            } else {
+                // Combine stderr and stdout for error context
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let error_msg = if !stderr.is_empty() {
+                    stderr.to_string()
+                } else if !stdout.is_empty() {
+                    stdout.to_string()
+                } else {
+                    format!(
+                        "Install command failed with exit code: {:?}",
+                        output.status.code()
+                    )
+                };
+                (false, Some(error_msg))
+            }
+        }
+        Err(e) => (
+            false,
+            Some(format!("Failed to execute install command: {}", e)),
+        ),
     }
 }
 
