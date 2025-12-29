@@ -25,7 +25,7 @@ impl ConfigInheritance {
         let vx_paths = vx_paths::VxPaths::new().map_err(|e| ExtensionError::Io {
             message: format!("Failed to get vx paths: {}", e),
             path: None,
-            source: std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+            source: std::io::Error::other(e.to_string()),
         })?;
 
         Ok(Self {
@@ -134,7 +134,7 @@ impl ConfigInheritance {
         let vx_paths = vx_paths::VxPaths::new().map_err(|e| ExtensionError::Io {
             message: format!("Failed to get vx paths: {}", e),
             path: None,
-            source: std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+            source: std::io::Error::other(e.to_string()),
         })?;
 
         // Search in extensions directories
