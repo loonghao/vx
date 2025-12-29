@@ -202,7 +202,7 @@ vx add node --version 18
 ### Remove a Tool
 
 ```bash
-vx rm-tool node
+vx remove node
 ```
 
 ### Update Tools
