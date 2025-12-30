@@ -152,7 +152,25 @@ runs:
               ;;
           esac
 
-          ARCHIVE_NAME="vx-${TARGET}.tar.gz"
+          # Extract version number from tag (e.g., "vx-v0.6.1" -> "0.6.1")
+          VERSION_NUM=$(echo "$TAG_NAME" | sed -E 's/^(vx-)?v//')
+
+          # Determine artifact naming format based on version
+          # v0.6.0+ uses versioned naming (vx-0.6.1-target.tar.gz)
+          # v0.5.x and earlier use legacy naming (vx-target.tar.gz)
+          MAJOR=$(echo "$VERSION_NUM" | cut -d. -f1)
+          MINOR=$(echo "$VERSION_NUM" | cut -d. -f2)
+
+          if [ "$MAJOR" -gt 0 ] || { [ "$MAJOR" -eq 0 ] && [ "$MINOR" -ge 6 ]; }; then
+            # Versioned naming (v0.6.0+)
+            ARCHIVE_NAME="vx-${VERSION_NUM}-${TARGET}.tar.gz"
+            ARCHIVE_NAME_FALLBACK="vx-${TARGET}.tar.gz"
+          else
+            # Legacy naming (v0.5.x and earlier)
+            ARCHIVE_NAME="vx-${TARGET}.tar.gz"
+            ARCHIVE_NAME_FALLBACK="vx-${VERSION_NUM}-${TARGET}.tar.gz"
+          fi
+
           DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/${ARCHIVE_NAME}"
 
           echo "Downloading from: $DOWNLOAD_URL"
@@ -161,10 +179,37 @@ runs:
           TEMP_DIR=$(mktemp -d)
           trap 'rm -rf "$TEMP_DIR"' EXIT
 
-          curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+          DOWNLOAD_SUCCESS=false
+
+          # Try primary archive name
+          if curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/octet-stream" \
-            "$DOWNLOAD_URL" -o "$TEMP_DIR/$ARCHIVE_NAME"
+            "$DOWNLOAD_URL" -o "$TEMP_DIR/$ARCHIVE_NAME" 2>/dev/null; then
+            if [ -f "$TEMP_DIR/$ARCHIVE_NAME" ] && [ $(stat -f%z "$TEMP_DIR/$ARCHIVE_NAME" 2>/dev/null || stat -c%s "$TEMP_DIR/$ARCHIVE_NAME" 2>/dev/null || echo 0) -gt 1024 ]; then
+              DOWNLOAD_SUCCESS=true
+            fi
+          fi
+
+          # Try fallback archive name if primary failed
+          if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
+            echo "Primary archive not found, trying fallback: $ARCHIVE_NAME_FALLBACK"
+            FALLBACK_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/${ARCHIVE_NAME_FALLBACK}"
+            if curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/octet-stream" \
+              "$FALLBACK_URL" -o "$TEMP_DIR/$ARCHIVE_NAME_FALLBACK" 2>/dev/null; then
+              if [ -f "$TEMP_DIR/$ARCHIVE_NAME_FALLBACK" ] && [ $(stat -f%z "$TEMP_DIR/$ARCHIVE_NAME_FALLBACK" 2>/dev/null || stat -c%s "$TEMP_DIR/$ARCHIVE_NAME_FALLBACK" 2>/dev/null || echo 0) -gt 1024 ]; then
+                ARCHIVE_NAME="$ARCHIVE_NAME_FALLBACK"
+                DOWNLOAD_SUCCESS=true
+              fi
+            fi
+          fi
+
+          if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
+            echo "Failed to download vx binary"
+            exit 1
+          fi
 
           # Extract
           tar -xzf "$TEMP_DIR/$ARCHIVE_NAME" -C "$TEMP_DIR"
@@ -269,7 +314,27 @@ runs:
           # Detect architecture
           $arch = if ([Environment]::Is64BitOperatingSystem) { "x86_64" } else { "i686" }
           $Target = "$arch-pc-windows-msvc"
-          $ArchiveName = "vx-$Target.zip"
+
+          # Extract version number from tag (e.g., "vx-v0.6.1" -> "0.6.1")
+          $VersionNum = $TagName -replace '^(vx-)?v', ''
+
+          # Determine artifact naming format based on version
+          # v0.6.0+ uses versioned naming (vx-0.6.1-target.zip)
+          # v0.5.x and earlier use legacy naming (vx-target.zip)
+          $VersionParts = $VersionNum.Split('.')
+          $Major = [int]$VersionParts[0]
+          $Minor = if ($VersionParts.Length -gt 1) { [int]$VersionParts[1] } else { 0 }
+
+          if ($Major -gt 0 -or ($Major -eq 0 -and $Minor -ge 6)) {
+            # Versioned naming (v0.6.0+)
+            $ArchiveName = "vx-$VersionNum-$Target.zip"
+            $ArchiveNameFallback = "vx-$Target.zip"
+          } else {
+            # Legacy naming (v0.5.x and earlier)
+            $ArchiveName = "vx-$Target.zip"
+            $ArchiveNameFallback = "vx-$VersionNum-$Target.zip"
+          }
+
           $DownloadUrl = "https://github.com/loonghao/vx/releases/download/$TagName/$ArchiveName"
 
           Write-Host "Downloading from: $DownloadUrl"
@@ -284,6 +349,8 @@ runs:
           }
 
           $downloadSuccess = $false
+
+          # Try primary archive name
           for ($i = 1; $i -le $maxRetries; $i++) {
             try {
               Invoke-WebRequest -Uri $DownloadUrl -OutFile $ArchivePath -Headers $headers -TimeoutSec 120
@@ -295,6 +362,28 @@ runs:
               Write-Host "Retry $i`: Download failed: $_"
               Remove-Item $ArchivePath -Force -ErrorAction SilentlyContinue
               if ($i -lt $maxRetries) { Start-Sleep -Seconds $retryDelay }
+            }
+          }
+
+          # Try fallback archive name if primary failed
+          if (-not $downloadSuccess) {
+            Write-Host "Primary archive not found, trying fallback: $ArchiveNameFallback"
+            $FallbackUrl = "https://github.com/loonghao/vx/releases/download/$TagName/$ArchiveNameFallback"
+            $FallbackPath = Join-Path $TempDir $ArchiveNameFallback
+
+            for ($i = 1; $i -le $maxRetries; $i++) {
+              try {
+                Invoke-WebRequest -Uri $FallbackUrl -OutFile $FallbackPath -Headers $headers -TimeoutSec 120
+                if ((Test-Path $FallbackPath) -and ((Get-Item $FallbackPath).Length -gt 1024)) {
+                  $ArchivePath = $FallbackPath
+                  $downloadSuccess = $true
+                  break
+                }
+              } catch {
+                Write-Host "Retry $i`: Fallback download failed: $_"
+                Remove-Item $FallbackPath -Force -ErrorAction SilentlyContinue
+                if ($i -lt $maxRetries) { Start-Sleep -Seconds $retryDelay }
+              }
             }
           }
 
