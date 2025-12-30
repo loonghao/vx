@@ -246,43 +246,8 @@ impl Runtime for PythonRuntime {
         Ok(None)
     }
 
-    /// Resolve version string to actual version
-    /// Supports:
-    /// - "latest" -> latest stable version
-    /// - "3.11" -> latest 3.11.x version (e.g., "3.11.11")
-    /// - "3.11.11" -> exact version
-    async fn resolve_version(&self, version: &str, ctx: &RuntimeContext) -> Result<String> {
-        // Handle "latest"
-        if version == "latest" {
-            let versions = self.fetch_versions(ctx).await?;
-            return versions
-                .into_iter()
-                .filter(|v| !v.prerelease)
-                .map(|v| v.version)
-                .next()
-                .ok_or_else(|| anyhow::anyhow!("No versions found for {}", self.name()));
-        }
-
-        // Check if it's a partial version (e.g., "3.11" instead of "3.11.11")
-        let parts: Vec<&str> = version.split('.').collect();
-        if parts.len() == 2 {
-            // Partial version like "3.11" - find the latest patch version
-            let versions = self.fetch_versions(ctx).await?;
-            let prefix = format!("{}.", version); // "3.11."
-
-            return versions
-                .into_iter()
-                .filter(|v| !v.prerelease && v.version.starts_with(&prefix))
-                .map(|v| v.version)
-                .next()
-                .ok_or_else(|| {
-                    anyhow::anyhow!("No versions found matching {} for {}", version, self.name())
-                });
-        }
-
-        // Full version - return as-is
-        Ok(version.to_string())
-    }
+    // Note: resolve_version is now handled by the default implementation in Runtime trait
+    // which supports partial versions (e.g., "3.11" -> "3.11.11"), ranges, and more
 }
 
 /// Get likely release dates for a given Python version
