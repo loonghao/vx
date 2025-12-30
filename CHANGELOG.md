@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.5](https://github.com/loonghao/vx/compare/vx-v0.6.4...vx-v0.6.5) (2025-12-30)
+
+
+### Features
+
+* add pre_run hooks ([b444422](https://github.com/loonghao/vx/commit/b444422b51fce679c279edac5d43b47f2ba7aab8))
+* **executor:** auto-sync uv dependencies before uv run ([75627cb](https://github.com/loonghao/vx/commit/75627cb809991af1a68cbfa2a22ef6832bc1c5d9))
+* implement version solver ([ab9f99d](https://github.com/loonghao/vx/commit/ab9f99d11ac846b75587d2bd9293a0bed814029b))
+* **runtime:** add pre_run hook for provider-specific setup ([e059a61](https://github.com/loonghao/vx/commit/e059a6196e88ddc1fe311ef5b1f824234cd46e7d))
+* **vx-runtime:** integrate version resolver into Runtime trait ([f19fd10](https://github.com/loonghao/vx/commit/f19fd1047cfd55c8519f4591acfa4bdbee8365ce))
+
+
+### Bug Fixes
+
+* improve HTTP error messages ([58f4e40](https://github.com/loonghao/vx/commit/58f4e406698eb68464c84d4de738c7be22a1635e))
+* reject invalid version strings instead of treating as latest ([fd3411a](https://github.com/loonghao/vx/commit/fd3411a42c36b38e4d0378572f5434f6cd1d26d7))
+
+
+### Documentation
+
+* update GitHub Action examples to use [@main](https://github.com/main) and add auto-dependency docs ([4fe582c](https://github.com/loonghao/vx/commit/4fe582cde993018b5e9308368b493c9141ed54e8))
+
 ## [0.6.4](https://github.com/loonghao/vx/compare/vx-v0.6.3...vx-v0.6.4) (2025-12-30)
 
 
