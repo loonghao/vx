@@ -18,6 +18,15 @@ vx install rust nightly
 vx install rust 1.75.0
 ```
 
+## Download Format
+
+vx downloads Rust toolchains in `.tar.gz` format for all platforms (Windows, macOS, Linux). This ensures consistent extraction behavior across all operating systems and avoids platform-specific installer formats like `.msi`.
+
+The download URLs follow the pattern:
+```
+https://static.rust-lang.org/dist/rust-{version}-{platform}.tar.gz
+```
+
 ## Version Specifiers
 
 ```bash
