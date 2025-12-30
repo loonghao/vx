@@ -516,10 +516,10 @@ mod uninstall_boundary_tests {
         cleanup_test_env();
     }
 
-    /// Test vx rm alias
+    /// Test vx rm alias (alias for remove command)
     #[rstest]
     #[test]
-    fn test_uninstall_rm_alias() {
+    fn test_remove_rm_alias() {
         init_test_env();
         if !vx_available() {
             return;
@@ -527,7 +527,7 @@ mod uninstall_boundary_tests {
 
         let output = run_vx(&["rm", "--help"]).unwrap();
         assert_success(&output, "vx rm --help");
-        assert_output_contains(&output, "Uninstall", "rm alias should show uninstall help");
+        assert_output_contains(&output, "Remove", "rm alias should show remove help");
 
         cleanup_test_env();
     }
