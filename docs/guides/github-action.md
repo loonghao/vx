@@ -11,12 +11,12 @@ vx provides an official GitHub Action that makes it easy to use vx in your CI/CD
 Add the following to your GitHub Actions workflow:
 
 ```yaml
-- uses: loonghao/vx@vx-v0.5.15
+- uses: loonghao/vx@main
   with:
     github-token: ${{secrets.GITHUB_TOKEN}}
 ```
 
-> **Note**: Use a specific version tag (e.g., `vx-v0.5.15`) instead of `v1`. Check [releases](https://github.com/loonghao/vx/releases) for the latest version.
+> **Note**: You can use `@main` for the latest version, or pin to a specific release tag (e.g., `@vx-v0.6.4`). Check [releases](https://github.com/loonghao/vx/releases) for available versions.
 
 Then use vx to run any supported tool:
 
@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # Setup vx with caching
-      - uses: loonghao/vx@vx-v0.5.15
+      - uses: loonghao/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node uv'  # Pre-install these tools
@@ -80,6 +80,27 @@ jobs:
 
 ## Use Cases
 
+### Automatic Dependency Installation
+
+vx automatically detects and installs missing dependencies before running commands. This is especially useful in CI environments where you don't want to manually add install steps.
+
+| Tool | Trigger Command | Auto-runs | Detection |
+|------|-----------------|-----------|-----------|
+| **uv** | `vx uv run` | `uv sync` | `pyproject.toml` exists, `.venv` missing |
+| **npm** | `vx npm run` | `npm install` | `package.json` exists, `node_modules` missing |
+| **pnpm** | `vx pnpm run` | `pnpm install` | `package.json` exists, `node_modules` missing |
+| **yarn** | `vx yarn run` | `yarn install` | `package.json` exists, `node_modules` missing |
+| **bun** | `vx bun run` | `bun install` | `package.json` exists, `node_modules` missing |
+| **go** | `vx go run` | `go mod download` | `go.mod` exists, `vendor` missing |
+
+This means your CI workflow can be as simple as:
+
+```yaml
+- run: vx uv run pytest      # Auto-syncs dependencies first
+- run: vx npm run build      # Auto-installs node_modules first
+- run: vx go run main.go     # Auto-downloads modules first
+```
+
 ### Node.js Project
 
 ```yaml
@@ -89,7 +110,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@vx-v0.5.15
+      - uses: loonghao/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node'
@@ -98,6 +119,8 @@ jobs:
       - run: vx npm test
       - run: vx npm run build
 ```
+
+> **Note**: vx automatically installs dependencies before running scripts. When running `vx npm run`, `vx pnpm run`, `vx yarn run`, or `vx bun run`, it will automatically execute the corresponding install command first if `package.json` exists but `node_modules` doesn't.
 
 ### Python Project with UV
 
@@ -108,15 +131,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@vx-v0.5.15
+      - uses: loonghao/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'uv'
 
-      - run: vx uv sync
+      # vx automatically runs 'uv sync' before 'uv run' if .venv doesn't exist
       - run: vx uv run pytest
       - run: vx uvx ruff check .
 ```
+
+> **Note**: vx automatically detects if dependencies need to be installed. When running `vx uv run`, it will automatically execute `uv sync` first if `pyproject.toml` exists but `.venv` doesn't.
 
 ### Go Project
 
@@ -127,7 +152,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@vx-v0.5.15
+      - uses: loonghao/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'go'
@@ -135,6 +160,8 @@ jobs:
       - run: vx go build ./...
       - run: vx go test ./...
 ```
+
+> **Note**: vx automatically downloads Go modules before running. When running `vx go run`, it will automatically execute `go mod download` first if `go.mod` exists but `vendor` directory doesn't.
 
 ### Multi-Language Project
 
@@ -145,7 +172,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@vx-v0.5.15
+      - uses: loonghao/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           tools: 'node uv go'
@@ -174,7 +201,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@vx-v0.5.15
+      - uses: loonghao/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
 
@@ -203,7 +230,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@vx-v0.5.15
+      - uses: loonghao/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
 
@@ -266,7 +293,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@vx-v0.5.15
+      - uses: loonghao/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
 
@@ -301,7 +328,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: loonghao/vx@vx-v0.5.15
+      - uses: loonghao/vx@main
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
 
@@ -336,7 +363,7 @@ This is particularly useful when:
 The action automatically caches the vx tools directory (`~/.vx`) to speed up subsequent runs. You can customize the cache behavior:
 
 ```yaml
-- uses: loonghao/vx@vx-v0.5.15
+- uses: loonghao/vx@main
   with:
     cache: 'true'
     cache-key-prefix: 'my-project-vx'
@@ -345,7 +372,7 @@ The action automatically caches the vx tools directory (`~/.vx`) to speed up sub
 To disable caching:
 
 ```yaml
-- uses: loonghao/vx@vx-v0.5.15
+- uses: loonghao/vx@main
   with:
     cache: 'false'
 ```
@@ -357,7 +384,7 @@ To disable caching:
 If you encounter GitHub API rate limiting, make sure to provide a GitHub token:
 
 ```yaml
-- uses: loonghao/vx@vx-v0.5.15
+- uses: loonghao/vx@main
   with:
     github-token: ${{secrets.GITHUB_TOKEN}}
 ```
@@ -408,7 +435,7 @@ Before:
 After:
 
 ```yaml
-- uses: loonghao/vx@vx-v0.5.15
+- uses: loonghao/vx@main
 - run: vx npm ci
 ```
 
@@ -426,7 +453,7 @@ Before:
 After:
 
 ```yaml
-- uses: loonghao/vx@vx-v0.5.15
+- uses: loonghao/vx@main
 - run: vx uv pip install -r requirements.txt
 ```
 
@@ -444,7 +471,7 @@ Before:
 After:
 
 ```yaml
-- uses: loonghao/vx@vx-v0.5.15
+- uses: loonghao/vx@main
 - run: vx go build ./...
 ```
 
