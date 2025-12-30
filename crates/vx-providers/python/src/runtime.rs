@@ -35,17 +35,16 @@ impl PythonRuntime {
         // Release tag format: YYYYMMDD (e.g., "20251217")
         let release_date = tag;
 
-        // Pattern to match: cpython-{version}+{date}-{platform}-{variant}-install_only.tar.gz
-        // Example: cpython-3.12.8+20251217-x86_64-pc-windows-msvc-shared-install_only.tar.gz
+        // Pattern to match: cpython-{version}+{date}-{platform}-install_only.tar.gz
+        // Example: cpython-3.11.14+20251217-x86_64-pc-windows-msvc-install_only.tar.gz
         let platform_str = PythonUrlBuilder::get_platform_string(platform);
-        let variant = PythonUrlBuilder::get_variant(platform);
 
         // Build pattern that matches our expected filename format
+        // Note: No variant suffix in newer releases (2024+)
         let pattern = format!(
-            r"cpython-(\d+\.\d+\.\d+)\+{}-{}-{}-install_only\.(tar\.gz|tar\.zst)",
+            r"cpython-(\d+\.\d+\.\d+(?:a\d+|b\d+|rc\d+)?)\+{}-{}-install_only\.(tar\.gz|tar\.zst)",
             regex::escape(release_date),
             regex::escape(platform_str),
-            regex::escape(variant)
         );
         let re = match Regex::new(&pattern) {
             Ok(r) => r,
@@ -247,6 +246,44 @@ impl Runtime for PythonRuntime {
         }
 
         Ok(None)
+    }
+
+    /// Resolve version string to actual version
+    /// Supports:
+    /// - "latest" -> latest stable version
+    /// - "3.11" -> latest 3.11.x version (e.g., "3.11.11")
+    /// - "3.11.11" -> exact version
+    async fn resolve_version(&self, version: &str, ctx: &RuntimeContext) -> Result<String> {
+        // Handle "latest"
+        if version == "latest" {
+            let versions = self.fetch_versions(ctx).await?;
+            return versions
+                .into_iter()
+                .filter(|v| !v.prerelease)
+                .map(|v| v.version)
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("No versions found for {}", self.name()));
+        }
+
+        // Check if it's a partial version (e.g., "3.11" instead of "3.11.11")
+        let parts: Vec<&str> = version.split('.').collect();
+        if parts.len() == 2 {
+            // Partial version like "3.11" - find the latest patch version
+            let versions = self.fetch_versions(ctx).await?;
+            let prefix = format!("{}.", version); // "3.11."
+
+            return versions
+                .into_iter()
+                .filter(|v| !v.prerelease && v.version.starts_with(&prefix))
+                .map(|v| v.version)
+                .next()
+                .ok_or_else(|| {
+                    anyhow::anyhow!("No versions found matching {} for {}", version, self.name())
+                });
+        }
+
+        // Full version - return as-is
+        Ok(version.to_string())
     }
 }
 

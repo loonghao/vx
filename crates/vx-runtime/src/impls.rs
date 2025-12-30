@@ -250,10 +250,11 @@ impl HttpClient for RealHttpClient {
         }
 
         let response = request.send().await?;
+        let status = response.status();
 
         // Check for rate limit errors
-        if response.status() == reqwest::StatusCode::FORBIDDEN
-            || response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS
+        if status == reqwest::StatusCode::FORBIDDEN
+            || status == reqwest::StatusCode::TOO_MANY_REQUESTS
         {
             let remaining = response
                 .headers()
@@ -266,6 +267,17 @@ impl HttpClient for RealHttpClient {
                     "GitHub API rate limit exceeded. Set GITHUB_TOKEN or GH_TOKEN environment variable to increase limit (5000 requests/hour with token vs 60/hour without)."
                 ));
             }
+        }
+
+        // Check for other HTTP errors
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            let preview = if body.len() > 200 {
+                format!("{}...", &body[..200])
+            } else {
+                body
+            };
+            return Err(anyhow::anyhow!("HTTP {} for {}: {}", status, url, preview));
         }
 
         let json = response.json().await?;
