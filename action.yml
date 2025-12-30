@@ -134,8 +134,15 @@ runs:
           case "$OS" in
             Linux)
               case "$ARCH" in
-                x86_64)  TARGET="x86_64-unknown-linux-musl" ;;
-                aarch64) TARGET="aarch64-unknown-linux-musl" ;;
+                x86_64)
+                  # Try gnu first (more commonly available), fallback to musl
+                  TARGET="x86_64-unknown-linux-gnu"
+                  TARGET_FALLBACK="x86_64-unknown-linux-musl"
+                  ;;
+                aarch64)
+                  TARGET="aarch64-unknown-linux-gnu"
+                  TARGET_FALLBACK="aarch64-unknown-linux-musl"
+                  ;;
                 *)       echo "Unsupported architecture: $ARCH"; exit 1 ;;
               esac
               ;;
@@ -161,53 +168,55 @@ runs:
           MAJOR=$(echo "$VERSION_NUM" | cut -d. -f1)
           MINOR=$(echo "$VERSION_NUM" | cut -d. -f2)
 
+          USE_VERSIONED="false"
           if [ "$MAJOR" -gt 0 ] || { [ "$MAJOR" -eq 0 ] && [ "$MINOR" -ge 6 ]; }; then
-            # Versioned naming (v0.6.0+)
-            ARCHIVE_NAME="vx-${VERSION_NUM}-${TARGET}.tar.gz"
-            ARCHIVE_NAME_FALLBACK="vx-${TARGET}.tar.gz"
-          else
-            # Legacy naming (v0.5.x and earlier)
-            ARCHIVE_NAME="vx-${TARGET}.tar.gz"
-            ARCHIVE_NAME_FALLBACK="vx-${VERSION_NUM}-${TARGET}.tar.gz"
+            USE_VERSIONED="true"
           fi
 
-          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/${ARCHIVE_NAME}"
-
-          echo "Downloading from: $DOWNLOAD_URL"
+          # Build list of archives to try (in order of preference)
+          ARCHIVES_TO_TRY=""
+          if [ "$USE_VERSIONED" = "true" ]; then
+            # For v0.6.0+: try versioned naming first
+            ARCHIVES_TO_TRY="vx-${VERSION_NUM}-${TARGET}.tar.gz"
+            [ -n "${TARGET_FALLBACK:-}" ] && ARCHIVES_TO_TRY="$ARCHIVES_TO_TRY vx-${VERSION_NUM}-${TARGET_FALLBACK}.tar.gz"
+            ARCHIVES_TO_TRY="$ARCHIVES_TO_TRY vx-${TARGET}.tar.gz"
+            [ -n "${TARGET_FALLBACK:-}" ] && ARCHIVES_TO_TRY="$ARCHIVES_TO_TRY vx-${TARGET_FALLBACK}.tar.gz"
+          else
+            # For v0.5.x: try legacy naming first
+            ARCHIVES_TO_TRY="vx-${TARGET}.tar.gz"
+            [ -n "${TARGET_FALLBACK:-}" ] && ARCHIVES_TO_TRY="$ARCHIVES_TO_TRY vx-${TARGET_FALLBACK}.tar.gz"
+            ARCHIVES_TO_TRY="$ARCHIVES_TO_TRY vx-${VERSION_NUM}-${TARGET}.tar.gz"
+            [ -n "${TARGET_FALLBACK:-}" ] && ARCHIVES_TO_TRY="$ARCHIVES_TO_TRY vx-${VERSION_NUM}-${TARGET_FALLBACK}.tar.gz"
+          fi
 
           # Download with authentication and retry (5 retries with 5 second delay for DNS issues)
           TEMP_DIR=$(mktemp -d)
           trap 'rm -rf "$TEMP_DIR"' EXIT
 
           DOWNLOAD_SUCCESS=false
+          ARCHIVE_NAME=""
 
-          # Try primary archive name
-          if curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/octet-stream" \
-            "$DOWNLOAD_URL" -o "$TEMP_DIR/$ARCHIVE_NAME" 2>/dev/null; then
-            if [ -f "$TEMP_DIR/$ARCHIVE_NAME" ] && [ $(stat -f%z "$TEMP_DIR/$ARCHIVE_NAME" 2>/dev/null || stat -c%s "$TEMP_DIR/$ARCHIVE_NAME" 2>/dev/null || echo 0) -gt 1024 ]; then
-              DOWNLOAD_SUCCESS=true
-            fi
-          fi
+          # Try each archive name in order
+          for TRY_ARCHIVE in $ARCHIVES_TO_TRY; do
+            DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/${TRY_ARCHIVE}"
+            echo "Trying: $DOWNLOAD_URL"
 
-          # Try fallback archive name if primary failed
-          if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
-            echo "Primary archive not found, trying fallback: $ARCHIVE_NAME_FALLBACK"
-            FALLBACK_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/${ARCHIVE_NAME_FALLBACK}"
-            if curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+            if curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/octet-stream" \
-              "$FALLBACK_URL" -o "$TEMP_DIR/$ARCHIVE_NAME_FALLBACK" 2>/dev/null; then
-              if [ -f "$TEMP_DIR/$ARCHIVE_NAME_FALLBACK" ] && [ $(stat -f%z "$TEMP_DIR/$ARCHIVE_NAME_FALLBACK" 2>/dev/null || stat -c%s "$TEMP_DIR/$ARCHIVE_NAME_FALLBACK" 2>/dev/null || echo 0) -gt 1024 ]; then
-                ARCHIVE_NAME="$ARCHIVE_NAME_FALLBACK"
+              "$DOWNLOAD_URL" -o "$TEMP_DIR/$TRY_ARCHIVE" 2>/dev/null; then
+              if [ -f "$TEMP_DIR/$TRY_ARCHIVE" ] && [ $(stat -f%z "$TEMP_DIR/$TRY_ARCHIVE" 2>/dev/null || stat -c%s "$TEMP_DIR/$TRY_ARCHIVE" 2>/dev/null || echo 0) -gt 1024 ]; then
+                ARCHIVE_NAME="$TRY_ARCHIVE"
                 DOWNLOAD_SUCCESS=true
+                echo "Successfully downloaded: $TRY_ARCHIVE"
+                break
               fi
             fi
-          fi
+            rm -f "$TEMP_DIR/$TRY_ARCHIVE"
+          done
 
           if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
-            echo "Failed to download vx binary"
+            echo "Failed to download vx binary. Tried: $ARCHIVES_TO_TRY"
             exit 1
           fi
 
