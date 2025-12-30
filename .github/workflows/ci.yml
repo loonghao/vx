@@ -164,18 +164,11 @@ jobs:
           targets: ${{ matrix.platform.target }}
 
       - name: Cache Rust
-        uses: actions/cache@v5
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-${{ matrix.platform.target }}-cargo-build-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.platform.target }}-cargo-build-
-            ${{ runner.os }}-cargo-
+          prefix-key: ${{ matrix.platform.target }}
+          shared-key: build
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Build vx release binary
         run: cargo build --release --target ${{ matrix.platform.target }}
@@ -232,18 +225,10 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache Rust
-        uses: actions/cache@v5
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-quality-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-quality-
-            ${{ runner.os }}-cargo-
+          shared-key: quality
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Check formatting (via vx)
         run: vx run fmt-check
@@ -315,18 +300,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust
-        uses: actions/cache@v5
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-test-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-test-
-            ${{ runner.os }}-cargo-
+          shared-key: test
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run tests (via vx)
         shell: bash
@@ -469,18 +446,11 @@ jobs:
           tool: cross
 
       - name: Cache Rust
-        uses: actions/cache@v5
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-cross-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.target }}-cargo-cross-
-            ${{ runner.os }}-cargo-
+          prefix-key: ${{ matrix.target }}
+          shared-key: cross
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Build with cross
         run: cross build --release --target ${{ matrix.target }} --no-default-features
@@ -542,18 +512,10 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Cache Rust
-        uses: actions/cache@v5
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-coverage-
-            ${{ runner.os }}-cargo-
+          shared-key: coverage
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Generate coverage
         run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
