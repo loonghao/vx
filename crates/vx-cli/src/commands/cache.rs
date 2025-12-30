@@ -95,7 +95,7 @@ async fn handle_clear(
 async fn handle_stats() -> Result<()> {
     let paths = VxPaths::new()?;
     let cache_dir = paths.cache_dir.join("versions");
-    let version_cache = VersionCache::new(cache_dir.clone());
+    let version_cache = VersionCache::new(cache_dir);
 
     UI::header("Cache Statistics");
 

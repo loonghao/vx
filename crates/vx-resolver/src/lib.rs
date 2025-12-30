@@ -47,8 +47,9 @@ pub use runtime_spec::{Ecosystem, RuntimeDependency, RuntimeSpec};
 
 // Re-export version types for convenience
 pub use version::{
-    RangeConstraint, RangeOp, ResolvedVersion, SolverConfig, SolverError, SolverResult,
-    SolverStatus, Version, VersionConstraint, VersionRequest, VersionSolver, VersionStrategy,
+    LockFile, LockFileError, LockFileInconsistency, LockedTool, RangeConstraint, RangeOp,
+    ResolvedVersion, SolverConfig, SolverError, SolverResult, SolverStatus, Version,
+    VersionConstraint, VersionRequest, VersionSolver, VersionStrategy,
 };
 
 /// Result type for resolver operations

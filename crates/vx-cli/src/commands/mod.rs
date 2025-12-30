@@ -25,6 +25,7 @@ pub mod hook;
 pub mod init;
 pub mod install;
 pub mod list;
+pub mod lock;
 pub mod migrate;
 pub mod plugin;
 pub mod remove;
