@@ -768,6 +768,43 @@ pub trait Runtime: Send + Sync {
             .await
     }
 
+    /// Pre-run hook called before executing a command
+    ///
+    /// This hook is called by the executor before running a command.
+    /// Providers can use this to perform setup tasks like:
+    /// - Syncing dependencies (e.g., `uv sync` before `uv run`)
+    /// - Setting up virtual environments
+    /// - Checking prerequisites
+    ///
+    /// # Arguments
+    ///
+    /// * `args` - The command arguments (e.g., ["run", "pytest"] for `uv run pytest`)
+    /// * `executable` - Path to the resolved executable
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - Continue with execution
+    /// * `Ok(false)` - Skip execution (pre_run handled everything)
+    /// * `Err(...)` - Abort with error
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// async fn pre_run(&self, args: &[String], executable: &Path) -> Result<bool> {
+    ///     // For "uv run" commands, ensure dependencies are synced
+    ///     if args.first().is_some_and(|a| a == "run") {
+    ///         if Path::new("pyproject.toml").exists() && !Path::new(".venv").exists() {
+    ///             // Run uv sync first
+    ///             Command::new(executable).arg("sync").status().await?;
+    ///         }
+    ///     }
+    ///     Ok(true) // Continue with execution
+    /// }
+    /// ```
+    async fn pre_run(&self, _args: &[String], _executable: &Path) -> Result<bool> {
+        Ok(true) // Default: no pre-run action, continue execution
+    }
+
     /// Get download URL for a specific version and platform
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         // Default implementation - subclasses should override
