@@ -1,18 +1,55 @@
 # Python Ecosystem
 
-vx provides Python support through the `uv` package manager.
+vx provides comprehensive Python support through both standalone Python runtime and the `uv` package manager.
 
 ## Supported Tools
 
 | Tool | Description |
 |------|-------------|
+| `python` | Python interpreter (via python-build-standalone) |
 | `uv` | Fast Python package manager |
 | `uvx` | Python tool runner (uv tool run) |
-| `python` | Python interpreter (via uv) |
 
-## uv
+## Python Runtime
 
-[uv](https://github.com/astral-sh/uv) is an extremely fast Python package and project manager.
+vx uses [python-build-standalone](https://github.com/astral-sh/python-build-standalone) from Astral for portable Python distributions. Supports **Python 3.7 to 3.13+**.
+
+### Installation
+
+```bash
+# Install latest Python
+vx install python latest
+
+# Install specific version
+vx install python 3.12.8
+vx install python 3.11.11
+vx install python 3.10.16
+vx install python 3.9.21
+vx install python 3.8.20
+vx install python 3.7.17
+
+# List available versions
+vx list python
+```
+
+### Running Python
+
+```bash
+vx python --version
+vx python script.py
+vx python -m pytest
+```
+
+> **Recommendation**: For pure Python development, we recommend using `uv` instead of managing Python directly. `uv` provides faster package installation, built-in virtual environment management, and automatic Python version management.
+
+## uv (Recommended)
+
+[uv](https://github.com/astral-sh/uv) is an extremely fast Python package and project manager. **We strongly recommend using uv for Python development** as it provides:
+
+- 10-100x faster package installation than pip
+- Built-in virtual environment management
+- Automatic Python version management
+- Modern project management with `pyproject.toml`
 
 ### Installation
 
@@ -56,16 +93,6 @@ vx uvx pytest
 vx uvx jupyter notebook
 ```
 
-## Python
-
-Run Python through uv:
-
-```bash
-vx python --version
-vx python script.py
-vx python -m pytest
-```
-
 ## Project Configuration
 
 ```toml
@@ -93,10 +120,10 @@ typecheck = "uvx mypy src/"
 
 ## Common Workflows
 
-### New Python Project
+### New Python Project (Recommended)
 
 ```bash
-# Initialize project
+# Initialize project with uv
 vx uv init my-project
 cd my-project
 
@@ -105,6 +132,17 @@ vx uv add requests pandas
 
 # Run code
 vx uv run python main.py
+```
+
+### Using Standalone Python
+
+```bash
+# Install Python directly
+vx install python 3.12.8
+
+# Run Python
+vx python --version
+vx python script.py
 ```
 
 ### Data Science
@@ -156,6 +194,7 @@ vx setup
 
 ## Tips
 
-1. **Use uvx for tools**: Run linters, formatters, etc. with `uvx` instead of installing globally
-2. **Pin Python version**: Specify version in `vx.toml` for reproducibility
-3. **Use uv for speed**: uv is significantly faster than pip
+1. **Use uv for development**: uv provides the best Python development experience with automatic version management and fast package installation
+2. **Use uvx for tools**: Run linters, formatters, etc. with `uvx` instead of installing globally
+3. **Pin Python version**: Specify version in `vx.toml` for reproducibility
+4. **Use standalone Python for specific needs**: When you need a specific Python version without uv's management

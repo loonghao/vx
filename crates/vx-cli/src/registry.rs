@@ -105,6 +105,9 @@ pub fn create_registry() -> ProviderRegistry {
     // Register release-please provider (DevOps tools)
     registry.register(vx_provider_release_please::create_provider());
 
+    // Register Python provider (using python-build-standalone)
+    registry.register(vx_provider_python::create_provider());
+
     registry
 }
 
