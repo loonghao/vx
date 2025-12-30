@@ -3765,6 +3765,7 @@ dependencies = [
  "rstest",
  "serde",
  "tokio",
+ "tracing",
  "vx-runtime",
 ]
 
@@ -3863,6 +3864,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
 ]
 
@@ -3947,6 +3949,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
 ]
 
@@ -3973,6 +3976,7 @@ dependencies = [
  "rstest",
  "serde",
  "tokio",
+ "tracing",
  "vx-runtime",
 ]
 
@@ -4180,6 +4184,7 @@ dependencies = [
  "rstest",
  "serde",
  "tokio",
+ "tracing",
  "vx-runtime",
 ]
 

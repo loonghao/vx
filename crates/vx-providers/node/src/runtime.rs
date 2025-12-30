@@ -9,6 +9,10 @@ use crate::config::NodeUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::path::Path;
+use std::process::Stdio;
+use tokio::process::Command;
+use tracing::{debug, info, warn};
 use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, RuntimeDependency, VersionInfo};
 
 /// Node.js JavaScript runtime
@@ -179,6 +183,20 @@ impl Runtime for NpmRuntime {
         // NPM is bundled with Node.js
         Ok(NodeUrlBuilder::download_url(version, platform))
     }
+
+    /// Pre-run hook for npm commands
+    ///
+    /// For "npm run" commands, ensures project dependencies are installed first.
+    async fn pre_run(&self, args: &[String], executable: &Path) -> Result<bool> {
+        // Only handle "npm run" commands
+        if args
+            .first()
+            .is_some_and(|a| a == "run" || a == "run-script")
+        {
+            ensure_node_modules_installed(executable, "npm", &["install"]).await?;
+        }
+        Ok(true)
+    }
 }
 
 /// NPX package runner runtime
@@ -243,4 +261,44 @@ impl Runtime for NpxRuntime {
         // NPX is bundled with Node.js
         Ok(NodeUrlBuilder::download_url(version, platform))
     }
+}
+
+/// Helper function to ensure node_modules is installed before running commands
+///
+/// Checks for package.json and node_modules directory. If package.json exists
+/// but node_modules doesn't, runs the specified install command.
+async fn ensure_node_modules_installed(
+    executable: &Path,
+    _tool_name: &str,
+    install_args: &[&str],
+) -> Result<()> {
+    // Check if package.json exists
+    let package_json = Path::new("package.json");
+    if !package_json.exists() {
+        debug!("No package.json found, skipping dependency install");
+        return Ok(());
+    }
+
+    // Check if node_modules exists
+    let node_modules = Path::new("node_modules");
+    if node_modules.exists() {
+        debug!("node_modules exists, assuming dependencies are installed");
+        return Ok(());
+    }
+
+    info!("Installing dependencies...");
+
+    let status = Command::new(executable)
+        .args(install_args)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()
+        .await?;
+
+    if !status.success() {
+        warn!("Dependency installation failed, continuing anyway...");
+    }
+
+    Ok(())
 }

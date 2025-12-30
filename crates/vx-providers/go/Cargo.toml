@@ -20,6 +20,7 @@ async-trait = { workspace = true }
 tokio = { workspace = true }
 reqwest = { workspace = true }
 chrono = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }

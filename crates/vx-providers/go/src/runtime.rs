@@ -6,6 +6,10 @@ use crate::config::GoUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::path::Path;
+use std::process::Stdio;
+use tokio::process::Command;
+use tracing::{debug, info, warn};
 use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// Go programming language runtime
@@ -95,4 +99,55 @@ impl Runtime for GoRuntime {
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         Ok(GoUrlBuilder::download_url(version, platform))
     }
+
+    /// Pre-run hook for go commands
+    ///
+    /// For "go run" commands, ensures module dependencies are downloaded first.
+    async fn pre_run(&self, args: &[String], executable: &Path) -> Result<bool> {
+        // Handle "go run" commands
+        if args.first().is_some_and(|a| a == "run") {
+            ensure_go_mod_downloaded(executable).await?;
+        }
+        Ok(true)
+    }
+}
+
+/// Helper function to ensure go modules are downloaded before running commands
+async fn ensure_go_mod_downloaded(executable: &Path) -> Result<()> {
+    // Check if go.mod exists
+    let go_mod = Path::new("go.mod");
+    if !go_mod.exists() {
+        debug!("No go.mod found, skipping go mod download");
+        return Ok(());
+    }
+
+    // Check if go.sum exists - if it does, modules might already be cached
+    // We'll still run download to ensure everything is available
+    let go_sum = Path::new("go.sum");
+    if !go_sum.exists() {
+        debug!("No go.sum found, running go mod download");
+    }
+
+    // Check if vendor directory exists - if so, skip download
+    let vendor = Path::new("vendor");
+    if vendor.exists() {
+        debug!("vendor directory exists, assuming dependencies are vendored");
+        return Ok(());
+    }
+
+    info!("Downloading Go module dependencies...");
+
+    let status = Command::new(executable)
+        .args(["mod", "download"])
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()
+        .await?;
+
+    if !status.success() {
+        warn!("go mod download failed, continuing anyway...");
+    }
+
+    Ok(())
 }

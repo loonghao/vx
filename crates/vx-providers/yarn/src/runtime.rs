@@ -3,6 +3,10 @@
 use crate::config::YarnUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
+use std::path::Path;
+use std::process::Stdio;
+use tokio::process::Command;
+use tracing::{debug, info, warn};
 use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// Yarn runtime
@@ -73,4 +77,48 @@ impl Runtime for YarnRuntime {
     async fn download_url(&self, version: &str, _platform: &Platform) -> Result<Option<String>> {
         Ok(YarnUrlBuilder::download_url(version))
     }
+
+    /// Pre-run hook for yarn commands
+    ///
+    /// For "yarn run" commands, ensures project dependencies are installed first.
+    async fn pre_run(&self, args: &[String], executable: &Path) -> Result<bool> {
+        // Handle "yarn run" commands
+        if args.first().is_some_and(|a| a == "run") {
+            ensure_node_modules_installed(executable).await?;
+        }
+        Ok(true)
+    }
+}
+
+/// Helper function to ensure node_modules is installed before running commands
+async fn ensure_node_modules_installed(executable: &Path) -> Result<()> {
+    // Check if package.json exists
+    let package_json = Path::new("package.json");
+    if !package_json.exists() {
+        debug!("No package.json found, skipping dependency install");
+        return Ok(());
+    }
+
+    // Check if node_modules exists
+    let node_modules = Path::new("node_modules");
+    if node_modules.exists() {
+        debug!("node_modules exists, assuming dependencies are installed");
+        return Ok(());
+    }
+
+    info!("Installing dependencies with yarn...");
+
+    let status = Command::new(executable)
+        .arg("install")
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()
+        .await?;
+
+    if !status.success() {
+        warn!("yarn install failed, continuing anyway...");
+    }
+
+    Ok(())
 }
