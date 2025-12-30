@@ -156,7 +156,8 @@ jobs:
         with:
           command: build
           target: ${{ matrix.platform.target }}
-          args: "--release --bin vx"
+          # Disable cdn-acceleration for musl targets to avoid OpenSSL dependency
+          args: "${{ contains(matrix.platform.target, 'musl') && '--release --bin vx --no-default-features' || '--release --bin vx' }}"
           strip: true
 
       - name: Set archive name
@@ -214,9 +215,9 @@ jobs:
             ${{ steps.archive.outputs.name_compat }}.sha256
           fail_on_unmatched_files: true
 
-  # Create GitHub Release with all artifacts
-  github-release:
-    name: Create GitHub Release
+  # Finalize GitHub Release - append installation instructions without overwriting changelog
+  finalize-release:
+    name: Finalize GitHub Release
     runs-on: ubuntu-latest
     needs: [get-tag, build-binaries]
     if: needs.build-binaries.result == 'success'
@@ -230,53 +231,11 @@ jobs:
           ref: ${{ needs.get-tag.outputs.tag_name }}
           fetch-depth: 0
 
-      - name: Extract changelog for version
-        id: changelog
-        run: |
-          VERSION="${{ needs.get-tag.outputs.version }}"
-          echo "Extracting changelog for version: $VERSION"
-
-          # Extract the changelog section for this version
-          # Match from "## [VERSION]" or "## VERSION" until the next "## " or end of file
-          CHANGELOG=$(awk -v ver="$VERSION" '
-            BEGIN { found=0; output="" }
-            /^## \[?[0-9]+\.[0-9]+\.[0-9]+\]?/ {
-              if (found) exit
-              if (index($0, ver) > 0) { found=1; next }
-            }
-            found { output = output $0 "\n" }
-            END { print output }
-          ' CHANGELOG.md)
-
-          # If no changelog found, use a default message
-          if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details."
-          fi
-
-          # Write to file to avoid escaping issues
-          echo "$CHANGELOG" > /tmp/changelog.md
-          echo "changelog_file=/tmp/changelog.md" >> $GITHUB_OUTPUT
-
-      - name: Update GitHub Release
-        uses: ncipollo/release-action@v1
+      - name: Append installation instructions to release
+        uses: softprops/action-gh-release@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ needs.get-tag.outputs.tag_name }}
-          name: ${{ needs.get-tag.outputs.tag_name }}
-          bodyFile: ${{ steps.changelog.outputs.changelog_file }}
-          draft: false
-          prerelease: false
-          allowUpdates: true
-          skipIfReleaseExists: false
-          updateOnlyUnreleased: false
-          makeLatest: true
-
-      - name: Append installation instructions
-        uses: ncipollo/release-action@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ needs.get-tag.outputs.tag_name }}
-          name: ${{ needs.get-tag.outputs.tag_name }}
+          tag_name: ${{ needs.get-tag.outputs.tag_name }}
+          append_body: true
           body: |
 
             ---
@@ -298,21 +257,15 @@ jobs:
             #### Manual Download
 
             Download the appropriate binary for your platform from the assets below.
-          draft: false
-          prerelease: false
-          allowUpdates: true
-          omitBodyDuringUpdate: false
-          appendBody: true
-          makeLatest: true
 
 
   # Publish to crates.io
   publish-crates:
     name: Publish to crates.io
     runs-on: ubuntu-latest
-    needs: [get-tag, github-release]
+    needs: [get-tag, finalize-release]
     if: |
-      needs.github-release.result == 'success' &&
+      needs.finalize-release.result == 'success' &&
       (github.event_name != 'workflow_dispatch' || inputs.skip-crates-publish != true)
     steps:
       - uses: actions/checkout@v6
