@@ -6,8 +6,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use vx_runtime::{
-    Arch, Ecosystem, GitHubReleaseOptions, Os, Platform, Runtime, RuntimeContext,
-    VerificationResult, VersionInfo,
+    Arch, Ecosystem, Os, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
 };
 
 /// AWS CLI runtime
@@ -85,15 +84,21 @@ impl Runtime for AwsCliRuntime {
         }
     }
 
-    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Fetch from aws/aws-cli GitHub releases
-        ctx.fetch_github_releases(
-            "aws",
-            "aws",
-            "aws-cli",
-            GitHubReleaseOptions::new().strip_v_prefix(false),
-        )
-        .await
+    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // AWS CLI uses a single "latest" version on their download site
+        // GitHub releases are for development versions only
+        // We provide a hardcoded list of known stable versions
+        let versions = vec![
+            "2.32.25", "2.32.0", "2.31.0", "2.30.0", "2.29.0",
+            "2.28.0", "2.27.0", "2.26.0", "2.25.0", "2.24.0",
+            "2.23.0", "2.22.0", "2.21.0", "2.20.0", "2.19.0",
+            "2.18.0", "2.17.0", "2.16.0", "2.15.0", "latest",
+        ];
+        
+        Ok(versions
+            .into_iter()
+            .map(|v| VersionInfo::new(v))
+            .collect())
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
@@ -101,10 +106,24 @@ impl Runtime for AwsCliRuntime {
     }
 
     /// Custom post-install for AWS CLI
-    /// AWS CLI requires running an installer script on Linux
+    /// 
+    /// **Windows Note**: AWS CLI v2 for Windows uses MSI installer format which requires
+    /// admin privileges to install. vx currently downloads the MSI but cannot extract it
+    /// automatically. Users should either:
+    /// 1. Install AWS CLI system-wide manually: https://aws.amazon.com/cli/
+    /// 2. Use `vx --use-system-path aws` to use system-installed version
+    /// 
+    /// **Linux Note**: Users may need to run the install script manually.
+    /// The install script is at `aws/install` in the installation directory.
     async fn post_install(&self, _version: &str, _ctx: &RuntimeContext) -> Result<()> {
-        // On Linux, users may need to run the install script manually
-        // The install script is at aws/install
+        #[cfg(target_os = "windows")]
+        {
+            eprintln!("\n⚠️  AWS CLI for Windows uses MSI installer format.");
+            eprintln!("   vx has downloaded the MSI file but cannot install it automatically.");
+            eprintln!("   Please install AWS CLI manually from: https://aws.amazon.com/cli/");
+            eprintln!("   Or use the system-installed version with: vx --use-system-path aws\n");
+        }
+        
         Ok(())
     }
 
