@@ -151,6 +151,7 @@ The self-update command features:
 - Download progress bar with speed and ETA
 - SHA256 checksum verification (when available)
 - Safe binary replacement on Windows
+- Backward compatible with older vx versions (supports both legacy and versioned artifact naming)
 
 ## Uninstalling
 
