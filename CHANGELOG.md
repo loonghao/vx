@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4](https://github.com/loonghao/vx/compare/vx-v0.6.3...vx-v0.6.4) (2025-12-30)
+
+
+### Bug Fixes
+
+* **python:** update release_date for EOL versions ([b1d9de3](https://github.com/loonghao/vx/commit/b1d9de3dcd7b2dfd87f3779cbf2d4b027f1e6e60))
+* **rust:** use tar.gz for Windows ([c29e480](https://github.com/loonghao/vx/commit/c29e480750298859c8293ee605f38aaa1abfb96a))
+
 ## [0.6.3](https://github.com/loonghao/vx/compare/vx-v0.6.2...vx-v0.6.3) (2025-12-30)
 
 
