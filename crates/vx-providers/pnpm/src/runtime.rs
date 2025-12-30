@@ -3,7 +3,10 @@
 use crate::config::PnpmUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Stdio;
+use tokio::process::Command;
+use tracing::{debug, info, warn};
 use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// PNPM runtime
@@ -79,4 +82,51 @@ impl Runtime for PnpmRuntime {
 
         Ok(())
     }
+
+    /// Pre-run hook for pnpm commands
+    ///
+    /// For "pnpm run" commands, ensures project dependencies are installed first.
+    async fn pre_run(&self, args: &[String], executable: &Path) -> Result<bool> {
+        // Handle "pnpm run" commands
+        if args
+            .first()
+            .is_some_and(|a| a == "run" || a == "run-script")
+        {
+            ensure_node_modules_installed(executable).await?;
+        }
+        Ok(true)
+    }
+}
+
+/// Helper function to ensure node_modules is installed before running commands
+async fn ensure_node_modules_installed(executable: &Path) -> Result<()> {
+    // Check if package.json exists
+    let package_json = Path::new("package.json");
+    if !package_json.exists() {
+        debug!("No package.json found, skipping dependency install");
+        return Ok(());
+    }
+
+    // Check if node_modules exists
+    let node_modules = Path::new("node_modules");
+    if node_modules.exists() {
+        debug!("node_modules exists, assuming dependencies are installed");
+        return Ok(());
+    }
+
+    info!("Installing dependencies with pnpm...");
+
+    let status = Command::new(executable)
+        .arg("install")
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()
+        .await?;
+
+    if !status.success() {
+        warn!("pnpm install failed, continuing anyway...");
+    }
+
+    Ok(())
 }
