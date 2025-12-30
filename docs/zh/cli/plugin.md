@@ -54,13 +54,14 @@ vx plugin stats
 输出：
 ```
 Plugin Statistics:
-  Total providers: 32
-  Total runtimes: 38
+  Total providers: 33
+  Total runtimes: 39
 
   Providers:
     node (3 runtimes)
     go (1 runtimes)
     rust (3 runtimes)
+    python (1 runtimes)
     ...
 ```
 
@@ -86,7 +87,7 @@ vx plugin search python
 
 | 类别 | 示例 |
 |------|------|
-| **语言运行时** | node, go, rust, java, zig |
+| **语言运行时** | node, go, rust, java, zig, python |
 | **包管理器** | uv, pnpm, yarn, bun |
 | **构建工具** | vite, just, task, cmake, ninja |
 | **DevOps** | docker, terraform, kubectl, helm |
