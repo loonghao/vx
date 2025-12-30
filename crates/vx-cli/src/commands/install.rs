@@ -23,26 +23,22 @@ pub async fn handle(
     };
 
     // Determine version to install
-    let target_version = if let Some(v) = version {
-        v.to_string()
-    } else {
-        // Get latest version with progress spinner
-        let spinner =
-            ProgressSpinner::new(&format!("Fetching latest version for {}...", tool_name));
-        let versions = runtime.fetch_versions(context).await?;
-        spinner.finish_and_clear();
+    let requested_version = version.unwrap_or("latest");
 
-        if versions.is_empty() {
-            return Err(anyhow::anyhow!("No versions found for tool: {}", tool_name));
-        }
+    // Resolve version (handles "latest", partial versions like "3.11", etc.)
+    let spinner = ProgressSpinner::new(&format!(
+        "Resolving version {} for {}...",
+        requested_version, tool_name
+    ));
+    let target_version = runtime.resolve_version(requested_version, context).await?;
+    spinner.finish_and_clear();
 
-        // Find first non-prerelease version
-        versions
-            .iter()
-            .find(|v| !v.prerelease)
-            .map(|v| v.version.clone())
-            .unwrap_or_else(|| versions[0].version.clone())
-    };
+    if requested_version != target_version {
+        UI::detail(&format!(
+            "Resolved {} → {}",
+            requested_version, target_version
+        ));
+    }
 
     // Check if already installed
     if !force && runtime.is_installed(&target_version, context).await? {
