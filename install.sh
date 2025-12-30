@@ -234,8 +234,21 @@ install_from_release() {
     # Extract version number from tag (e.g., "vx-v0.5.7" -> "0.5.7", "v0.5.7" -> "0.5.7")
     version_number=$(echo "$tag_name" | sed -E 's/^(vx-)?v//')
 
+    # Determine artifact naming format based on version
+    # v0.6.0+ uses versioned naming (vx-0.6.1-target.tar.gz)
+    # v0.5.x and earlier use legacy naming (vx-target.tar.gz)
+    local major minor use_versioned_first
+    major=$(echo "$version_number" | cut -d. -f1)
+    minor=$(echo "$version_number" | cut -d. -f2)
+
+    if [[ "$major" -gt 0 ]] || { [[ "$major" -eq 0 ]] && [[ "$minor" -ge 6 ]]; }; then
+        use_versioned_first=true
+    else
+        use_versioned_first=false
+    fi
+
     # Construct download URL based on Rust target triple
-    # New format: vx-{version}-{target}.tar.gz (e.g., vx-0.5.7-x86_64-unknown-linux-gnu.tar.gz)
+    # New format: vx-{version}-{target}.tar.gz (e.g., vx-0.6.1-x86_64-unknown-linux-gnu.tar.gz)
     # Legacy format: vx-{target}.tar.gz (e.g., vx-x86_64-unknown-linux-gnu.tar.gz)
     case "$platform" in
         x86_64-unknown-linux)
@@ -278,8 +291,13 @@ install_from_release() {
         wget_auth_opts="--header=\"Authorization: Bearer $GITHUB_TOKEN\""
     fi
 
-    # Try versioned archive first, then legacy format
-    local archives_to_try=("$archive_name_versioned" "$archive_name_legacy")
+    # Order archives based on version - try the expected format first
+    local archives_to_try
+    if [[ "$use_versioned_first" == "true" ]]; then
+        archives_to_try=("$archive_name_versioned" "$archive_name_legacy")
+    else
+        archives_to_try=("$archive_name_legacy" "$archive_name_versioned")
+    fi
     local archive_name=""
 
     for try_archive in "${archives_to_try[@]}"; do
@@ -331,7 +349,12 @@ install_from_release() {
     # Try fallback archives if primary failed and fallback exists
     if [[ "$download_success" != "true" ]] && [[ -n "${fallback_archive_versioned:-}" ]]; then
         warn "Primary archive failed, trying fallback archives..."
-        local fallback_archives=("$fallback_archive_versioned" "$fallback_archive_legacy")
+        local fallback_archives
+        if [[ "$use_versioned_first" == "true" ]]; then
+            fallback_archives=("$fallback_archive_versioned" "$fallback_archive_legacy")
+        else
+            fallback_archives=("$fallback_archive_legacy" "$fallback_archive_versioned")
+        fi
 
         for fallback_archive in "${fallback_archives[@]}"; do
             local fallback_url="$BASE_URL/download/$tag_name/$fallback_archive"
