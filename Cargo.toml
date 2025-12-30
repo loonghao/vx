@@ -89,7 +89,7 @@ anyhow = { workspace = true }
 
 [features]
 default = ["cdn-acceleration"]
-# CDN acceleration for faster downloads in China (requires OpenSSL on some platforms)
+# CDN acceleration for faster downloads in China (uses rustls-tls, no OpenSSL required)
 cdn-acceleration = ["vx-cli/cdn-acceleration"]
 
 [dev-dependencies]
@@ -103,7 +103,7 @@ vx-core = { workspace = true }
 
 
 [workspace.package]
-version = "0.6.0"                                               # x-release-please-version
+version = "0.6.0"                                                # x-release-please-version
 edition = "2021"
 description = "Universal Development Tool Manager"
 license = "MIT"
