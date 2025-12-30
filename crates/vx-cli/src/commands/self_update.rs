@@ -494,7 +494,6 @@ async fn download_and_install(
 ) -> Result<()> {
     // Get current executable path
     let current_exe = env::current_exe()?;
-    let backup_path = current_exe.with_extension("bak");
 
     // Try downloading with multi-channel fallback
     let content = download_with_fallback(client, asset, version_source, version).await?;
@@ -505,8 +504,10 @@ async fn download_and_install(
         UI::detail("Continuing with size validation only...");
     }
 
-    // Create temporary file for the new binary
-    let temp_path = current_exe.with_extension("tmp");
+    // Use system temp directory for the new binary to avoid permission issues
+    // This is more reliable than placing temp files next to the executable
+    let temp_dir = env::temp_dir();
+    let temp_path = temp_dir.join(format!("vx-update-{}.tmp", std::process::id()));
 
     // Handle different asset types
     if asset.name.ends_with(".zip") {
@@ -527,50 +528,194 @@ async fn download_and_install(
         fs::set_permissions(&temp_path, perms)?;
     }
 
-    // Backup current executable (unless force mode)
-    if current_exe.exists() && !force {
-        if backup_path.exists() {
-            fs::remove_file(&backup_path)?;
-        }
-        fs::copy(&current_exe, &backup_path)?;
+    // Create backup in temp directory (more reliable than next to exe)
+    let backup_path = if !force && current_exe.exists() {
+        let backup = temp_dir.join(format!("vx-backup-{}.bak", std::process::id()));
+        fs::copy(&current_exe, &backup)?;
         UI::detail(&format!(
             "📦 Backed up current version to {}",
-            backup_path.display()
+            backup.display()
         ));
-    }
+        Some(backup)
+    } else {
+        None
+    };
 
     // Use self_replace for safe binary replacement (handles Windows exe locking)
+    // On Windows, self_replace works by:
+    // 1. Renaming the running exe to a temp name (Windows allows this)
+    // 2. Copying the new exe to the original location
+    // 3. The old exe is deleted on next reboot or when no longer in use
     match self_replace::self_replace(&temp_path) {
         Ok(()) => {
             // Clean up temp file
             let _ = fs::remove_file(&temp_path);
+            // Clean up backup if update succeeded
+            if let Some(ref backup) = backup_path {
+                let _ = fs::remove_file(backup);
+            }
             UI::detail(&format!(
                 "✅ Installed new version to {}",
                 current_exe.display()
             ));
         }
         Err(e) => {
-            // Rollback on failure
-            if backup_path.exists() {
-                UI::warn("⚠️ Update failed, attempting rollback...");
-                if let Err(rollback_err) = fs::copy(&backup_path, &current_exe) {
+            let error_str = e.to_string();
+
+            // On Windows, try alternative replacement methods
+            #[cfg(target_os = "windows")]
+            {
+                if error_str.contains("os error 5") || error_str.contains("Access is denied") {
+                    UI::warn("⚠️ Standard replacement failed, trying alternative method...");
+
+                    // Try alternative: rename current exe and copy new one
+                    match try_windows_alternative_replace(&current_exe, &temp_path) {
+                        Ok(()) => {
+                            let _ = fs::remove_file(&temp_path);
+                            if let Some(ref backup) = backup_path {
+                                let _ = fs::remove_file(backup);
+                            }
+                            UI::detail(&format!(
+                                "✅ Installed new version to {}",
+                                current_exe.display()
+                            ));
+                            return Ok(());
+                        }
+                        Err(alt_err) => {
+                            UI::warn(&format!("⚠️ Alternative method also failed: {}", alt_err));
+                        }
+                    }
+
+                    // All methods failed, provide detailed guidance
+                    UI::warn("⚠️ Could not replace vx executable.");
+                    UI::hint("");
+                    UI::hint("This usually happens when:");
+                    UI::hint("  1. Antivirus software is blocking the operation");
+                    UI::hint("  2. Another terminal/process is using vx");
+                    UI::hint("  3. File system permissions issue");
+                    UI::hint("");
+                    UI::hint("Solutions:");
+                    UI::hint("  • Temporarily disable antivirus and try again");
+                    UI::hint("  • Close ALL terminals and run update in a fresh terminal");
+                    UI::hint("  • Manual update:");
+                    UI::hint(&format!(
+                        "    1. Download: https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
+                        version, asset.name
+                    ));
+                    UI::hint(&format!(
+                        "    2. Extract and replace: {}",
+                        current_exe.display()
+                    ));
+
+                    // Save the new binary for manual installation
+                    let manual_path = temp_dir.join(format!("vx-{}-new.exe", version));
+                    if fs::copy(&temp_path, &manual_path).is_ok() {
+                        UI::hint("");
+                        UI::hint(&format!(
+                            "  • New version saved at: {}",
+                            manual_path.display()
+                        ));
+                        UI::hint(
+                            "    You can manually copy this file to replace the current vx.exe",
+                        );
+                    }
+
+                    let _ = fs::remove_file(&temp_path);
                     return Err(anyhow!(
-                        "Update failed and rollback also failed!\n\
-                        Original error: {}\n\
-                        Rollback error: {}\n\
-                        Backup is available at: {}",
-                        e,
-                        rollback_err,
-                        backup_path.display()
+                        "Failed to replace binary. Please try manual update or see suggestions above."
                     ));
                 }
-                UI::info("✅ Rollback successful");
+            }
+
+            // Clean up temp file
+            let _ = fs::remove_file(&temp_path);
+
+            // Generic error handling for other platforms or errors
+            if let Some(ref backup) = backup_path {
+                UI::warn("⚠️ Update failed. Backup is available for manual recovery.");
+                UI::detail(&format!("Backup location: {}", backup.display()));
             }
             return Err(anyhow!("Failed to replace binary: {}", e));
         }
     }
 
     Ok(())
+}
+
+/// Alternative replacement method for Windows when self_replace fails
+///
+/// This tries a different approach:
+/// 1. Rename the current exe to a random temp name (Windows allows renaming running exes)
+/// 2. Copy the new exe to the original location
+/// 3. The old renamed exe will be cleaned up on next run or reboot
+#[cfg(target_os = "windows")]
+fn try_windows_alternative_replace(current_exe: &PathBuf, new_exe: &PathBuf) -> Result<()> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    // Generate a unique suffix for the old exe
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let old_exe_renamed = current_exe.with_extension(format!("old.{}.exe", timestamp));
+
+    // Step 1: Rename current exe (Windows allows this even while running)
+    fs::rename(current_exe, &old_exe_renamed).context("Failed to rename current executable")?;
+
+    // Step 2: Copy new exe to original location
+    match fs::copy(new_exe, current_exe) {
+        Ok(_) => {
+            UI::detail(&format!(
+                "✅ Replaced executable (old version at {})",
+                old_exe_renamed.display()
+            ));
+
+            // Try to schedule old exe for deletion (best effort)
+            // The old exe will be deleted when no longer in use
+            let _ = schedule_file_deletion(&old_exe_renamed);
+
+            Ok(())
+        }
+        Err(e) => {
+            // Rollback: try to rename back
+            let _ = fs::rename(&old_exe_renamed, current_exe);
+            Err(anyhow!("Failed to copy new executable: {}", e))
+        }
+    }
+}
+
+/// Schedule a file for deletion (Windows)
+/// Uses MoveFileEx with MOVEFILE_DELAY_UNTIL_REBOOT flag
+#[cfg(target_os = "windows")]
+fn schedule_file_deletion(path: &PathBuf) -> Result<()> {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+
+    // Convert path to wide string
+    let wide_path: Vec<u16> = OsStr::new(path)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+
+    // MOVEFILE_DELAY_UNTIL_REBOOT = 0x4
+    const MOVEFILE_DELAY_UNTIL_REBOOT: u32 = 0x4;
+
+    // Call MoveFileExW with NULL destination to delete on reboot
+    let result = unsafe {
+        windows_sys::Win32::Storage::FileSystem::MoveFileExW(
+            wide_path.as_ptr(),
+            std::ptr::null(),
+            MOVEFILE_DELAY_UNTIL_REBOOT,
+        )
+    };
+
+    if result != 0 {
+        UI::detail("📋 Old version scheduled for deletion on next reboot");
+        Ok(())
+    } else {
+        // Not critical if this fails
+        Ok(())
+    }
 }
 
 /// Extract vx binary from ZIP archive

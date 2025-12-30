@@ -242,6 +242,12 @@ runs:
         # Export install dir for subsequent steps
         echo "VX_INSTALL_DIR=$INSTALL_DIR" >> $GITHUB_ENV
 
+        # Export GitHub token for subsequent steps (for API rate limit avoidance)
+        # This ensures vx commands in user's steps can access the token
+        if [ -n "$GH_TOKEN" ]; then
+          echo "GITHUB_TOKEN=$GH_TOKEN" >> $GITHUB_ENV
+        fi
+
     # Install vx on Windows
     - name: Install vx (Windows)
       if: runner.os == 'Windows'
@@ -424,6 +430,12 @@ runs:
 
         # Export install dir for subsequent steps
         "VX_INSTALL_DIR=$InstallDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+        # Export GitHub token for subsequent steps (for API rate limit avoidance)
+        # This ensures vx commands in user's steps can access the token
+        if ($env:GH_TOKEN) {
+          "GITHUB_TOKEN=$env:GH_TOKEN" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        }
 
     # Get installed version
     - name: Get vx version

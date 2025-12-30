@@ -3570,6 +3570,7 @@ dependencies = [
  "vx-setup",
  "walkdir",
  "which",
+ "windows-sys 0.59.0",
  "zip 7.0.0",
 ]
 

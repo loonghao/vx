@@ -389,6 +389,15 @@ If you encounter GitHub API rate limiting, make sure to provide a GitHub token:
     github-token: ${{secrets.GITHUB_TOKEN}}
 ```
 
+The vx action automatically exports the `GITHUB_TOKEN` environment variable to all subsequent steps, so you don't need to set it manually in each step. However, if you're running vx commands in a separate job or workflow, make sure to pass the token:
+
+```yaml
+- name: Run vx command
+  env:
+    GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+  run: vx uv run pytest
+```
+
 ### Tool Installation Failures
 
 If a tool fails to install, check:
