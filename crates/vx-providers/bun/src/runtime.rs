@@ -4,6 +4,10 @@ use crate::config::BunUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::path::Path;
+use std::process::Stdio;
+use tokio::process::Command;
+use tracing::{debug, info, warn};
 use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// Bun runtime
@@ -75,6 +79,17 @@ impl Runtime for BunRuntime {
         let (platform, arch) = BunUrlBuilder::get_platform_string();
         Ok(BunUrlBuilder::download_url(version, platform, arch))
     }
+
+    /// Pre-run hook for bun commands
+    ///
+    /// For "bun run" commands, ensures project dependencies are installed first.
+    async fn pre_run(&self, args: &[String], executable: &Path) -> Result<bool> {
+        // Handle "bun run" commands
+        if args.first().is_some_and(|a| a == "run") {
+            ensure_node_modules_installed(executable).await?;
+        }
+        Ok(true)
+    }
 }
 
 /// Bunx runtime (package runner)
@@ -135,4 +150,37 @@ impl Runtime for BunxRuntime {
         // Bunx is part of Bun installation
         BunRuntime::new().download_url(version, platform).await
     }
+}
+
+/// Helper function to ensure node_modules is installed before running commands
+async fn ensure_node_modules_installed(executable: &Path) -> Result<()> {
+    // Check if package.json exists
+    let package_json = Path::new("package.json");
+    if !package_json.exists() {
+        debug!("No package.json found, skipping dependency install");
+        return Ok(());
+    }
+
+    // Check if node_modules exists
+    let node_modules = Path::new("node_modules");
+    if node_modules.exists() {
+        debug!("node_modules exists, assuming dependencies are installed");
+        return Ok(());
+    }
+
+    info!("Installing dependencies with bun...");
+
+    let status = Command::new(executable)
+        .arg("install")
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()
+        .await?;
+
+    if !status.success() {
+        warn!("bun install failed, continuing anyway...");
+    }
+
+    Ok(())
 }
