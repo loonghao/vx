@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1](https://github.com/loonghao/vx/compare/vx-v0.6.0...vx-v0.6.1) (2025-12-30)
+
+
+### Bug Fixes
+
+* **ci:** preserve changelog and fix OpenSSL cross-compilation ([52dfbfd](https://github.com/loonghao/vx/commit/52dfbfdb8c59999b93abbeae474aa8a74898b924))
+* enable cdn-acceleration for all targets (turbo-cdn 0.6 uses rustls) ([3dab167](https://github.com/loonghao/vx/commit/3dab1675cb9b57f624bd2928d52e18bf0c34991e))
+* **installer:** support versioned artifact naming format ([0449e2d](https://github.com/loonghao/vx/commit/0449e2d2b667a40c9733df31c1db283c8839b83a))
+
 ## [0.6.0](https://github.com/loonghao/vx/compare/vx-v0.5.29...vx-v0.6.0) (2025-12-30)
 
 
