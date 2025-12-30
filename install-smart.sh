@@ -325,40 +325,71 @@ install_from_release() {
     info "Installing vx v$version for $platform (region: $region)"
 
     # Determine archive name based on platform
-    # Format: vx-{target}.tar.gz where target is the Rust target triple
+    # New format: vx-{version}-{target}.tar.gz (e.g., vx-0.6.0-x86_64-unknown-linux-musl.tar.gz)
+    # Legacy format: vx-{target}.tar.gz (e.g., vx-x86_64-unknown-linux-musl.tar.gz)
+    local archive_name_versioned archive_name_legacy fallback_archive_versioned fallback_archive_legacy
     case "$platform" in
-        linux-musl-x86_64)  archive_name="vx-x86_64-unknown-linux-musl.tar.gz" ;;
-        linux-musl-aarch64) archive_name="vx-aarch64-unknown-linux-musl.tar.gz" ;;
-        darwin-x86_64)      archive_name="vx-x86_64-apple-darwin.tar.gz" ;;
-        darwin-aarch64)     archive_name="vx-aarch64-apple-darwin.tar.gz" ;;
+        linux-musl-x86_64)
+            archive_name_versioned="vx-$version-x86_64-unknown-linux-musl.tar.gz"
+            archive_name_legacy="vx-x86_64-unknown-linux-musl.tar.gz"
+            fallback_archive_versioned="vx-$version-x86_64-unknown-linux-gnu.tar.gz"
+            fallback_archive_legacy="vx-x86_64-unknown-linux-gnu.tar.gz"
+            ;;
+        linux-musl-aarch64)
+            archive_name_versioned="vx-$version-aarch64-unknown-linux-musl.tar.gz"
+            archive_name_legacy="vx-aarch64-unknown-linux-musl.tar.gz"
+            fallback_archive_versioned="vx-$version-aarch64-unknown-linux-gnu.tar.gz"
+            fallback_archive_legacy="vx-aarch64-unknown-linux-gnu.tar.gz"
+            ;;
+        darwin-x86_64)
+            archive_name_versioned="vx-$version-x86_64-apple-darwin.tar.gz"
+            archive_name_legacy="vx-x86_64-apple-darwin.tar.gz"
+            ;;
+        darwin-aarch64)
+            archive_name_versioned="vx-$version-aarch64-apple-darwin.tar.gz"
+            archive_name_legacy="vx-aarch64-apple-darwin.tar.gz"
+            ;;
         *) error "Unsupported platform: $platform"; exit 1 ;;
     esac
+
+    # Try versioned archive first, then fallback to legacy
+    archive_name="$archive_name_versioned"
 
     # Create temporary directory
     temp_dir=$(mktemp -d)
     trap 'rm -rf "$temp_dir"' EXIT
 
-    # Download with smart fallback
-    if ! download_with_smart_fallback "$version" "$platform" "$archive_name" "$temp_dir" "$region"; then
-        # Try fallback archive for Linux (musl -> gnu)
-        if [[ "$platform" == linux-musl-* ]]; then
-            warn "Musl binary failed, trying GNU libc version..."
-            local fallback_archive
-            case "$platform" in
-                linux-musl-x86_64)  fallback_archive="vx-x86_64-unknown-linux-gnu.tar.gz" ;;
-                linux-musl-aarch64) fallback_archive="vx-aarch64-unknown-linux-gnu.tar.gz" ;;
-            esac
+    # Download with smart fallback - try versioned first, then legacy
+    local download_success=false
 
-            if [[ -n "$fallback_archive" ]] && download_with_smart_fallback "$version" "$platform" "$fallback_archive" "$temp_dir" "$region"; then
-                archive_name="$fallback_archive"
-            else
-                error "Failed to download from all channels and fallbacks"
-                exit 1
-            fi
-        else
-            error "Failed to download from all channels"
-            exit 1
+    # Try versioned archive first
+    if download_with_smart_fallback "$version" "$platform" "$archive_name_versioned" "$temp_dir" "$region"; then
+        archive_name="$archive_name_versioned"
+        download_success=true
+    # Try legacy archive format
+    elif download_with_smart_fallback "$version" "$platform" "$archive_name_legacy" "$temp_dir" "$region"; then
+        archive_name="$archive_name_legacy"
+        download_success=true
+    fi
+
+    # Try fallback archives for Linux (musl -> gnu) if primary failed
+    if [[ "$download_success" != "true" ]] && [[ "$platform" == linux-musl-* ]]; then
+        warn "Musl binary failed, trying GNU libc version..."
+
+        # Try versioned fallback first
+        if [[ -n "${fallback_archive_versioned:-}" ]] && download_with_smart_fallback "$version" "$platform" "$fallback_archive_versioned" "$temp_dir" "$region"; then
+            archive_name="$fallback_archive_versioned"
+            download_success=true
+        # Try legacy fallback
+        elif [[ -n "${fallback_archive_legacy:-}" ]] && download_with_smart_fallback "$version" "$platform" "$fallback_archive_legacy" "$temp_dir" "$region"; then
+            archive_name="$fallback_archive_legacy"
+            download_success=true
         fi
+    fi
+
+    if [[ "$download_success" != "true" ]]; then
+        error "Failed to download from all channels and fallbacks"
+        exit 1
     fi
 
     # Extract
