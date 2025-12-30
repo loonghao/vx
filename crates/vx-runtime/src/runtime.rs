@@ -20,6 +20,7 @@ use crate::context::{ExecutionContext, RuntimeContext};
 use crate::ecosystem::Ecosystem;
 use crate::platform::Platform;
 use crate::types::{ExecutionResult, InstallResult, RuntimeDependency, VersionInfo};
+use crate::version_resolver::VersionResolver;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -783,18 +784,30 @@ pub trait Runtime: Send + Sync {
         Ok(())
     }
 
-    /// Resolve "latest" to actual version
+    /// Resolve version string to actual version
+    ///
+    /// This method resolves version requests like:
+    /// - "latest" -> latest stable version
+    /// - "3.11" -> latest 3.11.x version
+    /// - "20" -> latest 20.x.x version
+    /// - ">=3.9,<3.12" -> latest version in range
+    /// - "^1.0.0" -> latest compatible version
+    /// - "~1.0.0" -> latest patch version
+    /// - "3.11.*" -> latest 3.11.x version
     async fn resolve_version(&self, version: &str, ctx: &RuntimeContext) -> Result<String> {
-        if version == "latest" {
-            let versions = self.fetch_versions(ctx).await?;
-            versions
-                .into_iter()
-                .filter(|v| !v.prerelease)
-                .map(|v| v.version)
-                .next()
-                .ok_or_else(|| anyhow::anyhow!("No versions found for {}", self.name()))
-        } else {
-            Ok(version.to_string())
-        }
+        let versions = self.fetch_versions(ctx).await?;
+
+        let resolver = VersionResolver::new();
+        let ecosystem = self.ecosystem();
+
+        resolver
+            .resolve(version, &versions, &ecosystem)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "No version found for {} matching '{}'",
+                    self.name(),
+                    version
+                )
+            })
     }
 }
