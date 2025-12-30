@@ -31,12 +31,17 @@ pub struct RustUrlBuilder;
 
 impl RustUrlBuilder {
     /// Generate download URL for Rust version
+    ///
+    /// Uses `.tar.gz` format for all platforms (including Windows) as it's
+    /// universally supported by our archive extraction logic.
+    /// Note: Rust official releases provide both `.tar.gz` and `.tar.xz` for Windows.
     pub fn download_url(version: &str) -> Option<String> {
         let platform = Self::get_platform_string();
-        let ext = if cfg!(windows) { "msi" } else { "tar.gz" };
+        // Use tar.gz for all platforms - Windows also has tar.gz downloads available
+        // from static.rust-lang.org, and our extractor supports it natively
         Some(format!(
-            "https://static.rust-lang.org/dist/rust-{}-{}.{}",
-            version, platform, ext
+            "https://static.rust-lang.org/dist/rust-{}-{}.tar.gz",
+            version, platform
         ))
     }
 

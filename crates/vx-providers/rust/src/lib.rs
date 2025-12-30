@@ -6,7 +6,7 @@ mod config;
 mod provider;
 mod runtime;
 
-pub use config::RustConfig;
+pub use config::{RustConfig, RustUrlBuilder};
 pub use provider::RustProvider;
 pub use runtime::{CargoRuntime, RustcRuntime, RustupRuntime};
 
