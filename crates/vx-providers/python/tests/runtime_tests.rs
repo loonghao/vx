@@ -206,3 +206,49 @@ fn test_filename_format_no_variant() {
     assert!(windows_filename.ends_with("-x86_64-pc-windows-msvc-install_only.tar.gz"));
     assert!(linux_filename.ends_with("-x86_64-unknown-linux-gnu-install_only.tar.gz"));
 }
+
+// ============================================================================
+// Release Date Mapping Tests
+// ============================================================================
+
+#[test]
+fn test_python39_eol_release_date() {
+    // Python 3.9 reached EOL and is no longer built after 20251120
+    // The download URL should use 20251120 (last available), not 20251217
+    let platform = Platform {
+        os: Os::Linux,
+        arch: Arch::X86_64,
+    };
+
+    // Python 3.9 should use older release dates
+    let url_39 = PythonUrlBuilder::download_url_with_date("3.9.22", "20251120", &platform).unwrap();
+    assert!(url_39.contains("20251120"));
+    assert!(url_39.contains("cpython-3.9.22"));
+}
+
+#[test]
+fn test_python310_current_release_date() {
+    // Python 3.10+ should use the latest release date
+    let platform = Platform {
+        os: Os::Linux,
+        arch: Arch::X86_64,
+    };
+
+    let url_310 =
+        PythonUrlBuilder::download_url_with_date("3.10.19", "20251217", &platform).unwrap();
+    assert!(url_310.contains("20251217"));
+    assert!(url_310.contains("cpython-3.10.19"));
+}
+
+#[test]
+fn test_python37_legacy_release_date() {
+    // Python 3.7 is very old and only available in legacy releases
+    let platform = Platform {
+        os: Os::Linux,
+        arch: Arch::X86_64,
+    };
+
+    let url_37 = PythonUrlBuilder::download_url_with_date("3.7.17", "20230826", &platform).unwrap();
+    assert!(url_37.contains("20230826"));
+    assert!(url_37.contains("cpython-3.7.17"));
+}
