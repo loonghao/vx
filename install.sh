@@ -252,18 +252,18 @@ install_from_release() {
     # Legacy format: vx-{target}.tar.gz (e.g., vx-x86_64-unknown-linux-gnu.tar.gz)
     case "$platform" in
         x86_64-unknown-linux)
-            # Try musl first (static binary), fallback to gnu
-            archive_name_versioned="vx-${version_number}-x86_64-unknown-linux-musl.tar.gz"
-            archive_name_legacy="vx-x86_64-unknown-linux-musl.tar.gz"
-            fallback_archive_versioned="vx-${version_number}-x86_64-unknown-linux-gnu.tar.gz"
-            fallback_archive_legacy="vx-x86_64-unknown-linux-gnu.tar.gz"
+            # Try gnu first (more commonly available), fallback to musl
+            archive_name_versioned="vx-${version_number}-x86_64-unknown-linux-gnu.tar.gz"
+            archive_name_legacy="vx-x86_64-unknown-linux-gnu.tar.gz"
+            fallback_archive_versioned="vx-${version_number}-x86_64-unknown-linux-musl.tar.gz"
+            fallback_archive_legacy="vx-x86_64-unknown-linux-musl.tar.gz"
             ;;
         aarch64-unknown-linux)
-            # Try musl first (static binary), fallback to gnu
-            archive_name_versioned="vx-${version_number}-aarch64-unknown-linux-musl.tar.gz"
-            archive_name_legacy="vx-aarch64-unknown-linux-musl.tar.gz"
-            fallback_archive_versioned="vx-${version_number}-aarch64-unknown-linux-gnu.tar.gz"
-            fallback_archive_legacy="vx-aarch64-unknown-linux-gnu.tar.gz"
+            # Try gnu first (more commonly available), fallback to musl
+            archive_name_versioned="vx-${version_number}-aarch64-unknown-linux-gnu.tar.gz"
+            archive_name_legacy="vx-aarch64-unknown-linux-gnu.tar.gz"
+            fallback_archive_versioned="vx-${version_number}-aarch64-unknown-linux-musl.tar.gz"
+            fallback_archive_legacy="vx-aarch64-unknown-linux-musl.tar.gz"
             ;;
         x86_64-apple-darwin)
             archive_name_versioned="vx-${version_number}-x86_64-apple-darwin.tar.gz"
