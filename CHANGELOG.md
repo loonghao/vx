@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.6](https://github.com/loonghao/vx/compare/vx-v0.6.5...vx-v0.6.6) (2025-12-30)
+
+
+### Features
+
+* add silent MSI installation for AWS CLI on Windows ([7f5e7af](https://github.com/loonghao/vx/commit/7f5e7af31ff371a198c7971811adabd40af157e0))
+
+
+### Bug Fixes
+
+* AWS CLI and Windows self-update improvements ([97cb866](https://github.com/loonghao/vx/commit/97cb8663e5b4802a0e7e472235ba870222020640))
+* AWS CLI version list and Windows MSI handling ([01d2009](https://github.com/loonghao/vx/commit/01d200942f71a807abcbb9adf8ebb82cdfdfc62e))
+* terraform API limit and add cache command ([86f726f](https://github.com/loonghao/vx/commit/86f726f0a59a8b8b8fd2511db5857c279fa61862))
+
 ## [0.6.5](https://github.com/loonghao/vx/compare/vx-v0.6.4...vx-v0.6.5) (2025-12-30)
 
 
