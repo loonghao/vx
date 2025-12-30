@@ -278,6 +278,12 @@ pub enum Commands {
         verbose: bool,
     },
 
+    /// Cache management commands
+    Cache {
+        #[command(subcommand)]
+        command: CacheCommand,
+    },
+
     /// Show package statistics and disk usage
     Stats,
 
@@ -487,6 +493,33 @@ pub enum ServicesCommand {
         #[arg(num_args = 0..)]
         services: Vec<String>,
         /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum CacheCommand {
+    /// Clear all cached data (version lists, downloads)
+    Clear {
+        /// Only clear version cache (not downloads)
+        #[arg(long)]
+        versions: bool,
+        /// Only clear download cache
+        #[arg(long)]
+        downloads: bool,
+        /// Clear cache for specific tool only
+        #[arg(long)]
+        tool: Option<String>,
+        /// Force clear without confirmation
+        #[arg(short, long)]
+        force: bool,
+    },
+    /// Show cache statistics
+    Stats,
+    /// List cached items
+    List {
+        /// Show detailed information
         #[arg(short, long)]
         verbose: bool,
     },
@@ -754,6 +787,7 @@ impl CommandHandler for Commands {
             Commands::Sync { .. } => "sync",
             Commands::Init { .. } => "init",
             Commands::Clean { .. } => "clean",
+            Commands::Cache { .. } => "cache",
             Commands::Stats => "stats",
             Commands::Plugin { .. } => "plugin",
             Commands::Shell { .. } => "shell",
@@ -940,6 +974,8 @@ impl CommandHandler for Commands {
                 )
                 .await
             }
+
+            Commands::Cache { command } => commands::cache::handle(command.clone()).await,
 
             Commands::Stats => commands::stats::handle(ctx.registry()).await,
 

@@ -62,7 +62,8 @@ impl Runtime for TerraformRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        let url = "https://api.releases.hashicorp.com/v1/releases/terraform?limit=50";
+        // HashiCorp API limit is max 20 per request
+        let url = "https://api.releases.hashicorp.com/v1/releases/terraform?limit=20";
 
         let data = ctx
             .get_cached_or_fetch_with_url(self.name(), url, || async {
@@ -85,7 +86,7 @@ impl Runtime for TerraformRuntime {
                 };
                 anyhow::anyhow!(
                     "Invalid response format from Terraform releases API: expected array, got {}. \
-                     Try clearing the cache with 'vx cache clear'",
+                     Try clearing the cache with 'vx clean --cache'",
                     type_name
                 )
             })?
