@@ -129,6 +129,8 @@ pub enum VersionConstraint {
     Tilde(Version),
     /// Any version
     Any,
+    /// Invalid version string
+    Invalid(String),
 }
 
 /// Range operator
@@ -270,8 +272,8 @@ impl VersionResolver {
             return VersionConstraint::Major(major);
         }
 
-        // Default to latest
-        VersionConstraint::Latest
+        // Invalid version string
+        VersionConstraint::Invalid(trimmed.to_string())
     }
 
     /// Parse range constraints from a string
@@ -325,6 +327,11 @@ impl VersionResolver {
         constraint: &VersionConstraint,
         available: &[VersionInfo],
     ) -> Option<String> {
+        // Invalid constraints never match
+        if matches!(constraint, VersionConstraint::Invalid(_)) {
+            return None;
+        }
+
         // Parse and filter versions
         let mut versions: Vec<(Version, &VersionInfo)> = available
             .iter()
@@ -404,6 +411,8 @@ impl VersionResolver {
                 }
                 version.major == target.major && version.minor == target.minor
             }
+
+            VersionConstraint::Invalid(_) => false,
         }
     }
 }
@@ -530,5 +539,46 @@ mod tests {
 
         let result = resolver.resolve("latest", &available, &Ecosystem::NodeJs);
         assert_eq!(result, Some("20.0.0".to_string()));
+    }
+
+    #[test]
+    fn test_invalid_version_strings() {
+        let resolver = VersionResolver::new();
+        let available = make_versions(&["1.0.0", "2.0.0", "3.0.0"]);
+
+        // These should all return None (invalid versions)
+        assert_eq!(
+            resolver.resolve("not-a-version", &available, &Ecosystem::NodeJs),
+            None
+        );
+        assert_eq!(resolver.resolve("v", &available, &Ecosystem::NodeJs), None);
+        assert_eq!(resolver.resolve("@", &available, &Ecosystem::NodeJs), None);
+        assert_eq!(
+            resolver.resolve("abc123", &available, &Ecosystem::NodeJs),
+            None
+        );
+        assert_eq!(
+            resolver.resolve("1.2.3.4.5", &available, &Ecosystem::NodeJs),
+            None
+        );
+    }
+
+    #[test]
+    fn test_parse_invalid_constraint() {
+        let resolver = VersionResolver::new();
+
+        // These should be parsed as Invalid
+        assert!(matches!(
+            resolver.parse_constraint("not-a-version"),
+            VersionConstraint::Invalid(_)
+        ));
+        assert!(matches!(
+            resolver.parse_constraint("v"),
+            VersionConstraint::Invalid(_)
+        ));
+        assert!(matches!(
+            resolver.parse_constraint("@"),
+            VersionConstraint::Invalid(_)
+        ));
     }
 }
