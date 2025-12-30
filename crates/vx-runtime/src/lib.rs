@@ -48,6 +48,7 @@ pub mod testing;
 pub mod traits;
 pub mod types;
 pub mod version_cache;
+pub mod version_resolver;
 
 // Re-exports
 pub use context::{ExecutionContext, GitHubReleaseOptions, RuntimeContext};
@@ -72,3 +73,4 @@ pub use testing::{
 pub use version_cache::{
     CacheMode, CacheStats, VersionCache, DEFAULT_CACHE_TTL, LONG_CACHE_TTL, SHORT_CACHE_TTL,
 };
+pub use version_resolver::VersionResolver;
