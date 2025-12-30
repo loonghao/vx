@@ -4,6 +4,7 @@ use crate::common::JustfileAnalyzer;
 use crate::dependency::InstallMethod;
 use crate::ecosystem::Ecosystem;
 use crate::error::{AnalyzerError, AnalyzerResult};
+use crate::frameworks::{all_framework_detectors, FrameworkDetector};
 use crate::languages::{all_analyzers, LanguageAnalyzer};
 use crate::sync::{SyncManager, VxConfigSnapshot};
 use crate::types::{ProjectAnalysis, RequiredTool, Script};
@@ -44,6 +45,7 @@ impl Default for AnalyzerConfig {
 pub struct ProjectAnalyzer {
     config: AnalyzerConfig,
     analyzers: Vec<Box<dyn LanguageAnalyzer>>,
+    framework_detectors: Vec<Box<dyn FrameworkDetector>>,
     justfile_analyzer: JustfileAnalyzer,
     sync_manager: SyncManager,
 }
@@ -54,6 +56,7 @@ impl ProjectAnalyzer {
         Self {
             config,
             analyzers: all_analyzers(),
+            framework_detectors: all_framework_detectors(),
             justfile_analyzer: JustfileAnalyzer::new(),
             sync_manager: SyncManager::new(),
         }
@@ -134,6 +137,43 @@ impl ProjectAnalyzer {
                         tools.iter().map(|t| &t.name).collect::<Vec<_>>()
                     );
                     analysis.required_tools.extend(tools);
+                }
+            }
+        }
+
+        // Detect application frameworks (Electron, Tauri, etc.)
+        for detector in &self.framework_detectors {
+            if detector.detect(&root) {
+                debug!("Detected {} framework", detector.framework());
+
+                // Get framework info
+                match detector.get_info(&root).await {
+                    Ok(info) => {
+                        debug!("Framework info: {:?}", info);
+                        analysis.frameworks.push(info);
+                    }
+                    Err(e) => {
+                        debug!("Failed to get framework info: {}", e);
+                    }
+                }
+
+                // Get framework-specific required tools
+                let tools = detector.required_tools(&analysis.dependencies, &analysis.scripts);
+                debug!(
+                    "Framework required tools: {:?}",
+                    tools.iter().map(|t| &t.name).collect::<Vec<_>>()
+                );
+                analysis.required_tools.extend(tools);
+
+                // Get additional scripts from framework
+                match detector.additional_scripts(&root).await {
+                    Ok(scripts) => {
+                        debug!("Found {} framework-specific scripts", scripts.len());
+                        analysis.scripts.extend(scripts);
+                    }
+                    Err(e) => {
+                        debug!("Failed to get framework scripts: {}", e);
+                    }
                 }
             }
         }

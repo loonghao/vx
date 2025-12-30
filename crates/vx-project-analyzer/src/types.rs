@@ -7,6 +7,9 @@ use crate::sync::SyncAction;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+// Re-export framework types
+pub use crate::frameworks::FrameworkInfo;
+
 /// Complete project analysis result
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ProjectAnalysis {
@@ -15,6 +18,9 @@ pub struct ProjectAnalysis {
 
     /// Detected ecosystems
     pub ecosystems: Vec<Ecosystem>,
+
+    /// Detected application frameworks (Electron, Tauri, etc.)
+    pub frameworks: Vec<FrameworkInfo>,
 
     /// All detected dependencies
     pub dependencies: Vec<Dependency>,
