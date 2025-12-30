@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3](https://github.com/loonghao/vx/compare/vx-v0.6.2...vx-v0.6.3) (2025-12-30)
+
+
+### Features
+
+* **python:** add Python provider using python-build-standalone ([fc465a5](https://github.com/loonghao/vx/commit/fc465a5b8463222ef3c335ec88647e1a132fd580))
+
+
+### Bug Fixes
+
+* **ci:** correct release asset naming in Docker and package manager workflows ([625a959](https://github.com/loonghao/vx/commit/625a9598f1573ac7bd25d3da71dfcc5250a85728))
+* **python:** correct filename format and add version resolution ([88ef92a](https://github.com/loonghao/vx/commit/88ef92aa0978fb8e37ffa0eef46e5c38deaf0c17))
+
 ## [0.6.2](https://github.com/loonghao/vx/compare/vx-v0.6.1...vx-v0.6.2) (2025-12-30)
 
 
