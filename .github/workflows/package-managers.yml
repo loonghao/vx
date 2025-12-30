@@ -118,8 +118,9 @@ jobs:
           identifier: loonghao.vx
           # release-tag must match the GitHub release tag (with 'v' prefix)
           release-tag: ${{ needs.check-release.outputs.version }}
-          # Only match Windows installer files (.exe, .msi, .zip)
-          installers-regex: '\.(exe|msi|zip)$'
+          # Only match Windows MSVC zip files (exclude sha256 files and non-Windows builds)
+          # Matches: vx-0.6.2-x86_64-pc-windows-msvc.zip, vx-x86_64-pc-windows-msvc.zip
+          installers-regex: 'windows-msvc\.zip$'
           max-versions-to-keep: 5
           token: ${{ secrets.WINGET_TOKEN }}
 
@@ -135,35 +136,48 @@ jobs:
 
       - name: Download Windows binary from release
         run: |
-          # Download pre-built binary from GitHub Release (built by tag-release-assets.yml)
+          # Download pre-built binary from GitHub Release (built by release.yml)
           $version = "${{ needs.check-release.outputs.version }}"
-          $downloadUrl = "https://github.com/loonghao/vx/releases/download/$version/vx-windows-x64.zip"
-          Write-Host "Downloading pre-built binary from: $downloadUrl"
+          # Extract version number: vx-v0.6.2 -> 0.6.2, v0.6.2 -> 0.6.2
+          $versionNum = $version -replace '^(vx-)?v', ''
+
+          # Try versioned format first, then fall back to non-versioned format
+          $downloadUrlVersioned = "https://github.com/loonghao/vx/releases/download/$version/vx-$versionNum-x86_64-pc-windows-msvc.zip"
+          $downloadUrlCompat = "https://github.com/loonghao/vx/releases/download/$version/vx-x86_64-pc-windows-msvc.zip"
+
+          Write-Host "Trying versioned URL: $downloadUrlVersioned"
 
           try {
-            # Download the zip file
-            Invoke-WebRequest -Uri $downloadUrl -OutFile "vx-windows-x64.zip" -ErrorAction Stop
-            Write-Host "Downloaded zip size: $((Get-Item vx-windows-x64.zip).Length) bytes"
-
-            # Extract the exe from zip
-            Expand-Archive -Path "vx-windows-x64.zip" -DestinationPath "." -Force
-
-            # Find the vx.exe file (it might be in a subdirectory)
-            $exeFile = Get-ChildItem -Recurse -Name "vx.exe" | Select-Object -First 1
-            if ($exeFile) {
-              Copy-Item $exeFile "vx.exe"
-              Write-Host "Extracted vx.exe size: $((Get-Item vx.exe).Length) bytes"
-            } else {
-              Write-Host "vx.exe not found in the zip file"
-              Write-Host "Contents of zip:"
-              Get-ChildItem -Recurse | ForEach-Object { Write-Host "  - $($_.FullName)" }
+            Invoke-WebRequest -Uri $downloadUrlVersioned -OutFile "vx-windows.zip" -ErrorAction Stop
+            Write-Host "Downloaded from versioned URL"
+          } catch {
+            Write-Host "Versioned URL failed, trying compatible URL: $downloadUrlCompat"
+            try {
+              Invoke-WebRequest -Uri $downloadUrlCompat -OutFile "vx-windows.zip" -ErrorAction Stop
+              Write-Host "Downloaded from compatible URL"
+            } catch {
+              Write-Host "Failed to download binary from both URLs"
+              Write-Host "Available releases:"
+              $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/loonghao/vx/releases"
+              $releases | ForEach-Object { Write-Host "  - $($_.tag_name)" }
               exit 1
             }
-          } catch {
-            Write-Host "Failed to download or extract binary: $_"
-            Write-Host "Available releases:"
-            $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/loonghao/vx/releases"
-            $releases | ForEach-Object { Write-Host "  - $($_.tag_name)" }
+          }
+
+          Write-Host "Downloaded zip size: $((Get-Item vx-windows.zip).Length) bytes"
+
+          # Extract the exe from zip
+          Expand-Archive -Path "vx-windows.zip" -DestinationPath "." -Force
+
+          # Find the vx.exe file (it might be in a subdirectory)
+          $exeFile = Get-ChildItem -Recurse -Name "vx.exe" | Select-Object -First 1
+          if ($exeFile) {
+            Copy-Item $exeFile "vx.exe"
+            Write-Host "Extracted vx.exe size: $((Get-Item vx.exe).Length) bytes"
+          } else {
+            Write-Host "vx.exe not found in the zip file"
+            Write-Host "Contents of zip:"
+            Get-ChildItem -Recurse | ForEach-Object { Write-Host "  - $($_.FullName)" }
             exit 1
           }
 

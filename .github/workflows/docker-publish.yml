@@ -77,17 +77,26 @@ jobs:
           VERSION="${{ needs.check-release.outputs.version }}"
 
           # Determine architecture
+          # Note: We use gnu instead of musl because musl builds are not available
           if [[ "${{ matrix.platform }}" == "linux/amd64" ]]; then
-            ARCH="x86_64-unknown-linux-musl"
+            ARCH="x86_64-unknown-linux-gnu"
           else
-            ARCH="aarch64-unknown-linux-musl"
+            ARCH="aarch64-unknown-linux-gnu"
           fi
 
-          # Download binary
-          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${ARCH}.tar.gz"
-          echo "Downloading from: $DOWNLOAD_URL"
+          # Try versioned format first, then fall back to non-versioned format
+          VERSION_NUM=$(echo "${VERSION}" | sed -E 's/^(vx-)?v//')
+          DOWNLOAD_URL_VERSIONED="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${VERSION_NUM}-${ARCH}.tar.gz"
+          DOWNLOAD_URL_COMPAT="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${ARCH}.tar.gz"
 
-          curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz
+          echo "Trying versioned URL: $DOWNLOAD_URL_VERSIONED"
+          if curl -fsSL "$DOWNLOAD_URL_VERSIONED" -o vx.tar.gz 2>/dev/null; then
+            echo "Downloaded from versioned URL"
+          else
+            echo "Versioned URL failed, trying compatible URL: $DOWNLOAD_URL_COMPAT"
+            curl -fsSL "$DOWNLOAD_URL_COMPAT" -o vx.tar.gz
+          fi
+
           tar -xzf vx.tar.gz
           chmod +x vx
 
