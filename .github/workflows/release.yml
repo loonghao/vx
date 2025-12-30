@@ -156,8 +156,8 @@ jobs:
         with:
           command: build
           target: ${{ matrix.platform.target }}
-          # Disable cdn-acceleration for musl targets to avoid OpenSSL dependency
-          args: "${{ contains(matrix.platform.target, 'musl') && '--release --bin vx --no-default-features' || '--release --bin vx' }}"
+          # turbo-cdn 0.6+ uses rustls-tls by default, no OpenSSL needed
+          args: "--release --bin vx"
           strip: true
 
       - name: Set archive name
