@@ -22,6 +22,28 @@ async fn main() -> anyhow::Result<()> {
     println!("📦 Detected ecosystems: {:?}", analysis.ecosystems);
     println!();
 
+    // Display detected frameworks
+    if !analysis.frameworks.is_empty() {
+        println!("🖥️  Detected frameworks:");
+        for framework in &analysis.frameworks {
+            print!("    - {}", framework.framework);
+            if let Some(version) = &framework.version {
+                print!(" v{}", version);
+            }
+            if let Some(build_tool) = &framework.build_tool {
+                print!(" (build: {})", build_tool);
+            }
+            println!();
+            if let Some(config_path) = &framework.config_path {
+                println!("      Config: {}", config_path.display());
+            }
+            for (key, value) in &framework.metadata {
+                println!("      {}: {}", key, value);
+            }
+        }
+        println!();
+    }
+
     println!("📋 Dependencies: {} found", analysis.dependencies.len());
     for dep in analysis.dependencies.iter().take(10) {
         println!(
