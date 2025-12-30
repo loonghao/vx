@@ -271,13 +271,50 @@ impl HttpClient for RealHttpClient {
 
         // Check for other HTTP errors
         if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            let preview = if body.len() > 200 {
-                format!("{}...", &body[..200])
-            } else {
-                body
+            let error_msg = match status.as_u16() {
+                502..=504 => {
+                    format!(
+                        "Network error: {} ({}).\n\n\
+                        This is usually a temporary issue. Please try:\n\
+                        1. Wait a moment and retry\n\
+                        2. Check your internet connection\n\
+                        3. If using a proxy, verify it's working correctly\n\
+                        4. Try setting HTTPS_PROXY environment variable if behind a firewall",
+                        status,
+                        status.canonical_reason().unwrap_or("Server Error")
+                    )
+                }
+                404 => {
+                    format!(
+                        "Resource not found (HTTP 404): {}\n\n\
+                        The requested version may not exist or the URL has changed.",
+                        url
+                    )
+                }
+                401 | 403 => {
+                    format!(
+                        "Access denied (HTTP {}): {}\n\n\
+                        Try setting GITHUB_TOKEN or GH_TOKEN environment variable for authentication.",
+                        status.as_u16(),
+                        url
+                    )
+                }
+                _ => {
+                    let body = response.text().await.unwrap_or_default();
+                    // Don't show HTML content, it's not useful
+                    if body.trim_start().starts_with('<') {
+                        format!("HTTP {} for {}", status, url)
+                    } else {
+                        let preview = if body.len() > 200 {
+                            format!("{}...", &body[..200])
+                        } else {
+                            body
+                        };
+                        format!("HTTP {} for {}: {}", status, url, preview)
+                    }
+                }
             };
-            return Err(anyhow::anyhow!("HTTP {} for {}: {}", status, url, preview));
+            return Err(anyhow::anyhow!("{}", error_msg));
         }
 
         let json = response.json().await?;
