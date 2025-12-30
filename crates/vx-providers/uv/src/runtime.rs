@@ -8,6 +8,10 @@ use crate::config::UvUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::path::Path;
+use std::process::Stdio;
+use tokio::process::Command;
+use tracing::{debug, info, warn};
 use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// UV Python package installer runtime
@@ -76,6 +80,53 @@ impl Runtime for UvRuntime {
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         Ok(UvUrlBuilder::download_url(version, platform))
+    }
+
+    /// Pre-run hook for uv commands
+    ///
+    /// For "uv run" commands, ensures project dependencies are synced first.
+    /// This is essential for CI environments where .venv doesn't exist yet.
+    async fn pre_run(&self, args: &[String], executable: &Path) -> Result<bool> {
+        // Only handle "uv run" commands
+        if args.first().is_some_and(|a| a == "run") {
+            self.ensure_sync(executable).await?;
+        }
+        Ok(true) // Continue with execution
+    }
+}
+
+impl UvRuntime {
+    /// Ensure project dependencies are synced before running
+    async fn ensure_sync(&self, executable: &Path) -> Result<()> {
+        // Check if pyproject.toml exists in current directory
+        let pyproject = Path::new("pyproject.toml");
+        if !pyproject.exists() {
+            debug!("No pyproject.toml found, skipping uv sync");
+            return Ok(());
+        }
+
+        // Check if .venv exists - if not, we need to sync
+        let venv = Path::new(".venv");
+        if venv.exists() {
+            debug!(".venv exists, assuming dependencies are synced");
+            return Ok(());
+        }
+
+        info!("Running 'uv sync' to install project dependencies...");
+
+        let status = Command::new(executable)
+            .arg("sync")
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
+            .await?;
+
+        if !status.success() {
+            warn!("'uv sync' failed, continuing anyway...");
+        }
+
+        Ok(())
     }
 }
 

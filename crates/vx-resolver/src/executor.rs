@@ -139,9 +139,15 @@ impl<'a> Executor<'a> {
             }
         }
 
-        // Special handling for "uv run" - ensure dependencies are synced
-        if runtime_name == "uv" && args.first().is_some_and(|a| a == "run") {
-            self.ensure_uv_sync(&resolution).await?;
+        // Call pre_run hook if provider is available
+        if let Some(registry) = self.registry {
+            if let Some(runtime) = registry.get_runtime(runtime_name) {
+                let should_continue = runtime.pre_run(args, &resolution.executable).await?;
+                if !should_continue {
+                    debug!("pre_run returned false, skipping execution");
+                    return Ok(0);
+                }
+            }
         }
 
         // Build the command
@@ -151,39 +157,6 @@ impl<'a> Executor<'a> {
         let status = self.run_command(&mut cmd).await?;
 
         Ok(status.code().unwrap_or(1))
-    }
-
-    /// Ensure uv project dependencies are synced before running
-    async fn ensure_uv_sync(&self, resolution: &crate::resolver::ResolutionResult) -> Result<()> {
-        // Check if pyproject.toml exists in current directory
-        let pyproject = std::path::Path::new("pyproject.toml");
-        if !pyproject.exists() {
-            debug!("No pyproject.toml found, skipping uv sync");
-            return Ok(());
-        }
-
-        // Check if .venv exists - if not, we need to sync
-        let venv = std::path::Path::new(".venv");
-        if venv.exists() {
-            debug!(".venv exists, assuming dependencies are synced");
-            return Ok(());
-        }
-
-        info!("Running 'uv sync' to install project dependencies...");
-
-        let status = Command::new(&resolution.executable)
-            .arg("sync")
-            .stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .status()
-            .await?;
-
-        if !status.success() {
-            warn!("'uv sync' failed, continuing anyway...");
-        }
-
-        Ok(())
     }
 
     /// Install a list of runtimes in order
