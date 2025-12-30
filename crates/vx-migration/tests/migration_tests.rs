@@ -143,6 +143,7 @@ mod engine_tests {
         let engine = create_default_engine();
         let needed = engine.check(temp.path()).await.unwrap();
 
+        // Should detect config-v1-to-v2 migration is needed (converts [tools] to [runtimes])
         assert!(!needed.is_empty());
     }
 
@@ -160,12 +161,13 @@ mod engine_tests {
             .unwrap();
 
         assert!(result.success);
+        // vx.toml should still exist (file-rename is no-op since both names are "vx.toml")
         assert!(temp.path().join("vx.toml").exists());
-        assert!(!temp.path().join("vx.toml").exists());
 
         let content = tokio::fs::read_to_string(temp.path().join("vx.toml"))
             .await
             .unwrap();
+        // config-v1-to-v2 should have converted [tools] to [runtimes]
         assert!(content.contains("[runtimes]"));
     }
 
@@ -183,9 +185,14 @@ mod engine_tests {
             .unwrap();
 
         assert!(result.success);
-        // Files should not be changed in dry-run
+        // File should still exist and content unchanged in dry-run
         assert!(temp.path().join("vx.toml").exists());
-        assert!(!temp.path().join("vx.toml").exists());
+
+        let content = tokio::fs::read_to_string(temp.path().join("vx.toml"))
+            .await
+            .unwrap();
+        // Content should NOT be changed in dry-run
+        assert!(content.contains("[tools]"));
     }
 
     #[tokio::test]
@@ -202,7 +209,7 @@ mod engine_tests {
         let result = engine.migrate(temp.path(), &options).await.unwrap();
 
         assert!(result.success);
-        // file-rename was skipped, so vx.toml should still exist
+        // file-rename was skipped, but it's a no-op anyway; vx.toml should exist
         assert!(temp.path().join("vx.toml").exists());
     }
 }
@@ -213,6 +220,22 @@ mod migration_tests {
 
     #[tokio::test]
     async fn test_file_rename_migration() {
+        // Note: Since CONFIG_FILE_NAME and CONFIG_FILE_NAME_LEGACY are both "vx.toml",
+        // the file-rename migration is effectively a no-op.
+        let temp = TempDir::new().unwrap();
+        tokio::fs::write(temp.path().join("vx.toml"), "[tools]")
+            .await
+            .unwrap();
+
+        let ctx = MigrationContext::new(temp.path(), MigrationOptions::default());
+        let migration = FileRenameMigration::new();
+
+        // check() should return false since old and new filenames are identical
+        assert!(!migration.check(&ctx).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_file_rename_migration_execute() {
         let temp = TempDir::new().unwrap();
         tokio::fs::write(temp.path().join("vx.toml"), "[tools]")
             .await
@@ -221,11 +244,11 @@ mod migration_tests {
         let mut ctx = MigrationContext::new(temp.path(), MigrationOptions::default());
         let migration = FileRenameMigration::new();
 
-        assert!(migration.check(&ctx).await.unwrap());
-
         let result = migration.migrate(&mut ctx).await.unwrap();
         assert!(result.success);
-        assert!(!temp.path().join("vx.toml").exists());
+        // No changes since filenames are identical
+        assert_eq!(result.changes.len(), 0);
+        // File should still exist
         assert!(temp.path().join("vx.toml").exists());
     }
 
