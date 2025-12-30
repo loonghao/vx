@@ -441,12 +441,12 @@ git commit -m "chore: add vx.lock for reproducible builds"
 - [x] 单元测试
 - [ ] 更新 `PythonRuntime` 使用新解析器
 
-### Phase 2: 锁文件机制 (v0.7.1)
+### Phase 2: 锁文件机制 (v0.7.1) ✅ 已完成
 
-- [ ] `LockFile` 类型和解析
-- [ ] `vx lock` 命令
+- [x] `LockFile` 类型和解析
+- [x] `vx lock` 命令
 - [ ] `vx sync` 集成锁文件
-- [ ] `vx check` 一致性检查
+- [x] `vx check` 一致性检查
 - [ ] 锁文件自动更新
 
 ### Phase 3: 多生态系统策略 (v0.8.0)
@@ -479,3 +479,4 @@ git commit -m "chore: add vx.lock for reproducible builds"
 |------|------|------|
 | 2025-12-30 | Draft | 初始草案 |
 | 2025-12-30 | v0.1.0 | Phase 1 核心版本解析实现完成 |
+| 2025-12-31 | v0.2.0 | Phase 2 锁文件机制实现完成 |

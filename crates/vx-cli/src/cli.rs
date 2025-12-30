@@ -442,6 +442,29 @@ pub enum Commands {
         #[arg(short, long)]
         verbose: bool,
     },
+
+    /// Generate or update vx.lock for reproducible environments
+    Lock {
+        /// Update all tools to latest compatible versions
+        #[arg(long)]
+        update: bool,
+        /// Update specific tool only
+        #[arg(long)]
+        tool: Option<String>,
+        /// Preview changes without writing
+        #[arg(long)]
+        dry_run: bool,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
+    /// Check vx.lock consistency with vx.toml
+    Check {
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -805,6 +828,8 @@ impl CommandHandler for Commands {
             Commands::Ext { .. } => "ext",
             Commands::X { .. } => "x",
             Commands::Migrate { .. } => "migrate",
+            Commands::Lock { .. } => "lock",
+            Commands::Check { .. } => "check",
         }
     }
 
@@ -1214,6 +1239,25 @@ impl CommandHandler for Commands {
                 check,
                 verbose,
             } => commands::migrate::handle(path.clone(), *dry_run, *backup, *check, *verbose).await,
+
+            Commands::Lock {
+                update,
+                tool,
+                dry_run,
+                verbose,
+            } => {
+                commands::lock::handle(
+                    ctx.registry(),
+                    ctx.runtime_context(),
+                    *update,
+                    tool.as_deref(),
+                    *dry_run,
+                    *verbose,
+                )
+                .await
+            }
+
+            Commands::Check { verbose } => commands::lock::handle_check(*verbose).await,
         }
     }
 }
