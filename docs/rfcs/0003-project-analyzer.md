@@ -5,8 +5,9 @@
 本 RFC 提出 **vx-project-analyzer** crate，用于：
 
 1. 分析项目依赖和工具需求
-2. 自动同步 `vx.toml` 配置
-3. 确保所有依赖正确安装
+2. 检测应用框架（Electron、Tauri 等）
+3. 自动同步 `vx.toml` 配置
+4. 确保所有依赖正确安装
 
 ## 问题背景
 
@@ -54,6 +55,11 @@ vx-project-analyzer/
 │   ├── dependency.rs     # 依赖检测和管理
 │   ├── sync.rs           # 配置同步
 │   ├── installer.rs      # 依赖安装
+│   ├── frameworks/       # 应用框架检测器
+│   │   ├── mod.rs
+│   │   ├── types.rs      # 框架类型定义
+│   │   ├── electron.rs   # Electron 检测
+│   │   └── tauri.rs      # Tauri 检测
 │   └── languages/        # 语言特定分析器
 │       ├── mod.rs
 │       ├── python.rs     # Python 项目分析
@@ -72,6 +78,8 @@ pub struct ProjectAnalysis {
     pub root: PathBuf,
     /// 检测到的语言/生态系统
     pub ecosystems: Vec<Ecosystem>,
+    /// 检测到的应用框架 (Electron, Tauri 等)
+    pub frameworks: Vec<FrameworkInfo>,
     /// 所有检测到的依赖
     pub dependencies: Vec<Dependency>,
     /// 所有检测到的脚本
@@ -80,6 +88,38 @@ pub struct ProjectAnalysis {
     pub required_tools: Vec<RequiredTool>,
     /// 同步建议
     pub sync_actions: Vec<SyncAction>,
+}
+
+/// 应用框架类型
+pub enum ProjectFramework {
+    /// Electron - JavaScript/TypeScript 桌面应用
+    Electron,
+    /// Tauri - Rust + Web 技术桌面应用
+    Tauri,
+    /// React Native - 跨平台移动应用
+    ReactNative,
+    /// Flutter - 跨平台移动/桌面应用
+    Flutter,
+    /// Capacitor - 跨平台移动应用
+    Capacitor,
+    /// NW.js (node-webkit) - 桌面应用
+    NwJs,
+}
+
+/// 框架详细信息
+pub struct FrameworkInfo {
+    /// 框架类型
+    pub framework: ProjectFramework,
+    /// 框架版本
+    pub version: Option<String>,
+    /// 配置文件路径
+    pub config_path: Option<PathBuf>,
+    /// 构建工具 (如 electron-builder, tauri-cli)
+    pub build_tool: Option<String>,
+    /// 目标平台
+    pub target_platforms: Vec<String>,
+    /// 额外元数据
+    pub metadata: HashMap<String, String>,
 }
 
 /// 依赖信息
@@ -246,6 +286,11 @@ $ vx analyze
 
 Ecosystems: Python, Node.js
 
+🖥️  Frameworks:
+  Electron v31.0.0 (build: electron-builder)
+    Config: electron-builder.json
+    productName: My App
+
 📦 Dependencies:
   Python (pyproject.toml):
     ✅ pydantic = "^2.0"
@@ -255,6 +300,7 @@ Ecosystems: Python, Node.js
   Node.js (package.json):
     ✅ typescript = "^5.0"
     ✅ eslint = "^8.0"
+    ✅ electron = "^31.0.0"
 
 📜 Scripts:
   test: uv run nox -s tests
@@ -268,6 +314,7 @@ Ecosystems: Python, Node.js
   ✅ uv = "latest"
   ✅ node = "20"
   ⚠️  nox - missing (add to [dependency-groups.dev])
+  ✅ electron-builder - Electron application packager
 
 💡 Suggestions:
   1. Run: uv add --group dev nox
@@ -408,11 +455,20 @@ pub enum ConflictResolution {
 
 ### Phase 4: 多语言支持 (1 周)
 
-- [ ] Node.js 分析器
-- [ ] Rust 分析器
-- [ ] Go 分析器
+- [x] Node.js 分析器
+- [x] Rust 分析器
+- [x] Go 分析器
+- [x] C++ 分析器
 
-### Phase 5: 高级功能 (可选)
+### Phase 5: 框架检测 (已完成)
+
+- [x] 框架检测器架构
+- [x] Electron 检测器
+- [x] Tauri 检测器
+- [ ] React Native 检测器
+- [ ] Flutter 检测器
+
+### Phase 6: 高级功能 (可选)
 
 - [ ] 监视模式
 - [ ] CI/CD 集成
@@ -539,7 +595,35 @@ async fn test_python_project_analysis() {
 `vx-project-analyzer` 提供：
 
 1. **全面的项目分析** - 支持多语言、多生态系统
-2. **智能配置同步** - 自动保持 `vx.toml` 与项目配置一致
-3. **依赖管理** - 检测、安装、验证依赖
-4. **无缝集成** - 增强现有 `vx init`, `vx run`, `vx setup` 命令
-5. **可扩展架构** - 易于添加新语言支持
+2. **框架检测** - 识别 Electron、Tauri 等桌面/移动应用框架
+3. **智能配置同步** - 自动保持 `vx.toml` 与项目配置一致
+4. **依赖管理** - 检测、安装、验证依赖
+5. **无缝集成** - 增强现有 `vx init`, `vx run`, `vx setup` 命令
+6. **可扩展架构** - 易于添加新语言和框架支持
+
+### 已支持的框架
+
+| 框架 | 检测方式 | 特性 |
+|------|---------|------|
+| **Electron** | `electron` 依赖, `electron-builder.json`, `forge.config.js` | 版本检测, 构建工具识别, todesktop 支持 |
+| **Tauri** | `src-tauri/` 目录, `tauri.conf.json`, `@tauri-apps/cli` | v1/v2 版本检测, 产品名/标识符提取 |
+
+### 框架检测示例
+
+```bash
+# Electron 项目
+$ vx analyze
+🖥️  Detected frameworks:
+    - Electron v31.3.1 (build: electron-builder)
+      Config: electron-builder.json
+      distribution: todesktop
+      productName: ComfyUI
+
+# Tauri 项目
+$ vx analyze
+🖥️  Detected frameworks:
+    - Tauri v2.x (build: tauri-cli)
+      Config: src-tauri/tauri.conf.json
+      identifier: com.tauri.api
+      productName: Tauri API
+```

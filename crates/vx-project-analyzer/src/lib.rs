@@ -4,6 +4,7 @@
 //!
 //! This crate provides:
 //! - **Project Analysis**: Detect project type, dependencies, and scripts
+//! - **Framework Detection**: Identify application frameworks (Electron, Tauri, etc.)
 //! - **Script Parsing**: Parse script commands to identify required tools
 //! - **Dependency Detection**: Identify missing dependencies and suggest installations
 //! - **Configuration Sync**: Sync project configuration with `vx.toml`
@@ -20,6 +21,7 @@
 //!     let analysis = analyzer.analyze(Path::new(".")).await?;
 //!
 //!     println!("Detected ecosystems: {:?}", analysis.ecosystems);
+//!     println!("Detected frameworks: {:?}", analysis.frameworks);
 //!     println!("Required tools: {:?}", analysis.required_tools);
 //!
 //!     Ok(())
@@ -31,6 +33,7 @@ mod common;
 mod dependency;
 mod ecosystem;
 mod error;
+pub mod frameworks;
 mod languages;
 mod script_parser;
 mod sync;
@@ -41,6 +44,7 @@ pub use common::JustfileAnalyzer;
 pub use dependency::{Dependency, DependencySource, InstallMethod};
 pub use ecosystem::Ecosystem;
 pub use error::{AnalyzerError, AnalyzerResult};
+pub use frameworks::{FrameworkDetector, FrameworkInfo, ProjectFramework};
 pub use languages::LanguageAnalyzer;
 pub use script_parser::{ScriptParser, ScriptTool, ToolInvocation};
 pub use sync::{ConflictResolution, SyncAction, SyncConfig, SyncManager, VxConfigSnapshot};
