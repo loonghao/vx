@@ -18,7 +18,7 @@ pub struct AwsCliUrlBuilder;
 impl AwsCliUrlBuilder {
     /// Generate download URL for AWS CLI v2 version
     /// AWS CLI v2 releases are available from awscli.amazonaws.com
-    /// 
+    ///
     /// Note: AWS doesn't provide versioned downloads for all versions.
     /// "latest" version uses the main download URL without version suffix.
     pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
