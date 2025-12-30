@@ -17,6 +17,8 @@ pub enum RemoteSource {
         owner: String,
         repo: String,
         version: Option<String>,
+        /// Subdirectory path within the repository (e.g., "examples/extensions/hello-world")
+        subdir: Option<String>,
     },
     /// Direct Git URL
     GitUrl {
@@ -33,6 +35,7 @@ impl RemoteSource {
     /// - `github:user/repo@v1.0.0`
     /// - `https://github.com/user/repo`
     /// - `https://github.com/user/repo@v1.0.0`
+    /// - `https://github.com/user/repo/tree/branch/path/to/extension`
     /// - `git@github.com:user/repo.git`
     pub fn parse(source: &str) -> ExtensionResult<Self> {
         // GitHub shorthand: github:user/repo[@version]
@@ -60,6 +63,7 @@ impl RemoteSource {
             reason: "Unsupported source format. Supported formats:\n\
                  - github:user/repo[@version]\n\
                  - https://github.com/user/repo[@version]\n\
+                 - https://github.com/user/repo/tree/branch/path/to/extension\n\
                  - git@github.com:user/repo.git[@version]"
                 .to_string(),
         })
@@ -69,17 +73,29 @@ impl RemoteSource {
         let (repo_part, version) = Self::split_version(rest);
         let parts: Vec<&str> = repo_part.split('/').collect();
 
-        if parts.len() != 2 {
+        if parts.len() < 2 {
             return Err(ExtensionError::RemoteInstallFailed {
                 src: format!("github:{}", rest),
                 reason: "Invalid GitHub shorthand. Expected format: github:user/repo".to_string(),
             });
         }
 
+        // Support github:user/repo/path/to/extension format
+        let (owner, repo, subdir) = if parts.len() > 2 {
+            (
+                parts[0].to_string(),
+                parts[1].to_string(),
+                Some(parts[2..].join("/")),
+            )
+        } else {
+            (parts[0].to_string(), parts[1].to_string(), None)
+        };
+
         Ok(Self::GitHub {
-            owner: parts[0].to_string(),
-            repo: parts[1].to_string(),
+            owner,
+            repo,
             version,
+            subdir,
         })
     }
 
@@ -99,10 +115,34 @@ impl RemoteSource {
             });
         }
 
+        let owner = parts[0].to_string();
+        let repo = parts[1].to_string();
+
+        // Check for tree/branch/path format: https://github.com/user/repo/tree/branch/path
+        let (version, subdir) = if parts.len() > 2 && parts[2] == "tree" {
+            if parts.len() > 4 {
+                // Has branch and path: tree/branch/path/to/ext
+                let branch = parts[3].to_string();
+                let subpath = parts[4..].join("/");
+                (Some(branch), Some(subpath))
+            } else if parts.len() == 4 {
+                // Only branch: tree/branch
+                (Some(parts[3].to_string()), None)
+            } else {
+                (version, None)
+            }
+        } else if parts.len() > 2 {
+            // Direct path without tree: user/repo/path/to/ext
+            (version, Some(parts[2..].join("/")))
+        } else {
+            (version, None)
+        };
+
         Ok(Self::GitHub {
-            owner: parts[0].to_string(),
-            repo: parts[1].to_string(),
+            owner,
+            repo,
             version,
+            subdir,
         })
     }
 
@@ -116,7 +156,7 @@ impl RemoteSource {
         let path = path_part.trim_end_matches(".git");
         let parts: Vec<&str> = path.split('/').collect();
 
-        if parts.len() != 2 {
+        if parts.len() < 2 {
             return Err(ExtensionError::RemoteInstallFailed {
                 src: url.to_string(),
                 reason: "Invalid GitHub SSH URL. Expected format: git@github.com:user/repo.git"
@@ -128,6 +168,7 @@ impl RemoteSource {
             owner: parts[0].to_string(),
             repo: parts[1].to_string(),
             version,
+            subdir: None,
         })
     }
 
@@ -166,10 +207,29 @@ impl RemoteSource {
         }
     }
 
+    /// Get the subdirectory path within the repository
+    pub fn subdir(&self) -> Option<&str> {
+        match self {
+            Self::GitHub { subdir, .. } => subdir.as_deref(),
+            Self::GitUrl { .. } => None,
+        }
+    }
+
     /// Get a display name for this source
     pub fn display_name(&self) -> String {
         match self {
-            Self::GitHub { owner, repo, .. } => format!("{}/{}", owner, repo),
+            Self::GitHub {
+                owner,
+                repo,
+                subdir,
+                ..
+            } => {
+                if let Some(path) = subdir {
+                    format!("{}/{}/{}", owner, repo, path)
+                } else {
+                    format!("{}/{}", owner, repo)
+                }
+            }
             Self::GitUrl { url, .. } => url.clone(),
         }
     }
@@ -225,13 +285,26 @@ impl RemoteInstaller {
         let cache_path = self.get_cache_path(&remote);
         self.clone_or_update(&remote, &cache_path)?;
 
+        // Determine the extension source path (may be a subdirectory)
+        let ext_source_path = if let Some(subdir) = remote.subdir() {
+            cache_path.join(subdir)
+        } else {
+            cache_path
+        };
+
         // Load and validate the extension config
-        let config = self.load_and_validate_config(&cache_path, source)?;
+        let config = self.load_and_validate_config(&ext_source_path, source)?;
         let ext_name = config.extension.name.clone();
 
         // Copy to user extensions directory
         let target_path = self.user_dir.join(&ext_name);
-        self.copy_extension(&cache_path, &target_path, &ext_name)?;
+        self.copy_extension(&ext_source_path, &target_path, &ext_name)?;
+
+        // Save source metadata for updates
+        let metadata_path = target_path.join(".vx-source");
+        std::fs::write(&metadata_path, source).map_err(|e| {
+            ExtensionError::io("Failed to write source metadata", Some(metadata_path), e)
+        })?;
 
         info!("Successfully installed extension '{}'", ext_name);
 
@@ -640,10 +713,12 @@ mod tests {
                 owner,
                 repo,
                 version,
+                subdir,
             } => {
                 assert_eq!(owner, "user");
                 assert_eq!(repo, "repo");
                 assert!(version.is_none());
+                assert!(subdir.is_none());
             }
             _ => panic!("Expected GitHub source"),
         }
@@ -657,10 +732,31 @@ mod tests {
                 owner,
                 repo,
                 version,
+                subdir,
             } => {
                 assert_eq!(owner, "user");
                 assert_eq!(repo, "repo");
                 assert_eq!(version, Some("v1.0.0".to_string()));
+                assert!(subdir.is_none());
+            }
+            _ => panic!("Expected GitHub source"),
+        }
+    }
+
+    #[test]
+    fn test_parse_github_shorthand_with_subdir() {
+        let source = RemoteSource::parse("github:user/repo/examples/hello").unwrap();
+        match source {
+            RemoteSource::GitHub {
+                owner,
+                repo,
+                version,
+                subdir,
+            } => {
+                assert_eq!(owner, "user");
+                assert_eq!(repo, "repo");
+                assert!(version.is_none());
+                assert_eq!(subdir, Some("examples/hello".to_string()));
             }
             _ => panic!("Expected GitHub source"),
         }
@@ -674,10 +770,32 @@ mod tests {
                 owner,
                 repo,
                 version,
+                subdir,
             } => {
                 assert_eq!(owner, "user");
                 assert_eq!(repo, "repo");
                 assert!(version.is_none());
+                assert!(subdir.is_none());
+            }
+            _ => panic!("Expected GitHub source"),
+        }
+    }
+
+    #[test]
+    fn test_parse_github_tree_url() {
+        let source =
+            RemoteSource::parse("https://github.com/user/repo/tree/main/examples/hello").unwrap();
+        match source {
+            RemoteSource::GitHub {
+                owner,
+                repo,
+                version,
+                subdir,
+            } => {
+                assert_eq!(owner, "user");
+                assert_eq!(repo, "repo");
+                assert_eq!(version, Some("main".to_string()));
+                assert_eq!(subdir, Some("examples/hello".to_string()));
             }
             _ => panic!("Expected GitHub source"),
         }
@@ -691,10 +809,12 @@ mod tests {
                 owner,
                 repo,
                 version,
+                subdir,
             } => {
                 assert_eq!(owner, "user");
                 assert_eq!(repo, "repo");
                 assert!(version.is_none());
+                assert!(subdir.is_none());
             }
             _ => panic!("Expected GitHub source"),
         }

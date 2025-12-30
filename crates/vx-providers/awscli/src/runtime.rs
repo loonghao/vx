@@ -100,9 +100,9 @@ impl Runtime for AwsCliRuntime {
         use vx_runtime::Os;
 
         match &platform.os {
-            // Linux: extracted to aws/dist/aws
-            Os::Linux => "aws/dist/aws".to_string(),
-            // macOS: after pkg extraction, aws is in a specific location
+            // Linux: after running ./aws/install script, executable is in aws-cli/
+            Os::Linux => "aws-cli/aws".to_string(),
+            // macOS: after running ./aws/install script, executable is in aws-cli/
             Os::MacOS => "aws-cli/aws".to_string(),
             // Windows: after MSI installation, check multiple possible locations
             // AWS CLI MSI may install to Program Files/Amazon/AWSCLIV2 or custom TARGETDIR
@@ -127,7 +127,7 @@ impl Runtime for AwsCliRuntime {
             "2.17.0", "2.16.0", "2.15.0", "latest",
         ];
 
-        Ok(versions.into_iter().map(|v| VersionInfo::new(v)).collect())
+        Ok(versions.into_iter().map(VersionInfo::new).collect())
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
@@ -135,16 +135,18 @@ impl Runtime for AwsCliRuntime {
     }
 
     /// Custom post-install for AWS CLI
-    /// 
+    ///
+    /// This hook runs platform-specific installation procedures:
+    ///
     /// **Windows**: Uses msiexec to install MSI silently to a custom directory
-    /// **Linux**: Users may need to run the install script at `aws/install`
+    /// **Linux/macOS**: Runs the official `./aws/install` script with custom install directory
     async fn post_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
+        let install_dir = ctx.paths.store_dir().join("aws").join(version);
+
         #[cfg(target_os = "windows")]
         {
             use std::process::Command;
-            
-            let install_dir = ctx.paths.store_dir().join("aws").join(version);
-            
+
             // Determine MSI filename based on version
             let msi_filename = if version == "latest" {
                 "AWSCLIV2.msi".to_string()
@@ -152,20 +154,23 @@ impl Runtime for AwsCliRuntime {
                 format!("AWSCLIV2-{}.msi", version)
             };
             let msi_file = install_dir.join(&msi_filename);
-            
+
             if !msi_file.exists() {
-                return Err(anyhow::anyhow!("MSI file not found at {}", msi_file.display()));
+                return Err(anyhow::anyhow!(
+                    "MSI file not found at {}",
+                    msi_file.display()
+                ));
             }
-            
+
             eprintln!("📦 Installing AWS CLI using msiexec...");
             eprintln!("   Target directory: {}", install_dir.display());
             eprintln!("   This may take a moment...");
-            
+
             // Use msiexec to install silently to a custom directory
             // /i = install
             // /qn = quiet, no UI
             // /norestart = don't restart
-            // TARGETDIR = custom install directory (note: some MSIs use INSTALLDIR instead)
+            // TARGETDIR = custom install directory
             let output = Command::new("msiexec.exe")
                 .arg("/i")
                 .arg(&msi_file)
@@ -173,7 +178,7 @@ impl Runtime for AwsCliRuntime {
                 .arg("/norestart")
                 .arg(format!("TARGETDIR={}", install_dir.display()))
                 .output()?;
-            
+
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 let stdout = String::from_utf8_lossy(&output.stdout);
@@ -183,10 +188,69 @@ impl Runtime for AwsCliRuntime {
                     stderr
                 ));
             }
-            
+
             eprintln!("✓ AWS CLI installed successfully");
         }
-        
+
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        {
+            use std::process::Command;
+
+            // AWS CLI zip contains an 'aws' directory with an 'install' script
+            let aws_dir = install_dir.join("aws");
+            let install_script = aws_dir.join("install");
+
+            if !install_script.exists() {
+                return Err(anyhow::anyhow!(
+                    "AWS CLI install script not found at {}",
+                    install_script.display()
+                ));
+            }
+
+            // Make install script executable
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let mut perms = std::fs::metadata(&install_script)?.permissions();
+                perms.set_mode(0o755);
+                std::fs::set_permissions(&install_script, perms)?;
+            }
+
+            eprintln!("📦 Installing AWS CLI using official install script...");
+            eprintln!("   Install directory: {}", install_dir.display());
+            eprintln!("   This may take a moment...");
+
+            // Run: sudo ./aws/install --install-dir /path/to/install --bin-dir /path/to/bin
+            // We install to a custom directory to avoid requiring root privileges
+            let bin_dir = install_dir.join("bin");
+            let cli_dir = install_dir.join("aws-cli");
+
+            // Create directories
+            std::fs::create_dir_all(&bin_dir)?;
+            std::fs::create_dir_all(&cli_dir)?;
+
+            // Run install script without sudo (install to user directory)
+            let output = Command::new(&install_script)
+                .arg("--install-dir")
+                .arg(&cli_dir)
+                .arg("--bin-dir")
+                .arg(&bin_dir)
+                .current_dir(&install_dir)
+                .output()?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                return Err(anyhow::anyhow!(
+                    "Failed to install AWS CLI\nstdout: {}\nstderr: {}",
+                    stdout,
+                    stderr
+                ));
+            }
+
+            eprintln!("✓ AWS CLI installed successfully");
+        }
+
         Ok(())
     }
 
@@ -227,20 +291,40 @@ impl Runtime for AwsCliRuntime {
             )
         }
 
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
         {
-            let exe_path = install_path.join(self.executable_relative_path(version, platform));
-            if exe_path.exists() {
-                VerificationResult::success(exe_path)
-            } else {
-                VerificationResult::failure(
-                    vec![format!(
-                        "AWS CLI executable not found at {}",
-                        exe_path.display()
-                    )],
-                    vec![],
-                )
+            // On Linux/macOS, after running install script, check multiple possible locations
+            let possible_paths = vec![
+                // After install script: aws-cli/aws (symlink or binary)
+                install_path.join("aws-cli").join("aws"),
+                // In bin directory
+                install_path.join("bin").join("aws"),
+                // Fallback: in aws/dist/ (before install script runs)
+                install_path.join("aws").join("dist").join("aws"),
+            ];
+
+            for exe_path in &possible_paths {
+                if exe_path.exists() {
+                    return VerificationResult::success(exe_path.clone());
+                }
             }
+
+            VerificationResult::failure(
+                vec![format!(
+                    "AWS CLI executable not found in {}. Expected at: {}",
+                    install_path.display(),
+                    possible_paths
+                        .iter()
+                        .map(|p| p.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )],
+                vec![
+                    "The AWS CLI install script may have failed.".to_string(),
+                    "Try running the install script manually:".to_string(),
+                    format!("  cd {} && sudo ./aws/install", install_path.display()),
+                ],
+            )
         }
     }
 }

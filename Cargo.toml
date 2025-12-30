@@ -219,6 +219,9 @@ semver = "1.0"
 # Self-replacement for binary updates (handles Windows exe locking)
 self-replace = "1.5"
 
+# Windows system calls for file operations
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
+
 # SHA256 checksum verification
 sha2 = "0.10"
 

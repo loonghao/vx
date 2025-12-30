@@ -86,6 +86,9 @@ self-replace = { workspace = true }
 sha2 = { workspace = true }
 futures-util = { workspace = true }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true }
+
 [features]
 default = ["cdn-acceleration"]
 # CDN acceleration for faster downloads in China (requires OpenSSL on some platforms)
