@@ -37,12 +37,19 @@ mod executor;
 mod resolver;
 mod runtime_map;
 mod runtime_spec;
+pub mod version;
 
 pub use config::ResolverConfig;
 pub use executor::{execute_system_runtime, Executor};
 pub use resolver::{ResolutionResult, Resolver, RuntimeStatus};
 pub use runtime_map::RuntimeMap;
 pub use runtime_spec::{Ecosystem, RuntimeDependency, RuntimeSpec};
+
+// Re-export version types for convenience
+pub use version::{
+    RangeConstraint, RangeOp, ResolvedVersion, SolverConfig, SolverError, SolverResult,
+    SolverStatus, Version, VersionConstraint, VersionRequest, VersionSolver, VersionStrategy,
+};
 
 /// Result type for resolver operations
 pub type Result<T> = anyhow::Result<T>;

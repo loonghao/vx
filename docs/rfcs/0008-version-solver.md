@@ -427,14 +427,19 @@ git commit -m "chore: add vx.lock for reproducible builds"
 
 ## 实现计划
 
-### Phase 1: 核心版本解析 (v0.7.0)
+### Phase 1: 核心版本解析 (v0.7.0) ✅ 已完成
 
-- [ ] `VersionRequest` 和 `VersionConstraint` 类型
-- [ ] `SemverStrategy` 默认实现
-- [ ] `VersionSolver` 基础实现
-- [ ] 部分版本匹配 (`3.11` → `3.11.11`)
+- [x] `VersionRequest` 和 `VersionConstraint` 类型
+- [x] `SemverStrategy` 默认实现
+- [x] `VersionSolver` 基础实现
+- [x] 部分版本匹配 (`3.11` → `3.11.11`)
+- [x] 范围约束 (`>=`, `<`, `!=`)
+- [x] 兼容版本 (`^`, `~`)
+- [x] 通配符 (`*`)
+- [x] `Pep440Strategy` (Python)
+- [x] `GoVersionStrategy` (Go)
+- [x] 单元测试
 - [ ] 更新 `PythonRuntime` 使用新解析器
-- [ ] 单元测试
 
 ### Phase 2: 锁文件机制 (v0.7.1)
 
@@ -446,17 +451,17 @@ git commit -m "chore: add vx.lock for reproducible builds"
 
 ### Phase 3: 多生态系统策略 (v0.8.0)
 
-- [ ] `Pep440Strategy` (Python)
-- [ ] `NodeSemverStrategy` (Node.js)
-- [ ] `GoVersionStrategy` (Go)
+- [x] `Pep440Strategy` (Python) - 已在 Phase 1 完成
+- [ ] `NodeSemverStrategy` (Node.js) - 使用 SemverStrategy
+- [x] `GoVersionStrategy` (Go) - 已在 Phase 1 完成
 - [ ] Provider 集成
 - [ ] 文档更新
 
 ### Phase 4: 高级约束 (v0.9.0)
 
-- [ ] 范围约束 (`>=`, `<`, `!=`)
-- [ ] 兼容版本 (`^`, `~`)
-- [ ] 通配符 (`*`)
+- [x] 范围约束 (`>=`, `<`, `!=`) - 已在 Phase 1 完成
+- [x] 兼容版本 (`^`, `~`) - 已在 Phase 1 完成
+- [x] 通配符 (`*`) - 已在 Phase 1 完成
 - [ ] 约束冲突检测
 
 ## 参考资料
@@ -473,3 +478,4 @@ git commit -m "chore: add vx.lock for reproducible builds"
 | 日期 | 版本 | 变更 |
 |------|------|------|
 | 2025-12-30 | Draft | 初始草案 |
+| 2025-12-30 | v0.1.0 | Phase 1 核心版本解析实现完成 |
