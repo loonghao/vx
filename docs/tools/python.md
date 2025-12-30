@@ -14,6 +14,20 @@ vx provides comprehensive Python support through both standalone Python runtime 
 
 vx uses [python-build-standalone](https://github.com/astral-sh/python-build-standalone) from Astral for portable Python distributions. Supports **Python 3.7 to 3.13+**.
 
+### Version Support Status
+
+| Version | Status | Notes |
+|---------|--------|-------|
+| Python 3.13+ | Active | Latest features |
+| Python 3.12 | Active | Recommended for production |
+| Python 3.11 | Active | Stable |
+| Python 3.10 | Active | Stable |
+| Python 3.9 | EOL | Last build: 20251120 |
+| Python 3.8 | EOL | Limited availability |
+| Python 3.7 | EOL | Legacy support only |
+
+> **Note**: Python versions that have reached End-of-Life (EOL) may have limited availability in python-build-standalone releases.
+
 ### Installation
 
 ```bash

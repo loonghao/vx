@@ -230,19 +230,17 @@ impl Runtime for PythonRuntime {
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        // We need to find the correct release date for this version
-        // First, try to fetch versions to get the mapping
-        // For efficiency, we'll use a heuristic based on version
-
         // Try common release dates for different Python versions
-        // These are the most recent releases that include each Python minor version
+        // The first date in the list is the most likely to have this version
         let release_dates = get_release_dates_for_version(version);
 
-        for release_date in release_dates {
-            let url = PythonUrlBuilder::download_url_with_date(version, release_date, platform);
-            if url.is_some() {
-                return Ok(url);
-            }
+        // Return the URL with the first (most likely) release date
+        if let Some(release_date) = release_dates.first() {
+            return Ok(PythonUrlBuilder::download_url_with_date(
+                version,
+                release_date,
+                platform,
+            ));
         }
 
         Ok(None)
@@ -290,6 +288,9 @@ impl Runtime for PythonRuntime {
 /// Get likely release dates for a given Python version
 /// python-build-standalone releases are tagged by date (YYYYMMDD)
 /// Different Python versions are available in different releases
+///
+/// Note: Python 3.9 reached end-of-life and is no longer built after 20251120
+/// See: https://github.com/astral-sh/python-build-standalone/releases
 fn get_release_dates_for_version(version: &str) -> Vec<&'static str> {
     let parts: Vec<&str> = version.split('.').collect();
     if parts.len() < 2 {
@@ -299,19 +300,20 @@ fn get_release_dates_for_version(version: &str) -> Vec<&'static str> {
     let minor: u32 = parts[1].parse().unwrap_or(12);
 
     match minor {
-        // Python 3.7 - last available in older releases
+        // Python 3.7 - last available in older releases (EOL)
         7 => vec!["20230826", "20230726", "20230507"],
-        // Python 3.8
-        8 => vec!["20241206", "20241016", "20240909", "20240814", "20240726"],
-        // Python 3.9
-        9 => vec!["20251217", "20241206", "20241016", "20240909", "20240814"],
+        // Python 3.8 - still available but approaching EOL
+        8 => vec!["20251120", "20241206", "20241016", "20240909", "20240814"],
+        // Python 3.9 - EOL, last build was 20251120
+        // Note: Python 3.9 is no longer built after 20251120
+        9 => vec!["20251120", "20241206", "20241016", "20240909", "20240814"],
         // Python 3.10
-        10 => vec!["20251217", "20241206", "20241016", "20240909", "20240814"],
+        10 => vec!["20251217", "20251209", "20251205", "20251120", "20241206"],
         // Python 3.11
-        11 => vec!["20251217", "20241206", "20241016", "20240909", "20240814"],
+        11 => vec!["20251217", "20251209", "20251205", "20251120", "20241206"],
         // Python 3.12
-        12 => vec!["20251217", "20241206", "20241016", "20240909", "20240814"],
+        12 => vec!["20251217", "20251209", "20251205", "20251120", "20241206"],
         // Python 3.13+
-        _ => vec!["20251217", "20241206", "20241016"],
+        _ => vec!["20251217", "20251209", "20251205", "20251120"],
     }
 }

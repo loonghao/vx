@@ -14,6 +14,20 @@ vx 通过独立 Python 运行时和 `uv` 包管理器提供全面的 Python 支�
 
 vx 使用 Astral 的 [python-build-standalone](https://github.com/astral-sh/python-build-standalone) 提供可移植的 Python 发行版。支持 **Python 3.7 到 3.13+**。
 
+### 版本支持状态
+
+| 版本 | 状态 | 说明 |
+|------|------|------|
+| Python 3.13+ | 活跃 | 最新特性 |
+| Python 3.12 | 活跃 | 生产环境推荐 |
+| Python 3.11 | 活跃 | 稳定版 |
+| Python 3.10 | 活跃 | 稳定版 |
+| Python 3.9 | 已终止 | 最后构建: 20251120 |
+| Python 3.8 | 已终止 | 有限可用性 |
+| Python 3.7 | 已终止 | 仅遗留支持 |
+
+> **注意**: 已达到生命周期终点 (EOL) 的 Python 版本在 python-build-standalone 发布中可能可用性有限。
+
 ### 安装
 
 ```bash
