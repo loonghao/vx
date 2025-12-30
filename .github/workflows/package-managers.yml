@@ -104,19 +104,24 @@ jobs:
           fi
 
   # Publish to Windows Package Manager (WinGet)
-  # WinGet automatically detects new GitHub releases, no manual upload needed
+  # Uses vedantmgoyal9/winget-releaser to automatically create PR at microsoft/winget-pkgs
+  # Requires: WINGET_TOKEN secret with public_repo scope
+  # Requires: Fork of microsoft/winget-pkgs under the same account
   publish-winget:
     needs: check-release
     runs-on: windows-latest
     if: needs.check-release.outputs.should-publish == 'true'
     steps:
       - name: Publish to WinGet
-        uses: vedantmgoyal9/winget-releaser@main
+        uses: vedantmgoyal9/winget-releaser@v2
         with:
           identifier: loonghao.vx
+          # release-tag must match the GitHub release tag (with 'v' prefix)
+          release-tag: ${{ needs.check-release.outputs.version }}
+          # Only match Windows installer files (.exe, .msi, .zip)
+          installers-regex: '\.(exe|msi|zip)$'
           max-versions-to-keep: 5
           token: ${{ secrets.WINGET_TOKEN }}
-          # WinGet automatically uses GitHub release assets
 
   # Publish to Chocolatey
   # Downloads release assets and creates Chocolatey package

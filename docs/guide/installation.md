@@ -38,6 +38,12 @@ scoop bucket add loonghao https://github.com/loonghao/scoop-bucket
 scoop install vx
 ```
 
+### WinGet (Windows)
+
+```powershell
+winget install loonghao.vx
+```
+
 ### Cargo (From Source)
 
 If you have Rust installed:
