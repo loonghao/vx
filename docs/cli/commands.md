@@ -235,6 +235,7 @@ Update vx itself to the latest version with enhanced features:
 - **Checksum verification**: SHA256 verification for downloaded binaries (when available)
 - **Specific version**: Install a specific version instead of latest
 - **Safe replacement**: Uses `self_replace` for reliable binary replacement on Windows
+- **Backward compatible**: Supports both legacy (v0.5.x) and versioned (v0.6.0+) artifact naming formats
 
 ```bash
 # Update to latest version

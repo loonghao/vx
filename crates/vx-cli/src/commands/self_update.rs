@@ -709,27 +709,74 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
     })
 }
 
+/// Determine artifact naming format based on version
+/// - v0.6.0+: versioned format (vx-0.6.1-x86_64-pc-windows-msvc.zip)
+/// - v0.5.x and earlier: legacy format (vx-x86_64-pc-windows-msvc.zip)
+fn uses_versioned_artifact_naming(version: &str) -> bool {
+    let parts: Vec<&str> = version.split('.').collect();
+    if parts.len() >= 2 {
+        let major = parts[0].parse::<u64>().unwrap_or(0);
+        let minor = parts[1].parse::<u64>().unwrap_or(0);
+        // v0.6.0 and later use versioned naming
+        major > 0 || (major == 0 && minor >= 6)
+    } else {
+        false
+    }
+}
+
 /// Create CDN-based assets for a given version
+/// Supports both legacy naming (vx-arch-platform.ext) and versioned naming (vx-version-arch-platform.ext)
 fn create_cdn_assets(version: &str) -> Vec<GitHubAsset> {
     let base_url = format!("https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}", version);
+    let use_versioned = uses_versioned_artifact_naming(version);
 
-    let asset_configs = vec![
-        ("vx-x86_64-pc-windows-msvc.zip", "windows", "x86_64"),
-        ("vx-aarch64-pc-windows-msvc.zip", "windows", "aarch64"),
-        ("vx-x86_64-unknown-linux-musl.tar.gz", "linux", "x86_64"),
-        ("vx-aarch64-unknown-linux-musl.tar.gz", "linux", "aarch64"),
-        ("vx-x86_64-apple-darwin.tar.gz", "macos", "x86_64"),
-        ("vx-aarch64-apple-darwin.tar.gz", "macos", "aarch64"),
+    // Platform configurations: (base_name, extension, os, arch)
+    let platform_configs = vec![
+        ("x86_64-pc-windows-msvc", "zip", "windows", "x86_64"),
+        ("aarch64-pc-windows-msvc", "zip", "windows", "aarch64"),
+        ("x86_64-unknown-linux-gnu", "tar.gz", "linux", "x86_64"),
+        ("aarch64-unknown-linux-gnu", "tar.gz", "linux", "aarch64"),
+        ("x86_64-apple-darwin", "tar.gz", "macos", "x86_64"),
+        ("aarch64-apple-darwin", "tar.gz", "macos", "aarch64"),
     ];
 
-    asset_configs
+    platform_configs
         .into_iter()
-        .map(|(name, _os, _arch)| GitHubAsset {
-            name: name.to_string(),
-            browser_download_url: format!("{}/{}", base_url, name),
-            size: 0, // Size unknown from CDN
+        .map(|(platform, ext, _os, _arch)| {
+            let name = if use_versioned {
+                // New versioned format: vx-0.6.1-x86_64-pc-windows-msvc.zip
+                format!("vx-{}-{}.{}", version, platform, ext)
+            } else {
+                // Legacy format: vx-x86_64-pc-windows-msvc.zip
+                format!("vx-{}.{}", platform, ext)
+            };
+            GitHubAsset {
+                name: name.clone(),
+                browser_download_url: format!("{}/{}", base_url, name),
+                size: 0, // Size unknown from CDN
+            }
         })
         .collect()
+}
+
+/// Generate alternative asset names for fallback
+/// This handles the case where we might need to try both versioned and legacy naming
+fn get_alternative_asset_names(asset_name: &str, version: &str) -> Vec<String> {
+    let mut names = vec![asset_name.to_string()];
+
+    // Check if current name is versioned format
+    let versioned_prefix = format!("vx-{}-", version);
+    if asset_name.starts_with(&versioned_prefix) {
+        // Current is versioned, add legacy format as alternative
+        let legacy_name = asset_name.replacen(&format!("{}-", version), "", 1);
+        names.push(legacy_name);
+    } else if asset_name.starts_with("vx-") {
+        // Current is legacy, add versioned format as alternative
+        let versioned_name = asset_name.replacen("vx-", &versioned_prefix, 1);
+        names.push(versioned_name);
+    }
+
+    names
 }
 
 /// Download with multi-channel fallback and progress bar
@@ -739,46 +786,76 @@ async fn download_with_fallback(
     version_source: VersionSource,
     version: &str,
 ) -> Result<Vec<u8>> {
-    // Define download channels based on version source
-    let channels = if version_source == VersionSource::Cdn {
-        // CDN-first strategy
-        vec![
-            ("jsDelivr CDN", asset.browser_download_url.clone()),
-            (
+    // Get both versioned and legacy asset names for fallback
+    let asset_names = get_alternative_asset_names(&asset.name, version);
+
+    // Build download channels with all possible asset names
+    let mut channels: Vec<(&str, String)> = Vec::new();
+
+    for asset_name in &asset_names {
+        if version_source == VersionSource::Cdn {
+            // CDN-first strategy
+            if channels.is_empty() {
+                channels.push(("jsDelivr CDN", asset.browser_download_url.clone()));
+            } else {
+                channels.push((
+                    "jsDelivr CDN (alt)",
+                    format!(
+                        "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
+                        version, asset_name
+                    ),
+                ));
+            }
+            channels.push((
                 "Fastly CDN",
                 format!(
                     "https://fastly.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
-                    version, asset.name
+                    version, asset_name
                 ),
-            ),
-            (
+            ));
+            channels.push((
                 "GitHub Releases",
                 format!(
                     "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
-                    version, asset.name
+                    version, asset_name
                 ),
-            ),
-        ]
-    } else {
-        // GitHub-first strategy
-        vec![
-            ("GitHub Releases", asset.browser_download_url.clone()),
-            (
+            ));
+        } else {
+            // GitHub-first strategy
+            if channels.is_empty() {
+                channels.push(("GitHub Releases", asset.browser_download_url.clone()));
+            } else {
+                channels.push((
+                    "GitHub Releases (alt)",
+                    format!(
+                        "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
+                        version, asset_name
+                    ),
+                ));
+            }
+            channels.push((
                 "jsDelivr CDN",
                 format!(
                     "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
-                    version, asset.name
+                    version, asset_name
                 ),
-            ),
-            (
+            ));
+            channels.push((
                 "Fastly CDN",
                 format!(
                     "https://fastly.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
-                    version, asset.name
+                    version, asset_name
                 ),
-            ),
-        ]
-    };
+            ));
+        }
+    }
+
+    // Deduplicate URLs while preserving order
+    let mut seen_urls = std::collections::HashSet::new();
+    let channels: Vec<_> = channels
+        .into_iter()
+        .filter(|(_, url)| seen_urls.insert(url.clone()))
+        .collect();
 
     for (channel_name, url) in channels {
         UI::detail(&format!("🔄 Trying {}: {}", channel_name, url));
@@ -874,33 +951,41 @@ async fn verify_checksum(
     version_source: VersionSource,
     version: &str,
 ) -> Result<()> {
-    // Try to find checksum file
-    let checksum_filename = format!("{}.sha256", asset.name);
+    // Get both versioned and legacy asset names for checksum lookup
+    let asset_names = get_alternative_asset_names(&asset.name, version);
 
-    // Build checksum URLs based on version source
-    let checksum_urls = if version_source == VersionSource::Cdn {
-        vec![
-            format!(
+    // Build checksum URLs for all possible asset names
+    let mut checksum_urls = Vec::new();
+    for asset_name in &asset_names {
+        let checksum_filename = format!("{}.sha256", asset_name);
+
+        if version_source == VersionSource::Cdn {
+            checksum_urls.push(format!(
                 "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
                 version, checksum_filename
-            ),
-            format!(
+            ));
+            checksum_urls.push(format!(
                 "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
                 version, checksum_filename
-            ),
-        ]
-    } else {
-        vec![
-            format!(
+            ));
+        } else {
+            checksum_urls.push(format!(
                 "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
                 version, checksum_filename
-            ),
-            format!(
+            ));
+            checksum_urls.push(format!(
                 "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
                 version, checksum_filename
-            ),
-        ]
-    };
+            ));
+        }
+    }
+
+    // Deduplicate URLs
+    let mut seen = std::collections::HashSet::new();
+    let checksum_urls: Vec<_> = checksum_urls
+        .into_iter()
+        .filter(|url| seen.insert(url.clone()))
+        .collect();
 
     // Try to download checksum file
     let mut checksum_content = None;
@@ -916,10 +1001,7 @@ async fn verify_checksum(
     }
 
     let checksum_text = checksum_content.ok_or_else(|| {
-        anyhow!(
-            "Checksum file not found ({}). This may be expected for older releases.",
-            checksum_filename
-        )
+        anyhow!("Checksum file not found. This may be expected for older releases.")
     })?;
 
     // Parse expected checksum (format: "hash  filename" or just "hash")
@@ -964,22 +1046,106 @@ mod tests {
     }
 
     #[test]
-    fn test_create_cdn_assets() {
-        let assets = create_cdn_assets("0.5.28");
+    fn test_uses_versioned_artifact_naming() {
+        // v0.6.0 and later use versioned naming
+        assert!(uses_versioned_artifact_naming("0.6.0"));
+        assert!(uses_versioned_artifact_naming("0.6.1"));
+        assert!(uses_versioned_artifact_naming("0.7.0"));
+        assert!(uses_versioned_artifact_naming("1.0.0"));
+        assert!(uses_versioned_artifact_naming("2.5.10"));
+
+        // v0.5.x and earlier use legacy naming
+        assert!(!uses_versioned_artifact_naming("0.5.29"));
+        assert!(!uses_versioned_artifact_naming("0.5.0"));
+        assert!(!uses_versioned_artifact_naming("0.4.0"));
+        assert!(!uses_versioned_artifact_naming("0.1.0"));
+    }
+
+    #[test]
+    fn test_create_cdn_assets_versioned() {
+        let assets = create_cdn_assets("0.6.1");
         assert_eq!(assets.len(), 6);
 
-        // Check Windows x64 asset
+        // Check Windows x64 asset uses versioned naming
         let windows_asset = assets
             .iter()
             .find(|a| a.name.contains("windows") && a.name.contains("x86_64"));
         assert!(windows_asset.is_some());
-        assert!(windows_asset
-            .unwrap()
-            .browser_download_url
-            .contains("vx-v0.5.28"));
+        let windows_asset = windows_asset.unwrap();
+        assert_eq!(windows_asset.name, "vx-0.6.1-x86_64-pc-windows-msvc.zip");
+        assert!(windows_asset.browser_download_url.contains("vx-v0.6.1"));
 
-        // Check Linux asset
-        let linux_asset = assets.iter().find(|a| a.name.contains("linux"));
+        // Check Linux asset uses versioned naming
+        let linux_asset = assets
+            .iter()
+            .find(|a| a.name.contains("linux") && a.name.contains("x86_64"));
         assert!(linux_asset.is_some());
+        assert_eq!(
+            linux_asset.unwrap().name,
+            "vx-0.6.1-x86_64-unknown-linux-gnu.tar.gz"
+        );
+
+        // Check macOS asset uses versioned naming
+        let macos_asset = assets
+            .iter()
+            .find(|a| a.name.contains("apple") && a.name.contains("aarch64"));
+        assert!(macos_asset.is_some());
+        assert_eq!(
+            macos_asset.unwrap().name,
+            "vx-0.6.1-aarch64-apple-darwin.tar.gz"
+        );
+    }
+
+    #[test]
+    fn test_create_cdn_assets_legacy() {
+        let assets = create_cdn_assets("0.5.28");
+        assert_eq!(assets.len(), 6);
+
+        // Check Windows x64 asset uses legacy naming
+        let windows_asset = assets
+            .iter()
+            .find(|a| a.name.contains("windows") && a.name.contains("x86_64"));
+        assert!(windows_asset.is_some());
+        let windows_asset = windows_asset.unwrap();
+        assert_eq!(windows_asset.name, "vx-x86_64-pc-windows-msvc.zip");
+        assert!(windows_asset.browser_download_url.contains("vx-v0.5.28"));
+
+        // Check Linux asset uses legacy naming
+        let linux_asset = assets
+            .iter()
+            .find(|a| a.name.contains("linux") && a.name.contains("x86_64"));
+        assert!(linux_asset.is_some());
+        assert_eq!(
+            linux_asset.unwrap().name,
+            "vx-x86_64-unknown-linux-gnu.tar.gz"
+        );
+    }
+
+    #[test]
+    fn test_get_alternative_asset_names_versioned() {
+        // Versioned name should generate legacy alternative
+        let names = get_alternative_asset_names("vx-0.6.1-x86_64-pc-windows-msvc.zip", "0.6.1");
+        assert_eq!(names.len(), 2);
+        assert_eq!(names[0], "vx-0.6.1-x86_64-pc-windows-msvc.zip");
+        assert_eq!(names[1], "vx-x86_64-pc-windows-msvc.zip");
+    }
+
+    #[test]
+    fn test_get_alternative_asset_names_legacy() {
+        // Legacy name should generate versioned alternative
+        let names = get_alternative_asset_names("vx-x86_64-pc-windows-msvc.zip", "0.5.29");
+        assert_eq!(names.len(), 2);
+        assert_eq!(names[0], "vx-x86_64-pc-windows-msvc.zip");
+        assert_eq!(names[1], "vx-0.5.29-x86_64-pc-windows-msvc.zip");
+    }
+
+    #[test]
+    fn test_get_alternative_asset_names_tar_gz() {
+        // Test with tar.gz extension
+        let names =
+            get_alternative_asset_names("vx-0.6.1-x86_64-unknown-linux-gnu.tar.gz", "0.6.1");
+        assert_eq!(names.len(), 2);
+        assert_eq!(names[0], "vx-0.6.1-x86_64-unknown-linux-gnu.tar.gz");
+        assert_eq!(names[1], "vx-x86_64-unknown-linux-gnu.tar.gz");
     }
 }
