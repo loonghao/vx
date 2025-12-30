@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0](https://github.com/loonghao/vx/compare/vx-v0.5.29...vx-v0.6.0) (2025-12-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **self-update:** None - all changes are backward compatible
+
+### Features
+
+* add layered executable path API ([256d508](https://github.com/loonghao/vx/commit/256d5083b9c22e6ec8874f899358ffc74d1ddc2c))
+* **runtime:** use indicatif for download progress and add E2E CDN tests ([7287824](https://github.com/loonghao/vx/commit/7287824f1945dca4c83b2b4036e3bb67200eef66))
+* **self-update:** enhance with progress bar, checksum verification, and version selection ([2013c11](https://github.com/loonghao/vx/commit/2013c112463b5b9cd4fc3c64cfb513d46295e3f4))
+
+
+### Bug Fixes
+
+* correct rm alias test to check for Remove instead of Uninstall ([0f5f147](https://github.com/loonghao/vx/commit/0f5f147849fdaa881c6f27b8ee4f0ff00fcdf05a))
+* **setup:** preserve boolean values in vx.toml when using vx add ([559fcb4](https://github.com/loonghao/vx/commit/559fcb40b7931ca1bb56b82aebda33d3bb4ec38f))
+* update file_rename migration tests for current behavior ([42d3b01](https://github.com/loonghao/vx/commit/42d3b01a2683c9e49de0dadadc2fe2fd72118682))
+* update migration integration tests for file-rename no-op behavior ([ed1278e](https://github.com/loonghao/vx/commit/ed1278ef8d075cb9026ddc2bfc7cab3318f90a2c))
+
+
+### Code Refactoring
+
+* **cli:** redesign add/remove commands for clarity ([6b6ccc5](https://github.com/loonghao/vx/commit/6b6ccc5a7ce4fa3bce787fb7ca41ab117d2b037f))
+
+
+### Documentation
+
+* rename .vx.toml to vx.toml across all documentation and code ([0eca931](https://github.com/loonghao/vx/commit/0eca93171ff895e8ac04d455947bda90c905292f))
+
 ## [0.5.29](https://github.com/loonghao/vx/compare/vx-v0.5.28...vx-v0.5.29) (2025-12-29)
 
 
