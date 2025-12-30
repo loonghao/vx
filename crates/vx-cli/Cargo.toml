@@ -57,6 +57,7 @@ vx-provider-pre-commit = { workspace = true }
 vx-provider-ollama = { workspace = true }
 vx-provider-spack = { workspace = true }
 vx-provider-release-please = { workspace = true }
+vx-provider-python = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
