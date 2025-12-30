@@ -361,3 +361,259 @@ mod resolved_version_tests {
         );
     }
 }
+
+mod lockfile_tests {
+    use super::*;
+    use std::collections::HashMap;
+    use vx_resolver::version::{LockFile, LockFileInconsistency, LockedTool};
+
+    #[test]
+    fn test_lockfile_new() {
+        let lockfile = LockFile::new();
+        assert_eq!(lockfile.version, 1);
+        assert!(lockfile.tools.is_empty());
+        assert!(lockfile.dependencies.is_empty());
+    }
+
+    #[test]
+    fn test_lock_tool() {
+        let mut lockfile = LockFile::new();
+        let tool = LockedTool::new("3.11.11", "python-build-standalone")
+            .with_resolved_from("3.11")
+            .with_ecosystem(Ecosystem::Python);
+
+        lockfile.lock_tool("python", tool);
+
+        assert!(lockfile.is_locked("python"));
+        assert!(!lockfile.is_locked("node"));
+
+        let locked = lockfile.get_tool("python").unwrap();
+        assert_eq!(locked.version, "3.11.11");
+        assert_eq!(locked.resolved_from, "3.11");
+        assert_eq!(locked.source, "python-build-standalone");
+        assert_eq!(locked.ecosystem, Ecosystem::Python);
+    }
+
+    #[test]
+    fn test_unlock_tool() {
+        let mut lockfile = LockFile::new();
+        lockfile.lock_tool("python", LockedTool::new("3.11.11", "test"));
+
+        assert!(lockfile.is_locked("python"));
+
+        let removed = lockfile.unlock_tool("python");
+        assert!(removed.is_some());
+        assert!(!lockfile.is_locked("python"));
+    }
+
+    #[test]
+    fn test_tool_names() {
+        let mut lockfile = LockFile::new();
+        lockfile.lock_tool("python", LockedTool::new("3.11.11", "test"));
+        lockfile.lock_tool("node", LockedTool::new("20.18.0", "test"));
+
+        let names = lockfile.tool_names();
+        assert_eq!(names.len(), 2);
+        assert!(names.contains(&"python"));
+        assert!(names.contains(&"node"));
+    }
+
+    #[test]
+    fn test_add_dependencies() {
+        let mut lockfile = LockFile::new();
+        lockfile.lock_tool("node", LockedTool::new("20.18.0", "test"));
+        lockfile.lock_tool("npm", LockedTool::new("10.0.0", "test"));
+
+        lockfile.add_dependency("npm", vec!["node".to_string()]);
+
+        let deps = lockfile.get_dependencies("npm").unwrap();
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0], "node");
+    }
+
+    #[test]
+    fn test_lockfile_serialize_parse() {
+        let mut lockfile = LockFile::new();
+        lockfile.lock_tool(
+            "python",
+            LockedTool::new("3.11.11", "python-build-standalone").with_resolved_from("3.11"),
+        );
+        lockfile.lock_tool(
+            "node",
+            LockedTool::new("20.18.0", "nodejs.org").with_resolved_from("20"),
+        );
+
+        let content = lockfile.to_string().unwrap();
+        assert!(content.contains("vx.lock"));
+        assert!(content.contains("[tools.python]"));
+        assert!(content.contains("version = \"3.11.11\""));
+
+        // Parse back
+        let parsed = LockFile::parse(&content).unwrap();
+        assert_eq!(parsed.tools.len(), 2);
+        assert_eq!(parsed.get_tool("python").unwrap().version, "3.11.11");
+        assert_eq!(parsed.get_tool("node").unwrap().version, "20.18.0");
+    }
+
+    #[test]
+    fn test_lockfile_parse_format() {
+        let content = r#"
+version = 1
+
+[metadata]
+generated_at = "2025-12-30T10:00:00Z"
+vx_version = "0.7.0"
+platform = "x86_64-pc-windows-msvc"
+
+[tools.python]
+version = "3.11.11"
+source = "python-build-standalone"
+resolved_from = "3.11"
+
+[tools.node]
+version = "20.18.0"
+source = "nodejs.org"
+resolved_from = "20"
+
+[dependencies]
+npm = ["node"]
+"#;
+
+        let lockfile = LockFile::parse(content).unwrap();
+        assert_eq!(lockfile.version, 1);
+        assert_eq!(lockfile.tools.len(), 2);
+        assert_eq!(lockfile.get_tool("python").unwrap().version, "3.11.11");
+        assert_eq!(lockfile.get_tool("node").unwrap().version, "20.18.0");
+        assert_eq!(
+            lockfile.get_dependencies("npm"),
+            Some(&vec!["node".to_string()])
+        );
+    }
+
+    #[test]
+    fn test_check_consistency_all_match() {
+        let mut lockfile = LockFile::new();
+        lockfile.lock_tool(
+            "python",
+            LockedTool::new("3.11.11", "test").with_resolved_from("3.11"),
+        );
+        lockfile.lock_tool(
+            "node",
+            LockedTool::new("20.18.0", "test").with_resolved_from("20"),
+        );
+
+        let mut config = HashMap::new();
+        config.insert("python".to_string(), "3.11".to_string());
+        config.insert("node".to_string(), "20".to_string());
+
+        let inconsistencies = lockfile.check_consistency(&config);
+        assert!(inconsistencies.is_empty());
+    }
+
+    #[test]
+    fn test_check_consistency_missing_in_lock() {
+        let mut lockfile = LockFile::new();
+        lockfile.lock_tool(
+            "python",
+            LockedTool::new("3.11.11", "test").with_resolved_from("3.11"),
+        );
+
+        let mut config = HashMap::new();
+        config.insert("python".to_string(), "3.11".to_string());
+        config.insert("node".to_string(), "20".to_string());
+
+        let inconsistencies = lockfile.check_consistency(&config);
+        assert_eq!(inconsistencies.len(), 1);
+        assert!(matches!(
+            &inconsistencies[0],
+            LockFileInconsistency::MissingInLock { tool, .. } if tool == "node"
+        ));
+    }
+
+    #[test]
+    fn test_check_consistency_extra_in_lock() {
+        let mut lockfile = LockFile::new();
+        lockfile.lock_tool(
+            "python",
+            LockedTool::new("3.11.11", "test").with_resolved_from("3.11"),
+        );
+        lockfile.lock_tool(
+            "node",
+            LockedTool::new("20.18.0", "test").with_resolved_from("20"),
+        );
+
+        let mut config = HashMap::new();
+        config.insert("python".to_string(), "3.11".to_string());
+
+        let inconsistencies = lockfile.check_consistency(&config);
+        assert_eq!(inconsistencies.len(), 1);
+        assert!(matches!(
+            &inconsistencies[0],
+            LockFileInconsistency::ExtraInLock { tool } if tool == "node"
+        ));
+    }
+
+    #[test]
+    fn test_check_consistency_version_mismatch() {
+        let mut lockfile = LockFile::new();
+        lockfile.lock_tool(
+            "python",
+            LockedTool::new("3.11.11", "test").with_resolved_from("3.11"),
+        );
+
+        let mut config = HashMap::new();
+        config.insert("python".to_string(), "3.12".to_string()); // Changed version
+
+        let inconsistencies = lockfile.check_consistency(&config);
+        assert_eq!(inconsistencies.len(), 1);
+        assert!(matches!(
+            &inconsistencies[0],
+            LockFileInconsistency::VersionMismatch { tool, config_version, locked_from }
+                if tool == "python" && config_version == "3.12" && locked_from == "3.11"
+        ));
+    }
+
+    #[test]
+    fn test_lockfile_merge() {
+        let mut lockfile1 = LockFile::new();
+        lockfile1.lock_tool("python", LockedTool::new("3.11.11", "test"));
+
+        let mut lockfile2 = LockFile::new();
+        lockfile2.lock_tool("node", LockedTool::new("20.18.0", "test"));
+        lockfile2.lock_tool("python", LockedTool::new("3.12.0", "test")); // Override
+
+        lockfile1.merge(&lockfile2);
+
+        assert_eq!(lockfile1.tools.len(), 2);
+        assert_eq!(lockfile1.get_tool("python").unwrap().version, "3.12.0"); // Overwritten
+        assert_eq!(lockfile1.get_tool("node").unwrap().version, "20.18.0");
+    }
+
+    #[test]
+    fn test_locked_tool_with_metadata() {
+        let tool = LockedTool::new("3.11.11", "python-build-standalone")
+            .with_resolved_from("3.11")
+            .with_ecosystem(Ecosystem::Python)
+            .with_checksum("sha256:abc123")
+            .with_metadata("release_date", "20251217");
+
+        assert_eq!(tool.version, "3.11.11");
+        assert_eq!(tool.source, "python-build-standalone");
+        assert_eq!(tool.resolved_from, "3.11");
+        assert_eq!(tool.ecosystem, Ecosystem::Python);
+        assert_eq!(tool.checksum, Some("sha256:abc123".to_string()));
+        assert_eq!(
+            tool.metadata.get("release_date"),
+            Some(&"20251217".to_string())
+        );
+    }
+
+    #[test]
+    fn test_locked_tool_parsed_version() {
+        let tool = LockedTool::new("3.11.11", "test");
+        let version = tool.parsed_version().unwrap();
+        assert_eq!(version.major, 3);
+        assert_eq!(version.minor, 11);
+        assert_eq!(version.patch, 11);
+    }
+}

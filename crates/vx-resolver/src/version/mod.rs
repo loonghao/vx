@@ -26,16 +26,22 @@
 //! │  │VersionStrategy  │───▶│   Ecosystem     │                 │
 //! │  │  (per ecosystem)│    └─────────────────┘                 │
 //! │  └─────────────────┘                                        │
+//! │                                                              │
+//! │  ┌─────────────────┐    ┌─────────────────┐                 │
+//! │  │   LockFile      │◀──▶│  vx.lock        │                 │
+//! │  └─────────────────┘    └─────────────────┘                 │
 //! └─────────────────────────────────────────────────────────────┘
 //! ```
 
 mod constraint;
+mod lockfile;
 mod request;
 mod resolved;
 mod solver;
 mod strategy;
 
 pub use constraint::{RangeConstraint, RangeOp, Version, VersionConstraint};
+pub use lockfile::{LockFile, LockFileError, LockFileInconsistency, LockedTool};
 pub use request::VersionRequest;
 pub use resolved::ResolvedVersion;
 pub use solver::{SolverConfig, SolverError, SolverResult, SolverStatus, VersionSolver};
