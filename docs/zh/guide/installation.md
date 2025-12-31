@@ -16,6 +16,30 @@ irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
 
 :::
 
+### 故障排除：GitHub API 限流
+
+如果安装时遇到限流错误，有以下几种解决方案：
+
+**方案 1：使用 GitHub token**
+```bash
+# Linux/macOS
+GITHUB_TOKEN='your_token' curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# Windows
+$env:GITHUB_TOKEN='your_token'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+```
+
+**方案 2：指定版本号**
+```bash
+# Linux/macOS
+VX_VERSION='0.6.7' curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# Windows
+$env:VX_VERSION='0.6.7'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+```
+
+**方案 3：使用包管理器**（见下文）
+
 ## 包管理器
 
 ### Homebrew (macOS/Linux)
