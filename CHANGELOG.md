@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.7](https://github.com/loonghao/vx/compare/vx-v0.6.6...vx-v0.6.7) (2025-12-31)
+
+
+### Features
+
+* **cli:** integrate lock file with sync and install commands ([a93ce06](https://github.com/loonghao/vx/commit/a93ce065dda71b6d7ee6ee9ce7793a6717f47451))
+* **resolver:** implement lock file mechanism ([0214aa7](https://github.com/loonghao/vx/commit/0214aa7c9b209b907239960874d709d9e81c29e4))
+* **vx-console:** add unified console output system ([fb49b97](https://github.com/loonghao/vx/commit/fb49b97a74f9b0b3c411286c6df50871bce05b51))
+
+
+### Bug Fixes
+
+* add missing subdir field and ignore crates dead links in docs ([8438853](https://github.com/loonghao/vx/commit/84388535f7c7db3edde897af5ab2bfd00321dbb6))
+* **awscli:** correct Linux executable path to aws/dist/aws ([5d1f84a](https://github.com/loonghao/vx/commit/5d1f84a833120047282fd4be7d52702672fa12c9))
+* **cli:** move error_str into windows-only cfg block ([0892cd4](https://github.com/loonghao/vx/commit/0892cd49872b85117763e8eb60840256b82bc1e2))
+* **extension:** add missing subdir field to RemoteSource tests ([6aa9da1](https://github.com/loonghao/vx/commit/6aa9da123e16bd812cdd099120cf9c85ec659dd3))
+
+
+### Documentation
+
+* **rfc:** add design limitations and future improvements analysis ([a6b75da](https://github.com/loonghao/vx/commit/a6b75da171b1543c3e46e55a05aada71896bf2e2))
+* **rfc:** add mainstream Rust CLI survey (Cargo, uv, ripgrep) to RFC 0009 ([5556a63](https://github.com/loonghao/vx/commit/5556a63210df0d337c1192582d50fc791c270002))
+* **rfc:** add RFC 0009 unified console output system (vx-console) ([9450f6d](https://github.com/loonghao/vx/commit/9450f6d8a021609cec719bf149741c32f015ff21))
+* **rfc:** integrate vx-migration framework and RuntimeMap dependency ordering ([eb447fa](https://github.com/loonghao/vx/commit/eb447fa67538a7c2e13c7c9e1ba2f8988c8f6df6))
+
 ## [0.6.6](https://github.com/loonghao/vx/compare/vx-v0.6.5...vx-v0.6.6) (2025-12-30)
 
 
