@@ -1,7 +1,7 @@
 //! Terminal tests.
 
 use rstest::rstest;
-use vx_console::{CiEnvironment, Term};
+use vx_console::{CiEnvironment, Term, TerminalType};
 
 #[rstest]
 fn test_term_detect() {
@@ -11,6 +11,7 @@ fn test_term_detect() {
     let _ = term.supports_unicode();
     let _ = term.is_interactive();
     let _ = term.is_tty();
+    let _ = term.terminal_type();
 }
 
 #[rstest]
@@ -20,6 +21,7 @@ fn test_term_minimal() {
     assert!(!term.supports_unicode());
     assert!(!term.is_interactive());
     assert!(!term.supports_hyperlinks());
+    assert_eq!(term.terminal_type(), TerminalType::Unknown);
 }
 
 #[rstest]
@@ -56,9 +58,27 @@ fn test_ci_environment_supports_color() {
     assert!(CiEnvironment::AzurePipelines.supports_color());
     assert!(CiEnvironment::CircleCi.supports_color());
     assert!(CiEnvironment::TravisCi.supports_color());
+    assert!(CiEnvironment::Buildkite.supports_color());
     // Generic CI may not support colors
     assert!(!CiEnvironment::Generic.supports_color());
     assert!(!CiEnvironment::Jenkins.supports_color());
+}
+
+#[rstest]
+fn test_ci_environment_name() {
+    assert_eq!(CiEnvironment::GitHubActions.name(), "GitHub Actions");
+    assert_eq!(CiEnvironment::GitLabCi.name(), "GitLab CI");
+    assert_eq!(CiEnvironment::Jenkins.name(), "Jenkins");
+    assert_eq!(CiEnvironment::AzurePipelines.name(), "Azure Pipelines");
+    assert_eq!(CiEnvironment::CircleCi.name(), "CircleCI");
+    assert_eq!(CiEnvironment::TravisCi.name(), "Travis CI");
+    assert_eq!(
+        CiEnvironment::BitbucketPipelines.name(),
+        "Bitbucket Pipelines"
+    );
+    assert_eq!(CiEnvironment::TeamCity.name(), "TeamCity");
+    assert_eq!(CiEnvironment::Buildkite.name(), "Buildkite");
+    assert_eq!(CiEnvironment::Generic.name(), "CI");
 }
 
 #[rstest]
@@ -67,4 +87,36 @@ fn test_term_is_ci() {
     // Minimal term has no CI environment
     assert!(!term.is_ci());
     assert!(term.ci_environment().is_none());
+}
+
+#[rstest]
+fn test_terminal_type_detect() {
+    let _ = TerminalType::detect();
+}
+
+#[rstest]
+fn test_terminal_type_supports_hyperlinks() {
+    assert!(TerminalType::WindowsTerminal.supports_hyperlinks());
+    assert!(TerminalType::ITerm2.supports_hyperlinks());
+    assert!(TerminalType::VSCode.supports_hyperlinks());
+    assert!(TerminalType::WezTerm.supports_hyperlinks());
+    assert!(TerminalType::Kitty.supports_hyperlinks());
+    assert!(!TerminalType::WindowsConsole.supports_hyperlinks());
+    assert!(!TerminalType::Unix.supports_hyperlinks());
+    assert!(!TerminalType::Unknown.supports_hyperlinks());
+}
+
+#[rstest]
+fn test_terminal_type_supports_unicode() {
+    assert!(TerminalType::WindowsTerminal.supports_unicode());
+    assert!(TerminalType::ITerm2.supports_unicode());
+    assert!(TerminalType::Unix.supports_unicode());
+    assert!(!TerminalType::WindowsConsole.supports_unicode());
+    assert!(!TerminalType::Unknown.supports_unicode());
+}
+
+#[rstest]
+fn test_enable_ansi_support() {
+    // Just verify it doesn't panic
+    let _ = Term::enable_ansi_support();
 }

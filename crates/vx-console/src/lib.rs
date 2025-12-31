@@ -13,6 +13,7 @@
 //! - **Interact**: Interactive input (confirm, password, select)
 //! - **Theme**: Customizable output themes
 //! - **Test**: Testing utilities for capturing output
+//! - **Task**: Task execution with timing statistics
 //!
 //! ## Quick Start
 //!
@@ -47,11 +48,27 @@
 //! guard.info("Hello, world!");
 //! guard.success("Done!");
 //! ```
+//!
+//! ## Task Execution with Timing
+//!
+//! ```rust,no_run
+//! use vx_console::Console;
+//!
+//! let console = Console::new();
+//!
+//! // Execute a task with timing
+//! let result = console.task("Building project", || {
+//!     // ... do work ...
+//!     Ok::<_, std::io::Error>(())
+//! });
+//! // Output: ✓ Building project (2.3s)
+//! ```
 
 mod format;
 mod output;
 mod shell;
 mod style;
+mod task;
 mod term;
 mod test_support;
 
@@ -66,8 +83,9 @@ pub use format::{CiOutput, JsonOutput, OutputMode};
 pub use output::{ColorChoice, ShellOut};
 pub use shell::{Shell, ShellBuilder, Verbosity};
 pub use style::{Color, Style, Theme, ThemeBuilder};
-pub use term::{CiEnvironment, Term, TermCapabilities};
-pub use test_support::TestOutput;
+pub use task::{format_bytes, format_duration, format_speed, TaskResult, TimedTask};
+pub use term::{CiEnvironment, Term, TermCapabilities, TerminalType};
+pub use test_support::{TestOutput, TestWriter};
 
 #[cfg(feature = "progress")]
 pub use progress::{
@@ -207,6 +225,140 @@ impl Console {
         F: FnOnce() -> R,
     {
         self.progress_manager.suspend(f)
+    }
+
+    /// Execute a task with timing and progress display.
+    ///
+    /// Shows a spinner while the task is running, then displays the result
+    /// with the elapsed time.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use vx_console::Console;
+    ///
+    /// let console = Console::new();
+    /// let result = console.task("Building project", || {
+    ///     // ... do work ...
+    ///     Ok::<_, std::io::Error>(())
+    /// });
+    /// // Output: ✓ Building project (2.3s)
+    /// ```
+    #[cfg(feature = "progress")]
+    pub fn task<F, T, E>(&self, message: &str, f: F) -> std::result::Result<TaskResult<T>, E>
+    where
+        F: FnOnce() -> std::result::Result<T, E>,
+        E: std::fmt::Display,
+    {
+        use std::time::Instant;
+
+        let spinner = self.spinner(message);
+        let start = Instant::now();
+
+        match f() {
+            Ok(value) => {
+                let duration = start.elapsed();
+                spinner.finish_success(&format!(
+                    "{} ({})",
+                    message,
+                    task::format_duration(duration)
+                ));
+                Ok(TaskResult::new(value, duration))
+            }
+            Err(e) => {
+                spinner.finish_error(&format!("{}: {}", message, e));
+                Err(e)
+            }
+        }
+    }
+
+    /// Execute an async task with timing and progress display.
+    #[cfg(feature = "progress")]
+    pub async fn task_async<F, Fut, T, E>(
+        &self,
+        message: &str,
+        f: F,
+    ) -> std::result::Result<TaskResult<T>, E>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = std::result::Result<T, E>>,
+        E: std::fmt::Display,
+    {
+        use std::time::Instant;
+
+        let spinner = self.spinner(message);
+        let start = Instant::now();
+
+        match f().await {
+            Ok(value) => {
+                let duration = start.elapsed();
+                spinner.finish_success(&format!(
+                    "{} ({})",
+                    message,
+                    task::format_duration(duration)
+                ));
+                Ok(TaskResult::new(value, duration))
+            }
+            Err(e) => {
+                spinner.finish_error(&format!("{}: {}", message, e));
+                Err(e)
+            }
+        }
+    }
+
+    /// Execute a multi-step task with progress display.
+    #[cfg(feature = "progress")]
+    pub fn steps<F, T, E>(&self, title: &str, f: F) -> std::result::Result<T, E>
+    where
+        F: FnOnce(&mut StepRunner) -> std::result::Result<T, E>,
+    {
+        let mut runner = StepRunner::new(title, &self.progress_manager);
+        f(&mut runner)
+    }
+}
+
+/// Helper for running multi-step tasks.
+#[cfg(feature = "progress")]
+pub struct StepRunner<'a> {
+    #[allow(dead_code)]
+    title: String,
+    progress_manager: &'a ProgressManager,
+    current_spinner: Option<ManagedSpinner>,
+}
+
+#[cfg(feature = "progress")]
+impl<'a> StepRunner<'a> {
+    fn new(title: &str, progress_manager: &'a ProgressManager) -> Self {
+        Self {
+            title: title.to_string(),
+            progress_manager,
+            current_spinner: None,
+        }
+    }
+
+    /// Start a new step.
+    pub fn step(&mut self, message: &str) -> Result<()> {
+        // Finish previous step if any
+        if let Some(spinner) = self.current_spinner.take() {
+            spinner.finish_success(spinner.message());
+        }
+
+        // Start new step
+        self.current_spinner = Some(self.progress_manager.add_spinner(message));
+        Ok(())
+    }
+
+    /// Mark the current step as complete.
+    pub fn complete(&mut self) {
+        if let Some(spinner) = self.current_spinner.take() {
+            spinner.finish_success(spinner.message());
+        }
+    }
+
+    /// Mark the current step as failed.
+    pub fn fail(&mut self, error: &str) {
+        if let Some(spinner) = self.current_spinner.take() {
+            spinner.finish_error(error);
+        }
     }
 }
 

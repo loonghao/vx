@@ -37,6 +37,12 @@ pub enum CiEnvironment {
     CircleCi,
     /// Travis CI.
     TravisCi,
+    /// Bitbucket Pipelines.
+    BitbucketPipelines,
+    /// TeamCity.
+    TeamCity,
+    /// Buildkite.
+    Buildkite,
     /// Generic CI (CI env var is set).
     Generic,
 }
@@ -62,6 +68,15 @@ impl CiEnvironment {
         if env::var("TRAVIS").is_ok() {
             return Some(CiEnvironment::TravisCi);
         }
+        if env::var("BITBUCKET_BUILD_NUMBER").is_ok() {
+            return Some(CiEnvironment::BitbucketPipelines);
+        }
+        if env::var("TEAMCITY_VERSION").is_ok() {
+            return Some(CiEnvironment::TeamCity);
+        }
+        if env::var("BUILDKITE").is_ok() {
+            return Some(CiEnvironment::Buildkite);
+        }
         if env::var("CI").is_ok() {
             return Some(CiEnvironment::Generic);
         }
@@ -77,7 +92,146 @@ impl CiEnvironment {
                 | CiEnvironment::AzurePipelines
                 | CiEnvironment::CircleCi
                 | CiEnvironment::TravisCi
+                | CiEnvironment::Buildkite
         )
+    }
+
+    /// Get the CI environment name.
+    pub fn name(&self) -> &'static str {
+        match self {
+            CiEnvironment::GitHubActions => "GitHub Actions",
+            CiEnvironment::GitLabCi => "GitLab CI",
+            CiEnvironment::Jenkins => "Jenkins",
+            CiEnvironment::AzurePipelines => "Azure Pipelines",
+            CiEnvironment::CircleCi => "CircleCI",
+            CiEnvironment::TravisCi => "Travis CI",
+            CiEnvironment::BitbucketPipelines => "Bitbucket Pipelines",
+            CiEnvironment::TeamCity => "TeamCity",
+            CiEnvironment::Buildkite => "Buildkite",
+            CiEnvironment::Generic => "CI",
+        }
+    }
+}
+
+/// Terminal type detection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TerminalType {
+    /// Windows Terminal (modern).
+    WindowsTerminal,
+    /// ConEmu/Cmder.
+    ConEmu,
+    /// Windows Console (cmd.exe or PowerShell without Windows Terminal).
+    WindowsConsole,
+    /// iTerm2.
+    ITerm2,
+    /// VS Code integrated terminal.
+    VSCode,
+    /// WezTerm.
+    WezTerm,
+    /// Hyper.
+    Hyper,
+    /// Alacritty.
+    Alacritty,
+    /// Kitty.
+    Kitty,
+    /// Generic Unix terminal.
+    Unix,
+    /// Unknown terminal.
+    Unknown,
+}
+
+impl TerminalType {
+    /// Detect the terminal type.
+    pub fn detect() -> Self {
+        // Windows Terminal
+        if env::var("WT_SESSION").is_ok() {
+            return TerminalType::WindowsTerminal;
+        }
+
+        // ConEmu/Cmder
+        if env::var("ConEmuANSI").is_ok() || env::var("CMDER_ROOT").is_ok() {
+            return TerminalType::ConEmu;
+        }
+
+        // VS Code
+        if env::var("TERM_PROGRAM")
+            .map(|v| v == "vscode")
+            .unwrap_or(false)
+        {
+            return TerminalType::VSCode;
+        }
+
+        // iTerm2
+        if env::var("TERM_PROGRAM")
+            .map(|v| v == "iTerm.app")
+            .unwrap_or(false)
+        {
+            return TerminalType::ITerm2;
+        }
+
+        // WezTerm
+        if env::var("TERM_PROGRAM")
+            .map(|v| v == "WezTerm")
+            .unwrap_or(false)
+        {
+            return TerminalType::WezTerm;
+        }
+
+        // Hyper
+        if env::var("TERM_PROGRAM")
+            .map(|v| v == "Hyper")
+            .unwrap_or(false)
+        {
+            return TerminalType::Hyper;
+        }
+
+        // Alacritty
+        if env::var("TERM")
+            .map(|v| v.contains("alacritty"))
+            .unwrap_or(false)
+        {
+            return TerminalType::Alacritty;
+        }
+
+        // Kitty
+        if env::var("KITTY_WINDOW_ID").is_ok() {
+            return TerminalType::Kitty;
+        }
+
+        // Windows Console (fallback for Windows)
+        #[cfg(windows)]
+        {
+            TerminalType::WindowsConsole
+        }
+
+        // Unix (fallback for Unix-like systems)
+        #[cfg(unix)]
+        {
+            TerminalType::Unix
+        }
+
+        #[cfg(not(any(unix, windows)))]
+        {
+            TerminalType::Unknown
+        }
+    }
+
+    /// Check if this terminal supports hyperlinks.
+    pub fn supports_hyperlinks(&self) -> bool {
+        matches!(
+            self,
+            TerminalType::WindowsTerminal
+                | TerminalType::ITerm2
+                | TerminalType::VSCode
+                | TerminalType::WezTerm
+                | TerminalType::Hyper
+                | TerminalType::Kitty
+        )
+    }
+
+    /// Check if this terminal supports Unicode well.
+    pub fn supports_unicode(&self) -> bool {
+        !matches!(self, TerminalType::WindowsConsole | TerminalType::Unknown)
     }
 }
 
@@ -86,6 +240,7 @@ impl CiEnvironment {
 pub struct Term {
     capabilities: TermCapabilities,
     ci_environment: Option<CiEnvironment>,
+    terminal_type: TerminalType,
 }
 
 impl Default for Term {
@@ -98,9 +253,10 @@ impl Term {
     /// Detect terminal capabilities.
     pub fn detect() -> Self {
         let ci_environment = CiEnvironment::detect();
+        let terminal_type = TerminalType::detect();
         let is_tty = Self::detect_tty();
         let supports_color = Self::detect_color_support(is_tty, ci_environment);
-        let supports_unicode = Self::detect_unicode_support();
+        let supports_unicode = Self::detect_unicode_support(&terminal_type);
         let (width, height) = Self::detect_size();
 
         Self {
@@ -108,11 +264,12 @@ impl Term {
                 color: supports_color,
                 unicode: supports_unicode,
                 interactive: is_tty && ci_environment.is_none(),
-                hyperlinks: Self::detect_hyperlink_support(),
+                hyperlinks: terminal_type.supports_hyperlinks(),
                 width,
                 height,
             },
             ci_environment,
+            terminal_type,
         }
     }
 
@@ -121,6 +278,7 @@ impl Term {
         Self {
             capabilities: TermCapabilities::default(),
             ci_environment: None,
+            terminal_type: TerminalType::Unknown,
         }
     }
 
@@ -148,6 +306,30 @@ impl Term {
         {
             false
         }
+    }
+
+    /// Enable ANSI support on Windows.
+    #[cfg(windows)]
+    pub fn enable_ansi_support() -> bool {
+        use windows_sys::Win32::System::Console::{
+            GetConsoleMode, GetStdHandle, SetConsoleMode, ENABLE_VIRTUAL_TERMINAL_PROCESSING,
+            STD_OUTPUT_HANDLE,
+        };
+
+        unsafe {
+            let handle = GetStdHandle(STD_OUTPUT_HANDLE);
+            let mut mode = 0;
+            if GetConsoleMode(handle, &mut mode) == 0 {
+                return false;
+            }
+            SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0
+        }
+    }
+
+    /// Enable ANSI support (no-op on non-Windows).
+    #[cfg(not(windows))]
+    pub fn enable_ansi_support() -> bool {
+        true
     }
 
     /// Detect color support.
@@ -181,7 +363,23 @@ impl Term {
     }
 
     /// Detect Unicode support.
-    fn detect_unicode_support() -> bool {
+    fn detect_unicode_support(terminal_type: &TerminalType) -> bool {
+        // Check terminal type first
+        if !terminal_type.supports_unicode() {
+            // Even Windows Console can support Unicode with proper codepage
+            #[cfg(windows)]
+            {
+                // Check if we're using UTF-8 codepage
+                if env::var("LANG")
+                    .map(|v| v.to_lowercase().contains("utf"))
+                    .unwrap_or(false)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         // Check LANG environment variable
         if let Ok(lang) = env::var("LANG") {
             if lang.to_lowercase().contains("utf") {
@@ -196,14 +394,6 @@ impl Term {
             }
         }
 
-        // Windows Terminal supports Unicode
-        #[cfg(windows)]
-        {
-            if env::var("WT_SESSION").is_ok() {
-                return true;
-            }
-        }
-
         // Default to true on modern systems
         #[cfg(any(target_os = "macos", target_os = "linux"))]
         {
@@ -212,33 +402,17 @@ impl Term {
 
         #[cfg(windows)]
         {
-            // Windows 10+ with Windows Terminal
-            true
+            // Windows Terminal and modern terminals support Unicode
+            matches!(
+                terminal_type,
+                TerminalType::WindowsTerminal | TerminalType::ConEmu | TerminalType::VSCode
+            )
         }
 
         #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
         {
             false
         }
-    }
-
-    /// Detect hyperlink support.
-    fn detect_hyperlink_support() -> bool {
-        // Check for known terminals that support hyperlinks
-        if let Ok(term_program) = env::var("TERM_PROGRAM") {
-            let supported = ["iTerm.app", "WezTerm", "vscode", "Hyper"];
-            if supported.iter().any(|&s| term_program.contains(s)) {
-                return true;
-            }
-        }
-
-        // Windows Terminal supports hyperlinks
-        #[cfg(windows)]
-        if env::var("WT_SESSION").is_ok() {
-            return true;
-        }
-
-        false
     }
 
     /// Detect terminal size.
@@ -251,6 +425,11 @@ impl Term {
     /// Get terminal capabilities.
     pub fn capabilities(&self) -> &TermCapabilities {
         &self.capabilities
+    }
+
+    /// Get the terminal type.
+    pub fn terminal_type(&self) -> TerminalType {
+        self.terminal_type
     }
 
     /// Check if colors are supported.
@@ -357,12 +536,24 @@ mod tests {
     }
 
     #[test]
+    fn test_ci_environment_name() {
+        assert_eq!(CiEnvironment::GitHubActions.name(), "GitHub Actions");
+        assert_eq!(CiEnvironment::GitLabCi.name(), "GitLab CI");
+    }
+
+    #[test]
+    fn test_terminal_type_detect() {
+        let _ = TerminalType::detect();
+    }
+
+    #[test]
     fn test_term_detect() {
         let term = Term::detect();
         // Just verify it doesn't panic
         let _ = term.supports_color();
         let _ = term.supports_unicode();
         let _ = term.is_interactive();
+        let _ = term.terminal_type();
     }
 
     #[test]
@@ -371,6 +562,7 @@ mod tests {
         assert!(!term.supports_color());
         assert!(!term.supports_unicode());
         assert!(!term.is_interactive());
+        assert_eq!(term.terminal_type(), TerminalType::Unknown);
     }
 
     #[test]
@@ -378,5 +570,11 @@ mod tests {
         let term = Term::minimal();
         let result = term.hyperlink("https://example.com", "Example");
         assert_eq!(result, "Example");
+    }
+
+    #[test]
+    fn test_enable_ansi_support() {
+        // Just verify it doesn't panic
+        let _ = Term::enable_ansi_support();
     }
 }
