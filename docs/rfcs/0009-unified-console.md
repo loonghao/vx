@@ -13,6 +13,128 @@
 
 本 RFC 提议创建 `vx-console` crate，统一管理跨平台的控制台输出、日志、进度条和耗时任务交互。
 
+## 主流 Rust CLI 应用方案调研
+
+在设计 `vx-console` 之前，我们调研了主流 Rust CLI 应用的控制台输出方案：
+
+### 1. Cargo (rust-lang/cargo)
+
+**架构**: `Shell` 结构体封装 stdout/stderr
+
+**核心设计**:
+```rust
+// cargo/src/cargo/core/shell.rs
+pub struct Shell {
+    output: ShellOut,           // Stream | Write
+    verbosity: Verbosity,       // Verbose | Normal | Quiet
+    needs_clear: bool,          // 进度条清理标记
+    hostname: Option<String>,
+}
+
+pub enum ShellOut {
+    Stream {
+        stdout: AutoStream<std::io::Stdout>,
+        stderr: AutoStream<std::io::Stderr>,
+        stderr_tty: bool,
+        color_choice: ColorChoice,
+        hyperlinks: bool,
+    },
+    Write(Box<dyn Write>),  // 用于测试
+}
+```
+
+**关键特性**:
+- 使用 `anstream` 库处理跨平台 ANSI 颜色
+- `ColorChoice` 枚举: `Always` / `Never` / `CargoAuto`
+- `Verbosity` 枚举控制输出级别
+- 支持超链接（可点击的文件路径）
+- `from_write()` 方法支持测试时注入内存缓冲区
+- 使用 `annotate_snippets` 渲染错误报告
+
+**依赖库**:
+- `anstream` - 跨平台流处理
+- `anstyle` - 样式定义
+- `annotate_snippets` - 错误报告渲染
+
+### 2. uv (astral-sh/uv)
+
+**架构**: 独立的 `uv-console` crate
+
+**核心功能**:
+```rust
+// 确认提示 - 实时响应按键
+pub fn confirm(prompt: &str, default: bool) -> Result<bool>;
+
+// 密码输入 - 隐藏输入
+pub fn password(prompt: &str) -> Result<String>;
+
+// 通用文本输入 - 支持光标移动、词级跳转
+pub fn input(prompt: &str) -> Result<String>;
+
+// 字节格式化
+pub fn human_readable_bytes(bytes: u64) -> (f64, &'static str);
+```
+
+**关键特性**:
+- 使用 `console` crate 进行终端控制
+- 实时按键响应（无需按 Enter）
+- 支持 Ctrl+C 退出
+- 完整的编辑功能（光标移动、词级跳转）
+- 跨平台兼容（包括 Windows 特殊处理）
+
+### 3. ripgrep (BurntSushi/ripgrep)
+
+**架构**: 独立的 `grep-printer` crate
+
+**打印器类型**:
+```rust
+// 人类可读格式
+pub struct Standard { ... }
+
+// JSON Lines 格式（机器可读）
+pub struct JSON { ... }
+
+// 聚合摘要
+pub struct Summary { ... }
+```
+
+**关键特性**:
+- 模块化设计：color、hyperlink、path、standard、summary
+- 支持搜索和替换功能
+- 多行结果处理
+- JSON 输出用于程序化处理
+- 统计摘要报告
+
+### 4. rustup (rust-lang/rustup)
+
+**架构**: 内置终端处理模块
+
+**关键特性**:
+- 进度条显示下载进度
+- 多组件并行安装进度
+- 自动检测终端能力
+
+### 方案对比
+
+| 特性 | Cargo | uv | ripgrep |
+|------|-------|-----|---------|
+| 颜色库 | anstream/anstyle | console | termcolor |
+| 进度条 | 自定义 | indicatif | 无 |
+| 输出模式 | Verbose/Normal/Quiet | 类似 | Standard/JSON/Summary |
+| 测试支持 | Write trait 注入 | 有 | Sink trait |
+| 交互式输入 | 无 | 有 | 无 |
+| 超链接 | 有 | 无 | 有 |
+
+### 设计启示
+
+基于以上调研，`vx-console` 应采用：
+
+1. **Cargo 风格的 Shell 架构** - 封装 stdout/stderr，支持测试注入
+2. **anstream/anstyle** - Cargo 使用的现代跨平台颜色库，替代 colored
+3. **uv 风格的交互式输入** - 支持确认、密码输入等
+4. **ripgrep 风格的多输出格式** - Standard/JSON/Summary
+5. **统一的 Verbosity 控制** - Verbose/Normal/Quiet
+
 ## 动机
 
 ### 当前问题
@@ -47,34 +169,65 @@
 
 ### Crate 结构
 
+基于 Cargo 的 Shell 架构和 uv 的交互式设计：
+
 ```
 crates/vx-console/
 ├── src/
 │   ├── lib.rs           # 公开 API
-│   ├── output.rs        # 输出管理器
-│   ├── style.rs         # 样式和主题
-│   ├── progress.rs      # 进度条和 spinner
+│   ├── shell.rs         # Shell 结构体（参考 Cargo）
+│   ├── output.rs        # ShellOut 输出抽象
+│   ├── style.rs         # 样式和主题（使用 anstyle）
+│   ├── progress.rs      # 进度条和 spinner（使用 indicatif）
 │   ├── term.rs          # 终端检测和适配
-│   ├── log.rs           # 日志集成
+│   ├── interact.rs      # 交互式输入（参考 uv）
+│   ├── format.rs        # 输出格式化（Standard/JSON）
 │   └── test.rs          # 测试支持
 └── Cargo.toml
 ```
 
 ### 核心 API
 
-#### 1. 输出管理器 (Console)
+#### 1. Shell 结构体（参考 Cargo）
 
 ```rust
-use vx_console::{Console, OutputMode, Theme};
+use vx_console::{Shell, Verbosity, ColorChoice};
 
-// 全局单例
-let console = Console::global();
+// 创建 Shell（参考 Cargo 设计）
+let mut shell = Shell::new();
 
-// 或创建实例
-let console = Console::builder()
-    .mode(OutputMode::Interactive)  // Interactive | Quiet | Verbose | Json
-    .theme(Theme::default())
+// 或使用 builder
+let shell = Shell::builder()
+    .verbosity(Verbosity::Normal)  // Verbose | Normal | Quiet
+    .color_choice(ColorChoice::Auto)  // Always | Never | Auto
     .build();
+
+// 状态消息（Cargo 风格）
+shell.status("Compiling", "vx v0.1.0")?;      // 绿色 "Compiling"
+shell.status_with_color("Downloading", "node@20", Color::Cyan)?;
+
+// 基本输出
+shell.info("Installing node...")?;
+shell.success("Installed node@20.10.0")?;
+shell.warn("Version 18 is deprecated")?;
+shell.error("Failed to download")?;
+shell.hint("Try: vx install node@20")?;
+
+// 条件输出
+shell.verbose(|s| s.info("Cache hit"))?;  // 仅在 verbose 模式显示
+
+// 测试支持（参考 Cargo）
+let mut output = Vec::new();
+let shell = Shell::from_write(Box::new(&mut output));
+```
+
+#### 2. 输出管理器 (Console) - 全局单例
+
+```rust
+use vx_console::{Console, OutputMode};
+
+// 全局单例（便捷 API）
+let console = Console::global();
 
 // 基本输出
 console.info("Installing node...");
@@ -83,12 +236,9 @@ console.warn("Version 18 is deprecated");
 console.error("Failed to download");
 console.hint("Try: vx install node@20");
 
-// 带格式的输出
-console.info_fmt(format_args!("Installing {}@{}", tool, version));
-
-// 条件输出
-console.debug("Cache hit");  // 仅在 verbose 模式显示
-console.trace("HTTP GET ...");  // 仅在 trace 模式显示
+// 设置模式
+console.set_verbosity(Verbosity::Verbose);
+console.set_color_choice(ColorChoice::Never);
 ```
 
 #### 2. 进度条和 Spinner
@@ -291,6 +441,33 @@ let console = Console::builder()
 // tracing 写入文件，console 输出到终端
 ```
 
+#### 9. 交互式输入（参考 uv）
+
+```rust
+use vx_console::{Console, interact};
+
+let console = Console::global();
+
+// 确认提示 - 实时响应按键（无需按 Enter）
+let confirmed = console.confirm("Proceed with installation?", true)?;
+// 输出: ? Proceed with installation? [Y/n]
+
+// 带默认值的确认
+let confirmed = console.confirm_default("Override existing?", false)?;
+
+// 密码输入 - 隐藏输入内容
+let password = console.password("Enter token:")?;
+
+// 通用文本输入 - 支持光标移动、词级跳转
+let name = console.input("Project name:")?;
+
+// 选择列表
+let choice = console.select("Choose package manager:", &["npm", "yarn", "pnpm"])?;
+
+// 多选
+let choices = console.multi_select("Select tools:", &["node", "python", "go"])?;
+```
+
 ### 跨平台适配
 
 #### Windows 支持
@@ -386,12 +563,17 @@ impl Term {
 
 ### 依赖
 
+基于主流 Rust CLI 应用的调研，推荐使用以下依赖：
+
 ```toml
 [dependencies]
-# 终端处理
-console = "0.15"           # 终端检测和样式
-indicatif = "0.17"         # 进度条
-colored = "2"              # 颜色输出
+# 终端处理（Cargo 使用的现代方案）
+anstream = "0.6"           # 跨平台 ANSI 流处理（Cargo 使用）
+anstyle = "1.0"            # 样式定义（与 anstream 配套）
+console = "0.15"           # 终端检测和交互（uv 使用）
+
+# 进度条
+indicatif = "0.17"         # 进度条和 spinner
 
 # 跨平台
 terminal_size = "0.3"      # 终端尺寸
@@ -412,6 +594,12 @@ default = ["progress"]
 progress = []
 log-bridge = ["tracing-subscriber"]
 ```
+
+**为什么选择 anstream/anstyle 而不是 colored**:
+- `anstream` 是 Cargo 官方使用的库，经过大规模验证
+- 自动处理终端能力检测和 ANSI 转义码适配
+- `anstyle` 提供零开销的样式定义
+- 更好的跨平台支持（特别是 Windows）
 
 ### API 示例
 
@@ -510,25 +698,48 @@ pub async fn download_with_progress(url: &str, dest: &Path) -> Result<()> {
 **优点**: 无需迁移
 **缺点**: 代码重复，风格不一致，难以维护
 
-### 2. 只使用 indicatif
+### 2. 直接使用 Cargo 的 Shell 模块
 
-**优点**: 成熟的库
-**缺点**: 不处理日志、输出模式、跨平台适配
+**优点**: 经过大规模验证
+**缺点**: Cargo 的 Shell 不是独立 crate，需要复制代码
 
-### 3. 使用 console + dialoguer
+### 3. 只使用 indicatif + console
 
-**优点**: 功能丰富
-**缺点**: 需要额外封装，API 不够统一
+**优点**: 成熟的库组合
+**缺点**: 缺少统一的 API 封装，需要在每个使用处组合
+
+### 4. 使用 dialoguer
+
+**优点**: 功能丰富的交互式输入
+**缺点**: 主要关注交互，不处理一般输出和进度条
+
+### 推荐方案
+
+采用 **Cargo 风格的 Shell 架构** + **uv 风格的交互式输入**：
+- 核心设计参考 Cargo 的 `Shell` 结构
+- 使用 Cargo 同款依赖 `anstream`/`anstyle`
+- 交互式输入参考 uv 的 `console` 模块
+- 进度条使用 `indicatif`
 
 ## 参考资料
 
+### 主流 Rust CLI 应用源码
+
+- [Cargo Shell](https://github.com/rust-lang/cargo/blob/master/src/cargo/core/shell.rs) - Cargo 的输出系统，本 RFC 的主要参考
+- [uv console](https://github.com/astral-sh/uv/tree/main/crates) - uv 的控制台交互实现
+- [ripgrep printer](https://github.com/BurntSushi/ripgrep/tree/master/crates/printer) - ripgrep 的打印器设计
+
+### 依赖库
+
+- [anstream](https://github.com/rust-cli/anstyle/tree/main/crates/anstream) - Cargo 使用的跨平台 ANSI 流处理
+- [anstyle](https://github.com/rust-cli/anstyle) - 零开销样式定义
 - [indicatif](https://github.com/console-rs/indicatif) - Rust 进度条库
-- [console](https://github.com/console-rs/console) - 终端处理库
-- [owo-colors](https://github.com/jam1garner/owo-colors) - 零开销颜色库
-- [Cargo 的输出系统](https://github.com/rust-lang/cargo/tree/master/src/cargo/core/shell.rs)
+- [console](https://github.com/console-rs/console) - 终端处理库（uv 使用）
+- [dialoguer](https://github.com/console-rs/dialoguer) - 交互式提示库
 
 ## 更新记录
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
 | 2025-12-31 | v0.1.0 | 初始草案 |
+| 2025-12-31 | v0.2.0 | 添加主流 Rust CLI 应用方案调研（Cargo, uv, ripgrep） |
