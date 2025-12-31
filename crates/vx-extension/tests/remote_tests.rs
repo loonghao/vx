@@ -19,6 +19,7 @@ fn test_parse_github_shorthand(
             owner,
             repo,
             version,
+            ..
         } => {
             assert_eq!(owner, expected_owner);
             assert_eq!(repo, expected_repo);
@@ -44,6 +45,7 @@ fn test_parse_github_https_url(
             owner,
             repo,
             version,
+            ..
         } => {
             assert_eq!(owner, expected_owner);
             assert_eq!(repo, expected_repo);
@@ -68,6 +70,7 @@ fn test_parse_github_ssh_url(
             owner,
             repo,
             version,
+            ..
         } => {
             assert_eq!(owner, expected_owner);
             assert_eq!(repo, expected_repo);
@@ -92,6 +95,7 @@ fn test_clone_url_github() {
         owner: "user".to_string(),
         repo: "repo".to_string(),
         version: None,
+        subdir: None,
     };
     assert_eq!(source.clone_url(), "https://github.com/user/repo.git");
 }
@@ -111,6 +115,7 @@ fn test_version() {
         owner: "user".to_string(),
         repo: "repo".to_string(),
         version: Some("v1.0.0".to_string()),
+        subdir: None,
     };
     assert_eq!(source.version(), Some("v1.0.0"));
 
@@ -118,6 +123,7 @@ fn test_version() {
         owner: "user".to_string(),
         repo: "repo".to_string(),
         version: None,
+        subdir: None,
     };
     assert_eq!(source_no_version.version(), None);
 }
@@ -128,6 +134,7 @@ fn test_display_name() {
         owner: "user".to_string(),
         repo: "repo".to_string(),
         version: None,
+        subdir: None,
     };
     assert_eq!(source.display_name(), "user/repo");
 
