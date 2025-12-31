@@ -2,6 +2,9 @@
 
 use crate::ui::{ProgressSpinner, UI};
 use anyhow::Result;
+use std::env;
+use vx_paths::project::{find_vx_config, LOCK_FILE_NAME};
+use vx_resolver::{LockFile, LockedTool};
 use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 pub async fn handle(
@@ -71,6 +74,14 @@ pub async fn handle(
             // Show installation path
             UI::detail(&format!("Installed to: {}", result.install_path.display()));
 
+            // Update lock file if it exists
+            update_lockfile_if_exists(
+                tool_name,
+                &target_version,
+                requested_version,
+                runtime.ecosystem(),
+            );
+
             // Show usage hint
             UI::hint(&format!(
                 "Use 'vx {} --version' to verify installation",
@@ -87,4 +98,68 @@ pub async fn handle(
     }
 
     Ok(())
+}
+
+/// Update lock file if it exists in the current project
+fn update_lockfile_if_exists(
+    tool_name: &str,
+    version: &str,
+    resolved_from: &str,
+    ecosystem: vx_runtime::Ecosystem,
+) {
+    // Try to find project root with vx.toml
+    let current_dir = match env::current_dir() {
+        Ok(d) => d,
+        Err(_) => return,
+    };
+
+    let config_path = match find_vx_config(&current_dir) {
+        Ok(p) => p,
+        Err(_) => return, // No project config, skip lock file update
+    };
+
+    let project_root = match config_path.parent() {
+        Some(p) => p,
+        None => return,
+    };
+
+    let lock_path = project_root.join(LOCK_FILE_NAME);
+
+    // Only update if lock file already exists
+    if !lock_path.exists() {
+        return;
+    }
+
+    // Load existing lock file
+    let mut lockfile = match LockFile::load(&lock_path) {
+        Ok(lf) => lf,
+        Err(_) => return,
+    };
+
+    // Convert ecosystem
+    let resolver_ecosystem = match ecosystem {
+        vx_runtime::Ecosystem::NodeJs => vx_resolver::Ecosystem::Node,
+        vx_runtime::Ecosystem::Python => vx_resolver::Ecosystem::Python,
+        vx_runtime::Ecosystem::Rust => vx_resolver::Ecosystem::Rust,
+        vx_runtime::Ecosystem::Go => vx_resolver::Ecosystem::Go,
+        _ => vx_resolver::Ecosystem::Generic,
+    };
+
+    // Create locked tool entry
+    let locked_tool = LockedTool::new(version, "vx install")
+        .with_resolved_from(resolved_from)
+        .with_ecosystem(resolver_ecosystem);
+
+    // Update lock file
+    lockfile.lock_tool(tool_name, locked_tool);
+
+    // Save lock file
+    if let Err(e) = lockfile.save(&lock_path) {
+        UI::warn(&format!("Failed to update {}: {}", LOCK_FILE_NAME, e));
+    } else {
+        UI::detail(&format!(
+            "Updated {} with {} = {}",
+            LOCK_FILE_NAME, tool_name, version
+        ));
+    }
 }
