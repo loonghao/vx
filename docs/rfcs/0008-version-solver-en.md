@@ -355,17 +355,70 @@ resolved_from = "3.11"
 
 **Problem**: How to handle old lock file versions when `vx.lock` format is upgraded?
 
-**Proposed Solution**:
+**Existing Foundation**: The project already has `vx-migration` crate with a complete migration framework:
+- Plugin-based design: Add migrations by implementing the `Migration` trait
+- Lifecycle hooks: Support for pre/post migration hooks
+- Dependency management: Define dependencies between migrations
+- Dry-run mode: Preview changes without executing
+- Rollback support: Reversible migrations can be rolled back
+
+**Proposed Solution**: Reuse `vx-migration` framework for lock file migrations:
+
+```rust
+// crates/vx-migration/src/migrations/lockfile_v1_to_v2.rs
+use vx_migration::prelude::*;
+
+pub struct LockFileV1ToV2Migration;
+
+#[async_trait]
+impl Migration for LockFileV1ToV2Migration {
+    fn metadata(&self) -> MigrationMetadata {
+        MigrationMetadata::new("lockfile-v1-to-v2", "Migrate vx.lock from v1 to v2 format")
+            .with_category(MigrationCategory::Config)
+            .with_source_version(VersionRange::exact(Version::new(1, 0, 0)))
+            .with_target_version(Version::new(2, 0, 0))
+    }
+
+    async fn migrate(&self, ctx: &mut MigrationContext) -> MigrationResult<MigrationStepResult> {
+        let lock_path = ctx.root_path().join("vx.lock");
+        if !lock_path.exists() {
+            return Ok(MigrationStepResult::skipped("No vx.lock found"));
+        }
+
+        let content = std::fs::read_to_string(&lock_path)?;
+        let migrated = migrate_lockfile_content(&content)?;
+
+        if ctx.options().dry_run {
+            return Ok(MigrationStepResult::would_change(vec![
+                Change::modified("vx.lock", "Upgrade to v2 format")
+            ]));
+        }
+
+        std::fs::write(&lock_path, migrated)?;
+        Ok(MigrationStepResult::success(vec![
+            Change::modified("vx.lock", "Upgraded to v2 format")
+        ]))
+    }
+}
+```
+
+**Integration into LockFile**:
 ```rust
 impl LockFile {
-    /// Migrate old lock file versions to current version
-    pub fn migrate(content: &str) -> Result<Self> {
-        let version = detect_version(content)?;
-        match version {
-            1 => migrate_v1_to_v2(content),
-            2 => Self::parse(content),
-            _ => Err(LockFileError::UnsupportedVersion(version)),
+    /// Load and auto-migrate old lock file versions
+    pub fn load_with_migration(path: impl AsRef<Path>) -> Result<Self, LockFileError> {
+        let content = std::fs::read_to_string(path.as_ref())?;
+        let version = detect_lockfile_version(&content)?;
+
+        if version < LOCK_FILE_VERSION {
+            // Use vx-migration framework for migration
+            let engine = create_lockfile_migration_engine();
+            engine.migrate(path.as_ref().parent().unwrap(), &MigrationOptions::default())?;
+            // Reload migrated file
+            return Self::load(path);
         }
+
+        Self::parse(&content)
     }
 }
 ```
@@ -374,20 +427,102 @@ impl LockFile {
 
 **Problem**: When tools have dependencies (e.g., `npm` depends on `node`), current implementation doesn't guarantee install order.
 
-**Scenario**:
-```toml
-[tools]
-npm = "latest"    # requires node
-node = "20"
+**Existing Foundation**: `RuntimeMap` in `vx-resolver` already implements dependency topological sorting:
+
+```rust
+// crates/vx-resolver/src/runtime_map.rs
+impl RuntimeMap {
+    /// Get the installation order for a runtime and its dependencies
+    /// Returns a topologically sorted list with dependencies first
+    pub fn get_install_order<'a>(&'a self, runtime_name: &'a str) -> Vec<&'a str>;
+}
 ```
 
-**Proposed Solution**:
+**Issue**: This method is not used in `vx sync`.
+
+**Proposed Solution**: Integrate dependency order resolution in `vx sync` and `vx install`:
+
 ```rust
-/// Topological sort dependency graph to ensure dependencies are installed first
-pub fn resolve_install_order(
-    tools: &HashMap<String, LockedTool>,
-    dependencies: &HashMap<String, Vec<String>>,
-) -> Vec<String>;
+// crates/vx-cli/src/commands/sync.rs
+use vx_resolver::RuntimeMap;
+
+pub async fn handle(...) -> Result<()> {
+    let runtime_map = RuntimeMap::new();
+
+    // 1. Collect all tools to install
+    let tools_to_install: Vec<&str> = effective_tools.keys().map(|s| s.as_str()).collect();
+
+    // 2. Resolve installation order (topological sort)
+    let install_order = resolve_install_order(&runtime_map, &tools_to_install);
+
+    // 3. Install in order
+    for tool_name in install_order {
+        if let Some(version) = effective_tools.get(tool_name) {
+            install_tool(tool_name, version).await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Resolve installation order for multiple tools
+fn resolve_install_order<'a>(
+    runtime_map: &'a RuntimeMap,
+    tools: &[&'a str],
+) -> Vec<&'a str> {
+    let mut all_deps = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for tool in tools {
+        for dep in runtime_map.get_install_order(tool) {
+            if !seen.contains(dep) {
+                seen.insert(dep);
+                all_deps.push(dep);
+            }
+        }
+    }
+
+    all_deps
+}
+```
+
+**Dependencies in Lock File**: Current `vx.lock` already supports `[dependencies]` section:
+
+```toml
+[dependencies]
+npm = ["node"]
+npx = ["node"]
+uvx = ["uv"]
+```
+
+**Enhancement**: Use `dependencies` info from lock file to determine install order:
+
+```rust
+// Get install order from lock file
+fn get_install_order_from_lockfile(lockfile: &LockFile) -> Vec<String> {
+    let mut graph = petgraph::graphmap::DiGraphMap::new();
+
+    // Build dependency graph
+    for (tool, deps) in &lockfile.dependencies {
+        for dep in deps {
+            graph.add_edge(dep.as_str(), tool.as_str(), ());
+        }
+    }
+
+    // Add tools without dependencies
+    for tool in lockfile.tool_names() {
+        if !graph.contains_node(tool) {
+            graph.add_node(tool);
+        }
+    }
+
+    // Topological sort
+    petgraph::algo::toposort(&graph, None)
+        .unwrap_or_else(|_| lockfile.tool_names())
+        .into_iter()
+        .map(String::from)
+        .collect()
+}
 ```
 
 ### 5. Offline Mode Support
@@ -510,3 +645,4 @@ vx audit
 | 2025-12-31 | v0.2.0 | Phase 2 lock file mechanism implemented |
 | 2025-12-31 | v0.3.0 | Phase 2/3 completed: vx sync lock file integration, automatic lock file updates, Provider integration |
 | 2025-12-31 | v0.4.0 | Added design limitations analysis and future improvements |
+| 2025-12-31 | v0.5.0 | Integrated vx-migration framework and RuntimeMap dependency ordering |
