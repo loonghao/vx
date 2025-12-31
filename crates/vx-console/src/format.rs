@@ -3,6 +3,8 @@
 //! This module provides different output modes (Standard, JSON, CI)
 //! for different use cases.
 
+use crate::shell::Verbosity;
+use crate::term::CiEnvironment;
 use serde::{Deserialize, Serialize};
 
 /// Output mode for the console.
@@ -35,6 +37,50 @@ impl OutputMode {
     /// Check if this mode should show debug messages.
     pub fn show_debug(&self) -> bool {
         matches!(self, OutputMode::Verbose)
+    }
+
+    /// Convert to Verbosity.
+    pub fn to_verbosity(&self) -> Verbosity {
+        match self {
+            OutputMode::Quiet => Verbosity::Quiet,
+            OutputMode::Verbose => Verbosity::Verbose,
+            _ => Verbosity::Normal,
+        }
+    }
+
+    /// Detect the best output mode based on environment.
+    pub fn detect() -> Self {
+        // Check for JSON mode
+        if std::env::var("VX_OUTPUT_JSON").is_ok() {
+            return OutputMode::Json;
+        }
+
+        // Check for quiet mode
+        if std::env::var("VX_QUIET").is_ok() {
+            return OutputMode::Quiet;
+        }
+
+        // Check for verbose mode
+        if std::env::var("VX_VERBOSE").is_ok() {
+            return OutputMode::Verbose;
+        }
+
+        // Check for CI environment
+        if CiEnvironment::detect().is_some() {
+            return OutputMode::Ci;
+        }
+
+        OutputMode::Standard
+    }
+}
+
+impl From<Verbosity> for OutputMode {
+    fn from(v: Verbosity) -> Self {
+        match v {
+            Verbosity::Quiet => OutputMode::Quiet,
+            Verbosity::Normal => OutputMode::Standard,
+            Verbosity::Verbose => OutputMode::Verbose,
+        }
     }
 }
 
@@ -120,6 +166,8 @@ fn chrono_now() -> String {
 pub struct CiOutput;
 
 impl CiOutput {
+    // ========== GitHub Actions ==========
+
     /// Format a GitHub Actions group start.
     pub fn github_group_start(name: &str) -> String {
         format!("::group::{}", name)
@@ -164,14 +212,107 @@ impl CiOutput {
         format!("::debug::{}", message)
     }
 
-    /// Set a GitHub Actions output variable.
+    /// Set a GitHub Actions output variable (new format using GITHUB_OUTPUT).
     pub fn github_set_output(name: &str, value: &str) -> String {
-        format!("::set-output name={}::{}", name, value)
+        format!("{}={}", name, value)
     }
 
     /// Mask a value in GitHub Actions logs.
     pub fn github_mask(value: &str) -> String {
         format!("::add-mask::{}", value)
+    }
+
+    // ========== GitLab CI ==========
+
+    /// Format a GitLab CI collapsible section start.
+    pub fn gitlab_section_start(name: &str, header: &str) -> String {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        format!(
+            "\x1b[0Ksection_start:{}:{}[collapsed=true]\r\x1b[0K{}",
+            timestamp, name, header
+        )
+    }
+
+    /// Format a GitLab CI collapsible section end.
+    pub fn gitlab_section_end(name: &str) -> String {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        format!("\x1b[0Ksection_end:{}:{}\r\x1b[0K", timestamp, name)
+    }
+
+    // ========== Azure Pipelines ==========
+
+    /// Format an Azure Pipelines task command.
+    pub fn azure_task(command: &str, properties: &[(&str, &str)], message: &str) -> String {
+        let props = if properties.is_empty() {
+            String::new()
+        } else {
+            let prop_str: Vec<String> = properties
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect();
+            format!(" {}", prop_str.join(";"))
+        };
+        format!("##vso[task.{}{}]{}", command, props, message)
+    }
+
+    /// Format an Azure Pipelines error.
+    pub fn azure_error(message: &str, file: Option<&str>, line: Option<u32>) -> String {
+        match (file, line) {
+            (Some(f), Some(l)) => {
+                format!(
+                    "##vso[task.logissue type=error;sourcepath={};linenumber={}]{}",
+                    f, l, message
+                )
+            }
+            (Some(f), None) => {
+                format!(
+                    "##vso[task.logissue type=error;sourcepath={}]{}",
+                    f, message
+                )
+            }
+            _ => Self::azure_task("logissue", &[("type", "error")], message),
+        }
+    }
+
+    /// Format an Azure Pipelines warning.
+    pub fn azure_warning(message: &str) -> String {
+        Self::azure_task("logissue", &[("type", "warning")], message)
+    }
+
+    /// Format an Azure Pipelines group start.
+    pub fn azure_group_start(name: &str) -> String {
+        format!("##[group]{}", name)
+    }
+
+    /// Format an Azure Pipelines group end.
+    pub fn azure_group_end() -> String {
+        "##[endgroup]".to_string()
+    }
+
+    // ========== Generic CI ==========
+
+    /// Format output for any CI environment.
+    pub fn format_for_ci(ci: CiEnvironment, level: &str, message: &str) -> String {
+        match ci {
+            CiEnvironment::GitHubActions => match level {
+                "error" => Self::github_error(message, None, None),
+                "warning" | "warn" => Self::github_warning(message, None, None),
+                "debug" => Self::github_debug(message),
+                _ => message.to_string(),
+            },
+            CiEnvironment::AzurePipelines => match level {
+                "error" => Self::azure_error(message, None, None),
+                "warning" | "warn" => Self::azure_warning(message),
+                _ => message.to_string(),
+            },
+            _ => message.to_string(),
+        }
     }
 }
 
