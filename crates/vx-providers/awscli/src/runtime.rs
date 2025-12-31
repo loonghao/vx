@@ -100,9 +100,9 @@ impl Runtime for AwsCliRuntime {
         use vx_runtime::Os;
 
         match &platform.os {
-            // Linux: after running ./aws/install script, executable is in aws-cli/
-            Os::Linux => "aws-cli/aws".to_string(),
-            // macOS: after running ./aws/install script, executable is in aws-cli/
+            // Linux: executable is in aws/dist/ after extraction
+            Os::Linux => "aws/dist/aws".to_string(),
+            // macOS: executable is in aws-cli/ after extraction
             Os::MacOS => "aws-cli/aws".to_string(),
             // Windows: after MSI installation, check multiple possible locations
             // AWS CLI MSI may install to Program Files/Amazon/AWSCLIV2 or custom TARGETDIR
