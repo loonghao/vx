@@ -12,6 +12,7 @@ members = [
   "crates/vx-extension",
   "crates/vx-args",
   "crates/vx-project-analyzer",
+  "crates/vx-console",
   "crates/vx-cli",
   # Providers
   "crates/vx-providers/node",
@@ -166,6 +167,7 @@ vx-provider-ollama = { path = "crates/vx-providers/ollama" }
 vx-provider-spack = { path = "crates/vx-providers/spack" }
 vx-provider-release-please = { path = "crates/vx-providers/release-please" }
 vx-provider-python = { path = "crates/vx-providers/python" }
+vx-console = { path = "crates/vx-console" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }
