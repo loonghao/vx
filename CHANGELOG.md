@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.8](https://github.com/loonghao/vx/compare/vx-v0.6.7...vx-v0.6.8) (2025-12-31)
+
+
+### Features
+
+* **vx-console:** implement P0-P2 features ([7b27925](https://github.com/loonghao/vx/commit/7b2792583da235bc6d1f83b50144f8f40176f6e1))
+
+
+### Bug Fixes
+
+* **release:** fix version extraction and rate limit handling ([05c281a](https://github.com/loonghao/vx/commit/05c281a2127737a816b5094aa9115dc16e7a58cf))
+* **vx-console:** add libc dependency for unix platform ([72e9a47](https://github.com/loonghao/vx/commit/72e9a472fba1a400c1cb52458950e2676bce8e0b))
+
 ## [0.6.7](https://github.com/loonghao/vx/compare/vx-v0.6.6...vx-v0.6.7) (2025-12-31)
 
 
