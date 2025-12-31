@@ -464,6 +464,190 @@ git commit -m "chore: add vx.lock for reproducible builds"
 - [x] 通配符 (`*`) - 已在 Phase 1 完成
 - [ ] 约束冲突检测
 
+## 当前设计的潜在缺陷与改进方向
+
+### 1. 锁文件完整性验证缺失
+
+**问题**: 当前锁文件虽然支持 `checksum` 字段，但实际上并未在下载/安装时验证。
+
+**风险**:
+- 供应链攻击：恶意替换下载源的二进制文件
+- 下载损坏：网络问题导致的不完整文件
+
+**改进方案**:
+```rust
+// Phase 5: 完整性验证
+pub struct IntegrityVerifier {
+    /// 验证下载的文件与锁文件中的 checksum 匹配
+    pub async fn verify(&self, path: &Path, expected: &str) -> Result<bool>;
+
+    /// 计算文件的 SHA256 checksum
+    pub fn compute_checksum(&self, path: &Path) -> Result<String>;
+}
+```
+
+### 2. 跨平台锁文件兼容性
+
+**问题**: 当前锁文件记录了 `platform` 信息，但不同平台的版本可能不同。
+
+**场景**:
+- Windows 开发者生成的 `vx.lock`
+- Linux CI 环境使用时，某些工具可能没有对应版本
+
+**改进方案**:
+```toml
+# vx.lock 多平台支持
+[tools.python]
+version = "3.11.11"
+resolved_from = "3.11"
+
+[tools.python.platforms]
+"x86_64-pc-windows-msvc" = { checksum = "sha256:abc..." }
+"x86_64-unknown-linux-gnu" = { checksum = "sha256:def..." }
+"aarch64-apple-darwin" = { checksum = "sha256:ghi..." }
+```
+
+### 3. 锁文件版本迁移
+
+**问题**: 当 `vx.lock` 格式升级时，如何处理旧版本锁文件？
+
+**改进方案**:
+```rust
+impl LockFile {
+    /// 迁移旧版本锁文件到当前版本
+    pub fn migrate(content: &str) -> Result<Self> {
+        let version = detect_version(content)?;
+        match version {
+            1 => migrate_v1_to_v2(content),
+            2 => Self::parse(content),
+            _ => Err(LockFileError::UnsupportedVersion(version)),
+        }
+    }
+}
+```
+
+### 4. 依赖解析顺序
+
+**问题**: 当工具有依赖关系时（如 `npm` 依赖 `node`），当前实现不保证安装顺序。
+
+**场景**:
+```toml
+[tools]
+npm = "latest"    # 需要 node
+node = "20"
+```
+
+**改进方案**:
+```rust
+/// 拓扑排序依赖图，确保依赖先安装
+pub fn resolve_install_order(
+    tools: &HashMap<String, LockedTool>,
+    dependencies: &HashMap<String, Vec<String>>,
+) -> Vec<String>;
+```
+
+### 5. 离线模式支持
+
+**问题**: 当前设计假设网络可用，无法在离线环境使用。
+
+**改进方案**:
+```rust
+pub struct OfflineCache {
+    /// 预下载所有工具到本地缓存
+    pub async fn prefetch(&self, lockfile: &LockFile) -> Result<()>;
+
+    /// 从缓存安装，不访问网络
+    pub async fn install_from_cache(&self, tool: &str) -> Result<()>;
+}
+```
+
+### 6. 锁文件冲突解决
+
+**问题**: 多人协作时，`vx.lock` 可能产生合并冲突。
+
+**改进方案**:
+```bash
+# 新增命令：智能合并锁文件
+vx lock --merge base.lock ours.lock theirs.lock
+
+# 或者：重新解析所有版本
+vx lock --force
+```
+
+### 7. 版本范围的安全更新
+
+**问题**: 当使用范围约束（如 `>=3.9,<3.12`）时，如何处理安全更新？
+
+**场景**:
+- 锁定 `python = 3.11.10`
+- 发布 `3.11.11` 修复安全漏洞
+- 用户需要手动运行 `vx lock --update python`
+
+**改进方案**:
+```bash
+# 新增命令：只更新 patch 版本（安全更新）
+vx lock --update-patch
+
+# 或者：检查可用的安全更新
+vx outdated --security
+```
+
+### 8. 工具别名和虚拟工具
+
+**问题**: 某些工具有多个名称（如 `python3` → `python`），当前不支持别名。
+
+**改进方案**:
+```toml
+# vx.toml
+[tools]
+python = "3.11"
+
+[aliases]
+python3 = "python"
+py = "python"
+```
+
+### 9. 环境变量覆盖
+
+**问题**: CI/CD 中可能需要临时覆盖锁文件中的版本。
+
+**改进方案**:
+```bash
+# 环境变量覆盖
+VX_PYTHON_VERSION=3.12 vx sync
+
+# 或者命令行参数
+vx sync --override python=3.12
+```
+
+### 10. 审计和安全扫描
+
+**问题**: 无法检查锁定的版本是否存在已知漏洞。
+
+**改进方案**:
+```bash
+# 新增命令：安全审计
+vx audit
+
+# 输出
+⚠ python 3.11.10 has known vulnerabilities:
+  - CVE-2024-XXXX (High): ...
+  Recommendation: Update to 3.11.11+
+```
+
+## 实现优先级建议
+
+| 优先级 | 改进项 | 原因 |
+|--------|--------|------|
+| P0 | 完整性验证 | 安全关键 |
+| P1 | 依赖解析顺序 | 影响正确性 |
+| P1 | 跨平台锁文件 | 团队协作必需 |
+| P2 | 离线模式 | CI/CD 场景常见 |
+| P2 | 安全更新 | 安全关键 |
+| P3 | 锁文件迁移 | 长期维护 |
+| P3 | 别名支持 | 用户体验 |
+| P4 | 审计功能 | 企业需求 |
+
 ## 参考资料
 
 - [rez solver API](https://rez.readthedocs.io/en/3.2.0/api/rez.solver.html)
@@ -481,3 +665,4 @@ git commit -m "chore: add vx.lock for reproducible builds"
 | 2025-12-30 | v0.1.0 | Phase 1 核心版本解析实现完成 |
 | 2025-12-31 | v0.2.0 | Phase 2 锁文件机制实现完成 |
 | 2025-12-31 | v0.3.0 | Phase 2/3 完成: vx sync 集成锁文件、锁文件自动更新、Provider 集成 |
+| 2025-12-31 | v0.4.0 | 添加设计缺陷分析和改进方向 |
