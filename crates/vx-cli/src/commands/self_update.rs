@@ -560,11 +560,10 @@ async fn download_and_install(
             ));
         }
         Err(e) => {
-            let error_str = e.to_string();
-
             // On Windows, try alternative replacement methods
             #[cfg(target_os = "windows")]
             {
+                let error_str = e.to_string();
                 if error_str.contains("os error 5") || error_str.contains("Access is denied") {
                     UI::warn("⚠️ Standard replacement failed, trying alternative method...");
 
