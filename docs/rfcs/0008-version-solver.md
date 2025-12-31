@@ -511,17 +511,70 @@ resolved_from = "3.11"
 
 **问题**: 当 `vx.lock` 格式升级时，如何处理旧版本锁文件？
 
-**改进方案**:
+**现有基础**: 项目已有 `vx-migration` crate，提供完整的迁移框架：
+- 插件化设计：通过实现 `Migration` trait 添加迁移
+- 生命周期钩子：支持 pre/post migration hooks
+- 依赖管理：迁移之间可定义依赖关系
+- Dry-run 模式：预览变更
+- 回滚支持：可逆迁移支持回滚
+
+**改进方案**: 复用 `vx-migration` 框架，为锁文件添加迁移支持：
+
+```rust
+// crates/vx-migration/src/migrations/lockfile_v1_to_v2.rs
+use vx_migration::prelude::*;
+
+pub struct LockFileV1ToV2Migration;
+
+#[async_trait]
+impl Migration for LockFileV1ToV2Migration {
+    fn metadata(&self) -> MigrationMetadata {
+        MigrationMetadata::new("lockfile-v1-to-v2", "Migrate vx.lock from v1 to v2 format")
+            .with_category(MigrationCategory::Config)
+            .with_source_version(VersionRange::exact(Version::new(1, 0, 0)))
+            .with_target_version(Version::new(2, 0, 0))
+    }
+
+    async fn migrate(&self, ctx: &mut MigrationContext) -> MigrationResult<MigrationStepResult> {
+        let lock_path = ctx.root_path().join("vx.lock");
+        if !lock_path.exists() {
+            return Ok(MigrationStepResult::skipped("No vx.lock found"));
+        }
+
+        let content = std::fs::read_to_string(&lock_path)?;
+        let migrated = migrate_lockfile_content(&content)?;
+
+        if ctx.options().dry_run {
+            return Ok(MigrationStepResult::would_change(vec![
+                Change::modified("vx.lock", "Upgrade to v2 format")
+            ]));
+        }
+
+        std::fs::write(&lock_path, migrated)?;
+        Ok(MigrationStepResult::success(vec![
+            Change::modified("vx.lock", "Upgraded to v2 format")
+        ]))
+    }
+}
+```
+
+**集成到 LockFile**:
 ```rust
 impl LockFile {
-    /// 迁移旧版本锁文件到当前版本
-    pub fn migrate(content: &str) -> Result<Self> {
-        let version = detect_version(content)?;
-        match version {
-            1 => migrate_v1_to_v2(content),
-            2 => Self::parse(content),
-            _ => Err(LockFileError::UnsupportedVersion(version)),
+    /// 加载并自动迁移旧版本锁文件
+    pub fn load_with_migration(path: impl AsRef<Path>) -> Result<Self, LockFileError> {
+        let content = std::fs::read_to_string(path.as_ref())?;
+        let version = detect_lockfile_version(&content)?;
+
+        if version < LOCK_FILE_VERSION {
+            // 使用 vx-migration 框架进行迁移
+            let engine = create_lockfile_migration_engine();
+            engine.migrate(path.as_ref().parent().unwrap(), &MigrationOptions::default())?;
+            // 重新加载迁移后的文件
+            return Self::load(path);
         }
+
+        Self::parse(&content)
     }
 }
 ```
@@ -530,20 +583,102 @@ impl LockFile {
 
 **问题**: 当工具有依赖关系时（如 `npm` 依赖 `node`），当前实现不保证安装顺序。
 
-**场景**:
-```toml
-[tools]
-npm = "latest"    # 需要 node
-node = "20"
+**现有基础**: `vx-resolver` 中的 `RuntimeMap` 已实现依赖拓扑排序：
+
+```rust
+// crates/vx-resolver/src/runtime_map.rs
+impl RuntimeMap {
+    /// 获取运行时及其依赖的安装顺序
+    /// 返回拓扑排序后的列表，依赖在前，被依赖者在后
+    pub fn get_install_order<'a>(&'a self, runtime_name: &'a str) -> Vec<&'a str>;
+}
 ```
 
-**改进方案**:
+**问题**: 此方法未在 `vx sync` 中使用。
+
+**改进方案**: 在 `vx sync` 和 `vx install` 中集成依赖顺序解析：
+
 ```rust
-/// 拓扑排序依赖图，确保依赖先安装
-pub fn resolve_install_order(
-    tools: &HashMap<String, LockedTool>,
-    dependencies: &HashMap<String, Vec<String>>,
-) -> Vec<String>;
+// crates/vx-cli/src/commands/sync.rs
+use vx_resolver::RuntimeMap;
+
+pub async fn handle(...) -> Result<()> {
+    let runtime_map = RuntimeMap::new();
+
+    // 1. 收集所有需要安装的工具
+    let tools_to_install: Vec<&str> = effective_tools.keys().map(|s| s.as_str()).collect();
+
+    // 2. 解析安装顺序（拓扑排序）
+    let install_order = resolve_install_order(&runtime_map, &tools_to_install);
+
+    // 3. 按顺序安装
+    for tool_name in install_order {
+        if let Some(version) = effective_tools.get(tool_name) {
+            install_tool(tool_name, version).await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// 解析多个工具的安装顺序
+fn resolve_install_order<'a>(
+    runtime_map: &'a RuntimeMap,
+    tools: &[&'a str],
+) -> Vec<&'a str> {
+    let mut all_deps = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for tool in tools {
+        for dep in runtime_map.get_install_order(tool) {
+            if !seen.contains(dep) {
+                seen.insert(dep);
+                all_deps.push(dep);
+            }
+        }
+    }
+
+    all_deps
+}
+```
+
+**锁文件中的依赖关系**: 当前 `vx.lock` 已支持 `[dependencies]` 段：
+
+```toml
+[dependencies]
+npm = ["node"]
+npx = ["node"]
+uvx = ["uv"]
+```
+
+**改进**: 在 `vx sync` 读取锁文件时，使用 `dependencies` 信息确定安装顺序：
+
+```rust
+// 从锁文件获取依赖顺序
+fn get_install_order_from_lockfile(lockfile: &LockFile) -> Vec<String> {
+    let mut graph = petgraph::graphmap::DiGraphMap::new();
+
+    // 构建依赖图
+    for (tool, deps) in &lockfile.dependencies {
+        for dep in deps {
+            graph.add_edge(dep.as_str(), tool.as_str(), ());
+        }
+    }
+
+    // 添加没有依赖的工具
+    for tool in lockfile.tool_names() {
+        if !graph.contains_node(tool) {
+            graph.add_node(tool);
+        }
+    }
+
+    // 拓扑排序
+    petgraph::algo::toposort(&graph, None)
+        .unwrap_or_else(|_| lockfile.tool_names())
+        .into_iter()
+        .map(String::from)
+        .collect()
+}
 ```
 
 ### 5. 离线模式支持
@@ -666,3 +801,4 @@ vx audit
 | 2025-12-31 | v0.2.0 | Phase 2 锁文件机制实现完成 |
 | 2025-12-31 | v0.3.0 | Phase 2/3 完成: vx sync 集成锁文件、锁文件自动更新、Provider 集成 |
 | 2025-12-31 | v0.4.0 | 添加设计缺陷分析和改进方向 |
+| 2025-12-31 | v0.5.0 | 整合 vx-migration 框架和 RuntimeMap 依赖排序 |
