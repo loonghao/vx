@@ -107,12 +107,12 @@ cargo doc --all-features --no-deps
 ```
 vx/
 ├── crates/
-�?  ├── vx-cli/         # CLI application
-�?  ├── vx-core/        # Core types and traits
-�?  ├── vx-paths/       # Path management
-�?  ├── vx-resolver/    # Version resolution
-�?  ├── vx-runtime/     # Runtime management
-�?  └── vx-providers/   # Tool providers
+│   ├── vx-cli/         # CLI application
+│   ├── vx-core/        # Core types and traits
+│   ├── vx-paths/       # Path management
+│   ├── vx-resolver/    # Version resolution
+│   ├── vx-runtime/     # Runtime management
+│   └── vx-providers/   # Tool providers
 ├── book/               # Documentation (mdBook)
 ├── tests/              # Integration tests
 └── examples/           # Example configurations
@@ -147,6 +147,61 @@ refactor: simplify version resolution
 3. Add tests for new features
 4. Request review
 5. Address feedback
+
+## CI Pipeline
+
+The CI pipeline is optimized with **crate-level change detection** to minimize build times:
+
+### How It Works
+
+1. **Change Detection**: The CI automatically detects which crates have changed
+2. **Dependency Analysis**: It understands the dependency graph between crates
+3. **Targeted Testing**: Only affected crates are tested
+
+### Crate Dependency Layers
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      vx-cli (Application)                    │
+├─────────────────────────────────────────────────────────────┤
+│  vx-resolver │ vx-extension │ vx-project-analyzer │ ...     │
+├─────────────────────────────────────────────────────────────┤
+│                    vx-runtime (Infrastructure)               │
+├─────────────────────────────────────────────────────────────┤
+│              vx-core │ vx-paths (Foundation)                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Impact Rules
+
+| Changed Crate | Affected Crates |
+|--------------|-----------------|
+| `vx-core` | All crates that depend on it (runtime, resolver, extension, etc.) |
+| `vx-paths` | runtime, resolver, env, setup, migration, args, extension, cli |
+| `vx-runtime` | resolver, extension, cli, all providers |
+| `vx-config` | project-analyzer, cli |
+| Provider crates | Only the changed provider and cli |
+| `vx-cli` | Only cli itself |
+
+### CI Jobs
+
+| Job | Condition | Description |
+|-----|-----------|-------------|
+| `test-targeted` | Specific crates changed | Tests only affected crates |
+| `test-full` | Core crates changed or CI config changed | Full workspace test |
+| `code-quality` | Any Rust code changed | Format and Clippy checks |
+| `dogfood` | Any Rust code changed | Integration tests with real tools |
+| `cross-build` | Main branch only | Cross-compilation for ARM/musl |
+| `coverage` | Main branch only | Code coverage report |
+
+### Force Full CI
+
+To run all tests regardless of changes:
+
+1. Go to Actions tab
+2. Select "CI" workflow
+3. Click "Run workflow"
+4. Check "Force full CI run"
 
 ## Reporting Issues
 
