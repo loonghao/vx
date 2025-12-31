@@ -1,9 +1,9 @@
 name: CI
 
-# Unified CI workflow with path-based conditional execution
-# - Detects changes and runs only necessary jobs
-# - Supports both push to main/develop and pull requests
-# - Uses vx itself to manage the development environment (dogfooding)
+# Optimized CI workflow with crate-level change detection
+# - Detects changes at crate granularity
+# - Only builds and tests affected crates
+# - Respects dependency relationships between crates
 
 on:
   push:
@@ -34,20 +34,45 @@ env:
 
 jobs:
   # ============================================================================
-  # Stage 0: Detect changes to determine which jobs to run
+  # Stage 0: Detect changes at crate level
   # ============================================================================
   detect-changes:
     name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
+      # High-level flags
       rust: ${{ steps.filter.outputs.rust }}
       docs: ${{ steps.filter.outputs.docs }}
       ci: ${{ steps.filter.outputs.ci }}
       scripts: ${{ steps.filter.outputs.scripts }}
+
+      # Crate-level changes
+      core: ${{ steps.filter.outputs.core }}
+      paths: ${{ steps.filter.outputs.paths }}
+      runtime: ${{ steps.filter.outputs.runtime }}
+      resolver: ${{ steps.filter.outputs.resolver }}
+      installer: ${{ steps.filter.outputs.installer }}
+      config: ${{ steps.filter.outputs.config }}
+      env: ${{ steps.filter.outputs.env }}
+      setup: ${{ steps.filter.outputs.setup }}
+      migration: ${{ steps.filter.outputs.migration }}
+      extension: ${{ steps.filter.outputs.extension }}
+      args: ${{ steps.filter.outputs.args }}
+      project_analyzer: ${{ steps.filter.outputs.project_analyzer }}
+      console: ${{ steps.filter.outputs.console }}
+      cli: ${{ steps.filter.outputs.cli }}
+      providers: ${{ steps.filter.outputs.providers }}
+
+      # Computed flags
       should_build: ${{ steps.decide.outputs.should_build }}
       should_test: ${{ steps.decide.outputs.should_test }}
       should_docs: ${{ steps.decide.outputs.should_docs }}
       is_main: ${{ steps.decide.outputs.is_main }}
+
+      # Affected crates list (JSON)
+      affected_crates: ${{ steps.compute-affected.outputs.affected_crates }}
+      test_packages: ${{ steps.compute-affected.outputs.test_packages }}
+
     steps:
       - uses: actions/checkout@v6
 
@@ -75,11 +100,165 @@ jobs:
               - 'install*.sh'
               - 'install*.ps1'
 
+            # Core crates (foundation layer)
+            core:
+              - 'crates/vx-core/**'
+            paths:
+              - 'crates/vx-paths/**'
+
+            # Infrastructure crates
+            runtime:
+              - 'crates/vx-runtime/**'
+            resolver:
+              - 'crates/vx-resolver/**'
+            installer:
+              - 'crates/vx-installer/**'
+            config:
+              - 'crates/vx-config/**'
+            env:
+              - 'crates/vx-env/**'
+            setup:
+              - 'crates/vx-setup/**'
+            migration:
+              - 'crates/vx-migration/**'
+            extension:
+              - 'crates/vx-extension/**'
+            args:
+              - 'crates/vx-args/**'
+            project_analyzer:
+              - 'crates/vx-project-analyzer/**'
+            console:
+              - 'crates/vx-console/**'
+
+            # Application layer
+            cli:
+              - 'crates/vx-cli/**'
+              - 'src/**'
+
+            # All providers (grouped)
+            providers:
+              - 'crates/vx-providers/**'
+
+      - name: Compute affected crates
+        id: compute-affected
+        shell: bash
+        run: |
+          # Initialize affected crates array
+          AFFECTED=()
+          TEST_PKGS=()
+
+          FORCE_FULL="${{ github.event.inputs.force_full_ci || 'false' }}"
+          CI_CHANGED="${{ steps.filter.outputs.ci }}"
+
+          # If CI config changed or force full, test everything
+          if [[ "$FORCE_FULL" == "true" || "$CI_CHANGED" == "true" ]]; then
+            echo "Full CI triggered (force=$FORCE_FULL, ci_changed=$CI_CHANGED)"
+            AFFECTED=("all")
+            TEST_PKGS=("--workspace")
+          else
+            # Core layer - affects everything that depends on it
+            if [[ "${{ steps.filter.outputs.core }}" == "true" ]]; then
+              AFFECTED+=("vx-core" "vx-runtime" "vx-resolver" "vx-extension" "vx-project-analyzer" "vx-cli" "providers")
+            fi
+
+            if [[ "${{ steps.filter.outputs.paths }}" == "true" ]]; then
+              AFFECTED+=("vx-paths" "vx-runtime" "vx-resolver" "vx-env" "vx-setup" "vx-migration" "vx-args" "vx-extension" "vx-project-analyzer" "vx-cli")
+            fi
+
+            # Infrastructure layer
+            if [[ "${{ steps.filter.outputs.runtime }}" == "true" ]]; then
+              AFFECTED+=("vx-runtime" "vx-resolver" "vx-extension" "vx-cli" "providers")
+            fi
+
+            if [[ "${{ steps.filter.outputs.resolver }}" == "true" ]]; then
+              AFFECTED+=("vx-resolver" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.installer }}" == "true" ]]; then
+              AFFECTED+=("vx-installer" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.config }}" == "true" ]]; then
+              AFFECTED+=("vx-config" "vx-project-analyzer" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.env }}" == "true" ]]; then
+              AFFECTED+=("vx-env" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.setup }}" == "true" ]]; then
+              AFFECTED+=("vx-setup" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.migration }}" == "true" ]]; then
+              AFFECTED+=("vx-migration" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.extension }}" == "true" ]]; then
+              AFFECTED+=("vx-extension" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.args }}" == "true" ]]; then
+              AFFECTED+=("vx-args" "vx-extension" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.project_analyzer }}" == "true" ]]; then
+              AFFECTED+=("vx-project-analyzer" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.console }}" == "true" ]]; then
+              AFFECTED+=("vx-console" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.cli }}" == "true" ]]; then
+              AFFECTED+=("vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.providers }}" == "true" ]]; then
+              AFFECTED+=("providers" "vx-cli")
+            fi
+
+            # Remove duplicates and sort
+            if [[ ${#AFFECTED[@]} -gt 0 ]]; then
+              AFFECTED=($(printf '%s\n' "${AFFECTED[@]}" | sort -u))
+            fi
+
+            # Build test package arguments
+            for crate in "${AFFECTED[@]}"; do
+              case "$crate" in
+                "all")
+                  TEST_PKGS=("--workspace")
+                  break
+                  ;;
+                "providers")
+                  # Test all providers as a group
+                  TEST_PKGS+=("-p" "vx-provider-*")
+                  ;;
+                *)
+                  TEST_PKGS+=("-p" "$crate")
+                  ;;
+              esac
+            done
+          fi
+
+          # Convert to JSON for output
+          if [[ ${#AFFECTED[@]} -eq 0 ]]; then
+            echo "affected_crates=[]" >> $GITHUB_OUTPUT
+            echo "test_packages=" >> $GITHUB_OUTPUT
+          else
+            AFFECTED_JSON=$(printf '%s\n' "${AFFECTED[@]}" | jq -R . | jq -s -c .)
+            echo "affected_crates=$AFFECTED_JSON" >> $GITHUB_OUTPUT
+            echo "test_packages=${TEST_PKGS[*]}" >> $GITHUB_OUTPUT
+          fi
+
+          # Debug output
+          echo "Affected crates: ${AFFECTED[*]}"
+          echo "Test packages: ${TEST_PKGS[*]}"
+
       - name: Decide what to run
         id: decide
         shell: bash
         run: |
-          # Force full CI if requested or on workflow_dispatch without filters
           FORCE_FULL="${{ github.event.inputs.force_full_ci || 'false' }}"
 
           # Check if this is main branch
@@ -89,7 +268,6 @@ jobs:
           fi
           echo "is_main=$IS_MAIN" >> $GITHUB_OUTPUT
 
-          # Determine what to build/test
           RUST_CHANGED="${{ steps.filter.outputs.rust }}"
           DOCS_CHANGED="${{ steps.filter.outputs.docs }}"
           CI_CHANGED="${{ steps.filter.outputs.ci }}"
@@ -112,11 +290,41 @@ jobs:
 
           # Summary
           echo "## Change Detection Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### High-Level Changes" >> $GITHUB_STEP_SUMMARY
           echo "| Category | Changed |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| Rust Code | $RUST_CHANGED |" >> $GITHUB_STEP_SUMMARY
           echo "| Documentation | $DOCS_CHANGED |" >> $GITHUB_STEP_SUMMARY
           echo "| CI Config | $CI_CHANGED |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Crate-Level Changes" >> $GITHUB_STEP_SUMMARY
+          echo "| Crate | Changed |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-core | ${{ steps.filter.outputs.core }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-paths | ${{ steps.filter.outputs.paths }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-runtime | ${{ steps.filter.outputs.runtime }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-resolver | ${{ steps.filter.outputs.resolver }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-installer | ${{ steps.filter.outputs.installer }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-config | ${{ steps.filter.outputs.config }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-env | ${{ steps.filter.outputs.env }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-setup | ${{ steps.filter.outputs.setup }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-migration | ${{ steps.filter.outputs.migration }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-extension | ${{ steps.filter.outputs.extension }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-args | ${{ steps.filter.outputs.args }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-project-analyzer | ${{ steps.filter.outputs.project_analyzer }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-console | ${{ steps.filter.outputs.console }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-cli | ${{ steps.filter.outputs.cli }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| providers | ${{ steps.filter.outputs.providers }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Affected Crates" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.compute-affected.outputs.affected_crates }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test packages:** \`${{ steps.compute-affected.outputs.test_packages }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
           echo "**Is Main:** $IS_MAIN" >> $GITHUB_STEP_SUMMARY
@@ -242,13 +450,16 @@ jobs:
           RUSTDOCFLAGS: "-D warnings"
 
   # ============================================================================
-  # Stage 3: Tests on multiple platforms (only if rust changed)
+  # Stage 3: Targeted tests (only test affected crates)
   # ============================================================================
-  test-matrix:
-    name: Test (${{ matrix.platform.name }}) via vx
+  test-targeted:
+    name: Test (${{ matrix.platform.name }}) - Targeted
     runs-on: ${{ matrix.platform.os }}
     needs: [detect-changes, build-vx]
-    if: needs.detect-changes.outputs.should_test == 'true'
+    if: |
+      needs.detect-changes.outputs.should_test == 'true' &&
+      needs.detect-changes.outputs.test_packages != '' &&
+      !contains(needs.detect-changes.outputs.test_packages, '--workspace')
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -305,12 +516,89 @@ jobs:
           shared-key: test
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Run tests (via vx)
+      - name: Run targeted tests
+        shell: bash
+        run: |
+          echo "Testing affected crates: ${{ needs.detect-changes.outputs.affected_crates }}"
+          echo "Test packages: ${{ needs.detect-changes.outputs.test_packages }}"
+
+          # Run tests for affected packages only
+          cargo test ${{ needs.detect-changes.outputs.test_packages }}
+        env:
+          CARGO_TARGET_DIR: target
+          VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
+
+  # ============================================================================
+  # Stage 3b: Full workspace tests (when core changes or CI changes)
+  # ============================================================================
+  test-full:
+    name: Test (${{ matrix.platform.name }}) - Full
+    runs-on: ${{ matrix.platform.os }}
+    needs: [detect-changes, build-vx]
+    if: |
+      needs.detect-changes.outputs.should_test == 'true' &&
+      contains(needs.detect-changes.outputs.test_packages, '--workspace')
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Linux-x86_64
+            os: ubuntu-latest
+            artifact: vx-linux-x64
+            binary: vx
+          - name: Windows-x86_64
+            os: windows-latest
+            artifact: vx-windows-x64
+            binary: vx.exe
+          - name: macOS-x86_64
+            os: macos-latest
+            artifact: vx-macos-x64
+            binary: vx
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ matrix.platform.artifact }}
+          path: ./bin
+
+      - name: Setup vx
+        shell: bash
+        run: |
+          chmod +x ./bin/${{ matrix.platform.binary }} 2>/dev/null || true
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Verify vx works
+        shell: bash
+        run: |
+          ./bin/${{ matrix.platform.binary }} --version
+          ./bin/${{ matrix.platform.binary }} list
+
+      - name: Cache vx tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.vx
+          key: ${{ runner.os }}-vx-tools-test-${{ hashFiles('.vx.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-vx-tools-test-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: test
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Run full workspace tests (via vx)
         shell: bash
         run: vx run test
         env:
           CARGO_TARGET_DIR: target
-          # Use the pre-built vx binary for testing
           VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
 
   # ============================================================================
@@ -600,7 +888,8 @@ jobs:
       - detect-changes
       - build-vx
       - code-quality
-      - test-matrix
+      - test-targeted
+      - test-full
       - dogfood
       - cross-build
       - security-audit
@@ -638,7 +927,8 @@ jobs:
           check_job "detect-changes" "${{ needs.detect-changes.result }}"
           check_job "build-vx" "${{ needs.build-vx.result }}"
           check_job "code-quality" "${{ needs.code-quality.result }}"
-          check_job "test-matrix" "${{ needs.test-matrix.result }}"
+          check_job "test-targeted" "${{ needs.test-targeted.result }}"
+          check_job "test-full" "${{ needs.test-full.result }}"
           check_job "dogfood" "${{ needs.dogfood.result }}"
           check_job "security-audit" "${{ needs.security-audit.result }}"
 
