@@ -43,7 +43,10 @@ impl ProgressManager {
             bars.push(bar.clone());
         }
 
-        ManagedSpinner { bar }
+        ManagedSpinner {
+            bar,
+            message: message.to_string(),
+        }
     }
 
     /// Add a download progress bar.
@@ -113,9 +116,15 @@ impl ProgressManager {
 #[derive(Debug)]
 pub struct ManagedSpinner {
     bar: ProgressBar,
+    message: String,
 }
 
 impl ManagedSpinner {
+    /// Get the current message.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
     /// Set the spinner message.
     pub fn set_message(&self, message: &str) {
         self.bar.set_message(message.to_string());

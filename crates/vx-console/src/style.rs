@@ -296,6 +296,164 @@ impl Theme {
         }
     }
 
+    /// Create a Cargo-style theme.
+    pub fn cargo() -> Self {
+        Self {
+            success: Style::new().fg(Color::Green).bold(),
+            error: Style::new().fg(Color::Red).bold(),
+            warn: Style::new().fg(Color::Yellow).bold(),
+            info: Style::new().fg(Color::Cyan).bold(),
+            hint: Style::new().fg(Color::Cyan),
+            debug: Style::new().dimmed(),
+            success_prefix: "   Finished".to_string(),
+            error_prefix: "error".to_string(),
+            warn_prefix: "warning".to_string(),
+            info_prefix: "".to_string(),
+            hint_prefix: "".to_string(),
+            debug_prefix: "".to_string(),
+            spinner_chars: vec![
+                "⠋".to_string(),
+                "⠙".to_string(),
+                "⠹".to_string(),
+                "⠸".to_string(),
+                "⠼".to_string(),
+                "⠴".to_string(),
+                "⠦".to_string(),
+                "⠧".to_string(),
+                "⠇".to_string(),
+                "⠏".to_string(),
+            ],
+            progress_chars: "━━╺".to_string(),
+        }
+    }
+
+    /// Create a npm-style theme.
+    pub fn npm() -> Self {
+        Self {
+            success: Style::new().fg(Color::Green),
+            error: Style::new().fg(Color::Red).bold(),
+            warn: Style::new().fg(Color::Yellow),
+            info: Style::new().fg(Color::Cyan),
+            hint: Style::new().fg(Color::Magenta),
+            debug: Style::new().dimmed(),
+            success_prefix: "✔".to_string(),
+            error_prefix: "✖".to_string(),
+            warn_prefix: "⚠".to_string(),
+            info_prefix: "ℹ".to_string(),
+            hint_prefix: "→".to_string(),
+            debug_prefix: "·".to_string(),
+            spinner_chars: vec![
+                "⠋".to_string(),
+                "⠙".to_string(),
+                "⠹".to_string(),
+                "⠸".to_string(),
+                "⠼".to_string(),
+                "⠴".to_string(),
+                "⠦".to_string(),
+                "⠧".to_string(),
+                "⠇".to_string(),
+                "⠏".to_string(),
+            ],
+            progress_chars: "█░░".to_string(),
+        }
+    }
+
+    /// Create a simple emoji theme.
+    pub fn emoji() -> Self {
+        Self {
+            success: Style::new(),
+            error: Style::new(),
+            warn: Style::new(),
+            info: Style::new(),
+            hint: Style::new(),
+            debug: Style::new().dimmed(),
+            success_prefix: "✅".to_string(),
+            error_prefix: "❌".to_string(),
+            warn_prefix: "⚠️".to_string(),
+            info_prefix: "ℹ️".to_string(),
+            hint_prefix: "💡".to_string(),
+            debug_prefix: "🔍".to_string(),
+            spinner_chars: vec![
+                "🕐".to_string(),
+                "🕑".to_string(),
+                "🕒".to_string(),
+                "🕓".to_string(),
+                "🕔".to_string(),
+                "🕕".to_string(),
+                "🕖".to_string(),
+                "🕗".to_string(),
+                "🕘".to_string(),
+                "🕙".to_string(),
+                "🕚".to_string(),
+                "🕛".to_string(),
+            ],
+            progress_chars: "🟩🟩⬜".to_string(),
+        }
+    }
+
+    /// Create a monochrome theme (no colors, but with Unicode).
+    pub fn monochrome() -> Self {
+        Self {
+            success: Style::new(),
+            error: Style::new().bold(),
+            warn: Style::new(),
+            info: Style::new(),
+            hint: Style::new().dimmed(),
+            debug: Style::new().dimmed(),
+            success_prefix: "✓".to_string(),
+            error_prefix: "✗".to_string(),
+            warn_prefix: "!".to_string(),
+            info_prefix: "·".to_string(),
+            hint_prefix: "→".to_string(),
+            debug_prefix: "…".to_string(),
+            spinner_chars: vec![
+                "⠋".to_string(),
+                "⠙".to_string(),
+                "⠹".to_string(),
+                "⠸".to_string(),
+                "⠼".to_string(),
+                "⠴".to_string(),
+                "⠦".to_string(),
+                "⠧".to_string(),
+                "⠇".to_string(),
+                "⠏".to_string(),
+            ],
+            progress_chars: "━━╺".to_string(),
+        }
+    }
+
+    /// Detect the best theme based on terminal capabilities.
+    pub fn detect() -> Self {
+        use crate::term::{Term, TerminalType};
+
+        let term = Term::detect();
+
+        // Use minimal theme for non-Unicode terminals
+        if !term.supports_unicode() {
+            return Self::minimal();
+        }
+
+        // Use GitHub theme in GitHub Actions
+        if let Some(crate::term::CiEnvironment::GitHubActions) = term.ci_environment() {
+            return Self::github();
+        }
+
+        // Use monochrome theme if colors are not supported
+        if !term.supports_color() {
+            return Self::monochrome();
+        }
+
+        // Use colorful theme for modern terminals
+        match term.terminal_type() {
+            TerminalType::WindowsTerminal
+            | TerminalType::ITerm2
+            | TerminalType::VSCode
+            | TerminalType::WezTerm
+            | TerminalType::Kitty => Self::colorful(),
+            _ => Self::default(),
+        }
+    }
+
     /// Get the success prefix.
     pub fn success_prefix(&self) -> &str {
         &self.success_prefix
