@@ -13,6 +13,128 @@
 
 This RFC proposes creating `vx-console` crate to unify cross-platform console output, logging, progress bars, and long-running task interactions.
 
+## Survey of Mainstream Rust CLI Applications
+
+Before designing `vx-console`, we surveyed console output approaches in mainstream Rust CLI applications:
+
+### 1. Cargo (rust-lang/cargo)
+
+**Architecture**: `Shell` struct wrapping stdout/stderr
+
+**Core Design**:
+```rust
+// cargo/src/cargo/core/shell.rs
+pub struct Shell {
+    output: ShellOut,           // Stream | Write
+    verbosity: Verbosity,       // Verbose | Normal | Quiet
+    needs_clear: bool,          // Progress bar cleanup flag
+    hostname: Option<String>,
+}
+
+pub enum ShellOut {
+    Stream {
+        stdout: AutoStream<std::io::Stdout>,
+        stderr: AutoStream<std::io::Stderr>,
+        stderr_tty: bool,
+        color_choice: ColorChoice,
+        hyperlinks: bool,
+    },
+    Write(Box<dyn Write>),  // For testing
+}
+```
+
+**Key Features**:
+- Uses `anstream` library for cross-platform ANSI colors
+- `ColorChoice` enum: `Always` / `Never` / `CargoAuto`
+- `Verbosity` enum controls output level
+- Supports hyperlinks (clickable file paths)
+- `from_write()` method supports test injection with memory buffer
+- Uses `annotate_snippets` for error report rendering
+
+**Dependencies**:
+- `anstream` - Cross-platform stream handling
+- `anstyle` - Style definitions
+- `annotate_snippets` - Error report rendering
+
+### 2. uv (astral-sh/uv)
+
+**Architecture**: Separate `uv-console` crate
+
+**Core Functions**:
+```rust
+// Confirmation prompt - real-time key response
+pub fn confirm(prompt: &str, default: bool) -> Result<bool>;
+
+// Password input - hidden input
+pub fn password(prompt: &str) -> Result<String>;
+
+// General text input - supports cursor movement, word-level jumping
+pub fn input(prompt: &str) -> Result<String>;
+
+// Byte formatting
+pub fn human_readable_bytes(bytes: u64) -> (f64, &'static str);
+```
+
+**Key Features**:
+- Uses `console` crate for terminal control
+- Real-time key response (no Enter needed)
+- Supports Ctrl+C exit
+- Full editing capabilities (cursor movement, word-level jumping)
+- Cross-platform compatible (including Windows special handling)
+
+### 3. ripgrep (BurntSushi/ripgrep)
+
+**Architecture**: Separate `grep-printer` crate
+
+**Printer Types**:
+```rust
+// Human-readable format
+pub struct Standard { ... }
+
+// JSON Lines format (machine-readable)
+pub struct JSON { ... }
+
+// Aggregate summary
+pub struct Summary { ... }
+```
+
+**Key Features**:
+- Modular design: color, hyperlink, path, standard, summary
+- Supports search and replace
+- Multi-line result handling
+- JSON output for programmatic processing
+- Statistics summary report
+
+### 4. rustup (rust-lang/rustup)
+
+**Architecture**: Built-in terminal handling module
+
+**Key Features**:
+- Progress bar for download progress
+- Multi-component parallel installation progress
+- Auto-detect terminal capabilities
+
+### Comparison
+
+| Feature | Cargo | uv | ripgrep |
+|---------|-------|-----|---------|
+| Color Library | anstream/anstyle | console | termcolor |
+| Progress Bar | Custom | indicatif | None |
+| Output Modes | Verbose/Normal/Quiet | Similar | Standard/JSON/Summary |
+| Test Support | Write trait injection | Yes | Sink trait |
+| Interactive Input | No | Yes | No |
+| Hyperlinks | Yes | No | Yes |
+
+### Design Insights
+
+Based on this survey, `vx-console` should adopt:
+
+1. **Cargo-style Shell architecture** - Wrap stdout/stderr, support test injection
+2. **anstream/anstyle** - Modern cross-platform color library used by Cargo, replacing colored
+3. **uv-style interactive input** - Support confirmation, password input, etc.
+4. **ripgrep-style multiple output formats** - Standard/JSON/Summary
+5. **Unified Verbosity control** - Verbose/Normal/Quiet
+
 ## Motivation
 
 ### Current Problems
@@ -47,34 +169,65 @@ This RFC proposes creating `vx-console` crate to unify cross-platform console ou
 
 ### Crate Structure
 
+Based on Cargo's Shell architecture and uv's interactive design:
+
 ```
 crates/vx-console/
 ├── src/
 │   ├── lib.rs           # Public API
-│   ├── output.rs        # Output manager
-│   ├── style.rs         # Styles and themes
-│   ├── progress.rs      # Progress bars and spinners
+│   ├── shell.rs         # Shell struct (reference Cargo)
+│   ├── output.rs        # ShellOut output abstraction
+│   ├── style.rs         # Styles and themes (using anstyle)
+│   ├── progress.rs      # Progress bars and spinners (using indicatif)
 │   ├── term.rs          # Terminal detection and adaptation
-│   ├── log.rs           # Logging integration
+│   ├── interact.rs      # Interactive input (reference uv)
+│   ├── format.rs        # Output formatting (Standard/JSON)
 │   └── test.rs          # Test support
 └── Cargo.toml
 ```
 
 ### Core API
 
-#### 1. Output Manager (Console)
+#### 1. Shell Struct (Reference Cargo)
 
 ```rust
-use vx_console::{Console, OutputMode, Theme};
+use vx_console::{Shell, Verbosity, ColorChoice};
 
-// Global singleton
-let console = Console::global();
+// Create Shell (reference Cargo design)
+let mut shell = Shell::new();
 
-// Or create instance
-let console = Console::builder()
-    .mode(OutputMode::Interactive)  // Interactive | Quiet | Verbose | Json
-    .theme(Theme::default())
+// Or use builder
+let shell = Shell::builder()
+    .verbosity(Verbosity::Normal)  // Verbose | Normal | Quiet
+    .color_choice(ColorChoice::Auto)  // Always | Never | Auto
     .build();
+
+// Status messages (Cargo style)
+shell.status("Compiling", "vx v0.1.0")?;      // Green "Compiling"
+shell.status_with_color("Downloading", "node@20", Color::Cyan)?;
+
+// Basic output
+shell.info("Installing node...")?;
+shell.success("Installed node@20.10.0")?;
+shell.warn("Version 18 is deprecated")?;
+shell.error("Failed to download")?;
+shell.hint("Try: vx install node@20")?;
+
+// Conditional output
+shell.verbose(|s| s.info("Cache hit"))?;  // Only shown in verbose mode
+
+// Test support (reference Cargo)
+let mut output = Vec::new();
+let shell = Shell::from_write(Box::new(&mut output));
+```
+
+#### 2. Output Manager (Console) - Global Singleton
+
+```rust
+use vx_console::{Console, OutputMode};
+
+// Global singleton (convenient API)
+let console = Console::global();
 
 // Basic output
 console.info("Installing node...");
@@ -83,12 +236,9 @@ console.warn("Version 18 is deprecated");
 console.error("Failed to download");
 console.hint("Try: vx install node@20");
 
-// Formatted output
-console.info_fmt(format_args!("Installing {}@{}", tool, version));
-
-// Conditional output
-console.debug("Cache hit");  // Only shown in verbose mode
-console.trace("HTTP GET ...");  // Only shown in trace mode
+// Set mode
+console.set_verbosity(Verbosity::Verbose);
+console.set_color_choice(ColorChoice::Never);
 ```
 
 #### 2. Progress Bars and Spinners
@@ -291,6 +441,33 @@ let console = Console::builder()
 // tracing writes to file, console outputs to terminal
 ```
 
+#### 9. Interactive Input (Reference uv)
+
+```rust
+use vx_console::{Console, interact};
+
+let console = Console::global();
+
+// Confirmation prompt - real-time key response (no Enter needed)
+let confirmed = console.confirm("Proceed with installation?", true)?;
+// Output: ? Proceed with installation? [Y/n]
+
+// Confirmation with default
+let confirmed = console.confirm_default("Override existing?", false)?;
+
+// Password input - hidden input content
+let password = console.password("Enter token:")?;
+
+// General text input - supports cursor movement, word-level jumping
+let name = console.input("Project name:")?;
+
+// Selection list
+let choice = console.select("Choose package manager:", &["npm", "yarn", "pnpm"])?;
+
+// Multi-select
+let choices = console.multi_select("Select tools:", &["node", "python", "go"])?;
+```
+
 ### Cross-Platform Adaptation
 
 #### Windows Support
@@ -386,12 +563,17 @@ impl Term {
 
 ### Dependencies
 
+Based on the survey of mainstream Rust CLI applications, recommended dependencies:
+
 ```toml
 [dependencies]
-# Terminal handling
-console = "0.15"           # Terminal detection and styling
-indicatif = "0.17"         # Progress bars
-colored = "2"              # Colored output
+# Terminal handling (modern approach used by Cargo)
+anstream = "0.6"           # Cross-platform ANSI stream handling (used by Cargo)
+anstyle = "1.0"            # Style definitions (pairs with anstream)
+console = "0.15"           # Terminal detection and interaction (used by uv)
+
+# Progress bars
+indicatif = "0.17"         # Progress bars and spinners
 
 # Cross-platform
 terminal_size = "0.3"      # Terminal size
@@ -412,6 +594,12 @@ default = ["progress"]
 progress = []
 log-bridge = ["tracing-subscriber"]
 ```
+
+**Why anstream/anstyle instead of colored**:
+- `anstream` is the library officially used by Cargo, validated at scale
+- Automatically handles terminal capability detection and ANSI escape code adaptation
+- `anstyle` provides zero-overhead style definitions
+- Better cross-platform support (especially Windows)
 
 ### API Examples
 
@@ -510,25 +698,48 @@ pub async fn download_with_progress(url: &str, dest: &Path) -> Result<()> {
 **Pros**: No migration needed
 **Cons**: Code duplication, inconsistent styling, hard to maintain
 
-### 2. Use only indicatif
+### 2. Directly use Cargo's Shell module
 
-**Pros**: Mature library
-**Cons**: Doesn't handle logging, output modes, cross-platform adaptation
+**Pros**: Validated at scale
+**Cons**: Cargo's Shell is not a separate crate, would need to copy code
 
-### 3. Use console + dialoguer
+### 3. Use only indicatif + console
 
-**Pros**: Feature-rich
-**Cons**: Needs additional wrapping, API not unified enough
+**Pros**: Mature library combination
+**Cons**: Lacks unified API wrapper, needs composition at each usage site
+
+### 4. Use dialoguer
+
+**Pros**: Feature-rich interactive input
+**Cons**: Mainly focused on interaction, doesn't handle general output and progress bars
+
+### Recommended Approach
+
+Adopt **Cargo-style Shell architecture** + **uv-style interactive input**:
+- Core design references Cargo's `Shell` struct
+- Use same dependencies as Cargo: `anstream`/`anstyle`
+- Interactive input references uv's `console` module
+- Progress bars use `indicatif`
 
 ## References
 
+### Mainstream Rust CLI Application Source Code
+
+- [Cargo Shell](https://github.com/rust-lang/cargo/blob/master/src/cargo/core/shell.rs) - Cargo's output system, main reference for this RFC
+- [uv console](https://github.com/astral-sh/uv/tree/main/crates) - uv's console interaction implementation
+- [ripgrep printer](https://github.com/BurntSushi/ripgrep/tree/master/crates/printer) - ripgrep's printer design
+
+### Dependency Libraries
+
+- [anstream](https://github.com/rust-cli/anstyle/tree/main/crates/anstream) - Cross-platform ANSI stream handling used by Cargo
+- [anstyle](https://github.com/rust-cli/anstyle) - Zero-overhead style definitions
 - [indicatif](https://github.com/console-rs/indicatif) - Rust progress bar library
-- [console](https://github.com/console-rs/console) - Terminal handling library
-- [owo-colors](https://github.com/jam1garner/owo-colors) - Zero-overhead colors library
-- [Cargo's output system](https://github.com/rust-lang/cargo/tree/master/src/cargo/core/shell.rs)
+- [console](https://github.com/console-rs/console) - Terminal handling library (used by uv)
+- [dialoguer](https://github.com/console-rs/dialoguer) - Interactive prompt library
 
 ## Changelog
 
 | Date | Version | Changes |
 |------|---------|---------|
 | 2025-12-31 | v0.1.0 | Initial draft |
+| 2025-12-31 | v0.2.0 | Added survey of mainstream Rust CLI applications (Cargo, uv, ripgrep) |
