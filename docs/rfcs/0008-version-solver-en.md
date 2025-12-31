@@ -301,20 +301,196 @@ assert!(!solver.version_satisfies("2.0.0", "^1.0.0", &Ecosystem::Node));
 - [x] Provider integration
 - [ ] Documentation updates
 
-### Phase 3: Multi-ecosystem Strategies (v0.8.0)
-
-- [x] `Pep440Strategy` (Python) - Completed in Phase 1
-- [ ] `NodeSemverStrategy` (Node.js) - Using SemverStrategy
-- [x] `GoVersionStrategy` (Go) - Completed in Phase 1
-- [ ] Provider integration
-- [ ] Documentation updates
-
 ### Phase 4: Advanced Constraints (v0.9.0)
 
 - [x] Range constraints (`>=`, `<`, `!=`) - Completed in Phase 1
 - [x] Compatible versions (`^`, `~`) - Completed in Phase 1
 - [x] Wildcards (`*`) - Completed in Phase 1
 - [ ] Constraint conflict detection
+
+## Current Design Limitations and Future Improvements
+
+### 1. Missing Lock File Integrity Verification
+
+**Problem**: The lock file supports a `checksum` field, but it's not actually verified during download/install.
+
+**Risks**:
+- Supply chain attacks: Malicious replacement of binaries at download sources
+- Download corruption: Incomplete files due to network issues
+
+**Proposed Solution**:
+```rust
+// Phase 5: Integrity Verification
+pub struct IntegrityVerifier {
+    /// Verify downloaded file matches checksum in lock file
+    pub async fn verify(&self, path: &Path, expected: &str) -> Result<bool>;
+
+    /// Compute SHA256 checksum of a file
+    pub fn compute_checksum(&self, path: &Path) -> Result<String>;
+}
+```
+
+### 2. Cross-Platform Lock File Compatibility
+
+**Problem**: The lock file records `platform` info, but different platforms may have different versions available.
+
+**Scenario**:
+- Windows developer generates `vx.lock`
+- Linux CI environment uses it, but some tools may not have corresponding versions
+
+**Proposed Solution**:
+```toml
+# vx.lock multi-platform support
+[tools.python]
+version = "3.11.11"
+resolved_from = "3.11"
+
+[tools.python.platforms]
+"x86_64-pc-windows-msvc" = { checksum = "sha256:abc..." }
+"x86_64-unknown-linux-gnu" = { checksum = "sha256:def..." }
+"aarch64-apple-darwin" = { checksum = "sha256:ghi..." }
+```
+
+### 3. Lock File Version Migration
+
+**Problem**: How to handle old lock file versions when `vx.lock` format is upgraded?
+
+**Proposed Solution**:
+```rust
+impl LockFile {
+    /// Migrate old lock file versions to current version
+    pub fn migrate(content: &str) -> Result<Self> {
+        let version = detect_version(content)?;
+        match version {
+            1 => migrate_v1_to_v2(content),
+            2 => Self::parse(content),
+            _ => Err(LockFileError::UnsupportedVersion(version)),
+        }
+    }
+}
+```
+
+### 4. Dependency Resolution Order
+
+**Problem**: When tools have dependencies (e.g., `npm` depends on `node`), current implementation doesn't guarantee install order.
+
+**Scenario**:
+```toml
+[tools]
+npm = "latest"    # requires node
+node = "20"
+```
+
+**Proposed Solution**:
+```rust
+/// Topological sort dependency graph to ensure dependencies are installed first
+pub fn resolve_install_order(
+    tools: &HashMap<String, LockedTool>,
+    dependencies: &HashMap<String, Vec<String>>,
+) -> Vec<String>;
+```
+
+### 5. Offline Mode Support
+
+**Problem**: Current design assumes network availability, cannot work in offline environments.
+
+**Proposed Solution**:
+```rust
+pub struct OfflineCache {
+    /// Pre-download all tools to local cache
+    pub async fn prefetch(&self, lockfile: &LockFile) -> Result<()>;
+
+    /// Install from cache without network access
+    pub async fn install_from_cache(&self, tool: &str) -> Result<()>;
+}
+```
+
+### 6. Lock File Conflict Resolution
+
+**Problem**: During team collaboration, `vx.lock` may have merge conflicts.
+
+**Proposed Solution**:
+```bash
+# New command: Smart merge lock files
+vx lock --merge base.lock ours.lock theirs.lock
+
+# Or: Re-resolve all versions
+vx lock --force
+```
+
+### 7. Security Updates for Version Ranges
+
+**Problem**: When using range constraints (e.g., `>=3.9,<3.12`), how to handle security updates?
+
+**Scenario**:
+- Locked `python = 3.11.10`
+- `3.11.11` released with security fix
+- User needs to manually run `vx lock --update python`
+
+**Proposed Solution**:
+```bash
+# New command: Only update patch versions (security updates)
+vx lock --update-patch
+
+# Or: Check for available security updates
+vx outdated --security
+```
+
+### 8. Tool Aliases and Virtual Tools
+
+**Problem**: Some tools have multiple names (e.g., `python3` → `python`), currently not supported.
+
+**Proposed Solution**:
+```toml
+# vx.toml
+[tools]
+python = "3.11"
+
+[aliases]
+python3 = "python"
+py = "python"
+```
+
+### 9. Environment Variable Overrides
+
+**Problem**: CI/CD may need to temporarily override lock file versions.
+
+**Proposed Solution**:
+```bash
+# Environment variable override
+VX_PYTHON_VERSION=3.12 vx sync
+
+# Or command line argument
+vx sync --override python=3.12
+```
+
+### 10. Audit and Security Scanning
+
+**Problem**: Cannot check if locked versions have known vulnerabilities.
+
+**Proposed Solution**:
+```bash
+# New command: Security audit
+vx audit
+
+# Output
+⚠ python 3.11.10 has known vulnerabilities:
+  - CVE-2024-XXXX (High): ...
+  Recommendation: Update to 3.11.11+
+```
+
+## Implementation Priority Recommendations
+
+| Priority | Improvement | Reason |
+|----------|-------------|--------|
+| P0 | Integrity verification | Security critical |
+| P1 | Dependency resolution order | Affects correctness |
+| P1 | Cross-platform lock file | Required for team collaboration |
+| P2 | Offline mode | Common in CI/CD scenarios |
+| P2 | Security updates | Security critical |
+| P3 | Lock file migration | Long-term maintenance |
+| P3 | Alias support | User experience |
+| P4 | Audit functionality | Enterprise requirement |
 
 ## References
 
@@ -333,3 +509,4 @@ assert!(!solver.version_satisfies("2.0.0", "^1.0.0", &Ecosystem::Node));
 | 2025-12-30 | v0.1.0 | Phase 1 core version resolution implemented |
 | 2025-12-31 | v0.2.0 | Phase 2 lock file mechanism implemented |
 | 2025-12-31 | v0.3.0 | Phase 2/3 completed: vx sync lock file integration, automatic lock file updates, Provider integration |
+| 2025-12-31 | v0.4.0 | Added design limitations analysis and future improvements |
