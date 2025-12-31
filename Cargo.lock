@@ -2907,6 +2907,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "terminal_size"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60b8cb979cb11c32ce1603f8137b22262a9d131aaa5c37b5678025f22b8becd0"
+dependencies = [
+ "rustix",
+ "windows-sys 0.60.2",
+]
+
+[[package]]
 name = "termtree"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3592,6 +3602,25 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "vx-console"
+version = "0.6.6"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "console 0.16.2",
+ "indicatif 0.17.11",
+ "once_cell",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "serde_json",
+ "terminal_size",
+ "thiserror",
+ "tokio",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
