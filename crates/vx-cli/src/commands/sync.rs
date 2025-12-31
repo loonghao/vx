@@ -2,6 +2,9 @@
 //!
 //! Synchronizes project tools from vx.toml configuration.
 //! This is the core tool installation logic, also used by `vx setup`.
+//!
+//! When a `vx.lock` file exists, the sync command will use the exact
+//! versions specified in the lock file for reproducible environments.
 
 use crate::commands::setup::{find_vx_config, parse_vx_config};
 use crate::ui::UI;
@@ -10,7 +13,9 @@ use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
+use vx_paths::project::LOCK_FILE_NAME;
 use vx_paths::PathManager;
+use vx_resolver::LockFile;
 use vx_runtime::ProviderRegistry;
 
 /// Tool status tuple: (name, version, installed, path)
@@ -40,8 +45,38 @@ pub async fn handle(
         return Ok(());
     }
 
+    // Check for lock file
+    let project_root = config_path.parent().unwrap_or(&current_dir);
+    let lock_path = project_root.join(LOCK_FILE_NAME);
+    let lockfile = if lock_path.exists() {
+        match LockFile::load(&lock_path) {
+            Ok(lf) => {
+                if verbose {
+                    UI::info(&format!("Using versions from {}", LOCK_FILE_NAME));
+                }
+                Some(lf)
+            }
+            Err(e) => {
+                UI::warn(&format!("Failed to load {}: {}", LOCK_FILE_NAME, e));
+                UI::hint("Run 'vx lock' to regenerate the lock file");
+                None
+            }
+        }
+    } else {
+        if verbose {
+            UI::detail(&format!(
+                "No {} found, using versions from vx.toml",
+                LOCK_FILE_NAME
+            ));
+        }
+        None
+    };
+
+    // Resolve effective versions (lock file takes precedence)
+    let effective_tools = resolve_effective_versions(&config.tools, &lockfile);
+
     // Check tool status
-    let statuses = check_tool_status(&config.tools)?;
+    let statuses = check_tool_status(&effective_tools)?;
 
     // Show status
     if verbose || check {
@@ -170,6 +205,33 @@ fn check_tool_status(tools: &HashMap<String, String>) -> Result<Vec<ToolStatusTu
     Ok(statuses)
 }
 
+/// Resolve effective versions by preferring lock file versions over config versions
+fn resolve_effective_versions(
+    config_tools: &HashMap<String, String>,
+    lockfile: &Option<LockFile>,
+) -> HashMap<String, String> {
+    let mut effective = HashMap::new();
+
+    for (name, config_version) in config_tools {
+        let version = if let Some(lock) = lockfile {
+            // If tool is in lock file, use the locked version
+            if let Some(locked_tool) = lock.get_tool(name) {
+                locked_tool.version.clone()
+            } else {
+                // Tool not in lock file, use config version
+                config_version.clone()
+            }
+        } else {
+            // No lock file, use config version
+            config_version.clone()
+        };
+
+        effective.insert(name.clone(), version);
+    }
+
+    effective
+}
+
 /// Install tools sequentially
 async fn install_sequential(
     tools: &[&(String, String, bool, Option<PathBuf>)],
@@ -291,7 +353,19 @@ pub async fn quick_check() -> Result<bool> {
         return Ok(true);
     }
 
-    let statuses = check_tool_status(&config.tools)?;
+    // Check for lock file
+    let project_root = config_path.parent().unwrap_or(&current_dir);
+    let lock_path = project_root.join(LOCK_FILE_NAME);
+    let lockfile = if lock_path.exists() {
+        LockFile::load(&lock_path).ok()
+    } else {
+        None
+    };
+
+    // Resolve effective versions
+    let effective_tools = resolve_effective_versions(&config.tools, &lockfile);
+
+    let statuses = check_tool_status(&effective_tools)?;
     let all_installed = statuses.iter().all(|(_, _, installed, _)| *installed);
 
     Ok(all_installed)
