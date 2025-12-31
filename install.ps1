@@ -91,14 +91,16 @@ function Get-Platform {
 }
 
 # Get latest version from GitHub API with optional authentication and fallback
-# Returns the full tag name (e.g., "vx-v0.5.7")
+# Returns the full tag name (e.g., "v0.5.7")
 function Get-LatestVersion {
     try {
         Write-ProgressInfo -Activity "Fetching latest version" -Status "Connecting to GitHub API..."
         $apiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
 
         # Prepare headers for authentication if token is available
-        $headers = @{}
+        $headers = @{
+            "Accept" = "application/vnd.github.v3+json"
+        }
         $githubToken = $env:GITHUB_TOKEN
         if ($githubToken) {
             $headers["Authorization"] = "Bearer $githubToken"
@@ -111,36 +113,53 @@ function Get-LatestVersion {
         # Make API request with optional authentication
         $response = Invoke-RestMethod -Uri $apiUrl -Method Get -Headers $headers -TimeoutSec 10
         Microsoft.PowerShell.Utility\Write-Progress -Activity "Fetching latest version" -Completed
-        # Return full tag name (e.g., "vx-v0.5.7")
+        # Return full tag name (e.g., "v0.5.7")
         return $response.tag_name
     }
     catch {
         Microsoft.PowerShell.Utility\Write-Progress -Activity "Fetching latest version" -Completed
 
         # Check if this is a rate limit error
-        $isRateLimit = $_.Exception.Message -like "*rate limit*" -or
-        $_.Exception.Message -like "*429*" -or
-        $_.Exception.Message -like "*API rate limit exceeded*"
+        $errorMessage = $_.Exception.Message
+        $isRateLimit = $errorMessage -like "*rate limit*" -or
+        $errorMessage -like "*429*" -or
+        $errorMessage -like "*API rate limit exceeded*"
 
         if ($isRateLimit) {
-            Write-Warn "GitHub API rate limit exceeded. Trying alternative methods..."
+            Write-Warn "GitHub API rate limit exceeded. Trying fallback method..."
 
-            # Provide helpful error message with solutions
+            # Fallback: Try to get version from releases page HTML
+            try {
+                Write-Info "Attempting to fetch version from releases page..."
+                $releasesUrl = "https://github.com/$RepoOwner/$RepoName/releases/latest"
+                $webResponse = Invoke-WebRequest -Uri $releasesUrl -MaximumRedirection 0 -ErrorAction SilentlyContinue -UseBasicParsing
+            }
+            catch [System.Net.WebException] {
+                # Handle redirect (302) - extract version from Location header
+                $redirectUrl = $_.Exception.Response.Headers["Location"]
+                if ($redirectUrl -match "/releases/tag/(.+)$") {
+                    $tagName = $matches[1]
+                    Write-Success "Found version via redirect: $tagName"
+                    return $tagName
+                }
+            }
+
+            # If fallback also fails, provide helpful error message
             Write-Error "Unable to determine latest version automatically due to rate limiting."
             Write-Host ""
             Write-Host "Solutions:" -ForegroundColor Yellow
             Write-Host "1. Set GITHUB_TOKEN environment variable:" -ForegroundColor Gray
-            Write-Host "   `$env:GITHUB_TOKEN='your_token_here'; .\install.ps1" -ForegroundColor Gray
+            Write-Host "   `$env:GITHUB_TOKEN='your_token_here'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex" -ForegroundColor Gray
             Write-Host ""
             Write-Host "2. Specify version explicitly:" -ForegroundColor Gray
-            Write-Host "   `$env:VX_VERSION='vx-v0.5.7'; .\install.ps1" -ForegroundColor Gray
+            Write-Host "   `$env:VX_VERSION='0.6.7'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex" -ForegroundColor Gray
             Write-Host ""
             Write-Host "3. Use package managers:" -ForegroundColor Gray
             Write-Host "   winget install loonghao.vx" -ForegroundColor Gray
             Write-Host "   scoop install vx" -ForegroundColor Gray
             Write-Host ""
-            Write-Host "4. Build from source:" -ForegroundColor Gray
-            Write-Host "   .\install.ps1 -BuildFromSource" -ForegroundColor Gray
+            Write-Host "4. Download directly from:" -ForegroundColor Gray
+            Write-Host "   https://github.com/loonghao/vx/releases/latest" -ForegroundColor Gray
             Write-Host ""
             exit 1
         }
@@ -291,15 +310,19 @@ function Install-FromRelease {
         }
     }
     else {
-        # User specified version - could be "vx-v0.5.7" or "0.5.7"
+        # User specified version - normalize to tag format
+        # Accept: "v0.6.7", "0.6.7", "vx-v0.6.7"
         if ($Version -match '^vx-v') {
-            $tagName = $Version
+            # Legacy format vx-v0.6.7 -> v0.6.7
+            $tagName = $Version -replace '^vx-', ''
         }
         elseif ($Version -match '^v') {
-            $tagName = "vx-$Version"
+            # Already in v0.6.7 format
+            $tagName = $Version
         }
         else {
-            $tagName = "vx-v$Version"
+            # Just version number 0.6.7 -> v0.6.7
+            $tagName = "v$Version"
         }
     }
 

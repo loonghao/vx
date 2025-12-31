@@ -74,7 +74,7 @@ detect_platform() {
 }
 
 # Get latest version from GitHub API with optional authentication and fallback
-# Returns the full tag name (e.g., "vx-v0.5.7") of a release that has assets
+# Returns the full tag name (e.g., "v0.5.7") of a release that has assets
 get_latest_version() {
     local api_url="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases?per_page=10"
     local auth_header=""
@@ -91,13 +91,13 @@ get_latest_version() {
     local response
     if command -v curl >/dev/null 2>&1; then
         if [[ -n "$auth_header" ]]; then
-            response=$(curl -s -H "$auth_header" "$api_url" 2>/dev/null || echo "")
+            response=$(curl -s -H "$auth_header" -H "Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
         else
-            response=$(curl -s "$api_url" 2>/dev/null || echo "")
+            response=$(curl -s -H "Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
         fi
 
         # Check for rate limit error
-        if [[ -n "$response" ]] && ! echo "$response" | grep -q "rate limit\|429"; then
+        if [[ -n "$response" ]] && ! echo "$response" | grep -q "rate limit\|429\|API rate limit exceeded"; then
             # Find the first non-prerelease with assets using jq if available
             if command -v jq >/dev/null 2>&1; then
                 local tag_name
@@ -120,15 +120,29 @@ get_latest_version() {
                 fi
             fi
         fi
+
+        # Rate limit hit - try fallback method via redirect
+        if echo "$response" | grep -q "rate limit\|429\|API rate limit exceeded"; then
+            warn "GitHub API rate limit exceeded. Trying fallback method..."
+            # Try to get version from releases page redirect
+            local redirect_url
+            redirect_url=$(curl -sI "https://github.com/$REPO_OWNER/$REPO_NAME/releases/latest" 2>/dev/null | grep -i "^location:" | sed 's/location: *//i' | tr -d '\r\n')
+            if [[ "$redirect_url" =~ /releases/tag/(.+)$ ]]; then
+                local tag_name="${BASH_REMATCH[1]}"
+                info "Found version via redirect: $tag_name"
+                echo "$tag_name"
+                return
+            fi
+        fi
     elif command -v wget >/dev/null 2>&1; then
         if [[ -n "$auth_header" ]]; then
-            response=$(wget -qO- --header="$auth_header" "$api_url" 2>/dev/null || echo "")
+            response=$(wget -qO- --header="$auth_header" --header="Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
         else
-            response=$(wget -qO- "$api_url" 2>/dev/null || echo "")
+            response=$(wget -qO- --header="Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
         fi
 
         # Check for rate limit error
-        if [[ -n "$response" ]] && ! echo "$response" | grep -q "rate limit\|429"; then
+        if [[ -n "$response" ]] && ! echo "$response" | grep -q "rate limit\|429\|API rate limit exceeded"; then
             if command -v jq >/dev/null 2>&1; then
                 local tag_name
                 tag_name=$(echo "$response" | jq -r '
@@ -158,14 +172,14 @@ get_latest_version() {
     echo "   GITHUB_TOKEN='your_token_here' $0"
     echo ""
     echo "2. Specify version explicitly:"
-    echo "   VX_VERSION='vx-v0.5.7' $0"
+    echo "   VX_VERSION='0.6.7' $0"
     echo ""
     echo "3. Use package managers:"
     echo "   brew install loonghao/vx/vx"
     echo "   cargo install vx"
     echo ""
-    echo "4. Build from source:"
-    echo "   BUILD_FROM_SOURCE=true $0"
+    echo "4. Download directly from:"
+    echo "   https://github.com/loonghao/vx/releases/latest"
     echo ""
     exit 1
 }
@@ -219,13 +233,17 @@ install_from_release() {
             exit 1
         fi
     else
-        # User specified version - could be "vx-v0.5.7" or "0.5.7"
+        # User specified version - normalize to tag format
+        # Accept: "v0.6.7", "0.6.7", "vx-v0.6.7"
         if [[ "$VX_VERSION" =~ ^vx-v ]]; then
-            tag_name="$VX_VERSION"
+            # Legacy format vx-v0.6.7 -> v0.6.7
+            tag_name="${VX_VERSION#vx-}"
         elif [[ "$VX_VERSION" =~ ^v ]]; then
-            tag_name="vx-$VX_VERSION"
+            # Already in v0.6.7 format
+            tag_name="$VX_VERSION"
         else
-            tag_name="vx-v$VX_VERSION"
+            # Just version number 0.6.7 -> v0.6.7
+            tag_name="v$VX_VERSION"
         fi
     fi
 

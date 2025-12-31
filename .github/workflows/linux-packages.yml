@@ -33,12 +33,16 @@ jobs:
             VERSION="${{ github.event.inputs.version }}"
           else
             VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               "https://api.github.com/repos/loonghao/vx/releases/latest" | \
               jq -r '.tag_name // empty')
           fi
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "version_short=${VERSION#v}" >> $GITHUB_OUTPUT
+          # Extract version number: v0.6.7 -> 0.6.7, vx-v0.6.7 -> 0.6.7
+          VERSION_SHORT=$(echo "${VERSION}" | sed -E 's/^(vx-)?v//')
+          echo "version_short=${VERSION_SHORT}" >> $GITHUB_OUTPUT
+          echo "Tag: ${VERSION}, Version: ${VERSION_SHORT}"
 
   # Build DEB packages
   build-deb:
@@ -245,20 +249,35 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Update AUR package
+  # Update AUR package (only if SSH key is configured)
   update-aur:
     needs: check-release
     runs-on: ubuntu-latest
+    # This job will fail gracefully if AUR_SSH_PRIVATE_KEY is not set
+    continue-on-error: true
     steps:
+      - name: Check if AUR SSH key is configured
+        id: check-key
+        run: |
+          if [ -z "${{ secrets.AUR_SSH_PRIVATE_KEY }}" ]; then
+            echo "AUR_SSH_PRIVATE_KEY is not configured, skipping AUR update"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout
+        if: steps.check-key.outputs.skip != 'true'
         uses: actions/checkout@v6
 
       - name: Setup SSH
+        if: steps.check-key.outputs.skip != 'true'
         uses: webfactory/ssh-agent@v0.9.1
         with:
           ssh-private-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
 
       - name: Update AUR package
+        if: steps.check-key.outputs.skip != 'true'
         run: |
           VERSION="${{ needs.check-release.outputs.version }}"
           VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"

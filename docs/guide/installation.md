@@ -16,6 +16,30 @@ irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
 
 :::
 
+### Troubleshooting: GitHub API Rate Limit
+
+If you encounter a rate limit error during installation, you have several options:
+
+**Option 1: Use a GitHub token**
+```bash
+# Linux/macOS
+GITHUB_TOKEN='your_token' curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# Windows
+$env:GITHUB_TOKEN='your_token'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+```
+
+**Option 2: Specify version explicitly**
+```bash
+# Linux/macOS
+VX_VERSION='0.6.7' curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# Windows
+$env:VX_VERSION='0.6.7'; irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+```
+
+**Option 3: Use package managers** (see below)
+
 ## Package Managers
 
 ### Homebrew (macOS/Linux)
