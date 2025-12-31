@@ -832,6 +832,7 @@ mod tests {
             owner: "user".to_string(),
             repo: "repo".to_string(),
             version: None,
+            subdir: None,
         };
         assert_eq!(source.clone_url(), "https://github.com/user/repo.git");
     }

@@ -276,9 +276,10 @@ export default defineConfig({
   title: 'vx',
   description: 'Universal Development Tool Manager with Zero Learning Curve',
 
-  // Ignore dead links to local-only RFC documents
+  // Ignore dead links to local-only RFC documents and source code
   ignoreDeadLinks: [
-    /\/rfcs\//
+    /\/rfcs\//,
+    /\/crates\//
   ],
 
   locales: {
