@@ -32,6 +32,7 @@ vx supports a wide range of development tools across multiple ecosystems. All to
 
 | Tool | Commands | Description | Auto-Install |
 |------|----------|-------------|--------------|
+| `msvc` | `msvc cl`, `msvc link`, `cl`, `nmake` | MSVC Build Tools (Windows) | ✅ |
 | `vite` | `vite` | Next generation frontend tooling | ✅ |
 | `just` | `just` | Command runner for project tasks | ✅ |
 | `task` | `task` | Task runner / build tool (go-task) | ✅ |

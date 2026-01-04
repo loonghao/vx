@@ -267,6 +267,14 @@ impl RuntimeMap {
 
         // ============ Generic Runtimes ============
 
+        // MSVC Build Tools - Windows C/C++ toolchain
+        self.register(
+            RuntimeSpec::new("msvc", "Microsoft Visual C++ Build Tools (cl, nmake)")
+                .with_aliases(vec!["cl", "nmake", "msvc-tools", "vs-build-tools"])
+                .with_executable("cl")
+                .with_ecosystem(Ecosystem::Generic),
+        );
+
         // git - Version control
         self.register(RuntimeSpec::new(
             "git",

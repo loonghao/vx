@@ -27,7 +27,7 @@ reqwest = { workspace = true }
 # Archive handling
 tar = { workspace = true }
 flate2 = { workspace = true }
-liblzma = { workspace = true }
+xz2 = { workspace = true }
 zip = "7.0"
 tempfile = { workspace = true }
 
@@ -44,7 +44,7 @@ vx-core = { path = "../vx-core" }
 vx-paths = { path = "../vx-paths" }
 
 # CDN acceleration (optional)
-turbo-cdn = { version = "0.6", optional = true }
+turbo-cdn = { version = "0.7", default-features = false, features = ["rustls", "fast-hash", "high-performance"], optional = true }
 
 [features]
 default = []

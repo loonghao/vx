@@ -48,4 +48,4 @@ pub use frameworks::{FrameworkDetector, FrameworkInfo, ProjectFramework};
 pub use languages::LanguageAnalyzer;
 pub use script_parser::{ScriptParser, ScriptTool, ToolInvocation};
 pub use sync::{ConflictResolution, SyncAction, SyncConfig, SyncManager, VxConfigSnapshot};
-pub use types::{ProjectAnalysis, RequiredTool, Script, ScriptSource};
+pub use types::{AuditFinding, AuditSeverity, ProjectAnalysis, RequiredTool, Script, ScriptSource};

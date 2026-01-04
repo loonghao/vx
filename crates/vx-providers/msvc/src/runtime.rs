@@ -1,0 +1,236 @@
+//! MSVC Build Tools runtime implementation
+//!
+//! MSVC Build Tools provides the Visual Studio C/C++ compiler and tools
+//! for building native Windows applications.
+//!
+//! This implementation uses msvc-kit for downloading and installing
+//! MSVC Build Tools from Microsoft's official servers.
+
+use crate::installer::MsvcInstaller;
+use anyhow::{Context, Result};
+use async_trait::async_trait;
+use msvc_kit::Architecture;
+use std::collections::HashMap;
+use std::path::Path;
+use tracing::{debug, info};
+use vx_runtime::{
+    Ecosystem, InstallResult, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
+};
+
+/// MSVC Build Tools runtime implementation
+#[derive(Debug, Clone, Default)]
+pub struct MsvcRuntime;
+
+impl MsvcRuntime {
+    /// Create a new MSVC runtime
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Get known stable MSVC versions
+    fn get_known_versions(&self) -> Vec<VersionInfo> {
+        vec![
+            VersionInfo::new("14.42").with_lts(true),  // VS 2022 17.12
+            VersionInfo::new("14.41").with_lts(true),  // VS 2022 17.11
+            VersionInfo::new("14.40").with_lts(true),  // VS 2022 17.10
+            VersionInfo::new("14.39").with_lts(true),  // VS 2022 17.9
+            VersionInfo::new("14.38").with_lts(true),  // VS 2022 17.8
+            VersionInfo::new("14.37").with_lts(true),  // VS 2022 17.7
+            VersionInfo::new("14.36").with_lts(true),  // VS 2022 17.6
+            VersionInfo::new("14.35").with_lts(true),  // VS 2022 17.5
+            VersionInfo::new("14.34").with_lts(true),  // VS 2022 17.4
+            VersionInfo::new("14.29").with_lts(false), // VS 2019 16.11
+        ]
+    }
+}
+
+#[async_trait]
+impl Runtime for MsvcRuntime {
+    fn name(&self) -> &str {
+        "msvc"
+    }
+
+    fn description(&self) -> &str {
+        "MSVC Build Tools - Microsoft Visual C++ compiler and tools for Windows development"
+    }
+
+    fn aliases(&self) -> &[&str] {
+        // Only expose non-conflicting aliases
+        // "cl" and "nmake" are safe, but "link" and "lib" conflict with system tools
+        &["cl", "nmake"]
+    }
+
+    /// The primary executable is cl.exe (the C/C++ compiler)
+    fn executable_name(&self) -> &str {
+        "cl"
+    }
+
+    fn ecosystem(&self) -> Ecosystem {
+        Ecosystem::System
+    }
+
+    fn metadata(&self) -> HashMap<String, String> {
+        let mut meta = HashMap::new();
+        meta.insert(
+            "homepage".to_string(),
+            "https://visualstudio.microsoft.com/visual-cpp-build-tools/".to_string(),
+        );
+        meta.insert(
+            "documentation".to_string(),
+            "https://docs.microsoft.com/en-us/cpp/build/".to_string(),
+        );
+        meta.insert("category".to_string(), "build-tools".to_string());
+        meta.insert("vendor".to_string(), "Microsoft".to_string());
+        meta
+    }
+
+    /// MSVC Build Tools only supports Windows
+    fn supported_platforms(&self) -> Vec<Platform> {
+        Platform::windows_only()
+    }
+
+    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        let arch = match platform.arch.as_str() {
+            "aarch64" => "arm64",
+            "x86" => "x86",
+            _ => "x64",
+        };
+        format!("VC/Tools/MSVC/{}/bin/Host{}/{}/cl.exe", version, arch, arch)
+    }
+
+    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // Return known stable versions
+        // In the future, we could query msvc-kit for available versions
+        Ok(self.get_known_versions())
+    }
+
+    async fn download_url(&self, _version: &str, platform: &Platform) -> Result<Option<String>> {
+        // MSVC doesn't have a single download URL - we use msvc-kit for installation
+        if !self.is_platform_supported(platform) {
+            return Ok(None);
+        }
+        // Return None to indicate we use custom installation
+        Ok(None)
+    }
+
+    /// Custom installation for MSVC Build Tools using msvc-kit
+    async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
+        let install_path = ctx.paths.version_store_dir(self.name(), version);
+        let platform = Platform::current();
+
+        // Check platform support
+        if !self.is_platform_supported(&platform) {
+            return Err(anyhow::anyhow!(
+                "MSVC Build Tools is only available for Windows"
+            ));
+        }
+
+        // Check if already installed
+        if install_path.exists() {
+            let verification = self.verify_installation(version, &install_path, &platform);
+            if verification.valid {
+                let exe_path = verification
+                    .executable_path
+                    .unwrap_or_else(|| install_path.join("cl.exe"));
+                debug!("MSVC {} already installed: {}", version, exe_path.display());
+                return Ok(InstallResult::already_installed(
+                    install_path,
+                    exe_path,
+                    version.to_string(),
+                ));
+            }
+            // Don't clean up - msvc-kit will resume from cached downloads
+            debug!("MSVC installation incomplete, will resume download");
+        }
+
+        info!("Installing MSVC Build Tools version {}", version);
+
+        // Determine architecture from current platform
+        let arch = match platform.arch.as_str() {
+            "aarch64" => Architecture::Arm64,
+            "x86" => Architecture::X86,
+            _ => Architecture::X64,
+        };
+
+        // Use msvc-kit installer with correct architecture
+        let installer = MsvcInstaller::new(version)
+            .with_arch(arch)
+            .with_host_arch(arch);
+        let install_info = installer
+            .install(&install_path)
+            .await
+            .context("Failed to install MSVC Build Tools")?;
+
+        info!(
+            "MSVC Build Tools {} installed successfully",
+            install_info.msvc_version
+        );
+
+        Ok(InstallResult::success(
+            install_path,
+            install_info.cl_exe_path,
+            install_info.msvc_version,
+        ))
+    }
+
+    fn verify_installation(
+        &self,
+        version: &str,
+        install_path: &Path,
+        platform: &Platform,
+    ) -> VerificationResult {
+        // MSVC Build Tools only supports Windows
+        if !self.is_platform_supported(platform) {
+            return VerificationResult::failure(
+                vec!["MSVC Build Tools is only available for Windows".to_string()],
+                vec!["Use a Windows system to install MSVC Build Tools".to_string()],
+            );
+        }
+
+        let arch = match platform.arch.as_str() {
+            "aarch64" => "arm64",
+            "x86" => "x86",
+            _ => "x64",
+        };
+
+        // Check for cl.exe in expected locations
+        let expected_paths = [
+            // Standard MSVC layout
+            install_path.join(format!(
+                "VC/Tools/MSVC/{}/bin/Host{}/{}/cl.exe",
+                version, arch, arch
+            )),
+            // msvc-kit layout
+            install_path.join(format!("bin/Host{}/{}/cl.exe", arch, arch)),
+            // Direct layout
+            install_path.join("cl.exe"),
+        ];
+
+        for path in &expected_paths {
+            if path.exists() {
+                return VerificationResult::success(path.clone());
+            }
+        }
+
+        // Search for cl.exe in the installation directory
+        if let Some(entry) = walkdir::WalkDir::new(install_path)
+            .max_depth(10)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .find(|e| e.file_name() == "cl.exe")
+        {
+            return VerificationResult::success(entry.path().to_path_buf());
+        }
+
+        VerificationResult::failure(
+            vec![format!(
+                "MSVC compiler (cl.exe) not found in {}",
+                install_path.display()
+            )],
+            vec![
+                "Try reinstalling MSVC Build Tools: vx install msvc".to_string(),
+                "Ensure the installation completed successfully".to_string(),
+            ],
+        )
+    }
+}

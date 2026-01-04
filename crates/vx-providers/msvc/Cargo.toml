@@ -1,0 +1,29 @@
+[package]
+name = "vx-provider-msvc"
+version.workspace = true
+edition.workspace = true
+description = "MSVC Build Tools provider for vx - Portable Visual Studio Build Tools"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+vx-runtime = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+walkdir = { workspace = true }
+
+# MSVC installation via msvc-kit (disable self-update to avoid lzma-sys conflict)
+# 0.2.1 fixes architecture filtering - only downloads specified arch components
+msvc-kit = { version = "0.2.1", default-features = false }
+
+[dev-dependencies]
+rstest = { workspace = true }

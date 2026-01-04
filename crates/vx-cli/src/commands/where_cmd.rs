@@ -29,6 +29,13 @@ pub async fn handle(
         }
     }
 
+    // Resolve canonical runtime name and executable (handles aliases like cl -> msvc)
+    let runtime = registry.get_runtime(tool);
+    let (canonical_name, exe_name) = runtime
+        .as_ref()
+        .map(|rt| (rt.name().to_string(), rt.executable_name().to_string()))
+        .unwrap_or_else(|| (tool.to_string(), tool.to_string()));
+
     // Create path manager and resolver
     let path_manager = PathManager::new()
         .map_err(|e| anyhow::anyhow!("Failed to initialize path manager: {}", e))?;
@@ -36,10 +43,10 @@ pub async fn handle(
 
     let locations = if all {
         // Find all versions
-        resolver.find_tool_executables(tool)?
+        resolver.find_tool_executables_with_exe(&canonical_name, &exe_name)?
     } else {
         // Find only the latest version
-        match resolver.find_latest_executable(tool)? {
+        match resolver.find_latest_executable_with_exe(&canonical_name, &exe_name)? {
             Some(path) => vec![path],
             None => vec![],
         }
