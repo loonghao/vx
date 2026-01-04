@@ -84,12 +84,51 @@ impl PathResolver {
         Ok(None)
     }
 
+    /// Find a tool in any vx-managed directory using a specific executable name
+    /// This is useful for runtimes whose store directory differs from the executable name (e.g., msvc -> cl.exe)
+    pub fn find_tool_with_executable(
+        &self,
+        tool_name: &str,
+        exe_name: &str,
+    ) -> Result<Option<ToolLocation>> {
+        // Check store directory first
+        if let Some(loc) = self.find_in_store_with_exe(tool_name, exe_name)? {
+            return Ok(Some(loc));
+        }
+
+        // Check npm-tools directory
+        if let Some(loc) = self.find_in_npm_tools(tool_name)? {
+            return Ok(Some(loc));
+        }
+
+        // Check pip-tools directory
+        if let Some(loc) = self.find_in_pip_tools(tool_name)? {
+            return Ok(Some(loc));
+        }
+
+        Ok(None)
+    }
+
     /// Find all installations of a tool across all directories
     pub fn find_all_tool_installations(&self, tool_name: &str) -> Result<Vec<ToolLocation>> {
+        self.find_all_tool_installations_with_exe(tool_name, tool_name)
+    }
+
+    /// Find all installations of a tool across all directories with a specific executable name
+
+    ///
+    /// # Arguments
+    /// * `tool_name` - The runtime/tool name (used for directory lookup)
+    /// * `exe_name` - The executable name to search for
+    pub fn find_all_tool_installations_with_exe(
+        &self,
+        tool_name: &str,
+        exe_name: &str,
+    ) -> Result<Vec<ToolLocation>> {
         let mut locations = Vec::new();
 
         // Collect from store
-        locations.extend(self.find_all_in_store(tool_name)?);
+        locations.extend(self.find_all_in_store_with_exe(tool_name, exe_name)?);
 
         // Collect from npm-tools
         locations.extend(self.find_all_in_npm_tools(tool_name)?);
@@ -150,12 +189,35 @@ impl PathResolver {
     // ========== Store Directory Methods ==========
 
     /// Find a tool in the store directory
+    ///
+    /// # Arguments
+    /// * `tool_name` - The runtime/tool name (used for directory lookup)
+    /// * `exe_name` - Optional executable name to search for (defaults to tool_name)
     pub fn find_in_store(&self, tool_name: &str) -> Result<Option<ToolLocation>> {
+        self.find_in_store_with_exe(tool_name, tool_name)
+    }
+
+    /// Find a tool in the store directory with a specific executable name
+    ///
+    /// # Arguments
+    /// * `tool_name` - The runtime/tool name (used for directory lookup)
+    /// * `exe_name` - The executable name to search for
+    pub fn find_in_store_with_exe(
+        &self,
+        tool_name: &str,
+        exe_name: &str,
+    ) -> Result<Option<ToolLocation>> {
         let versions = self.manager.list_store_versions(tool_name)?;
+        eprintln!(
+            "DEBUG: find_in_store_with_exe tool={} exe={} versions={:?}",
+            tool_name, exe_name, versions
+        );
         // Return the latest version (last after sort)
         for version in versions.iter().rev() {
             let version_dir = self.manager.version_store_dir(tool_name, version);
-            if let Some(path) = self.find_executable_in_dir(&version_dir, tool_name) {
+            eprintln!("DEBUG: checking version_dir={}", version_dir.display());
+            if let Some(path) = self.find_executable_in_dir(&version_dir, exe_name) {
+                eprintln!("DEBUG: found executable at {}", path.display());
                 return Ok(Some(ToolLocation {
                     path,
                     version: version.clone(),
@@ -168,12 +230,27 @@ impl PathResolver {
 
     /// Find all versions of a tool in the store directory
     pub fn find_all_in_store(&self, tool_name: &str) -> Result<Vec<ToolLocation>> {
+        self.find_all_in_store_with_exe(tool_name, tool_name)
+    }
+
+    /// Find all versions of a tool in the store directory with a specific executable name
+    pub fn find_all_in_store_with_exe(
+        &self,
+        tool_name: &str,
+        exe_name: &str,
+    ) -> Result<Vec<ToolLocation>> {
         let mut locations = Vec::new();
         let versions = self.manager.list_store_versions(tool_name)?;
+        eprintln!(
+            "DEBUG find_all_in_store_with_exe: tool={} exe={} versions={:?}",
+            tool_name, exe_name, versions
+        );
 
         for version in versions {
             let version_dir = self.manager.version_store_dir(tool_name, &version);
-            if let Some(path) = self.find_executable_in_dir(&version_dir, tool_name) {
+            eprintln!("DEBUG: checking version_dir={}", version_dir.display());
+            if let Some(path) = self.find_executable_in_dir(&version_dir, exe_name) {
+                eprintln!("DEBUG: found executable at {}", path.display());
                 locations.push(ToolLocation {
                     path,
                     version,
@@ -269,9 +346,41 @@ impl PathResolver {
         Ok(locations.into_iter().map(|loc| loc.path).collect())
     }
 
+    /// Find all executables for a tool with a specific executable name
+    ///
+    /// # Arguments
+    /// * `tool_name` - The runtime/tool name (used for directory lookup)
+    /// * `exe_name` - The executable name to search for
+    pub fn find_tool_executables_with_exe(
+        &self,
+        tool_name: &str,
+        exe_name: &str,
+    ) -> Result<Vec<PathBuf>> {
+        eprintln!(
+            "DEBUG find_tool_executables_with_exe: tool={} exe={}",
+            tool_name, exe_name
+        );
+        let locations = self.find_all_tool_installations_with_exe(tool_name, exe_name)?;
+        eprintln!(
+            "DEBUG find_tool_executables_with_exe: found {} locations",
+            locations.len()
+        );
+        Ok(locations.into_iter().map(|loc| loc.path).collect())
+    }
+
     /// Find the latest executable for a tool
     pub fn find_latest_executable(&self, tool_name: &str) -> Result<Option<PathBuf>> {
         Ok(self.find_latest_tool(tool_name)?.map(|loc| loc.path))
+    }
+
+    /// Find the latest executable for a tool when the executable name differs
+    pub fn find_latest_executable_with_exe(
+        &self,
+        tool_name: &str,
+        exe_name: &str,
+    ) -> Result<Option<PathBuf>> {
+        let locations = self.find_all_tool_installations_with_exe(tool_name, exe_name)?;
+        Ok(locations.into_iter().last().map(|loc| loc.path))
     }
 
     /// Find executable for a specific tool version
@@ -339,11 +448,12 @@ impl PathResolver {
         }
     }
 
-    /// Search for an executable in a directory (recursively, up to 3 levels)
+    /// Search for an executable in a directory (recursively, up to 8 levels)
     /// This handles various archive structures:
     /// - Direct: ~/.vx/store/uv/0.9.17/uv
     /// - One level: ~/.vx/store/uv/0.9.17/uv-platform/uv
     /// - Two levels: ~/.vx/store/go/1.25.5/go/bin/go
+    /// - Deep: ~/.vx/store/msvc/14.42/VC/Tools/MSVC/14.42.34433/bin/Hostx64/x64/cl.exe
     pub fn find_executable_in_dir(&self, dir: &Path, exe_name: &str) -> Option<PathBuf> {
         if !dir.exists() {
             return None;
@@ -362,54 +472,21 @@ impl PathResolver {
             vec![exe_name.to_string()]
         };
 
-        // Collect all matching files at each level, then pick the best one
+        // Collect all matching files using walkdir for deep search
         let mut all_candidates: Vec<PathBuf> = Vec::new();
 
-        // Check direct children (level 1)
-        if let Ok(entries) = std::fs::read_dir(dir) {
-            for entry in entries.filter_map(|e| e.ok()) {
-                let path = entry.path();
-
-                // Check if this is a matching executable
-                if path.is_file() {
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if possible_names.iter().any(|n| n == name) {
-                            all_candidates.push(path.clone());
-                        }
-                    }
-                }
-
-                // Check one level deeper (level 2)
-                if path.is_dir() {
-                    if let Ok(sub_entries) = std::fs::read_dir(&path) {
-                        for sub_entry in sub_entries.filter_map(|e| e.ok()) {
-                            let sub_path = sub_entry.path();
-                            if sub_path.is_file() {
-                                if let Some(name) = sub_path.file_name().and_then(|n| n.to_str()) {
-                                    if possible_names.iter().any(|n| n == name) {
-                                        all_candidates.push(sub_path.clone());
-                                    }
-                                }
-                            }
-
-                            // Check two levels deeper (level 3) - for go/bin/go structure
-                            if sub_path.is_dir() {
-                                if let Ok(deep_entries) = std::fs::read_dir(&sub_path) {
-                                    for deep_entry in deep_entries.filter_map(|e| e.ok()) {
-                                        let deep_path = deep_entry.path();
-                                        if deep_path.is_file() {
-                                            if let Some(name) =
-                                                deep_path.file_name().and_then(|n| n.to_str())
-                                            {
-                                                if possible_names.iter().any(|n| n == name) {
-                                                    all_candidates.push(deep_path);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+        // Use walkdir for recursive search with max depth of 8
+        // This handles deep directory structures like MSVC
+        for entry in walkdir::WalkDir::new(dir)
+            .max_depth(8)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if possible_names.iter().any(|n| n == name) {
+                        all_candidates.push(path.to_path_buf());
                     }
                 }
             }
@@ -488,5 +565,31 @@ mod tests {
             resolver.resolve_tool_path("node", Some("18.17.0")).unwrap(),
             Some(exe_path)
         );
+    }
+
+    #[test]
+    fn test_deep_executable_search() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = PathManager::with_base_dir(temp_dir.path()).unwrap();
+        let resolver = PathResolver::new(manager);
+
+        // Create a deep directory structure like MSVC
+        // msvc/14.42/VC/Tools/MSVC/14.42.34433/bin/Hostx64/x64/cl.exe
+        let version_dir = resolver.manager().version_store_dir("msvc", "14.42");
+        let deep_dir = version_dir.join("VC/Tools/MSVC/14.42.34433/bin/Hostx64/x64");
+        std::fs::create_dir_all(&deep_dir).unwrap();
+        let exe_name = if cfg!(windows) { "cl.exe" } else { "cl" };
+        let exe_path = deep_dir.join(exe_name);
+        std::fs::write(&exe_path, "fake executable").unwrap();
+
+        // Should find the executable using find_executable_in_dir
+        let found = resolver.find_executable_in_dir(&version_dir, "cl");
+        assert_eq!(found, Some(exe_path.clone()));
+
+        // Should find using find_tool_executables_with_exe
+        let executables = resolver
+            .find_tool_executables_with_exe("msvc", "cl")
+            .unwrap();
+        assert_eq!(executables, vec![exe_path]);
     }
 }

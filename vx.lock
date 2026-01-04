@@ -4,12 +4,12 @@
 version = 1
 
 [metadata]
-generated_at = "2025-12-31T01:45:23Z"
+generated_at = "2026-01-04T18:32:53Z"
 vx_version = "0.6.6"
 platform = "x86_64-pc-windows-msvc"
 
 [tools.uv]
 version = "0.9.21"
-source = "python"
-resolved_from = "latest"
+source = "vx install"
+resolved_from = "0.9.21"
 ecosystem = "Python"

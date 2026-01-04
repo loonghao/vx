@@ -54,6 +54,8 @@ members = [
   "crates/vx-providers/release-please",
   # Python runtime
   "crates/vx-providers/python",
+  # MSVC Build Tools (Windows-only)
+  "crates/vx-providers/msvc",
 ]
 resolver = "2"
 
@@ -103,6 +105,7 @@ assert_cmd = { workspace = true }
 predicates = { workspace = true }
 # Test dependencies for integration tests
 vx-core = { workspace = true }
+walkdir.workspace = true
 
 
 [workspace.package]
@@ -167,6 +170,7 @@ vx-provider-ollama = { path = "crates/vx-providers/ollama" }
 vx-provider-spack = { path = "crates/vx-providers/spack" }
 vx-provider-release-please = { path = "crates/vx-providers/release-please" }
 vx-provider-python = { path = "crates/vx-providers/python" }
+vx-provider-msvc = { path = "crates/vx-providers/msvc" }
 vx-console = { path = "crates/vx-console" }
 
 # External dependencies
@@ -198,7 +202,7 @@ tempfile = "3.8"
 zip = "7.0"
 tar = "0.4"
 flate2 = "1.0"
-liblzma = "0.4"
+xz2 = "0.1"
 walkdir = "2.4"
 glob = "0.3"
 # Optimize chrono - remove serde feature if not needed everywhere

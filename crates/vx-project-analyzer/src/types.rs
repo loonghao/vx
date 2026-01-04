@@ -33,6 +33,9 @@ pub struct ProjectAnalysis {
 
     /// Suggested sync actions
     pub sync_actions: Vec<SyncAction>,
+
+    /// Audit findings (security, best practices, etc.)
+    pub audit_findings: Vec<AuditFinding>,
 }
 
 impl ProjectAnalysis {
@@ -63,6 +66,13 @@ impl ProjectAnalysis {
     /// Check if the project has any issues
     pub fn has_issues(&self) -> bool {
         !self.missing_dependencies().is_empty() || !self.missing_tools().is_empty()
+    }
+
+    /// Check if there are any critical audit findings
+    pub fn has_critical_audits(&self) -> bool {
+        self.audit_findings
+            .iter()
+            .any(|f| f.severity == AuditSeverity::Critical)
     }
 }
 
@@ -196,6 +206,78 @@ impl RequiredTool {
     /// Mark as available
     pub fn available(mut self) -> Self {
         self.is_available = true;
+        self
+    }
+}
+
+/// Severity level for audit findings
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AuditSeverity {
+    /// Informational finding
+    Info,
+    /// Warning - should be addressed
+    Warning,
+    /// Error - must be addressed
+    Error,
+    /// Critical - security or stability issue
+    Critical,
+}
+
+impl std::fmt::Display for AuditSeverity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AuditSeverity::Info => write!(f, "info"),
+            AuditSeverity::Warning => write!(f, "warning"),
+            AuditSeverity::Error => write!(f, "error"),
+            AuditSeverity::Critical => write!(f, "critical"),
+        }
+    }
+}
+
+/// An audit finding from project analysis
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditFinding {
+    /// Severity of the finding
+    pub severity: AuditSeverity,
+
+    /// Short title describing the issue
+    pub title: String,
+
+    /// Detailed description of the issue
+    pub detail: String,
+
+    /// Suggested fix (if available)
+    pub suggestion: Option<String>,
+
+    /// Related file path (if applicable)
+    pub file_path: Option<PathBuf>,
+}
+
+impl AuditFinding {
+    /// Create a new audit finding
+    pub fn new(
+        severity: AuditSeverity,
+        title: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
+        Self {
+            severity,
+            title: title.into(),
+            detail: detail.into(),
+            suggestion: None,
+            file_path: None,
+        }
+    }
+
+    /// Add a suggestion for fixing the issue
+    pub fn with_suggestion(mut self, suggestion: impl Into<String>) -> Self {
+        self.suggestion = Some(suggestion.into());
+        self
+    }
+
+    /// Add a related file path
+    pub fn with_file(mut self, path: impl Into<PathBuf>) -> Self {
+        self.file_path = Some(path.into());
         self
     }
 }

@@ -108,6 +108,9 @@ pub fn create_registry() -> ProviderRegistry {
     // Register Python provider (using python-build-standalone)
     registry.register(vx_provider_python::create_provider());
 
+    // Register MSVC Build Tools provider (Windows-only)
+    registry.register(vx_provider_msvc::create_provider());
+
     registry
 }
 

@@ -3,15 +3,27 @@
 //! This module provides detection for application frameworks like:
 //! - Electron (JavaScript/TypeScript desktop apps)
 //! - Tauri (Rust + Web desktop apps)
+//! - React Native (Cross-platform mobile apps)
+//! - Flutter (Cross-platform mobile/desktop apps)
+//! - Capacitor (Hybrid mobile apps)
+//! - NW.js (Desktop apps)
 //!
 //! Frameworks are detected on top of language ecosystems and provide
 //! additional context about project structure and required tools.
 
+mod capacitor;
 mod electron;
+mod flutter;
+mod nwjs;
+mod react_native;
 mod tauri;
 mod types;
 
+pub use capacitor::CapacitorDetector;
 pub use electron::ElectronDetector;
+pub use flutter::FlutterDetector;
+pub use nwjs::NwJsDetector;
+pub use react_native::ReactNativeDetector;
 pub use tauri::TauriDetector;
 pub use types::{FrameworkInfo, ProjectFramework};
 
@@ -45,5 +57,9 @@ pub fn all_framework_detectors() -> Vec<Box<dyn FrameworkDetector>> {
     vec![
         Box::new(ElectronDetector::new()),
         Box::new(TauriDetector::new()),
+        Box::new(ReactNativeDetector::new()),
+        Box::new(FlutterDetector::new()),
+        Box::new(CapacitorDetector::new()),
+        Box::new(NwJsDetector::new()),
     ]
 }

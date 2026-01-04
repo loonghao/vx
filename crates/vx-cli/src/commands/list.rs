@@ -57,7 +57,12 @@ async fn list_tool_versions(
     let current_platform = Platform::current();
     let platform_supported = is_platform_supported(&runtime, &current_platform);
 
+    // Use canonical runtime name for store lookup and executable name for file search
+    let canonical_name = runtime.name();
+    let exe_name = runtime.executable_name();
+
     // Show tool name with platform support indicator
+
     if platform_supported {
         UI::info(&format!("📦 {}", tool_name));
     } else {
@@ -72,7 +77,9 @@ async fn list_tool_versions(
     let bundled_with = runtime.metadata().get("bundled_with").cloned();
 
     // Get installed versions - check both the tool itself and its parent (if bundled)
-    let mut installed_executables = resolver.find_tool_executables(tool_name)?;
+    // Use canonical runtime name for store lookup and executable name for searching (e.g., cl.exe under msvc)
+    let mut installed_executables =
+        resolver.find_tool_executables_with_exe(canonical_name, exe_name)?;
 
     // If this tool is bundled with another and has no direct installations,
     // check the parent tool's installations

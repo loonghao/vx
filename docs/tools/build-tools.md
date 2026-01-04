@@ -1,6 +1,66 @@
 # Build Tools
 
-vx supports various build systems and task runners.
+vx supports various build systems, compilers, and task runners.
+
+## C/C++ Compilers
+
+### MSVC Build Tools (Windows)
+
+Microsoft Visual C++ compiler and build tools for Windows development.
+
+```bash
+# Install MSVC Build Tools
+vx install msvc latest
+vx install msvc 14.40       # Specific version
+
+# Using MSVC tools via namespace (recommended)
+vx msvc cl main.cpp -o main.exe
+vx msvc link main.obj
+vx msvc nmake
+vx msvc lib /OUT:mylib.lib *.obj
+
+# Direct aliases (for common tools)
+vx cl main.cpp              # Same as: vx msvc cl
+vx nmake                    # Same as: vx msvc nmake
+
+# Version-specific usage
+vx msvc@14.40 cl main.cpp   # Use MSVC 14.40
+vx msvc@14.29 cl legacy.cpp # Use MSVC 14.29 (VS2019)
+```
+
+**Available MSVC Tools:**
+
+| Tool | Command | Description |
+|------|---------|-------------|
+| cl | `vx msvc cl` | C/C++ compiler |
+| link | `vx msvc link` | Linker |
+| lib | `vx msvc lib` | Library manager |
+| nmake | `vx msvc nmake` / `vx nmake` | Make utility |
+| ml64 | `vx msvc ml64` | MASM x64 assembler |
+| dumpbin | `vx msvc dumpbin` | Binary file dumper |
+| editbin | `vx msvc editbin` | Binary file editor |
+
+**Example CMake + MSVC Workflow:**
+
+```bash
+# Configure with MSVC
+vx cmake -B build -G "NMake Makefiles"
+
+# Build
+vx nmake -C build
+```
+
+**vx.toml Configuration:**
+
+```toml
+[tools]
+msvc = "14.40"
+
+# Or with detailed configuration
+[tools.msvc]
+version = "14.40"
+sdk_version = "10.0.22621"
+```
 
 ## Task Runners
 

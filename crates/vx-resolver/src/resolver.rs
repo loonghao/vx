@@ -102,11 +102,12 @@ impl Resolver {
     pub fn check_runtime_status(&self, runtime_name: &str) -> RuntimeStatus {
         // Get the runtime specification if known
         let spec = self.runtime_map.get(runtime_name);
+        let resolved_name = spec.map(|s| s.name.as_str()).unwrap_or(runtime_name);
         let executable_name = spec.map(|s| s.get_executable()).unwrap_or(runtime_name);
 
         // Check vx-managed installation first if preferred
         if self.config.prefer_vx_managed {
-            if let Some(status) = self.check_vx_managed(executable_name) {
+            if let Some(status) = self.check_vx_managed(resolved_name, executable_name) {
                 return status;
             }
         }
@@ -121,7 +122,7 @@ impl Resolver {
 
         // Check vx-managed if not preferred but fallback enabled
         if !self.config.prefer_vx_managed {
-            if let Some(status) = self.check_vx_managed(executable_name) {
+            if let Some(status) = self.check_vx_managed(resolved_name, executable_name) {
                 return status;
             }
         }
@@ -130,9 +131,12 @@ impl Resolver {
     }
 
     /// Check if a runtime is installed via vx
-    fn check_vx_managed(&self, runtime_name: &str) -> Option<RuntimeStatus> {
+    fn check_vx_managed(&self, runtime_name: &str, executable_name: &str) -> Option<RuntimeStatus> {
         // Use unified path resolver to find the tool
-        match self.path_resolver.find_tool(runtime_name) {
+        match self
+            .path_resolver
+            .find_tool_with_executable(runtime_name, executable_name)
+        {
             Ok(Some(location)) => {
                 debug!(
                     "Found vx-managed {} version {} in {} at {}",
