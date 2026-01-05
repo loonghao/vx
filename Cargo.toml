@@ -228,7 +228,7 @@ semver = "1.0"
 self-replace = "1.5"
 
 # Windows system calls for file operations
-windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
+windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
 
 # SHA256 checksum verification
 sha2 = "0.10"
