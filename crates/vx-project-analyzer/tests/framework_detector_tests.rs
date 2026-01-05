@@ -36,12 +36,11 @@ async fn detect_react_native_via_package_json() {
     let detector = ReactNativeDetector::new();
     assert!(detector.detect(root));
 
-    let mut scripts = Vec::<Script>::new();
-    scripts.push(Script::new(
+    let scripts = vec![Script::new(
         "android",
         "react-native run-android",
         ScriptSource::PackageJson,
-    ));
+    )];
 
     let info = detector.get_info(root).await.unwrap();
     assert_eq!(info.framework.to_string(), "React Native");
