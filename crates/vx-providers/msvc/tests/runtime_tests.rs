@@ -1,6 +1,9 @@
+#![cfg(target_os = "windows")]
+
 //! Tests for MSVC Build Tools runtime
 
 use rstest::rstest;
+
 use vx_provider_msvc::{MsvcInstallConfig, MsvcProvider, MsvcRuntime, PlatformHelper};
 use vx_runtime::{Arch, Ecosystem, Os, Platform, Provider, Runtime};
 
