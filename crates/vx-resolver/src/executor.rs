@@ -102,6 +102,9 @@ impl<'a> Executor<'a> {
         // Resolve the runtime
         let mut resolution = self.resolver.resolve(runtime_name)?;
 
+        // Track the installed version for environment preparation
+        let mut installed_version: Option<String> = None;
+
         // Check if we need to install anything
         if !resolution.install_order.is_empty() {
             if self.config.auto_install {
@@ -109,7 +112,7 @@ impl<'a> Executor<'a> {
                     "Auto-installing missing runtimes: {:?}",
                     resolution.install_order
                 );
-                self.install_runtimes(&resolution.install_order).await?;
+                installed_version = self.install_runtimes(&resolution.install_order).await?;
 
                 // Re-resolve after installation to get the correct executable path
                 resolution = self.resolver.resolve(runtime_name)?;
@@ -139,6 +142,11 @@ impl<'a> Executor<'a> {
             }
         }
 
+        // Prepare environment variables for the runtime
+        let runtime_env = self
+            .prepare_runtime_environment(runtime_name, installed_version.as_deref())
+            .await?;
+
         // Call pre_run hook if provider is available
         if let Some(registry) = self.registry {
             if let Some(runtime) = registry.get_runtime(runtime_name) {
@@ -150,8 +158,8 @@ impl<'a> Executor<'a> {
             }
         }
 
-        // Build the command
-        let mut cmd = self.build_command(&resolution, args)?;
+        // Build the command with environment variables
+        let mut cmd = self.build_command(&resolution, args, &runtime_env)?;
 
         // Execute
         let status = self.run_command(&mut cmd).await?;
@@ -159,16 +167,79 @@ impl<'a> Executor<'a> {
         Ok(status.code().unwrap_or(1))
     }
 
-    /// Install a list of runtimes in order
-    async fn install_runtimes(&self, runtimes: &[String]) -> Result<()> {
-        for runtime in runtimes {
-            self.install_runtime(runtime).await?;
+    /// Prepare environment variables for a runtime
+    ///
+    /// This calls the runtime's `prepare_environment` method to get any
+    /// additional environment variables needed for execution.
+    async fn prepare_runtime_environment(
+        &self,
+        runtime_name: &str,
+        version: Option<&str>,
+    ) -> Result<std::collections::HashMap<String, String>> {
+        use std::collections::HashMap;
+
+        // If we don't have registry and context, return empty environment
+        let (registry, context) = match (self.registry, self.context) {
+            (Some(r), Some(c)) => (r, c),
+            _ => return Ok(HashMap::new()),
+        };
+
+        // Get the runtime
+        let runtime = match registry.get_runtime(runtime_name) {
+            Some(r) => r,
+            None => return Ok(HashMap::new()),
+        };
+
+        // Determine the version to use
+        let version = match version {
+            Some(v) => v.to_string(),
+            None => {
+                // Try to get the installed version from the store
+                match runtime.installed_versions(context).await {
+                    Ok(versions) if !versions.is_empty() => versions[0].clone(),
+                    _ => return Ok(HashMap::new()),
+                }
+            }
+        };
+
+        // Call prepare_environment
+        match runtime.prepare_environment(&version, context).await {
+            Ok(env) => {
+                if !env.is_empty() {
+                    debug!(
+                        "Prepared {} environment variables for {} {}",
+                        env.len(),
+                        runtime_name,
+                        version
+                    );
+                }
+                Ok(env)
+            }
+            Err(e) => {
+                warn!(
+                    "Failed to prepare environment for {} {}: {}",
+                    runtime_name, version, e
+                );
+                Ok(HashMap::new())
+            }
         }
-        Ok(())
+    }
+
+    /// Install a list of runtimes in order
+    ///
+    /// Returns the version of the last installed runtime (typically the primary runtime)
+    async fn install_runtimes(&self, runtimes: &[String]) -> Result<Option<String>> {
+        let mut last_version = None;
+        for runtime in runtimes {
+            last_version = self.install_runtime(runtime).await?;
+        }
+        Ok(last_version)
     }
 
     /// Install a single runtime
-    async fn install_runtime(&self, runtime_name: &str) -> Result<()> {
+    ///
+    /// Returns the installed version if successful
+    async fn install_runtime(&self, runtime_name: &str) -> Result<Option<String>> {
         info!("Installing: {}", runtime_name);
 
         // Try using the provider registry first
@@ -218,12 +289,13 @@ impl<'a> Executor<'a> {
                 runtime.post_install(&version, context).await?;
 
                 info!("Successfully installed {} {}", runtime_name, version);
-                return Ok(());
+                return Ok(Some(version));
             }
         }
 
         // Fallback: try to install using known methods
-        self.install_runtime_fallback(runtime_name).await
+        self.install_runtime_fallback(runtime_name).await?;
+        Ok(None)
     }
 
     /// Fallback installation methods for runtimes
@@ -431,6 +503,7 @@ impl<'a> Executor<'a> {
         &self,
         resolution: &crate::resolver::ResolutionResult,
         args: &[String],
+        runtime_env: &std::collections::HashMap<String, String>,
     ) -> Result<Command> {
         let executable = &resolution.executable;
 
@@ -462,6 +535,18 @@ impl<'a> Executor<'a> {
 
         // Add user arguments
         cmd.args(args);
+
+        // Inject runtime-specific environment variables
+        if !runtime_env.is_empty() {
+            debug!(
+                "Injecting {} environment variables for {}",
+                runtime_env.len(),
+                resolution.runtime
+            );
+            for (key, value) in runtime_env {
+                cmd.env(key, value);
+            }
+        }
 
         // Inherit stdio
         cmd.stdin(Stdio::inherit());

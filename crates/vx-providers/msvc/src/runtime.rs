@@ -6,13 +6,13 @@
 //! This implementation uses msvc-kit for downloading and installing
 //! MSVC Build Tools from Microsoft's official servers.
 
-use crate::installer::MsvcInstaller;
+use crate::installer::{MsvcInstallInfo, MsvcInstaller};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use msvc_kit::Architecture;
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use vx_runtime::{
     Ecosystem, InstallResult, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
 };
@@ -41,6 +41,22 @@ impl MsvcRuntime {
             VersionInfo::new("14.34").with_lts(true),  // VS 2022 17.4
             VersionInfo::new("14.29").with_lts(false), // VS 2019 16.11
         ]
+    }
+
+    /// Load MSVC installation info for a given version
+    fn load_install_info(&self, ctx: &RuntimeContext, version: &str) -> Option<MsvcInstallInfo> {
+        let install_path = ctx.paths.version_store_dir(self.name(), version);
+        match MsvcInstallInfo::load(&install_path) {
+            Ok(Some(info)) => Some(info),
+            Ok(None) => {
+                debug!("No MSVC install info found for version {}", version);
+                None
+            }
+            Err(e) => {
+                warn!("Failed to load MSVC install info for {}: {}", version, e);
+                None
+            }
+        }
     }
 }
 
@@ -158,6 +174,12 @@ impl Runtime for MsvcRuntime {
             .await
             .context("Failed to install MSVC Build Tools")?;
 
+        // Save installation info for later use (environment variables, etc.)
+        if let Err(e) = install_info.save() {
+            warn!("Failed to save MSVC installation info: {}", e);
+            // Don't fail the installation, just warn
+        }
+
         info!(
             "MSVC Build Tools {} installed successfully",
             install_info.msvc_version
@@ -168,6 +190,36 @@ impl Runtime for MsvcRuntime {
             install_info.cl_exe_path,
             install_info.msvc_version,
         ))
+    }
+
+    /// Prepare environment variables for MSVC compilation
+    ///
+    /// MSVC requires INCLUDE, LIB, and PATH environment variables to be set
+    /// for the compiler to find headers and libraries.
+    async fn prepare_environment(
+        &self,
+        version: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<HashMap<String, String>> {
+        // Try to load saved installation info
+        if let Some(info) = self.load_install_info(ctx, version) {
+            debug!(
+                "Loaded MSVC {} environment: {} include paths, {} lib paths, {} bin paths",
+                version,
+                info.include_paths.len(),
+                info.lib_paths.len(),
+                info.bin_paths.len()
+            );
+            return Ok(info.get_environment());
+        }
+
+        // If no saved info, return empty environment
+        // The user may need to reinstall to get proper environment setup
+        debug!(
+            "No MSVC installation info found for {}, environment variables not set",
+            version
+        );
+        Ok(HashMap::new())
     }
 
     fn verify_installation(

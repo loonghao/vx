@@ -229,7 +229,7 @@ impl MsvcInstaller {
 }
 
 /// Information about an MSVC installation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MsvcInstallInfo {
     /// Root installation path
     pub install_path: PathBuf,
@@ -252,6 +252,9 @@ pub struct MsvcInstallInfo {
     /// Binary paths (for PATH)
     pub bin_paths: Vec<PathBuf>,
 }
+
+/// The filename used to store MSVC installation info
+const MSVC_INFO_FILENAME: &str = "msvc-info.json";
 
 impl MsvcInstallInfo {
     /// Check if the installation is valid
@@ -277,5 +280,90 @@ impl MsvcInstallInfo {
                 None
             }
         }
+    }
+
+    /// Save the installation info to disk
+    ///
+    /// The info is saved as a JSON file in the installation directory.
+    pub fn save(&self) -> Result<()> {
+        let info_path = self.install_path.join(MSVC_INFO_FILENAME);
+        let json = serde_json::to_string_pretty(self)
+            .context("Failed to serialize MSVC installation info")?;
+        std::fs::write(&info_path, json)
+            .with_context(|| format!("Failed to write MSVC info to {}", info_path.display()))?;
+        debug!("Saved MSVC installation info to {}", info_path.display());
+        Ok(())
+    }
+
+    /// Load installation info from disk
+    ///
+    /// # Arguments
+    ///
+    /// * `install_path` - The installation directory to load info from
+    ///
+    /// # Returns
+    ///
+    /// The loaded installation info, or None if the info file doesn't exist.
+    pub fn load(install_path: &Path) -> Result<Option<Self>> {
+        let info_path = install_path.join(MSVC_INFO_FILENAME);
+        if !info_path.exists() {
+            debug!("MSVC info file not found at {}", info_path.display());
+            return Ok(None);
+        }
+
+        let json = std::fs::read_to_string(&info_path)
+            .with_context(|| format!("Failed to read MSVC info from {}", info_path.display()))?;
+        let info: Self = serde_json::from_str(&json)
+            .with_context(|| format!("Failed to parse MSVC info from {}", info_path.display()))?;
+        
+        debug!("Loaded MSVC installation info from {}", info_path.display());
+        Ok(Some(info))
+    }
+
+    /// Get environment variables for MSVC compilation
+    ///
+    /// Returns a HashMap with INCLUDE, LIB, and PATH environment variables
+    /// configured for MSVC compilation.
+    pub fn get_environment(&self) -> std::collections::HashMap<String, String> {
+        use std::collections::HashMap;
+
+        let mut env = HashMap::new();
+
+        // Set INCLUDE path
+        if !self.include_paths.is_empty() {
+            let include = self
+                .include_paths
+                .iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect::<Vec<_>>()
+                .join(";");
+            env.insert("INCLUDE".to_string(), include);
+        }
+
+        // Set LIB path
+        if !self.lib_paths.is_empty() {
+            let lib = self
+                .lib_paths
+                .iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect::<Vec<_>>()
+                .join(";");
+            env.insert("LIB".to_string(), lib);
+        }
+
+        // Prepend to PATH
+        if !self.bin_paths.is_empty() {
+            let current_path = std::env::var("PATH").unwrap_or_default();
+            let new_path = self
+                .bin_paths
+                .iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .chain(std::iter::once(current_path))
+                .collect::<Vec<_>>()
+                .join(";");
+            env.insert("PATH".to_string(), new_path);
+        }
+
+        env
     }
 }

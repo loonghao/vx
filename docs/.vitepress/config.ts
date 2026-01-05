@@ -42,7 +42,8 @@ const enSidebar = {
     {
       text: 'Guides',
       items: [
-        { text: 'GitHub Action', link: '/guides/github-action' }
+        { text: 'GitHub Action', link: '/guides/github-action' },
+        { text: 'Use Cases', link: '/guides/use-cases' }
       ]
     }
   ],
@@ -168,6 +169,15 @@ const zhSidebar = {
       items: [
         { text: '迁移指南', link: '/zh/guide/migration' },
         { text: '最佳实践', link: '/zh/guide/best-practices' }
+      ]
+    }
+  ],
+  '/zh/guides/': [
+    {
+      text: '指南',
+      items: [
+        { text: 'GitHub Action', link: '/guides/github-action' },
+        { text: '使用案例', link: '/zh/guides/use-cases' }
       ]
     }
   ],
