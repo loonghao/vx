@@ -24,7 +24,7 @@ vx nmake /f Makefile
 vx 自动设置 MSVC 编译所需的环境变量（INCLUDE、LIB、PATH）：
 
 ```bash
-# 安装所需工具
+# 一次安装多个工具
 vx install msvc cmake ninja
 
 # 使用 CMake 配置 MSVC
