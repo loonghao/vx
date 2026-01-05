@@ -805,6 +805,52 @@ pub trait Runtime: Send + Sync {
         Ok(true) // Default: no pre-run action, continue execution
     }
 
+    /// Prepare environment variables for command execution
+    ///
+    /// This method is called by the executor before running a command to get
+    /// any additional environment variables that the runtime requires.
+    ///
+    /// Most runtimes don't need this - they work with just the executable path.
+    /// However, some runtimes like MSVC require specific environment variables
+    /// (INCLUDE, LIB, PATH) to function properly.
+    ///
+    /// # Arguments
+    ///
+    /// * `version` - The version of the runtime being executed
+    /// * `ctx` - Runtime context providing paths and other dependencies
+    ///
+    /// # Returns
+    ///
+    /// A HashMap of environment variable names to values that should be set
+    /// before executing the runtime.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// async fn prepare_environment(
+    ///     &self,
+    ///     version: &str,
+    ///     ctx: &RuntimeContext,
+    /// ) -> Result<HashMap<String, String>> {
+    ///     let mut env = HashMap::new();
+    ///     
+    ///     // Set INCLUDE path for MSVC
+    ///     env.insert("INCLUDE".to_string(), "/path/to/includes".to_string());
+    ///     
+    ///     // Set LIB path for MSVC
+    ///     env.insert("LIB".to_string(), "/path/to/libs".to_string());
+    ///     
+    ///     Ok(env)
+    /// }
+    /// ```
+    async fn prepare_environment(
+        &self,
+        _version: &str,
+        _ctx: &RuntimeContext,
+    ) -> Result<HashMap<String, String>> {
+        Ok(HashMap::new()) // Default: no extra environment variables
+    }
+
     /// Get download URL for a specific version and platform
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         // Default implementation - subclasses should override
