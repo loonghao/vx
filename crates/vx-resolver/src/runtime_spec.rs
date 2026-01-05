@@ -51,6 +51,15 @@ pub struct RuntimeDependency {
     /// Minimum version required (semver constraint)
     pub min_version: Option<String>,
 
+    /// Maximum version allowed (semver constraint)
+    /// Use this to exclude incompatible versions
+    /// e.g., yarn 1.x may not work well with Node.js 23+
+    pub max_version: Option<String>,
+
+    /// Recommended version for this dependency
+    /// If the dependency needs to be installed, use this version
+    pub recommended_version: Option<String>,
+
     /// Whether this dependency is required or optional
     pub required: bool,
 
@@ -161,6 +170,8 @@ impl RuntimeDependency {
         Self {
             runtime_name: runtime_name.into(),
             min_version: None,
+            max_version: None,
+            recommended_version: None,
             required: true,
             reason: reason.into(),
             provided_by: None,
@@ -172,6 +183,8 @@ impl RuntimeDependency {
         Self {
             runtime_name: runtime_name.into(),
             min_version: None,
+            max_version: None,
+            recommended_version: None,
             required: false,
             reason: reason.into(),
             provided_by: None,
@@ -184,10 +197,85 @@ impl RuntimeDependency {
         self
     }
 
+    /// Set maximum version constraint
+    ///
+    /// Use this to exclude incompatible versions.
+    /// For example, yarn 1.x may have issues with Node.js 23+
+    pub fn with_max_version(mut self, version: impl Into<String>) -> Self {
+        self.max_version = Some(version.into());
+        self
+    }
+
+    /// Set recommended version
+    ///
+    /// If the dependency needs to be installed, this version will be used
+    pub fn with_recommended_version(mut self, version: impl Into<String>) -> Self {
+        self.recommended_version = Some(version.into());
+        self
+    }
+
     /// Set the provider
     pub fn provided_by(mut self, provider: impl Into<String>) -> Self {
         self.provided_by = Some(provider.into());
         self
+    }
+
+    /// Check if a version satisfies this dependency's constraints
+    pub fn is_version_compatible(&self, version: &str) -> bool {
+        // Parse version for comparison
+        let parts: Vec<u32> = version.split('.').filter_map(|s| s.parse().ok()).collect();
+
+        if parts.is_empty() {
+            return true; // Can't parse, assume compatible
+        }
+
+        // Check minimum version
+        if let Some(ref min) = self.min_version {
+            let min_parts: Vec<u32> = min.split('.').filter_map(|s| s.parse().ok()).collect();
+            if !Self::version_gte(&parts, &min_parts) {
+                return false;
+            }
+        }
+
+        // Check maximum version
+        if let Some(ref max) = self.max_version {
+            let max_parts: Vec<u32> = max.split('.').filter_map(|s| s.parse().ok()).collect();
+            if !Self::version_lte(&parts, &max_parts) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    /// Compare version parts: a >= b
+    fn version_gte(a: &[u32], b: &[u32]) -> bool {
+        for i in 0..std::cmp::max(a.len(), b.len()) {
+            let av = a.get(i).copied().unwrap_or(0);
+            let bv = b.get(i).copied().unwrap_or(0);
+            if av > bv {
+                return true;
+            }
+            if av < bv {
+                return false;
+            }
+        }
+        true // Equal
+    }
+
+    /// Compare version parts: a <= b
+    fn version_lte(a: &[u32], b: &[u32]) -> bool {
+        for i in 0..std::cmp::max(a.len(), b.len()) {
+            let av = a.get(i).copied().unwrap_or(0);
+            let bv = b.get(i).copied().unwrap_or(0);
+            if av < bv {
+                return true;
+            }
+            if av > bv {
+                return false;
+            }
+        }
+        true // Equal
     }
 }
 

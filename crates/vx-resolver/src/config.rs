@@ -5,6 +5,10 @@
 
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use vx_runtime::CacheMode;
+
+/// Default resolution cache TTL (15 minutes)
+pub const DEFAULT_RESOLUTION_CACHE_TTL: Duration = Duration::from_secs(15 * 60);
 
 /// Configuration for the resolver
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,6 +24,12 @@ pub struct ResolverConfig {
 
     /// Fallback to system PATH if vx-managed runtime not found
     pub fallback_to_system: bool,
+
+    /// Cache mode for resolution cache
+    pub resolution_cache_mode: CacheMode,
+
+    /// TTL for resolution cache entries
+    pub resolution_cache_ttl: Duration,
 
     /// Timeout for runtime execution (None = no timeout)
     pub execution_timeout: Option<Duration>,
@@ -47,6 +57,8 @@ impl Default for ResolverConfig {
             auto_install_dependencies: true,
             prefer_vx_managed: true,
             fallback_to_system: true,
+            resolution_cache_mode: CacheMode::Normal,
+            resolution_cache_ttl: DEFAULT_RESOLUTION_CACHE_TTL,
             execution_timeout: None,
             install_timeout: Duration::from_secs(300), // 5 minutes
             show_progress: true,
@@ -81,6 +93,18 @@ impl ResolverConfig {
         self.prefer_vx_managed = false;
         self.fallback_to_system = true;
         self.auto_install = false;
+        self
+    }
+
+    /// Set resolution cache mode
+    pub fn with_resolution_cache_mode(mut self, mode: CacheMode) -> Self {
+        self.resolution_cache_mode = mode;
+        self
+    }
+
+    /// Set resolution cache TTL
+    pub fn with_resolution_cache_ttl(mut self, ttl: Duration) -> Self {
+        self.resolution_cache_ttl = ttl;
         self
     }
 

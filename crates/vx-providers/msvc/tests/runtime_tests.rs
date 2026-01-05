@@ -6,7 +6,9 @@ use rstest::rstest;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
-use vx_provider_msvc::{MsvcInstallConfig, MsvcInstallInfo, MsvcProvider, MsvcRuntime, PlatformHelper};
+use vx_provider_msvc::{
+    MsvcInstallConfig, MsvcInstallInfo, MsvcProvider, MsvcRuntime, PlatformHelper,
+};
 use vx_runtime::{Arch, Ecosystem, Os, Platform, Provider, Runtime};
 
 // ============================================
@@ -217,9 +219,7 @@ fn create_test_install_info(install_path: PathBuf) -> MsvcInstallInfo {
             install_path.join("lib/x64"),
             install_path.join("sdk/lib/x64"),
         ],
-        bin_paths: vec![
-            install_path.join("bin/Hostx64/x64"),
-        ],
+        bin_paths: vec![install_path.join("bin/Hostx64/x64")],
     }
 }
 
@@ -307,7 +307,7 @@ fn test_install_info_get_tool_path() {
 fn test_install_info_environment_empty_paths() {
     let temp_dir = TempDir::new().unwrap();
     let install_path = temp_dir.path().to_path_buf();
-    
+
     let info = MsvcInstallInfo {
         install_path,
         msvc_version: "14.40".to_string(),

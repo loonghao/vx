@@ -4,11 +4,12 @@
 //! - Detecting installed runtimes (both vx-managed and system)
 //! - Resolving runtime dependencies
 //! - Determining what needs to be installed
+//! - Checking dependency version constraints
 
-use crate::{ResolverConfig, Result, RuntimeMap, RuntimeSpec};
+use crate::{ResolverConfig, Result, RuntimeDependency, RuntimeMap, RuntimeSpec};
 use std::collections::HashSet;
 use std::path::PathBuf;
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 use vx_paths::PathResolver as VxPathResolver;
 
 /// Status of a runtime
@@ -43,8 +44,21 @@ impl RuntimeStatus {
     }
 }
 
+/// Information about a dependency that doesn't meet version constraints
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct IncompatibleDependency {
+    /// Name of the dependency runtime
+    pub runtime_name: String,
+    /// Current installed version (if any)
+    pub current_version: Option<String>,
+    /// The dependency constraint
+    pub constraint: RuntimeDependency,
+    /// Recommended version to use/install
+    pub recommended_version: Option<String>,
+}
+
 /// Resolution result for a runtime execution request
-#[derive(Debug)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ResolutionResult {
     /// The primary runtime to execute
     pub runtime: String,
@@ -63,6 +77,66 @@ pub struct ResolutionResult {
 
     /// Whether the runtime itself needs installation
     pub runtime_needs_install: bool,
+
+    /// Dependencies that are installed but don't meet version constraints
+    pub incompatible_dependencies: Vec<IncompatibleDependency>,
+}
+
+/// Resolved dependency graph for a runtime execution request.
+///
+/// Phase 1 keeps this structure intentionally close to `ResolutionResult`.
+/// In later phases, we may remove machine-specific fields (like absolute paths)
+/// and cache a more stable representation.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ResolvedGraph {
+    /// The primary runtime to execute
+    pub runtime: String,
+
+    /// The actual executable to run (may be a bare name if not installed)
+    pub executable: PathBuf,
+
+    /// Command prefix to add before user arguments
+    pub command_prefix: Vec<String>,
+
+    /// Runtimes that need to be installed before execution
+    pub missing_dependencies: Vec<String>,
+
+    /// Installation order for missing dependencies
+    pub install_order: Vec<String>,
+
+    /// Whether the runtime itself needs installation
+    pub runtime_needs_install: bool,
+
+    /// Dependencies that are installed but don't meet version constraints
+    pub incompatible_dependencies: Vec<IncompatibleDependency>,
+}
+
+impl From<ResolutionResult> for ResolvedGraph {
+    fn from(value: ResolutionResult) -> Self {
+        Self {
+            runtime: value.runtime,
+            executable: value.executable,
+            command_prefix: value.command_prefix,
+            missing_dependencies: value.missing_dependencies,
+            install_order: value.install_order,
+            runtime_needs_install: value.runtime_needs_install,
+            incompatible_dependencies: value.incompatible_dependencies,
+        }
+    }
+}
+
+impl From<ResolvedGraph> for ResolutionResult {
+    fn from(value: ResolvedGraph) -> Self {
+        Self {
+            runtime: value.runtime,
+            executable: value.executable,
+            command_prefix: value.command_prefix,
+            missing_dependencies: value.missing_dependencies,
+            install_order: value.install_order,
+            runtime_needs_install: value.runtime_needs_install,
+            incompatible_dependencies: value.incompatible_dependencies,
+        }
+    }
 }
 
 /// Runtime resolver that handles dependency detection and resolution
@@ -179,17 +253,51 @@ impl Resolver {
     /// 2. Checks if the runtime and its dependencies are installed
     /// 3. Returns a resolution result with execution details
     pub fn resolve(&self, runtime_name: &str) -> Result<ResolutionResult> {
-        debug!("Resolving runtime: {}", runtime_name);
+        self.resolve_with_version(runtime_name, None)
+    }
+
+    /// Resolve a runtime into a serializable dependency graph.
+    pub fn resolve_graph(&self, runtime_name: &str) -> Result<ResolvedGraph> {
+        Ok(self.resolve(runtime_name)?.into())
+    }
+
+    /// Resolve a runtime for execution with a specific version
+    ///
+    /// This method:
+    /// 1. Looks up the runtime specification
+    /// 2. Checks if the specific version is installed
+    /// 3. Checks dependency version constraints
+    /// 4. Returns a resolution result with execution details
+    pub fn resolve_with_version(
+        &self,
+        runtime_name: &str,
+        version: Option<&str>,
+    ) -> Result<ResolutionResult> {
+        if let Some(ver) = version {
+            debug!("Resolving runtime: {}@{}", runtime_name, ver);
+        } else {
+            debug!("Resolving runtime: {}", runtime_name);
+        }
 
         // Get the runtime specification
         let spec = self.runtime_map.get(runtime_name);
+        debug!(
+            ">>> SPEC CHECK: {} has {} dependencies",
+            runtime_name,
+            spec.map(|s| s.dependencies.len()).unwrap_or(0)
+        );
 
-        // Check runtime status
-        let runtime_status = self.check_runtime_status(runtime_name);
+        // Check runtime status (optionally with specific version)
+        let runtime_status = if let Some(ver) = version {
+            self.check_runtime_status_with_version(runtime_name, ver)
+        } else {
+            self.check_runtime_status(runtime_name)
+        };
 
-        // Collect missing dependencies
+        // Collect missing dependencies and incompatible dependencies
         let mut missing_deps = Vec::new();
         let mut install_order = Vec::new();
+        let mut incompatible_deps = Vec::new();
 
         if let Some(spec) = spec {
             // Check each required dependency
@@ -197,9 +305,63 @@ impl Resolver {
                 let dep_name = dep.provided_by.as_deref().unwrap_or(&dep.runtime_name);
                 let dep_status = self.check_runtime_status(dep_name);
 
-                if !dep_status.is_available() {
-                    debug!("Missing dependency: {} (for {})", dep_name, runtime_name);
-                    missing_deps.push(dep_name.to_string());
+                debug!(
+                    "Checking dependency {} for {} (min: {:?}, max: {:?})",
+                    dep_name, runtime_name, dep.min_version, dep.max_version
+                );
+
+                match &dep_status {
+                    RuntimeStatus::VxManaged { version, .. } => {
+                        // Check version constraints
+                        let is_compatible = dep.is_version_compatible(version);
+                        debug!(
+                            "Dependency {} version {} is {} (min: {:?}, max: {:?})",
+                            dep_name,
+                            version,
+                            if is_compatible {
+                                "compatible"
+                            } else {
+                                "INCOMPATIBLE"
+                            },
+                            dep.min_version,
+                            dep.max_version
+                        );
+                        if !is_compatible {
+                            warn!(
+                                "Dependency {} version {} does not meet constraints for {} (min: {:?}, max: {:?})",
+                                dep_name, version, runtime_name, dep.min_version, dep.max_version
+                            );
+                            incompatible_deps.push(IncompatibleDependency {
+                                runtime_name: dep_name.to_string(),
+                                current_version: Some(version.clone()),
+                                constraint: dep.clone(),
+                                recommended_version: dep.recommended_version.clone(),
+                            });
+                        }
+                    }
+                    RuntimeStatus::SystemAvailable { path } => {
+                        // Try to get version from system runtime
+                        if let Some(system_version) =
+                            self.get_system_runtime_version(dep_name, path)
+                        {
+                            if !dep.is_version_compatible(&system_version) {
+                                warn!(
+                                    "System {} version {} does not meet constraints for {} (min: {:?}, max: {:?})",
+                                    dep_name, system_version, runtime_name, dep.min_version, dep.max_version
+                                );
+                                incompatible_deps.push(IncompatibleDependency {
+                                    runtime_name: dep_name.to_string(),
+                                    current_version: Some(system_version),
+                                    constraint: dep.clone(),
+                                    recommended_version: dep.recommended_version.clone(),
+                                });
+                            }
+                        }
+                    }
+                    RuntimeStatus::NotInstalled | RuntimeStatus::Unknown => {
+                        debug!("Missing dependency: {} (for {})", dep_name, runtime_name);
+                        missing_deps.push(dep_name.to_string());
+                    }
                 }
             }
 
@@ -243,7 +405,108 @@ impl Resolver {
             missing_dependencies: missing_deps,
             install_order,
             runtime_needs_install,
+            incompatible_dependencies: incompatible_deps,
         })
+    }
+
+    /// Resolve a runtime into a serializable dependency graph with optional version.
+    pub fn resolve_graph_with_version(
+        &self,
+        runtime_name: &str,
+        version: Option<&str>,
+    ) -> Result<ResolvedGraph> {
+        Ok(self.resolve_with_version(runtime_name, version)?.into())
+    }
+
+    /// Get the version of a system runtime by running `<runtime> --version`
+    fn get_system_runtime_version(&self, runtime_name: &str, path: &PathBuf) -> Option<String> {
+        use std::process::Command;
+
+        let output = Command::new(path).arg("--version").output().ok()?;
+
+        if !output.status.success() {
+            return None;
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let combined = format!("{}{}", stdout, stderr);
+
+        // Extract version number from output
+        // Common patterns: "v18.17.0", "18.17.0", "node v18.17.0"
+        self.extract_version_from_output(&combined, runtime_name)
+    }
+
+    /// Extract version number from command output
+    fn extract_version_from_output(&self, output: &str, _runtime_name: &str) -> Option<String> {
+        // Try to find version patterns
+        let version_regex = regex::Regex::new(r"v?(\d+\.\d+\.\d+)").ok()?;
+        if let Some(captures) = version_regex.captures(output) {
+            return Some(captures.get(1)?.as_str().to_string());
+        }
+
+        // Try simpler pattern (just major.minor)
+        let simple_regex = regex::Regex::new(r"v?(\d+\.\d+)").ok()?;
+        if let Some(captures) = simple_regex.captures(output) {
+            return Some(captures.get(1)?.as_str().to_string());
+        }
+
+        None
+    }
+
+    /// Check the status of a runtime with a specific version
+    pub fn check_runtime_status_with_version(
+        &self,
+        runtime_name: &str,
+        version: &str,
+    ) -> RuntimeStatus {
+        // Get the runtime specification if known
+        let spec = self.runtime_map.get(runtime_name);
+        let resolved_name = spec.map(|s| s.name.as_str()).unwrap_or(runtime_name);
+        let executable_name = spec.map(|s| s.get_executable()).unwrap_or(runtime_name);
+
+        // Check vx-managed installation for specific version
+        if let Some(status) = self.check_vx_managed_version(resolved_name, executable_name, version)
+        {
+            return status;
+        }
+
+        RuntimeStatus::NotInstalled
+    }
+
+    /// Check if a specific version of a runtime is installed via vx
+    fn check_vx_managed_version(
+        &self,
+        runtime_name: &str,
+        executable_name: &str,
+        version: &str,
+    ) -> Option<RuntimeStatus> {
+        // Use unified path resolver to find the specific version
+        match self.path_resolver.find_tool_version_with_executable(
+            runtime_name,
+            version,
+            executable_name,
+        ) {
+            Some(location) => {
+                debug!(
+                    "Found vx-managed {} version {} at {}",
+                    runtime_name,
+                    location.version,
+                    location.path.display()
+                );
+                Some(RuntimeStatus::VxManaged {
+                    version: location.version,
+                    path: location.path,
+                })
+            }
+            None => {
+                debug!(
+                    "Tool {} version {} not found in vx-managed directories",
+                    runtime_name, version
+                );
+                None
+            }
+        }
     }
 
     /// Get the installation order for a set of runtimes

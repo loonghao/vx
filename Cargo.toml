@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/vx-core",
+  "crates/vx-cache",
   "crates/vx-runtime",
   "crates/vx-resolver",
   "crates/vx-paths",
@@ -126,6 +127,7 @@ rust-version = "1.83.0"
 [workspace.dependencies]
 # Internal crates
 vx-core = { path = "crates/vx-core" }
+vx-cache = { path = "crates/vx-cache" }
 vx-runtime = { path = "crates/vx-runtime" }
 vx-resolver = { path = "crates/vx-resolver" }
 vx-paths = { path = "crates/vx-paths" }

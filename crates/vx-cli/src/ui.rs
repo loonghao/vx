@@ -296,6 +296,11 @@ impl UI {
         println!("\n{}", message.bold().underline());
     }
 
+    /// Print a section header (for multi-step operations)
+    pub fn section(message: &str) {
+        println!("\n{} {}", "▸".cyan().bold(), message.bold());
+    }
+
     /// Print a progress message
     pub fn progress(message: &str) {
         print!("{} {}...", "⏳".yellow(), message);

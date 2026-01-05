@@ -36,18 +36,7 @@ pub const SHORT_CACHE_TTL: Duration = Duration::from_secs(60 * 60);
 pub const LONG_CACHE_TTL: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
 /// Cache refresh mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum CacheMode {
-    /// Use cache if valid, otherwise fetch (default)
-    #[default]
-    Normal,
-    /// Force refresh, ignore cache
-    Refresh,
-    /// Use cache only, fail if not available (offline mode)
-    Offline,
-    /// Skip cache entirely (for CI or testing)
-    NoCache,
-}
+pub use vx_cache::CacheMode;
 
 /// Version cache entry with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -259,7 +248,7 @@ impl VersionCache {
         }
 
         let content = serde_json::to_string_pretty(&entry)?;
-        std::fs::write(&cache_file, content)?;
+        vx_cache::atomic_write_string(&cache_file, &content)?;
         Ok(())
     }
 
@@ -319,7 +308,7 @@ impl VersionCache {
                 if path.extension().is_some_and(|ext| ext == "json") {
                     stats.total_entries += 1;
                     if let Ok(metadata) = path.metadata() {
-                        stats.total_size += metadata.len();
+                        stats.total_size_bytes += metadata.len();
                     }
                     if let Ok(content) = std::fs::read_to_string(&path) {
                         if let Ok(cache_entry) = serde_json::from_str::<CacheEntry>(&content) {
@@ -338,31 +327,7 @@ impl VersionCache {
     }
 }
 
-/// Cache statistics
-#[derive(Debug, Clone, Default)]
-pub struct CacheStats {
-    /// Total number of cache entries
-    pub total_entries: usize,
-    /// Number of valid (non-expired) entries
-    pub valid_entries: usize,
-    /// Number of expired entries
-    pub expired_entries: usize,
-    /// Total size in bytes
-    pub total_size: u64,
-}
-
-impl CacheStats {
-    /// Format size as human-readable string
-    pub fn formatted_size(&self) -> String {
-        if self.total_size < 1024 {
-            format!("{} B", self.total_size)
-        } else if self.total_size < 1024 * 1024 {
-            format!("{:.1} KB", self.total_size as f64 / 1024.0)
-        } else {
-            format!("{:.1} MB", self.total_size as f64 / (1024.0 * 1024.0))
-        }
-    }
-}
+pub use vx_cache::CacheStats;
 
 #[cfg(test)]
 mod tests {
@@ -460,6 +425,6 @@ mod tests {
         let stats = cache.stats().unwrap();
         assert_eq!(stats.total_entries, 2);
         assert_eq!(stats.valid_entries, 2);
-        assert!(stats.total_size > 0);
+        assert!(stats.total_size_bytes > 0);
     }
 }

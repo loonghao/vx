@@ -4,6 +4,7 @@ use crate::cli::CacheCommand;
 use crate::ui::UI;
 use anyhow::Result;
 use vx_paths::VxPaths;
+use vx_resolver::{ResolutionCache, RESOLUTION_CACHE_DIR_NAME};
 use vx_runtime::VersionCache;
 
 /// Handle cache subcommands
@@ -12,9 +13,10 @@ pub async fn handle(command: CacheCommand) -> Result<()> {
         CacheCommand::Clear {
             versions,
             downloads,
+            resolutions,
             tool,
             force,
-        } => handle_clear(versions, downloads, tool, force).await,
+        } => handle_clear(versions, downloads, resolutions, tool, force).await,
         CacheCommand::Stats => handle_stats().await,
         CacheCommand::List { verbose } => handle_list(verbose).await,
     }
@@ -24,6 +26,7 @@ pub async fn handle(command: CacheCommand) -> Result<()> {
 async fn handle_clear(
     versions_only: bool,
     downloads_only: bool,
+    resolutions_only: bool,
     tool: Option<String>,
     force: bool,
 ) -> Result<()> {
@@ -45,8 +48,12 @@ async fn handle_clear(
     }
 
     // Determine what to clear
-    let clear_versions = !downloads_only;
-    let clear_downloads = !versions_only;
+    // - If no selector flag is provided, clear everything.
+    // - If any selector flag is provided, clear only the selected categories.
+    let any_selector = versions_only || downloads_only || resolutions_only;
+    let clear_versions = if any_selector { versions_only } else { true };
+    let clear_downloads = if any_selector { downloads_only } else { true };
+    let clear_resolutions = if any_selector { resolutions_only } else { true };
 
     // Clear version cache
     if clear_versions {
@@ -75,7 +82,7 @@ async fn handle_clear(
             if let Ok(entries) = std::fs::read_dir(download_cache) {
                 for entry in entries.filter_map(|e| e.ok()) {
                     let path = entry.path();
-                    // Only remove files, not subdirectories like 'versions'
+                    // Only remove files, not subdirectories like 'versions' / 'resolutions'
                     if path.is_file() {
                         std::fs::remove_file(&path)?;
                         count += 1;
@@ -85,6 +92,29 @@ async fn handle_clear(
             if count > 0 {
                 UI::success(&format!("Cleared {} download cache files", count));
             }
+        }
+    }
+
+    // Clear resolution cache
+    if clear_resolutions {
+        let cache_dir = paths.cache_dir.join(RESOLUTION_CACHE_DIR_NAME);
+        let resolution_cache = ResolutionCache::new(cache_dir);
+
+        if force {
+            let removed = resolution_cache.clear_all()?;
+            if removed > 0 {
+                UI::success(&format!("Resolution cache cleared ({} entries)", removed));
+            } else {
+                UI::info("Resolution cache: (empty)");
+            }
+        } else {
+            let pruned = resolution_cache.prune_expired()?;
+            if pruned > 0 {
+                UI::success(&format!("Pruned {} expired resolution entries", pruned));
+            } else {
+                UI::info("No expired resolution entries to prune");
+            }
+            UI::hint("Use --force to clear all resolution cache entries");
         }
     }
 
@@ -111,6 +141,17 @@ async fn handle_stats() -> Result<()> {
         UI::info("Version Cache: (empty)");
     }
 
+    // Resolution cache stats
+    let resolution_dir = paths.cache_dir.join(RESOLUTION_CACHE_DIR_NAME);
+    let resolution_cache = ResolutionCache::new(resolution_dir);
+    let resolution_stats = resolution_cache.stats()?;
+    println!();
+    UI::info("Resolution Cache:");
+    println!("  Total entries:   {}", resolution_stats.total_entries);
+    println!("  Valid entries:   {}", resolution_stats.valid_entries);
+    println!("  Expired entries: {}", resolution_stats.expired_entries);
+    println!("  Total size:      {}", resolution_stats.formatted_size());
+
     // Download cache stats
     let download_cache = &paths.cache_dir;
     if download_cache.exists() {
@@ -135,7 +176,7 @@ async fn handle_stats() -> Result<()> {
     }
 
     println!();
-    UI::hint("Run 'vx cache clear' to remove expired entries");
+    UI::hint("Run 'vx cache clear' to prune expired entries");
     UI::hint("Run 'vx cache clear --force' to remove all cache");
 
     Ok(())
