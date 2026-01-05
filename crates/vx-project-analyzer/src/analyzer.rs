@@ -263,7 +263,11 @@ impl ProjectAnalyzer {
             "go.mod",
             "package.json",
             "pyproject.toml",
-            // Common monorepo directory names
+        ];
+
+        // Common container directories for monorepos (packages/apps/etc.)
+        let monorepo_containers = [
+            "packages", "apps", "services", "examples", "modules", "libs",
         ];
 
         // Scan immediate subdirectories
@@ -272,27 +276,53 @@ impl ProjectAnalyzer {
                 let path = entry.path();
 
                 // Skip hidden directories and common non-project directories
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if name.starts_with('.')
-                        || name == "node_modules"
-                        || name == "target"
-                        || name == "dist"
-                        || name == "build"
-                        || name == "vendor"
-                        || name == "__pycache__"
-                        || name == ".git"
-                    {
-                        continue;
-                    }
+                let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                    continue;
+                };
+
+                if name.starts_with('.')
+                    || name == "node_modules"
+                    || name == "target"
+                    || name == "dist"
+                    || name == "build"
+                    || name == "vendor"
+                    || name == "__pycache__"
+                    || name == ".git"
+                {
+                    continue;
                 }
 
                 if path.is_dir() {
+                    let mut pushed = false;
                     // Check if this subdirectory contains any project markers
                     for marker in &monorepo_indicators {
                         if path.join(marker).exists() {
                             debug!("Found monorepo subdirectory: {}", path.display());
                             dirs.push(path.clone());
+                            pushed = true;
                             break;
+                        }
+                    }
+
+                    // If this is a common monorepo container (e.g., packages/), scan one level deeper
+                    if !pushed && monorepo_containers.contains(&name) {
+                        if let Ok(mut subentries) = tokio::fs::read_dir(&path).await {
+                            while let Ok(Some(child)) = subentries.next_entry().await {
+                                let child_path = child.path();
+                                if !child_path.is_dir() {
+                                    continue;
+                                }
+                                for marker in &monorepo_indicators {
+                                    if child_path.join(marker).exists() {
+                                        debug!(
+                                            "Found monorepo subdirectory: {}",
+                                            child_path.display()
+                                        );
+                                        dirs.push(child_path.clone());
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
                 }

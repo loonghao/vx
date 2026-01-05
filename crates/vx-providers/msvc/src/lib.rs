@@ -1,5 +1,5 @@
 //! MSVC Build Tools provider for vx
-//! 
+//!
 //! This crate provides the MSVC Build Tools provider for vx.
 
 //! MSVC Build Tools includes the Microsoft Visual C++ compiler (cl.exe),
@@ -90,7 +90,9 @@ mod unsupported {
     use anyhow::anyhow;
     use async_trait::async_trait;
     use std::collections::HashMap;
-    use vx_runtime::{Ecosystem, InstallResult, Platform, Runtime, RuntimeContext, VerificationResult};
+    use vx_runtime::{
+        Ecosystem, InstallResult, Platform, Runtime, RuntimeContext, VerificationResult,
+    };
 
     #[derive(Debug, Default)]
     pub struct UnsupportedRuntime;
@@ -129,19 +131,35 @@ mod unsupported {
             String::new()
         }
 
-        async fn fetch_versions(&self, _ctx: &RuntimeContext) -> anyhow::Result<Vec<vx_runtime::VersionInfo>> {
+        async fn fetch_versions(
+            &self,
+            _ctx: &RuntimeContext,
+        ) -> anyhow::Result<Vec<vx_runtime::VersionInfo>> {
             Ok(vec![])
         }
 
-        async fn download_url(&self, _version: &str, _platform: &Platform) -> anyhow::Result<Option<String>> {
+        async fn download_url(
+            &self,
+            _version: &str,
+            _platform: &Platform,
+        ) -> anyhow::Result<Option<String>> {
             Ok(None)
         }
 
-        async fn install(&self, _version: &str, _ctx: &RuntimeContext) -> anyhow::Result<InstallResult> {
+        async fn install(
+            &self,
+            _version: &str,
+            _ctx: &RuntimeContext,
+        ) -> anyhow::Result<InstallResult> {
             Err(anyhow!("MSVC Build Tools is only available on Windows"))
         }
 
-        fn verify_installation(&self, _version: &str, _install_path: &std::path::Path, _platform: &Platform) -> VerificationResult {
+        fn verify_installation(
+            &self,
+            _version: &str,
+            _install_path: &std::path::Path,
+            _platform: &Platform,
+        ) -> VerificationResult {
             VerificationResult::failure(
                 vec!["MSVC Build Tools is only available on Windows".to_string()],
                 vec!["Use a Windows system to install MSVC Build Tools".to_string()],
@@ -186,4 +204,3 @@ pub use unsupported::{UnsupportedProvider as MsvcProvider, UnsupportedRuntime as
 pub fn create_provider() -> Arc<dyn Provider> {
     Arc::new(MsvcProvider::default())
 }
-
