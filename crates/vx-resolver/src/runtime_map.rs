@@ -110,13 +110,17 @@ impl RuntimeMap {
         );
 
         // yarn - requires Node.js
+        // Note: Yarn 1.x has compatibility issues with Node.js 23+ due to native module compilation
+        // Recommend Node.js 20 LTS for best compatibility
         self.register(
             RuntimeSpec::new("yarn", "Fast, reliable, and secure dependency management")
                 .with_ecosystem(Ecosystem::Node)
-                .with_dependency(RuntimeDependency::required(
-                    "node",
-                    "yarn requires Node.js runtime",
-                )),
+                .with_dependency(
+                    RuntimeDependency::required("node", "yarn requires Node.js runtime")
+                        .with_min_version("12.0.0")
+                        .with_max_version("22.99.99")
+                        .with_recommended_version("20"),
+                ),
         );
 
         // pnpm - requires Node.js

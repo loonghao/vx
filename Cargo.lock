@@ -3866,6 +3866,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-cache"
+version = "0.6.8"
+dependencies = [
+ "anyhow",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "vx-cli"
 version = "0.6.8"
 dependencies = [
@@ -4621,14 +4632,17 @@ version = "0.6.8"
 dependencies = [
  "anyhow",
  "async-trait",
+ "regex",
  "rstest",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "tokio",
  "tokio-test",
  "toml 0.8.23",
  "tracing",
+ "vx-cache",
  "vx-paths",
  "vx-runtime",
  "which",
@@ -4656,6 +4670,7 @@ dependencies = [
  "tokio-test",
  "tracing",
  "turbo-cdn",
+ "vx-cache",
  "vx-core",
  "vx-paths",
  "which",

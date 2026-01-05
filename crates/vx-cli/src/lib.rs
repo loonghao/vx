@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use clap::Parser;
+use vx_resolver::RuntimeRequest;
 use vx_runtime::ProviderRegistry;
 
 pub mod cli;
@@ -37,11 +38,11 @@ pub async fn main() -> anyhow::Result<()> {
     // Create provider registry with all available providers
     let registry = create_registry();
 
-    // Create runtime context
-    let context = create_context()?;
-
     // Create global options from CLI
     let options = GlobalOptions::from(&cli);
+
+    // Create runtime context (apply global cache mode)
+    let context = create_context()?.with_cache_mode(options.cache_mode);
 
     // Create command context
     let cmd_ctx = CommandContext::new(registry, context, options);
@@ -64,20 +65,27 @@ pub async fn main() -> anyhow::Result<()> {
 }
 
 /// Execute a tool with the given arguments
+///
+/// Supports `runtime@version` syntax:
+/// - `vx yarn@1.21.1 global add terminalizer`
+/// - `vx node@20 --version`
 async fn execute_tool(ctx: &CommandContext, args: &[String]) -> Result<()> {
     if args.is_empty() {
         return Err(anyhow::anyhow!("No tool specified"));
     }
 
-    let tool_name = &args[0];
+    // Parse the runtime request (supports runtime@version syntax)
+    let request = RuntimeRequest::parse(&args[0]);
     let tool_args = &args[1..];
 
-    commands::execute::handle(
+    commands::execute::handle_with_version(
         ctx.registry(),
         ctx.runtime_context(),
-        tool_name,
+        &request.name,
+        request.version.as_deref(),
         tool_args,
         ctx.use_system_path(),
+        ctx.cache_mode(),
     )
     .await
 }

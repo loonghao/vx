@@ -8,12 +8,36 @@ use crate::commands::{
 use anyhow::Result;
 use async_trait::async_trait;
 use clap::{Parser, Subcommand, ValueEnum};
+use vx_runtime::CacheMode;
 
 #[derive(ValueEnum, Clone, Debug)]
 pub enum OutputFormat {
     Table,
     Json,
     Yaml,
+}
+
+#[derive(ValueEnum, Clone, Copy, Debug)]
+pub enum CacheModeArg {
+    /// Use cache if valid, otherwise compute/fetch (default)
+    Normal,
+    /// Force refresh, ignore cache
+    Refresh,
+    /// Use cache only, fail if not available
+    Offline,
+    /// Skip cache entirely
+    NoCache,
+}
+
+impl From<CacheModeArg> for CacheMode {
+    fn from(value: CacheModeArg) -> Self {
+        match value {
+            CacheModeArg::Normal => CacheMode::Normal,
+            CacheModeArg::Refresh => CacheMode::Refresh,
+            CacheModeArg::Offline => CacheMode::Offline,
+            CacheModeArg::NoCache => CacheMode::NoCache,
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -27,6 +51,10 @@ pub struct Cli {
     /// Use system PATH to find tools instead of vx-managed versions
     #[arg(long, global = true)]
     pub use_system_path: bool,
+
+    /// Cache mode: normal, refresh, offline, no-cache
+    #[arg(long, global = true, value_enum, default_value = "normal")]
+    pub cache_mode: CacheModeArg,
 
     /// Enable verbose output with detailed logging
     #[arg(short, long, global = true)]
@@ -52,6 +80,7 @@ impl From<&Cli> for GlobalOptions {
     fn from(cli: &Cli) -> Self {
         GlobalOptions {
             use_system_path: cli.use_system_path,
+            cache_mode: cli.cache_mode.into(),
             verbose: cli.verbose,
             debug: cli.debug,
         }
@@ -523,14 +552,17 @@ pub enum ServicesCommand {
 
 #[derive(Subcommand, Clone)]
 pub enum CacheCommand {
-    /// Clear all cached data (version lists, downloads)
+    /// Clear all cached data (version lists, downloads, resolutions)
     Clear {
-        /// Only clear version cache (not downloads)
+        /// Only clear version cache (not downloads/resolutions)
         #[arg(long)]
         versions: bool,
         /// Only clear download cache
         #[arg(long)]
         downloads: bool,
+        /// Only clear resolution cache
+        #[arg(long)]
+        resolutions: bool,
         /// Clear cache for specific tool only
         #[arg(long)]
         tool: Option<String>,

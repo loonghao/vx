@@ -25,15 +25,16 @@ pub async fn handle(
     let mut success_count = 0;
     let mut fail_count = 0;
     let total = tools.len();
+    let is_multi = total > 1;
 
     for (idx, tool_spec) in tools.iter().enumerate() {
         let (tool_name, version) = parse_tool_spec(tool_spec);
 
-        if total > 1 {
-            UI::section(&format!("[{}/{}] Installing {}", idx + 1, total, tool_spec));
+        if is_multi {
+            UI::section(&format!("[{}/{}] {}", idx + 1, total, tool_spec));
         }
 
-        match install_single(registry, context, tool_name, version, force).await {
+        match install_single(registry, context, tool_name, version, force, is_multi).await {
             Ok(()) => success_count += 1,
             Err(e) => {
                 UI::error(&format!("Failed to install {}: {}", tool_spec, e));
@@ -43,7 +44,7 @@ pub async fn handle(
     }
 
     // Summary for multiple tools
-    if total > 1 {
+    if is_multi {
         println!();
         if fail_count == 0 {
             UI::success(&format!("Successfully installed {} tool(s)", success_count));
@@ -68,6 +69,7 @@ async fn install_single(
     tool_name: &str,
     version: Option<&str>,
     force: bool,
+    is_multi: bool,
 ) -> Result<()> {
     // Get the runtime from registry
     let runtime = match registry.get_runtime(tool_name) {
@@ -84,10 +86,15 @@ async fn install_single(
     let requested_version = version.unwrap_or("latest");
 
     // Resolve version (handles "latest", partial versions like "3.11", etc.)
-    let spinner = ProgressSpinner::new(&format!(
-        "Resolving version {} for {}...",
-        requested_version, tool_name
-    ));
+    let resolve_msg = if is_multi {
+        format!("Resolving {}...", requested_version)
+    } else {
+        format!(
+            "Resolving version {} for {}...",
+            requested_version, tool_name
+        )
+    };
+    let spinner = ProgressSpinner::new(&resolve_msg);
     let target_version = runtime.resolve_version(requested_version, context).await?;
     spinner.finish_and_clear();
 
@@ -111,17 +118,36 @@ async fn install_single(
     // Run pre-install hook
     runtime.pre_install(&target_version, context).await?;
 
-    // Install the version with progress spinner
-    let spinner =
-        ProgressSpinner::new_install(&format!("Installing {} {}...", tool_name, target_version));
-    let install_result = runtime.install(&target_version, context).await;
+    // Install the version
+    let install_result = if is_multi {
+        // In multi-tool mode, use simpler output without spinner
+        // to avoid visual clutter
+        runtime.install(&target_version, context).await
+    } else {
+        // In single-tool mode, show spinner
+        let spinner = ProgressSpinner::new_install(&format!(
+            "Installing {} {}...",
+            tool_name, target_version
+        ));
+        let result = runtime.install(&target_version, context).await;
+        match &result {
+            Ok(_) => spinner.finish_with_message(&format!(
+                "✓ Successfully installed {} {}",
+                tool_name, target_version
+            )),
+            Err(e) => spinner.finish_with_error(&format!(
+                "Failed to install {} {}: {}",
+                tool_name, target_version, e
+            )),
+        }
+        result
+    };
 
     match install_result {
         Ok(result) => {
-            spinner.finish_with_message(&format!(
-                "✓ Successfully installed {} {}",
-                tool_name, target_version
-            ));
+            if is_multi {
+                UI::success(&format!("Installed {} {}", tool_name, target_version));
+            }
 
             // Run post-install hook
             runtime.post_install(&target_version, context).await?;
@@ -138,16 +164,20 @@ async fn install_single(
             );
 
             // Show usage hint
-            UI::hint(&format!(
-                "Use 'vx {} --version' to verify installation",
-                tool_name
-            ));
+            if !is_multi {
+                UI::hint(&format!(
+                    "Use 'vx {} --version' to verify installation",
+                    tool_name
+                ));
+            }
         }
         Err(e) => {
-            spinner.finish_with_error(&format!(
-                "Failed to install {} {}: {}",
-                tool_name, target_version, e
-            ));
+            if is_multi {
+                UI::error(&format!(
+                    "Failed to install {} {}: {}",
+                    tool_name, target_version, e
+                ));
+            }
             return Err(e);
         }
     }

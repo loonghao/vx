@@ -147,9 +147,24 @@ impl PathResolver {
 
     /// Find a specific version of a tool
     pub fn find_tool_version(&self, tool_name: &str, version: &str) -> Option<ToolLocation> {
+        self.find_tool_version_with_executable(tool_name, version, tool_name)
+    }
+
+    /// Find a specific version of a tool with a specific executable name
+    ///
+    /// # Arguments
+    /// * `tool_name` - The runtime/tool name (used for directory lookup)
+    /// * `version` - The version to find
+    /// * `exe_name` - The executable name to search for
+    pub fn find_tool_version_with_executable(
+        &self,
+        tool_name: &str,
+        version: &str,
+        exe_name: &str,
+    ) -> Option<ToolLocation> {
         // Check store
         let store_dir = self.manager.version_store_dir(tool_name, version);
-        if let Some(path) = self.find_executable_in_dir(&store_dir, tool_name) {
+        if let Some(path) = self.find_executable_in_dir(&store_dir, exe_name) {
             return Some(ToolLocation {
                 path,
                 version: version.to_string(),
