@@ -3,8 +3,10 @@
 //! Tests for MSVC Build Tools runtime
 
 use rstest::rstest;
+use std::path::PathBuf;
+use tempfile::TempDir;
 
-use vx_provider_msvc::{MsvcInstallConfig, MsvcProvider, MsvcRuntime, PlatformHelper};
+use vx_provider_msvc::{MsvcInstallConfig, MsvcInstallInfo, MsvcProvider, MsvcRuntime, PlatformHelper};
 use vx_runtime::{Arch, Ecosystem, Os, Platform, Provider, Runtime};
 
 // ============================================
@@ -192,4 +194,137 @@ fn test_executable_relative_path_arm64() {
     };
     let path = runtime.executable_relative_path("14.40.33807", &platform);
     assert_eq!(path, "VC/Tools/MSVC/14.40.33807/bin/Hostarm64/arm64/cl.exe");
+}
+
+// ============================================
+// MsvcInstallInfo Tests
+// ============================================
+
+fn create_test_install_info(install_path: PathBuf) -> MsvcInstallInfo {
+    MsvcInstallInfo {
+        install_path: install_path.clone(),
+        msvc_version: "14.40.33807".to_string(),
+        sdk_version: Some("10.0.22621.0".to_string()),
+        cl_exe_path: install_path.join("bin/Hostx64/x64/cl.exe"),
+        link_exe_path: Some(install_path.join("bin/Hostx64/x64/link.exe")),
+        lib_exe_path: Some(install_path.join("bin/Hostx64/x64/lib.exe")),
+        nmake_exe_path: Some(install_path.join("bin/Hostx64/x64/nmake.exe")),
+        include_paths: vec![
+            install_path.join("include"),
+            install_path.join("sdk/include/ucrt"),
+        ],
+        lib_paths: vec![
+            install_path.join("lib/x64"),
+            install_path.join("sdk/lib/x64"),
+        ],
+        bin_paths: vec![
+            install_path.join("bin/Hostx64/x64"),
+        ],
+    }
+}
+
+#[test]
+fn test_install_info_get_environment() {
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+    let info = create_test_install_info(install_path.clone());
+
+    let env = info.get_environment();
+
+    // Check INCLUDE
+    assert!(env.contains_key("INCLUDE"));
+    let include = env.get("INCLUDE").unwrap();
+    assert!(include.contains("include"));
+    assert!(include.contains("ucrt"));
+
+    // Check LIB
+    assert!(env.contains_key("LIB"));
+    let lib = env.get("LIB").unwrap();
+    assert!(lib.contains("lib"));
+    assert!(lib.contains("x64"));
+
+    // Check PATH
+    assert!(env.contains_key("PATH"));
+    let path = env.get("PATH").unwrap();
+    assert!(path.contains("bin"));
+    assert!(path.contains("Hostx64"));
+}
+
+#[test]
+fn test_install_info_save_and_load() {
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+    let info = create_test_install_info(install_path.clone());
+
+    // Save
+    info.save().expect("Failed to save install info");
+
+    // Verify file exists
+    let info_file = install_path.join("msvc-info.json");
+    assert!(info_file.exists(), "msvc-info.json should exist");
+
+    // Load
+    let loaded = MsvcInstallInfo::load(&install_path)
+        .expect("Failed to load install info")
+        .expect("Install info should exist");
+
+    // Verify loaded data matches
+    assert_eq!(loaded.msvc_version, info.msvc_version);
+    assert_eq!(loaded.sdk_version, info.sdk_version);
+    assert_eq!(loaded.include_paths.len(), info.include_paths.len());
+    assert_eq!(loaded.lib_paths.len(), info.lib_paths.len());
+    assert_eq!(loaded.bin_paths.len(), info.bin_paths.len());
+}
+
+#[test]
+fn test_install_info_load_nonexistent() {
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    // Load from empty directory
+    let result = MsvcInstallInfo::load(&install_path).expect("Should not error");
+    assert!(result.is_none(), "Should return None for nonexistent file");
+}
+
+#[test]
+fn test_install_info_get_tool_path() {
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+    let info = create_test_install_info(install_path.clone());
+
+    // Test known tools
+    assert!(info.get_tool_path("cl").is_some());
+    assert!(info.get_tool_path("cl.exe").is_some());
+    assert!(info.get_tool_path("link").is_some());
+    assert!(info.get_tool_path("lib").is_some());
+    assert!(info.get_tool_path("nmake").is_some());
+
+    // Test unknown tool
+    assert!(info.get_tool_path("unknown").is_none());
+}
+
+#[test]
+fn test_install_info_environment_empty_paths() {
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+    
+    let info = MsvcInstallInfo {
+        install_path,
+        msvc_version: "14.40".to_string(),
+        sdk_version: None,
+        cl_exe_path: PathBuf::from("cl.exe"),
+        link_exe_path: None,
+        lib_exe_path: None,
+        nmake_exe_path: None,
+        include_paths: vec![],
+        lib_paths: vec![],
+        bin_paths: vec![],
+    };
+
+    let env = info.get_environment();
+
+    // Empty paths should not add environment variables
+    assert!(!env.contains_key("INCLUDE"));
+    assert!(!env.contains_key("LIB"));
+    assert!(!env.contains_key("PATH"));
 }
