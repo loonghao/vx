@@ -21,9 +21,11 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 walkdir = { workspace = true }
 
+[target.'cfg(windows)'.dependencies]
 # MSVC installation via msvc-kit (disable self-update to avoid lzma-sys conflict)
 # 0.2.1 fixes architecture filtering - only downloads specified arch components
 msvc-kit = { version = "0.2.1", default-features = false }
 
 [dev-dependencies]
 rstest = { workspace = true }
+
