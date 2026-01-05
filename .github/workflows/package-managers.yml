@@ -32,6 +32,7 @@ jobs:
     outputs:
       should-publish: ${{ steps.check.outputs.should-publish }}
       version: ${{ steps.version.outputs.version }}
+      normalized_version: ${{ steps.normalize.outputs.normalized_version }}
     steps:
       - name: Debug workflow event
         run: |
@@ -83,6 +84,19 @@ jobs:
             fi
           fi
 
+      - name: Normalize version for WinGet
+        id: normalize
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          echo "Original version: $version"
+          
+          # Remove 'vx-' prefix if present (vx-v0.1.0 -> v0.1.0)
+          normalized_version="${version#vx-}"
+          # Remove 'v' prefix for WinGet (v0.1.0 -> 0.1.0)
+          normalized_version="${normalized_version#v}"
+          echo "Normalized version: $normalized_version"
+          echo "normalized_version=$normalized_version" >> $GITHUB_OUTPUT
+
       - name: Verify GitHub Release exists
         run: |
           version="${{ steps.version.outputs.version }}"
@@ -116,8 +130,8 @@ jobs:
         uses: vedantmgoyal9/winget-releaser@v2
         with:
           identifier: loonghao.vx
-          # release-tag must match the GitHub release tag (with 'v' prefix)
-          release-tag: ${{ needs.check-release.outputs.version }}
+          # Use normalized version without 'vx-' and 'v' prefix (e.g., "0.1.0" instead of "vx-v0.1.0")
+          release-tag: ${{ needs.check-release.outputs.normalized_version }}
           # Only match Windows MSVC zip files (exclude sha256 files and non-Windows builds)
           # Matches: vx-0.6.2-x86_64-pc-windows-msvc.zip, vx-x86_64-pc-windows-msvc.zip
           installers-regex: 'windows-msvc\.zip$'
