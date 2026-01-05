@@ -728,8 +728,7 @@ mod install_tests {
         let result = install::handle(
             &registry,
             &ctx,
-            "nonexistent-tool-xyz",
-            Some("1.0.0"),
+            &["nonexistent-tool-xyz@1.0.0".to_string()],
             false,
         )
         .await;
@@ -952,7 +951,7 @@ mod error_handling_tests {
             false,
         )
         .await;
-        let _ = install::handle(&registry, &ctx, "invalid-tool-xyz", None, false).await;
+        let _ = install::handle(&registry, &ctx, &["invalid-tool-xyz".to_string()], false).await;
         let _ = remove::handle(&registry, &ctx, "invalid-tool-xyz", None, true).await;
         let _ = switch::handle(&registry, "invalid-tool-xyz", false).await;
 
@@ -970,7 +969,7 @@ mod error_handling_tests {
 
         for name in special_names {
             // These should return errors but not panic
-            let _ = install::handle(&registry, &ctx, name, None, false).await;
+            let _ = install::handle(&registry, &ctx, &[name.to_string()], false).await;
             let _ = remove::handle(&registry, &ctx, name, None, true).await;
         }
 
