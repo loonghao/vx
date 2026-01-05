@@ -92,13 +92,13 @@ pub enum Commands {
         all: bool,
     },
 
-    /// Install a specific tool version
+    /// Install tool(s) - supports multiple tools at once
     #[command(alias = "i")]
     Install {
-        /// Tool name (e.g., uv, node, go, rust)
-        tool: String,
-        /// Version to install (e.g., 1.0.0, latest, lts)
-        version: Option<String>,
+        /// Tools to install (e.g., uv, node@22, go@1.22, rust)
+        /// Format: tool or tool@version
+        #[arg(required = true, num_args = 1..)]
+        tools: Vec<String>,
         /// Force reinstallation even if already installed
         #[arg(short, long)]
         force: bool,
@@ -856,19 +856,9 @@ impl CommandHandler for Commands {
                 .await
             }
 
-            Commands::Install {
-                tool,
-                version,
-                force,
-            } => {
-                commands::install::handle(
-                    ctx.registry(),
-                    ctx.runtime_context(),
-                    tool,
-                    version.as_deref(),
-                    *force,
-                )
-                .await
+            Commands::Install { tools, force } => {
+                commands::install::handle(ctx.registry(), ctx.runtime_context(), tools, *force)
+                    .await
             }
 
             Commands::Update { tool, apply } => {

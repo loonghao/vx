@@ -139,22 +139,21 @@ mod install_boundary_tests {
 
     /// Test vx install with invalid version format
     #[rstest]
-    #[case("node", "not-a-version")]
-    #[case("node", "999.999.999")]
-    #[case("node", "v")]
-    #[case("node", "@")]
-    fn test_install_invalid_version(#[case] tool: &str, #[case] version: &str) {
+    #[case("node@not-a-version")]
+    #[case("node@999.999.999")]
+    #[case("node@v")]
+    fn test_install_invalid_version(#[case] tool_spec: &str) {
         init_test_env();
         if !vx_available() {
             return;
         }
 
-        let output = run_vx(&["install", tool, version]).unwrap();
+        let output = run_vx(&["install", tool_spec]).unwrap();
         // Should fail gracefully
         assert!(
             !output.status.success(),
             "Installing invalid version {} should fail",
-            version
+            tool_spec
         );
 
         cleanup_test_env();

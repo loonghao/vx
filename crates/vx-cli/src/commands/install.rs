@@ -7,7 +7,62 @@ use vx_paths::project::{find_vx_config, LOCK_FILE_NAME};
 use vx_resolver::{LockFile, LockedTool};
 use vx_runtime::{ProviderRegistry, RuntimeContext};
 
+/// Parse tool specification in format "tool" or "tool@version"
+fn parse_tool_spec(spec: &str) -> (&str, Option<&str>) {
+    if let Some((tool, version)) = spec.split_once('@') {
+        (tool, Some(version))
+    } else {
+        (spec, None)
+    }
+}
+
 pub async fn handle(
+    registry: &ProviderRegistry,
+    context: &RuntimeContext,
+    tools: &[String],
+    force: bool,
+) -> Result<()> {
+    let mut success_count = 0;
+    let mut fail_count = 0;
+    let total = tools.len();
+
+    for (idx, tool_spec) in tools.iter().enumerate() {
+        let (tool_name, version) = parse_tool_spec(tool_spec);
+
+        if total > 1 {
+            UI::section(&format!("[{}/{}] Installing {}", idx + 1, total, tool_spec));
+        }
+
+        match install_single(registry, context, tool_name, version, force).await {
+            Ok(()) => success_count += 1,
+            Err(e) => {
+                UI::error(&format!("Failed to install {}: {}", tool_spec, e));
+                fail_count += 1;
+            }
+        }
+    }
+
+    // Summary for multiple tools
+    if total > 1 {
+        println!();
+        if fail_count == 0 {
+            UI::success(&format!("Successfully installed {} tool(s)", success_count));
+        } else {
+            UI::warn(&format!(
+                "Installed {} tool(s), {} failed",
+                success_count, fail_count
+            ));
+        }
+    }
+
+    if fail_count > 0 {
+        Err(anyhow::anyhow!("{} tool(s) failed to install", fail_count))
+    } else {
+        Ok(())
+    }
+}
+
+async fn install_single(
     registry: &ProviderRegistry,
     context: &RuntimeContext,
     tool_name: &str,
