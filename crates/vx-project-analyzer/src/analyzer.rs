@@ -343,10 +343,8 @@ impl ProjectAnalyzer {
             .collect();
 
         if real_ecosystems.len() > 1 {
-            let ecosystem_names: Vec<_> = real_ecosystems
-                .iter()
-                .map(|e| format!("{:?}", e))
-                .collect();
+            let ecosystem_names: Vec<_> =
+                real_ecosystems.iter().map(|e| format!("{:?}", e)).collect();
             analysis.audit_findings.push(
                 AuditFinding::new(
                     AuditSeverity::Info,
