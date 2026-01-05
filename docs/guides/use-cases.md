@@ -24,7 +24,7 @@ vx nmake /f Makefile
 vx automatically sets up the required environment variables (INCLUDE, LIB, PATH) for MSVC compilation:
 
 ```bash
-# Install required tools
+# Install multiple tools at once
 vx install msvc cmake ninja
 
 # Configure with CMake using MSVC
