@@ -1,6 +1,9 @@
+#![cfg(target_os = "windows")]
+
 //! MSVC Build Tools provider for vx
-//!
+//! 
 //! This crate provides the MSVC Build Tools provider for vx.
+
 //! MSVC Build Tools includes the Microsoft Visual C++ compiler (cl.exe),
 //! linker, and related tools for building native Windows applications.
 //!
