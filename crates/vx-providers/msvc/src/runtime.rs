@@ -90,11 +90,8 @@ impl Runtime for MsvcRuntime {
     }
 
     fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
-        let arch = match platform.arch.as_str() {
-            "aarch64" => "arm64",
-            "x86" => "x86",
-            _ => "x64",
-        };
+        // platform.arch.as_str() returns "arm64", "x86", "x64" etc.
+        let arch = platform.arch.as_str();
         format!("VC/Tools/MSVC/{}/bin/Host{}/{}/cl.exe", version, arch, arch)
     }
 
@@ -187,11 +184,8 @@ impl Runtime for MsvcRuntime {
             );
         }
 
-        let arch = match platform.arch.as_str() {
-            "aarch64" => "arm64",
-            "x86" => "x86",
-            _ => "x64",
-        };
+        // platform.arch.as_str() returns "arm64", "x86", "x64" etc.
+        let arch = platform.arch.as_str();
 
         // Check for cl.exe in expected locations
         let expected_paths = [
