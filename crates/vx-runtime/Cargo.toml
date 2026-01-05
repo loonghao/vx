@@ -41,6 +41,7 @@ indicatif = { workspace = true }
 
 # Internal dependencies
 vx-core = { path = "../vx-core" }
+vx-cache = { workspace = true }
 vx-paths = { path = "../vx-paths" }
 
 # CDN acceleration (optional)

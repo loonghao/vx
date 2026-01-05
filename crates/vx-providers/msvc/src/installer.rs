@@ -315,7 +315,7 @@ impl MsvcInstallInfo {
             .with_context(|| format!("Failed to read MSVC info from {}", info_path.display()))?;
         let info: Self = serde_json::from_str(&json)
             .with_context(|| format!("Failed to parse MSVC info from {}", info_path.display()))?;
-        
+
         debug!("Loaded MSVC installation info from {}", info_path.display());
         Ok(Some(info))
     }

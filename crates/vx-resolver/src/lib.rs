@@ -34,15 +34,23 @@
 
 mod config;
 mod executor;
+mod resolution_cache;
 mod resolver;
 mod runtime_map;
+mod runtime_request;
 mod runtime_spec;
 pub mod version;
 
-pub use config::ResolverConfig;
+pub use config::{ResolverConfig, DEFAULT_RESOLUTION_CACHE_TTL};
 pub use executor::{execute_system_runtime, Executor};
-pub use resolver::{ResolutionResult, Resolver, RuntimeStatus};
+pub use resolution_cache::{
+    ResolutionCache, ResolutionCacheKey, RESOLUTION_CACHE_DIR_NAME, RESOLUTION_CACHE_SCHEMA_VERSION,
+};
+pub use resolver::{
+    IncompatibleDependency, ResolutionResult, ResolvedGraph, Resolver, RuntimeStatus,
+};
 pub use runtime_map::RuntimeMap;
+pub use runtime_request::RuntimeRequest;
 pub use runtime_spec::{Ecosystem, RuntimeDependency, RuntimeSpec};
 
 // Re-export version types for convenience

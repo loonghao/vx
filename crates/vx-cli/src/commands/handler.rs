@@ -6,7 +6,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
-use vx_runtime::{ProviderRegistry, RuntimeContext};
+use vx_runtime::{CacheMode, ProviderRegistry, RuntimeContext};
 
 /// Global CLI options
 ///
@@ -19,6 +19,8 @@ use vx_runtime::{ProviderRegistry, RuntimeContext};
 pub struct GlobalOptions {
     /// Whether to use system PATH for tool lookup
     pub use_system_path: bool,
+    /// Cache mode for network-dependent operations (versions/resolutions)
+    pub cache_mode: CacheMode,
     /// Verbose output mode
     pub verbose: bool,
     /// Debug output mode
@@ -34,6 +36,12 @@ impl GlobalOptions {
     /// Builder method: set use_system_path
     pub fn with_use_system_path(mut self, value: bool) -> Self {
         self.use_system_path = value;
+        self
+    }
+
+    /// Builder method: set cache_mode
+    pub fn with_cache_mode(mut self, value: CacheMode) -> Self {
+        self.cache_mode = value;
         self
     }
 
@@ -103,6 +111,7 @@ impl CommandContext {
             runtime_context,
             GlobalOptions {
                 use_system_path,
+                cache_mode: CacheMode::Normal,
                 verbose,
                 debug,
             },
@@ -127,6 +136,11 @@ impl CommandContext {
     /// Check if using system PATH
     pub fn use_system_path(&self) -> bool {
         self.options.use_system_path
+    }
+
+    /// Get current cache mode
+    pub fn cache_mode(&self) -> CacheMode {
+        self.options.cache_mode
     }
 
     /// Check if verbose mode is enabled

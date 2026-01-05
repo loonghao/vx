@@ -1,19 +1,22 @@
 [package]
 name = "vx-resolver"
-version.workspace = true
-edition.workspace = true
+version = { workspace = true }
+edition = { workspace = true }
 description = "Runtime resolver with dependency resolution and auto-installation"
-license.workspace = true
-repository.workspace = true
+license = { workspace = true }
+repository = { workspace = true }
 
 [dependencies]
 vx-runtime = { workspace = true }
+vx-cache = { workspace = true }
 vx-paths = { workspace = true }
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sha2 = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
 toml = { workspace = true }
 tracing = { workspace = true }
