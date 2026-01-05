@@ -154,9 +154,9 @@ impl MsvcInstaller {
         let sdk_info = if self.sdk_version.is_some() {
             debug!("Downloading Windows SDK...");
             match download_sdk(&options).await {
-                Ok(mut sdk) => {
+                Ok(sdk) => {
                     debug!("Extracting Windows SDK...");
-                    match extract_and_finalize_sdk(&mut sdk).await {
+                    match extract_and_finalize_sdk(&sdk).await {
                         Ok(()) => {
                             info!(
                                 "Windows SDK {} installed to {}",

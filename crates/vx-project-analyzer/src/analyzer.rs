@@ -7,7 +7,7 @@ use crate::error::{AnalyzerError, AnalyzerResult};
 use crate::frameworks::{all_framework_detectors, FrameworkDetector};
 use crate::languages::{all_analyzers, LanguageAnalyzer};
 use crate::sync::{SyncManager, VxConfigSnapshot};
-use crate::types::{ProjectAnalysis, RequiredTool, Script};
+use crate::types::{AuditFinding, AuditSeverity, ProjectAnalysis, RequiredTool, Script};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -227,7 +227,138 @@ impl ProjectAnalyzer {
                 .generate_actions(&analysis, existing.as_ref());
         }
 
+        // Run audit checks
+        self.run_audit_checks(&root, &mut analysis).await;
+
         Ok(analysis)
+    }
+
+    /// Run audit checks on the project
+    async fn run_audit_checks(&self, root: &Path, analysis: &mut ProjectAnalysis) {
+        // Check for missing lockfiles
+        self.audit_missing_lockfiles(root, analysis).await;
+
+        // Check for unpinned dependencies
+        self.audit_unpinned_dependencies(analysis);
+
+        // Check for mixed ecosystems
+        self.audit_mixed_ecosystems(analysis);
+    }
+
+    /// Audit for missing lockfiles when dependencies exist
+    async fn audit_missing_lockfiles(&self, root: &Path, analysis: &mut ProjectAnalysis) {
+        // Node.js: has package.json with dependencies but no lockfile
+        if root.join("package.json").exists() {
+            let has_deps = analysis
+                .dependencies
+                .iter()
+                .any(|d| d.ecosystem == Ecosystem::NodeJs);
+
+            if has_deps {
+                let has_lockfile = root.join("package-lock.json").exists()
+                    || root.join("yarn.lock").exists()
+                    || root.join("pnpm-lock.yaml").exists()
+                    || root.join("bun.lockb").exists();
+
+                if !has_lockfile {
+                    analysis.audit_findings.push(
+                        AuditFinding::new(
+                            AuditSeverity::Warning,
+                            "Missing lockfile for Node.js project",
+                            "Project has dependencies but no lockfile (package-lock.json, yarn.lock, pnpm-lock.yaml, or bun.lockb). This can lead to inconsistent builds.",
+                        )
+                        .with_suggestion("Run 'npm install', 'yarn', 'pnpm install', or 'bun install' to generate a lockfile")
+                        .with_file(root.join("package.json")),
+                    );
+                }
+            }
+        }
+
+        // Python: has pyproject.toml with dependencies but no lockfile
+        if root.join("pyproject.toml").exists() {
+            let has_deps = analysis
+                .dependencies
+                .iter()
+                .any(|d| d.ecosystem == Ecosystem::Python);
+
+            if has_deps {
+                let has_lockfile = root.join("uv.lock").exists()
+                    || root.join("poetry.lock").exists()
+                    || root.join("Pipfile.lock").exists()
+                    || root.join("pdm.lock").exists();
+
+                if !has_lockfile {
+                    analysis.audit_findings.push(
+                        AuditFinding::new(
+                            AuditSeverity::Warning,
+                            "Missing lockfile for Python project",
+                            "Project has dependencies but no lockfile. This can lead to inconsistent builds.",
+                        )
+                        .with_suggestion("Run 'uv lock' or your package manager's lock command")
+                        .with_file(root.join("pyproject.toml")),
+                    );
+                }
+            }
+        }
+    }
+
+    /// Audit for unpinned dependencies (using 'latest', '*', etc.)
+    fn audit_unpinned_dependencies(&self, analysis: &mut ProjectAnalysis) {
+        let unpinned: Vec<_> = analysis
+            .dependencies
+            .iter()
+            .filter(|d| {
+                if let Some(ref version) = d.version {
+                    let v = version.to_lowercase();
+                    v == "latest" || v == "*" || v.is_empty()
+                } else {
+                    false
+                }
+            })
+            .collect();
+
+        if !unpinned.is_empty() {
+            let names: Vec<_> = unpinned.iter().map(|d| d.name.as_str()).collect();
+            analysis.audit_findings.push(
+                AuditFinding::new(
+                    AuditSeverity::Warning,
+                    "Unpinned dependencies detected",
+                    format!(
+                        "The following dependencies use unpinned versions (latest, *, etc.): {}. This can lead to unexpected breaking changes.",
+                        names.join(", ")
+                    ),
+                )
+                .with_suggestion("Pin dependencies to specific versions or version ranges"),
+            );
+        }
+    }
+
+    /// Audit for mixed ecosystems in the same project
+    fn audit_mixed_ecosystems(&self, analysis: &mut ProjectAnalysis) {
+        // Filter out Unknown ecosystem
+        let real_ecosystems: Vec<_> = analysis
+            .ecosystems
+            .iter()
+            .filter(|e| **e != Ecosystem::Unknown)
+            .collect();
+
+        if real_ecosystems.len() > 1 {
+            let ecosystem_names: Vec<_> = real_ecosystems
+                .iter()
+                .map(|e| format!("{:?}", e))
+                .collect();
+            analysis.audit_findings.push(
+                AuditFinding::new(
+                    AuditSeverity::Info,
+                    "Mixed ecosystem project detected",
+                    format!(
+                        "This project uses multiple ecosystems: {}. Consider using vx to manage all runtimes consistently.",
+                        ecosystem_names.join(", ")
+                    ),
+                )
+                .with_suggestion("Use 'vx sync' to ensure all required tools are available"),
+            );
+        }
     }
 
     /// Check if required tools are available
