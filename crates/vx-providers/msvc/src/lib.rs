@@ -180,7 +180,7 @@ mod unsupported {
         }
 
         fn runtimes(&self) -> Vec<Arc<dyn vx_runtime::Runtime>> {
-            vec![Arc::new(UnsupportedRuntime::default())]
+            vec![Arc::new(UnsupportedRuntime)]
         }
 
         fn supports(&self, name: &str) -> bool {
@@ -189,7 +189,7 @@ mod unsupported {
 
         fn get_runtime(&self, name: &str) -> Option<Arc<dyn vx_runtime::Runtime>> {
             if self.supports(name) {
-                Some(Arc::new(UnsupportedRuntime::default()))
+                Some(Arc::new(UnsupportedRuntime))
             } else {
                 None
             }
@@ -202,5 +202,5 @@ pub use unsupported::{UnsupportedProvider as MsvcProvider, UnsupportedRuntime as
 
 #[cfg(not(target_os = "windows"))]
 pub fn create_provider() -> Arc<dyn Provider> {
-    Arc::new(MsvcProvider::default())
+    Arc::new(MsvcProvider)
 }
