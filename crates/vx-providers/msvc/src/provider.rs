@@ -32,7 +32,10 @@ impl Provider for MsvcProvider {
     }
 
     fn supports(&self, name: &str) -> bool {
-        matches!(name, "msvc" | "cl" | "msvc-tools" | "vs-build-tools")
+        matches!(
+            name,
+            "msvc" | "cl" | "nmake" | "msvc-tools" | "vs-build-tools"
+        )
     }
 
     fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
