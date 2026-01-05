@@ -104,17 +104,26 @@ fn test_cli_list_all_flag() {
 
 #[test]
 fn test_cli_install_command() {
-    let args = vec!["vx", "install", "node", "18.0.0"];
+    let args = vec!["vx", "install", "node@18.0.0"];
     let cli = Cli::try_parse_from(args).unwrap();
 
     match cli.command {
-        Some(Commands::Install {
-            tool,
-            version,
-            force,
-        }) => {
-            assert_eq!(tool, "node");
-            assert_eq!(version, Some("18.0.0".to_string()));
+        Some(Commands::Install { tools, force }) => {
+            assert_eq!(tools, vec!["node@18.0.0"]);
+            assert!(!force);
+        }
+        _ => panic!("Expected Install command"),
+    }
+}
+
+#[test]
+fn test_cli_install_multiple_tools() {
+    let args = vec!["vx", "install", "node", "uv", "go@1.22"];
+    let cli = Cli::try_parse_from(args).unwrap();
+
+    match cli.command {
+        Some(Commands::Install { tools, force }) => {
+            assert_eq!(tools, vec!["node", "uv", "go@1.22"]);
             assert!(!force);
         }
         _ => panic!("Expected Install command"),
@@ -135,13 +144,8 @@ fn test_cli_install_with_force() {
     let cli = Cli::try_parse_from(args).unwrap();
 
     match cli.command {
-        Some(Commands::Install {
-            tool,
-            version,
-            force,
-        }) => {
-            assert_eq!(tool, "node");
-            assert!(version.is_none());
+        Some(Commands::Install { tools, force }) => {
+            assert_eq!(tools, vec!["node"]);
             assert!(force);
         }
         _ => panic!("Expected Install command"),
