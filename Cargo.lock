@@ -1975,9 +1975,9 @@ dependencies = [
 
 [[package]]
 name = "msvc-kit"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41a39aae3d12b1015b8cdeecb8197bd2176a418e11130f4520a560da66573314"
+checksum = "129e7ce44547d4db31b38b59003fa333a19045b8cea9e3575ae13462d3afc746"
 dependencies = [
  "anyhow",
  "askama",
