@@ -9,7 +9,7 @@ use common::{cleanup_test_env, init_test_env};
 use rstest::*;
 use std::path::PathBuf;
 use vx_cli::commands::dev::build_script_environment;
-use vx_cli::commands::setup::{parse_vx_config, VxConfig};
+use vx_cli::commands::setup::{parse_vx_config, ConfigView};
 
 // ============================================================================
 // Helper Functions
@@ -26,8 +26,8 @@ fn examples_dir() -> PathBuf {
         .join("examples")
 }
 
-/// Load VxConfig from a vx.toml file
-fn load_config_from_file(config_path: &std::path::Path) -> VxConfig {
+/// Load ConfigView from a vx.toml file
+fn load_config_from_file(config_path: &std::path::Path) -> ConfigView {
     parse_vx_config(config_path)
         .unwrap_or_else(|_| panic!("Failed to parse config: {}", config_path.display()))
 }

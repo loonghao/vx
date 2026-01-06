@@ -4,7 +4,7 @@
 //! It reads the vx.toml configuration and sets up PATH to include all
 //! managed tool versions.
 
-use crate::commands::setup::{parse_vx_config, VxConfig};
+use crate::commands::setup::{parse_vx_config, ConfigView};
 use crate::ui::{InstallProgress, UI};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
@@ -66,7 +66,7 @@ pub async fn handle(
 }
 
 /// Handle --export mode: output shell script for environment activation
-fn handle_export(config: &VxConfig, format: Option<String>) -> Result<()> {
+fn handle_export(config: &ConfigView, format: Option<String>) -> Result<()> {
     let export_format = match format {
         Some(f) => ExportFormat::parse(&f).ok_or_else(|| {
             anyhow::anyhow!(
@@ -139,7 +139,7 @@ async fn check_and_install_tools(tools: &HashMap<String, String>, verbose: bool)
 /// Build environment variables for the dev shell
 ///
 /// Uses vx-env's ToolEnvironment for consistent environment building.
-fn build_dev_environment(config: &VxConfig, verbose: bool) -> Result<HashMap<String, String>> {
+fn build_dev_environment(config: &ConfigView, verbose: bool) -> Result<HashMap<String, String>> {
     // Use ToolEnvironment from vx-env
     let mut env_vars = ToolEnvironment::new()
         .tools(&config.tools)
@@ -177,7 +177,7 @@ fn build_dev_environment(config: &VxConfig, verbose: bool) -> Result<HashMap<Str
 /// allowing scripts defined in vx.toml to use tools installed by vx.
 ///
 /// Uses vx-env's ToolEnvironment for consistent environment building.
-pub fn build_script_environment(config: &VxConfig) -> Result<HashMap<String, String>> {
+pub fn build_script_environment(config: &ConfigView) -> Result<HashMap<String, String>> {
     ToolEnvironment::new()
         .tools(&config.tools)
         .env_vars(&config.env)
@@ -216,7 +216,7 @@ fn execute_command_in_env(cmd: &[String], env_vars: &HashMap<String, String>) ->
 fn spawn_dev_shell(
     shell: Option<String>,
     env_vars: &HashMap<String, String>,
-    config: &VxConfig,
+    config: &ConfigView,
 ) -> Result<()> {
     let shell_path = shell.unwrap_or_else(detect_shell);
 
@@ -363,7 +363,7 @@ impl ExportFormat {
 /// - Bash/Zsh: `eval "$(vx env --export)"`
 /// - PowerShell: `Invoke-Expression (vx env --export --format powershell)`
 /// - GitHub Actions: `vx env --export --format github >> $GITHUB_ENV`
-pub fn generate_env_export(config: &VxConfig, format: ExportFormat) -> Result<String> {
+pub fn generate_env_export(config: &ConfigView, format: ExportFormat) -> Result<String> {
     // Build environment using ToolEnvironment
     let env_vars = ToolEnvironment::new()
         .tools(&config.tools)
