@@ -98,7 +98,7 @@ impl ManifestLoader {
         let name = manifest.provider.name.clone();
         self.manifests.insert(name.clone(), manifest);
         // Unknown path for embedded/override entries; use empty PathBuf as placeholder.
-        self.paths.entry(name).or_insert_with(PathBuf::new);
+        self.paths.entry(name).or_default();
     }
 
     /// Load override files from a directory
