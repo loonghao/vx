@@ -67,11 +67,9 @@ impl PluginLoader {
         }
         candidates
     }
-
 }
 
 impl ProviderLoader for PluginLoader {
-
     fn load(&self, name: &str) -> Result<Option<Arc<dyn Provider>>> {
         // Return cached provider if already loaded
         if let Some(entry) = self.loaded.read().unwrap().get(name) {
@@ -80,7 +78,9 @@ impl ProviderLoader for PluginLoader {
 
         let candidates = self.find_candidate_paths(name);
         let path = candidates.iter().find(|p| p.exists());
-        let Some(path) = path else { return Ok(None); };
+        let Some(path) = path else {
+            return Ok(None);
+        };
 
         // Actually load plugin
         let (library, plugin): (Library, Box<dyn ProviderPlugin>) = unsafe {
@@ -96,10 +96,14 @@ impl ProviderLoader for PluginLoader {
         let provider = plugin.create_provider();
         let version = plugin.version().to_string();
 
-        self.loaded
-            .write()
-            .unwrap()
-            .insert(name.to_string(), LoadedPlugin { library, plugin, provider: provider.clone() });
+        self.loaded.write().unwrap().insert(
+            name.to_string(),
+            LoadedPlugin {
+                library,
+                plugin,
+                provider: provider.clone(),
+            },
+        );
 
         tracing::info!(provider = name, version, path = %path.display(), "Loaded provider plugin");
         Ok(Some(provider))

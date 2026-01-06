@@ -37,8 +37,8 @@
 mod ecosystem;
 mod error;
 mod loader;
-mod provider;
 mod r#override;
+mod provider;
 mod satisfies;
 
 pub use ecosystem::Ecosystem;
