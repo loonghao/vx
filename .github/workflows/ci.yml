@@ -441,6 +441,21 @@ jobs:
       - name: Check formatting (via vx)
         run: vx run fmt-check
 
+      - name: Check for inline tests
+        run: |
+          echo "🔍 Checking for inline tests in source files..."
+          # Count files with inline tests (excluding tests/ directories)
+          INLINE_COUNT=$(grep -rl '#\[cfg(test)\]' crates --include="*.rs" | grep -v '/tests/' | wc -l || echo "0")
+          if [ "$INLINE_COUNT" -gt "0" ]; then
+            echo "⚠️  Found $INLINE_COUNT files with inline tests (migration in progress)"
+            echo "Files with inline tests should be migrated to tests/ directories"
+            # List first 10 files as examples
+            grep -rl '#\[cfg(test)\]' crates --include="*.rs" | grep -v '/tests/' | head -10
+          else
+            echo "✅ No inline tests found"
+          fi
+          # Note: Currently a warning only, will become error after migration
+
       - name: Run Clippy (via vx)
         run: vx run clippy
 

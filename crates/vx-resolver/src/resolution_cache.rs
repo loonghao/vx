@@ -343,13 +343,21 @@ fn find_lock_file(project_root: &Path) -> Option<PathBuf> {
     None
 }
 
-/// Helper for logging cache hit/miss.
+/// Helper for logging cache hit/miss with structured fields.
 ///
-/// Kept small to avoid polluting hot paths.
+/// Uses structured logging for better observability.
 pub(crate) fn log_cache_result(hit: bool, runtime: &str) {
     if hit {
-        debug!("Resolution cache hit for {}", runtime);
+        debug!(
+            runtime = %runtime,
+            cache_hit = true,
+            "Resolution cache hit"
+        );
     } else {
-        debug!("Resolution cache miss for {}", runtime);
+        debug!(
+            runtime = %runtime,
+            cache_hit = false,
+            "Resolution cache miss"
+        );
     }
 }
