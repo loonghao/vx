@@ -15,12 +15,31 @@ fn test_runtime_map_creation() {
 }
 
 #[rstest]
+fn test_python_runtime_registration() {
+    let map = RuntimeMap::new();
+
+    // Python should be registered
+    assert!(map.contains("python"));
+    assert!(map.contains("python3")); // alias
+    assert!(map.contains("py")); // alias
+
+    // Check Python spec
+    let python = map.get("python").unwrap();
+    assert_eq!(python.name, "python");
+    assert_eq!(python.ecosystem, Ecosystem::Python);
+    assert!(python.aliases.contains(&"python3".to_string()));
+    assert!(python.aliases.contains(&"py".to_string()));
+}
+
+#[rstest]
 fn test_alias_resolution() {
     let map = RuntimeMap::new();
 
     assert_eq!(map.resolve_name("nodejs"), Some("node"));
     assert_eq!(map.resolve_name("node"), Some("node"));
     assert_eq!(map.resolve_name("pip3"), Some("pip"));
+    assert_eq!(map.resolve_name("python3"), Some("python"));
+    assert_eq!(map.resolve_name("py"), Some("python"));
 }
 
 #[rstest]
