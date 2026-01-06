@@ -475,7 +475,8 @@ impl<'a> Executor<'a> {
 
     /// Check provider-level dependencies and return incompatible ones
     ///
-    /// This supplements the RuntimeMap-based resolution with provider-specific constraints
+    /// This supplements the RuntimeMap-based resolution with provider-specific constraints.
+    /// It checks both vx-managed installations AND system-installed versions.
     async fn check_provider_dependencies(
         &self,
         runtime_name: &str,
@@ -509,7 +510,10 @@ impl<'a> Executor<'a> {
                 continue;
             }
 
-            // Check if the dependency is installed and get its version
+            // First, check vx-managed versions
+            let mut found_version: Option<String> = None;
+            let mut is_vx_managed = false;
+
             if let Some(dep_runtime) = registry.get_runtime(&dep.name) {
                 let installed_versions = dep_runtime
                     .installed_versions(context)
@@ -517,36 +521,99 @@ impl<'a> Executor<'a> {
                     .unwrap_or_default();
 
                 if let Some(version) = installed_versions.first() {
-                    // Check version compatibility
-                    if !dep.is_version_compatible(version) {
-                        debug!(
-                            "Provider dependency {} version {} is incompatible (min: {:?}, max: {:?})",
-                            dep.name, version, dep.min_version, dep.max_version
-                        );
+                    found_version = Some(version.clone());
+                    is_vx_managed = true;
+                }
+            }
 
-                        // Convert vx_runtime::RuntimeDependency to vx_resolver::RuntimeDependency
-                        let resolver_dep = crate::RuntimeDependency {
-                            runtime_name: dep.name.clone(),
-                            min_version: dep.min_version.clone(),
-                            max_version: dep.max_version.clone(),
-                            recommended_version: dep.recommended_version.clone(),
-                            required: !dep.optional,
-                            reason: dep.reason.clone().unwrap_or_default(),
-                            provided_by: None,
-                        };
+            // If no vx-managed version, check system PATH
+            if found_version.is_none() {
+                if let Some(system_version) = self.get_system_dependency_version(&dep.name) {
+                    debug!(
+                        "Found system {} version: {}",
+                        dep.name, system_version
+                    );
+                    found_version = Some(system_version);
+                }
+            }
 
-                        incompatible_deps.push(crate::IncompatibleDependency {
-                            runtime_name: dep.name.clone(),
-                            current_version: Some(version.clone()),
-                            constraint: resolver_dep,
-                            recommended_version: dep.recommended_version.clone(),
-                        });
-                    }
+            // Check version compatibility
+            if let Some(version) = found_version {
+                if !dep.is_version_compatible(&version) {
+                    let source = if is_vx_managed { "vx-managed" } else { "system" };
+                    warn!(
+                        "Provider dependency {} ({}) version {} is incompatible with {} (min: {:?}, max: {:?})",
+                        dep.name, source, version, runtime_name, dep.min_version, dep.max_version
+                    );
+
+                    // Convert vx_runtime::RuntimeDependency to vx_resolver::RuntimeDependency
+                    let resolver_dep = crate::RuntimeDependency {
+                        runtime_name: dep.name.clone(),
+                        min_version: dep.min_version.clone(),
+                        max_version: dep.max_version.clone(),
+                        recommended_version: dep.recommended_version.clone(),
+                        required: !dep.optional,
+                        reason: dep.reason.clone().unwrap_or_default(),
+                        provided_by: None,
+                    };
+
+                    incompatible_deps.push(crate::IncompatibleDependency {
+                        runtime_name: dep.name.clone(),
+                        current_version: Some(version),
+                        constraint: resolver_dep,
+                        recommended_version: dep.recommended_version.clone(),
+                    });
                 }
             }
         }
 
         Ok(incompatible_deps)
+    }
+
+    /// Get the version of a system-installed dependency by running `<dep> --version`
+    fn get_system_dependency_version(&self, dep_name: &str) -> Option<String> {
+        use std::process::Command;
+
+        // Determine the executable name
+        let exe_name = if cfg!(windows) {
+            format!("{}.exe", dep_name)
+        } else {
+            dep_name.to_string()
+        };
+
+        // Try to find the executable in PATH
+        let output = Command::new(&exe_name)
+            .arg("--version")
+            .output()
+            .ok()?;
+
+        if !output.status.success() {
+            return None;
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let combined = format!("{}{}", stdout, stderr);
+
+        // Parse version from output (e.g., "v23.11.0", "Node.js v23.11.0", "Python 3.12.0")
+        self.parse_version_from_output(&combined, dep_name)
+    }
+
+    /// Parse version string from command output
+    fn parse_version_from_output(&self, output: &str, _dep_name: &str) -> Option<String> {
+        // Common patterns:
+        // - "v23.11.0" or "23.11.0"
+        // - "Node.js v23.11.0"
+        // - "Python 3.12.0"
+        // - "go version go1.21.0"
+
+        let version_regex = regex::Regex::new(r"v?(\d+\.\d+\.\d+)").ok()?;
+
+        if let Some(captures) = version_regex.captures(output) {
+            return captures.get(1).map(|m| m.as_str().to_string());
+        }
+
+        None
     }
 
     /// Prepare environment variables to use a specific version of a dependency
@@ -609,6 +676,12 @@ impl<'a> Executor<'a> {
             return None;
         }
 
+        let exe_name = if cfg!(windows) {
+            format!("{}.exe", tool_name)
+        } else {
+            tool_name.to_string()
+        };
+
         // Common bin directory patterns
         let patterns = [
             store_dir.join("bin"),
@@ -619,13 +692,37 @@ impl<'a> Executor<'a> {
         for pattern in &patterns {
             if pattern.exists() && pattern.is_dir() {
                 // Check if this directory contains executables
-                let exe_name = if cfg!(windows) {
-                    format!("{}.exe", tool_name)
-                } else {
-                    tool_name.to_string()
-                };
                 if pattern.join(&exe_name).exists() {
                     return Some(pattern.clone());
+                }
+            }
+        }
+
+        // Search for executable in subdirectories (e.g., node-v18.17.0-win-x64/)
+        // This handles cases where archives extract to versioned subdirectories
+        if let Ok(entries) = std::fs::read_dir(store_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    // Check if executable is directly in this subdirectory
+                    if path.join(&exe_name).exists() {
+                        debug!(
+                            "Found {} in subdirectory: {}",
+                            exe_name,
+                            path.display()
+                        );
+                        return Some(path);
+                    }
+                    // Check if executable is in bin/ subdirectory
+                    let bin_path = path.join("bin");
+                    if bin_path.join(&exe_name).exists() {
+                        debug!(
+                            "Found {} in subdirectory bin: {}",
+                            exe_name,
+                            bin_path.display()
+                        );
+                        return Some(bin_path);
+                    }
                 }
             }
         }
