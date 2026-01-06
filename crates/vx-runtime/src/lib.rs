@@ -43,6 +43,7 @@ pub mod impls;
 pub mod manifest_registry;
 pub mod package_runtime;
 pub mod platform;
+pub mod plugin;
 pub mod provider;
 pub mod registry;
 pub mod runtime;
@@ -86,3 +87,6 @@ pub use constraints::{
 
 // Manifest-driven registry
 pub use manifest_registry::{ManifestRegistry, RuntimeMetadata};
+
+// Plugin system
+pub use plugin::{default_plugin_paths, PluginLoader, ProviderLoader, ProviderPlugin};

@@ -39,6 +39,9 @@ glob = { workspace = true }
 # Progress indicator
 indicatif = { workspace = true }
 
+# Dynamic library loading
+libloading = "0.8"
+
 # Internal dependencies
 vx-core = { path = "../vx-core" }
 vx-cache = { workspace = true }
