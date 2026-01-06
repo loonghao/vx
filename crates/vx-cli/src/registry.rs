@@ -280,7 +280,7 @@ fn build_plugin_loader() -> Option<PluginLoader> {
     let mut paths = Vec::new();
 
     if let Ok(vx_paths) = VxPaths::new() {
-        paths.extend(default_plugin_paths(&[vx_paths.base_dir.clone()]));
+        paths.extend(default_plugin_paths(std::slice::from_ref(&vx_paths.base_dir)));
     }
 
     if let Ok(cwd) = std::env::current_dir() {
