@@ -160,6 +160,10 @@ impl<'a> Executor<'a> {
             }
         }
 
+        // Check provider dependencies and handle version constraints
+        // This supplements the RuntimeMap-based resolution with provider-specific constraints
+        let provider_incompatible_deps = self.check_provider_dependencies(runtime_name).await?;
+
         // -------------------------
         // Resolve
         // -------------------------
@@ -262,8 +266,20 @@ impl<'a> Executor<'a> {
         }
 
         // Handle incompatible dependencies - find or install compatible versions
-        if !resolution.incompatible_dependencies.is_empty() {
-            for incompatible in &resolution.incompatible_dependencies {
+        // Merge provider-level dependencies with RuntimeMap-based resolution
+        let mut all_incompatible_deps = resolution.incompatible_dependencies.clone();
+        for provider_dep in provider_incompatible_deps {
+            // Avoid duplicates
+            if !all_incompatible_deps
+                .iter()
+                .any(|d| d.runtime_name == provider_dep.runtime_name)
+            {
+                all_incompatible_deps.push(provider_dep);
+            }
+        }
+
+        if !all_incompatible_deps.is_empty() {
+            for incompatible in &all_incompatible_deps {
                 warn!(
                     "Dependency {} version {:?} is incompatible with {} (requires: min={:?}, max={:?})",
                     incompatible.runtime_name,
@@ -455,6 +471,82 @@ impl<'a> Executor<'a> {
 
         self.prepare_dependency_env(dep_name, &resolved_version)
             .await
+    }
+
+    /// Check provider-level dependencies and return incompatible ones
+    ///
+    /// This supplements the RuntimeMap-based resolution with provider-specific constraints
+    async fn check_provider_dependencies(
+        &self,
+        runtime_name: &str,
+    ) -> Result<Vec<crate::IncompatibleDependency>> {
+        let mut incompatible_deps = Vec::new();
+
+        let (registry, context) = match (self.registry, self.context) {
+            (Some(r), Some(c)) => (r, c),
+            _ => return Ok(incompatible_deps),
+        };
+
+        let runtime = match registry.get_runtime(runtime_name) {
+            Some(r) => r,
+            None => return Ok(incompatible_deps),
+        };
+
+        // Get dependencies from the provider
+        let dependencies = runtime.dependencies();
+        if dependencies.is_empty() {
+            return Ok(incompatible_deps);
+        }
+
+        debug!(
+            "Checking {} provider dependencies for {}",
+            dependencies.len(),
+            runtime_name
+        );
+
+        for dep in dependencies {
+            if dep.optional {
+                continue;
+            }
+
+            // Check if the dependency is installed and get its version
+            if let Some(dep_runtime) = registry.get_runtime(&dep.name) {
+                let installed_versions = dep_runtime
+                    .installed_versions(context)
+                    .await
+                    .unwrap_or_default();
+
+                if let Some(version) = installed_versions.first() {
+                    // Check version compatibility
+                    if !dep.is_version_compatible(version) {
+                        debug!(
+                            "Provider dependency {} version {} is incompatible (min: {:?}, max: {:?})",
+                            dep.name, version, dep.min_version, dep.max_version
+                        );
+
+                        // Convert vx_runtime::RuntimeDependency to vx_resolver::RuntimeDependency
+                        let resolver_dep = crate::RuntimeDependency {
+                            runtime_name: dep.name.clone(),
+                            min_version: dep.min_version.clone(),
+                            max_version: dep.max_version.clone(),
+                            recommended_version: dep.recommended_version.clone(),
+                            required: !dep.optional,
+                            reason: dep.reason.clone().unwrap_or_default(),
+                            provided_by: None,
+                        };
+
+                        incompatible_deps.push(crate::IncompatibleDependency {
+                            runtime_name: dep.name.clone(),
+                            current_version: Some(version.clone()),
+                            constraint: resolver_dep,
+                            recommended_version: dep.recommended_version.clone(),
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(incompatible_deps)
     }
 
     /// Prepare environment variables to use a specific version of a dependency

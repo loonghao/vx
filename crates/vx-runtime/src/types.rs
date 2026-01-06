@@ -86,8 +86,16 @@ pub struct RuntimeDependency {
     pub name: String,
     /// Version requirement (e.g., ">=18.0.0", "^20.0.0")
     pub version_req: Option<String>,
+    /// Minimum version required (semver constraint)
+    pub min_version: Option<String>,
+    /// Maximum version allowed (semver constraint)
+    pub max_version: Option<String>,
+    /// Recommended version for this dependency
+    pub recommended_version: Option<String>,
     /// Whether this dependency is optional
     pub optional: bool,
+    /// Reason for this dependency
+    pub reason: Option<String>,
 }
 
 impl RuntimeDependency {
@@ -96,7 +104,11 @@ impl RuntimeDependency {
         Self {
             name: name.into(),
             version_req: None,
+            min_version: None,
+            max_version: None,
+            recommended_version: None,
             optional: false,
+            reason: None,
         }
     }
 
@@ -105,7 +117,11 @@ impl RuntimeDependency {
         Self {
             name: name.into(),
             version_req: None,
+            min_version: None,
+            max_version: None,
+            recommended_version: None,
             optional: true,
+            reason: None,
         }
     }
 
@@ -113,6 +129,88 @@ impl RuntimeDependency {
     pub fn with_version(mut self, version_req: impl Into<String>) -> Self {
         self.version_req = Some(version_req.into());
         self
+    }
+
+    /// Set minimum version constraint
+    pub fn with_min_version(mut self, version: impl Into<String>) -> Self {
+        self.min_version = Some(version.into());
+        self
+    }
+
+    /// Set maximum version constraint
+    pub fn with_max_version(mut self, version: impl Into<String>) -> Self {
+        self.max_version = Some(version.into());
+        self
+    }
+
+    /// Set recommended version
+    pub fn with_recommended_version(mut self, version: impl Into<String>) -> Self {
+        self.recommended_version = Some(version.into());
+        self
+    }
+
+    /// Set reason for this dependency
+    pub fn with_reason(mut self, reason: impl Into<String>) -> Self {
+        self.reason = Some(reason.into());
+        self
+    }
+
+    /// Check if a version satisfies this dependency's constraints
+    pub fn is_version_compatible(&self, version: &str) -> bool {
+        // Parse version for comparison
+        let parts: Vec<u32> = version.split('.').filter_map(|s| s.parse().ok()).collect();
+
+        if parts.is_empty() {
+            return true; // Can't parse, assume compatible
+        }
+
+        // Check minimum version
+        if let Some(ref min) = self.min_version {
+            let min_parts: Vec<u32> = min.split('.').filter_map(|s| s.parse().ok()).collect();
+            if !Self::version_gte(&parts, &min_parts) {
+                return false;
+            }
+        }
+
+        // Check maximum version
+        if let Some(ref max) = self.max_version {
+            let max_parts: Vec<u32> = max.split('.').filter_map(|s| s.parse().ok()).collect();
+            if !Self::version_lte(&parts, &max_parts) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    /// Compare version parts: a >= b
+    fn version_gte(a: &[u32], b: &[u32]) -> bool {
+        for i in 0..std::cmp::max(a.len(), b.len()) {
+            let av = a.get(i).copied().unwrap_or(0);
+            let bv = b.get(i).copied().unwrap_or(0);
+            if av > bv {
+                return true;
+            }
+            if av < bv {
+                return false;
+            }
+        }
+        true // Equal
+    }
+
+    /// Compare version parts: a <= b
+    fn version_lte(a: &[u32], b: &[u32]) -> bool {
+        for i in 0..std::cmp::max(a.len(), b.len()) {
+            let av = a.get(i).copied().unwrap_or(0);
+            let bv = b.get(i).copied().unwrap_or(0);
+            if av < bv {
+                return true;
+            }
+            if av > bv {
+                return false;
+            }
+        }
+        true // Equal
     }
 }
 

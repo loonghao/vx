@@ -5,9 +5,26 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::path::Path;
 use std::process::Stdio;
+use std::sync::LazyLock;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
-use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{
+    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, RuntimeDependency,
+    VersionInfo,
+};
+
+/// Yarn runtime dependencies
+static YARN_DEPENDENCIES: LazyLock<Vec<RuntimeDependency>> = LazyLock::new(|| {
+    vec![
+        // Yarn 1.x requires Node.js 12-22
+        // Node.js 23+ has compatibility issues with native module compilation
+        RuntimeDependency::required("node")
+            .with_min_version("12.0.0")
+            .with_max_version("22.99.99")
+            .with_recommended_version("20")
+            .with_reason("Yarn 1.x requires Node.js runtime (12-22 recommended for native module compatibility)"),
+    ]
+});
 
 /// Yarn runtime
 #[derive(Debug, Clone)]
@@ -47,6 +64,10 @@ impl Runtime for YarnRuntime {
 
     fn aliases(&self) -> &[&str] {
         &[]
+    }
+
+    fn dependencies(&self) -> &[RuntimeDependency] {
+        &YARN_DEPENDENCIES
     }
 
     /// Yarn uses .cmd on Windows

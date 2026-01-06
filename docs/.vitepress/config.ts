@@ -25,6 +25,7 @@ const enSidebar = {
       items: [
         { text: 'Concepts', link: '/guide/concepts' },
         { text: 'Direct Execution', link: '/guide/direct-execution' },
+        { text: 'Version Management', link: '/guide/version-management' },
         { text: 'Project Environments', link: '/guide/project-environments' },
         { text: 'Environment Management', link: '/guide/environment-management' },
         { text: 'Shell Integration', link: '/guide/shell-integration' }
@@ -159,6 +160,7 @@ const zhSidebar = {
       items: [
         { text: '概念', link: '/zh/guide/concepts' },
         { text: '直接执行', link: '/zh/guide/direct-execution' },
+        { text: '版本管理', link: '/zh/guide/version-management' },
         { text: '项目环境', link: '/zh/guide/project-environments' },
         { text: '环境管理', link: '/zh/guide/environment-management' },
         { text: 'Shell 集成', link: '/zh/guide/shell-integration' }
