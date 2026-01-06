@@ -69,6 +69,13 @@ impl ManifestRegistry {
         Ok(count)
     }
 
+    /// Load manifests from a list of ProviderManifest objects
+    pub fn load_from_manifests(&mut self, manifests: Vec<ProviderManifest>) {
+        for manifest in manifests {
+            self.loader.insert(manifest);
+        }
+    }
+
     /// Get a manifest by provider name
     pub fn get_manifest(&self, name: &str) -> Option<&ProviderManifest> {
         self.loader.get(name)

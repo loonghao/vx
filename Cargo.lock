@@ -1760,6 +1760,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5a2d376baa530d1238d133232d15e239abad80d05838b4b59354e5268af431f"
 
 [[package]]
+name = "libloading"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7c4b02199fee7c5d21a5ae7d8cfa79a6ef5bb2fc834d6e9058e89c825efdc55"
+dependencies = [
+ "cfg-if",
+ "windows-link",
+]
+
+[[package]]
 name = "libm"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3897,6 +3907,7 @@ dependencies = [
  "vx-core",
  "vx-env",
  "vx-extension",
+ "vx-manifest",
  "vx-migration",
  "vx-paths",
  "vx-project-analyzer",
@@ -4033,6 +4044,7 @@ dependencies = [
  "tracing",
  "vx-args",
  "vx-core",
+ "vx-manifest",
  "vx-paths",
  "vx-runtime",
  "walkdir",
@@ -4656,6 +4668,7 @@ dependencies = [
  "futures-util",
  "glob",
  "indicatif 0.17.11",
+ "libloading",
  "reqwest 0.12.28",
  "rstest",
  "serde",

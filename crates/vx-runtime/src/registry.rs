@@ -3,6 +3,7 @@
 //! The registry manages all registered providers and provides
 //! lookup functionality.
 
+use crate::plugin::ProviderLoader;
 use crate::provider::Provider;
 use crate::runtime::Runtime;
 use std::collections::HashMap;
@@ -31,6 +32,8 @@ pub struct ProviderRegistry {
     providers: RwLock<Vec<Arc<dyn Provider>>>,
     /// Cache: runtime name -> provider index
     runtime_cache: RwLock<HashMap<String, usize>>,
+    /// Optional dynamic provider loader
+    provider_loader: RwLock<Option<Arc<dyn ProviderLoader>>>,
 }
 
 impl ProviderRegistry {
@@ -39,6 +42,7 @@ impl ProviderRegistry {
         Self {
             providers: RwLock::new(Vec::new()),
             runtime_cache: RwLock::new(HashMap::new()),
+            provider_loader: RwLock::new(None),
         }
     }
 
@@ -115,6 +119,16 @@ impl ProviderRegistry {
     pub fn clear(&self) {
         self.providers.write().unwrap().clear();
         self.runtime_cache.write().unwrap().clear();
+    }
+
+    /// Set a dynamic provider loader for loading providers on-demand
+    pub fn set_provider_loader(&self, loader: Arc<dyn ProviderLoader>) {
+        *self.provider_loader.write().unwrap() = Some(loader);
+    }
+
+    /// Get the provider loader if set
+    pub fn get_provider_loader(&self) -> Option<Arc<dyn ProviderLoader>> {
+        self.provider_loader.read().unwrap().clone()
     }
 }
 
