@@ -3,7 +3,7 @@
 use anyhow::Result;
 use clap::Parser;
 use vx_resolver::RuntimeRequest;
-use vx_runtime::ProviderRegistry;
+use vx_runtime::{init_constraints_from_manifests, ProviderRegistry};
 
 pub mod cli;
 pub mod commands;
@@ -34,6 +34,10 @@ pub async fn main() -> anyhow::Result<()> {
     } else {
         setup_tracing();
     }
+
+    // Initialize constraints registry from embedded provider manifests
+    // This makes manifest-defined dependency constraints available globally.
+    let _ = init_constraints_from_manifests(registry::get_embedded_manifests().iter().copied());
 
     // Create provider registry with all available providers
     let registry = create_registry();

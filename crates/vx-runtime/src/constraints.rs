@@ -22,7 +22,7 @@
 use crate::RuntimeDependency;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::LazyLock;
+use std::sync::OnceLock;
 
 /// Version range pattern for matching runtime versions
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -263,11 +263,18 @@ impl ConstraintsRegistry {
         }
     }
 
-    /// Create registry with built-in constraints
-    pub fn with_builtins() -> Self {
+    /// Create registry from provider manifest contents
+    pub fn from_manifest_strings<'a, I>(manifests: I) -> Result<Self, String>
+    where
+        I: IntoIterator<Item = (&'a str, &'a str)>,
+    {
         let mut registry = Self::new();
-        registry.load_builtins();
-        registry
+        for (name, content) in manifests {
+            let manifest = vx_manifest::ProviderManifest::parse(content)
+                .map_err(|e| format!("Failed to parse manifest {}: {}", name, e))?;
+            registry.load_from_manifest(&manifest);
+        }
+        Ok(registry)
     }
 
     /// Register constraint rules for a runtime
@@ -404,137 +411,48 @@ impl ConstraintsRegistry {
             _ => (None, None),
         }
     }
-
-    /// Load built-in constraints
-    fn load_builtins(&mut self) {
-        // Yarn constraints
-        self.register(
-            "yarn",
-            vec![
-                // Yarn 1.x (Classic) requires Node.js 12-22
-                ConstraintRule::new(VersionPattern::major(1)).with_constraint(
-                    DependencyConstraint::required("node")
-                        .min("12.0.0")
-                        .max("22.99.99")
-                        .recommended("20")
-                        .reason("Yarn 1.x requires Node.js 12-22 for native module compatibility"),
-                ),
-                // Yarn 2.x-3.x (Berry) requires Node.js 16+
-                ConstraintRule::new(VersionPattern::range("2.0.0", "4.0.0")).with_constraint(
-                    DependencyConstraint::required("node")
-                        .min("16.0.0")
-                        .recommended("20")
-                        .reason("Yarn 2.x-3.x requires Node.js 16+"),
-                ),
-                // Yarn 4.x requires Node.js 18+
-                ConstraintRule::new(VersionPattern::major(4)).with_constraint(
-                    DependencyConstraint::required("node")
-                        .min("18.0.0")
-                        .recommended("22")
-                        .reason("Yarn 4.x requires Node.js 18+"),
-                ),
-            ],
-        );
-
-        // npm constraints
-        self.register(
-            "npm",
-            vec![
-                // npm 6.x requires Node.js 6-14
-                ConstraintRule::new(VersionPattern::major(6)).with_constraint(
-                    DependencyConstraint::required("node")
-                        .min("6.0.0")
-                        .max("14.99.99")
-                        .recommended("14")
-                        .reason("npm 6.x is designed for Node.js 6-14"),
-                ),
-                // npm 7.x-8.x requires Node.js 12+
-                ConstraintRule::new(VersionPattern::range("7.0.0", "9.0.0")).with_constraint(
-                    DependencyConstraint::required("node")
-                        .min("12.0.0")
-                        .recommended("18")
-                        .reason("npm 7.x-8.x requires Node.js 12+"),
-                ),
-                // npm 9.x+ requires Node.js 14+
-                ConstraintRule::new(VersionPattern::range("9.0.0", "99.0.0")).with_constraint(
-                    DependencyConstraint::required("node")
-                        .min("14.0.0")
-                        .recommended("20")
-                        .reason("npm 9.x+ requires Node.js 14+"),
-                ),
-            ],
-        );
-
-        // pnpm constraints
-        self.register(
-            "pnpm",
-            vec![
-                // pnpm 7.x requires Node.js 14+
-                ConstraintRule::new(VersionPattern::major(7)).with_constraint(
-                    DependencyConstraint::required("node")
-                        .min("14.0.0")
-                        .recommended("18")
-                        .reason("pnpm 7.x requires Node.js 14+"),
-                ),
-                // pnpm 8.x requires Node.js 16+
-                ConstraintRule::new(VersionPattern::major(8)).with_constraint(
-                    DependencyConstraint::required("node")
-                        .min("16.0.0")
-                        .recommended("20")
-                        .reason("pnpm 8.x requires Node.js 16+"),
-                ),
-                // pnpm 9.x requires Node.js 18+
-                ConstraintRule::new(VersionPattern::major(9)).with_constraint(
-                    DependencyConstraint::required("node")
-                        .min("18.0.0")
-                        .recommended("22")
-                        .reason("pnpm 9.x requires Node.js 18+"),
-                ),
-            ],
-        );
-
-        // npx inherits from npm
-        self.register(
-            "npx",
-            vec![ConstraintRule::new(VersionPattern::all()).with_constraint(
-                DependencyConstraint::required("node")
-                    .min("12.0.0")
-                    .recommended("20")
-                    .reason("npx requires Node.js 12+"),
-            )],
-        );
-
-        // uvx requires uv
-        self.register(
-            "uvx",
-            vec![ConstraintRule::new(VersionPattern::all()).with_constraint(
-                DependencyConstraint::required("uv")
-                    .min("0.1.0")
-                    .recommended("0.5")
-                    .reason("uvx is provided by uv"),
-            )],
-        );
-
-        // pip requires python
-        self.register(
-            "pip",
-            vec![ConstraintRule::new(VersionPattern::all()).with_constraint(
-                DependencyConstraint::required("python")
-                    .min("3.7.0")
-                    .recommended("3.12")
-                    .reason("pip requires Python 3.7+"),
-            )],
-        );
-    }
 }
 
 /// Global default constraints registry
-pub static DEFAULT_CONSTRAINTS: LazyLock<ConstraintsRegistry> =
-    LazyLock::new(|| ConstraintsRegistry::with_builtins());
+///
+/// This registry is initialized once (typically at CLI startup) using embedded
+/// provider manifests. If not initialized, it will remain empty.
+pub static DEFAULT_CONSTRAINTS: OnceLock<ConstraintsRegistry> = OnceLock::new();
+
+fn default_registry() -> &'static ConstraintsRegistry {
+    DEFAULT_CONSTRAINTS.get_or_init(ConstraintsRegistry::new)
+}
 
 /// Get constraints for a runtime version from the default registry
 pub fn get_default_constraints(runtime: &str, version: &str) -> Vec<RuntimeDependency> {
-    DEFAULT_CONSTRAINTS.get_constraints(runtime, version)
+    default_registry().get_constraints(runtime, version)
+}
+
+/// Load constraints from embedded manifest content into a registry
+pub fn load_constraints_from_manifest_content(
+    registry: &mut ConstraintsRegistry,
+    manifest_content: &str,
+) -> Result<(), String> {
+    let manifest = vx_manifest::ProviderManifest::parse(manifest_content)
+        .map_err(|e| format!("Failed to parse manifest: {}", e))?;
+    registry.load_from_manifest(&manifest);
+    Ok(())
+}
+
+/// Initialize the global constraints registry with embedded manifests
+///
+/// This should be called once at startup by vx-cli with the embedded manifests.
+/// If already initialized, it becomes a no-op for idempotency.
+pub fn init_constraints_from_manifests<'a, I>(manifests: I) -> Result<(), String>
+where
+    I: IntoIterator<Item = (&'a str, &'a str)>,
+{
+    let registry = ConstraintsRegistry::from_manifest_strings(manifests)?;
+    if DEFAULT_CONSTRAINTS.set(registry).is_err() {
+        // Already initialized; treat as success for idempotency
+        return Ok(());
+    }
+    Ok(())
 }
 
 // Helper functions for version comparison
@@ -570,6 +488,32 @@ fn version_lt(a: &[u32], b: &[u32]) -> bool {
 mod tests {
     use super::*;
 
+    const SAMPLE_MANIFEST: &str = r#"
+[provider]
+name = "test-provider"
+
+[[runtimes]]
+name = "yarn"
+executable = "yarn"
+
+[[runtimes.constraints]]
+when = "^1"
+requires = [
+  { runtime = "node", version = ">=12, <23", recommended = "20" }
+]
+
+[[runtimes.constraints]]
+when = "^4"
+requires = [
+  { runtime = "node", version = ">=18", recommended = "22" }
+]
+"#;
+
+    fn manifest_registry() -> ConstraintsRegistry {
+        ConstraintsRegistry::from_manifest_strings([("sample", SAMPLE_MANIFEST)])
+            .expect("should load manifest constraints")
+    }
+
     #[test]
     fn test_version_pattern_major() {
         let pattern = VersionPattern::major(1);
@@ -590,30 +534,30 @@ mod tests {
     }
 
     #[test]
-    fn test_yarn_1x_constraints() {
-        let registry = ConstraintsRegistry::with_builtins();
+    fn test_manifest_constraints() {
+        let registry = manifest_registry();
         let deps = registry.get_constraints("yarn", "1.22.22");
 
         assert_eq!(deps.len(), 1);
         assert_eq!(deps[0].name, "node");
         assert_eq!(deps[0].min_version, Some("12.0.0".to_string()));
-        assert_eq!(deps[0].max_version, Some("22.99.99".to_string()));
+        assert_eq!(deps[0].max_version, Some("23.0.0".to_string()));
     }
 
     #[test]
-    fn test_yarn_4x_constraints() {
-        let registry = ConstraintsRegistry::with_builtins();
+    fn test_manifest_constraints_yarn4() {
+        let registry = manifest_registry();
         let deps = registry.get_constraints("yarn", "4.0.0");
 
         assert_eq!(deps.len(), 1);
         assert_eq!(deps[0].name, "node");
         assert_eq!(deps[0].min_version, Some("18.0.0".to_string()));
-        assert!(deps[0].max_version.is_none()); // No max for yarn 4.x
+        assert!(deps[0].max_version.is_none());
     }
 
     #[test]
     fn test_no_constraints() {
-        let registry = ConstraintsRegistry::with_builtins();
+        let registry = manifest_registry();
         let deps = registry.get_constraints("unknown-runtime", "1.0.0");
         assert!(deps.is_empty());
     }
