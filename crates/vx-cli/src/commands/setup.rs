@@ -13,6 +13,12 @@
 //! - `post_setup`: Runs after tool installation
 //!
 //! Use `--no-hooks` to skip hook execution.
+//!
+//! ## Configuration
+//!
+//! All configuration types are defined in `vx-config` crate.
+//! This module uses `SimplifiedConfig` as a convenience wrapper for
+//! backward-compatible operations that only need simple HashMap access.
 
 use crate::commands::sync;
 use crate::ui::UI;
@@ -21,27 +27,28 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use vx_config::{parse_config, HookExecutor, VxConfig as VxConfigV2};
+use vx_config::{parse_config, HookExecutor, VxConfig};
 use vx_paths::{find_config_file, find_vx_config as find_vx_config_path};
 use vx_runtime::ProviderRegistry;
 use vx_setup::ci::{CiProvider, PathExporter};
 
-// Re-export the new config type for backward compatibility
-pub use vx_config::VxConfig as VxConfigNew;
-
-/// Legacy configuration type for backward compatibility
-/// This wraps the new VxConfigV2 and provides the old interface
+/// A flattened view of VxConfig for simple key-value operations
+///
+/// This provides HashMap-based access to configuration sections,
+/// useful for operations that don't need the full typed structure.
+///
+/// For full configuration access with typed fields, use `vx_config::VxConfig` directly.
 #[derive(Debug, Default, Clone)]
-pub struct VxConfig {
+pub struct ConfigView {
     pub tools: HashMap<String, String>,
     pub settings: HashMap<String, String>,
     pub env: HashMap<String, String>,
     pub scripts: HashMap<String, String>,
 }
 
-impl From<VxConfigV2> for VxConfig {
-    fn from(config: VxConfigV2) -> Self {
-        VxConfig {
+impl From<VxConfig> for ConfigView {
+    fn from(config: VxConfig) -> Self {
+        ConfigView {
             tools: config.tools_as_hashmap(),
             settings: config.settings_as_hashmap(),
             env: config.env_as_hashmap(),
@@ -77,15 +84,15 @@ pub async fn handle(
 
     // Find and parse vx.toml
     let config_path = find_vx_config(&current_dir)?;
-    let config_v2 = parse_vx_config_v2(&config_path)?;
-    let config = VxConfig::from(config_v2.clone());
+    let config = parse_vx_config_full(&config_path)?;
+    let view = ConfigView::from(config.clone());
 
     UI::header("🚀 VX Development Environment Setup");
     println!();
 
     // Execute pre_setup hook
     if !no_hooks && !dry_run {
-        if let Some(hooks) = &config_v2.hooks {
+        if let Some(hooks) = &config.hooks {
             if let Some(pre_setup) = &hooks.pre_setup {
                 UI::info("Running pre_setup hook...");
                 let executor = HookExecutor::new(&current_dir).verbose(verbose);
@@ -117,7 +124,7 @@ pub async fn handle(
 
     // Execute post_setup hook
     if !no_hooks && !dry_run {
-        if let Some(hooks) = &config_v2.hooks {
+        if let Some(hooks) = &config.hooks {
             if let Some(post_setup) = &hooks.post_setup {
                 println!();
                 UI::info("Running post_setup hook...");
@@ -140,9 +147,9 @@ pub async fn handle(
     if !dry_run {
         if ci {
             // CI mode: output tool paths for GitHub Actions
-            output_ci_paths(&config)?;
+            output_ci_paths(&view)?;
         } else {
-            show_next_steps(&config);
+            show_next_steps(&view);
         }
     }
 
@@ -163,22 +170,22 @@ fn find_config_in_current_dir(current_dir: &Path) -> Result<PathBuf> {
         .ok_or_else(|| anyhow::anyhow!("No vx.toml found. Run 'vx init' first."))
 }
 
-/// Parse vx.toml configuration using the new serde-based parser
-pub fn parse_vx_config(path: &Path) -> Result<VxConfig> {
-    let config_v2 = parse_config(path)
+/// Parse vx.toml configuration and return a flattened view
+pub fn parse_vx_config(path: &Path) -> Result<ConfigView> {
+    let config = parse_config(path)
         .with_context(|| format!("Failed to parse configuration file: {}", path.display()))?;
 
-    Ok(VxConfig::from(config_v2))
+    Ok(ConfigView::from(config))
 }
 
-/// Parse vx.toml configuration and return the new typed config
-pub fn parse_vx_config_v2(path: &Path) -> Result<VxConfigV2> {
+/// Parse vx.toml configuration and return the full typed config
+pub fn parse_vx_config_full(path: &Path) -> Result<VxConfig> {
     parse_config(path)
         .with_context(|| format!("Failed to parse configuration file: {}", path.display()))
 }
 
 /// Show next steps after setup
-fn show_next_steps(config: &VxConfig) {
+fn show_next_steps(config: &ConfigView) {
     println!();
     UI::info("Next steps:");
     println!("  1. Enter dev environment: vx dev");
@@ -196,7 +203,7 @@ fn show_next_steps(config: &VxConfig) {
 /// Output tool paths for CI environment (GitHub Actions, etc.)
 ///
 /// This function uses vx-setup's PathExporter for CI path export.
-fn output_ci_paths(config: &VxConfig) -> Result<()> {
+fn output_ci_paths(config: &ConfigView) -> Result<()> {
     use vx_paths::VxPaths;
 
     let paths = VxPaths::new()?;
@@ -374,7 +381,7 @@ pub async fn update_tool(tool: &str, version: &str) -> Result<()> {
 }
 
 /// Write configuration back to vx.toml
-fn write_vx_config(path: &Path, config: &VxConfig) -> Result<()> {
+fn write_vx_config(path: &Path, config: &ConfigView) -> Result<()> {
     let mut content = String::new();
 
     content.push_str("# VX Project Configuration\n");

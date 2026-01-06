@@ -15,7 +15,7 @@ use serial_test::serial;
 use std::fs;
 use tempfile::TempDir;
 use vx_cli::commands::dev::build_script_environment;
-use vx_cli::commands::setup::{parse_vx_config, VxConfig};
+use vx_cli::commands::setup::{parse_vx_config, ConfigView};
 use vx_paths::PathManager;
 
 // ============================================================================
@@ -128,8 +128,8 @@ fn create_vx_toml(dir: &std::path::Path, tools: &[(&str, &str)], scripts: &[(&st
     fs::write(dir.join("vx.toml"), config).expect("Failed to write vx.toml");
 }
 
-/// Load VxConfig from a directory
-fn load_config(dir: &std::path::Path) -> VxConfig {
+/// Load ConfigView from a directory
+fn load_config(dir: &std::path::Path) -> ConfigView {
     let config_path = dir.join("vx.toml");
     parse_vx_config(&config_path).expect("Failed to parse vx.toml")
 }
