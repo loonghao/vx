@@ -7,8 +7,6 @@ use vx_cli::cli::*;
 use vx_cli::GlobalOptions;
 use vx_runtime::CacheMode;
 
-
-
 // ============================================
 // Basic Command Tests
 // ============================================
@@ -75,7 +73,6 @@ fn test_global_options_inherits_cli_cache_mode() {
 // ============================================
 // List Command Tests
 // ============================================
-
 
 #[test]
 fn test_cli_list_command() {
