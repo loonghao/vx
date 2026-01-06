@@ -1,0 +1,32 @@
+# release-please Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for release-please.
+
+[provider]
+name = "release-please"
+description = "Automated releases based on conventional commits"
+homepage = "https://github.com/googleapis/release-please"
+repository = "https://github.com/googleapis/release-please"
+ecosystem = "nodejs"
+
+# release-please CLI
+[[runtimes]]
+name = "release-please"
+description = "Release automation tool"
+executable = "release-please"
+
+[runtimes.versions]
+source = "npm"
+package = "release-please"
+
+[runtimes.platforms.windows]
+executable_extensions = [".cmd", ".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# release-please requires Node.js 18+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "node", version = ">=18", recommended = "20", reason = "release-please requires Node.js 18+" }
+]

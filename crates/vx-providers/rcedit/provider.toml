@@ -1,0 +1,31 @@
+# rcedit Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for rcedit.
+
+[provider]
+name = "rcedit"
+description = "Command-line tool to edit resources of Windows executables"
+homepage = "https://github.com/electron/rcedit"
+repository = "https://github.com/electron/rcedit"
+ecosystem = "devtools"
+
+# rcedit
+[[runtimes]]
+name = "rcedit"
+description = "Windows resource editor"
+executable = "rcedit"
+aliases = ["rcedit-x64", "rcedit-x86"]
+
+[runtimes.versions]
+source = "github-releases"
+owner = "electron"
+repo = "rcedit"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+# rcedit is Windows-only
+[[runtimes.constraints]]
+when = "*"
+platforms = ["windows"]
+recommends = []

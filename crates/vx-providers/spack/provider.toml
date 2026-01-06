@@ -1,0 +1,37 @@
+# Spack Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Spack.
+
+[provider]
+name = "spack"
+description = "Flexible package manager for supercomputers, Linux, and macOS"
+homepage = "https://spack.io"
+repository = "https://github.com/spack/spack"
+ecosystem = "python"
+
+# Spack
+[[runtimes]]
+name = "spack"
+description = "Spack package manager"
+executable = "spack"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "spack"
+repo = "spack"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe", ".bat"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Spack requires Python 3.6+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "python", version = ">=3.6", recommended = "3.11", reason = "Spack requires Python 3.6+" }
+]
+recommends = [
+    { runtime = "git", version = "*", reason = "Git is required for fetching packages" }
+]

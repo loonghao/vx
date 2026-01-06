@@ -1,0 +1,33 @@
+# Azure CLI Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Azure CLI.
+
+[provider]
+name = "azcli"
+description = "Command-line interface for Microsoft Azure"
+homepage = "https://docs.microsoft.com/cli/azure/"
+repository = "https://github.com/Azure/azure-cli"
+ecosystem = "cloud"
+
+# Azure CLI
+[[runtimes]]
+name = "az"
+description = "Azure Command Line Interface"
+executable = "az"
+aliases = ["azcli", "azure-cli"]
+
+[runtimes.versions]
+source = "github-releases"
+owner = "Azure"
+repo = "azure-cli"
+strip_v_prefix = false
+
+[runtimes.platforms.windows]
+executable_extensions = [".cmd", ".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Azure CLI has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []

@@ -1,0 +1,30 @@
+# Visual Studio Code Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for VS Code.
+
+[provider]
+name = "vscode"
+description = "Visual Studio Code - Code editing. Redefined."
+homepage = "https://code.visualstudio.com"
+repository = "https://github.com/microsoft/vscode"
+ecosystem = "devtools"
+
+# VS Code
+[[runtimes]]
+name = "code"
+description = "Visual Studio Code"
+executable = "code"
+aliases = ["vscode", "vs-code"]
+
+[runtimes.versions]
+source = "vscode-releases"
+
+[runtimes.platforms.windows]
+executable_extensions = [".cmd", ".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# VS Code has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []

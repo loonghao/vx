@@ -1,0 +1,48 @@
+# MSVC Build Tools Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for MSVC.
+
+[provider]
+name = "msvc"
+description = "Microsoft Visual C++ Build Tools"
+homepage = "https://visualstudio.microsoft.com/visual-cpp-build-tools/"
+repository = "https://github.com/microsoft/STL"
+ecosystem = "system"
+
+# MSVC compiler
+[[runtimes]]
+name = "msvc"
+description = "MSVC Build Tools"
+executable = "cl"
+aliases = ["cl", "nmake", "vs-build-tools", "msvc-tools"]
+
+[runtimes.versions]
+source = "vs-manifest"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+# MSVC is Windows-only
+[[runtimes.constraints]]
+when = "*"
+platforms = ["windows"]
+recommends = []
+
+# nmake is bundled with MSVC
+[[runtimes]]
+name = "nmake"
+description = "Microsoft Program Maintenance Utility"
+executable = "nmake"
+bundled_with = "msvc"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+# link is bundled with MSVC
+[[runtimes]]
+name = "link"
+description = "Microsoft Linker"
+executable = "link"
+bundled_with = "msvc"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
