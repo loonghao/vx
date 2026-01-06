@@ -4,6 +4,10 @@
 
 use clap::Parser;
 use vx_cli::cli::*;
+use vx_cli::GlobalOptions;
+use vx_runtime::CacheMode;
+
+
 
 // ============================================
 // Basic Command Tests
@@ -28,8 +32,50 @@ fn test_cli_stats_command() {
 }
 
 // ============================================
+// Global Flag Tests
+// ============================================
+
+#[test]
+fn test_cli_default_cache_mode_is_normal() {
+    let args = vec!["vx", "list"];
+    let cli = Cli::try_parse_from(args).unwrap();
+
+    assert!(matches!(cli.cache_mode, CacheModeArg::Normal));
+}
+
+#[test]
+fn test_cli_cache_mode_flag_variants() {
+    let variants = [
+        ("refresh", CacheModeArg::Refresh),
+        ("offline", CacheModeArg::Offline),
+        ("no-cache", CacheModeArg::NoCache),
+    ];
+
+    for (flag, expected_variant) in variants {
+        let args = vec!["vx", "--cache-mode", flag, "list"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        match (cli.cache_mode, expected_variant) {
+            (CacheModeArg::Refresh, CacheModeArg::Refresh)
+            | (CacheModeArg::Offline, CacheModeArg::Offline)
+            | (CacheModeArg::NoCache, CacheModeArg::NoCache) => {}
+            _ => panic!("Unexpected cache mode variant"),
+        }
+    }
+}
+
+#[test]
+fn test_global_options_inherits_cli_cache_mode() {
+    let args = vec!["vx", "--cache-mode", "offline", "list"];
+    let cli = Cli::try_parse_from(args).unwrap();
+    let options = GlobalOptions::from(&cli);
+
+    assert_eq!(options.cache_mode, CacheMode::Offline);
+}
+
+// ============================================
 // List Command Tests
 // ============================================
+
 
 #[test]
 fn test_cli_list_command() {

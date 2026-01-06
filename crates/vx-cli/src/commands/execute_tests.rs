@@ -2,6 +2,8 @@
 
 use super::execute::*;
 use crate::test_utils::*;
+use vx_runtime::CacheMode;
+
 
 #[tokio::test]
 async fn test_execute_tool_success() {
@@ -14,8 +16,10 @@ async fn test_execute_tool_success() {
         "echo",
         &["hello".to_string()],
         false,
+        CacheMode::Normal,
     )
     .await;
+
 
     // Note: This test depends on system having 'echo' command
     // In a real implementation, we'd mock the command execution
@@ -39,8 +43,10 @@ async fn test_execute_tool_not_found() {
         "nonexistent-tool-12345",
         &[],
         false,
+        CacheMode::Normal,
     )
     .await;
+
 
     assert!(result.is_err());
     let error_msg = result.unwrap_err().to_string();
@@ -57,7 +63,16 @@ async fn test_execute_tool_with_args() {
 
     // Test tool execution with arguments
     let args = vec!["--version".to_string()];
-    let result = execute_tool(&env.registry, &env.context, "echo", &args, false).await;
+    let result = execute_tool(
+        &env.registry,
+        &env.context,
+        "echo",
+        &args,
+        false,
+        CacheMode::Normal,
+    )
+    .await;
+
 
     // This should work if echo is available
     match result {
@@ -79,8 +94,10 @@ async fn test_handle_execute_success() {
         "echo",
         &["test".to_string()],
         false,
+        CacheMode::Normal,
     )
     .await;
+
 
     // The handle function should not panic and should handle errors gracefully
     match result {
@@ -104,8 +121,10 @@ async fn test_execute_with_system_path_flag() {
         "echo",
         &["test".to_string()],
         true,
+        CacheMode::Normal,
     )
     .await;
+
 
     match result {
         Ok(exit_code) => assert_eq!(exit_code, 0),
