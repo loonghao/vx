@@ -1,0 +1,65 @@
+# Rust Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Rust.
+
+[provider]
+name = "rust"
+description = "A language empowering everyone to build reliable and efficient software"
+homepage = "https://www.rust-lang.org"
+repository = "https://github.com/rust-lang/rust"
+ecosystem = "rust"
+
+# Rustup - Rust toolchain installer
+[[runtimes]]
+name = "rustup"
+description = "Rust toolchain installer"
+executable = "rustup"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "rust-lang"
+repo = "rustup"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Rustc - Rust compiler (managed by rustup)
+[[runtimes]]
+name = "rustc"
+description = "Rust compiler"
+executable = "rustc"
+managed_by = "rustup"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "rustup", version = "*", reason = "rustc is managed by rustup" }
+]
+
+# Cargo - Rust package manager (managed by rustup)
+[[runtimes]]
+name = "cargo"
+description = "Rust package manager"
+executable = "cargo"
+managed_by = "rustup"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "rustup", version = "*", reason = "cargo is managed by rustup" }
+]

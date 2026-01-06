@@ -1,0 +1,92 @@
+# Node.js Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Node.js.
+
+[provider]
+name = "node"
+description = "JavaScript runtime built on Chrome's V8 engine"
+homepage = "https://nodejs.org"
+repository = "https://github.com/nodejs/node"
+ecosystem = "nodejs"
+
+# Node.js runtime
+[[runtimes]]
+name = "node"
+description = "Node.js runtime"
+executable = "node"
+aliases = ["nodejs"]
+
+[runtimes.versions]
+source = "nodejs-org"
+lts_pattern = "lts/*"
+
+[runtimes.executable_config]
+extensions = [".exe"]
+dir_pattern = "node-v{version}-{platform}-{arch}"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Node.js has no external dependencies
+# But we can recommend npm as the default package manager
+[[runtimes.constraints]]
+when = "*"
+recommends = [
+    { runtime = "npm", version = "*", reason = "Default package manager bundled with Node.js" }
+]
+
+# NPM package manager (bundled with Node.js)
+[[runtimes]]
+name = "npm"
+description = "Node Package Manager"
+executable = "npm"
+bundled_with = "node"
+
+[runtimes.platforms.windows]
+executable_extensions = [".cmd", ".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# npm 6.x requires Node.js 6-14
+[[runtimes.constraints]]
+when = "^6"
+requires = [
+    { runtime = "node", version = ">=6, <15", recommended = "14", reason = "npm 6.x is designed for Node.js 6-14" }
+]
+
+# npm 7.x-8.x requires Node.js 12+
+[[runtimes.constraints]]
+when = ">=7, <9"
+requires = [
+    { runtime = "node", version = ">=12", recommended = "18", reason = "npm 7.x-8.x requires Node.js 12+" }
+]
+
+# npm 9.x+ requires Node.js 14+
+[[runtimes.constraints]]
+when = ">=9"
+requires = [
+    { runtime = "node", version = ">=14", recommended = "20", reason = "npm 9.x+ requires Node.js 14+" }
+]
+
+# NPX package runner (bundled with Node.js)
+[[runtimes]]
+name = "npx"
+description = "Node Package Execute"
+executable = "npx"
+bundled_with = "node"
+
+[runtimes.platforms.windows]
+executable_extensions = [".cmd", ".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# npx requires Node.js 12+ (comes with npm 5.2+)
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "node", version = ">=12", recommended = "20", reason = "npx requires Node.js 12+" }
+]

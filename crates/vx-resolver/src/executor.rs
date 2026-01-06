@@ -10,7 +10,7 @@ use crate::{ResolutionCache, ResolutionCacheKey, ResolvedGraph, Resolver, Resolv
 use std::process::{ExitStatus, Stdio};
 use tokio::process::Command;
 use tracing::{debug, info, warn};
-use vx_runtime::{CacheMode, ProviderRegistry, RuntimeContext};
+use vx_runtime::{get_default_constraints, CacheMode, ProviderRegistry, RuntimeContext};
 
 /// Executor for runtime command forwarding
 pub struct Executor<'a> {
@@ -162,7 +162,7 @@ impl<'a> Executor<'a> {
 
         // Check provider dependencies and handle version constraints
         // This supplements the RuntimeMap-based resolution with provider-specific constraints
-        let provider_incompatible_deps = self.check_provider_dependencies(runtime_name).await?;
+        let provider_incompatible_deps = self.check_provider_dependencies(runtime_name, version).await?;
 
         // -------------------------
         // Resolve
@@ -475,11 +475,15 @@ impl<'a> Executor<'a> {
 
     /// Check provider-level dependencies and return incompatible ones
     ///
-    /// This supplements the RuntimeMap-based resolution with provider-specific constraints.
+    /// This uses a two-tier system:
+    /// 1. **ConstraintsRegistry** - Centralized, version-aware constraints (preferred)
+    /// 2. **Provider.dependencies()** - Provider-defined constraints (fallback)
+    ///
     /// It checks both vx-managed installations AND system-installed versions.
     async fn check_provider_dependencies(
         &self,
         runtime_name: &str,
+        runtime_version: Option<&str>,
     ) -> Result<Vec<crate::IncompatibleDependency>> {
         let mut incompatible_deps = Vec::new();
 
@@ -488,24 +492,49 @@ impl<'a> Executor<'a> {
             _ => return Ok(incompatible_deps),
         };
 
-        let runtime = match registry.get_runtime(runtime_name) {
-            Some(r) => r,
-            None => return Ok(incompatible_deps),
-        };
+        // Collect dependencies from both sources
+        let mut all_deps: Vec<vx_runtime::RuntimeDependency> = Vec::new();
 
-        // Get dependencies from the provider
-        let dependencies = runtime.dependencies();
-        if dependencies.is_empty() {
+        // 1. Get constraints from ConstraintsRegistry (version-aware)
+        if let Some(version) = runtime_version {
+            let registry_deps = get_default_constraints(runtime_name, version);
+            if !registry_deps.is_empty() {
+                debug!(
+                    "Found {} constraints from registry for {}@{}",
+                    registry_deps.len(),
+                    runtime_name,
+                    version
+                );
+                all_deps.extend(registry_deps);
+            }
+        }
+
+        // 2. Get dependencies from Provider (fallback if no registry constraints)
+        if all_deps.is_empty() {
+            if let Some(runtime) = registry.get_runtime(runtime_name) {
+                let provider_deps = runtime.dependencies();
+                if !provider_deps.is_empty() {
+                    debug!(
+                        "Using {} provider dependencies for {}",
+                        provider_deps.len(),
+                        runtime_name
+                    );
+                    all_deps.extend(provider_deps.iter().cloned());
+                }
+            }
+        }
+
+        if all_deps.is_empty() {
             return Ok(incompatible_deps);
         }
 
         debug!(
-            "Checking {} provider dependencies for {}",
-            dependencies.len(),
+            "Checking {} dependencies for {}",
+            all_deps.len(),
             runtime_name
         );
 
-        for dep in dependencies {
+        for dep in all_deps {
             if dep.optional {
                 continue;
             }
@@ -542,7 +571,7 @@ impl<'a> Executor<'a> {
                 if !dep.is_version_compatible(&version) {
                     let source = if is_vx_managed { "vx-managed" } else { "system" };
                     warn!(
-                        "Provider dependency {} ({}) version {} is incompatible with {} (min: {:?}, max: {:?})",
+                        "Dependency {} ({}) version {} is incompatible with {} (min: {:?}, max: {:?})",
                         dep.name, source, version, runtime_name, dep.min_version, dep.max_version
                     );
 

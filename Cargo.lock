@@ -4058,6 +4058,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-manifest"
+version = "0.6.8"
+dependencies = [
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "tempfile",
+ "thiserror 2.0.17",
+ "toml 0.8.23",
+ "tracing",
+]
+
+[[package]]
 name = "vx-migration"
 version = "0.6.8"
 dependencies = [
@@ -4648,6 +4661,7 @@ dependencies = [
  "turbo-cdn",
  "vx-cache",
  "vx-core",
+ "vx-manifest",
  "vx-paths",
  "which",
  "xz2",

@@ -1,0 +1,53 @@
+# Bun Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Bun.
+
+[provider]
+name = "bun"
+description = "Incredibly fast JavaScript runtime, bundler, test runner, and package manager"
+homepage = "https://bun.sh"
+repository = "https://github.com/oven-sh/bun"
+ecosystem = "nodejs"
+
+# Bun runtime
+[[runtimes]]
+name = "bun"
+description = "Bun JavaScript runtime"
+executable = "bun"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "oven-sh"
+repo = "bun"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Bun is self-contained, no external dependencies required
+[[runtimes.constraints]]
+when = "*"
+recommends = [
+    { runtime = "node", version = "*", reason = "Some npm packages may require Node.js for native modules" }
+]
+
+# bunx - Bun package runner (bundled with Bun)
+[[runtimes]]
+name = "bunx"
+description = "Bun package runner"
+executable = "bunx"
+bundled_with = "bun"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "bun", version = "*", reason = "bunx is bundled with bun" }
+]

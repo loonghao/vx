@@ -36,6 +36,7 @@
 //! }
 //! ```
 
+pub mod constraints;
 pub mod context;
 pub mod ecosystem;
 pub mod impls;
@@ -74,3 +75,9 @@ pub use version_cache::{
     CacheMode, CacheStats, VersionCache, DEFAULT_CACHE_TTL, LONG_CACHE_TTL, SHORT_CACHE_TTL,
 };
 pub use version_resolver::VersionResolver;
+
+// Constraints system
+pub use constraints::{
+    get_default_constraints, ConstraintRule, ConstraintsRegistry, DependencyConstraint,
+    ManifestVersionPattern, VersionPattern, DEFAULT_CONSTRAINTS,
+};

@@ -1,0 +1,32 @@
+# Terraform Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Terraform.
+
+[provider]
+name = "terraform"
+description = "Infrastructure as Code tool"
+homepage = "https://www.terraform.io"
+repository = "https://github.com/hashicorp/terraform"
+ecosystem = "devtools"
+
+# Terraform
+[[runtimes]]
+name = "terraform"
+description = "Terraform CLI"
+executable = "terraform"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "hashicorp"
+repo = "terraform"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Terraform has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []

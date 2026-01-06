@@ -1,0 +1,18 @@
+[package]
+name = "vx-manifest"
+version.workspace = true
+edition.workspace = true
+description = "Provider manifest parsing for vx"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+toml = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
