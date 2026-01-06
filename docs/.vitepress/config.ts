@@ -120,6 +120,7 @@ const enSidebar = {
       text: 'Advanced',
       items: [
         { text: 'Architecture', link: '/advanced/architecture' },
+        { text: 'Security', link: '/advanced/security' },
         { text: 'Contributing', link: '/advanced/contributing' }
       ]
     },
@@ -260,6 +261,7 @@ const zhSidebar = {
       text: '高级',
       items: [
         { text: '架构', link: '/zh/advanced/architecture' },
+        { text: '安全', link: '/zh/advanced/security' },
         { text: '贡献指南', link: '/zh/advanced/contributing' }
       ]
     },
