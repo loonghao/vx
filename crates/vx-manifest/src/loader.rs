@@ -27,8 +27,7 @@ impl ManifestLoader {
             return Ok(0);
         }
 
-        let entries = std::fs::read_dir(providers_dir)
-            .map_err(ManifestError::Io)?;
+        let entries = std::fs::read_dir(providers_dir).map_err(ManifestError::Io)?;
 
         for entry in entries {
             let entry = entry.map_err(ManifestError::Io)?;
@@ -95,7 +94,10 @@ impl ManifestLoader {
     }
 
     /// Find a runtime definition across all manifests
-    pub fn find_runtime(&self, runtime_name: &str) -> Option<(&ProviderManifest, &crate::RuntimeDef)> {
+    pub fn find_runtime(
+        &self,
+        runtime_name: &str,
+    ) -> Option<(&ProviderManifest, &crate::RuntimeDef)> {
         for manifest in self.manifests.values() {
             if let Some(runtime) = manifest.get_runtime(runtime_name) {
                 return Some((manifest, runtime));
@@ -114,7 +116,7 @@ mod tests {
     fn create_test_manifest(dir: &Path, name: &str) {
         let provider_dir = dir.join(name);
         fs::create_dir_all(&provider_dir).unwrap();
-        
+
         let manifest = format!(
             r#"
 [provider]
@@ -125,20 +127,20 @@ name = "{name}"
 executable = "{name}"
 "#
         );
-        
+
         fs::write(provider_dir.join("provider.toml"), manifest).unwrap();
     }
 
     #[test]
     fn test_load_from_dir() {
         let temp_dir = TempDir::new().unwrap();
-        
+
         create_test_manifest(temp_dir.path(), "test1");
         create_test_manifest(temp_dir.path(), "test2");
-        
+
         let mut loader = ManifestLoader::new();
         let count = loader.load_from_dir(temp_dir.path()).unwrap();
-        
+
         assert_eq!(count, 2);
         assert_eq!(loader.len(), 2);
         assert!(loader.get("test1").is_some());
@@ -149,13 +151,13 @@ executable = "{name}"
     fn test_find_runtime() {
         let temp_dir = TempDir::new().unwrap();
         create_test_manifest(temp_dir.path(), "myruntime");
-        
+
         let mut loader = ManifestLoader::new();
         loader.load_from_dir(temp_dir.path()).unwrap();
-        
+
         let result = loader.find_runtime("myruntime");
         assert!(result.is_some());
-        
+
         let (manifest, runtime) = result.unwrap();
         assert_eq!(manifest.provider.name, "myruntime");
         assert_eq!(runtime.name, "myruntime");

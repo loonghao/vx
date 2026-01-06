@@ -51,9 +51,9 @@ impl ProviderManifest {
 
     /// Get a runtime definition by name
     pub fn get_runtime(&self, name: &str) -> Option<&RuntimeDef> {
-        self.runtimes.iter().find(|r| {
-            r.name == name || r.aliases.iter().any(|a| a == name)
-        })
+        self.runtimes
+            .iter()
+            .find(|r| r.name == name || r.aliases.iter().any(|a| a == name))
     }
 }
 

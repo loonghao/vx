@@ -46,9 +46,20 @@ fn test_parse_node_manifest() {
 #[case("18.0.0", ">=20", false)]
 #[case("18.0.0", ">=18", true)]
 #[case("16.0.0", ">=20", false)]
-fn test_constraint_matching(#[case] version: &str, #[case] constraint: &str, #[case] expected: bool) {
+fn test_constraint_matching(
+    #[case] version: &str,
+    #[case] constraint: &str,
+    #[case] expected: bool,
+) {
     let req = VersionRequest::parse(constraint);
-    assert_eq!(req.satisfies(version), expected, "Version {} should {} satisfy {}", version, if expected { "" } else { "not" }, constraint);
+    assert_eq!(
+        req.satisfies(version),
+        expected,
+        "Version {} should {} satisfy {}",
+        version,
+        if expected { "" } else { "not" },
+        constraint
+    );
 }
 
 #[test]
@@ -179,10 +190,10 @@ executable_extensions = []
 "#;
     let manifest = ProviderManifest::parse(toml).unwrap();
     let platforms = manifest.runtimes[0].platforms.as_ref().unwrap();
-    
+
     let windows = platforms.windows.as_ref().unwrap();
     assert_eq!(windows.executable_extensions, vec![".cmd", ".exe"]);
-    
+
     let unix = platforms.unix.as_ref().unwrap();
     assert!(unix.executable_extensions.is_empty());
 }

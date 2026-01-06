@@ -65,10 +65,7 @@ impl VersionPattern {
 
     /// Check if a version matches this pattern
     pub fn matches(&self, version: &str) -> bool {
-        let parts: Vec<u32> = version
-            .split('.')
-            .filter_map(|s| s.parse().ok())
-            .collect();
+        let parts: Vec<u32> = version.split('.').filter_map(|s| s.parse().ok()).collect();
 
         if parts.is_empty() {
             return true; // Can't parse, assume match
@@ -83,10 +80,7 @@ impl VersionPattern {
 
         // Check min version
         if let Some(ref min) = self.min {
-            let min_parts: Vec<u32> = min
-                .split('.')
-                .filter_map(|s| s.parse().ok())
-                .collect();
+            let min_parts: Vec<u32> = min.split('.').filter_map(|s| s.parse().ok()).collect();
             if !version_gte(&parts, &min_parts) {
                 return false;
             }
@@ -94,10 +88,7 @@ impl VersionPattern {
 
         // Check max version
         if let Some(ref max) = self.max {
-            let max_parts: Vec<u32> = max
-                .split('.')
-                .filter_map(|s| s.parse().ok())
-                .collect();
+            let max_parts: Vec<u32> = max.split('.').filter_map(|s| s.parse().ok()).collect();
             if !version_lt(&parts, &max_parts) {
                 return false;
             }
@@ -328,9 +319,9 @@ impl ConstraintsRegistry {
         manifest_constraints
             .iter()
             .map(|mc| {
-                let mut rule = ConstraintRule::with_manifest_pattern(
-                    ManifestVersionPattern::new(mc.when.clone())
-                );
+                let mut rule = ConstraintRule::with_manifest_pattern(ManifestVersionPattern::new(
+                    mc.when.clone(),
+                ));
 
                 for dep in &mc.requires {
                     let mut constraint = DependencyConstraint::required(&dep.runtime);
@@ -417,130 +408,129 @@ impl ConstraintsRegistry {
     /// Load built-in constraints
     fn load_builtins(&mut self) {
         // Yarn constraints
-        self.register("yarn", vec![
-            // Yarn 1.x (Classic) requires Node.js 12-22
-            ConstraintRule::new(VersionPattern::major(1))
-                .with_constraint(
+        self.register(
+            "yarn",
+            vec![
+                // Yarn 1.x (Classic) requires Node.js 12-22
+                ConstraintRule::new(VersionPattern::major(1)).with_constraint(
                     DependencyConstraint::required("node")
                         .min("12.0.0")
                         .max("22.99.99")
                         .recommended("20")
-                        .reason("Yarn 1.x requires Node.js 12-22 for native module compatibility")
+                        .reason("Yarn 1.x requires Node.js 12-22 for native module compatibility"),
                 ),
-            // Yarn 2.x-3.x (Berry) requires Node.js 16+
-            ConstraintRule::new(VersionPattern::range("2.0.0", "4.0.0"))
-                .with_constraint(
+                // Yarn 2.x-3.x (Berry) requires Node.js 16+
+                ConstraintRule::new(VersionPattern::range("2.0.0", "4.0.0")).with_constraint(
                     DependencyConstraint::required("node")
                         .min("16.0.0")
                         .recommended("20")
-                        .reason("Yarn 2.x-3.x requires Node.js 16+")
+                        .reason("Yarn 2.x-3.x requires Node.js 16+"),
                 ),
-            // Yarn 4.x requires Node.js 18+
-            ConstraintRule::new(VersionPattern::major(4))
-                .with_constraint(
+                // Yarn 4.x requires Node.js 18+
+                ConstraintRule::new(VersionPattern::major(4)).with_constraint(
                     DependencyConstraint::required("node")
                         .min("18.0.0")
                         .recommended("22")
-                        .reason("Yarn 4.x requires Node.js 18+")
+                        .reason("Yarn 4.x requires Node.js 18+"),
                 ),
-        ]);
+            ],
+        );
 
         // npm constraints
-        self.register("npm", vec![
-            // npm 6.x requires Node.js 6-14
-            ConstraintRule::new(VersionPattern::major(6))
-                .with_constraint(
+        self.register(
+            "npm",
+            vec![
+                // npm 6.x requires Node.js 6-14
+                ConstraintRule::new(VersionPattern::major(6)).with_constraint(
                     DependencyConstraint::required("node")
                         .min("6.0.0")
                         .max("14.99.99")
                         .recommended("14")
-                        .reason("npm 6.x is designed for Node.js 6-14")
+                        .reason("npm 6.x is designed for Node.js 6-14"),
                 ),
-            // npm 7.x-8.x requires Node.js 12+
-            ConstraintRule::new(VersionPattern::range("7.0.0", "9.0.0"))
-                .with_constraint(
+                // npm 7.x-8.x requires Node.js 12+
+                ConstraintRule::new(VersionPattern::range("7.0.0", "9.0.0")).with_constraint(
                     DependencyConstraint::required("node")
                         .min("12.0.0")
                         .recommended("18")
-                        .reason("npm 7.x-8.x requires Node.js 12+")
+                        .reason("npm 7.x-8.x requires Node.js 12+"),
                 ),
-            // npm 9.x+ requires Node.js 14+
-            ConstraintRule::new(VersionPattern::range("9.0.0", "99.0.0"))
-                .with_constraint(
+                // npm 9.x+ requires Node.js 14+
+                ConstraintRule::new(VersionPattern::range("9.0.0", "99.0.0")).with_constraint(
                     DependencyConstraint::required("node")
                         .min("14.0.0")
                         .recommended("20")
-                        .reason("npm 9.x+ requires Node.js 14+")
+                        .reason("npm 9.x+ requires Node.js 14+"),
                 ),
-        ]);
+            ],
+        );
 
         // pnpm constraints
-        self.register("pnpm", vec![
-            // pnpm 7.x requires Node.js 14+
-            ConstraintRule::new(VersionPattern::major(7))
-                .with_constraint(
+        self.register(
+            "pnpm",
+            vec![
+                // pnpm 7.x requires Node.js 14+
+                ConstraintRule::new(VersionPattern::major(7)).with_constraint(
                     DependencyConstraint::required("node")
                         .min("14.0.0")
                         .recommended("18")
-                        .reason("pnpm 7.x requires Node.js 14+")
+                        .reason("pnpm 7.x requires Node.js 14+"),
                 ),
-            // pnpm 8.x requires Node.js 16+
-            ConstraintRule::new(VersionPattern::major(8))
-                .with_constraint(
+                // pnpm 8.x requires Node.js 16+
+                ConstraintRule::new(VersionPattern::major(8)).with_constraint(
                     DependencyConstraint::required("node")
                         .min("16.0.0")
                         .recommended("20")
-                        .reason("pnpm 8.x requires Node.js 16+")
+                        .reason("pnpm 8.x requires Node.js 16+"),
                 ),
-            // pnpm 9.x requires Node.js 18+
-            ConstraintRule::new(VersionPattern::major(9))
-                .with_constraint(
+                // pnpm 9.x requires Node.js 18+
+                ConstraintRule::new(VersionPattern::major(9)).with_constraint(
                     DependencyConstraint::required("node")
                         .min("18.0.0")
                         .recommended("22")
-                        .reason("pnpm 9.x requires Node.js 18+")
+                        .reason("pnpm 9.x requires Node.js 18+"),
                 ),
-        ]);
+            ],
+        );
 
         // npx inherits from npm
-        self.register("npx", vec![
-            ConstraintRule::new(VersionPattern::all())
-                .with_constraint(
-                    DependencyConstraint::required("node")
-                        .min("12.0.0")
-                        .recommended("20")
-                        .reason("npx requires Node.js 12+")
-                ),
-        ]);
+        self.register(
+            "npx",
+            vec![ConstraintRule::new(VersionPattern::all()).with_constraint(
+                DependencyConstraint::required("node")
+                    .min("12.0.0")
+                    .recommended("20")
+                    .reason("npx requires Node.js 12+"),
+            )],
+        );
 
         // uvx requires uv
-        self.register("uvx", vec![
-            ConstraintRule::new(VersionPattern::all())
-                .with_constraint(
-                    DependencyConstraint::required("uv")
-                        .min("0.1.0")
-                        .recommended("0.5")
-                        .reason("uvx is provided by uv")
-                ),
-        ]);
+        self.register(
+            "uvx",
+            vec![ConstraintRule::new(VersionPattern::all()).with_constraint(
+                DependencyConstraint::required("uv")
+                    .min("0.1.0")
+                    .recommended("0.5")
+                    .reason("uvx is provided by uv"),
+            )],
+        );
 
         // pip requires python
-        self.register("pip", vec![
-            ConstraintRule::new(VersionPattern::all())
-                .with_constraint(
-                    DependencyConstraint::required("python")
-                        .min("3.7.0")
-                        .recommended("3.12")
-                        .reason("pip requires Python 3.7+")
-                ),
-        ]);
+        self.register(
+            "pip",
+            vec![ConstraintRule::new(VersionPattern::all()).with_constraint(
+                DependencyConstraint::required("python")
+                    .min("3.7.0")
+                    .recommended("3.12")
+                    .reason("pip requires Python 3.7+"),
+            )],
+        );
     }
 }
 
 /// Global default constraints registry
-pub static DEFAULT_CONSTRAINTS: LazyLock<ConstraintsRegistry> = LazyLock::new(|| {
-    ConstraintsRegistry::with_builtins()
-});
+pub static DEFAULT_CONSTRAINTS: LazyLock<ConstraintsRegistry> =
+    LazyLock::new(|| ConstraintsRegistry::with_builtins());
 
 /// Get constraints for a runtime version from the default registry
 pub fn get_default_constraints(runtime: &str, version: &str) -> Vec<RuntimeDependency> {
@@ -603,7 +593,7 @@ mod tests {
     fn test_yarn_1x_constraints() {
         let registry = ConstraintsRegistry::with_builtins();
         let deps = registry.get_constraints("yarn", "1.22.22");
-        
+
         assert_eq!(deps.len(), 1);
         assert_eq!(deps[0].name, "node");
         assert_eq!(deps[0].min_version, Some("12.0.0".to_string()));
@@ -614,7 +604,7 @@ mod tests {
     fn test_yarn_4x_constraints() {
         let registry = ConstraintsRegistry::with_builtins();
         let deps = registry.get_constraints("yarn", "4.0.0");
-        
+
         assert_eq!(deps.len(), 1);
         assert_eq!(deps[0].name, "node");
         assert_eq!(deps[0].min_version, Some("18.0.0".to_string()));
