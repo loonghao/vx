@@ -1,6 +1,6 @@
 # RFC 0011: 解析结果缓存（Resolution Cache）与执行计划（Execution Plan）
 
-> **状态**: In Progress（Phase 1/2 已落地，Phase 3 规划中）
+> **状态**: Implemented（Phase 1/2/3 已完成）
 > **作者**: vx team
 > **创建日期**: 2026-01-05
 > **目标版本**: v0.7.0
@@ -207,8 +207,8 @@ crates/vx-cache/
 
 ### Phase 3：观测与性能（v0.8.0）
 
-- [ ] 增加 stats/prune（按大小/按时间）
-- [ ] 记录 cache hit/miss 指标（可选，结合 tracing）
+- [x] 增加 stats/prune（按大小/按时间）
+- [x] 记录 cache hit/miss 指标（可选，结合 tracing）
 - [ ] 基准测试：对比命中/未命中的解析耗时
 
 ## 替代方案
@@ -231,3 +231,4 @@ crates/vx-cache/
 |------|------|------|
 | 2026-01-05 | Draft | 初始草案 |
 | 2026-01-06 | Phase 1/2 | 落地最小可用解析缓存与 `vx-cache` 基础设施（TTL/atomic write/CacheMode/回退 + tests），补齐 `ResolvedGraph` 与显式执行流水线，并在 CLI 增加全局 `--cache-mode` 以及 `vx cache` 的 resolutions 运维能力 |
+| 2026-01-06 | Phase 3 | 实现 stats/prune 功能，添加 cache hit/miss 结构化日志（tracing） |
