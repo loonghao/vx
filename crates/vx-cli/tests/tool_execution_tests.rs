@@ -9,7 +9,6 @@ use common::{cleanup_test_env, create_full_registry, create_test_context, init_t
 use rstest::*;
 use vx_runtime::{CacheMode, ProviderRegistry};
 
-
 /// Test fixture that provides a fully initialized registry
 #[fixture]
 pub async fn registry() -> ProviderRegistry {

@@ -4,7 +4,6 @@ use super::execute::*;
 use crate::test_utils::*;
 use vx_runtime::CacheMode;
 
-
 #[tokio::test]
 async fn test_execute_tool_success() {
     let env = TestEnvironment::new();
@@ -19,7 +18,6 @@ async fn test_execute_tool_success() {
         CacheMode::Normal,
     )
     .await;
-
 
     // Note: This test depends on system having 'echo' command
     // In a real implementation, we'd mock the command execution
@@ -47,7 +45,6 @@ async fn test_execute_tool_not_found() {
     )
     .await;
 
-
     assert!(result.is_err());
     let error_msg = result.unwrap_err().to_string();
     assert!(
@@ -73,7 +70,6 @@ async fn test_execute_tool_with_args() {
     )
     .await;
 
-
     // This should work if echo is available
     match result {
         Ok(exit_code) => assert_eq!(exit_code, 0),
@@ -97,7 +93,6 @@ async fn test_handle_execute_success() {
         CacheMode::Normal,
     )
     .await;
-
 
     // The handle function should not panic and should handle errors gracefully
     match result {
@@ -124,7 +119,6 @@ async fn test_execute_with_system_path_flag() {
         CacheMode::Normal,
     )
     .await;
-
 
     match result {
         Ok(exit_code) => assert_eq!(exit_code, 0),
