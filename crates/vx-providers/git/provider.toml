@@ -1,0 +1,32 @@
+# Git Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Git.
+
+[provider]
+name = "git"
+description = "Distributed version control system"
+homepage = "https://git-scm.com"
+repository = "https://github.com/git/git"
+ecosystem = "devtools"
+
+# Git
+[[runtimes]]
+name = "git"
+description = "Git version control"
+executable = "git"
+
+[runtimes.versions]
+source = "github-tags"
+owner = "git"
+repo = "git"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Git has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []

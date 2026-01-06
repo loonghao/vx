@@ -1,0 +1,32 @@
+# Ninja Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Ninja.
+
+[provider]
+name = "ninja"
+description = "Small build system with a focus on speed"
+homepage = "https://ninja-build.org"
+repository = "https://github.com/ninja-build/ninja"
+ecosystem = "devtools"
+
+# Ninja
+[[runtimes]]
+name = "ninja"
+description = "Ninja build system"
+executable = "ninja"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "ninja-build"
+repo = "ninja"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Ninja has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []

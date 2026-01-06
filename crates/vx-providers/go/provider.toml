@@ -1,0 +1,55 @@
+# Go Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Go.
+
+[provider]
+name = "go"
+description = "The Go programming language"
+homepage = "https://go.dev"
+repository = "https://github.com/golang/go"
+ecosystem = "go"
+
+[[runtimes]]
+name = "go"
+description = "Go programming language runtime"
+executable = "go"
+aliases = ["golang"]
+
+[runtimes.versions]
+source = "go-dev"
+stable_pattern = "stable"
+
+[runtimes.executable_config]
+dir_pattern = "go{version}"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Go 1.21+ has improved module support
+[[runtimes.constraints]]
+when = ">=1.21"
+recommends = [
+    { runtime = "git", version = "*", reason = "Git is required for fetching Go modules" }
+]
+
+# Go 1.18-1.20 introduced generics
+[[runtimes.constraints]]
+when = ">=1.18, <1.21"
+recommends = [
+    { runtime = "git", version = "*", reason = "Git is required for fetching Go modules" }
+]
+
+# gofmt is bundled with Go
+[[runtimes]]
+name = "gofmt"
+description = "Go source code formatter"
+executable = "gofmt"
+bundled_with = "go"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []

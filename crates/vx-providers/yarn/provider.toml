@@ -1,0 +1,52 @@
+# Yarn Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Yarn.
+
+[provider]
+name = "yarn"
+description = "Fast, reliable, and secure dependency management"
+homepage = "https://yarnpkg.com"
+repository = "https://github.com/yarnpkg/yarn"
+ecosystem = "nodejs"
+
+[[runtimes]]
+name = "yarn"
+description = "Yarn package manager"
+executable = "yarn"
+aliases = ["yarnpkg"]
+
+[runtimes.versions]
+source = "github-releases"
+owner = "yarnpkg"
+repo = "yarn"
+strip_v_prefix = true
+lts_pattern = "1.22.*"
+
+[runtimes.hooks]
+pre_run = ["ensure_node_modules"]
+
+[runtimes.platforms.windows]
+executable_extensions = [".cmd", ".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Yarn 1.x (Classic) requires Node.js 12-22
+[[runtimes.constraints]]
+when = "^1"
+requires = [
+    { runtime = "node", version = ">=12, <23", recommended = "20", reason = "Yarn 1.x requires Node.js 12-22 for native module compatibility" }
+]
+
+# Yarn 2.x-3.x (Berry) requires Node.js 16+
+[[runtimes.constraints]]
+when = ">=2, <4"
+requires = [
+    { runtime = "node", version = ">=16", recommended = "20", reason = "Yarn 2.x-3.x requires Node.js 16+" }
+]
+
+# Yarn 4.x requires Node.js 18+
+[[runtimes.constraints]]
+when = ">=4"
+requires = [
+    { runtime = "node", version = ">=18", recommended = "22", reason = "Yarn 4.x requires Node.js 18+" }
+]

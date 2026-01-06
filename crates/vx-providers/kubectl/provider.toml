@@ -1,0 +1,32 @@
+# Kubectl Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for kubectl.
+
+[provider]
+name = "kubectl"
+description = "Kubernetes command-line tool"
+homepage = "https://kubernetes.io"
+repository = "https://github.com/kubernetes/kubectl"
+ecosystem = "container"
+
+# kubectl
+[[runtimes]]
+name = "kubectl"
+description = "Kubernetes CLI"
+executable = "kubectl"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "kubernetes"
+repo = "kubernetes"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# kubectl has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []

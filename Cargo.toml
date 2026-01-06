@@ -4,6 +4,7 @@ members = [
   "crates/vx-cache",
   "crates/vx-runtime",
   "crates/vx-resolver",
+  "crates/vx-manifest",
   "crates/vx-paths",
   "crates/vx-installer",
   "crates/vx-config",
@@ -174,6 +175,7 @@ vx-provider-release-please = { path = "crates/vx-providers/release-please" }
 vx-provider-python = { path = "crates/vx-providers/python" }
 vx-provider-msvc = { path = "crates/vx-providers/msvc" }
 vx-console = { path = "crates/vx-console" }
+vx-manifest = { path = "crates/vx-manifest" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }

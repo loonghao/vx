@@ -1,0 +1,63 @@
+# Python Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Python.
+
+[provider]
+name = "python"
+description = "Python programming language"
+homepage = "https://www.python.org"
+repository = "https://github.com/python/cpython"
+ecosystem = "python"
+
+# Python runtime
+[[runtimes]]
+name = "python"
+description = "Python programming language"
+executable = "python"
+aliases = ["python3", "py"]
+
+[runtimes.versions]
+source = "python-build-standalone"
+stable_pattern = "3.*"
+
+[runtimes.executable_config]
+dir_pattern = "python-{version}"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Python 3.12+ has improved performance
+[[runtimes.constraints]]
+when = ">=3.12"
+recommends = [
+    { runtime = "uv", version = "*", reason = "UV provides faster package management for Python 3.12+" }
+]
+
+# Python 3.8-3.11
+[[runtimes.constraints]]
+when = ">=3.8, <3.12"
+recommends = [
+    { runtime = "uv", version = "*", reason = "UV provides faster package management" }
+]
+
+# pip is bundled with Python
+[[runtimes]]
+name = "pip"
+description = "Python package installer"
+executable = "pip"
+bundled_with = "python"
+aliases = ["pip3"]
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "python", version = ">=3.8", reason = "pip requires Python 3.8+" }
+]

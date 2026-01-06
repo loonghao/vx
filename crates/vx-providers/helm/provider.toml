@@ -1,0 +1,34 @@
+# Helm Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Helm.
+
+[provider]
+name = "helm"
+description = "The package manager for Kubernetes"
+homepage = "https://helm.sh"
+repository = "https://github.com/helm/helm"
+ecosystem = "container"
+
+# Helm
+[[runtimes]]
+name = "helm"
+description = "Helm package manager"
+executable = "helm"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "helm"
+repo = "helm"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Helm recommends kubectl for cluster access
+[[runtimes.constraints]]
+when = "*"
+recommends = [
+    { runtime = "kubectl", version = "*", reason = "kubectl is needed for Kubernetes cluster access" }
+]

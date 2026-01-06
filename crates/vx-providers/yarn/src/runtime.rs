@@ -5,26 +5,15 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::path::Path;
 use std::process::Stdio;
-use std::sync::LazyLock;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
-use vx_runtime::{
-    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, RuntimeDependency,
-    VersionInfo,
-};
+use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
 
-/// Yarn runtime dependencies
-static YARN_DEPENDENCIES: LazyLock<Vec<RuntimeDependency>> = LazyLock::new(|| {
-    vec![
-        // Yarn 1.x requires Node.js 12-22
-        // Node.js 23+ has compatibility issues with native module compilation
-        RuntimeDependency::required("node")
-            .with_min_version("12.0.0")
-            .with_max_version("22.99.99")
-            .with_recommended_version("20")
-            .with_reason("Yarn 1.x requires Node.js runtime (12-22 recommended for native module compatibility)"),
-    ]
-});
+// Note: Yarn's Node.js version constraints are now defined in vx_runtime::ConstraintsRegistry
+// This provides version-aware constraints:
+// - Yarn 1.x: Node.js 12-22 (native module compatibility)
+// - Yarn 2.x-3.x: Node.js 16+
+// - Yarn 4.x: Node.js 18+
 
 /// Yarn runtime
 #[derive(Debug, Clone)]
@@ -66,9 +55,8 @@ impl Runtime for YarnRuntime {
         &[]
     }
 
-    fn dependencies(&self) -> &[RuntimeDependency] {
-        &YARN_DEPENDENCIES
-    }
+    // Dependencies are now managed by vx_runtime::ConstraintsRegistry
+    // which provides version-aware constraints for yarn@1.x, yarn@2.x, etc.
 
     /// Yarn uses .cmd on Windows
     fn executable_extensions(&self) -> &[&str] {

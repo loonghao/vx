@@ -1,0 +1,32 @@
+# Ollama Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Ollama.
+
+[provider]
+name = "ollama"
+description = "Get up and running with large language models locally"
+homepage = "https://ollama.ai"
+repository = "https://github.com/ollama/ollama"
+ecosystem = "ai"
+
+# Ollama
+[[runtimes]]
+name = "ollama"
+description = "Ollama LLM runner"
+executable = "ollama"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "ollama"
+repo = "ollama"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Ollama has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []
