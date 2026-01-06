@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 vx-core = { workspace = true }
+vx-manifest = { workspace = true }
 vx-paths = { workspace = true }
 vx-runtime = { workspace = true }
 vx-args = { path = "../vx-args" }
