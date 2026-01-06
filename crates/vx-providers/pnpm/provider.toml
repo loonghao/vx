@@ -1,0 +1,48 @@
+# pnpm Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for pnpm.
+
+[provider]
+name = "pnpm"
+description = "Fast, disk space efficient package manager"
+homepage = "https://pnpm.io"
+repository = "https://github.com/pnpm/pnpm"
+ecosystem = "nodejs"
+
+[[runtimes]]
+name = "pnpm"
+description = "pnpm package manager"
+executable = "pnpm"
+aliases = ["pnpx"]
+
+[runtimes.versions]
+source = "github-releases"
+owner = "pnpm"
+repo = "pnpm"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".cmd", ".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# pnpm 7.x requires Node.js 14+
+[[runtimes.constraints]]
+when = "^7"
+requires = [
+    { runtime = "node", version = ">=14", recommended = "18", reason = "pnpm 7.x requires Node.js 14+" }
+]
+
+# pnpm 8.x requires Node.js 16+
+[[runtimes.constraints]]
+when = "^8"
+requires = [
+    { runtime = "node", version = ">=16", recommended = "20", reason = "pnpm 8.x requires Node.js 16+" }
+]
+
+# pnpm 9.x requires Node.js 18+
+[[runtimes.constraints]]
+when = ">=9"
+requires = [
+    { runtime = "node", version = ">=18", recommended = "22", reason = "pnpm 9.x requires Node.js 18+" }
+]

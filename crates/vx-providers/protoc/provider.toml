@@ -1,0 +1,32 @@
+# Protoc Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Protocol Buffers.
+
+[provider]
+name = "protoc"
+description = "Protocol Buffers compiler"
+homepage = "https://protobuf.dev"
+repository = "https://github.com/protocolbuffers/protobuf"
+ecosystem = "devtools"
+
+# protoc
+[[runtimes]]
+name = "protoc"
+description = "Protocol Buffers compiler"
+executable = "protoc"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "protocolbuffers"
+repo = "protobuf"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# protoc has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []

@@ -1,0 +1,32 @@
+# Just Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Just.
+
+[provider]
+name = "just"
+description = "A handy way to save and run project-specific commands"
+homepage = "https://just.systems"
+repository = "https://github.com/casey/just"
+ecosystem = "devtools"
+
+# Just
+[[runtimes]]
+name = "just"
+description = "Just command runner"
+executable = "just"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "casey"
+repo = "just"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Just has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []

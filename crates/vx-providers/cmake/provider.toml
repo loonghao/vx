@@ -1,0 +1,60 @@
+# CMake Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for CMake.
+
+[provider]
+name = "cmake"
+description = "Cross-platform build system generator"
+homepage = "https://cmake.org"
+repository = "https://github.com/Kitware/CMake"
+ecosystem = "devtools"
+
+# CMake
+[[runtimes]]
+name = "cmake"
+description = "CMake build system"
+executable = "cmake"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "Kitware"
+repo = "CMake"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# CMake recommends ninja for faster builds
+[[runtimes.constraints]]
+when = "*"
+recommends = [
+    { runtime = "ninja", version = "*", reason = "Ninja provides faster builds than Make" }
+]
+
+# ctest is bundled with CMake
+[[runtimes]]
+name = "ctest"
+description = "CMake test driver"
+executable = "ctest"
+bundled_with = "cmake"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# cpack is bundled with CMake
+[[runtimes]]
+name = "cpack"
+description = "CMake packaging tool"
+executable = "cpack"
+bundled_with = "cmake"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []

@@ -1,0 +1,30 @@
+# Zig Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Zig.
+
+[provider]
+name = "zig"
+description = "General-purpose programming language and toolchain"
+homepage = "https://ziglang.org"
+repository = "https://github.com/ziglang/zig"
+ecosystem = "zig"
+
+# Zig
+[[runtimes]]
+name = "zig"
+description = "Zig programming language"
+executable = "zig"
+
+[runtimes.versions]
+source = "zig-download"
+stable_pattern = "stable"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Zig is self-contained, no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []
