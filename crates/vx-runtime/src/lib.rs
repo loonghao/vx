@@ -40,6 +40,7 @@ pub mod constraints;
 pub mod context;
 pub mod ecosystem;
 pub mod impls;
+pub mod manifest_registry;
 pub mod package_runtime;
 pub mod platform;
 pub mod provider;
@@ -81,3 +82,6 @@ pub use constraints::{
     get_default_constraints, ConstraintRule, ConstraintsRegistry, DependencyConstraint,
     ManifestVersionPattern, VersionPattern, DEFAULT_CONSTRAINTS,
 };
+
+// Manifest-driven registry
+pub use manifest_registry::{ManifestRegistry, RuntimeMetadata};

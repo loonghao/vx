@@ -9,7 +9,7 @@ use crate::resolution_cache::log_cache_result;
 use crate::{ResolutionCache, ResolutionCacheKey, ResolvedGraph, Resolver, ResolverConfig, Result};
 use std::process::{ExitStatus, Stdio};
 use tokio::process::Command;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, info_span, warn, Instrument};
 use vx_runtime::{get_default_constraints, CacheMode, ProviderRegistry, RuntimeContext};
 
 /// Executor for runtime command forwarding
@@ -145,11 +145,20 @@ impl<'a> Executor<'a> {
         version: Option<&str>,
         args: &[String],
     ) -> Result<i32> {
-        if let Some(ver) = version {
-            debug!("Executing: {}@{} {}", runtime_name, ver, args.join(" "));
-        } else {
-            debug!("Executing: {} {}", runtime_name, args.join(" "));
-        }
+        // Create a span for the entire execution
+        let span = info_span!(
+            "vx_execute",
+            runtime = %runtime_name,
+            version = version.unwrap_or("latest"),
+            args_count = args.len()
+        );
+
+        async move {
+            if let Some(ver) = version {
+                debug!("Executing: {}@{} {}", runtime_name, ver, args.join(" "));
+            } else {
+                debug!("Executing: {} {}", runtime_name, args.join(" "));
+            }
 
         // Check platform support before any operation
         if let Some(registry) = self.registry {
@@ -340,6 +349,9 @@ impl<'a> Executor<'a> {
         let _ = cache_key;
 
         Ok(status.code().unwrap_or(1))
+        }
+        .instrument(span)
+        .await
     }
 
     /// Ensure a compatible version of a dependency is available
