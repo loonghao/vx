@@ -1,0 +1,33 @@
+# AWS CLI Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for AWS CLI.
+
+[provider]
+name = "awscli"
+description = "Unified command line interface to Amazon Web Services"
+homepage = "https://aws.amazon.com/cli/"
+repository = "https://github.com/aws/aws-cli"
+ecosystem = "cloud"
+
+# AWS CLI v2
+[[runtimes]]
+name = "aws"
+description = "AWS Command Line Interface"
+executable = "aws"
+aliases = ["awscli", "aws-cli"]
+
+[runtimes.versions]
+source = "github-releases"
+owner = "aws"
+repo = "aws-cli"
+strip_v_prefix = false
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe", ".cmd"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# AWS CLI has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []

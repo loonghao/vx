@@ -1,0 +1,33 @@
+# Task Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Task (go-task).
+
+[provider]
+name = "task"
+description = "A task runner / simpler Make alternative written in Go"
+homepage = "https://taskfile.dev"
+repository = "https://github.com/go-task/task"
+ecosystem = "devtools"
+
+# Task
+[[runtimes]]
+name = "task"
+description = "Task runner"
+executable = "task"
+aliases = ["go-task"]
+
+[runtimes.versions]
+source = "github-releases"
+owner = "go-task"
+repo = "task"
+strip_v_prefix = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Task has no external dependencies (statically compiled Go binary)
+[[runtimes.constraints]]
+when = "*"
+recommends = []

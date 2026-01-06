@@ -1,0 +1,56 @@
+# Google Cloud CLI Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for gcloud.
+
+[provider]
+name = "gcloud"
+description = "Command-line interface for Google Cloud Platform"
+homepage = "https://cloud.google.com/sdk/gcloud"
+repository = "https://github.com/GoogleCloudPlatform/google-cloud-sdk"
+ecosystem = "cloud"
+
+# gcloud CLI
+[[runtimes]]
+name = "gcloud"
+description = "Google Cloud SDK CLI"
+executable = "gcloud"
+aliases = ["google-cloud-sdk"]
+
+[runtimes.versions]
+source = "gcloud-sdk"
+
+[runtimes.platforms.windows]
+executable_extensions = [".cmd", ".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# gcloud has no external dependencies (bundles Python)
+[[runtimes.constraints]]
+when = "*"
+recommends = []
+
+# gsutil is bundled with gcloud
+[[runtimes]]
+name = "gsutil"
+description = "Google Cloud Storage utility"
+executable = "gsutil"
+bundled_with = "gcloud"
+
+[runtimes.platforms.windows]
+executable_extensions = [".cmd"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# bq (BigQuery) is bundled with gcloud
+[[runtimes]]
+name = "bq"
+description = "BigQuery command-line tool"
+executable = "bq"
+bundled_with = "gcloud"
+
+[runtimes.platforms.windows]
+executable_extensions = [".cmd"]
+
+[runtimes.platforms.unix]
+executable_extensions = []

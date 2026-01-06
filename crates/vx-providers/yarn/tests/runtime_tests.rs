@@ -61,44 +61,14 @@ fn test_yarn_provider_get_runtime() {
 // ============================================================================
 // Dependency tests
 // ============================================================================
-
-/// Test that Yarn has Node.js dependency with version constraints
-#[test]
-fn test_yarn_dependencies() {
-    let runtime = YarnRuntime::new();
-    let deps = runtime.dependencies();
-
-    assert_eq!(deps.len(), 1, "Yarn should have exactly one dependency");
-
-    let node_dep = &deps[0];
-    assert_eq!(node_dep.name, "node");
-    assert!(!node_dep.optional);
-
-    // Check version constraints
-    assert_eq!(node_dep.min_version, Some("12.0.0".to_string()));
-    assert_eq!(node_dep.max_version, Some("22.99.99".to_string()));
-    assert_eq!(node_dep.recommended_version, Some("20".to_string()));
-}
-
-/// Test Yarn's Node.js version compatibility
-#[test]
-fn test_yarn_node_version_compatibility() {
-    let runtime = YarnRuntime::new();
-    let deps = runtime.dependencies();
-    let node_dep = &deps[0];
-
-    // Compatible versions
-    assert!(node_dep.is_version_compatible("20.10.0"));
-    assert!(node_dep.is_version_compatible("18.19.0"));
-    assert!(node_dep.is_version_compatible("22.0.0"));
-    assert!(node_dep.is_version_compatible("12.0.0"));
-
-    // Incompatible versions (Node.js 23+ has native module compilation issues)
-    assert!(!node_dep.is_version_compatible("23.0.0"));
-    assert!(!node_dep.is_version_compatible("23.11.0"));
-    assert!(!node_dep.is_version_compatible("25.2.1"));
-    assert!(!node_dep.is_version_compatible("11.0.0"));
-}
+// Note: Yarn's dependencies are now managed by vx_runtime::ConstraintsRegistry
+// which provides version-aware constraints loaded from provider.toml:
+// - Yarn 1.x: Node.js 12-22 (native module compatibility)
+// - Yarn 2.x-3.x: Node.js 16+
+// - Yarn 4.x: Node.js 18+
+//
+// See crates/vx-providers/yarn/provider.toml for constraint definitions.
+// The ConstraintsRegistry tests are in crates/vx-runtime/tests/constraints_tests.rs
 
 // ============================================================================
 // Executable path tests
