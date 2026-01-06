@@ -162,7 +162,9 @@ impl<'a> Executor<'a> {
 
         // Check provider dependencies and handle version constraints
         // This supplements the RuntimeMap-based resolution with provider-specific constraints
-        let provider_incompatible_deps = self.check_provider_dependencies(runtime_name, version).await?;
+        let provider_incompatible_deps = self
+            .check_provider_dependencies(runtime_name, version)
+            .await?;
 
         // -------------------------
         // Resolve
@@ -558,10 +560,7 @@ impl<'a> Executor<'a> {
             // If no vx-managed version, check system PATH
             if found_version.is_none() {
                 if let Some(system_version) = self.get_system_dependency_version(&dep.name) {
-                    debug!(
-                        "Found system {} version: {}",
-                        dep.name, system_version
-                    );
+                    debug!("Found system {} version: {}", dep.name, system_version);
                     found_version = Some(system_version);
                 }
             }
@@ -569,7 +568,11 @@ impl<'a> Executor<'a> {
             // Check version compatibility
             if let Some(version) = found_version {
                 if !dep.is_version_compatible(&version) {
-                    let source = if is_vx_managed { "vx-managed" } else { "system" };
+                    let source = if is_vx_managed {
+                        "vx-managed"
+                    } else {
+                        "system"
+                    };
                     warn!(
                         "Dependency {} ({}) version {} is incompatible with {} (min: {:?}, max: {:?})",
                         dep.name, source, version, runtime_name, dep.min_version, dep.max_version
@@ -611,10 +614,7 @@ impl<'a> Executor<'a> {
         };
 
         // Try to find the executable in PATH
-        let output = Command::new(&exe_name)
-            .arg("--version")
-            .output()
-            .ok()?;
+        let output = Command::new(&exe_name).arg("--version").output().ok()?;
 
         if !output.status.success() {
             return None;
@@ -735,11 +735,7 @@ impl<'a> Executor<'a> {
                 if path.is_dir() {
                     // Check if executable is directly in this subdirectory
                     if path.join(&exe_name).exists() {
-                        debug!(
-                            "Found {} in subdirectory: {}",
-                            exe_name,
-                            path.display()
-                        );
+                        debug!("Found {} in subdirectory: {}", exe_name, path.display());
                         return Some(path);
                     }
                     // Check if executable is in bin/ subdirectory

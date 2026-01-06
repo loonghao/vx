@@ -296,9 +296,7 @@ impl VersionRequest {
         match &self.constraint {
             VersionConstraint::Any => true,
             VersionConstraint::Exact(target) => &v == target,
-            VersionConstraint::Partial { major, minor } => {
-                v.major == *major && v.minor == *minor
-            }
+            VersionConstraint::Partial { major, minor } => v.major == *major && v.minor == *minor,
             VersionConstraint::Major(major) => v.major == *major,
             VersionConstraint::Caret(target) => {
                 // ^1.2.3 means >=1.2.3, <2.0.0
@@ -319,9 +317,7 @@ impl VersionRequest {
                 // ~1.2.3 means >=1.2.3, <1.3.0
                 v >= *target && v.major == target.major && v.minor == target.minor
             }
-            VersionConstraint::Range(constraints) => {
-                constraints.iter().all(|c| c.satisfies(&v))
-            }
+            VersionConstraint::Range(constraints) => constraints.iter().all(|c| c.satisfies(&v)),
         }
     }
 }
