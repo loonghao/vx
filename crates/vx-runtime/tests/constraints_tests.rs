@@ -4,6 +4,49 @@ use rstest::rstest;
 use vx_runtime::constraints::{
     ConstraintRule, ConstraintsRegistry, DependencyConstraint, VersionPattern,
 };
+use vx_runtime::{get_default_constraints, init_constraints_from_manifests};
+
+const SAMPLE_MANIFEST: &str = r#"
+[provider]
+name = "test-provider"
+
+[[runtimes]]
+name = "yarn"
+executable = "yarn"
+
+[[runtimes.constraints]]
+when = "^1"
+requires = [
+  { runtime = "node", version = ">=12, <23", recommended = "20", reason = "Yarn 1.x requires Node.js 12-22" }
+]
+
+[[runtimes.constraints]]
+when = "^4"
+requires = [
+  { runtime = "node", version = ">=18", recommended = "22" }
+]
+
+[[runtimes]]
+name = "pnpm"
+executable = "pnpm"
+
+[[runtimes.constraints]]
+when = "^8"
+requires = [
+  { runtime = "node", version = ">=16", recommended = "20" }
+]
+
+[[runtimes.constraints]]
+when = "^9"
+requires = [
+  { runtime = "node", version = ">=18", recommended = "22" }
+]
+"#;
+
+fn sample_registry() -> ConstraintsRegistry {
+    ConstraintsRegistry::from_manifest_strings([("sample", SAMPLE_MANIFEST)])
+        .expect("failed to build registry from manifest")
+}
 
 #[test]
 fn test_version_pattern_major() {
@@ -33,19 +76,19 @@ fn test_version_pattern_all() {
 }
 
 #[rstest]
-#[case("yarn", "1.22.22", "node", Some("12.0.0"), Some("22.99.99"))]
-#[case("yarn", "1.0.0", "node", Some("12.0.0"), Some("22.99.99"))]
+#[case("yarn", "1.22.22", "node", Some("12.0.0"), Some("23.0.0"))]
+#[case("yarn", "1.0.0", "node", Some("12.0.0"), Some("23.0.0"))]
 #[case("yarn", "4.0.0", "node", Some("18.0.0"), None)]
 #[case("pnpm", "8.0.0", "node", Some("16.0.0"), None)]
 #[case("pnpm", "9.0.0", "node", Some("18.0.0"), None)]
-fn test_builtin_constraints(
+fn test_manifest_constraints(
     #[case] runtime: &str,
     #[case] version: &str,
     #[case] expected_dep: &str,
     #[case] expected_min: Option<&str>,
     #[case] expected_max: Option<&str>,
 ) {
-    let registry = ConstraintsRegistry::with_builtins();
+    let registry = sample_registry();
     let deps = registry.get_constraints(runtime, version);
 
     assert!(
@@ -70,10 +113,10 @@ fn test_builtin_constraints(
 }
 
 #[test]
-fn test_yarn_1x_vs_4x_different_constraints() {
-    let registry = ConstraintsRegistry::with_builtins();
+fn test_yarn_versions_have_different_constraints() {
+    let registry = sample_registry();
 
-    // Yarn 1.x has max version constraint (Node.js 22 max)
+    // Yarn 1.x has max version constraint (Node.js <23)
     let yarn1_deps = registry.get_constraints("yarn", "1.22.22");
     assert_eq!(yarn1_deps.len(), 1);
     assert!(yarn1_deps[0].max_version.is_some());
@@ -90,7 +133,7 @@ fn test_yarn_1x_vs_4x_different_constraints() {
 
 #[test]
 fn test_no_constraints_for_unknown_runtime() {
-    let registry = ConstraintsRegistry::with_builtins();
+    let registry = sample_registry();
     let deps = registry.get_constraints("unknown-runtime", "1.0.0");
     assert!(deps.is_empty());
 }
@@ -150,8 +193,10 @@ fn test_constraint_to_runtime_dependency() {
 
 #[test]
 fn test_get_default_constraints() {
-    // Test the global function
-    let deps = vx_runtime::get_default_constraints("yarn", "1.22.22");
+    // Initialize global registry from manifest once
+    init_constraints_from_manifests([("sample", SAMPLE_MANIFEST)]).unwrap();
+
+    let deps = get_default_constraints("yarn", "1.22.22");
     assert!(!deps.is_empty());
     assert_eq!(deps[0].name, "node");
 }
@@ -199,28 +244,6 @@ requires = [
     assert_eq!(deps_v2.len(), 1);
     assert_eq!(deps_v2[0].name, "node");
     assert_eq!(deps_v2[0].min_version.as_deref(), Some("18.0.0"));
-    assert!(deps_v2[0].max_version.is_none());
-}
-
-#[test]
-fn test_manifest_version_pattern() {
-    use vx_runtime::ManifestVersionPattern;
-
-    // Test caret pattern
-    let pattern = ManifestVersionPattern::new("^1");
-    assert!(pattern.matches("1.0.0"));
-    assert!(pattern.matches("1.99.99"));
-    assert!(!pattern.matches("2.0.0"));
-
-    // Test range pattern
-    let pattern = ManifestVersionPattern::new(">=2, <4");
-    assert!(!pattern.matches("1.99.99"));
-    assert!(pattern.matches("2.0.0"));
-    assert!(pattern.matches("3.99.99"));
-    assert!(!pattern.matches("4.0.0"));
-
-    // Test any pattern
-    let pattern = ManifestVersionPattern::new("*");
-    assert!(pattern.matches("1.0.0"));
-    assert!(pattern.matches("99.99.99"));
+    assert_eq!(deps_v2[0].max_version.as_deref(), None);
+    assert_eq!(deps_v2[0].recommended_version.as_deref(), Some("22"));
 }

@@ -79,8 +79,9 @@ pub use version_resolver::VersionResolver;
 
 // Constraints system
 pub use constraints::{
-    get_default_constraints, ConstraintRule, ConstraintsRegistry, DependencyConstraint,
-    ManifestVersionPattern, VersionPattern, DEFAULT_CONSTRAINTS,
+    get_default_constraints, init_constraints_from_manifests,
+    load_constraints_from_manifest_content, ConstraintRule, ConstraintsRegistry,
+    DependencyConstraint, ManifestVersionPattern, VersionPattern, DEFAULT_CONSTRAINTS,
 };
 
 // Manifest-driven registry
