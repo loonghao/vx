@@ -21,8 +21,8 @@ use tracing::debug;
 use vx_manifest::{ManifestLoader, ProviderManifest};
 use vx_paths::{find_project_root, VxPaths, PROJECT_VX_DIR};
 use vx_runtime::{
-    create_runtime_context, default_plugin_paths, init_constraints_from_manifests, ManifestRegistry,
-    PluginLoader, Provider, ProviderRegistry, Runtime, RuntimeContext,
+    create_runtime_context, default_plugin_paths, init_constraints_from_manifests,
+    ManifestRegistry, PluginLoader, Provider, ProviderRegistry, Runtime, RuntimeContext,
 };
 
 // Include the compile-time generated provider manifests
@@ -268,10 +268,7 @@ fn load_manifests_with_overrides() -> Vec<ProviderManifest> {
                 let _ = loader.load_from_dir(&project_dir);
                 // Load .override.toml files (for constraint overrides)
                 let _ = loader.load_overrides_from_dir(&project_dir);
-                debug!(
-                    "Loaded project provider overrides from {:?}",
-                    project_dir
-                );
+                debug!("Loaded project provider overrides from {:?}", project_dir);
             }
         }
     }
@@ -303,7 +300,11 @@ fn build_plugin_loader() -> Option<PluginLoader> {
 fn init_constraints_from_manifest_list(manifests: &[ProviderManifest]) {
     let manifest_strings: Vec<(String, String)> = manifests
         .iter()
-        .filter_map(|manifest| toml::to_string(manifest).ok().map(|s| (manifest.provider.name.clone(), s)))
+        .filter_map(|manifest| {
+            toml::to_string(manifest)
+                .ok()
+                .map(|s| (manifest.provider.name.clone(), s))
+        })
         .collect();
 
     if manifest_strings.is_empty() {

@@ -143,11 +143,7 @@ impl ManifestLoader {
                                 }
                             }
                             Err(e) => {
-                                tracing::warn!(
-                                    "Failed to load override from {:?}: {}",
-                                    path,
-                                    e
-                                );
+                                tracing::warn!("Failed to load override from {:?}: {}", path, e);
                             }
                         }
                     }
