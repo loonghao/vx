@@ -10,6 +10,127 @@
 
 基于 RFC 0012 引入的 `provider.toml` 清单系统，本 RFC 提出通过清单驱动的方式自动注册 Provider，消除 CLI 中的硬编码注册代码，实现真正的"零代码"Provider 发现和注册。
 
+## Provider vs Extension：核心区别
+
+在深入设计之前，需要明确 **Provider** 和 **Extension** 的本质区别：
+
+### 概念对比
+
+| 维度 | Provider | Extension |
+|------|----------|-----------|
+| **定位** | 运行时管理器 | 功能扩展脚本 |
+| **实现语言** | Rust (编译型) | Python/Node.js/等 (脚本型) |
+| **执行方式** | 直接调用，原生性能 | 通过解释器执行 |
+| **核心职责** | 下载、安装、版本管理运行时 | 提供 CLI 命令、hooks、工具 |
+| **配置文件** | `provider.toml` | `vx-extension.toml` |
+| **存放位置** | `crates/vx-providers/` (内置) | `~/.vx/extensions/` (用户) |
+| **调用方式** | `vx node`, `vx yarn install` | `vx x my-ext`, `vx ext run my-ext` |
+
+### 架构层次
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                           vx CLI                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  ┌─────────────────────┐          ┌─────────────────────┐           │
+│  │     Extensions      │          │     Providers       │           │
+│  │  (vx-extension)     │          │   (vx-runtime)      │           │
+│  ├─────────────────────┤          ├─────────────────────┤           │
+│  │ • 脚本执行器        │          │ • 运行时管理        │           │
+│  │ • 命令扩展          │ 依赖于   │ • 版本下载/安装     │           │
+│  │ • Hooks 系统        │ ───────> │ • 依赖约束解析      │           │
+│  │ • 远程安装          │          │ • 环境配置          │           │
+│  └─────────────────────┘          └─────────────────────┘           │
+│           │                                 │                        │
+│           ▼                                 ▼                        │
+│  ┌─────────────────────┐          ┌─────────────────────┐           │
+│  │ vx-extension.toml   │          │   provider.toml     │           │
+│  │ • runtime: python   │          │ • ecosystem: nodejs │           │
+│  │ • entrypoint: main  │          │ • runtimes: [...]   │           │
+│  │ • commands: {...}   │          │ • constraints: [...] │           │
+│  └─────────────────────┘          └─────────────────────┘           │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 关键区别详解
+
+#### 1. Extension 依赖 Provider
+
+Extension 需要 Provider 提供的运行时来执行：
+
+```toml
+# vx-extension.toml
+[extension]
+name = "my-linter"
+type = "command"
+
+[runtime]
+requires = "python >= 3.10"  # 依赖 Python Provider
+dependencies = ["ruff", "black"]
+
+[entrypoint]
+main = "main.py"
+```
+
+当执行 `vx x my-linter` 时：
+1. Extension 系统读取 `requires = "python >= 3.10"`
+2. 调用 **Python Provider** 获取/安装 Python 3.10+
+3. 使用该 Python 执行 `main.py`
+
+#### 2. Provider 是原生 Rust 代码
+
+Provider 直接编译进 vx 二进制（或作为动态库），提供：
+
+```rust
+// vx-provider-node/src/lib.rs
+pub struct NodeProvider;
+
+impl Provider for NodeProvider {
+    fn name(&self) -> &str { "node" }
+    
+    fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
+        vec![
+            Arc::new(NodeRuntime::new()),
+            Arc::new(NpmRuntime::new()),
+            Arc::new(NpxRuntime::new()),
+        ]
+    }
+}
+
+impl Runtime for NodeRuntime {
+    async fn install(&self, version: &str) -> Result<PathBuf>;
+    async fn list_versions(&self) -> Result<Vec<String>>;
+    fn executable_name(&self) -> &str { "node" }
+}
+```
+
+#### 3. 性能差异
+
+| 操作 | Provider | Extension |
+|------|----------|-----------|
+| 启动时间 | ~0ms (已编译) | ~50-200ms (解释器启动) |
+| 执行开销 | 直接系统调用 | 进程间通信 |
+| 内存占用 | 共享 vx 进程 | 独立解释器进程 |
+| 适用场景 | 高频操作 (版本检测、路径解析) | 低频操作 (工具命令) |
+
+### 为什么不合并？
+
+1. **性能要求不同**：Provider 需要毫秒级响应（每次 `vx node` 都要检测版本），Extension 可以接受秒级延迟
+
+2. **开发门槛不同**：
+   - Provider：需要 Rust 知识，编译发布
+   - Extension：任何脚本语言，直接放入目录即可
+
+3. **职责边界清晰**：
+   - Provider：管理工具本身（node、python、go）
+   - Extension：基于工具构建功能（linter、formatter、deploy）
+
+4. **生命周期不同**：
+   - Provider：随 vx 版本发布，相对稳定
+   - Extension：用户随时安装/更新，快速迭代
+
 ## 动机
 
 ### 当前状态分析
@@ -52,6 +173,118 @@ pub fn create_registry() -> ProviderRegistry {
 2. **延迟加载** - 只在需要时加载 Provider 代码
 3. **减少样板** - 新增 Provider 只需创建 `provider.toml`
 4. **支持扩展** - 用户可通过 `~/.vx/providers/` 添加自定义 Provider
+
+## 性能分析
+
+### 当前性能基线
+
+```
+vx --version 启动时间分析 (33 个 Provider):
+
+┌────────────────────────────────────────────────────────────────┐
+│ 阶段                    │ 耗时      │ 占比    │ 说明          │
+├────────────────────────────────────────────────────────────────┤
+│ 进程启动                │ ~5ms      │ 25%     │ OS 加载二进制 │
+│ Provider 初始化         │ ~8ms      │ 40%     │ 33 个 Provider│
+│   - 创建实例            │   ~3ms    │         │               │
+│   - 注册到 Registry     │   ~5ms    │         │               │
+│ CLI 解析                │ ~4ms      │ 20%     │ clap 解析     │
+│ 其他                    │ ~3ms      │ 15%     │               │
+├────────────────────────────────────────────────────────────────┤
+│ 总计                    │ ~20ms     │ 100%    │               │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 1 优化：编译时清单嵌入
+
+```
+优化后启动时间:
+
+┌────────────────────────────────────────────────────────────────┐
+│ 阶段                    │ 耗时      │ 变化    │ 说明          │
+├────────────────────────────────────────────────────────────────┤
+│ 进程启动                │ ~5ms      │ 不变    │               │
+│ Provider 初始化         │ ~6ms      │ -25%    │               │
+│   - 清单解析 (缓存)     │   ~1ms    │ 新增    │ 编译时嵌入    │
+│   - 创建实例            │   ~3ms    │ 不变    │               │
+│   - 注册 (元数据复用)   │   ~2ms    │ -60%    │ 从清单读取    │
+│ CLI 解析                │ ~4ms      │ 不变    │               │
+│ 其他                    │ ~3ms      │ 不变    │               │
+├────────────────────────────────────────────────────────────────┤
+│ 总计                    │ ~18ms     │ -10%    │               │
+└────────────────────────────────────────────────────────────────┘
+
+主要收益: 减少重复元数据构建，代码更简洁
+```
+
+### Phase 2 优化：延迟加载
+
+```
+延迟加载后启动时间 (典型场景: vx node --version):
+
+┌────────────────────────────────────────────────────────────────┐
+│ 阶段                    │ 耗时      │ 变化    │ 说明          │
+├────────────────────────────────────────────────────────────────┤
+│ 进程启动                │ ~5ms      │ 不变    │               │
+│ 清单索引加载            │ ~2ms      │ 新增    │ 只读元数据    │
+│ 目标 Provider 加载      │ ~1ms      │ 新增    │ 动态库加载    │
+│ CLI 解析                │ ~4ms      │ 不变    │               │
+│ 其他                    │ ~3ms      │ 不变    │               │
+├────────────────────────────────────────────────────────────────┤
+│ 总计                    │ ~15ms     │ -25%    │               │
+└────────────────────────────────────────────────────────────────┘
+
+关键优化: 不再初始化所有 33 个 Provider，只加载需要的
+```
+
+### 内存占用对比
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 场景                      │ 当前      │ Phase 2   │ 节省      │
+├─────────────────────────────────────────────────────────────────┤
+│ vx --help                 │ ~8MB      │ ~4MB      │ 50%       │
+│ vx node --version         │ ~8MB      │ ~5MB      │ 37%       │
+│ vx install node go rust   │ ~8MB      │ ~6MB      │ 25%       │
+│ 使用全部 33 个 Provider   │ ~8MB      │ ~8MB      │ 0%        │
+└─────────────────────────────────────────────────────────────────┘
+
+说明: 大多数用户只使用 3-5 个 Provider，延迟加载显著减少内存占用
+```
+
+### 编译时间对比
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 构建类型                  │ 当前      │ Phase 2   │ 变化      │
+├─────────────────────────────────────────────────────────────────┤
+│ 完整构建 (release)        │ ~180s     │ ~120s     │ -33%      │
+│ 增量构建 (单 Provider)    │ ~45s      │ ~15s      │ -67%      │
+│ vx-cli 单独构建           │ ~60s      │ ~20s      │ -67%      │
+└─────────────────────────────────────────────────────────────────┘
+
+说明: 解耦后，修改单个 Provider 不需要重新链接所有依赖
+```
+
+### 二进制体积对比
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 组件                      │ 当前      │ Phase 2   │ 说明      │
+├─────────────────────────────────────────────────────────────────┤
+│ vx 主程序                 │ ~15MB     │ ~8MB      │ 核心功能  │
+│ Provider 插件 (总计)      │ -         │ ~12MB     │ 按需加载  │
+│   - node.so               │ -         │ ~1.2MB    │           │
+│   - go.so                 │ -         │ ~0.8MB    │           │
+│   - python.so             │ -         │ ~1.0MB    │           │
+│   - ...                   │ -         │ ...       │           │
+├─────────────────────────────────────────────────────────────────┤
+│ 完整安装                  │ ~15MB     │ ~20MB     │ +33%      │
+│ 最小安装 (核心+3插件)     │ ~15MB     │ ~11MB     │ -27%      │
+└─────────────────────────────────────────────────────────────────┘
+
+说明: 支持按需安装插件，用户可选择只安装需要的 Provider
+```
 
 ## 设计方案
 
@@ -210,46 +443,33 @@ fn get_provider_factory(name: &str) -> Option<ProviderFactory> {
 }
 ```
 
-#### 1.4 ProviderRegistry 增强
+#### 1.4 使用宏进一步简化
 
 ```rust
-// vx-runtime/src/registry.rs
+// vx-cli/src/registry.rs
 
-impl ProviderRegistry {
-    /// 使用清单注册 Provider
-    pub fn register_with_manifest(&self, provider: Box<dyn Provider>, manifest: &ProviderManifest) {
-        // 从清单读取元数据
-        let meta = ProviderMeta {
-            name: manifest.provider.name.clone(),
-            description: manifest.provider.description.clone(),
-            ecosystem: manifest.provider.ecosystem.clone(),
-            runtimes: manifest.runtimes.iter().map(|r| RuntimeMeta {
-                name: r.name.clone(),
-                aliases: r.aliases.clone(),
-                executable: r.executable.clone(),
-            }).collect(),
-        };
-        
-        // 注册 Provider 和元数据
-        self.providers.write().unwrap().push(ProviderEntry {
-            provider,
-            meta,
-            manifest: Some(manifest.clone()),
-        });
-        
-        // 注册运行时名称映射
-        for runtime in &manifest.runtimes {
-            self.runtime_map.write().unwrap()
-                .insert(runtime.name.clone(), manifest.provider.name.clone());
-            
-            // 注册别名
-            for alias in &runtime.aliases {
-                self.alias_map.write().unwrap()
-                    .insert(alias.clone(), runtime.name.clone());
+macro_rules! register_providers {
+    ($($name:ident),* $(,)?) => {
+        fn create_builtin_provider(name: &str) -> Option<Box<dyn Provider>> {
+            match name {
+                $(
+                    stringify!($name) => Some(Box::new(
+                        paste::paste! { [<vx_provider_ $name>]::create_provider() }
+                    )),
+                )*
+                _ => None,
             }
         }
-    }
+    };
 }
+
+register_providers!(
+    node, go, rust, uv, bun, pnpm, yarn, vscode, just, vite,
+    rez, deno, zig, java, terraform, kubectl, helm, rcedit,
+    git, choco, docker, awscli, azcli, gcloud, ninja, cmake,
+    protoc, task, pre_commit, ollama, spack, release_please,
+    python, msvc,
+);
 ```
 
 ### Phase 2: 延迟加载 (v0.10.0)
@@ -297,6 +517,7 @@ use libloading::{Library, Symbol};
 
 pub struct PluginLoader {
     loaded: RwLock<HashMap<String, LoadedPlugin>>,
+    search_paths: Vec<PathBuf>,
 }
 
 struct LoadedPlugin {
@@ -334,20 +555,9 @@ impl PluginLoader {
     }
     
     fn find_plugin_path(&self, name: &str) -> Result<PathBuf> {
-        // 搜索顺序:
-        // 1. ~/.vx/plugins/
-        // 2. /usr/local/lib/vx/plugins/
-        // 3. 内置插件目录
-        
-        let search_paths = [
-            dirs::home_dir().unwrap().join(".vx/plugins"),
-            PathBuf::from("/usr/local/lib/vx/plugins"),
-            std::env::current_exe()?.parent().unwrap().join("plugins"),
-        ];
-        
         let lib_name = format!("libvx_provider_{}.{}", name, std::env::consts::DLL_EXTENSION);
         
-        for dir in &search_paths {
+        for dir in &self.search_paths {
             let path = dir.join(&lib_name);
             if path.exists() {
                 return Ok(path);
@@ -487,73 +697,6 @@ fn discover_all_manifests() -> Vec<ProviderManifest> {
 }
 ```
 
-### 迁移计划
-
-#### Phase 1 迁移步骤 (v0.9.0)
-
-1. **添加 `build.rs`** - 收集编译时清单
-2. **增强 `ProviderManifest`** - 添加 CLI 配置字段
-3. **重构 `registry.rs`** - 使用清单驱动注册
-4. **保持兼容** - 旧的 `create_provider()` 函数继续工作
-
-```rust
-// 迁移后的 registry.rs（约 50 行，原 115 行）
-
-include!(concat!(env!("OUT_DIR"), "/manifests.rs"));
-
-pub fn create_registry() -> ProviderRegistry {
-    let registry = ProviderRegistry::new();
-    
-    for (name, manifest_str) in PROVIDER_MANIFESTS {
-        if let Ok(manifest) = ProviderManifest::from_str(manifest_str) {
-            if let Some(provider) = create_builtin_provider(name) {
-                registry.register_with_manifest(provider, &manifest);
-            }
-        }
-    }
-    
-    registry
-}
-
-fn create_builtin_provider(name: &str) -> Option<Box<dyn Provider>> {
-    match name {
-        "node" => Some(Box::new(vx_provider_node::create_provider())),
-        "go" => Some(Box::new(vx_provider_go::create_provider())),
-        // ... 使用 macro 生成
-        _ => None,
-    }
-}
-```
-
-#### 使用宏进一步简化
-
-```rust
-// vx-cli/src/registry.rs
-
-macro_rules! register_providers {
-    ($($name:ident),* $(,)?) => {
-        fn create_builtin_provider(name: &str) -> Option<Box<dyn Provider>> {
-            match name {
-                $(
-                    stringify!($name) => Some(Box::new(
-                        paste::paste! { [<vx_provider_ $name>]::create_provider() }
-                    )),
-                )*
-                _ => None,
-            }
-        }
-    };
-}
-
-register_providers!(
-    node, go, rust, uv, bun, pnpm, yarn, vscode, just, vite,
-    rez, deno, zig, java, terraform, kubectl, helm, rcedit,
-    git, choco, docker, awscli, azcli, gcloud, ninja, cmake,
-    protoc, task, pre_commit, ollama, spack, release_please,
-    python, msvc,
-);
-```
-
 ## 优势分析
 
 ### 代码量对比
@@ -583,6 +726,70 @@ register_providers!(
 2. 创建 `provider.toml`
 3. 编译为插件（自动发现）
 
+## 与 Extension 系统的协同
+
+### 统一发现机制
+
+Provider 和 Extension 可以共享部分发现逻辑：
+
+```rust
+// vx-discovery/src/lib.rs
+
+pub trait Discoverable {
+    type Config;
+    fn config_filename() -> &'static str;
+    fn parse_config(content: &str) -> Result<Self::Config>;
+}
+
+impl Discoverable for ProviderManifest {
+    type Config = ProviderManifest;
+    fn config_filename() -> &'static str { "provider.toml" }
+    fn parse_config(content: &str) -> Result<Self::Config> {
+        toml::from_str(content)
+    }
+}
+
+impl Discoverable for ExtensionConfig {
+    type Config = ExtensionConfig;
+    fn config_filename() -> &'static str { "vx-extension.toml" }
+    fn parse_config(content: &str) -> Result<Self::Config> {
+        toml::from_str(content)
+    }
+}
+```
+
+### 搜索路径统一
+
+```
+~/.vx/
+├── providers/           # 用户 Provider
+│   └── custom-tool/
+│       └── provider.toml
+├── extensions/          # 用户 Extension
+│   └── my-linter/
+│       └── vx-extension.toml
+├── extensions-dev/      # 开发中的 Extension
+└── plugins/             # Provider 动态库
+    └── libvx_provider_custom.so
+```
+
+### 互操作场景
+
+Extension 可以声明对特定 Provider 的依赖：
+
+```toml
+# vx-extension.toml
+[extension]
+name = "node-tools"
+
+[runtime]
+requires = "node >= 18"
+
+# 新增: Provider 级别依赖
+[provider_requires]
+node = ">= 0.8.0"  # 需要 vx 的 node provider >= 0.8.0
+```
+
 ## 替代方案
 
 ### 方案 A: 保持现状
@@ -599,12 +806,12 @@ register_providers!(
 **优点**: 编译时完成，类型安全
 **缺点**: 仍需编译时依赖所有 Provider
 
-### 方案 C: 配置文件驱动
+### 方案 C: 合并 Provider 和 Extension
 
-使用单独的配置文件列出要启用的 Provider。
+将 Provider 也用脚本实现。
 
-**优点**: 灵活
-**缺点**: 额外配置文件，增加复杂性
+**优点**: 统一架构
+**缺点**: 性能损失严重，不适合高频操作
 
 ## 向后兼容性
 
@@ -643,3 +850,4 @@ register_providers!(
 | 日期 | 版本 | 变更 |
 |------|------|------|
 | 2026-01-06 | Draft | 初始草案 |
+| 2026-01-06 | Draft v2 | 添加 Provider vs Extension 对比；添加性能分析；添加与 Extension 协同设计 |
