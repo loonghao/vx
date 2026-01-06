@@ -77,7 +77,8 @@ const enSidebar = {
       items: [
         { text: '.vx.toml', link: '/config/vx-toml' },
         { text: 'Global Config', link: '/config/global' },
-        { text: 'Environment Variables', link: '/config/env-vars' }
+        { text: 'Environment Variables', link: '/config/env-vars' },
+        { text: 'Provider Overrides', link: '/config/provider-overrides' }
       ]
     }
   ],
@@ -218,7 +219,8 @@ const zhSidebar = {
       items: [
         { text: '.vx.toml', link: '/zh/config/vx-toml' },
         { text: '全局配置', link: '/zh/config/global' },
-        { text: '环境变量', link: '/zh/config/env-vars' }
+        { text: '环境变量', link: '/zh/config/env-vars' },
+        { text: 'Provider 覆盖', link: '/zh/config/provider-overrides' }
       ]
     }
   ],

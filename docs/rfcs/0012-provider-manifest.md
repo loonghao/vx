@@ -1,6 +1,6 @@
 # RFC 0012: Provider Manifest (provider.toml)
 
-> **状态**: Implemented (Phase 1 完成，Phase 2 进行中)
+> **状态**: Implemented（Phase 1/2 完成）
 > **作者**: vx team
 > **创建日期**: 2026-01-06
 > **目标版本**: v0.8.0
@@ -845,9 +845,9 @@ requires = [
 ### Phase 2: 完整迁移 (v0.9.0)
 
 - [x] 迁移所有 Provider 到 `provider.toml`
-- [ ] 删除 `constraints.rs` 中的硬编码约束
-- [ ] 实现用户覆盖机制
-- [ ] 重构 `vx-extension` 使用 `vx-manifest`
+- [x] 删除 `constraints.rs` 中的硬编码约束
+- [x] 实现用户覆盖机制
+- [x] 重构 `vx-extension` 使用 `vx-manifest`
 
 ### Phase 3: 高级特性 (v0.10.0)
 
@@ -906,3 +906,4 @@ requires = [
 | 2026-01-06 | Draft | 初始草案 |
 | 2026-01-06 | Draft v2 | 更新版本语法为标准 semver；添加依赖解析流程；复用 vx-resolver；移除 vx provider 命令 |
 | 2026-01-06 | Phase 1 完成 | 所有 34 个 Provider 已迁移到 provider.toml，包含完整的 constraints 定义 |
+| 2026-01-06 | Phase 2 完成 | 实现用户覆盖机制（`.override.toml` 文件支持）；重构 `vx-extension` 使用 `vx-manifest` 的 `VersionRequest` 进行版本约束检查 |
