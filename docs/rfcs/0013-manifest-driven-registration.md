@@ -1,6 +1,6 @@
 # RFC 0013: Manifest-Driven Provider Registration
 
-> **状态**: Draft
+> **状态**: Implementing (Phase 1 完成)
 > **作者**: vx team
 > **创建日期**: 2026-01-06
 > **目标版本**: v0.9.0
@@ -822,10 +822,10 @@ node = ">= 0.8.0"  # 需要 vx 的 node provider >= 0.8.0
 ## 实现计划
 
 ### v0.9.0 (Phase 1)
-- [ ] 添加 `vx-cli/build.rs` 清单收集
-- [ ] 扩展 `ProviderManifest` CLI 配置
-- [ ] 重构 `registry.rs` 使用清单
-- [ ] 添加 `register_providers!` 宏
+- [x] 添加 `vx-cli/build.rs` 清单收集
+- [x] 扩展 `ProviderManifest` CLI 配置
+- [x] 重构 `registry.rs` 使用清单
+- [x] 添加 `register_providers!` 宏
 - [ ] 更新文档
 
 ### v0.10.0 (Phase 2)
