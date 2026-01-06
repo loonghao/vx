@@ -1,0 +1,60 @@
+# Rez Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Rez.
+
+[provider]
+name = "rez"
+description = "Cross-platform package manager for deterministic environments"
+homepage = "https://rez.readthedocs.io"
+repository = "https://github.com/AcademySoftwareFoundation/rez"
+ecosystem = "python"
+
+# Rez
+[[runtimes]]
+name = "rez"
+description = "Rez package manager"
+executable = "rez"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "AcademySoftwareFoundation"
+repo = "rez"
+strip_v_prefix = false
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Rez requires Python 3.7+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "python", version = ">=3.7", recommended = "3.11", reason = "Rez requires Python 3.7+" }
+]
+
+# rez-env is bundled with rez
+[[runtimes]]
+name = "rez-env"
+description = "Rez environment resolver"
+executable = "rez-env"
+bundled_with = "rez"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# rez-build is bundled with rez
+[[runtimes]]
+name = "rez-build"
+description = "Rez package builder"
+executable = "rez-build"
+bundled_with = "rez"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []

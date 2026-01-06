@@ -1,0 +1,46 @@
+# Vite Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Vite.
+
+[provider]
+name = "vite"
+description = "Next generation frontend build tool"
+homepage = "https://vitejs.dev"
+repository = "https://github.com/vitejs/vite"
+ecosystem = "nodejs"
+
+# Vite
+[[runtimes]]
+name = "vite"
+description = "Vite frontend build tool"
+executable = "vite"
+
+[runtimes.versions]
+source = "npm"
+package = "vite"
+
+[runtimes.platforms.windows]
+executable_extensions = [".cmd", ".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Vite 5.x requires Node.js 18+
+[[runtimes.constraints]]
+when = ">=5"
+requires = [
+    { runtime = "node", version = ">=18", recommended = "20", reason = "Vite 5.x requires Node.js 18+" }
+]
+
+# Vite 4.x requires Node.js 14.18+
+[[runtimes.constraints]]
+when = ">=4, <5"
+requires = [
+    { runtime = "node", version = ">=14.18", recommended = "18", reason = "Vite 4.x requires Node.js 14.18+" }
+]
+
+# Vite 3.x requires Node.js 14.18+
+[[runtimes.constraints]]
+when = ">=3, <4"
+requires = [
+    { runtime = "node", version = ">=14.18", recommended = "18", reason = "Vite 3.x requires Node.js 14.18+" }
+]
