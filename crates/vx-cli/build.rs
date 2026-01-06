@@ -54,8 +54,9 @@ fn main() {
     code.push_str("pub static PROVIDER_MANIFESTS: &[(&str, &str)] = &[\n");
 
     for (name, content) in &manifests {
-        // Escape the content for embedding as a raw string
-        code.push_str(&format!("    (\"{}\", r##\"{}\"##),\n", name, content));
+        // Escape content as a standard string literal to avoid raw-string delimiter collisions
+        let escaped = content.escape_default().to_string();
+        code.push_str(&format!("    (\"{}\", \"{}\"),\n", name, escaped));
     }
 
     code.push_str("];\n\n");
