@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.9](https://github.com/loonghao/vx/compare/vx-v0.6.8...vx-v0.6.9) (2026-01-06)
+
+
+### Features
+
+* **cli:** support installing multiple tools at once ([00ee20f](https://github.com/loonghao/vx/commit/00ee20fe9a939ebf229a7bdf0f1ca9d78c4ed72b))
+* **msvc:** implement environment variable injection for MSVC runtime ([1fed486](https://github.com/loonghao/vx/commit/1fed486a8145108932d0d8f4455c779307283900)), closes [#353](https://github.com/loonghao/vx/issues/353)
+* **resolver:** resolution cache pipeline and unified cache-mode ([4d95563](https://github.com/loonghao/vx/commit/4d955634bd06f128c1d1b425d9c4393013492ad9))
+* **vx-console:** add unified console output system ([3e891b9](https://github.com/loonghao/vx/commit/3e891b9125f6a82e44838c6cd7c7b24bea0067bb))
+
+
+### Bug Fixes
+
+* **ci:** normalize version for WinGet to resolve version format issue ([70b3a33](https://github.com/loonghao/vx/commit/70b3a335fe066b3092b315bebe2795892065c3aa))
+* **cli:** update tests for new multi-tool install API ([7d0d2ed](https://github.com/loonghao/vx/commit/7d0d2ed711acf832c0afde94e96a261565f0c227))
+* gate msvc provider on windows ([fbf2d9d](https://github.com/loonghao/vx/commit/fbf2d9d53889c03f62bb1bc3220919d805029c12))
+* provide cross-platform stub for msvc provider ([3327e92](https://github.com/loonghao/vx/commit/3327e9254b3bc00bfa3ed0936ea05525415d0b66))
+* remove default() calls on unit structs for clippy lint ([c47a092](https://github.com/loonghao/vx/commit/c47a092274f09706870f5d37cca0282d1526fb14))
+* resolve CI issues and improve platform-suffixed executable search ([47d3633](https://github.com/loonghao/vx/commit/47d363370879c67a630fabb37d459527cd3800de))
+* resolve cl alias via msvc canonical runtime ([26ed20a](https://github.com/loonghao/vx/commit/26ed20a118a7dac2109d7faba4ba7beecb940e5f))
+* resolve Windows CI test failures and formatting issues ([edbe6f6](https://github.com/loonghao/vx/commit/edbe6f617800e77148084d39e66e1b2c55010d4f))
+* use vec! macro instead of push for clippy lint ([2e06ba5](https://github.com/loonghao/vx/commit/2e06ba59e6d3fd17385b84f357e6c471eb6071d5))
+
 ## [0.6.8](https://github.com/loonghao/vx/compare/vx-v0.6.7...vx-v0.6.8) (2025-12-31)
 
 
