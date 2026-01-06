@@ -17,8 +17,12 @@
 //! See RFC 0013: Manifest-Driven Provider Registration
 
 use std::sync::Arc;
+use tracing::debug;
+use vx_manifest::{ManifestLoader, ProviderManifest};
+use vx_paths::{find_project_root, VxPaths, PROJECT_VX_DIR};
 use vx_runtime::{
-    create_runtime_context, ManifestRegistry, Provider, ProviderRegistry, Runtime, RuntimeContext,
+    create_runtime_context, default_plugin_paths, init_constraints_from_manifests, ManifestRegistry,
+    PluginLoader, Provider, ProviderRegistry, Runtime, RuntimeContext,
 };
 
 // Include the compile-time generated provider manifests
@@ -84,51 +88,39 @@ macro_rules! register_provider_factories {
     };
 }
 
-/// Create and initialize the provider registry with all available providers
+/// Create and initialize the provider registry with all available providers.
 ///
-/// This uses static registration for maximum compatibility.
-/// For manifest-driven registration, use `create_manifest_registry()`.
+/// Prefers manifest-driven registration with override support:
+/// 1. Embedded provider manifests (generated at build time)
+/// 2. User-level overrides: ~/.vx/providers
+/// 3. Project-level overrides: <project>/.vx/providers
+///
+/// Falls back to static registration if manifests are missing or factories cannot
+/// build any providers (backward compatibility).
 pub fn create_registry() -> ProviderRegistry {
-    let registry = ProviderRegistry::new();
+    let manifests = load_manifests_with_overrides();
 
-    // Register all builtin providers using the macro
-    register_providers!(
-        registry,
-        node,
-        go,
-        rust,
-        uv,
-        bun,
-        pnpm,
-        yarn,
-        vscode,
-        just,
-        vite,
-        rez,
-        deno,
-        zig,
-        java,
-        terraform,
-        kubectl,
-        helm,
-        rcedit,
-        git,
-        choco,
-        docker,
-        awscli,
-        azcli,
-        gcloud,
-        ninja,
-        cmake,
-        protoc,
-        task,
-        pre_commit,
-        ollama,
-        spack,
-        release_please,
-        python,
-        msvc,
-    );
+    if manifests.is_empty() {
+        // No manifests found; fall back to static registration and init constraints
+        let _ = init_constraints_from_manifests(get_embedded_manifests().iter().copied());
+        return create_static_registry();
+    }
+
+    init_constraints_from_manifest_list(&manifests);
+
+    let mut manifest_registry = create_manifest_registry();
+    manifest_registry.load_from_manifests(manifests);
+    let registry = manifest_registry.build_registry();
+
+    if let Some(loader) = build_plugin_loader() {
+        registry.set_provider_loader(Arc::new(loader));
+    }
+
+    if registry.providers().is_empty() {
+        // Safety net: if factories fail to produce providers, use static registration
+        let _ = init_constraints_from_manifests(get_embedded_manifests().iter().copied());
+        return create_static_registry();
+    }
 
     registry
 }
@@ -201,6 +193,129 @@ pub fn create_manifest_registry() -> ManifestRegistry {
     );
 
     registry
+}
+
+/// Build a registry using static registration only (backward compatibility).
+fn create_static_registry() -> ProviderRegistry {
+    let registry = ProviderRegistry::new();
+
+    register_providers!(
+        registry,
+        node,
+        go,
+        rust,
+        uv,
+        bun,
+        pnpm,
+        yarn,
+        vscode,
+        just,
+        vite,
+        rez,
+        deno,
+        zig,
+        java,
+        terraform,
+        kubectl,
+        helm,
+        rcedit,
+        git,
+        choco,
+        docker,
+        awscli,
+        azcli,
+        gcloud,
+        ninja,
+        cmake,
+        protoc,
+        task,
+        pre_commit,
+        ollama,
+        spack,
+        release_please,
+        python,
+        msvc,
+    );
+
+    registry
+}
+
+/// Load manifests with override order: embedded < user < project.
+fn load_manifests_with_overrides() -> Vec<ProviderManifest> {
+    let mut loader = ManifestLoader::new();
+
+    // 1) Embedded manifests (build.rs generated)
+    let _ = loader.load_embedded(get_embedded_manifests().iter().copied());
+
+    // 2) User-level overrides: ~/.vx/providers
+    if let Ok(paths) = VxPaths::new() {
+        let user_dir = paths.base_dir.join("providers");
+        if user_dir.exists() {
+            // Load full provider.toml files (for user-defined providers)
+            let _ = loader.load_from_dir(&user_dir);
+            // Load .override.toml files (for constraint overrides)
+            let _ = loader.load_overrides_from_dir(&user_dir);
+            debug!("Loaded user provider overrides from {:?}", user_dir);
+        }
+    }
+
+    // 3) Project-level overrides: <project>/.vx/providers
+    if let Ok(cwd) = std::env::current_dir() {
+        if let Some(project_root) = find_project_root(&cwd) {
+            let project_dir = project_root.join(PROJECT_VX_DIR).join("providers");
+            if project_dir.exists() {
+                // Load full provider.toml files (for project-specific providers)
+                let _ = loader.load_from_dir(&project_dir);
+                // Load .override.toml files (for constraint overrides)
+                let _ = loader.load_overrides_from_dir(&project_dir);
+                debug!(
+                    "Loaded project provider overrides from {:?}",
+                    project_dir
+                );
+            }
+        }
+    }
+
+    loader.into_manifests()
+}
+
+fn build_plugin_loader() -> Option<PluginLoader> {
+    let mut paths = Vec::new();
+
+    if let Ok(vx_paths) = VxPaths::new() {
+        paths.extend(default_plugin_paths(&[vx_paths.base_dir.clone()]));
+    }
+
+    if let Ok(cwd) = std::env::current_dir() {
+        if let Some(project_root) = find_project_root(&cwd) {
+            paths.push(project_root.join(PROJECT_VX_DIR).join("plugins"));
+        }
+    }
+
+    paths.retain(|p| p.exists());
+    if paths.is_empty() {
+        return None;
+    }
+
+    Some(PluginLoader::new(paths))
+}
+
+fn init_constraints_from_manifest_list(manifests: &[ProviderManifest]) {
+    let manifest_strings: Vec<(String, String)> = manifests
+        .iter()
+        .filter_map(|manifest| toml::to_string(manifest).ok().map(|s| (manifest.provider.name.clone(), s)))
+        .collect();
+
+    if manifest_strings.is_empty() {
+        let _ = init_constraints_from_manifests(get_embedded_manifests().iter().copied());
+        return;
+    }
+
+    let _ = init_constraints_from_manifests(
+        manifest_strings
+            .iter()
+            .map(|(name, content)| (name.as_str(), content.as_str())),
+    );
 }
 
 /// Get the embedded provider manifests

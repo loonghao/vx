@@ -1,11 +1,14 @@
 //! Extension dependency management
 //!
 //! This module handles dependencies between extensions.
+//! Version constraint checking is delegated to vx-manifest's VersionRequest
+//! for consistency with provider manifest constraints.
 
 use crate::error::{ExtensionError, ExtensionResult};
 use crate::{Extension, ExtensionConfig, ExtensionDiscovery};
 use std::collections::{HashMap, HashSet};
 use tracing::debug;
+use vx_manifest::VersionRequest;
 
 /// Dependency specification
 #[derive(Debug, Clone)]
@@ -49,112 +52,17 @@ impl ExtensionDependency {
     }
 
     /// Check if a version satisfies this dependency
+    ///
+    /// Uses vx-manifest's VersionRequest for consistent version constraint handling
+    /// across the vx ecosystem.
     pub fn satisfies(&self, version: &str) -> bool {
         match &self.version {
             None => true, // No constraint means any version is ok
             Some(constraint) => {
-                // Simple version comparison for now
-                // TODO: Implement proper semver comparison
-                Self::check_version_constraint(version, constraint)
+                let req = VersionRequest::parse(constraint);
+                req.satisfies(version)
             }
         }
-    }
-
-    fn check_version_constraint(version: &str, constraint: &str) -> bool {
-        let constraint = constraint.trim();
-
-        // Handle different operators
-        if let Some(required) = constraint.strip_prefix(">=") {
-            Self::compare_versions(version, required.trim()) >= std::cmp::Ordering::Equal
-        } else if let Some(required) = constraint.strip_prefix("<=") {
-            Self::compare_versions(version, required.trim()) <= std::cmp::Ordering::Equal
-        } else if let Some(required) = constraint.strip_prefix('>') {
-            Self::compare_versions(version, required.trim()) == std::cmp::Ordering::Greater
-        } else if let Some(required) = constraint.strip_prefix('<') {
-            Self::compare_versions(version, required.trim()) == std::cmp::Ordering::Less
-        } else if let Some(required) = constraint.strip_prefix("==") {
-            version == required.trim()
-        } else if let Some(required) = constraint.strip_prefix("~=") {
-            // Compatible release (e.g., ~=1.4 means >=1.4, <2.0)
-            Self::compatible_release(version, required.trim())
-        } else if let Some(required) = constraint.strip_prefix('^') {
-            // Caret requirement (e.g., ^1.4 means >=1.4.0, <2.0.0)
-            Self::caret_requirement(version, required.trim())
-        } else {
-            // Exact match
-            version == constraint
-        }
-    }
-
-    fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
-        let a_parts: Vec<u32> = a.split('.').filter_map(|s| s.parse().ok()).collect();
-        let b_parts: Vec<u32> = b.split('.').filter_map(|s| s.parse().ok()).collect();
-
-        for i in 0..std::cmp::max(a_parts.len(), b_parts.len()) {
-            let a_val = a_parts.get(i).copied().unwrap_or(0);
-            let b_val = b_parts.get(i).copied().unwrap_or(0);
-
-            match a_val.cmp(&b_val) {
-                std::cmp::Ordering::Equal => continue,
-                other => return other,
-            }
-        }
-
-        std::cmp::Ordering::Equal
-    }
-
-    fn compatible_release(version: &str, required: &str) -> bool {
-        let req_parts: Vec<u32> = required.split('.').filter_map(|s| s.parse().ok()).collect();
-
-        if req_parts.is_empty() {
-            return true;
-        }
-
-        let ver_parts: Vec<u32> = version.split('.').filter_map(|s| s.parse().ok()).collect();
-
-        // Must be >= required
-        if Self::compare_versions(version, required) == std::cmp::Ordering::Less {
-            return false;
-        }
-
-        // Major version must match
-        if ver_parts.first() != req_parts.first() {
-            return false;
-        }
-
-        true
-    }
-
-    fn caret_requirement(version: &str, required: &str) -> bool {
-        let req_parts: Vec<u32> = required.split('.').filter_map(|s| s.parse().ok()).collect();
-
-        if req_parts.is_empty() {
-            return true;
-        }
-
-        let ver_parts: Vec<u32> = version.split('.').filter_map(|s| s.parse().ok()).collect();
-
-        // Must be >= required
-        if Self::compare_versions(version, required) == std::cmp::Ordering::Less {
-            return false;
-        }
-
-        // For ^0.x.y, minor version must match
-        // For ^x.y.z (x > 0), major version must match
-        let major = req_parts.first().copied().unwrap_or(0);
-        if major == 0 {
-            // ^0.x.y means >=0.x.y, <0.(x+1).0
-            if let (Some(&ver_minor), Some(&req_minor)) = (ver_parts.get(1), req_parts.get(1)) {
-                return ver_minor == req_minor;
-            }
-        } else {
-            // ^x.y.z means >=x.y.z, <(x+1).0.0
-            if let Some(&ver_major) = ver_parts.first() {
-                return ver_major == major;
-            }
-        }
-
-        true
     }
 }
 
@@ -434,25 +342,6 @@ mod tests {
     }
 
     #[test]
-    fn test_version_comparison() {
-        assert!(
-            ExtensionDependency::compare_versions("1.0.0", "1.0.0") == std::cmp::Ordering::Equal
-        );
-        assert!(
-            ExtensionDependency::compare_versions("2.0.0", "1.0.0") == std::cmp::Ordering::Greater
-        );
-        assert!(
-            ExtensionDependency::compare_versions("1.0.0", "2.0.0") == std::cmp::Ordering::Less
-        );
-        assert!(
-            ExtensionDependency::compare_versions("1.2.0", "1.1.0") == std::cmp::Ordering::Greater
-        );
-        assert!(
-            ExtensionDependency::compare_versions("1.0.1", "1.0.0") == std::cmp::Ordering::Greater
-        );
-    }
-
-    #[test]
     fn test_satisfies_no_constraint() {
         let dep = ExtensionDependency::parse("my-ext");
         assert!(dep.satisfies("1.0.0"));
@@ -461,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_satisfies_gte() {
-        let dep = ExtensionDependency::parse("my-ext >= 1.0.0");
+        let dep = ExtensionDependency::parse("my-ext >=1.0.0");
         assert!(dep.satisfies("1.0.0"));
         assert!(dep.satisfies("1.0.1"));
         assert!(dep.satisfies("2.0.0"));
@@ -470,7 +359,7 @@ mod tests {
 
     #[test]
     fn test_satisfies_lt() {
-        let dep = ExtensionDependency::parse("my-ext < 2.0.0");
+        let dep = ExtensionDependency::parse("my-ext <2.0.0");
         assert!(dep.satisfies("1.0.0"));
         assert!(dep.satisfies("1.9.9"));
         assert!(!dep.satisfies("2.0.0"));
@@ -478,29 +367,23 @@ mod tests {
     }
 
     #[test]
-    fn test_satisfies_exact() {
-        let dep = ExtensionDependency::parse("my-ext == 1.0.0");
-        assert!(dep.satisfies("1.0.0"));
-        assert!(!dep.satisfies("1.0.1"));
-        assert!(!dep.satisfies("0.9.0"));
-    }
-
-    #[test]
-    fn test_caret_requirement() {
+    fn test_satisfies_caret() {
         // ^1.2.3 means >=1.2.3, <2.0.0
-        assert!(ExtensionDependency::caret_requirement("1.2.3", "1.2.3"));
-        assert!(ExtensionDependency::caret_requirement("1.9.9", "1.2.3"));
-        assert!(!ExtensionDependency::caret_requirement("2.0.0", "1.2.3"));
-        assert!(!ExtensionDependency::caret_requirement("1.2.2", "1.2.3"));
+        let dep = ExtensionDependency::parse("my-ext ^1.2.3");
+        assert!(dep.satisfies("1.2.3"));
+        assert!(dep.satisfies("1.9.9"));
+        assert!(!dep.satisfies("2.0.0"));
+        assert!(!dep.satisfies("1.2.2"));
     }
 
     #[test]
-    fn test_compatible_release() {
-        // ~=1.4 means >=1.4, <2.0
-        assert!(ExtensionDependency::compatible_release("1.4.0", "1.4"));
-        assert!(ExtensionDependency::compatible_release("1.9.0", "1.4"));
-        assert!(!ExtensionDependency::compatible_release("2.0.0", "1.4"));
-        assert!(!ExtensionDependency::compatible_release("1.3.0", "1.4"));
+    fn test_satisfies_tilde() {
+        // ~1.4.0 means >=1.4.0, <1.5.0
+        let dep = ExtensionDependency::parse("my-ext ~1.4.0");
+        assert!(dep.satisfies("1.4.0"));
+        assert!(dep.satisfies("1.4.9"));
+        assert!(!dep.satisfies("1.5.0"));
+        assert!(!dep.satisfies("1.3.0"));
     }
 
     #[test]

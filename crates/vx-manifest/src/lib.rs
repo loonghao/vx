@@ -21,11 +21,24 @@
 //!     }
 //! }
 //! ```
+//!
+//! # User Overrides
+//!
+//! Users can create `.override.toml` files to customize constraints:
+//!
+//! ```rust,ignore
+//! use vx_manifest::{ProviderManifest, ProviderOverride, apply_override};
+//!
+//! let mut manifest = ProviderManifest::load("provider.toml")?;
+//! let override_config = ProviderOverride::load("yarn.override.toml")?;
+//! apply_override(&mut manifest, &override_config);
+//! ```
 
 mod ecosystem;
 mod error;
 mod loader;
 mod provider;
+mod r#override;
 mod satisfies;
 
 pub use ecosystem::Ecosystem;
@@ -35,6 +48,7 @@ pub use provider::{
     ConstraintRule, DependencyDef, ExecutableConfig, HooksDef, PlatformConfig, PlatformsDef,
     ProviderManifest, ProviderMeta, RuntimeDef, VersionSourceDef,
 };
+pub use r#override::{apply_override, extract_provider_name, ProviderOverride, RuntimeOverride};
 pub use satisfies::{
     RangeConstraint, RangeOp, Version, VersionConstraint, VersionRequest, VersionSatisfies,
 };
