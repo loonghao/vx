@@ -61,7 +61,7 @@ impl ResolutionCacheKey {
         let project_root = find_project_root(&cwd);
         let lock_digest = project_root
             .as_deref()
-            .and_then(|root| find_lock_file(root))
+            .and_then(find_lock_file)
             .and_then(|p| file_sha256_hex(&p).ok());
 
         Self {
@@ -226,10 +226,10 @@ impl ResolutionCache {
         let mut removed = 0;
         for entry in std::fs::read_dir(&self.cache_dir)?.flatten() {
             let path = entry.path();
-            if path.extension().is_some_and(|ext| ext == "json") {
-                if std::fs::remove_file(&path).is_ok() {
-                    removed += 1;
-                }
+            if path.extension().is_some_and(|ext| ext == "json")
+                && std::fs::remove_file(&path).is_ok()
+            {
+                removed += 1;
             }
         }
         Ok(removed)
