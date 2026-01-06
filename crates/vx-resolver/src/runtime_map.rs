@@ -143,6 +143,15 @@ impl RuntimeMap {
 
         // ============ Python Ecosystem ============
 
+        // Python - Python programming language runtime
+        self.register(
+            RuntimeSpec::new("python", "Python programming language (3.7 - 3.12+)")
+                .with_alias("python3")
+                .with_alias("py")
+                .with_ecosystem(Ecosystem::Python)
+                .with_priority(100), // Base runtime
+        );
+
         // uv - standalone Python package manager
         self.register(
             RuntimeSpec::new(
