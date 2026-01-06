@@ -10,7 +10,9 @@
 //! for provider metadata, but static registration is kept for backward compatibility.
 
 use std::sync::Arc;
-use vx_runtime::{create_runtime_context, ManifestRegistry, Provider, ProviderRegistry, Runtime, RuntimeContext};
+use vx_runtime::{
+    create_runtime_context, ManifestRegistry, Provider, ProviderRegistry, Runtime, RuntimeContext,
+};
 
 /// Create and initialize the provider registry with all available providers
 ///
@@ -174,7 +176,9 @@ pub fn create_manifest_registry() -> ManifestRegistry {
     registry.register_factory("pre-commit", || vx_provider_pre_commit::create_provider());
     registry.register_factory("ollama", || vx_provider_ollama::create_provider());
     registry.register_factory("spack", || vx_provider_spack::create_provider());
-    registry.register_factory("release-please", || vx_provider_release_please::create_provider());
+    registry.register_factory("release-please", || {
+        vx_provider_release_please::create_provider()
+    });
     registry.register_factory("python", || vx_provider_python::create_provider());
     registry.register_factory("msvc", || vx_provider_msvc::create_provider());
 
