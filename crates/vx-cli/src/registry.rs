@@ -8,11 +8,81 @@
 //!
 //! The manifest-driven approach is preferred as it provides a single source of truth
 //! for provider metadata, but static registration is kept for backward compatibility.
+//!
+//! ## Compile-time Manifest Embedding
+//!
+//! Provider manifests (`provider.toml` files) are collected at compile time by `build.rs`
+//! and embedded into the binary. This enables fast startup without filesystem access.
+//!
+//! See RFC 0013: Manifest-Driven Provider Registration
 
 use std::sync::Arc;
 use vx_runtime::{
     create_runtime_context, ManifestRegistry, Provider, ProviderRegistry, Runtime, RuntimeContext,
 };
+
+// Include the compile-time generated provider manifests
+include!(concat!(env!("OUT_DIR"), "/provider_manifests.rs"));
+
+/// Macro to register all builtin providers
+///
+/// This macro generates the provider factory registration code,
+/// reducing boilerplate and ensuring consistency.
+///
+/// # Usage
+///
+/// ```rust,ignore
+/// register_providers!(
+///     node, go, rust, uv, bun, pnpm, yarn, vscode, just, vite,
+///     rez, deno, zig, java, terraform, kubectl, helm, rcedit,
+///     git, choco, docker, awscli, azcli, gcloud, ninja, cmake,
+///     protoc, task, pre_commit, ollama, spack, release_please,
+///     python, msvc,
+/// );
+/// ```
+macro_rules! register_providers {
+    // Match provider names, handling both underscore and hyphen variants
+    ($registry:expr, $($name:ident),* $(,)?) => {
+        $(
+            register_providers!(@single $registry, $name);
+        )*
+    };
+
+    // Single provider registration with name mapping
+    (@single $registry:expr, pre_commit) => {
+        $registry.register(vx_provider_pre_commit::create_provider());
+    };
+    (@single $registry:expr, release_please) => {
+        $registry.register(vx_provider_release_please::create_provider());
+    };
+    (@single $registry:expr, $name:ident) => {
+        paste::paste! {
+            $registry.register([<vx_provider_ $name>]::create_provider());
+        }
+    };
+}
+
+/// Macro to register provider factories for manifest-driven registration
+macro_rules! register_provider_factories {
+    ($registry:expr, $($name:ident),* $(,)?) => {
+        $(
+            register_provider_factories!(@single $registry, $name);
+        )*
+    };
+
+    // Single factory registration with name mapping
+    (@single $registry:expr, pre_commit) => {
+        $registry.register_factory("pre-commit", || vx_provider_pre_commit::create_provider());
+    };
+    (@single $registry:expr, release_please) => {
+        $registry.register_factory("release-please", || vx_provider_release_please::create_provider());
+    };
+    (@single $registry:expr, $name:ident) => {
+        paste::paste! {
+            $registry.register_factory(stringify!($name), || [<vx_provider_ $name>]::create_provider());
+        }
+    };
+}
 
 /// Create and initialize the provider registry with all available providers
 ///
@@ -21,107 +91,44 @@ use vx_runtime::{
 pub fn create_registry() -> ProviderRegistry {
     let registry = ProviderRegistry::new();
 
-    // Register Node.js provider
-    registry.register(vx_provider_node::create_provider());
-
-    // Register Go provider
-    registry.register(vx_provider_go::create_provider());
-
-    // Register Rust provider
-    registry.register(vx_provider_rust::create_provider());
-
-    // Register UV provider
-    registry.register(vx_provider_uv::create_provider());
-
-    // Register Bun provider
-    registry.register(vx_provider_bun::create_provider());
-
-    // Register Pnpm provider
-    registry.register(vx_provider_pnpm::create_provider());
-
-    // Register Yarn provider
-    registry.register(vx_provider_yarn::create_provider());
-
-    // Register VSCode provider
-    registry.register(vx_provider_vscode::create_provider());
-
-    // Register Just provider
-    registry.register(vx_provider_just::create_provider());
-
-    // Register Vite provider (npm package)
-    registry.register(vx_provider_vite::create_provider());
-
-    // Register Rez provider (pip package)
-    registry.register(vx_provider_rez::create_provider());
-
-    // Register Deno provider
-    registry.register(vx_provider_deno::create_provider());
-
-    // Register Zig provider
-    registry.register(vx_provider_zig::create_provider());
-
-    // Register Java (Temurin JDK) provider
-    registry.register(vx_provider_java::create_provider());
-
-    // Register Terraform provider
-    registry.register(vx_provider_terraform::create_provider());
-
-    // Register kubectl provider
-    registry.register(vx_provider_kubectl::create_provider());
-
-    // Register Helm provider
-    registry.register(vx_provider_helm::create_provider());
-
-    // Register rcedit provider
-    registry.register(vx_provider_rcedit::create_provider());
-
-    // Register Git provider
-    registry.register(vx_provider_git::create_provider());
-
-    // Register Chocolatey provider
-    registry.register(vx_provider_choco::create_provider());
-
-    // Register Docker provider
-    registry.register(vx_provider_docker::create_provider());
-
-    // Register AWS CLI provider
-    registry.register(vx_provider_awscli::create_provider());
-
-    // Register Azure CLI provider
-    registry.register(vx_provider_azcli::create_provider());
-
-    // Register Google Cloud CLI provider
-    registry.register(vx_provider_gcloud::create_provider());
-
-    // Register Ninja provider
-    registry.register(vx_provider_ninja::create_provider());
-
-    // Register CMake provider
-    registry.register(vx_provider_cmake::create_provider());
-
-    // Register protoc provider
-    registry.register(vx_provider_protoc::create_provider());
-
-    // Register Task (go-task) provider
-    registry.register(vx_provider_task::create_provider());
-
-    // Register pre-commit provider
-    registry.register(vx_provider_pre_commit::create_provider());
-
-    // Register Ollama provider (AI tools)
-    registry.register(vx_provider_ollama::create_provider());
-
-    // Register Spack provider (HPC/Scientific computing)
-    registry.register(vx_provider_spack::create_provider());
-
-    // Register release-please provider (DevOps tools)
-    registry.register(vx_provider_release_please::create_provider());
-
-    // Register Python provider (using python-build-standalone)
-    registry.register(vx_provider_python::create_provider());
-
-    // Register MSVC Build Tools provider (Windows-only)
-    registry.register(vx_provider_msvc::create_provider());
+    // Register all builtin providers using the macro
+    register_providers!(
+        registry,
+        node,
+        go,
+        rust,
+        uv,
+        bun,
+        pnpm,
+        yarn,
+        vscode,
+        just,
+        vite,
+        rez,
+        deno,
+        zig,
+        java,
+        terraform,
+        kubectl,
+        helm,
+        rcedit,
+        git,
+        choco,
+        docker,
+        awscli,
+        azcli,
+        gcloud,
+        ninja,
+        cmake,
+        protoc,
+        task,
+        pre_commit,
+        ollama,
+        spack,
+        release_please,
+        python,
+        msvc,
+    );
 
     registry
 }
@@ -131,6 +138,11 @@ pub fn create_registry() -> ProviderRegistry {
 /// This is the preferred approach as it uses manifest files as the source of truth.
 /// The registry can optionally load additional manifests from a directory.
 ///
+/// # Compile-time Manifests
+///
+/// Provider manifests are embedded at compile time via `build.rs`.
+/// Access them via `PROVIDER_MANIFESTS` constant.
+///
 /// # Example
 ///
 /// ```rust,ignore
@@ -139,50 +151,69 @@ pub fn create_registry() -> ProviderRegistry {
 ///
 /// // Build the provider registry
 /// let provider_registry = manifest_registry.build_registry_from_factories();
+///
+/// // Access embedded manifests
+/// println!("Embedded {} provider manifests", PROVIDER_COUNT);
+/// for (name, content) in PROVIDER_MANIFESTS {
+///     println!("  - {}", name);
+/// }
 /// ```
 pub fn create_manifest_registry() -> ManifestRegistry {
     let mut registry = ManifestRegistry::new();
 
-    // Register all builtin provider factories
-    // This maps provider names to their create_provider() functions
-    registry.register_factory("node", || vx_provider_node::create_provider());
-    registry.register_factory("go", || vx_provider_go::create_provider());
-    registry.register_factory("rust", || vx_provider_rust::create_provider());
-    registry.register_factory("uv", || vx_provider_uv::create_provider());
-    registry.register_factory("bun", || vx_provider_bun::create_provider());
-    registry.register_factory("pnpm", || vx_provider_pnpm::create_provider());
-    registry.register_factory("yarn", || vx_provider_yarn::create_provider());
-    registry.register_factory("vscode", || vx_provider_vscode::create_provider());
-    registry.register_factory("just", || vx_provider_just::create_provider());
-    registry.register_factory("vite", || vx_provider_vite::create_provider());
-    registry.register_factory("rez", || vx_provider_rez::create_provider());
-    registry.register_factory("deno", || vx_provider_deno::create_provider());
-    registry.register_factory("zig", || vx_provider_zig::create_provider());
-    registry.register_factory("java", || vx_provider_java::create_provider());
-    registry.register_factory("terraform", || vx_provider_terraform::create_provider());
-    registry.register_factory("kubectl", || vx_provider_kubectl::create_provider());
-    registry.register_factory("helm", || vx_provider_helm::create_provider());
-    registry.register_factory("rcedit", || vx_provider_rcedit::create_provider());
-    registry.register_factory("git", || vx_provider_git::create_provider());
-    registry.register_factory("choco", || vx_provider_choco::create_provider());
-    registry.register_factory("docker", || vx_provider_docker::create_provider());
-    registry.register_factory("awscli", || vx_provider_awscli::create_provider());
-    registry.register_factory("azcli", || vx_provider_azcli::create_provider());
-    registry.register_factory("gcloud", || vx_provider_gcloud::create_provider());
-    registry.register_factory("ninja", || vx_provider_ninja::create_provider());
-    registry.register_factory("cmake", || vx_provider_cmake::create_provider());
-    registry.register_factory("protoc", || vx_provider_protoc::create_provider());
-    registry.register_factory("task", || vx_provider_task::create_provider());
-    registry.register_factory("pre-commit", || vx_provider_pre_commit::create_provider());
-    registry.register_factory("ollama", || vx_provider_ollama::create_provider());
-    registry.register_factory("spack", || vx_provider_spack::create_provider());
-    registry.register_factory("release-please", || {
-        vx_provider_release_please::create_provider()
-    });
-    registry.register_factory("python", || vx_provider_python::create_provider());
-    registry.register_factory("msvc", || vx_provider_msvc::create_provider());
+    // Register all builtin provider factories using the macro
+    register_provider_factories!(
+        registry,
+        node,
+        go,
+        rust,
+        uv,
+        bun,
+        pnpm,
+        yarn,
+        vscode,
+        just,
+        vite,
+        rez,
+        deno,
+        zig,
+        java,
+        terraform,
+        kubectl,
+        helm,
+        rcedit,
+        git,
+        choco,
+        docker,
+        awscli,
+        azcli,
+        gcloud,
+        ninja,
+        cmake,
+        protoc,
+        task,
+        pre_commit,
+        ollama,
+        spack,
+        release_please,
+        python,
+        msvc,
+    );
 
     registry
+}
+
+/// Get the embedded provider manifests
+///
+/// Returns a slice of (name, toml_content) tuples for all provider manifests
+/// that were embedded at compile time.
+pub fn get_embedded_manifests() -> &'static [(&'static str, &'static str)] {
+    PROVIDER_MANIFESTS
+}
+
+/// Get the number of embedded provider manifests
+pub fn get_embedded_manifest_count() -> usize {
+    PROVIDER_COUNT
 }
 
 /// Create a runtime context for operations
@@ -220,5 +251,47 @@ impl ProviderRegistryExt for ProviderRegistry {
 
     fn get_providers(&self) -> Vec<Arc<dyn Provider>> {
         self.providers()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_embedded_manifests_exist() {
+        // Verify that manifests were embedded at compile time
+        let count = PROVIDER_COUNT;
+        assert!(count > 0, "Expected embedded manifests, found none");
+        assert_eq!(PROVIDER_MANIFESTS.len(), count);
+    }
+
+    #[test]
+    fn test_embedded_manifests_are_valid_toml() {
+        for (name, content) in PROVIDER_MANIFESTS {
+            let result: Result<toml::Value, _> = toml::from_str(content);
+            assert!(
+                result.is_ok(),
+                "Invalid TOML in manifest for '{}': {:?}",
+                name,
+                result.err()
+            );
+        }
+    }
+
+    #[test]
+    fn test_get_embedded_manifests() {
+        let manifests = get_embedded_manifests();
+        assert!(!manifests.is_empty());
+    }
+
+    #[test]
+    fn test_get_embedded_manifest_count() {
+        let count = get_embedded_manifest_count();
+        assert!(
+            count > 30,
+            "Expected at least 30 providers, found {}",
+            count
+        );
     }
 }
