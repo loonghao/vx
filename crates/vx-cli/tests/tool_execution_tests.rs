@@ -7,7 +7,8 @@ mod common;
 
 use common::{cleanup_test_env, create_full_registry, create_test_context, init_test_env};
 use rstest::*;
-use vx_runtime::ProviderRegistry;
+use vx_runtime::{CacheMode, ProviderRegistry};
+
 
 /// Test fixture that provides a fully initialized registry
 #[fixture]
@@ -30,8 +31,9 @@ mod execute_tests {
     async fn test_execute_empty_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let context = create_test_context();
-        let result = execute::handle(&registry, &context, "", &[], false).await;
+        let result = execute::handle(&registry, &context, "", &[], false, CacheMode::Normal).await;
         assert!(result.is_err(), "Execute with empty tool should fail");
+
         cleanup_test_env();
     }
 
@@ -41,8 +43,17 @@ mod execute_tests {
     async fn test_execute_nonexistent_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let context = create_test_context();
-        let result = execute::handle(&registry, &context, "nonexistent-tool-xyz", &[], false).await;
+        let result = execute::handle(
+            &registry,
+            &context,
+            "nonexistent-tool-xyz",
+            &[],
+            false,
+            CacheMode::Normal,
+        )
+        .await;
         assert!(result.is_err(), "Execute nonexistent tool should fail");
+
         cleanup_test_env();
     }
 
@@ -53,9 +64,17 @@ mod execute_tests {
         let registry = registry.await;
         let context = create_test_context();
         // This should attempt to use system PATH
-        let result =
-            execute::handle(&registry, &context, "echo", &["hello".to_string()], true).await;
+        let result = execute::handle(
+            &registry,
+            &context,
+            "echo",
+            &["hello".to_string()],
+            true,
+            CacheMode::Normal,
+        )
+        .await;
         // May succeed or fail depending on system, but should not panic
+
         let _ = result;
         cleanup_test_env();
     }
