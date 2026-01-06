@@ -2,11 +2,18 @@
 //!
 //! This module handles configuration inheritance from remote presets,
 //! including fetching, merging, and version locking.
+//!
+//! ## Security
+//!
+//! Remote presets SHOULD include a `sha256` hash for verification.
+//! When a preset is loaded without hash verification, a security warning
+//! is emitted to alert users of potential supply chain risks.
 
 use crate::{ConfigError, ConfigResult, VxConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
+use tracing::warn;
 
 /// Configuration inheritance manager
 pub struct InheritanceManager {
@@ -24,6 +31,58 @@ pub struct PresetSource {
     pub version: Option<String>,
     /// SHA256 hash for verification
     pub sha256: Option<String>,
+}
+
+impl PresetSource {
+    /// Check if this preset source has hash verification
+    pub fn has_hash_verification(&self) -> bool {
+        self.sha256.is_some()
+    }
+
+    /// Emit a security warning if no hash verification is present
+    ///
+    /// This should be called when loading remote presets to alert users
+    /// of potential supply chain risks.
+    pub fn warn_if_unverified(&self) {
+        if !self.has_hash_verification() {
+            warn!(
+                url = %self.url,
+                "Loading remote preset without SHA256 verification. \
+                 Consider adding '#<sha256>' to the extends URL for security. \
+                 Example: '{}#<sha256_hash>'",
+                self.url
+            );
+        }
+    }
+
+    /// Verify content against the stored hash
+    ///
+    /// Returns `Ok(())` if:
+    /// - No hash is specified (with warning)
+    /// - Hash matches the content
+    ///
+    /// Returns `Err` if hash doesn't match
+    pub fn verify_content(&self, content: &str) -> ConfigResult<()> {
+        match &self.sha256 {
+            Some(expected) => {
+                let actual = InheritanceManager::calculate_hash(content);
+                if actual == *expected {
+                    Ok(())
+                } else {
+                    Err(ConfigError::Validation {
+                        message: format!(
+                            "SHA256 hash mismatch for preset '{}': expected {}, got {}",
+                            self.url, expected, actual
+                        ),
+                    })
+                }
+            }
+            None => {
+                self.warn_if_unverified();
+                Ok(())
+            }
+        }
+    }
 }
 
 /// Merge strategy for configuration inheritance

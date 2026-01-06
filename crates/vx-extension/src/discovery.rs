@@ -67,10 +67,16 @@ impl ExtensionDiscovery {
         if let Some(ref project_dir) = self.project_dir {
             if project_dir.exists() {
                 debug!("Scanning project extensions: {:?}", project_dir);
-                extensions.extend(
-                    self.scan_directory(project_dir, ExtensionSource::Project)
-                        .await?,
-                );
+                let project_extensions = self
+                    .scan_directory(project_dir, ExtensionSource::Project)
+                    .await?;
+
+                // Warn about project-level extensions (potential security risk)
+                for ext in &project_extensions {
+                    ext.warn_if_untrusted();
+                }
+
+                extensions.extend(project_extensions);
             }
         }
 
@@ -85,6 +91,19 @@ impl ExtensionDiscovery {
 
         // Sort by priority (higher priority first)
         extensions.sort_by(|a, b| b.source.priority().cmp(&a.source.priority()));
+
+        // Log discovered extensions with their sources
+        if !extensions.is_empty() {
+            debug!(
+                "Discovered {} extensions: {}",
+                extensions.len(),
+                extensions
+                    .iter()
+                    .map(|e| e.source_info())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
 
         Ok(extensions)
     }

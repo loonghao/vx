@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::commands::dev::build_script_environment;
-use crate::commands::setup::parse_vx_config;
+use crate::commands::setup::{parse_vx_config, ConfigView};
 use crate::ui::UI;
 use vx_args::Interpolator;
 use vx_env::execute_with_env;
@@ -149,7 +149,7 @@ fn load_dotenv_files(dir: &Path, env_vars: &mut HashMap<String, String>) {
 }
 
 /// Print help for a script
-fn print_script_help(script_name: &str, config: &crate::commands::setup::VxConfig) -> Result<()> {
+fn print_script_help(script_name: &str, config: &ConfigView) -> Result<()> {
     if let Some(script_cmd) = config.scripts.get(script_name) {
         println!("Script: {}", script_name);
         println!("Command: {}", script_cmd);

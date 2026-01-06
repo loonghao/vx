@@ -85,6 +85,42 @@ pub struct Extension {
     pub source: ExtensionSource,
 }
 
+impl Extension {
+    /// Get a formatted string showing the extension source and path
+    ///
+    /// This is useful for displaying to users where an extension was loaded from,
+    /// helping with security awareness and debugging.
+    pub fn source_info(&self) -> String {
+        format!(
+            "{} (source: {}, path: {})",
+            self.name,
+            self.source,
+            self.path.display()
+        )
+    }
+
+    /// Check if this extension is from a potentially untrusted source
+    ///
+    /// Project-level extensions (.vx/extensions/) are considered potentially
+    /// untrusted because they are loaded automatically when entering a directory.
+    /// This could be a supply chain attack vector if a user clones a malicious repo.
+    pub fn is_potentially_untrusted(&self) -> bool {
+        matches!(self.source, ExtensionSource::Project)
+    }
+
+    /// Log a warning if this extension is from an untrusted source
+    pub fn warn_if_untrusted(&self) {
+        if self.is_potentially_untrusted() {
+            tracing::warn!(
+                extension = %self.name,
+                path = %self.path.display(),
+                "Loading project-level extension. Project extensions run automatically \
+                 and could be a security risk if you cloned an untrusted repository."
+            );
+        }
+    }
+}
+
 /// Source of an extension
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtensionSource {
