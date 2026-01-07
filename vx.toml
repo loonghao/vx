@@ -26,5 +26,44 @@ test = "cargo test --workspace"
 clippy = "cargo clippy --workspace --all-targets -- -D warnings"
 nox-test = "uv run nox -s tests"
 
+# Core component tests - matches CI test strategy
+# This is the command you mentioned: cargo test -p vx-provider-* -p vx-cli -p vx-extension -p vx-migration -p vx-resolver -p vx-runtime
+test-core = "cargo test -p vx-provider-* -p vx-cli -p vx-extension -p vx-migration -p vx-resolver -p vx-runtime"
+
+# Full test suite with coverage
+test-all = "cargo test --workspace --all-targets"
+
+# Quick test for development (lib tests only)
+test-lib = "cargo test --workspace --lib"
+
+# Integration tests only
+test-integration = "cargo test --workspace --test '*'"
+
+# Documentation tests
+test-doc = "cargo test --workspace --doc"
+
 # Combined lint check - run this before committing to match CI
-lint = ["fmt-check", "clippy"]
+# Uses 'depends' to run fmt-check first, then clippy
+[scripts.lint]
+command = "cargo clippy --workspace --all-targets -- -D warnings"
+description = "Run format check and clippy (matches CI)"
+depends = ["fmt-check"]
+
+# CI workflow scripts - matches GitHub Actions
+[scripts.ci-quality]
+command = "echo 'Running CI quality checks...'"
+description = "Run all code quality checks (CI equivalent)"
+depends = ["fmt-check", "clippy"]
+
+[scripts.ci-test-targeted]
+command = "cargo test -p vx-provider-* -p vx-cli -p vx-extension -p vx-migration -p vx-resolver -p vx-runtime"
+description = "Run core component tests (CI targeted mode)"
+
+[scripts.ci-test-full]
+command = "cargo test --workspace"
+description = "Run full workspace tests (CI full mode)"
+
+[scripts.ci-docs]
+command = "cargo doc --all-features --no-deps --document-private-items"
+description = "Build documentation (CI mode)"
+env = { RUSTDOCFLAGS = "-D warnings" }
