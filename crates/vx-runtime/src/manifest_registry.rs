@@ -249,7 +249,7 @@ impl RuntimeMetadata {
     pub fn is_current_platform_supported(&self) -> bool {
         self.platform_constraint
             .as_ref()
-            .map_or(true, |c| c.is_current_platform_supported())
+            .is_none_or(|c| c.is_current_platform_supported())
     }
 
     /// Get a human-readable platform description

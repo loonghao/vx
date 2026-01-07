@@ -200,6 +200,7 @@ impl ProviderRegistry {
     /// Get all runtimes grouped by platform support status
     ///
     /// Returns a tuple of (supported, unsupported) runtimes for the current platform.
+    #[allow(clippy::type_complexity)]
     pub fn runtimes_by_platform_support(&self) -> (Vec<Arc<dyn Runtime>>, Vec<Arc<dyn Runtime>>) {
         let current = Platform::current();
         let providers = self.providers.read().unwrap();

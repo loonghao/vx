@@ -14,11 +14,17 @@ auto_install = true
 cache_duration = "7d"
 
 # Script definitions
+# Use 'vx run <script>' to execute these commands
+# Run 'vx run lint' before committing to catch CI issues locally
 [scripts]
 build = "cargo build"
 check = "cargo check --workspace --all-targets"
+fmt = "cargo fmt --all"
 fmt-check = "cargo fmt --all -- --check"
 release = "cargo build --release"
 test = "cargo test --workspace"
 clippy = "cargo clippy --workspace --all-targets -- -D warnings"
 nox-test = "uv run nox -s tests"
+
+# Combined lint check - run this before committing to match CI
+lint = ["fmt-check", "clippy"]
