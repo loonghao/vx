@@ -116,6 +116,12 @@ pub enum VersionConstraint {
     Caret(Version),
     /// Tilde constraint: "~1.2.3" (>=1.2.3, <1.3.0)
     Tilde(Version),
+    /// Compatible release constraint: "~=1.4" (>=1.4, <2.0) or "~=1.4.0" (>=1.4.0, <1.5.0)
+    CompatibleRelease {
+        version: Version,
+        /// Number of version parts specified (2 for "1.4", 3 for "1.4.0")
+        parts: u8,
+    },
     /// Range constraints: ">=1.2, <2.0"
     Range(Vec<RangeConstraint>),
 }
@@ -186,15 +192,25 @@ impl VersionRequest {
             }
         }
 
-        // Handle tilde constraint: ~1.2.3 or ~=1.2.3
-        if let Some(version_str) = raw.strip_prefix("~=") {
-            if let Some(version) = Version::parse(version_str) {
-                return VersionConstraint::Tilde(version);
+        // Handle tilde constraint: ~1.2.3 (NOT ~=, which is compatible release)
+        if let Some(version_str) = raw.strip_prefix('~') {
+            // Skip if it's ~= (compatible release, handled above)
+            if !version_str.starts_with('=') {
+                if let Some(version) = Version::parse(version_str) {
+                    return VersionConstraint::Tilde(version);
+                }
             }
         }
-        if let Some(version_str) = raw.strip_prefix('~') {
+
+        // Handle compatible release constraint: ~=1.4 or ~=1.4.0
+        if let Some(version_str) = raw.strip_prefix("~=") {
+            let version_str = version_str.trim();
+            let parts_count = version_str.split('.').count() as u8;
             if let Some(version) = Version::parse(version_str) {
-                return VersionConstraint::Tilde(version);
+                return VersionConstraint::CompatibleRelease {
+                    version,
+                    parts: parts_count,
+                };
             }
         }
 
@@ -266,13 +282,15 @@ impl VersionRequest {
     fn parse_single_range(s: &str) -> Option<RangeConstraint> {
         let s = s.trim();
 
+        // Order matters: longer prefixes first to avoid partial matches
         let operators = [
             (">=", RangeOp::Ge),
             ("<=", RangeOp::Le),
             ("!=", RangeOp::Ne),
+            ("==", RangeOp::Eq), // Double equals for exact match
             (">", RangeOp::Gt),
             ("<", RangeOp::Lt),
-            ("=", RangeOp::Eq),
+            ("=", RangeOp::Eq), // Single equals also for exact match
         ];
 
         for (prefix, op) in operators {
@@ -316,6 +334,20 @@ impl VersionRequest {
             VersionConstraint::Tilde(target) => {
                 // ~1.2.3 means >=1.2.3, <1.3.0
                 v >= *target && v.major == target.major && v.minor == target.minor
+            }
+            VersionConstraint::CompatibleRelease { version: target, parts } => {
+                // ~=1.4 (2 parts) means >=1.4.0, <2.0.0 (compatible with major)
+                // ~=1.4.0 (3 parts) means >=1.4.0, <1.5.0 (compatible with minor)
+                if v < *target {
+                    return false;
+                }
+                if *parts <= 2 {
+                    // ~=1.4 -> >=1.4.0, <2.0.0
+                    v.major == target.major
+                } else {
+                    // ~=1.4.0 -> >=1.4.0, <1.5.0
+                    v.major == target.major && v.minor == target.minor
+                }
             }
             VersionConstraint::Range(constraints) => constraints.iter().all(|c| c.satisfies(&v)),
         }
