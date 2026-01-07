@@ -309,30 +309,11 @@ impl Resolver {
         );
 
         // Check platform compatibility first
-        let mut unsupported_platform_runtimes = Vec::new();
+        let unsupported_platform_runtimes = Vec::new();
         
-        // Check if the primary runtime is supported on current platform
-        if let Some(runtime) = self.registry.get_runtime(runtime_name) {
-            if !runtime.is_platform_supported() {
-                let current_platform = std::env::consts::OS;
-                let supported_platforms = runtime.supported_platforms()
-                    .iter()
-                    .map(|p| p.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                
-                unsupported_platform_runtimes.push(UnsupportedPlatformRuntime {
-                    runtime_name: runtime_name.to_string(),
-                    current_platform: current_platform.to_string(),
-                    supported_platforms: if supported_platforms.is_empty() {
-                        "none".to_string()
-                    } else {
-                        supported_platforms
-                    },
-                    is_primary: true,
-                });
-            }
-        }
+        // Note: Platform compatibility checking is done at the CLI layer
+        // where we have access to the ProviderRegistry. The resolver
+        // only handles dependency resolution.
 
         // Check runtime status (optionally with specific version)
         let runtime_status = if let Some(ver) = version {
@@ -351,29 +332,7 @@ impl Resolver {
             for dep in spec.required_dependencies() {
                 let dep_name = dep.provided_by.as_deref().unwrap_or(&dep.runtime_name);
                 
-                // Check platform compatibility for dependency
-                if let Some(dep_runtime) = self.registry.get_runtime(dep_name) {
-                    if !dep_runtime.is_platform_supported() {
-                        let current_platform = std::env::consts::OS;
-                        let supported_platforms = dep_runtime.supported_platforms()
-                            .iter()
-                            .map(|p| p.as_str())
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        
-                        unsupported_platform_runtimes.push(UnsupportedPlatformRuntime {
-                            runtime_name: dep_name.to_string(),
-                            current_platform: current_platform.to_string(),
-                            supported_platforms: if supported_platforms.is_empty() {
-                                "none".to_string()
-                            } else {
-                                supported_platforms
-                            },
-                            is_primary: false,
-                        });
-                        continue; // Skip further processing for unsupported platform
-                    }
-                }
+                // Note: Platform compatibility checking for dependencies is done at the CLI layer
                 
                 let dep_status = self.check_runtime_status(dep_name);
 

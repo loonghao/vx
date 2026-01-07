@@ -86,12 +86,14 @@ fn test_cli_list_command() {
             installed,
             available,
             all,
+            system: _,
         }) => {
             assert!(tool.is_none());
             assert!(!status);
             assert!(!installed);
             assert!(!available);
             assert!(!all);
+            assert!(!system);
         }
         _ => panic!("Expected List command"),
     }
@@ -117,6 +119,7 @@ fn test_cli_list_with_options() {
             installed,
             available,
             all,
+            system: _,
         }) => {
             assert_eq!(tool, Some("node".to_string()));
             assert!(status);

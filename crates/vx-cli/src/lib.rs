@@ -10,6 +10,7 @@ pub mod commands;
 pub mod config;
 pub mod registry;
 pub mod suggestions;
+pub mod system_tools;
 pub mod tracing_setup;
 pub mod ui;
 

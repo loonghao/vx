@@ -1,6 +1,6 @@
 # RFC 0015: System Tool Discovery & Unified Execution
 
-- **状态**: 草案
+- **状态**: 实现中 (Phase 1 完成)
 - **创建日期**: 2026-01-07
 - **作者**: VX Team
 - **关联**: RFC-0014 (Platform-Aware Providers)
@@ -1181,13 +1181,14 @@ non_interactive = false
 
 ## 十二、实现计划
 
-### Phase 1: 基础执行 (MVP)
+### Phase 1: 基础执行 (MVP) ✅
 
-- [ ] 命令解析和路由
-- [ ] PATH 动态发现
-- [ ] 基本执行转发
-- [ ] `vx which` 命令
-- [ ] `vx capabilities` 命令
+- [x] 命令解析和路由
+- [x] PATH 动态发现
+- [x] 基本执行转发
+- [x] `vx which` 命令
+- [x] `vx capabilities` 命令 (AI 友好)
+- [x] `vx list --system` 显示系统工具
 
 ### Phase 2: 存储与虚拟环境
 
@@ -1226,6 +1227,41 @@ non_interactive = false
 - [ ] MCP 工具定义
 - [ ] JSON 输出格式优化
 - [ ] 非交互模式完善
+
+---
+
+## 实现状态 (2026-01-07)
+
+### ✅ 已完成功能
+
+1. **`vx capabilities` 命令** - AI 友好的能力发现
+   - JSON 输出格式，包含平台信息、运行时列表、系统工具、功能特性
+   - 文本输出格式，人类可读
+   - 完整的测试覆盖
+
+2. **系统工具发现机制**
+   - 动态检测 PATH 中的系统工具
+   - 支持 7 个系统工具 Provider (curl, openssl, msbuild, msvc, xcodebuild, systemctl, choco)
+   - 平台兼容性检查
+   - 版本检测和路径解析
+
+3. **`vx list --system` 命令**
+   - 按类别显示系统工具 (Build Tools, Compilers, Version Control 等)
+   - 显示工具状态、版本、路径
+   - `--all` 选项显示不兼容平台的工具
+   - 统计摘要
+
+4. **测试和质量保证**
+   - 完整的单元测试 (`capabilities_tests.rs`)
+   - 集成测试更新
+   - CLI 解析测试更新
+
+### 🚧 下一步计划
+
+按照 RFC Phase 2 继续实现：
+- 内容寻址存储 (`~/.vx/store/`)
+- 虚拟环境创建和管理
+- 存储清理机制
 
 ---
 

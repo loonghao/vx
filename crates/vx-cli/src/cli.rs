@@ -119,6 +119,9 @@ pub enum Commands {
         /// Show all tools including those not supported on current platform
         #[arg(long, short = 'a')]
         all: bool,
+        /// Show system tools (discovered from PATH and known locations)
+        #[arg(long)]
+        system: bool,
     },
 
     /// Install tool(s) - supports multiple tools at once
@@ -494,6 +497,13 @@ pub enum Commands {
         #[arg(short, long)]
         verbose: bool,
     },
+
+    /// Show available capabilities (for AI agents)
+    Capabilities {
+        /// Output as JSON (recommended for AI)
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -862,6 +872,7 @@ impl CommandHandler for Commands {
             Commands::Migrate { .. } => "migrate",
             Commands::Lock { .. } => "lock",
             Commands::Check { .. } => "check",
+            Commands::Capabilities { .. } => "capabilities",
         }
     }
 
@@ -877,6 +888,7 @@ impl CommandHandler for Commands {
                 installed: _,
                 available: _,
                 all,
+                system,
             } => {
                 commands::list::handle(
                     ctx.registry(),
@@ -884,6 +896,7 @@ impl CommandHandler for Commands {
                     tool.as_deref(),
                     *status,
                     *all,
+                    *system,
                 )
                 .await
             }
@@ -1280,6 +1293,10 @@ impl CommandHandler for Commands {
             }
 
             Commands::Check { verbose } => commands::lock::handle_check(*verbose).await,
+
+            Commands::Capabilities { json } => {
+                commands::capabilities::handle(ctx.registry(), *json).await
+            }
         }
     }
 }
