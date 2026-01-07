@@ -39,8 +39,8 @@ pub async fn handle(
 ) -> Result<()> {
     let current_dir = std::env::current_dir()?;
 
-
     // Find vx.toml (search current and parent directories)
+
     let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
     let config = parse_vx_config(&config_path)?;
 
