@@ -1,4 +1,4 @@
-//! Capabilities command implementation
+//! Info command implementation - shows system information and capabilities
 //!
 //! Provides AI-friendly capability discovery for vx.
 //! Returns structured information about available runtimes, system tools, and features.

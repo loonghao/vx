@@ -1,21 +1,21 @@
-//! Tests for the capabilities command and system tools discovery
+//! Tests for the info command and system tools discovery
 
 use rstest::rstest;
 
 mod common;
 
-/// Test that capabilities command returns valid JSON
+/// Test that info command returns valid JSON
 #[rstest]
 #[tokio::test]
-async fn test_capabilities_json_output() {
+async fn test_info_json_output() {
     common::init_test_env();
     
     // Parse JSON output
-    let output = run_vx_command(&["capabilities", "--json"]).await;
-    assert!(output.status.success(), "capabilities --json should succeed");
+    let output = run_vx_command(&["info", "--json"]).await;
+    assert!(output.status.success(), "info --json should succeed");
 
     let json: serde_json::Value = serde_json::from_str(&output.stdout)
-        .expect("capabilities --json should return valid JSON");
+        .expect("info --json should return valid JSON");
 
     // Check required fields
     assert!(json.get("version").is_some(), "should have version field");
@@ -28,13 +28,13 @@ async fn test_capabilities_json_output() {
     assert!(json.get("features").is_some(), "should have features field");
 }
 
-/// Test that capabilities includes platform information
+/// Test that info includes platform information
 #[rstest]
 #[tokio::test]
-async fn test_capabilities_platform_info() {
+async fn test_info_platform_info() {
     common::init_test_env();
     
-    let output = run_vx_command(&["capabilities", "--json"]).await;
+    let output = run_vx_command(&["info", "--json"]).await;
     assert!(output.status.success());
 
     let json: serde_json::Value = serde_json::from_str(&output.stdout).unwrap();
@@ -51,13 +51,13 @@ async fn test_capabilities_platform_info() {
     );
 }
 
-/// Test that capabilities includes feature flags
+/// Test that info includes feature flags
 #[rstest]
 #[tokio::test]
-async fn test_capabilities_features() {
+async fn test_info_features() {
     common::init_test_env();
     
-    let output = run_vx_command(&["capabilities", "--json"]).await;
+    let output = run_vx_command(&["info", "--json"]).await;
     assert!(output.status.success());
 
     let json: serde_json::Value = serde_json::from_str(&output.stdout).unwrap();
@@ -77,19 +77,19 @@ async fn test_capabilities_features() {
     );
 }
 
-/// Test that capabilities text output works
+/// Test that info text output works
 #[rstest]
 #[tokio::test]
-async fn test_capabilities_text_output() {
+async fn test_info_text_output() {
     common::init_test_env();
     
-    let output = run_vx_command(&["capabilities"]).await;
-    assert!(output.status.success(), "capabilities should succeed");
+    let output = run_vx_command(&["info"]).await;
+    assert!(output.status.success(), "info should succeed");
 
     // Check for expected content
     assert!(
         output.stdout.contains("capabilities") || output.stdout.contains("Platform"),
-        "should show capabilities info"
+        "should show info"
     );
 }
 

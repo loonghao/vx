@@ -498,8 +498,8 @@ pub enum Commands {
         verbose: bool,
     },
 
-    /// Show available capabilities (for AI agents)
-    Capabilities {
+    /// Show system information and capabilities
+    Info {
         /// Output as JSON (recommended for AI)
         #[arg(long)]
         json: bool,
@@ -872,7 +872,7 @@ impl CommandHandler for Commands {
             Commands::Migrate { .. } => "migrate",
             Commands::Lock { .. } => "lock",
             Commands::Check { .. } => "check",
-            Commands::Capabilities { .. } => "capabilities",
+            Commands::Info { .. } => "info",
         }
     }
 
@@ -1294,7 +1294,7 @@ impl CommandHandler for Commands {
 
             Commands::Check { verbose } => commands::lock::handle_check(*verbose).await,
 
-            Commands::Capabilities { json } => {
+            Commands::Info { json } => {
                 commands::capabilities::handle(ctx.registry(), *json).await
             }
         }

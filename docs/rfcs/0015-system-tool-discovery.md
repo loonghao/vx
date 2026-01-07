@@ -750,7 +750,7 @@ vx <command> [args...]
      │
      ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ 1. 内置命令？ (install, list, shell, which, capabilities)   │
+│ 1. 内置命令？ (install, list, shell, which, info)   │
 │    └─► 是 → 执行内置命令                                     │
 ├──────────────────────────────────────────────────────────────┤
 │ 2. Provider Runtime？ (node, go, cargo, uv, npm...)         │
@@ -832,7 +832,7 @@ linux = "make"
 AI 可以查询 vx 的完整能力：
 
 ```bash
-$ vx capabilities --json
+$ vx info --json
 ```
 
 ```json
@@ -907,7 +907,7 @@ const vxTools = [
     }
   },
   {
-    name: "vx_capabilities",
+    name: "vx_info",
     description: "Get available tools and runtimes on this system",
     inputSchema: {
       type: "object",
@@ -935,7 +935,7 @@ const vxTools = [
 AI: 我需要构建这个 iOS 项目
 
 # AI 首先查询能力
-$ vx capabilities --json | jq '.system_tools.available[] | select(.name=="xcodebuild")'
+$ vx info --json | jq '.system_tools.available[] | select(.name=="xcodebuild")'
 {
   "name": "xcodebuild",
   "category": "build",
@@ -1023,7 +1023,7 @@ COMMANDS:
     hook        Generate shell integration script
     
     # 信息命令
-    capabilities    Show available capabilities (for AI)
+    info            Show system information and capabilities (for AI)
     help            Show help
     version         Show version
 
@@ -1035,7 +1035,7 @@ EXAMPLES:
     vx shell                    # Enter project environment (manual)
     vx env list                 # List known environments
     vx run build                # Run 'build' script from vx.toml
-    vx capabilities --json      # Show capabilities for AI
+    vx info --json      # Show capabilities for AI
 ```
 
 ### 9.2 环境管理命令
@@ -1187,7 +1187,7 @@ non_interactive = false
 - [x] PATH 动态发现
 - [x] 基本执行转发
 - [x] `vx which` 命令
-- [x] `vx capabilities` 命令 (AI 友好)
+- [x] `vx info` 命令 (AI 友好的能力发现)
 - [x] `vx list --system` 显示系统工具
 
 ### Phase 2: 存储与虚拟环境
@@ -1234,7 +1234,7 @@ non_interactive = false
 
 ### ✅ 已完成功能
 
-1. **`vx capabilities` 命令** - AI 友好的能力发现
+1. **`vx info` 命令** - AI 友好的能力发现
    - JSON 输出格式，包含平台信息、运行时列表、系统工具、功能特性
    - 文本输出格式，人类可读
    - 完整的测试覆盖
@@ -1252,7 +1252,7 @@ non_interactive = false
    - 统计摘要
 
 4. **测试和质量保证**
-   - 完整的单元测试 (`capabilities_tests.rs`)
+   - 完整的单元测试 (`info_tests.rs`)
    - 集成测试更新
    - CLI 解析测试更新
 
