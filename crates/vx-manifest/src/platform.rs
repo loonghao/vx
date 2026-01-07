@@ -230,8 +230,8 @@ impl PlatformConstraint {
 
         // Check exclusion list
         for exclusion in &self.exclude {
-            let os_match = exclusion.os.map_or(true, |o| o == os);
-            let arch_match = exclusion.arch.map_or(true, |a| a == arch);
+            let os_match = exclusion.os.is_none_or(|o| o == os);
+            let arch_match = exclusion.arch.is_none_or(|a| a == arch);
             if os_match && arch_match {
                 return false;
             }
