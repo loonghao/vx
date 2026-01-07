@@ -413,11 +413,20 @@ pub enum Commands {
     },
 
     /// Run a script defined in vx.toml
+    ///
+    /// Scripts are defined in vx.toml and can use {{args}} for passthrough arguments.
+    /// Use `vx run <script> --help` to see script-specific help.
     Run {
-        /// Script name
-        script: String,
+        /// Script name (use --list to see available scripts)
+        script: Option<String>,
+        /// List available scripts
+        #[arg(long, short = 'l')]
+        list: bool,
+        /// Show help for the run command or script-specific help
+        #[arg(long, short = 'H', action = clap::ArgAction::SetTrue)]
+        script_help: bool,
         /// Additional arguments to pass to the script
-        #[arg(trailing_var_arg = true)]
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
 
@@ -1143,7 +1152,9 @@ impl CommandHandler for Commands {
 
             Commands::Remove { tool } => commands::setup::remove_tool(tool).await,
 
-            Commands::Run { script, args } => commands::run::handle(script, args).await,
+            Commands::Run { script, list, script_help, args } => {
+                commands::run::handle(script.as_deref(), *list, *script_help, args).await
+            }
 
             Commands::Services { command } => match command {
                 ServicesCommand::Start {

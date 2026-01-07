@@ -206,7 +206,32 @@ test = "npm test && cargo test"
 build = "npm run build"
 lint = "uvx ruff check . && npm run lint"
 format = "uvx black . && npm run format"
+# Enhanced: Use {{args}} for complex tool arguments
+test-pkgs = "cargo test {{args}}"
+lint-fix = "eslint {{args}}"
 ```
+
+### 🚀 Enhanced Script System
+
+vx now supports **advanced argument passing** for complex tool workflows:
+
+```bash
+# Pass complex arguments directly to tools
+vx run test-pkgs -p vx-runtime --lib
+vx run lint-fix --fix --ext .js,.ts src/
+
+# Get script-specific help
+vx run test-pkgs -H
+
+# List all available scripts
+vx run --list
+```
+
+**Key Features:**
+- ✅ **Zero conflicts**: Pass `-p`, `--lib`, `--fix` directly to scripts
+- ✅ **Script help**: Use `-H` for script-specific documentation
+- ✅ **Flexible arguments**: Use `{{args}}` in script definitions for maximum flexibility
+- ✅ **Backward compatible**: Existing scripts continue to work
 
 ---
 

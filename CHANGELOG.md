@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Features
+
+* **cli:** enhanced script system with advanced argument passing
+  - Support for complex tool arguments like `-p`, `--lib`, `--fix` without conflicts
+  - Script-specific help with `-H/--script-help` flag
+  - Script listing with `--list` flag
+  - Use `{{args}}` in script definitions for maximum flexibility
+  - Backward compatible with existing scripts
+
+### Documentation
+
+* **docs:** add comprehensive documentation for enhanced script system
+  - New guide: Enhanced Scripts (`/guide/enhanced-scripts`)
+  - Updated run command reference with new features
+  - Added Chinese translations for all new documentation
+  - Updated README with enhanced script system overview
+
 ## [0.6.9](https://github.com/loonghao/vx/compare/vx-v0.6.8...vx-v0.6.9) (2026-01-06)
 
 

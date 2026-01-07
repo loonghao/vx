@@ -85,3 +85,4 @@ vx supports a wide range of development tools:
 - [Installation](/guide/installation) - Install vx on your system
 - [Quick Start](/guide/getting-started) - Get up and running in minutes
 - [Configuration](/guide/configuration) - Learn about `vx.toml`
+- [Enhanced Scripts](/guide/enhanced-scripts) - **NEW!** Advanced script system with flexible argument passing

@@ -26,9 +26,13 @@ test = "cargo test --workspace"
 clippy = "cargo clippy --workspace --all-targets -- -D warnings"
 nox-test = "uv run nox -s tests"
 
+
+
+
 # Core component tests - matches CI test strategy
 # This is the command you mentioned: cargo test -p vx-provider-* -p vx-cli -p vx-extension -p vx-migration -p vx-resolver -p vx-runtime
 test-core = "cargo test -p vx-provider-* -p vx-cli -p vx-extension -p vx-migration -p vx-resolver -p vx-runtime"
+
 
 # Full test suite with coverage
 test-all = "cargo test --workspace --all-targets"
@@ -41,6 +45,35 @@ test-integration = "cargo test --workspace --test '*'"
 
 # Documentation tests
 test-doc = "cargo test --workspace --doc"
+
+# Targeted tests runner (pass packages/flags as args)
+# Example: vx run test-pkgs -- -p vx-runtime -p vx-resolver
+[scripts.test-pkgs]
+command = "cargo test {{args}}"
+description = "Run cargo test with arbitrary args (used by CI targeted tests)"
+
+# Common development workflows with dynamic args support
+[scripts.tox]
+command = "uv run tox {{args}}"
+description = "Run tox with custom environments/args"
+
+[scripts.nox]
+command = "uv run nox {{args}}"
+description = "Run nox sessions with custom args"
+
+[scripts.just]
+command = "just {{args}}"
+description = "Run just tasks with custom args"
+
+# Package-specific testing (examples)
+[scripts.test-python]
+command = "cargo test {{args}}"
+description = "Test Python provider with custom args"
+
+[scripts.test-runtime]
+command = "cargo test {{args}}"
+description = "Test runtime components with custom args"
+
 
 # Combined lint check - run this before committing to match CI
 # Uses 'depends' to run fmt-check first, then clippy

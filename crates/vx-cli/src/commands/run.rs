@@ -25,22 +25,46 @@ use vx_paths::find_vx_config;
 ///
 /// This function:
 /// 1. Finds and parses vx.toml configuration
-/// 2. Parses script arguments if defined
-/// 3. Interpolates variables in the script command
-/// 4. Builds the environment with vx-managed tools in PATH
-/// 5. Executes the script
-pub async fn handle(script_name: &str, args: &[String]) -> Result<()> {
+/// 2. Handles --list to show available scripts
+/// 3. Handles -H/--script-help for script-specific help
+/// 4. Separates script args from passthrough args (after --)
+/// 5. Interpolates variables in the script command
+/// 6. Builds the environment with vx-managed tools in PATH
+/// 7. Executes the script
+pub async fn handle(script_name: Option<&str>, list: bool, script_help: bool, args: &[String]) -> Result<()> {
     let current_dir = std::env::current_dir()?;
 
     // Find vx.toml (search current and parent directories)
     let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
     let config = parse_vx_config(&config_path)?;
 
-    // Check for help flag
-    if args.iter().any(|a| a == "--help" || a == "-h") {
-        print_script_help(script_name, &config)?;
+    // Handle --list flag
+    if list {
+        print_available_scripts(&config)?;
         return Ok(());
     }
+
+    // Handle -H/--script-help flag
+    if script_help {
+        if let Some(name) = script_name {
+            print_script_help(name, &config)?;
+        } else {
+            print_run_help(&config)?;
+        }
+        return Ok(());
+    }
+
+    // If no script name provided, show usage
+    let script_name = match script_name {
+        Some(name) => name,
+        None => {
+            print_run_help(&config)?;
+            return Ok(());
+        }
+    };
+
+    // Split args at -- separator
+    let (script_args, passthrough_args) = split_args_at_separator(args);
 
     // Get the script command
     let script_cmd = config.scripts.get(script_name).ok_or_else(|| {
@@ -77,30 +101,42 @@ pub async fn handle(script_name: &str, args: &[String]) -> Result<()> {
     // Build variable source from env vars and args
     let mut var_source: HashMap<String, String> = env_vars.clone();
 
-    // Add arguments as variables
-    for (i, arg) in args.iter().enumerate() {
+    // Add script arguments as variables (before --)
+    for (i, arg) in script_args.iter().enumerate() {
         var_source.insert(format!("arg{}", i + 1), arg.clone());
         var_source.insert(i.to_string(), arg.clone());
     }
-    var_source.insert("@".to_string(), args.join(" "));
-    var_source.insert("#".to_string(), args.len().to_string());
+    var_source.insert("@".to_string(), script_args.join(" "));
+    var_source.insert("#".to_string(), script_args.len().to_string());
+    
+    // Add passthrough arguments as {{args}} variable (after --)
+    // If no -- separator, use all args as passthrough for backward compatibility
+    let effective_passthrough = if args.contains(&"--".to_string()) {
+        passthrough_args
+    } else {
+        args.to_vec()
+    };
+    var_source.insert("args".to_string(), effective_passthrough.join(" "));
 
     // Interpolate the script command
     let interpolated_cmd = interpolator.interpolate(script_cmd, &var_source)?;
 
-    // Build the full command with remaining arguments
-    let full_cmd = if args.is_empty() {
+    // Build the full command
+    let full_cmd = if script_cmd.contains("{{args}}") {
+        // Command uses {{args}} placeholder - already interpolated
         interpolated_cmd
-    } else {
-        // Check if script uses argument placeholders
+    } else if !script_args.is_empty() {
+        // Legacy behavior: append script args if no {{args}} placeholder
         let uses_placeholders = script_cmd.contains("{{") && script_cmd.contains("}}");
         if uses_placeholders {
-            // Arguments already interpolated
+            // Arguments already interpolated via other placeholders
             interpolated_cmd
         } else {
-            // Append arguments directly
-            format!("{} {}", interpolated_cmd, args.join(" "))
+            // Append script arguments directly
+            format!("{} {}", interpolated_cmd, script_args.join(" "))
         }
+    } else {
+        interpolated_cmd
     };
 
     UI::info(&format!("Running script '{}': {}", script_name, full_cmd));
@@ -123,6 +159,63 @@ pub async fn handle(script_name: &str, args: &[String]) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Print general run command help
+fn print_run_help(config: &ConfigView) -> Result<()> {
+    println!("Run a script defined in vx.toml");
+    println!();
+    println!("Usage: vx run <SCRIPT> [ARGS...]");
+    println!("       vx run --list");
+    println!("       vx run <SCRIPT> -H");
+    println!();
+    println!("Options:");
+    println!("  -l, --list         List available scripts");
+    println!("  -H, --script-help  Show script-specific help");
+    println!("  -h, --help         Show this help message");
+    println!();
+    println!("Arguments after the script name are passed to the script.");
+    println!("Use {{{{args}}}} in script command to receive all arguments.");
+    println!();
+    print_available_scripts(config)?;
+    Ok(())
+}
+
+/// Print available scripts
+fn print_available_scripts(config: &ConfigView) -> Result<()> {
+    if config.scripts.is_empty() {
+        println!("No scripts defined in vx.toml");
+        println!();
+        println!("Add scripts to your vx.toml:");
+        println!();
+        println!("  [scripts]");
+        println!("  test = \"cargo test\"");
+        println!("  build = \"cargo build --release\"");
+    } else {
+        println!("Available scripts:");
+        for (name, cmd) in &config.scripts {
+            // Truncate long commands
+            let display_cmd = if cmd.len() > 50 {
+                format!("{}...", &cmd[..47])
+            } else {
+                cmd.clone()
+            };
+            println!("  {:<15} {}", name, display_cmd);
+        }
+    }
+    Ok(())
+}
+
+/// Split arguments at -- separator
+/// Returns (script_args, passthrough_args)
+fn split_args_at_separator(args: &[String]) -> (Vec<String>, Vec<String>) {
+    if let Some(pos) = args.iter().position(|arg| arg == "--") {
+        let script_args = args[..pos].to_vec();
+        let passthrough_args = args[pos + 1..].to_vec();
+        (script_args, passthrough_args)
+    } else {
+        (args.to_vec(), Vec::new())
+    }
 }
 
 /// Load .env files from the current directory
@@ -154,15 +247,19 @@ fn print_script_help(script_name: &str, config: &ConfigView) -> Result<()> {
         println!("Script: {}", script_name);
         println!("Command: {}", script_cmd);
         println!();
-        println!("Usage: vx run {} [args...]", script_name);
+        println!("Usage: vx run {} [script-args...] [-- passthrough-args...]", script_name);
         println!();
-        println!("Arguments are passed directly to the script.");
+        println!("Arguments:");
+        println!("  script-args       Arguments for script interpolation");
+        println!("  --                Separator for passthrough arguments");
+        println!("  passthrough-args  Arguments passed directly to the command");
         println!();
         println!("Variable Interpolation:");
-        println!("  {{{{arg1}}}}          First argument");
-        println!("  {{{{arg2}}}}          Second argument");
-        println!("  {{{{@}}}}             All arguments");
-        println!("  {{{{#}}}}             Number of arguments");
+        println!("  {{{{arg1}}}}          First script argument");
+        println!("  {{{{arg2}}}}          Second script argument");
+        println!("  {{{{@}}}}             All script arguments");
+        println!("  {{{{#}}}}             Number of script arguments");
+        println!("  {{{{args}}}}          All passthrough arguments (after --)");
         println!("  {{{{env.VAR}}}}       Environment variable VAR");
         println!("  {{{{project.root}}}}  Project root directory");
         println!("  {{{{project.name}}}}  Project name");
@@ -172,6 +269,7 @@ fn print_script_help(script_name: &str, config: &ConfigView) -> Result<()> {
         println!("Examples:");
         println!("  vx run {} arg1 arg2", script_name);
         println!("  vx run {} -- --flag value", script_name);
+        println!("  vx run {} script-arg -- --tool-flag", script_name);
     } else {
         println!("Script '{}' not found.", script_name);
         println!();
