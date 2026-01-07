@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.10](https://github.com/loonghao/vx/compare/vx-v0.6.9...vx-v0.6.10) (2026-01-07)
+
+
+### Features
+
+* add RFCs for platform-aware providers and system tool discovery ([65357b8](https://github.com/loonghao/vx/commit/65357b8b691704c5defb395f3607ad0783aef2ac))
+* add version syntax and dependency constraints support ([c06c309](https://github.com/loonghao/vx/commit/c06c3091d71512bb04456fb81c85152d2834eef1))
+* **cli:** implement RFC 0013 manifest-driven registration ([5f00f11](https://github.com/loonghao/vx/commit/5f00f117512f92db4e398e08965896be0f4a9658))
+* complete architecture improvements (Phase 0-4) ([d0d9fbd](https://github.com/loonghao/vx/commit/d0d9fbd5e8ba119203ef6d06718d449f3ec3ca66))
+* **manifest:** add provider.toml for all remaining providers ([d389553](https://github.com/loonghao/vx/commit/d38955345c8c996b36ac4258afb3fec3153649eb))
+* **manifest:** implement provider override mechanism and add documentation ([aa0aa3f](https://github.com/loonghao/vx/commit/aa0aa3f9b59b74024b82a631be1d761f3217db11))
+* **manifest:** implement RFC 0012 - Provider Manifest system ([8c23cd8](https://github.com/loonghao/vx/commit/8c23cd8c076d05d68298258c1d791c3fe99ff271))
+* **runtime:** add plugin system with dynamic provider loading - Add plugin.rs with PluginLoader and ProviderLoader trait - Export plugin module in vx-runtime lib.rs - Add load_from_manifests method to ManifestRegistry - Add set_provider_loader method to ProviderRegistry - Add libloading dependency for dynamic library loading ([ec1df78](https://github.com/loonghao/vx/commit/ec1df78fe015fa73f7b984937e9c8197720c24c4))
+* **runtime:** load constraints from embedded provider manifests ([ec9f933](https://github.com/loonghao/vx/commit/ec9f933db791e1bf87a782b40865f22a74af9eed))
+
+
+### Bug Fixes
+
+* correct test file to use Vec instead of arrays ([5bd8e5f](https://github.com/loonghao/vx/commit/5bd8e5fc61acd635dfe700957b04e255d699e747))
+* **deps:** update rust crate libloading to 0.9 ([4593ea8](https://github.com/loonghao/vx/commit/4593ea8508d1f9afdbf5a0a9e8e0ae64d71032bc))
+* properly detect system dependency versions and find bin directories ([c232ff0](https://github.com/loonghao/vx/commit/c232ff08a9b2dec5ba63d8821d6c6196800cf73c))
+* remove unintended benchmark file and fix clippy error ([d3766ff](https://github.com/loonghao/vx/commit/d3766ff97010faec33491694d4ee38f72a78361a))
+* use or_default() instead of or_insert_with(PathBuf::new) ([f52a2e5](https://github.com/loonghao/vx/commit/f52a2e5cff0abd446fe237f70e362dbbfbff8a40))
+
+
+### Code Refactoring
+
+* improve architecture with security warnings and unified config ([538a747](https://github.com/loonghao/vx/commit/538a7475d4253fd3a51c68dd8174edf9765035ef))
+
+
+### Documentation
+
+* add security documentation and update architecture docs ([6f7c1b6](https://github.com/loonghao/vx/commit/6f7c1b6ac36a6cd6570b4577a6e0c5db46a2a271))
+* Add version management guide (EN/ZH) ([c06c309](https://github.com/loonghao/vx/commit/c06c3091d71512bb04456fb81c85152d2834eef1))
+* **rfc:** add RFC 0013 - Manifest-Driven Provider Registration ([dff3ebc](https://github.com/loonghao/vx/commit/dff3ebc3ad2f328654ca4a4bc4ff6e67eb7d0627))
+* **rfc:** enhance RFC 0013 with Provider vs Extension comparison and performance analysis ([1c302a5](https://github.com/loonghao/vx/commit/1c302a5631b942f184bdad86b2a7d0735ebe6852))
+* update RFC status to reflect implementation progress ([9ebd753](https://github.com/loonghao/vx/commit/9ebd7533d7442fad22a8dde9b75d34861fae6fe3))
+
 ## [0.6.9](https://github.com/loonghao/vx/compare/vx-v0.6.8...vx-v0.6.9) (2026-01-06)
 
 
