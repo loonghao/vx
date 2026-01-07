@@ -332,6 +332,35 @@ pub fn get_embedded_manifest_count() -> usize {
     PROVIDER_COUNT
 }
 
+/// Get platform label for a runtime from embedded manifests
+///
+/// Returns the platform label (e.g., "Windows", "macOS") if the runtime
+/// has platform constraints, or None if it supports all platforms.
+pub fn get_runtime_platform_label(runtime_name: &str) -> Option<String> {
+    for (_, content) in PROVIDER_MANIFESTS {
+        if let Ok(manifest) = ProviderManifest::parse(content) {
+            // Check if provider has platform constraint
+            if let Some(ref constraint) = manifest.provider.platform_constraint {
+                // Check if any runtime in this provider matches
+                for runtime in &manifest.runtimes {
+                    if runtime.name == runtime_name || runtime.aliases.contains(&runtime_name.to_string()) {
+                        return constraint.short_label();
+                    }
+                }
+            }
+            // Check runtime-level platform constraint
+            for runtime in &manifest.runtimes {
+                if runtime.name == runtime_name || runtime.aliases.contains(&runtime_name.to_string()) {
+                    if let Some(ref constraint) = runtime.platform_constraint {
+                        return constraint.short_label();
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 /// Create a runtime context for operations
 pub fn create_context() -> anyhow::Result<RuntimeContext> {
     create_runtime_context()

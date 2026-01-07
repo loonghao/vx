@@ -276,6 +276,37 @@ impl<'a> Executor<'a> {
             }
         }
 
+        // Handle platform incompatibility - fail early with helpful error message
+        if !resolution.unsupported_platform_runtimes.is_empty() {
+            let mut error_msg = String::new();
+            
+            for unsupported in &resolution.unsupported_platform_runtimes {
+                if unsupported.is_primary {
+                    error_msg.push_str(&format!(
+                        "Runtime '{}' is not supported on {}.\n",
+                        unsupported.runtime_name, unsupported.current_platform
+                    ));
+                } else {
+                    error_msg.push_str(&format!(
+                        "Dependency '{}' (required by '{}') is not supported on {}.\n",
+                        unsupported.runtime_name, runtime_name, unsupported.current_platform
+                    ));
+                }
+                
+                if unsupported.supported_platforms != "none" {
+                    error_msg.push_str(&format!(
+                        "Supported platforms: {}\n",
+                        unsupported.supported_platforms
+                    ));
+                }
+            }
+            
+            return Err(anyhow::anyhow!(
+                "Platform compatibility error:\n{}",
+                error_msg.trim()
+            ));
+        }
+
         // Handle incompatible dependencies - find or install compatible versions
         // Merge provider-level dependencies with RuntimeMap-based resolution
         let mut all_incompatible_deps = resolution.incompatible_dependencies.clone();

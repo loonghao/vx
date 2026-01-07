@@ -1,10 +1,28 @@
 # RFC 0014: Platform-Aware Provider System
 
-> **状态**: Draft
+> **状态**: ✅ Phase 1 完成
 > **作者**: vx team
 > **创建日期**: 2026-01-07
 > **目标版本**: v0.10.0
 > **依赖**: RFC 0012 (Provider Manifest), RFC 0013 (Manifest-Driven Registration)
+
+## 实施状态
+
+### ✅ Phase 1: 基础平台约束支持 (已完成)
+
+- [x] 在 `vx-manifest` 中添加 `PlatformConstraint` 数据结构
+- [x] 支持 `[provider.platforms]` 和 `[runtimes.platform_constraint]` 配置
+- [x] 更新 `vx list` 命令显示平台标签
+- [x] 实现平台不支持时的友好错误提示
+- [x] 为 msvc、choco、rcedit 等 Provider 添加平台约束
+- [x] 添加单元测试和集成测试
+
+### 📝 Phase 2: 高级功能 (待实施)
+
+- [ ] 支持架构约束 (`arch = ["x86_64", "aarch64"]`)
+- [ ] 支持排除模式 (`exclude`)
+- [ ] 条件编译优化 (`#[cfg(target_os = "...")]`)
+- [ ] 动态 Provider 加载时的平台过滤
 
 ## 摘要
 

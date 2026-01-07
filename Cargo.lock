@@ -4084,6 +4084,7 @@ dependencies = [
  "pretty_assertions",
  "rstest",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.17",
  "toml 0.9.10+spec-1.1.0",

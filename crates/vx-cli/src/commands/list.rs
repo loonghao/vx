@@ -1,5 +1,6 @@
 //! List command implementation
 
+use crate::registry::get_runtime_platform_label;
 use crate::ui::UI;
 use anyhow::Result;
 use std::collections::HashSet;
@@ -267,8 +268,18 @@ async fn list_all_tools(
         }
 
         if let Some(runtime) = registry.get_runtime(tool_name) {
+            // Get platform label from manifest
+            let platform_label = get_runtime_platform_label(tool_name);
+
             let platform_note = if !platform_supported {
-                format!(" (not supported on {})", current_platform.as_str())
+                if let Some(label) = &platform_label {
+                    format!(" ({} only)", label)
+                } else {
+                    format!(" (not supported on {})", current_platform.as_str())
+                }
+            } else if show_all {
+                // Show platform label for all tools when --all is used
+                platform_label.map(|l| format!(" [{}]")).unwrap_or_default()
             } else {
                 String::new()
             };

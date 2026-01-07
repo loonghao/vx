@@ -1,6 +1,6 @@
 //! Provider manifest types
 
-use crate::{Ecosystem, ManifestError, Result, VersionRequest};
+use crate::{Ecosystem, ManifestError, PlatformConstraint, Result, VersionRequest};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -55,6 +55,34 @@ impl ProviderManifest {
             .iter()
             .find(|r| r.name == name || r.aliases.iter().any(|a| a == name))
     }
+
+    /// Check if the provider is supported on the current platform
+    pub fn is_current_platform_supported(&self) -> bool {
+        self.provider.is_current_platform_supported()
+    }
+
+    /// Get the platform constraint description for the provider
+    pub fn platform_description(&self) -> Option<String> {
+        self.provider.platform_description()
+    }
+
+    /// Get a short platform label for display
+    pub fn platform_label(&self) -> Option<String> {
+        self.provider.platform_label()
+    }
+
+    /// Get all runtimes supported on the current platform
+    pub fn supported_runtimes(&self) -> Vec<&RuntimeDef> {
+        // If provider itself is not supported, return empty
+        if !self.is_current_platform_supported() {
+            return vec![];
+        }
+
+        self.runtimes
+            .iter()
+            .filter(|r| r.is_current_platform_supported())
+            .collect()
+    }
 }
 
 /// Provider metadata
@@ -74,6 +102,28 @@ pub struct ProviderMeta {
     /// Ecosystem this provider belongs to
     #[serde(default)]
     pub ecosystem: Option<Ecosystem>,
+    /// Platform constraints for the entire provider
+    #[serde(default, rename = "platforms")]
+    pub platform_constraint: Option<PlatformConstraint>,
+}
+
+impl ProviderMeta {
+    /// Check if the provider is supported on the current platform
+    pub fn is_current_platform_supported(&self) -> bool {
+        self.platform_constraint
+            .as_ref()
+            .map_or(true, |c| c.is_current_platform_supported())
+    }
+
+    /// Get the platform constraint description
+    pub fn platform_description(&self) -> Option<String> {
+        self.platform_constraint.as_ref().and_then(|c| c.description())
+    }
+
+    /// Get a short platform label for display
+    pub fn platform_label(&self) -> Option<String> {
+        self.platform_constraint.as_ref().and_then(|c| c.short_label())
+    }
 }
 
 /// Runtime definition
@@ -98,9 +148,12 @@ pub struct RuntimeDef {
     /// Hooks configuration
     #[serde(default)]
     pub hooks: Option<HooksDef>,
-    /// Platform-specific configuration
+    /// Platform-specific configuration (download URLs, extensions, etc.)
     #[serde(default)]
     pub platforms: Option<PlatformsDef>,
+    /// Platform constraints for this runtime
+    #[serde(default, rename = "platform_constraint")]
+    pub platform_constraint: Option<PlatformConstraint>,
     /// Version source configuration
     #[serde(default)]
     pub versions: Option<VersionSourceDef>,
@@ -132,6 +185,23 @@ impl RuntimeDef {
             .into_iter()
             .flat_map(|c| c.recommends.iter())
             .collect()
+    }
+
+    /// Check if the runtime is supported on the current platform
+    pub fn is_current_platform_supported(&self) -> bool {
+        self.platform_constraint
+            .as_ref()
+            .map_or(true, |c| c.is_current_platform_supported())
+    }
+
+    /// Get the platform constraint description
+    pub fn platform_description(&self) -> Option<String> {
+        self.platform_constraint.as_ref().and_then(|c| c.description())
+    }
+
+    /// Get a short platform label for display
+    pub fn platform_label(&self) -> Option<String> {
+        self.platform_constraint.as_ref().and_then(|c| c.short_label())
     }
 }
 
@@ -328,5 +398,111 @@ requires = [
         let v4_constraints = runtime.get_constraints_for_version("4.0.0");
         assert_eq!(v4_constraints.len(), 1);
         assert_eq!(v4_constraints[0].requires[0].version, ">=18");
+    }
+
+    #[test]
+    fn test_parse_manifest_with_platform_constraint() {
+        let toml = r#"
+[provider]
+name = "msvc"
+description = "Microsoft Visual C++ Compiler"
+ecosystem = "system"
+
+[provider.platforms]
+os = ["windows"]
+
+[[runtimes]]
+name = "cl"
+description = "MSVC C/C++ Compiler"
+executable = "cl"
+"#;
+        let manifest = ProviderManifest::parse(toml).unwrap();
+        assert_eq!(manifest.provider.name, "msvc");
+
+        // Check platform constraint
+        let platform_constraint = manifest.provider.platform_constraint.as_ref().unwrap();
+        assert_eq!(platform_constraint.os.len(), 1);
+
+        // Platform description
+        assert_eq!(
+            manifest.platform_description(),
+            Some("Windows only".to_string())
+        );
+        assert_eq!(manifest.platform_label(), Some("Windows".to_string()));
+    }
+
+    #[test]
+    fn test_parse_runtime_with_platform_constraint() {
+        let toml = r#"
+[provider]
+name = "xcode"
+description = "Apple Xcode Command Line Tools"
+
+[[runtimes]]
+name = "xcodebuild"
+executable = "xcodebuild"
+
+[runtimes.platform_constraint]
+os = ["macos"]
+"#;
+        let manifest = ProviderManifest::parse(toml).unwrap();
+        let runtime = &manifest.runtimes[0];
+
+        // Check runtime platform constraint
+        let platform_constraint = runtime.platform_constraint.as_ref().unwrap();
+        assert_eq!(platform_constraint.os.len(), 1);
+        assert_eq!(runtime.platform_description(), Some("macOS only".to_string()));
+    }
+
+    #[test]
+    fn test_supported_runtimes() {
+        let toml = r#"
+[provider]
+name = "test"
+
+[[runtimes]]
+name = "cross-platform"
+executable = "cross"
+
+[[runtimes]]
+name = "windows-only"
+executable = "win"
+
+[runtimes.platform_constraint]
+os = ["windows"]
+
+[[runtimes]]
+name = "macos-only"
+executable = "mac"
+
+[runtimes.platform_constraint]
+os = ["macos"]
+"#;
+        let manifest = ProviderManifest::parse(toml).unwrap();
+
+        // Get supported runtimes for current platform
+        let supported = manifest.supported_runtimes();
+
+        // cross-platform should always be included
+        assert!(supported.iter().any(|r| r.name == "cross-platform"));
+
+        // Platform-specific runtimes depend on current OS
+        #[cfg(target_os = "windows")]
+        {
+            assert!(supported.iter().any(|r| r.name == "windows-only"));
+            assert!(!supported.iter().any(|r| r.name == "macos-only"));
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            assert!(!supported.iter().any(|r| r.name == "windows-only"));
+            assert!(supported.iter().any(|r| r.name == "macos-only"));
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            assert!(!supported.iter().any(|r| r.name == "windows-only"));
+            assert!(!supported.iter().any(|r| r.name == "macos-only"));
+        }
     }
 }

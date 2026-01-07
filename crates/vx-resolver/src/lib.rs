@@ -48,6 +48,7 @@ pub use resolution_cache::{
 };
 pub use resolver::{
     IncompatibleDependency, ResolutionResult, ResolvedGraph, Resolver, RuntimeStatus,
+    UnsupportedPlatformRuntime,
 };
 pub use runtime_map::RuntimeMap;
 pub use runtime_request::RuntimeRequest;

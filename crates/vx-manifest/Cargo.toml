@@ -16,3 +16,4 @@ tracing = { workspace = true }
 rstest = { workspace = true }
 pretty_assertions = { workspace = true }
 tempfile = { workspace = true }
+serde_json = { workspace = true }
