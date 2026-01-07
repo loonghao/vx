@@ -40,8 +40,6 @@ fn create_test_manifest(dir: &Path, name: &str) {
 [provider]
 name = "{name}"
 
-after_create = ""
-
 [[runtimes]]
 name = "{name}"
 executable = "{name}"
@@ -103,7 +101,7 @@ fn later_manifest_overrides_by_name() {
     let base = make_manifest("tool", "base description");
     let overlay = make_manifest("tool", "override description");
 
-    registry.load_from_manifests([base, overlay]);
+    registry.load_from_manifests(vec![base, overlay]);
 
     let manifest = registry
         .get_manifest("tool")
@@ -118,19 +116,29 @@ fn later_manifest_overrides_by_name() {
 fn directory_override_replaces_embedded() {
     let mut registry = ManifestRegistry::new();
 
-    // Load embedded manifest first
-    let embedded = r#"
-[provider]
-name = "tool"
-description = "embedded"
-
-[[runtimes]]
-name = "tool"
-executable = "tool"
-"#;
-    registry
-        .load_embedded([("tool", embedded)])
-        .expect("load embedded");
+    // Load embedded manifest first via load_from_manifests
+    let embedded = ProviderManifest {
+        provider: ProviderMeta {
+            name: "tool".to_string(),
+            description: Some("embedded".to_string()),
+            homepage: None,
+            repository: None,
+            ecosystem: None,
+        },
+        runtimes: vec![RuntimeDef {
+            name: "tool".to_string(),
+            description: None,
+            executable: "tool".to_string(),
+            aliases: vec![],
+            bundled_with: None,
+            constraints: vec![],
+            hooks: None,
+            platforms: None,
+            versions: None,
+            executable_config: None,
+        }],
+    };
+    registry.load_from_manifests(vec![embedded]);
 
     // Project-level override
     let temp = TempDir::new().expect("temp dir");
@@ -198,7 +206,7 @@ fn runtime_metadata_resolves_aliases() {
         }],
     };
 
-    registry.load_from_manifests([manifest]);
+    registry.load_from_manifests(vec![manifest]);
 
     let metadata = registry
         .get_runtime_metadata("tr")
@@ -225,7 +233,7 @@ fn build_registry_uses_registered_factories() {
         )) as Arc<dyn Provider>
     });
 
-    registry.load_from_manifests([make_manifest("tool", "desc")]);
+    registry.load_from_manifests(vec![make_manifest("tool", "desc")]);
 
     let provider_registry = registry.build_registry();
     assert!(provider_registry.supports("tool"));
