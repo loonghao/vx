@@ -112,7 +112,7 @@ node = "18.0.0"
         assert!(parsed.is_ok(), "TOML should parse: {:?}", parsed.err());
         let value = parsed.unwrap();
         assert!(value.get("runtimes").is_some(), "Should have runtimes key");
-        
+
         let version = detector.detect_from_content(config);
         assert_eq!(version, Some(Version::new(2, 0, 0)));
     }

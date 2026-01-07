@@ -133,8 +133,10 @@ async fn gather_capabilities(registry: &ProviderRegistry) -> Result<Capabilities
     let installed_tools = resolver
         .get_installed_tools_with_versions()
         .unwrap_or_default();
-    let installed_set: std::collections::HashSet<_> =
-        installed_tools.iter().map(|(name, _)| name.as_str()).collect();
+    let installed_set: std::collections::HashSet<_> = installed_tools
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .collect();
 
     // Gather runtime information
     let mut runtimes = HashMap::new();
@@ -159,7 +161,10 @@ async fn gather_capabilities(registry: &ProviderRegistry) -> Result<Capabilities
 
             // Get platform constraint description
             let platform_constraint = if !is_supported {
-                Some(format!("{} only", get_platform_label(&runtime_name, registry)))
+                Some(format!(
+                    "{} only",
+                    get_platform_label(&runtime_name, registry)
+                ))
             } else {
                 None
             };
@@ -188,7 +193,10 @@ async fn gather_capabilities(registry: &ProviderRegistry) -> Result<Capabilities
                             .map(|p| p.display().to_string())
                     },
                     reason: if !is_supported {
-                        Some(format!("Only available on {}", get_platform_label(&runtime_name, registry)))
+                        Some(format!(
+                            "Only available on {}",
+                            get_platform_label(&runtime_name, registry)
+                        ))
                     } else {
                         None
                     },
@@ -236,7 +244,9 @@ fn get_platform_label(runtime_name: &str, _registry: &ProviderRegistry) -> Strin
 
     // Default based on known tools
     match runtime_name {
-        "msvc" | "cl" | "nmake" | "msbuild" | "devenv" | "choco" | "rcedit" => "Windows".to_string(),
+        "msvc" | "cl" | "nmake" | "msbuild" | "devenv" | "choco" | "rcedit" => {
+            "Windows".to_string()
+        }
         "xcodebuild" | "xcrun" | "swift" | "swiftc" | "xcode-select" => "macOS".to_string(),
         "systemctl" | "journalctl" | "apt" | "apt-get" => "Linux".to_string(),
         _ => "universal".to_string(),
@@ -368,7 +378,10 @@ fn print_text_format(capabilities: &Capabilities) {
     UI::info("Features:");
     println!("    auto_install: {}", capabilities.features.auto_install);
     println!("    shell_mode: {}", capabilities.features.shell_mode);
-    println!("    project_config: {}", capabilities.features.project_config);
+    println!(
+        "    project_config: {}",
+        capabilities.features.project_config
+    );
     println!("    extensions: {}", capabilities.features.extensions);
     println!(
         "    virtual_environments: {}",

@@ -279,7 +279,7 @@ impl<'a> Executor<'a> {
         // Handle platform incompatibility - fail early with helpful error message
         if !resolution.unsupported_platform_runtimes.is_empty() {
             let mut error_msg = String::new();
-            
+
             for unsupported in &resolution.unsupported_platform_runtimes {
                 if unsupported.is_primary {
                     error_msg.push_str(&format!(
@@ -292,7 +292,7 @@ impl<'a> Executor<'a> {
                         unsupported.runtime_name, runtime_name, unsupported.current_platform
                     ));
                 }
-                
+
                 if unsupported.supported_platforms != "none" {
                     error_msg.push_str(&format!(
                         "Supported platforms: {}\n",
@@ -300,7 +300,7 @@ impl<'a> Executor<'a> {
                     ));
                 }
             }
-            
+
             return Err(anyhow::anyhow!(
                 "Platform compatibility error:\n{}",
                 error_msg.trim()

@@ -92,8 +92,15 @@ mod list_tests {
     async fn test_list_nonexistent_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let ctx = create_test_context();
-        let result =
-            list::handle(&registry, &ctx, Some("nonexistent-tool-xyz"), false, false, false).await;
+        let result = list::handle(
+            &registry,
+            &ctx,
+            Some("nonexistent-tool-xyz"),
+            false,
+            false,
+            false,
+        )
+        .await;
         // Should either succeed with empty result or return an error
         // The important thing is it doesn't panic
         let _ = result;

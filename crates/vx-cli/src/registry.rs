@@ -280,7 +280,9 @@ fn build_plugin_loader() -> Option<PluginLoader> {
     let mut paths = Vec::new();
 
     if let Ok(vx_paths) = VxPaths::new() {
-        paths.extend(default_plugin_paths(std::slice::from_ref(&vx_paths.base_dir)));
+        paths.extend(default_plugin_paths(std::slice::from_ref(
+            &vx_paths.base_dir,
+        )));
     }
 
     if let Ok(cwd) = std::env::current_dir() {
@@ -343,14 +345,18 @@ pub fn get_runtime_platform_label(runtime_name: &str) -> Option<String> {
             if let Some(ref constraint) = manifest.provider.platform_constraint {
                 // Check if any runtime in this provider matches
                 for runtime in &manifest.runtimes {
-                    if runtime.name == runtime_name || runtime.aliases.contains(&runtime_name.to_string()) {
+                    if runtime.name == runtime_name
+                        || runtime.aliases.contains(&runtime_name.to_string())
+                    {
                         return constraint.short_label();
                     }
                 }
             }
             // Check runtime-level platform constraint
             for runtime in &manifest.runtimes {
-                if runtime.name == runtime_name || runtime.aliases.contains(&runtime_name.to_string()) {
+                if runtime.name == runtime_name
+                    || runtime.aliases.contains(&runtime_name.to_string())
+                {
                     if let Some(ref constraint) = runtime.platform_constraint {
                         return constraint.short_label();
                     }

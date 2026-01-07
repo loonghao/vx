@@ -89,8 +89,8 @@ pub use constraints::{
 pub use manifest_registry::{ManifestRegistry, RuntimeMetadata};
 
 // Re-export platform types from vx-manifest for convenience
-pub use vx_manifest::{PlatformConstraint, PlatformExclusion};
 pub use vx_manifest::{Arch as ManifestArch, Os as ManifestOs, Platform as ManifestPlatform};
+pub use vx_manifest::{PlatformConstraint, PlatformExclusion};
 
 // Plugin system
 pub use plugin::{default_plugin_paths, PluginLoader, ProviderLoader, ProviderPlugin};

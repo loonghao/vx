@@ -52,10 +52,7 @@ async fn list_system_tools(registry: &ProviderRegistry, show_all: bool) -> Resul
     let current_platform = Platform::current();
     let discovery = discover_system_tools(registry);
 
-    UI::info(&format!(
-        "🔧 System Tools ({})",
-        current_platform.as_str()
-    ));
+    UI::info(&format!("🔧 System Tools ({})", current_platform.as_str()));
     println!();
 
     // Group available tools by category
@@ -116,7 +113,10 @@ async fn list_system_tools(registry: &ProviderRegistry, show_all: bool) -> Resul
                 .as_ref()
                 .map(|p| format!(" ({} only)", p))
                 .unwrap_or_default();
-            println!("    ❌ {} - {}{}", tool.name, tool.description, platform_str);
+            println!(
+                "    ❌ {} - {}{}",
+                tool.name, tool.description, platform_str
+            );
         }
     }
 
@@ -399,7 +399,9 @@ async fn list_all_tools(
                 }
             } else if show_all {
                 // Show platform label for all tools when --all is used
-                platform_label.map(|l| format!(" [{}]", l)).unwrap_or_default()
+                platform_label
+                    .map(|l| format!(" [{}]", l))
+                    .unwrap_or_default()
             } else {
                 String::new()
             };

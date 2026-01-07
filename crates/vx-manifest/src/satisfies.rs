@@ -335,7 +335,10 @@ impl VersionRequest {
                 // ~1.2.3 means >=1.2.3, <1.3.0
                 v >= *target && v.major == target.major && v.minor == target.minor
             }
-            VersionConstraint::CompatibleRelease { version: target, parts } => {
+            VersionConstraint::CompatibleRelease {
+                version: target,
+                parts,
+            } => {
                 // ~=1.4 (2 parts) means >=1.4.0, <2.0.0 (compatible with major)
                 // ~=1.4.0 (3 parts) means >=1.4.0, <1.5.0 (compatible with minor)
                 if v < *target {

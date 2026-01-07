@@ -254,12 +254,16 @@ impl RuntimeMetadata {
 
     /// Get a human-readable platform description
     pub fn platform_description(&self) -> Option<String> {
-        self.platform_constraint.as_ref().and_then(|c| c.description())
+        self.platform_constraint
+            .as_ref()
+            .and_then(|c| c.description())
     }
 
     /// Get a short platform label for display
     pub fn platform_label(&self) -> Option<String> {
-        self.platform_constraint.as_ref().and_then(|c| c.short_label())
+        self.platform_constraint
+            .as_ref()
+            .and_then(|c| c.short_label())
     }
 }
 

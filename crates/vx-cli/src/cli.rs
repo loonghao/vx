@@ -1294,9 +1294,7 @@ impl CommandHandler for Commands {
 
             Commands::Check { verbose } => commands::lock::handle_check(*verbose).await,
 
-            Commands::Info { json } => {
-                commands::capabilities::handle(ctx.registry(), *json).await
-            }
+            Commands::Info { json } => commands::capabilities::handle(ctx.registry(), *json).await,
         }
     }
 }
