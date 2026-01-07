@@ -1152,9 +1152,12 @@ impl CommandHandler for Commands {
 
             Commands::Remove { tool } => commands::setup::remove_tool(tool).await,
 
-            Commands::Run { script, list, script_help, args } => {
-                commands::run::handle(script.as_deref(), *list, *script_help, args).await
-            }
+            Commands::Run {
+                script,
+                list,
+                script_help,
+                args,
+            } => commands::run::handle(script.as_deref(), *list, *script_help, args).await,
 
             Commands::Services { command } => match command {
                 ServicesCommand::Start {

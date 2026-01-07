@@ -31,8 +31,14 @@ use vx_paths::find_vx_config;
 /// 5. Interpolates variables in the script command
 /// 6. Builds the environment with vx-managed tools in PATH
 /// 7. Executes the script
-pub async fn handle(script_name: Option<&str>, list: bool, script_help: bool, args: &[String]) -> Result<()> {
+pub async fn handle(
+    script_name: Option<&str>,
+    list: bool,
+    script_help: bool,
+    args: &[String],
+) -> Result<()> {
     let current_dir = std::env::current_dir()?;
+
 
     // Find vx.toml (search current and parent directories)
     let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
@@ -108,8 +114,9 @@ pub async fn handle(script_name: Option<&str>, list: bool, script_help: bool, ar
     }
     var_source.insert("@".to_string(), script_args.join(" "));
     var_source.insert("#".to_string(), script_args.len().to_string());
-    
+
     // Add passthrough arguments as {{args}} variable (after --)
+
     // If no -- separator, use all args as passthrough for backward compatibility
     let effective_passthrough = if args.contains(&"--".to_string()) {
         passthrough_args
@@ -247,7 +254,11 @@ fn print_script_help(script_name: &str, config: &ConfigView) -> Result<()> {
         println!("Script: {}", script_name);
         println!("Command: {}", script_cmd);
         println!();
-        println!("Usage: vx run {} [script-args...] [-- passthrough-args...]", script_name);
+        println!(
+            "Usage: vx run {} [script-args...] [-- passthrough-args...]",
+            script_name
+        );
+
         println!();
         println!("Arguments:");
         println!("  script-args       Arguments for script interpolation");
