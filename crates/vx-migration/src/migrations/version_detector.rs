@@ -70,17 +70,19 @@ impl VersionDetector for VxVersionDetector {
                 if let Some(version) = self.detect_from_content(&content) {
                     return Ok(Some(version));
                 }
+                // If vx.toml exists but no version detected, assume v1
+                return Ok(Some(Version::new(1, 0, 0)));
             }
         }
 
-        // Check for vx.toml (old format)
-        let dot_vx_toml = path.join("vx.toml");
+        // Check for .vx.toml (old format)
+        let dot_vx_toml = path.join(".vx.toml");
         if dot_vx_toml.exists() {
             if let Ok(content) = tokio::fs::read_to_string(&dot_vx_toml).await {
                 if let Some(version) = self.detect_from_content(&content) {
                     return Ok(Some(version));
                 }
-                // If vx.toml exists but no version detected, assume v1
+                // If .vx.toml exists but no version detected, assume v1
                 return Ok(Some(Version::new(1, 0, 0)));
             }
         }
@@ -97,6 +99,23 @@ impl VersionDetector for VxVersionDetector {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    #[test]
+    fn test_detect_from_content_v2() {
+        let detector = VxVersionDetector::new();
+        let config = r#"
+[runtimes]
+node = "18.0.0"
+"#;
+        // Debug: test TOML parsing
+        let parsed: Result<toml::Value, _> = config.parse();
+        assert!(parsed.is_ok(), "TOML should parse: {:?}", parsed.err());
+        let value = parsed.unwrap();
+        assert!(value.get("runtimes").is_some(), "Should have runtimes key");
+        
+        let version = detector.detect_from_content(config);
+        assert_eq!(version, Some(Version::new(2, 0, 0)));
+    }
 
     #[tokio::test]
     async fn test_detect_v1_format() {

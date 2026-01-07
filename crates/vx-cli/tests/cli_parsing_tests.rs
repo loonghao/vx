@@ -86,7 +86,7 @@ fn test_cli_list_command() {
             installed,
             available,
             all,
-            system: _,
+            system,
         }) => {
             assert!(tool.is_none());
             assert!(!status);

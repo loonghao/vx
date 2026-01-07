@@ -63,7 +63,7 @@ pub use impls::{
 pub use package_runtime::{InstallMethod, PackageRuntime};
 pub use platform::{compare_semver, Arch, Os, Platform};
 pub use provider::Provider;
-pub use registry::ProviderRegistry;
+pub use registry::{PlatformError, ProviderRegistry};
 pub use runtime::{Runtime, VerificationResult};
 pub use traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProvider};
 pub use types::{ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec, VersionInfo};

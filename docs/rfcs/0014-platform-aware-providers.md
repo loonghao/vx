@@ -1,6 +1,6 @@
 # RFC 0014: Platform-Aware Provider System
 
-> **状态**: ✅ Phase 1 完成
+> **状态**: ✅ 已完成 (Phase 1/2)
 > **作者**: vx team
 > **创建日期**: 2026-01-07
 > **目标版本**: v0.10.0
@@ -17,12 +17,21 @@
 - [x] 为 msvc、choco、rcedit 等 Provider 添加平台约束
 - [x] 添加单元测试和集成测试
 
-### 📝 Phase 2: 高级功能 (待实施)
+### ✅ Phase 2: 高级功能 (已完成)
 
-- [ ] 支持架构约束 (`arch = ["x86_64", "aarch64"]`)
-- [ ] 支持排除模式 (`exclude`)
-- [ ] 条件编译优化 (`#[cfg(target_os = "...")]`)
-- [ ] 动态 Provider 加载时的平台过滤
+- [x] 支持架构约束 (`arch = ["x86_64", "aarch64"]`)
+- [x] 支持排除模式 (`exclude`)
+- [x] 为 `ProviderRegistry` 添加平台感知方法：
+  - `supported_runtimes()` - 获取当前平台支持的运行时
+  - `supported_runtimes_for(&Platform)` - 获取指定平台支持的运行时
+  - `get_runtime_checked(&str)` - 带平台检查的运行时获取
+  - `runtimes_by_platform_support()` - 按平台支持状态分组
+- [x] 为 `Provider` trait 添加 `is_platform_supported(&Platform)` 方法
+- [x] 添加 `PlatformError` 错误类型用于平台不兼容错误
+- [x] 为 Spack Provider 添加平台约束（仅 Linux/macOS）
+- [x] 在 `vx info` 命令中显示平台不兼容的工具
+- [ ] 条件编译优化 (`#[cfg(target_os = "...")]`) - 可选，暂不实施
+- [ ] 动态 Provider 加载时的平台过滤 - 可选，暂不实施
 
 ## 摘要
 
