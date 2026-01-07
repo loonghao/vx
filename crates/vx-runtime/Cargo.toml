@@ -40,7 +40,7 @@ glob = { workspace = true }
 indicatif = { workspace = true }
 
 # Dynamic library loading
-libloading = "0.8"
+libloading = "0.9"
 
 # Internal dependencies
 vx-core = { path = "../vx-core" }
