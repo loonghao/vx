@@ -4,6 +4,8 @@
 
 **One command to rule them all — Zero setup, Zero learning curve**
 
+*Built for the AI-native era: Unix Philosophy meets Scriptability*
+
 [中文文档](README_zh.md) | [📖 Documentation](https://docs.rs/vx) | [🚀 Quick Start](#-quick-start) | [💡 Examples](#-real-world-examples)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -15,6 +17,38 @@
 [![GitHub downloads](https://img.shields.io/github/downloads/loonghao/vx/total.svg)](https://github.com/loonghao/vx/releases)
 
 </div>
+
+---
+
+## 🤖 Built for AI-Native Development
+
+> *"Claude Code is designed as a low-level, unopinionated tool... creating a flexible, customizable, scriptable, and safe power tool."*
+> — [Anthropic Engineering: Claude Code Best Practices](https://www.anthropic.com/engineering/claude-code-best-practices)
+
+vx follows the same **Unix Philosophy** and **Scriptability** principles that Anthropic recommends for AI-native development tools:
+
+| Principle | How vx Implements It |
+|-----------|---------------------|
+| **Unix Philosophy** | One tool, one job — `vx` manages all runtimes transparently |
+| **Scriptability** | Full bash integration, CI/CD ready, headless mode support |
+| **Composability** | Works with any AI coding assistant (Claude Code, Cursor, Copilot) |
+| **Zero Configuration** | AI agents can use any tool without environment setup |
+
+### Why This Matters for AI Coding Assistants
+
+When AI agents like Claude Code need to execute commands across different ecosystems:
+
+```bash
+# Without vx: AI must handle complex environment setup
+# "First install Node.js, then configure npm, set PATH..."
+
+# With vx: AI just runs commands directly
+vx npx create-react-app my-app  # Works immediately
+vx uvx ruff check .             # Works immediately  
+vx cargo build --release        # Works immediately
+```
+
+**vx enables AI to have full-stack development capabilities without worrying about environment management and dependencies.**
 
 ---
 

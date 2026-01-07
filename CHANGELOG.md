@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated run command reference with new features
   - Added Chinese translations for all new documentation
   - Updated README with enhanced script system overview
+* **docs:** add AI-native development philosophy to README and docs
+  - Reference Anthropic's Claude Code Best Practices for Unix Philosophy and Scriptability
+  - Highlight how vx enables AI coding assistants with full-stack capabilities
+  - Add bilingual (English/Chinese) documentation for AI-native features
 
 ## [0.6.9](https://github.com/loonghao/vx/compare/vx-v0.6.8...vx-v0.6.9) (2026-01-06)
 

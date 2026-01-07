@@ -4,6 +4,8 @@
 
 **一个命令统治所有工具 — 零设置，零学习成本**
 
+*为 AI 原生时代而生：Unix 哲学与可脚本化的完美结合*
+
 [English](README.md) | [📖 文档](https://docs.rs/vx) | [🚀 快速开始](#-快速开始) | [💡 示例](#-实际示例)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -15,6 +17,38 @@
 [![GitHub downloads](https://img.shields.io/github/downloads/loonghao/vx/total.svg)](https://github.com/loonghao/vx/releases)
 
 </div>
+
+---
+
+## 🤖 为 AI 原生开发而生
+
+> *"Claude Code 被设计为低层级且不强制特定工作流的工具……创建一个灵活、可定制、可脚本化且安全的强力工具。"*
+> — [Anthropic 工程博客：Claude Code 最佳实践](https://www.anthropic.com/engineering/claude-code-best-practices)
+
+vx 遵循 Anthropic 为 AI 原生开发工具推荐的 **Unix 哲学** 和 **可脚本化（Scriptability）** 原则：
+
+| 原则 | vx 如何实现 |
+|------|------------|
+| **Unix 哲学** | 一个工具，一个职责 — `vx` 透明管理所有运行时 |
+| **可脚本化** | 完整的 bash 集成，CI/CD 就绪，支持无头模式 |
+| **可组合性** | 与任何 AI 编码助手协作（Claude Code、Cursor、Copilot） |
+| **零配置** | AI 代理可以直接使用任何工具，无需环境设置 |
+
+### 为什么这对 AI 编码助手很重要
+
+当 Claude Code 等 AI 代理需要跨不同生态系统执行命令时：
+
+```bash
+# 没有 vx：AI 必须处理复杂的环境设置
+# "首先安装 Node.js，然后配置 npm，设置 PATH..."
+
+# 有了 vx：AI 直接运行命令
+vx npx create-react-app my-app  # 立即可用
+vx uvx ruff check .             # 立即可用
+vx cargo build --release        # 立即可用
+```
+
+**vx 让 AI 具备完整的全栈开发能力，无需为环境管理和依赖发愁。**
 
 ---
 

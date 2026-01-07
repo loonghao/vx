@@ -2,6 +2,33 @@
 
 **vx** is a universal development tool manager that eliminates the complexity of managing multiple development runtimes. Instead of learning and configuring separate tools for Node.js, Python, Go, Rust, and more, you simply prefix your commands with `vx` and everything just works.
 
+## 🤖 Built for AI-Native Development
+
+> *"Claude Code is designed as a low-level, unopinionated tool... creating a flexible, customizable, scriptable, and safe power tool."*
+> — [Anthropic Engineering: Claude Code Best Practices](https://www.anthropic.com/engineering/claude-code-best-practices)
+
+vx follows the same **Unix Philosophy** and **Scriptability** principles that Anthropic recommends for AI-native development tools:
+
+| Principle | How vx Implements It |
+|-----------|---------------------|
+| **Unix Philosophy** | One tool, one job — `vx` manages all runtimes transparently |
+| **Scriptability** | Full bash integration, CI/CD ready, headless mode support |
+| **Composability** | Works with any AI coding assistant (Claude Code, Cursor, Copilot) |
+| **Zero Configuration** | AI agents can use any tool without environment setup |
+
+### Why This Matters for AI Coding Assistants
+
+When AI agents like Claude Code need to execute commands across different ecosystems, they often face environment setup challenges. vx solves this by providing a unified interface:
+
+```bash
+# AI agents can run any command without worrying about environment
+vx npx create-react-app my-app  # Works immediately
+vx uvx ruff check .             # Works immediately
+vx cargo build --release        # Works immediately
+```
+
+**vx enables AI to have full-stack development capabilities without worrying about environment management and dependencies.**
+
 ## Why vx?
 
 ### The Traditional Way
