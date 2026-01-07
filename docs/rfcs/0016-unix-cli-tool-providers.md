@@ -930,42 +930,67 @@ Tools:
 
 ## 实现计划
 
-### Phase 1: 核心文本工具 (v0.3.0)
+### Phase 1: AI 必备工具 (v0.3.0)
 
-- [ ] jq Provider (JSON 处理)
-- [ ] yq Provider (YAML 处理)  
-- [ ] ripgrep Provider (grep 替代)
-- [ ] sd Provider (sed 替代)
-- [ ] fd Provider (find 替代)
+填补 Claude Code 内置工具无法覆盖的场景:
 
-### Phase 2: 扩展工具 (v0.3.1)
+- [ ] **jq** Provider (JSON 处理) - 无内置替代
+- [ ] **yq** Provider (YAML 处理) - 配置文件处理必备
+- [ ] **ripgrep (rg)** Provider - 比内置 Grep 更强大
+- [ ] **fd** Provider - 比内置 Glob 更灵活
+- [ ] **git** Provider - 开发工作流核心 (如未作为系统工具)
 
-- [ ] bat Provider (cat 替代)
-- [ ] eza Provider (ls 替代)
-- [ ] dust Provider (du 替代)
-- [ ] delta Provider (diff 替代)
-- [ ] fzf Provider
+### Phase 2: 高频开发工具 (v0.3.1)
 
-### Phase 3: 媒体工具 (v0.4.0)
+提升开发体验的工具:
 
-- [ ] ffmpeg Provider (包含 ffprobe, ffplay)
-- [ ] imagemagick Provider
-- [ ] yt-dlp Provider
-- [ ] pandoc Provider
+- [ ] **bat** Provider (语法高亮查看)
+- [ ] **delta** Provider (Git diff 美化)
+- [ ] **sd** Provider (直观的 sed 替代)
+- [ ] **xh** Provider (现代 HTTP 客户端)
+- [ ] **hyperfine** Provider (性能测试)
+- [ ] **fzf** Provider (模糊查找)
 
-### Phase 4: 经典工具支持 (v0.4.1)
+### Phase 3: 专业工具 (v0.4.0)
 
-- [ ] GNU grep Provider
-- [ ] GNU sed Provider
-- [ ] GNU awk Provider
-- [ ] GNU coreutils Provider (打包)
+用户请求时使用的专业工具:
 
-### Phase 5: 工具包 (v0.5.0)
+- [ ] **ffmpeg** Provider (包含 ffprobe, ffplay)
+- [ ] **imagemagick** Provider (convert, identify)
+- [ ] **pandoc** Provider (万能文档转换)
+- [ ] **sqlite3** Provider (嵌入式数据库)
+- [ ] **yt-dlp** Provider (视频下载)
+
+### Phase 4: 现代替代品 (v0.4.1)
+
+完整的 modern-unix 工具链:
+
+- [ ] **eza** Provider (ls 替代)
+- [ ] **dust** Provider (du 替代)
+- [ ] **duf** Provider (df 替代)
+- [ ] **procs** Provider (ps 替代)
+- [ ] **btm** Provider (top 替代)
+- [ ] **zoxide** Provider (cd 增强)
+- [ ] **choose** Provider (cut/awk 替代)
+
+### Phase 5: Bundle 系统 (v0.5.0)
+
+批量安装功能:
 
 - [ ] Bundle 系统实现
-- [ ] modern-unix bundle
-- [ ] data-processing bundle
-- [ ] media-toolkit bundle
+- [ ] **modern-unix** bundle (12 工具)
+- [ ] **data-processing** bundle (7 工具)
+- [ ] **media-toolkit** bundle (6 工具)
+- [ ] **devops-essentials** bundle (7 工具)
+
+### Phase 6: 经典 GNU 工具 (v0.5.1)
+
+兼容现有脚本的经典工具:
+
+- [ ] GNU grep Provider
+- [ ] GNU sed Provider  
+- [ ] GNU awk Provider
+- [ ] GNU coreutils Provider (打包)
 
 ---
 

@@ -121,7 +121,7 @@ impl fmt::Display for Arch {
 }
 
 /// Platform exclusion rule
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PlatformExclusion {
     /// Operating system to exclude
     #[serde(default)]
@@ -148,7 +148,7 @@ pub struct PlatformExclusion {
 /// arch = ["x86_64", "aarch64"]
 /// exclude = [{ os = "linux", arch = "x86" }]
 /// ```
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PlatformConstraint {
     /// Supported operating systems (empty = all)
     #[serde(default)]
