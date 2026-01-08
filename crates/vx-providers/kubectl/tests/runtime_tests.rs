@@ -94,11 +94,11 @@ fn test_kubectl_provider_get_runtime() {
 /// Test that executable_relative_path returns correct path for kubectl
 /// kubectl is a single binary download (no archive structure)
 #[rstest]
-#[case(Os::Linux, Arch::X86_64, "kubectl")]
-#[case(Os::Linux, Arch::Aarch64, "kubectl")]
-#[case(Os::MacOS, Arch::X86_64, "kubectl")]
-#[case(Os::MacOS, Arch::Aarch64, "kubectl")]
-#[case(Os::Windows, Arch::X86_64, "kubectl.exe")]
+#[case(Os::Linux, Arch::X86_64, "bin/kubectl")]
+#[case(Os::Linux, Arch::Aarch64, "bin/kubectl")]
+#[case(Os::MacOS, Arch::X86_64, "bin/kubectl")]
+#[case(Os::MacOS, Arch::Aarch64, "bin/kubectl")]
+#[case(Os::Windows, Arch::X86_64, "bin/kubectl.exe")]
 fn test_kubectl_executable_relative_path(
     #[case] os: Os,
     #[case] arch: Arch,

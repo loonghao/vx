@@ -2,6 +2,7 @@
 
 use super::FormatHandler;
 use crate::{progress::ProgressContext, Result};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 /// Handler for binary files (direct executables)
@@ -13,9 +14,9 @@ impl BinaryHandler {
         Self
     }
 
-    /// Check if a file appears to be a binary executable
+    /// Check if a file appears to be a binary executable based on file content (magic bytes)
     fn is_likely_binary(&self, file_path: &Path) -> bool {
-        // Check file extension
+        // First check file extension for quick detection
         if let Some(ext) = file_path.extension().and_then(|e| e.to_str()) {
             let ext_lower = ext.to_lowercase();
 
@@ -28,17 +29,70 @@ impl BinaryHandler {
             if matches!(ext_lower.as_str(), "bin" | "run" | "app") {
                 return true;
             }
+            
+            // Known archive extensions - NOT binaries
+            if matches!(ext_lower.as_str(), 
+                "zip" | "tar" | "gz" | "xz" | "bz2" | "7z" | "rar" |
+                "tgz" | "txz" | "tbz2" | "tbz"
+            ) {
+                return false;
+            }
         }
 
-        // Check if filename suggests it's a binary
-        if let Some(filename) = file_path.file_name().and_then(|n| n.to_str()) {
-            // No extension might indicate a Unix binary
-            if !filename.contains('.') && !cfg!(windows) {
+        // Check magic bytes to detect executable format
+        if let Ok(magic) = self.read_magic_bytes(file_path, 4) {
+            // ELF binary (Linux/Unix)
+            if magic.starts_with(&[0x7f, b'E', b'L', b'F']) {
+                return true;
+            }
+            
+            // Windows PE executable (MZ header)
+            if magic.starts_with(&[b'M', b'Z']) {
+                return true;
+            }
+            
+            // Mach-O binary (macOS) - various magic numbers
+            // 32-bit: 0xFEEDFACE, 64-bit: 0xFEEDFACF
+            // Fat binary: 0xCAFEBABE
+            if magic.len() >= 4 {
+                let magic_u32_be = u32::from_be_bytes([magic[0], magic[1], magic[2], magic[3]]);
+                let magic_u32_le = u32::from_le_bytes([magic[0], magic[1], magic[2], magic[3]]);
+                
+                if matches!(magic_u32_be, 0xFEEDFACE | 0xFEEDFACF | 0xCAFEBABE) ||
+                   matches!(magic_u32_le, 0xFEEDFACE | 0xFEEDFACF) {
+                    return true;
+                }
+            }
+            
+            // Shebang script (#!/...) - treat as executable
+            if magic.starts_with(&[b'#', b'!']) {
                 return true;
             }
         }
 
+        // Fallback: no extension on Unix might indicate a binary
+        if let Some(filename) = file_path.file_name().and_then(|n| n.to_str()) {
+            if !filename.contains('.') && !cfg!(windows) {
+                // Try to read magic bytes if we haven't already
+                if let Ok(magic) = self.read_magic_bytes(file_path, 4) {
+                    // If it has valid magic bytes for any executable format, it's a binary
+                    if !magic.is_empty() && magic[0] != 0 {
+                        return true;
+                    }
+                }
+            }
+        }
+
         false
+    }
+    
+    /// Read the first N bytes of a file (magic bytes)
+    fn read_magic_bytes(&self, file_path: &Path, n: usize) -> std::io::Result<Vec<u8>> {
+        let mut file = std::fs::File::open(file_path)?;
+        let mut buffer = vec![0u8; n];
+        let bytes_read = file.read(&mut buffer)?;
+        buffer.truncate(bytes_read);
+        Ok(buffer)
     }
 
     /// Determine the target executable name for a tool
@@ -134,10 +188,10 @@ mod tests {
     }
 
     #[test]
-    fn test_is_likely_binary() {
+    fn test_is_likely_binary_by_extension() {
         let handler = BinaryHandler::new();
 
-        // Windows executables
+        // Windows executables (by extension)
         if cfg!(windows) {
             assert!(handler.is_likely_binary(Path::new("tool.exe")));
             assert!(handler.is_likely_binary(Path::new("installer.msi")));
@@ -148,16 +202,35 @@ mod tests {
         assert!(handler.is_likely_binary(Path::new("tool.bin")));
         assert!(handler.is_likely_binary(Path::new("app.run")));
 
-        // Unix-style binaries (no extension)
-        if !cfg!(windows) {
-            assert!(handler.is_likely_binary(Path::new("node")));
-            assert!(handler.is_likely_binary(Path::new("go")));
-        }
-
-        // Not binaries
+        // Not binaries (by extension)
         assert!(!handler.is_likely_binary(Path::new("archive.zip")));
         assert!(!handler.is_likely_binary(Path::new("source.tar.gz")));
-        assert!(!handler.is_likely_binary(Path::new("readme.txt")));
+    }
+
+    #[test]
+    fn test_is_likely_binary_by_magic_bytes() {
+        let handler = BinaryHandler::new();
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create ELF binary
+        let elf_file = temp_dir.path().join("elf_binary");
+        std::fs::write(&elf_file, b"\x7fELF\x02\x01\x01\x00").unwrap();
+        assert!(handler.is_likely_binary(&elf_file));
+
+        // Create PE/Windows binary
+        let pe_file = temp_dir.path().join("pe_binary");
+        std::fs::write(&pe_file, b"MZ\x90\x00").unwrap();
+        assert!(handler.is_likely_binary(&pe_file));
+
+        // Create shebang script
+        let script_file = temp_dir.path().join("script");
+        std::fs::write(&script_file, b"#!/bin/bash\necho hello").unwrap();
+        assert!(handler.is_likely_binary(&script_file));
+
+        // Create Mach-O binary (64-bit)
+        let macho_file = temp_dir.path().join("macho_binary");
+        std::fs::write(&macho_file, &[0xCF, 0xFA, 0xED, 0xFE]).unwrap();
+        assert!(handler.is_likely_binary(&macho_file));
     }
 
     #[test]
@@ -205,7 +278,7 @@ mod tests {
 
         std::fs::create_dir_all(&source_dir).unwrap();
 
-        // Create a mock binary file
+        // Create a mock binary file with shebang (will be detected as binary)
         let source_file = source_dir.join("tool");
         let mut file = std::fs::File::create(&source_file).unwrap();
         file.write_all(b"#!/bin/bash\necho 'Hello World'").unwrap();

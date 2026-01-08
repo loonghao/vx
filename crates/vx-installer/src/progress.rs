@@ -266,4 +266,12 @@ impl ProgressContext {
         }
         Ok(())
     }
+
+    /// Finish progress with error
+    pub async fn error(&self, message: &str) -> Result<()> {
+        if self.enabled {
+            self.reporter.finish_with_error(message).await;
+        }
+        Ok(())
+    }
 }

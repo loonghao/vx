@@ -4,7 +4,7 @@
 version = 1
 
 [metadata]
-generated_at = "2026-01-04T18:32:53Z"
+generated_at = "2026-01-08T07:51:29Z"
 vx_version = "0.6.6"
 platform = "x86_64-pc-windows-msvc"
 
@@ -13,3 +13,9 @@ version = "0.9.21"
 source = "vx install"
 resolved_from = "0.9.21"
 ecosystem = "Python"
+
+[tools.bun]
+version = "1.3.5"
+source = "vx install"
+resolved_from = "1.3.5"
+ecosystem = "Node"
