@@ -17,33 +17,34 @@ impl VxVersionDetector {
 
     /// Detect version from config content
     fn detect_from_content(&self, content: &str) -> Option<Version> {
-        // Try to parse as TOML and look for version field
-        if let Ok(value) = content.parse::<toml::Value>() {
-            // Check for explicit version field
-            if let Some(version) = value.get("version").and_then(|v| v.as_str()) {
+        // `toml::Value` parsing behavior differs across toml crate versions.
+        // Parse as a full TOML document first, then inspect keys.
+        let doc: toml::Table = toml::from_str(content).ok()?;
+
+        // Check for explicit version field
+        if let Some(version) = doc.get("version").and_then(|v| v.as_str()) {
+            if let Ok(v) = version.parse() {
+                return Some(v);
+            }
+        }
+
+        // Check for vx section with version
+        if let Some(vx) = doc.get("vx").and_then(|v| v.as_table()) {
+            if let Some(version) = vx.get("version").and_then(|v| v.as_str()) {
                 if let Ok(v) = version.parse() {
                     return Some(v);
                 }
             }
+        }
 
-            // Check for vx section with version
-            if let Some(vx) = value.get("vx").and_then(|v| v.as_table()) {
-                if let Some(version) = vx.get("version").and_then(|v| v.as_str()) {
-                    if let Ok(v) = version.parse() {
-                        return Some(v);
-                    }
-                }
-            }
+        // Detect v1 format (has [tools] section)
+        if doc.contains_key("tools") {
+            return Some(Version::new(1, 0, 0));
+        }
 
-            // Detect v1 format (has [tools] section)
-            if value.get("tools").is_some() {
-                return Some(Version::new(1, 0, 0));
-            }
-
-            // Detect v2 format (has [runtimes] section)
-            if value.get("runtimes").is_some() {
-                return Some(Version::new(2, 0, 0));
-            }
+        // Detect v2 format (has [runtimes] section)
+        if doc.contains_key("runtimes") {
+            return Some(Version::new(2, 0, 0));
         }
 
         None
@@ -108,7 +109,7 @@ mod tests {
 node = "18.0.0"
 "#;
         // Debug: test TOML parsing
-        let parsed: Result<toml::Value, _> = config.parse();
+        let parsed: Result<toml::Table, _> = toml::from_str(config);
         assert!(parsed.is_ok(), "TOML should parse: {:?}", parsed.err());
         let value = parsed.unwrap();
         assert!(value.get("runtimes").is_some(), "Should have runtimes key");
