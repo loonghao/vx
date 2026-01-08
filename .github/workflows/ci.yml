@@ -459,10 +459,8 @@ jobs:
       - name: Run Clippy (via vx)
         run: vx run clippy
 
-      - name: Check documentation
-        run: cargo doc --all-features --no-deps --document-private-items
-        env:
-          RUSTDOCFLAGS: "-D warnings"
+      - name: Check documentation (via vx)
+        run: vx run ci-docs
 
   # ============================================================================
   # Stage 3: Targeted tests (only test affected crates)
@@ -531,14 +529,14 @@ jobs:
           shared-key: test
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Run targeted tests
+      - name: Run targeted tests (via vx)
         shell: bash
         run: |
           echo "Testing affected crates: ${{ needs.detect-changes.outputs.affected_crates }}"
           echo "Test packages: ${{ needs.detect-changes.outputs.test_packages }}"
 
-          # Run tests for affected packages only
-          cargo test ${{ needs.detect-changes.outputs.test_packages }}
+          # Run tests for affected packages only (delegated to vx for local/CI parity)
+          vx run test-pkgs -- ${{ needs.detect-changes.outputs.test_packages }}
         env:
           CARGO_TARGET_DIR: target
           VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}

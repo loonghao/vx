@@ -242,6 +242,13 @@ impl HttpClient for RealHttpClient {
     async fn get_json_value(&self, url: &str) -> Result<serde_json::Value> {
         let mut request = self.client.get(url);
 
+        // GitHub API is picky about headers; also helps some proxies behave.
+        if url.contains("api.github.com") {
+            request = request
+                .header("Accept", "application/vnd.github+json")
+                .header("X-GitHub-Api-Version", "2022-11-28");
+        }
+
         // Add GitHub token for GitHub API requests
         if url.contains("api.github.com") || url.contains("github.com") {
             if let Some(token) = get_github_token() {
@@ -251,6 +258,12 @@ impl HttpClient for RealHttpClient {
 
         let response = request.send().await?;
         let status = response.status();
+        let content_type = response
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string();
 
         // Check for rate limit errors
         if status == reqwest::StatusCode::FORBIDDEN
@@ -317,8 +330,39 @@ impl HttpClient for RealHttpClient {
             return Err(anyhow::anyhow!("{}", error_msg));
         }
 
-        let json = response.json().await?;
-        Ok(json)
+        // Be tolerant to broken/missing Content-Type headers (some proxies misbehave).
+        // `reqwest::Response::json()` rejects non-JSON content-types; we parse from bytes instead.
+        let bytes = response.bytes().await?;
+        match serde_json::from_slice::<serde_json::Value>(&bytes) {
+            Ok(json) => Ok(json),
+            Err(e) => {
+                let body = String::from_utf8_lossy(&bytes);
+                let preview = if body.len() > 200 {
+                    format!("{}...", &body[..200])
+                } else {
+                    body.to_string()
+                };
+
+                if preview.trim_start().starts_with('<') {
+                    Err(anyhow::anyhow!(
+                        "Expected JSON but got HTML (content-type: '{}') from {}.\n\n\
+                        This usually means your network/proxy replaced the GitHub API response.\n\
+                        Try configuring HTTPS_PROXY / HTTP_PROXY, or set a working proxy/VPN.",
+                        content_type,
+                        url
+                    ))
+                } else {
+                    Err(anyhow::anyhow!(
+                        "Failed to parse JSON from {} (content-type: '{}'): {}\n\n\
+                        Body preview: {}",
+                        url,
+                        content_type,
+                        e,
+                        preview
+                    ))
+                }
+            }
+        }
     }
 
     async fn download(&self, url: &str, dest: &Path) -> Result<()> {

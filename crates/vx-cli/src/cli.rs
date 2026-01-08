@@ -119,6 +119,9 @@ pub enum Commands {
         /// Show all tools including those not supported on current platform
         #[arg(long, short = 'a')]
         all: bool,
+        /// Show system tools (discovered from PATH and known locations)
+        #[arg(long)]
+        system: bool,
     },
 
     /// Install tool(s) - supports multiple tools at once
@@ -410,11 +413,20 @@ pub enum Commands {
     },
 
     /// Run a script defined in vx.toml
+    ///
+    /// Scripts are defined in vx.toml and can use {{args}} for passthrough arguments.
+    /// Use `vx run <script> --help` to see script-specific help.
     Run {
-        /// Script name
-        script: String,
+        /// Script name (use --list to see available scripts)
+        script: Option<String>,
+        /// List available scripts
+        #[arg(long, short = 'l')]
+        list: bool,
+        /// Show help for the run command or script-specific help
+        #[arg(long, short = 'H', action = clap::ArgAction::SetTrue)]
+        script_help: bool,
         /// Additional arguments to pass to the script
-        #[arg(trailing_var_arg = true)]
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
 
@@ -493,6 +505,13 @@ pub enum Commands {
         /// Show verbose output
         #[arg(short, long)]
         verbose: bool,
+    },
+
+    /// Show system information and capabilities
+    Info {
+        /// Output as JSON (recommended for AI)
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -862,6 +881,7 @@ impl CommandHandler for Commands {
             Commands::Migrate { .. } => "migrate",
             Commands::Lock { .. } => "lock",
             Commands::Check { .. } => "check",
+            Commands::Info { .. } => "info",
         }
     }
 
@@ -877,6 +897,7 @@ impl CommandHandler for Commands {
                 installed: _,
                 available: _,
                 all,
+                system,
             } => {
                 commands::list::handle(
                     ctx.registry(),
@@ -884,6 +905,7 @@ impl CommandHandler for Commands {
                     tool.as_deref(),
                     *status,
                     *all,
+                    *system,
                 )
                 .await
             }
@@ -1130,7 +1152,12 @@ impl CommandHandler for Commands {
 
             Commands::Remove { tool } => commands::setup::remove_tool(tool).await,
 
-            Commands::Run { script, args } => commands::run::handle(script, args).await,
+            Commands::Run {
+                script,
+                list,
+                script_help,
+                args,
+            } => commands::run::handle(script.as_deref(), *list, *script_help, args).await,
 
             Commands::Services { command } => match command {
                 ServicesCommand::Start {
@@ -1280,6 +1307,8 @@ impl CommandHandler for Commands {
             }
 
             Commands::Check { verbose } => commands::lock::handle_check(*verbose).await,
+
+            Commands::Info { json } => commands::capabilities::handle(ctx.registry(), *json).await,
         }
     }
 }

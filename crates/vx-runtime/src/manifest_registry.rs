@@ -31,7 +31,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
-use vx_manifest::{ManifestLoader, ProviderManifest};
+use vx_manifest::{ManifestLoader, PlatformConstraint, ProviderManifest};
 
 /// Manifest-driven provider registry
 ///
@@ -150,6 +150,12 @@ impl ManifestRegistry {
     pub fn get_runtime_metadata(&self, name: &str) -> Option<RuntimeMetadata> {
         let (manifest, runtime) = self.loader.find_runtime(name)?;
 
+        // Combine provider-level and runtime-level platform constraints
+        let platform_constraint = runtime
+            .platform_constraint
+            .clone()
+            .or_else(|| manifest.provider.platform_constraint.clone());
+
         Some(RuntimeMetadata {
             name: runtime.name.clone(),
             description: runtime.description.clone(),
@@ -157,7 +163,65 @@ impl ManifestRegistry {
             aliases: runtime.aliases.clone(),
             provider_name: manifest.provider.name.clone(),
             ecosystem: manifest.provider.ecosystem,
+            platform_constraint,
         })
+    }
+
+    /// Get all runtime metadata for runtimes supported on the current platform
+    pub fn get_supported_runtimes(&self) -> Vec<RuntimeMetadata> {
+        let mut result = Vec::new();
+
+        for manifest in self.loader.all() {
+            // Skip provider if not supported on current platform
+            if !manifest.is_current_platform_supported() {
+                continue;
+            }
+
+            for runtime in manifest.supported_runtimes() {
+                let platform_constraint = runtime
+                    .platform_constraint
+                    .clone()
+                    .or_else(|| manifest.provider.platform_constraint.clone());
+
+                result.push(RuntimeMetadata {
+                    name: runtime.name.clone(),
+                    description: runtime.description.clone(),
+                    executable: runtime.executable.clone(),
+                    aliases: runtime.aliases.clone(),
+                    provider_name: manifest.provider.name.clone(),
+                    ecosystem: manifest.provider.ecosystem,
+                    platform_constraint,
+                });
+            }
+        }
+
+        result
+    }
+
+    /// Get all runtime metadata (including unsupported platforms)
+    pub fn get_all_runtimes(&self) -> Vec<RuntimeMetadata> {
+        let mut result = Vec::new();
+
+        for manifest in self.loader.all() {
+            for runtime in &manifest.runtimes {
+                let platform_constraint = runtime
+                    .platform_constraint
+                    .clone()
+                    .or_else(|| manifest.provider.platform_constraint.clone());
+
+                result.push(RuntimeMetadata {
+                    name: runtime.name.clone(),
+                    description: runtime.description.clone(),
+                    executable: runtime.executable.clone(),
+                    aliases: runtime.aliases.clone(),
+                    provider_name: manifest.provider.name.clone(),
+                    ecosystem: manifest.provider.ecosystem,
+                    platform_constraint,
+                });
+            }
+        }
+
+        result
     }
 }
 
@@ -176,6 +240,31 @@ pub struct RuntimeMetadata {
     pub provider_name: String,
     /// Ecosystem
     pub ecosystem: Option<vx_manifest::Ecosystem>,
+    /// Platform constraint (from runtime or provider level)
+    pub platform_constraint: Option<PlatformConstraint>,
+}
+
+impl RuntimeMetadata {
+    /// Check if this runtime is supported on the current platform
+    pub fn is_current_platform_supported(&self) -> bool {
+        self.platform_constraint
+            .as_ref()
+            .is_none_or(|c| c.is_current_platform_supported())
+    }
+
+    /// Get a human-readable platform description
+    pub fn platform_description(&self) -> Option<String> {
+        self.platform_constraint
+            .as_ref()
+            .and_then(|c| c.description())
+    }
+
+    /// Get a short platform label for display
+    pub fn platform_label(&self) -> Option<String> {
+        self.platform_constraint
+            .as_ref()
+            .and_then(|c| c.short_label())
+    }
 }
 
 #[cfg(test)]

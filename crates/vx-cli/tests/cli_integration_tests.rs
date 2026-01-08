@@ -49,7 +49,7 @@ mod list_tests {
     async fn test_list_all_tools(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let ctx = create_test_context();
-        let result = list::handle(&registry, &ctx, None, false, false).await;
+        let result = list::handle(&registry, &ctx, None, false, false, false).await;
         assert!(result.is_ok(), "List command should succeed");
         cleanup_test_env();
     }
@@ -59,7 +59,7 @@ mod list_tests {
     async fn test_list_with_status(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let ctx = create_test_context();
-        let result = list::handle(&registry, &ctx, None, true, false).await;
+        let result = list::handle(&registry, &ctx, None, true, false, false).await;
         assert!(result.is_ok(), "List with status should succeed");
         cleanup_test_env();
     }
@@ -77,7 +77,7 @@ mod list_tests {
     ) {
         let registry = registry.await;
         let ctx = create_test_context();
-        let result = list::handle(&registry, &ctx, Some(tool_name), false, false).await;
+        let result = list::handle(&registry, &ctx, Some(tool_name), false, false, false).await;
         assert!(
             result.is_ok(),
             "List for {} should succeed: {:?}",
@@ -92,8 +92,15 @@ mod list_tests {
     async fn test_list_nonexistent_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let ctx = create_test_context();
-        let result =
-            list::handle(&registry, &ctx, Some("nonexistent-tool-xyz"), false, false).await;
+        let result = list::handle(
+            &registry,
+            &ctx,
+            Some("nonexistent-tool-xyz"),
+            false,
+            false,
+            false,
+        )
+        .await;
         // Should either succeed with empty result or return an error
         // The important thing is it doesn't panic
         let _ = result;

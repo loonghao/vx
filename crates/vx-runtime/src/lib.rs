@@ -63,7 +63,7 @@ pub use impls::{
 pub use package_runtime::{InstallMethod, PackageRuntime};
 pub use platform::{compare_semver, Arch, Os, Platform};
 pub use provider::Provider;
-pub use registry::ProviderRegistry;
+pub use registry::{PlatformError, ProviderRegistry};
 pub use runtime::{Runtime, VerificationResult};
 pub use traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProvider};
 pub use types::{ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec, VersionInfo};
@@ -87,6 +87,10 @@ pub use constraints::{
 
 // Manifest-driven registry
 pub use manifest_registry::{ManifestRegistry, RuntimeMetadata};
+
+// Re-export platform types from vx-manifest for convenience
+pub use vx_manifest::{Arch as ManifestArch, Os as ManifestOs, Platform as ManifestPlatform};
+pub use vx_manifest::{PlatformConstraint, PlatformExclusion};
 
 // Plugin system
 pub use plugin::{default_plugin_paths, PluginLoader, ProviderLoader, ProviderPlugin};

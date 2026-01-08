@@ -8,6 +8,10 @@ homepage = "https://chocolatey.org"
 repository = "https://github.com/chocolatey/choco"
 ecosystem = "system"
 
+# Chocolatey is Windows-only
+[provider.platforms]
+os = ["windows"]
+
 # Chocolatey
 [[runtimes]]
 name = "choco"
@@ -23,9 +27,3 @@ strip_v_prefix = true
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
-
-# Chocolatey is Windows-only
-[[runtimes.constraints]]
-when = "*"
-platforms = ["windows"]
-recommends = []

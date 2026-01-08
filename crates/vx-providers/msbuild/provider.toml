@@ -1,0 +1,89 @@
+# MSBuild Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for MSBuild.
+
+[provider]
+name = "msbuild"
+description = "Microsoft Build Engine"
+homepage = "https://docs.microsoft.com/en-us/visualstudio/msbuild"
+repository = "https://github.com/dotnet/msbuild"
+ecosystem = "system"
+
+# MSBuild is Windows-only
+[provider.platforms]
+os = ["windows"]
+
+# MSBuild - main build tool
+[[runtimes]]
+name = "msbuild"
+description = "Build .NET and C++ projects"
+executable = "MSBuild"
+aliases = ["msbuild.exe"]
+
+[runtimes.versions]
+source = "system"  # Detect from system installation
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+# MSBuild can be found in multiple locations depending on installation
+search_paths = [
+    # Visual Studio 2022
+    "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin",
+    "C:/Program Files/Microsoft Visual Studio/2022/Professional/MSBuild/Current/Bin",
+    "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin",
+    "C:/Program Files/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin",
+    # Visual Studio 2019
+    "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/MSBuild/Current/Bin",
+    "C:/Program Files (x86)/Microsoft Visual Studio/2019/Professional/MSBuild/Current/Bin",
+    "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin",
+    "C:/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/MSBuild/Current/Bin",
+    # .NET SDK
+    "C:/Program Files/dotnet/sdk",
+    # Legacy paths
+    "C:/Program Files (x86)/MSBuild/14.0/Bin",
+    "C:/Program Files (x86)/MSBuild/15.0/Bin"
+]
+
+# devenv - Visual Studio IDE
+[[runtimes]]
+name = "devenv"
+description = "Visual Studio IDE command line interface"
+executable = "devenv"
+aliases = ["devenv.exe"]
+
+[runtimes.versions]
+source = "system"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe", ".com"]
+search_paths = [
+    # Visual Studio 2022
+    "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE",
+    "C:/Program Files/Microsoft Visual Studio/2022/Professional/Common7/IDE",
+    "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE",
+    # Visual Studio 2019
+    "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/Common7/IDE",
+    "C:/Program Files (x86)/Microsoft Visual Studio/2019/Professional/Common7/IDE",
+    "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/Common7/IDE"
+]
+
+# dotnet - .NET CLI (often bundled)
+[[runtimes]]
+name = "dotnet"
+description = ".NET CLI"
+executable = "dotnet"
+aliases = ["dotnet.exe"]
+
+[runtimes.versions]
+source = "system"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+search_paths = [
+    "C:/Program Files/dotnet",
+    "C:/Program Files (x86)/dotnet"
+]
+
+# No external dependencies - MSBuild tools are self-contained
+[[runtimes.constraints]]
+when = "*"
+recommends = []

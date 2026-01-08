@@ -1,5 +1,7 @@
 //! List command implementation
 
+use crate::registry::get_runtime_platform_label;
+use crate::system_tools::{discover_system_tools, group_by_category};
 use crate::ui::UI;
 use anyhow::Result;
 use std::collections::HashSet;
@@ -19,11 +21,18 @@ pub async fn handle(
     tool: Option<&str>,
     show_status: bool,
     show_all: bool,
+    show_system: bool,
 ) -> Result<()> {
     // Create path manager and resolver
     let path_manager = PathManager::new()
         .map_err(|e| anyhow::anyhow!("Failed to initialize path manager: {}", e))?;
     let resolver = PathResolver::new(path_manager);
+
+    if show_system {
+        // Show system tools
+        list_system_tools(registry, show_all).await?;
+        return Ok(());
+    }
 
     match tool {
         Some(tool_name) => {
@@ -36,6 +45,118 @@ pub async fn handle(
         }
     }
     Ok(())
+}
+
+/// List system tools discovered from PATH and known locations
+async fn list_system_tools(registry: &ProviderRegistry, show_all: bool) -> Result<()> {
+    let current_platform = Platform::current();
+    let discovery = discover_system_tools(registry);
+
+    UI::info(&format!("🔧 System Tools ({})", current_platform.as_str()));
+    println!();
+
+    // Group available tools by category
+    let grouped = group_by_category(&discovery.available);
+
+    // Define category order
+    let category_order = [
+        "build",
+        "compiler",
+        "vcs",
+        "container",
+        "cloud",
+        "network",
+        "security",
+        "package",
+        "system",
+        "archive",
+        "filesystem",
+        "mlops",
+        "other",
+    ];
+
+    for category in category_order {
+        if let Some(tools) = grouped.get(category) {
+            if !tools.is_empty() {
+                println!("  {}:", capitalize_category(category));
+                for tool in tools {
+                    let path_str = tool
+                        .path
+                        .as_ref()
+                        .map(|p| format!(" @ {}", p.display()))
+                        .unwrap_or_default();
+                    let version_str = tool
+                        .version
+                        .as_ref()
+                        .map(|v| format!(" ({})", v))
+                        .unwrap_or_default();
+                    println!(
+                        "    ✅ {}{} - {}{}",
+                        tool.name, version_str, tool.description, path_str
+                    );
+                }
+            }
+        }
+    }
+
+    if discovery.available.is_empty() {
+        UI::hint("  No system tools discovered");
+    }
+
+    // Show unavailable tools if --all is specified
+    if show_all && !discovery.unavailable.is_empty() {
+        println!();
+        UI::info("⚠️  Unavailable on this platform:");
+        for tool in &discovery.unavailable {
+            let platform_str = tool
+                .platform
+                .as_ref()
+                .map(|p| format!(" ({} only)", p))
+                .unwrap_or_default();
+            println!(
+                "    ❌ {} - {}{}",
+                tool.name, tool.description, platform_str
+            );
+        }
+    }
+
+    // Summary
+    println!();
+    UI::info(&format!(
+        "📊 Summary: {} system tools available",
+        discovery.available.len()
+    ));
+
+    if !show_all && !discovery.unavailable.is_empty() {
+        UI::hint(&format!(
+            "   {} tools unavailable on {}. Use --all to show all.",
+            discovery.unavailable.len(),
+            current_platform.as_str()
+        ));
+    }
+
+    Ok(())
+}
+
+/// Capitalize category name for display
+fn capitalize_category(category: &str) -> String {
+    match category {
+        "build" => "Build Tools",
+        "compiler" => "Compilers",
+        "vcs" => "Version Control",
+        "container" => "Container & Orchestration",
+        "cloud" => "Cloud CLI",
+        "network" => "Network Tools",
+        "security" => "Security",
+        "package" => "Package Managers",
+        "system" => "System Tools",
+        "archive" => "Archive Tools",
+        "filesystem" => "Filesystem Tools",
+        "mlops" => "ML/AI Tools",
+        "other" => "Other",
+        _ => category,
+    }
+    .to_string()
 }
 
 async fn list_tool_versions(
@@ -267,8 +388,20 @@ async fn list_all_tools(
         }
 
         if let Some(runtime) = registry.get_runtime(tool_name) {
+            // Get platform label from manifest
+            let platform_label = get_runtime_platform_label(tool_name);
+
             let platform_note = if !platform_supported {
-                format!(" (not supported on {})", current_platform.as_str())
+                if let Some(label) = &platform_label {
+                    format!(" ({} only)", label)
+                } else {
+                    format!(" (not supported on {})", current_platform.as_str())
+                }
+            } else if show_all {
+                // Show platform label for all tools when --all is used
+                platform_label
+                    .map(|l| format!(" [{}]", l))
+                    .unwrap_or_default()
             } else {
                 String::new()
             };

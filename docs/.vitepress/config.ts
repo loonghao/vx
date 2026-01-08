@@ -34,6 +34,7 @@ const enSidebar = {
     {
       text: 'Advanced',
       items: [
+        { text: 'Enhanced Scripts', link: '/guide/enhanced-scripts' },
         { text: 'Migration Guide', link: '/guide/migration' },
         { text: 'Best Practices', link: '/guide/best-practices' }
       ]
@@ -171,6 +172,7 @@ const zhSidebar = {
     {
       text: '进阶',
       items: [
+        { text: '增强脚本系统', link: '/guide/enhanced-scripts_zh' },
         { text: '迁移指南', link: '/zh/guide/migration' },
         { text: '最佳实践', link: '/zh/guide/best-practices' }
       ]
@@ -198,7 +200,7 @@ const zhSidebar = {
       items: [
         { text: 'install', link: '/zh/cli/install' },
         { text: 'list', link: '/zh/cli/list' },
-        { text: 'run', link: '/zh/cli/run' },
+        { text: 'run', link: '/cli/run_zh' },
         { text: 'dev', link: '/zh/cli/dev' },
         { text: 'setup', link: '/zh/cli/setup' },
         { text: 'env', link: '/zh/cli/env' },

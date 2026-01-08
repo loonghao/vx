@@ -8,6 +8,10 @@ homepage = "https://spack.io"
 repository = "https://github.com/spack/spack"
 ecosystem = "python"
 
+# Spack only works on Unix-like systems (Linux and macOS)
+[provider.platforms]
+os = ["linux", "macos"]
+
 # Spack
 [[runtimes]]
 name = "spack"

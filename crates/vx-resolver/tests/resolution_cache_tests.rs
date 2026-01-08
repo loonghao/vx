@@ -34,6 +34,7 @@ fn make_graph() -> ResolvedGraph {
         install_order: vec![],
         runtime_needs_install: false,
         incompatible_dependencies: vec![],
+        unsupported_platform_runtimes: vec![],
     }
 }
 

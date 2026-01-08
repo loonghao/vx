@@ -8,6 +8,10 @@ homepage = "https://github.com/electron/rcedit"
 repository = "https://github.com/electron/rcedit"
 ecosystem = "devtools"
 
+# rcedit is Windows-only
+[provider.platforms]
+os = ["windows"]
+
 # rcedit
 [[runtimes]]
 name = "rcedit"
@@ -23,9 +27,3 @@ strip_v_prefix = true
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
-
-# rcedit is Windows-only
-[[runtimes.constraints]]
-when = "*"
-platforms = ["windows"]
-recommends = []
