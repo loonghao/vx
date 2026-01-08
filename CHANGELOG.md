@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.11](https://github.com/loonghao/vx/compare/vx-v0.6.10...vx-v0.6.11) (2026-01-08)
+
+
+### Features
+
+* add system tool providers and AI-native development documentation ([#368](https://github.com/loonghao/vx/issues/368)) ([5cb347f](https://github.com/loonghao/vx/commit/5cb347fffaa1f4538a9e69fb6569a6e8e3395266))
+
+
+### Documentation
+
+* add comprehensive documentation for enhanced script system ([5cb347f](https://github.com/loonghao/vx/commit/5cb347fffaa1f4538a9e69fb6569a6e8e3395266))
+
 ## [0.6.10](https://github.com/loonghao/vx/compare/vx-v0.6.9...vx-v0.6.10) (2026-01-07)
 
 
