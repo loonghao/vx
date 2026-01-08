@@ -1,7 +1,7 @@
 //! Bun runtime tests
 
 use rstest::rstest;
-use vx_provider_bun::{BunProvider, BunRuntime, BunxRuntime};
+use vx_provider_bun::{BunProvider, BunRuntime};
 use vx_runtime::{Ecosystem, Provider, Runtime};
 
 #[rstest]
@@ -23,15 +23,10 @@ fn test_bun_runtime_description() {
 }
 
 #[rstest]
-fn test_bunx_runtime_name() {
-    let runtime = BunxRuntime::new();
-    assert_eq!(runtime.name(), "bunx");
-}
-
-#[rstest]
-fn test_bunx_runtime_description() {
-    let runtime = BunxRuntime::new();
-    assert!(runtime.description().contains("package runner"));
+fn test_bun_runtime_aliases() {
+    let runtime = BunRuntime::new();
+    // bunx is now handled as a separate RuntimeSpec, not an alias
+    assert_eq!(runtime.aliases().len(), 0);
 }
 
 #[rstest]
@@ -44,33 +39,16 @@ fn test_bun_provider_name() {
 fn test_bun_provider_runtimes() {
     let provider = BunProvider::new();
     let runtimes = provider.runtimes();
-    assert_eq!(runtimes.len(), 2);
+    assert_eq!(runtimes.len(), 1);
 
     let names: Vec<&str> = runtimes.iter().map(|r| r.name()).collect();
     assert!(names.contains(&"bun"));
-    assert!(names.contains(&"bunx"));
 }
 
 #[rstest]
 fn test_bun_provider_supports() {
     let provider = BunProvider::new();
     assert!(provider.supports("bun"));
-    assert!(provider.supports("bunx"));
+    // bunx should be supported through alias resolution in the resolver layer
     assert!(!provider.supports("npm"));
-}
-
-#[rstest]
-fn test_bun_provider_get_runtime() {
-    let provider = BunProvider::new();
-
-    let bun = provider.get_runtime("bun");
-    assert!(bun.is_some());
-    assert_eq!(bun.unwrap().name(), "bun");
-
-    let bunx = provider.get_runtime("bunx");
-    assert!(bunx.is_some());
-    assert_eq!(bunx.unwrap().name(), "bunx");
-
-    let unknown = provider.get_runtime("unknown");
-    assert!(unknown.is_none());
 }

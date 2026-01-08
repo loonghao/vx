@@ -9,7 +9,7 @@ mod runtime;
 
 pub use config::BunConfig;
 pub use provider::BunProvider;
-pub use runtime::{BunRuntime, BunxRuntime};
+pub use runtime::BunRuntime;
 
 use std::sync::Arc;
 use vx_runtime::Provider;

@@ -178,41 +178,71 @@ impl<'a> Executor<'a> {
         // -------------------------
         // Resolve
         // -------------------------
+        // Note: we cache resolution results for speed, but after installing missing runtimes
+        // we must refresh the cache (otherwise we may keep using a stale "not installed" graph).
         let resolve_stage = |runtime_name: &str,
                              version: Option<&str>,
-                             args: &[String]|
+                             args: &[String],
+                             force_refresh: bool|
          -> Result<(ResolutionCacheKey, ResolvedGraph)> {
             let key = ResolutionCacheKey::from_context(runtime_name, version, args, &self.config);
 
-            let graph = if let Some(cache) = &self.resolution_cache {
-                let cached = cache.get(&key);
-                log_cache_result(cached.is_some(), runtime_name);
+            // Fast path: use cache when allowed
+            if !force_refresh {
+                if let Some(cache) = &self.resolution_cache {
+                    let cached = cache.get(&key);
+                    log_cache_result(cached.is_some(), runtime_name);
 
-                if cached.is_none() && cache.mode() == CacheMode::Offline {
-                    return Err(anyhow::anyhow!(
-                        "Offline mode: no cached resolution available for {}. Run without offline mode to resolve.",
-                        runtime_name
-                    ));
+                    if cached.is_none() && cache.mode() == CacheMode::Offline {
+                        return Err(anyhow::anyhow!(
+                            "Offline mode: no cached resolution available for {}. Run without offline mode to resolve.",
+                            runtime_name
+                        ));
+                    }
+
+                    if let Some(g) = cached {
+                        // Validate cached resolution: installation state or executable path may have changed.
+                        let mut cache_valid = true;
+
+                        // If runtime needs install but install_order is empty, cache is inconsistent.
+                        if g.runtime_needs_install && g.install_order.is_empty() {
+                            cache_valid = false;
+                        }
+
+                        // If cached executable is an absolute path but no longer exists, drop cache.
+                        if cache_valid && g.executable.is_absolute() && !g.executable.exists() {
+                            cache_valid = false;
+                        }
+
+                        // If cached executable is a bare name and not in PATH, drop cache.
+                        if cache_valid && !g.executable.is_absolute() && g.install_order.is_empty() {
+                            if let Some(name) = g.executable.to_str() {
+                                if which::which(name).is_err() {
+                                    cache_valid = false;
+                                }
+                            }
+                        }
+
+                        if cache_valid {
+                            return Ok((key, g));
+                        }
+                    }
                 }
+            }
 
-                if let Some(g) = cached {
-                    g
-                } else {
-                    let g = self
-                        .resolver
-                        .resolve_graph_with_version(runtime_name, version)?;
-                    let _ = cache.set(&key, &g);
-                    g
-                }
-            } else {
-                self.resolver
-                    .resolve_graph_with_version(runtime_name, version)?
-            };
+            // Resolve fresh and update cache (best-effort)
+            let g = self
+                .resolver
+                .resolve_graph_with_version(runtime_name, version)?;
 
-            Ok((key, graph))
+            if let Some(cache) = &self.resolution_cache {
+                let _ = cache.set(&key, &g);
+            }
+
+            Ok((key, g))
         };
 
-        let (mut cache_key, mut graph) = resolve_stage(runtime_name, version, args)?;
+        let (mut cache_key, mut graph) = resolve_stage(runtime_name, version, args, false)?;
         let mut resolution: crate::ResolutionResult = graph.clone().into();
 
         // -------------------------
@@ -231,7 +261,8 @@ impl<'a> Executor<'a> {
                 .ensure_version_installed(runtime_name, requested_version)
                 .await?;
 
-            (cache_key, graph) = resolve_stage(runtime_name, installed_version.as_deref(), args)?;
+            // The environment changed (we just ensured a version is installed), so refresh resolution.
+            (cache_key, graph) = resolve_stage(runtime_name, installed_version.as_deref(), args, true)?;
             resolution = graph.clone().into();
         }
 
@@ -246,8 +277,8 @@ impl<'a> Executor<'a> {
                 // Best-effort: keep the last installed version for env preparation.
                 installed_version = self.install_runtimes(&resolution.install_order).await?;
 
-                // Re-resolve after installation
-                (cache_key, graph) = resolve_stage(runtime_name, version, args)?;
+                // Re-resolve after installation (force refresh, cache may be stale)
+                (cache_key, graph) = resolve_stage(runtime_name, version, args, true)?;
                 resolution = graph.clone().into();
 
                 debug!(

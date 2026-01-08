@@ -7,8 +7,10 @@ use crate::traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProv
 use crate::types::ExecutionResult;
 use anyhow::Result;
 use async_trait::async_trait;
+use backon::{ExponentialBuilder, Retryable};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use vx_paths::VxPaths;
 
 // ============================================================================
@@ -139,24 +141,45 @@ pub struct RealHttpClient {
 }
 
 impl RealHttpClient {
-    /// Create a new real HTTP client
+    /// Create a new real HTTP client with default timeouts
     ///
     /// CDN acceleration is automatically enabled when the `cdn-acceleration` feature is active.
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::builder()
                 .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
+                .timeout(Duration::from_secs(30))  // 30 seconds total timeout
+                .connect_timeout(Duration::from_secs(10))  // 10 seconds connect timeout
                 .build()
                 .expect("Failed to create HTTP client"),
             cdn_enabled: cfg!(feature = "cdn-acceleration"),
         }
     }
 
-    /// Create a new HTTP client with explicit CDN setting
+    /// Create a new HTTP client with explicit CDN setting and default timeouts
     pub fn with_cdn(cdn_enabled: bool) -> Self {
         Self {
             client: reqwest::Client::builder()
                 .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
+                .timeout(Duration::from_secs(30))  // 30 seconds total timeout
+                .connect_timeout(Duration::from_secs(10))  // 10 seconds connect timeout
+                .build()
+                .expect("Failed to create HTTP client"),
+            cdn_enabled: cdn_enabled && cfg!(feature = "cdn-acceleration"),
+        }
+    }
+
+    /// Create a new HTTP client with custom timeouts
+    pub fn with_timeouts(
+        cdn_enabled: bool,
+        connect_timeout: Duration,
+        total_timeout: Duration,
+    ) -> Self {
+        Self {
+            client: reqwest::Client::builder()
+                .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
+                .timeout(total_timeout)
+                .connect_timeout(connect_timeout)
                 .build()
                 .expect("Failed to create HTTP client"),
             cdn_enabled: cdn_enabled && cfg!(feature = "cdn-acceleration"),
@@ -205,42 +228,23 @@ impl RealHttpClient {
             url.to_string()
         }
     }
-}
 
-impl Default for RealHttpClient {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Get GitHub token from environment variables
-/// Checks in order: GITHUB_TOKEN, GH_TOKEN
-fn get_github_token() -> Option<String> {
-    std::env::var("GITHUB_TOKEN")
-        .ok()
-        .or_else(|| std::env::var("GH_TOKEN").ok())
-        .filter(|t| !t.is_empty())
-}
-
-#[async_trait]
-impl HttpClient for RealHttpClient {
-    async fn get(&self, url: &str) -> Result<String> {
-        let mut request = self.client.get(url);
-
-        // Add GitHub token for GitHub API requests
-        if url.contains("api.github.com") || url.contains("github.com") {
-            if let Some(token) = get_github_token() {
-                request = request.header("Authorization", format!("Bearer {}", token));
-            }
-        }
-
-        let response = request.send().await?;
-        let text = response.text().await?;
-        Ok(text)
+    /// Build the retry strategy using backon with exponential backoff
+    fn build_retry_strategy() -> ExponentialBuilder {
+        ExponentialBuilder::default()
+            .with_min_delay(Duration::from_millis(500))
+            .with_max_delay(Duration::from_secs(5))
+            .with_max_times(3)
+            .with_jitter()
     }
 
-    async fn get_json_value(&self, url: &str) -> Result<serde_json::Value> {
-        let mut request = self.client.get(url);
+    /// Perform a single JSON fetch attempt (used by retry logic)
+    async fn fetch_json_once(
+        &self,
+        client: &reqwest::Client,
+        url: &str,
+    ) -> std::result::Result<serde_json::Value, HttpError> {
+        let mut request = client.get(url);
 
         // GitHub API is picky about headers; also helps some proxies behave.
         if url.contains("api.github.com") {
@@ -256,7 +260,14 @@ impl HttpClient for RealHttpClient {
             }
         }
 
-        let response = request.send().await?;
+        let response = request.send().await.map_err(|e| {
+            if e.is_timeout() || e.is_connect() {
+                HttpError::retryable(format!("Network error: {}", e))
+            } else {
+                HttpError::non_retryable(format!("Request failed: {}", e))
+            }
+        })?;
+
         let status = response.status();
         let content_type = response
             .headers()
@@ -276,14 +287,15 @@ impl HttpClient for RealHttpClient {
                 .and_then(|v| v.parse::<u32>().ok());
 
             if remaining == Some(0) {
-                return Err(anyhow::anyhow!(
+                return Err(HttpError::non_retryable(
                     "GitHub API rate limit exceeded. Set GITHUB_TOKEN or GH_TOKEN environment variable to increase limit (5000 requests/hour with token vs 60/hour without)."
                 ));
             }
         }
 
-        // Check for other HTTP errors
+        // Check for HTTP errors
         if !status.is_success() {
+            let is_retryable = HttpError::is_retryable_status(status);
             let error_msg = match status.as_u16() {
                 502..=504 => {
                     format!(
@@ -327,42 +339,159 @@ impl HttpClient for RealHttpClient {
                     }
                 }
             };
-            return Err(anyhow::anyhow!("{}", error_msg));
+
+            return if is_retryable {
+                Err(HttpError::retryable(error_msg))
+            } else {
+                Err(HttpError::non_retryable(error_msg))
+            };
         }
 
         // Be tolerant to broken/missing Content-Type headers (some proxies misbehave).
         // `reqwest::Response::json()` rejects non-JSON content-types; we parse from bytes instead.
-        let bytes = response.bytes().await?;
-        match serde_json::from_slice::<serde_json::Value>(&bytes) {
-            Ok(json) => Ok(json),
-            Err(e) => {
-                let body = String::from_utf8_lossy(&bytes);
-                let preview = if body.len() > 200 {
-                    format!("{}...", &body[..200])
-                } else {
-                    body.to_string()
-                };
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|e| HttpError::retryable(format!("Failed to read response body: {}", e)))?;
 
-                if preview.trim_start().starts_with('<') {
-                    Err(anyhow::anyhow!(
-                        "Expected JSON but got HTML (content-type: '{}') from {}.\n\n\
-                        This usually means your network/proxy replaced the GitHub API response.\n\
-                        Try configuring HTTPS_PROXY / HTTP_PROXY, or set a working proxy/VPN.",
-                        content_type,
-                        url
-                    ))
-                } else {
-                    Err(anyhow::anyhow!(
-                        "Failed to parse JSON from {} (content-type: '{}'): {}\n\n\
-                        Body preview: {}",
-                        url,
-                        content_type,
-                        e,
-                        preview
-                    ))
+        serde_json::from_slice::<serde_json::Value>(&bytes).map_err(|e| {
+            let body = String::from_utf8_lossy(&bytes);
+            let preview = if body.len() > 200 {
+                format!("{}...", &body[..200])
+            } else {
+                body.to_string()
+            };
+
+            if preview.trim_start().starts_with('<') {
+                HttpError::non_retryable(format!(
+                    "Expected JSON but got HTML (content-type: '{}') from {}.\n\n\
+                    This usually means your network/proxy replaced the GitHub API response.\n\
+                    Try configuring HTTPS_PROXY / HTTP_PROXY, or set a working proxy/VPN.",
+                    content_type, url
+                ))
+            } else {
+                HttpError::non_retryable(format!(
+                    "Failed to parse JSON from {} (content-type: '{}'): {}\n\n\
+                    Body preview: {}",
+                    url, content_type, e, preview
+                ))
+            }
+        })
+    }
+}
+
+impl Default for RealHttpClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Get GitHub token from environment variables
+/// Checks in order: GITHUB_TOKEN, GH_TOKEN
+fn get_github_token() -> Option<String> {
+    std::env::var("GITHUB_TOKEN")
+        .ok()
+        .or_else(|| std::env::var("GH_TOKEN").ok())
+        .filter(|t| !t.is_empty())
+}
+
+/// HTTP error that can be retried
+#[derive(Debug)]
+struct HttpError {
+    message: String,
+    is_retryable: bool,
+}
+
+impl std::fmt::Display for HttpError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for HttpError {}
+
+impl HttpError {
+    fn retryable(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            is_retryable: true,
+        }
+    }
+
+    fn non_retryable(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            is_retryable: false,
+        }
+    }
+
+    /// Check if the HTTP status code indicates a retryable error
+    fn is_retryable_status(status: reqwest::StatusCode) -> bool {
+        matches!(
+            status.as_u16(),
+            // Server errors that might be temporary
+            500..=504 |
+            // Rate limiting (but not auth errors)
+            429
+        )
+    }
+}
+
+#[async_trait]
+impl HttpClient for RealHttpClient {
+    async fn get(&self, url: &str) -> Result<String> {
+        let url = url.to_string();
+        let client = self.client.clone();
+
+        let result = (|| async {
+            let mut request = client.get(&url);
+
+            // Add GitHub token for GitHub API requests
+            if url.contains("api.github.com") || url.contains("github.com") {
+                if let Some(token) = get_github_token() {
+                    request = request.header("Authorization", format!("Bearer {}", token));
                 }
             }
-        }
+
+            let response = request.send().await.map_err(|e| {
+                if e.is_timeout() || e.is_connect() {
+                    HttpError::retryable(format!("Network error: {}", e))
+                } else {
+                    HttpError::non_retryable(format!("Request failed: {}", e))
+                }
+            })?;
+
+            let text = response.text().await.map_err(|e| {
+                HttpError::non_retryable(format!("Failed to read response: {}", e))
+            })?;
+
+            Ok::<_, HttpError>(text)
+        })
+        .retry(Self::build_retry_strategy())
+        .notify(|err: &HttpError, dur: Duration| {
+            tracing::debug!(error = %err, retry_in = ?dur, url = %url, "Retrying HTTP request");
+        })
+        .when(|e: &HttpError| e.is_retryable)
+        .await;
+
+        result.map_err(|e| anyhow::anyhow!("{}", e))
+    }
+
+    async fn get_json_value(&self, url: &str) -> Result<serde_json::Value> {
+        let url = url.to_string();
+        let client = self.client.clone();
+
+        let result = (|| async {
+            self.fetch_json_once(&client, &url).await
+        })
+        .retry(Self::build_retry_strategy())
+        .notify(|err: &HttpError, dur: Duration| {
+            tracing::debug!(error = %err, retry_in = ?dur, url = %url, "Retrying JSON request");
+        })
+        .when(|e: &HttpError| e.is_retryable)
+        .await;
+
+        result.map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     async fn download(&self, url: &str, dest: &Path) -> Result<()> {
@@ -843,14 +972,13 @@ impl Installer for RealInstaller {
             // Extract archive
             self.extract(&temp_path, dest).await?;
         } else {
-            // Single executable file - copy to destination
-            std::fs::create_dir_all(dest)?;
+            // Single executable file - place under bin/
+            let bin_dir = dest.join("bin");
+            std::fs::create_dir_all(&bin_dir)?;
 
-            // Keep the original filename from URL
-            // e.g., "rcedit-x64.exe" stays as "rcedit-x64.exe"
+            // Preserve original filename (e.g., kubectl.exe, bun)
             let exe_name = archive_name.to_string();
-
-            let dest_path = dest.join(&exe_name);
+            let dest_path = bin_dir.join(&exe_name);
             std::fs::copy(&temp_path, &dest_path)?;
 
             // Make executable on Unix

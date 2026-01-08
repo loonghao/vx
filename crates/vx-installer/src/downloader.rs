@@ -158,6 +158,9 @@ impl Downloader {
             std::fs::create_dir_all(parent)?;
         }
 
+        // Start progress bar early for network requests
+        progress.start("Connecting...", None).await?;
+
         // Start the download request
         let response = self.client.get(&download_url).send().await.map_err(|e| {
             if e.is_timeout() {
@@ -173,6 +176,7 @@ impl Downloader {
 
         // Check response status
         if !response.status().is_success() {
+            let _ = progress.error("HTTP error").await;
             return Err(Error::download_failed(
                 &download_url,
                 format!("HTTP {}", response.status()),
