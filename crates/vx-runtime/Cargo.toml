@@ -36,6 +36,9 @@ chrono = { workspace = true }
 which = { workspace = true }
 glob = { workspace = true }
 
+# Retry with backoff
+backon = { workspace = true }
+
 # Progress indicator
 indicatif = { workspace = true }
 

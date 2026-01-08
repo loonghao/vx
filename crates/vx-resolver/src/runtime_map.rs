@@ -136,9 +136,20 @@ impl RuntimeMap {
         // bun - standalone runtime (no dependencies)
         self.register(
             RuntimeSpec::new("bun", "Incredibly fast JavaScript runtime and toolkit")
-                .with_alias("bunx")
                 .with_ecosystem(Ecosystem::Node)
                 .with_priority(90),
+        );
+
+        // bunx - bun package runner (alias with command prefix)
+        self.register(
+            RuntimeSpec::new("bunx", "Bun package runner (like npx)")
+                .with_dependency(RuntimeDependency::required(
+                    "bun",
+                    "bunx requires Bun runtime",
+                ))
+                .with_command_prefix(vec!["x"])
+                .with_ecosystem(Ecosystem::Node)
+                .with_priority(85),
         );
 
         // ============ Python Ecosystem ============

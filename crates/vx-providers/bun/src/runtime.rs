@@ -3,7 +3,6 @@
 use crate::config::BunUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
-use std::collections::HashMap;
 use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
@@ -89,66 +88,6 @@ impl Runtime for BunRuntime {
             ensure_node_modules_installed(executable).await?;
         }
         Ok(true)
-    }
-}
-
-/// Bunx runtime (package runner)
-#[derive(Debug, Clone)]
-pub struct BunxRuntime;
-
-impl BunxRuntime {
-    /// Create a new Bunx runtime
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for BunxRuntime {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[async_trait]
-impl Runtime for BunxRuntime {
-    fn name(&self) -> &str {
-        "bunx"
-    }
-
-    fn description(&self) -> &str {
-        "Bun package runner (like npx)"
-    }
-
-    fn ecosystem(&self) -> Ecosystem {
-        Ecosystem::NodeJs
-    }
-
-    fn aliases(&self) -> &[&str] {
-        &[]
-    }
-
-    fn metadata(&self) -> HashMap<String, String> {
-        let mut meta = HashMap::new();
-        meta.insert("homepage".to_string(), "https://bun.sh/".to_string());
-        meta.insert("ecosystem".to_string(), "javascript".to_string());
-        meta.insert("bundled_with".to_string(), "bun".to_string());
-        meta
-    }
-
-    /// Bunx is bundled with Bun, same archive structure
-    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        let dir_name = BunRuntime::get_archive_dir_name(platform);
-        format!("{}/{}", dir_name, platform.exe_name("bunx"))
-    }
-
-    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Bunx uses the same versions as Bun
-        BunRuntime::new().fetch_versions(ctx).await
-    }
-
-    async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        // Bunx is part of Bun installation
-        BunRuntime::new().download_url(version, platform).await
     }
 }
 

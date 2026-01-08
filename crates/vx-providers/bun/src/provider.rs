@@ -1,6 +1,6 @@
 //! Bun provider implementation
 
-use crate::runtime::{BunRuntime, BunxRuntime};
+use crate::runtime::BunRuntime;
 use std::sync::Arc;
 use vx_runtime::{Provider, Runtime};
 
@@ -31,6 +31,6 @@ impl Provider for BunProvider {
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(BunRuntime::new()), Arc::new(BunxRuntime::new())]
+        vec![Arc::new(BunRuntime::new())]
     }
 }

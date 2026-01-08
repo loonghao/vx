@@ -95,6 +95,9 @@ async fn install_single(
         )
     };
     let spinner = ProgressSpinner::new(&resolve_msg);
+    
+    // Update spinner message to show network activity
+    spinner.set_message(&format!("{} (fetching versions...)", resolve_msg));
     let target_version = runtime.resolve_version(requested_version, context).await?;
     spinner.finish_and_clear();
 

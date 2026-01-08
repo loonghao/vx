@@ -57,8 +57,9 @@ impl Runtime for KubectlRuntime {
     }
 
     /// kubectl is a single binary download (no archive)
+    /// We place it under bin/ to align with generic executable lookup
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        platform.exe_name("kubectl")
+        format!("bin/{}", platform.exe_name("kubectl"))
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
