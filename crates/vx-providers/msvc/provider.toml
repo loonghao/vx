@@ -8,6 +8,10 @@ homepage = "https://visualstudio.microsoft.com/visual-cpp-build-tools/"
 repository = "https://github.com/microsoft/STL"
 ecosystem = "system"
 
+# MSVC is Windows-only
+[provider.platforms]
+os = ["windows"]
+
 # MSVC compiler
 [[runtimes]]
 name = "msvc"
@@ -20,12 +24,6 @@ source = "vs-manifest"
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
-
-# MSVC is Windows-only
-[[runtimes.constraints]]
-when = "*"
-platforms = ["windows"]
-recommends = []
 
 # nmake is bundled with MSVC
 [[runtimes]]

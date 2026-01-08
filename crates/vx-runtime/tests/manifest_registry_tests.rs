@@ -15,6 +15,7 @@ fn make_manifest(name: &str, description: &str) -> ProviderManifest {
             homepage: None,
             repository: None,
             ecosystem: None,
+            platform_constraint: None,
         },
         runtimes: vec![RuntimeDef {
             name: name.to_string(),
@@ -25,6 +26,7 @@ fn make_manifest(name: &str, description: &str) -> ProviderManifest {
             constraints: vec![],
             hooks: None,
             platforms: None,
+            platform_constraint: None,
             versions: None,
             executable_config: None,
         }],
@@ -124,6 +126,7 @@ fn directory_override_replaces_embedded() {
             homepage: None,
             repository: None,
             ecosystem: None,
+            platform_constraint: None,
         },
         runtimes: vec![RuntimeDef {
             name: "tool".to_string(),
@@ -134,6 +137,7 @@ fn directory_override_replaces_embedded() {
             constraints: vec![],
             hooks: None,
             platforms: None,
+            platform_constraint: None,
             versions: None,
             executable_config: None,
         }],
@@ -191,6 +195,7 @@ fn runtime_metadata_resolves_aliases() {
             homepage: None,
             repository: None,
             ecosystem: Some(Ecosystem::NodeJs),
+            platform_constraint: None,
         },
         runtimes: vec![RuntimeDef {
             name: "test-runtime".to_string(),
@@ -201,6 +206,7 @@ fn runtime_metadata_resolves_aliases() {
             constraints: vec![],
             hooks: None,
             platforms: None,
+            platform_constraint: None,
             versions: None,
             executable_config: None,
         }],

@@ -7,6 +7,7 @@ mod common;
 
 use common::{cleanup_test_env, init_test_env};
 use rstest::*;
+use serial_test::serial;
 use std::collections::HashMap;
 use std::fs;
 use tempfile::TempDir;
@@ -96,6 +97,7 @@ mod path_environment_tests {
     /// Test that PATH includes tool bin directories
     #[rstest]
     #[test]
+    #[serial]
     fn test_path_includes_tool_bins() {
         init_test_env();
 
@@ -138,6 +140,7 @@ mod path_environment_tests {
     /// Test that vx bin directory is added to PATH
     #[rstest]
     #[test]
+    #[serial]
     fn test_vx_bin_in_path() {
         init_test_env();
 
@@ -268,6 +271,7 @@ mod version_resolution_tests {
     /// Test "latest" version resolves to most recent installed
     #[rstest]
     #[test]
+    #[serial]
     fn test_latest_version_resolution() {
         init_test_env();
 
@@ -295,6 +299,7 @@ mod version_resolution_tests {
     /// Test specific version is used when specified
     #[rstest]
     #[test]
+    #[serial]
     fn test_specific_version() {
         init_test_env();
 
@@ -375,6 +380,7 @@ mod script_env_tests {
     /// Test that scripts can find vx-installed tools
     #[rstest]
     #[test]
+    #[serial]
     fn test_script_finds_tools() {
         init_test_env();
 
@@ -406,6 +412,7 @@ mod venv_tests {
     /// Test that pip-tools directory is correctly structured
     #[rstest]
     #[test]
+    #[serial]
     fn test_pip_tools_structure() {
         init_test_env();
 
@@ -444,6 +451,7 @@ mod venv_tests {
     /// Test that npm-tools directory is correctly structured
     #[rstest]
     #[test]
+    #[serial]
     fn test_npm_tools_structure() {
         init_test_env();
 
@@ -477,6 +485,7 @@ mod venv_tests {
     /// Test pip-tool bin path resolution
     #[rstest]
     #[test]
+    #[serial]
     fn test_pip_tool_bin_path() {
         init_test_env();
 
@@ -503,6 +512,7 @@ mod venv_tests {
     /// Test npm-tool bin path resolution
     #[rstest]
     #[test]
+    #[serial]
     fn test_npm_tool_bin_path() {
         init_test_env();
 
@@ -557,6 +567,7 @@ mod edge_case_tests {
     /// Test missing tool installation
     #[rstest]
     #[test]
+    #[serial]
     fn test_missing_tool_installation() {
         init_test_env();
 
@@ -605,6 +616,7 @@ mod edge_case_tests {
     /// Test tool with special characters in version
     #[rstest]
     #[test]
+    #[serial]
     fn test_tool_version_special_chars() {
         init_test_env();
 
@@ -632,6 +644,7 @@ mod integration_tests {
     /// Test full environment setup flow
     #[rstest]
     #[test]
+    #[serial]
     fn test_full_env_setup_flow() {
         init_test_env();
 

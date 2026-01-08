@@ -20,6 +20,16 @@ pub enum Ecosystem {
     Java,
     /// .NET ecosystem (dotnet)
     DotNet,
+    /// Development tools (git, cmake, ninja, task, terraform, etc.)
+    DevTools,
+    /// Container ecosystem (docker, kubectl, helm)
+    Container,
+    /// Cloud ecosystem (awscli, azcli, gcloud)
+    Cloud,
+    /// AI ecosystem (ollama)
+    Ai,
+    /// Zig ecosystem (zig toolchain)
+    Zig,
     /// System tools (not tied to a specific language)
     #[default]
     System,
@@ -34,6 +44,11 @@ impl fmt::Display for Ecosystem {
             Self::Go => write!(f, "go"),
             Self::Java => write!(f, "java"),
             Self::DotNet => write!(f, "dotnet"),
+            Self::DevTools => write!(f, "devtools"),
+            Self::Container => write!(f, "container"),
+            Self::Cloud => write!(f, "cloud"),
+            Self::Ai => write!(f, "ai"),
+            Self::Zig => write!(f, "zig"),
             Self::System => write!(f, "system"),
         }
     }
@@ -50,6 +65,11 @@ impl std::str::FromStr for Ecosystem {
             "go" | "golang" => Ok(Self::Go),
             "java" => Ok(Self::Java),
             "dotnet" | ".net" => Ok(Self::DotNet),
+            "devtools" => Ok(Self::DevTools),
+            "container" => Ok(Self::Container),
+            "cloud" => Ok(Self::Cloud),
+            "ai" => Ok(Self::Ai),
+            "zig" => Ok(Self::Zig),
             "system" => Ok(Self::System),
             _ => Err(format!("Unknown ecosystem: {}", s)),
         }

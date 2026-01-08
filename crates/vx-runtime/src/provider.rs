@@ -3,6 +3,7 @@
 //! A Provider is a container for related runtimes.
 
 use crate::runtime::Runtime;
+use crate::Platform;
 use std::sync::Arc;
 
 /// Trait for package managers (npm, yarn, pip, etc.)
@@ -82,5 +83,24 @@ pub trait Provider: Send + Sync {
         self.runtimes()
             .into_iter()
             .find(|r| r.name() == name || r.aliases().contains(&name))
+    }
+
+    /// Check if this provider supports the given platform
+    ///
+    /// Default implementation checks if any runtime in this provider
+    /// supports the platform. Override for provider-level platform constraints.
+    fn is_platform_supported(&self, platform: &Platform) -> bool {
+        // By default, a provider is supported if any of its runtimes are supported
+        self.runtimes()
+            .iter()
+            .any(|r| r.is_platform_supported(platform))
+    }
+
+    /// Get runtimes that support the given platform
+    fn supported_runtimes_for(&self, platform: &Platform) -> Vec<Arc<dyn Runtime>> {
+        self.runtimes()
+            .into_iter()
+            .filter(|r| r.is_platform_supported(platform))
+            .collect()
     }
 }

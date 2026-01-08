@@ -1,0 +1,56 @@
+# OpenSSL Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for OpenSSL.
+
+[provider]
+name = "openssl"
+description = "Cryptography and SSL/TLS toolkit"
+homepage = "https://www.openssl.org"
+repository = "https://github.com/openssl/openssl"
+ecosystem = "system"
+
+# OpenSSL - main cryptography tool
+[[runtimes]]
+name = "openssl"
+description = "OpenSSL command line tool"
+executable = "openssl"
+
+[runtimes.versions]
+source = "system"  # Detect from system installation
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+search_paths = [
+    # Git for Windows includes OpenSSL
+    "C:/Program Files/Git/mingw64/bin",
+    "C:/Program Files/Git/usr/bin",
+    # Chocolatey installation
+    "C:/ProgramData/chocolatey/lib/openssl/tools/openssl/bin",
+    # Manual installation
+    "C:/OpenSSL-Win64/bin",
+    "C:/OpenSSL-Win32/bin",
+    # MSYS2
+    "C:/msys64/usr/bin"
+]
+
+[runtimes.platforms.macos]
+executable_extensions = []
+search_paths = [
+    # Homebrew
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    # System (older versions)
+    "/usr/bin"
+]
+
+[runtimes.platforms.linux]
+executable_extensions = []
+search_paths = [
+    "/usr/bin",
+    "/usr/local/bin",
+    "/bin"
+]
+
+# No external dependencies - OpenSSL is self-contained
+[[runtimes.constraints]]
+when = "*"
+recommends = []

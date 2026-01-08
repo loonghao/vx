@@ -57,6 +57,19 @@ pub struct IncompatibleDependency {
     pub recommended_version: Option<String>,
 }
 
+/// Information about a runtime that is not supported on the current platform
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UnsupportedPlatformRuntime {
+    /// Name of the runtime
+    pub runtime_name: String,
+    /// Current platform
+    pub current_platform: String,
+    /// Supported platforms (human-readable)
+    pub supported_platforms: String,
+    /// Whether this is the primary runtime or a dependency
+    pub is_primary: bool,
+}
+
 /// Resolution result for a runtime execution request
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ResolutionResult {
@@ -80,6 +93,9 @@ pub struct ResolutionResult {
 
     /// Dependencies that are installed but don't meet version constraints
     pub incompatible_dependencies: Vec<IncompatibleDependency>,
+
+    /// Runtimes that are not supported on the current platform
+    pub unsupported_platform_runtimes: Vec<UnsupportedPlatformRuntime>,
 }
 
 /// Resolved dependency graph for a runtime execution request.
@@ -109,6 +125,9 @@ pub struct ResolvedGraph {
 
     /// Dependencies that are installed but don't meet version constraints
     pub incompatible_dependencies: Vec<IncompatibleDependency>,
+
+    /// Runtimes that are not supported on the current platform
+    pub unsupported_platform_runtimes: Vec<UnsupportedPlatformRuntime>,
 }
 
 impl From<ResolutionResult> for ResolvedGraph {
@@ -121,6 +140,7 @@ impl From<ResolutionResult> for ResolvedGraph {
             install_order: value.install_order,
             runtime_needs_install: value.runtime_needs_install,
             incompatible_dependencies: value.incompatible_dependencies,
+            unsupported_platform_runtimes: value.unsupported_platform_runtimes,
         }
     }
 }
@@ -135,6 +155,7 @@ impl From<ResolvedGraph> for ResolutionResult {
             install_order: value.install_order,
             runtime_needs_install: value.runtime_needs_install,
             incompatible_dependencies: value.incompatible_dependencies,
+            unsupported_platform_runtimes: value.unsupported_platform_runtimes,
         }
     }
 }
@@ -287,6 +308,13 @@ impl Resolver {
             spec.map(|s| s.dependencies.len()).unwrap_or(0)
         );
 
+        // Check platform compatibility first
+        let unsupported_platform_runtimes = Vec::new();
+
+        // Note: Platform compatibility checking is done at the CLI layer
+        // where we have access to the ProviderRegistry. The resolver
+        // only handles dependency resolution.
+
         // Check runtime status (optionally with specific version)
         let runtime_status = if let Some(ver) = version {
             self.check_runtime_status_with_version(runtime_name, ver)
@@ -303,6 +331,9 @@ impl Resolver {
             // Check each required dependency
             for dep in spec.required_dependencies() {
                 let dep_name = dep.provided_by.as_deref().unwrap_or(&dep.runtime_name);
+
+                // Note: Platform compatibility checking for dependencies is done at the CLI layer
+
                 let dep_status = self.check_runtime_status(dep_name);
 
                 debug!(
@@ -406,6 +437,7 @@ impl Resolver {
             install_order,
             runtime_needs_install,
             incompatible_dependencies: incompatible_deps,
+            unsupported_platform_runtimes,
         })
     }
 

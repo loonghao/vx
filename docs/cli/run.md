@@ -6,14 +6,19 @@ Run a script defined in `vx.toml`.
 
 ```bash
 vx run <SCRIPT> [ARGS...]
-vx run <SCRIPT> --help
+vx run <SCRIPT> -H
 vx run --list
+vx run --help
 ```
 
 ## Description
 
-Executes a script defined in the `[scripts]` section of `vx.toml`. The script runs with:
+Executes a script defined in the `[scripts]` section of `vx.toml`. The enhanced run command now supports:
 
+- **Flexible argument passing**: Pass arguments directly without conflicts
+- **Script-specific help**: Use `-H` to get help for individual scripts
+- **Script listing**: Use `--list` to see all available scripts
+- **Advanced argument handling**: Support for `-p`, `--lib`, and other tool-specific flags
 - Project environment variables (from `[env]` and `.env` files)
 - Variable interpolation support (`\{\{var\}\}` syntax)
 - Python venv activated (if configured)
@@ -23,15 +28,30 @@ Executes a script defined in the `[scripts]` section of `vx.toml`. The script ru
 
 | Argument | Description |
 |----------|-------------|
-| `SCRIPT` | Name of the script to run |
-| `ARGS` | Additional arguments passed to the script |
+| `SCRIPT` | Name of the script to run (optional when using `--list` or `--help`) |
+| `ARGS` | Additional arguments passed to the script (supports hyphenated flags like `-p`, `--lib`) |
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
-| `--help`, `-h` | Show help for the script |
-| `--list` | List all available scripts |
+| `-h`, `--help` | Show help for the run command |
+| `-l`, `--list` | List all available scripts |
+| `-H`, `--script-help` | Show script-specific help (when script name is provided) |
+
+## Enhanced Argument Handling
+
+The run command now supports passing complex arguments directly to scripts without conflicts:
+
+```bash
+# Pass tool-specific flags directly
+vx run test-pkgs -p vx-runtime --lib
+vx run lint --fix --verbose
+vx run build --release --target x86_64-pc-windows-msvc
+
+# Use -- separator for explicit argument separation (optional)
+vx run test-pkgs -- -p vx-runtime --lib
+```
 
 ## Variable Interpolation
 
@@ -42,6 +62,7 @@ Scripts support variable interpolation using `\{\{var\}\}` syntax:
 build = "cargo build -p \{\{project.name\}\}"
 tag = "git tag v\{\{arg1\}\}"
 info = "echo 'Building on \{\{os.name\}\} (\{\{os.arch\}\})'"
+test-pkgs = "cargo test \{\{args\}\}"  # Use {{args}} for all arguments
 ```
 
 ### Built-in Variables
@@ -65,6 +86,7 @@ info = "echo 'Building on \{\{os.name\}\} (\{\{os.arch\}\})'"
 | `\{\{arg1\}\}`, `\{\{arg2\}\}`, ... | Positional arguments |
 | `\{\{@\}\}` | All arguments as a string |
 | `\{\{#\}\}` | Number of arguments |
+| `\{\{args\}\}` | **Recommended**: All arguments (supports complex flags like `-p`, `--lib`) |
 
 ### Environment Variables
 
@@ -123,33 +145,64 @@ build = "go build -o app"
 
 # With variable interpolation
 deploy = "kubectl apply -f k8s/\{\{arg1\}\}.yaml"
+
+# Modern approach: use {{args}} for complex arguments
+test-pkgs = "cargo test \{\{args\}\}"
+lint = "eslint \{\{args\}\}"
+format = "prettier --write \{\{args\}\}"
 ```
 
 ## Examples
 
-### Run Simple Script
+### Basic Usage
 
 ```bash
+# Run a simple script
 vx run dev
+
+# List all available scripts
+vx run --list
 ```
 
-### Pass Arguments
+### Enhanced Argument Passing
+
+```bash
+# Pass complex arguments directly (NEW!)
+vx run test-pkgs -p vx-runtime --lib
+vx run test-pkgs -p vx-provider-python -p vx-runtime
+
+# Traditional approach with -- separator (still supported)
+vx run test-pkgs -- -p vx-runtime --lib
+
+# Multiple flags and options
+vx run lint --fix --ext .js,.ts src/
+vx run build --release --target x86_64-pc-windows-msvc
+```
+
+### Script-Specific Help
+
+```bash
+# Get help for a specific script (NEW!)
+vx run test-pkgs -H
+vx run deploy --script-help
+
+# General run command help
+vx run --help
+```
+
+### Variable Interpolation Examples
 
 ```bash
 # Arguments are interpolated if script uses \{\{arg1\}\}, \{\{arg2\}\}, etc.
 vx run deploy production
 
-# Or passed directly
-vx run test -- --coverage --verbose
+# Using {{args}} (recommended for complex arguments)
+vx run test-pkgs -p vx-runtime --lib  # Passed as {{args}}
 ```
 
-### View Script Help
+### Script Help Output
 
-```bash
-vx run deploy --help
-```
-
-Output:
+When you run `vx run deploy -H`, you'll see:
 
 ```text
 Script: deploy
@@ -164,6 +217,7 @@ Variable Interpolation:
   \{\{arg2\}\}          Second argument
   \{\{@\}\}             All arguments
   \{\{#\}\}             Number of arguments
+  \{\{args\}\}          All arguments (recommended)
   \{\{env.VAR\}\}       Environment variable VAR
   \{\{project.root\}\}  Project root directory
   \{\{project.name\}\}  Project name
@@ -181,20 +235,94 @@ Output:
 
 ```text
 Available scripts:
-  dev = "npm run dev"
-  test = "pytest"
-  build = "go build -o app"
+  dev             npm run dev
+  test            pytest
+  build           go build -o app
+  test-pkgs       cargo test {{args}}
+  lint            eslint {{args}}
 ```
 
-### Using Environment Variables
+## Best Practices
+
+### Use `\{\{args\}\}` for Modern Scripts
+
+For maximum flexibility, use `\{\{args\}\}` in your script definitions:
+
+```toml
+[scripts]
+# ✅ Recommended: Flexible argument handling
+test-pkgs = "cargo test \{\{args\}\}"
+lint = "eslint \{\{args\}\}"
+build = "cargo build \{\{args\}\}"
+
+# ❌ Old style: Limited to simple arguments
+test-old = "cargo test"
+```
+
+### Complex Tool Integration
+
+Perfect for tools that require specific flags:
+
+```toml
+[scripts]
+# Cargo testing with package selection
+test-pkgs = "cargo test \{\{args\}\}"
+# Usage: vx run test-pkgs -p vx-runtime --lib
+
+# ESLint with flexible options
+lint = "eslint \{\{args\}\}"
+# Usage: vx run lint --fix --ext .js,.ts src/
+
+# Docker build with platform selection
+docker-build = "docker build \{\{args\}\}"
+# Usage: vx run docker-build --platform linux/amd64 -t myapp .
+```
+
+### Migration from Old Style
+
+If you have existing scripts without `\{\{args\}\}`, they still work but with limitations:
+
+```toml
+[scripts]
+# This works but only for simple arguments
+test = "cargo test"
+
+# This is better for complex arguments
+test-new = "cargo test \{\{args\}\}"
+```
+
+## Troubleshooting
+
+### Arguments Not Passed Correctly
+
+If your script doesn't receive arguments as expected:
+
+1. **Check if your script uses `\{\{args\}\}`**:
+   ```toml
+   # Add {{args}} to receive all arguments
+   test = "cargo test \{\{args\}\}"
+   ```
+
+2. **Use the `--` separator for complex cases**:
+   ```bash
+   vx run test -- -p vx-runtime --lib
+   ```
+
+3. **Check script help**:
+   ```bash
+   vx run test -H  # Shows how arguments are handled
+   ```
+
+### Script Not Found
+
+If you get "Script not found" error:
 
 ```bash
-# From .env file
-echo "API_KEY=secret123" > .env
-vx run deploy  # API_KEY is available
+# List available scripts
+vx run --list
 
-# Inline override
-API_KEY=newkey vx run deploy
+# Check your vx.toml file
+cat vx.toml
 ```
 
 ## See Also

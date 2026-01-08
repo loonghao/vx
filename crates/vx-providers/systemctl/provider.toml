@@ -1,0 +1,85 @@
+# systemd Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for systemd tools.
+
+[provider]
+name = "systemctl"
+description = "systemd system and service manager"
+homepage = "https://systemd.io"
+repository = "https://github.com/systemd/systemd"
+ecosystem = "system"
+
+# systemd is Linux-only
+[provider.platforms]
+os = ["linux"]
+
+# systemctl - main service control tool
+[[runtimes]]
+name = "systemctl"
+description = "Control systemd services and units"
+executable = "systemctl"
+
+[runtimes.versions]
+source = "system"  # Detect from system installation
+
+[runtimes.platforms.linux]
+executable_extensions = []
+search_paths = [
+    "/usr/bin",
+    "/bin"
+]
+
+# journalctl - systemd journal viewer
+[[runtimes]]
+name = "journalctl"
+description = "View systemd journal logs"
+executable = "journalctl"
+bundled_with = "systemctl"
+
+[runtimes.versions]
+source = "system"
+
+[runtimes.platforms.linux]
+executable_extensions = []
+search_paths = [
+    "/usr/bin",
+    "/bin"
+]
+
+# systemd-analyze - systemd performance analysis
+[[runtimes]]
+name = "systemd-analyze"
+description = "Analyze systemd boot performance"
+executable = "systemd-analyze"
+bundled_with = "systemctl"
+
+[runtimes.versions]
+source = "system"
+
+[runtimes.platforms.linux]
+executable_extensions = []
+search_paths = [
+    "/usr/bin",
+    "/bin"
+]
+
+# loginctl - systemd login manager
+[[runtimes]]
+name = "loginctl"
+description = "Control systemd login manager"
+executable = "loginctl"
+bundled_with = "systemctl"
+
+[runtimes.versions]
+source = "system"
+
+[runtimes.platforms.linux]
+executable_extensions = []
+search_paths = [
+    "/usr/bin",
+    "/bin"
+]
+
+# No external dependencies - systemd tools are part of the system
+[[runtimes.constraints]]
+when = "*"
+recommends = []

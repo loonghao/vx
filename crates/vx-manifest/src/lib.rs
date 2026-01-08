@@ -38,12 +38,14 @@ mod ecosystem;
 mod error;
 mod loader;
 mod r#override;
+mod platform;
 mod provider;
 mod satisfies;
 
 pub use ecosystem::Ecosystem;
 pub use error::ManifestError;
 pub use loader::ManifestLoader;
+pub use platform::{Arch, Os, Platform, PlatformConstraint, PlatformExclusion};
 pub use provider::{
     ConstraintRule, DependencyDef, ExecutableConfig, HooksDef, PlatformConfig, PlatformsDef,
     ProviderManifest, ProviderMeta, RuntimeDef, VersionSourceDef,

@@ -86,12 +86,14 @@ fn test_cli_list_command() {
             installed,
             available,
             all,
+            system,
         }) => {
             assert!(tool.is_none());
             assert!(!status);
             assert!(!installed);
             assert!(!available);
             assert!(!all);
+            assert!(!system);
         }
         _ => panic!("Expected List command"),
     }
@@ -117,6 +119,7 @@ fn test_cli_list_with_options() {
             installed,
             available,
             all,
+            system: _,
         }) => {
             assert_eq!(tool, Some("node".to_string()));
             assert!(status);
@@ -816,8 +819,8 @@ fn test_cli_run_command() {
     let cli = Cli::try_parse_from(args).unwrap();
 
     match cli.command {
-        Some(Commands::Run { script, args }) => {
-            assert_eq!(script, "build");
+        Some(Commands::Run { script, args, .. }) => {
+            assert_eq!(script.as_deref(), Some("build"));
             assert!(args.is_empty());
         }
         _ => panic!("Expected Run command"),
@@ -831,8 +834,8 @@ fn test_cli_run_with_args() {
     let cli = Cli::try_parse_from(args).unwrap();
 
     match cli.command {
-        Some(Commands::Run { script, args }) => {
-            assert_eq!(script, "test");
+        Some(Commands::Run { script, args, .. }) => {
+            assert_eq!(script.as_deref(), Some("test"));
             assert_eq!(args, vec!["--coverage"]);
         }
         _ => panic!("Expected Run command"),
@@ -845,8 +848,8 @@ fn test_cli_run_with_positional_args() {
     let cli = Cli::try_parse_from(args).unwrap();
 
     match cli.command {
-        Some(Commands::Run { script, args }) => {
-            assert_eq!(script, "build");
+        Some(Commands::Run { script, args, .. }) => {
+            assert_eq!(script.as_deref(), Some("build"));
             assert_eq!(args, vec!["arg1", "arg2"]);
         }
         _ => panic!("Expected Run command"),
