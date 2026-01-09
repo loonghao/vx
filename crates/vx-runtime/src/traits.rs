@@ -26,6 +26,23 @@ pub trait HttpClient: Send + Sync {
         dest: &Path,
         on_progress: &(dyn Fn(u64, u64) + Send + Sync),
     ) -> Result<()>;
+
+    /// Download a file with caching support
+    ///
+    /// If the file is already cached, it will be copied from cache.
+    /// Otherwise, downloads and stores in cache for future use.
+    ///
+    /// Returns true if served from cache, false if downloaded.
+    async fn download_cached(&self, url: &str, dest: &Path) -> Result<bool> {
+        // Default implementation: just download without caching
+        self.download(url, dest).await?;
+        Ok(false)
+    }
+
+    /// Check if a URL is cached
+    fn is_cached(&self, _url: &str) -> bool {
+        false
+    }
 }
 
 /// File system abstraction for testability

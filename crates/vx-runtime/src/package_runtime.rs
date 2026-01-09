@@ -454,7 +454,7 @@ async fn install_pip_package(
     // (uv has known issues on some Windows configurations)
     let uv_result = if let Ok(uv_exe) = find_runtime_executable("uv", ctx).await {
         debug!("Trying uv: {}", uv_exe.display());
-        install_with_uv(&uv_exe, package_name, version, &venv_dir, &bin_dir).await
+        install_with_uv(&uv_exe, package_name, version, &venv_dir, &bin_dir, ctx).await
     } else {
         Err(anyhow::anyhow!("uv not found"))
     };
@@ -496,6 +496,56 @@ async fn install_pip_package(
     ))
 }
 
+/// Find vx-managed Python executable
+fn find_vx_python(ctx: &RuntimeContext) -> Option<std::path::PathBuf> {
+    let python_dir = ctx.paths.runtime_store_dir("python");
+    if !python_dir.exists() {
+        return None;
+    }
+
+    if let Ok(entries) = std::fs::read_dir(&python_dir) {
+        // Find any installed Python version (prefer newest)
+        let mut versions: Vec<_> = entries
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir())
+            .collect();
+
+        // Sort by version (newest first)
+        versions.sort_by(|a, b| {
+            let a_name = a.file_name().to_string_lossy().to_string();
+            let b_name = b.file_name().to_string_lossy().to_string();
+            compare_semver(&b_name, &a_name)
+        });
+
+        for entry in versions {
+            let version_dir = entry.path();
+            // Python executable location depends on platform
+            let exe_path = if cfg!(windows) {
+                version_dir.join("python").join("python.exe")
+            } else {
+                version_dir.join("python").join("bin").join("python3")
+            };
+
+            if exe_path.exists() {
+                return Some(exe_path);
+            }
+
+            // Also try bin/python3 directly
+            let exe_path = if cfg!(windows) {
+                version_dir.join("bin").join("python.exe")
+            } else {
+                version_dir.join("bin").join("python3")
+            };
+
+            if exe_path.exists() {
+                return Some(exe_path);
+            }
+        }
+    }
+
+    None
+}
+
 /// Install pip package using uv
 async fn install_with_uv(
     uv_exe: &Path,
@@ -503,6 +553,7 @@ async fn install_with_uv(
     version: &str,
     venv_dir: &Path,
     bin_dir: &Path,
+    ctx: &RuntimeContext,
 ) -> Result<()> {
     use tracing::debug;
 
@@ -513,9 +564,21 @@ async fn install_with_uv(
         venv_dir.join("bin").join("python")
     };
 
-    // Create venv with uv
-    let status = std::process::Command::new(uv_exe)
-        .args(["venv", "--quiet", venv_dir.to_str().unwrap()])
+    // Try to find vx-managed Python first for environment isolation
+    let vx_python = find_vx_python(ctx);
+
+    // Create venv with uv, using vx-managed Python if available
+    let mut cmd = std::process::Command::new(uv_exe);
+    cmd.args(["venv", "--quiet", venv_dir.to_str().unwrap()]);
+
+    if let Some(ref python_path) = vx_python {
+        debug!("Using vx-managed Python: {}", python_path.display());
+        cmd.arg("--python").arg(python_path);
+    } else {
+        debug!("No vx-managed Python found, using uv's default Python");
+    }
+
+    let status = cmd
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

@@ -149,78 +149,157 @@ impl Downloader {
         progress: &ProgressContext,
     ) -> Result<()> {
         // Optimize URL with CDN if enabled
-        let download_url = self.cdn_optimizer.optimize_url(url).await?;
+        let optimized = self.cdn_optimizer.optimize_url(url).await?;
+        let urls = optimized.urls();
 
-        debug!("Downloading from: {}", download_url);
+        debug!(
+            "Attempting download from {} URL(s): primary={}, has_fallback={}",
+            urls.len(),
+            urls[0],
+            optimized.has_fallback()
+        );
 
         // Ensure parent directory exists
         if let Some(parent) = output_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
 
-        // Start progress bar early for network requests
-        progress.start("Connecting...", None).await?;
+        // Try each URL in order (primary first, then fallback if available)
+        let mut last_error = None;
+        let mut attempt_errors: Vec<(String, String)> = Vec::new();
 
-        // Start the download request
-        let response = self.client.get(&download_url).send().await.map_err(|e| {
-            if e.is_timeout() {
-                Error::NetworkTimeout {
-                    url: download_url.clone(),
-                }
-            } else if e.is_connect() || e.is_request() {
-                Error::download_failed(&download_url, format!("Connection error: {}", e))
+        for (index, download_url) in urls.iter().enumerate() {
+            let is_fallback = index > 0;
+            if is_fallback {
+                warn!(
+                    "Primary CDN URL failed, attempting fallback to original URL: {}",
+                    download_url
+                );
+                progress
+                    .start("Retrying with original URL...", None)
+                    .await?;
             } else {
-                Error::download_failed(&download_url, e.to_string())
+                progress.start("Connecting...", None).await?;
             }
-        })?;
 
-        // Check response status
-        if !response.status().is_success() {
-            let _ = progress.error("HTTP error").await;
-            return Err(Error::download_failed(
-                &download_url,
-                format!("HTTP {}", response.status()),
-            ));
-        }
+            debug!("Downloading from: {}", download_url);
 
-        // Get content length for progress tracking
-        let total_size = response.content_length();
+            // Start the download request
+            let response = match self.client.get(*download_url).send().await {
+                Ok(resp) => resp,
+                Err(e) => {
+                    let error = if e.is_timeout() {
+                        Error::NetworkTimeout {
+                            url: (*download_url).to_string(),
+                        }
+                    } else if e.is_connect() || e.is_request() {
+                        Error::download_failed(*download_url, format!("Connection error: {}", e))
+                    } else {
+                        Error::download_failed(*download_url, e.to_string())
+                    };
 
-        // Extract filename for progress display (use original URL for display)
-        let filename = self.extract_filename_from_url(url);
-        let message = format!("Downloading {}", filename);
+                    attempt_errors.push((download_url.to_string(), error.to_string()));
 
-        progress.start(&message, total_size).await?;
-
-        // Create the output file
-        let mut file = std::fs::File::create(output_path)?;
-        let mut stream = response.bytes_stream();
-        let mut downloaded = 0u64;
-
-        // Download with progress tracking
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| {
-                if e.is_timeout() {
-                    Error::NetworkTimeout {
-                        url: url.to_string(),
+                    if is_fallback || !optimized.has_fallback() {
+                        // Last URL or no fallback available, return error with attempts
+                        let detail = format!(
+                            "All download attempts failed: {}",
+                            attempt_errors
+                                .iter()
+                                .map(|(u, e)| format!("{} => {}", u, e))
+                                .collect::<Vec<_>>()
+                                .join("; ")
+                        );
+                        return Err(Error::download_failed(url, detail));
                     }
-                } else {
-                    Error::download_failed(url, format!("Stream error: {}", e))
+
+                    // Store error and try next URL
+                    warn!("Download from CDN failed: {}, will try fallback", error);
+                    last_error = Some(error);
+                    continue;
                 }
-            })?;
+            };
 
-            std::io::Write::write_all(&mut file, &chunk)?;
-            downloaded += chunk.len() as u64;
+            // Check response status
+            if !response.status().is_success() {
+                let error =
+                    Error::download_failed(*download_url, format!("HTTP {}", response.status()));
 
-            progress.update(downloaded, None).await?;
+                attempt_errors.push((download_url.to_string(), error.to_string()));
+
+                if is_fallback || !optimized.has_fallback() {
+                    let _ = progress.error("HTTP error").await;
+                    let detail = format!(
+                        "All download attempts failed: {}",
+                        attempt_errors
+                            .iter()
+                            .map(|(u, e)| format!("{} => {}", u, e))
+                            .collect::<Vec<_>>()
+                            .join("; ")
+                    );
+                    return Err(Error::download_failed(url, detail));
+                }
+
+                // Store error and try next URL
+                warn!("CDN returned HTTP error: {}, will try fallback", error);
+                last_error = Some(error);
+                continue;
+            }
+
+            // Successfully got response, proceed with download
+            if is_fallback {
+                debug!("Fallback URL succeeded");
+            }
+
+            // Get content length for progress tracking
+            let total_size = response.content_length();
+
+            // Extract filename for progress display (use original URL for display)
+            let filename = self.extract_filename_from_url(url);
+            let message = format!("Downloading {}", filename);
+
+            progress.start(&message, total_size).await?;
+
+            // Create the output file
+            let mut file = std::fs::File::create(output_path)?;
+            let mut stream = response.bytes_stream();
+            let mut downloaded = 0u64;
+
+            // Download the file in chunks
+            while let Some(chunk_result) = stream.next().await {
+                let chunk = chunk_result
+                    .map_err(|e| Error::download_failed(url, format!("Stream error: {}", e)))?;
+                use std::io::Write;
+                file.write_all(&chunk)?;
+                downloaded += chunk.len() as u64;
+                progress.update(downloaded, None).await?;
+            }
+
+            // Verify file was created and has content
+            let metadata = std::fs::metadata(output_path)?;
+            if metadata.len() == 0 {
+                return Err(Error::download_failed(url, "Downloaded file is empty"));
+            }
+
+            progress.finish("Download complete").await?;
+            return Ok(());
         }
 
-        // Ensure all data is written
-        std::io::Write::flush(&mut file)?;
-
-        progress.finish("Download completed").await?;
-
-        Ok(())
+        // All URLs failed
+        if !attempt_errors.is_empty() {
+            let detail = attempt_errors
+                .iter()
+                .map(|(u, e)| format!("{} => {}", u, e))
+                .collect::<Vec<_>>()
+                .join("; ");
+            Err(Error::download_failed(
+                url,
+                format!("All download attempts failed: {}", detail),
+            ))
+        } else {
+            Err(last_error
+                .unwrap_or_else(|| Error::download_failed(url, "All download attempts failed")))
+        }
     }
 
     /// Download a file to a temporary location and return the path

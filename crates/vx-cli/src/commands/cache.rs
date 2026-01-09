@@ -3,6 +3,7 @@
 use crate::cli::CacheCommand;
 use crate::ui::UI;
 use anyhow::Result;
+use vx_cache::DownloadCache;
 use vx_paths::VxPaths;
 use vx_resolver::{ResolutionCache, RESOLUTION_CACHE_DIR_NAME};
 use vx_runtime::VersionCache;
@@ -74,24 +75,25 @@ async fn handle_clear(
         }
     }
 
-    // Clear download cache
+    // Clear download cache (new high-performance CAS cache)
     if clear_downloads {
-        let download_cache = &paths.cache_dir;
-        if download_cache.exists() {
-            let mut count = 0;
-            if let Ok(entries) = std::fs::read_dir(download_cache) {
-                for entry in entries.filter_map(|e| e.ok()) {
-                    let path = entry.path();
-                    // Only remove files, not subdirectories like 'versions' / 'resolutions'
-                    if path.is_file() {
-                        std::fs::remove_file(&path)?;
-                        count += 1;
-                    }
+        let download_cache = DownloadCache::new(paths.cache_dir.clone());
+        let stats_before = download_cache.stats();
+        if stats_before.file_count > 0 {
+            match download_cache.clear() {
+                Ok(bytes_freed) => {
+                    UI::success(&format!(
+                        "Cleared {} download cache files ({})",
+                        stats_before.file_count,
+                        format_size(bytes_freed)
+                    ));
+                }
+                Err(e) => {
+                    UI::warning(&format!("Failed to clear download cache: {}", e));
                 }
             }
-            if count > 0 {
-                UI::success(&format!("Cleared {} download cache files", count));
-            }
+        } else {
+            UI::info("Download cache: (empty)");
         }
     }
 
@@ -152,28 +154,13 @@ async fn handle_stats() -> Result<()> {
     println!("  Expired entries: {}", resolution_stats.expired_entries);
     println!("  Total size:      {}", resolution_stats.formatted_size());
 
-    // Download cache stats
-    let download_cache = &paths.cache_dir;
-    if download_cache.exists() {
-        let mut count = 0;
-        let mut size: u64 = 0;
-        if let Ok(entries) = std::fs::read_dir(download_cache) {
-            for entry in entries.filter_map(|e| e.ok()) {
-                let path = entry.path();
-                if path.is_file() {
-                    count += 1;
-                    if let Ok(meta) = path.metadata() {
-                        size += meta.len();
-                    }
-                }
-            }
-        }
-        let size_str = format_size(size);
-        println!();
-        UI::info("Download Cache:");
-        println!("  Files: {}", count);
-        println!("  Size:  {}", size_str);
-    }
+    // Download cache stats (new high-performance CAS cache)
+    let download_cache = DownloadCache::new(paths.cache_dir.clone());
+    let download_stats = download_cache.stats();
+    println!();
+    UI::info("Download Cache:");
+    println!("  Cached files: {}", download_stats.file_count);
+    println!("  Total size:   {}", download_stats.formatted_size());
 
     println!();
     UI::hint("Run 'vx cache clear' to prune expired entries");

@@ -1,5 +1,6 @@
 # Node.js Provider Manifest
 # This file defines the metadata, runtimes, and dependency constraints for Node.js.
+# RFC 0017/0018 compliant - includes extended schema fields
 
 [provider]
 name = "node"
@@ -14,6 +15,15 @@ name = "node"
 description = "Node.js runtime"
 executable = "node"
 aliases = ["nodejs"]
+priority = 100
+auto_installable = true
+# RFC 0018: Environment configuration (inline)
+env = { vars = { PATH = "{install_dir}/bin" }, conditional = { ">=18" = { NODE_OPTIONS = "--experimental-vm-modules" } } }
+# RFC 0018: Mirror configuration
+mirrors = [
+    { name = "taobao", region = "cn", url = "https://npmmirror.com/mirrors/node", priority = 100 },
+    { name = "ustc", region = "cn", url = "https://mirrors.ustc.edu.cn/node", priority = 90 }
+]
 
 [runtimes.versions]
 source = "nodejs-org"
@@ -28,6 +38,37 @@ executable_extensions = [".exe"]
 
 [runtimes.platforms.unix]
 executable_extensions = []
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "v?(\\d+\\.\\d+\\.\\d+)"
+system_paths = ["/usr/bin/node", "/usr/local/bin/node", "C:\\Program Files\\nodejs\\node.exe"]
+env_hints = ["NODE_HOME", "NVM_DIR", "NODENV_ROOT"]
+
+# RFC 0018: Health check configuration
+[runtimes.health]
+check_command = "{executable} -e \"console.log(process.version)\""
+expected_pattern = "v\\d+\\.\\d+\\.\\d+"
+exit_code = 0
+timeout_ms = 5000
+check_on = ["install", "activate"]
+
+# RFC 0018: Cache configuration
+[runtimes.cache]
+versions_ttl = 3600
+cache_downloads = true
+downloads_retention_days = 30
+shared_cache = true
+
+# RFC 0018: Lifecycle hooks
+[runtimes.hooks]
+post_install = ["verify-node.sh"]
+post_activate = ["setup-npm-config.sh"]
+
+[runtimes.hooks.config]
+fail_on_error = false
+timeout_ms = 30000
 
 # Node.js has no external dependencies
 # But we can recommend npm as the default package manager
