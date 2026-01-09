@@ -10,6 +10,7 @@ repository = { workspace = true }
 vx-runtime = { workspace = true }
 vx-cache = { workspace = true }
 vx-paths = { workspace = true }
+vx-console = { workspace = true, features = ["progress"] }
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }
@@ -21,8 +22,10 @@ tokio = { workspace = true, features = ["time"] }
 toml = { workspace = true }
 tracing = { workspace = true }
 which = { workspace = true }
+vx-manifest = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
 tokio-test = { workspace = true }
 tempfile = { workspace = true }
+

@@ -13,6 +13,7 @@ rust-version.workspace = true
 
 
 [dependencies]
+vx-cache = { workspace = true }
 vx-core = { workspace = true }
 vx-config = { workspace = true }
 vx-env = { workspace = true }

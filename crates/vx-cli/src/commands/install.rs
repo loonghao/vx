@@ -82,6 +82,27 @@ async fn install_single(
         }
     };
 
+    // Check if this runtime is bundled with another
+    // If so, redirect installation to the parent runtime
+    if let Some(bundled_with) = runtime.metadata().get("bundled_with") {
+        if bundled_with != tool_name {
+            UI::info(&format!(
+                "'{}' is bundled with '{}'. Installing '{}' instead...",
+                tool_name, bundled_with, bundled_with
+            ));
+            // Recursively install the parent runtime
+            return Box::pin(install_single(
+                registry,
+                context,
+                bundled_with,
+                version,
+                force,
+                is_multi,
+            ))
+            .await;
+        }
+    }
+
     // Determine version to install
     let requested_version = version.unwrap_or("latest");
 
@@ -95,7 +116,7 @@ async fn install_single(
         )
     };
     let spinner = ProgressSpinner::new(&resolve_msg);
-    
+
     // Update spinner message to show network activity
     spinner.set_message(&format!("{} (fetching versions...)", resolve_msg));
     let target_version = runtime.resolve_version(requested_version, context).await?;
@@ -128,10 +149,8 @@ async fn install_single(
         runtime.install(&target_version, context).await
     } else {
         // In single-tool mode, show spinner
-        let spinner = ProgressSpinner::new_install(&format!(
-            "Installing {} {}...",
-            tool_name, target_version
-        ));
+        // Note: new_install template already includes "Installing" prefix
+        let spinner = ProgressSpinner::new_install(&format!("{} {}...", tool_name, target_version));
         let result = runtime.install(&target_version, context).await;
         match &result {
             Ok(_) => spinner.finish_with_message(&format!(

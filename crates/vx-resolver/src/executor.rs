@@ -6,10 +6,14 @@
 //! 3. Forward command to the appropriate executable
 
 use crate::resolution_cache::log_cache_result;
-use crate::{ResolutionCache, ResolutionCacheKey, ResolvedGraph, Resolver, ResolverConfig, Result};
+use crate::{
+    ResolutionCache, ResolutionCacheKey, ResolvedGraph, Resolver, ResolverConfig, Result,
+    RuntimeMap,
+};
 use std::process::{ExitStatus, Stdio};
 use tokio::process::Command;
 use tracing::{debug, info, info_span, warn, Instrument};
+use vx_console::ProgressSpinner;
 use vx_runtime::{get_default_constraints, CacheMode, ProviderRegistry, RuntimeContext};
 
 /// Executor for runtime command forwarding
@@ -31,49 +35,17 @@ pub struct Executor<'a> {
 }
 
 impl<'a> Executor<'a> {
-    /// Create a new executor
-    pub fn new(config: ResolverConfig) -> Result<Self> {
-        let resolver = Resolver::new(config.clone())?;
-        let resolution_cache = ResolutionCache::default_paths(&config)
-            .map_err(|e| {
-                debug!("Resolution cache disabled: {}", e);
-                e
-            })
-            .ok();
-        Ok(Self {
-            config,
-            resolver,
-            resolution_cache,
-            registry: None,
-            context: None,
-        })
-    }
-
-    /// Create an executor with a provider registry for auto-installation
-    pub fn with_registry(config: ResolverConfig, registry: &'a ProviderRegistry) -> Result<Self> {
-        let resolver = Resolver::new(config.clone())?;
-        let resolution_cache = ResolutionCache::default_paths(&config)
-            .map_err(|e| {
-                debug!("Resolution cache disabled: {}", e);
-                e
-            })
-            .ok();
-        Ok(Self {
-            config,
-            resolver,
-            resolution_cache,
-            registry: Some(registry),
-            context: None,
-        })
-    }
-
-    /// Create an executor with a provider registry and runtime context
-    pub fn with_registry_and_context(
+    /// Create an executor with a provider registry, runtime context, and runtime map
+    ///
+    /// The RuntimeMap should be built from provider manifests using
+    /// `RuntimeMap::from_manifests()`. See RFC 0017.
+    pub fn new(
         config: ResolverConfig,
         registry: &'a ProviderRegistry,
         context: &'a RuntimeContext,
+        runtime_map: RuntimeMap,
     ) -> Result<Self> {
-        let resolver = Resolver::new(config.clone())?;
+        let resolver = Resolver::new(config.clone(), runtime_map)?;
         let resolution_cache = ResolutionCache::default_paths(&config)
             .map_err(|e| {
                 debug!("Resolution cache disabled: {}", e);
@@ -507,10 +479,21 @@ impl<'a> Executor<'a> {
             return Ok(None);
         };
 
-        // Resolve and install the version
-        let resolved_version = runtime
-            .resolve_version(&version_to_install, context)
-            .await?;
+        // Resolve and install the version - show progress spinner
+        let spinner = ProgressSpinner::new(&format!(
+            "Resolving compatible {}@{}...",
+            dep_name, version_to_install
+        ));
+        let resolved_version = match runtime.resolve_version(&version_to_install, context).await {
+            Ok(v) => {
+                spinner.finish_and_clear();
+                v
+            }
+            Err(e) => {
+                spinner.finish_with_error(&format!("Failed to resolve version: {}", e));
+                return Err(e);
+            }
+        };
         info!(
             "Resolved {}@{} → {}",
             dep_name, version_to_install, resolved_version
@@ -535,7 +518,23 @@ impl<'a> Executor<'a> {
                 dep_name, resolved_version
             );
             runtime.pre_install(&resolved_version, context).await?;
-            let result = runtime.install(&resolved_version, context).await?;
+
+            // Show progress spinner for installation
+            // Note: new_install template already includes "Installing" prefix
+            let spinner = ProgressSpinner::new_install(&format!(
+                "{} {} for compatibility...",
+                dep_name, resolved_version
+            ));
+            let result = match runtime.install(&resolved_version, context).await {
+                Ok(r) => {
+                    spinner.finish_and_clear();
+                    r
+                }
+                Err(e) => {
+                    spinner.finish_with_error(&format!("Installation failed: {}", e));
+                    return Err(e);
+                }
+            };
             if !context.fs.exists(&result.executable_path) {
                 return Err(anyhow::anyhow!(
                     "Installation completed but executable not found at {}",
@@ -604,6 +603,17 @@ impl<'a> Executor<'a> {
             return Ok(incompatible_deps);
         }
 
+        // Show progress spinner for dependency checking (only if multiple deps)
+        let spinner = if all_deps.len() > 1 {
+            Some(ProgressSpinner::new(&format!(
+                "Checking {} dependencies for {}...",
+                all_deps.len(),
+                runtime_name
+            )))
+        } else {
+            None
+        };
+
         debug!(
             "Checking {} dependencies for {}",
             all_deps.len(),
@@ -671,6 +681,11 @@ impl<'a> Executor<'a> {
                     });
                 }
             }
+        }
+
+        // Clear spinner when done
+        if let Some(spinner) = spinner {
+            spinner.finish_and_clear();
         }
 
         Ok(incompatible_deps)
@@ -857,8 +872,21 @@ impl<'a> Executor<'a> {
             .get_runtime(runtime_name)
             .ok_or_else(|| anyhow::anyhow!("Unknown runtime: {}", runtime_name))?;
 
-        // Resolve the version constraint to an actual version
-        let resolved_version = runtime.resolve_version(requested_version, context).await?;
+        // Resolve the version constraint to an actual version - show progress spinner
+        let spinner = ProgressSpinner::new(&format!(
+            "Resolving {}@{}...",
+            runtime_name, requested_version
+        ));
+        let resolved_version = match runtime.resolve_version(requested_version, context).await {
+            Ok(v) => {
+                spinner.finish_and_clear();
+                v
+            }
+            Err(e) => {
+                spinner.finish_with_error(&format!("Failed to resolve version: {}", e));
+                return Err(e);
+            }
+        };
         info!(
             "Resolved {}@{} → {}",
             runtime_name, requested_version, resolved_version
@@ -893,8 +921,20 @@ impl<'a> Executor<'a> {
         // Run pre-install hook
         runtime.pre_install(&resolved_version, context).await?;
 
-        // Install the runtime
-        let result = runtime.install(&resolved_version, context).await?;
+        // Install the runtime - show progress spinner
+        // Note: new_install template already includes "Installing" prefix
+        let spinner =
+            ProgressSpinner::new_install(&format!("{} {}...", runtime_name, resolved_version));
+        let result = match runtime.install(&resolved_version, context).await {
+            Ok(r) => {
+                spinner.finish_and_clear();
+                r
+            }
+            Err(e) => {
+                spinner.finish_with_error(&format!("Installation failed: {}", e));
+                return Err(e);
+            }
+        };
 
         // Verify the installation
         if !context.fs.exists(&result.executable_path) {
@@ -924,26 +964,44 @@ impl<'a> Executor<'a> {
         let spec = self.resolver.get_spec(runtime_name);
 
         if let Some(spec) = spec {
-            for dep in &spec.dependencies {
-                if !dep.required {
-                    continue;
-                }
+            // Count required dependencies that need installation
+            let deps_to_install: Vec<_> = spec
+                .dependencies
+                .iter()
+                .filter(|dep| dep.required)
+                .filter(|dep| {
+                    let dep_runtime = dep.provided_by.as_deref().unwrap_or(&dep.runtime_name);
+                    let resolution = self.resolver.resolve(dep_runtime);
+                    resolution.is_err() || resolution.as_ref().unwrap().runtime_needs_install
+                })
+                .collect();
 
+            if deps_to_install.is_empty() {
+                return Ok(());
+            }
+
+            // Show progress spinner for dependency installation
+            let spinner = ProgressSpinner::new(&format!(
+                "Installing {} dependencies for {}...",
+                deps_to_install.len(),
+                runtime_name
+            ));
+
+            for dep in deps_to_install {
                 // Get the provider name (the actual runtime to install)
                 let dep_runtime = dep.provided_by.as_deref().unwrap_or(&dep.runtime_name);
 
-                // Check if the dependency is installed
-                let resolution = self.resolver.resolve(dep_runtime);
-                if resolution.is_err() || resolution.as_ref().unwrap().runtime_needs_install {
-                    // Install the dependency
-                    // TODO: Support version constraints from RuntimeDependency.min_version
-                    info!(
-                        "Installing dependency {} for {} ({})",
-                        dep_runtime, runtime_name, dep.reason
-                    );
-                    self.install_runtime(dep_runtime).await?;
-                }
+                // Install the dependency
+                // TODO: Support version constraints from RuntimeDependency.min_version
+                info!(
+                    "Installing dependency {} for {} ({})",
+                    dep_runtime, runtime_name, dep.reason
+                );
+                spinner.set_message(&format!("Installing dependency {}...", dep_runtime));
+                self.install_runtime(dep_runtime).await?;
             }
+
+            spinner.finish_and_clear();
         }
 
         Ok(())
@@ -1032,9 +1090,20 @@ impl<'a> Executor<'a> {
                     return Err(anyhow::anyhow!("{}", e));
                 }
 
-                // Fetch versions to get the latest
+                // Fetch versions to get the latest - show progress spinner
+                let spinner =
+                    ProgressSpinner::new(&format!("Fetching versions for {}...", runtime_name));
                 debug!("Fetching versions for {}", runtime_name);
-                let versions = runtime.fetch_versions(context).await?;
+                let versions = match runtime.fetch_versions(context).await {
+                    Ok(v) => {
+                        spinner.finish_and_clear();
+                        v
+                    }
+                    Err(e) => {
+                        spinner.finish_with_error(&format!("Failed to fetch versions: {}", e));
+                        return Err(e);
+                    }
+                };
                 let version = versions
                     .iter()
                     .find(|v| !v.prerelease)
@@ -1047,11 +1116,23 @@ impl<'a> Executor<'a> {
                 // Run pre-install hook
                 runtime.pre_install(&version, context).await?;
 
-                // Actually install the runtime
+                // Actually install the runtime - show progress spinner
+                // Note: new_install template already includes "Installing" prefix
+                let spinner =
+                    ProgressSpinner::new_install(&format!("{} {}...", runtime_name, version));
                 // Note: Runtime::install() calls post_extract() internally before verification,
                 // which handles file renaming (e.g., pnpm-macos-arm64 -> pnpm)
                 debug!("Calling runtime.install() for {} {}", runtime_name, version);
-                let result = runtime.install(&version, context).await?;
+                let result = match runtime.install(&version, context).await {
+                    Ok(r) => {
+                        spinner.finish_and_clear();
+                        r
+                    }
+                    Err(e) => {
+                        spinner.finish_with_error(&format!("Installation failed: {}", e));
+                        return Err(e);
+                    }
+                };
                 debug!(
                     "Install result: path={}, exe={}, already_installed={}",
                     result.install_path.display(),

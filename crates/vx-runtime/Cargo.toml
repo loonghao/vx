@@ -20,6 +20,7 @@ futures-util = { workspace = true }
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
+bincode = "1.3"
 
 # HTTP client
 reqwest = { workspace = true }
@@ -35,6 +36,7 @@ tempfile = { workspace = true }
 chrono = { workspace = true }
 which = { workspace = true }
 glob = { workspace = true }
+regex = { workspace = true }
 
 # Retry with backoff
 backon = { workspace = true }

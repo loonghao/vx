@@ -49,7 +49,7 @@ pub mod installer;
 pub mod progress;
 
 // Re-export main types for convenience
-pub use cdn::{CdnConfig, CdnOptimizer};
+pub use cdn::{CdnConfig, CdnOptimizer, OptimizedUrl};
 pub use downloader::Downloader;
 pub use error::{Error, Result};
 pub use installer::{ArchiveFormat, InstallConfig, InstallConfigBuilder, InstallMethod, Installer};

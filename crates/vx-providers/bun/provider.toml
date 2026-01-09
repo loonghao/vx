@@ -37,8 +37,9 @@ recommends = [
 [[runtimes]]
 name = "bunx"
 description = "Bun package runner"
-executable = "bunx"
+executable = "bun"  # Uses bun executable
 bundled_with = "bun"
+command_prefix = ["x"]  # bunx args -> bun x args
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]

@@ -138,6 +138,8 @@ pub struct RealHttpClient {
     client: reqwest::Client,
     /// Whether CDN acceleration is enabled (controlled by cdn-acceleration feature)
     cdn_enabled: bool,
+    /// Download cache for avoiding re-downloads
+    download_cache: Option<vx_cache::DownloadCache>,
 }
 
 impl RealHttpClient {
@@ -148,11 +150,12 @@ impl RealHttpClient {
         Self {
             client: reqwest::Client::builder()
                 .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
-                .timeout(Duration::from_secs(30))  // 30 seconds total timeout
-                .connect_timeout(Duration::from_secs(10))  // 10 seconds connect timeout
+                .timeout(Duration::from_secs(30)) // 30 seconds total timeout
+                .connect_timeout(Duration::from_secs(10)) // 10 seconds connect timeout
                 .build()
                 .expect("Failed to create HTTP client"),
             cdn_enabled: cfg!(feature = "cdn-acceleration"),
+            download_cache: None,
         }
     }
 
@@ -161,11 +164,12 @@ impl RealHttpClient {
         Self {
             client: reqwest::Client::builder()
                 .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
-                .timeout(Duration::from_secs(30))  // 30 seconds total timeout
-                .connect_timeout(Duration::from_secs(10))  // 10 seconds connect timeout
+                .timeout(Duration::from_secs(30)) // 30 seconds total timeout
+                .connect_timeout(Duration::from_secs(10)) // 10 seconds connect timeout
                 .build()
                 .expect("Failed to create HTTP client"),
             cdn_enabled: cdn_enabled && cfg!(feature = "cdn-acceleration"),
+            download_cache: None,
         }
     }
 
@@ -183,12 +187,24 @@ impl RealHttpClient {
                 .build()
                 .expect("Failed to create HTTP client"),
             cdn_enabled: cdn_enabled && cfg!(feature = "cdn-acceleration"),
+            download_cache: None,
         }
+    }
+
+    /// Enable download caching with the specified cache directory
+    pub fn with_download_cache(mut self, cache_dir: std::path::PathBuf) -> Self {
+        self.download_cache = Some(vx_cache::DownloadCache::new(cache_dir));
+        self
     }
 
     /// Check if CDN acceleration is enabled
     pub fn is_cdn_enabled(&self) -> bool {
         self.cdn_enabled
+    }
+
+    /// Check if download caching is enabled
+    pub fn is_cache_enabled(&self) -> bool {
+        self.download_cache.is_some()
     }
 
     /// Optimize a download URL using CDN mirrors (if enabled)
@@ -261,8 +277,10 @@ impl RealHttpClient {
         }
 
         let response = request.send().await.map_err(|e| {
-            if e.is_timeout() || e.is_connect() {
-                HttpError::retryable(format!("Network error: {}", e))
+            if e.is_timeout() {
+                HttpError::retryable(format!("Request timed out for {}: {}", url, e))
+            } else if e.is_connect() {
+                HttpError::retryable(format!("Connection failed for {}: {}", url, e))
             } else {
                 HttpError::non_retryable(format!("Request failed: {}", e))
             }
@@ -349,10 +367,19 @@ impl RealHttpClient {
 
         // Be tolerant to broken/missing Content-Type headers (some proxies misbehave).
         // `reqwest::Response::json()` rejects non-JSON content-types; we parse from bytes instead.
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|e| HttpError::retryable(format!("Failed to read response body: {}", e)))?;
+        let bytes = response.bytes().await.map_err(|e| {
+            // Check if this is a timeout error while reading the response body
+            if e.is_timeout() {
+                HttpError::retryable(format!(
+                    "Timeout while reading response body from {}: {}",
+                    url, e
+                ))
+            } else if e.is_body() || e.is_decode() {
+                HttpError::retryable(format!("Error reading response body from {}: {}", url, e))
+            } else {
+                HttpError::retryable(format!("Failed to read response body from {}: {}", url, e))
+            }
+        })?;
 
         serde_json::from_slice::<serde_json::Value>(&bytes).map_err(|e| {
             let body = String::from_utf8_lossy(&bytes);
@@ -377,6 +404,68 @@ impl RealHttpClient {
                 ))
             }
         })
+    }
+
+    /// Extract a display name from URL (uv-style)
+    ///
+    /// For URLs like:
+    /// - .../cpython-3.10.19+20251217-x86_64-pc-windows-msvc-install_only.tar.gz
+    ///   → cpython-3.10.19-windows-x86_64
+    /// - .../node-v20.10.0-win-x64.zip
+    ///   → node-v20.10.0-win-x64
+    fn extract_display_name_from_url(url: &str) -> String {
+        // Get the filename from URL
+        let filename = url.split('/').last().unwrap_or("download").to_string();
+
+        // Try to extract a cleaner name for python-build-standalone
+        // Pattern: cpython-{version}+{date}-{platform}-install_only.tar.gz
+        if filename.starts_with("cpython-") {
+            if let Some(caps) = regex::Regex::new(
+                r"cpython-(\d+\.\d+\.\d+)\+\d+-(.+?)-install_only\.(tar\.gz|tar\.zst)",
+            )
+            .ok()
+            .and_then(|re| re.captures(&filename))
+            {
+                let version = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                let platform = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                // Simplify platform string
+                let simplified_platform = Self::simplify_platform_string(platform);
+                return format!("cpython-{}-{}", version, simplified_platform);
+            }
+        }
+
+        // For other files, remove common extensions and simplify
+        filename
+            .trim_end_matches(".tar.gz")
+            .trim_end_matches(".tar.zst")
+            .trim_end_matches(".tar.xz")
+            .trim_end_matches(".zip")
+            .trim_end_matches(".7z")
+            .to_string()
+    }
+
+    /// Simplify platform string for display
+    fn simplify_platform_string(platform: &str) -> String {
+        // x86_64-pc-windows-msvc-shared → windows-x86_64
+        // x86_64-unknown-linux-gnu → linux-x86_64
+        // aarch64-apple-darwin → darwin-aarch64
+        let parts: Vec<&str> = platform.split('-').collect();
+
+        if parts.len() >= 2 {
+            let arch = parts[0];
+            let os = if platform.contains("windows") {
+                "windows"
+            } else if platform.contains("linux") {
+                "linux"
+            } else if platform.contains("darwin") || platform.contains("apple") {
+                "darwin"
+            } else {
+                parts.get(1).copied().unwrap_or("unknown")
+            };
+            format!("{}-{}", os, arch)
+        } else {
+            platform.to_string()
+        }
     }
 }
 
@@ -461,9 +550,10 @@ impl HttpClient for RealHttpClient {
                 }
             })?;
 
-            let text = response.text().await.map_err(|e| {
-                HttpError::non_retryable(format!("Failed to read response: {}", e))
-            })?;
+            let text = response
+                .text()
+                .await
+                .map_err(|e| HttpError::non_retryable(format!("Failed to read response: {}", e)))?;
 
             Ok::<_, HttpError>(text)
         })
@@ -481,15 +571,13 @@ impl HttpClient for RealHttpClient {
         let url = url.to_string();
         let client = self.client.clone();
 
-        let result = (|| async {
-            self.fetch_json_once(&client, &url).await
-        })
-        .retry(Self::build_retry_strategy())
-        .notify(|err: &HttpError, dur: Duration| {
-            tracing::debug!(error = %err, retry_in = ?dur, url = %url, "Retrying JSON request");
-        })
-        .when(|e: &HttpError| e.is_retryable)
-        .await;
+        let result = (|| async { self.fetch_json_once(&client, &url).await })
+            .retry(Self::build_retry_strategy())
+            .notify(|err: &HttpError, dur: Duration| {
+                tracing::debug!(error = %err, retry_in = ?dur, url = %url, "Retrying JSON request");
+            })
+            .when(|e: &HttpError| e.is_retryable)
+            .await;
 
         result.map_err(|e| anyhow::anyhow!("{}", e))
     }
@@ -530,14 +618,18 @@ impl HttpClient for RealHttpClient {
         let mut file = tokio::fs::File::create(dest).await?;
         let mut stream = response.bytes_stream();
 
-        // Create progress bar with indicatif
-        let cdn_indicator = if using_cdn { " [CDN]" } else { "" };
+        // Extract filename from URL for display (uv-style)
+        let filename = Self::extract_display_name_from_url(url);
+        let cdn_suffix = if using_cdn { " [CDN]" } else { "" };
+
+        // Create progress bar with uv-style format:
+        // cpython-3.10.19-windows-x86_64-none (download) ━━━━━━━━━━━━━━ 1.47 MiB/21.49 MiB
         let progress_bar = if total_size > 0 {
             let pb = ProgressBar::new(total_size);
             pb.set_style(
-                ProgressStyle::with_template(
-                    &format!("  {{spinner:.green}} Downloading{cdn_indicator} {{wide_bar:.cyan/blue}} {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})")
-                )
+                ProgressStyle::with_template(&format!(
+                    "{filename}{cdn_suffix} (download) {{wide_bar:.cyan/blue}} {{bytes}}/{{total_bytes}}"
+                ))
                 .unwrap_or_else(|_| ProgressStyle::default_bar())
                 .progress_chars("━━╺"),
             );
@@ -546,7 +638,7 @@ impl HttpClient for RealHttpClient {
             let pb = ProgressBar::new_spinner();
             pb.set_style(
                 ProgressStyle::with_template(&format!(
-                    "  {{spinner:.green}} Downloading{cdn_indicator} {{bytes}} ({{bytes_per_sec}})"
+                    "{{spinner:.green}} {filename}{cdn_suffix} (download) {{bytes}}"
                 ))
                 .unwrap_or_else(|_| ProgressStyle::default_spinner()),
             );
@@ -560,13 +652,8 @@ impl HttpClient for RealHttpClient {
             progress_bar.inc(chunk.len() as u64);
         }
 
-        // Finish with summary
-        let downloaded = progress_bar.position();
-        progress_bar.finish_with_message(format!(
-            "Downloaded{} {:.1} MB",
-            cdn_indicator,
-            downloaded as f64 / 1_000_000.0
-        ));
+        // Finish with summary (uv-style: just clear the progress bar)
+        progress_bar.finish_and_clear();
 
         file.flush().await?;
         Ok(())
@@ -621,6 +708,99 @@ impl HttpClient for RealHttpClient {
 
         file.flush().await?;
         Ok(())
+    }
+
+    async fn download_cached(&self, url: &str, dest: &Path) -> Result<bool> {
+        use indicatif::{ProgressBar, ProgressStyle};
+
+        // Check if we have a download cache
+        let cache = match &self.download_cache {
+            Some(c) => c,
+            None => {
+                // No cache, just download
+                self.download(url, dest).await?;
+                return Ok(false);
+            }
+        };
+
+        // Check cache
+        let lookup = cache.lookup(url);
+        match lookup {
+            vx_cache::CacheLookupResult::Hit { path, metadata } => {
+                // Cache hit! Copy from cache
+                let filename = Self::extract_display_name_from_url(url);
+                let size_mb = metadata.size as f64 / 1_000_000.0;
+                let pb = ProgressBar::new_spinner();
+                pb.set_style(
+                    ProgressStyle::with_template(&format!(
+                        "{filename} (cached) {{spinner:.green}} {size_mb:.1} MB"
+                    ))
+                    .unwrap_or_else(|_| ProgressStyle::default_spinner()),
+                );
+                pb.enable_steady_tick(std::time::Duration::from_millis(50));
+
+                // Ensure parent directory exists
+                if let Some(parent) = dest.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+
+                std::fs::copy(&path, dest)?;
+                pb.finish_and_clear();
+                tracing::debug!(url = url, cached_path = ?path, "Served from download cache");
+                return Ok(true);
+            }
+            vx_cache::CacheLookupResult::NeedsRevalidation { path, metadata } => {
+                // Has ETag, could do conditional request but for simplicity use cached
+                let filename = Self::extract_display_name_from_url(url);
+                let size_mb = metadata.size as f64 / 1_000_000.0;
+                let pb = ProgressBar::new_spinner();
+                pb.set_style(
+                    ProgressStyle::with_template(&format!(
+                        "{filename} (cached) {{spinner:.green}} {size_mb:.1} MB"
+                    ))
+                    .unwrap_or_else(|_| ProgressStyle::default_spinner()),
+                );
+                pb.enable_steady_tick(std::time::Duration::from_millis(50));
+
+                if let Some(parent) = dest.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+
+                std::fs::copy(&path, dest)?;
+                pb.finish_and_clear();
+                tracing::debug!(url = url, cached_path = ?path, "Served from download cache (with ETag)");
+                return Ok(true);
+            }
+            vx_cache::CacheLookupResult::Miss => {
+                // Cache miss, need to download
+            }
+        }
+
+        // Download to a temp file first
+        let temp_dir = tempfile::tempdir()?;
+        let temp_path = temp_dir.path().join("download");
+
+        // Use standard download (which shows progress)
+        self.download(url, &temp_path).await?;
+
+        // Store in cache
+        if let Err(e) = cache.store(url, &temp_path, None, None, None) {
+            tracing::warn!(url = url, error = %e, "Failed to cache download");
+        }
+
+        // Move to final destination
+        if let Some(parent) = dest.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::copy(&temp_path, dest)?;
+
+        Ok(false)
+    }
+
+    fn is_cached(&self, url: &str) -> bool {
+        self.download_cache
+            .as_ref()
+            .is_some_and(|c| c.is_cached(url))
     }
 }
 
@@ -839,6 +1019,13 @@ impl RealInstaller {
             http: RealHttpClient::new(),
         }
     }
+
+    /// Create a new installer with download caching enabled
+    pub fn with_download_cache(cache_dir: std::path::PathBuf) -> Self {
+        Self {
+            http: RealHttpClient::new().with_download_cache(cache_dir),
+        }
+    }
 }
 
 impl Default for RealInstaller {
@@ -933,8 +1120,14 @@ impl Installer for RealInstaller {
 
         let temp_path = temp_dir.path().join(archive_name);
 
-        // Download
-        self.http.download(url_without_fragment, &temp_path).await?;
+        // Download with caching support (if cache is enabled)
+        let from_cache = self
+            .http
+            .download_cached(url_without_fragment, &temp_path)
+            .await?;
+        if from_cache {
+            tracing::debug!(url = url_without_fragment, "Using cached download");
+        }
 
         // Check if it's an archive or a single executable
         // First check the URL/filename, then check extension hint, then check file magic bytes
@@ -1004,29 +1197,43 @@ use crate::version_cache::VersionCache;
 use std::sync::Arc;
 
 /// Create a real runtime context for production use
+///
+/// Includes:
+/// - Version cache (bincode format for fast serialization)
+/// - Download cache (content-addressable storage for archives)
 pub fn create_runtime_context() -> Result<RuntimeContext> {
     let paths = Arc::new(RealPathProvider::new()?);
-    let http = Arc::new(RealHttpClient::new());
-    let fs = Arc::new(RealFileSystem::new());
-    let installer = Arc::new(RealInstaller::new());
+    let cache_dir = paths.cache_dir().to_path_buf();
 
-    // Create version cache in the cache directory
-    let cache_dir = paths.cache_dir().join("versions");
+    // Create HTTP client with download caching
+    let http = Arc::new(RealHttpClient::new().with_download_cache(cache_dir.clone()));
+    let fs = Arc::new(RealFileSystem::new());
+    // Create installer with download caching
+    let installer = Arc::new(RealInstaller::with_download_cache(cache_dir.clone()));
+
+    // Create version cache (high-performance bincode format)
     let version_cache = VersionCache::new(cache_dir);
 
     Ok(RuntimeContext::new(paths, http, fs, installer).with_version_cache(version_cache))
 }
 
 /// Create a real runtime context with custom base directory
+///
+/// Includes:
+/// - Version cache (bincode format for fast serialization)
+/// - Download cache (content-addressable storage for archives)
 pub fn create_runtime_context_with_base(base_dir: impl AsRef<Path>) -> RuntimeContext {
     let base_dir = base_dir.as_ref();
     let paths = Arc::new(RealPathProvider::with_base_dir(base_dir));
-    let http = Arc::new(RealHttpClient::new());
-    let fs = Arc::new(RealFileSystem::new());
-    let installer = Arc::new(RealInstaller::new());
+    let cache_dir = paths.cache_dir().to_path_buf();
 
-    // Create version cache in the cache directory
-    let cache_dir = paths.cache_dir().join("versions");
+    // Create HTTP client with download caching
+    let http = Arc::new(RealHttpClient::new().with_download_cache(cache_dir.clone()));
+    let fs = Arc::new(RealFileSystem::new());
+    // Create installer with download caching
+    let installer = Arc::new(RealInstaller::with_download_cache(cache_dir.clone()));
+
+    // Create version cache (high-performance bincode format)
     let version_cache = VersionCache::new(cache_dir);
 
     RuntimeContext::new(paths, http, fs, installer).with_version_cache(version_cache)

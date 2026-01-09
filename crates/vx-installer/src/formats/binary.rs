@@ -29,11 +29,11 @@ impl BinaryHandler {
             if matches!(ext_lower.as_str(), "bin" | "run" | "app") {
                 return true;
             }
-            
+
             // Known archive extensions - NOT binaries
-            if matches!(ext_lower.as_str(), 
-                "zip" | "tar" | "gz" | "xz" | "bz2" | "7z" | "rar" |
-                "tgz" | "txz" | "tbz2" | "tbz"
+            if matches!(
+                ext_lower.as_str(),
+                "zip" | "tar" | "gz" | "xz" | "bz2" | "7z" | "rar" | "tgz" | "txz" | "tbz2" | "tbz"
             ) {
                 return false;
             }
@@ -45,25 +45,26 @@ impl BinaryHandler {
             if magic.starts_with(&[0x7f, b'E', b'L', b'F']) {
                 return true;
             }
-            
+
             // Windows PE executable (MZ header)
             if magic.starts_with(&[b'M', b'Z']) {
                 return true;
             }
-            
+
             // Mach-O binary (macOS) - various magic numbers
             // 32-bit: 0xFEEDFACE, 64-bit: 0xFEEDFACF
             // Fat binary: 0xCAFEBABE
             if magic.len() >= 4 {
                 let magic_u32_be = u32::from_be_bytes([magic[0], magic[1], magic[2], magic[3]]);
                 let magic_u32_le = u32::from_le_bytes([magic[0], magic[1], magic[2], magic[3]]);
-                
-                if matches!(magic_u32_be, 0xFEEDFACE | 0xFEEDFACF | 0xCAFEBABE) ||
-                   matches!(magic_u32_le, 0xFEEDFACE | 0xFEEDFACF) {
+
+                if matches!(magic_u32_be, 0xFEEDFACE | 0xFEEDFACF | 0xCAFEBABE)
+                    || matches!(magic_u32_le, 0xFEEDFACE | 0xFEEDFACF)
+                {
                     return true;
                 }
             }
-            
+
             // Shebang script (#!/...) - treat as executable
             if magic.starts_with(&[b'#', b'!']) {
                 return true;
@@ -85,7 +86,7 @@ impl BinaryHandler {
 
         false
     }
-    
+
     /// Read the first N bytes of a file (magic bytes)
     fn read_magic_bytes(&self, file_path: &Path, n: usize) -> std::io::Result<Vec<u8>> {
         let mut file = std::fs::File::open(file_path)?;

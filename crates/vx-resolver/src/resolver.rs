@@ -173,18 +173,11 @@ pub struct Resolver {
 }
 
 impl Resolver {
-    /// Create a new runtime resolver
-    pub fn new(config: ResolverConfig) -> Result<Self> {
-        let path_resolver = VxPathResolver::default_paths()?;
-        Ok(Self {
-            runtime_map: RuntimeMap::new(),
-            path_resolver,
-            config,
-        })
-    }
-
-    /// Create a resolver with a custom runtime map (for testing)
-    pub fn with_runtime_map(config: ResolverConfig, runtime_map: RuntimeMap) -> Result<Self> {
+    /// Create a resolver with a runtime map
+    ///
+    /// The RuntimeMap should be built from provider manifests using
+    /// `RuntimeMap::from_manifests()`. See RFC 0017.
+    pub fn new(config: ResolverConfig, runtime_map: RuntimeMap) -> Result<Self> {
         let path_resolver = VxPathResolver::default_paths()?;
         Ok(Self {
             runtime_map,

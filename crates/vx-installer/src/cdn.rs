@@ -28,21 +28,39 @@ impl CdnOptimizer {
     /// When CDN acceleration is enabled and the `cdn-acceleration` feature is active,
     /// this will return an optimized URL from the best available CDN mirror.
     /// Otherwise, it returns the original URL.
-    pub async fn optimize_url(&self, url: &str) -> Result<String> {
+    ///
+    /// Returns a tuple of (optimized_url, original_url) to enable fallback on download failure.
+    pub async fn optimize_url(&self, url: &str) -> Result<OptimizedUrl> {
         if !self.enabled {
-            return Ok(url.to_string());
+            return Ok(OptimizedUrl {
+                primary: url.to_string(),
+                fallback: None,
+            });
         }
 
         #[cfg(feature = "cdn-acceleration")]
         {
             match turbo_cdn::async_api::quick::optimize_url(url).await {
                 Ok(optimized) => {
-                    tracing::debug!(
-                        original = url,
-                        optimized = %optimized,
-                        "CDN URL optimized"
-                    );
-                    Ok(optimized)
+                    if optimized == url {
+                        // No optimization needed
+                        tracing::debug!(url = url, "URL not optimized by CDN");
+                        Ok(OptimizedUrl {
+                            primary: url.to_string(),
+                            fallback: None,
+                        })
+                    } else {
+                        // CDN URL available, keep original as fallback
+                        tracing::debug!(
+                            original = url,
+                            optimized = %optimized,
+                            "CDN URL optimized, original kept as fallback"
+                        );
+                        Ok(OptimizedUrl {
+                            primary: optimized,
+                            fallback: Some(url.to_string()),
+                        })
+                    }
                 }
                 Err(e) => {
                     tracing::warn!(
@@ -50,15 +68,46 @@ impl CdnOptimizer {
                         error = %e,
                         "CDN optimization failed, using original URL"
                     );
-                    Ok(url.to_string())
+                    Ok(OptimizedUrl {
+                        primary: url.to_string(),
+                        fallback: None,
+                    })
                 }
             }
         }
 
         #[cfg(not(feature = "cdn-acceleration"))]
         {
-            Ok(url.to_string())
+            Ok(OptimizedUrl {
+                primary: url.to_string(),
+                fallback: None,
+            })
         }
+    }
+}
+
+/// Result of URL optimization
+#[derive(Debug, Clone)]
+pub struct OptimizedUrl {
+    /// Primary URL to try first (CDN-optimized if available)
+    pub primary: String,
+    /// Fallback URL to try if primary fails (original URL)
+    pub fallback: Option<String>,
+}
+
+impl OptimizedUrl {
+    /// Get all URLs to try in order (primary first, then fallback if available)
+    pub fn urls(&self) -> Vec<&str> {
+        let mut urls = vec![self.primary.as_str()];
+        if let Some(fallback) = &self.fallback {
+            urls.push(fallback.as_str());
+        }
+        urls
+    }
+
+    /// Check if there's a fallback URL available
+    pub fn has_fallback(&self) -> bool {
+        self.fallback.is_some()
     }
 }
 
@@ -143,6 +192,31 @@ mod tests {
         let optimizer = CdnOptimizer::new(false);
         let url = "https://github.com/user/repo/releases/download/v1.0/file.zip";
         let result = optimizer.optimize_url(url).await.unwrap();
-        assert_eq!(result, url);
+        assert_eq!(result.primary, url);
+        assert!(!result.has_fallback());
+    }
+
+    #[test]
+    fn test_optimized_url_urls() {
+        let optimized = OptimizedUrl {
+            primary: "https://cdn.example.com/file.zip".to_string(),
+            fallback: Some("https://github.com/file.zip".to_string()),
+        };
+        let urls = optimized.urls();
+        assert_eq!(urls.len(), 2);
+        assert_eq!(urls[0], "https://cdn.example.com/file.zip");
+        assert_eq!(urls[1], "https://github.com/file.zip");
+    }
+
+    #[test]
+    fn test_optimized_url_no_fallback() {
+        let optimized = OptimizedUrl {
+            primary: "https://example.com/file.zip".to_string(),
+            fallback: None,
+        };
+        let urls = optimized.urls();
+        assert_eq!(urls.len(), 1);
+        assert_eq!(urls[0], "https://example.com/file.zip");
+        assert!(!optimized.has_fallback());
     }
 }

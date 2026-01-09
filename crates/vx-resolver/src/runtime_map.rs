@@ -2,9 +2,15 @@
 //!
 //! This module provides a comprehensive mapping of runtimes to their dependencies,
 //! supporting various ecosystems (Node.js, Python, Rust, Go, etc.)
+//!
+//! ## RFC 0017: Declarative RuntimeMap
+//!
+//! RuntimeMap is built entirely from provider.toml files using `from_manifests()`.
+//! This ensures a single source of truth for runtime specifications.
 
 use crate::runtime_spec::{Ecosystem, RuntimeDependency, RuntimeSpec};
 use std::collections::HashMap;
+use vx_manifest::{ProviderManifest, RuntimeDef};
 
 /// A registry of runtime specifications and their dependencies
 #[derive(Debug, Default)]
@@ -16,16 +22,135 @@ pub struct RuntimeMap {
 }
 
 impl RuntimeMap {
-    /// Create a new runtime map with built-in runtime definitions
-    pub fn new() -> Self {
-        let mut map = Self::default();
-        map.register_builtin_runtimes();
-        map
-    }
-
     /// Create an empty runtime map (for testing)
     pub fn empty() -> Self {
         Self::default()
+    }
+
+    /// Build RuntimeMap entirely from provider manifests
+    ///
+    /// This is the standard way to create a RuntimeMap, using provider.toml
+    /// files as the single source of truth for runtime specifications.
+    ///
+    /// # Example
+    /// ```ignore
+    /// let manifests = load_manifests_with_overrides();
+    /// let map = RuntimeMap::from_manifests(&manifests);
+    /// ```
+    pub fn from_manifests(manifests: &[ProviderManifest]) -> Self {
+        let mut map = Self::default();
+
+        for manifest in manifests {
+            let ecosystem = manifest
+                .provider
+                .ecosystem
+                .map(Self::convert_ecosystem)
+                .unwrap_or_default();
+
+            for runtime in &manifest.runtimes {
+                let spec = Self::runtime_def_to_spec(runtime, ecosystem);
+                map.register(spec);
+            }
+        }
+
+        map
+    }
+
+    /// Convert a RuntimeDef from manifest to RuntimeSpec
+    fn runtime_def_to_spec(runtime: &RuntimeDef, ecosystem: Ecosystem) -> RuntimeSpec {
+        let mut spec =
+            RuntimeSpec::new(&runtime.name, runtime.description.as_deref().unwrap_or(""));
+
+        // Basic fields
+        spec.executable = Some(runtime.executable.clone());
+        spec.aliases = runtime.aliases.clone();
+        spec.command_prefix = runtime.command_prefix.clone();
+        spec.ecosystem = ecosystem;
+
+        // Priority and auto_installable from RFC 0018
+        if let Some(priority) = runtime.priority {
+            spec.priority = priority;
+        }
+        if let Some(auto_installable) = runtime.auto_installable {
+            spec.auto_installable = auto_installable;
+        }
+
+        // Convert bundled_with to dependency
+        if let Some(ref bundled_with) = runtime.bundled_with {
+            let dep = RuntimeDependency::required(
+                bundled_with.clone(),
+                format!("{} is bundled with {}", runtime.name, bundled_with),
+            )
+            .provided_by(bundled_with.clone());
+            spec.dependencies.push(dep);
+        }
+
+        // Convert managed_by to dependency
+        if let Some(ref managed_by) = runtime.managed_by {
+            let dep = RuntimeDependency::required(
+                managed_by.clone(),
+                format!("{} is managed by {}", runtime.name, managed_by),
+            )
+            .provided_by(managed_by.clone());
+            spec.dependencies.push(dep);
+        }
+
+        // Convert constraints to dependencies
+        // For now, we take the "*" (any version) constraints as default dependencies
+        for constraint in &runtime.constraints {
+            // Only process universal constraints for now
+            if constraint.when == "*" {
+                for req in &constraint.requires {
+                    let mut dep = RuntimeDependency::required(
+                        &req.runtime,
+                        req.reason.as_deref().unwrap_or("Required dependency"),
+                    );
+                    // Parse version constraint
+                    if !req.version.is_empty() && req.version != "*" {
+                        // Try to extract min version from constraint like ">=12"
+                        if let Some(min) = Self::extract_min_version(&req.version) {
+                            dep = dep.with_min_version(min);
+                        }
+                    }
+                    if let Some(ref recommended) = req.recommended {
+                        dep = dep.with_recommended_version(recommended.clone());
+                    }
+                    spec.dependencies.push(dep);
+                }
+            }
+        }
+
+        // Environment variables from RFC 0018
+        if let Some(ref env_config) = runtime.env_config {
+            spec.env_vars = env_config.vars.clone();
+        }
+
+        spec
+    }
+
+    /// Extract minimum version from a version constraint like ">=12" or ">=12, <23"
+    fn extract_min_version(constraint: &str) -> Option<String> {
+        // Simple parsing for common patterns
+        for part in constraint.split(',') {
+            let part = part.trim();
+            if let Some(version) = part.strip_prefix(">=") {
+                return Some(version.trim().to_string());
+            }
+        }
+        None
+    }
+
+    /// Convert vx_manifest::Ecosystem to vx_resolver::Ecosystem
+    fn convert_ecosystem(eco: vx_manifest::Ecosystem) -> Ecosystem {
+        match eco {
+            vx_manifest::Ecosystem::NodeJs => Ecosystem::Node,
+            vx_manifest::Ecosystem::Python => Ecosystem::Python,
+            vx_manifest::Ecosystem::Rust => Ecosystem::Rust,
+            vx_manifest::Ecosystem::Go => Ecosystem::Go,
+            vx_manifest::Ecosystem::Java => Ecosystem::Java,
+            // All other ecosystems map to Generic for now
+            _ => Ecosystem::Generic,
+        }
     }
 
     /// Register a runtime specification
@@ -77,252 +202,6 @@ impl RuntimeMap {
         }
     }
 
-    /// Register all built-in runtime definitions
-    fn register_builtin_runtimes(&mut self) {
-        // ============ Node.js Ecosystem ============
-
-        // Node.js runtime
-        self.register(
-            RuntimeSpec::new("node", "Node.js JavaScript runtime")
-                .with_alias("nodejs")
-                .with_ecosystem(Ecosystem::Node)
-                .with_priority(100), // High priority - base runtime
-        );
-
-        // npm - bundled with Node.js
-        self.register(
-            RuntimeSpec::new("npm", "Node.js package manager")
-                .with_ecosystem(Ecosystem::Node)
-                .with_dependency(
-                    RuntimeDependency::required("node", "npm is bundled with Node.js")
-                        .provided_by("node"),
-                ),
-        );
-
-        // npx - bundled with Node.js
-        self.register(
-            RuntimeSpec::new("npx", "Node.js package runner")
-                .with_ecosystem(Ecosystem::Node)
-                .with_dependency(
-                    RuntimeDependency::required("node", "npx is bundled with Node.js")
-                        .provided_by("node"),
-                ),
-        );
-
-        // yarn - requires Node.js
-        // Note: Yarn 1.x has compatibility issues with Node.js 23+ due to native module compilation
-        // Recommend Node.js 20 LTS for best compatibility
-        self.register(
-            RuntimeSpec::new("yarn", "Fast, reliable, and secure dependency management")
-                .with_ecosystem(Ecosystem::Node)
-                .with_dependency(
-                    RuntimeDependency::required("node", "yarn requires Node.js runtime")
-                        .with_min_version("12.0.0")
-                        .with_max_version("22.99.99")
-                        .with_recommended_version("20"),
-                ),
-        );
-
-        // pnpm - requires Node.js
-        self.register(
-            RuntimeSpec::new("pnpm", "Fast, disk space efficient package manager")
-                .with_ecosystem(Ecosystem::Node)
-                .with_dependency(RuntimeDependency::required(
-                    "node",
-                    "pnpm requires Node.js runtime",
-                )),
-        );
-
-        // bun - standalone runtime (no dependencies)
-        self.register(
-            RuntimeSpec::new("bun", "Incredibly fast JavaScript runtime and toolkit")
-                .with_ecosystem(Ecosystem::Node)
-                .with_priority(90),
-        );
-
-        // bunx - bun package runner (alias with command prefix)
-        self.register(
-            RuntimeSpec::new("bunx", "Bun package runner (like npx)")
-                .with_dependency(RuntimeDependency::required(
-                    "bun",
-                    "bunx requires Bun runtime",
-                ))
-                .with_command_prefix(vec!["x"])
-                .with_ecosystem(Ecosystem::Node)
-                .with_priority(85),
-        );
-
-        // ============ Python Ecosystem ============
-
-        // Python - Python programming language runtime
-        self.register(
-            RuntimeSpec::new("python", "Python programming language (3.7 - 3.12+)")
-                .with_alias("python3")
-                .with_alias("py")
-                .with_ecosystem(Ecosystem::Python)
-                .with_priority(100), // Base runtime
-        );
-
-        // uv - standalone Python package manager
-        self.register(
-            RuntimeSpec::new(
-                "uv",
-                "An extremely fast Python package installer and resolver",
-            )
-            .with_ecosystem(Ecosystem::Python)
-            .with_priority(100), // Standalone, no dependencies
-        );
-
-        // uvx - uv runtime runner (alias for "uv tool run")
-        self.register(
-            RuntimeSpec::new("uvx", "Python application runner")
-                .with_ecosystem(Ecosystem::Python)
-                .with_executable("uv")
-                .with_command_prefix(vec!["tool", "run"])
-                .with_dependency(
-                    RuntimeDependency::required("uv", "uvx is part of uv").provided_by("uv"),
-                ),
-        );
-
-        // pip - requires Python (but uv can replace it)
-        self.register(
-            RuntimeSpec::new("pip", "Python package installer")
-                .with_alias("pip3")
-                .with_ecosystem(Ecosystem::Python)
-                .with_dependency(RuntimeDependency::required(
-                    "python",
-                    "pip requires Python runtime",
-                )),
-        );
-
-        // pipx - Python application runner
-        self.register(
-            RuntimeSpec::new(
-                "pipx",
-                "Install and run Python applications in isolated environments",
-            )
-            .with_ecosystem(Ecosystem::Python)
-            .with_dependency(RuntimeDependency::required(
-                "python",
-                "pipx requires Python runtime",
-            )),
-        );
-
-        // ============ Rust Ecosystem ============
-
-        // rustup - Rust toolchain installer
-        self.register(
-            RuntimeSpec::new("rustup", "The Rust toolchain installer")
-                .with_ecosystem(Ecosystem::Rust)
-                .with_priority(100),
-        );
-
-        // cargo - Rust package manager
-        self.register(
-            RuntimeSpec::new("cargo", "Rust package manager and build tool")
-                .with_ecosystem(Ecosystem::Rust)
-                .with_dependency(
-                    RuntimeDependency::required("rustup", "cargo is installed via rustup")
-                        .provided_by("rustup"),
-                ),
-        );
-
-        // rustc - Rust compiler
-        self.register(
-            RuntimeSpec::new("rustc", "The Rust compiler")
-                .with_ecosystem(Ecosystem::Rust)
-                .with_dependency(
-                    RuntimeDependency::required("rustup", "rustc is installed via rustup")
-                        .provided_by("rustup"),
-                ),
-        );
-
-        // cargo-binstall - Binary installation for cargo
-        self.register(
-            RuntimeSpec::new("cargo-binstall", "Binary installation for Rust projects")
-                .with_ecosystem(Ecosystem::Rust)
-                .with_dependency(RuntimeDependency::required(
-                    "cargo",
-                    "cargo-binstall requires cargo",
-                )),
-        );
-
-        // ============ Go Ecosystem ============
-
-        // go - Go programming language
-        self.register(
-            RuntimeSpec::new("go", "The Go programming language")
-                .with_alias("golang")
-                .with_ecosystem(Ecosystem::Go)
-                .with_priority(100),
-        );
-
-        // ============ Java Ecosystem ============
-
-        // java - Java Development Kit (Eclipse Temurin)
-        self.register(
-            RuntimeSpec::new("java", "Java Development Kit (Eclipse Temurin)")
-                .with_alias("jdk")
-                .with_alias("temurin")
-                .with_alias("openjdk")
-                .with_ecosystem(Ecosystem::Java)
-                .with_priority(100),
-        );
-
-        // javac - Java compiler (bundled with JDK)
-        self.register(
-            RuntimeSpec::new("javac", "Java compiler")
-                .with_ecosystem(Ecosystem::Java)
-                .with_dependency(
-                    RuntimeDependency::required("java", "javac is bundled with JDK")
-                        .provided_by("java"),
-                ),
-        );
-
-        // jar - Java archive tool (bundled with JDK)
-        self.register(
-            RuntimeSpec::new("jar", "Java archive tool")
-                .with_ecosystem(Ecosystem::Java)
-                .with_dependency(
-                    RuntimeDependency::required("java", "jar is bundled with JDK")
-                        .provided_by("java"),
-                ),
-        );
-
-        // ============ Generic Runtimes ============
-
-        // MSVC Build Tools - Windows C/C++ toolchain
-        self.register(
-            RuntimeSpec::new("msvc", "Microsoft Visual C++ Build Tools (cl, nmake)")
-                .with_aliases(vec!["cl", "nmake", "msvc-tools", "vs-build-tools"])
-                .with_executable("cl")
-                .with_ecosystem(Ecosystem::Generic),
-        );
-
-        // git - Version control
-        self.register(RuntimeSpec::new(
-            "git",
-            "Distributed version control system",
-        ));
-
-        // make - Build automation
-        self.register(RuntimeSpec::new("make", "Build automation tool").with_alias("gmake"));
-
-        // cmake - Cross-platform build system
-        self.register(RuntimeSpec::new(
-            "cmake",
-            "Cross-platform build system generator",
-        ));
-
-        // docker - Container platform
-        self.register(RuntimeSpec::new("docker", "Container platform"));
-
-        // kubectl - Kubernetes CLI
-        self.register(
-            RuntimeSpec::new("kubectl", "Kubernetes command-line tool").with_alias("k8s"),
-        );
-    }
-
     /// Get the installation order for a runtime and its dependencies
     ///
     /// Returns a topologically sorted list of runtimes to install,
@@ -359,5 +238,169 @@ impl RuntimeMap {
             // Then add this runtime
             order.push(&spec.name);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_manifests_basic() {
+        let toml = r#"
+[provider]
+name = "node"
+ecosystem = "nodejs"
+
+[[runtimes]]
+name = "node"
+description = "Node.js runtime"
+executable = "node"
+aliases = ["nodejs"]
+priority = 100
+
+[[runtimes]]
+name = "npm"
+description = "Node Package Manager"
+executable = "npm"
+bundled_with = "node"
+"#;
+        let manifest = ProviderManifest::parse(toml).unwrap();
+        let map = RuntimeMap::from_manifests(&[manifest]);
+
+        // Check node was registered
+        assert!(map.contains("node"));
+        assert!(map.contains("nodejs")); // alias
+
+        let node_spec = map.get("node").unwrap();
+        assert_eq!(node_spec.name, "node");
+        assert_eq!(node_spec.ecosystem, Ecosystem::Node);
+        assert_eq!(node_spec.priority, 100);
+
+        // Check npm was registered with dependency
+        assert!(map.contains("npm"));
+        let npm_spec = map.get("npm").unwrap();
+        assert_eq!(npm_spec.dependencies.len(), 1);
+        assert_eq!(npm_spec.dependencies[0].runtime_name, "node");
+        assert!(npm_spec.dependencies[0].required);
+    }
+
+    #[test]
+    fn test_from_manifests_with_constraints() {
+        let toml = r#"
+[provider]
+name = "yarn"
+ecosystem = "nodejs"
+
+[[runtimes]]
+name = "yarn"
+description = "Yarn package manager"
+executable = "yarn"
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "node", version = ">=12", recommended = "20", reason = "Yarn requires Node.js" }
+]
+"#;
+        let manifest = ProviderManifest::parse(toml).unwrap();
+        let map = RuntimeMap::from_manifests(&[manifest]);
+
+        let yarn_spec = map.get("yarn").unwrap();
+        assert_eq!(yarn_spec.dependencies.len(), 1);
+        assert_eq!(yarn_spec.dependencies[0].runtime_name, "node");
+        assert_eq!(
+            yarn_spec.dependencies[0].min_version,
+            Some("12".to_string())
+        );
+        assert_eq!(
+            yarn_spec.dependencies[0].recommended_version,
+            Some("20".to_string())
+        );
+    }
+
+    #[test]
+    fn test_from_manifests_multiple_providers() {
+        let node_toml = r#"
+[provider]
+name = "node"
+ecosystem = "nodejs"
+
+[[runtimes]]
+name = "node"
+executable = "node"
+"#;
+        let python_toml = r#"
+[provider]
+name = "python"
+ecosystem = "python"
+
+[[runtimes]]
+name = "python"
+executable = "python"
+aliases = ["python3", "py"]
+"#;
+        let node_manifest = ProviderManifest::parse(node_toml).unwrap();
+        let python_manifest = ProviderManifest::parse(python_toml).unwrap();
+        let map = RuntimeMap::from_manifests(&[node_manifest, python_manifest]);
+
+        assert!(map.contains("node"));
+        assert!(map.contains("python"));
+        assert!(map.contains("python3")); // alias
+        assert!(map.contains("py")); // alias
+
+        assert_eq!(map.get("node").unwrap().ecosystem, Ecosystem::Node);
+        assert_eq!(map.get("python").unwrap().ecosystem, Ecosystem::Python);
+    }
+
+    #[test]
+    fn test_from_manifests_managed_by() {
+        let toml = r#"
+[provider]
+name = "rust"
+ecosystem = "rust"
+
+[[runtimes]]
+name = "rustup"
+executable = "rustup"
+
+[[runtimes]]
+name = "rustc"
+executable = "rustc"
+managed_by = "rustup"
+
+[[runtimes]]
+name = "cargo"
+executable = "cargo"
+managed_by = "rustup"
+"#;
+        let manifest = ProviderManifest::parse(toml).unwrap();
+        let map = RuntimeMap::from_manifests(&[manifest]);
+
+        let rustc_spec = map.get("rustc").unwrap();
+        assert_eq!(rustc_spec.dependencies.len(), 1);
+        assert_eq!(rustc_spec.dependencies[0].runtime_name, "rustup");
+
+        let cargo_spec = map.get("cargo").unwrap();
+        assert_eq!(cargo_spec.dependencies.len(), 1);
+        assert_eq!(cargo_spec.dependencies[0].runtime_name, "rustup");
+    }
+
+    #[test]
+    fn test_extract_min_version() {
+        assert_eq!(
+            RuntimeMap::extract_min_version(">=12"),
+            Some("12".to_string())
+        );
+        assert_eq!(
+            RuntimeMap::extract_min_version(">=12, <23"),
+            Some("12".to_string())
+        );
+        assert_eq!(
+            RuntimeMap::extract_min_version(">=18.0.0"),
+            Some("18.0.0".to_string())
+        );
+        assert_eq!(RuntimeMap::extract_min_version("*"), None);
+        assert_eq!(RuntimeMap::extract_min_version("<20"), None);
     }
 }

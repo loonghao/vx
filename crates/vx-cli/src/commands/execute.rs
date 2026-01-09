@@ -123,8 +123,11 @@ pub async fn execute_runtime_with_version(
     })
     .with_resolution_cache_mode(cache_mode);
 
-    // Create the executor with registry and context for auto-installation
-    let executor = Executor::with_registry_and_context(config, registry, context)?;
+    // Create the executor with runtime map from manifests (RFC 0017: single source of truth)
+    let manifests = crate::registry::load_manifests_with_overrides();
+    let runtime_map = vx_resolver::RuntimeMap::from_manifests(&manifests);
+
+    let executor = Executor::new(config, registry, context, runtime_map)?;
 
     // Execute the runtime with optional version
     executor
@@ -140,7 +143,9 @@ pub async fn execute_system_runtime(runtime_name: &str, args: &[String]) -> Resu
 /// Check if a runtime is available (either vx-managed or system)
 pub fn is_runtime_available(runtime_name: &str) -> bool {
     let config = ResolverConfig::default();
-    if let Ok(resolver) = vx_resolver::Resolver::new(config) {
+    let manifests = crate::registry::load_manifests_with_overrides();
+    let runtime_map = vx_resolver::RuntimeMap::from_manifests(&manifests);
+    if let Ok(resolver) = vx_resolver::Resolver::new(config, runtime_map) {
         resolver.check_runtime_status(runtime_name).is_available()
     } else {
         // Fallback to which
@@ -151,7 +156,9 @@ pub fn is_runtime_available(runtime_name: &str) -> bool {
 /// Get information about a runtime's availability
 pub fn get_runtime_info(runtime_name: &str) -> RuntimeAvailability {
     let config = ResolverConfig::default();
-    if let Ok(resolver) = vx_resolver::Resolver::new(config) {
+    let manifests = crate::registry::load_manifests_with_overrides();
+    let runtime_map = vx_resolver::RuntimeMap::from_manifests(&manifests);
+    if let Ok(resolver) = vx_resolver::Resolver::new(config, runtime_map) {
         let status = resolver.check_runtime_status(runtime_name);
         match status {
             vx_resolver::RuntimeStatus::VxManaged { version, path } => {

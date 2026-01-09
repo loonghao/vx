@@ -947,11 +947,19 @@ impl CommandHandler for Commands {
                 version,
                 force,
             } => {
+                // Support tool@version format (e.g., "python@3.7")
+                let (tool_name, parsed_version) = if let Some((t, v)) = tool.split_once('@') {
+                    (t, Some(v.to_string()))
+                } else {
+                    (tool.as_str(), None)
+                };
+                // CLI version argument takes precedence over parsed version
+                let final_version = version.clone().or(parsed_version);
                 commands::remove::handle(
                     ctx.registry(),
                     ctx.runtime_context(),
-                    tool,
-                    version.as_deref(),
+                    tool_name,
+                    final_version.as_deref(),
                     *force,
                 )
                 .await

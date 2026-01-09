@@ -7,6 +7,36 @@ use tempfile::TempDir;
 use vx_manifest::{Ecosystem, ProviderManifest, ProviderMeta, RuntimeDef};
 use vx_runtime::{ManifestRegistry, Provider, Runtime, RuntimeContext, VersionInfo};
 
+/// Create a minimal RuntimeDef for testing
+fn make_runtime_def(name: &str) -> RuntimeDef {
+    RuntimeDef {
+        name: name.to_string(),
+        description: None,
+        executable: name.to_string(),
+        aliases: vec![],
+        bundled_with: None,
+        managed_by: None,
+        command_prefix: vec![],
+        constraints: vec![],
+        hooks: None,
+        platforms: None,
+        platform_constraint: None,
+        versions: None,
+        executable_config: None,
+        priority: None,
+        auto_installable: None,
+        env_config: None,
+        detection: None,
+        health: None,
+        cache: None,
+        mirrors: vec![],
+        mirror_strategy: None,
+        commands: vec![],
+        output: None,
+        shell: None,
+    }
+}
+
 fn make_manifest(name: &str, description: &str) -> ProviderManifest {
     ProviderManifest {
         provider: ProviderMeta {
@@ -17,19 +47,7 @@ fn make_manifest(name: &str, description: &str) -> ProviderManifest {
             ecosystem: None,
             platform_constraint: None,
         },
-        runtimes: vec![RuntimeDef {
-            name: name.to_string(),
-            description: None,
-            executable: name.to_string(),
-            aliases: vec![],
-            bundled_with: None,
-            constraints: vec![],
-            hooks: None,
-            platforms: None,
-            platform_constraint: None,
-            versions: None,
-            executable_config: None,
-        }],
+        runtimes: vec![make_runtime_def(name)],
     }
 }
 
@@ -128,19 +146,7 @@ fn directory_override_replaces_embedded() {
             ecosystem: None,
             platform_constraint: None,
         },
-        runtimes: vec![RuntimeDef {
-            name: "tool".to_string(),
-            description: None,
-            executable: "tool".to_string(),
-            aliases: vec![],
-            bundled_with: None,
-            constraints: vec![],
-            hooks: None,
-            platforms: None,
-            platform_constraint: None,
-            versions: None,
-            executable_config: None,
-        }],
+        runtimes: vec![make_runtime_def("tool")],
     };
     registry.load_from_manifests(vec![embedded]);
 
@@ -188,6 +194,11 @@ fn manifest_registry_loads_directory() {
 fn runtime_metadata_resolves_aliases() {
     let mut registry = ManifestRegistry::new();
 
+    let mut runtime_def = make_runtime_def("test-runtime");
+    runtime_def.description = Some("A test runtime".to_string());
+    runtime_def.executable = "test-bin".to_string();
+    runtime_def.aliases = vec!["tr".to_string(), "test".to_string()];
+
     let manifest = ProviderManifest {
         provider: ProviderMeta {
             name: "test".to_string(),
@@ -197,19 +208,7 @@ fn runtime_metadata_resolves_aliases() {
             ecosystem: Some(Ecosystem::NodeJs),
             platform_constraint: None,
         },
-        runtimes: vec![RuntimeDef {
-            name: "test-runtime".to_string(),
-            description: Some("A test runtime".to_string()),
-            executable: "test-bin".to_string(),
-            aliases: vec!["tr".to_string(), "test".to_string()],
-            bundled_with: None,
-            constraints: vec![],
-            hooks: None,
-            platforms: None,
-            platform_constraint: None,
-            versions: None,
-            executable_config: None,
-        }],
+        runtimes: vec![runtime_def],
     };
 
     registry.load_from_manifests(vec![manifest]);
