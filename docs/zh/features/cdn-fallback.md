@@ -190,4 +190,3 @@ cargo test --package vx-installer test_optimized_url_with_fallback
 
 - [turbo-cdn](https://github.com/loonghao/turbo-cdn) - CDN 优化库
 - [环境变量配置](../config/env-vars.md)
-- [网络配置](../config/network.md)

@@ -190,4 +190,3 @@ cargo test --package vx-installer test_optimized_url_with_fallback
 
 - [turbo-cdn](https://github.com/loonghao/turbo-cdn) - CDN optimization library
 - [Environment Variables Configuration](../config/env-vars.md)
-- [Network Configuration](../config/network.md)
