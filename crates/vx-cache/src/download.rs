@@ -186,7 +186,7 @@ impl DownloadCache {
         let size = file_meta.len();
 
         // Extract filename from URL
-        let filename = url.split('/').last().unwrap_or("download").to_string();
+        let filename = url.split('/').next_back().unwrap_or("download").to_string();
 
         // Create metadata
         let metadata = DownloadCacheMetadata {
@@ -220,8 +220,7 @@ impl DownloadCache {
         let temp_path = path.with_extension("meta.tmp");
         let file = std::fs::File::create(&temp_path)?;
         let writer = BufWriter::new(file);
-        bincode::serialize_into(writer, metadata)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        bincode::serialize_into(writer, metadata).map_err(std::io::Error::other)?;
 
         // Atomic rename
         if path.exists() {
