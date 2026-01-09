@@ -241,7 +241,7 @@ fn create_static_registry() -> ProviderRegistry {
 }
 
 /// Load manifests with override order: embedded < user < project.
-fn load_manifests_with_overrides() -> Vec<ProviderManifest> {
+pub fn load_manifests_with_overrides() -> Vec<ProviderManifest> {
     let mut loader = ManifestLoader::new();
 
     // 1) Embedded manifests (build.rs generated)

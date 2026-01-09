@@ -39,10 +39,12 @@ fn test_bun_provider_name() {
 fn test_bun_provider_runtimes() {
     let provider = BunProvider::new();
     let runtimes = provider.runtimes();
-    assert_eq!(runtimes.len(), 1);
+    // bun and bunx are both defined in provider.toml
+    assert_eq!(runtimes.len(), 2);
 
     let names: Vec<&str> = runtimes.iter().map(|r| r.name()).collect();
     assert!(names.contains(&"bun"));
+    assert!(names.contains(&"bunx"));
 }
 
 #[rstest]

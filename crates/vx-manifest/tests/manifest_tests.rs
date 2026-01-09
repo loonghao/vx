@@ -39,6 +39,149 @@ fn test_parse_node_manifest() {
     assert_eq!(manifest.runtimes.len(), 3);
 }
 
+/// RFC 0018: Test extended schema fields in node provider.toml
+#[test]
+fn test_parse_node_manifest_extended_fields() {
+    let toml = include_str!("../../vx-providers/node/provider.toml");
+    let manifest = ProviderManifest::parse(toml).expect("Failed to parse node manifest");
+
+    let node_runtime = &manifest.runtimes[0];
+    assert_eq!(node_runtime.name, "node");
+
+    // RFC 0018: priority and auto_installable
+    assert_eq!(node_runtime.priority, Some(100));
+    assert_eq!(node_runtime.auto_installable, Some(true));
+
+    // RFC 0018: detection config
+    let detection = node_runtime
+        .detection
+        .as_ref()
+        .expect("detection should exist");
+    assert_eq!(detection.command, "{executable} --version");
+    assert!(!detection.pattern.is_empty());
+    assert!(!detection.system_paths.is_empty());
+    assert!(detection.env_hints.contains(&"NODE_HOME".to_string()));
+
+    // RFC 0018: health config
+    let health = node_runtime.health.as_ref().expect("health should exist");
+    assert!(!health.check_command.is_empty());
+    assert_eq!(health.exit_code, Some(0));
+    assert!(health.check_on.contains(&"install".to_string()));
+
+    // RFC 0018: env_config
+    let env_config = node_runtime
+        .env_config
+        .as_ref()
+        .expect("env_config should exist");
+    assert!(env_config.vars.contains_key("PATH"));
+    assert!(!env_config.conditional.is_empty());
+
+    // RFC 0018: mirrors
+    assert!(!node_runtime.mirrors.is_empty());
+    let taobao_mirror = node_runtime.mirrors.iter().find(|m| m.name == "taobao");
+    assert!(taobao_mirror.is_some());
+    assert_eq!(taobao_mirror.unwrap().region, Some("cn".to_string()));
+
+    // RFC 0018: cache config
+    let cache = node_runtime.cache.as_ref().expect("cache should exist");
+    assert_eq!(cache.versions_ttl, 3600);
+    assert!(cache.cache_downloads);
+
+    // RFC 0018: hooks
+    let hooks = node_runtime.hooks.as_ref().expect("hooks should exist");
+    assert!(!hooks.post_install.is_empty());
+    assert!(!hooks.post_activate.is_empty());
+}
+
+/// RFC 0018: Test extended schema fields in yarn provider.toml
+#[test]
+fn test_parse_yarn_manifest_extended_fields() {
+    let toml = include_str!("../../vx-providers/yarn/provider.toml");
+    let manifest = ProviderManifest::parse(toml).expect("Failed to parse yarn manifest");
+
+    let yarn_runtime = &manifest.runtimes[0];
+    assert_eq!(yarn_runtime.name, "yarn");
+
+    // RFC 0018: priority and auto_installable
+    assert_eq!(yarn_runtime.priority, Some(80));
+    assert_eq!(yarn_runtime.auto_installable, Some(true));
+
+    // RFC 0018: detection config
+    assert!(yarn_runtime.detection.is_some());
+
+    // RFC 0018: health config
+    assert!(yarn_runtime.health.is_some());
+
+    // RFC 0018: mirrors
+    assert!(!yarn_runtime.mirrors.is_empty());
+
+    // RFC 0018: cache config
+    assert!(yarn_runtime.cache.is_some());
+}
+
+/// RFC 0018: Test extended schema fields in python provider.toml
+#[test]
+fn test_parse_python_manifest_extended_fields() {
+    let toml = include_str!("../../vx-providers/python/provider.toml");
+    let manifest = ProviderManifest::parse(toml).expect("Failed to parse python manifest");
+
+    let python_runtime = &manifest.runtimes[0];
+    assert_eq!(python_runtime.name, "python");
+
+    // RFC 0018: priority and auto_installable
+    assert_eq!(python_runtime.priority, Some(100));
+    assert_eq!(python_runtime.auto_installable, Some(true));
+
+    // RFC 0018: detection config
+    let detection = python_runtime
+        .detection
+        .as_ref()
+        .expect("detection should exist");
+    assert!(detection.pattern.contains("Python"));
+
+    // RFC 0018: health config
+    assert!(python_runtime.health.is_some());
+
+    // RFC 0018: env_config
+    let env_config = python_runtime
+        .env_config
+        .as_ref()
+        .expect("env_config should exist");
+    assert!(env_config.vars.contains_key("PYTHONHOME"));
+
+    // RFC 0018: mirrors
+    assert!(!python_runtime.mirrors.is_empty());
+
+    // RFC 0018: cache config
+    assert!(python_runtime.cache.is_some());
+}
+
+/// RFC 0018: Test extended schema fields in pnpm provider.toml
+#[test]
+fn test_parse_pnpm_manifest_extended_fields() {
+    let toml = include_str!("../../vx-providers/pnpm/provider.toml");
+    let manifest = ProviderManifest::parse(toml).expect("Failed to parse pnpm manifest");
+
+    let pnpm_runtime = &manifest.runtimes[0];
+    assert_eq!(pnpm_runtime.name, "pnpm");
+
+    // RFC 0018: priority and auto_installable
+    assert_eq!(pnpm_runtime.priority, Some(85));
+    assert_eq!(pnpm_runtime.auto_installable, Some(true));
+
+    // RFC 0018: detection config
+    assert!(pnpm_runtime.detection.is_some());
+
+    // RFC 0018: health config
+    assert!(pnpm_runtime.health.is_some());
+
+    // RFC 0018: mirrors
+    assert!(!pnpm_runtime.mirrors.is_empty());
+
+    // RFC 0018: cache config
+    assert!(pnpm_runtime.cache.is_some());
+}
+
 #[rstest]
 #[case("20.0.0", ">=12, <23", true)]
 #[case("18.0.0", ">=12", true)]
