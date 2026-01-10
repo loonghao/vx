@@ -1834,9 +1834,9 @@ checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 
 [[package]]
 name = "lru"
-version = "0.16.2"
+version = "0.16.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96051b46fc183dc9cd4a223960ef37b9af631b55191852a8274bfef064cda20f"
+checksum = "a1dc47f592c06f33f8e3aea9591776ec7c9f9e4124778ff8a3c3b87159f7e593"
 dependencies = [
  "hashbrown 0.16.1",
 ]
@@ -3832,7 +3832,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vx"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -3846,7 +3846,7 @@ dependencies = [
 
 [[package]]
 name = "vx-args"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "indexmap",
  "regex",
@@ -3859,7 +3859,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cache"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3873,7 +3873,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cli"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3960,7 +3960,7 @@ dependencies = [
 
 [[package]]
 name = "vx-config"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3981,7 +3981,7 @@ dependencies = [
 
 [[package]]
 name = "vx-console"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anstream",
  "anstyle",
@@ -4001,7 +4001,7 @@ dependencies = [
 
 [[package]]
 name = "vx-core"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4020,7 +4020,7 @@ dependencies = [
 
 [[package]]
 name = "vx-env"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "pretty_assertions",
@@ -4034,7 +4034,7 @@ dependencies = [
 
 [[package]]
 name = "vx-extension"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4056,7 +4056,7 @@ dependencies = [
 
 [[package]]
 name = "vx-installer"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4083,7 +4083,7 @@ dependencies = [
 
 [[package]]
 name = "vx-manifest"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "pretty_assertions",
  "rstest",
@@ -4097,7 +4097,7 @@ dependencies = [
 
 [[package]]
 name = "vx-migration"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4118,7 +4118,7 @@ dependencies = [
 
 [[package]]
 name = "vx-paths"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "dirs",
@@ -4130,7 +4130,7 @@ dependencies = [
 
 [[package]]
 name = "vx-project-analyzer"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4154,7 +4154,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-awscli"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4167,7 +4167,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-azcli"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4180,7 +4180,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-bun"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4193,7 +4193,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-choco"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4206,7 +4206,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-cmake"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4221,7 +4221,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-deno"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4234,7 +4234,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-docker"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4247,7 +4247,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-gcloud"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4261,7 +4261,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-git"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4276,7 +4276,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-go"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4292,7 +4292,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-helm"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4305,7 +4305,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-java"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4318,7 +4318,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-just"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4333,7 +4333,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-kubectl"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4346,7 +4346,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-msvc"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4363,7 +4363,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-ninja"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4378,7 +4378,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-node"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4394,7 +4394,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-ollama"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4408,7 +4408,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-pnpm"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4421,7 +4421,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-pre-commit"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4437,7 +4437,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-protoc"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4452,7 +4452,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-python"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4469,7 +4469,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-rcedit"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4484,7 +4484,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-release-please"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4499,7 +4499,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-rez"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4515,7 +4515,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-rust"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4527,7 +4527,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-spack"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4542,7 +4542,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-task"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4557,7 +4557,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-terraform"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4570,7 +4570,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-uv"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4586,7 +4586,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-vite"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4601,7 +4601,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-vscode"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4616,7 +4616,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-yarn"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4629,7 +4629,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-zig"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4642,7 +4642,7 @@ dependencies = [
 
 [[package]]
 name = "vx-resolver"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4666,7 +4666,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4701,7 +4701,7 @@ dependencies = [
 
 [[package]]
 name = "vx-setup"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "anyhow",
  "chrono",
