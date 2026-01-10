@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.12](https://github.com/loonghao/vx/compare/vx-v0.6.11...vx-v0.6.12) (2026-01-10)
+
+
+### Features
+
+* improve network timeout handling and progress reporting ([a730b52](https://github.com/loonghao/vx/commit/a730b52e15cf3f2c4b1101e967b6c3e3c9b26e56))
+* **manifest:** implement RFC 0018 Phase 2 user experience features ([5717bb0](https://github.com/loonghao/vx/commit/5717bb0bbad0cc26a248b77dc92285759086a17f))
+
+
+### Bug Fixes
+
+* **vx-cache:** fix clippy warnings ([d76604d](https://github.com/loonghao/vx/commit/d76604d8beaadf1bb282f7e9e3c74d743a4af9e6))
+
+
+### Documentation
+
+* fix dead links to non-existent network.md ([024f9be](https://github.com/loonghao/vx/commit/024f9beed9e6be0d1e4f50eb4a4314edcad70d66))
+
 ## [0.6.11](https://github.com/loonghao/vx/compare/vx-v0.6.10...vx-v0.6.11) (2026-01-08)
 
 
