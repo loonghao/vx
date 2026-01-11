@@ -27,6 +27,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use vx_config::config_manager::TomlWriter;
 use vx_config::{parse_config, HookExecutor, VxConfig};
 use vx_paths::{find_config_file, find_vx_config as find_vx_config_path};
 use vx_runtime::ProviderRegistry;
@@ -382,74 +383,49 @@ pub async fn update_tool(tool: &str, version: &str) -> Result<()> {
 
 /// Write configuration back to vx.toml
 fn write_vx_config(path: &Path, config: &ConfigView) -> Result<()> {
-    let mut content = String::new();
-
-    content.push_str("# VX Project Configuration\n");
-    content.push_str("# Run 'vx setup' to install all required tools.\n");
-    content.push_str("# Run 'vx dev' to enter the development environment.\n\n");
+    let mut writer = TomlWriter::new()
+        .comment("VX Project Configuration")
+        .comment("Run 'vx setup' to install all required tools.")
+        .comment("Run 'vx dev' to enter the development environment.");
 
     // Tools section
-    content.push_str("[tools]\n");
-    let mut tools: Vec<_> = config.tools.iter().collect();
-    tools.sort_by_key(|(k, _)| *k);
-    for (name, version) in tools {
-        content.push_str(&format!("{} = \"{}\"\n", name, version));
-    }
-    content.push('\n');
+    writer = writer.section("tools").kv_map_sorted(&config.tools);
 
     // Settings section
     if !config.settings.is_empty() {
-        content.push_str("[settings]\n");
-        let mut settings: Vec<_> = config.settings.iter().collect();
-        settings.sort_by_key(|(k, _)| *k);
-        for (key, value) in settings {
-            content.push_str(&format!("{} = {}\n", key, format_toml_value(value)));
+        writer = writer.section("settings");
+        for (key, value) in config.settings.iter() {
+            writer = writer.kv_raw(key, &format_toml_value(value));
         }
-        content.push('\n');
     }
 
     // Env section
     if !config.env.is_empty() {
-        content.push_str("[env]\n");
-        let mut env: Vec<_> = config.env.iter().collect();
-        env.sort_by_key(|(k, _)| *k);
-        for (key, value) in env {
-            content.push_str(&format!("{} = \"{}\"\n", key, value));
-        }
-        content.push('\n');
+        writer = writer.section("env").kv_map_sorted(&config.env);
     }
 
     // Scripts section
     if !config.scripts.is_empty() {
-        content.push_str("[scripts]\n");
-        let mut scripts: Vec<_> = config.scripts.iter().collect();
-        scripts.sort_by_key(|(k, _)| *k);
-        for (name, cmd) in scripts {
-            content.push_str(&format!("{} = \"{}\"\n", name, cmd));
-        }
+        writer = writer.section("scripts").kv_map_sorted(&config.scripts);
     }
 
-    fs::write(path, content)?;
+    fs::write(path, writer.build())?;
     Ok(())
 }
 
 /// Format a value for TOML output, detecting booleans and numbers
 fn format_toml_value(value: &str) -> String {
-    // Check if it's a boolean
     if value == "true" || value == "false" {
         return value.to_string();
     }
-
-    // Check if it's an integer
     if value.parse::<i64>().is_ok() {
         return value.to_string();
     }
-
-    // Check if it's a float
     if value.parse::<f64>().is_ok() {
         return value.to_string();
     }
-
-    // Otherwise, quote it as a string
-    format!("\"{}\"", value)
+    // Return quoted string format for kv_raw
+    format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
 }
+
+

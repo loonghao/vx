@@ -11,7 +11,20 @@
 //! let config = VxConfig::from_file("vx.toml")?;
 //! println!("Tools: {:?}", config.tools);
 //! ```
+//!
+//! ## Config Manager
+//!
+//! For format-preserving edits that maintain comments and formatting:
+//!
+//! ```rust,ignore
+//! use vx_config::config_manager::{ConfigManager, TomlDocument};
+//!
+//! // Load and edit while preserving formatting
+//! let mut doc = TomlDocument::parse(content)?;
+//! doc.set_string("tools.node", "22");
+//! ```
 
+pub mod config_manager;
 mod container;
 mod dependencies;
 mod error;

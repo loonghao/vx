@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use vx_config::config_manager::TomlWriter;
 use vx_config::{parse_config, VxConfig};
 use vx_paths::project::{CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY};
 use vx_project_analyzer::{AnalyzerConfig, ProjectAnalyzer};
@@ -831,129 +832,107 @@ fn generate_config_content(
     include_extras: bool,
     existing: Option<&VxConfig>,
 ) -> Result<String> {
-    let mut content = String::new();
+    let mut writer = TomlWriter::new();
 
-    // Header comment
-    content.push_str("# VX Project Configuration\n");
-    content.push_str("# This file defines the tools and versions required for this project.\n");
-    content.push_str("# Run 'vx setup' to install all required tools.\n");
-    content.push_str("# Run 'vx dev' to enter the development environment.\n");
+    // Header comments
+    writer = writer
+        .comment("VX Project Configuration")
+        .comment("This file defines the tools and versions required for this project.")
+        .comment("Run 'vx setup' to install all required tools.")
+        .comment("Run 'vx dev' to enter the development environment.");
 
     if !project_name.is_empty() {
-        content.push_str(&format!("# Project: {}\n", project_name));
+        writer = writer.comment(&format!("Project: {}", project_name));
     }
     if !description.is_empty() {
-        content.push_str(&format!("# Description: {}\n", description));
+        writer = writer.comment(&format!("Description: {}", description));
     }
-
-    content.push('\n');
 
     // Merge tools: existing config takes priority for version numbers
     let mut tools = detected_tools.clone();
     if let Some(existing_config) = existing {
-        // Preserve existing tool versions (user-specified versions take priority)
         for (name, version) in existing_config.tools_as_hashmap() {
             tools.insert(name, version);
         }
     }
 
     // Tools section
-    content.push_str("[tools]\n");
+    writer = writer.section("tools");
     if tools.is_empty() {
-        content.push_str("# Add your tools here, for example:\n");
-        content.push_str("# node = \"20\"\n");
-        content.push_str("# python = \"3.12\"\n");
-        content.push_str("# uv = \"latest\"\n");
+        writer = writer
+            .comment("Add your tools here, for example:")
+            .comment("node = \"20\"")
+            .comment("python = \"3.12\"")
+            .comment("uv = \"latest\"");
     } else {
-        // Sort tools for consistent output
-        let mut sorted_tools: Vec<_> = tools.iter().collect();
-        sorted_tools.sort_by_key(|(k, _)| *k);
-
-        for (tool, version) in sorted_tools {
-            content.push_str(&format!("{} = \"{}\"\n", tool, version));
-        }
+        writer = writer.kv_map_sorted(&tools);
     }
 
-    content.push('\n');
-
-    // Settings section - merge with existing
-    content.push_str("[settings]\n");
+    // Settings section
+    writer = writer.section("settings");
     if let Some(existing_config) = existing {
         let settings = existing_config.settings_as_hashmap();
         if !settings.is_empty() {
-            let mut sorted_settings: Vec<_> = settings.iter().collect();
-            sorted_settings.sort_by_key(|(k, _)| *k);
-            for (key, value) in sorted_settings {
-                content.push_str(&format!("{} = {}\n", key, format_value(value)));
+            for (key, value) in settings.iter() {
+                writer = writer.kv_raw(key, &format_value(value));
             }
         } else {
-            content
-                .push_str("# Automatically install missing tools when entering dev environment\n");
-            content.push_str("auto_install = true\n");
-            content.push_str("# Cache duration for version checks\n");
-            content.push_str("cache_duration = \"7d\"\n");
+            writer = writer
+                .comment("Automatically install missing tools when entering dev environment")
+                .kv_bool("auto_install", true)
+                .comment("Cache duration for version checks")
+                .kv("cache_duration", "7d");
         }
     } else {
-        content.push_str("# Automatically install missing tools when entering dev environment\n");
-        content.push_str("auto_install = true\n");
-        content.push_str("# Cache duration for version checks\n");
-        content.push_str("cache_duration = \"7d\"\n");
+        writer = writer
+            .comment("Automatically install missing tools when entering dev environment")
+            .kv_bool("auto_install", true)
+            .comment("Cache duration for version checks")
+            .kv("cache_duration", "7d");
     }
 
     if include_extras {
-        content.push_str("# Install tools in parallel\n");
-        content.push_str("parallel_install = true\n");
+        writer = writer
+            .comment("Install tools in parallel")
+            .kv_bool("parallel_install", true);
     }
 
-    // Scripts section - merge existing scripts with detected scripts
+    // Scripts section
     let mut scripts = detected_scripts.clone();
-    // Existing scripts take priority
     if let Some(existing_config) = existing {
         for (name, cmd) in existing_config.scripts_as_hashmap() {
             scripts.insert(name, cmd);
         }
     }
+
     if !scripts.is_empty() {
-        content.push('\n');
-        content.push_str("[scripts]\n");
-        let mut sorted_scripts: Vec<_> = scripts.iter().collect();
-        sorted_scripts.sort_by_key(|(k, _)| *k);
-        for (name, cmd) in sorted_scripts {
-            content.push_str(&format!("{} = \"{}\"\n", name, escape_toml_string(cmd)));
-        }
+        writer = writer.section("scripts").kv_map_sorted(&scripts);
     } else if include_extras {
-        content.push('\n');
-        content.push_str("[scripts]\n");
-        content.push_str("# Define custom scripts that can be run with 'vx run <script>'\n");
-        content.push_str("# dev = \"npm run dev\"\n");
-        content.push_str("# test = \"npm test\"\n");
-        content.push_str("# build = \"npm run build\"\n");
+        writer = writer
+            .section("scripts")
+            .comment("Define custom scripts that can be run with 'vx run <script>'")
+            .comment("dev = \"npm run dev\"")
+            .comment("test = \"npm test\"")
+            .comment("build = \"npm run build\"");
     }
 
-    // Env section - preserve existing env vars
+    // Env section
     let env_vars = existing.map(|c| c.env_as_hashmap()).unwrap_or_default();
     if !env_vars.is_empty() {
-        content.push('\n');
-        content.push_str("[env]\n");
-        let mut sorted_env: Vec<_> = env_vars.iter().collect();
-        sorted_env.sort_by_key(|(k, _)| *k);
-        for (key, value) in sorted_env {
-            content.push_str(&format!("{} = \"{}\"\n", key, escape_toml_string(value)));
-        }
+        writer = writer.section("env").kv_map_sorted(&env_vars);
     } else if include_extras {
-        content.push('\n');
-        content.push_str("[env]\n");
-        content.push_str("# Environment variables to set in the dev environment\n");
-        content.push_str("# NODE_ENV = \"development\"\n");
-        content.push_str("# DEBUG = \"true\"\n");
+        writer = writer
+            .section("env")
+            .comment("Environment variables to set in the dev environment")
+            .comment("NODE_ENV = \"development\"")
+            .comment("DEBUG = \"true\"");
     }
 
-    Ok(content)
+    Ok(writer.build())
 }
 
-/// Format a value for TOML output
+/// Format a value for TOML output (bool/number as raw, string quoted)
 fn format_value(value: &str) -> String {
-    // Try to parse as bool, number, or leave as string
     if value == "true"
         || value == "false"
         || value.parse::<i64>().is_ok()
@@ -961,11 +940,8 @@ fn format_value(value: &str) -> String {
     {
         value.to_string()
     } else {
-        format!("\"{}\"", escape_toml_string(value))
+        format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
     }
 }
 
-/// Escape special characters in TOML strings
-fn escape_toml_string(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('"', "\\\"")
-}
+

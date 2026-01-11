@@ -21,6 +21,10 @@ pub enum ConfigError {
     #[error("Failed to parse TOML: {0}")]
     Parse(#[from] toml::de::Error),
 
+    /// TOML serialization error
+    #[error("Failed to serialize TOML: {0}")]
+    Serialize(#[from] toml::ser::Error),
+
     /// Parse error with message
     #[error("{0}")]
     ParseError(String),
