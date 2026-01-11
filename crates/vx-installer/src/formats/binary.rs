@@ -47,7 +47,7 @@ impl BinaryHandler {
             }
 
             // Windows PE executable (MZ header)
-            if magic.starts_with(&[b'M', b'Z']) {
+            if magic.starts_with(b"MZ") {
                 return true;
             }
 
@@ -66,7 +66,7 @@ impl BinaryHandler {
             }
 
             // Shebang script (#!/...) - treat as executable
-            if magic.starts_with(&[b'#', b'!']) {
+            if magic.starts_with(b"#!") {
                 return true;
             }
         }
@@ -230,7 +230,7 @@ mod tests {
 
         // Create Mach-O binary (64-bit)
         let macho_file = temp_dir.path().join("macho_binary");
-        std::fs::write(&macho_file, &[0xCF, 0xFA, 0xED, 0xFE]).unwrap();
+        std::fs::write(&macho_file, [0xCF, 0xFA, 0xED, 0xFE]).unwrap();
         assert!(handler.is_likely_binary(&macho_file));
     }
 

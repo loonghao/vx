@@ -415,7 +415,7 @@ impl RealHttpClient {
     ///   → node-v20.10.0-win-x64
     fn extract_display_name_from_url(url: &str) -> String {
         // Get the filename from URL
-        let filename = url.split('/').last().unwrap_or("download").to_string();
+        let filename = url.split('/').next_back().unwrap_or("download").to_string();
 
         // Try to extract a cleaner name for python-build-standalone
         // Pattern: cpython-{version}+{date}-{platform}-install_only.tar.gz

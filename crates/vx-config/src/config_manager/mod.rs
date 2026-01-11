@@ -28,8 +28,12 @@
 mod toml_writer;
 mod traits;
 
-pub use toml_writer::{escape_toml_key, escape_toml_string, format_toml_kv, TomlDocument, TomlWriter};
-pub use traits::{ConfigVersion, TomlConfig, ValidationIssue, ValidationResult, ValidationSeverity};
+pub use toml_writer::{
+    escape_toml_key, escape_toml_string, format_toml_kv, TomlDocument, TomlWriter,
+};
+pub use traits::{
+    ConfigVersion, TomlConfig, ValidationIssue, ValidationResult, ValidationSeverity,
+};
 
 use crate::error::{ConfigError, ConfigResult};
 use serde::{de::DeserializeOwned, Serialize};
@@ -212,7 +216,7 @@ impl<T: TomlConfig + DeserializeOwned + Serialize + Default> ConfigManager<T> {
     /// Save configuration to a specific path while preserving formatting
     pub fn save_preserving_format_to<P: AsRef<Path>>(&self, path: P) -> ConfigResult<()> {
         if let Some(doc) = &self.document {
-            // Use the format-preserving document
+            // Use the format-preserving document (DocumentMut::to_string is valid)
             fs::write(path, doc.to_string())?;
         } else {
             // Fall back to regular save
@@ -232,6 +236,7 @@ impl<T: TomlConfig + DeserializeOwned + Serialize + Default> ConfigManager<T> {
     /// Otherwise falls back to `to_toml_string()`.
     pub fn to_toml_string_preserving_format(&self) -> ConfigResult<String> {
         if let Some(doc) = &self.document {
+            // DocumentMut::to_string is valid from toml_edit
             Ok(doc.to_string())
         } else {
             self.to_toml_string()
@@ -309,7 +314,10 @@ version = "1.0.0"
         assert_eq!(manager.config().name, "test-project");
         assert_eq!(manager.config().version, "1.0.0");
         assert!(manager.has_document());
-        assert!(manager.original_content().unwrap().contains("# Test configuration"));
+        assert!(manager
+            .original_content()
+            .unwrap()
+            .contains("# Test configuration"));
     }
 
     #[test]
@@ -410,4 +418,3 @@ version = "1.0.0"
         assert!(result.is_err());
     }
 }
-

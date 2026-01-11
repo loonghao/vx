@@ -161,4 +161,3 @@ pub trait TomlConfig: Sized {
         ConfigVersion::V1
     }
 }
-

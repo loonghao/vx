@@ -427,5 +427,3 @@ fn format_toml_value(value: &str) -> String {
     // Return quoted string format for kv_raw
     format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
 }
-
-

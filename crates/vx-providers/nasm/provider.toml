@@ -1,0 +1,31 @@
+# NASM Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for NASM.
+
+[provider]
+name = "nasm"
+description = "Netwide Assembler - portable 80x86 and x86-64 assembler"
+homepage = "https://www.nasm.us/"
+repository = "https://github.com/netwide-assembler/nasm"
+ecosystem = "system"
+
+# NASM
+[[runtimes]]
+name = "nasm"
+description = "NASM - Netwide Assembler"
+executable = "nasm"
+
+[runtimes.versions]
+source = "nasm-releases"
+stable_pattern = "stable"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# NASM is self-contained, no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []
+
