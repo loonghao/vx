@@ -45,6 +45,8 @@ members = [
   # Build tools & Task runners (P1)
   "crates/vx-providers/ninja",
   "crates/vx-providers/cmake",
+  "crates/vx-providers/nasm",
+  "crates/vx-providers/yasm",
   "crates/vx-providers/protoc",
   "crates/vx-providers/task",
   "crates/vx-providers/pre-commit",
@@ -111,7 +113,7 @@ walkdir.workspace = true
 
 
 [workspace.package]
-version = "0.6.12"                                                # x-release-please-version
+version = "0.6.11"                                                # x-release-please-version
 edition = "2021"
 description = "Universal Development Tool Manager"
 license = "MIT"
@@ -166,6 +168,8 @@ vx-provider-azcli = { path = "crates/vx-providers/azcli" }
 vx-provider-gcloud = { path = "crates/vx-providers/gcloud" }
 vx-provider-ninja = { path = "crates/vx-providers/ninja" }
 vx-provider-cmake = { path = "crates/vx-providers/cmake" }
+vx-provider-nasm = { path = "crates/vx-providers/nasm" }
+vx-provider-yasm = { path = "crates/vx-providers/yasm" }
 vx-provider-protoc = { path = "crates/vx-providers/protoc" }
 vx-provider-task = { path = "crates/vx-providers/task" }
 vx-provider-pre-commit = { path = "crates/vx-providers/pre-commit" }
@@ -181,6 +185,7 @@ vx-manifest = { path = "crates/vx-manifest" }
 clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.9.10"
+toml_edit = "0.22"
 # Optimize tokio - only include needed features for better compile times
 tokio = { version = "1.0", features = [
   "rt-multi-thread",
@@ -188,11 +193,12 @@ tokio = { version = "1.0", features = [
   "fs",
   "process",
 ] }
-# Optimize reqwest - use rustls instead of OpenSSL for better cross-compilation
+# HTTP client - use native TLS (OpenSSL on Linux, SChannel on Windows)
+# This avoids aws-lc-sys which requires cmake and NASM
 reqwest = { version = "0.12", features = [
   "json",
   "stream",
-  "rustls-tls",
+  "native-tls",
 ], default-features = false }
 serde_json = "1.0.148"
 anyhow = "1.0"
@@ -203,7 +209,8 @@ figment = { version = "0.10", features = ["toml", "env"] }
 which = "8.0"
 regex = "1.10"
 tempfile = "3.8"
-zip = "7.0"
+# zip 7.0 with lzma-rust2 has crc version conflict, disable lzma/xz
+zip = { version = "7.0", default-features = false, features = ["aes-crypto", "bzip2", "deflate64", "deflate", "ppmd", "time", "zstd"] }
 tar = "0.4"
 flate2 = "1.0"
 xz2 = "0.1"
