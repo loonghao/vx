@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.13](https://github.com/loonghao/vx/compare/vx-v0.6.12...vx-v0.6.13) (2026-01-11)
+
+
+### Features
+
+* **providers:** add nasm and yasm assembler providers ([fe6e6ba](https://github.com/loonghao/vx/commit/fe6e6bab0e6510a1d99ca12447dbb8c6bff1c56a))
+
+
+### Code Refactoring
+
+* **vx-config:** introduce TomlWriter module for safe TOML generation ([733d564](https://github.com/loonghao/vx/commit/733d564d8812bcfd53ce8431104652a0e06a1bec))
+
 ## [0.6.12](https://github.com/loonghao/vx/compare/vx-v0.6.11...vx-v0.6.12) (2026-01-10)
 
 
