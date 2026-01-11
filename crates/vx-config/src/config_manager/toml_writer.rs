@@ -317,7 +317,8 @@ impl TomlDocument {
 
     /// Get a string value from a path like "tools.node"
     pub fn get_string(&self, path: &str) -> Option<String> {
-        self.get_value(path).and_then(|v| v.as_str().map(String::from))
+        self.get_value(path)
+            .and_then(|v| v.as_str().map(String::from))
     }
 
     /// Get an integer value from a path
@@ -390,7 +391,7 @@ impl TomlDocument {
     }
 
     /// Convert to TOML string (preserves formatting)
-    pub fn to_string(&self) -> String {
+    pub fn to_toml_string(&self) -> String {
         self.doc.to_string()
     }
 
@@ -451,8 +452,8 @@ impl TomlDocument {
         // Ensure all parent tables exist
         let mut current = self.doc.as_table_mut();
         for part in &parts[..parts.len() - 1] {
-            if current.get(*part).is_none() {
-                current[*part] = Item::Table(Table::new());
+            if current.get(part).is_none() {
+                current[part] = Item::Table(Table::new());
             }
             current = current[*part].as_table_mut().unwrap();
         }
@@ -537,7 +538,11 @@ pub fn escape_toml_key(key: &str) -> String {
 /// This is a convenience function that properly escapes both the key
 /// and the string value, producing a complete TOML line.
 pub fn format_toml_kv(key: &str, value: &str) -> String {
-    format!("{} = \"{}\"", escape_toml_key(key), escape_toml_string(value))
+    format!(
+        "{} = \"{}\"",
+        escape_toml_key(key),
+        escape_toml_string(value)
+    )
 }
 
 #[cfg(test)]
@@ -629,17 +634,17 @@ mod tests {
                 .kv_bool("debug", false)
                 .kv_int("timeout", 300)
                 .kv_int("negative", -42)
-                .kv_float("ratio", 3.14)
+                .kv_float("ratio", 1.5)
                 .build();
 
             let parsed: toml::Value = toml::from_str(&toml).expect("Should be valid TOML");
             let settings = parsed.get("settings").unwrap().as_table().unwrap();
 
-            assert_eq!(settings.get("auto_install").unwrap().as_bool().unwrap(), true);
-            assert_eq!(settings.get("debug").unwrap().as_bool().unwrap(), false);
+            assert!(settings.get("auto_install").unwrap().as_bool().unwrap());
+            assert!(!settings.get("debug").unwrap().as_bool().unwrap());
             assert_eq!(settings.get("timeout").unwrap().as_integer().unwrap(), 300);
             assert_eq!(settings.get("negative").unwrap().as_integer().unwrap(), -42);
-            assert!((settings.get("ratio").unwrap().as_float().unwrap() - 3.14).abs() < 0.001);
+            assert!((settings.get("ratio").unwrap().as_float().unwrap() - 1.5).abs() < 0.001);
         }
 
         #[test]
@@ -746,8 +751,14 @@ mod tests {
             let parsed: toml::Value = toml::from_str(&toml).expect("Should be valid TOML");
             let i18n = parsed.get("i18n").unwrap().as_table().unwrap();
 
-            assert_eq!(i18n.get("greeting_zh").unwrap().as_str().unwrap(), "你好世界");
-            assert_eq!(i18n.get("greeting_jp").unwrap().as_str().unwrap(), "こんにちは");
+            assert_eq!(
+                i18n.get("greeting_zh").unwrap().as_str().unwrap(),
+                "你好世界"
+            );
+            assert_eq!(
+                i18n.get("greeting_jp").unwrap().as_str().unwrap(),
+                "こんにちは"
+            );
             assert_eq!(i18n.get("emoji").unwrap().as_str().unwrap(), "🚀✨");
         }
     }
@@ -773,7 +784,7 @@ build = "npm run build"
         #[test]
         fn test_parse_and_preserve_comments() {
             let doc = TomlDocument::parse(SAMPLE_TOML).expect("Should parse");
-            let output = doc.to_string();
+            let output = doc.to_toml_string();
 
             // Comments should be preserved
             assert!(output.contains("# VX Configuration"));
@@ -817,7 +828,7 @@ build = "npm run build"
             assert_eq!(doc.get_string("settings.debug"), Some("true".to_string()));
 
             // Verify output is valid TOML
-            let output = doc.to_string();
+            let output = doc.to_toml_string();
             let _: toml::Value = toml::from_str(&output).expect("Output should be valid TOML");
         }
 
@@ -835,7 +846,7 @@ build = "npm run build"
             assert_eq!(doc.get_bool("enabled"), Some(true));
 
             // Verify output is valid TOML
-            let output = doc.to_string();
+            let output = doc.to_toml_string();
             let parsed: toml::Value = toml::from_str(&output).expect("Should be valid TOML");
             let items = parsed.get("items").unwrap().as_array().unwrap();
             assert_eq!(items.len(), 3);
@@ -854,7 +865,7 @@ build = "npm run build"
             assert!(!doc.remove("tools.nonexistent"));
 
             // Verify output is valid TOML
-            let output = doc.to_string();
+            let output = doc.to_toml_string();
             let _: toml::Value = toml::from_str(&output).expect("Output should be valid TOML");
         }
 
@@ -904,7 +915,7 @@ python = "3.11"
             // Modify a value
             doc.set_string("tools.node", "22");
 
-            let output = doc.to_string();
+            let output = doc.to_toml_string();
 
             // Header comment should be preserved
             assert!(output.contains("# Header comment"));
@@ -935,7 +946,7 @@ python = "3.11"
 
             assert_eq!(doc.get_string("a.b.c"), Some("deep".to_string()));
 
-            let output = doc.to_string();
+            let output = doc.to_toml_string();
             let parsed: toml::Value = toml::from_str(&output).expect("Should be valid TOML");
 
             assert_eq!(
@@ -965,7 +976,7 @@ python = "3.11"
             assert!(!doc.contains("anything"));
             assert!(doc.keys("anything").is_empty());
 
-            let output = doc.to_string();
+            let output = doc.to_toml_string();
             assert!(output.is_empty() || output.trim().is_empty());
         }
 
@@ -1048,7 +1059,7 @@ python = "3.11"
             doc.set_string("tools.rust", "1.75");
 
             // Verify modifications
-            let output = doc.to_string();
+            let output = doc.to_toml_string();
             let final_doc = TomlDocument::parse(&output).expect("Should parse modified");
 
             assert_eq!(final_doc.get_string("tools.node"), Some("20".to_string()));
@@ -1056,11 +1067,7 @@ python = "3.11"
                 final_doc.get_string("tools.python"),
                 Some("3.10".to_string())
             );
-            assert_eq!(
-                final_doc.get_string("tools.rust"),
-                Some("1.75".to_string())
-            );
+            assert_eq!(final_doc.get_string("tools.rust"), Some("1.75".to_string()));
         }
     }
 }
-

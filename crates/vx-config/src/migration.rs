@@ -20,8 +20,8 @@
 //! let result = migrator.migrate_file("path/to/vx.toml", &MigrationOptions::default())?;
 //! ```
 
-use crate::error::{ConfigError, ConfigResult};
 use crate::config_manager::{escape_toml_key, escape_toml_string};
+use crate::error::{ConfigError, ConfigResult};
 use crate::types::*;
 use crate::validation::validate_config;
 use std::collections::HashMap;
@@ -532,13 +532,23 @@ impl ConfigMigrator {
                 let escaped_name = escape_toml_key(name);
                 match script {
                     ScriptConfig::Simple(cmd) => {
-                        output.push_str(&format!("{} = \"{}\"\n", escaped_name, escape_toml_string(cmd)));
+                        output.push_str(&format!(
+                            "{} = \"{}\"\n",
+                            escaped_name,
+                            escape_toml_string(cmd)
+                        ));
                     }
                     ScriptConfig::Detailed(d) => {
                         output.push_str(&format!("[scripts.{}]\n", escaped_name));
-                        output.push_str(&format!("command = \"{}\"\n", escape_toml_string(&d.command)));
+                        output.push_str(&format!(
+                            "command = \"{}\"\n",
+                            escape_toml_string(&d.command)
+                        ));
                         if let Some(desc) = &d.description {
-                            output.push_str(&format!("description = \"{}\"\n", escape_toml_string(desc)));
+                            output.push_str(&format!(
+                                "description = \"{}\"\n",
+                                escape_toml_string(desc)
+                            ));
                         }
                         if let Some(cwd) = &d.cwd {
                             output.push_str(&format!("cwd = \"{}\"\n", escape_toml_string(cwd)));

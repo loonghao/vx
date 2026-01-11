@@ -696,7 +696,7 @@ pub fn github_release_to_compact(release: &serde_json::Value) -> Option<CompactV
     let published_at = release
         .get("published_at")
         .and_then(|v| v.as_str())
-        .and_then(|s| parse_iso8601_timestamp(s))
+        .and_then(parse_iso8601_timestamp)
         .unwrap_or(0);
 
     // Strip 'v' prefix if present
@@ -856,7 +856,7 @@ mod tests {
         // Compact bincode size
         let compact: Vec<CompactVersion> = releases
             .iter()
-            .filter_map(|r| github_release_to_compact(r))
+            .filter_map(github_release_to_compact)
             .collect();
         let bincode_size = bincode::serialize(&compact).unwrap().len();
 

@@ -1,0 +1,32 @@
+# YASM Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for YASM.
+
+[provider]
+name = "yasm"
+description = "YASM - Modular Assembler with multiple output formats"
+homepage = "https://yasm.tortall.net/"
+repository = "https://github.com/yasm/yasm"
+ecosystem = "system"
+
+# YASM
+[[runtimes]]
+name = "yasm"
+description = "YASM - Yet Another Assembler"
+executable = "yasm"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "yasm"
+repo = "yasm"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# YASM is self-contained, no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []
+

@@ -943,5 +943,3 @@ fn format_value(value: &str) -> String {
         format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
     }
 }
-
-
