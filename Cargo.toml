@@ -195,7 +195,7 @@ tokio = { version = "1.0", features = [
 ] }
 # HTTP client - use native TLS (OpenSSL on Linux, SChannel on Windows)
 # This avoids aws-lc-sys which requires cmake and NASM
-reqwest = { version = "0.12", features = [
+reqwest = { version = "0.13", features = [
   "json",
   "stream",
   "native-tls",
