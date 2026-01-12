@@ -20,6 +20,23 @@ owner = "denoland"
 repo = "deno"
 strip_v_prefix = true
 
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "deno ([\\d.]+)"
+system_paths = ["/usr/local/bin/deno", "/usr/bin/deno", "C:\\Program Files\\deno\\deno.exe"]
+
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = ""
+executable_paths = [
+    "deno.exe",  # Windows (root directory)
+    "deno"       # Unix (root directory)
+]
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 

@@ -40,6 +40,7 @@ pub mod constraints;
 pub mod context;
 pub mod ecosystem;
 pub mod impls;
+pub mod layout;
 pub mod manifest_registry;
 pub mod package_runtime;
 pub mod platform;
@@ -59,6 +60,10 @@ pub use ecosystem::Ecosystem;
 pub use impls::{
     create_runtime_context, create_runtime_context_with_base, RealCommandExecutor, RealFileSystem,
     RealHttpClient, RealInstaller, RealPathProvider,
+};
+pub use layout::{
+    ArchiveLayout, BinaryLayout, DownloadType, ExecutableLayout, LayoutContext, PlatformLayout,
+    ResolvedLayout,
 };
 pub use package_runtime::{InstallMethod, PackageRuntime};
 pub use platform::{compare_semver, Arch, Os, Platform};

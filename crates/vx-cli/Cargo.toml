@@ -61,6 +61,8 @@ vx-provider-spack = { workspace = true }
 vx-provider-release-please = { workspace = true }
 vx-provider-python = { workspace = true }
 vx-provider-msvc = { workspace = true }
+vx-provider-ffmpeg = { workspace = true }
+vx-provider-yasm = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
@@ -76,7 +78,7 @@ serde_json = { workspace = true }
 serde_yaml = "0.9"
 reqwest = { workspace = true }
 tempfile = { workspace = true }
-zip = "7.0"
+zip = { workspace = true }
 tar = { workspace = true }
 flate2 = { workspace = true }
 dirs = { workspace = true }

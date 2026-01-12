@@ -18,6 +18,9 @@ aliases = ["vscode", "vs-code"]
 [runtimes.versions]
 source = "vscode-releases"
 
+# Note: VS Code uses platform-specific installers (.exe, .dmg, .deb, .rpm)
+# Layout configuration will be added when installer support is implemented
+
 [runtimes.platforms.windows]
 executable_extensions = [".cmd", ".exe"]
 

@@ -29,6 +29,17 @@ mirrors = [
 source = "nodejs-org"
 lts_pattern = "lts/*"
 
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "node-v{version}-{platform}-{arch}"
+executable_paths = [
+    "bin/node.exe",  # Windows
+    "bin/node"       # Unix
+]
+
 [runtimes.executable_config]
 extensions = [".exe"]
 dir_pattern = "node-v{version}-{platform}-{arch}"

@@ -20,6 +20,33 @@ owner = "rust-lang"
 repo = "rustup"
 strip_v_prefix = true
 
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "binary"
+
+[runtimes.layout.binary."windows-x86_64"]
+source_name = "rustup-init.exe"
+target_name = "rustup.exe"
+target_dir = "bin"
+
+[runtimes.layout.binary."macos-x86_64"]
+source_name = "rustup-init"
+target_name = "rustup"
+target_dir = "bin"
+target_permissions = "755"
+
+[runtimes.layout.binary."macos-aarch64"]
+source_name = "rustup-init"
+target_name = "rustup"
+target_dir = "bin"
+target_permissions = "755"
+
+[runtimes.layout.binary."linux-x86_64"]
+source_name = "rustup-init"
+target_name = "rustup"
+target_dir = "bin"
+target_permissions = "755"
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 

@@ -29,7 +29,7 @@ reqwest = { workspace = true }
 tar = { workspace = true }
 flate2 = { workspace = true }
 xz2 = { workspace = true }
-zip = "7.0"
+zip = { workspace = true }
 tempfile = { workspace = true }
 
 # Utilities

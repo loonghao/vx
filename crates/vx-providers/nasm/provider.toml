@@ -18,6 +18,18 @@ executable = "nasm"
 source = "nasm-releases"
 stable_pattern = "stable"
 
+# RFC 0019: Executable Layout Configuration
+# NASM downloads are archives with versioned directory
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "nasm-{version}"
+executable_paths = [
+    "nasm.exe",  # Windows (in root after strip_prefix)
+    "nasm"       # macOS (in root after strip_prefix)
+]
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 

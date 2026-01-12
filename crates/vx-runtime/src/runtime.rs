@@ -272,16 +272,37 @@ pub trait Runtime: Send + Sync {
     /// Get the relative path to the executable within the install directory
     ///
     /// **Most providers should NOT override this method.**
-    /// Instead, override `executable_name()`, `executable_extensions()`, or `executable_dir_path()`.
+    /// Instead, override `executable_name()`, `executable_extensions()`, `executable_dir_path()`,
+    /// or `executable_layout()` (RFC 0019).
     ///
     /// This method combines the above methods to construct the full relative path.
     /// Only override this for complex cases that can't be handled by the simpler methods.
     ///
     /// # Default behavior
-    /// - Constructs path from `executable_dir_path()` + `executable_name()` + extension
+    /// 1. If `executable_layout()` is provided, use it to resolve the path
+    /// 2. Otherwise, construct path from `executable_dir_path()` + `executable_name()` + extension
     /// - On Windows: tries extensions from `executable_extensions()` in order
     /// - On Unix: no extension
     fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        // Try layout-based resolution first (RFC 0019)
+        if let Some(layout) = self.executable_layout() {
+            use crate::layout::LayoutContext;
+            
+            let ctx = LayoutContext {
+                version: version.to_string(),
+                name: self.name().to_string(),
+                platform: platform.clone(),
+            };
+            
+            if let Ok(resolved) = layout.resolve(&ctx) {
+                // Return the relative path from resolved layout
+                let install_root = std::path::Path::new("");
+                let exe_path = resolved.executable_path(install_root);
+                return exe_path.to_string_lossy().to_string();
+            }
+        }
+        
+        // Fallback to legacy method
         let exe_name = self.executable_name();
         let full_name = platform.executable_with_extensions(exe_name, self.executable_extensions());
 
@@ -289,6 +310,34 @@ pub trait Runtime: Send + Sync {
             Some(dir) => format!("{}/{}", dir, full_name),
             None => full_name,
         }
+    }
+
+    // ========== RFC 0019: Executable Layout Configuration ==========
+
+    /// Get executable layout configuration from provider.toml (RFC 0019)
+    ///
+    /// This provides a declarative way to configure executable file layouts
+    /// instead of hardcoding in Rust. Supports:
+    /// - Single binary files with renaming (e.g., yasm-1.3.0-win64.exe → bin/yasm.exe)
+    /// - Archives with nested directories (e.g., ffmpeg-6.0/bin/ffmpeg.exe)
+    /// - Platform-specific layouts
+    /// - Variable interpolation ({version}, {name}, {platform}, etc.)
+    ///
+    /// # Example (provider.toml)
+    /// ```toml
+    /// [runtimes.layout]
+    /// download_type = "binary"
+    ///
+    /// [runtimes.layout.binary."windows-x86_64"]
+    /// source_name = "tool-{version}-win64.exe"
+    /// target_name = "tool.exe"
+    /// target_dir = "bin"
+    /// ```
+    ///
+    /// Most providers should return `None` and rely on the default path resolution.
+    /// Only override this for tools with complex file layouts.
+    fn executable_layout(&self) -> Option<crate::layout::ExecutableLayout> {
+        None
     }
 
     // ========== Lifecycle Hooks ==========
@@ -683,12 +732,46 @@ pub trait Runtime: Send + Sync {
 
         info!("Downloading {} {} from {}", self.name(), version, url);
 
-        // Download and extract
-        ctx.installer
-            .download_and_extract(&url, &install_path)
-            .await?;
+        // Prepare layout metadata if available
+        let mut layout_metadata = std::collections::HashMap::new();
+        if let Some(layout) = self.executable_layout() {
+            use crate::layout::LayoutContext;
+            
+            let layout_ctx = LayoutContext {
+                version: version.to_string(),
+                name: self.name().to_string(),
+                platform: platform.clone(),
+            };
+            
+            if let Ok(resolved) = layout.resolve(&layout_ctx) {
+                if let crate::layout::ResolvedLayout::Binary { 
+                    source_name, 
+                    target_name, 
+                    target_dir, 
+                    permissions 
+                } = resolved {
+                    layout_metadata.insert("source_name".to_string(), source_name);
+                    layout_metadata.insert("target_name".to_string(), target_name);
+                    layout_metadata.insert("target_dir".to_string(), target_dir);
+                    if let Some(perms) = permissions {
+                        layout_metadata.insert("target_permissions".to_string(), perms);
+                    }
+                }
+            }
+        }
 
-        // Run post-extract hook (e.g., rename downloaded files to standard names)
+        // Download and extract (with layout support if metadata is provided)
+        if !layout_metadata.is_empty() {
+            ctx.installer
+                .download_with_layout(&url, &install_path, &layout_metadata)
+                .await?;
+        } else {
+            ctx.installer
+                .download_and_extract(&url, &install_path)
+                .await?;
+        }
+
+        // Run post-extract hook
         self.post_extract(version, &install_path)?;
 
         debug!("Expected executable path pattern: {}", exe_relative);
