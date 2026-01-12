@@ -157,7 +157,7 @@ impl ExecutableLayout {
         match self.download_type {
             DownloadType::Binary => self.resolve_binary(&vars, ctx),
             DownloadType::Archive => self.resolve_archive(&vars, ctx),
-            DownloadType::Msi => self.resolve_archive(&vars, ctx), // MSI is treated as archive
+            DownloadType::Msi => self.resolve_msi(&vars, ctx),
         }
     }
 
@@ -233,6 +233,64 @@ impl ExecutableLayout {
                 permissions: a.permissions.clone(),
             })
             .ok_or_else(|| anyhow!("No layout configuration found for OS: {:?}", os))
+    }
+
+    fn resolve_msi(
+        &self,
+        vars: &HashMap<String, String>,
+        ctx: &LayoutContext,
+    ) -> Result<ResolvedLayout> {
+        // First try to get MSI-specific configuration
+        if let Some(msi_configs) = &self.msi {
+            let platform_key = format!("{}-{}", ctx.platform.os, ctx.platform.arch);
+            
+            if let Some(config) = msi_configs
+                .get(&platform_key)
+                .or_else(|| msi_configs.get(&ctx.platform.os.to_string()))
+                .or_else(|| msi_configs.values().next())
+            {
+                // Use executable_paths from MSI config if available
+                if let Some(exe_paths) = &config.executable_paths {
+                    return Ok(ResolvedLayout::Archive {
+                        executable_paths: exe_paths
+                            .iter()
+                            .map(|p| interpolate(p, vars))
+                            .collect(),
+                        strip_prefix: None,
+                        permissions: None,
+                    });
+                }
+            }
+        }
+
+        // Fallback: try platform-specific layout or archive config
+        // MSI extraction typically places files in a specific structure
+        // Try to use windows layout if available
+        if let Some(windows_layout) = &self.windows {
+            return Ok(ResolvedLayout::Archive {
+                executable_paths: windows_layout
+                    .executable_paths
+                    .iter()
+                    .map(|p| interpolate(p, vars))
+                    .collect(),
+                strip_prefix: windows_layout.strip_prefix.as_ref().map(|p| interpolate(p, vars)),
+                permissions: windows_layout.permissions.clone(),
+            });
+        }
+
+        // If no specific config, use a sensible default for MSI
+        // MSI typically extracts to Program Files structure
+        let name = &ctx.name;
+        Ok(ResolvedLayout::Archive {
+            executable_paths: vec![
+                format!("{}.exe", name),
+                format!("bin/{}.exe", name),
+                format!("Amazon/AWSCLIV2/{}.exe", name), // AWS CLI specific
+                "**/*.exe".to_string(), // Glob pattern fallback
+            ],
+            strip_prefix: None,
+            permissions: None,
+        })
     }
 }
 

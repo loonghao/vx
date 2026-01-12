@@ -134,15 +134,13 @@ impl Runtime for AwsCliRuntime {
         Ok(AwsCliUrlBuilder::download_url(version, platform))
     }
 
-    /// Custom post-install for AWS CLI
+    /// Custom post-extract for AWS CLI
     ///
-    /// This hook runs platform-specific installation procedures:
+    /// This hook runs platform-specific installation procedures BEFORE verification:
     ///
     /// **Windows**: Uses msiexec to install MSI silently to a custom directory
     /// **Linux/macOS**: Runs the official `./aws/install` script with custom install directory
-    async fn post_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
-        let install_dir = ctx.paths.store_dir().join("aws").join(version);
-
+    fn post_extract(&self, version: &str, install_path: &std::path::PathBuf) -> Result<()> {
         #[cfg(target_os = "windows")]
         {
             use std::process::Command;
@@ -153,30 +151,37 @@ impl Runtime for AwsCliRuntime {
             } else {
                 format!("AWSCLIV2-{}.msi", version)
             };
-            let msi_file = install_dir.join(&msi_filename);
-
-            if !msi_file.exists() {
-                return Err(anyhow::anyhow!(
-                    "MSI file not found at {}",
-                    msi_file.display()
-                ));
-            }
+            
+            // MSI file might be in root or in a subdirectory after download
+            let possible_msi_paths = vec![
+                install_path.join(&msi_filename),
+                install_path.join("bin").join(&msi_filename),
+            ];
+            
+            let msi_file = possible_msi_paths
+                .iter()
+                .find(|p| p.exists())
+                .cloned()
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "MSI file not found. Searched: {:?}",
+                        possible_msi_paths
+                    )
+                })?;
 
             eprintln!("📦 Installing AWS CLI using msiexec...");
-            eprintln!("   Target directory: {}", install_dir.display());
+            eprintln!("   MSI file: {}", msi_file.display());
+            eprintln!("   Target directory: {}", install_path.display());
             eprintln!("   This may take a moment...");
 
             // Use msiexec to install silently to a custom directory
-            // /i = install
+            // /a = administrative install (extract files without system registration)
             // /qn = quiet, no UI
-            // /norestart = don't restart
-            // TARGETDIR = custom install directory
             let output = Command::new("msiexec.exe")
-                .arg("/i")
+                .arg("/a")
                 .arg(&msi_file)
                 .arg("/qn")
-                .arg("/norestart")
-                .arg(format!("TARGETDIR={}", install_dir.display()))
+                .arg(format!("TARGETDIR={}", install_path.display()))
                 .output()?;
 
             if !output.status.success() {
@@ -189,6 +194,11 @@ impl Runtime for AwsCliRuntime {
                 ));
             }
 
+            // Clean up MSI file after extraction
+            if msi_file.exists() {
+                let _ = std::fs::remove_file(&msi_file);
+            }
+
             eprintln!("✓ AWS CLI installed successfully");
         }
 
@@ -197,7 +207,7 @@ impl Runtime for AwsCliRuntime {
             use std::process::Command;
 
             // AWS CLI zip contains an 'aws' directory with an 'install' script
-            let aws_dir = install_dir.join("aws");
+            let aws_dir = install_path.join("aws");
             let install_script = aws_dir.join("install");
 
             if !install_script.exists() {
@@ -217,13 +227,13 @@ impl Runtime for AwsCliRuntime {
             }
 
             eprintln!("📦 Installing AWS CLI using official install script...");
-            eprintln!("   Install directory: {}", install_dir.display());
+            eprintln!("   Install directory: {}", install_path.display());
             eprintln!("   This may take a moment...");
 
-            // Run: sudo ./aws/install --install-dir /path/to/install --bin-dir /path/to/bin
+            // Run: ./aws/install --install-dir /path/to/install --bin-dir /path/to/bin
             // We install to a custom directory to avoid requiring root privileges
-            let bin_dir = install_dir.join("bin");
-            let cli_dir = install_dir.join("aws-cli");
+            let bin_dir = install_path.join("bin");
+            let cli_dir = install_path.join("aws-cli");
 
             // Create directories
             std::fs::create_dir_all(&bin_dir)?;
@@ -235,7 +245,7 @@ impl Runtime for AwsCliRuntime {
                 .arg(&cli_dir)
                 .arg("--bin-dir")
                 .arg(&bin_dir)
-                .current_dir(&install_dir)
+                .current_dir(install_path)
                 .output()?;
 
             if !output.status.success() {
@@ -251,6 +261,13 @@ impl Runtime for AwsCliRuntime {
             eprintln!("✓ AWS CLI installed successfully");
         }
 
+        let _ = version; // Suppress unused warning on non-target platforms
+        Ok(())
+    }
+
+    /// Called after successful installation (kept for backward compatibility)
+    async fn post_install(&self, _version: &str, _ctx: &RuntimeContext) -> Result<()> {
+        // Installation is now handled in post_extract
         Ok(())
     }
 
