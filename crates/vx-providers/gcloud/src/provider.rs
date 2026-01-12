@@ -1,6 +1,6 @@
 //! Google Cloud CLI provider implementation
 
-use crate::runtime::GcloudRuntime;
+use crate::runtime::{BqRuntime, GcloudRuntime, GsutilRuntime};
 use std::sync::Arc;
 use vx_runtime::{Provider, Runtime};
 
@@ -31,6 +31,10 @@ impl Provider for GcloudProvider {
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(GcloudRuntime::new())]
+        vec![
+            Arc::new(GcloudRuntime::new()),
+            Arc::new(GsutilRuntime::new()),
+            Arc::new(BqRuntime::new()),
+        ]
     }
 }

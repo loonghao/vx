@@ -1,15 +1,13 @@
 //! URL builder and platform configuration for FFmpeg
 //!
-//! FFmpeg official doesn't provide prebuilt binaries, so we use trusted third-party sources:
-//! - Windows: https://www.gyan.dev/ffmpeg/builds/
-//! - macOS: https://evermeet.cx/ffmpeg/
-//! - Linux: https://johnvansickle.com/ffmpeg/
+//! FFmpeg official doesn't provide prebuilt binaries, so we use BtbN/FFmpeg-Builds:
+//! - Source: https://github.com/BtbN/FFmpeg-Builds/releases
+//! - Supports: Windows (x64, arm64), Linux (x64, arm64)
+//! - macOS fallback: https://evermeet.cx/ffmpeg/
 //!
 //! # Build Types
 //!
-//! - **Full**: Complete build with all codecs
-//! - **Essentials**: Common codecs only (smaller download)
-//! - **GPL**: Includes GPL-licensed codecs (x264, x265)
+//! - **GPL**: Includes GPL-licensed codecs (x264, x265) - recommended
 //! - **LGPL**: Only LGPL-licensed codecs
 
 use vx_runtime::{Arch, Os, Platform};
@@ -17,12 +15,8 @@ use vx_runtime::{Arch, Os, Platform};
 /// FFmpeg build type
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum FfmpegBuild {
-    /// Complete build with all codecs
-    Full,
-    /// Essential codecs only (smaller)
+    /// GPL version (includes x264, x265) - recommended
     #[default]
-    Essentials,
-    /// GPL version (includes x264, x265)
     Gpl,
     /// LGPL version (no GPL codecs)
     Lgpl,
@@ -34,43 +28,66 @@ pub struct FfmpegUrlBuilder;
 impl FfmpegUrlBuilder {
     /// Build the download URL for a specific version and platform
     ///
-    /// Note: FFmpeg third-party sources have different versioning approaches:
-    /// - gyan.dev (Windows): Uses "release" for latest stable
-    /// - evermeet.cx (macOS): Uses "getrelease" for latest
-    /// - johnvansickle.com (Linux): Uses "release" for latest stable
+    /// Uses BtbN/FFmpeg-Builds for Windows and Linux
+    /// Falls back to evermeet.cx for macOS
     pub fn download_url(version: &str, platform: &Platform, build: FfmpegBuild) -> Option<String> {
         match &platform.os {
-            Os::Windows => Self::windows_url(version, platform, build),
-            Os::MacOS => Self::macos_url(version, platform),
-            Os::Linux => Self::linux_url(version, platform),
+            Os::Windows => Self::btbn_url(version, platform, build),
+            Os::Linux => Self::btbn_url(version, platform, build),
+            Os::MacOS => Self::macos_url(platform),
             _ => None,
         }
     }
 
-    /// Get download URL for Windows (from gyan.dev)
-    fn windows_url(_version: &str, platform: &Platform, build: FfmpegBuild) -> Option<String> {
-        // gyan.dev only supports x86_64
-        if platform.arch != Arch::X86_64 {
-            return None;
-        }
-
-        let build_type = match build {
-            FfmpegBuild::Full => "full",
-            FfmpegBuild::Essentials => "essentials",
-            FfmpegBuild::Gpl => "full",
-            FfmpegBuild::Lgpl => "essentials",
+    /// Get download URL from BtbN/FFmpeg-Builds (Windows and Linux)
+    ///
+    /// Asset naming pattern:
+    /// - Versioned: ffmpeg-n{version}-latest-{platform}-{license}-{version}.{ext}
+    /// - Master: ffmpeg-master-latest-{platform}-{license}.{ext}
+    ///
+    /// Platform values:
+    /// - win64, winarm64 (Windows)
+    /// - linux64, linuxarm64 (Linux)
+    fn btbn_url(version: &str, platform: &Platform, build: FfmpegBuild) -> Option<String> {
+        let platform_str = match (&platform.os, &platform.arch) {
+            (Os::Windows, Arch::X86_64) => "win64",
+            (Os::Windows, Arch::Aarch64) => "winarm64",
+            (Os::Linux, Arch::X86_64) => "linux64",
+            (Os::Linux, Arch::Aarch64) => "linuxarm64",
+            _ => return None,
         };
 
-        // gyan.dev provides "release" builds (latest stable)
-        // Format: ffmpeg-release-essentials.zip or ffmpeg-release-full.zip
+        let license = match build {
+            FfmpegBuild::Gpl => "gpl",
+            FfmpegBuild::Lgpl => "lgpl",
+        };
+
+        let ext = match &platform.os {
+            Os::Windows => "zip",
+            Os::Linux => "tar.xz",
+            _ => "zip",
+        };
+
+        // For "latest" or "master", use the master build
+        // For specific versions like "8.0", "7.1", use versioned builds
+        let asset_name = if version == "latest" || version == "master" {
+            format!("ffmpeg-master-latest-{}-{}.{}", platform_str, license, ext)
+        } else {
+            // Version format: "8.0" -> "n8.0"
+            format!(
+                "ffmpeg-n{}-latest-{}-{}-{}.{}",
+                version, platform_str, license, version, ext
+            )
+        };
+
         Some(format!(
-            "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-{}.zip",
-            build_type
+            "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/{}",
+            asset_name
         ))
     }
 
     /// Get download URL for macOS (from evermeet.cx)
-    fn macos_url(_version: &str, platform: &Platform) -> Option<String> {
+    fn macos_url(platform: &Platform) -> Option<String> {
         // evermeet.cx supports both x86_64 and arm64
         match &platform.arch {
             Arch::X86_64 | Arch::Aarch64 => {
@@ -79,23 +96,6 @@ impl FfmpegUrlBuilder {
             }
             _ => None,
         }
-    }
-
-    /// Get download URL for Linux (from johnvansickle.com)
-    fn linux_url(_version: &str, platform: &Platform) -> Option<String> {
-        let arch = match &platform.arch {
-            Arch::X86_64 => "amd64",
-            Arch::Aarch64 => "arm64",
-            Arch::Arm => "armhf",
-            Arch::X86 => "i686",
-            _ => return None,
-        };
-
-        // johnvansickle.com provides static builds
-        Some(format!(
-            "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-{}-static.tar.xz",
-            arch
-        ))
     }
 
     /// Get the archive extension for the platform
@@ -117,16 +117,13 @@ impl FfmpegUrlBuilder {
 
     /// Get the relative path to executable within the extracted archive
     ///
-    /// Different platforms have different archive structures:
-    /// - Windows (gyan.dev): ffmpeg-{version}-{build}/bin/ffmpeg.exe
-    /// - macOS (evermeet.cx): ffmpeg (directly in archive)
-    /// - Linux (johnvansickle.com): ffmpeg-{version}-{arch}-static/ffmpeg
+    /// BtbN builds have structure: ffmpeg-{version}-{platform}-{license}/bin/ffmpeg.exe
+    /// After post_extract flattening: bin/ffmpeg.exe
     pub fn get_executable_relative_path(tool: &str, platform: &Platform) -> String {
         let exe_name = Self::get_executable_name(tool, platform);
         match &platform.os {
-            Os::Windows => format!("bin/{}", exe_name),
+            Os::Windows | Os::Linux => format!("bin/{}", exe_name),
             Os::MacOS => exe_name,
-            Os::Linux => exe_name,
             _ => exe_name,
         }
     }

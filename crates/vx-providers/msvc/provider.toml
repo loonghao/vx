@@ -19,6 +19,14 @@ description = "MSVC Build Tools"
 executable = "cl"
 aliases = ["cl", "nmake", "vs-build-tools", "msvc-tools"]
 
+# RFC 0018: Detection configuration
+# cl.exe outputs version info without arguments but returns exit code 2
+[runtimes.detection]
+command = "{executable}"
+pattern = "Compiler Version ([\\d.]+)"
+# cl.exe returns exit code 2 when run without source files
+exit_codes = [0, 2]
+
 [runtimes.versions]
 source = "vs-manifest"
 

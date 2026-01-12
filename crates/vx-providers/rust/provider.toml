@@ -53,6 +53,17 @@ executable_extensions = [".exe"]
 [runtimes.platforms.unix]
 executable_extensions = []
 
+# RFC 0020: Test configuration
+[runtimes.test]
+timeout_ms = 60000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "rustup \\d+\\.\\d+\\.\\d+", name = "version_check" },
+    { command = "{executable} show", expect_success = true, name = "show_toolchains" },
+]
+install_verification = [
+    { command = "{executable} --version", expect_success = true },
+]
+
 # Rustc - Rust compiler (managed by rustup)
 [[runtimes]]
 name = "rustc"

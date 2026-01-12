@@ -193,9 +193,13 @@ impl Resolver {
         let resolved_name = spec.map(|s| s.name.as_str()).unwrap_or(runtime_name);
         let executable_name = spec.map(|s| s.get_executable()).unwrap_or(runtime_name);
 
+        // For bundled runtimes, we need to look in the parent runtime's directory
+        // e.g., rez-env is bundled with rez, so we look in rez's directory for rez-env executable
+        let store_dir_name = self.get_store_directory_name(spec, resolved_name);
+
         // Check vx-managed installation first if preferred
         if self.config.prefer_vx_managed {
-            if let Some(status) = self.check_vx_managed(resolved_name, executable_name) {
+            if let Some(status) = self.check_vx_managed(store_dir_name, executable_name) {
                 return status;
             }
         }
@@ -210,12 +214,31 @@ impl Resolver {
 
         // Check vx-managed if not preferred but fallback enabled
         if !self.config.prefer_vx_managed {
-            if let Some(status) = self.check_vx_managed(resolved_name, executable_name) {
+            if let Some(status) = self.check_vx_managed(store_dir_name, executable_name) {
                 return status;
             }
         }
 
         RuntimeStatus::NotInstalled
+    }
+
+    /// Get the store directory name for a runtime
+    /// For bundled runtimes, this returns the parent runtime's name
+    fn get_store_directory_name<'a>(
+        &self,
+        spec: Option<&'a RuntimeSpec>,
+        default_name: &'a str,
+    ) -> &'a str {
+        if let Some(spec) = spec {
+            // Check if this runtime is bundled with another runtime
+            for dep in &spec.dependencies {
+                if let Some(ref provided_by) = dep.provided_by {
+                    // This is a bundled runtime, use the parent's directory
+                    return provided_by.as_str();
+                }
+            }
+        }
+        default_name
     }
 
     /// Check if a runtime is installed via vx
@@ -490,8 +513,12 @@ impl Resolver {
         let resolved_name = spec.map(|s| s.name.as_str()).unwrap_or(runtime_name);
         let executable_name = spec.map(|s| s.get_executable()).unwrap_or(runtime_name);
 
+        // For bundled runtimes, use the parent runtime's directory
+        let store_dir_name = self.get_store_directory_name(spec, resolved_name);
+
         // Check vx-managed installation for specific version
-        if let Some(status) = self.check_vx_managed_version(resolved_name, executable_name, version)
+        if let Some(status) =
+            self.check_vx_managed_version(store_dir_name, executable_name, version)
         {
             return status;
         }

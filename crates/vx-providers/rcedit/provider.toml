@@ -26,10 +26,15 @@ repo = "rcedit"
 strip_v_prefix = true
 
 # RFC 0018: Detection configuration
+# RFC 0018: Detection configuration
+# rcedit doesn't have a --version flag, use -h to verify it's working
+# The version is determined from the installed version, not from the executable output
 [runtimes.detection]
-command = "{executable} --version"
-pattern = "rcedit v([\\d.]+)"
-system_paths = ["C:\\Program Files\\rcedit\\rcedit.exe"]
+command = "{executable} -h"
+# Match the help output to verify it's rcedit
+pattern = "rcedit"
+# rcedit -h returns exit code 0
+exit_codes = [0]
 
 # RFC 0019: Executable Layout Configuration
 # rcedit downloads are single executable files

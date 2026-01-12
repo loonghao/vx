@@ -250,6 +250,70 @@ impl Runtime for PythonRuntime {
     // which supports partial versions (e.g., "3.11" -> "3.11.11"), ranges, and more
 }
 
+// ============================================================================
+// Pip Runtime - Bundled with Python
+// ============================================================================
+
+/// Pip runtime - Python package installer (bundled with Python)
+#[derive(Debug, Clone, Default)]
+pub struct PipRuntime;
+
+impl PipRuntime {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+#[async_trait]
+impl Runtime for PipRuntime {
+    fn name(&self) -> &str {
+        "pip"
+    }
+
+    fn description(&self) -> &str {
+        "Python package installer (bundled with Python)"
+    }
+
+    fn aliases(&self) -> &[&str] {
+        &["pip3"]
+    }
+
+    fn ecosystem(&self) -> Ecosystem {
+        Ecosystem::Python
+    }
+
+    fn metadata(&self) -> HashMap<String, String> {
+        let mut meta = HashMap::new();
+        meta.insert("homepage".to_string(), "https://pip.pypa.io/".to_string());
+        meta.insert("ecosystem".to_string(), "python".to_string());
+        meta.insert("bundled_with".to_string(), "python".to_string());
+        meta
+    }
+
+    /// Pip executable path within Python installation
+    /// - Windows: python/Scripts/pip.exe
+    /// - Unix: python/bin/pip3
+    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
+        if platform.is_windows() {
+            "python/Scripts/pip.exe".to_string()
+        } else {
+            "python/bin/pip3".to_string()
+        }
+    }
+
+    /// Pip versions are tied to Python versions
+    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // Pip is bundled with Python, return empty list
+        // Version is determined by the Python installation
+        Ok(vec![])
+    }
+
+    async fn download_url(&self, _version: &str, _platform: &Platform) -> Result<Option<String>> {
+        // Pip is bundled with Python, no separate download
+        Ok(None)
+    }
+}
+
 /// Get likely release dates for a given Python version
 /// python-build-standalone releases are tagged by date (YYYYMMDD)
 /// Different Python versions are available in different releases

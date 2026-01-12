@@ -4,6 +4,8 @@
 //! - FFmpeg: The main multimedia framework
 //! - FFprobe: Multimedia stream analyzer
 //! - FFplay: Simple media player
+//!
+//! Uses BtbN/FFmpeg-Builds for Windows and Linux binaries.
 
 use crate::config::{FfmpegBuild, FfmpegUrlBuilder};
 use anyhow::Result;
@@ -24,22 +26,30 @@ impl FfmpegRuntime {
         Self
     }
 
-    /// Parse versions from gyan.dev release page
-    fn parse_versions_from_html(html: &str) -> Vec<String> {
-        let re = Regex::new(r"ffmpeg-(\d+\.\d+(?:\.\d+)?)-").ok();
+    /// Parse versions from BtbN/FFmpeg-Builds release assets
+    ///
+    /// Asset names follow pattern: ffmpeg-n{version}-latest-{platform}-{license}-{version}.{ext}
+    /// Example: ffmpeg-n8.0-latest-win64-gpl-8.0.zip
+    fn parse_versions_from_assets(assets: &[serde_json::Value]) -> Vec<String> {
+        let re = Regex::new(r"ffmpeg-n(\d+\.\d+)-latest-").ok();
         let mut versions = Vec::new();
 
         if let Some(regex) = re {
-            for cap in regex.captures_iter(html) {
-                if let Some(version) = cap.get(1) {
-                    let v = version.as_str().to_string();
-                    if !versions.contains(&v) {
-                        versions.push(v);
+            for asset in assets {
+                if let Some(name) = asset.get("name").and_then(|n| n.as_str()) {
+                    if let Some(cap) = regex.captures(name) {
+                        if let Some(version) = cap.get(1) {
+                            let v = version.as_str().to_string();
+                            if !versions.contains(&v) {
+                                versions.push(v);
+                            }
+                        }
                     }
                 }
             }
         }
 
+        // Sort by version (newest first)
         versions.sort_by(|a, b| {
             let parse =
                 |s: &str| -> Vec<u32> { s.split('.').filter_map(|p| p.parse().ok()).collect() };
@@ -84,29 +94,35 @@ impl Runtime for FfmpegRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Try to fetch version info from gyan.dev (Windows builds page)
-        // This gives us the most reliable version information
-        let url = "https://www.gyan.dev/ffmpeg/builds/";
-        match ctx.http.get(url).await {
-            Ok(html) => {
-                let versions = Self::parse_versions_from_html(&html);
-                if !versions.is_empty() {
-                    return Ok(versions.into_iter().map(VersionInfo::new).collect());
+        // Fetch from BtbN/FFmpeg-Builds GitHub releases
+        // This is a more reliable source than gyan.dev
+        let url = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/latest";
+        
+        match ctx.http.get_json_value(url).await {
+            Ok(release) => {
+                if let Some(assets) = release.get("assets").and_then(|a| a.as_array()) {
+                    let versions = Self::parse_versions_from_assets(assets);
+                    if !versions.is_empty() {
+                        // Add "latest" as an option for master builds
+                        let mut result: Vec<VersionInfo> = vec![VersionInfo::new("latest")];
+                        result.extend(versions.into_iter().map(VersionInfo::new));
+                        return Ok(result);
+                    }
                 }
             }
             Err(e) => {
-                debug!("Failed to fetch versions from gyan.dev: {}", e);
+                debug!("Failed to fetch versions from GitHub: {}", e);
             }
         }
 
         // Fallback: provide known stable versions
         Ok(vec![
+            VersionInfo::new("latest"),
+            VersionInfo::new("8.0"),
             VersionInfo::new("7.1"),
             VersionInfo::new("7.0"),
             VersionInfo::new("6.1"),
             VersionInfo::new("6.0"),
-            VersionInfo::new("5.1"),
-            VersionInfo::new("5.0"),
         ])
     }
 
@@ -114,7 +130,7 @@ impl Runtime for FfmpegRuntime {
         Ok(FfmpegUrlBuilder::download_url(
             version,
             platform,
-            FfmpegBuild::Essentials,
+            FfmpegBuild::Gpl,
         ))
     }
 

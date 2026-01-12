@@ -1,0 +1,371 @@
+# Modern CLI Tools Provider
+#
+# This is an example of a user-defined provider that can be placed in:
+# - ~/.vx/providers/modern-cli-tools/provider.toml
+#
+# It demonstrates how to define system tools using pure TOML configuration,
+# without writing any Rust code.
+#
+# Usage:
+#   vx fd --version
+#   vx bat README.md
+#   vx rg "pattern" .
+#   vx jq '.key' file.json
+
+[provider]
+name = "modern-cli-tools"
+description = "Modern replacements for classic Unix tools"
+homepage = "https://github.com/vx-tools/vx"
+ecosystem = "system"
+
+# ============================================================================
+# fd - A simple, fast and user-friendly alternative to 'find'
+# https://github.com/sharkdp/fd
+# ============================================================================
+[[runtimes]]
+name = "fd"
+description = "A simple, fast and user-friendly alternative to find"
+executable = "fd"
+aliases = ["fd-find"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "fd ([\\d.]+)"
+system_paths = ["/usr/bin/fd", "/usr/local/bin/fd"]
+env_hints = []
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "fd"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "fd"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "fd-find"
+priority = 85
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "fd"
+priority = 70
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "direct_download"
+url = "https://github.com/sharkdp/fd/releases/download/v{version}/fd-v{version}-x86_64-pc-windows-msvc.zip"
+format = "zip"
+executable_path = "fd.exe"
+priority = 50
+platforms = ["windows"]
+
+# ============================================================================
+# bat - A cat clone with syntax highlighting and Git integration
+# https://github.com/sharkdp/bat
+# ============================================================================
+[[runtimes]]
+name = "bat"
+description = "A cat clone with syntax highlighting and Git integration"
+executable = "bat"
+aliases = ["batcat"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "bat ([\\d.]+)"
+system_paths = ["/usr/bin/bat", "/usr/local/bin/bat", "/usr/bin/batcat"]
+env_hints = ["BAT_THEME"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "bat"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "bat"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "bat"
+priority = 85
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "bat"
+priority = 70
+platforms = ["windows"]
+
+# ============================================================================
+# ripgrep (rg) - A line-oriented search tool
+# https://github.com/BurntSushi/ripgrep
+# ============================================================================
+[[runtimes]]
+name = "rg"
+description = "ripgrep - recursively searches directories for a regex pattern"
+executable = "rg"
+aliases = ["ripgrep"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "ripgrep ([\\d.]+)"
+system_paths = ["/usr/bin/rg", "/usr/local/bin/rg"]
+env_hints = ["RIPGREP_CONFIG_PATH"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "ripgrep"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "ripgrep"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "ripgrep"
+priority = 85
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "ripgrep"
+priority = 70
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "direct_download"
+url = "https://github.com/BurntSushi/ripgrep/releases/download/{version}/ripgrep-{version}-x86_64-pc-windows-msvc.zip"
+format = "zip"
+executable_path = "rg.exe"
+priority = 50
+platforms = ["windows"]
+
+# ============================================================================
+# jq - Command-line JSON processor
+# https://github.com/jqlang/jq
+# ============================================================================
+[[runtimes]]
+name = "jq"
+description = "Command-line JSON processor"
+executable = "jq"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "jq-([\\d.]+)"
+system_paths = ["/usr/bin/jq", "/usr/local/bin/jq"]
+env_hints = []
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "jq"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "jq"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "jq"
+priority = 85
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "jq"
+priority = 70
+platforms = ["windows"]
+
+# ============================================================================
+# fzf - A command-line fuzzy finder
+# https://github.com/junegunn/fzf
+# ============================================================================
+[[runtimes]]
+name = "fzf"
+description = "A command-line fuzzy finder"
+executable = "fzf"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "([\\d.]+)"
+system_paths = ["/usr/bin/fzf", "/usr/local/bin/fzf"]
+env_hints = ["FZF_DEFAULT_COMMAND", "FZF_DEFAULT_OPTS"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "fzf"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "fzf"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "fzf"
+priority = 85
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "fzf"
+priority = 70
+platforms = ["windows"]
+
+# ============================================================================
+# delta - A syntax-highlighting pager for git, diff, and grep output
+# https://github.com/dandavison/delta
+# ============================================================================
+[[runtimes]]
+name = "delta"
+description = "A syntax-highlighting pager for git, diff, and grep output"
+executable = "delta"
+aliases = ["git-delta"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "delta ([\\d.]+)"
+system_paths = ["/usr/bin/delta", "/usr/local/bin/delta"]
+env_hints = []
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "git-delta"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "delta"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "delta"
+priority = 70
+platforms = ["windows"]
+
+# ============================================================================
+# eza - A modern replacement for ls (formerly exa)
+# https://github.com/eza-community/eza
+# ============================================================================
+[[runtimes]]
+name = "eza"
+description = "A modern replacement for ls"
+executable = "eza"
+aliases = ["exa"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "eza v([\\d.]+)"
+system_paths = ["/usr/bin/eza", "/usr/local/bin/eza"]
+env_hints = ["EZA_COLORS"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "eza"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "eza"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "eza"
+priority = 85
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "eza"
+priority = 70
+platforms = ["windows"]
+
+# ============================================================================
+# zoxide - A smarter cd command
+# https://github.com/ajeetdsouza/zoxide
+# ============================================================================
+[[runtimes]]
+name = "zoxide"
+description = "A smarter cd command"
+executable = "zoxide"
+aliases = ["z"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "zoxide ([\\d.]+)"
+system_paths = ["/usr/bin/zoxide", "/usr/local/bin/zoxide"]
+env_hints = ["_ZO_DATA_DIR"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "zoxide"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "zoxide"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "zoxide"
+priority = 70
+platforms = ["windows"]

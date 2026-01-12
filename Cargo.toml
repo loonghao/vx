@@ -15,6 +15,7 @@ members = [
   "crates/vx-args",
   "crates/vx-project-analyzer",
   "crates/vx-console",
+  "crates/vx-system-pm",
   "crates/vx-cli",
   # Providers
   "crates/vx-providers/node",

@@ -4,7 +4,7 @@ use crate::config::DockerUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// Docker runtime
 #[derive(Debug, Clone)]
@@ -67,14 +67,39 @@ impl Runtime for DockerRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Fetch from docker/cli GitHub releases
-        ctx.fetch_github_releases(
-            "docker",
-            "docker",
-            "cli",
-            GitHubReleaseOptions::new().strip_v_prefix(true),
-        )
-        .await
+        // Docker releases are available from download.docker.com, not GitHub
+        // Parse the directory listing to get available versions
+        let url = "https://download.docker.com/linux/static/stable/x86_64/";
+        
+        let html = ctx.http.get(url).await?;
+        
+        // Parse version from links like: docker-29.1.4.tgz
+        let version_regex = regex::Regex::new(r#"docker-(\d+\.\d+\.\d+)\.tgz"#)?;
+        
+        let mut versions: Vec<VersionInfo> = version_regex
+            .captures_iter(&html)
+            .filter_map(|cap| {
+                let version = cap.get(1)?.as_str().to_string();
+                Some(VersionInfo::new(version))
+            })
+            .collect();
+        
+        // Remove duplicates and sort by version (newest first)
+        versions.sort_by(|a, b| {
+            // Parse version parts for comparison
+            let parse_version = |v: &str| -> (u32, u32, u32) {
+                let parts: Vec<u32> = v.split('.').filter_map(|p| p.parse().ok()).collect();
+                (
+                    parts.first().copied().unwrap_or(0),
+                    parts.get(1).copied().unwrap_or(0),
+                    parts.get(2).copied().unwrap_or(0),
+                )
+            };
+            parse_version(&b.version).cmp(&parse_version(&a.version))
+        });
+        versions.dedup_by(|a, b| a.version == b.version);
+        
+        Ok(versions)
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

@@ -44,7 +44,60 @@ executable_extensions = [".exe"]
 [runtimes.platforms.unix]
 executable_extensions = []
 
-# Git has no external dependencies
+# RFC 0021: System-level dependencies
+[runtimes.system_deps]
+# Windows 8.1 requires KB2919355 for some Git features
+[[runtimes.system_deps.pre_depends]]
+type = "windows_kb"
+id = "kb2919355"
+platforms = ["windows"]
+reason = "Required for Windows 8.1 systems"
+optional = true
+
+# RFC 0021: System installation strategies
+[runtimes.system_install]
+# Chocolatey installation with custom params
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "git"
+params = "/GitAndUnixToolsOnPath /NoAutoCrlf /WindowsTerminal"
+install_args = "/DIR=C:\\git"
+priority = 80
+
+# winget installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "winget"
+package = "Git.Git"
+priority = 70
+
+# Homebrew installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "git"
+priority = 90
+
+# APT installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "git"
+priority = 90
+
+# Git for Windows provides curl and ssh
+[[runtimes.system_install.provides]]
+name = "curl"
+relative_path = "mingw64/bin/curl.exe"
+platforms = ["windows"]
+
+[[runtimes.system_install.provides]]
+name = "ssh"
+relative_path = "usr/bin/ssh.exe"
+platforms = ["windows"]
+
+# Git has no external runtime dependencies
 [[runtimes.constraints]]
 when = "*"
 recommends = []

@@ -14,6 +14,12 @@ name = "kubectl"
 description = "Kubernetes CLI"
 executable = "kubectl"
 
+# RFC 0018: Detection configuration
+# kubectl uses 'version --client' instead of '--version'
+[runtimes.detection]
+command = "{executable} version --client --output=yaml"
+pattern = "gitVersion: v([\\d.]+)"
+
 [runtimes.versions]
 source = "github-releases"
 owner = "kubernetes"

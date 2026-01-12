@@ -498,3 +498,483 @@ pub fn mock_context() -> RuntimeContext {
 pub fn mock_execution_context() -> ExecutionContext {
     ExecutionContext::new(Arc::new(MockCommandExecutor::new()))
 }
+
+// ============================================================================
+// Runtime Tester (RFC 0020)
+// ============================================================================
+
+use regex::Regex;
+use std::process::Command;
+use std::time::{Duration, Instant};
+use vx_manifest::{TestCommand, TestConfig};
+
+/// Result of testing a runtime
+#[derive(Debug, Clone)]
+pub struct RuntimeTestResult {
+    /// Runtime name
+    pub runtime_name: String,
+    /// Whether the platform is supported
+    pub platform_supported: bool,
+    /// Whether the runtime is installed in vx store
+    pub installed: bool,
+    /// Whether the runtime is available in system PATH
+    pub system_available: bool,
+    /// Individual test case results
+    pub test_cases: Vec<TestCaseResult>,
+    /// Overall pass/fail status
+    pub overall_passed: bool,
+    /// Total duration of all tests
+    pub total_duration: Duration,
+    /// Error message if testing failed early
+    pub error: Option<String>,
+}
+
+impl RuntimeTestResult {
+    /// Create a new test result for a runtime
+    pub fn new(runtime_name: impl Into<String>) -> Self {
+        Self {
+            runtime_name: runtime_name.into(),
+            platform_supported: true,
+            installed: false,
+            system_available: false,
+            test_cases: Vec::new(),
+            overall_passed: false,
+            total_duration: Duration::ZERO,
+            error: None,
+        }
+    }
+
+    /// Mark as platform not supported
+    pub fn platform_not_supported(mut self) -> Self {
+        self.platform_supported = false;
+        self.overall_passed = false;
+        self
+    }
+
+    /// Mark with an error
+    pub fn with_error(mut self, error: impl Into<String>) -> Self {
+        self.error = Some(error.into());
+        self.overall_passed = false;
+        self
+    }
+
+    /// Calculate overall status from test cases
+    pub fn finalize(mut self) -> Self {
+        self.overall_passed = self.platform_supported
+            && (self.installed || self.system_available)
+            && self.error.is_none()
+            && self.test_cases.iter().all(|t| t.passed);
+        self
+    }
+
+    /// Get the number of passed tests
+    pub fn passed_count(&self) -> usize {
+        self.test_cases.iter().filter(|t| t.passed).count()
+    }
+
+    /// Get the number of failed tests
+    pub fn failed_count(&self) -> usize {
+        self.test_cases.iter().filter(|t| !t.passed).count()
+    }
+}
+
+/// Result of a single test case
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct TestCaseResult {
+    /// Test name/description
+    pub name: String,
+    /// Whether the test passed
+    pub passed: bool,
+    /// Command output (stdout)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stdout: Option<String>,
+    /// Command error output (stderr)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stderr: Option<String>,
+    /// Exit code
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
+    /// Error message if test failed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    /// Test duration in milliseconds
+    #[serde(serialize_with = "serialize_duration")]
+    pub duration: Duration,
+}
+
+fn serialize_duration<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_f64(duration.as_secs_f64() * 1000.0)
+}
+
+impl TestCaseResult {
+    /// Create a passed test result
+    pub fn passed(name: impl Into<String>, duration: Duration) -> Self {
+        Self {
+            name: name.into(),
+            passed: true,
+            stdout: None,
+            stderr: None,
+            exit_code: Some(0),
+            error: None,
+            duration,
+        }
+    }
+
+    /// Create a failed test result
+    pub fn failed(name: impl Into<String>, error: impl Into<String>, duration: Duration) -> Self {
+        Self {
+            name: name.into(),
+            passed: false,
+            stdout: None,
+            stderr: None,
+            exit_code: None,
+            error: Some(error.into()),
+            duration,
+        }
+    }
+
+    /// Set output
+    pub fn with_output(mut self, stdout: String, stderr: String, exit_code: i32) -> Self {
+        self.stdout = Some(stdout);
+        self.stderr = Some(stderr);
+        self.exit_code = Some(exit_code);
+        self
+    }
+}
+
+/// Runtime tester that uses manifest-based test configuration
+pub struct RuntimeTester {
+    /// Runtime name
+    runtime_name: String,
+    /// Executable path (if installed)
+    executable_path: Option<PathBuf>,
+    /// Test configuration from manifest
+    test_config: Option<TestConfig>,
+    /// Timeout for tests
+    timeout: Duration,
+}
+
+impl RuntimeTester {
+    /// Create a new runtime tester
+    pub fn new(runtime_name: impl Into<String>) -> Self {
+        Self {
+            runtime_name: runtime_name.into(),
+            executable_path: None,
+            test_config: None,
+            timeout: Duration::from_secs(30),
+        }
+    }
+
+    /// Set the executable path
+    pub fn with_executable(mut self, path: PathBuf) -> Self {
+        self.executable_path = Some(path);
+        self
+    }
+
+    /// Set the test configuration
+    pub fn with_config(mut self, config: TestConfig) -> Self {
+        self.timeout = Duration::from_millis(config.timeout_ms);
+        self.test_config = Some(config);
+        self
+    }
+
+    /// Set timeout
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    /// Run all tests
+    pub fn run_all(&self) -> RuntimeTestResult {
+        let start = Instant::now();
+        let mut result = RuntimeTestResult::new(&self.runtime_name);
+
+        // Check if we have an executable
+        let executable = match self.get_executable() {
+            Some(exe) => exe,
+            None => {
+                result.error = Some("No executable found".to_string());
+                result.total_duration = start.elapsed();
+                return result;
+            }
+        };
+
+        result.installed = self.executable_path.is_some();
+        result.system_available = self.check_system_available();
+
+        // Get test commands
+        let test_commands = self.get_test_commands();
+
+        // Run each test command
+        for cmd in test_commands {
+            let test_result = self.run_test_command(&cmd, &executable);
+            result.test_cases.push(test_result);
+        }
+
+        // Run inline script if configured
+        if let Some(script_result) = self.run_inline_script(&executable) {
+            result.test_cases.push(script_result);
+        }
+
+        // If no tests were configured, run default version test
+        if result.test_cases.is_empty() {
+            let default_result = self.run_default_test(&executable);
+            result.test_cases.push(default_result);
+        }
+
+        result.total_duration = start.elapsed();
+        result.finalize()
+    }
+
+    /// Get the executable to use for testing
+    fn get_executable(&self) -> Option<String> {
+        if let Some(ref path) = self.executable_path {
+            if path.exists() {
+                return Some(path.to_string_lossy().to_string());
+            }
+        }
+
+        // Fall back to system PATH
+        if self.check_system_available() {
+            return Some(self.runtime_name.clone());
+        }
+
+        None
+    }
+
+    /// Check if runtime is available in system PATH
+    fn check_system_available(&self) -> bool {
+        which::which(&self.runtime_name).is_ok()
+    }
+
+    /// Get test commands from config or defaults
+    fn get_test_commands(&self) -> Vec<TestCommand> {
+        if let Some(ref config) = self.test_config {
+            let mut commands = config.functional_commands.clone();
+
+            // Add platform-specific commands
+            if let Some(ref platforms) = config.platforms {
+                #[cfg(windows)]
+                if let Some(ref win) = platforms.windows {
+                    commands.extend(win.functional_commands.clone());
+                }
+
+                #[cfg(unix)]
+                if let Some(ref unix) = platforms.unix {
+                    commands.extend(unix.functional_commands.clone());
+                }
+            }
+
+            commands
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Run a single test command
+    fn run_test_command(&self, cmd: &TestCommand, executable: &str) -> TestCaseResult {
+        let start = Instant::now();
+        let test_name = cmd.display_name().to_string();
+
+        // Substitute variables in command
+        let command_str = cmd.command.replace("{executable}", executable);
+
+        // Parse command
+        let parts: Vec<&str> = command_str.split_whitespace().collect();
+        if parts.is_empty() {
+            return TestCaseResult::failed(&test_name, "Empty command", start.elapsed());
+        }
+
+        let program = parts[0];
+        let args: Vec<&str> = parts[1..].to_vec();
+
+        // Execute command
+        let output = match Command::new(program).args(&args).output() {
+            Ok(output) => output,
+            Err(e) => {
+                return TestCaseResult::failed(
+                    &test_name,
+                    format!("Failed to execute: {}", e),
+                    start.elapsed(),
+                );
+            }
+        };
+
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let exit_code = output.status.code().unwrap_or(-1);
+        let duration = start.elapsed();
+
+        // Check expectations
+        let mut passed = true;
+        let mut error_msg = None;
+
+        // Check exit code
+        if let Some(expected_code) = cmd.expected_exit_code {
+            if exit_code != expected_code {
+                passed = false;
+                error_msg = Some(format!(
+                    "Expected exit code {}, got {}",
+                    expected_code, exit_code
+                ));
+            }
+        } else if cmd.expect_success && exit_code != 0 {
+            passed = false;
+            error_msg = Some(format!("Expected success, got exit code {}", exit_code));
+        }
+
+        // Check output pattern
+        if passed {
+            if let Some(ref pattern) = cmd.expected_output {
+                match Regex::new(pattern) {
+                    Ok(re) => {
+                        if !re.is_match(&stdout) && !re.is_match(&stderr) {
+                            passed = false;
+                            error_msg = Some(format!(
+                                "Output did not match pattern '{}'\nstdout: {}\nstderr: {}",
+                                pattern, stdout, stderr
+                            ));
+                        }
+                    }
+                    Err(e) => {
+                        passed = false;
+                        error_msg = Some(format!("Invalid regex pattern '{}': {}", pattern, e));
+                    }
+                }
+            }
+        }
+
+        TestCaseResult {
+            name: test_name,
+            passed,
+            stdout: Some(stdout),
+            stderr: Some(stderr),
+            exit_code: Some(exit_code),
+            error: error_msg,
+            duration,
+        }
+    }
+
+    /// Run inline script if configured
+    fn run_inline_script(&self, executable: &str) -> Option<TestCaseResult> {
+        let scripts = self.test_config.as_ref()?.inline_scripts.as_ref()?;
+        let script = scripts.for_current_platform()?;
+
+        let start = Instant::now();
+        let test_name = "inline_script";
+
+        // Substitute variables
+        let script_content = script.replace("{executable}", executable);
+
+        // Create temp script file and execute
+        let result = self.execute_inline_script(&script_content);
+
+        let duration = start.elapsed();
+
+        match result {
+            Ok((stdout, stderr, exit_code)) => {
+                let passed = exit_code == 0;
+                Some(TestCaseResult {
+                    name: test_name.to_string(),
+                    passed,
+                    stdout: Some(stdout),
+                    stderr: Some(stderr),
+                    exit_code: Some(exit_code),
+                    error: if passed {
+                        None
+                    } else {
+                        Some(format!("Script exited with code {}", exit_code))
+                    },
+                    duration,
+                })
+            }
+            Err(e) => Some(TestCaseResult::failed(
+                test_name,
+                format!("Failed to execute script: {}", e),
+                duration,
+            )),
+        }
+    }
+
+    /// Execute an inline script
+    fn execute_inline_script(&self, script: &str) -> Result<(String, String, i32)> {
+        use std::io::Write;
+
+        let temp_dir = std::env::temp_dir();
+
+        #[cfg(windows)]
+        let script_path = temp_dir.join(format!("vx_test_{}.bat", std::process::id()));
+        #[cfg(unix)]
+        let script_path = temp_dir.join(format!("vx_test_{}.sh", std::process::id()));
+
+        // Write script to temp file
+        let mut file = std::fs::File::create(&script_path)?;
+        file.write_all(script.as_bytes())?;
+        drop(file);
+
+        // Make executable on Unix
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&script_path, std::fs::Permissions::from_mode(0o755))?;
+        }
+
+        // Execute script
+        #[cfg(windows)]
+        let output = Command::new("cmd").args(["/C", &script_path.to_string_lossy()]).output()?;
+
+        #[cfg(unix)]
+        let output = Command::new("sh").arg(&script_path).output()?;
+
+        // Clean up
+        let _ = std::fs::remove_file(&script_path);
+
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let exit_code = output.status.code().unwrap_or(-1);
+
+        Ok((stdout, stderr, exit_code))
+    }
+
+    /// Run default version test
+    fn run_default_test(&self, executable: &str) -> TestCaseResult {
+        let start = Instant::now();
+        let test_name = "version_check";
+
+        let output = match Command::new(executable).arg("--version").output() {
+            Ok(output) => output,
+            Err(e) => {
+                return TestCaseResult::failed(
+                    test_name,
+                    format!("Failed to execute: {}", e),
+                    start.elapsed(),
+                );
+            }
+        };
+
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let exit_code = output.status.code().unwrap_or(-1);
+        let duration = start.elapsed();
+
+        // Consider it passed if we got any output (some tools output version to stderr)
+        let passed = exit_code == 0 || !stdout.is_empty() || !stderr.is_empty();
+
+        TestCaseResult {
+            name: test_name.to_string(),
+            passed,
+            stdout: Some(stdout),
+            stderr: Some(stderr),
+            exit_code: Some(exit_code),
+            error: if passed {
+                None
+            } else {
+                Some("No version output".to_string())
+            },
+            duration,
+        }
+    }
+}

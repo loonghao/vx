@@ -65,6 +65,27 @@ cache_downloads = true
 downloads_retention_days = 30
 shared_cache = true
 
+# RFC 0020: Test configuration
+[runtimes.test]
+timeout_ms = 30000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "Python \\d+\\.\\d+\\.\\d+", name = "version_check" },
+    { command = "{executable} -c \"import sys; print(sys.version_info[:2])\"", expect_success = true, name = "version_info" },
+]
+install_verification = [
+    { command = "{executable} --version", expect_success = true },
+]
+
+[runtimes.test.platforms.windows]
+functional_commands = [
+    { command = "{executable} -c \"import sys; print(sys.platform)\"", expect_success = true, expected_output = "win32", name = "platform_check" },
+]
+
+[runtimes.test.platforms.unix]
+functional_commands = [
+    { command = "{executable} -c \"import sys; print(sys.platform)\"", expect_success = true, expected_output = "(linux|darwin)", name = "platform_check" },
+]
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 
