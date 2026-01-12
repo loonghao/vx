@@ -63,6 +63,7 @@ const enSidebar = {
         { text: 'install', link: '/cli/install' },
         { text: 'list', link: '/cli/list' },
         { text: 'run', link: '/cli/run' },
+        { text: 'test', link: '/cli/test' },
         { text: 'dev', link: '/cli/dev' },
         { text: 'setup', link: '/cli/setup' },
         { text: 'env', link: '/cli/env' },
