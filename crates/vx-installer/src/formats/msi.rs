@@ -67,6 +67,17 @@ impl MsiHandler {
 
         executables
     }
+
+    /// Check if a file is an executable
+    fn is_executable(&self, path: &Path) -> bool {
+        path.extension()
+            .and_then(|e| e.to_str())
+            .map(|e| {
+                let e_lower = e.to_lowercase();
+                matches!(e_lower.as_str(), "exe" | "cmd" | "bat" | "com")
+            })
+            .unwrap_or(false)
+    }
 }
 
 #[cfg(windows)]
