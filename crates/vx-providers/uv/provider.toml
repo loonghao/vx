@@ -20,6 +20,17 @@ owner = "astral-sh"
 repo = "uv"
 strip_v_prefix = true
 
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = ""
+executable_paths = [
+    "uv.exe",  # Windows (root directory)
+    "uv"       # Unix (root directory)
+]
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 

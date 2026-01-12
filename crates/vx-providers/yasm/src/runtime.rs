@@ -7,9 +7,10 @@ use crate::config::YasmUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use vx_runtime::{
-    Ecosystem, Os, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
+    Arch, Ecosystem, ExecutableLayout, Os, Platform, Runtime, RuntimeContext,
+    VerificationResult, VersionInfo,
 };
 
 /// YASM runtime implementation
@@ -63,9 +64,62 @@ impl Runtime for YasmRuntime {
         meta
     }
 
-    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        // YASM downloads are standalone executables, not archives
-        YasmUrlBuilder::get_executable_name(platform).to_string()
+    fn executable_layout(&self) -> Option<ExecutableLayout> {
+        // Parse the layout from our embedded provider.toml
+        // For now, we'll define it in code (later it will be parsed from manifest)
+        use vx_runtime::BinaryLayout;
+        
+        let mut binary_configs = std::collections::HashMap::new();
+        
+        binary_configs.insert(
+            "windows-x86_64".to_string(),
+            BinaryLayout {
+                source_name: "yasm-{version}-win64.exe".to_string(),
+                target_name: "yasm.exe".to_string(),
+                target_dir: "bin".to_string(),
+                target_permissions: None,
+            },
+        );
+        
+        binary_configs.insert(
+            "windows-x86".to_string(),
+            BinaryLayout {
+                source_name: "yasm-{version}-win32.exe".to_string(),
+                target_name: "yasm.exe".to_string(),
+                target_dir: "bin".to_string(),
+                target_permissions: None,
+            },
+        );
+        
+        binary_configs.insert(
+            "macos-x86_64".to_string(),
+            BinaryLayout {
+                source_name: "yasm-{version}-macos".to_string(),
+                target_name: "yasm".to_string(),
+                target_dir: "bin".to_string(),
+                target_permissions: Some("755".to_string()),
+            },
+        );
+        
+        binary_configs.insert(
+            "linux-x86_64".to_string(),
+            BinaryLayout {
+                source_name: "yasm-{version}-linux".to_string(),
+                target_name: "yasm".to_string(),
+                target_dir: "bin".to_string(),
+                target_permissions: Some("755".to_string()),
+            },
+        );
+        
+        Some(ExecutableLayout {
+            download_type: vx_runtime::DownloadType::Binary,
+            binary: Some(binary_configs),
+            archive: None,
+            msi: None,
+            windows: None,
+            macos: None,
+            linux: None,
+        })
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
@@ -91,21 +145,65 @@ impl Runtime for YasmRuntime {
         Ok(YasmUrlBuilder::download_url(version, platform))
     }
 
+    fn post_extract(&self, version: &str, install_path: &PathBuf) -> Result<()> {
+        // Rename downloaded file to standard name
+        // Original: bin/yasm-1.3.0-win64.exe
+        // Standard: bin/yasm.exe
+        use std::fs;
+        
+        let platform = Platform::current();
+        
+        let original_name = match (&platform.os, &platform.arch) {
+            (Os::Windows, Arch::X86_64) => format!("yasm-{}-win64.exe", version),
+            (Os::Windows, Arch::X86) => format!("yasm-{}-win32.exe", version),
+            (Os::MacOS, _) => format!("yasm-{}-macos", version),
+            (Os::Linux, _) => format!("yasm-{}-linux", version),
+            _ => return Ok(()),
+        };
+        
+        let bin_dir = install_path.join("bin");
+        fs::create_dir_all(&bin_dir)?;
+        
+        let original_path = bin_dir.join(&original_name);
+        let standard_name = YasmUrlBuilder::get_executable_name(&platform);
+        let standard_path = bin_dir.join(&standard_name);
+        
+        // Rename the file to standard name
+        if original_path.exists() {
+            if standard_path.exists() {
+                fs::remove_file(&standard_path)?;
+            }
+            fs::rename(&original_path, &standard_path)?;
+            
+            // Set executable permissions on Unix
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let mut perms = fs::metadata(&standard_path)?.permissions();
+                perms.set_mode(0o755);
+                fs::set_permissions(&standard_path, perms)?;
+            }
+        }
+        
+        Ok(())
+    }
+
     fn verify_installation(
         &self,
         _version: &str,
         install_path: &Path,
         platform: &Platform,
     ) -> VerificationResult {
+        // Check for standard executable name (after post_extract renamed it)
         let exe_name = YasmUrlBuilder::get_executable_name(platform);
-        let exe_path = install_path.join(exe_name);
-
+        let exe_path = install_path.join("bin").join(&exe_name);
+        
         if exe_path.exists() {
             VerificationResult::success(exe_path)
         } else {
             VerificationResult::failure(
                 vec![format!(
-                    "YASM executable not found at expected path: {}",
+                    "Executable not found at any expected path:\n  - {}",
                     exe_path.display()
                 )],
                 vec!["Try reinstalling the runtime".to_string()],

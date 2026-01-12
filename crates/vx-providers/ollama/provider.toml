@@ -20,6 +20,9 @@ owner = "ollama"
 repo = "ollama"
 strip_v_prefix = true
 
+# Note: Ollama uses platform-specific installers (.exe, .app, .deb)
+# Layout configuration will be added when installer support is implemented
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 

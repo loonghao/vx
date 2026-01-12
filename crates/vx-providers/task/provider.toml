@@ -21,6 +21,17 @@ owner = "go-task"
 repo = "task"
 strip_v_prefix = true
 
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = ""
+executable_paths = [
+    "task.exe",  # Windows (root directory)
+    "task"       # Unix (root directory)
+]
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 
