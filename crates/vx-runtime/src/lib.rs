@@ -42,10 +42,12 @@ pub mod ecosystem;
 pub mod impls;
 pub mod layout;
 pub mod manifest_registry;
+pub mod manifest_runtime;
 pub mod package_runtime;
 pub mod platform;
 pub mod plugin;
 pub mod provider;
+pub mod provider_loader;
 pub mod registry;
 pub mod runtime;
 pub mod testing;
@@ -75,8 +77,8 @@ pub use types::{ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec, 
 
 // Re-export testing utilities
 pub use testing::{
-    mock_context, MockCommandExecutor, MockFileSystem, MockHttpClient, MockInstaller,
-    MockPathProvider,
+    mock_context, mock_execution_context, MockCommandExecutor, MockFileSystem, MockHttpClient,
+    MockInstaller, MockPathProvider, RuntimeTestResult, RuntimeTester, TestCaseResult,
 };
 pub use version_cache::{CacheEntry, CacheMode, CacheStats, VersionCache, DEFAULT_CACHE_TTL};
 pub use version_resolver::VersionResolver;
@@ -97,3 +99,10 @@ pub use vx_manifest::{PlatformConstraint, PlatformExclusion};
 
 // Plugin system
 pub use plugin::{default_plugin_paths, PluginLoader, ProviderLoader, ProviderPlugin};
+
+// Manifest-driven runtimes (RFC 0021)
+pub use manifest_runtime::{
+    DetectionConfig as ManifestDetectionConfig, InstallStrategy, ManifestDrivenRuntime,
+    ProvidedTool, ProviderSource, ScriptType, SystemDependency, SystemDepsConfig, SystemDepType,
+};
+pub use provider_loader::{LoadedProvider, ProviderLoader as ManifestProviderLoader, ProviderLoaderConfig};

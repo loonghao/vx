@@ -363,13 +363,24 @@ async fn install_npm_package(
         std::fs::write(&package_json, init_content)?;
     }
 
-    // Run npm install
+    // Run npm install with proper output handling to prevent hanging
     let install_spec = format!("{}@{}", package_name, version);
-    let status = std::process::Command::new(&npm_exe)
-        .args(["install", "--save", "--silent", &install_spec])
+    let output = std::process::Command::new(&npm_exe)
+        .args([
+            "install",
+            "--save",
+            "--silent",
+            "--no-progress",
+            "--no-audit",
+            "--no-fund",
+            &install_spec,
+        ])
         .current_dir(&install_dir)
         .stdin(std::process::Stdio::null())
-        .status()?;
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .output()?;
+    let status = output.status;
 
     if !status.success() {
         return Err(anyhow::anyhow!(
