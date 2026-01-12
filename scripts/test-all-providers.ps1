@@ -69,30 +69,8 @@ $TestResults = @{
     Providers = @()
 }
 
-# Discover all providers
-Write-Section "Discovering Providers"
-$AllProviders = Get-ChildItem -Path $ProvidersDir -Directory | Where-Object {
-    Test-Path (Join-Path $_.FullName "provider.toml")
-}
-
-if ($Filter) {
-    $AllProviders = $AllProviders | Where-Object { $_.Name -like "*$Filter*" }
-    Write-Info "Filtered to providers matching: $Filter"
-}
-
-Write-Info "Found $($AllProviders.Count) providers"
-
-# Count total runtimes for progress tracking
-$TotalRuntimes = 0
-foreach ($provider in $AllProviders) {
-    $tomlPath = Join-Path $provider.FullName "provider.toml"
-    $runtimes = Get-RuntimesFromToml -TomlPath $tomlPath
-    $TotalRuntimes += $runtimes.Count
-}
-Write-Info "Total runtimes to test: $TotalRuntimes"
-$CurrentRuntime = 0
-
 # Parse provider.toml to extract runtime names
+# NOTE: Function must be defined before it's called
 function Get-RuntimesFromToml {
     param([string]$TomlPath)
     
@@ -170,6 +148,29 @@ function Test-RuntimePlatformSupported {
         return $true
     }
 }
+
+# Discover all providers
+Write-Section "Discovering Providers"
+$AllProviders = Get-ChildItem -Path $ProvidersDir -Directory | Where-Object {
+    Test-Path (Join-Path $_.FullName "provider.toml")
+}
+
+if ($Filter) {
+    $AllProviders = $AllProviders | Where-Object { $_.Name -like "*$Filter*" }
+    Write-Info "Filtered to providers matching: $Filter"
+}
+
+Write-Info "Found $($AllProviders.Count) providers"
+
+# Count total runtimes for progress tracking
+$TotalRuntimes = 0
+foreach ($provider in $AllProviders) {
+    $tomlPath = Join-Path $provider.FullName "provider.toml"
+    $runtimes = Get-RuntimesFromToml -TomlPath $tomlPath
+    $TotalRuntimes += $runtimes.Count
+}
+Write-Info "Total runtimes to test: $TotalRuntimes"
+$CurrentRuntime = 0
 
 # Test each provider
 foreach ($provider in $AllProviders) {
