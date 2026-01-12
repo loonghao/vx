@@ -24,6 +24,17 @@ command = "{executable} version"
 pattern = "go version go([\\d.]+)"
 system_paths = ["/usr/local/go/bin/go", "/usr/bin/go", "C:\\Program Files\\Go\\bin\\go.exe"]
 
+# RFC 0020: Test configuration
+[runtimes.test]
+timeout_ms = 30000
+functional_commands = [
+    { command = "{executable} version", expect_success = true, expected_output = "go version go\\d+\\.\\d+", name = "version_check" },
+    { command = "{executable} env GOVERSION", expect_success = true, expected_output = "go\\d+\\.\\d+", name = "env_check" },
+]
+install_verification = [
+    { command = "{executable} version", expect_success = true },
+]
+
 # RFC 0019: Executable Layout Configuration
 [runtimes.layout]
 download_type = "archive"

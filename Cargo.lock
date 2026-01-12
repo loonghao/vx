@@ -4327,6 +4327,7 @@ version = "0.6.13"
 dependencies = [
  "anyhow",
  "async-trait",
+ "regex",
  "rstest",
  "serde",
  "serde_json",
@@ -4419,7 +4420,9 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
+ "walkdir",
 ]
 
 [[package]]
@@ -4822,6 +4825,7 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tokio-test",
+ "toml 0.9.11+spec-1.1.0",
  "tracing",
  "turbo-cdn",
  "vx-cache",
@@ -4847,6 +4851,26 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "vx-paths",
+]
+
+[[package]]
+name = "vx-system-pm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "cfg-if",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-test",
+ "toml 0.9.11+spec-1.1.0",
+ "tracing",
+ "which",
+ "winreg 0.52.0",
 ]
 
 [[package]]
@@ -5410,6 +5434,16 @@ name = "winreg"
 version = "0.50.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "524e57b2c537c0f9b1e69f1965311ec12182b4122e45035b1508cd24d2adadb1"
+dependencies = [
+ "cfg-if",
+ "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "winreg"
+version = "0.52.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a277a57398d4bfa075df44f501a17cfdf8542d224f0d36095a2adc7aee4ef0a5"
 dependencies = [
  "cfg-if",
  "windows-sys 0.48.0",

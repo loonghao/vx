@@ -31,6 +31,12 @@
 //! │   └── project-abc/           # Project-specific environment
 //! │       └── node -> ../../store/node/18.0.0
 //! │
+//! ├── providers/                  # User-defined manifest-driven providers
+//! │   ├── unix-tools/            # Example: Unix philosophy tools
+//! │   │   └── provider.toml
+//! │   └── my-custom-tools/       # User's custom tools
+//! │       └── provider.toml
+//! │
 //! ├── bin/                        # Global shims
 //! ├── cache/                      # Download cache
 //! ├── config/                     # Configuration
@@ -78,6 +84,8 @@ pub struct VxPaths {
     pub config_dir: PathBuf,
     /// Temporary directory (~/.vx/tmp)
     pub tmp_dir: PathBuf,
+    /// User providers directory (~/.vx/providers) - Manifest-driven runtimes
+    pub providers_dir: PathBuf,
 }
 
 impl VxPaths {
@@ -104,6 +112,7 @@ impl VxPaths {
             cache_dir: base_dir.join("cache"),
             config_dir: base_dir.join("config"),
             tmp_dir: base_dir.join("tmp"),
+            providers_dir: base_dir.join("providers"),
             base_dir,
         })
     }
@@ -121,6 +130,7 @@ impl VxPaths {
             cache_dir: base_dir.join("cache"),
             config_dir: base_dir.join("config"),
             tmp_dir: base_dir.join("tmp"),
+            providers_dir: base_dir.join("providers"),
             base_dir,
         }
     }
@@ -136,6 +146,7 @@ impl VxPaths {
         std::fs::create_dir_all(&self.cache_dir)?;
         std::fs::create_dir_all(&self.config_dir)?;
         std::fs::create_dir_all(&self.tmp_dir)?;
+        std::fs::create_dir_all(&self.providers_dir)?;
         Ok(())
     }
 

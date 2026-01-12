@@ -31,7 +31,7 @@ mod runtime;
 
 pub use config::PythonUrlBuilder;
 pub use provider::PythonProvider;
-pub use runtime::PythonRuntime;
+pub use runtime::{PipRuntime, PythonRuntime};
 
 use std::sync::Arc;
 use vx_runtime::Provider;

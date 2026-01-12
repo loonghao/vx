@@ -1,0 +1,1027 @@
+# Unix Philosophy Tools Provider
+# 
+# These are essential Unix-style tools that AI and developers use frequently.
+# They follow the Unix philosophy: do one thing and do it well.
+#
+# Usage:
+#   vx jq '.key' file.json
+#   vx rg "pattern" .
+#   vx fd "*.rs"
+#   vx bat README.md
+
+[provider]
+name = "unix-tools"
+description = "Essential Unix philosophy tools for AI and developers"
+ecosystem = "system"
+
+# ============================================================================
+# Text Processing Tools
+# ============================================================================
+
+[[runtimes]]
+name = "jq"
+description = "Lightweight and flexible command-line JSON processor"
+executable = "jq"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "jq-([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "jq"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "jq"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "jq"
+priority = 90
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "jq"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "yq"
+description = "YAML, JSON, XML, CSV, TOML processor"
+executable = "yq"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "yq.*version v?([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "yq"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "yq"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "yq"
+priority = 70
+platforms = ["windows"]
+
+# ============================================================================
+# Modern CLI Alternatives
+# ============================================================================
+
+[[runtimes]]
+name = "rg"
+description = "ripgrep - recursively searches directories for a regex pattern"
+executable = "rg"
+aliases = ["ripgrep"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "ripgrep ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "ripgrep"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "ripgrep"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "ripgrep"
+priority = 90
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "ripgrep"
+priority = 70
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "direct_download"
+url = "https://github.com/BurntSushi/ripgrep/releases/download/{version}/ripgrep-{version}-x86_64-pc-windows-msvc.zip"
+format = "zip"
+executable_path = "rg.exe"
+priority = 50
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "fd"
+description = "A simple, fast and user-friendly alternative to find"
+executable = "fd"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "fd ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "fd"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "fd"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "fd-find"
+priority = 90
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "fd"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "bat"
+description = "A cat clone with syntax highlighting and Git integration"
+executable = "bat"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "bat ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "bat"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "bat"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "bat"
+priority = 90
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "bat"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "eza"
+description = "A modern replacement for ls"
+executable = "eza"
+aliases = ["exa"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "eza.*v?([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "eza"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "eza"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "eza"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "delta"
+description = "A syntax-highlighting pager for git, diff, and grep output"
+executable = "delta"
+aliases = ["git-delta"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "delta ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "git-delta"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "delta"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "delta"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "fzf"
+description = "A command-line fuzzy finder"
+executable = "fzf"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "fzf"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "fzf"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "fzf"
+priority = 90
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "fzf"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "sd"
+description = "Intuitive find & replace CLI (sed alternative)"
+executable = "sd"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "sd ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "sd"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "sd-cli"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "sd"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "zoxide"
+description = "A smarter cd command"
+executable = "zoxide"
+aliases = ["z"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "zoxide ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "zoxide"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "zoxide"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "zoxide"
+priority = 70
+platforms = ["windows"]
+
+# ============================================================================
+# System Monitoring Tools
+# ============================================================================
+
+[[runtimes]]
+name = "dust"
+description = "A more intuitive version of du"
+executable = "dust"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "dust ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "dust"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "dust"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "dust"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "duf"
+description = "Disk Usage/Free Utility - a better df alternative"
+executable = "duf"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "duf ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "duf"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "duf"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "duf"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "procs"
+description = "A modern replacement for ps"
+executable = "procs"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "procs ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "procs"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "procs"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "procs"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "btm"
+description = "A customizable cross-platform graphical process/system monitor"
+executable = "btm"
+aliases = ["bottom"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "bottom ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "bottom"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "bottom"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "bottom"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "hyperfine"
+description = "A command-line benchmarking tool"
+executable = "hyperfine"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "hyperfine ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "hyperfine"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "hyperfine"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "hyperfine"
+priority = 70
+platforms = ["windows"]
+
+# ============================================================================
+# Network Tools
+# ============================================================================
+
+[[runtimes]]
+name = "curl"
+description = "Command line tool for transferring data with URLs"
+executable = "curl"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "curl ([\\d.]+)"
+system_paths = ["/usr/bin", "/usr/local/bin", "C:\\Windows\\System32"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "curl"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "curl"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "curl"
+priority = 90
+platforms = ["linux"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "wget"
+description = "Network downloader"
+executable = "wget"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "GNU Wget ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "wget"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "wget"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "wget"
+priority = 90
+platforms = ["linux"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "xh"
+description = "Friendly and fast tool for sending HTTP requests"
+executable = "xh"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "xh ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "xh"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "xh"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "xh"
+priority = 70
+platforms = ["windows"]
+
+# ============================================================================
+# Version Control
+# ============================================================================
+
+[[runtimes]]
+name = "git"
+description = "Distributed version control system"
+executable = "git"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "git version ([\\d.]+)"
+system_paths = ["/usr/bin", "/usr/local/bin", "C:\\Program Files\\Git\\cmd"]
+env_hints = ["GIT_DIR", "GIT_WORK_TREE"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "git"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "git"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "git"
+priority = 90
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "winget"
+package = "Git.Git"
+priority = 75
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "gh"
+description = "GitHub CLI"
+executable = "gh"
+aliases = ["github-cli"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "gh version ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "gh"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "gh"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "gh"
+priority = 70
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "winget"
+package = "GitHub.cli"
+priority = 75
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "glab"
+description = "GitLab CLI"
+executable = "glab"
+aliases = ["gitlab-cli"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "glab version ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "glab"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "glab"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "glab"
+priority = 70
+platforms = ["windows"]
+
+# ============================================================================
+# Development Helpers
+# ============================================================================
+
+[[runtimes]]
+name = "watchexec"
+description = "Executes commands in response to file modifications"
+executable = "watchexec"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "watchexec ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "watchexec"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "watchexec"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "watchexec"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "tokei"
+description = "Count your code, quickly"
+executable = "tokei"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "tokei ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "tokei"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "tokei"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "tokei"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "scc"
+description = "Sloc, Cloc and Code - fast accurate code counter"
+executable = "scc"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "scc version ([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "scc"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "scc"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "scc"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "tldr"
+description = "Simplified and community-driven man pages"
+executable = "tldr"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "tldr.*([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "tldr"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "tldr"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "tldr"
+priority = 70
+platforms = ["windows"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "tree"
+description = "Display directories as trees"
+executable = "tree"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "tree v?([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "tree"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "tree"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "tree"
+priority = 90
+platforms = ["linux"]
+
+# ============================================================================
+# Compression Tools
+# ============================================================================
+
+[[runtimes]]
+name = "zstd"
+description = "Zstandard - Fast real-time compression algorithm"
+executable = "zstd"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "zstd.*v([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "zstd"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "zstandard"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "zstd"
+priority = 90
+platforms = ["linux"]
+
+# ----------------------------------------------------------------------------
+
+[[runtimes]]
+name = "7z"
+description = "7-Zip file archiver"
+executable = "7z"
+aliases = ["7zip", "7za"]
+
+[runtimes.detection]
+command = "{executable}"
+pattern = "7-Zip.*([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "p7zip"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "7zip"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "p7zip-full"
+priority = 90
+platforms = ["linux"]
+
+# ============================================================================
+# Security Tools
+# ============================================================================
+
+[[runtimes]]
+name = "age"
+description = "A simple, modern and secure encryption tool"
+executable = "age"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "age v?([\\d.]+)"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "age"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "age.portable"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "age"
+priority = 70
+platforms = ["windows"]

@@ -139,6 +139,19 @@ impl Platform {
         self.os == Os::Linux
     }
 
+    /// Get OS name as a string (for platform filtering)
+    ///
+    /// Returns "windows", "macos", "linux", etc.
+    pub fn os_name(&self) -> &str {
+        match self.os {
+            Os::Windows => "windows",
+            Os::MacOS => "macos",
+            Os::Linux => "linux",
+            Os::FreeBSD => "freebsd",
+            Os::Unknown => "unknown",
+        }
+    }
+
     /// Get executable name with platform-appropriate extension
     ///
     /// On Windows, appends ".exe" to the base name.

@@ -1,0 +1,329 @@
+# Build Tools Provider
+#
+# This example demonstrates system dependencies (VCRedist, KB updates, etc.)
+# and how to configure tools that require them.
+#
+# Place in: ~/.vx/providers/build-tools/provider.toml
+
+[provider]
+name = "build-tools"
+description = "Common build tools with system dependency examples"
+homepage = "https://github.com/vx-tools/vx"
+ecosystem = "system"
+
+# ============================================================================
+# CMake - Cross-platform build system generator
+# https://cmake.org/
+# ============================================================================
+[[runtimes]]
+name = "cmake"
+description = "Cross-platform build system generator"
+executable = "cmake"
+aliases = ["ctest", "cpack"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "cmake version ([\\d.]+)"
+system_paths = [
+    "/usr/bin/cmake",
+    "/usr/local/bin/cmake",
+    "/opt/homebrew/bin/cmake",
+    "C:\\Program Files\\CMake\\bin\\cmake.exe"
+]
+env_hints = ["CMAKE_ROOT"]
+
+# System dependencies for Windows
+[runtimes.system_deps]
+
+# CMake may require VCRedist on Windows
+[[runtimes.system_deps.recommends]]
+type = "vc_redist"
+id = "vcredist140"
+version = ">=14.0"
+platforms = ["windows"]
+reason = "Visual C++ 2015-2022 Redistributable for CMake GUI"
+optional = true
+
+# Installation strategies
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "cmake"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "cmake"
+params = "--installargs 'ADD_CMAKE_TO_PATH=System'"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "winget"
+package = "Kitware.CMake"
+priority = 75
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "cmake"
+priority = 85
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "cmake"
+priority = 70
+platforms = ["windows"]
+
+# ============================================================================
+# Ninja - Small build system with a focus on speed
+# https://ninja-build.org/
+# ============================================================================
+[[runtimes]]
+name = "ninja"
+description = "Small build system with a focus on speed"
+executable = "ninja"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "([\\d.]+)"
+system_paths = ["/usr/bin/ninja", "/usr/local/bin/ninja"]
+env_hints = []
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "ninja"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "ninja"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "ninja-build"
+priority = 85
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "ninja"
+priority = 70
+platforms = ["windows"]
+
+# ============================================================================
+# Make - GNU Make build tool
+# ============================================================================
+[[runtimes]]
+name = "make"
+description = "GNU Make - controls the generation of executables"
+executable = "make"
+aliases = ["gmake"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "GNU Make ([\\d.]+)"
+system_paths = ["/usr/bin/make", "/usr/local/bin/make"]
+env_hints = ["MAKEFLAGS"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "make"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "make"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "make"
+priority = 85
+platforms = ["linux"]
+
+# ============================================================================
+# LLVM/Clang - Compiler infrastructure
+# ============================================================================
+[[runtimes]]
+name = "clang"
+description = "LLVM C/C++/Objective-C compiler"
+executable = "clang"
+aliases = ["clang++", "llvm"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "clang version ([\\d.]+)"
+system_paths = ["/usr/bin/clang", "/usr/local/bin/clang"]
+env_hints = ["CC", "CXX"]
+
+# LLVM/Clang may require VCRedist on Windows
+[runtimes.system_deps]
+
+[[runtimes.system_deps.pre_depends]]
+type = "vc_redist"
+id = "vcredist140"
+version = ">=14.0"
+platforms = ["windows"]
+reason = "Required for LLVM runtime libraries"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "llvm"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "llvm"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "clang"
+priority = 85
+platforms = ["linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "winget"
+package = "LLVM.LLVM"
+priority = 75
+platforms = ["windows"]
+
+# ============================================================================
+# pkg-config - Helper tool for compiling applications and libraries
+# ============================================================================
+[[runtimes]]
+name = "pkg-config"
+description = "Helper tool for compiling applications and libraries"
+executable = "pkg-config"
+aliases = ["pkgconf"]
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "([\\d.]+)"
+system_paths = ["/usr/bin/pkg-config", "/usr/local/bin/pkg-config"]
+env_hints = ["PKG_CONFIG_PATH"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "pkg-config"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "pkgconfiglite"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "pkg-config"
+priority = 85
+platforms = ["linux"]
+
+# ============================================================================
+# ccache - Compiler cache
+# ============================================================================
+[[runtimes]]
+name = "ccache"
+description = "Compiler cache for faster recompilation"
+executable = "ccache"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "ccache version ([\\d.]+)"
+system_paths = ["/usr/bin/ccache", "/usr/local/bin/ccache"]
+env_hints = ["CCACHE_DIR"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "ccache"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "ccache"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "ccache"
+priority = 85
+platforms = ["linux"]
+
+# ============================================================================
+# sccache - Shared compilation cache (supports distributed builds)
+# https://github.com/mozilla/sccache
+# ============================================================================
+[[runtimes]]
+name = "sccache"
+description = "Shared compilation cache with cloud storage support"
+executable = "sccache"
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "sccache ([\\d.]+)"
+system_paths = ["/usr/bin/sccache", "/usr/local/bin/sccache"]
+env_hints = ["SCCACHE_DIR", "SCCACHE_CACHE_SIZE"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "sccache"
+priority = 90
+platforms = ["macos", "linux"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "sccache"
+priority = 80
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "sccache"
+priority = 70
+platforms = ["windows"]
+
+[[runtimes.system_install.strategies]]
+type = "direct_download"
+url = "https://github.com/mozilla/sccache/releases/download/v{version}/sccache-v{version}-x86_64-pc-windows-msvc.tar.gz"
+format = "tar.gz"
+executable_path = "sccache.exe"
+priority = 50
+platforms = ["windows"]
