@@ -187,16 +187,12 @@ impl<'a> RuntimeTester<'a> {
     async fn test_runtime(&self, runtime_name: &str) -> Result<TestResult> {
         let mut result = TestResult::new(runtime_name);
 
-        // Step 1: Find provider
-        let provider = self
+        // Step 1: Find runtime (search by runtime name, not provider name)
+        let runtime = self
             .ctx
             .registry()
-            .get_provider(runtime_name)
-            .ok_or_else(|| anyhow::anyhow!("Unknown runtime: {}", runtime_name))?;
-
-        let runtime = provider
             .get_runtime(runtime_name)
-            .ok_or_else(|| anyhow::anyhow!("Runtime '{}' not found", runtime_name))?;
+            .ok_or_else(|| anyhow::anyhow!("Unknown runtime: {}", runtime_name))?;
 
         // Step 2: Platform support
         result.platform_supported = self.test_platform_support(&*runtime)?;
