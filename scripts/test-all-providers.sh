@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Test All VX Providers
 # This script tests all VX providers by executing their commands in a clean temporary environment
+# Compatible with Bash 3.x (macOS) and Bash 4+ (Linux)
 
 set -eo pipefail
 
@@ -104,10 +105,21 @@ test_vx_command() {
 
 # Discover providers
 log_section "Discovering Providers"
-mapfile -t ALL_PROVIDERS < <(find "$PROVIDERS_DIR" -maxdepth 1 -type d | tail -n +2 | sort)
+
+# Use while loop instead of mapfile for Bash 3.x compatibility
+ALL_PROVIDERS=()
+while IFS= read -r line; do
+    ALL_PROVIDERS+=("$line")
+done < <(find "$PROVIDERS_DIR" -maxdepth 1 -type d | tail -n +2 | sort)
 
 if [[ -n "$FILTER" ]]; then
-    mapfile -t ALL_PROVIDERS < <(printf '%s\n' "${ALL_PROVIDERS[@]}" | grep "$FILTER")
+    FILTERED_PROVIDERS=()
+    for p in "${ALL_PROVIDERS[@]}"; do
+        if [[ "$p" == *"$FILTER"* ]]; then
+            FILTERED_PROVIDERS+=("$p")
+        fi
+    done
+    ALL_PROVIDERS=("${FILTERED_PROVIDERS[@]}")
     log_info "Filtered to providers matching: $FILTER"
 fi
 
@@ -124,7 +136,11 @@ for provider_path in "${ALL_PROVIDERS[@]}"; do
     
     log_section "Testing Provider: $provider_name"
     
-    mapfile -t runtimes < <(get_runtimes_from_toml "$toml_path")
+    # Use while loop instead of mapfile for Bash 3.x compatibility
+    runtimes=()
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && runtimes+=("$line")
+    done < <(get_runtimes_from_toml "$toml_path")
     
     if [[ ${#runtimes[@]} -eq 0 ]]; then
         log_warning "  ⚠ No runtimes found in provider.toml"
