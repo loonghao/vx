@@ -125,6 +125,18 @@ fi
 
 log_info "Found ${#ALL_PROVIDERS[@]} providers"
 
+# Count total runtimes for progress tracking
+TOTAL_RUNTIMES=0
+for provider_path in "${ALL_PROVIDERS[@]}"; do
+    toml_path="$provider_path/provider.toml"
+    if [[ -f "$toml_path" ]]; then
+        count=$(get_runtimes_from_toml "$toml_path" | wc -l)
+        TOTAL_RUNTIMES=$((TOTAL_RUNTIMES + count))
+    fi
+done
+log_info "Total runtimes to test: $TOTAL_RUNTIMES"
+CURRENT_RUNTIME=0
+
 # Test each provider
 for provider_path in "${ALL_PROVIDERS[@]}"; do
     provider_name="$(basename "$provider_path")"
@@ -151,7 +163,9 @@ for provider_path in "${ALL_PROVIDERS[@]}"; do
     log_info "  Runtimes: ${runtimes[*]}"
     
     for runtime in "${runtimes[@]}"; do
-        log_info "  Testing: $runtime"
+        CURRENT_RUNTIME=$((CURRENT_RUNTIME + 1))
+        REMAINING=$((TOTAL_RUNTIMES - CURRENT_RUNTIME))
+        log_info "  [$CURRENT_RUNTIME/$TOTAL_RUNTIMES] Testing: $runtime (remaining: $REMAINING)"
         
         # Test list command
         "$VX_BINARY" list "$runtime" > /dev/null 2>&1 && \

@@ -82,6 +82,16 @@ if ($Filter) {
 
 Write-Info "Found $($AllProviders.Count) providers"
 
+# Count total runtimes for progress tracking
+$TotalRuntimes = 0
+foreach ($provider in $AllProviders) {
+    $tomlPath = Join-Path $provider.FullName "provider.toml"
+    $runtimes = Get-RuntimesFromToml -TomlPath $tomlPath
+    $TotalRuntimes += $runtimes.Count
+}
+Write-Info "Total runtimes to test: $TotalRuntimes"
+$CurrentRuntime = 0
+
 # Parse provider.toml to extract runtime names
 function Get-RuntimesFromToml {
     param([string]$TomlPath)
@@ -184,7 +194,9 @@ foreach ($provider in $AllProviders) {
     
     # Test: vx list <runtime>
     foreach ($runtime in $runtimes) {
-        Write-Info "  Testing: $runtime"
+        $CurrentRuntime++
+        $Remaining = $TotalRuntimes - $CurrentRuntime
+        Write-Info "  [$CurrentRuntime/$TotalRuntimes] Testing: $runtime (remaining: $Remaining)"
         
         # Check if runtime supports the current platform
         $platformSupported = Test-RuntimePlatformSupported -Runtime $runtime
