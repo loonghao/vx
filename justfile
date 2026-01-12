@@ -56,6 +56,36 @@ test:
 test-verbose:
     cargo test -- --nocapture
 
+# Test all providers in a clean temporary environment
+test-providers:
+    @echo "Building VX first..."
+    @pwsh -NoProfile -Command "Get-Process vx -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
+    @cargo build
+    @echo ""
+    pwsh -NoProfile -File scripts/test-all-providers.ps1
+
+# Test all providers with verbose output
+test-providers-verbose:
+    @echo "Building VX first..."
+    @pwsh -NoProfile -Command "Get-Process vx -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
+    @cargo build  
+    @echo ""
+    pwsh -NoProfile -File scripts/test-all-providers.ps1 -Verbose
+
+# Test all providers and keep cache for inspection
+test-providers-keep:
+    @echo "Building VX first..."
+    @cargo build
+    @echo ""
+    pwsh -NoProfile -File scripts/test-all-providers.ps1 -KeepCache
+
+# Test specific providers by name filter
+test-providers-filter FILTER:
+    @echo "Building VX first..."
+    @cargo build
+    @echo ""
+    pwsh -NoProfile -File scripts/test-all-providers.ps1 -Filter {{FILTER}}
+
 # ============================================
 # Code Quality
 # ============================================

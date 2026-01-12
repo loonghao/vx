@@ -20,6 +20,24 @@ owner = "git"
 repo = "git"
 strip_v_prefix = true
 
+# RFC 0019: Git is typically a system tool, but can be installed
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "PortableGit-{version}"
+executable_paths = [
+    "bin/git.exe",  # Windows
+    "bin/git"       # Unix
+]
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "git version ([\\d.]+)"
+system_paths = ["/usr/bin/git", "/usr/local/bin/git", "C:\\Program Files\\Git\\bin\\git.exe"]
+env_hints = ["GIT_EXEC_PATH"]
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 

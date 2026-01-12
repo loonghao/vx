@@ -146,12 +146,20 @@ impl RealHttpClient {
     /// Create a new real HTTP client with default timeouts
     ///
     /// CDN acceleration is automatically enabled when the `cdn-acceleration` feature is active.
+    /// 
+    /// The client is configured with:
+    /// - Connection pooling (idle connections kept alive for 90 seconds)
+    /// - Up to 10 idle connections per host (reduces handshake overhead)
+    /// - Compression enabled by default in reqwest
+    /// - HTTP/2 adaptive (automatically used when server supports it)
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::builder()
                 .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
                 .timeout(Duration::from_secs(30)) // 30 seconds total timeout
                 .connect_timeout(Duration::from_secs(10)) // 10 seconds connect timeout
+                .pool_idle_timeout(Duration::from_secs(90)) // Keep idle connections for 90s
+                .pool_max_idle_per_host(10) // Max 10 idle connections per host
                 .build()
                 .expect("Failed to create HTTP client"),
             cdn_enabled: cfg!(feature = "cdn-acceleration"),
@@ -166,6 +174,8 @@ impl RealHttpClient {
                 .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
                 .timeout(Duration::from_secs(30)) // 30 seconds total timeout
                 .connect_timeout(Duration::from_secs(10)) // 10 seconds connect timeout
+                .pool_idle_timeout(Duration::from_secs(90)) // Keep idle connections for 90s
+                .pool_max_idle_per_host(10) // Max 10 idle connections per host
                 .build()
                 .expect("Failed to create HTTP client"),
             cdn_enabled: cdn_enabled && cfg!(feature = "cdn-acceleration"),
@@ -184,6 +194,8 @@ impl RealHttpClient {
                 .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
                 .timeout(total_timeout)
                 .connect_timeout(connect_timeout)
+                .pool_idle_timeout(Duration::from_secs(90)) // Keep idle connections for 90s
+                .pool_max_idle_per_host(10) // Max 10 idle connections per host
                 .build()
                 .expect("Failed to create HTTP client"),
             cdn_enabled: cdn_enabled && cfg!(feature = "cdn-acceleration"),

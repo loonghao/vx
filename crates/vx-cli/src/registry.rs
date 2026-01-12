@@ -190,6 +190,8 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         release_please,
         python,
         msvc,
+        ffmpeg,
+        yasm,
     );
 
     registry
@@ -235,6 +237,8 @@ fn create_static_registry() -> ProviderRegistry {
         release_please,
         python,
         msvc,
+        ffmpeg,
+        yasm,
     );
 
     registry

@@ -20,6 +20,23 @@ owner = "helm"
 repo = "helm"
 strip_v_prefix = true
 
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} version --short"
+pattern = "v([\\d.]+)"
+system_paths = ["/usr/local/bin/helm", "/usr/bin/helm", "C:\\Program Files\\helm\\helm.exe"]
+
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "{os}-{arch}"
+executable_paths = [
+    "helm.exe",  # Windows
+    "helm"       # Unix
+]
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 

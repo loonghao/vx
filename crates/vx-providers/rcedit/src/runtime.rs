@@ -7,7 +7,7 @@ use crate::config::RceditUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use vx_runtime::{
     Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
     VersionInfo,
@@ -80,6 +80,40 @@ impl Runtime for RceditRuntime {
         Ok(RceditUrlBuilder::download_url(version, platform))
     }
 
+    fn post_extract(&self, _version: &str, install_path: &PathBuf) -> Result<()> {
+        // Rename downloaded file to standard name
+        // Original: rcedit-x64.exe / rcedit-arm64.exe / rcedit-x86.exe
+        // Standard: bin/rcedit.exe
+        use std::fs;
+        
+        let platform = Platform::current();
+        
+        // rcedit only supports Windows
+        if platform.os != vx_runtime::Os::Windows {
+            return Ok(());
+        }
+        
+        // Get the original downloaded file name
+        let original_name = RceditUrlBuilder::get_executable_name(&platform);
+        
+        // Create bin/ directory
+        let bin_dir = install_path.join("bin");
+        fs::create_dir_all(&bin_dir)?;
+        
+        let original_path = bin_dir.join(&original_name);
+        let standard_path = bin_dir.join("rcedit.exe");
+        
+        // Rename if not already standard name
+        if original_name != "rcedit.exe" && original_path.exists() {
+            if standard_path.exists() {
+                fs::remove_file(&standard_path)?;
+            }
+            fs::rename(&original_path, &standard_path)?;
+        }
+        
+        Ok(())
+    }
+
     fn verify_installation(
         &self,
         _version: &str,
@@ -94,8 +128,8 @@ impl Runtime for RceditRuntime {
             );
         }
 
-        let exe_name = RceditUrlBuilder::get_executable_name(platform);
-        let exe_path = install_path.join(exe_name);
+        // Check for standard name (after post_extract renamed it)
+        let exe_path = install_path.join("bin").join("rcedit.exe");
 
         if exe_path.exists() {
             VerificationResult::success(exe_path)

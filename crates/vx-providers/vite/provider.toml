@@ -18,6 +18,9 @@ executable = "vite"
 source = "npm"
 package = "vite"
 
+# Note: npm packages don't need layout configuration
+# They are installed via npm and have standard locations
+
 [runtimes.platforms.windows]
 executable_extensions = [".cmd", ".exe"]
 

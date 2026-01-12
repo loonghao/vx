@@ -24,6 +24,9 @@ owner = "spack"
 repo = "spack"
 strip_v_prefix = true
 
+# Note: Spack is typically cloned from git, not a binary release
+# Layout configuration may not be needed
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe", ".bat"]
 

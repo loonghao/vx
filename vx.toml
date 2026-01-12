@@ -1,102 +1,34 @@
-# VX Project Configuration (v2)
-# This file defines the tools and environment for this project.
-# Run 'vx setup' to install all required tools.
-# Documentation: https://github.com/loonghao/vx/docs/config
-
-# Tool versions
 [tools]
+cmake = "latest"
 python = "3.11"
 uv = "latest"
 
-# Behavior settings
 [settings]
-auto_install = true
 cache_duration = "7d"
+auto_install = true
 
-# Script definitions
-# Use 'vx run <script>' to execute these commands
-# Run 'vx run lint' before committing to catch CI issues locally
 [scripts]
 build = "cargo build"
 check = "cargo check --workspace --all-targets"
+ci-docs = "cargo doc --all-features --no-deps --document-private-items"
+ci-quality = "echo 'Running CI quality checks...'"
+ci-test-full = "cargo test --workspace"
+ci-test-targeted = "cargo test -p vx-provider-* -p vx-cli -p vx-extension -p vx-migration -p vx-resolver -p vx-runtime"
+clippy = "cargo clippy --workspace --all-targets -- -D warnings"
 fmt = "cargo fmt --all"
 fmt-check = "cargo fmt --all -- --check"
+just = "just {{args}}"
+lint = "cargo clippy --workspace --all-targets -- -D warnings"
+nox = "uv run nox {{args}}"
+nox-test = "uv run nox -s tests"
 release = "cargo build --release"
 test = "cargo test --workspace"
-clippy = "cargo clippy --workspace --all-targets -- -D warnings"
-nox-test = "uv run nox -s tests"
-
-
-
-
-# Core component tests - matches CI test strategy
-# This is the command you mentioned: cargo test -p vx-provider-* -p vx-cli -p vx-extension -p vx-migration -p vx-resolver -p vx-runtime
-test-core = "cargo test -p vx-provider-* -p vx-cli -p vx-extension -p vx-migration -p vx-resolver -p vx-runtime"
-
-
-# Full test suite with coverage
 test-all = "cargo test --workspace --all-targets"
-
-# Quick test for development (lib tests only)
-test-lib = "cargo test --workspace --lib"
-
-# Integration tests only
-test-integration = "cargo test --workspace --test '*'"
-
-# Documentation tests
+test-core = "cargo test -p vx-provider-* -p vx-cli -p vx-extension -p vx-migration -p vx-resolver -p vx-runtime"
 test-doc = "cargo test --workspace --doc"
-
-# Targeted tests runner (pass packages/flags as args)
-# Example: vx run test-pkgs -- -p vx-runtime -p vx-resolver
-[scripts.test-pkgs]
-command = "cargo test {{args}}"
-description = "Run cargo test with arbitrary args (used by CI targeted tests)"
-
-# Common development workflows with dynamic args support
-[scripts.tox]
-command = "uv run tox {{args}}"
-description = "Run tox with custom environments/args"
-
-[scripts.nox]
-command = "uv run nox {{args}}"
-description = "Run nox sessions with custom args"
-
-[scripts.just]
-command = "just {{args}}"
-description = "Run just tasks with custom args"
-
-# Package-specific testing (examples)
-[scripts.test-python]
-command = "cargo test {{args}}"
-description = "Test Python provider with custom args"
-
-[scripts.test-runtime]
-command = "cargo test {{args}}"
-description = "Test runtime components with custom args"
-
-
-# Combined lint check - run this before committing to match CI
-# Uses 'depends' to run fmt-check first, then clippy
-[scripts.lint]
-command = "cargo clippy --workspace --all-targets -- -D warnings"
-description = "Run format check and clippy (matches CI)"
-depends = ["fmt-check"]
-
-# CI workflow scripts - matches GitHub Actions
-[scripts.ci-quality]
-command = "echo 'Running CI quality checks...'"
-description = "Run all code quality checks (CI equivalent)"
-depends = ["fmt-check", "clippy"]
-
-[scripts.ci-test-targeted]
-command = "cargo test -p vx-provider-* -p vx-cli -p vx-extension -p vx-migration -p vx-resolver -p vx-runtime"
-description = "Run core component tests (CI targeted mode)"
-
-[scripts.ci-test-full]
-command = "cargo test --workspace"
-description = "Run full workspace tests (CI full mode)"
-
-[scripts.ci-docs]
-command = "cargo doc --all-features --no-deps --document-private-items"
-description = "Build documentation (CI mode)"
-env = { RUSTDOCFLAGS = "-D warnings" }
+test-integration = "cargo test --workspace --test '*'"
+test-lib = "cargo test --workspace --lib"
+test-pkgs = "cargo test {{args}}"
+test-python = "cargo test {{args}}"
+test-runtime = "cargo test {{args}}"
+tox = "uv run tox {{args}}"

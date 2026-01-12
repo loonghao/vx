@@ -143,31 +143,61 @@ impl Installer {
                 message: "Download URL is required for binary installation".to_string(),
             })?;
 
-        // Create bin directory
-        let bin_dir = config.install_dir.join("bin");
+        // Check metadata for target filename and directory (from layout config)
+        let target_name = config
+            .metadata
+            .get("target_name")
+            .map(|s| s.clone())
+            .unwrap_or_else(|| {
+                if cfg!(windows) {
+                    format!("{}.exe", config.tool_name)
+                } else {
+                    config.tool_name.clone()
+                }
+            });
+
+        let target_dir = config
+            .metadata
+            .get("target_dir")
+            .map(|s| s.as_str())
+            .unwrap_or("bin");
+
+        // Create target directory
+        let bin_dir = config.install_dir.join(target_dir);
         std::fs::create_dir_all(&bin_dir)?;
 
-        // Determine executable name
-        let exe_name = if cfg!(windows) {
-            format!("{}.exe", config.tool_name)
-        } else {
-            config.tool_name.clone()
-        };
+        let exe_path = bin_dir.join(target_name);
 
-        let exe_path = bin_dir.join(&exe_name);
-
-        // Download directly to the target location
-        self.downloader
-            .download(download_url, &exe_path, progress)
+        // Download to temporary location first
+        let temp_path = self
+            .downloader
+            .download_temp(download_url, progress)
             .await?;
 
-        // Make executable on Unix systems
+        // Move/rename to final location
+        std::fs::rename(&temp_path, &exe_path).or_else(|_| {
+            // If rename fails (cross-device), copy instead
+            std::fs::copy(&temp_path, &exe_path)?;
+            std::fs::remove_file(&temp_path)?;
+            Ok::<(), std::io::Error>(())
+        })?;
+
+        // Set executable permissions on Unix
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let metadata = std::fs::metadata(&exe_path)?;
-            let mut permissions = metadata.permissions();
-            permissions.set_mode(0o755);
+            
+            let permissions_str = config
+                .metadata
+                .get("target_permissions")
+                .map(|s| s.as_str())
+                .unwrap_or("755");
+            
+            let mode = u32::from_str_radix(permissions_str, 8)
+                .unwrap_or(0o755);
+            
+            let mut permissions = std::fs::metadata(&exe_path)?.permissions();
+            permissions.set_mode(mode);
             std::fs::set_permissions(&exe_path, permissions)?;
         }
 

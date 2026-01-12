@@ -19,6 +19,26 @@ source = "github-releases"
 owner = "docker"
 repo = "cli"
 strip_v_prefix = true
+# Note: Docker CLI releases use tags like 'v27.5.1'
+# The GitHub releases API may have rate limits or format issues
+# Consider adding fallback version source if needed
+
+# RFC 0019: Docker CLI layout
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "docker"
+executable_paths = [
+    "docker.exe",  # Windows
+    "docker"       # Unix
+]
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "Docker version ([\\d.]+)"
+system_paths = ["/usr/bin/docker", "/usr/local/bin/docker", "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"]
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]

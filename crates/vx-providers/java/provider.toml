@@ -18,6 +18,24 @@ executable = "java"
 source = "adoptium"
 lts_pattern = "21"
 
+# RFC 0019: Java JDK has complex structure
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "jdk-{version}+{build}"
+executable_paths = [
+    "bin/java.exe",  # Windows
+    "bin/java"       # Unix
+]
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} -version"
+pattern = "version \"([\\d.]+)\""
+system_paths = ["/usr/bin/java", "/usr/local/bin/java", "C:\\Program Files\\Java\\*\\bin\\java.exe"]
+env_hints = ["JAVA_HOME"]
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 
@@ -35,6 +53,20 @@ name = "javac"
 description = "Java compiler"
 executable = "javac"
 bundled_with = "java"
+auto_installable = false
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} -version"
+pattern = "javac ([\\d.]+)"
+system_paths = ["/usr/bin/javac", "/usr/local/bin/javac", "C:\\Program Files\\Java\\*\\bin\\javac.exe"]
+env_hints = ["JAVA_HOME"]
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "java", version = "*", reason = "javac is bundled with JDK" }
+]
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
@@ -48,6 +80,20 @@ name = "jar"
 description = "Java archive tool"
 executable = "jar"
 bundled_with = "java"
+auto_installable = false
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "jar ([\\d.]+)"
+system_paths = ["/usr/bin/jar", "/usr/local/bin/jar", "C:\\Program Files\\Java\\*\\bin\\jar.exe"]
+env_hints = ["JAVA_HOME"]
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "java", version = "*", reason = "jar is bundled with JDK" }
+]
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]

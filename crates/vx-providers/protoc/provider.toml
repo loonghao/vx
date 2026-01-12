@@ -20,6 +20,18 @@ owner = "protocolbuffers"
 repo = "protobuf"
 strip_v_prefix = true
 
+# RFC 0019: Executable Layout Configuration
+# protoc downloads are archives with bin/ directory
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = ""  # protoc archives don't have version prefix
+executable_paths = [
+    "bin/protoc.exe",  # Windows
+    "bin/protoc"       # Unix
+]
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 

@@ -8,6 +8,7 @@ use crate::commands::{
 use anyhow::Result;
 use async_trait::async_trait;
 use clap::{Parser, Subcommand, ValueEnum};
+use std::path::PathBuf;
 use vx_runtime::CacheMode;
 
 #[derive(ValueEnum, Clone, Debug)]
@@ -218,6 +219,82 @@ pub enum Commands {
     Config {
         #[command(subcommand)]
         command: Option<ConfigCommand>,
+    },
+
+    /// Check if a runtime is available (deprecated: use 'test' instead)
+    #[command(hide = true)]
+    Check {
+        /// Runtime name to check
+        runtime: String,
+        /// Check if runtime is installed in vx store
+        #[arg(long)]
+        installed: bool,
+        /// Check if runtime is available on system PATH
+        #[arg(long)]
+        system: bool,
+        /// Show detailed detection information
+        #[arg(long)]
+        detailed: bool,
+        /// Exit with code 0 if available, 1 if not (silent mode)
+        #[arg(short, long)]
+        quiet: bool,
+    },
+
+    /// Test runtime availability and providers (CI-friendly)
+    Test {
+        /// Runtime name to test (e.g., "yarn", "node", "go")
+        runtime: Option<String>,
+        
+        /// Test all registered runtimes
+        #[arg(long, conflicts_with_all = &["runtime", "extension", "local"])]
+        all: bool,
+        
+        /// Test a provider from URL (e.g., https://github.com/user/vx-provider-foo)
+        #[arg(long, conflicts_with_all = &["runtime", "all", "local"])]
+        extension: Option<String>,
+        
+        /// Test a local provider directory (for development)
+        #[arg(long, conflicts_with_all = &["runtime", "all", "extension"])]
+        local: Option<PathBuf>,
+        
+        // === Test Modes ===
+        /// Only test platform support (no installation required)
+        #[arg(long)]
+        platform_only: bool,
+        
+        /// Run functional tests (execute --version, etc.)
+        #[arg(long)]
+        functional: bool,
+        
+        /// Test installation process
+        #[arg(long)]
+        install: bool,
+        
+        // === Checks ===
+        /// Check if runtime is installed in vx store
+        #[arg(long)]
+        installed: bool,
+        
+        /// Check if runtime is available on system PATH
+        #[arg(long)]
+        system: bool,
+        
+        // === Output Control ===
+        /// Show detailed test information
+        #[arg(long)]
+        detailed: bool,
+        
+        /// Silent mode: exit code only, no output
+        #[arg(short, long)]
+        quiet: bool,
+        
+        /// JSON output format (for CI integration)
+        #[arg(long)]
+        json: bool,
+        
+        /// Verbose output (show all test steps)
+        #[arg(short, long)]
+        verbose: bool,
     },
 
     /// Search available tools
@@ -495,13 +572,9 @@ pub enum Commands {
         /// Preview changes without writing
         #[arg(long)]
         dry_run: bool,
-        /// Show verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-
-    /// Check vx.lock consistency with vx.toml
-    Check {
+        /// Check lock file consistency with vx.toml (don't update)
+        #[arg(long)]
+        check: bool,
         /// Show verbose output
         #[arg(short, long)]
         verbose: bool,
@@ -858,6 +931,8 @@ impl CommandHandler for Commands {
             Commands::Switch { .. } => "switch",
             Commands::Config { .. } => "config",
             Commands::Search { .. } => "search",
+            Commands::Check { .. } => "check",
+            Commands::Test { .. } => "test",
             Commands::Sync { .. } => "sync",
             Commands::Init { .. } => "init",
             Commands::Clean { .. } => "clean",
@@ -880,7 +955,6 @@ impl CommandHandler for Commands {
             Commands::X { .. } => "x",
             Commands::Migrate { .. } => "migrate",
             Commands::Lock { .. } => "lock",
-            Commands::Check { .. } => "check",
             Commands::Info { .. } => "info",
         }
     }
@@ -1084,6 +1158,68 @@ impl CommandHandler for Commands {
                     *verbose,
                 )
                 .await
+            }
+
+            Commands::Check {
+                runtime,
+                installed,
+                system,
+                detailed,
+                quiet,
+            } => {
+                // Deprecated: redirect to test command
+                let test_cmd = commands::test::TestCommand {
+                    runtime: Some(runtime.clone()),
+                    all: false,
+                    extension: None,
+                    local: None,
+                    platform_only: false,
+                    functional: false,
+                    install: false,
+                    installed: *installed,
+                    system: *system,
+                    detailed: *detailed,
+                    quiet: *quiet,
+                    json: false,
+                    verbose: false,
+                };
+                
+                test_cmd.execute(ctx).await
+            }
+
+            Commands::Test {
+                runtime,
+                all,
+                extension,
+                local,
+                platform_only,
+                functional,
+                install,
+                installed,
+                system,
+                detailed,
+                quiet,
+                json,
+                verbose,
+            } => {
+                // Build TestCommand from args
+                let test_cmd = commands::test::TestCommand {
+                    runtime: runtime.clone(),
+                    all: *all,
+                    extension: extension.clone(),
+                    local: local.clone(),
+                    platform_only: *platform_only,
+                    functional: *functional,
+                    install: *install,
+                    installed: *installed,
+                    system: *system,
+                    detailed: *detailed,
+                    quiet: *quiet,
+                    json: *json,
+                    verbose: *verbose,
+                };
+                
+                test_cmd.execute(ctx).await
             }
 
             Commands::Sync {
@@ -1301,20 +1437,23 @@ impl CommandHandler for Commands {
                 update,
                 tool,
                 dry_run,
+                check,
                 verbose,
             } => {
-                commands::lock::handle(
-                    ctx.registry(),
-                    ctx.runtime_context(),
-                    *update,
-                    tool.as_deref(),
-                    *dry_run,
-                    *verbose,
-                )
-                .await
+                if *check {
+                    commands::lock::handle_check(*verbose).await
+                } else {
+                    commands::lock::handle(
+                        ctx.registry(),
+                        ctx.runtime_context(),
+                        *update,
+                        tool.as_deref(),
+                        *dry_run,
+                        *verbose,
+                    )
+                    .await
+                }
             }
-
-            Commands::Check { verbose } => commands::lock::handle_check(*verbose).await,
 
             Commands::Info { json } => commands::capabilities::handle(ctx.registry(), *json).await,
         }

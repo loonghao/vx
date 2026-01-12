@@ -183,4 +183,45 @@ pub trait Installer: Send + Sync {
 
     /// Download and extract in one operation
     async fn download_and_extract(&self, url: &str, dest: &Path) -> Result<()>;
+    
+    /// Download and install with layout configuration (RFC 0019)
+    /// 
+    /// This method accepts layout metadata to handle file renaming, moving, and permissions.
+    /// If not implemented, falls back to `download_and_extract`.
+    async fn download_with_layout(
+        &self,
+        url: &str,
+        dest: &Path,
+        metadata: &std::collections::HashMap<String, String>,
+    ) -> Result<()> {
+        // Default implementation - use metadata for post-processing
+        self.download_and_extract(url, dest).await?;
+        
+        // Apply layout transformations if metadata is provided
+        if let (Some(source_name), Some(target_name), Some(target_dir)) = (
+            metadata.get("source_name"),
+            metadata.get("target_name"),
+            metadata.get("target_dir"),
+        ) {
+            let source_path = dest.join(target_dir).join(source_name);
+            let target_path = dest.join(target_dir).join(target_name);
+            
+            if source_path.exists() && source_path != target_path {
+                std::fs::rename(&source_path, &target_path)?;
+                
+                // Set permissions if specified
+                #[cfg(unix)]
+                if let Some(perm_str) = metadata.get("target_permissions") {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Ok(mode) = u32::from_str_radix(perm_str, 8) {
+                        let mut perms = std::fs::metadata(&target_path)?.permissions();
+                        perms.set_mode(mode);
+                        std::fs::set_permissions(&target_path, perms)?;
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
 }

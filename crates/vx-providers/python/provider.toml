@@ -29,6 +29,17 @@ mirrors = [
 source = "python-build-standalone"
 stable_pattern = "3.*"
 
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "python"
+executable_paths = [
+    "bin/python3.exe",  # Windows
+    "bin/python3"       # Unix
+]
+
 [runtimes.executable_config]
 dir_pattern = "python-{version}"
 

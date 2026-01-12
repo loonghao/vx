@@ -21,6 +21,18 @@ owner = "Azure"
 repo = "azure-cli"
 strip_v_prefix = false
 
+# Azure CLI detection configuration
+[runtimes.detection]
+command = "{executable} version --output json"
+pattern = "\"azure-cli\": \"([\\d.]+)\""
+
+# Layout configuration for MSI installation
+[runtimes.layout]
+download_type = "msi"
+
+[runtimes.layout.msi."windows-x86_64"]
+url_template = "https://azcliprod.blob.core.windows.net/msi/azure-cli-{version}-x64.msi"
+
 [runtimes.platforms.windows]
 executable_extensions = [".cmd", ".exe"]
 

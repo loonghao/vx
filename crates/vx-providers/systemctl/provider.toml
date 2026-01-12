@@ -17,9 +17,16 @@ os = ["linux"]
 name = "systemctl"
 description = "Control systemd services and units"
 executable = "systemctl"
+auto_installable = false
 
 [runtimes.versions]
 source = "system"  # Detect from system installation
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "systemd ([\\d.]+)"
+system_paths = ["/usr/bin/systemctl", "/bin/systemctl"]
 
 [runtimes.platforms.linux]
 executable_extensions = []
@@ -34,9 +41,22 @@ name = "journalctl"
 description = "View systemd journal logs"
 executable = "journalctl"
 bundled_with = "systemctl"
+auto_installable = false
 
 [runtimes.versions]
 source = "system"
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "systemd ([\\d.]+)"
+system_paths = ["/usr/bin/journalctl", "/bin/journalctl"]
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "systemctl", version = "*", reason = "journalctl is part of systemd" }
+]
 
 [runtimes.platforms.linux]
 executable_extensions = []
@@ -51,9 +71,22 @@ name = "systemd-analyze"
 description = "Analyze systemd boot performance"
 executable = "systemd-analyze"
 bundled_with = "systemctl"
+auto_installable = false
 
 [runtimes.versions]
 source = "system"
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "systemd ([\\d.]+)"
+system_paths = ["/usr/bin/systemd-analyze", "/bin/systemd-analyze"]
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "systemctl", version = "*", reason = "systemd-analyze is part of systemd" }
+]
 
 [runtimes.platforms.linux]
 executable_extensions = []
@@ -68,9 +101,22 @@ name = "loginctl"
 description = "Control systemd login manager"
 executable = "loginctl"
 bundled_with = "systemctl"
+auto_installable = false
 
 [runtimes.versions]
 source = "system"
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "systemd ([\\d.]+)"
+system_paths = ["/usr/bin/loginctl", "/bin/loginctl"]
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "systemctl", version = "*", reason = "loginctl is part of systemd" }
+]
 
 [runtimes.platforms.linux]
 executable_extensions = []

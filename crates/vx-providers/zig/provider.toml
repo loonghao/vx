@@ -18,6 +18,17 @@ executable = "zig"
 source = "zig-download"
 stable_pattern = "stable"
 
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "zig-{os}-{arch}-{version}"
+executable_paths = [
+    "zig.exe",  # Windows (root directory)
+    "zig"       # Unix (root directory)
+]
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 

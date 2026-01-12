@@ -21,6 +21,19 @@ owner = "aws"
 repo = "aws-cli"
 strip_v_prefix = false
 
+# AWS CLI v2 detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "aws-cli/([\\d.]+)"
+
+# Layout configuration for MSI installation
+[runtimes.layout]
+download_type = "msi"
+
+[runtimes.layout.msi."windows-x86_64"]
+url_template = "https://awscli.amazonaws.com/AWSCLIV2-{version}.msi"
+# MSI handler will automatically extract files to target directory
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe", ".cmd"]
 

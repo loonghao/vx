@@ -25,5 +25,26 @@ owner = "electron"
 repo = "rcedit"
 strip_v_prefix = true
 
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "rcedit v([\\d.]+)"
+system_paths = ["C:\\Program Files\\rcedit\\rcedit.exe"]
+
+# RFC 0019: Executable Layout Configuration
+# rcedit downloads are single executable files
+[runtimes.layout]
+download_type = "binary"
+
+[runtimes.layout.binary."windows-x86_64"]
+source_name = "rcedit-x64.exe"
+target_name = "rcedit.exe"
+target_dir = "bin"
+
+[runtimes.layout.binary."windows-x86"]
+source_name = "rcedit-x86.exe"
+target_name = "rcedit.exe"
+target_dir = "bin"
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]

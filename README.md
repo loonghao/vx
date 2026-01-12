@@ -557,6 +557,35 @@ See [GitHub Action Guide](docs/guides/github-action.md) for full documentation.
 
 ---
 
+## 🧪 Testing
+
+vx includes a comprehensive test suite for all providers:
+
+```bash
+# Test all providers in a clean temporary environment
+just test-providers
+
+# Test with verbose output
+just test-providers-verbose
+
+# Test specific providers only
+just test-providers-filter "node"
+
+# Keep cache for inspection
+just test-providers-keep
+```
+
+The test suite:
+- ✅ Uses temporary VX_HOME (auto-cleaned after tests)
+- ✅ Auto-discovers all providers from source
+- ✅ Tests command execution and auto-installation
+- ✅ Generates detailed test reports
+- ✅ CI/CD ready with exit codes and JSON output
+
+See [scripts/README.md](scripts/README.md) for detailed documentation.
+
+---
+
 ## 🤝 Contributing
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.

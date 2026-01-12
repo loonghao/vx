@@ -11,6 +11,7 @@ pub use handler::{CommandContext, CommandHandler, GlobalOptions};
 pub mod analyze;
 pub mod cache;
 pub mod capabilities;
+pub mod check;
 pub mod cleanup;
 pub mod config;
 pub mod container;
@@ -39,6 +40,7 @@ pub mod shell;
 pub mod stats;
 pub mod switch;
 pub mod sync;
+pub mod test;  // New: test command for CI/CD integration
 pub mod update;
 pub mod venv_cmd;
 pub mod version;

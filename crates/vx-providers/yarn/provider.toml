@@ -28,6 +28,16 @@ repo = "yarn"
 strip_v_prefix = true
 lts_pattern = "1.22.*"
 
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "yarn-v{version}"
+executable_paths = [
+    "bin/yarn.js",  # Yarn is a JS file
+]
+
 # RFC 0018: Detection configuration
 [runtimes.detection]
 command = "{executable} --version"

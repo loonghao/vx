@@ -20,6 +20,9 @@ owner = "pre-commit"
 repo = "pre-commit"
 strip_v_prefix = true
 
+# Note: pre-commit is typically installed via pip/uv
+# Binary releases may need layout configuration if we support direct install
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 

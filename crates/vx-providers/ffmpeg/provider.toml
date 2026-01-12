@@ -1,0 +1,138 @@
+# FFmpeg Provider Manifest
+# Complete solution for recording, converting and streaming audio and video
+# RFC 0016/0017/0018 compliant - includes extended schema fields
+
+[provider]
+name = "ffmpeg"
+description = "Complete solution for recording, converting and streaming audio and video"
+homepage = "https://ffmpeg.org"
+repository = "https://github.com/FFmpeg/FFmpeg"
+ecosystem = "system"
+
+# FFmpeg runtime
+[[runtimes]]
+name = "ffmpeg"
+description = "FFmpeg - A complete, cross-platform solution to record, convert and stream audio and video"
+executable = "ffmpeg"
+priority = 100
+auto_installable = true
+
+# RFC 0017: Version source configuration
+[runtimes.versions]
+source = "github-releases"
+owner = "GyanD"
+repo = "codexffmpeg"
+# Note: Using GyanD's pre-built Windows binaries
+# Official FFmpeg releases don't provide pre-built binaries
+
+# RFC 0019: Executable Layout Configuration
+# FFmpeg downloads are archives with bin/ directory
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "ffmpeg-{version}"
+executable_paths = [
+    "bin/ffmpeg.exe",  # Windows
+    "bin/ffmpeg"       # Unix
+]
+
+# RFC 0018: Environment configuration
+[runtimes.env]
+vars = { PATH = "{install_dir}/bin" }
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} -version"
+pattern = "ffmpeg version ([\\d.]+)"
+system_paths = [
+    "/usr/bin/ffmpeg",
+    "/usr/local/bin/ffmpeg",
+    "C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe"
+]
+
+# RFC 0018: Health check
+[runtimes.health]
+check_command = "{executable} -version"
+expected_pattern = "ffmpeg version"
+timeout_ms = 10000
+
+# RFC 0018: Mirror configuration
+[[runtimes.mirrors]]
+name = "gyan-dev"
+region = "global"
+url = "https://www.gyan.dev/ffmpeg/builds"
+priority = 100
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+[[runtimes.constraints]]
+when = "*"
+recommends = []
+
+# FFprobe runtime (bundled with ffmpeg)
+[[runtimes]]
+name = "ffprobe"
+description = "FFprobe - Multimedia stream analyzer"
+executable = "ffprobe"
+bundled_with = "ffmpeg"
+priority = 80
+auto_installable = false
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} -version"
+pattern = "ffprobe version ([\\d.]+)"
+system_paths = [
+    "/usr/bin/ffprobe",
+    "/usr/local/bin/ffprobe",
+    "C:\\Program Files\\ffmpeg\\bin\\ffprobe.exe"
+]
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "ffmpeg", version = "*", reason = "ffprobe is bundled with ffmpeg" }
+]
+
+# FFplay runtime (bundled with ffmpeg)
+[[runtimes]]
+name = "ffplay"
+description = "FFplay - Simple media player"
+executable = "ffplay"
+bundled_with = "ffmpeg"
+priority = 60
+auto_installable = false
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} -version"
+pattern = "ffplay version ([\\d.]+)"
+system_paths = [
+    "/usr/bin/ffplay",
+    "/usr/local/bin/ffplay",
+    "C:\\Program Files\\ffmpeg\\bin\\ffplay.exe"
+]
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "ffmpeg", version = "*", reason = "ffplay is bundled with ffmpeg" }
+]
+

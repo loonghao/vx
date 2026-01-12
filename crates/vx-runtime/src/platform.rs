@@ -48,6 +48,12 @@ impl Os {
     }
 }
 
+impl std::fmt::Display for Os {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 /// CPU architecture
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Arch {
@@ -83,6 +89,12 @@ impl Arch {
             Arch::X86 => "x86",
             Arch::Unknown => "unknown",
         }
+    }
+}
+
+impl std::fmt::Display for Arch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 
