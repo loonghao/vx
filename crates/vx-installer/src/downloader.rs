@@ -60,6 +60,26 @@ impl Downloader {
         })
     }
 
+    /// Create a downloader with custom timeout
+    ///
+    /// # Arguments
+    /// * `timeout` - Download timeout duration
+    /// * `cdn_enabled` - Whether to enable CDN acceleration
+    pub fn with_timeout(timeout: Duration, cdn_enabled: bool) -> Result<Self> {
+        let client = reqwest::Client::builder()
+            .user_agent(USER_AGENT)
+            .timeout(timeout)
+            .build()?;
+
+        Ok(Self {
+            client,
+            cdn_optimizer: CdnOptimizer::new(cdn_enabled),
+            max_retries: Self::DEFAULT_MAX_RETRIES,
+            min_delay: Self::DEFAULT_MIN_DELAY,
+            max_delay: Self::DEFAULT_MAX_DELAY,
+        })
+    }
+
     /// Create a downloader with custom client configuration
     pub fn with_client(client: reqwest::Client) -> Self {
         Self {

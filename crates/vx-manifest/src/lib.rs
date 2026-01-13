@@ -47,10 +47,11 @@ pub use error::ManifestError;
 pub use loader::ManifestLoader;
 pub use platform::{Arch, Os, Platform, PlatformConstraint, PlatformExclusion};
 pub use provider::{
-    CacheConfig, CommandDef, ConstraintRule, DependencyDef, DetectionConfig, EnvConfig,
-    ExecutableConfig, HealthConfig, HooksConfig, HooksDef, InlineTestScripts,
-    InstallStrategyDef, MachineFlagsConfig, MirrorConfig, MirrorStrategy, OutputColorConfig,
-    OutputConfig, PlatformConfig, PlatformTestCommands, PlatformsDef, ProvidedToolDef,
+    ArchiveLayoutConfig, BinaryLayoutConfig, CacheConfig, CommandDef, ConstraintRule,
+    DependencyDef, DetectionConfig, DownloadConfig, DownloadType, EnvConfig, ExecutableConfig,
+    HealthConfig, HooksConfig, HooksDef, InlineTestScripts, InstallStrategyDef, LayoutConfig,
+    MachineFlagsConfig, MirrorConfig, MirrorStrategy, OutputColorConfig, OutputConfig,
+    PlatformBinaryConfig, PlatformConfig, PlatformTestCommands, PlatformsDef, ProvidedToolDef,
     ProviderManifest, ProviderMeta, RuntimeDef, ScriptTypeDef, ShellCompletionsConfig,
     ShellConfig, SystemDependencyDef, SystemDepsConfigDef, SystemDepTypeDef,
     SystemInstallConfigDef, TestCommand, TestConfig, TestPlatformConfig, VersionSourceDef,

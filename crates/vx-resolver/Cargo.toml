@@ -14,6 +14,7 @@ vx-console = { workspace = true, features = ["progress"] }
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+bincode = "1.3"
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

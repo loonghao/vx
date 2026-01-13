@@ -2,13 +2,13 @@ use crate::PlatformConstraint;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    command::CommandDef, constraint::ConstraintRule, detection::DetectionConfig, env::EnvConfig,
-    executable::ExecutableConfig, health::HealthConfig, hooks::HooksDef,
-    mirror::{CacheConfig, MirrorConfig, MirrorStrategy}, output::OutputConfig,
-    platform_config::PlatformsDef, shell::ShellConfig,
+    command::CommandDef, constraint::ConstraintRule, detection::DetectionConfig,
+    download::DownloadConfig, env::EnvConfig, executable::ExecutableConfig, health::HealthConfig,
+    hooks::HooksDef, layout::LayoutConfig,
+    mirror::{CacheConfig, MirrorConfig, MirrorStrategy},
+    output::OutputConfig, platform_config::PlatformsDef, shell::ShellConfig,
     system_deps::{SystemDepsConfigDef, SystemInstallConfigDef},
-    test_config::TestConfig,
-    version_source::VersionSourceDef,
+    test_config::TestConfig, version_source::VersionSourceDef,
 };
 
 
@@ -52,6 +52,17 @@ pub struct RuntimeDef {
     /// Executable configuration
     #[serde(default, rename = "executable_config")]
     pub executable_config: Option<ExecutableConfig>,
+
+
+    // === RFC 0019: Executable Layout Configuration ===
+    /// Layout configuration for downloaded archives
+    #[serde(default)]
+    pub layout: Option<LayoutConfig>,
+
+    // === RFC 0020: Download Configuration ===
+    /// Download configuration (timeout, retries, etc.)
+    #[serde(default)]
+    pub download: Option<DownloadConfig>,
 
     // === RFC 0018: Extended fields ===
     /// Installation priority (higher = install first)

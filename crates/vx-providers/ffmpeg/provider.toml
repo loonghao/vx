@@ -37,6 +37,14 @@ executable_paths = [
     "bin/ffmpeg"       # Unix
 ]
 
+# RFC 0020: Download Configuration
+# FFmpeg is a large file (~150MB), needs longer timeout
+[runtimes.download]
+timeout_ms = 900000  # 15 minutes for large file
+max_retries = 5
+resume_enabled = true
+execution_timeout_ms = 60000  # 1 minute for execution (ffmpeg can take time to start)
+
 # RFC 0018: Environment configuration
 [runtimes.env]
 vars = { PATH = "{install_dir}/bin" }
