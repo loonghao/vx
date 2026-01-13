@@ -36,6 +36,7 @@ mod config;
 mod executor;
 mod resolution_cache;
 mod resolver;
+mod runtime_index;
 mod runtime_map;
 mod runtime_request;
 mod runtime_spec;
@@ -49,6 +50,10 @@ pub use resolution_cache::{
 pub use resolver::{
     IncompatibleDependency, ResolutionResult, ResolvedGraph, Resolver, RuntimeStatus,
     UnsupportedPlatformRuntime,
+};
+pub use runtime_index::{
+    IndexData, IndexMetadata, RuntimeIndex, RuntimeIndexEntry, DEFAULT_INDEX_TTL,
+    RUNTIME_INDEX_DIR, RUNTIME_INDEX_SCHEMA_VERSION,
 };
 pub use runtime_map::RuntimeMap;
 pub use runtime_request::RuntimeRequest;

@@ -46,6 +46,14 @@ executable_paths = [
     "bin/go"       # Unix
 ]
 
+# RFC 0020: Download Configuration
+# Go SDK is a large file (~100MB), needs longer timeout
+[runtimes.download]
+timeout_ms = 600000  # 10 minutes for large file
+max_retries = 5
+resume_enabled = true
+execution_timeout_ms = 30000  # 30 seconds for execution
+
 [runtimes.executable_config]
 dir_pattern = "go{version}"
 

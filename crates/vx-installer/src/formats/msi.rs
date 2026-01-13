@@ -33,16 +33,13 @@ impl MsiHandler {
             .arg("/norestart") // Don't restart
             .arg(format!("TARGETDIR={}", target_dir.display()))
             .output()
-            .map_err(|e| Error::IoError {
-                message: format!("Failed to run msiexec: {}", e),
-                source: e,
-            })?;
+            .map_err(Error::Io)?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(Error::ExtractionFailed {
-                format: "msi".to_string(),
-                message: format!("msiexec failed: {}", stderr),
+                archive_path: source_path.to_path_buf(),
+                reason: format!("msiexec failed: {}", stderr),
             });
         }
 
@@ -115,8 +112,8 @@ impl FormatHandler for MsiHandler {
 
         if executables.is_empty() {
             return Err(Error::ExecutableNotFound {
-                tool: "unknown".to_string(),
-                directory: target_dir.to_path_buf(),
+                tool_name: "unknown".to_string(),
+                search_path: target_dir.to_path_buf(),
             });
         }
 

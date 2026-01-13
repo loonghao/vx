@@ -339,9 +339,20 @@ fn get_ci_test_runtimes(ctx: &CommandContext, opts: &Args) -> Vec<String> {
     for provider in registry.providers() {
         for runtime in provider.runtimes() {
             let name = runtime.name().to_string();
-            if !skip_list.contains(&name) {
-                runtimes.push(name);
+            
+            // Skip if in skip list
+            if skip_list.contains(&name) {
+                continue;
             }
+            
+            // Skip bundled runtimes by default in CI mode
+            // They will be tested as part of their parent runtime
+            // e.g., npm/npx are tested when node is tested
+            if runtime.metadata().get("bundled_with").is_some() {
+                continue;
+            }
+            
+            runtimes.push(name);
         }
     }
     
@@ -421,7 +432,14 @@ async fn run_ci_test_for_runtime(
     };
     
     // Get executable path using the provided path manager
-    let store_dir = path_manager.version_store_dir(runtime_name, &version);
+    // For bundled runtimes (like uvx, bunx, npm, npx), use the parent runtime's store directory
+    let actual_runtime_name = runtime
+        .metadata()
+        .get("bundled_with")
+        .cloned()
+        .unwrap_or_else(|| runtime_name.to_string());
+    
+    let store_dir = path_manager.version_store_dir(&actual_runtime_name, &version);
     let exe_relative = runtime.executable_relative_path(&version, &current_platform);
     let exe_path = store_dir.join(&exe_relative);
     
