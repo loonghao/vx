@@ -152,12 +152,14 @@ impl RealHttpClient {
     /// - Up to 10 idle connections per host (reduces handshake overhead)
     /// - Compression enabled by default in reqwest
     /// - HTTP/2 adaptive (automatically used when server supports it)
+    /// - Read timeout of 60 seconds (resets after each successful read, good for large files)
+    /// - No total timeout (allows large file downloads to complete)
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::builder()
                 .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
-                .timeout(Duration::from_secs(30)) // 30 seconds total timeout
-                .connect_timeout(Duration::from_secs(10)) // 10 seconds connect timeout
+                .connect_timeout(Duration::from_secs(30)) // 30 seconds to establish connection
+                .read_timeout(Duration::from_secs(60)) // 60 seconds per read operation (resets on data)
                 .pool_idle_timeout(Duration::from_secs(90)) // Keep idle connections for 90s
                 .pool_max_idle_per_host(10) // Max 10 idle connections per host
                 .build()
@@ -172,8 +174,8 @@ impl RealHttpClient {
         Self {
             client: reqwest::Client::builder()
                 .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
-                .timeout(Duration::from_secs(30)) // 30 seconds total timeout
-                .connect_timeout(Duration::from_secs(10)) // 10 seconds connect timeout
+                .connect_timeout(Duration::from_secs(30)) // 30 seconds to establish connection
+                .read_timeout(Duration::from_secs(60)) // 60 seconds per read operation (resets on data)
                 .pool_idle_timeout(Duration::from_secs(90)) // Keep idle connections for 90s
                 .pool_max_idle_per_host(10) // Max 10 idle connections per host
                 .build()
@@ -187,13 +189,13 @@ impl RealHttpClient {
     pub fn with_timeouts(
         cdn_enabled: bool,
         connect_timeout: Duration,
-        total_timeout: Duration,
+        read_timeout: Duration,
     ) -> Self {
         Self {
             client: reqwest::Client::builder()
                 .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
-                .timeout(total_timeout)
                 .connect_timeout(connect_timeout)
+                .read_timeout(read_timeout)
                 .pool_idle_timeout(Duration::from_secs(90)) // Keep idle connections for 90s
                 .pool_max_idle_per_host(10) // Max 10 idle connections per host
                 .build()

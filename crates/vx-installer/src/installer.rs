@@ -9,6 +9,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 /// Main installer for tools and packages
 pub struct Installer {
@@ -20,6 +21,21 @@ impl Installer {
     /// Create a new installer
     pub async fn new() -> Result<Self> {
         let downloader = Downloader::new()?;
+        let extractor = ArchiveExtractor::new();
+
+        Ok(Self {
+            downloader,
+            extractor,
+        })
+    }
+
+    /// Create a new installer with custom timeout
+    ///
+    /// # Arguments
+    /// * `timeout` - Download timeout duration
+    /// * `cdn_enabled` - Whether to enable CDN acceleration
+    pub async fn with_timeout(timeout: Duration, cdn_enabled: bool) -> Result<Self> {
+        let downloader = Downloader::with_timeout(timeout, cdn_enabled)?;
         let extractor = ArchiveExtractor::new();
 
         Ok(Self {
@@ -299,8 +315,24 @@ pub struct InstallConfig {
     /// Checksum for verification
     pub checksum: Option<String>,
 
+    /// Download timeout in milliseconds (default: 300000 = 5 minutes)
+    #[serde(default = "default_download_timeout")]
+    pub download_timeout_ms: u64,
+
+    /// Maximum number of retry attempts (default: 3)
+    #[serde(default = "default_max_retries")]
+    pub max_retries: u32,
+
     /// Additional configuration
     pub metadata: HashMap<String, String>,
+}
+
+fn default_download_timeout() -> u64 {
+    300_000 // 5 minutes
+}
+
+fn default_max_retries() -> u32 {
+    3
 }
 
 /// Different methods for installing tools
@@ -355,6 +387,8 @@ impl InstallConfigBuilder {
                 install_dir: PathBuf::new(),
                 force: false,
                 checksum: None,
+                download_timeout_ms: default_download_timeout(),
+                max_retries: default_max_retries(),
                 metadata: HashMap::new(),
             },
         }
@@ -399,6 +433,24 @@ impl InstallConfigBuilder {
     /// Set checksum
     pub fn checksum(mut self, checksum: impl Into<String>) -> Self {
         self.config.checksum = Some(checksum.into());
+        self
+    }
+
+    /// Set download timeout in milliseconds
+    pub fn download_timeout_ms(mut self, timeout_ms: u64) -> Self {
+        self.config.download_timeout_ms = timeout_ms;
+        self
+    }
+
+    /// Set download timeout from Duration
+    pub fn download_timeout(mut self, timeout: Duration) -> Self {
+        self.config.download_timeout_ms = timeout.as_millis() as u64;
+        self
+    }
+
+    /// Set maximum retry attempts
+    pub fn max_retries(mut self, retries: u32) -> Self {
+        self.config.max_retries = retries;
         self
     }
 

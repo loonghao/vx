@@ -20,6 +20,14 @@ owner = "ollama"
 repo = "ollama"
 strip_v_prefix = true
 
+# RFC 0020: Download Configuration
+# Ollama is a large file (~200MB+), needs longer timeout
+[runtimes.download]
+timeout_ms = 900000  # 15 minutes for large file
+max_retries = 5
+resume_enabled = true
+execution_timeout_ms = 60000  # 1 minute (ollama can take time to initialize)
+
 # Note: Ollama uses platform-specific installers (.exe, .app, .deb)
 # Layout configuration will be added when installer support is implemented
 

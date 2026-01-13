@@ -29,6 +29,14 @@ executable_paths = [
     "zig"       # Unix (root directory)
 ]
 
+# RFC 0020: Download Configuration
+# Zig is a medium-sized file (~50MB), needs moderate timeout
+[runtimes.download]
+timeout_ms = 600000  # 10 minutes
+max_retries = 5
+resume_enabled = true
+execution_timeout_ms = 30000  # 30 seconds
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 

@@ -4783,6 +4783,7 @@ version = "0.6.13"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bincode",
  "regex",
  "rstest",
  "serde",
