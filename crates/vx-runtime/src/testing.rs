@@ -559,9 +559,16 @@ impl RuntimeTestResult {
     }
 
     /// Calculate overall status from test cases
+    /// Note: This is a low-level finalization. The actual pass/fail logic
+    /// depends on the test mode (config check vs functional test) and is
+    /// handled by the CLI handler.
     pub fn finalize(mut self) -> Self {
+        // For RuntimeTestResult, overall_passed means:
+        // - Platform is supported
+        // - No errors occurred
+        // - If tests were run, they all passed
+        // The availability check (installed || system_available) is handled by the CLI
         self.overall_passed = self.platform_supported
-            && (self.installed || self.system_available)
             && self.error.is_none()
             && self.test_cases.iter().all(|t| t.passed);
         self
@@ -692,18 +699,20 @@ impl RuntimeTester {
         let start = Instant::now();
         let mut result = RuntimeTestResult::new(&self.runtime_name);
 
+        // Check availability first
+        result.installed = self.executable_path.as_ref().map_or(false, |p| p.exists());
+        result.system_available = self.check_system_available();
+
         // Check if we have an executable
         let executable = match self.get_executable() {
             Some(exe) => exe,
             None => {
-                result.error = Some("No executable found".to_string());
+                // No executable found - this is not an error for configuration checks
+                // Just return with installed=false, system_available=false
                 result.total_duration = start.elapsed();
-                return result;
+                return result.finalize();
             }
         };
-
-        result.installed = self.executable_path.is_some();
-        result.system_available = self.check_system_available();
 
         // Get test commands
         let test_commands = self.get_test_commands();
