@@ -72,7 +72,7 @@ impl Runtime for YasmRuntime {
         let mut binary_configs = std::collections::HashMap::new();
 
         binary_configs.insert(
-            "windows-x86_64".to_string(),
+            "windows-x64".to_string(),
             BinaryLayout {
                 source_name: "yasm-{version}-win64.exe".to_string(),
                 target_name: "yasm.exe".to_string(),
@@ -92,7 +92,7 @@ impl Runtime for YasmRuntime {
         );
 
         binary_configs.insert(
-            "macos-x86_64".to_string(),
+            "macos-x64".to_string(),
             BinaryLayout {
                 source_name: "yasm-{version}-macos".to_string(),
                 target_name: "yasm".to_string(),
@@ -102,7 +102,7 @@ impl Runtime for YasmRuntime {
         );
 
         binary_configs.insert(
-            "linux-x86_64".to_string(),
+            "linux-x64".to_string(),
             BinaryLayout {
                 source_name: "yasm-{version}-linux".to_string(),
                 target_name: "yasm".to_string(),

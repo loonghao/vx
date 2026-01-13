@@ -54,6 +54,8 @@ vx-provider-azcli = { workspace = true }
 vx-provider-gcloud = { workspace = true }
 vx-provider-ninja = { workspace = true }
 vx-provider-cmake = { workspace = true }
+vx-provider-meson = { workspace = true }
+vx-provider-make = { workspace = true }
 vx-provider-protoc = { workspace = true }
 vx-provider-task = { workspace = true }
 vx-provider-pre-commit = { workspace = true }

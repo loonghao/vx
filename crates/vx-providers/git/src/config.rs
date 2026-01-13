@@ -12,14 +12,21 @@ impl GitUrlBuilder {
     /// For other platforms, Git is typically installed via system package managers.
     pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
         // Git for Windows uses a different versioning scheme
-        // e.g., v2.43.0.windows.1 -> Git-2.43.0-64-bit.tar.bz2
+        // e.g., v2.43.0.windows.1 -> MinGit-2.43.0-64-bit.zip
         let base_version = Self::extract_base_version(version);
         let filename = Self::get_filename(&base_version, platform)?;
+
+        // Construct the full tag: most releases use .windows.1
+        let full_tag = if version.contains(".windows.") {
+            version.to_string()
+        } else {
+            format!("{}.windows.1", version)
+        };
 
         // Git for Windows releases are hosted on GitHub
         Some(format!(
             "https://github.com/git-for-windows/git/releases/download/v{}/{}",
-            version, filename
+            full_tag, filename
         ))
     }
 
