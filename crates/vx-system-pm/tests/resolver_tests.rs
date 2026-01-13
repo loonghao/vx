@@ -1,7 +1,7 @@
 //! Tests for SystemDependencyResolver
 
 use vx_system_pm::{
-    SystemDependency, SystemDepType, SystemDependencyResolver, DependencyResolution,
+    DependencyResolution, SystemDepType, SystemDependency, SystemDependencyResolver,
 };
 
 #[tokio::test]
@@ -15,9 +15,9 @@ async fn test_resolver_creation() {
 async fn test_resolve_empty_deps() {
     let mut resolver = SystemDependencyResolver::new();
     let deps: Vec<SystemDependency> = vec![];
-    
+
     let result = resolver.resolve(&deps).await.unwrap();
-    
+
     assert!(result.to_install.is_empty());
     assert!(result.satisfied.is_empty());
     assert!(result.unresolved.is_empty());
@@ -26,15 +26,15 @@ async fn test_resolve_empty_deps() {
 #[tokio::test]
 async fn test_resolve_platform_filtered() {
     let mut resolver = SystemDependencyResolver::new();
-    
+
     // Create a dependency for a different platform
     let deps = vec![
         SystemDependency::new(SystemDepType::Package, "test-package")
             .with_platforms(vec!["nonexistent-platform".to_string()]),
     ];
-    
+
     let result = resolver.resolve(&deps).await.unwrap();
-    
+
     // Should be filtered out due to platform mismatch
     assert!(result.to_install.is_empty());
     assert!(result.satisfied.is_empty());
@@ -59,7 +59,10 @@ fn test_system_dependency_builder() {
 #[test]
 fn test_system_dep_type_display() {
     assert_eq!(format!("{}", SystemDepType::WindowsKb), "Windows KB");
-    assert_eq!(format!("{}", SystemDepType::VcRedist), "VC++ Redistributable");
+    assert_eq!(
+        format!("{}", SystemDepType::VcRedist),
+        "VC++ Redistributable"
+    );
     assert_eq!(format!("{}", SystemDepType::DotNet), ".NET");
     assert_eq!(format!("{}", SystemDepType::Package), "Package");
 }

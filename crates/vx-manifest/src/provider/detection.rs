@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use super::defaults::default_exit_codes;
 
-
 /// Version detection configuration
 ///
 /// Declares how to detect installed versions of a runtime.

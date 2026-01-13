@@ -202,16 +202,15 @@ impl Installer {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            
+
             let permissions_str = config
                 .metadata
                 .get("target_permissions")
                 .map(|s| s.as_str())
                 .unwrap_or("755");
-            
-            let mode = u32::from_str_radix(permissions_str, 8)
-                .unwrap_or(0o755);
-            
+
+            let mode = u32::from_str_radix(permissions_str, 8).unwrap_or(0o755);
+
             let mut permissions = std::fs::metadata(&exe_path)?.permissions();
             permissions.set_mode(mode);
             std::fs::set_permissions(&exe_path, permissions)?;

@@ -2,15 +2,23 @@ use crate::PlatformConstraint;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    command::CommandDef, constraint::ConstraintRule, detection::DetectionConfig,
-    download::DownloadConfig, env::EnvConfig, executable::ExecutableConfig, health::HealthConfig,
-    hooks::HooksDef, layout::LayoutConfig,
+    command::CommandDef,
+    constraint::ConstraintRule,
+    detection::DetectionConfig,
+    download::DownloadConfig,
+    env::EnvConfig,
+    executable::ExecutableConfig,
+    health::HealthConfig,
+    hooks::HooksDef,
+    layout::LayoutConfig,
     mirror::{CacheConfig, MirrorConfig, MirrorStrategy},
-    output::OutputConfig, platform_config::PlatformsDef, shell::ShellConfig,
+    output::OutputConfig,
+    platform_config::PlatformsDef,
+    shell::ShellConfig,
     system_deps::{SystemDepsConfigDef, SystemInstallConfigDef},
-    test_config::TestConfig, version_source::VersionSourceDef,
+    test_config::TestConfig,
+    version_source::VersionSourceDef,
 };
-
 
 /// Runtime definition
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -52,7 +60,6 @@ pub struct RuntimeDef {
     /// Executable configuration
     #[serde(default, rename = "executable_config")]
     pub executable_config: Option<ExecutableConfig>,
-
 
     // === RFC 0019: Executable Layout Configuration ===
     /// Layout configuration for downloaded archives
@@ -128,7 +135,10 @@ impl RuntimeDef {
     }
 
     /// Get all required dependencies for a specific version
-    pub fn get_dependencies_for_version(&self, version: &str) -> Vec<&super::constraint::DependencyDef> {
+    pub fn get_dependencies_for_version(
+        &self,
+        version: &str,
+    ) -> Vec<&super::constraint::DependencyDef> {
         self.get_constraints_for_version(version)
             .into_iter()
             .flat_map(|c| c.requires.iter())

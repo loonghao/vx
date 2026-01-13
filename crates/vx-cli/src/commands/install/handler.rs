@@ -20,7 +20,13 @@ fn parse_tool_spec(spec: &str) -> (&str, Option<&str>) {
 
 /// Handle install command with Args
 pub async fn handle(ctx: &CommandContext, args: &Args) -> Result<()> {
-    handle_install(ctx.registry(), ctx.runtime_context(), &args.tools, args.force).await
+    handle_install(
+        ctx.registry(),
+        ctx.runtime_context(),
+        &args.tools,
+        args.force,
+    )
+    .await
 }
 
 /// Legacy handle function for backwards compatibility

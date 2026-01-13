@@ -535,9 +535,7 @@ impl RuntimeIndex {
         if let Some(entry) = data.runtimes.get_mut(runtime_name) {
             if !entry.installed_versions.contains(&version.to_string()) {
                 entry.installed_versions.push(version.to_string());
-                entry
-                    .installed_versions
-                    .sort_by(|a, b| version_cmp(b, a));
+                entry.installed_versions.sort_by(|a, b| version_cmp(b, a));
             }
         }
 
@@ -553,9 +551,7 @@ impl RuntimeIndex {
             if let Some(entry) = data.runtimes.get_mut(&bundled_name) {
                 if !entry.installed_versions.contains(&version.to_string()) {
                     entry.installed_versions.push(version.to_string());
-                    entry
-                        .installed_versions
-                        .sort_by(|a, b| version_cmp(b, a));
+                    entry.installed_versions.sort_by(|a, b| version_cmp(b, a));
                 }
             }
         }

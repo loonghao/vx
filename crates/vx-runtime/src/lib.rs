@@ -103,6 +103,8 @@ pub use plugin::{default_plugin_paths, PluginLoader, ProviderLoader, ProviderPlu
 // Manifest-driven runtimes (RFC 0021)
 pub use manifest_runtime::{
     DetectionConfig as ManifestDetectionConfig, InstallStrategy, ManifestDrivenRuntime,
-    ProvidedTool, ProviderSource, ScriptType, SystemDependency, SystemDepsConfig, SystemDepType,
+    ProvidedTool, ProviderSource, ScriptType, SystemDepType, SystemDependency, SystemDepsConfig,
 };
-pub use provider_loader::{LoadedProvider, ProviderLoader as ManifestProviderLoader, ProviderLoaderConfig};
+pub use provider_loader::{
+    LoadedProvider, ProviderLoader as ManifestProviderLoader, ProviderLoaderConfig,
+};

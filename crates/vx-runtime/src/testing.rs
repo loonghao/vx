@@ -795,10 +795,14 @@ impl RuntimeTester {
         let parts = match parse_command_line(&command_str) {
             Ok(parts) => parts,
             Err(e) => {
-                return TestCaseResult::failed(&test_name, format!("Failed to parse command: {}", e), start.elapsed());
+                return TestCaseResult::failed(
+                    &test_name,
+                    format!("Failed to parse command: {}", e),
+                    start.elapsed(),
+                );
             }
         };
-        
+
         if parts.is_empty() {
             return TestCaseResult::failed(&test_name, "Empty command", start.elapsed());
         }
@@ -939,7 +943,9 @@ impl RuntimeTester {
 
         // Execute script
         #[cfg(windows)]
-        let output = Command::new("cmd").args(["/C", &script_path.to_string_lossy()]).output()?;
+        let output = Command::new("cmd")
+            .args(["/C", &script_path.to_string_lossy()])
+            .output()?;
 
         #[cfg(unix)]
         let output = Command::new("sh").arg(&script_path).output()?;
@@ -995,7 +1001,7 @@ impl RuntimeTester {
 }
 
 /// Parse a command line string into arguments, respecting quotes
-/// 
+///
 /// Examples:
 /// - `node --version` -> ["node", "--version"]
 /// - `node -e "console.log('hello')"` -> ["node", "-e", "console.log('hello')"]
