@@ -29,6 +29,7 @@ members = [
   "crates/vx-providers/just",
   "crates/vx-providers/vite",
   "crates/vx-providers/rez",
+  "crates/vx-providers/pipx",
   "crates/vx-providers/deno",
   "crates/vx-providers/zig",
   "crates/vx-providers/java",
@@ -156,6 +157,7 @@ vx-provider-vscode = { path = "crates/vx-providers/vscode" }
 vx-provider-just = { path = "crates/vx-providers/just" }
 vx-provider-vite = { path = "crates/vx-providers/vite" }
 vx-provider-rez = { path = "crates/vx-providers/rez" }
+vx-provider-pipx = { path = "crates/vx-providers/pipx" }
 vx-provider-deno = { path = "crates/vx-providers/deno" }
 vx-provider-zig = { path = "crates/vx-providers/zig" }
 vx-provider-java = { path = "crates/vx-providers/java" }
