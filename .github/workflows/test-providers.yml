@@ -1,5 +1,5 @@
-# Example GitHub Actions workflow for testing all providers
-# Copy to .github/workflows/test-providers.yml to enable
+# GitHub Actions workflow for testing all providers with real network downloads
+# Uses `vx test --ci` for comprehensive end-to-end testing
 
 name: Test All Providers
 
@@ -8,13 +8,24 @@ on:
     branches: [ main ]
     paths:
       - 'crates/vx-providers/**'
-      - 'scripts/test-all-providers.*'
+      - 'crates/vx-runtime/**'
+      - 'crates/vx-installer/**'
   pull_request:
     branches: [ main ]
     paths:
       - 'crates/vx-providers/**'
-      - 'scripts/test-all-providers.*'
-  workflow_dispatch: # Manual trigger
+      - 'crates/vx-runtime/**'
+      - 'crates/vx-installer/**'
+  workflow_dispatch:
+    inputs:
+      runtimes:
+        description: 'Specific runtimes to test (comma-separated, empty for all)'
+        required: false
+        default: ''
+      skip:
+        description: 'Runtimes to skip (comma-separated)'
+        required: false
+        default: 'spack'
 
 jobs:
   test-providers:
@@ -42,103 +53,120 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
       
       - name: Build VX
-        run: cargo build
+        run: cargo build --release
       
-      - name: Test All Providers (Unix)
-        if: runner.os != 'Windows'
+      # Test core runtimes first (fast feedback)
+      - name: Test Core Runtimes
         run: |
-          chmod +x scripts/test-all-providers.sh
-          ./scripts/test-all-providers.sh --keep-cache
+          ./target/release/vx test --ci --ci-runtimes node,go,uv,just --keep-going --verbose
+        shell: bash
       
-      - name: Test All Providers (Windows)
-        if: runner.os == 'Windows'
+      # Full provider test (with skip list for platform-specific ones)
+      - name: Test All Providers
+        if: inputs.runtimes == ''
         run: |
-          pwsh scripts/test-all-providers.ps1 -KeepCache
+          SKIP_LIST="${{ inputs.skip || 'spack' }}"
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            SKIP_LIST="$SKIP_LIST,spack"
+          fi
+          ./target/release/vx test --ci --ci-skip $SKIP_LIST --keep-going --json > test-report.json || true
+          ./target/release/vx test --ci --ci-skip $SKIP_LIST --keep-going --detailed
+        shell: bash
+      
+      # Test specific runtimes if provided
+      - name: Test Specific Runtimes
+        if: inputs.runtimes != ''
+        run: |
+          ./target/release/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --keep-going --json > test-report.json || true
+          ./target/release/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --keep-going --detailed
+        shell: bash
       
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: provider-test-report-${{ matrix.os }}
-          path: |
-            **/test-report.json
-            /tmp/vx-test-*/test-report.json
+          path: test-report.json
           retention-days: 7
       
-      - name: Comment PR with Results (Optional)
-        if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const reportPath = fs.readdirSync('/tmp')
-              .filter(f => f.startsWith('vx-test-'))
-              .map(f => `/tmp/${f}/test-report.json`)[0];
-            
-            if (!fs.existsSync(reportPath)) return;
-            
-            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-            const successRate = ((report.Passed / report.Total) * 100).toFixed(2);
-            
-            const body = `## Provider Test Results (${{ matrix.os }})
-            
-            - ✅ Passed: ${report.Passed}
-            - ❌ Failed: ${report.Failed}
-            - ⏭️  Skipped: ${report.Skipped}
-            - 📊 Success Rate: ${successRate}%
-            
-            <details>
-            <summary>Per-Provider Results</summary>
-            
-            ${report.Providers.map(p => {
-              const passed = p.Tests.filter(t => t.Result.Success).length;
-              const total = p.Tests.length;
-              const icon = passed === total ? '✅' : '❌';
-              return `${icon} **${p.Name}**: ${passed}/${total}`;
-            }).join('\n')}
-            
-            </details>`;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+      - name: Check Test Results
+        run: |
+          if [ -f test-report.json ]; then
+            FAILED=$(cat test-report.json | jq '.failed')
+            if [ "$FAILED" != "0" ]; then
+              echo "::error::$FAILED provider(s) failed"
+              exit 1
+            fi
+          fi
+        shell: bash
 
-  # Optional: Test only specific providers that changed
-  test-changed-providers:
-    name: Test Changed Providers
+  # Quick smoke test for PRs (only test a subset)
+  quick-test:
+    name: Quick Provider Test
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
       - name: Build VX
-        run: cargo build
+        run: cargo build --release
       
-      - name: Get Changed Providers
-        id: changed
+      - name: Quick Provider Test
         run: |
-          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | \
-            grep '^crates/vx-providers/' | \
-            cut -d'/' -f3 | \
-            sort -u | \
-            tr '\n' '|' | \
-            sed 's/|$//')
-          echo "providers=$CHANGED" >> $GITHUB_OUTPUT
+          # Test essential runtimes only for fast PR feedback
+          ./target/release/vx test --ci --ci-runtimes node,go,uv,cargo,just --verbose
+
+  # Summary job to report overall status
+  summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [test-providers]
+    if: always()
+    
+    steps:
+      - name: Download all reports
+        uses: actions/download-artifact@v6
+        with:
+          pattern: provider-test-report-*
+          merge-multiple: true
       
-      - name: Test Changed Providers
-        if: steps.changed.outputs.providers != ''
+      - name: Generate Summary
         run: |
-          chmod +x scripts/test-all-providers.sh
-          ./scripts/test-all-providers.sh --filter "${{ steps.changed.outputs.providers }}"
+          echo "## Provider Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          for report in provider-test-report-*/test-report.json; do
+            if [ -f "$report" ]; then
+              OS=$(dirname "$report" | sed 's/provider-test-report-//')
+              TOTAL=$(cat "$report" | jq '.total')
+              PASSED=$(cat "$report" | jq '.passed')
+              FAILED=$(cat "$report" | jq '.failed')
+              SKIPPED=$(cat "$report" | jq '.skipped')
+              
+              echo "### $OS" >> $GITHUB_STEP_SUMMARY
+              echo "- ✅ Passed: $PASSED" >> $GITHUB_STEP_SUMMARY
+              echo "- ❌ Failed: $FAILED" >> $GITHUB_STEP_SUMMARY
+              echo "- ⏭️ Skipped: $SKIPPED" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
