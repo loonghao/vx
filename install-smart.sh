@@ -570,7 +570,7 @@ main() {
     echo "   vx --help          # Show help"
     echo "   vx list            # List available tools"
     echo "   vx npm --version   # Use npm through vx"
-    echo "   vx uv --version    # Use uv through vx"
+    echo "   vx uv self version    # Use uv through vx"
 }
 
 # Run main function
