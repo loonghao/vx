@@ -164,8 +164,8 @@ impl Runtime for RustupRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Fetch rustup versions from GitHub releases
-        ctx.fetch_github_releases(
+        // Fetch rustup versions from GitHub tags (rustup doesn't use GitHub Releases)
+        ctx.fetch_github_tags(
             "rustup",
             "rust-lang",
             "rustup",
