@@ -1,0 +1,47 @@
+# GNU Make Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for GNU Make.
+
+[provider]
+name = "make"
+description = "GNU Make - A build automation tool"
+homepage = "https://www.gnu.org/software/make/"
+repository = "https://github.com/mbuilov/gnumake-windows"
+ecosystem = "system"
+
+# Platform constraint: only Windows is supported for binary download
+# Unix users should use system package manager
+[provider.platform_constraint]
+os = ["windows"]
+
+# Make
+[[runtimes]]
+name = "make"
+aliases = ["gmake", "gnumake"]
+description = "GNU Make build automation tool"
+executable = "make"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "mbuilov"
+repo = "gnumake-windows"
+strip_v_prefix = false
+
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive."windows-x64"]
+strip_prefix = ""
+executable_path = "make.exe"
+
+[runtimes.layout.archive."windows-x86"]
+strip_prefix = ""
+executable_path = "make.exe"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+# Make has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []
