@@ -4,15 +4,15 @@
 version = 1
 
 [metadata]
-generated_at = "2026-01-13T05:38:18Z"
+generated_at = "2026-01-13T12:32:41Z"
 vx_version = "0.6.6"
 platform = "x86_64-pc-windows-msvc"
 
-[tools.uv]
-version = "0.9.22"
+[tools.node]
+version = "24.12.0"
 source = "vx install"
 resolved_from = "latest"
-ecosystem = "Python"
+ecosystem = "Node"
 
 [tools.cmake]
 version = "4.2.1"
@@ -20,11 +20,17 @@ source = "vx install"
 resolved_from = "latest"
 ecosystem = "Generic"
 
-[tools.bun]
-version = "1.3.5"
+[tools.uv]
+version = "0.9.22"
 source = "vx install"
 resolved_from = "latest"
-ecosystem = "Node"
+ecosystem = "Python"
+
+[tools.java]
+version = "25"
+source = "vx install"
+resolved_from = "latest"
+ecosystem = "Generic"
 
 [tools.go]
 version = "1.25.5"
@@ -32,8 +38,8 @@ source = "vx install"
 resolved_from = "latest"
 ecosystem = "Go"
 
-[tools.node]
-version = "24.12.0"
+[tools.bun]
+version = "1.3.5"
 source = "vx install"
 resolved_from = "latest"
 ecosystem = "Node"

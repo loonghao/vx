@@ -206,7 +206,7 @@ fn execute_command_in_env(cmd: &[String], env_vars: &HashMap<String, String>) ->
         .with_context(|| format!("Failed to execute: {}", program))?;
 
     if !status.success() {
-        std::process::exit(status.code().unwrap_or(1));
+        std::process::exit(vx_resolver::exit_code_from_status(&status));
     }
 
     Ok(())
@@ -283,7 +283,7 @@ fn spawn_dev_shell(
     })?;
 
     if !status.success() {
-        std::process::exit(status.code().unwrap_or(1));
+        std::process::exit(vx_resolver::exit_code_from_status(&status));
     }
 
     UI::info("Left vx development environment");

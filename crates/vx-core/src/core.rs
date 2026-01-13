@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::process::ExitStatus;
 
 /// Core result type for vx operations
 pub type VxResult<T> = Result<T, VxError>;
@@ -310,5 +311,71 @@ mod tests {
         let config = VxConfig::default();
         assert!(config.install_dir.to_string_lossy().contains(".vx"));
         assert!(!config.registries.is_empty());
+    }
+}
+
+// ============================================================================
+// Process Exit Status Utilities
+// ============================================================================
+
+/// Check if an exit status indicates the process was terminated by Ctrl+C
+/// 
+/// On Windows, STATUS_CONTROL_C_EXIT (0xC000013A) indicates Ctrl+C termination.
+/// On Unix, signal 2 (SIGINT) indicates Ctrl+C termination.
+/// 
+/// # Example
+/// 
+/// ```rust,ignore
+/// use std::process::Command;
+/// use vx_core::is_ctrl_c_exit;
+/// 
+/// let status = Command::new("some_command").status().unwrap();
+/// if is_ctrl_c_exit(&status) {
+///     // Process was terminated by Ctrl+C
+/// }
+/// ```
+pub fn is_ctrl_c_exit(status: &ExitStatus) -> bool {
+    #[cfg(windows)]
+    {
+        // Windows STATUS_CONTROL_C_EXIT = 0xC000013A = 3221225786
+        // This is returned as a negative i32 when cast: -1073741510
+        if let Some(code) = status.code() {
+            // Check both the unsigned and signed representations
+            code == -1073741510 || code as u32 == 0xC000013A
+        } else {
+            false
+        }
+    }
+    
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        // SIGINT = 2
+        status.signal() == Some(2)
+    }
+}
+
+/// Convert an exit status to an appropriate exit code
+/// 
+/// This handles special cases like Ctrl+C termination, returning 130 (128 + SIGINT)
+/// which is the standard Unix convention for signal termination.
+/// 
+/// # Example
+/// 
+/// ```rust,ignore
+/// use std::process::Command;
+/// use vx_core::exit_code_from_status;
+/// 
+/// let status = Command::new("some_command").status().unwrap();
+/// let code = exit_code_from_status(&status);
+/// std::process::exit(code);
+/// ```
+pub fn exit_code_from_status(status: &ExitStatus) -> i32 {
+    if is_ctrl_c_exit(status) {
+        // Return 130 (128 + 2) which is the standard exit code for SIGINT
+        // This is recognized by shells as "terminated by signal"
+        130
+    } else {
+        status.code().unwrap_or(1)
     }
 }
