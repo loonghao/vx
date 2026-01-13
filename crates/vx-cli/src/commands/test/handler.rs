@@ -94,11 +94,7 @@ async fn handle_test_runtime(ctx: &CommandContext, runtime_name: &str, opts: &Ar
 }
 
 /// Handle --install test mode: install the runtime and verify executable exists
-async fn handle_install_test(
-    ctx: &CommandContext,
-    runtime_name: &str,
-    opts: &Args,
-) -> Result<()> {
+async fn handle_install_test(ctx: &CommandContext, runtime_name: &str, opts: &Args) -> Result<()> {
     use std::time::Instant;
 
     let start = Instant::now();
@@ -213,39 +209,41 @@ struct CITestSummary {
 }
 
 /// Handle --ci mode: Full end-to-end testing
-/// 
+///
 /// This mode:
 /// 1. Installs each runtime from network
 /// 2. Runs functional tests (--version, etc.)
 /// 3. Reports detailed results
 async fn handle_ci_test(ctx: &CommandContext, opts: &Args) -> Result<()> {
     use std::time::Instant;
-    
+
     let total_start = Instant::now();
     let mut summary = CITestSummary::default();
-    
+
     // Setup VX root for testing
     let (test_root, _temp_dir) = setup_test_root(opts)?;
-    
+
     // Create a custom runtime context if using custom root
     let custom_context = if let Some(ref root) = test_root {
         Some(vx_runtime::create_runtime_context_with_base(root))
     } else {
         None
     };
-    
-    let runtime_context = custom_context.as_ref().unwrap_or_else(|| ctx.runtime_context());
-    
+
+    let runtime_context = custom_context
+        .as_ref()
+        .unwrap_or_else(|| ctx.runtime_context());
+
     // Create custom path manager for the test root
     let path_manager = if let Some(ref root) = test_root {
         vx_paths::PathManager::with_base_dir(root)?
     } else {
         vx_paths::PathManager::new()?
     };
-    
+
     // Determine which runtimes to test
     let runtimes_to_test = get_ci_test_runtimes(ctx, opts);
-    
+
     if !opts.quiet && !opts.json {
         println!("🚀 VX CI Test - Full End-to-End Testing");
         println!("=========================================");
@@ -258,16 +256,11 @@ async fn handle_ci_test(ctx: &CommandContext, opts: &Args) -> Result<()> {
         }
         println!();
     }
-    
+
     for runtime_name in &runtimes_to_test {
-        let result = run_ci_test_for_runtime(
-            ctx,
-            runtime_context,
-            &path_manager,
-            runtime_name,
-            opts,
-        ).await;
-        
+        let result =
+            run_ci_test_for_runtime(ctx, runtime_context, &path_manager, runtime_name, opts).await;
+
         // Update summary
         summary.total += 1;
         if !result.platform_supported {
@@ -277,25 +270,25 @@ async fn handle_ci_test(ctx: &CommandContext, opts: &Args) -> Result<()> {
         } else {
             summary.failed += 1;
         }
-        
+
         // Print result line
         if !opts.quiet && !opts.json {
             print_ci_result_line(&result, opts);
         }
-        
+
         summary.results.push(result);
-        
+
         // Early exit if not keep-going and we have a failure
         if !opts.keep_going && summary.failed > 0 {
             break;
         }
     }
-    
+
     summary.total_duration_secs = total_start.elapsed().as_secs_f64();
-    
+
     // Output summary
     output_ci_summary(&summary, opts);
-    
+
     // Exit with appropriate code
     if summary.failed == 0 {
         std::process::exit(0);
@@ -313,9 +306,7 @@ fn setup_test_root(opts: &Args) -> Result<(Option<PathBuf>, Option<tempfile::Tem
         Ok((Some(root.clone()), None))
     } else if opts.temp_root {
         // Create temporary directory
-        let temp_dir = tempfile::Builder::new()
-            .prefix("vx-ci-test-")
-            .tempdir()?;
+        let temp_dir = tempfile::Builder::new().prefix("vx-ci-test-").tempdir()?;
         let root = temp_dir.path().to_path_buf();
         Ok((Some(root), Some(temp_dir)))
     } else {
@@ -330,32 +321,32 @@ fn get_ci_test_runtimes(ctx: &CommandContext, opts: &Args) -> Vec<String> {
     if let Some(ref runtimes) = opts.ci_runtimes {
         return runtimes.clone();
     }
-    
+
     // Otherwise, get all runtimes from registry
     let registry = ctx.registry();
     let skip_list: Vec<String> = opts.ci_skip.clone().unwrap_or_default();
-    
+
     let mut runtimes = Vec::new();
     for provider in registry.providers() {
         for runtime in provider.runtimes() {
             let name = runtime.name().to_string();
-            
+
             // Skip if in skip list
             if skip_list.contains(&name) {
                 continue;
             }
-            
+
             // Skip bundled runtimes by default in CI mode
             // They will be tested as part of their parent runtime
             // e.g., npm/npx are tested when node is tested
             if runtime.metadata().get("bundled_with").is_some() {
                 continue;
             }
-            
+
             runtimes.push(name);
         }
     }
-    
+
     runtimes
 }
 
@@ -368,7 +359,7 @@ async fn run_ci_test_for_runtime(
     opts: &Args,
 ) -> CITestResult {
     use std::time::Instant;
-    
+
     let mut result = CITestResult {
         runtime: runtime_name.to_string(),
         platform_supported: true,
@@ -380,7 +371,7 @@ async fn run_ci_test_for_runtime(
         error: None,
         version_installed: None,
     };
-    
+
     // Check platform support
     let runtime = match ctx.registry().get_runtime(runtime_name) {
         Some(r) => r,
@@ -389,32 +380,28 @@ async fn run_ci_test_for_runtime(
             return result;
         }
     };
-    
+
     let current_platform = vx_runtime::Platform::current();
     if !runtime.is_platform_supported(&current_platform) {
         result.platform_supported = false;
         return result;
     }
-    
+
     // Step 1: Install runtime (quietly for JSON mode)
     let install_start = Instant::now();
-    
+
     if opts.verbose && !opts.quiet && !opts.json {
         println!("  📦 Installing {}...", runtime_name);
     }
-    
+
     let install_result = tokio::time::timeout(
         std::time::Duration::from_secs(opts.timeout),
-        crate::commands::install::install_quiet(
-            ctx.registry(),
-            runtime_context,
-            runtime_name,
-        ),
+        crate::commands::install::install_quiet(ctx.registry(), runtime_context, runtime_name),
     )
     .await;
-    
+
     result.install_duration_secs = install_start.elapsed().as_secs_f64();
-    
+
     let version = match install_result {
         Ok(Ok(v)) => {
             result.install_success = true;
@@ -430,7 +417,7 @@ async fn run_ci_test_for_runtime(
             return result;
         }
     };
-    
+
     // Get executable path using the provided path manager
     // Handle different installation methods: binary, npm, pip
     let exe_path = get_executable_path_for_runtime(
@@ -440,34 +427,34 @@ async fn run_ci_test_for_runtime(
         path_manager,
         &current_platform,
     );
-    
+
     if !exe_path.exists() {
         result.error = Some(format!("Executable not found: {}", exe_path.display()));
         return result;
     }
-    
+
     // Step 2: Run functional tests
     if opts.verbose && !opts.quiet && !opts.json {
         println!("  🧪 Running functional tests...");
     }
-    
+
     let test_config = ctx
         .get_runtime_manifest(runtime_name)
         .and_then(|def| def.test.clone());
-    
+
     let mut tester = RuntimeTester::new(runtime_name).with_executable(exe_path);
-    
+
     if let Some(config) = test_config {
         tester = tester.with_config(config);
     }
-    
+
     let test_result = tester.run_all();
     result.functional_tests = test_result.test_cases;
     result.functional_success = result.functional_tests.iter().all(|t| t.passed);
-    
+
     // Overall pass: install success AND functional tests pass
     result.overall_passed = result.install_success && result.functional_success;
-    
+
     result
 }
 
@@ -476,11 +463,15 @@ fn print_ci_result_line(result: &CITestResult, opts: &Args) {
         println!("  ⚠ {} - platform not supported", result.runtime);
         return;
     }
-    
+
     let status = if result.overall_passed { "✓" } else { "✗" };
     let install_status = if result.install_success { "✓" } else { "✗" };
-    let func_status = if result.functional_success { "✓" } else { "✗" };
-    
+    let func_status = if result.functional_success {
+        "✓"
+    } else {
+        "✗"
+    };
+
     if result.overall_passed {
         println!(
             "  {} {} - passed (install: {:.1}s, tests: {})",
@@ -499,7 +490,7 @@ fn print_ci_result_line(result: &CITestResult, opts: &Args) {
             println!("      Error: {}", error);
         }
     }
-    
+
     if opts.verbose && !result.functional_tests.is_empty() {
         for tc in &result.functional_tests {
             let tc_status = if tc.passed { "✓" } else { "✗" };
@@ -523,11 +514,11 @@ fn output_ci_summary(summary: &CITestSummary, opts: &Args) {
         println!("{}", serde_json::to_string_pretty(summary).unwrap());
         return;
     }
-    
+
     if opts.quiet {
         return;
     }
-    
+
     println!();
     println!("=========================================");
     println!("🏁 CI Test Summary");
@@ -537,7 +528,7 @@ fn output_ci_summary(summary: &CITestSummary, opts: &Args) {
     println!("Failed:   {} ✗", summary.failed);
     println!("Skipped:  {} ⚠", summary.skipped);
     println!("Duration: {:.1}s", summary.total_duration_secs);
-    
+
     if summary.failed > 0 {
         println!();
         println!("Failed runtimes:");
@@ -550,7 +541,7 @@ fn output_ci_summary(summary: &CITestSummary, opts: &Args) {
             }
         }
     }
-    
+
     if opts.detailed {
         println!();
         println!("Detailed Results:");
@@ -727,7 +718,7 @@ fn get_installed_executable(ctx: &CommandContext, runtime_name: &str) -> Option<
     let platform = vx_runtime::Platform::current();
     let metadata = runtime.metadata();
     let install_method = metadata.get("install_method").map(|s| s.as_str());
-    
+
     match install_method {
         Some("npm") => {
             // npm packages are installed in npm-tools directory
@@ -780,7 +771,7 @@ fn get_installed_executable(ctx: &CommandContext, runtime_name: &str) -> Option<
                     return Some(exe_path);
                 }
             }
-            
+
             // Check for bundled runtimes (e.g., ffprobe bundled with ffmpeg)
             if let Some(parent_tool) = metadata.get("bundled_with") {
                 let parent_versions = path_manager.list_store_versions(parent_tool).ok()?;
@@ -809,7 +800,7 @@ fn get_executable_path_for_runtime(
 ) -> std::path::PathBuf {
     let metadata = runtime.metadata();
     let install_method = metadata.get("install_method").map(|s| s.as_str());
-    
+
     match install_method {
         Some("npm") => {
             // npm packages are installed in npm-tools directory

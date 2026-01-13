@@ -287,13 +287,13 @@ pub trait Runtime: Send + Sync {
         // Try layout-based resolution first (RFC 0019)
         if let Some(layout) = self.executable_layout() {
             use crate::layout::LayoutContext;
-            
+
             let ctx = LayoutContext {
                 version: version.to_string(),
                 name: self.name().to_string(),
                 platform: platform.clone(),
             };
-            
+
             if let Ok(resolved) = layout.resolve(&ctx) {
                 // Return the relative path from resolved layout
                 let install_root = std::path::Path::new("");
@@ -301,7 +301,7 @@ pub trait Runtime: Send + Sync {
                 return exe_path.to_string_lossy().to_string();
             }
         }
-        
+
         // Fallback to legacy method
         let exe_name = self.executable_name();
         let full_name = platform.executable_with_extensions(exe_name, self.executable_extensions());
@@ -736,20 +736,21 @@ pub trait Runtime: Send + Sync {
         let mut layout_metadata = std::collections::HashMap::new();
         if let Some(layout) = self.executable_layout() {
             use crate::layout::LayoutContext;
-            
+
             let layout_ctx = LayoutContext {
                 version: version.to_string(),
                 name: self.name().to_string(),
                 platform: platform.clone(),
             };
-            
+
             if let Ok(resolved) = layout.resolve(&layout_ctx) {
-                if let crate::layout::ResolvedLayout::Binary { 
-                    source_name, 
-                    target_name, 
-                    target_dir, 
-                    permissions 
-                } = resolved {
+                if let crate::layout::ResolvedLayout::Binary {
+                    source_name,
+                    target_name,
+                    target_dir,
+                    permissions,
+                } = resolved
+                {
                     layout_metadata.insert("source_name".to_string(), source_name);
                     layout_metadata.insert("target_name".to_string(), target_name);
                     layout_metadata.insert("target_dir".to_string(), target_dir);

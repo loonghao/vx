@@ -20,9 +20,17 @@ pub enum SystemPmError {
     #[error("Package '{0}' not found in {1}")]
     PackageNotFound(String, String),
 
-    /// Installation failed
+    /// Installation failed (simple variant)
+    #[error("Installation failed: {0}")]
+    InstallFailed(String),
+
+    /// Installation failed (detailed variant)
     #[error("Failed to install '{package}': {reason}")]
     InstallationFailed { package: String, reason: String },
+
+    /// Uninstallation failed
+    #[error("Uninstallation failed: {0}")]
+    UninstallFailed(String),
 
     /// Dependency resolution failed
     #[error("Failed to resolve dependency '{0}': {1}")]

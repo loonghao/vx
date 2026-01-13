@@ -151,22 +151,19 @@ impl Runtime for AwsCliRuntime {
             } else {
                 format!("AWSCLIV2-{}.msi", version)
             };
-            
+
             // MSI file might be in root or in a subdirectory after download
             let possible_msi_paths = vec![
                 install_path.join(&msi_filename),
                 install_path.join("bin").join(&msi_filename),
             ];
-            
+
             let msi_file = possible_msi_paths
                 .iter()
                 .find(|p| p.exists())
                 .cloned()
                 .ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "MSI file not found. Searched: {:?}",
-                        possible_msi_paths
-                    )
+                    anyhow::anyhow!("MSI file not found. Searched: {:?}", possible_msi_paths)
                 })?;
 
             eprintln!("📦 Installing AWS CLI using msiexec...");

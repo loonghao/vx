@@ -171,7 +171,7 @@ impl CommandContext {
     /// Get runtime manifest definition by name
     pub fn get_runtime_manifest(&self, runtime_name: &str) -> Option<RuntimeDef> {
         let registry = self.manifest_registry()?;
-        
+
         // Search through all manifests for the runtime
         for manifest in registry.manifest_names() {
             if let Some(provider_manifest) = registry.get_manifest(&manifest) {

@@ -21,6 +21,7 @@ impl HomebrewManager {
     }
 
     /// Run a shell command
+    #[allow(dead_code)]
     fn run_shell(&self, script: &str) -> std::io::Result<std::process::Output> {
         Command::new("bash").args(["-c", script]).output()
     }
@@ -60,10 +61,12 @@ impl SystemPackageManager for HomebrewManager {
 
     async fn install_package(&self, spec: &PackageInstallSpec) -> Result<InstallResult> {
         if !self.is_installed().await {
-            return Err(SystemPmError::PackageManagerNotInstalled("brew".to_string()));
+            return Err(SystemPmError::PackageManagerNotInstalled(
+                "brew".to_string(),
+            ));
         }
 
-        let mut args = vec!["install", &spec.package];
+        let args = vec!["install", &spec.package];
 
         debug!("Running: brew {}", args.join(" "));
 
@@ -98,7 +101,9 @@ impl SystemPackageManager for HomebrewManager {
 
     async fn uninstall_package(&self, package: &str) -> Result<()> {
         if !self.is_installed().await {
-            return Err(SystemPmError::PackageManagerNotInstalled("brew".to_string()));
+            return Err(SystemPmError::PackageManagerNotInstalled(
+                "brew".to_string(),
+            ));
         }
 
         let output = self.run_brew(&["uninstall", package])?;

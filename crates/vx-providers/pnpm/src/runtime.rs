@@ -66,7 +66,7 @@ impl Runtime for PnpmRuntime {
     /// Rename the downloaded file to standard name (runs before verification)
     fn post_extract(&self, _version: &str, install_path: &PathBuf) -> Result<()> {
         let platform = Platform::current();
-        
+
         // BinaryHandler puts files in bin/ directory
         let bin_dir = install_path.join("bin");
 

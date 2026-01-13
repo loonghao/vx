@@ -98,9 +98,7 @@ impl FormatHandler for MsiHandler {
         target_dir: &Path,
         progress: &ProgressContext,
     ) -> Result<Vec<PathBuf>> {
-        progress
-            .start("Extracting MSI package", Some(1))
-            .await?;
+        progress.start("Extracting MSI package", Some(1)).await?;
 
         // Extract MSI to target directory
         self.extract_msi(source_path, target_dir).await?;
@@ -117,9 +115,7 @@ impl FormatHandler for MsiHandler {
             });
         }
 
-        progress
-            .finish("MSI package extraction completed")
-            .await?;
+        progress.finish("MSI package extraction completed").await?;
 
         Ok(executables)
     }

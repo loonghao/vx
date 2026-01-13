@@ -74,7 +74,9 @@ impl SystemDependency {
 
         let current_os = std::env::consts::OS;
         self.platforms.iter().any(|p| {
-            p == current_os || p == "*" || (p == "unix" && (current_os == "linux" || current_os == "macos"))
+            p == current_os
+                || p == "*"
+                || (p == "unix" && (current_os == "linux" || current_os == "macos"))
         })
     }
 }

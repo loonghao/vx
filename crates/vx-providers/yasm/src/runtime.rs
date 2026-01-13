@@ -9,8 +9,8 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use vx_runtime::{
-    Arch, Ecosystem, ExecutableLayout, Os, Platform, Runtime, RuntimeContext,
-    VerificationResult, VersionInfo,
+    Arch, Ecosystem, ExecutableLayout, Os, Platform, Runtime, RuntimeContext, VerificationResult,
+    VersionInfo,
 };
 
 /// YASM runtime implementation
@@ -68,9 +68,9 @@ impl Runtime for YasmRuntime {
         // Parse the layout from our embedded provider.toml
         // For now, we'll define it in code (later it will be parsed from manifest)
         use vx_runtime::BinaryLayout;
-        
+
         let mut binary_configs = std::collections::HashMap::new();
-        
+
         binary_configs.insert(
             "windows-x86_64".to_string(),
             BinaryLayout {
@@ -80,7 +80,7 @@ impl Runtime for YasmRuntime {
                 target_permissions: None,
             },
         );
-        
+
         binary_configs.insert(
             "windows-x86".to_string(),
             BinaryLayout {
@@ -90,7 +90,7 @@ impl Runtime for YasmRuntime {
                 target_permissions: None,
             },
         );
-        
+
         binary_configs.insert(
             "macos-x86_64".to_string(),
             BinaryLayout {
@@ -100,7 +100,7 @@ impl Runtime for YasmRuntime {
                 target_permissions: Some("755".to_string()),
             },
         );
-        
+
         binary_configs.insert(
             "linux-x86_64".to_string(),
             BinaryLayout {
@@ -110,7 +110,7 @@ impl Runtime for YasmRuntime {
                 target_permissions: Some("755".to_string()),
             },
         );
-        
+
         Some(ExecutableLayout {
             download_type: vx_runtime::DownloadType::Binary,
             binary: Some(binary_configs),
@@ -150,9 +150,9 @@ impl Runtime for YasmRuntime {
         // Original: bin/yasm-1.3.0-win64.exe
         // Standard: bin/yasm.exe
         use std::fs;
-        
+
         let platform = Platform::current();
-        
+
         let original_name = match (&platform.os, &platform.arch) {
             (Os::Windows, Arch::X86_64) => format!("yasm-{}-win64.exe", version),
             (Os::Windows, Arch::X86) => format!("yasm-{}-win32.exe", version),
@@ -160,21 +160,21 @@ impl Runtime for YasmRuntime {
             (Os::Linux, _) => format!("yasm-{}-linux", version),
             _ => return Ok(()),
         };
-        
+
         let bin_dir = install_path.join("bin");
         fs::create_dir_all(&bin_dir)?;
-        
+
         let original_path = bin_dir.join(&original_name);
         let standard_name = YasmUrlBuilder::get_executable_name(&platform);
         let standard_path = bin_dir.join(&standard_name);
-        
+
         // Rename the file to standard name
         if original_path.exists() {
             if standard_path.exists() {
                 fs::remove_file(&standard_path)?;
             }
             fs::rename(&original_path, &standard_path)?;
-            
+
             // Set executable permissions on Unix
             #[cfg(unix)]
             {
@@ -184,7 +184,7 @@ impl Runtime for YasmRuntime {
                 fs::set_permissions(&standard_path, perms)?;
             }
         }
-        
+
         Ok(())
     }
 
@@ -197,7 +197,7 @@ impl Runtime for YasmRuntime {
         // Check for standard executable name (after post_extract renamed it)
         let exe_name = YasmUrlBuilder::get_executable_name(platform);
         let exe_path = install_path.join("bin").join(&exe_name);
-        
+
         if exe_path.exists() {
             VerificationResult::success(exe_path)
         } else {

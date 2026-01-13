@@ -17,7 +17,7 @@ use vx_paths::VxPaths;
 
 use crate::manifest_runtime::{
     DetectionConfig, InstallStrategy, ManifestDrivenRuntime, ProvidedTool, ProviderSource,
-    ScriptType, SystemDependency, SystemDepType, SystemDepsConfig,
+    ScriptType, SystemDepType, SystemDependency, SystemDepsConfig,
 };
 use crate::Runtime;
 
@@ -183,8 +183,8 @@ impl ProviderLoader {
 
     /// Load a provider from a provider.toml file
     fn load_provider(&self, path: &Path) -> Result<LoadedProvider> {
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read {:?}", path))?;
+        let content =
+            std::fs::read_to_string(path).with_context(|| format!("Failed to read {:?}", path))?;
 
         let manifest: toml::Value =
             toml::from_str(&content).with_context(|| format!("Failed to parse {:?}", path))?;
@@ -261,8 +261,7 @@ impl ProviderLoader {
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow::anyhow!("Runtime missing name"))?;
 
-            let mut runtime =
-                ManifestDrivenRuntime::new(name, provider_name, source.clone());
+            let mut runtime = ManifestDrivenRuntime::new(name, provider_name, source.clone());
 
             // Description
             if let Some(desc) = runtime_value.get("description").and_then(|v| v.as_str()) {
@@ -290,7 +289,8 @@ impl ProviderLoader {
 
             // System installation strategies
             if let Some(system_install) = runtime_value.get("system_install") {
-                if let Some(strategies) = system_install.get("strategies").and_then(|v| v.as_array())
+                if let Some(strategies) =
+                    system_install.get("strategies").and_then(|v| v.as_array())
                 {
                     for strategy_value in strategies {
                         if let Some(strategy) = self.parse_install_strategy(strategy_value) {

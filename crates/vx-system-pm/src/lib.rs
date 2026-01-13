@@ -45,12 +45,12 @@ mod strategy;
 
 pub mod managers;
 
-pub use dependency::{SystemDependency, SystemDepType, SystemDepsConfig};
+pub use dependency::{SystemDepType, SystemDependency, SystemDepsConfig};
 pub use detector::PackageManagerDetector;
-pub use error::{SystemPmError, Result};
-pub use managers::{
-    InstallResult, PackageInstallSpec, SystemPackageManager,
-};
+pub use error::{Result, SystemPmError};
+pub use managers::{InstallResult, PackageInstallSpec, SystemPackageManager};
 pub use registry::PackageManagerRegistry;
-pub use resolver::{DependencyResolution, ResolvedDependency, SystemDependencyResolver, UnresolvedDependency};
+pub use resolver::{
+    DependencyResolution, ResolvedDependency, SystemDependencyResolver, UnresolvedDependency,
+};
 pub use strategy::InstallStrategy;

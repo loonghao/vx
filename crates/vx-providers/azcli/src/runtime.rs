@@ -51,9 +51,7 @@ impl AzCliRuntime {
     /// Find an executable file by name recursively (Windows helper)
     #[cfg(target_os = "windows")]
     fn find_executable_recursive(dir: &Path, exe_name: &str) -> Option<std::path::PathBuf> {
-        Self::find_file_recursive(dir, |p| {
-            p.file_name().is_some_and(|n| n == exe_name)
-        })
+        Self::find_file_recursive(dir, |p| p.file_name().is_some_and(|n| n == exe_name))
     }
 }
 
