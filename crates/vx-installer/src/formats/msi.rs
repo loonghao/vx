@@ -6,6 +6,7 @@
 use super::FormatHandler;
 use crate::{progress::ProgressContext, Error, Result};
 use std::path::{Path, PathBuf};
+#[cfg(windows)]
 use std::process::Command;
 
 /// Handler for MSI files (Windows Installer packages)
@@ -157,8 +158,7 @@ impl FormatHandler for MsiHandler {
         _progress: &ProgressContext,
     ) -> Result<Vec<PathBuf>> {
         Err(Error::UnsupportedFormat {
-            format: "msi".to_string(),
-            message: "MSI format is only supported on Windows".to_string(),
+            format: "msi (Windows-only)".to_string(),
         })
     }
 }
