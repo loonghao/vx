@@ -200,11 +200,3 @@ impl RuntimeAvailability {
         )
     }
 }
-
-// Backward compatibility aliases
-pub use execute_runtime as execute_tool;
-pub use execute_runtime_with_version as execute_tool_with_version;
-pub use execute_system_runtime as execute_system_tool;
-pub use get_runtime_info as get_tool_info;
-pub use is_runtime_available as is_tool_available;
-pub type ToolAvailability = RuntimeAvailability;

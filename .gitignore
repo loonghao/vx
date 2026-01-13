@@ -41,3 +41,4 @@ dist/
 $null
 
 *.txt
+.vite/

@@ -139,6 +139,13 @@ pub async fn handle_schema(output: Option<String>) -> Result<()> {
     Ok(())
 }
 
+/// Handle config dir command - show configuration directory path
+pub async fn handle_dir() -> Result<()> {
+    let paths = vx_paths::VxPaths::new()?;
+    println!("{}", paths.config_dir.display());
+    Ok(())
+}
+
 /// Resolve config path from option or current directory
 fn resolve_config_path(path: Option<String>) -> Result<PathBuf> {
     if let Some(p) = path {

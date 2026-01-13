@@ -3,19 +3,29 @@
 //! Each command is implemented in its own module for better maintainability.
 //! Commands implement the `CommandHandler` trait for unified execution.
 //!
-//! RFC 0020 Phase 2: Modular command structure
-//! - Commands with complex args are organized as directories (mod.rs, args.rs, handler.rs)
-//! - Simple commands remain as single files
-//! - All commands export Args and handle() for unified interface
+//! ## Design Principles (inspired by uv)
+//!
+//! - **Clear grouping**: Tool management, project management, cache management
+//! - **Unified verbs**: add, remove, sync, lock, run
+//! - **Subcommand organization**: cache, shell, ext
+//! - **No redundancy**: Each command has a single, clear purpose
+//!
+//! ## Module Organization (RFC 0020 Phase 2)
+//!
+//! - Complex commands: directories with `mod.rs`, `args.rs`, `handler.rs`
+//! - Simple commands: single files
+//! - Shared utilities: `common.rs` module
 
 // Core handler trait and context
 mod handler;
 pub use handler::{CommandContext, CommandHandler, GlobalOptions};
 
+// Shared utilities
+pub mod common;
+
 // =============================================================================
 // Modular Commands (RFC 0020 Phase 2)
 // =============================================================================
-// These commands are organized as directories with args.rs and handler.rs
 
 /// Install command - modular structure
 pub mod install;
@@ -27,15 +37,12 @@ pub mod list;
 pub mod test;
 
 // =============================================================================
-// Simple Commands
+// Core Commands
 // =============================================================================
-// These commands remain as single files
 
 pub mod analyze;
 pub mod cache;
 pub mod capabilities;
-pub mod check;
-pub mod cleanup;
 pub mod config;
 pub mod container;
 pub mod dev;
@@ -45,7 +52,6 @@ pub mod execute;
 mod execute_tests;
 pub mod ext;
 pub mod fetch;
-pub mod global;
 pub mod hook;
 pub mod init;
 pub mod lock;
@@ -58,11 +64,8 @@ pub mod self_update;
 pub mod services;
 pub mod setup;
 pub mod shell;
-pub mod stats;
 pub mod switch;
 pub mod sync;
-pub mod update;
-pub mod venv_cmd;
 pub mod version;
 pub mod where_cmd;
 
