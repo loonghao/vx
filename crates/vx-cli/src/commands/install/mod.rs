@@ -8,3 +8,4 @@ mod handler;
 pub use args::Args;
 pub use handler::handle;
 pub use handler::handle_install;
+pub use handler::install_quiet;
