@@ -278,3 +278,45 @@ fn update_lockfile_if_exists(
         ));
     }
 }
+
+/// Install a runtime quietly (for CI testing)
+/// Returns the installed version on success
+pub async fn install_quiet(
+    registry: &ProviderRegistry,
+    context: &RuntimeContext,
+    tool_name: &str,
+) -> Result<String> {
+    // Get the runtime from registry
+    let runtime = match registry.get_runtime(tool_name) {
+        Some(r) => r,
+        None => {
+            return Err(anyhow::anyhow!("Tool not found: {}", tool_name));
+        }
+    };
+
+    // Check if this runtime is bundled with another
+    if let Some(bundled_with) = runtime.metadata().get("bundled_with") {
+        if bundled_with != tool_name {
+            return Box::pin(install_quiet(registry, context, bundled_with)).await;
+        }
+    }
+
+    // Resolve latest version
+    let target_version = runtime.resolve_version("latest", context).await?;
+
+    // Check if already installed
+    if runtime.is_installed(&target_version, context).await? {
+        return Ok(target_version);
+    }
+
+    // Run pre-install hook
+    runtime.pre_install(&target_version, context).await?;
+
+    // Install the version
+    runtime.install(&target_version, context).await?;
+
+    // Run post-install hook
+    runtime.post_install(&target_version, context).await?;
+
+    Ok(target_version)
+}

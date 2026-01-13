@@ -34,6 +34,29 @@ pub struct Args {
     #[arg(long)]
     pub install: bool,
 
+    /// Full CI test: install + functional tests for all runtimes
+    /// This is the complete end-to-end test with real network downloads
+    #[arg(long)]
+    pub ci: bool,
+
+    /// Specify runtimes to test in CI mode (comma-separated)
+    /// Example: --ci-runtimes node,go,uv
+    #[arg(long, value_delimiter = ',')]
+    pub ci_runtimes: Option<Vec<String>>,
+
+    /// Skip these runtimes in CI mode (comma-separated)
+    /// Example: --ci-skip spack,msvc
+    #[arg(long, value_delimiter = ',')]
+    pub ci_skip: Option<Vec<String>>,
+
+    /// Timeout for each runtime test in seconds (default: 300)
+    #[arg(long, default_value = "300")]
+    pub timeout: u64,
+
+    /// Continue testing even if some runtimes fail
+    #[arg(long)]
+    pub keep_going: bool,
+
     // === Checks ===
     /// Check if runtime is installed in vx store
     #[arg(long)]

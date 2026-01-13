@@ -221,6 +221,26 @@ pub enum Commands {
         #[arg(long)]
         install: bool,
 
+        /// Full CI test: install + functional tests for all runtimes
+        #[arg(long)]
+        ci: bool,
+
+        /// Specify runtimes to test in CI mode (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        ci_runtimes: Option<Vec<String>>,
+
+        /// Skip these runtimes in CI mode (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        ci_skip: Option<Vec<String>>,
+
+        /// Timeout for each runtime test in seconds (default: 300)
+        #[arg(long, default_value = "300")]
+        timeout: u64,
+
+        /// Continue testing even if some runtimes fail
+        #[arg(long)]
+        keep_going: bool,
+
         /// Check if runtime is installed in vx store
         #[arg(long)]
         installed: bool,
@@ -1106,6 +1126,11 @@ impl CommandHandler for Commands {
                 platform_only,
                 functional,
                 install,
+                ci,
+                ci_runtimes,
+                ci_skip,
+                timeout,
+                keep_going,
                 installed,
                 system,
                 detailed,
@@ -1121,6 +1146,11 @@ impl CommandHandler for Commands {
                     platform_only: *platform_only,
                     functional: *functional,
                     install: *install,
+                    ci: *ci,
+                    ci_runtimes: ci_runtimes.clone(),
+                    ci_skip: ci_skip.clone(),
+                    timeout: *timeout,
+                    keep_going: *keep_going,
                     installed: *installed,
                     system: *system,
                     detailed: *detailed,
