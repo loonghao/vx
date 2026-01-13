@@ -98,9 +98,15 @@ function Test-VxCommand {
     
     $TestResults.Total++
     
-    $cmdArgs = @($Command)
-    if ($Command -ne "list") {
-        $cmdArgs = @($Runtime, "--version")
+    if ($Command -eq "list") {
+        $cmdArgs = @($Command)
+    } elseif ($Command -eq "install") {
+        # Use 'vx test' command with --install flag to test installation
+        # This installs the runtime and verifies the executable exists
+        $cmdArgs = @("test", $Runtime, "--install")
+    } else {
+        # Use 'vx test' command with --functional flag for other tests
+        $cmdArgs = @("test", $Runtime, "--functional")
     }
     
     try {
@@ -211,18 +217,19 @@ foreach ($provider in $AllProviders) {
             continue
         }
         
-        # Test list command
+        # Test list command (ensures runtime is recognized)
         $listResult = Test-VxCommand -Provider $provider.Name -Runtime $runtime -Command "list"
         $providerResult.Tests += @{
             Command = "list $runtime"
             Result = $listResult
         }
         
-        # Test --version (will trigger auto-install on first run)
-        $versionResult = Test-VxCommand -Provider $provider.Name -Runtime $runtime -Command "--version"
+        # Test installation with vx test --install (installs and verifies executable exists)
+        # This is more reliable than --version which may have non-standard behavior
+        $installResult = Test-VxCommand -Provider $provider.Name -Runtime $runtime -Command "install"
         $providerResult.Tests += @{
-            Command = "$runtime --version"
-            Result = $versionResult
+            Command = "$runtime install test"
+            Result = $installResult
         }
         
         # Small delay to avoid rate limiting
