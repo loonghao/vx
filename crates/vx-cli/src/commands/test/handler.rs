@@ -11,7 +11,9 @@ use vx_runtime::{RuntimeTestResult, RuntimeTester, TestCaseResult};
 /// Handle test command with Args
 pub async fn handle(ctx: &CommandContext, args: &Args) -> Result<()> {
     // Determine test mode
-    if args.all {
+    if args.ci {
+        handle_ci_test(ctx, args).await
+    } else if args.all {
         handle_test_all_providers(ctx, args).await
     } else if let Some(ref url) = args.extension {
         handle_test_extension(ctx, url, args).await
@@ -23,7 +25,8 @@ pub async fn handle(ctx: &CommandContext, args: &Args) -> Result<()> {
         anyhow::bail!(
             "Please specify:\n  \
              - A runtime: vx test <runtime>\n  \
-             - --all: test all providers\n  \
+             - --all: test all providers (config check)\n  \
+             - --ci: full CI test (install + functional)\n  \
              - --local <path>: test local provider\n  \
              - --extension <url>: test remote provider"
         );
@@ -177,6 +180,336 @@ async fn install_runtime_for_test(
             "Executable not found after installation: {}",
             exe_path.display()
         )
+    }
+}
+
+// ============================================================================
+// CI Test Mode - Full End-to-End Testing
+// ============================================================================
+
+/// CI test result for a single runtime
+#[derive(Debug, Clone, serde::Serialize)]
+struct CITestResult {
+    runtime: String,
+    platform_supported: bool,
+    install_success: bool,
+    install_duration_secs: f64,
+    functional_success: bool,
+    functional_tests: Vec<TestCaseResult>,
+    overall_passed: bool,
+    error: Option<String>,
+    version_installed: Option<String>,
+}
+
+/// CI test summary
+#[derive(Debug, Default, serde::Serialize)]
+struct CITestSummary {
+    total: usize,
+    passed: usize,
+    failed: usize,
+    skipped: usize,
+    total_duration_secs: f64,
+    results: Vec<CITestResult>,
+}
+
+/// Handle --ci mode: Full end-to-end testing
+/// 
+/// This mode:
+/// 1. Installs each runtime from network
+/// 2. Runs functional tests (--version, etc.)
+/// 3. Reports detailed results
+async fn handle_ci_test(ctx: &CommandContext, opts: &Args) -> Result<()> {
+    use std::time::Instant;
+    
+    let total_start = Instant::now();
+    let mut summary = CITestSummary::default();
+    
+    // Determine which runtimes to test
+    let runtimes_to_test = get_ci_test_runtimes(ctx, opts);
+    
+    if !opts.quiet && !opts.json {
+        println!("🚀 VX CI Test - Full End-to-End Testing");
+        println!("=========================================");
+        println!("Runtimes to test: {}", runtimes_to_test.len());
+        if opts.verbose {
+            println!("  {}", runtimes_to_test.join(", "));
+        }
+        println!();
+    }
+    
+    for runtime_name in &runtimes_to_test {
+        let result = run_ci_test_for_runtime(ctx, runtime_name, opts).await;
+        
+        // Update summary
+        summary.total += 1;
+        if !result.platform_supported {
+            summary.skipped += 1;
+        } else if result.overall_passed {
+            summary.passed += 1;
+        } else {
+            summary.failed += 1;
+        }
+        
+        // Print result line
+        if !opts.quiet && !opts.json {
+            print_ci_result_line(&result, opts);
+        }
+        
+        summary.results.push(result);
+        
+        // Early exit if not keep-going and we have a failure
+        if !opts.keep_going && summary.failed > 0 {
+            break;
+        }
+    }
+    
+    summary.total_duration_secs = total_start.elapsed().as_secs_f64();
+    
+    // Output summary
+    output_ci_summary(&summary, opts);
+    
+    // Exit with appropriate code
+    if summary.failed == 0 {
+        std::process::exit(0);
+    } else {
+        std::process::exit(1);
+    }
+}
+
+/// Get list of runtimes to test in CI mode
+fn get_ci_test_runtimes(ctx: &CommandContext, opts: &Args) -> Vec<String> {
+    // If specific runtimes are specified, use those
+    if let Some(ref runtimes) = opts.ci_runtimes {
+        return runtimes.clone();
+    }
+    
+    // Otherwise, get all runtimes from registry
+    let registry = ctx.registry();
+    let skip_list: Vec<String> = opts.ci_skip.clone().unwrap_or_default();
+    
+    let mut runtimes = Vec::new();
+    for provider in registry.providers() {
+        for runtime in provider.runtimes() {
+            let name = runtime.name().to_string();
+            if !skip_list.contains(&name) {
+                runtimes.push(name);
+            }
+        }
+    }
+    
+    runtimes
+}
+
+/// Run full CI test for a single runtime
+async fn run_ci_test_for_runtime(
+    ctx: &CommandContext,
+    runtime_name: &str,
+    opts: &Args,
+) -> CITestResult {
+    use std::time::Instant;
+    
+    let mut result = CITestResult {
+        runtime: runtime_name.to_string(),
+        platform_supported: true,
+        install_success: false,
+        install_duration_secs: 0.0,
+        functional_success: false,
+        functional_tests: Vec::new(),
+        overall_passed: false,
+        error: None,
+        version_installed: None,
+    };
+    
+    // Check platform support
+    let runtime = match ctx.registry().get_runtime(runtime_name) {
+        Some(r) => r,
+        None => {
+            result.error = Some(format!("Unknown runtime: {}", runtime_name));
+            return result;
+        }
+    };
+    
+    let current_platform = vx_runtime::Platform::current();
+    if !runtime.is_platform_supported(&current_platform) {
+        result.platform_supported = false;
+        return result;
+    }
+    
+    // Step 1: Install runtime (quietly for JSON mode)
+    let install_start = Instant::now();
+    
+    if opts.verbose && !opts.quiet && !opts.json {
+        println!("  📦 Installing {}...", runtime_name);
+    }
+    
+    let install_result = tokio::time::timeout(
+        std::time::Duration::from_secs(opts.timeout),
+        crate::commands::install::install_quiet(
+            ctx.registry(),
+            ctx.runtime_context(),
+            runtime_name,
+        ),
+    )
+    .await;
+    
+    result.install_duration_secs = install_start.elapsed().as_secs_f64();
+    
+    let version = match install_result {
+        Ok(Ok(v)) => {
+            result.install_success = true;
+            result.version_installed = Some(v.clone());
+            v
+        }
+        Ok(Err(e)) => {
+            result.error = Some(format!("Install failed: {}", e));
+            return result;
+        }
+        Err(_) => {
+            result.error = Some(format!("Install timed out after {}s", opts.timeout));
+            return result;
+        }
+    };
+    
+    // Get executable path
+    let path_manager = match vx_paths::PathManager::new() {
+        Ok(pm) => pm,
+        Err(e) => {
+            result.error = Some(format!("Failed to get path manager: {}", e));
+            return result;
+        }
+    };
+    
+    let store_dir = path_manager.version_store_dir(runtime_name, &version);
+    let exe_relative = runtime.executable_relative_path(&version, &current_platform);
+    let exe_path = store_dir.join(&exe_relative);
+    
+    if !exe_path.exists() {
+        result.error = Some(format!("Executable not found: {}", exe_path.display()));
+        return result;
+    }
+    
+    // Step 2: Run functional tests
+    if opts.verbose && !opts.quiet && !opts.json {
+        println!("  🧪 Running functional tests...");
+    }
+    
+    let test_config = ctx
+        .get_runtime_manifest(runtime_name)
+        .and_then(|def| def.test.clone());
+    
+    let mut tester = RuntimeTester::new(runtime_name).with_executable(exe_path);
+    
+    if let Some(config) = test_config {
+        tester = tester.with_config(config);
+    }
+    
+    let test_result = tester.run_all();
+    result.functional_tests = test_result.test_cases;
+    result.functional_success = result.functional_tests.iter().all(|t| t.passed);
+    
+    // Overall pass: install success AND functional tests pass
+    result.overall_passed = result.install_success && result.functional_success;
+    
+    result
+}
+
+fn print_ci_result_line(result: &CITestResult, opts: &Args) {
+    if !result.platform_supported {
+        println!("  ⚠ {} - platform not supported", result.runtime);
+        return;
+    }
+    
+    let status = if result.overall_passed { "✓" } else { "✗" };
+    let install_status = if result.install_success { "✓" } else { "✗" };
+    let func_status = if result.functional_success { "✓" } else { "✗" };
+    
+    if result.overall_passed {
+        println!(
+            "  {} {} - passed (install: {:.1}s, tests: {})",
+            status,
+            result.runtime,
+            result.install_duration_secs,
+            result.functional_tests.len()
+        );
+    } else {
+        println!("  {} {} - failed", status, result.runtime);
+        println!(
+            "      Install: {} | Functional: {}",
+            install_status, func_status
+        );
+        if let Some(ref error) = result.error {
+            println!("      Error: {}", error);
+        }
+    }
+    
+    if opts.verbose && !result.functional_tests.is_empty() {
+        for tc in &result.functional_tests {
+            let tc_status = if tc.passed { "✓" } else { "✗" };
+            println!(
+                "      {} {} ({:.2}ms)",
+                tc_status,
+                tc.name,
+                tc.duration.as_secs_f64() * 1000.0
+            );
+            if !tc.passed {
+                if let Some(ref error) = tc.error {
+                    println!("        Error: {}", error);
+                }
+            }
+        }
+    }
+}
+
+fn output_ci_summary(summary: &CITestSummary, opts: &Args) {
+    if opts.json {
+        println!("{}", serde_json::to_string_pretty(summary).unwrap());
+        return;
+    }
+    
+    if opts.quiet {
+        return;
+    }
+    
+    println!();
+    println!("=========================================");
+    println!("🏁 CI Test Summary");
+    println!("=========================================");
+    println!("Total:    {}", summary.total);
+    println!("Passed:   {} ✓", summary.passed);
+    println!("Failed:   {} ✗", summary.failed);
+    println!("Skipped:  {} ⚠", summary.skipped);
+    println!("Duration: {:.1}s", summary.total_duration_secs);
+    
+    if summary.failed > 0 {
+        println!();
+        println!("Failed runtimes:");
+        for result in &summary.results {
+            if result.platform_supported && !result.overall_passed {
+                println!("  - {}", result.runtime);
+                if let Some(ref error) = result.error {
+                    println!("    Error: {}", error);
+                }
+            }
+        }
+    }
+    
+    if opts.detailed {
+        println!();
+        println!("Detailed Results:");
+        for result in &summary.results {
+            if !result.platform_supported {
+                println!("  ⚠ {} - skipped (platform not supported)", result.runtime);
+            } else if result.overall_passed {
+                println!(
+                    "  ✓ {} v{} ({:.1}s)",
+                    result.runtime,
+                    result.version_installed.as_deref().unwrap_or("?"),
+                    result.install_duration_secs
+                );
+            } else {
+                println!("  ✗ {} - failed", result.runtime);
+            }
+        }
     }
 }
 
