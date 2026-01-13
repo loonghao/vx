@@ -471,7 +471,7 @@ function Main {
     Write-Host "   vx --help          # Show help" -ForegroundColor Gray
     Write-Host "   vx list            # List available tools" -ForegroundColor Gray
     Write-Host "   vx npm --version   # Use npm through vx" -ForegroundColor Gray
-    Write-Host "   vx uv --version    # Use uv through vx" -ForegroundColor Gray
+    Write-Host "   vx uv self version    # Use uv through vx" -ForegroundColor Gray
 }
 
 # Run main function

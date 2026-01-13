@@ -686,7 +686,7 @@ jobs:
         shell: bash
         run: |
           echo "=== Installing and running UV via vx ==="
-          vx uv --version
+          vx uv self version
           vx uvx ruff --version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -236,7 +236,7 @@ jobs:
 
       # vx will use versions from vx.toml
       - run: vx node --version  # Uses 20.10.0
-      - run: vx uv --version    # Uses 0.4.0
+      - run: vx uv self version    # Uses 0.4.0
 ```
 
 ### One-Click Setup with vx setup

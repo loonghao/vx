@@ -768,7 +768,7 @@ test_installation() {
         echo "   vx --help"
         echo "   vx list"
         echo "   vx npm --version"
-        echo "   vx uv --version"
+        echo "   vx uv self version"
     else
         error "Installation verification failed"
         exit 1

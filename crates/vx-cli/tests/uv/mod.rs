@@ -10,13 +10,13 @@ use tempfile::TempDir;
 // UV Version Tests
 // ============================================================================
 
-/// Test: vx uv --version
+/// Test: vx uv self version
 #[rstest]
 #[test]
 fn test_uv_version() {
     skip_if_no_vx!();
 
-    let output = run_vx(&["uv", "--version"]).expect("Failed to run vx uv --version");
+    let output = run_vx(&["uv", "self", "version"]).expect("Failed to run vx uv self version");
 
     if is_success(&output) {
         let version = stdout_str(&output);
@@ -34,7 +34,7 @@ fn test_uv_version() {
 fn test_uv_version_short() {
     skip_if_no_vx!();
 
-    let output = run_vx(&["uv", "-V"]).expect("Failed to run vx uv -V");
+    let output = run_vx(&["uv", "self", "version"]).expect("Failed to run vx uv self version");
 
     if is_success(&output) {
         let version = stdout_str(&output);

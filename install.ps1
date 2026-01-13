@@ -458,7 +458,7 @@ function Test-Installation {
         Write-Host "   vx --help" -ForegroundColor Gray
         Write-Host "   vx list" -ForegroundColor Gray
         Write-Host "   vx npm --version" -ForegroundColor Gray
-        Write-Host "   vx uv --version" -ForegroundColor Gray
+        Write-Host "   vx uv self version" -ForegroundColor Gray
     }
     catch {
         Write-Error "Installation verification failed: $_"
