@@ -62,7 +62,7 @@ test-providers:
     @pwsh -NoProfile -Command "Get-Process vx -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
     @cargo build
     @echo ""
-    pwsh -NoProfile -File scripts/test-all-providers.ps1
+    ./target/debug/vx test --ci --keep-going --detailed
 
 # Test all providers with verbose output
 test-providers-verbose:
@@ -70,21 +70,28 @@ test-providers-verbose:
     @pwsh -NoProfile -Command "Get-Process vx -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
     @cargo build  
     @echo ""
-    pwsh -NoProfile -File scripts/test-all-providers.ps1 -Verbose
+    ./target/debug/vx test --ci --keep-going --verbose
 
-# Test all providers and keep cache for inspection
-test-providers-keep:
+# Test all providers and output JSON report
+test-providers-json:
     @echo "Building VX first..."
     @cargo build
     @echo ""
-    pwsh -NoProfile -File scripts/test-all-providers.ps1 -KeepCache
+    ./target/debug/vx test --ci --keep-going --json
 
-# Test specific providers by name filter
-test-providers-filter FILTER:
+# Test specific runtimes (comma-separated)
+test-runtimes RUNTIMES:
     @echo "Building VX first..."
     @cargo build
     @echo ""
-    pwsh -NoProfile -File scripts/test-all-providers.ps1 -Filter {{FILTER}}
+    ./target/debug/vx test --ci --ci-runtimes {{RUNTIMES}} --verbose
+
+# Quick CI test with core runtimes only
+test-ci-quick:
+    @echo "Building VX first..."
+    @cargo build
+    @echo ""
+    ./target/debug/vx test --ci --ci-runtimes node,go,uv,just,cargo --verbose
 
 # ============================================
 # Code Quality
