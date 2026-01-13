@@ -62,7 +62,7 @@ test-providers:
     @pwsh -NoProfile -Command "Get-Process vx -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
     @cargo build
     @echo ""
-    ./target/debug/vx test --ci --keep-going --detailed
+    ./target/debug/vx test --ci --temp-root --keep-going --detailed
 
 # Test all providers with verbose output
 test-providers-verbose:
@@ -70,28 +70,28 @@ test-providers-verbose:
     @pwsh -NoProfile -Command "Get-Process vx -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
     @cargo build  
     @echo ""
-    ./target/debug/vx test --ci --keep-going --verbose
+    ./target/debug/vx test --ci --temp-root --keep-going --verbose
 
 # Test all providers and output JSON report
 test-providers-json:
     @echo "Building VX first..."
     @cargo build
     @echo ""
-    ./target/debug/vx test --ci --keep-going --json
+    ./target/debug/vx test --ci --temp-root --keep-going --json
 
 # Test specific runtimes (comma-separated)
 test-runtimes RUNTIMES:
     @echo "Building VX first..."
     @cargo build
     @echo ""
-    ./target/debug/vx test --ci --ci-runtimes {{RUNTIMES}} --verbose
+    ./target/debug/vx test --ci --ci-runtimes {{RUNTIMES}} --temp-root --verbose
 
 # Quick CI test with core runtimes only
 test-ci-quick:
     @echo "Building VX first..."
     @cargo build
     @echo ""
-    ./target/debug/vx test --ci --ci-runtimes node,go,uv,just,cargo --verbose
+    ./target/debug/vx test --ci --ci-runtimes node,go,uv,just,cargo --temp-root --verbose
 
 # ============================================
 # Code Quality
