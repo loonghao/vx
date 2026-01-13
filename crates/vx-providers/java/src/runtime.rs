@@ -214,9 +214,7 @@ impl Runtime for JavaRuntime {
                 install_path.join("bin/java"),
             ]
         } else {
-            vec![
-                install_path.join("bin").join(platform.exe_name("java")),
-            ]
+            vec![install_path.join("bin").join(platform.exe_name("java"))]
         };
 
         for alt in alt_paths {

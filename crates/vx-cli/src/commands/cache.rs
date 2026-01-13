@@ -40,7 +40,17 @@ pub async fn handle(command: CacheCommand) -> Result<()> {
             force,
             older_than,
             verbose,
-        } => handle_clean(dry_run, cache_only, orphaned_only, force, older_than, verbose).await,
+        } => {
+            handle_clean(
+                dry_run,
+                cache_only,
+                orphaned_only,
+                force,
+                older_than,
+                verbose,
+            )
+            .await
+        }
         CacheCommand::Dir => handle_dir().await,
     }
 }
@@ -76,11 +86,7 @@ async fn handle_clear(
     let any_selector = versions_only || downloads_only || resolutions_only;
     let clear_versions = if any_selector { versions_only } else { true };
     let clear_downloads = if any_selector { downloads_only } else { true };
-    let clear_resolutions = if any_selector {
-        resolutions_only
-    } else {
-        true
-    };
+    let clear_resolutions = if any_selector { resolutions_only } else { true };
 
     // Clear version cache
     if clear_versions {

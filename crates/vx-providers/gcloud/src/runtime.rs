@@ -5,9 +5,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use vx_runtime::{
-    Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
-};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
 
 /// Google Cloud CLI runtime
 #[derive(Debug, Clone)]
@@ -295,10 +293,7 @@ impl Runtime for BqRuntime {
             VerificationResult::success(exe_path)
         } else {
             VerificationResult::failure(
-                vec![format!(
-                    "bq executable not found at {}",
-                    exe_path.display()
-                )],
+                vec![format!("bq executable not found at {}", exe_path.display())],
                 vec!["Install gcloud first: vx install gcloud".to_string()],
             )
         }

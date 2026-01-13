@@ -124,7 +124,7 @@ fn test_single_runtime_platform_check() {
 
     // Test a runtime that should be supported on all platforms
     let output = env.run(&["test", "go", "--platform-only", "--quiet"]);
-    
+
     // go should be supported on all common platforms
     assert!(output.status.success(), "go should be platform supported");
 }
@@ -135,7 +135,7 @@ fn test_single_runtime_not_installed() {
 
     // Test a runtime that's likely not installed
     let output = env.run(&["test", "zig", "--quiet"]);
-    
+
     // Should exit with 1 (not available) but not crash
     assert!(!output.status.success() || output.status.code() == Some(1));
 }
@@ -146,7 +146,7 @@ fn test_single_runtime_json_output() {
 
     let output = env.run(&["test", "node", "--json"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Should output valid JSON
     assert!(
         stdout.contains("\"runtime\"") && stdout.contains("\"platform_supported\""),
@@ -160,7 +160,7 @@ fn test_single_runtime_detailed() {
 
     let output = env.run(&["test", "go", "--detailed"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Should show detailed information
     assert!(
         stdout.contains("✓") || stdout.contains("✗") || stdout.contains("⚠"),
@@ -174,7 +174,7 @@ fn test_unknown_runtime() {
 
     let output = env.run(&["test", "unknown-runtime-xyz-123"]);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    
+
     // Should fail with unknown runtime error
     assert!(!output.status.success());
     assert!(
@@ -192,7 +192,7 @@ fn test_all_providers() {
     let env = E2ETestEnv::new();
 
     let output = env.run(&["test", "--all", "--platform-only"]);
-    
+
     // Should test multiple runtimes
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
@@ -207,16 +207,17 @@ fn test_all_providers_json() {
 
     let output = env.run(&["test", "--all", "--platform-only", "--json"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Should output valid JSON summary
     assert!(
-        stdout.contains("\"total\"") && stdout.contains("\"passed\"") && stdout.contains("\"failed\""),
+        stdout.contains("\"total\"")
+            && stdout.contains("\"passed\"")
+            && stdout.contains("\"failed\""),
         "Expected JSON summary with test counts"
     );
-    
+
     // Verify it's valid JSON
-    let _: serde_json::Value = serde_json::from_str(&stdout)
-        .expect("Output should be valid JSON");
+    let _: serde_json::Value = serde_json::from_str(&stdout).expect("Output should be valid JSON");
 }
 
 #[test]
@@ -225,7 +226,7 @@ fn test_all_providers_quiet() {
 
     let output = env.run(&["test", "--all", "--platform-only", "--quiet"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Quiet mode should produce minimal output
     assert!(
         stdout.is_empty() || stdout.len() < 100,
@@ -240,12 +241,9 @@ fn test_all_providers_quiet() {
 #[test]
 fn test_local_provider_valid() {
     let env = E2ETestEnv::new();
-    
+
     // Create a mock provider
-    let provider_dir = env.create_mock_provider("test-tool", &[
-        ("mytool", true),
-        ("myutil", true),
-    ]);
+    let provider_dir = env.create_mock_provider("test-tool", &[("mytool", true), ("myutil", true)]);
 
     let output = env.run(&[
         "test",
@@ -253,9 +251,9 @@ fn test_local_provider_valid() {
         provider_dir.to_str().unwrap(),
         "--platform-only",
     ]);
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Should successfully validate provider
     assert!(
         stdout.contains("Validating") || stdout.contains("Provider"),
@@ -267,14 +265,10 @@ fn test_local_provider_valid() {
 fn test_local_provider_invalid_path() {
     let env = E2ETestEnv::new();
 
-    let output = env.run(&[
-        "test",
-        "--local",
-        "/nonexistent/path/to/provider",
-    ]);
-    
+    let output = env.run(&["test", "--local", "/nonexistent/path/to/provider"]);
+
     let stderr = String::from_utf8_lossy(&output.stderr);
-    
+
     // Should fail with appropriate error
     assert!(!output.status.success());
     assert!(
@@ -286,19 +280,15 @@ fn test_local_provider_invalid_path() {
 #[test]
 fn test_local_provider_missing_toml() {
     let env = E2ETestEnv::new();
-    
+
     // Create directory without provider.toml
     let empty_dir = env.workdir.path().join("empty-provider");
     std::fs::create_dir_all(&empty_dir).unwrap();
 
-    let output = env.run(&[
-        "test",
-        "--local",
-        empty_dir.to_str().unwrap(),
-    ]);
-    
+    let output = env.run(&["test", "--local", empty_dir.to_str().unwrap()]);
+
     let stderr = String::from_utf8_lossy(&output.stderr);
-    
+
     // Should fail
     assert!(!output.status.success());
     assert!(
@@ -310,21 +300,15 @@ fn test_local_provider_missing_toml() {
 #[test]
 fn test_local_provider_json_output() {
     let env = E2ETestEnv::new();
-    
+
     let provider_dir = env.create_mock_provider("json-test", &[("tool1", true)]);
 
-    let output = env.run(&[
-        "test",
-        "--local",
-        provider_dir.to_str().unwrap(),
-        "--json",
-    ]);
-    
+    let output = env.run(&["test", "--local", provider_dir.to_str().unwrap(), "--json"]);
+
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Should output valid JSON
-    let _: serde_json::Value = serde_json::from_str(&stdout)
-        .expect("Output should be valid JSON");
+    let _: serde_json::Value = serde_json::from_str(&stdout).expect("Output should be valid JSON");
 }
 
 // ============================================================================
@@ -342,14 +326,14 @@ fn test_extension_github_url() {
         "--extension",
         "https://github.com/example/vx-provider-example",
     ]);
-    
+
     // Should attempt to download
     let combined = format!(
         "{}{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    
+
     assert!(
         combined.contains("Download") || combined.contains("not yet implemented"),
         "Expected download attempt or not-implemented message"
@@ -360,12 +344,8 @@ fn test_extension_github_url() {
 fn test_extension_invalid_url() {
     let env = E2ETestEnv::new();
 
-    let output = env.run(&[
-        "test",
-        "--extension",
-        "not-a-valid-url",
-    ]);
-    
+    let output = env.run(&["test", "--extension", "not-a-valid-url"]);
+
     // Should fail gracefully
     assert!(!output.status.success() || output.status.code() == Some(1));
 }
@@ -380,7 +360,7 @@ fn test_no_arguments() {
 
     let output = env.run(&["test"]);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    
+
     // Should show helpful error
     assert!(!output.status.success());
     assert!(
@@ -396,7 +376,7 @@ fn test_conflicting_arguments() {
     // --all and runtime name should conflict
     let output = env.run(&["test", "node", "--all"]);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    
+
     // clap should catch the conflict
     assert!(!output.status.success());
     assert!(
@@ -411,7 +391,7 @@ fn test_help_message() {
 
     let output = env.run(&["test", "--help"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Should show comprehensive help
     assert!(output.status.success());
     assert!(stdout.contains("Test runtime availability"));
@@ -430,7 +410,7 @@ fn test_ci_scenario_check_tool_available() {
 
     // Simulate CI checking if a tool is available
     let output = env.run(&["test", "go", "--quiet"]);
-    
+
     // Exit code should indicate availability
     // 0 = available, 1 = not available
     assert!(output.status.code() == Some(0) || output.status.code() == Some(1));
@@ -442,11 +422,11 @@ fn test_ci_scenario_json_parsing() {
 
     let output = env.run(&["test", "node", "--json"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // CI should be able to parse JSON output
-    let result: serde_json::Value = serde_json::from_str(&stdout)
-        .expect("CI should be able to parse JSON");
-    
+    let result: serde_json::Value =
+        serde_json::from_str(&stdout).expect("CI should be able to parse JSON");
+
     // Verify expected fields
     assert!(result.get("runtime").is_some());
     assert!(result.get("platform_supported").is_some());
@@ -460,10 +440,10 @@ fn test_ci_scenario_test_all_providers() {
     // CI running comprehensive tests
     let output = env.run(&["test", "--all", "--json", "--platform-only"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
-    let summary: serde_json::Value = serde_json::from_str(&stdout)
-        .expect("CI should parse summary JSON");
-    
+
+    let summary: serde_json::Value =
+        serde_json::from_str(&stdout).expect("CI should parse summary JSON");
+
     // Verify summary structure
     assert!(summary.get("total").is_some());
     assert!(summary.get("passed").is_some());

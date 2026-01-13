@@ -27,9 +27,6 @@ impl Provider for PythonProvider {
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![
-            Arc::new(PythonRuntime::new()),
-            Arc::new(PipRuntime::new()),
-        ]
+        vec![Arc::new(PythonRuntime::new()), Arc::new(PipRuntime::new())]
     }
 }

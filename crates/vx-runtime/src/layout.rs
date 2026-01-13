@@ -243,7 +243,7 @@ impl ExecutableLayout {
         // First try to get MSI-specific configuration
         if let Some(msi_configs) = &self.msi {
             let platform_key = format!("{}-{}", ctx.platform.os, ctx.platform.arch);
-            
+
             if let Some(config) = msi_configs
                 .get(&platform_key)
                 .or_else(|| msi_configs.get(&ctx.platform.os.to_string()))
@@ -252,10 +252,7 @@ impl ExecutableLayout {
                 // Use executable_paths from MSI config if available
                 if let Some(exe_paths) = &config.executable_paths {
                     return Ok(ResolvedLayout::Archive {
-                        executable_paths: exe_paths
-                            .iter()
-                            .map(|p| interpolate(p, vars))
-                            .collect(),
+                        executable_paths: exe_paths.iter().map(|p| interpolate(p, vars)).collect(),
                         strip_prefix: None,
                         permissions: None,
                     });
@@ -273,7 +270,10 @@ impl ExecutableLayout {
                     .iter()
                     .map(|p| interpolate(p, vars))
                     .collect(),
-                strip_prefix: windows_layout.strip_prefix.as_ref().map(|p| interpolate(p, vars)),
+                strip_prefix: windows_layout
+                    .strip_prefix
+                    .as_ref()
+                    .map(|p| interpolate(p, vars)),
                 permissions: windows_layout.permissions.clone(),
             });
         }
@@ -286,7 +286,7 @@ impl ExecutableLayout {
                 format!("{}.exe", name),
                 format!("bin/{}.exe", name),
                 format!("Amazon/AWSCLIV2/{}.exe", name), // AWS CLI specific
-                "**/*.exe".to_string(), // Glob pattern fallback
+                "**/*.exe".to_string(),                  // Glob pattern fallback
             ],
             strip_prefix: None,
             permissions: None,
@@ -409,10 +409,7 @@ mod tests {
             interpolate("yasm-{version}-win64.exe", &vars),
             "yasm-1.3.0-win64.exe"
         );
-        assert_eq!(
-            interpolate("{name}{ext}", &vars),
-            "yasm.exe"
-        );
+        assert_eq!(interpolate("{name}{ext}", &vars), "yasm.exe");
     }
 
     #[test]

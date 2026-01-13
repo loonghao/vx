@@ -52,7 +52,9 @@ impl SystemPackageManager for WingetManager {
 
     async fn install_package(&self, spec: &PackageInstallSpec) -> Result<InstallResult> {
         if !self.is_installed().await {
-            return Err(SystemPmError::PackageManagerNotInstalled("winget".to_string()));
+            return Err(SystemPmError::PackageManagerNotInstalled(
+                "winget".to_string(),
+            ));
         }
 
         let mut args = vec![
@@ -99,7 +101,7 @@ impl SystemPackageManager for WingetManager {
         } else {
             // Check for specific error codes
             let exit_code = output.status.code().unwrap_or(-1);
-            
+
             // 0x8A150014 = Package already installed
             if stdout.contains("already installed") || exit_code == -1978335212 {
                 info!("Package {} is already installed", spec.package);
@@ -118,7 +120,9 @@ impl SystemPackageManager for WingetManager {
 
     async fn uninstall_package(&self, package: &str) -> Result<()> {
         if !self.is_installed().await {
-            return Err(SystemPmError::PackageManagerNotInstalled("winget".to_string()));
+            return Err(SystemPmError::PackageManagerNotInstalled(
+                "winget".to_string(),
+            ));
         }
 
         let output = self.run_winget(&["uninstall", "--id", package, "--silent"])?;

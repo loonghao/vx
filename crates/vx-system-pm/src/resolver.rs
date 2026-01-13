@@ -1,13 +1,11 @@
 //! System dependency resolver
 
-use crate::dependency::{SystemDependency, SystemDepType};
+use crate::dependency::{SystemDepType, SystemDependency};
 use crate::detector::PackageManagerDetector;
-use crate::managers::PackageInstallSpec;
 use crate::registry::PackageManagerRegistry;
 use crate::strategy::InstallStrategy;
-use crate::{Result, SystemPmError};
-use std::collections::HashSet;
-use tracing::{debug, info, warn};
+use crate::Result;
+use tracing::{debug, warn};
 
 /// Dependency resolution result
 #[derive(Debug)]
@@ -100,7 +98,10 @@ impl SystemDependencyResolver {
                             });
                         }
                         None if !dep.optional => {
-                            warn!("No installation strategy for required dependency: {}", dep.id);
+                            warn!(
+                                "No installation strategy for required dependency: {}",
+                                dep.id
+                            );
                             unresolved.push(UnresolvedDependency {
                                 dep: dep.clone(),
                                 reason: "No installation strategy available".to_string(),
@@ -111,7 +112,10 @@ impl SystemDependencyResolver {
                         }
                     }
                 }
-                Ok(InstallStatus::VersionMismatch { installed, required }) => {
+                Ok(InstallStatus::VersionMismatch {
+                    installed,
+                    required,
+                }) => {
                     warn!(
                         "{} version mismatch: installed={}, required={}",
                         dep.id, installed, required
@@ -215,7 +219,7 @@ impl SystemDependencyResolver {
     #[cfg(windows)]
     async fn check_vcredist_installed(
         &self,
-        id: &str,
+        _id: &str,
         version: &Option<String>,
     ) -> Result<InstallStatus> {
         use winreg::enums::*;

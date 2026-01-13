@@ -157,6 +157,7 @@ impl ScriptType {
 }
 
 /// System installation configuration for a runtime
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct SystemInstallConfig {
     /// Installation strategies (ordered by priority)
@@ -169,6 +170,7 @@ pub struct SystemInstallConfig {
 }
 
 /// A tool provided by another runtime
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ProvidedTool {
     /// Tool name
@@ -182,6 +184,7 @@ pub struct ProvidedTool {
     pub platforms: Vec<String>,
 }
 
+#[allow(dead_code)]
 impl ProvidedTool {
     /// Check if this tool is available on the current platform
     pub fn is_available(&self) -> bool {

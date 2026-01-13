@@ -280,7 +280,12 @@ mod tests {
     #[test]
     fn test_expand_path() {
         let config = ArchiveLayoutConfig::default();
-        let expanded = config.expand_path("node-v{version}-{platform}-{arch}", "20.0.0", "linux", "x64");
+        let expanded = config.expand_path(
+            "node-v{version}-{platform}-{arch}",
+            "20.0.0",
+            "linux",
+            "x64",
+        );
         assert_eq!(expanded, "node-v20.0.0-linux-x64");
     }
 

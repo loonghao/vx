@@ -146,7 +146,7 @@ impl RealHttpClient {
     /// Create a new real HTTP client with default timeouts
     ///
     /// CDN acceleration is automatically enabled when the `cdn-acceleration` feature is active.
-    /// 
+    ///
     /// The client is configured with:
     /// - Connection pooling (idle connections kept alive for 90 seconds)
     /// - Up to 10 idle connections per host (reduces handshake overhead)

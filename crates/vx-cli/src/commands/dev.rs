@@ -241,9 +241,10 @@ fn spawn_dev_shell(
         if shell_path.contains("powershell") || shell_path.contains("pwsh") {
             // Create a temporary init script for PowerShell
             let init_script = create_powershell_init_script(config)?;
-            let init_path = std::env::temp_dir().join(format!("vx_dev_init_{}.ps1", std::process::id()));
+            let init_path =
+                std::env::temp_dir().join(format!("vx_dev_init_{}.ps1", std::process::id()));
             std::fs::write(&init_path, init_script)?;
-            
+
             // Use -NoLogo to suppress banner, -NoExit to keep shell open
             // -NoProfile to avoid loading user profile (which might conflict)
             // -File to execute our init script
@@ -293,7 +294,7 @@ fn spawn_dev_shell(
 #[cfg(windows)]
 fn create_powershell_init_script(config: &ConfigView) -> Result<String> {
     let tools = config.tools.keys().cloned().collect::<Vec<_>>().join(", ");
-    
+
     Ok(format!(
         r#"
 # VX Development Environment Initialization
@@ -331,7 +332,6 @@ if (Test-Path $PROFILE) {{
         tools
     ))
 }
-
 
 /// Detect the user's preferred shell
 fn detect_shell() -> String {

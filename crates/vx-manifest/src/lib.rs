@@ -52,9 +52,9 @@ pub use provider::{
     HealthConfig, HooksConfig, HooksDef, InlineTestScripts, InstallStrategyDef, LayoutConfig,
     MachineFlagsConfig, MirrorConfig, MirrorStrategy, OutputColorConfig, OutputConfig,
     PlatformBinaryConfig, PlatformConfig, PlatformTestCommands, PlatformsDef, ProvidedToolDef,
-    ProviderManifest, ProviderMeta, RuntimeDef, ScriptTypeDef, ShellCompletionsConfig,
-    ShellConfig, SystemDependencyDef, SystemDepsConfigDef, SystemDepTypeDef,
-    SystemInstallConfigDef, TestCommand, TestConfig, TestPlatformConfig, VersionSourceDef,
+    ProviderManifest, ProviderMeta, RuntimeDef, ScriptTypeDef, ShellCompletionsConfig, ShellConfig,
+    SystemDepTypeDef, SystemDependencyDef, SystemDepsConfigDef, SystemInstallConfigDef,
+    TestCommand, TestConfig, TestPlatformConfig, VersionSourceDef,
 };
 
 pub use r#override::{apply_override, extract_provider_name, ProviderOverride, RuntimeOverride};

@@ -70,12 +70,12 @@ impl Runtime for DockerRuntime {
         // Docker releases are available from download.docker.com, not GitHub
         // Parse the directory listing to get available versions
         let url = "https://download.docker.com/linux/static/stable/x86_64/";
-        
+
         let html = ctx.http.get(url).await?;
-        
+
         // Parse version from links like: docker-29.1.4.tgz
         let version_regex = regex::Regex::new(r#"docker-(\d+\.\d+\.\d+)\.tgz"#)?;
-        
+
         let mut versions: Vec<VersionInfo> = version_regex
             .captures_iter(&html)
             .filter_map(|cap| {
@@ -83,7 +83,7 @@ impl Runtime for DockerRuntime {
                 Some(VersionInfo::new(version))
             })
             .collect();
-        
+
         // Remove duplicates and sort by version (newest first)
         versions.sort_by(|a, b| {
             // Parse version parts for comparison
@@ -98,7 +98,7 @@ impl Runtime for DockerRuntime {
             parse_version(&b.version).cmp(&parse_version(&a.version))
         });
         versions.dedup_by(|a, b| a.version == b.version);
-        
+
         Ok(versions)
     }
 

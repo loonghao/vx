@@ -81,7 +81,7 @@ impl SystemPackageManager for AptManager {
         debug!("Updating package list...");
         let _ = self.run_apt(&["update", "-qq"]);
 
-        let mut args = vec!["install", "-y", "-qq", &spec.package];
+        let args = vec!["install", "-y", "-qq", &spec.package];
 
         debug!("Running: apt-get {}", args.join(" "));
 

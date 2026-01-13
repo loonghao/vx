@@ -85,24 +85,24 @@ impl Runtime for RceditRuntime {
         // Original: rcedit-x64.exe / rcedit-arm64.exe / rcedit-x86.exe
         // Standard: bin/rcedit.exe
         use std::fs;
-        
+
         let platform = Platform::current();
-        
+
         // rcedit only supports Windows
         if platform.os != vx_runtime::Os::Windows {
             return Ok(());
         }
-        
+
         // Get the original downloaded file name
         let original_name = RceditUrlBuilder::get_executable_name(&platform);
-        
+
         // Create bin/ directory
         let bin_dir = install_path.join("bin");
         fs::create_dir_all(&bin_dir)?;
-        
+
         let original_path = bin_dir.join(&original_name);
         let standard_path = bin_dir.join("rcedit.exe");
-        
+
         // Rename if not already standard name
         if original_name != "rcedit.exe" && original_path.exists() {
             if standard_path.exists() {
@@ -110,7 +110,7 @@ impl Runtime for RceditRuntime {
             }
             fs::rename(&original_path, &standard_path)?;
         }
-        
+
         Ok(())
     }
 

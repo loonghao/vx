@@ -28,7 +28,13 @@ impl ChocolateyManager {
     /// Run a PowerShell command
     fn run_powershell(&self, script: &str) -> std::io::Result<std::process::Output> {
         Command::new("powershell")
-            .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script])
+            .args([
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                script,
+            ])
             .output()
     }
 }
@@ -86,7 +92,9 @@ impl SystemPackageManager for ChocolateyManager {
 
     async fn install_package(&self, spec: &PackageInstallSpec) -> Result<InstallResult> {
         if !self.is_installed().await {
-            return Err(SystemPmError::PackageManagerNotInstalled("choco".to_string()));
+            return Err(SystemPmError::PackageManagerNotInstalled(
+                "choco".to_string(),
+            ));
         }
 
         let mut args = vec!["install", &spec.package, "-y"];
@@ -137,7 +145,9 @@ impl SystemPackageManager for ChocolateyManager {
 
     async fn uninstall_package(&self, package: &str) -> Result<()> {
         if !self.is_installed().await {
-            return Err(SystemPmError::PackageManagerNotInstalled("choco".to_string()));
+            return Err(SystemPmError::PackageManagerNotInstalled(
+                "choco".to_string(),
+            ));
         }
 
         let output = self.run_choco(&["uninstall", package, "-y"])?;
@@ -166,7 +176,9 @@ impl SystemPackageManager for ChocolateyManager {
             // Chocolatey output format: "package version"
             Ok(stdout.lines().any(|line| {
                 let parts: Vec<&str> = line.split_whitespace().collect();
-                parts.first().is_some_and(|&name| name.eq_ignore_ascii_case(package))
+                parts
+                    .first()
+                    .is_some_and(|&name| name.eq_ignore_ascii_case(package))
             }))
         } else {
             Ok(false)

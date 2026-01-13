@@ -97,7 +97,7 @@ impl Runtime for FfmpegRuntime {
         // Fetch from BtbN/FFmpeg-Builds GitHub releases
         // This is a more reliable source than gyan.dev
         let url = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/latest";
-        
+
         match ctx.http.get_json_value(url).await {
             Ok(release) => {
                 if let Some(assets) = release.get("assets").and_then(|a| a.as_array()) {
@@ -137,39 +137,39 @@ impl Runtime for FfmpegRuntime {
     fn post_extract(&self, _version: &str, install_path: &PathBuf) -> Result<()> {
         // FFmpeg archives have dynamic directory names (e.g., ffmpeg-8.0.1-essentials_build)
         // We need to flatten the structure to: install_path/bin/ffmpeg.exe
-        
+
         use std::fs;
-        
+
         // Find the nested directory (should be only one)
         let entries: Vec<_> = fs::read_dir(install_path)?
             .filter_map(|e| e.ok())
             .filter(|e| e.path().is_dir())
             .collect();
-        
+
         if entries.len() != 1 {
             // If no nested directory or multiple directories, assume already correct structure
             return Ok(());
         }
-        
+
         let nested_dir = entries[0].path();
         debug!("Found nested FFmpeg directory: {:?}", nested_dir);
-        
+
         // Check if bin/ exists in nested dir
         let nested_bin = nested_dir.join("bin");
         if !nested_bin.exists() {
             debug!("No bin/ directory in nested dir, skipping reorganization");
             return Ok(());
         }
-        
+
         // Move bin/ directory to install_path/bin
         let target_bin = install_path.join("bin");
         if target_bin.exists() {
             fs::remove_dir_all(&target_bin)?;
         }
-        
+
         debug!("Moving {:?} to {:?}", nested_bin, target_bin);
         fs::rename(&nested_bin, &target_bin)?;
-        
+
         // Also move doc/ and README if they exist
         for name in &["doc", "README.txt", "LICENSE"] {
             let nested_item = nested_dir.join(name);
@@ -178,10 +178,10 @@ impl Runtime for FfmpegRuntime {
                 let _ = fs::rename(&nested_item, &target_item); // Ignore errors
             }
         }
-        
+
         // Remove the now-empty nested directory
         let _ = fs::remove_dir_all(&nested_dir); // Ignore errors
-        
+
         debug!("FFmpeg directory reorganization completed");
         Ok(())
     }

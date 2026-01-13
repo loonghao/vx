@@ -1,6 +1,5 @@
 //! Package manager detection utilities
 
-use crate::Result;
 use std::collections::HashMap;
 use tracing::debug;
 

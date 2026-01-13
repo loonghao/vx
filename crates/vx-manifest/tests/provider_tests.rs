@@ -1,6 +1,6 @@
 use vx_manifest::{
-    CommandDef, Ecosystem, EnvConfig, OutputConfig, ProviderManifest, ShellConfig, TestCommand,
-    TestConfig, InlineTestScripts,
+    CommandDef, Ecosystem, EnvConfig, InlineTestScripts, OutputConfig, ProviderManifest,
+    ShellConfig, TestCommand, TestConfig,
 };
 
 #[test]
@@ -86,7 +86,10 @@ executable = "cl"
 
     let platform_constraint = manifest.provider.platform_constraint.as_ref().unwrap();
     assert_eq!(platform_constraint.os.len(), 1);
-    assert_eq!(manifest.platform_description(), Some("Windows only".to_string()));
+    assert_eq!(
+        manifest.platform_description(),
+        Some("Windows only".to_string())
+    );
     assert_eq!(manifest.platform_label(), Some("Windows".to_string()));
 }
 
@@ -109,7 +112,10 @@ os = ["macos"]
 
     let platform_constraint = runtime.platform_constraint.as_ref().unwrap();
     assert_eq!(platform_constraint.os.len(), 1);
-    assert_eq!(runtime.platform_description(), Some("macOS only".to_string()));
+    assert_eq!(
+        runtime.platform_description(),
+        Some("macOS only".to_string())
+    );
 }
 
 #[test]
@@ -329,23 +335,19 @@ fn test_env_config_get_vars_for_version() {
         .insert("PATH".to_string(), "{install_dir}/bin".to_string());
     env_config.conditional.insert(
         ">=18".to_string(),
-        [
-            (
-                "NODE_OPTIONS".to_string(),
-                "--experimental-vm-modules".to_string(),
-            ),
-        ]
+        [(
+            "NODE_OPTIONS".to_string(),
+            "--experimental-vm-modules".to_string(),
+        )]
         .into_iter()
         .collect(),
     );
     env_config.conditional.insert(
         "<16".to_string(),
-        [
-            (
-                "NODE_OPTIONS".to_string(),
-                "--experimental-modules".to_string(),
-            ),
-        ]
+        [(
+            "NODE_OPTIONS".to_string(),
+            "--experimental-modules".to_string(),
+        )]
         .into_iter()
         .collect(),
     );

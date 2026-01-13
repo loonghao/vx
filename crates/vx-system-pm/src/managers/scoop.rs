@@ -51,7 +51,13 @@ impl SystemPackageManager for ScoopManager {
         "#;
 
         let status = Command::new("powershell")
-            .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script])
+            .args([
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                script,
+            ])
             .status()?;
 
         if status.success() {
@@ -74,11 +80,9 @@ impl SystemPackageManager for ScoopManager {
             args[1] = format!("{}@{}", spec.package, version);
         }
 
-        let output = Command::new("scoop")
-            .args(&args)
-            .output()?;
+        let output = Command::new("scoop").args(&args).output()?;
 
-        let stdout = String::from_utf8_lossy(&output.stdout);
+        let _stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
 
         if output.status.success() {
@@ -87,10 +91,7 @@ impl SystemPackageManager for ScoopManager {
                 .with_version(version.unwrap_or_else(|| "unknown".to_string())))
         } else {
             warn!("Scoop install failed: {}", stderr);
-            Err(SystemPmError::InstallFailed(format!(
-                "Scoop install failed: {}",
-                stderr
-            )).into())
+            Err(SystemPmError::InstallFailed(format!("Scoop install failed: {}", stderr)).into())
         }
     }
 
@@ -104,17 +105,12 @@ impl SystemPackageManager for ScoopManager {
         if status.success() {
             Ok(())
         } else {
-            Err(SystemPmError::UninstallFailed(format!(
-                "Failed to uninstall {}",
-                package
-            )).into())
+            Err(SystemPmError::UninstallFailed(format!("Failed to uninstall {}", package)).into())
         }
     }
 
     async fn is_package_installed(&self, package: &str) -> Result<bool> {
-        let output = Command::new("scoop")
-            .args(["list", package])
-            .output()?;
+        let output = Command::new("scoop").args(["list", package]).output()?;
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -131,9 +127,7 @@ impl SystemPackageManager for ScoopManager {
     }
 
     async fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
-        let output = Command::new("scoop")
-            .args(["list", package])
-            .output()?;
+        let output = Command::new("scoop").args(["list", package]).output()?;
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);

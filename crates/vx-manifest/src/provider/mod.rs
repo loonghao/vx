@@ -26,7 +26,9 @@ pub use env::EnvConfig;
 pub use executable::ExecutableConfig;
 pub use health::HealthConfig;
 pub use hooks::{HooksConfig, HooksDef};
-pub use layout::{ArchiveLayoutConfig, BinaryLayoutConfig, DownloadType, LayoutConfig, PlatformBinaryConfig};
+pub use layout::{
+    ArchiveLayoutConfig, BinaryLayoutConfig, DownloadType, LayoutConfig, PlatformBinaryConfig,
+};
 pub use manifest::{ProviderManifest, ProviderMeta};
 pub use mirror::{CacheConfig, MirrorConfig, MirrorStrategy};
 pub use output::{MachineFlagsConfig, OutputColorConfig, OutputConfig};
@@ -34,9 +36,10 @@ pub use platform_config::{PlatformConfig, PlatformsDef};
 pub use runtime::RuntimeDef;
 pub use shell::{ShellCompletionsConfig, ShellConfig};
 pub use system_deps::{
-    InstallStrategyDef, ProvidedToolDef, ScriptTypeDef, SystemDependencyDef, SystemDepsConfigDef,
-    SystemDepTypeDef, SystemInstallConfigDef,
+    InstallStrategyDef, ProvidedToolDef, ScriptTypeDef, SystemDepTypeDef, SystemDependencyDef,
+    SystemDepsConfigDef, SystemInstallConfigDef,
 };
-pub use test_config::{InlineTestScripts, PlatformTestCommands, TestCommand, TestConfig, TestPlatformConfig};
+pub use test_config::{
+    InlineTestScripts, PlatformTestCommands, TestCommand, TestConfig, TestPlatformConfig,
+};
 pub use version_source::VersionSourceDef;
-
