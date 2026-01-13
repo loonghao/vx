@@ -1,5 +1,18 @@
 //! Cache management command implementation
+//!
+//! This module consolidates all cache-related operations:
+//! - `clear`: Remove cached data (versions, downloads, resolutions)
+//! - `stats`: Show cache statistics and disk usage
+//! - `list`: List cached items
+//! - `clean`: Clean up cache and orphaned files
+//! - `dir`: Show cache directory path
+//!
+//! ## Design (inspired by uv)
+//!
+//! All cache operations are grouped under `vx cache` subcommand.
+//! This follows the principle of consolidating related functionality.
 
+use super::common::format_size;
 use crate::cli::CacheCommand;
 use crate::ui::UI;
 use anyhow::Result;
@@ -20,6 +33,15 @@ pub async fn handle(command: CacheCommand) -> Result<()> {
         } => handle_clear(versions, downloads, resolutions, tool, force).await,
         CacheCommand::Stats => handle_stats().await,
         CacheCommand::List { verbose } => handle_list(verbose).await,
+        CacheCommand::Clean {
+            dry_run,
+            cache_only,
+            orphaned_only,
+            force,
+            older_than,
+            verbose,
+        } => handle_clean(dry_run, cache_only, orphaned_only, force, older_than, verbose).await,
+        CacheCommand::Dir => handle_dir().await,
     }
 }
 
@@ -54,7 +76,11 @@ async fn handle_clear(
     let any_selector = versions_only || downloads_only || resolutions_only;
     let clear_versions = if any_selector { versions_only } else { true };
     let clear_downloads = if any_selector { downloads_only } else { true };
-    let clear_resolutions = if any_selector { resolutions_only } else { true };
+    let clear_resolutions = if any_selector {
+        resolutions_only
+    } else {
+        true
+    };
 
     // Clear version cache
     if clear_versions {
@@ -162,9 +188,19 @@ async fn handle_stats() -> Result<()> {
     println!("  Cached files: {}", download_stats.file_count);
     println!("  Total size:   {}", download_stats.formatted_size());
 
+    // Store directory stats
+    if paths.store_dir.exists() {
+        let store_size = calculate_dir_size(&paths.store_dir);
+        println!();
+        UI::info("Tool Store:");
+        println!("  Location: {}", paths.store_dir.display());
+        println!("  Total size: {}", format_size(store_size));
+    }
+
     println!();
     UI::hint("Run 'vx cache clear' to prune expired entries");
     UI::hint("Run 'vx cache clear --force' to remove all cache");
+    UI::hint("Run 'vx cache cleanup' to clean orphaned files");
 
     Ok(())
 }
@@ -216,15 +252,189 @@ async fn handle_list(verbose: bool) -> Result<()> {
     Ok(())
 }
 
-/// Format byte size to human-readable string
-fn format_size(size: u64) -> String {
-    if size < 1024 {
-        format!("{} B", size)
-    } else if size < 1024 * 1024 {
-        format!("{:.1} KB", size as f64 / 1024.0)
-    } else if size < 1024 * 1024 * 1024 {
-        format!("{:.1} MB", size as f64 / (1024.0 * 1024.0))
+/// Show cache directory path
+async fn handle_dir() -> Result<()> {
+    let paths = VxPaths::new()?;
+    println!("{}", paths.cache_dir.display());
+    Ok(())
+}
+
+/// Handle clean subcommand
+async fn handle_clean(
+    dry_run: bool,
+    cache_only: bool,
+    orphaned_only: bool,
+    force: bool,
+    older_than: Option<u32>,
+    verbose: bool,
+) -> Result<()> {
+    let paths = VxPaths::new()?;
+
+    if dry_run {
+        UI::header("Cleanup Preview (Dry Run)");
     } else {
-        format!("{:.1} GB", size as f64 / (1024.0 * 1024.0 * 1024.0))
+        UI::header("Cache Cleanup");
     }
+
+    // Determine what to clean
+    // If neither flag is set, clean both; otherwise respect the flags
+    let clean_cache = cache_only || !orphaned_only;
+    let clean_orphaned = orphaned_only || !cache_only;
+
+    // Clean cache
+    if clean_cache {
+        let cache_dir = paths.cache_dir.join("versions");
+        let version_cache = VersionCache::new(cache_dir.clone());
+
+        // Show cache statistics
+        if let Ok(stats) = version_cache.stats() {
+            if verbose || dry_run {
+                UI::info(&format!(
+                    "Version cache: {} entries ({} valid, {} expired), {}",
+                    stats.total_entries,
+                    stats.valid_entries,
+                    stats.expired_entries,
+                    stats.formatted_size()
+                ));
+            }
+        }
+
+        if dry_run {
+            UI::info("Would clean version cache:");
+            if cache_dir.exists() {
+                let mut found = false;
+                if let Ok(entries) = std::fs::read_dir(&cache_dir) {
+                    for entry in entries.filter_map(|e| e.ok()) {
+                        let path = entry.path();
+                        if path.extension().is_some_and(|ext| ext == "json") {
+                            found = true;
+                            if verbose {
+                                UI::hint(&format!("  - {}", path.display()));
+                            }
+                        }
+                    }
+                }
+                if !found {
+                    UI::hint("  (no version cache found)");
+                }
+            } else {
+                UI::hint("  (no version cache found)");
+            }
+        } else {
+            // Prune expired entries first if not force
+            if !force {
+                let pruned = version_cache.prune()?;
+                if pruned > 0 {
+                    UI::success(&format!("Pruned {} expired cache entries", pruned));
+                }
+            } else {
+                version_cache.clear_all()?;
+                UI::success("Version cache cleared");
+            }
+        }
+
+        // Clean download cache
+        let download_cache = &paths.cache_dir;
+        if dry_run {
+            UI::info("Would clean download cache:");
+            if download_cache.exists() {
+                let mut count = 0;
+                let mut size: u64 = 0;
+                if let Ok(entries) = std::fs::read_dir(download_cache) {
+                    for entry in entries.filter_map(|e| e.ok()) {
+                        let path = entry.path();
+                        if path.is_file() {
+                            // Apply older_than filter if specified
+                            if let Some(days) = older_than {
+                                if let Ok(meta) = path.metadata() {
+                                    if let Ok(modified) = meta.modified() {
+                                        let age = modified.elapsed().unwrap_or_default();
+                                        if age.as_secs() < (days as u64 * 24 * 60 * 60) {
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                            count += 1;
+                            if let Ok(meta) = path.metadata() {
+                                size += meta.len();
+                            }
+                            if verbose {
+                                UI::hint(&format!("  - {}", path.display()));
+                            }
+                        }
+                    }
+                }
+                UI::hint(&format!("  {} files ({})", count, format_size(size)));
+            }
+        } else if force {
+            // Only clean files in cache dir, not subdirectories
+            if download_cache.exists() {
+                let mut count = 0;
+                if let Ok(entries) = std::fs::read_dir(download_cache) {
+                    for entry in entries.filter_map(|e| e.ok()) {
+                        let path = entry.path();
+                        if path.is_file() {
+                            // Apply older_than filter if specified
+                            if let Some(days) = older_than {
+                                if let Ok(meta) = path.metadata() {
+                                    if let Ok(modified) = meta.modified() {
+                                        let age = modified.elapsed().unwrap_or_default();
+                                        if age.as_secs() < (days as u64 * 24 * 60 * 60) {
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                            std::fs::remove_file(&path)?;
+                            count += 1;
+                        }
+                    }
+                }
+                if count > 0 {
+                    UI::success(&format!("Cleaned {} cached files", count));
+                }
+            }
+        }
+    }
+
+    // Clean orphaned tool versions
+    if clean_orphaned {
+        if dry_run {
+            UI::info("Would clean orphaned tool versions:");
+            UI::hint("  (orphaned version detection not yet implemented)");
+        } else {
+            UI::step("Cleaning orphaned tool versions...");
+            UI::warning("Orphaned version cleanup not yet fully implemented");
+            UI::hint("Use 'vx remove <tool> <version>' to remove specific versions");
+        }
+    }
+
+    if !dry_run {
+        UI::success("Cleanup completed");
+    }
+
+    Ok(())
+}
+
+/// Calculate directory size recursively
+fn calculate_dir_size(path: &std::path::Path) -> u64 {
+    if !path.exists() {
+        return 0;
+    }
+
+    let mut size = 0;
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_file() {
+                if let Ok(meta) = path.metadata() {
+                    size += meta.len();
+                }
+            } else if path.is_dir() {
+                size += calculate_dir_size(&path);
+            }
+        }
+    }
+    size
 }
