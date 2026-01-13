@@ -27,6 +27,14 @@ executable_extensions = [".cmd", ".exe"]
 [runtimes.platforms.unix]
 executable_extensions = []
 
+# Test configuration - vite --version starts a dev server without a project,
+# so we use --help instead which exits immediately
+[runtimes.test]
+timeout_ms = 10000
+functional_commands = [
+    { command = "{executable} --help", expect_success = true, expected_output = "vite", name = "help_check" },
+]
+
 # Vite 5.x requires Node.js 18+
 [[runtimes.constraints]]
 when = ">=5"

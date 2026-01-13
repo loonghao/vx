@@ -363,23 +363,53 @@ async fn install_npm_package(
         std::fs::write(&package_json, init_content)?;
     }
 
-    // Run npm install with proper output handling to prevent hanging
+    // Run npm install with proper output handling and timeout to prevent hanging
     let install_spec = format!("{}@{}", package_name, version);
-    let output = std::process::Command::new(&npm_exe)
-        .args([
-            "install",
-            "--save",
-            "--silent",
-            "--no-progress",
-            "--no-audit",
-            "--no-fund",
-            &install_spec,
-        ])
-        .current_dir(&install_dir)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .output()?;
+
+    // Use tokio process with timeout to prevent indefinite hanging
+    use std::time::Duration;
+    use tokio::process::Command as TokioCommand;
+
+    // Default timeout of 5 minutes for npm install
+    let npm_timeout = Duration::from_secs(300);
+
+    let mut cmd = TokioCommand::new(&npm_exe);
+    cmd.args([
+        "install",
+        "--save",
+        "--silent",
+        "--no-progress",
+        "--no-audit",
+        "--no-fund",
+        &install_spec,
+    ])
+    .current_dir(&install_dir)
+    .stdin(std::process::Stdio::null())
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::piped())
+    // Kill the process tree on drop to prevent orphaned npm processes
+    .kill_on_drop(true);
+
+    let output = match tokio::time::timeout(npm_timeout, cmd.output()).await {
+        Ok(Ok(output)) => output,
+        Ok(Err(e)) => {
+            return Err(anyhow::anyhow!(
+                "Failed to run npm install for {}@{}: {}",
+                package_name,
+                version,
+                e
+            ));
+        }
+        Err(_) => {
+            return Err(anyhow::anyhow!(
+                "npm install timed out after {} seconds for {}@{}. \
+                 This may be due to network issues or npm registry problems.",
+                npm_timeout.as_secs(),
+                package_name,
+                version
+            ));
+        }
+    };
     let status = output.status;
 
     if !status.success() {
@@ -566,7 +596,12 @@ async fn install_with_uv(
     bin_dir: &Path,
     ctx: &RuntimeContext,
 ) -> Result<()> {
+    use std::time::Duration;
+    use tokio::process::Command as TokioCommand;
     use tracing::debug;
+
+    // Default timeout for pip operations
+    let pip_timeout = Duration::from_secs(300);
 
     // Python executable path in venv
     let venv_python = if cfg!(windows) {
@@ -579,7 +614,7 @@ async fn install_with_uv(
     let vx_python = find_vx_python(ctx);
 
     // Create venv with uv, using vx-managed Python if available
-    let mut cmd = std::process::Command::new(uv_exe);
+    let mut cmd = TokioCommand::new(uv_exe);
     cmd.args(["venv", "--quiet", venv_dir.to_str().unwrap()]);
 
     if let Some(ref python_path) = vx_python {
@@ -589,11 +624,21 @@ async fn install_with_uv(
         debug!("No vx-managed Python found, using uv's default Python");
     }
 
-    let status = cmd
-        .stdin(std::process::Stdio::null())
+    cmd.stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .status()?;
+        .kill_on_drop(true);
+
+    let status = match tokio::time::timeout(pip_timeout, cmd.status()).await {
+        Ok(Ok(status)) => status,
+        Ok(Err(e)) => return Err(anyhow::anyhow!("uv venv creation failed: {}", e)),
+        Err(_) => {
+            return Err(anyhow::anyhow!(
+                "uv venv creation timed out after {} seconds",
+                pip_timeout.as_secs()
+            ))
+        }
+    };
 
     if !status.success() {
         return Err(anyhow::anyhow!("uv venv creation failed"));
@@ -601,19 +646,32 @@ async fn install_with_uv(
 
     // Install package with uv pip
     let install_spec = format!("{}=={}", package_name, version);
-    let status = std::process::Command::new(uv_exe)
-        .args([
-            "pip",
-            "install",
-            "--quiet",
-            "--python",
-            venv_python.to_str().unwrap(),
-            &install_spec,
-        ])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()?;
+    let mut cmd = TokioCommand::new(uv_exe);
+    cmd.args([
+        "pip",
+        "install",
+        "--quiet",
+        "--python",
+        venv_python.to_str().unwrap(),
+        &install_spec,
+    ])
+    .stdin(std::process::Stdio::null())
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::null())
+    .kill_on_drop(true);
+
+    let status = match tokio::time::timeout(pip_timeout, cmd.status()).await {
+        Ok(Ok(status)) => status,
+        Ok(Err(e)) => return Err(anyhow::anyhow!("uv pip install failed: {}", e)),
+        Err(_) => {
+            return Err(anyhow::anyhow!(
+                "uv pip install timed out after {} seconds for {}=={}",
+                pip_timeout.as_secs(),
+                package_name,
+                version
+            ))
+        }
+    };
 
     if !status.success() {
         return Err(anyhow::anyhow!("uv pip install failed"));
@@ -641,18 +699,40 @@ async fn install_with_system_python(
     venv_dir: &Path,
     _bin_dir: &Path,
 ) -> Result<()> {
+    use std::time::Duration;
+    use tokio::process::Command as TokioCommand;
     use tracing::debug;
+
+    // Default timeout for pip operations
+    let pip_timeout = Duration::from_secs(300);
 
     let python_exe = find_system_python()?;
     debug!("Using system python: {}", python_exe.display());
 
     // Create venv
-    let status = std::process::Command::new(&python_exe)
-        .args(["-m", "venv", venv_dir.to_str().unwrap()])
+    let mut cmd = TokioCommand::new(&python_exe);
+    cmd.args(["-m", "venv", venv_dir.to_str().unwrap()])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .status()?;
+        .kill_on_drop(true);
+
+    let status = match tokio::time::timeout(pip_timeout, cmd.status()).await {
+        Ok(Ok(status)) => status,
+        Ok(Err(e)) => {
+            return Err(anyhow::anyhow!(
+                "Failed to create venv at {}: {}",
+                venv_dir.display(),
+                e
+            ))
+        }
+        Err(_) => {
+            return Err(anyhow::anyhow!(
+                "venv creation timed out after {} seconds",
+                pip_timeout.as_secs()
+            ))
+        }
+    };
 
     if !status.success() {
         return Err(anyhow::anyhow!(
@@ -670,12 +750,32 @@ async fn install_with_system_python(
 
     // Install package
     let install_spec = format!("{}=={}", package_name, version);
-    let status = std::process::Command::new(&venv_python)
-        .args(["-m", "pip", "install", "--quiet", &install_spec])
+    let mut cmd = TokioCommand::new(&venv_python);
+    cmd.args(["-m", "pip", "install", "--quiet", &install_spec])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .status()?;
+        .kill_on_drop(true);
+
+    let status = match tokio::time::timeout(pip_timeout, cmd.status()).await {
+        Ok(Ok(status)) => status,
+        Ok(Err(e)) => {
+            return Err(anyhow::anyhow!(
+                "Failed to install pip package {}=={}: {}",
+                package_name,
+                version,
+                e
+            ))
+        }
+        Err(_) => {
+            return Err(anyhow::anyhow!(
+                "pip install timed out after {} seconds for {}=={}",
+                pip_timeout.as_secs(),
+                package_name,
+                version
+            ))
+        }
+    };
 
     if !status.success() {
         return Err(anyhow::anyhow!(

@@ -56,6 +56,11 @@ async fn handle_test_runtime(ctx: &CommandContext, runtime_name: &str, opts: &Ar
         exit_with_result(&result);
     }
 
+    // Handle --install mode: install the runtime and verify executable exists
+    if opts.install {
+        return handle_install_test(ctx, runtime_name, opts).await;
+    }
+
     // Get test configuration from manifest
     let test_config = ctx
         .get_runtime_manifest(runtime_name)
@@ -83,6 +88,96 @@ async fn handle_test_runtime(ctx: &CommandContext, runtime_name: &str, opts: &Ar
 
     output_single_result(&result, opts);
     exit_with_result(&result);
+}
+
+/// Handle --install test mode: install the runtime and verify executable exists
+async fn handle_install_test(
+    ctx: &CommandContext,
+    runtime_name: &str,
+    opts: &Args,
+) -> Result<()> {
+    use std::time::Instant;
+
+    let start = Instant::now();
+
+    // Try to install the runtime
+    let install_result = install_runtime_for_test(ctx, runtime_name).await;
+
+    let duration = start.elapsed();
+
+    let mut result = TestResult::new(runtime_name);
+    result.install_test = Some(install_result.is_ok());
+
+    match install_result {
+        Ok(exe_path) => {
+            result.passed = true;
+            result.vx_installed = true;
+            result.available = true;
+
+            if opts.verbose && !opts.quiet {
+                println!(
+                    "  ✓ Installed {} in {:.2}s",
+                    runtime_name,
+                    duration.as_secs_f64()
+                );
+                println!("    Executable: {}", exe_path.display());
+            }
+        }
+        Err(e) => {
+            result.passed = false;
+            result.vx_installed = false;
+
+            if !opts.quiet {
+                eprintln!("  ✗ Failed to install {}: {}", runtime_name, e);
+            }
+        }
+    }
+
+    output_single_result(&result, opts);
+    exit_with_result(&result);
+}
+
+/// Install a runtime for testing and return the executable path
+async fn install_runtime_for_test(
+    ctx: &CommandContext,
+    runtime_name: &str,
+) -> Result<std::path::PathBuf> {
+    // Use the install handler to install the runtime
+    crate::commands::install::handle_install(
+        ctx.registry(),
+        ctx.runtime_context(),
+        &[runtime_name.to_string()],
+        false, // don't force reinstall
+    )
+    .await
+    .context("Failed to install runtime")?;
+
+    // Get the installed executable path
+    let path_manager = vx_paths::PathManager::new()?;
+    let runtime = ctx
+        .registry()
+        .get_runtime(runtime_name)
+        .ok_or_else(|| anyhow::anyhow!("Runtime not found: {}", runtime_name))?;
+
+    // Find the installed version
+    let versions = path_manager.list_store_versions(runtime_name)?;
+    let version = versions
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("No version installed for {}", runtime_name))?;
+
+    let platform = vx_runtime::Platform::current();
+    let store_dir = path_manager.version_store_dir(runtime_name, version);
+    let exe_relative = runtime.executable_relative_path(version, &platform);
+    let exe_path = store_dir.join(&exe_relative);
+
+    if exe_path.exists() {
+        Ok(exe_path)
+    } else {
+        anyhow::bail!(
+            "Executable not found after installation: {}",
+            exe_path.display()
+        )
+    }
 }
 
 /// Test all registered providers
@@ -362,10 +457,29 @@ impl TestResult {
             None
         };
 
-        // Overall pass: platform supported AND (available OR functional tests pass)
-        let passed = result.platform_supported
-            && (available || functional_test.unwrap_or(false))
-            && result.error.is_none();
+        // Determine pass criteria based on test mode:
+        // - Default (no flags): platform supported is enough (configuration check)
+        // - --functional: requires available AND functional tests pass
+        // - --install: requires installation success (handled elsewhere)
+        // - --installed: requires vx_installed
+        // - --system: requires system_available
+        let passed = if opts.functional {
+            // Functional mode: must be available and tests must pass
+            result.platform_supported
+                && available
+                && functional_test.unwrap_or(true)
+                && result.error.is_none()
+        } else if opts.installed {
+            // Installed check: must be installed in vx
+            result.platform_supported && vx_installed
+        } else if opts.system {
+            // System check: must be on system PATH
+            result.platform_supported && system_available
+        } else {
+            // Default mode: just check platform support and no errors
+            // This is a "configuration check" - verifies the provider is correctly configured
+            result.platform_supported && result.error.is_none()
+        };
 
         Self {
             runtime: runtime_name.to_string(),
