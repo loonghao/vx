@@ -37,6 +37,7 @@ impl MakeUrlBuilder {
     }
 
     /// Check if the platform is supported for binary downloads
+    #[allow(dead_code)]
     pub fn is_binary_supported(platform: &Platform) -> bool {
         matches!(platform.os, Os::Windows)
     }
