@@ -64,6 +64,8 @@ jobs:
         run: |
           ./target/release/vx test --ci --ci-runtimes node,go,uv,just --temp-root --keep-going --verbose
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       # Full provider test (with skip list for platform-specific ones)
       - name: Test All Providers
@@ -87,6 +89,8 @@ jobs:
             ./target/release/vx test --ci --temp-root --keep-going --detailed
           fi
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       # Test specific runtimes if provided
       - name: Test Specific Runtimes
@@ -95,6 +99,8 @@ jobs:
           ./target/release/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --temp-root --keep-going --json > test-report.json || true
           ./target/release/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --temp-root --keep-going --detailed
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Upload Test Report
         if: always()
@@ -146,6 +152,8 @@ jobs:
         run: |
           # Test essential runtimes only for fast PR feedback
           ./target/release/vx test --ci --ci-runtimes node,go,uv,cargo,just --temp-root --verbose
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Summary job to report overall status
   summary:
