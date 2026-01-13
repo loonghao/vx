@@ -1,5 +1,8 @@
 # Rust Provider Manifest
 # This file defines the metadata, runtimes, and dependency constraints for Rust.
+#
+# Note: vx manages Rust toolchains directly, replacing the need for rustup.
+# Users can install specific Rust versions with: vx install rust@1.75.0
 
 [provider]
 name = "rust"
@@ -8,44 +11,29 @@ homepage = "https://www.rust-lang.org"
 repository = "https://github.com/rust-lang/rust"
 ecosystem = "rust"
 
-# Rustup - Rust toolchain installer
+# Rustc - Rust compiler
 [[runtimes]]
-name = "rustup"
-description = "Rust toolchain installer"
-executable = "rustup"
+name = "rustc"
+description = "Rust compiler"
+executable = "rustc"
+aliases = ["rust"]
 
 [runtimes.versions]
 source = "github-releases"
 owner = "rust-lang"
-repo = "rustup"
-strip_v_prefix = true
+repo = "rust"
+strip_v_prefix = false
 
 # RFC 0019: Executable Layout Configuration
 [runtimes.layout]
-download_type = "binary"
+download_type = "archive"
 
-[runtimes.layout.binary."windows-x86_64"]
-source_name = "rustup-init.exe"
-target_name = "rustup.exe"
-target_dir = "bin"
-
-[runtimes.layout.binary."macos-x86_64"]
-source_name = "rustup-init"
-target_name = "rustup"
-target_dir = "bin"
-target_permissions = "755"
-
-[runtimes.layout.binary."macos-aarch64"]
-source_name = "rustup-init"
-target_name = "rustup"
-target_dir = "bin"
-target_permissions = "755"
-
-[runtimes.layout.binary."linux-x86_64"]
-source_name = "rustup-init"
-target_name = "rustup"
-target_dir = "bin"
-target_permissions = "755"
+[runtimes.layout.archive]
+strip_prefix = "rust-{version}-{platform}"
+executable_paths = [
+    "rustc/bin/rustc.exe",   # Windows
+    "rustc/bin/rustc"        # Unix
+]
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
@@ -57,38 +45,38 @@ executable_extensions = []
 [runtimes.test]
 timeout_ms = 60000
 functional_commands = [
-    { command = "{executable} --version", expect_success = true, expected_output = "rustup \\d+\\.\\d+\\.\\d+", name = "version_check" },
-    { command = "{executable} show", expect_success = true, name = "show_toolchains" },
+    { command = "{executable} --version", expect_success = true, expected_output = "rustc \\d+\\.\\d+\\.\\d+", name = "version_check" },
 ]
 install_verification = [
     { command = "{executable} --version", expect_success = true },
 ]
 
-# Rustc - Rust compiler (managed by rustup)
-[[runtimes]]
-name = "rustc"
-description = "Rust compiler"
-executable = "rustc"
-managed_by = "rustup"
-
-[runtimes.platforms.windows]
-executable_extensions = [".exe"]
-
-[runtimes.platforms.unix]
-executable_extensions = []
-
 [[runtimes.constraints]]
 when = "*"
-requires = [
-    { runtime = "rustup", version = "*", reason = "rustc is managed by rustup" }
-]
+recommends = []
 
-# Cargo - Rust package manager (managed by rustup)
+# Cargo - Rust package manager
 [[runtimes]]
 name = "cargo"
-description = "Rust package manager"
+description = "Rust package manager and build tool"
 executable = "cargo"
-managed_by = "rustup"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "rust-lang"
+repo = "rust"
+strip_v_prefix = false
+
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "rust-{version}-{platform}"
+executable_paths = [
+    "cargo/bin/cargo.exe",   # Windows
+    "cargo/bin/cargo"        # Unix
+]
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
@@ -96,8 +84,16 @@ executable_extensions = [".exe"]
 [runtimes.platforms.unix]
 executable_extensions = []
 
+# RFC 0020: Test configuration
+[runtimes.test]
+timeout_ms = 60000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "cargo \\d+\\.\\d+\\.\\d+", name = "version_check" },
+]
+install_verification = [
+    { command = "{executable} --version", expect_success = true },
+]
+
 [[runtimes.constraints]]
 when = "*"
-requires = [
-    { runtime = "rustup", version = "*", reason = "cargo is managed by rustup" }
-]
+recommends = []

@@ -207,7 +207,17 @@ pub trait Installer: Send + Sync {
             let target_path = dest.join(target_dir).join(target_name);
 
             if source_path.exists() && source_path != target_path {
-                std::fs::rename(&source_path, &target_path)?;
+                // On Windows, rename might fail if target exists, so remove target first
+                if target_path.exists() {
+                    let _ = std::fs::remove_file(&target_path);
+                }
+
+                // Try rename first (atomic on same filesystem)
+                if std::fs::rename(&source_path, &target_path).is_err() {
+                    // Fallback to copy + delete
+                    std::fs::copy(&source_path, &target_path)?;
+                    let _ = std::fs::remove_file(&source_path);
+                }
 
                 // Set permissions if specified
                 #[cfg(unix)]

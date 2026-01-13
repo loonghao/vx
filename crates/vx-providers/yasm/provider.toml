@@ -1,12 +1,28 @@
 # YASM Provider Manifest
 # This file defines the metadata, runtimes, and dependency constraints for YASM.
+#
+# NOTE: YASM only provides Windows binaries. macOS/Linux users need to compile from source
+# or use system package managers.
 
 [provider]
 name = "yasm"
-description = "YASM - Modular Assembler with multiple output formats"
+description = "YASM - Modular Assembler with multiple output formats (Windows only)"
 homepage = "https://yasm.tortall.net/"
 repository = "https://github.com/yasm/yasm"
 ecosystem = "system"
+
+# Platform constraint: only Windows is supported for binary download
+[provider.platform_constraint]
+os = ["windows"]
+unsupported_message = """
+YASM binary downloads are only available for Windows.
+
+On macOS/Linux, install via your system package manager:
+  - macOS: brew install yasm
+  - Ubuntu/Debian: sudo apt install yasm
+  - Fedora/RHEL: sudo dnf install yasm
+  - Arch: sudo pacman -S yasm
+"""
 
 # YASM
 [[runtimes]]
@@ -20,7 +36,7 @@ owner = "yasm"
 repo = "yasm"
 
 # RFC 0019: Executable Layout Configuration
-# YASM 下载的是单个可执行文件，需要重命名和移动到 bin/
+# YASM downloads are single executable files
 [runtimes.layout]
 download_type = "binary"
 
@@ -36,28 +52,20 @@ source_name = "yasm-{version}-win32.exe"
 target_name = "yasm.exe"
 target_dir = "bin"
 
-# macOS x86_64
-[runtimes.layout.binary."macos-x86_64"]
-source_name = "yasm-{version}-macos"
-target_name = "yasm"
-target_dir = "bin"
-target_permissions = "755"
-
-# Linux x86_64
-[runtimes.layout.binary."linux-x86_64"]
-source_name = "yasm-{version}-linux"
-target_name = "yasm"
-target_dir = "bin"
-target_permissions = "755"
-
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 
-[runtimes.platforms.unix]
-executable_extensions = []
+# RFC 0020: Test configuration
+[runtimes.test]
+timeout_ms = 30000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "yasm", name = "version_check" },
+]
+install_verification = [
+    { command = "{executable} --version", expect_success = true },
+]
 
 # YASM is self-contained, no external dependencies
 [[runtimes.constraints]]
 when = "*"
 recommends = []
-
