@@ -241,6 +241,14 @@ pub enum Commands {
         #[arg(long)]
         keep_going: bool,
 
+        /// Use a custom VX root directory for testing (isolated environment)
+        #[arg(long)]
+        vx_root: Option<PathBuf>,
+
+        /// Use a temporary directory as VX root (auto-cleaned after test)
+        #[arg(long)]
+        temp_root: bool,
+
         /// Check if runtime is installed in vx store
         #[arg(long)]
         installed: bool,
@@ -1131,6 +1139,8 @@ impl CommandHandler for Commands {
                 ci_skip,
                 timeout,
                 keep_going,
+                vx_root,
+                temp_root,
                 installed,
                 system,
                 detailed,
@@ -1151,6 +1161,8 @@ impl CommandHandler for Commands {
                     ci_skip: ci_skip.clone(),
                     timeout: *timeout,
                     keep_going: *keep_going,
+                    vx_root: vx_root.clone(),
+                    temp_root: *temp_root,
                     installed: *installed,
                     system: *system,
                     detailed: *detailed,

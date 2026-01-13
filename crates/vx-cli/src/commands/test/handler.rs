@@ -224,12 +224,34 @@ async fn handle_ci_test(ctx: &CommandContext, opts: &Args) -> Result<()> {
     let total_start = Instant::now();
     let mut summary = CITestSummary::default();
     
+    // Setup VX root for testing
+    let (test_root, _temp_dir) = setup_test_root(opts)?;
+    
+    // Create a custom runtime context if using custom root
+    let custom_context = if let Some(ref root) = test_root {
+        Some(vx_runtime::create_runtime_context_with_base(root))
+    } else {
+        None
+    };
+    
+    let runtime_context = custom_context.as_ref().unwrap_or_else(|| ctx.runtime_context());
+    
+    // Create custom path manager for the test root
+    let path_manager = if let Some(ref root) = test_root {
+        vx_paths::PathManager::with_base_dir(root)?
+    } else {
+        vx_paths::PathManager::new()?
+    };
+    
     // Determine which runtimes to test
     let runtimes_to_test = get_ci_test_runtimes(ctx, opts);
     
     if !opts.quiet && !opts.json {
         println!("🚀 VX CI Test - Full End-to-End Testing");
         println!("=========================================");
+        if let Some(ref root) = test_root {
+            println!("VX Root: {}", root.display());
+        }
         println!("Runtimes to test: {}", runtimes_to_test.len());
         if opts.verbose {
             println!("  {}", runtimes_to_test.join(", "));
@@ -238,7 +260,13 @@ async fn handle_ci_test(ctx: &CommandContext, opts: &Args) -> Result<()> {
     }
     
     for runtime_name in &runtimes_to_test {
-        let result = run_ci_test_for_runtime(ctx, runtime_name, opts).await;
+        let result = run_ci_test_for_runtime(
+            ctx,
+            runtime_context,
+            &path_manager,
+            runtime_name,
+            opts,
+        ).await;
         
         // Update summary
         summary.total += 1;
@@ -276,6 +304,26 @@ async fn handle_ci_test(ctx: &CommandContext, opts: &Args) -> Result<()> {
     }
 }
 
+/// Setup VX root for testing
+/// Returns (custom_root, temp_dir_guard)
+fn setup_test_root(opts: &Args) -> Result<(Option<PathBuf>, Option<tempfile::TempDir>)> {
+    if let Some(ref root) = opts.vx_root {
+        // Use specified root
+        std::fs::create_dir_all(root)?;
+        Ok((Some(root.clone()), None))
+    } else if opts.temp_root {
+        // Create temporary directory
+        let temp_dir = tempfile::Builder::new()
+            .prefix("vx-ci-test-")
+            .tempdir()?;
+        let root = temp_dir.path().to_path_buf();
+        Ok((Some(root), Some(temp_dir)))
+    } else {
+        // Use default VX root
+        Ok((None, None))
+    }
+}
+
 /// Get list of runtimes to test in CI mode
 fn get_ci_test_runtimes(ctx: &CommandContext, opts: &Args) -> Vec<String> {
     // If specific runtimes are specified, use those
@@ -303,6 +351,8 @@ fn get_ci_test_runtimes(ctx: &CommandContext, opts: &Args) -> Vec<String> {
 /// Run full CI test for a single runtime
 async fn run_ci_test_for_runtime(
     ctx: &CommandContext,
+    runtime_context: &vx_runtime::RuntimeContext,
+    path_manager: &vx_paths::PathManager,
     runtime_name: &str,
     opts: &Args,
 ) -> CITestResult {
@@ -346,7 +396,7 @@ async fn run_ci_test_for_runtime(
         std::time::Duration::from_secs(opts.timeout),
         crate::commands::install::install_quiet(
             ctx.registry(),
-            ctx.runtime_context(),
+            runtime_context,
             runtime_name,
         ),
     )
@@ -370,15 +420,7 @@ async fn run_ci_test_for_runtime(
         }
     };
     
-    // Get executable path
-    let path_manager = match vx_paths::PathManager::new() {
-        Ok(pm) => pm,
-        Err(e) => {
-            result.error = Some(format!("Failed to get path manager: {}", e));
-            return result;
-        }
-    };
-    
+    // Get executable path using the provided path manager
     let store_dir = path_manager.version_store_dir(runtime_name, &version);
     let exe_relative = runtime.executable_relative_path(&version, &current_platform);
     let exe_path = store_dir.join(&exe_relative);
