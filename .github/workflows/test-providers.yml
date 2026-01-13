@@ -25,7 +25,7 @@ on:
       skip:
         description: 'Runtimes to skip (comma-separated)'
         required: false
-        default: 'spack'
+        default: ''
 
 jobs:
   test-providers:
@@ -69,12 +69,23 @@ jobs:
       - name: Test All Providers
         if: inputs.runtimes == ''
         run: |
-          SKIP_LIST="${{ inputs.skip || 'spack' }}"
+          SKIP_LIST="${{ inputs.skip }}"
+          # spack doesn't support Windows
           if [ "${{ runner.os }}" == "Windows" ]; then
-            SKIP_LIST="$SKIP_LIST,spack"
+            if [ -n "$SKIP_LIST" ]; then
+              SKIP_LIST="$SKIP_LIST,spack"
+            else
+              SKIP_LIST="spack"
+            fi
           fi
-          ./target/release/vx test --ci --ci-skip $SKIP_LIST --keep-going --json > test-report.json || true
-          ./target/release/vx test --ci --ci-skip $SKIP_LIST --keep-going --detailed
+          
+          if [ -n "$SKIP_LIST" ]; then
+            ./target/release/vx test --ci --ci-skip $SKIP_LIST --keep-going --json > test-report.json || true
+            ./target/release/vx test --ci --ci-skip $SKIP_LIST --keep-going --detailed
+          else
+            ./target/release/vx test --ci --keep-going --json > test-report.json || true
+            ./target/release/vx test --ci --keep-going --detailed
+          fi
         shell: bash
       
       # Test specific runtimes if provided
