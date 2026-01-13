@@ -58,7 +58,8 @@ impl Runtime for GitRuntime {
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
         // Fetch versions from Git for Windows releases
         // This provides portable Git versions for Windows
-        ctx.fetch_github_releases(
+        // Note: Git for Windows uses tags like "v2.52.0.windows.1", we need to extract just "2.52.0"
+        let mut versions = ctx.fetch_github_releases(
             "git",
             "git-for-windows",
             "git",
@@ -67,7 +68,20 @@ impl Runtime for GitRuntime {
                 .skip_prereleases(true)
                 .per_page(50),
         )
-        .await
+        .await?;
+        
+        // Transform versions: "2.52.0.windows.1" -> "2.52.0"
+        for v in &mut versions {
+            if let Some(base_version) = v.version.split(".windows.").next() {
+                v.version = base_version.to_string();
+            }
+        }
+        
+        // Deduplicate versions (multiple .windows.X releases for same base version)
+        let mut seen = std::collections::HashSet::new();
+        versions.retain(|v| seen.insert(v.version.clone()));
+        
+        Ok(versions)
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

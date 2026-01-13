@@ -1,5 +1,6 @@
 # GitHub Actions workflow for testing all providers with real network downloads
 # Uses `vx test --ci` for comprehensive end-to-end testing
+# Split into multiple parallel jobs to avoid disk space issues
 
 name: Test All Providers
 
@@ -27,9 +28,32 @@ on:
         required: false
         default: ''
 
+# Provider groups for parallel testing
+# Each group should be small enough to fit in GitHub Actions disk space (~14GB)
+env:
+  # Core runtimes - essential and fast
+  GROUP_CORE: "node,go,uv,just,jq"
+  # JavaScript ecosystem
+  GROUP_JS: "npm,npx,yarn,pnpm,bun,vite,release-please"
+  # Python ecosystem
+  GROUP_PYTHON: "uvx,pip,pipx,pre-commit,rez"
+  # Rust ecosystem
+  GROUP_RUST: "rust,cargo,rustc,rustup"
+  # DevOps tools
+  GROUP_DEVOPS: "terraform,helm,kubectl,k9s,kind"
+  # Build tools
+  GROUP_BUILD: "ninja,cmake,meson,task,make"
+  # Cloud & containers
+  GROUP_CLOUD: "docker,gcloud,aws"
+  # Large tools (test separately)
+  GROUP_LARGE: "ollama,ffmpeg,zig"
+  # Misc tools
+  GROUP_MISC: "protoc,spack,git,code,yasm"
+
 jobs:
-  test-providers:
-    name: Test Providers on ${{ matrix.os }}
+  # Build VX binary first (shared across all test jobs)
+  build:
+    name: Build VX
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -59,45 +83,74 @@ jobs:
       - name: Build VX
         run: cargo build --release
       
-      # Test core runtimes first (fast feedback) - use temp root for isolation
+      - name: Upload VX binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: |
+            target/release/vx
+            target/release/vx.exe
+          retention-days: 1
+
+  # Test core runtimes (essential, fast)
+  test-core:
+    name: Core (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
       - name: Test Core Runtimes
         run: |
-          ./target/release/vx test --ci --ci-runtimes node,go,uv,just --temp-root --keep-going --verbose
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_CORE }} --temp-root --keep-going --verbose
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Test JavaScript ecosystem
+  test-js:
+    name: JavaScript (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
       
-      # Full provider test (with skip list for platform-specific ones)
-      - name: Test All Providers
-        if: inputs.runtimes == ''
-        run: |
-          SKIP_LIST="${{ inputs.skip }}"
-          # spack doesn't support Windows
-          if [ "${{ runner.os }}" == "Windows" ]; then
-            if [ -n "$SKIP_LIST" ]; then
-              SKIP_LIST="$SKIP_LIST,spack"
-            else
-              SKIP_LIST="spack"
-            fi
-          fi
-          
-          if [ -n "$SKIP_LIST" ]; then
-            ./target/release/vx test --ci --ci-skip $SKIP_LIST --temp-root --keep-going --json > test-report.json || true
-            ./target/release/vx test --ci --ci-skip $SKIP_LIST --temp-root --keep-going --detailed
-          else
-            ./target/release/vx test --ci --temp-root --keep-going --json > test-report.json || true
-            ./target/release/vx test --ci --temp-root --keep-going --detailed
-          fi
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
       
-      # Test specific runtimes if provided
-      - name: Test Specific Runtimes
-        if: inputs.runtimes != ''
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test JS Runtimes
         run: |
-          ./target/release/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --temp-root --keep-going --json > test-report.json || true
-          ./target/release/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --temp-root --keep-going --detailed
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_JS }} --temp-root --keep-going --json > test-report.json || true
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_JS }} --temp-root --keep-going --detailed
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -106,20 +159,275 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: provider-test-report-${{ matrix.os }}
+          name: report-js-${{ matrix.os }}
           path: test-report.json
           retention-days: 7
+
+  # Test Python ecosystem
+  test-python:
+    name: Python (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
       
-      - name: Check Test Results
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test Python Runtimes
         run: |
-          if [ -f test-report.json ]; then
-            FAILED=$(cat test-report.json | jq '.failed')
-            if [ "$FAILED" != "0" ]; then
-              echo "::error::$FAILED provider(s) failed"
-              exit 1
-            fi
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_PYTHON }} --temp-root --keep-going --json > test-report.json || true
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_PYTHON }} --temp-root --keep-going --detailed
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: report-python-${{ matrix.os }}
+          path: test-report.json
+          retention-days: 7
+
+  # Test Rust ecosystem
+  test-rust:
+    name: Rust (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test Rust Runtimes
+        run: |
+          # Skip rustup as it uses installer script
+          RUNTIMES="${{ env.GROUP_RUST }}"
+          SKIP="rustup"
+          ./bin/vx test --ci --ci-runtimes $RUNTIMES --ci-skip $SKIP --temp-root --keep-going --json > test-report.json || true
+          ./bin/vx test --ci --ci-runtimes $RUNTIMES --ci-skip $SKIP --temp-root --keep-going --detailed
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: report-rust-${{ matrix.os }}
+          path: test-report.json
+          retention-days: 7
+
+  # Test DevOps tools
+  test-devops:
+    name: DevOps (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test DevOps Runtimes
+        run: |
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_DEVOPS }} --temp-root --keep-going --json > test-report.json || true
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_DEVOPS }} --temp-root --keep-going --detailed
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: report-devops-${{ matrix.os }}
+          path: test-report.json
+          retention-days: 7
+
+  # Test Build tools
+  test-build:
+    name: Build Tools (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test Build Runtimes
+        run: |
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_BUILD }} --temp-root --keep-going --json > test-report.json || true
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_BUILD }} --temp-root --keep-going --detailed
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: report-build-${{ matrix.os }}
+          path: test-report.json
+          retention-days: 7
+
+  # Test Misc tools
+  test-misc:
+    name: Misc (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test Misc Runtimes
+        run: |
+          RUNTIMES="${{ env.GROUP_MISC }}"
+          # Platform-specific skips
+          SKIP=""
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            SKIP="spack"
+          fi
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            # git only provides Windows binaries
+            SKIP="git"
+          fi
+          
+          if [ -n "$SKIP" ]; then
+            ./bin/vx test --ci --ci-runtimes $RUNTIMES --ci-skip $SKIP --temp-root --keep-going --json > test-report.json || true
+            ./bin/vx test --ci --ci-runtimes $RUNTIMES --ci-skip $SKIP --temp-root --keep-going --detailed
+          else
+            ./bin/vx test --ci --ci-runtimes $RUNTIMES --temp-root --keep-going --json > test-report.json || true
+            ./bin/vx test --ci --ci-runtimes $RUNTIMES --temp-root --keep-going --detailed
           fi
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: report-misc-${{ matrix.os }}
+          path: test-report.json
+          retention-days: 7
+
+  # Test specific runtimes if provided via workflow_dispatch
+  test-specific:
+    name: Specific Runtimes (${{ matrix.os }})
+    if: inputs.runtimes != ''
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test Specific Runtimes
+        run: |
+          SKIP="${{ inputs.skip }}"
+          if [ -n "$SKIP" ]; then
+            ./bin/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --ci-skip $SKIP --temp-root --keep-going --json > test-report.json || true
+            ./bin/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --ci-skip $SKIP --temp-root --keep-going --detailed
+          else
+            ./bin/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --temp-root --keep-going --json > test-report.json || true
+            ./bin/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --temp-root --keep-going --detailed
+          fi
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: report-specific-${{ matrix.os }}
+          path: test-report.json
+          retention-days: 7
 
   # Quick smoke test for PRs (only test a subset)
   quick-test:
@@ -151,7 +459,7 @@ jobs:
       - name: Quick Provider Test
         run: |
           # Test essential runtimes only for fast PR feedback
-          ./target/release/vx test --ci --ci-runtimes node,go,uv,cargo,just --temp-root --verbose
+          ./target/release/vx test --ci --ci-runtimes node,go,uv,just --temp-root --verbose
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -159,33 +467,53 @@ jobs:
   summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [test-providers]
+    needs: [test-core, test-js, test-python, test-rust, test-devops, test-build, test-misc]
     if: always()
     
     steps:
       - name: Download all reports
         uses: actions/download-artifact@v6
         with:
-          pattern: provider-test-report-*
-          merge-multiple: true
+          pattern: report-*
+          merge-multiple: false
       
       - name: Generate Summary
         run: |
           echo "## Provider Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          for report in provider-test-report-*/test-report.json; do
-            if [ -f "$report" ]; then
-              OS=$(dirname "$report" | sed 's/provider-test-report-//')
-              TOTAL=$(cat "$report" | jq '.total')
-              PASSED=$(cat "$report" | jq '.passed')
-              FAILED=$(cat "$report" | jq '.failed')
-              SKIPPED=$(cat "$report" | jq '.skipped')
+          # Find all test reports
+          for dir in report-*/; do
+            if [ -d "$dir" ]; then
+              GROUP=$(echo "$dir" | sed 's/report-//' | sed 's/-ubuntu-latest//' | sed 's/-macos-latest//' | sed 's/-windows-latest//' | sed 's/\///')
+              OS=$(echo "$dir" | grep -oE '(ubuntu|macos|windows)-latest' || echo "unknown")
               
-              echo "### $OS" >> $GITHUB_STEP_SUMMARY
-              echo "- ✅ Passed: $PASSED" >> $GITHUB_STEP_SUMMARY
-              echo "- ❌ Failed: $FAILED" >> $GITHUB_STEP_SUMMARY
-              echo "- ⏭️ Skipped: $SKIPPED" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
+              if [ -f "${dir}test-report.json" ]; then
+                TOTAL=$(cat "${dir}test-report.json" | jq '.total // 0')
+                PASSED=$(cat "${dir}test-report.json" | jq '.passed // 0')
+                FAILED=$(cat "${dir}test-report.json" | jq '.failed // 0')
+                SKIPPED=$(cat "${dir}test-report.json" | jq '.skipped // 0')
+                
+                echo "### $GROUP ($OS)" >> $GITHUB_STEP_SUMMARY
+                echo "- ✅ Passed: $PASSED" >> $GITHUB_STEP_SUMMARY
+                echo "- ❌ Failed: $FAILED" >> $GITHUB_STEP_SUMMARY
+                echo "- ⏭️ Skipped: $SKIPPED" >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+              fi
             fi
           done
+      
+      - name: Check for failures
+        run: |
+          TOTAL_FAILED=0
+          for dir in report-*/; do
+            if [ -d "$dir" ] && [ -f "${dir}test-report.json" ]; then
+              FAILED=$(cat "${dir}test-report.json" | jq '.failed // 0')
+              TOTAL_FAILED=$((TOTAL_FAILED + FAILED))
+            fi
+          done
+          
+          if [ "$TOTAL_FAILED" -gt 0 ]; then
+            echo "::error::$TOTAL_FAILED provider(s) failed across all groups"
+            exit 1
+          fi

@@ -432,16 +432,14 @@ async fn run_ci_test_for_runtime(
     };
     
     // Get executable path using the provided path manager
-    // For bundled runtimes (like uvx, bunx, npm, npx), use the parent runtime's store directory
-    let actual_runtime_name = runtime
-        .metadata()
-        .get("bundled_with")
-        .cloned()
-        .unwrap_or_else(|| runtime_name.to_string());
-    
-    let store_dir = path_manager.version_store_dir(&actual_runtime_name, &version);
-    let exe_relative = runtime.executable_relative_path(&version, &current_platform);
-    let exe_path = store_dir.join(&exe_relative);
+    // Handle different installation methods: binary, npm, pip
+    let exe_path = get_executable_path_for_runtime(
+        &runtime,
+        runtime_name,
+        &version,
+        path_manager,
+        &current_platform,
+    );
     
     if !exe_path.exists() {
         result.error = Some(format!("Executable not found: {}", exe_path.display()));
@@ -725,38 +723,134 @@ async fn handle_test_extension(_ctx: &CommandContext, url: &str, opts: &Args) ->
 /// Get the path to an installed executable
 fn get_installed_executable(ctx: &CommandContext, runtime_name: &str) -> Option<PathBuf> {
     let path_manager = vx_paths::PathManager::new().ok()?;
-    let versions = path_manager.list_store_versions(runtime_name).ok()?;
-
-    if let Some(version) = versions.first() {
-        let runtime = ctx.registry().get_runtime(runtime_name)?;
-        let platform = vx_runtime::Platform::current();
-        let store_dir = path_manager.version_store_dir(runtime_name, version);
-        let exe_relative = runtime.executable_relative_path(version, &platform);
-        let exe_path = store_dir.join(&exe_relative);
-
-        if exe_path.exists() {
-            return Some(exe_path);
-        }
-    }
-
-    // Check for bundled runtimes (e.g., ffprobe bundled with ffmpeg)
-    if let Some(runtime) = ctx.registry().get_runtime(runtime_name) {
-        if let Some(parent_tool) = runtime.metadata().get("bundled_with") {
-            let parent_versions = path_manager.list_store_versions(parent_tool).ok()?;
-            let platform = vx_runtime::Platform::current();
-
-            for version in &parent_versions {
-                let parent_path = path_manager.version_store_dir(parent_tool, version);
-                let exe_relative = runtime.executable_relative_path(version, &platform);
-                let exe_path = parent_path.join(&exe_relative);
+    let runtime = ctx.registry().get_runtime(runtime_name)?;
+    let platform = vx_runtime::Platform::current();
+    let metadata = runtime.metadata();
+    let install_method = metadata.get("install_method").map(|s| s.as_str());
+    
+    match install_method {
+        Some("npm") => {
+            // npm packages are installed in npm-tools directory
+            let package_name = metadata
+                .get("npm_package")
+                .map(|s| s.as_str())
+                .unwrap_or(runtime_name);
+            let versions = path_manager.list_npm_tool_versions(package_name).ok()?;
+            if let Some(version) = versions.first() {
+                let bin_dir = path_manager.npm_tool_bin_dir(package_name, version);
+                let exe_name = if cfg!(windows) {
+                    format!("{}.cmd", runtime_name)
+                } else {
+                    runtime_name.to_string()
+                };
+                let exe_path = bin_dir.join(exe_name);
                 if exe_path.exists() {
                     return Some(exe_path);
+                }
+            }
+        }
+        Some("pip") => {
+            // pip packages are installed in pip-tools directory with venv
+            let package_name = metadata
+                .get("pip_package")
+                .map(|s| s.as_str())
+                .unwrap_or(runtime_name);
+            let versions = path_manager.list_pip_tool_versions(package_name).ok()?;
+            if let Some(version) = versions.first() {
+                let bin_dir = path_manager.pip_tool_bin_dir(package_name, version);
+                let exe_name = if cfg!(windows) {
+                    format!("{}.exe", runtime_name)
+                } else {
+                    runtime_name.to_string()
+                };
+                let exe_path = bin_dir.join(exe_name);
+                if exe_path.exists() {
+                    return Some(exe_path);
+                }
+            }
+        }
+        _ => {
+            // Binary installation - check store directory
+            let versions = path_manager.list_store_versions(runtime_name).ok()?;
+            if let Some(version) = versions.first() {
+                let store_dir = path_manager.version_store_dir(runtime_name, version);
+                let exe_relative = runtime.executable_relative_path(version, &platform);
+                let exe_path = store_dir.join(&exe_relative);
+                if exe_path.exists() {
+                    return Some(exe_path);
+                }
+            }
+            
+            // Check for bundled runtimes (e.g., ffprobe bundled with ffmpeg)
+            if let Some(parent_tool) = metadata.get("bundled_with") {
+                let parent_versions = path_manager.list_store_versions(parent_tool).ok()?;
+                for version in &parent_versions {
+                    let parent_path = path_manager.version_store_dir(parent_tool, version);
+                    let exe_relative = runtime.executable_relative_path(version, &platform);
+                    let exe_path = parent_path.join(&exe_relative);
+                    if exe_path.exists() {
+                        return Some(exe_path);
+                    }
                 }
             }
         }
     }
 
     None
+}
+
+/// Get executable path for a runtime, handling different installation methods
+fn get_executable_path_for_runtime(
+    runtime: &std::sync::Arc<dyn vx_runtime::Runtime>,
+    runtime_name: &str,
+    version: &str,
+    path_manager: &vx_paths::PathManager,
+    platform: &vx_runtime::Platform,
+) -> std::path::PathBuf {
+    let metadata = runtime.metadata();
+    let install_method = metadata.get("install_method").map(|s| s.as_str());
+    
+    match install_method {
+        Some("npm") => {
+            // npm packages are installed in npm-tools directory
+            let package_name = metadata
+                .get("npm_package")
+                .map(|s| s.as_str())
+                .unwrap_or(runtime_name);
+            let bin_dir = path_manager.npm_tool_bin_dir(package_name, version);
+            let exe_name = if cfg!(windows) {
+                format!("{}.cmd", runtime_name)
+            } else {
+                runtime_name.to_string()
+            };
+            bin_dir.join(exe_name)
+        }
+        Some("pip") => {
+            // pip packages are installed in pip-tools directory with venv
+            let package_name = metadata
+                .get("pip_package")
+                .map(|s| s.as_str())
+                .unwrap_or(runtime_name);
+            let bin_dir = path_manager.pip_tool_bin_dir(package_name, version);
+            let exe_name = if cfg!(windows) {
+                format!("{}.exe", runtime_name)
+            } else {
+                runtime_name.to_string()
+            };
+            bin_dir.join(exe_name)
+        }
+        _ => {
+            // Binary installation - use store directory
+            // For bundled runtimes (like uvx, bunx, npm, npx), use the parent runtime's store directory
+            let actual_runtime_name = metadata
+                .get("bundled_with")
+                .map(|s| s.as_str())
+                .unwrap_or(runtime_name);
+            let store_dir = path_manager.version_store_dir(actual_runtime_name, version);
+            let exe_relative = runtime.executable_relative_path(version, platform);
+            store_dir.join(&exe_relative)
+        }
+    }
 }
 
 fn print_result_line(result: &TestResult) {
