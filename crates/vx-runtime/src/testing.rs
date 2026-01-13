@@ -791,14 +791,20 @@ impl RuntimeTester {
         // Substitute variables in command
         let command_str = cmd.command.replace("{executable}", executable);
 
-        // Parse command
-        let parts: Vec<&str> = command_str.split_whitespace().collect();
+        // Parse command with proper quote handling
+        let parts = match parse_command_line(&command_str) {
+            Ok(parts) => parts,
+            Err(e) => {
+                return TestCaseResult::failed(&test_name, format!("Failed to parse command: {}", e), start.elapsed());
+            }
+        };
+        
         if parts.is_empty() {
             return TestCaseResult::failed(&test_name, "Empty command", start.elapsed());
         }
 
-        let program = parts[0];
-        let args: Vec<&str> = parts[1..].to_vec();
+        let program = &parts[0];
+        let args: Vec<&str> = parts[1..].iter().map(|s| s.as_str()).collect();
 
         // Execute command
         let output = match Command::new(program).args(&args).output() {
@@ -986,4 +992,50 @@ impl RuntimeTester {
             duration,
         }
     }
+}
+
+/// Parse a command line string into arguments, respecting quotes
+/// 
+/// Examples:
+/// - `node --version` -> ["node", "--version"]
+/// - `node -e "console.log('hello')"` -> ["node", "-e", "console.log('hello')"]
+/// - `C:\path\to\node.exe --version` -> ["C:\path\to\node.exe", "--version"]
+fn parse_command_line(cmd: &str) -> Result<Vec<String>> {
+    let mut args = Vec::new();
+    let mut current = String::new();
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+
+    for c in cmd.chars() {
+        match c {
+            '"' if !in_single_quote => {
+                in_double_quote = !in_double_quote;
+            }
+            '\'' if !in_double_quote => {
+                in_single_quote = !in_single_quote;
+            }
+            ' ' | '\t' if !in_single_quote && !in_double_quote => {
+                if !current.is_empty() {
+                    args.push(current);
+                    current = String::new();
+                }
+            }
+            _ => {
+                current.push(c);
+            }
+        }
+    }
+
+    if !current.is_empty() {
+        args.push(current);
+    }
+
+    if in_single_quote {
+        anyhow::bail!("Unclosed single quote");
+    }
+    if in_double_quote {
+        anyhow::bail!("Unclosed double quote");
+    }
+
+    Ok(args)
 }
