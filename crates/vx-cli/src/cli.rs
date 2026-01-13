@@ -973,20 +973,23 @@ impl CommandHandler for Commands {
                 all,
                 system,
             } => {
-                commands::list::handle(
-                    ctx.registry(),
-                    ctx.runtime_context(),
-                    tool.as_deref(),
-                    *status,
-                    *all,
-                    *system,
-                )
-                .await
+                let args = commands::list::Args {
+                    tool: tool.clone(),
+                    status: *status,
+                    installed: false,
+                    available: false,
+                    all: *all,
+                    system: *system,
+                };
+                commands::list::handle(ctx, &args).await
             }
 
             Commands::Install { tools, force } => {
-                commands::install::handle(ctx.registry(), ctx.runtime_context(), tools, *force)
-                    .await
+                let args = commands::install::Args {
+                    tools: tools.clone(),
+                    force: *force,
+                };
+                commands::install::handle(ctx, &args).await
             }
 
             Commands::Update { tool, apply } => {
@@ -1168,7 +1171,7 @@ impl CommandHandler for Commands {
                 quiet,
             } => {
                 // Deprecated: redirect to test command
-                let test_cmd = commands::test::TestCommand {
+                let args = commands::test::Args {
                     runtime: Some(runtime.clone()),
                     all: false,
                     extension: None,
@@ -1184,7 +1187,7 @@ impl CommandHandler for Commands {
                     verbose: false,
                 };
                 
-                test_cmd.execute(ctx).await
+                commands::test::handle(ctx, &args).await
             }
 
             Commands::Test {
@@ -1202,8 +1205,7 @@ impl CommandHandler for Commands {
                 json,
                 verbose,
             } => {
-                // Build TestCommand from args
-                let test_cmd = commands::test::TestCommand {
+                let args = commands::test::Args {
                     runtime: runtime.clone(),
                     all: *all,
                     extension: extension.clone(),
@@ -1219,7 +1221,7 @@ impl CommandHandler for Commands {
                     verbose: *verbose,
                 };
                 
-                test_cmd.execute(ctx).await
+                commands::test::handle(ctx, &args).await
             }
 
             Commands::Sync {

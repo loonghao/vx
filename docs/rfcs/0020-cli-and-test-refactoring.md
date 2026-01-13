@@ -661,21 +661,40 @@ impl Cli {
   - `python/provider.toml` - 版本检查、平台检测
   - `rust/provider.toml` - rustup 版本检查、工具链显示
 
-### Phase 2: CLI 模块化 (v0.8.1) - 延期
+### Phase 2: CLI 模块化 (v0.8.1) ✅ 已完成
 
-当前 CLI 结构已经足够模块化：
-- 每个命令有独立的模块文件 (`commands/*.rs`)
-- `CommandHandler` trait 提供统一接口
-- `CommandContext` 提供依赖注入
+已完成命令模块化重构：
+- 每个复杂命令有独立的目录结构 (`commands/*/`)
+- 使用 `args.rs` 定义命令参数
+- 使用 `handler.rs` 实现命令逻辑
+- `mod.rs` 导出 `Args` 和 `handle()` 函数
 
-进一步模块化（将命令参数移到各自模块）可以在需要时进行，但不是当前优先级。
+已重构的命令：
+- [x] `install/` - 安装命令 (args.rs, handler.rs, mod.rs)
+- [x] `list/` - 列表命令 (args.rs, handler.rs, mod.rs)
+- [x] `test/` - 测试命令 (args.rs, handler.rs, mod.rs)
 
-- [ ] 创建命令注册宏（可选优化）
-- [ ] 迁移命令参数到各自模块（可选优化）
+目录结构：
+```
+commands/
+├── install/
+│   ├── mod.rs      # 模块导出
+│   ├── args.rs     # Args 结构体定义
+│   └── handler.rs  # handle() 函数实现
+├── list/
+│   ├── mod.rs
+│   ├── args.rs
+│   └── handler.rs
+├── test/
+│   ├── mod.rs
+│   ├── args.rs
+│   └── handler.rs
+└── ...             # 其他简单命令保持单文件
+```
 
 ### Phase 3: 清理和文档 (v0.8.2) - 延期
 
-- [ ] 删除旧的 `cli.rs` 中的冗余代码
+- [ ] 进一步简化 `cli.rs` 中的 Commands 枚举
 - [ ] 更新开发文档
 - [ ] 添加命令开发指南
 
