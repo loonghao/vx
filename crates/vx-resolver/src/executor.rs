@@ -16,6 +16,9 @@ use tracing::{debug, info, info_span, warn, Instrument};
 use vx_console::ProgressSpinner;
 use vx_runtime::{get_default_constraints, CacheMode, ProviderRegistry, RuntimeContext};
 
+// Re-export from vx_core for convenience
+pub use vx_core::{exit_code_from_status, is_ctrl_c_exit};
+
 /// Executor for runtime command forwarding
 pub struct Executor<'a> {
     /// Configuration
@@ -382,7 +385,7 @@ impl<'a> Executor<'a> {
         // Keep cache_key used to silence unused warning in some builds.
         let _ = cache_key;
 
-        Ok(status.code().unwrap_or(1))
+        Ok(exit_code_from_status(&status))
         }
         .instrument(span)
         .await
@@ -1460,5 +1463,5 @@ pub async fn execute_system_runtime(runtime_name: &str, args: &[String]) -> Resu
         .await
         .map_err(|e| anyhow::anyhow!("Failed to execute '{}': {}", runtime_name, e))?;
 
-    Ok(status.code().unwrap_or(1))
+    Ok(exit_code_from_status(&status))
 }
