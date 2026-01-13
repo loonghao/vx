@@ -157,6 +157,7 @@ vx-provider-bun = { path = "crates/vx-providers/bun" }
 vx-provider-rust = { path = "crates/vx-providers/rust" }
 vx-provider-vscode = { path = "crates/vx-providers/vscode" }
 vx-provider-just = { path = "crates/vx-providers/just" }
+vx-provider-jq = { path = "crates/vx-providers/jq" }
 vx-provider-vite = { path = "crates/vx-providers/vite" }
 vx-provider-rez = { path = "crates/vx-providers/rez" }
 vx-provider-pipx = { path = "crates/vx-providers/pipx" }

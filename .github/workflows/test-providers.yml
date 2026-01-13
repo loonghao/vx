@@ -36,11 +36,11 @@ env:
   # JavaScript ecosystem
   GROUP_JS: "npm,npx,yarn,pnpm,bun,vite,release-please"
   # Python ecosystem
-  GROUP_PYTHON: "uvx,pip,pipx,pre-commit,rez"
+  GROUP_PYTHON: "uvx,pipx,pre-commit,rez"
   # Rust ecosystem
-  GROUP_RUST: "rust,cargo,rustc,rustup"
+  GROUP_RUST: "rust,cargo,rustc"
   # DevOps tools
-  GROUP_DEVOPS: "terraform,helm,kubectl,k9s,kind"
+  GROUP_DEVOPS: "terraform,helm,kubectl"
   # Build tools
   GROUP_BUILD: "ninja,cmake,meson,task,make"
   # Cloud & containers
