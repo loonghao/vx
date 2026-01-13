@@ -34,6 +34,7 @@ const enSidebar = {
     {
       text: 'Advanced',
       items: [
+        { text: 'Manifest-Driven Providers', link: '/guide/manifest-driven-providers' },
         { text: 'Enhanced Scripts', link: '/guide/enhanced-scripts' },
         { text: 'Migration Guide', link: '/guide/migration' },
         { text: 'Best Practices', link: '/guide/best-practices' }
@@ -173,6 +174,7 @@ const zhSidebar = {
     {
       text: '进阶',
       items: [
+        { text: '声明式 Provider', link: '/guide/manifest-driven-providers_zh' },
         { text: '增强脚本系统', link: '/guide/enhanced-scripts_zh' },
         { text: '迁移指南', link: '/zh/guide/migration' },
         { text: '最佳实践', link: '/zh/guide/best-practices' }
