@@ -1040,6 +1040,82 @@ impl RealInstaller {
             http: RealHttpClient::new().with_download_cache(cache_dir),
         }
     }
+    
+    /// Get filename from server response headers
+    /// 
+    /// This method sends a HEAD request to get the actual filename from:
+    /// 1. Content-Disposition header
+    /// 2. Final redirected URL
+    async fn get_filename_from_server(&self, url: &str) -> Option<String> {
+        // Send HEAD request following redirects
+        let response = self.http.client.head(url).send().await.ok()?;
+        
+        // Try Content-Disposition header first
+        if let Some(content_disposition) = response.headers().get("content-disposition") {
+            if let Ok(value) = content_disposition.to_str() {
+                // Parse filename from Content-Disposition: attachment; filename=xxx.zip
+                if let Some(filename) = Self::parse_content_disposition(value) {
+                    tracing::debug!("Got filename from Content-Disposition: {}", filename);
+                    return Some(filename);
+                }
+            }
+        }
+        
+        // Try to get filename from final URL (after redirects)
+        let final_url = response.url().as_str();
+        if final_url != url {
+            let filename = final_url
+                .split('/')
+                .next_back()
+                .unwrap_or("download")
+                .split('?')
+                .next()
+                .unwrap_or("download");
+            // Only use if it has a valid extension
+            if filename.contains('.') && !filename.starts_with('.') {
+                tracing::debug!("Got filename from final URL: {}", filename);
+                return Some(filename.to_string());
+            }
+        }
+        
+        None
+    }
+    
+    /// Parse filename from Content-Disposition header value
+    fn parse_content_disposition(value: &str) -> Option<String> {
+        // Handle: attachment; filename=xxx.zip
+        // Handle: attachment; filename="xxx.zip"
+        // Handle: attachment; filename*=UTF-8''xxx.zip
+        
+        for part in value.split(';') {
+            let part = part.trim();
+            
+            // Standard filename parameter
+            if let Some(filename) = part.strip_prefix("filename=") {
+                let filename = filename.trim_matches('"').trim_matches('\'');
+                if !filename.is_empty() {
+                    return Some(filename.to_string());
+                }
+            }
+            
+            // RFC 5987 encoded filename (filename*=)
+            if let Some(encoded) = part.strip_prefix("filename*=") {
+                // Format: charset'language'encoded_filename
+                // e.g., UTF-8''OpenJDK25U-jdk_x64_windows_hotspot_25.0.1_8.zip
+                if let Some(pos) = encoded.rfind("''") {
+                    let filename = &encoded[pos + 2..];
+                    // URL decode the filename
+                    if let Ok(decoded) = urlencoding::decode(filename) {
+                        if !decoded.is_empty() {
+                            return Some(decoded.into_owned());
+                        }
+                    }
+                }
+            }
+        }
+        
+        None
+    }
 }
 
 impl Default for RealInstaller {
@@ -1124,15 +1200,24 @@ impl Installer for RealInstaller {
 
         // Extract archive name from URL, handling URL fragments (e.g., #.zip hint)
         let url_without_fragment = url.split('#').next().unwrap_or(url);
-        let archive_name = url_without_fragment
-            .split('/')
-            .next_back()
-            .unwrap_or("archive");
+        
+        // Try to get actual filename from server (handles redirects and Content-Disposition)
+        let archive_name = self.get_filename_from_server(url_without_fragment).await
+            .unwrap_or_else(|| {
+                url_without_fragment
+                    .split('/')
+                    .next_back()
+                    .unwrap_or("archive")
+                    .split('?')
+                    .next()
+                    .unwrap_or("archive")
+                    .to_string()
+            });
 
         // Check for extension hint in URL fragment
         let extension_hint = url.split('#').nth(1);
 
-        let temp_path = temp_dir.path().join(archive_name);
+        let temp_path = temp_dir.path().join(&archive_name);
 
         // Download with caching support (if cache is enabled)
         let from_cache = self

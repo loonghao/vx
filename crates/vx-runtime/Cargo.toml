@@ -42,6 +42,9 @@ toml = { workspace = true }
 # Retry with backoff
 backon = { workspace = true }
 
+# URL encoding/decoding
+urlencoding = "2.1"
+
 # Progress indicator
 indicatif = { workspace = true }
 

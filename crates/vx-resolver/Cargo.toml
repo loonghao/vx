@@ -7,6 +7,7 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
+vx-core = { workspace = true }
 vx-runtime = { workspace = true }
 vx-cache = { workspace = true }
 vx-paths = { workspace = true }

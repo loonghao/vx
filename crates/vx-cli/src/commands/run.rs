@@ -162,7 +162,8 @@ pub async fn handle(
     let status = execute_with_env(&full_cmd, &env_vars)?;
 
     if !status.success() {
-        std::process::exit(status.code().unwrap_or(1));
+        // Use exit_code_from_status to handle Ctrl+C gracefully
+        std::process::exit(vx_resolver::exit_code_from_status(&status));
     }
 
     Ok(())

@@ -48,6 +48,9 @@ tracing = { workspace = true }
 # Retry with backoff
 backon = { workspace = true }
 
+# URL encoding/decoding
+urlencoding = "2.1"
+
 # CDN acceleration (optional)
 turbo-cdn = { version = "0.7", default-features = false, features = ["rustls", "fast-hash", "high-performance"], optional = true }
 
