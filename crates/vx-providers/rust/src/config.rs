@@ -1,30 +1,8 @@
-//! Rust configuration
+//! Rust configuration and URL builder
+//!
+//! Downloads Rust toolchains from static.rust-lang.org
 
-use serde::{Deserialize, Serialize};
-
-/// Rust configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RustConfig {
-    /// Default Rust version/channel
-    pub default_channel: Option<String>,
-    /// Default target
-    pub default_target: Option<String>,
-    /// RUSTUP_HOME override
-    pub rustup_home: Option<String>,
-    /// CARGO_HOME override
-    pub cargo_home: Option<String>,
-}
-
-impl Default for RustConfig {
-    fn default() -> Self {
-        Self {
-            default_channel: Some("stable".to_string()),
-            default_target: None,
-            rustup_home: None,
-            cargo_home: None,
-        }
-    }
-}
+use vx_runtime::{Arch, Os, Platform};
 
 /// Rust URL builder for download URLs
 pub struct RustUrlBuilder;
@@ -34,58 +12,98 @@ impl RustUrlBuilder {
     ///
     /// Uses `.tar.gz` format for all platforms (including Windows) as it's
     /// universally supported by our archive extraction logic.
-    /// Note: Rust official releases provide both `.tar.gz` and `.tar.xz` for Windows.
-    pub fn download_url(version: &str) -> Option<String> {
-        let platform = Self::get_platform_string();
-        // Use tar.gz for all platforms - Windows also has tar.gz downloads available
-        // from static.rust-lang.org, and our extractor supports it natively
+    pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
+        let platform_str = Self::get_platform_string(platform);
         Some(format!(
             "https://static.rust-lang.org/dist/rust-{}-{}.tar.gz",
-            version, platform
+            version, platform_str
         ))
     }
 
-    /// Get rustup download URL for a specific version and platform
-    pub fn rustup_url(version: &str) -> String {
-        let platform = Self::get_platform_string();
-        let exe_suffix = if cfg!(windows) { ".exe" } else { "" };
-        // Use archive URL for specific versions
-        format!(
-            "https://static.rust-lang.org/rustup/archive/{}/{}/rustup-init{}",
-            version, platform, exe_suffix
-        )
+    /// Get platform string for downloads
+    pub fn get_platform_string(platform: &Platform) -> String {
+        match (&platform.os, &platform.arch) {
+            // Windows
+            (Os::Windows, Arch::X86_64) => "x86_64-pc-windows-msvc".to_string(),
+            (Os::Windows, Arch::X86) => "i686-pc-windows-msvc".to_string(),
+            (Os::Windows, Arch::Aarch64) => "aarch64-pc-windows-msvc".to_string(),
+
+            // macOS
+            (Os::MacOS, Arch::X86_64) => "x86_64-apple-darwin".to_string(),
+            (Os::MacOS, Arch::Aarch64) => "aarch64-apple-darwin".to_string(),
+
+            // Linux
+            (Os::Linux, Arch::X86_64) => "x86_64-unknown-linux-gnu".to_string(),
+            (Os::Linux, Arch::Aarch64) => "aarch64-unknown-linux-gnu".to_string(),
+            (Os::Linux, Arch::Arm) => "arm-unknown-linux-gnueabihf".to_string(),
+
+            // Default fallback
+            _ => "x86_64-unknown-linux-gnu".to_string(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_download_url_linux_x64() {
+        let platform = Platform {
+            os: Os::Linux,
+            arch: Arch::X86_64,
+        };
+        let url = RustUrlBuilder::download_url("1.75.0", &platform);
+        assert_eq!(
+            url,
+            Some(
+                "https://static.rust-lang.org/dist/rust-1.75.0-x86_64-unknown-linux-gnu.tar.gz"
+                    .to_string()
+            )
+        );
     }
 
-    /// Get platform string for downloads
-    pub fn get_platform_string() -> String {
-        if cfg!(target_os = "windows") {
-            if cfg!(target_arch = "x86_64") {
-                "x86_64-pc-windows-msvc".to_string()
-            } else if cfg!(target_arch = "x86") {
-                "i686-pc-windows-msvc".to_string()
-            } else if cfg!(target_arch = "aarch64") {
-                "aarch64-pc-windows-msvc".to_string()
-            } else {
-                "x86_64-pc-windows-msvc".to_string()
-            }
-        } else if cfg!(target_os = "macos") {
-            if cfg!(target_arch = "x86_64") {
-                "x86_64-apple-darwin".to_string()
-            } else if cfg!(target_arch = "aarch64") {
-                "aarch64-apple-darwin".to_string()
-            } else {
-                "x86_64-apple-darwin".to_string()
-            }
-        } else if cfg!(target_os = "linux") {
-            if cfg!(target_arch = "x86_64") {
-                "x86_64-unknown-linux-gnu".to_string()
-            } else if cfg!(target_arch = "aarch64") {
-                "aarch64-unknown-linux-gnu".to_string()
-            } else {
-                "x86_64-unknown-linux-gnu".to_string()
-            }
-        } else {
-            "x86_64-unknown-linux-gnu".to_string()
-        }
+    #[test]
+    fn test_download_url_windows_x64() {
+        let platform = Platform {
+            os: Os::Windows,
+            arch: Arch::X86_64,
+        };
+        let url = RustUrlBuilder::download_url("1.75.0", &platform);
+        assert_eq!(
+            url,
+            Some(
+                "https://static.rust-lang.org/dist/rust-1.75.0-x86_64-pc-windows-msvc.tar.gz"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn test_download_url_macos_arm64() {
+        let platform = Platform {
+            os: Os::MacOS,
+            arch: Arch::Aarch64,
+        };
+        let url = RustUrlBuilder::download_url("1.75.0", &platform);
+        assert_eq!(
+            url,
+            Some(
+                "https://static.rust-lang.org/dist/rust-1.75.0-aarch64-apple-darwin.tar.gz"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn test_platform_string() {
+        let platform = Platform {
+            os: Os::Linux,
+            arch: Arch::X86_64,
+        };
+        assert_eq!(
+            RustUrlBuilder::get_platform_string(&platform),
+            "x86_64-unknown-linux-gnu"
+        );
     }
 }

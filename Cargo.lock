@@ -4020,6 +4020,7 @@ dependencies = [
  "vx-provider-go",
  "vx-provider-helm",
  "vx-provider-java",
+ "vx-provider-jq",
  "vx-provider-just",
  "vx-provider-kubectl",
  "vx-provider-make",
@@ -4433,6 +4434,21 @@ dependencies = [
  "tracing",
  "vx-runtime",
  "walkdir",
+]
+
+[[package]]
+name = "vx-provider-jq"
+version = "0.6.13"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest 0.12.28",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
 ]
 
 [[package]]

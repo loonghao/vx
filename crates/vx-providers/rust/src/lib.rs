@@ -1,14 +1,33 @@
-//! Rust toolchain provider for vx
+//! Rust provider for vx
 //!
-//! This crate provides Rust toolchain support using the new vx-runtime traits.
+//! This crate provides Rust toolchain support for vx.
+//! vx manages Rust versions directly, replacing the need for rustup.
+//!
+//! # Runtimes
+//!
+//! - `rustc` (alias: `rust`) - The Rust compiler
+//! - `cargo` - Rust package manager and build tool
+//!
+//! # Example
+//!
+//! ```ignore
+//! // Install Rust 1.75.0
+//! vx install rust@1.75.0
+//!
+//! // Use cargo
+//! vx cargo build
+//!
+//! // Use rustc
+//! vx rustc --version
+//! ```
 
 mod config;
 mod provider;
 mod runtime;
 
-pub use config::{RustConfig, RustUrlBuilder};
+pub use config::RustUrlBuilder;
 pub use provider::RustProvider;
-pub use runtime::{CargoRuntime, RustcRuntime, RustupRuntime};
+pub use runtime::{CargoRuntime, RustcRuntime};
 
 use std::sync::Arc;
 use vx_runtime::Provider;

@@ -201,7 +201,7 @@ fn get_tool_category(runtime_name: &str) -> String {
         // Version control
         "git" | "svn" | "hg" | "git-lfs" => "vcs",
         // Container
-        "docker" | "podman" | "kubectl" | "helm" | "k9s" | "minikube" | "kind" => "container",
+        "docker" | "podman" | "kubectl" | "helm" | "minikube" => "container",
         // Cloud
         "aws" | "az" | "gcloud" | "terraform" | "pulumi" | "ansible" => "cloud",
         // Archive

@@ -1,0 +1,72 @@
+# jq Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for jq.
+
+[provider]
+name = "jq"
+description = "Lightweight and flexible command-line JSON processor"
+homepage = "https://jqlang.github.io/jq/"
+repository = "https://github.com/jqlang/jq"
+ecosystem = "devtools"
+
+# jq
+[[runtimes]]
+name = "jq"
+description = "jq - command-line JSON processor"
+executable = "jq"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "jqlang"
+repo = "jq"
+strip_v_prefix = true
+
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "binary"
+
+# Platform-specific binary configurations
+# jq releases use platform-specific naming: jq-{os}-{arch}
+[runtimes.layout.binary."windows-x86_64"]
+source_name = "jq-windows-amd64.exe"
+target_name = "jq.exe"
+target_dir = "bin"
+
+[runtimes.layout.binary."windows-x86"]
+source_name = "jq-windows-i386.exe"
+target_name = "jq.exe"
+target_dir = "bin"
+
+[runtimes.layout.binary."macos-x86_64"]
+source_name = "jq-macos-amd64"
+target_name = "jq"
+target_dir = "bin"
+target_permissions = "755"
+
+[runtimes.layout.binary."macos-aarch64"]
+source_name = "jq-macos-arm64"
+target_name = "jq"
+target_dir = "bin"
+target_permissions = "755"
+
+[runtimes.layout.binary."linux-x86_64"]
+source_name = "jq-linux-amd64"
+target_name = "jq"
+target_dir = "bin"
+target_permissions = "755"
+
+[runtimes.layout.binary."linux-aarch64"]
+source_name = "jq-linux-arm64"
+target_name = "jq"
+target_dir = "bin"
+target_permissions = "755"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# jq has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []

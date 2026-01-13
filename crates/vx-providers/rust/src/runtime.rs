@@ -1,29 +1,31 @@
 //! Rust runtime implementations
+//!
+//! vx manages Rust toolchains directly, replacing the need for rustup.
+//! Users can install specific Rust versions with: vx install rust@1.75.0
 
 use crate::config::RustUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
-use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
+use std::collections::HashMap;
+use std::path::Path;
+use vx_runtime::{
+    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
+    VersionInfo,
+};
+
+/// Get the directory name inside the archive for a given version and platform
+fn get_archive_dir_name(version: &str, platform: &Platform) -> String {
+    let platform_str = RustUrlBuilder::get_platform_string(platform);
+    format!("rust-{}-{}", version, platform_str)
+}
 
 /// Cargo runtime
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CargoRuntime;
 
 impl CargoRuntime {
     pub fn new() -> Self {
         Self
-    }
-
-    /// Get the directory name inside the archive for a given version
-    pub fn get_archive_dir_name(version: &str) -> String {
-        let platform = RustUrlBuilder::get_platform_string();
-        format!("rust-{}-{}", version, platform)
-    }
-}
-
-impl Default for CargoRuntime {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -45,9 +47,19 @@ impl Runtime for CargoRuntime {
         &[]
     }
 
+    fn metadata(&self) -> HashMap<String, String> {
+        let mut meta = HashMap::new();
+        meta.insert(
+            "homepage".to_string(),
+            "https://doc.rust-lang.org/cargo/".to_string(),
+        );
+        meta.insert("category".to_string(), "package-manager".to_string());
+        meta
+    }
+
     /// Rust archives extract to `rust-{version}-{platform}/cargo/bin/cargo`
     fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
-        let dir_name = Self::get_archive_dir_name(version);
+        let dir_name = get_archive_dir_name(version, platform);
         format!("{}/cargo/bin/{}", dir_name, platform.exe_name("cargo"))
     }
 
@@ -60,34 +72,48 @@ impl Runtime for CargoRuntime {
             "rust",
             GitHubReleaseOptions::new()
                 .strip_v_prefix(false) // Rust tags don't have 'v' prefix
-                .skip_prereleases(false)
+                .skip_prereleases(true)
                 .lts_detector(|v| {
                     // Stable releases are considered LTS-like
-                    // Beta and nightly are handled via prerelease flag
                     !v.contains("beta") && !v.contains("nightly")
                 }),
         )
         .await
     }
 
-    async fn download_url(&self, version: &str, _platform: &Platform) -> Result<Option<String>> {
-        Ok(RustUrlBuilder::download_url(version))
+    async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
+        Ok(RustUrlBuilder::download_url(version, platform))
+    }
+
+    fn verify_installation(
+        &self,
+        version: &str,
+        install_path: &Path,
+        platform: &Platform,
+    ) -> VerificationResult {
+        let exe_path = install_path.join(self.executable_relative_path(version, platform));
+
+        if exe_path.exists() {
+            VerificationResult::success(exe_path)
+        } else {
+            VerificationResult::failure(
+                vec![format!(
+                    "cargo executable not found at expected path: {}",
+                    exe_path.display()
+                )],
+                vec!["Try reinstalling the runtime".to_string()],
+            )
+        }
     }
 }
 
 /// Rustc runtime
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RustcRuntime;
 
 impl RustcRuntime {
     pub fn new() -> Self {
         Self
-    }
-}
-
-impl Default for RustcRuntime {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -109,9 +135,19 @@ impl Runtime for RustcRuntime {
         &["rust"] // "rust" is an alias for "rustc"
     }
 
+    fn metadata(&self) -> HashMap<String, String> {
+        let mut meta = HashMap::new();
+        meta.insert(
+            "homepage".to_string(),
+            "https://www.rust-lang.org/".to_string(),
+        );
+        meta.insert("category".to_string(), "compiler".to_string());
+        meta
+    }
+
     /// Rust archives extract to `rust-{version}-{platform}/rustc/bin/rustc`
     fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
-        let dir_name = CargoRuntime::get_archive_dir_name(version);
+        let dir_name = get_archive_dir_name(version, platform);
         format!("{}/rustc/bin/{}", dir_name, platform.exe_name("rustc"))
     }
 
@@ -120,61 +156,27 @@ impl Runtime for RustcRuntime {
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        CargoRuntime::new().download_url(version, platform).await
-    }
-}
-
-/// Rustup runtime
-#[derive(Debug, Clone)]
-pub struct RustupRuntime;
-
-impl RustupRuntime {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for RustupRuntime {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[async_trait]
-impl Runtime for RustupRuntime {
-    fn name(&self) -> &str {
-        "rustup"
+        Ok(RustUrlBuilder::download_url(version, platform))
     }
 
-    fn description(&self) -> &str {
-        "The Rust toolchain installer"
-    }
+    fn verify_installation(
+        &self,
+        version: &str,
+        install_path: &Path,
+        platform: &Platform,
+    ) -> VerificationResult {
+        let exe_path = install_path.join(self.executable_relative_path(version, platform));
 
-    fn ecosystem(&self) -> Ecosystem {
-        Ecosystem::Rust
-    }
-
-    fn aliases(&self) -> &[&str] {
-        &[]
-    }
-
-    /// Rustup is a single executable downloaded directly
-    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        platform.exe_name("rustup-init")
-    }
-
-    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Fetch rustup versions from GitHub tags (rustup doesn't use GitHub Releases)
-        ctx.fetch_github_tags(
-            "rustup",
-            "rust-lang",
-            "rustup",
-            GitHubReleaseOptions::new().strip_v_prefix(false),
-        )
-        .await
-    }
-
-    async fn download_url(&self, version: &str, _platform: &Platform) -> Result<Option<String>> {
-        Ok(Some(RustUrlBuilder::rustup_url(version)))
+        if exe_path.exists() {
+            VerificationResult::success(exe_path)
+        } else {
+            VerificationResult::failure(
+                vec![format!(
+                    "rustc executable not found at expected path: {}",
+                    exe_path.display()
+                )],
+                vec!["Try reinstalling the runtime".to_string()],
+            )
+        }
     }
 }
