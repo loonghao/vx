@@ -16,6 +16,8 @@ VX_VERSION="${VX_VERSION:-latest}"
 VX_INSTALL_DIR="${VX_INSTALL_DIR:-$HOME/.local/bin}"
 VX_BUILD_FROM_SOURCE="${VX_BUILD_FROM_SOURCE:-false}"
 VX_FORCE_CHANNEL="${VX_FORCE_CHANNEL:-}"
+PREFER_STATIC="${PREFER_STATIC:-false}"
+USE_PACKAGE_MANAGER="${USE_PACKAGE_MANAGER:-}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -50,7 +52,7 @@ debug() {
 
 # Detect platform
 detect_platform() {
-    local os arch
+    local os arch libc
     os=$(uname -s | tr '[:upper:]' '[:lower:]')
     arch=$(uname -m)
 
@@ -61,9 +63,24 @@ detect_platform() {
     esac
 
     case "$os" in
-        linux) echo "linux-musl-$arch" ;;
-        darwin) echo "darwin-$arch" ;;
-        *) error "Unsupported OS: $os"; exit 1 ;;
+        linux)
+            # Determine libc type for Linux
+            if [[ "$PREFER_STATIC" == "true" ]]; then
+                libc="musl"
+            elif [[ -f /etc/alpine-release ]] || ldd --version 2>&1 | grep -q musl; then
+                libc="musl"
+            else
+                libc="gnu"
+            fi
+            echo "linux-$libc-$arch"
+            ;;
+        darwin)
+            echo "darwin-$arch"
+            ;;
+        *)
+            error "Unsupported OS: $os"
+            exit 1
+            ;;
     esac
 }
 
@@ -329,11 +346,23 @@ install_from_release() {
     # Legacy format: vx-{target}.tar.gz (e.g., vx-x86_64-unknown-linux-musl.tar.gz)
     local archive_name_versioned archive_name_legacy fallback_archive_versioned fallback_archive_legacy
     case "$platform" in
+        linux-gnu-x86_64)
+            archive_name_versioned="vx-$version-x86_64-unknown-linux-gnu.tar.gz"
+            archive_name_legacy="vx-x86_64-unknown-linux-gnu.tar.gz"
+            fallback_archive_versioned="vx-$version-x86_64-unknown-linux-musl.tar.gz"
+            fallback_archive_legacy="vx-x86_64-unknown-linux-musl.tar.gz"
+            ;;
         linux-musl-x86_64)
             archive_name_versioned="vx-$version-x86_64-unknown-linux-musl.tar.gz"
             archive_name_legacy="vx-x86_64-unknown-linux-musl.tar.gz"
             fallback_archive_versioned="vx-$version-x86_64-unknown-linux-gnu.tar.gz"
             fallback_archive_legacy="vx-x86_64-unknown-linux-gnu.tar.gz"
+            ;;
+        linux-gnu-aarch64)
+            archive_name_versioned="vx-$version-aarch64-unknown-linux-gnu.tar.gz"
+            archive_name_legacy="vx-aarch64-unknown-linux-gnu.tar.gz"
+            fallback_archive_versioned="vx-$version-aarch64-unknown-linux-musl.tar.gz"
+            fallback_archive_legacy="vx-aarch64-unknown-linux-musl.tar.gz"
             ;;
         linux-musl-aarch64)
             archive_name_versioned="vx-$version-aarch64-unknown-linux-musl.tar.gz"
