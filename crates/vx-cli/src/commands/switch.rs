@@ -1,63 +1,37 @@
 //! Switch command implementation
+//!
+//! Switches the active version of a tool.
+//!
+//! ## Usage
+//!
+//! ```bash
+//! vx switch node@20.10.0        # Switch to specific version
+//! vx switch node@20.10.0 --global  # Switch globally
+//! ```
 
+use super::common::parse_tool_version;
 use crate::ui::UI;
 use anyhow::Result;
 use vx_runtime::ProviderRegistry;
 
+/// Handle the switch command
 pub async fn handle(_registry: &ProviderRegistry, tool_version: &str, global: bool) -> Result<()> {
     // Parse tool@version format
     let (tool_name, version) = parse_tool_version(tool_version)?;
 
     UI::info(&format!("Switching {} to version {}", tool_name, version));
 
-    // Simplified implementation - switch command not fully implemented yet
-    UI::warning("Switch command not yet fully implemented in new architecture");
+    // TODO: Implement version switching
+    // 1. Check if version is installed
+    // 2. Update default version symlink/config
+    // 3. If global, update global config; otherwise update project config
+
+    UI::warning("Switch command not yet fully implemented");
     UI::hint(&format!(
         "Would switch {} to version {} (global: {})",
         tool_name, version, global
     ));
+    UI::hint("For now, use 'vx install <tool>@<version>' to install a specific version");
 
     Ok(())
-}
-
-/// Parse tool@version format
-pub fn parse_tool_version(tool_version: &str) -> Result<(String, String)> {
-    if let Some((tool, version)) = tool_version.split_once('@') {
-        if tool.is_empty() || version.is_empty() {
-            return Err(anyhow::anyhow!(
-                "Invalid tool@version format: {}",
-                tool_version
-            ));
-        }
-        Ok((tool.to_string(), version.to_string()))
-    } else {
-        Err(anyhow::anyhow!(
-            "Invalid format: {}. Expected format: tool@version (e.g., node@20.10.0)",
-            tool_version
-        ))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_tool_version() {
-        // Valid cases
-        assert_eq!(
-            parse_tool_version("node@20.10.0").unwrap(),
-            ("node".to_string(), "20.10.0".to_string())
-        );
-        assert_eq!(
-            parse_tool_version("python@3.11.0").unwrap(),
-            ("python".to_string(), "3.11.0".to_string())
-        );
-
-        // Invalid cases
-        assert!(parse_tool_version("node").is_err());
-        assert!(parse_tool_version("@20.10.0").is_err());
-        assert!(parse_tool_version("node@").is_err());
-        assert!(parse_tool_version("").is_err());
-    }
 }

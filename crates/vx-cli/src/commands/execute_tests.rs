@@ -5,11 +5,11 @@ use crate::test_utils::*;
 use vx_runtime::CacheMode;
 
 #[tokio::test]
-async fn test_execute_tool_success() {
+async fn test_execute_runtime_success() {
     let env = TestEnvironment::new();
 
-    // Test successful tool execution
-    let result = execute_tool(
+    // Test successful runtime execution
+    let result = execute_runtime(
         &env.registry,
         &env.context,
         "echo",
@@ -31,11 +31,11 @@ async fn test_execute_tool_success() {
 }
 
 #[tokio::test]
-async fn test_execute_tool_not_found() {
+async fn test_execute_runtime_not_found() {
     let env = TestEnvironment::new();
 
-    // Test tool not found
-    let result = execute_tool(
+    // Test runtime not found
+    let result = execute_runtime(
         &env.registry,
         &env.context,
         "nonexistent-tool-12345",
@@ -55,12 +55,12 @@ async fn test_execute_tool_not_found() {
 }
 
 #[tokio::test]
-async fn test_execute_tool_with_args() {
+async fn test_execute_runtime_with_args() {
     let env = TestEnvironment::new();
 
-    // Test tool execution with arguments
+    // Test runtime execution with arguments
     let args = vec!["--version".to_string()];
-    let result = execute_tool(
+    let result = execute_runtime(
         &env.registry,
         &env.context,
         "echo",
@@ -74,7 +74,7 @@ async fn test_execute_tool_with_args() {
     match result {
         Ok(exit_code) => assert_eq!(exit_code, 0),
         Err(_) => {
-            // Error is acceptable if tool is not found
+            // Error is acceptable if runtime is not found
         }
     }
 }
@@ -110,7 +110,7 @@ async fn test_execute_with_system_path_flag() {
     let env = TestEnvironment::new();
 
     // Test execution with use_system_path flag
-    let result = execute_tool(
+    let result = execute_runtime(
         &env.registry,
         &env.context,
         "echo",
@@ -123,26 +123,26 @@ async fn test_execute_with_system_path_flag() {
     match result {
         Ok(exit_code) => assert_eq!(exit_code, 0),
         Err(_) => {
-            // Error is acceptable if tool is not found
+            // Error is acceptable if runtime is not found
         }
     }
 }
 
 #[test]
-fn test_execute_system_tool_mock() {
+fn test_execute_system_runtime_mock() {
     // This test demonstrates how we would test with mocked commands
     // In a real implementation, we'd inject a command executor
 
-    let tool_name = "test-tool";
+    let runtime_name = "test-tool";
     let args = vec!["--version".to_string()];
 
     // Create mock executor
     let mut mock_executor = MockCommandExecutor::new()
-        .expect_command(tool_name, vec!["--version"])
+        .expect_command(runtime_name, vec!["--version"])
         .with_response(mock_success_output("test-tool 1.0.0\n"));
 
     // Execute mock command
-    let result = mock_executor.execute(tool_name, &args);
+    let result = mock_executor.execute(runtime_name, &args);
 
     assert!(result.is_ok());
     let output = result.unwrap();
@@ -151,20 +151,20 @@ fn test_execute_system_tool_mock() {
 }
 
 #[test]
-fn test_execute_system_tool_error_mock() {
-    let tool_name = "nonexistent-tool";
+fn test_execute_system_runtime_error_mock() {
+    let runtime_name = "nonexistent-tool";
     let args = vec![];
 
     // Create mock executor that returns an error
     let mut mock_executor = MockCommandExecutor::new()
-        .expect_command(tool_name, vec![])
+        .expect_command(runtime_name, vec![])
         .with_error(std::io::Error::new(
             std::io::ErrorKind::NotFound,
             "command not found",
         ));
 
     // Execute mock command
-    let result = mock_executor.execute(tool_name, &args);
+    let result = mock_executor.execute(runtime_name, &args);
 
     assert!(result.is_err());
     let error = result.unwrap_err();

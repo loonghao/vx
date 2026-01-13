@@ -1,10 +1,13 @@
 // CLI module - modular command structure
 // Each command is implemented in its own module for better maintainability
+//
+// Design Principles (inspired by uv):
+// - Clear command grouping: tool management, project management, cache management
+// - Unified verbs: add, remove, sync, lock, run
+// - Subcommand organization: cache, shell, ext
+// - No redundant commands - each command has a single purpose
 
-use crate::commands::{
-    env::EnvCommand, global::GlobalCommand, venv_cmd::VenvCommand, CommandContext, CommandHandler,
-    GlobalOptions,
-};
+use crate::commands::{env::EnvCommand, CommandContext, CommandHandler, GlobalOptions};
 use anyhow::Result;
 use async_trait::async_trait;
 use clap::{Parser, Subcommand, ValueEnum};
@@ -45,6 +48,7 @@ impl From<CacheModeArg> for CacheMode {
 #[command(name = "vx")]
 #[command(about = "Universal version executor for development tools")]
 #[command(version)]
+#[command(after_help = "Run 'vx <command> --help' for more information on a command.")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
@@ -70,13 +74,6 @@ pub struct Cli {
     pub args: Vec<String>,
 }
 
-/// Convert Cli to GlobalOptions
-///
-/// This allows easy extraction of global options from CLI args.
-/// When adding new global options:
-/// 1. Add field to Cli struct
-/// 2. Add field to GlobalOptions struct
-/// 3. Update this implementation
 impl From<&Cli> for GlobalOptions {
     fn from(cli: &Cli) -> Self {
         GlobalOptions {
@@ -90,20 +87,32 @@ impl From<&Cli> for GlobalOptions {
 
 #[derive(Subcommand, Clone)]
 pub enum Commands {
-    /// Show version information
-    Version,
-
-    /// Analyze project dependencies, scripts, and tools
-    Analyze {
-        /// Output as JSON
-        #[arg(long)]
-        json: bool,
-        /// Show verbose output
+    // =========================================================================
+    // Tool Management
+    // =========================================================================
+    /// Install tool(s) - supports multiple tools at once
+    #[command(alias = "i")]
+    Install {
+        /// Tools to install (e.g., uv, node@22, go@1.22, rust)
+        #[arg(required = true, num_args = 1..)]
+        tools: Vec<String>,
+        /// Force reinstallation even if already installed
         #[arg(short, long)]
-        verbose: bool,
+        force: bool,
     },
 
-    /// List supported tools
+    /// Uninstall tool versions from global store
+    Uninstall {
+        /// Tool name (e.g., python, python@3.7)
+        tool: String,
+        /// Version to uninstall (optional, removes all if not specified)
+        version: Option<String>,
+        /// Force removal without confirmation
+        #[arg(short, long)]
+        force: bool,
+    },
+
+    /// List installed tools and available runtimes
     #[command(alias = "ls")]
     List {
         /// Tool name to show details for (optional)
@@ -125,69 +134,7 @@ pub enum Commands {
         system: bool,
     },
 
-    /// Install tool(s) - supports multiple tools at once
-    #[command(alias = "i")]
-    Install {
-        /// Tools to install (e.g., uv, node@22, go@1.22, rust)
-        /// Format: tool or tool@version
-        #[arg(required = true, num_args = 1..)]
-        tools: Vec<String>,
-        /// Force reinstallation even if already installed
-        #[arg(short, long)]
-        force: bool,
-    },
-
-    /// Update tools to latest versions
-    #[command(alias = "up")]
-    Update {
-        /// Tool name (optional, updates all if not specified)
-        tool: Option<String>,
-        /// Apply updates automatically
-        #[arg(long)]
-        apply: bool,
-    },
-
-    /// Update vx itself to the latest version
-    #[command(name = "self-update")]
-    SelfUpdate {
-        /// Only check for updates, don't install
-        #[arg(long)]
-        check: bool,
-        /// Specific version to install
-        version: Option<String>,
-        /// GitHub token for authenticated API requests (avoids rate limits)
-        #[arg(long)]
-        token: Option<String>,
-        /// Include pre-release versions
-        #[arg(long)]
-        prerelease: bool,
-        /// Force update even if already up to date
-        #[arg(short, long)]
-        force: bool,
-    },
-
-    /// Uninstall tool versions from global store
-    Uninstall {
-        /// Tool name
-        tool: String,
-        /// Version to uninstall (optional, removes all if not specified)
-        version: Option<String>,
-        /// Force removal without confirmation
-        #[arg(short, long)]
-        force: bool,
-    },
-
-    /// Show which tool version is being used (preferred over where)
-    #[command(alias = "where")]
-    Which {
-        /// Tool name
-        tool: String,
-        /// Show all installed versions
-        #[arg(short, long)]
-        all: bool,
-    },
-
-    /// Show available versions for a tool (preferred over fetch)
+    /// Show available versions for a tool
     Versions {
         /// Tool name
         tool: String,
@@ -205,6 +152,16 @@ pub enum Commands {
         interactive: bool,
     },
 
+    /// Show which tool version is being used
+    #[command(alias = "where")]
+    Which {
+        /// Tool name
+        tool: String,
+        /// Show all installed versions
+        #[arg(short, long)]
+        all: bool,
+    },
+
     /// Switch to a different version of a tool
     Switch {
         /// Tool and version (e.g., go@1.21.6, node@18.0.0)
@@ -212,89 +169,6 @@ pub enum Commands {
         /// Make this the global default
         #[arg(long)]
         global: bool,
-    },
-
-    /// Configuration management
-    #[command(alias = "cfg")]
-    Config {
-        #[command(subcommand)]
-        command: Option<ConfigCommand>,
-    },
-
-    /// Check if a runtime is available (deprecated: use 'test' instead)
-    #[command(hide = true)]
-    Check {
-        /// Runtime name to check
-        runtime: String,
-        /// Check if runtime is installed in vx store
-        #[arg(long)]
-        installed: bool,
-        /// Check if runtime is available on system PATH
-        #[arg(long)]
-        system: bool,
-        /// Show detailed detection information
-        #[arg(long)]
-        detailed: bool,
-        /// Exit with code 0 if available, 1 if not (silent mode)
-        #[arg(short, long)]
-        quiet: bool,
-    },
-
-    /// Test runtime availability and providers (CI-friendly)
-    Test {
-        /// Runtime name to test (e.g., "yarn", "node", "go")
-        runtime: Option<String>,
-        
-        /// Test all registered runtimes
-        #[arg(long, conflicts_with_all = &["runtime", "extension", "local"])]
-        all: bool,
-        
-        /// Test a provider from URL (e.g., https://github.com/user/vx-provider-foo)
-        #[arg(long, conflicts_with_all = &["runtime", "all", "local"])]
-        extension: Option<String>,
-        
-        /// Test a local provider directory (for development)
-        #[arg(long, conflicts_with_all = &["runtime", "all", "extension"])]
-        local: Option<PathBuf>,
-        
-        // === Test Modes ===
-        /// Only test platform support (no installation required)
-        #[arg(long)]
-        platform_only: bool,
-        
-        /// Run functional tests (execute --version, etc.)
-        #[arg(long)]
-        functional: bool,
-        
-        /// Test installation process
-        #[arg(long)]
-        install: bool,
-        
-        // === Checks ===
-        /// Check if runtime is installed in vx store
-        #[arg(long)]
-        installed: bool,
-        
-        /// Check if runtime is available on system PATH
-        #[arg(long)]
-        system: bool,
-        
-        // === Output Control ===
-        /// Show detailed test information
-        #[arg(long)]
-        detailed: bool,
-        
-        /// Silent mode: exit code only, no output
-        #[arg(short, long)]
-        quiet: bool,
-        
-        /// JSON output format (for CI integration)
-        #[arg(long)]
-        json: bool,
-        
-        /// Verbose output (show all test steps)
-        #[arg(short, long)]
-        verbose: bool,
     },
 
     /// Search available tools
@@ -316,6 +190,101 @@ pub enum Commands {
         /// Show verbose information
         #[arg(short, long)]
         verbose: bool,
+    },
+
+    /// Test runtime availability and providers (CI-friendly)
+    Test {
+        /// Runtime name to test (e.g., "yarn", "node", "go")
+        runtime: Option<String>,
+
+        /// Test all registered runtimes
+        #[arg(long, conflicts_with_all = &["runtime", "extension", "local"])]
+        all: bool,
+
+        /// Test a provider from URL
+        #[arg(long, conflicts_with_all = &["runtime", "all", "local"])]
+        extension: Option<String>,
+
+        /// Test a local provider directory (for development)
+        #[arg(long, conflicts_with_all = &["runtime", "all", "extension"])]
+        local: Option<PathBuf>,
+
+        /// Only test platform support (no installation required)
+        #[arg(long)]
+        platform_only: bool,
+
+        /// Run functional tests (execute --version, etc.)
+        #[arg(long)]
+        functional: bool,
+
+        /// Test installation process
+        #[arg(long)]
+        install: bool,
+
+        /// Check if runtime is installed in vx store
+        #[arg(long)]
+        installed: bool,
+
+        /// Check if runtime is available on system PATH
+        #[arg(long)]
+        system: bool,
+
+        /// Show detailed test information
+        #[arg(long)]
+        detailed: bool,
+
+        /// Silent mode: exit code only, no output
+        #[arg(short, long)]
+        quiet: bool,
+
+        /// JSON output format (for CI integration)
+        #[arg(long)]
+        json: bool,
+
+        /// Verbose output (show all test steps)
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
+    // =========================================================================
+    // Project Management
+    // =========================================================================
+    /// Initialize vx configuration for current project
+    Init {
+        /// Interactive initialization
+        #[arg(short, long)]
+        interactive: bool,
+        /// Use predefined template
+        #[arg(short, long)]
+        template: Option<String>,
+        /// Specify tools to include (comma-separated)
+        #[arg(long)]
+        tools: Option<String>,
+        /// Force overwrite existing configuration
+        #[arg(short, long)]
+        force: bool,
+        /// Preview configuration without creating file
+        #[arg(long)]
+        dry_run: bool,
+        /// List available templates
+        #[arg(long)]
+        list_templates: bool,
+    },
+
+    /// Add a tool to project configuration (vx.toml)
+    Add {
+        /// Tool name (e.g., node, python, uv)
+        tool: String,
+        /// Version to use (default: latest)
+        #[arg(long)]
+        version: Option<String>,
+    },
+
+    /// Remove a tool from project configuration (vx.toml)
+    #[command(alias = "rm")]
+    Remove {
+        /// Tool name to remove
+        tool: String,
     },
 
     /// Sync project tools from vx.toml
@@ -340,92 +309,53 @@ pub enum Commands {
         no_auto_install: bool,
     },
 
-    /// Initialize vx configuration for current project
-    Init {
-        /// Interactive initialization
-        #[arg(short, long)]
-        interactive: bool,
-        /// Use predefined template
-        #[arg(short, long)]
-        template: Option<String>,
-        /// Specify tools to include (comma-separated)
+    /// Generate or update vx.lock for reproducible environments
+    Lock {
+        /// Update all tools to latest compatible versions
         #[arg(long)]
-        tools: Option<String>,
-        /// Force overwrite existing configuration
-        #[arg(short, long)]
-        force: bool,
-        /// Preview configuration without creating file
+        update: bool,
+        /// Update specific tool only
+        #[arg(long)]
+        tool: Option<String>,
+        /// Preview changes without writing
         #[arg(long)]
         dry_run: bool,
-        /// List available templates
+        /// Check lock file consistency with vx.toml (don't update)
         #[arg(long)]
-        list_templates: bool,
-    },
-
-    /// Clean up system (preferred over cleanup)
-    Clean {
-        /// Preview cleanup operations without executing
-        #[arg(long)]
-        dry_run: bool,
-        /// Only clean cache files
-        #[arg(long)]
-        cache: bool,
-        /// Only clean orphaned tool versions
-        #[arg(long)]
-        orphaned: bool,
-        /// Clean all (cache + orphaned)
-        #[arg(short, long)]
-        all: bool,
-        /// Force cleanup without confirmation
-        #[arg(short, long)]
-        force: bool,
-        /// Clean files older than specified days
-        #[arg(long)]
-        older_than: Option<u32>,
+        check: bool,
         /// Show verbose output
         #[arg(short, long)]
         verbose: bool,
     },
 
-    /// Cache management commands
-    Cache {
-        #[command(subcommand)]
-        command: CacheCommand,
+    /// Run a script defined in vx.toml
+    Run {
+        /// Script name (use --list to see available scripts)
+        script: Option<String>,
+        /// List available scripts
+        #[arg(long, short = 'l')]
+        list: bool,
+        /// Show help for the run command or script-specific help
+        #[arg(long, short = 'H', action = clap::ArgAction::SetTrue)]
+        script_help: bool,
+        /// Additional arguments to pass to the script
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
 
-    /// Show package statistics and disk usage
-    Stats,
-
-    /// Plugin management commands
-    Plugin {
-        #[command(subcommand)]
-        command: PluginCommand,
+    /// Analyze project dependencies, scripts, and tools
+    Analyze {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
     },
 
-    /// Shell integration commands
-    Shell {
-        #[command(subcommand)]
-        command: ShellCommand,
-    },
-
-    /// Virtual environment management
-    Venv {
-        #[command(subcommand)]
-        command: VenvCommand,
-    },
-
-    /// Global tool management
-    Global {
-        #[command(subcommand)]
-        command: GlobalCommand,
-    },
-
-    /// Environment management
-    Env {
-        #[command(subcommand)]
-        command: EnvCommand,
-    },
-
+    // =========================================================================
+    // Environment Management
+    // =========================================================================
     /// Enter development environment with all project tools
     Dev {
         /// Shell to use (auto-detected if not specified)
@@ -440,9 +370,7 @@ pub enum Commands {
         /// Show verbose output
         #[arg(short, long)]
         verbose: bool,
-        /// Export environment variables for shell activation instead of spawning a shell
-        /// Usage: eval "$(vx dev --export)" (bash/zsh)
-        ///        Invoke-Expression (vx dev --export --format powershell)
+        /// Export environment variables for shell activation
         #[arg(long, short = 'e')]
         export: bool,
         /// Output format for --export: shell, powershell, batch, github
@@ -467,64 +395,48 @@ pub enum Commands {
         /// Skip lifecycle hooks (pre_setup, post_setup)
         #[arg(long)]
         no_hooks: bool,
-        /// CI mode: output tool paths for CI environment (GitHub Actions, etc.)
-        /// Outputs paths in a format suitable for GITHUB_PATH or similar
+        /// CI mode: output tool paths for CI environment
         #[arg(long)]
         ci: bool,
     },
 
-    /// Add a tool to project configuration (vx.toml)
-    Add {
-        /// Tool name (e.g., node, python, uv)
-        tool: String,
-        /// Version to use (default: latest)
-        #[arg(long)]
-        version: Option<String>,
-    },
-
-    /// Remove a tool from project configuration (vx.toml)
-    #[command(alias = "rm")]
-    Remove {
-        /// Tool name to remove
-        tool: String,
-    },
-
-    /// Run a script defined in vx.toml
-    ///
-    /// Scripts are defined in vx.toml and can use {{args}} for passthrough arguments.
-    /// Use `vx run <script> --help` to see script-specific help.
-    Run {
-        /// Script name (use --list to see available scripts)
-        script: Option<String>,
-        /// List available scripts
-        #[arg(long, short = 'l')]
-        list: bool,
-        /// Show help for the run command or script-specific help
-        #[arg(long, short = 'H', action = clap::ArgAction::SetTrue)]
-        script_help: bool,
-        /// Additional arguments to pass to the script
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-
-    /// Manage development services (Docker/Podman)
-    Services {
+    /// Environment management
+    Env {
         #[command(subcommand)]
-        command: ServicesCommand,
+        command: EnvCommand,
     },
 
-    /// Execute or manage lifecycle hooks
-    Hook {
+    // =========================================================================
+    // Cache & Maintenance
+    // =========================================================================
+    /// Cache management commands
+    Cache {
         #[command(subcommand)]
-        command: HookCommand,
+        command: CacheCommand,
     },
 
-    /// Container and Dockerfile management
-    Container {
+    // =========================================================================
+    // Configuration
+    // =========================================================================
+    /// Configuration management
+    #[command(alias = "cfg")]
+    Config {
         #[command(subcommand)]
-        command: ContainerCommand,
+        command: Option<ConfigCommand>,
     },
 
+    // =========================================================================
+    // Shell Integration
+    // =========================================================================
+    /// Shell integration commands
+    Shell {
+        #[command(subcommand)]
+        command: ShellCommand,
+    },
+
+    // =========================================================================
+    // Extensions
+    // =========================================================================
     /// Extension management
     #[command(alias = "extension")]
     Ext {
@@ -540,6 +452,68 @@ pub enum Commands {
         /// Arguments to pass to the extension
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
+    },
+
+    /// Plugin management commands
+    Plugin {
+        #[command(subcommand)]
+        command: PluginCommand,
+    },
+
+    // =========================================================================
+    // Lifecycle & Hooks
+    // =========================================================================
+    /// Execute or manage lifecycle hooks
+    Hook {
+        #[command(subcommand)]
+        command: HookCommand,
+    },
+
+    // =========================================================================
+    // Services & Container
+    // =========================================================================
+    /// Manage development services (Docker/Podman)
+    Services {
+        #[command(subcommand)]
+        command: ServicesCommand,
+    },
+
+    /// Container and Dockerfile management
+    Container {
+        #[command(subcommand)]
+        command: ContainerCommand,
+    },
+
+    // =========================================================================
+    // System
+    // =========================================================================
+    /// Show version information
+    Version,
+
+    /// Update vx itself to the latest version
+    #[command(name = "self-update")]
+    SelfUpdate {
+        /// Only check for updates, don't install
+        #[arg(long)]
+        check: bool,
+        /// Specific version to install
+        version: Option<String>,
+        /// GitHub token for authenticated API requests
+        #[arg(long)]
+        token: Option<String>,
+        /// Include pre-release versions
+        #[arg(long)]
+        prerelease: bool,
+        /// Force update even if already up to date
+        #[arg(short, long)]
+        force: bool,
+    },
+
+    /// Show system information and capabilities
+    Info {
+        /// Output as JSON (recommended for AI)
+        #[arg(long)]
+        json: bool,
     },
 
     /// Migrate configuration and data to latest format
@@ -560,93 +534,17 @@ pub enum Commands {
         #[arg(short, long)]
         verbose: bool,
     },
-
-    /// Generate or update vx.lock for reproducible environments
-    Lock {
-        /// Update all tools to latest compatible versions
-        #[arg(long)]
-        update: bool,
-        /// Update specific tool only
-        #[arg(long)]
-        tool: Option<String>,
-        /// Preview changes without writing
-        #[arg(long)]
-        dry_run: bool,
-        /// Check lock file consistency with vx.toml (don't update)
-        #[arg(long)]
-        check: bool,
-        /// Show verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-
-    /// Show system information and capabilities
-    Info {
-        /// Output as JSON (recommended for AI)
-        #[arg(long)]
-        json: bool,
-    },
 }
 
-#[derive(Subcommand, Clone)]
-pub enum ServicesCommand {
-    /// Start services
-    Start {
-        /// Service names (start all if not specified)
-        #[arg(num_args = 0..)]
-        services: Vec<String>,
-        /// Run in foreground (default: detached)
-        #[arg(long)]
-        foreground: bool,
-        /// Force restart if already running
-        #[arg(short, long)]
-        force: bool,
-        /// Show verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    /// Stop services
-    Stop {
-        /// Service names (stop all if not specified)
-        #[arg(num_args = 0..)]
-        services: Vec<String>,
-        /// Show verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    /// Show service status
-    Status {
-        /// Show verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    /// Show service logs
-    Logs {
-        /// Service name
-        service: String,
-        /// Follow log output
-        #[arg(short, long)]
-        follow: bool,
-        /// Number of lines to show
-        #[arg(long)]
-        tail: Option<usize>,
-    },
-    /// Restart services
-    Restart {
-        /// Service names (restart all if not specified)
-        #[arg(num_args = 0..)]
-        services: Vec<String>,
-        /// Show verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-}
+// =============================================================================
+// Subcommands
+// =============================================================================
 
 #[derive(Subcommand, Clone)]
 pub enum CacheCommand {
-    /// Clear all cached data (version lists, downloads, resolutions)
+    /// Clear cached data (version lists, downloads, resolutions)
     Clear {
-        /// Only clear version cache (not downloads/resolutions)
+        /// Only clear version cache
         #[arg(long)]
         versions: bool,
         /// Only clear download cache
@@ -662,14 +560,38 @@ pub enum CacheCommand {
         #[arg(short, long)]
         force: bool,
     },
-    /// Show cache statistics
+    /// Show cache statistics and disk usage
     Stats,
     /// List cached items
+    #[command(alias = "ls")]
     List {
         /// Show detailed information
         #[arg(short, long)]
         verbose: bool,
     },
+    /// Clean up cache and orphaned files
+    Clean {
+        /// Preview cleanup operations without executing
+        #[arg(long)]
+        dry_run: bool,
+        /// Only clean cache files
+        #[arg(long)]
+        cache_only: bool,
+        /// Only clean orphaned tool versions
+        #[arg(long)]
+        orphaned_only: bool,
+        /// Force cleanup without confirmation
+        #[arg(short, long)]
+        force: bool,
+        /// Clean files older than specified days
+        #[arg(long)]
+        older_than: Option<u32>,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show cache directory path
+    Dir,
 }
 
 #[derive(Subcommand, Clone)]
@@ -710,11 +632,14 @@ pub enum ConfigCommand {
         #[arg(short, long)]
         output: Option<String>,
     },
+    /// Show configuration directory path
+    Dir,
 }
 
 #[derive(Subcommand, Clone)]
 pub enum PluginCommand {
     /// List all plugins
+    #[command(alias = "ls")]
     List {
         /// Show only enabled plugins
         #[arg(long)]
@@ -786,6 +711,60 @@ pub enum HookCommand {
     ShellInit {
         /// Shell type (auto-detected if not specified)
         shell: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum ServicesCommand {
+    /// Start services
+    Start {
+        /// Service names (start all if not specified)
+        #[arg(num_args = 0..)]
+        services: Vec<String>,
+        /// Run in foreground (default: detached)
+        #[arg(long)]
+        foreground: bool,
+        /// Force restart if already running
+        #[arg(short, long)]
+        force: bool,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Stop services
+    Stop {
+        /// Service names (stop all if not specified)
+        #[arg(num_args = 0..)]
+        services: Vec<String>,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show service status
+    Status {
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show service logs
+    Logs {
+        /// Service name
+        service: String,
+        /// Follow log output
+        #[arg(short, long)]
+        follow: bool,
+        /// Number of lines to show
+        #[arg(long)]
+        tail: Option<usize>,
+    },
+    /// Restart services
+    Restart {
+        /// Service names (restart all if not specified)
+        #[arg(num_args = 0..)]
+        services: Vec<String>,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
     },
 }
 
@@ -910,7 +889,7 @@ pub enum ExtCommand {
 }
 
 // =============================================================================
-// CommandHandler Implementation for Commands
+// CommandHandler Implementation
 // =============================================================================
 
 use crate::commands;
@@ -923,7 +902,6 @@ impl CommandHandler for Commands {
             Commands::Analyze { .. } => "analyze",
             Commands::List { .. } => "list",
             Commands::Install { .. } => "install",
-            Commands::Update { .. } => "update",
             Commands::SelfUpdate { .. } => "self-update",
             Commands::Uninstall { .. } => "uninstall",
             Commands::Which { .. } => "which",
@@ -931,17 +909,12 @@ impl CommandHandler for Commands {
             Commands::Switch { .. } => "switch",
             Commands::Config { .. } => "config",
             Commands::Search { .. } => "search",
-            Commands::Check { .. } => "check",
             Commands::Test { .. } => "test",
             Commands::Sync { .. } => "sync",
             Commands::Init { .. } => "init",
-            Commands::Clean { .. } => "clean",
             Commands::Cache { .. } => "cache",
-            Commands::Stats => "stats",
             Commands::Plugin { .. } => "plugin",
             Commands::Shell { .. } => "shell",
-            Commands::Venv { .. } => "venv",
-            Commands::Global { .. } => "global",
             Commands::Env { .. } => "env",
             Commands::Dev { .. } => "dev",
             Commands::Setup { .. } => "setup",
@@ -992,16 +965,6 @@ impl CommandHandler for Commands {
                 commands::install::handle(ctx, &args).await
             }
 
-            Commands::Update { tool, apply } => {
-                commands::update::handle(
-                    ctx.registry(),
-                    ctx.runtime_context(),
-                    tool.as_deref(),
-                    *apply,
-                )
-                .await
-            }
-
             Commands::SelfUpdate {
                 check,
                 version,
@@ -1030,7 +993,6 @@ impl CommandHandler for Commands {
                 } else {
                     (tool.as_str(), None)
                 };
-                // CLI version argument takes precedence over parsed version
                 let final_version = version.clone().or(parsed_version);
                 commands::remove::handle(
                     ctx.registry(),
@@ -1086,6 +1048,7 @@ impl CommandHandler for Commands {
                 Some(ConfigCommand::Schema { output }) => {
                     commands::config::handle_schema(output.clone()).await
                 }
+                Some(ConfigCommand::Dir) => commands::config::handle_dir().await,
             },
 
             Commands::Init {
@@ -1107,39 +1070,11 @@ impl CommandHandler for Commands {
                 .await
             }
 
-            Commands::Clean {
-                dry_run,
-                cache,
-                orphaned,
-                all,
-                force,
-                older_than,
-                verbose,
-            } => {
-                let cache_only = *cache && !*all;
-                let orphaned_only = *orphaned && !*all;
-                commands::cleanup::handle(
-                    *dry_run,
-                    cache_only,
-                    orphaned_only,
-                    *force,
-                    *older_than,
-                    *verbose,
-                )
-                .await
-            }
-
             Commands::Cache { command } => commands::cache::handle(command.clone()).await,
-
-            Commands::Stats => commands::stats::handle(ctx.registry()).await,
 
             Commands::Plugin { command } => {
                 commands::plugin::handle(ctx.registry(), command.clone()).await
             }
-
-            Commands::Venv { command } => commands::venv_cmd::handle(command.clone()).await,
-
-            Commands::Global { command } => commands::global::handle(command.clone()).await,
 
             Commands::Env { command } => commands::env::handle(command.clone()).await,
 
@@ -1161,33 +1096,6 @@ impl CommandHandler for Commands {
                     *verbose,
                 )
                 .await
-            }
-
-            Commands::Check {
-                runtime,
-                installed,
-                system,
-                detailed,
-                quiet,
-            } => {
-                // Deprecated: redirect to test command
-                let args = commands::test::Args {
-                    runtime: Some(runtime.clone()),
-                    all: false,
-                    extension: None,
-                    local: None,
-                    platform_only: false,
-                    functional: false,
-                    install: false,
-                    installed: *installed,
-                    system: *system,
-                    detailed: *detailed,
-                    quiet: *quiet,
-                    json: false,
-                    verbose: false,
-                };
-                
-                commands::test::handle(ctx, &args).await
             }
 
             Commands::Test {
@@ -1220,7 +1128,6 @@ impl CommandHandler for Commands {
                     json: *json,
                     verbose: *verbose,
                 };
-                
                 commands::test::handle(ctx, &args).await
             }
 
