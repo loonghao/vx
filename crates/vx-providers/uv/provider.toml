@@ -42,7 +42,7 @@ executable_extensions = []
 timeout_ms = 30000
 functional_commands = [
     { command = "{executable} --version", expect_success = true, expected_output = "uv \\d+\\.\\d+\\.\\d+", name = "version_check" },
-    { command = "{executable} python --version", expect_success = true, name = "python_version" },
+    { command = "{executable} self version", expect_success = true, expected_output = "uv \\d+\\.\\d+\\.\\d+", name = "self_version" },
 ]
 install_verification = [
     { command = "{executable} --version", expect_success = true },
