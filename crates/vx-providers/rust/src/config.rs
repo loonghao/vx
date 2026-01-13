@@ -45,13 +45,15 @@ impl RustUrlBuilder {
         ))
     }
 
-    /// Get rustup download URL
-    pub fn rustup_url() -> String {
-        if cfg!(windows) {
-            "https://win.rustup.rs/x86_64".to_string()
-        } else {
-            "https://sh.rustup.rs".to_string()
-        }
+    /// Get rustup download URL for a specific version and platform
+    pub fn rustup_url(version: &str) -> String {
+        let platform = Self::get_platform_string();
+        let exe_suffix = if cfg!(windows) { ".exe" } else { "" };
+        // Use archive URL for specific versions
+        format!(
+            "https://static.rust-lang.org/rustup/archive/{}/{}/rustup-init{}",
+            version, platform, exe_suffix
+        )
     }
 
     /// Get platform string for downloads
