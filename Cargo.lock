@@ -4020,6 +4020,7 @@ dependencies = [
  "vx-provider-ninja",
  "vx-provider-node",
  "vx-provider-ollama",
+ "vx-provider-pipx",
  "vx-provider-pnpm",
  "vx-provider-pre-commit",
  "vx-provider-protoc",
@@ -4526,6 +4527,22 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-pipx"
+version = "0.6.13"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest 0.12.28",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
  "vx-runtime",
 ]
 

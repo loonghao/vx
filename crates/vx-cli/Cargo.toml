@@ -38,6 +38,7 @@ vx-provider-vscode = { workspace = true }
 vx-provider-just = { workspace = true }
 vx-provider-vite = { workspace = true }
 vx-provider-rez = { workspace = true }
+vx-provider-pipx = { workspace = true }
 vx-provider-deno = { workspace = true }
 vx-provider-zig = { workspace = true }
 vx-provider-java = { workspace = true }

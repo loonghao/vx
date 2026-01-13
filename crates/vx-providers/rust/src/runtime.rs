@@ -106,7 +106,7 @@ impl Runtime for RustcRuntime {
     }
 
     fn aliases(&self) -> &[&str] {
-        &[]
+        &["rust"] // "rust" is an alias for "rustc"
     }
 
     /// Rust archives extract to `rust-{version}-{platform}/rustc/bin/rustc`
@@ -174,7 +174,7 @@ impl Runtime for RustupRuntime {
         .await
     }
 
-    async fn download_url(&self, _version: &str, _platform: &Platform) -> Result<Option<String>> {
-        Ok(Some(RustUrlBuilder::rustup_url()))
+    async fn download_url(&self, version: &str, _platform: &Platform) -> Result<Option<String>> {
+        Ok(Some(RustUrlBuilder::rustup_url(version)))
     }
 }
