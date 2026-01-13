@@ -57,6 +57,15 @@ pub struct Args {
     #[arg(long)]
     pub keep_going: bool,
 
+    /// Use a custom VX root directory for testing (isolated environment)
+    /// If not specified, uses a temporary directory in CI mode
+    #[arg(long)]
+    pub vx_root: Option<PathBuf>,
+
+    /// Use a temporary directory as VX root (auto-cleaned after test)
+    #[arg(long)]
+    pub temp_root: bool,
+
     // === Checks ===
     /// Check if runtime is installed in vx store
     #[arg(long)]

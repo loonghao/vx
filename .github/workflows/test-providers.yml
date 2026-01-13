@@ -59,10 +59,10 @@ jobs:
       - name: Build VX
         run: cargo build --release
       
-      # Test core runtimes first (fast feedback)
+      # Test core runtimes first (fast feedback) - use temp root for isolation
       - name: Test Core Runtimes
         run: |
-          ./target/release/vx test --ci --ci-runtimes node,go,uv,just --keep-going --verbose
+          ./target/release/vx test --ci --ci-runtimes node,go,uv,just --temp-root --keep-going --verbose
         shell: bash
       
       # Full provider test (with skip list for platform-specific ones)
@@ -80,11 +80,11 @@ jobs:
           fi
           
           if [ -n "$SKIP_LIST" ]; then
-            ./target/release/vx test --ci --ci-skip $SKIP_LIST --keep-going --json > test-report.json || true
-            ./target/release/vx test --ci --ci-skip $SKIP_LIST --keep-going --detailed
+            ./target/release/vx test --ci --ci-skip $SKIP_LIST --temp-root --keep-going --json > test-report.json || true
+            ./target/release/vx test --ci --ci-skip $SKIP_LIST --temp-root --keep-going --detailed
           else
-            ./target/release/vx test --ci --keep-going --json > test-report.json || true
-            ./target/release/vx test --ci --keep-going --detailed
+            ./target/release/vx test --ci --temp-root --keep-going --json > test-report.json || true
+            ./target/release/vx test --ci --temp-root --keep-going --detailed
           fi
         shell: bash
       
@@ -92,8 +92,8 @@ jobs:
       - name: Test Specific Runtimes
         if: inputs.runtimes != ''
         run: |
-          ./target/release/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --keep-going --json > test-report.json || true
-          ./target/release/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --keep-going --detailed
+          ./target/release/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --temp-root --keep-going --json > test-report.json || true
+          ./target/release/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --temp-root --keep-going --detailed
         shell: bash
       
       - name: Upload Test Report
@@ -145,7 +145,7 @@ jobs:
       - name: Quick Provider Test
         run: |
           # Test essential runtimes only for fast PR feedback
-          ./target/release/vx test --ci --ci-runtimes node,go,uv,cargo,just --verbose
+          ./target/release/vx test --ci --ci-runtimes node,go,uv,cargo,just --temp-root --verbose
 
   # Summary job to report overall status
   summary:
