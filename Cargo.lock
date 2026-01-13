@@ -4016,6 +4016,8 @@ dependencies = [
  "vx-provider-java",
  "vx-provider-just",
  "vx-provider-kubectl",
+ "vx-provider-make",
+ "vx-provider-meson",
  "vx-provider-msvc",
  "vx-provider-ninja",
  "vx-provider-node",
@@ -4451,6 +4453,38 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-make"
+version = "0.6.13"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest 0.12.28",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-meson"
+version = "0.6.13"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest 0.12.28",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
  "vx-runtime",
 ]
 

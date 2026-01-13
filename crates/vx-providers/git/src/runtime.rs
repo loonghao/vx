@@ -58,7 +58,7 @@ impl Runtime for GitRuntime {
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
         // Fetch versions from Git for Windows releases
         // This provides portable Git versions for Windows
-        // Note: Git for Windows uses tags like "v2.52.0.windows.1", we need to extract just "2.52.0"
+        // Note: Git for Windows uses tags like "v2.52.0.windows.1", we extract just "2.52.0"
         let mut versions = ctx
             .fetch_github_releases(
                 "git",

@@ -47,6 +47,8 @@ members = [
   # Build tools & Task runners (P1)
   "crates/vx-providers/ninja",
   "crates/vx-providers/cmake",
+  "crates/vx-providers/meson",
+  "crates/vx-providers/make",
   "crates/vx-providers/nasm",
   "crates/vx-providers/yasm",
   "crates/vx-providers/protoc",
@@ -173,6 +175,8 @@ vx-provider-azcli = { path = "crates/vx-providers/azcli" }
 vx-provider-gcloud = { path = "crates/vx-providers/gcloud" }
 vx-provider-ninja = { path = "crates/vx-providers/ninja" }
 vx-provider-cmake = { path = "crates/vx-providers/cmake" }
+vx-provider-meson = { path = "crates/vx-providers/meson" }
+vx-provider-make = { path = "crates/vx-providers/make" }
 vx-provider-nasm = { path = "crates/vx-providers/nasm" }
 vx-provider-yasm = { path = "crates/vx-providers/yasm" }
 vx-provider-protoc = { path = "crates/vx-providers/protoc" }
