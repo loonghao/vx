@@ -376,6 +376,17 @@ impl<'a> Executor<'a> {
             }
         }
 
+        // Verify executable exists before attempting to run
+        // This provides a clearer error message than "No such file or directory"
+        if resolution.executable.is_absolute() && !resolution.executable.exists() {
+            return Err(anyhow::anyhow!(
+                "Executable not found at '{}'. The runtime may not have been installed correctly. \
+                 Try running 'vx install {}' to reinstall.",
+                resolution.executable.display(),
+                runtime_name
+            ));
+        }
+
         // Build the command with environment variables
         let mut cmd = self.build_command(&resolution, args, &runtime_env)?;
 
