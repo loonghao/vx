@@ -495,7 +495,7 @@ async fn install_pip_package(
     // (uv has known issues on some Windows configurations)
     let uv_result = if let Ok(uv_exe) = find_runtime_executable("uv", ctx).await {
         debug!("Trying uv: {}", uv_exe.display());
-        install_with_uv(&uv_exe, package_name, version, &venv_dir, &bin_dir, ctx).await
+        install_with_uv(&uv_exe, package_name, bin_name, version, &venv_dir, &bin_dir, ctx).await
     } else {
         Err(anyhow::anyhow!("uv not found"))
     };
@@ -512,7 +512,7 @@ async fn install_pip_package(
         }
 
         // Fall back to system Python
-        install_with_system_python(package_name, version, &venv_dir, &bin_dir).await?;
+        install_with_system_python(package_name, bin_name, version, &venv_dir, &bin_dir).await?;
     }
 
     if !exe_path.exists() {
@@ -591,6 +591,7 @@ fn find_vx_python(ctx: &RuntimeContext) -> Option<std::path::PathBuf> {
 async fn install_with_uv(
     uv_exe: &Path,
     package_name: &str,
+    bin_name: &str,
     version: &str,
     venv_dir: &Path,
     bin_dir: &Path,
@@ -674,18 +675,28 @@ async fn install_with_uv(
     };
 
     if !status.success() {
-        return Err(anyhow::anyhow!("uv pip install failed"));
+        return Err(anyhow::anyhow!(
+            "Failed to install pip package {}=={} with uv",
+            package_name,
+            version
+        ));
     }
 
     // Verify the binary exists
     let exe_name = if cfg!(windows) {
-        format!("{}.exe", package_name)
+        format!("{}.exe", bin_name)
     } else {
-        package_name.to_string()
+        bin_name.to_string()
     };
 
-    if !bin_dir.join(&exe_name).exists() {
-        return Err(anyhow::anyhow!("binary not created by uv"));
+    let exe_path = bin_dir.join(&exe_name);
+    if !exe_path.exists() {
+        return Err(anyhow::anyhow!(
+            "Binary '{}' not found at {} after installing with uv. \
+             This may indicate the package name differs from the binary name.",
+            exe_name,
+            exe_path.display()
+        ));
     }
 
     debug!("Successfully installed with uv");
@@ -695,9 +706,10 @@ async fn install_with_uv(
 /// Install pip package using system Python
 async fn install_with_system_python(
     package_name: &str,
+    bin_name: &str,
     version: &str,
     venv_dir: &Path,
-    _bin_dir: &Path,
+    bin_dir: &Path,
 ) -> Result<()> {
     use std::time::Duration;
     use tokio::process::Command as TokioCommand;
@@ -782,6 +794,22 @@ async fn install_with_system_python(
             "Failed to install pip package {}=={}",
             package_name,
             version
+        ));
+    }
+
+    // Verify the binary exists
+    let exe_name = if cfg!(windows) {
+        format!("{}.exe", bin_name)
+    } else {
+        bin_name.to_string()
+    };
+    let exe_path = bin_dir.join(&exe_name);
+    if !exe_path.exists() {
+        return Err(anyhow::anyhow!(
+            "Binary '{}' not found at {} after installing with system Python. \
+             This may indicate the package name differs from the binary name.",
+            exe_name,
+            exe_path.display()
         ));
     }
 
