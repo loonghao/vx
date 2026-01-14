@@ -749,18 +749,32 @@ pub trait Runtime: Send + Sync {
             };
 
             if let Ok(resolved) = layout.resolve(&layout_ctx) {
-                if let crate::layout::ResolvedLayout::Binary {
-                    source_name,
-                    target_name,
-                    target_dir,
-                    permissions,
-                } = resolved
-                {
-                    layout_metadata.insert("source_name".to_string(), source_name);
-                    layout_metadata.insert("target_name".to_string(), target_name);
-                    layout_metadata.insert("target_dir".to_string(), target_dir);
-                    if let Some(perms) = permissions {
-                        layout_metadata.insert("target_permissions".to_string(), perms);
+                match resolved {
+                    crate::layout::ResolvedLayout::Binary {
+                        source_name,
+                        target_name,
+                        target_dir,
+                        permissions,
+                    } => {
+                        layout_metadata.insert("source_name".to_string(), source_name);
+                        layout_metadata.insert("target_name".to_string(), target_name);
+                        layout_metadata.insert("target_dir".to_string(), target_dir);
+                        if let Some(perms) = permissions {
+                            layout_metadata.insert("target_permissions".to_string(), perms);
+                        }
+                    }
+                    crate::layout::ResolvedLayout::Archive {
+                        strip_prefix,
+                        permissions,
+                        ..
+                    } => {
+                        // Pass strip_prefix to installer for archive extraction
+                        if let Some(prefix) = strip_prefix {
+                            layout_metadata.insert("strip_prefix".to_string(), prefix);
+                        }
+                        if let Some(perms) = permissions {
+                            layout_metadata.insert("target_permissions".to_string(), perms);
+                        }
                     }
                 }
             }

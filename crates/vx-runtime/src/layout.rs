@@ -362,6 +362,11 @@ fn build_variables(ctx: &LayoutContext) -> HashMap<String, String> {
     vars.insert("platform".to_string(), ctx.platform.os.to_string());
     vars.insert("arch".to_string(), ctx.platform.arch.to_string());
     vars.insert("os".to_string(), ctx.platform.os.to_string());
+    // Rust target triple (e.g., x86_64-unknown-linux-gnu)
+    vars.insert(
+        "target_triple".to_string(),
+        ctx.platform.rust_target_triple().to_string(),
+    );
     vars.insert(
         "ext".to_string(),
         if ctx.platform.os == Os::Windows {

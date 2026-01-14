@@ -29,7 +29,9 @@ strip_v_prefix = false
 download_type = "archive"
 
 [runtimes.layout.archive]
-strip_prefix = "rust-{version}-{platform}"
+# Rust tarballs extract to rust-{version}-{target_triple}/
+# Use {target_triple} for platform-specific triple (e.g., x86_64-unknown-linux-gnu)
+strip_prefix = "rust-{version}-{target_triple}"
 executable_paths = [
     "rustc/bin/rustc.exe",   # Windows
     "rustc/bin/rustc"        # Unix
@@ -72,7 +74,9 @@ strip_v_prefix = false
 download_type = "archive"
 
 [runtimes.layout.archive]
-strip_prefix = "rust-{version}-{platform}"
+# Rust tarballs extract to rust-{version}-{target_triple}/
+# Use {target_triple} for platform-specific triple (e.g., x86_64-unknown-linux-gnu)
+strip_prefix = "rust-{version}-{target_triple}"
 executable_paths = [
     "cargo/bin/cargo.exe",   # Windows
     "cargo/bin/cargo"        # Unix

@@ -8,7 +8,10 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
+use vx_runtime::{
+    layout::{ArchiveLayout, DownloadType, ExecutableLayout, PlatformLayout},
+    Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
+};
 
 /// Visual Studio Code runtime
 #[derive(Debug, Clone, Default)]
@@ -56,15 +59,52 @@ impl Runtime for VscodeRuntime {
     /// VSCode archives have different structures per platform:
     /// - Windows (zip): bin/code.cmd (CLI wrapper) or Code.exe (GUI)
     /// - macOS (zip): Visual Studio Code.app/Contents/Resources/app/bin/code
-    /// - Linux (tar.gz): bin/code
+    /// - Linux (tar.gz): VSCode-linux-x64/bin/code (needs strip_prefix)
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         use vx_runtime::Os;
 
         match platform.os {
             Os::Windows => "bin/code.cmd".to_string(),
             Os::MacOS => "Visual Studio Code.app/Contents/Resources/app/bin/code".to_string(),
+            // After strip_prefix is applied, the path is just bin/code
             _ => "bin/code".to_string(),
         }
+    }
+
+    /// Layout configuration for archive extraction
+    /// Linux tar.gz extracts to VSCode-linux-x64/ which needs to be stripped
+    fn executable_layout(&self) -> Option<ExecutableLayout> {
+        Some(ExecutableLayout {
+            download_type: DownloadType::Archive,
+            binary: None,
+            archive: Some(ArchiveLayout {
+                executable_paths: vec![
+                    "bin/code.cmd".to_string(),
+                    "bin/code".to_string(),
+                    "Visual Studio Code.app/Contents/Resources/app/bin/code".to_string(),
+                ],
+                strip_prefix: None, // Default, overridden by platform-specific
+                permissions: Some("755".to_string()),
+            }),
+            msi: None,
+            windows: Some(PlatformLayout {
+                executable_paths: vec!["bin/code.cmd".to_string(), "Code.exe".to_string()],
+                strip_prefix: None, // Windows archive extracts directly
+                permissions: None,
+            }),
+            macos: Some(PlatformLayout {
+                executable_paths: vec![
+                    "Visual Studio Code.app/Contents/Resources/app/bin/code".to_string(),
+                ],
+                strip_prefix: None, // macOS archive extracts directly
+                permissions: Some("755".to_string()),
+            }),
+            linux: Some(PlatformLayout {
+                executable_paths: vec!["bin/code".to_string()],
+                strip_prefix: Some("VSCode-linux-x64".to_string()), // Linux needs strip
+                permissions: Some("755".to_string()),
+            }),
+        })
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
