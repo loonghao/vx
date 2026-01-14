@@ -4906,6 +4906,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "cfg-if",
+ "libc",
  "rstest",
  "serde",
  "serde_json",
