@@ -183,10 +183,10 @@ fn test_npm_tool_version_dir() {
 // ============================================================================
 
 #[test]
-fn test_tool_store_dir() {
+fn test_runtime_store_dir() {
     let paths = VxPaths::with_base_dir("/tmp/test-vx");
     assert_eq!(
-        paths.tool_store_dir("node"),
+        paths.runtime_store_dir("node"),
         PathBuf::from("/tmp/test-vx/store/node")
     );
 }

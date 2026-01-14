@@ -104,8 +104,8 @@ fn test_find_tool_includes_conda_tools() {
     let loc = location.unwrap();
     assert_eq!(loc.source, ToolSource::CondaTools);
 
-    // find_all_tools should include it
-    let locations = resolver.find_all_tools("mytool").unwrap();
+    // find_all_tool_installations should include it
+    let locations = resolver.find_all_tool_installations("mytool").unwrap();
     assert!(!locations.is_empty());
     assert!(locations.iter().any(|l| l.source == ToolSource::CondaTools));
 }
