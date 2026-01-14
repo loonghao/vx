@@ -40,6 +40,8 @@ jobs:
         id: setup-latest
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Disable cache for testing to ensure fresh installation
+          cache: 'false'
 
       - name: Verify vx installation
         shell: bash
