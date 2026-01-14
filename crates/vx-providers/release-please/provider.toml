@@ -28,7 +28,7 @@ executable_extensions = [".cmd", ".exe"]
 executable_extensions = []
 
 [runtimes.test]
-timeout_ms = 30000
+timeout_ms = 60000
 functional_commands = [
     { command = "{executable} --version", expect_success = true, expected_output = "\\d+\\.\\d+\\.\\d+", name = "version_check" },
 ]

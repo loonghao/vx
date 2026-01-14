@@ -58,13 +58,13 @@ fn test_platform_string(#[case] os: Os, #[case] arch: Arch, #[case] expected: &s
     Os::MacOS,
     Arch::Aarch64,
     "1.85.0",
-    "https://update.code.visualstudio.com/1.85.0/darwin-arm64-archive/stable#.zip"
+    "https://update.code.visualstudio.com/1.85.0/darwin-arm64/stable#.zip"
 )]
 #[case(
     Os::Linux,
     Arch::X86_64,
     "1.85.0",
-    "https://update.code.visualstudio.com/1.85.0/linux-x64-archive/stable#.zip"
+    "https://update.code.visualstudio.com/1.85.0/linux-x64/stable#.tar.gz"
 )]
 fn test_download_url(
     #[case] os: Os,

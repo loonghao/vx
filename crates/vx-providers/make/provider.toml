@@ -17,20 +17,9 @@ repository = "https://github.com/mbuilov/gnumake-windows"
 ecosystem = "system"
 
 # Platform constraint: only Windows is supported for binary download
-[provider.platform_constraint]
+[provider.platforms]
 os = ["windows"]
-unsupported_message = """
-GNU Make binary downloads are only available for Windows.
 
-On macOS/Linux, install via your system package manager:
-  - macOS: brew install make
-  - Ubuntu/Debian: sudo apt install make
-  - Fedora/RHEL: sudo dnf install make
-  - Arch: sudo pacman -S make
-
-💡 Consider using 'just' as a modern, cross-platform alternative:
-   vx install just
-"""
 
 # Make
 [[runtimes]]
