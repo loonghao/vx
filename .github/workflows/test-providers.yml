@@ -36,7 +36,7 @@ env:
   # JavaScript ecosystem
   GROUP_JS: "npm,npx,yarn,pnpm,bun,vite,release-please"
   # Python ecosystem
-  GROUP_PYTHON: "uvx,pipx,pre-commit,rez"
+  GROUP_PYTHON: "uvx,pre-commit,rez"
   # Rust ecosystem
   GROUP_RUST: "rust,cargo,rustc"
   # DevOps tools
@@ -48,7 +48,7 @@ env:
   # Large tools (test separately)
   GROUP_LARGE: "ollama,ffmpeg,zig"
   # Misc tools
-  GROUP_MISC: "protoc,spack,git,code,yasm"
+  GROUP_MISC: "protoc,spack,git,code"
 
 jobs:
   # Build VX binary first (shared across all test jobs)
@@ -97,6 +97,7 @@ jobs:
     name: Core (${{ matrix.os }})
     needs: build
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -128,6 +129,7 @@ jobs:
     name: JavaScript (${{ matrix.os }})
     needs: build
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -168,6 +170,7 @@ jobs:
     name: Python (${{ matrix.os }})
     needs: build
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -208,6 +211,7 @@ jobs:
     name: Rust (${{ matrix.os }})
     needs: build
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -251,6 +255,7 @@ jobs:
     name: DevOps (${{ matrix.os }})
     needs: build
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -291,6 +296,7 @@ jobs:
     name: Build Tools (${{ matrix.os }})
     needs: build
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -331,6 +337,7 @@ jobs:
     name: Misc (${{ matrix.os }})
     needs: build
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -388,6 +395,7 @@ jobs:
     if: inputs.runtimes != ''
     needs: build
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -433,6 +441,7 @@ jobs:
   quick-test:
     name: Quick Provider Test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.event_name == 'pull_request'
     
     steps:

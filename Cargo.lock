@@ -4029,7 +4029,6 @@ dependencies = [
  "vx-provider-ninja",
  "vx-provider-node",
  "vx-provider-ollama",
- "vx-provider-pipx",
  "vx-provider-pnpm",
  "vx-provider-pre-commit",
  "vx-provider-protoc",
@@ -4045,7 +4044,6 @@ dependencies = [
  "vx-provider-vite",
  "vx-provider-vscode",
  "vx-provider-yarn",
- "vx-provider-yasm",
  "vx-provider-zig",
  "vx-resolver",
  "vx-runtime",
@@ -4589,22 +4587,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vx-provider-pipx"
-version = "0.6.13"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "reqwest 0.12.28",
- "rstest",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "vx-runtime",
-]
-
-[[package]]
 name = "vx-provider-pnpm"
 version = "0.6.13"
 dependencies = [
@@ -4822,20 +4804,6 @@ dependencies = [
  "serde",
  "tokio",
  "tracing",
- "vx-runtime",
-]
-
-[[package]]
-name = "vx-provider-yasm"
-version = "0.6.13"
-dependencies = [
- "anyhow",
- "async-trait",
- "regex",
- "rstest",
- "serde",
- "serde_json",
- "tokio",
  "vx-runtime",
 ]
 
