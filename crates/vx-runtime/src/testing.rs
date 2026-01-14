@@ -810,8 +810,8 @@ impl RuntimeTester {
         let program = &parts[0];
         let args: Vec<&str> = parts[1..].iter().map(|s| s.as_str()).collect();
 
-        // Execute command
-        let output = match Command::new(program).args(&args).output() {
+        // Execute command with timeout
+        let output = match run_command_with_timeout(program, &args, self.timeout) {
             Ok(output) => output,
             Err(e) => {
                 return TestCaseResult::failed(
@@ -941,14 +941,12 @@ impl RuntimeTester {
             std::fs::set_permissions(&script_path, std::fs::Permissions::from_mode(0o755))?;
         }
 
-        // Execute script
+        // Execute script with timeout
         #[cfg(windows)]
-        let output = Command::new("cmd")
-            .args(["/C", &script_path.to_string_lossy()])
-            .output()?;
+        let output = run_command_with_timeout("cmd", &["/C", &script_path.to_string_lossy()], self.timeout)?;
 
         #[cfg(unix)]
-        let output = Command::new("sh").arg(&script_path).output()?;
+        let output = run_command_with_timeout("sh", &[&script_path.to_string_lossy()], self.timeout)?;
 
         // Clean up
         let _ = std::fs::remove_file(&script_path);
@@ -965,7 +963,7 @@ impl RuntimeTester {
         let start = Instant::now();
         let test_name = "version_check";
 
-        let output = match Command::new(executable).arg("--version").output() {
+        let output = match run_command_with_timeout(executable, &["--version"], self.timeout) {
             Ok(output) => output,
             Err(e) => {
                 return TestCaseResult::failed(
@@ -996,6 +994,70 @@ impl RuntimeTester {
                 Some("No version output".to_string())
             },
             duration,
+        }
+    }
+}
+
+/// Run a command with timeout support
+///
+/// This function spawns a child process and waits for it to complete with a timeout.
+/// If the timeout is exceeded, the process is killed and an error is returned.
+fn run_command_with_timeout(
+    program: &str,
+    args: &[&str],
+    timeout: Duration,
+) -> std::io::Result<std::process::Output> {
+    use std::io::Read;
+
+    let mut child = Command::new(program)
+        .args(args)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .stdin(std::process::Stdio::null()) // Prevent waiting for input
+        .spawn()?;
+
+    let start = Instant::now();
+
+    // Poll for completion with timeout
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                // Process has exited
+                let mut stdout = Vec::new();
+                let mut stderr = Vec::new();
+
+                if let Some(mut stdout_pipe) = child.stdout.take() {
+                    let _ = stdout_pipe.read_to_end(&mut stdout);
+                }
+                if let Some(mut stderr_pipe) = child.stderr.take() {
+                    let _ = stderr_pipe.read_to_end(&mut stderr);
+                }
+
+                return Ok(std::process::Output {
+                    status,
+                    stdout,
+                    stderr,
+                });
+            }
+            Ok(None) => {
+                // Process still running
+                if start.elapsed() > timeout {
+                    // Timeout exceeded - kill the process
+                    let _ = child.kill();
+                    let _ = child.wait(); // Clean up zombie process
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::TimedOut,
+                        format!("Command timed out after {:?}", timeout),
+                    ));
+                }
+                // Sleep briefly before polling again
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(e) => {
+                // Error checking status
+                let _ = child.kill();
+                return Err(e);
+            }
         }
     }
 }

@@ -123,6 +123,12 @@ executable_extensions = [".cmd", ".exe"]
 [runtimes.platforms.unix]
 executable_extensions = []
 
+[runtimes.test]
+timeout_ms = 30000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "\\d+\\.\\d+\\.\\d+", name = "version_check" },
+]
+
 # npm 6.x requires Node.js 6-14
 [[runtimes.constraints]]
 when = "^6"
@@ -156,6 +162,12 @@ executable_extensions = [".cmd", ".exe"]
 
 [runtimes.platforms.unix]
 executable_extensions = []
+
+[runtimes.test]
+timeout_ms = 30000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "\\d+\\.\\d+\\.\\d+", name = "version_check" },
+]
 
 # npx requires Node.js 12+ (comes with npm 5.2+)
 [[runtimes.constraints]]

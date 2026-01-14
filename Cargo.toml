@@ -29,7 +29,6 @@ members = [
   "crates/vx-providers/just",
   "crates/vx-providers/vite",
   "crates/vx-providers/rez",
-  "crates/vx-providers/pipx",
   "crates/vx-providers/deno",
   "crates/vx-providers/zig",
   "crates/vx-providers/java",
@@ -50,7 +49,6 @@ members = [
   "crates/vx-providers/meson",
   "crates/vx-providers/make",
   "crates/vx-providers/nasm",
-  "crates/vx-providers/yasm",
   "crates/vx-providers/protoc",
   "crates/vx-providers/task",
   "crates/vx-providers/pre-commit",
@@ -160,7 +158,6 @@ vx-provider-just = { path = "crates/vx-providers/just" }
 vx-provider-jq = { path = "crates/vx-providers/jq" }
 vx-provider-vite = { path = "crates/vx-providers/vite" }
 vx-provider-rez = { path = "crates/vx-providers/rez" }
-vx-provider-pipx = { path = "crates/vx-providers/pipx" }
 vx-provider-deno = { path = "crates/vx-providers/deno" }
 vx-provider-zig = { path = "crates/vx-providers/zig" }
 vx-provider-java = { path = "crates/vx-providers/java" }
@@ -179,7 +176,6 @@ vx-provider-cmake = { path = "crates/vx-providers/cmake" }
 vx-provider-meson = { path = "crates/vx-providers/meson" }
 vx-provider-make = { path = "crates/vx-providers/make" }
 vx-provider-nasm = { path = "crates/vx-providers/nasm" }
-vx-provider-yasm = { path = "crates/vx-providers/yasm" }
 vx-provider-protoc = { path = "crates/vx-providers/protoc" }
 vx-provider-task = { path = "crates/vx-providers/task" }
 vx-provider-pre-commit = { path = "crates/vx-providers/pre-commit" }
