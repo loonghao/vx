@@ -27,6 +27,8 @@ pub enum ToolSource {
     NpmTools,
     /// Tool installed in ~/.vx/pip-tools
     PipTools,
+    /// Tool installed in ~/.vx/conda-tools
+    CondaTools,
 }
 
 impl std::fmt::Display for ToolSource {
@@ -35,6 +37,7 @@ impl std::fmt::Display for ToolSource {
             ToolSource::Store => write!(f, "store"),
             ToolSource::NpmTools => write!(f, "npm-tools"),
             ToolSource::PipTools => write!(f, "pip-tools"),
+            ToolSource::CondaTools => write!(f, "conda-tools"),
         }
     }
 }
@@ -81,6 +84,11 @@ impl PathResolver {
             return Ok(Some(loc));
         }
 
+        // Check conda-tools directory
+        if let Some(loc) = self.find_in_conda_tools(tool_name)? {
+            return Ok(Some(loc));
+        }
+
         Ok(None)
     }
 
@@ -103,6 +111,11 @@ impl PathResolver {
 
         // Check pip-tools directory
         if let Some(loc) = self.find_in_pip_tools(tool_name)? {
+            return Ok(Some(loc));
+        }
+
+        // Check conda-tools directory
+        if let Some(loc) = self.find_in_conda_tools(tool_name)? {
             return Ok(Some(loc));
         }
 
@@ -134,6 +147,9 @@ impl PathResolver {
 
         // Collect from pip-tools
         locations.extend(self.find_all_in_pip_tools(tool_name)?);
+
+        // Collect from conda-tools
+        locations.extend(self.find_all_in_conda_tools(tool_name)?);
 
         Ok(locations)
     }
@@ -189,6 +205,16 @@ impl PathResolver {
                 path,
                 version: version.to_string(),
                 source: ToolSource::PipTools,
+            });
+        }
+
+        // Check conda-tools
+        let conda_bin = self.manager.conda_tool_bin_dir(tool_name, version);
+        if let Some(path) = self.find_conda_executable(&conda_bin, tool_name) {
+            return Some(ToolLocation {
+                path,
+                version: version.to_string(),
+                source: ToolSource::CondaTools,
             });
         }
 
@@ -340,6 +366,44 @@ impl PathResolver {
         Ok(locations)
     }
 
+    // ========== conda-tools Directory Methods ==========
+
+    /// Find a tool in the conda-tools directory
+    pub fn find_in_conda_tools(&self, tool_name: &str) -> Result<Option<ToolLocation>> {
+        let versions = self.manager.list_conda_tool_versions(tool_name)?;
+        // Return the latest version
+        for version in versions.iter().rev() {
+            let bin_dir = self.manager.conda_tool_bin_dir(tool_name, version);
+            if let Some(path) = self.find_conda_executable(&bin_dir, tool_name) {
+                return Ok(Some(ToolLocation {
+                    path,
+                    version: version.clone(),
+                    source: ToolSource::CondaTools,
+                }));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Find all versions of a tool in the conda-tools directory
+    pub fn find_all_in_conda_tools(&self, tool_name: &str) -> Result<Vec<ToolLocation>> {
+        let mut locations = Vec::new();
+        let versions = self.manager.list_conda_tool_versions(tool_name)?;
+
+        for version in versions {
+            let bin_dir = self.manager.conda_tool_bin_dir(tool_name, &version);
+            if let Some(path) = self.find_conda_executable(&bin_dir, tool_name) {
+                locations.push(ToolLocation {
+                    path,
+                    version,
+                    source: ToolSource::CondaTools,
+                });
+            }
+        }
+
+        Ok(locations)
+    }
+
     // ========== Legacy API (for backward compatibility) ==========
 
     /// Find all executable paths for a tool (all versions)
@@ -429,6 +493,22 @@ impl PathResolver {
 
     /// Find pip executable in a bin directory
     fn find_pip_executable(&self, bin_dir: &Path, tool_name: &str) -> Option<PathBuf> {
+        let exe_name = if cfg!(windows) {
+            format!("{}.exe", tool_name)
+        } else {
+            tool_name.to_string()
+        };
+        let exe_path = bin_dir.join(&exe_name);
+        if exe_path.exists() {
+            Some(exe_path)
+        } else {
+            None
+        }
+    }
+
+    /// Find conda executable in a bin directory
+    fn find_conda_executable(&self, bin_dir: &Path, tool_name: &str) -> Option<PathBuf> {
+        // Conda environments have similar structure to pip venvs
         let exe_name = if cfg!(windows) {
             format!("{}.exe", tool_name)
         } else {

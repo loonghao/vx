@@ -127,6 +127,28 @@ impl PathProvider for RealPathProvider {
     fn pip_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
         self.paths.pip_tool_bin_dir(package_name, version)
     }
+
+    // ========== conda-tools paths ==========
+
+    fn conda_tools_dir(&self) -> PathBuf {
+        self.paths.conda_tools_dir.clone()
+    }
+
+    fn conda_tool_dir(&self, package_name: &str) -> PathBuf {
+        self.paths.conda_tool_dir(package_name)
+    }
+
+    fn conda_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.paths.conda_tool_version_dir(package_name, version)
+    }
+
+    fn conda_tool_env_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.paths.conda_tool_env_dir(package_name, version)
+    }
+
+    fn conda_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.paths.conda_tool_bin_dir(package_name, version)
+    }
 }
 
 // ============================================================================

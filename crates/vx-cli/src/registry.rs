@@ -190,6 +190,7 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         release_please,
         python,
         msvc,
+        conda,
     );
 
     registry
@@ -235,6 +236,7 @@ fn create_static_registry() -> ProviderRegistry {
         release_please,
         python,
         msvc,
+        conda,
     );
 
     registry

@@ -61,6 +61,7 @@ vx-provider-spack = { workspace = true }
 vx-provider-release-please = { workspace = true }
 vx-provider-python = { workspace = true }
 vx-provider-msvc = { workspace = true }
+vx-provider-conda = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
