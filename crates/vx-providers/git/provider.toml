@@ -3,10 +3,16 @@
 
 [provider]
 name = "git"
-description = "Distributed version control system"
+description = "Git - Distributed version control system (portable install on Windows only)"
 homepage = "https://git-scm.com"
 repository = "https://github.com/git/git"
 ecosystem = "devtools"
+
+# Git portable downloads are Windows-only in vx.
+# On macOS/Linux, install via your system package manager.
+[provider.platforms]
+os = ["windows"]
+
 
 # Git
 [[runtimes]]

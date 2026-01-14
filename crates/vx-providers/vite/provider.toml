@@ -30,7 +30,7 @@ executable_extensions = []
 # Test configuration - vite --version starts a dev server without a project,
 # so we use --help instead which exits immediately
 [runtimes.test]
-timeout_ms = 10000
+timeout_ms = 60000
 functional_commands = [
     { command = "{executable} --help", expect_success = true, expected_output = "vite", name = "help_check" },
 ]

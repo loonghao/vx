@@ -121,4 +121,16 @@ impl Runtime for MakeRuntime {
             },
         ]
     }
+
+    fn check_platform_support(&self) -> Result<(), String> {
+        let current = Platform::current();
+        if self.is_platform_supported(&current) {
+            return Ok(());
+        }
+
+        Err(
+            "GNU Make installs via vx are only supported on Windows.\n\nOn macOS/Linux, install make via your system package manager:\n  - macOS: brew install make\n  - Ubuntu/Debian: sudo apt install make\n  - Fedora/RHEL: sudo dnf install make\n  - Arch: sudo pacman -S make\n\n💡 Consider using 'just' as a modern, cross-platform alternative:\n  vx install just"
+                .to_string(),
+        )
+    }
 }
