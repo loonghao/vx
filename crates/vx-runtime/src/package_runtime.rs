@@ -877,28 +877,43 @@ fn search_executable(
 }
 
 /// Create an npm shim script
-fn create_npm_shim(shim_path: &Path, source_bin: &Path, _node_exe: &Path) -> Result<()> {
+fn create_npm_shim(shim_path: &Path, source_bin: &Path, node_exe: &Path) -> Result<()> {
     #[cfg(windows)]
     {
-        // On Windows, create a .cmd wrapper
-        let content = format!("@echo off\r\n\"{}\"\r\n", source_bin.display());
+        // On Windows, create a .cmd wrapper that ensures vx-managed node is on PATH.
+        // npm's generated *.cmd wrappers typically call `node` from PATH.
+        let node_dir = node_exe
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("Invalid node executable path: {}", node_exe.display()))?;
+
+        let content = format!(
+            "@echo off\r\nset \"PATH={};%PATH%\"\r\ncall \"{}\" %*\r\n",
+            node_dir.display(),
+            source_bin.display()
+        );
         std::fs::write(shim_path, content)?;
     }
 
     #[cfg(not(windows))]
     {
-        // On Unix, create a symlink or shell script
-        if std::os::unix::fs::symlink(source_bin, shim_path).is_err() {
-            // Fall back to shell script if symlink fails
-            let content = format!("#!/bin/sh\nexec \"{}\" \"$@\"\n", source_bin.display());
-            std::fs::write(shim_path, content)?;
+        // On Unix, create a shell wrapper that ensures vx-managed node is on PATH.
+        // This makes npm-installed CLIs work even when system node is absent.
+        let node_dir = node_exe
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("Invalid node executable path: {}", node_exe.display()))?;
 
-            // Make executable
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = std::fs::metadata(shim_path)?.permissions();
-            perms.set_mode(0o755);
-            std::fs::set_permissions(shim_path, perms)?;
-        }
+        let content = format!(
+            "#!/bin/sh\nexport PATH=\"{}:$PATH\"\nexec \"{}\" \"$@\"\n",
+            node_dir.display(),
+            source_bin.display()
+        );
+        std::fs::write(shim_path, content)?;
+
+        // Make executable
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(shim_path)?.permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(shim_path, perms)?;
     }
 
     Ok(())

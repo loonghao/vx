@@ -65,9 +65,9 @@ impl Runtime for JqRuntime {
     fn executable_layout(&self) -> Option<ExecutableLayout> {
         let mut binary_configs = HashMap::new();
 
-        // Windows x86_64
+        // Windows x86_64 (platform key format: {os}-{arch} where os=windows, arch=x64)
         binary_configs.insert(
-            "windows-x86_64".to_string(),
+            "windows-x64".to_string(),
             BinaryLayout {
                 source_name: "jq-windows-amd64.exe".to_string(),
                 target_name: "jq.exe".to_string(),
@@ -78,7 +78,7 @@ impl Runtime for JqRuntime {
 
         // Windows ARM64
         binary_configs.insert(
-            "windows-aarch64".to_string(),
+            "windows-arm64".to_string(),
             BinaryLayout {
                 source_name: "jq-windows-arm64.exe".to_string(),
                 target_name: "jq.exe".to_string(),
@@ -98,9 +98,9 @@ impl Runtime for JqRuntime {
             },
         );
 
-        // macOS x86_64
+        // macOS x86_64 (os=darwin, arch=x64)
         binary_configs.insert(
-            "macos-x86_64".to_string(),
+            "darwin-x64".to_string(),
             BinaryLayout {
                 source_name: "jq-macos-amd64".to_string(),
                 target_name: "jq".to_string(),
@@ -109,9 +109,9 @@ impl Runtime for JqRuntime {
             },
         );
 
-        // macOS ARM64
+        // macOS ARM64 (os=darwin, arch=arm64)
         binary_configs.insert(
-            "macos-aarch64".to_string(),
+            "darwin-arm64".to_string(),
             BinaryLayout {
                 source_name: "jq-macos-arm64".to_string(),
                 target_name: "jq".to_string(),
@@ -120,9 +120,9 @@ impl Runtime for JqRuntime {
             },
         );
 
-        // Linux x86_64
+        // Linux x86_64 (os=linux, arch=x64)
         binary_configs.insert(
-            "linux-x86_64".to_string(),
+            "linux-x64".to_string(),
             BinaryLayout {
                 source_name: "jq-linux-amd64".to_string(),
                 target_name: "jq".to_string(),
@@ -131,9 +131,9 @@ impl Runtime for JqRuntime {
             },
         );
 
-        // Linux ARM64
+        // Linux ARM64 (os=linux, arch=arm64)
         binary_configs.insert(
-            "linux-aarch64".to_string(),
+            "linux-arm64".to_string(),
             BinaryLayout {
                 source_name: "jq-linux-arm64".to_string(),
                 target_name: "jq".to_string(),

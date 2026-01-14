@@ -85,6 +85,24 @@ impl Runtime for GitRuntime {
         Ok(versions)
     }
 
+    fn supported_platforms(&self) -> Vec<Platform> {
+        // We only support installing Git via portable MinGit downloads on Windows.
+        // On Linux/macOS, users should install Git via their system package manager.
+        Platform::windows_only()
+    }
+
+    fn check_platform_support(&self) -> Result<(), String> {
+        let current = Platform::current();
+        if self.is_platform_supported(&current) {
+            return Ok(());
+        }
+
+        Err(
+            "Git installs via vx are only supported on Windows (portable MinGit).\n\nOn macOS/Linux, please install Git via your system package manager:\n  - macOS: brew install git\n  - Ubuntu/Debian: sudo apt install git\n  - Fedora/RHEL: sudo dnf install git\n  - Arch: sudo pacman -S git"
+                .to_string(),
+        )
+    }
+
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         Ok(GitUrlBuilder::download_url(version, platform))
     }

@@ -684,6 +684,11 @@ pub trait Runtime: Send + Sync {
     async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
         use tracing::{debug, info};
 
+        // Fail early with a clear message when the provider doesn't support this platform.
+        if let Err(msg) = self.check_platform_support() {
+            return Err(anyhow::anyhow!(msg));
+        }
+
         let install_path = ctx.paths.version_store_dir(self.name(), version);
         let platform = Platform::current();
         let exe_relative = self.executable_relative_path(version, &platform);
