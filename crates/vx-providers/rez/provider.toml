@@ -29,11 +29,11 @@ executable_extensions = [".exe"]
 [runtimes.platforms.unix]
 executable_extensions = []
 
-# Rez requires Python 3.7+
+# Rez requires Python 3.8+
 [[runtimes.constraints]]
 when = "*"
 requires = [
-    { runtime = "python", version = ">=3.7", recommended = "3.11", reason = "Rez requires Python 3.7+" }
+    { runtime = "python", version = ">=3.8", recommended = "3.11", reason = "Rez requires Python 3.8+" }
 ]
 
 # rez-env is bundled with rez
