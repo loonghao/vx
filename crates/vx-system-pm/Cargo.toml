@@ -30,6 +30,10 @@ which = { workspace = true }
 # Platform detection
 cfg-if = "1.0"
 
+# Unix-specific
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 # Windows-specific
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
