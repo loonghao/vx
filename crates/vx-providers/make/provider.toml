@@ -1,17 +1,19 @@
 # GNU Make Provider Manifest
 # This file defines the metadata, runtimes, and dependency constraints for GNU Make.
 #
-# GNU Make is a system tool that should be installed via system package managers.
-# vx provides a unified interface to detect and manage make installations.
-#
-# Consider using 'just' as a modern alternative: vx install just
+# NOTE: Windows is NOT supported via vx - use 'just' as a modern alternative: vx install just
+# On macOS/Linux, make is typically pre-installed or available via system package manager.
 
 [provider]
 name = "make"
-description = "GNU Make - A build automation tool (system package manager installation)"
+description = "GNU Make - A build automation tool (Unix only, use 'just' on Windows)"
 homepage = "https://www.gnu.org/software/make/"
 repository = "https://savannah.gnu.org/projects/make"
 ecosystem = "system"
+
+# Platform constraint: only Unix is supported
+[provider.platforms]
+os = ["linux", "macos"]
 
 
 # Make
@@ -31,10 +33,7 @@ default = "4.4.1"
 [runtimes.detection]
 command = "{executable} --version"
 pattern = "GNU Make ([\\d.]+)"
-system_paths = ["/usr/bin/make", "/usr/local/bin/make", "C:\\Program Files\\GnuWin32\\bin\\make.exe"]
-
-[runtimes.platforms.windows]
-executable_extensions = [".exe"]
+system_paths = ["/usr/bin/make", "/usr/local/bin/make", "/opt/homebrew/bin/make"]
 
 [runtimes.platforms.unix]
 executable_extensions = []
@@ -49,29 +48,8 @@ install_verification = [
     { command = "{executable} --version", expect_success = true },
 ]
 
-# RFC 0021: System installation strategies
+# RFC 0021: System installation strategies (Unix only)
 [runtimes.system_install]
-
-# Chocolatey installation (Windows)
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "choco"
-package = "make"
-priority = 80
-
-# winget installation (Windows)
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "winget"
-package = "GnuWin32.Make"
-priority = 70
-
-# Scoop installation (Windows)
-[[runtimes.system_install.strategies]]
-type = "package_manager"
-manager = "scoop"
-package = "make"
-priority = 75
 
 # Homebrew installation (macOS/Linux)
 [[runtimes.system_install.strategies]]
