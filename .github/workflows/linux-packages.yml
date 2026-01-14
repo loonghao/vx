@@ -74,7 +74,7 @@ jobs:
       test_packages: ${{ steps.compute-affected.outputs.test_packages }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Detect file changes
         uses: dorny/paths-filter@v3
@@ -364,7 +364,7 @@ jobs:
             binary: vx
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -404,7 +404,7 @@ jobs:
     if: needs.detect-changes.outputs.should_build == 'true'
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download vx binary
         uses: actions/download-artifact@v7
@@ -452,7 +452,7 @@ jobs:
             # List first 10 files as examples
             grep -rl '#\[cfg(test)\]' crates --include="*.rs" | grep -v '/tests/' | head -10
           else
-            echo "âœ?No inline tests found"
+            echo "ï¿½?No inline tests found"
           fi
           # Note: Currently a warning only, will become error after migration
 
@@ -492,7 +492,7 @@ jobs:
             binary: vx
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download vx binary
         uses: actions/download-artifact@v7
@@ -570,7 +570,7 @@ jobs:
             binary: vx
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download vx binary
         uses: actions/download-artifact@v7
@@ -636,7 +636,7 @@ jobs:
           - aarch64-unknown-linux-musl
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download vx binary
         uses: actions/download-artifact@v7
@@ -677,7 +677,7 @@ jobs:
     if: needs.detect-changes.outputs.should_build == 'true'
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -704,7 +704,7 @@ jobs:
       needs.detect-changes.outputs.is_main == 'true'
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download vx binary
         uses: actions/download-artifact@v7
@@ -754,7 +754,7 @@ jobs:
       needs.detect-changes.outputs.should_build == 'true'
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download vx binary
         uses: actions/download-artifact@v7
@@ -785,7 +785,7 @@ jobs:
       needs.detect-changes.outputs.should_build == 'false'
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -834,11 +834,11 @@ jobs:
             local job_name="$1"
             local result="$2"
             if [[ "$result" == "success" ]]; then
-              echo "- âœ?$job_name" >> $GITHUB_STEP_SUMMARY
+              echo "- ï¿½?$job_name" >> $GITHUB_STEP_SUMMARY
             elif [[ "$result" == "skipped" ]]; then
               echo "- â­ï¸ $job_name (skipped)" >> $GITHUB_STEP_SUMMARY
             else
-              echo "- â?$job_name ($result)" >> $GITHUB_STEP_SUMMARY
+              echo "- ï¿½?$job_name ($result)" >> $GITHUB_STEP_SUMMARY
               # Don't fail on skipped jobs
               if [[ "$result" != "skipped" && "$result" != "" ]]; then
                 failed=1
@@ -867,12 +867,12 @@ jobs:
 
           if [[ $failed -eq 1 ]]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "â?**CI failed**" >> $GITHUB_STEP_SUMMARY
+            echo "ï¿½?**CI failed**" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "âœ?**All CI checks passed!**" >> $GITHUB_STEP_SUMMARY
+          echo "ï¿½?**All CI checks passed!**" >> $GITHUB_STEP_SUMMARY
 
 name: CodeQL
 
@@ -896,7 +896,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup vx
         uses: ./
@@ -991,7 +991,7 @@ jobs:
           - linux/arm64
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -1172,7 +1172,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup vx
         uses: ./
@@ -1218,7 +1218,7 @@ jobs:
         run: |
           echo "## Documentation Deployed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "âœ?Documentation has been deployed to GitHub Pages!" >> $GITHUB_STEP_SUMMARY
+          echo "ï¿½?Documentation has been deployed to GitHub Pages!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "ðŸ”— **URL:** ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
 
@@ -1280,7 +1280,7 @@ jobs:
           - arm64
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download release binary
         run: |
@@ -1375,7 +1375,7 @@ jobs:
           - aarch64
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install build tools
         run: |
@@ -1492,7 +1492,7 @@ jobs:
 
       - name: Checkout
         if: steps.check-key.outputs.skip != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup SSH
         if: steps.check-key.outputs.skip != 'true'
@@ -1695,14 +1695,14 @@ jobs:
           # Check if release exists
           release_url="https://api.github.com/repos/loonghao/vx/releases/tags/$version"
           if curl -s -f -H "Accept: application/vnd.github.v3+json" "$release_url" > /dev/null; then
-            echo "âœ?GitHub Release found for $version"
+            echo "ï¿½?GitHub Release found for $version"
 
             # List available assets
             echo "ðŸ“¦ Available release assets:"
             curl -s -H "Accept: application/vnd.github.v3+json" "$release_url" | \
               jq -r '.assets[] | "  - \(.name) (\(.size) bytes)"'
           else
-            echo "â?GitHub Release not found for $version"
+            echo "ï¿½?GitHub Release not found for $version"
             echo "Please ensure the Release workflow completed successfully"
             exit 1
           fi
@@ -1736,7 +1736,7 @@ jobs:
     if: needs.check-release.outputs.should-publish == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download Windows binary from release
         run: |
@@ -1824,7 +1824,7 @@ jobs:
     if: needs.check-release.outputs.should-publish == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Generate Homebrew formula
         id: generate
@@ -2214,7 +2214,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ needs.get-tag.outputs.tag_name }}
 
@@ -2307,7 +2307,7 @@ jobs:
       actions: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.get-tag.outputs.tag_name }}
           fetch-depth: 0
@@ -2380,7 +2380,7 @@ jobs:
       needs.finalize-release.result == 'success' &&
       (github.event_name != 'workflow_dispatch' || inputs.skip-crates-publish != true)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.get-tag.outputs.tag_name }}
 
@@ -2426,7 +2426,7 @@ jobs:
     name: Cargo Audit (via vx)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup vx
         uses: ./
@@ -2488,7 +2488,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Test 1: Basic installation with latest version
       - name: Setup vx (latest)
@@ -2547,7 +2547,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Test: Installation with pre-installed tools
       - name: Setup vx with tools
@@ -2570,7 +2570,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Test: Installation with specific version (if available)
       - name: Setup vx (specific version)
@@ -2650,7 +2650,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -2693,7 +2693,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Download VX binary
         uses: actions/download-artifact@v6
@@ -2725,7 +2725,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Download VX binary
         uses: actions/download-artifact@v6
@@ -2766,7 +2766,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Download VX binary
         uses: actions/download-artifact@v6
@@ -2807,7 +2807,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Download VX binary
         uses: actions/download-artifact@v6
@@ -2851,7 +2851,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Download VX binary
         uses: actions/download-artifact@v6
@@ -2892,7 +2892,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Download VX binary
         uses: actions/download-artifact@v6
@@ -2933,7 +2933,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Download VX binary
         uses: actions/download-artifact@v6
@@ -2991,7 +2991,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Download VX binary
         uses: actions/download-artifact@v6
@@ -3034,7 +3034,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -3092,8 +3092,8 @@ jobs:
                 SKIPPED=$(cat "${dir}test-report.json" | jq '.skipped // 0')
                 
                 echo "### $GROUP ($OS)" >> $GITHUB_STEP_SUMMARY
-                echo "- âœ?Passed: $PASSED" >> $GITHUB_STEP_SUMMARY
-                echo "- â?Failed: $FAILED" >> $GITHUB_STEP_SUMMARY
+                echo "- ï¿½?Passed: $PASSED" >> $GITHUB_STEP_SUMMARY
+                echo "- ï¿½?Failed: $FAILED" >> $GITHUB_STEP_SUMMARY
                 echo "- â­ï¸ Skipped: $SKIPPED" >> $GITHUB_STEP_SUMMARY
                 echo "" >> $GITHUB_STEP_SUMMARY
               fi
