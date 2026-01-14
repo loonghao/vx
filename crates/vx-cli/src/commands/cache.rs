@@ -1,16 +1,18 @@
 //! Cache management command implementation
 //!
 //! This module consolidates all cache-related operations:
-//! - `clear`: Remove cached data (versions, downloads, resolutions)
-//! - `stats`: Show cache statistics and disk usage
+//! - `info`: Show cache statistics and disk usage
 //! - `list`: List cached items
-//! - `clean`: Clean up cache and orphaned files
+//! - `prune`: Safely remove expired/orphaned cache entries
+//! - `purge`: Forcefully remove all cache data
 //! - `dir`: Show cache directory path
 //!
-//! ## Design (inspired by uv)
+//! ## Design Philosophy
 //!
-//! All cache operations are grouped under `vx cache` subcommand.
-//! This follows the principle of consolidating related functionality.
+//! - `prune` = Safe, intelligent cleanup (only removes expired/orphaned items)
+//! - `purge` = Destructive, complete removal (removes everything)
+//!
+//! This avoids the confusing `clear` vs `clean` naming.
 
 use super::common::format_size;
 use crate::cli::CacheCommand;
@@ -24,144 +26,35 @@ use vx_runtime::VersionCache;
 /// Handle cache subcommands
 pub async fn handle(command: CacheCommand) -> Result<()> {
     match command {
-        CacheCommand::Clear {
+        CacheCommand::Info => handle_info().await,
+        CacheCommand::List { verbose } => handle_list(verbose).await,
+        CacheCommand::Prune {
+            dry_run,
+            versions,
+            downloads,
+            resolutions,
+            orphaned,
+            older_than,
+            verbose,
+        } => handle_prune(dry_run, versions, downloads, resolutions, orphaned, older_than, verbose).await,
+        CacheCommand::Purge {
             versions,
             downloads,
             resolutions,
             tool,
-            force,
-        } => handle_clear(versions, downloads, resolutions, tool, force).await,
-        CacheCommand::Stats => handle_stats().await,
-        CacheCommand::List { verbose } => handle_list(verbose).await,
-        CacheCommand::Clean {
-            dry_run,
-            cache_only,
-            orphaned_only,
-            force,
-            older_than,
-            verbose,
-        } => {
-            handle_clean(
-                dry_run,
-                cache_only,
-                orphaned_only,
-                force,
-                older_than,
-                verbose,
-            )
-            .await
-        }
+            yes,
+        } => handle_purge(versions, downloads, resolutions, tool, yes).await,
         CacheCommand::Dir => handle_dir().await,
     }
 }
 
-/// Clear cache
-async fn handle_clear(
-    versions_only: bool,
-    downloads_only: bool,
-    resolutions_only: bool,
-    tool: Option<String>,
-    force: bool,
-) -> Result<()> {
-    let paths = VxPaths::new()?;
-
-    // If specific tool is specified, only clear that tool's cache
-    if let Some(tool_name) = tool {
-        let cache_file = paths
-            .cache_dir
-            .join("versions")
-            .join(format!("{}.json", tool_name));
-        if cache_file.exists() {
-            std::fs::remove_file(&cache_file)?;
-            UI::success(&format!("Cleared cache for '{}'", tool_name));
-        } else {
-            UI::info(&format!("No cache found for '{}'", tool_name));
-        }
-        return Ok(());
-    }
-
-    // Determine what to clear
-    // - If no selector flag is provided, clear everything.
-    // - If any selector flag is provided, clear only the selected categories.
-    let any_selector = versions_only || downloads_only || resolutions_only;
-    let clear_versions = if any_selector { versions_only } else { true };
-    let clear_downloads = if any_selector { downloads_only } else { true };
-    let clear_resolutions = if any_selector { resolutions_only } else { true };
-
-    // Clear version cache
-    if clear_versions {
-        let cache_dir = paths.cache_dir.join("versions");
-        let version_cache = VersionCache::new(cache_dir);
-
-        if force {
-            version_cache.clear_all()?;
-            UI::success("Version cache cleared");
-        } else {
-            let pruned = version_cache.prune()?;
-            if pruned > 0 {
-                UI::success(&format!("Pruned {} expired cache entries", pruned));
-            } else {
-                UI::info("No expired cache entries to prune");
-            }
-            UI::hint("Use --force to clear all cache entries");
-        }
-    }
-
-    // Clear download cache (new high-performance CAS cache)
-    if clear_downloads {
-        let download_cache = DownloadCache::new(paths.cache_dir.clone());
-        let stats_before = download_cache.stats();
-        if stats_before.file_count > 0 {
-            match download_cache.clear() {
-                Ok(bytes_freed) => {
-                    UI::success(&format!(
-                        "Cleared {} download cache files ({})",
-                        stats_before.file_count,
-                        format_size(bytes_freed)
-                    ));
-                }
-                Err(e) => {
-                    UI::warning(&format!("Failed to clear download cache: {}", e));
-                }
-            }
-        } else {
-            UI::info("Download cache: (empty)");
-        }
-    }
-
-    // Clear resolution cache
-    if clear_resolutions {
-        let cache_dir = paths.cache_dir.join(RESOLUTION_CACHE_DIR_NAME);
-        let resolution_cache = ResolutionCache::new(cache_dir);
-
-        if force {
-            let removed = resolution_cache.clear_all()?;
-            if removed > 0 {
-                UI::success(&format!("Resolution cache cleared ({} entries)", removed));
-            } else {
-                UI::info("Resolution cache: (empty)");
-            }
-        } else {
-            let pruned = resolution_cache.prune_expired()?;
-            if pruned > 0 {
-                UI::success(&format!("Pruned {} expired resolution entries", pruned));
-            } else {
-                UI::info("No expired resolution entries to prune");
-            }
-            UI::hint("Use --force to clear all resolution cache entries");
-        }
-    }
-
-    Ok(())
-}
-
-/// Show cache statistics
-async fn handle_stats() -> Result<()> {
+/// Show cache statistics (formerly `stats`)
+async fn handle_info() -> Result<()> {
     let paths = VxPaths::new()?;
     let cache_dir = paths.cache_dir.join("versions");
     let version_cache = VersionCache::new(cache_dir);
 
-    UI::header("Cache Statistics");
+    UI::header("Cache Information");
 
     // Version cache stats
     if let Ok(stats) = version_cache.stats() {
@@ -186,7 +79,7 @@ async fn handle_stats() -> Result<()> {
     println!("  Expired entries: {}", resolution_stats.expired_entries);
     println!("  Total size:      {}", resolution_stats.formatted_size());
 
-    // Download cache stats (new high-performance CAS cache)
+    // Download cache stats
     let download_cache = DownloadCache::new(paths.cache_dir.clone());
     let download_stats = download_cache.stats();
     println!();
@@ -204,9 +97,8 @@ async fn handle_stats() -> Result<()> {
     }
 
     println!();
-    UI::hint("Run 'vx cache clear' to prune expired entries");
-    UI::hint("Run 'vx cache clear --force' to remove all cache");
-    UI::hint("Run 'vx cache cleanup' to clean orphaned files");
+    UI::hint("Run 'vx cache prune' to remove expired entries");
+    UI::hint("Run 'vx cache purge' to remove all cache (destructive)");
 
     Ok(())
 }
@@ -258,6 +150,247 @@ async fn handle_list(verbose: bool) -> Result<()> {
     Ok(())
 }
 
+/// Prune expired and orphaned cache entries (safe cleanup)
+async fn handle_prune(
+    dry_run: bool,
+    versions_only: bool,
+    downloads_only: bool,
+    resolutions_only: bool,
+    orphaned_only: bool,
+    older_than: Option<u32>,
+    verbose: bool,
+) -> Result<()> {
+    let paths = VxPaths::new()?;
+
+    if dry_run {
+        UI::header("Prune Preview (Dry Run)");
+    } else {
+        UI::header("Pruning Cache");
+    }
+
+    // Determine what to prune
+    // If no selector flag is provided, prune all categories
+    let any_selector = versions_only || downloads_only || resolutions_only || orphaned_only;
+    let prune_versions = if any_selector { versions_only } else { true };
+    let prune_downloads = if any_selector { downloads_only } else { true };
+    let prune_resolutions = if any_selector { resolutions_only } else { true };
+    let prune_orphaned = if any_selector { orphaned_only } else { true };
+
+    let mut total_pruned = 0;
+
+    // Prune version cache (expired entries only)
+    if prune_versions {
+        let cache_dir = paths.cache_dir.join("versions");
+        let version_cache = VersionCache::new(cache_dir);
+
+        if let Ok(stats) = version_cache.stats() {
+            if verbose || dry_run {
+                UI::info(&format!(
+                    "Version cache: {} expired of {} entries",
+                    stats.expired_entries, stats.total_entries
+                ));
+            }
+        }
+
+        if dry_run {
+            if let Ok(stats) = version_cache.stats() {
+                if stats.expired_entries > 0 {
+                    UI::hint(&format!("  Would prune {} expired entries", stats.expired_entries));
+                }
+            }
+        } else {
+            let pruned = version_cache.prune()?;
+            if pruned > 0 {
+                UI::success(&format!("Pruned {} expired version cache entries", pruned));
+                total_pruned += pruned;
+            } else if verbose {
+                UI::info("No expired version cache entries to prune");
+            }
+        }
+    }
+
+    // Prune resolution cache (expired entries only)
+    if prune_resolutions {
+        let cache_dir = paths.cache_dir.join(RESOLUTION_CACHE_DIR_NAME);
+        let resolution_cache = ResolutionCache::new(cache_dir);
+
+        let stats = resolution_cache.stats()?;
+        if verbose || dry_run {
+            UI::info(&format!(
+                "Resolution cache: {} expired of {} entries",
+                stats.expired_entries, stats.total_entries
+            ));
+        }
+
+        if dry_run {
+            if stats.expired_entries > 0 {
+                UI::hint(&format!("  Would prune {} expired entries", stats.expired_entries));
+            }
+        } else {
+            let pruned = resolution_cache.prune_expired()?;
+            if pruned > 0 {
+                UI::success(&format!("Pruned {} expired resolution cache entries", pruned));
+                total_pruned += pruned;
+            } else if verbose {
+                UI::info("No expired resolution cache entries to prune");
+            }
+        }
+    }
+
+    // Prune download cache (old files based on older_than)
+    if prune_downloads {
+        let download_cache = DownloadCache::new(paths.cache_dir.clone());
+        let stats = download_cache.stats();
+
+        if verbose || dry_run {
+            UI::info(&format!(
+                "Download cache: {} files ({})",
+                stats.file_count,
+                stats.formatted_size()
+            ));
+        }
+
+        if let Some(days) = older_than {
+            if dry_run {
+                UI::hint(&format!("  Would prune files older than {} days", days));
+            } else {
+                // Prune old download files
+                let pruned = prune_old_downloads(&paths.cache_dir, days)?;
+                if pruned > 0 {
+                    UI::success(&format!("Pruned {} old download cache files", pruned));
+                    total_pruned += pruned;
+                } else if verbose {
+                    UI::info("No old download cache files to prune");
+                }
+            }
+        } else if verbose {
+            UI::hint("Use --older-than to prune old download files");
+        }
+    }
+
+    // Prune orphaned tool versions
+    if prune_orphaned {
+        if dry_run {
+            UI::info("Orphaned tool versions:");
+            UI::hint("  (orphaned version detection not yet implemented)");
+        } else if verbose {
+            UI::info("Orphaned version cleanup not yet fully implemented");
+            UI::hint("Use 'vx uninstall <tool>@<version>' to remove specific versions");
+        }
+    }
+
+    if !dry_run {
+        if total_pruned > 0 {
+            UI::success(&format!("Prune completed: {} items removed", total_pruned));
+        } else {
+            UI::info("Nothing to prune");
+        }
+    }
+
+    Ok(())
+}
+
+/// Purge all cache data (destructive)
+async fn handle_purge(
+    versions_only: bool,
+    downloads_only: bool,
+    resolutions_only: bool,
+    tool: Option<String>,
+    yes: bool,
+) -> Result<()> {
+    let paths = VxPaths::new()?;
+
+    // If specific tool is specified, only purge that tool's cache
+    if let Some(tool_name) = tool {
+        let cache_file = paths
+            .cache_dir
+            .join("versions")
+            .join(format!("{}.json", tool_name));
+        if cache_file.exists() {
+            if !yes {
+                UI::warning(&format!("This will remove all cache for '{}'", tool_name));
+                if !confirm_action()? {
+                    UI::info("Cancelled");
+                    return Ok(());
+                }
+            }
+            std::fs::remove_file(&cache_file)?;
+            UI::success(&format!("Purged cache for '{}'", tool_name));
+        } else {
+            UI::info(&format!("No cache found for '{}'", tool_name));
+        }
+        return Ok(());
+    }
+
+    // Determine what to purge
+    let any_selector = versions_only || downloads_only || resolutions_only;
+    let purge_versions = if any_selector { versions_only } else { true };
+    let purge_downloads = if any_selector { downloads_only } else { true };
+    let purge_resolutions = if any_selector { resolutions_only } else { true };
+
+    // Confirmation
+    if !yes {
+        UI::warning("This will permanently remove all cache data!");
+        let mut targets = vec![];
+        if purge_versions { targets.push("version cache"); }
+        if purge_downloads { targets.push("download cache"); }
+        if purge_resolutions { targets.push("resolution cache"); }
+        UI::info(&format!("Targets: {}", targets.join(", ")));
+
+        if !confirm_action()? {
+            UI::info("Cancelled");
+            return Ok(());
+        }
+    }
+
+    UI::header("Purging Cache");
+
+    // Purge version cache
+    if purge_versions {
+        let cache_dir = paths.cache_dir.join("versions");
+        let version_cache = VersionCache::new(cache_dir);
+        version_cache.clear_all()?;
+        UI::success("Version cache purged");
+    }
+
+    // Purge download cache
+    if purge_downloads {
+        let download_cache = DownloadCache::new(paths.cache_dir.clone());
+        let stats_before = download_cache.stats();
+        if stats_before.file_count > 0 {
+            match download_cache.clear() {
+                Ok(bytes_freed) => {
+                    UI::success(&format!(
+                        "Download cache purged: {} files ({})",
+                        stats_before.file_count,
+                        format_size(bytes_freed)
+                    ));
+                }
+                Err(e) => {
+                    UI::warning(&format!("Failed to purge download cache: {}", e));
+                }
+            }
+        } else {
+            UI::info("Download cache: (already empty)");
+        }
+    }
+
+    // Purge resolution cache
+    if purge_resolutions {
+        let cache_dir = paths.cache_dir.join(RESOLUTION_CACHE_DIR_NAME);
+        let resolution_cache = ResolutionCache::new(cache_dir);
+        let removed = resolution_cache.clear_all()?;
+        if removed > 0 {
+            UI::success(&format!("Resolution cache purged: {} entries", removed));
+        } else {
+            UI::info("Resolution cache: (already empty)");
+        }
+    }
+
+    UI::success("Purge completed");
+    Ok(())
+}
+
 /// Show cache directory path
 async fn handle_dir() -> Result<()> {
     let paths = VxPaths::new()?;
@@ -265,162 +398,42 @@ async fn handle_dir() -> Result<()> {
     Ok(())
 }
 
-/// Handle clean subcommand
-async fn handle_clean(
-    dry_run: bool,
-    cache_only: bool,
-    orphaned_only: bool,
-    force: bool,
-    older_than: Option<u32>,
-    verbose: bool,
-) -> Result<()> {
-    let paths = VxPaths::new()?;
+/// Prune old download files
+fn prune_old_downloads(cache_dir: &std::path::Path, days: u32) -> Result<usize> {
+    let mut count = 0;
+    let threshold = std::time::Duration::from_secs(days as u64 * 24 * 60 * 60);
 
-    if dry_run {
-        UI::header("Cleanup Preview (Dry Run)");
-    } else {
-        UI::header("Cache Cleanup");
-    }
-
-    // Determine what to clean
-    // If neither flag is set, clean both; otherwise respect the flags
-    let clean_cache = cache_only || !orphaned_only;
-    let clean_orphaned = orphaned_only || !cache_only;
-
-    // Clean cache
-    if clean_cache {
-        let cache_dir = paths.cache_dir.join("versions");
-        let version_cache = VersionCache::new(cache_dir.clone());
-
-        // Show cache statistics
-        if let Ok(stats) = version_cache.stats() {
-            if verbose || dry_run {
-                UI::info(&format!(
-                    "Version cache: {} entries ({} valid, {} expired), {}",
-                    stats.total_entries,
-                    stats.valid_entries,
-                    stats.expired_entries,
-                    stats.formatted_size()
-                ));
-            }
-        }
-
-        if dry_run {
-            UI::info("Would clean version cache:");
-            if cache_dir.exists() {
-                let mut found = false;
-                if let Ok(entries) = std::fs::read_dir(&cache_dir) {
-                    for entry in entries.filter_map(|e| e.ok()) {
-                        let path = entry.path();
-                        if path.extension().is_some_and(|ext| ext == "json") {
-                            found = true;
-                            if verbose {
-                                UI::hint(&format!("  - {}", path.display()));
-                            }
-                        }
-                    }
-                }
-                if !found {
-                    UI::hint("  (no version cache found)");
-                }
-            } else {
-                UI::hint("  (no version cache found)");
-            }
-        } else {
-            // Prune expired entries first if not force
-            if !force {
-                let pruned = version_cache.prune()?;
-                if pruned > 0 {
-                    UI::success(&format!("Pruned {} expired cache entries", pruned));
-                }
-            } else {
-                version_cache.clear_all()?;
-                UI::success("Version cache cleared");
-            }
-        }
-
-        // Clean download cache
-        let download_cache = &paths.cache_dir;
-        if dry_run {
-            UI::info("Would clean download cache:");
-            if download_cache.exists() {
-                let mut count = 0;
-                let mut size: u64 = 0;
-                if let Ok(entries) = std::fs::read_dir(download_cache) {
-                    for entry in entries.filter_map(|e| e.ok()) {
-                        let path = entry.path();
-                        if path.is_file() {
-                            // Apply older_than filter if specified
-                            if let Some(days) = older_than {
-                                if let Ok(meta) = path.metadata() {
-                                    if let Ok(modified) = meta.modified() {
-                                        let age = modified.elapsed().unwrap_or_default();
-                                        if age.as_secs() < (days as u64 * 24 * 60 * 60) {
-                                            continue;
-                                        }
-                                    }
-                                }
-                            }
-                            count += 1;
-                            if let Ok(meta) = path.metadata() {
-                                size += meta.len();
-                            }
-                            if verbose {
-                                UI::hint(&format!("  - {}", path.display()));
-                            }
-                        }
-                    }
-                }
-                UI::hint(&format!("  {} files ({})", count, format_size(size)));
-            }
-        } else if force {
-            // Only clean files in cache dir, not subdirectories
-            if download_cache.exists() {
-                let mut count = 0;
-                if let Ok(entries) = std::fs::read_dir(download_cache) {
-                    for entry in entries.filter_map(|e| e.ok()) {
-                        let path = entry.path();
-                        if path.is_file() {
-                            // Apply older_than filter if specified
-                            if let Some(days) = older_than {
-                                if let Ok(meta) = path.metadata() {
-                                    if let Ok(modified) = meta.modified() {
-                                        let age = modified.elapsed().unwrap_or_default();
-                                        if age.as_secs() < (days as u64 * 24 * 60 * 60) {
-                                            continue;
-                                        }
-                                    }
-                                }
-                            }
+    if let Ok(entries) = std::fs::read_dir(cache_dir) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_file() {
+                if let Ok(meta) = path.metadata() {
+                    if let Ok(modified) = meta.modified() {
+                        let age = modified.elapsed().unwrap_or_default();
+                        if age > threshold {
                             std::fs::remove_file(&path)?;
                             count += 1;
                         }
                     }
                 }
-                if count > 0 {
-                    UI::success(&format!("Cleaned {} cached files", count));
-                }
             }
         }
     }
 
-    // Clean orphaned tool versions
-    if clean_orphaned {
-        if dry_run {
-            UI::info("Would clean orphaned tool versions:");
-            UI::hint("  (orphaned version detection not yet implemented)");
-        } else {
-            UI::step("Cleaning orphaned tool versions...");
-            UI::warning("Orphaned version cleanup not yet fully implemented");
-            UI::hint("Use 'vx remove <tool> <version>' to remove specific versions");
-        }
-    }
+    Ok(count)
+}
 
-    if !dry_run {
-        UI::success("Cleanup completed");
-    }
+/// Ask for user confirmation
+fn confirm_action() -> Result<bool> {
+    use std::io::{self, Write};
 
-    Ok(())
+    print!("Continue? [y/N] ");
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+
+    Ok(input.trim().eq_ignore_ascii_case("y") || input.trim().eq_ignore_ascii_case("yes"))
 }
 
 /// Calculate directory size recursively
