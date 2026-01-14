@@ -59,6 +59,19 @@ impl VerificationResult {
             suggestions,
         }
     }
+
+    /// Create a successful verification result for system-installed tools
+    ///
+    /// Used for tools installed via system package managers (winget, brew, apt, etc.)
+    /// where the executable is available in the system PATH rather than a specific install path.
+    pub fn success_system_installed() -> Self {
+        Self {
+            valid: true,
+            executable_path: None, // System-installed, no specific path
+            issues: vec![],
+            suggestions: vec![],
+        }
+    }
 }
 
 /// Core trait for implementing runtime support

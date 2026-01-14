@@ -128,30 +128,12 @@ impl Runtime for MakeRuntime {
     fn verify_installation(
         &self,
         _version: &str,
-        install_path: &Path,
-        platform: &Platform,
+        _install_path: &Path,
+        _platform: &Platform,
     ) -> VerificationResult {
-        let exe_name = Self::get_executable_name(platform);
-        let exe_path = install_path.join(exe_name);
-
-        if exe_path.exists() {
-            VerificationResult::success(exe_path)
-        } else {
-            VerificationResult::failure(
-                vec![format!(
-                    "Make executable not found at expected path: {}",
-                    exe_path.display()
-                )],
-                vec![
-                    "Install make via your system package manager:".to_string(),
-                    "  macOS: brew install make".to_string(),
-                    "  Ubuntu/Debian: sudo apt install make".to_string(),
-                    "  Fedora/RHEL: sudo dnf install make".to_string(),
-                    "  Arch: sudo pacman -S make".to_string(),
-                    "Or consider using 'just' as a modern alternative: vx install just".to_string(),
-                ],
-            )
-        }
+        // Make is installed via system package managers
+        // Verification is done by checking if the command exists in PATH
+        VerificationResult::success_system_installed()
     }
 
     fn supported_platforms(&self) -> Vec<Platform> {

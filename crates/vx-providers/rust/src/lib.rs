@@ -1,18 +1,25 @@
 //! Rust provider for vx
 //!
 //! This crate provides Rust toolchain support for vx.
-//! vx manages Rust versions directly, replacing the need for rustup.
+//! Rust is installed via rustup, the official Rust toolchain installer.
+//!
+//! # Installation Methods
+//!
+//! - Windows: `winget install Rustlang.Rustup`
+//! - macOS: `brew install rustup-init && rustup-init -y`
+//! - Linux: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y`
 //!
 //! # Runtimes
 //!
-//! - `rustc` (alias: `rust`) - The Rust compiler
-//! - `cargo` - Rust package manager and build tool
+//! - `rustup` - The Rust toolchain installer (primary)
+//! - `rustc` (alias: `rust`) - The Rust compiler (provided by rustup)
+//! - `cargo` - Rust package manager and build tool (provided by rustup)
 //!
 //! # Example
 //!
 //! ```ignore
-//! // Install Rust 1.75.0
-//! vx install rust@1.75.0
+//! // Install rustup (installs rustc and cargo automatically)
+//! vx install rustup
 //!
 //! // Use cargo
 //! vx cargo build
@@ -21,13 +28,11 @@
 //! vx rustc --version
 //! ```
 
-mod config;
 mod provider;
 mod runtime;
 
-pub use config::RustUrlBuilder;
 pub use provider::RustProvider;
-pub use runtime::{CargoRuntime, RustcRuntime};
+pub use runtime::{CargoRuntime, RustcRuntime, RustupRuntime};
 
 use std::sync::Arc;
 use vx_runtime::Provider;
