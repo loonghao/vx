@@ -13,12 +13,6 @@ use vx_runtime::{
     VersionInfo,
 };
 
-/// Get the directory name inside the archive for a given version and platform
-fn get_archive_dir_name(version: &str, platform: &Platform) -> String {
-    let platform_str = RustUrlBuilder::get_platform_string(platform);
-    format!("rust-{}-{}", version, platform_str)
-}
-
 /// Cargo runtime
 #[derive(Debug, Clone, Default)]
 pub struct CargoRuntime;
@@ -57,10 +51,9 @@ impl Runtime for CargoRuntime {
         meta
     }
 
-    /// Rust archives extract to `rust-{version}-{platform}/cargo/bin/cargo`
-    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
-        let dir_name = get_archive_dir_name(version, platform);
-        format!("{}/cargo/bin/{}", dir_name, platform.exe_name("cargo"))
+    /// After strip_prefix, the archive extracts to `cargo/bin/cargo`
+    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
+        format!("cargo/bin/{}", platform.exe_name("cargo"))
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
@@ -145,10 +138,9 @@ impl Runtime for RustcRuntime {
         meta
     }
 
-    /// Rust archives extract to `rust-{version}-{platform}/rustc/bin/rustc`
-    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
-        let dir_name = get_archive_dir_name(version, platform);
-        format!("{}/rustc/bin/{}", dir_name, platform.exe_name("rustc"))
+    /// After strip_prefix, the archive extracts to `rustc/bin/rustc`
+    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
+        format!("rustc/bin/{}", platform.exe_name("rustc"))
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {

@@ -1,13 +1,14 @@
 //! GNU Make runtime implementation
 //!
-//! GNU Make is a build automation tool that is typically installed via system package managers.
-//! This provider detects system installations and provides a unified interface.
+//! GNU Make is a build automation tool.
+//! On Windows, vx does not support make installation - use 'just' as a modern alternative.
+//! On macOS/Linux, make is typically pre-installed or available via system package manager.
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
+use vx_runtime::{Arch, Ecosystem, Os, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
 
 /// Static list of known make versions
 const KNOWN_VERSIONS: &[&str] = &[
@@ -26,7 +27,6 @@ impl MakeRuntime {
 
     /// Get the executable name for the platform
     fn get_executable_name(platform: &Platform) -> &'static str {
-        use vx_runtime::Os;
         match platform.os {
             Os::Windows => "make.exe",
             _ => "make",
@@ -80,9 +80,21 @@ impl Runtime for MakeRuntime {
     }
 
     async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Return static list of known versions
-        // Make is typically installed via system package managers, so we provide
-        // a reference list of common versions
+        // Check platform first
+        let platform = Platform::current();
+        if platform.os == Os::Windows {
+            bail!(
+                "GNU Make is not supported on Windows via vx.\n\n\
+                💡 Use 'just' as a modern, cross-platform alternative:\n\
+                   vx install just\n\n\
+                Or install make via your Windows package manager:\n\
+                   choco install make\n\
+                   winget install GnuWin32.Make\n\
+                   scoop install make"
+            );
+        }
+
+        // Return static list of known versions for Unix
         let versions: Vec<VersionInfo> = KNOWN_VERSIONS
             .iter()
             .enumerate()
@@ -100,9 +112,16 @@ impl Runtime for MakeRuntime {
         Ok(versions)
     }
 
-    async fn download_url(&self, _version: &str, _platform: &Platform) -> Result<Option<String>> {
+    async fn download_url(&self, _version: &str, platform: &Platform) -> Result<Option<String>> {
         // Make should be installed via system package managers
         // No direct download URL available
+        if platform.os == Os::Windows {
+            bail!(
+                "GNU Make is not supported on Windows via vx.\n\n\
+                💡 Use 'just' as a modern, cross-platform alternative:\n\
+                   vx install just"
+            );
+        }
         Ok(None)
     }
 
@@ -125,7 +144,6 @@ impl Runtime for MakeRuntime {
                 )],
                 vec![
                     "Install make via your system package manager:".to_string(),
-                    "  Windows: choco install make / winget install GnuWin32.Make / scoop install make".to_string(),
                     "  macOS: brew install make".to_string(),
                     "  Ubuntu/Debian: sudo apt install make".to_string(),
                     "  Fedora/RHEL: sudo dnf install make".to_string(),
@@ -137,17 +155,8 @@ impl Runtime for MakeRuntime {
     }
 
     fn supported_platforms(&self) -> Vec<Platform> {
-        use vx_runtime::{Arch, Os};
-        // Make is available on all major platforms via package managers
+        // Only Unix platforms are supported - Windows users should use 'just'
         vec![
-            Platform {
-                os: Os::Windows,
-                arch: Arch::X86_64,
-            },
-            Platform {
-                os: Os::Windows,
-                arch: Arch::X86,
-            },
             Platform {
                 os: Os::MacOS,
                 arch: Arch::X86_64,
@@ -168,7 +177,19 @@ impl Runtime for MakeRuntime {
     }
 
     fn check_platform_support(&self) -> Result<(), String> {
-        // Make is available on all platforms via package managers
+        let current = Platform::current();
+        if current.os == Os::Windows {
+            return Err(
+                "GNU Make is not supported on Windows via vx.\n\n\
+                💡 Use 'just' as a modern, cross-platform alternative:\n\
+                   vx install just\n\n\
+                Or install make via your Windows package manager:\n\
+                   choco install make\n\
+                   winget install GnuWin32.Make\n\
+                   scoop install make"
+                    .to_string(),
+            );
+        }
         Ok(())
     }
 }
