@@ -64,6 +64,12 @@ executable_extensions = [".cmd", ".exe"]
 [runtimes.platforms.unix]
 executable_extensions = []
 
+[runtimes.test]
+timeout_ms = 30000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "\\d+\\.\\d+\\.\\d+", name = "version_check" },
+]
+
 # pnpm 7.x requires Node.js 14+
 [[runtimes.constraints]]
 when = "^7"

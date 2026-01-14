@@ -37,6 +37,12 @@ executable_extensions = [".exe"]
 [runtimes.platforms.unix]
 executable_extensions = []
 
+[runtimes.test]
+timeout_ms = 30000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "\\d+\\.\\d+\\.\\d+", name = "version_check" },
+]
+
 # Bun is self-contained, no external dependencies required
 [[runtimes.constraints]]
 when = "*"

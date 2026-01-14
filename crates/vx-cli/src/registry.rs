@@ -168,7 +168,6 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         jq,
         vite,
         rez,
-        pipx,
         deno,
         zig,
         java,
@@ -195,7 +194,6 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         python,
         msvc,
         ffmpeg,
-        yasm,
     );
 
     registry
@@ -219,7 +217,6 @@ fn create_static_registry() -> ProviderRegistry {
         jq,
         vite,
         rez,
-        pipx,
         deno,
         zig,
         java,
@@ -246,7 +243,6 @@ fn create_static_registry() -> ProviderRegistry {
         python,
         msvc,
         ffmpeg,
-        yasm,
     );
 
     registry

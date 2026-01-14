@@ -39,7 +39,6 @@ vx-provider-just = { workspace = true }
 vx-provider-jq = { workspace = true }
 vx-provider-vite = { workspace = true }
 vx-provider-rez = { workspace = true }
-vx-provider-pipx = { workspace = true }
 vx-provider-deno = { workspace = true }
 vx-provider-zig = { workspace = true }
 vx-provider-java = { workspace = true }
@@ -66,7 +65,6 @@ vx-provider-release-please = { workspace = true }
 vx-provider-python = { workspace = true }
 vx-provider-msvc = { workspace = true }
 vx-provider-ffmpeg = { workspace = true }
-vx-provider-yasm = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
