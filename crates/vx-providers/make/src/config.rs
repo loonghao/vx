@@ -1,33 +1,14 @@
-//! URL builder and platform configuration for GNU Make
+//! Configuration for GNU Make provider
 //!
-//! On Windows, we use GNU Make for Windows from ezwinports or similar sources.
-//! On Unix systems, make is typically pre-installed or available via system package manager.
+//! GNU Make is a system tool that should be installed via system package managers.
+//! This module provides configuration and detection utilities.
 
-use vx_runtime::{Arch, Os, Platform};
+use vx_runtime::{Os, Platform};
 
-/// URL builder for Make downloads
-pub struct MakeUrlBuilder;
+/// Configuration helper for Make
+pub struct MakeConfig;
 
-impl MakeUrlBuilder {
-    /// Build the download URL for a specific version and platform
-    ///
-    /// Windows: Uses pre-built binaries from GitHub releases (make-for-windows)
-    /// Unix: Returns None (use system package manager)
-    pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
-        match (&platform.os, &platform.arch) {
-            // Windows - use GNU Make for Windows
-            (Os::Windows, Arch::X86_64 | Arch::X86) => {
-                // Use the make-for-windows project which provides pre-built binaries
-                Some(format!(
-                    "https://github.com/mbuilov/gnumake-windows/releases/download/{}/gnumake-{}-x64.zip",
-                    version, version
-                ))
-            }
-            // Unix systems should use system package manager
-            _ => None,
-        }
-    }
-
+impl MakeConfig {
     /// Get the executable name for the platform
     pub fn get_executable_name(platform: &Platform) -> &'static str {
         match platform.os {
@@ -36,35 +17,90 @@ impl MakeUrlBuilder {
         }
     }
 
-    /// Check if the platform is supported for binary downloads
+    /// Get common system paths where make might be installed
     #[allow(dead_code)]
-    pub fn is_binary_supported(platform: &Platform) -> bool {
-        matches!(platform.os, Os::Windows)
+    pub fn system_paths(platform: &Platform) -> Vec<&'static str> {
+        match platform.os {
+            Os::Windows => vec![
+                "C:\\Program Files\\GnuWin32\\bin\\make.exe",
+                "C:\\ProgramData\\chocolatey\\bin\\make.exe",
+                "C:\\msys64\\usr\\bin\\make.exe",
+                "C:\\cygwin64\\bin\\make.exe",
+            ],
+            Os::MacOS => vec![
+                "/usr/bin/make",
+                "/usr/local/bin/make",
+                "/opt/homebrew/bin/gmake",
+                "/opt/homebrew/bin/make",
+            ],
+            Os::Linux => vec!["/usr/bin/make", "/usr/local/bin/make"],
+            _ => vec![],
+        }
+    }
+
+    /// Get package manager install commands for the platform
+    #[allow(dead_code)]
+    pub fn install_commands(platform: &Platform) -> Vec<(&'static str, &'static str)> {
+        match platform.os {
+            Os::Windows => vec![
+                ("chocolatey", "choco install make"),
+                ("winget", "winget install GnuWin32.Make"),
+                ("scoop", "scoop install make"),
+            ],
+            Os::MacOS => vec![("homebrew", "brew install make")],
+            Os::Linux => vec![
+                ("apt", "sudo apt install make"),
+                ("dnf", "sudo dnf install make"),
+                ("pacman", "sudo pacman -S make"),
+            ],
+            _ => vec![],
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vx_runtime::Arch;
 
     #[test]
-    fn test_download_url_windows() {
+    fn test_executable_name_windows() {
         let platform = Platform {
             os: Os::Windows,
             arch: Arch::X86_64,
         };
-        let url = MakeUrlBuilder::download_url("4.4.1", &platform);
-        assert!(url.is_some());
-        assert!(url.unwrap().contains("gnumake"));
+        assert_eq!(MakeConfig::get_executable_name(&platform), "make.exe");
     }
 
     #[test]
-    fn test_download_url_linux_not_supported() {
+    fn test_executable_name_unix() {
         let platform = Platform {
             os: Os::Linux,
             arch: Arch::X86_64,
         };
-        let url = MakeUrlBuilder::download_url("4.4.1", &platform);
-        assert!(url.is_none());
+        assert_eq!(MakeConfig::get_executable_name(&platform), "make");
+    }
+
+    #[test]
+    fn test_system_paths_not_empty() {
+        let platforms = vec![
+            Platform {
+                os: Os::Windows,
+                arch: Arch::X86_64,
+            },
+            Platform {
+                os: Os::MacOS,
+                arch: Arch::Aarch64,
+            },
+            Platform {
+                os: Os::Linux,
+                arch: Arch::X86_64,
+            },
+        ];
+
+        for platform in platforms {
+            let paths = MakeConfig::system_paths(&platform);
+            assert!(!paths.is_empty(), "Should have system paths for {:?}", platform.os);
+        }
     }
 }
