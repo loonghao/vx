@@ -570,26 +570,10 @@ pub enum Commands {
 
 #[derive(Subcommand, Clone)]
 pub enum CacheCommand {
-    /// Clear cached data (version lists, downloads, resolutions)
-    Clear {
-        /// Only clear version cache
-        #[arg(long)]
-        versions: bool,
-        /// Only clear download cache
-        #[arg(long)]
-        downloads: bool,
-        /// Only clear resolution cache
-        #[arg(long)]
-        resolutions: bool,
-        /// Clear cache for specific tool only
-        #[arg(long)]
-        tool: Option<String>,
-        /// Force clear without confirmation
-        #[arg(short, long)]
-        force: bool,
-    },
     /// Show cache statistics and disk usage
-    Stats,
+    #[command(alias = "stats")]
+    Info,
+
     /// List cached items
     #[command(alias = "ls")]
     List {
@@ -597,27 +581,51 @@ pub enum CacheCommand {
         #[arg(short, long)]
         verbose: bool,
     },
-    /// Clean up cache and orphaned files
-    Clean {
+
+    /// Prune expired and orphaned cache entries (safe cleanup)
+    Prune {
         /// Preview cleanup operations without executing
         #[arg(long)]
         dry_run: bool,
-        /// Only clean cache files
+        /// Only prune version cache
         #[arg(long)]
-        cache_only: bool,
-        /// Only clean orphaned tool versions
+        versions: bool,
+        /// Only prune download cache
         #[arg(long)]
-        orphaned_only: bool,
-        /// Force cleanup without confirmation
-        #[arg(short, long)]
-        force: bool,
-        /// Clean files older than specified days
+        downloads: bool,
+        /// Only prune resolution cache
+        #[arg(long)]
+        resolutions: bool,
+        /// Only prune orphaned tool versions
+        #[arg(long)]
+        orphaned: bool,
+        /// Prune files older than specified days
         #[arg(long)]
         older_than: Option<u32>,
         /// Show verbose output
         #[arg(short, long)]
         verbose: bool,
     },
+
+    /// Purge all cache data (destructive)
+    Purge {
+        /// Only purge version cache
+        #[arg(long)]
+        versions: bool,
+        /// Only purge download cache
+        #[arg(long)]
+        downloads: bool,
+        /// Only purge resolution cache
+        #[arg(long)]
+        resolutions: bool,
+        /// Purge cache for specific tool only
+        #[arg(long)]
+        tool: Option<String>,
+        /// Skip confirmation prompt
+        #[arg(short = 'y', long)]
+        yes: bool,
+    },
+
     /// Show cache directory path
     Dir,
 }
