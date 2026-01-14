@@ -451,8 +451,18 @@ impl PathResolver {
     /// - Platform-suffixed: ~/.vx/store/rcedit/2.0.0/rcedit-x64.exe
     pub fn find_executable_in_dir(&self, dir: &Path, exe_name: &str) -> Option<PathBuf> {
         if !dir.exists() {
+            tracing::debug!(
+                "find_executable_in_dir: directory does not exist: {}",
+                dir.display()
+            );
             return None;
         }
+
+        tracing::debug!(
+            "find_executable_in_dir: searching for '{}' in {}",
+            exe_name,
+            dir.display()
+        );
 
         // Build list of possible executable names in priority order
         // On Windows, .exe and .cmd should be preferred over extensionless files
@@ -507,8 +517,25 @@ impl PathResolver {
         }
 
         // Prefer exact matches over platform-suffixed matches
-        Self::find_best_match(&all_candidates, &possible_names)
-            .or_else(|| Self::find_best_match(&platform_candidates, &platform_patterns))
+        let result = Self::find_best_match(&all_candidates, &possible_names)
+            .or_else(|| Self::find_best_match(&platform_candidates, &platform_patterns));
+
+        if let Some(ref path) = result {
+            tracing::debug!(
+                "find_executable_in_dir: found executable at {}",
+                path.display()
+            );
+        } else {
+            tracing::debug!(
+                "find_executable_in_dir: no executable found for '{}' in {} (candidates: {}, platform_candidates: {})",
+                exe_name,
+                dir.display(),
+                all_candidates.len(),
+                platform_candidates.len()
+            );
+        }
+
+        result
     }
 
     /// Helper to find the best matching executable from a list of candidates
