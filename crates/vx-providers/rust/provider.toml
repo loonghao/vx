@@ -1,8 +1,12 @@
 # Rust Provider Manifest
-# This file defines the metadata, runtimes, and dependency constraints for Rust.
+# 
+# Rust is installed via rustup, the official Rust toolchain installer.
+# rustup manages rustc, cargo, and other Rust tools automatically.
 #
-# Note: vx manages Rust toolchains directly, replacing the need for rustup.
-# Users can install specific Rust versions with: vx install rust@1.75.0
+# Installation methods:
+# - Windows: winget install Rustlang.Rustup
+# - macOS: brew install rustup-init && rustup-init -y
+# - Linux: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
 [provider]
 name = "rust"
@@ -11,37 +15,101 @@ homepage = "https://www.rust-lang.org"
 repository = "https://github.com/rust-lang/rust"
 ecosystem = "rust"
 
-# Rustc - Rust compiler
+# Rustup - The Rust toolchain installer (primary runtime)
+[[runtimes]]
+name = "rustup"
+description = "The Rust toolchain installer"
+executable = "rustup"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "rust-lang"
+repo = "rustup"
+tag_prefix = ""
+
+[runtimes.system_install]
+
+# Windows: winget installation (preferred)
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "winget"
+package = "Rustlang.Rustup"
+priority = 90
+platforms = ["windows"]
+
+# Windows: chocolatey installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "rustup.install"
+priority = 80
+platforms = ["windows"]
+
+# macOS: brew installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "rustup-init"
+priority = 90
+platforms = ["macos"]
+
+# Linux: brew installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "rustup-init"
+priority = 70
+platforms = ["linux"]
+
+# Linux: APT installation (Debian/Ubuntu)
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "rustup"
+priority = 80
+platforms = ["linux"]
+
+# Linux: DNF installation (Fedora/RHEL)
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "dnf"
+package = "rustup"
+priority = 80
+platforms = ["linux"]
+
+# Linux: Pacman installation (Arch)
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "pacman"
+package = "rustup"
+priority = 80
+platforms = ["linux"]
+
+# RFC 0020: Test configuration
+[runtimes.test]
+timeout_ms = 60000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "rustup \\d+\\.\\d+\\.\\d+", name = "version_check" },
+]
+install_verification = [
+    { command = "{executable} --version", expect_success = true },
+]
+
+# rustup provides rustc, cargo, rust-analyzer, etc.
+[[runtimes.constraints]]
+when = "*"
+provides = ["rustc", "cargo", "rustfmt", "clippy-driver", "rust-analyzer"]
+
+# Rustc - Rust compiler (provided by rustup)
 [[runtimes]]
 name = "rustc"
 description = "Rust compiler"
 executable = "rustc"
 aliases = ["rust"]
 
-[runtimes.versions]
-source = "github-releases"
-owner = "rust-lang"
-repo = "rust"
-strip_v_prefix = false
-
-# RFC 0019: Executable Layout Configuration
-[runtimes.layout]
-download_type = "archive"
-
-[runtimes.layout.archive]
-# Rust tarballs extract to rust-{version}-{target_triple}/
-# Use {target_triple} for platform-specific triple (e.g., x86_64-unknown-linux-gnu)
-strip_prefix = "rust-{version}-{target_triple}"
-executable_paths = [
-    "rustc/bin/rustc.exe",   # Windows
-    "rustc/bin/rustc"        # Unix
-]
-
-[runtimes.platforms.windows]
-executable_extensions = [".exe"]
-
-[runtimes.platforms.unix]
-executable_extensions = []
+# Rustc depends on rustup to be installed
+[runtimes.runtime_dependency]
+runtime = "rustup"
 
 # RFC 0020: Test configuration
 [runtimes.test]
@@ -55,38 +123,17 @@ install_verification = [
 
 [[runtimes.constraints]]
 when = "*"
-recommends = []
+requires = ["rustup"]
 
-# Cargo - Rust package manager
+# Cargo - Rust package manager (provided by rustup)
 [[runtimes]]
 name = "cargo"
 description = "Rust package manager and build tool"
 executable = "cargo"
 
-[runtimes.versions]
-source = "github-releases"
-owner = "rust-lang"
-repo = "rust"
-strip_v_prefix = false
-
-# RFC 0019: Executable Layout Configuration
-[runtimes.layout]
-download_type = "archive"
-
-[runtimes.layout.archive]
-# Rust tarballs extract to rust-{version}-{target_triple}/
-# Use {target_triple} for platform-specific triple (e.g., x86_64-unknown-linux-gnu)
-strip_prefix = "rust-{version}-{target_triple}"
-executable_paths = [
-    "cargo/bin/cargo.exe",   # Windows
-    "cargo/bin/cargo"        # Unix
-]
-
-[runtimes.platforms.windows]
-executable_extensions = [".exe"]
-
-[runtimes.platforms.unix]
-executable_extensions = []
+# Cargo depends on rustup to be installed
+[runtimes.runtime_dependency]
+runtime = "rustup"
 
 # RFC 0020: Test configuration
 [runtimes.test]
@@ -100,4 +147,4 @@ install_verification = [
 
 [[runtimes.constraints]]
 when = "*"
-recommends = []
+requires = ["rustup"]

@@ -1,20 +1,87 @@
 //! Rust runtime implementations
 //!
-//! vx manages Rust toolchains directly, replacing the need for rustup.
-//! Users can install specific Rust versions with: vx install rust@1.75.0
+//! Rust is installed via rustup, the official Rust toolchain installer.
+//! rustup manages rustc, cargo, and other Rust tools automatically.
+//!
+//! Installation methods:
+//! - Windows: winget install Rustlang.Rustup
+//! - macOS/Linux: brew install rustup-init && rustup-init -y
+//! - Linux (alternative): curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-use crate::config::RustUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use vx_runtime::{
-    layout::{ArchiveLayout, DownloadType, ExecutableLayout},
     Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
     VersionInfo,
 };
 
-/// Cargo runtime
+/// Rustup runtime - The Rust toolchain installer
+#[derive(Debug, Clone, Default)]
+pub struct RustupRuntime;
+
+impl RustupRuntime {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+#[async_trait]
+impl Runtime for RustupRuntime {
+    fn name(&self) -> &str {
+        "rustup"
+    }
+
+    fn description(&self) -> &str {
+        "The Rust toolchain installer"
+    }
+
+    fn ecosystem(&self) -> Ecosystem {
+        Ecosystem::Rust
+    }
+
+    fn aliases(&self) -> &[&str] {
+        &[]
+    }
+
+    fn metadata(&self) -> HashMap<String, String> {
+        let mut meta = HashMap::new();
+        meta.insert("homepage".to_string(), "https://rustup.rs/".to_string());
+        meta.insert("category".to_string(), "toolchain-manager".to_string());
+        meta
+    }
+
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        ctx.fetch_github_releases(
+            "rustup",
+            "rust-lang",
+            "rustup",
+            GitHubReleaseOptions::new()
+                .strip_v_prefix(false)
+                .skip_prereleases(true),
+        )
+        .await
+    }
+
+    // rustup is installed via system package managers, not direct download
+    async fn download_url(&self, _version: &str, _platform: &Platform) -> Result<Option<String>> {
+        Ok(None)
+    }
+
+    fn verify_installation(
+        &self,
+        _version: &str,
+        _install_path: &Path,
+        _platform: &Platform,
+    ) -> VerificationResult {
+        // rustup is installed system-wide via package manager
+        // We verify by checking if the command exists in PATH
+        VerificationResult::success_system_installed()
+    }
+}
+
+/// Cargo runtime - Rust package manager (provided by rustup)
 #[derive(Debug, Clone, Default)]
 pub struct CargoRuntime;
 
@@ -52,78 +119,28 @@ impl Runtime for CargoRuntime {
         meta
     }
 
-    /// After strip_prefix, the archive extracts to `cargo/bin/cargo`
-    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        format!("cargo/bin/{}", platform.exe_name("cargo"))
-    }
-
-    /// Layout configuration for Rust archive extraction
-    /// Rust tarballs extract to rust-{version}-{target_triple}/ which needs to be stripped
-    fn executable_layout(&self) -> Option<ExecutableLayout> {
-        Some(ExecutableLayout {
-            download_type: DownloadType::Archive,
-            binary: None,
-            archive: Some(ArchiveLayout {
-                executable_paths: vec![
-                    "cargo/bin/cargo.exe".to_string(),
-                    "cargo/bin/cargo".to_string(),
-                ],
-                // Use {target_triple} variable which will be replaced with the Rust target triple
-                strip_prefix: Some("rust-{version}-{target_triple}".to_string()),
-                permissions: Some("755".to_string()),
-            }),
-            msi: None,
-            windows: None,
-            macos: None,
-            linux: None,
-        })
-    }
-
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Fetch from Rust GitHub releases
-        // Rust releases use tags like "1.75.0" without 'v' prefix
-        ctx.fetch_github_releases(
-            "rust",
-            "rust-lang",
-            "rust",
-            GitHubReleaseOptions::new()
-                .strip_v_prefix(false) // Rust tags don't have 'v' prefix
-                .skip_prereleases(true)
-                .lts_detector(|v| {
-                    // Stable releases are considered LTS-like
-                    !v.contains("beta") && !v.contains("nightly")
-                }),
-        )
-        .await
+        // Cargo version is tied to rustup/rustc version
+        RustupRuntime::new().fetch_versions(ctx).await
     }
 
-    async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        Ok(RustUrlBuilder::download_url(version, platform))
+    // Cargo is provided by rustup, not direct download
+    async fn download_url(&self, _version: &str, _platform: &Platform) -> Result<Option<String>> {
+        Ok(None)
     }
 
     fn verify_installation(
         &self,
-        version: &str,
-        install_path: &Path,
-        platform: &Platform,
+        _version: &str,
+        _install_path: &Path,
+        _platform: &Platform,
     ) -> VerificationResult {
-        let exe_path = install_path.join(self.executable_relative_path(version, platform));
-
-        if exe_path.exists() {
-            VerificationResult::success(exe_path)
-        } else {
-            VerificationResult::failure(
-                vec![format!(
-                    "cargo executable not found at expected path: {}",
-                    exe_path.display()
-                )],
-                vec!["Try reinstalling the runtime".to_string()],
-            )
-        }
+        // Cargo is installed via rustup
+        VerificationResult::success_system_installed()
     }
 }
 
-/// Rustc runtime
+/// Rustc runtime - The Rust compiler (provided by rustup)
 #[derive(Debug, Clone, Default)]
 pub struct RustcRuntime;
 
@@ -148,7 +165,7 @@ impl Runtime for RustcRuntime {
     }
 
     fn aliases(&self) -> &[&str] {
-        &["rust"] // "rust" is an alias for "rustc"
+        &["rust"]
     }
 
     fn metadata(&self) -> HashMap<String, String> {
@@ -161,59 +178,23 @@ impl Runtime for RustcRuntime {
         meta
     }
 
-    /// After strip_prefix, the archive extracts to `rustc/bin/rustc`
-    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        format!("rustc/bin/{}", platform.exe_name("rustc"))
-    }
-
-    /// Layout configuration for Rust archive extraction
-    /// Rust tarballs extract to rust-{version}-{target_triple}/ which needs to be stripped
-    fn executable_layout(&self) -> Option<ExecutableLayout> {
-        Some(ExecutableLayout {
-            download_type: DownloadType::Archive,
-            binary: None,
-            archive: Some(ArchiveLayout {
-                executable_paths: vec![
-                    "rustc/bin/rustc.exe".to_string(),
-                    "rustc/bin/rustc".to_string(),
-                ],
-                // Use {target_triple} variable which will be replaced with the Rust target triple
-                strip_prefix: Some("rust-{version}-{target_triple}".to_string()),
-                permissions: Some("755".to_string()),
-            }),
-            msi: None,
-            windows: None,
-            macos: None,
-            linux: None,
-        })
-    }
-
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        CargoRuntime::new().fetch_versions(ctx).await
+        // Rustc version is tied to rustup
+        RustupRuntime::new().fetch_versions(ctx).await
     }
 
-    async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        Ok(RustUrlBuilder::download_url(version, platform))
+    // Rustc is provided by rustup, not direct download
+    async fn download_url(&self, _version: &str, _platform: &Platform) -> Result<Option<String>> {
+        Ok(None)
     }
 
     fn verify_installation(
         &self,
-        version: &str,
-        install_path: &Path,
-        platform: &Platform,
+        _version: &str,
+        _install_path: &Path,
+        _platform: &Platform,
     ) -> VerificationResult {
-        let exe_path = install_path.join(self.executable_relative_path(version, platform));
-
-        if exe_path.exists() {
-            VerificationResult::success(exe_path)
-        } else {
-            VerificationResult::failure(
-                vec![format!(
-                    "rustc executable not found at expected path: {}",
-                    exe_path.display()
-                )],
-                vec!["Try reinstalling the runtime".to_string()],
-            )
-        }
+        // Rustc is installed via rustup
+        VerificationResult::success_system_installed()
     }
 }

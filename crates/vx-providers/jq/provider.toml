@@ -18,7 +18,9 @@ executable = "jq"
 source = "github-releases"
 owner = "jqlang"
 repo = "jq"
-strip_v_prefix = true
+# jq uses tags like "jq-1.8.1", so we need tag_prefix to strip "jq-"
+tag_prefix = "jq-"
+strip_v_prefix = false
 
 # RFC 0019: Executable Layout Configuration
 [runtimes.layout]
