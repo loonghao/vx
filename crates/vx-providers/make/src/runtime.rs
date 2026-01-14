@@ -1,18 +1,18 @@
 //! GNU Make runtime implementation
 //!
-//! GNU Make is a build automation tool.
-//! On Windows, we download pre-built binaries.
-//! On Unix, make is typically pre-installed or available via system package manager.
+//! GNU Make is a build automation tool that is typically installed via system package managers.
+//! This provider detects system installations and provides a unified interface.
 
-use crate::config::MakeUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use vx_runtime::{
-    Ecosystem, GitHubReleaseOptions, Os, Platform, Runtime, RuntimeContext, VerificationResult,
-    VersionInfo,
-};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
+
+/// Static list of known make versions
+const KNOWN_VERSIONS: &[&str] = &[
+    "4.4.1", "4.4", "4.3", "4.2.1", "4.2", "4.1", "4.0", "3.82", "3.81",
+];
 
 /// Make runtime implementation
 #[derive(Debug, Clone, Default)]
@@ -22,6 +22,15 @@ impl MakeRuntime {
     /// Create a new Make runtime
     pub fn new() -> Self {
         Self
+    }
+
+    /// Get the executable name for the platform
+    fn get_executable_name(platform: &Platform) -> &'static str {
+        use vx_runtime::Os;
+        match platform.os {
+            Os::Windows => "make.exe",
+            _ => "make",
+        }
     }
 }
 
@@ -55,33 +64,46 @@ impl Runtime for MakeRuntime {
         );
         meta.insert(
             "repository".to_string(),
-            "https://github.com/mbuilov/gnumake-windows".to_string(),
+            "https://savannah.gnu.org/projects/make".to_string(),
         );
         meta.insert("category".to_string(), "build-system".to_string());
         meta.insert("license".to_string(), "GPL-3.0".to_string());
+        meta.insert(
+            "install_method".to_string(),
+            "system_package_manager".to_string(),
+        );
         meta
     }
 
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        // On Windows, the zip extracts to a flat structure
-        MakeUrlBuilder::get_executable_name(platform).to_string()
+        Self::get_executable_name(platform).to_string()
     }
 
-    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Fetch versions from gnumake-windows GitHub releases
-        ctx.fetch_github_releases(
-            "make",
-            "mbuilov",
-            "gnumake-windows",
-            GitHubReleaseOptions::new()
-                .strip_v_prefix(false)
-                .skip_prereleases(true),
-        )
-        .await
+    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // Return static list of known versions
+        // Make is typically installed via system package managers, so we provide
+        // a reference list of common versions
+        let versions: Vec<VersionInfo> = KNOWN_VERSIONS
+            .iter()
+            .enumerate()
+            .map(|(idx, &version)| VersionInfo {
+                version: version.to_string(),
+                prerelease: false,
+                lts: idx == 0, // Latest is "LTS"
+                released_at: None,
+                download_url: None,
+                checksum: None,
+                metadata: HashMap::new(),
+            })
+            .collect();
+
+        Ok(versions)
     }
 
-    async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        Ok(MakeUrlBuilder::download_url(version, platform))
+    async fn download_url(&self, _version: &str, _platform: &Platform) -> Result<Option<String>> {
+        // Make should be installed via system package managers
+        // No direct download URL available
+        Ok(None)
     }
 
     fn verify_installation(
@@ -90,7 +112,7 @@ impl Runtime for MakeRuntime {
         install_path: &Path,
         platform: &Platform,
     ) -> VerificationResult {
-        let exe_name = MakeUrlBuilder::get_executable_name(platform);
+        let exe_name = Self::get_executable_name(platform);
         let exe_path = install_path.join(exe_name);
 
         if exe_path.exists() {
@@ -101,15 +123,22 @@ impl Runtime for MakeRuntime {
                     "Make executable not found at expected path: {}",
                     exe_path.display()
                 )],
-                vec!["Try reinstalling with: vx install make".to_string()],
+                vec![
+                    "Install make via your system package manager:".to_string(),
+                    "  Windows: choco install make / winget install GnuWin32.Make / scoop install make".to_string(),
+                    "  macOS: brew install make".to_string(),
+                    "  Ubuntu/Debian: sudo apt install make".to_string(),
+                    "  Fedora/RHEL: sudo dnf install make".to_string(),
+                    "  Arch: sudo pacman -S make".to_string(),
+                    "Or consider using 'just' as a modern alternative: vx install just".to_string(),
+                ],
             )
         }
     }
 
     fn supported_platforms(&self) -> Vec<Platform> {
-        use vx_runtime::Arch;
-        // Only Windows is supported for binary download
-        // Unix users should use system package manager
+        use vx_runtime::{Arch, Os};
+        // Make is available on all major platforms via package managers
         vec![
             Platform {
                 os: Os::Windows,
@@ -119,18 +148,27 @@ impl Runtime for MakeRuntime {
                 os: Os::Windows,
                 arch: Arch::X86,
             },
+            Platform {
+                os: Os::MacOS,
+                arch: Arch::X86_64,
+            },
+            Platform {
+                os: Os::MacOS,
+                arch: Arch::Aarch64,
+            },
+            Platform {
+                os: Os::Linux,
+                arch: Arch::X86_64,
+            },
+            Platform {
+                os: Os::Linux,
+                arch: Arch::Aarch64,
+            },
         ]
     }
 
     fn check_platform_support(&self) -> Result<(), String> {
-        let current = Platform::current();
-        if self.is_platform_supported(&current) {
-            return Ok(());
-        }
-
-        Err(
-            "GNU Make installs via vx are only supported on Windows.\n\nOn macOS/Linux, install make via your system package manager:\n  - macOS: brew install make\n  - Ubuntu/Debian: sudo apt install make\n  - Fedora/RHEL: sudo dnf install make\n  - Arch: sudo pacman -S make\n\n💡 Consider using 'just' as a modern, cross-platform alternative:\n  vx install just"
-                .to_string(),
-        )
+        // Make is available on all platforms via package managers
+        Ok(())
     }
 }
