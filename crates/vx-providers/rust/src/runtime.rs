@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use vx_runtime::{
+    layout::{ArchiveLayout, DownloadType, ExecutableLayout},
     Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
     VersionInfo,
 };
@@ -54,6 +55,28 @@ impl Runtime for CargoRuntime {
     /// After strip_prefix, the archive extracts to `cargo/bin/cargo`
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         format!("cargo/bin/{}", platform.exe_name("cargo"))
+    }
+
+    /// Layout configuration for Rust archive extraction
+    /// Rust tarballs extract to rust-{version}-{target_triple}/ which needs to be stripped
+    fn executable_layout(&self) -> Option<ExecutableLayout> {
+        Some(ExecutableLayout {
+            download_type: DownloadType::Archive,
+            binary: None,
+            archive: Some(ArchiveLayout {
+                executable_paths: vec![
+                    "cargo/bin/cargo.exe".to_string(),
+                    "cargo/bin/cargo".to_string(),
+                ],
+                // Use {target_triple} variable which will be replaced with the Rust target triple
+                strip_prefix: Some("rust-{version}-{target_triple}".to_string()),
+                permissions: Some("755".to_string()),
+            }),
+            msi: None,
+            windows: None,
+            macos: None,
+            linux: None,
+        })
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
@@ -141,6 +164,28 @@ impl Runtime for RustcRuntime {
     /// After strip_prefix, the archive extracts to `rustc/bin/rustc`
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         format!("rustc/bin/{}", platform.exe_name("rustc"))
+    }
+
+    /// Layout configuration for Rust archive extraction
+    /// Rust tarballs extract to rust-{version}-{target_triple}/ which needs to be stripped
+    fn executable_layout(&self) -> Option<ExecutableLayout> {
+        Some(ExecutableLayout {
+            download_type: DownloadType::Archive,
+            binary: None,
+            archive: Some(ArchiveLayout {
+                executable_paths: vec![
+                    "rustc/bin/rustc.exe".to_string(),
+                    "rustc/bin/rustc".to_string(),
+                ],
+                // Use {target_triple} variable which will be replaced with the Rust target triple
+                strip_prefix: Some("rust-{version}-{target_triple}".to_string()),
+                permissions: Some("755".to_string()),
+            }),
+            msi: None,
+            windows: None,
+            macos: None,
+            linux: None,
+        })
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
