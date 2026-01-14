@@ -622,7 +622,11 @@ async fn install_with_uv(
         debug!("Using vx-managed Python: {}", python_path.display());
         cmd.arg("--python").arg(python_path);
     } else {
-        debug!("No vx-managed Python found, using uv's default Python");
+        // When no vx-managed Python is found, specify a modern Python version
+        // for uv to download automatically. Python 3.12 is well-supported and
+        // meets requirements of most modern packages (e.g., pre-commit 4.x requires 3.10+)
+        debug!("No vx-managed Python found, using Python 3.12 via uv");
+        cmd.arg("--python").arg("3.12");
     }
 
     cmd.stdin(std::process::Stdio::null())
