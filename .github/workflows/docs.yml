@@ -1,3 +1,1145 @@
+name: CI
+
+# Optimized CI workflow with crate-level change detection
+# - Detects changes at crate granularity
+# - Only builds and tests affected crates
+# - Respects dependency relationships between crates
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      force_full_ci:
+        description: 'Force full CI run (ignore path filters)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+# Cancel in-progress runs for the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_HTTP_TIMEOUT: '600'
+  CARGO_NET_RETRY: '10'
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  # ============================================================================
+  # Stage 0: Detect changes at crate level
+  # ============================================================================
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      # High-level flags
+      rust: ${{ steps.filter.outputs.rust }}
+      docs: ${{ steps.filter.outputs.docs }}
+      ci: ${{ steps.filter.outputs.ci }}
+      scripts: ${{ steps.filter.outputs.scripts }}
+
+      # Crate-level changes
+      core: ${{ steps.filter.outputs.core }}
+      paths: ${{ steps.filter.outputs.paths }}
+      runtime: ${{ steps.filter.outputs.runtime }}
+      resolver: ${{ steps.filter.outputs.resolver }}
+      installer: ${{ steps.filter.outputs.installer }}
+      config: ${{ steps.filter.outputs.config }}
+      env: ${{ steps.filter.outputs.env }}
+      setup: ${{ steps.filter.outputs.setup }}
+      migration: ${{ steps.filter.outputs.migration }}
+      extension: ${{ steps.filter.outputs.extension }}
+      args: ${{ steps.filter.outputs.args }}
+      project_analyzer: ${{ steps.filter.outputs.project_analyzer }}
+      console: ${{ steps.filter.outputs.console }}
+      cli: ${{ steps.filter.outputs.cli }}
+      providers: ${{ steps.filter.outputs.providers }}
+
+      # Computed flags
+      should_build: ${{ steps.decide.outputs.should_build }}
+      should_test: ${{ steps.decide.outputs.should_test }}
+      should_docs: ${{ steps.decide.outputs.should_docs }}
+      is_main: ${{ steps.decide.outputs.is_main }}
+
+      # Affected crates list (JSON)
+      affected_crates: ${{ steps.compute-affected.outputs.affected_crates }}
+      test_packages: ${{ steps.compute-affected.outputs.test_packages }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust:
+              - 'crates/**'
+              - 'src/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'tests/**'
+              - 'examples/**'
+              - 'clippy.toml'
+              - 'rust-toolchain.toml'
+            docs:
+              - 'docs/**'
+            ci:
+              - '.github/workflows/**'
+              - 'action.yml'
+            scripts:
+              - 'scripts/**'
+              - 'install*.sh'
+              - 'install*.ps1'
+
+            # Core crates (foundation layer)
+            core:
+              - 'crates/vx-core/**'
+            paths:
+              - 'crates/vx-paths/**'
+
+            # Infrastructure crates
+            runtime:
+              - 'crates/vx-runtime/**'
+            resolver:
+              - 'crates/vx-resolver/**'
+            installer:
+              - 'crates/vx-installer/**'
+            config:
+              - 'crates/vx-config/**'
+            env:
+              - 'crates/vx-env/**'
+            setup:
+              - 'crates/vx-setup/**'
+            migration:
+              - 'crates/vx-migration/**'
+            extension:
+              - 'crates/vx-extension/**'
+            args:
+              - 'crates/vx-args/**'
+            project_analyzer:
+              - 'crates/vx-project-analyzer/**'
+            console:
+              - 'crates/vx-console/**'
+
+            # Application layer
+            cli:
+              - 'crates/vx-cli/**'
+              - 'src/**'
+
+            # All providers (grouped)
+            providers:
+              - 'crates/vx-providers/**'
+
+      - name: Compute affected crates
+        id: compute-affected
+        shell: bash
+        run: |
+          # Initialize affected crates array
+          AFFECTED=()
+          TEST_PKGS=()
+
+          FORCE_FULL="${{ github.event.inputs.force_full_ci || 'false' }}"
+          CI_CHANGED="${{ steps.filter.outputs.ci }}"
+
+          # If CI config changed or force full, test everything
+          if [[ "$FORCE_FULL" == "true" || "$CI_CHANGED" == "true" ]]; then
+            echo "Full CI triggered (force=$FORCE_FULL, ci_changed=$CI_CHANGED)"
+            AFFECTED=("all")
+            TEST_PKGS=("--workspace")
+          else
+            # Core layer - affects everything that depends on it
+            if [[ "${{ steps.filter.outputs.core }}" == "true" ]]; then
+              AFFECTED+=("vx-core" "vx-runtime" "vx-resolver" "vx-extension" "vx-project-analyzer" "vx-cli" "providers")
+            fi
+
+            if [[ "${{ steps.filter.outputs.paths }}" == "true" ]]; then
+              AFFECTED+=("vx-paths" "vx-runtime" "vx-resolver" "vx-env" "vx-setup" "vx-migration" "vx-args" "vx-extension" "vx-project-analyzer" "vx-cli")
+            fi
+
+            # Infrastructure layer
+            if [[ "${{ steps.filter.outputs.runtime }}" == "true" ]]; then
+              AFFECTED+=("vx-runtime" "vx-resolver" "vx-extension" "vx-cli" "providers")
+            fi
+
+            if [[ "${{ steps.filter.outputs.resolver }}" == "true" ]]; then
+              AFFECTED+=("vx-resolver" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.installer }}" == "true" ]]; then
+              AFFECTED+=("vx-installer" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.config }}" == "true" ]]; then
+              AFFECTED+=("vx-config" "vx-project-analyzer" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.env }}" == "true" ]]; then
+              AFFECTED+=("vx-env" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.setup }}" == "true" ]]; then
+              AFFECTED+=("vx-setup" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.migration }}" == "true" ]]; then
+              AFFECTED+=("vx-migration" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.extension }}" == "true" ]]; then
+              AFFECTED+=("vx-extension" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.args }}" == "true" ]]; then
+              AFFECTED+=("vx-args" "vx-extension" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.project_analyzer }}" == "true" ]]; then
+              AFFECTED+=("vx-project-analyzer" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.console }}" == "true" ]]; then
+              AFFECTED+=("vx-console" "vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.cli }}" == "true" ]]; then
+              AFFECTED+=("vx-cli")
+            fi
+
+            if [[ "${{ steps.filter.outputs.providers }}" == "true" ]]; then
+              AFFECTED+=("providers" "vx-cli")
+            fi
+
+            # Remove duplicates and sort
+            if [[ ${#AFFECTED[@]} -gt 0 ]]; then
+              AFFECTED=($(printf '%s\n' "${AFFECTED[@]}" | sort -u))
+            fi
+
+            # Build test package arguments
+            for crate in "${AFFECTED[@]}"; do
+              case "$crate" in
+                "all")
+                  TEST_PKGS=("--workspace")
+                  break
+                  ;;
+                "providers")
+                  # Test all providers as a group
+                  TEST_PKGS+=("-p" "vx-provider-*")
+                  ;;
+                *)
+                  TEST_PKGS+=("-p" "$crate")
+                  ;;
+              esac
+            done
+          fi
+
+          # Convert to JSON for output
+          if [[ ${#AFFECTED[@]} -eq 0 ]]; then
+            echo "affected_crates=[]" >> $GITHUB_OUTPUT
+            echo "test_packages=" >> $GITHUB_OUTPUT
+          else
+            AFFECTED_JSON=$(printf '%s\n' "${AFFECTED[@]}" | jq -R . | jq -s -c .)
+            echo "affected_crates=$AFFECTED_JSON" >> $GITHUB_OUTPUT
+            echo "test_packages=${TEST_PKGS[*]}" >> $GITHUB_OUTPUT
+          fi
+
+          # Debug output
+          echo "Affected crates: ${AFFECTED[*]}"
+          echo "Test packages: ${TEST_PKGS[*]}"
+
+      - name: Decide what to run
+        id: decide
+        shell: bash
+        run: |
+          FORCE_FULL="${{ github.event.inputs.force_full_ci || 'false' }}"
+
+          # Check if this is main branch
+          IS_MAIN="false"
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            IS_MAIN="true"
+          fi
+          echo "is_main=$IS_MAIN" >> $GITHUB_OUTPUT
+
+          RUST_CHANGED="${{ steps.filter.outputs.rust }}"
+          DOCS_CHANGED="${{ steps.filter.outputs.docs }}"
+          CI_CHANGED="${{ steps.filter.outputs.ci }}"
+
+          # Build if rust changed, CI changed, or forced
+          if [[ "$RUST_CHANGED" == "true" || "$CI_CHANGED" == "true" || "$FORCE_FULL" == "true" ]]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "should_test=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "should_test=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Docs if docs changed or forced
+          if [[ "$DOCS_CHANGED" == "true" || "$FORCE_FULL" == "true" ]]; then
+            echo "should_docs=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_docs=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Summary
+          echo "## Change Detection Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### High-Level Changes" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Changed |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Rust Code | $RUST_CHANGED |" >> $GITHUB_STEP_SUMMARY
+          echo "| Documentation | $DOCS_CHANGED |" >> $GITHUB_STEP_SUMMARY
+          echo "| CI Config | $CI_CHANGED |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Crate-Level Changes" >> $GITHUB_STEP_SUMMARY
+          echo "| Crate | Changed |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-core | ${{ steps.filter.outputs.core }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-paths | ${{ steps.filter.outputs.paths }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-runtime | ${{ steps.filter.outputs.runtime }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-resolver | ${{ steps.filter.outputs.resolver }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-installer | ${{ steps.filter.outputs.installer }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-config | ${{ steps.filter.outputs.config }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-env | ${{ steps.filter.outputs.env }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-setup | ${{ steps.filter.outputs.setup }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-migration | ${{ steps.filter.outputs.migration }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-extension | ${{ steps.filter.outputs.extension }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-args | ${{ steps.filter.outputs.args }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-project-analyzer | ${{ steps.filter.outputs.project_analyzer }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-console | ${{ steps.filter.outputs.console }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vx-cli | ${{ steps.filter.outputs.cli }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| providers | ${{ steps.filter.outputs.providers }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Affected Crates" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.compute-affected.outputs.affected_crates }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test packages:** \`${{ steps.compute-affected.outputs.test_packages }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Is Main:** $IS_MAIN" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Stage 1: Build vx binary (only if rust/ci changed)
+  # ============================================================================
+  build-vx:
+    name: Build vx (${{ matrix.platform.name }})
+    runs-on: ${{ matrix.platform.os }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.should_build == 'true'
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: vx-linux-x64
+            binary: vx
+          - name: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: vx-windows-x64
+            binary: vx.exe
+          - name: macOS-x86_64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: vx-macos-x64
+            binary: vx
+          - name: macOS-ARM64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: vx-macos-arm64
+            binary: vx
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: ${{ matrix.platform.target }}
+          shared-key: build
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build vx release binary
+        run: cargo build --release --target ${{ matrix.platform.target }}
+
+      - name: Verify binary
+        shell: bash
+        run: |
+          ./target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }} --version
+          ./target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }} --help
+
+      - name: Upload vx binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.platform.artifact }}
+          path: target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }}
+          retention-days: 1
+
+  # ============================================================================
+  # Stage 2: Code quality checks (only if rust changed)
+  # ============================================================================
+  code-quality:
+    name: Code Quality (via vx)
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build-vx]
+    if: needs.detect-changes.outputs.should_build == 'true'
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: vx-linux-x64
+          path: ./bin
+
+      - name: Setup vx
+        shell: bash
+        run: |
+          chmod +x ./bin/vx
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+          ./bin/vx --version
+
+      - name: Cache vx tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.vx
+          key: ${{ runner.os }}-vx-tools-quality-${{ hashFiles('.vx.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-vx-tools-quality-
+
+      - name: Setup Rust (required for cargo commands)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: quality
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Check formatting (via vx)
+        run: vx run fmt-check
+
+      - name: Check for inline tests
+        run: |
+          echo "ðŸ” Checking for inline tests in source files..."
+          # Count files with inline tests (excluding tests/ directories)
+          INLINE_COUNT=$(grep -rl '#\[cfg(test)\]' crates --include="*.rs" | grep -v '/tests/' | wc -l || echo "0")
+          if [ "$INLINE_COUNT" -gt "0" ]; then
+            echo "âš ï¸  Found $INLINE_COUNT files with inline tests (migration in progress)"
+            echo "Files with inline tests should be migrated to tests/ directories"
+            # List first 10 files as examples
+            grep -rl '#\[cfg(test)\]' crates --include="*.rs" | grep -v '/tests/' | head -10
+          else
+            echo "âœ?No inline tests found"
+          fi
+          # Note: Currently a warning only, will become error after migration
+
+      - name: Run Clippy (via vx)
+        run: vx run clippy
+
+      - name: Check documentation (via vx)
+        run: vx run ci-docs
+
+  # ============================================================================
+  # Stage 3: Targeted tests (only test affected crates)
+  # ============================================================================
+  test-targeted:
+    name: Test (${{ matrix.platform.name }}) - Targeted
+    runs-on: ${{ matrix.platform.os }}
+    needs: [detect-changes, build-vx]
+    if: |
+      needs.detect-changes.outputs.should_test == 'true' &&
+      needs.detect-changes.outputs.test_packages != '' &&
+      !contains(needs.detect-changes.outputs.test_packages, '--workspace')
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Linux-x86_64
+            os: ubuntu-latest
+            artifact: vx-linux-x64
+            binary: vx
+          - name: Windows-x86_64
+            os: windows-latest
+            artifact: vx-windows-x64
+            binary: vx.exe
+          - name: macOS-x86_64
+            os: macos-latest
+            artifact: vx-macos-x64
+            binary: vx
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ matrix.platform.artifact }}
+          path: ./bin
+
+      - name: Setup vx
+        shell: bash
+        run: |
+          chmod +x ./bin/${{ matrix.platform.binary }} 2>/dev/null || true
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Verify vx works
+        shell: bash
+        run: |
+          ./bin/${{ matrix.platform.binary }} --version
+          ./bin/${{ matrix.platform.binary }} list
+
+      - name: Cache vx tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.vx
+          key: ${{ runner.os }}-vx-tools-test-${{ hashFiles('.vx.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-vx-tools-test-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: test
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Run targeted tests (via vx)
+        shell: bash
+        run: |
+          echo "Testing affected crates: ${{ needs.detect-changes.outputs.affected_crates }}"
+          echo "Test packages: ${{ needs.detect-changes.outputs.test_packages }}"
+
+          # Run tests for affected packages only (delegated to vx for local/CI parity)
+          vx run test-pkgs -- ${{ needs.detect-changes.outputs.test_packages }}
+        env:
+          CARGO_TARGET_DIR: target
+          VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
+
+  # ============================================================================
+  # Stage 3b: Full workspace tests (when core changes or CI changes)
+  # ============================================================================
+  test-full:
+    name: Test (${{ matrix.platform.name }}) - Full
+    runs-on: ${{ matrix.platform.os }}
+    needs: [detect-changes, build-vx]
+    if: |
+      needs.detect-changes.outputs.should_test == 'true' &&
+      contains(needs.detect-changes.outputs.test_packages, '--workspace')
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Linux-x86_64
+            os: ubuntu-latest
+            artifact: vx-linux-x64
+            binary: vx
+          - name: Windows-x86_64
+            os: windows-latest
+            artifact: vx-windows-x64
+            binary: vx.exe
+          - name: macOS-x86_64
+            os: macos-latest
+            artifact: vx-macos-x64
+            binary: vx
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ matrix.platform.artifact }}
+          path: ./bin
+
+      - name: Setup vx
+        shell: bash
+        run: |
+          chmod +x ./bin/${{ matrix.platform.binary }} 2>/dev/null || true
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Verify vx works
+        shell: bash
+        run: |
+          ./bin/${{ matrix.platform.binary }} --version
+          ./bin/${{ matrix.platform.binary }} list
+
+      - name: Cache vx tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.vx
+          key: ${{ runner.os }}-vx-tools-test-${{ hashFiles('.vx.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-vx-tools-test-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: test
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Run full workspace tests (via vx)
+        shell: bash
+        run: vx run test
+        env:
+          CARGO_TARGET_DIR: target
+          VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
+
+
+
+  # ============================================================================
+  # Stage 5: Cross-compilation (main branch only, if rust changed)
+  # ============================================================================
+  cross-build:
+    name: Cross Build (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build-vx]
+    if: |
+      needs.detect-changes.outputs.should_build == 'true' &&
+      needs.detect-changes.outputs.is_main == 'true'
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: vx-linux-x64
+          path: ./bin
+
+      - name: Setup vx
+        run: |
+          chmod +x ./bin/vx
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: ${{ matrix.target }}
+          shared-key: cross
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build with cross
+        run: cross build --release --target ${{ matrix.target }} --no-default-features
+
+  # ============================================================================
+  # Stage 6: Security audit (only if rust changed)
+  # ============================================================================
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.should_build == 'true'
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Run security audit
+        run: |
+          cargo generate-lockfile || true
+          cargo audit --deny warnings || echo "::warning::Security audit found warnings"
+
+  # ============================================================================
+  # Stage 7: Code coverage (main branch only)
+  # ============================================================================
+  coverage:
+    name: Code Coverage (via vx)
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build-vx]
+    if: |
+      needs.detect-changes.outputs.should_build == 'true' &&
+      needs.detect-changes.outputs.is_main == 'true'
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: vx-linux-x64
+          path: ./bin
+
+      - name: Setup vx
+        run: |
+          chmod +x ./bin/vx
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: coverage
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Generate coverage
+        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
+          fail_ci_if_error: false
+          verbose: true
+          flags: unittests
+          name: codecov-umbrella
+
+  # ============================================================================
+  # Stage 9: Documentation build (only if docs changed)
+  # ============================================================================
+  docs-build:
+    name: Documentation Build
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build-vx]
+    if: |
+      needs.detect-changes.outputs.should_docs == 'true' &&
+      needs.detect-changes.outputs.should_build == 'true'
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
+        with:
+          name: vx-linux-x64
+          path: ./bin
+
+      - name: Setup vx
+        run: |
+          chmod +x ./bin/vx
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        working-directory: docs
+        run: vx npm install
+
+      - name: Build documentation
+        working-directory: docs
+        run: vx npm run build
+
+  # Docs build without vx binary (when only docs changed)
+  docs-build-standalone:
+    name: Documentation Build (standalone)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.should_docs == 'true' &&
+      needs.detect-changes.outputs.should_build == 'false'
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs
+        run: npm install
+
+      - name: Build documentation
+        working-directory: docs
+        run: npm run build
+
+  # ============================================================================
+  # CI Success Gate
+  # ============================================================================
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs:
+      - detect-changes
+      - build-vx
+      - code-quality
+      - test-targeted
+      - test-full
+      - cross-build
+      - security-audit
+      - coverage
+      - docs-build
+      - docs-build-standalone
+    if: always()
+    steps:
+      - name: Check results
+        shell: bash
+        run: |
+          echo "## CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          failed=0
+
+          # Check each job result
+          check_job() {
+            local job_name="$1"
+            local result="$2"
+            if [[ "$result" == "success" ]]; then
+              echo "- âœ?$job_name" >> $GITHUB_STEP_SUMMARY
+            elif [[ "$result" == "skipped" ]]; then
+              echo "- â­ï¸ $job_name (skipped)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- â?$job_name ($result)" >> $GITHUB_STEP_SUMMARY
+              # Don't fail on skipped jobs
+              if [[ "$result" != "skipped" && "$result" != "" ]]; then
+                failed=1
+              fi
+            fi
+          }
+          echo "### Core Jobs" >> $GITHUB_STEP_SUMMARY
+          check_job "detect-changes" "${{ needs.detect-changes.result }}"
+
+          check_job "build-vx" "${{ needs.build-vx.result }}"
+          check_job "code-quality" "${{ needs.code-quality.result }}"
+          check_job "test-targeted" "${{ needs.test-targeted.result }}"
+          check_job "test-full" "${{ needs.test-full.result }}"
+          check_job "security-audit" "${{ needs.security-audit.result }}"
+
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Main Branch Only" >> $GITHUB_STEP_SUMMARY
+          check_job "cross-build" "${{ needs.cross-build.result }}"
+          check_job "coverage" "${{ needs.coverage.result }}"
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Documentation" >> $GITHUB_STEP_SUMMARY
+          check_job "docs-build" "${{ needs.docs-build.result }}"
+          check_job "docs-build-standalone" "${{ needs.docs-build-standalone.result }}"
+
+          if [[ $failed -eq 1 ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "â?**CI failed**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "âœ?**All CI checks passed!**" >> $GITHUB_STEP_SUMMARY
+
+name: CodeQL
+
+# CodeQL analysis - runs on PRs and weekly schedule.
+# Main branch pushes are handled by release.yml to avoid duplicate CI runs.
+# Security analysis is already done in PR checks, weekly schedule catches any gaps.
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1' # Weekly, Mondays 03:00 UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (CodeQL via vx)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup vx
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache vx tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.vx
+          key: ${{ runner.os }}-vx-codeql-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-vx-codeql-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: rust
+
+      - name: Build with vx
+        run: vx cargo build --release
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+
+name: Docker Publish
+
+# Publish Docker images to Docker Hub and GitHub Container Registry
+# Triggered after successful release or manually
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  DOCKER_HUB_REPO: longhal/vx
+  GHCR_REPO: ghcr.io/loonghao/vx
+
+jobs:
+  check-release:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_short: ${{ steps.version.outputs.version_short }}
+    steps:
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # Get the latest release tag from GitHub API
+            VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/loonghao/vx/releases/latest" | \
+              jq -r '.tag_name // empty')
+          fi
+
+          echo "Raw version from release: $VERSION"
+
+          # Store original version for downloading release assets
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Extract short version: vx-v0.5.15 -> 0.5.15, v0.5.15 -> 0.5.15
+          VERSION_SHORT=$(echo "${VERSION}" | sed -E 's/^(vx-)?v//')
+          echo "version_short=${VERSION_SHORT}" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION, short version: $VERSION_SHORT"
+
+  build-and-push:
+    needs: check-release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download release binary
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+
+          # Determine architecture
+          # Note: We use gnu instead of musl because musl builds are not available
+          if [[ "${{ matrix.platform }}" == "linux/amd64" ]]; then
+            ARCH="x86_64-unknown-linux-gnu"
+          else
+            ARCH="aarch64-unknown-linux-gnu"
+          fi
+
+          # Try versioned format first, then fall back to non-versioned format
+          VERSION_NUM=$(echo "${VERSION}" | sed -E 's/^(vx-)?v//')
+          DOWNLOAD_URL_VERSIONED="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${VERSION_NUM}-${ARCH}.tar.gz"
+          DOWNLOAD_URL_COMPAT="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${ARCH}.tar.gz"
+
+          echo "Trying versioned URL: $DOWNLOAD_URL_VERSIONED"
+          if curl -fsSL "$DOWNLOAD_URL_VERSIONED" -o vx.tar.gz 2>/dev/null; then
+            echo "Downloaded from versioned URL"
+          else
+            echo "Versioned URL failed, trying compatible URL: $DOWNLOAD_URL_COMPAT"
+            curl -fsSL "$DOWNLOAD_URL_COMPAT" -o vx.tar.gz
+          fi
+
+          tar -xzf vx.tar.gz
+          chmod +x vx
+
+          # Verify binary
+          file vx
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract platform suffix
+        id: platform
+        run: |
+          PLATFORM="${{ matrix.platform }}"
+          SUFFIX="${PLATFORM//\//-}"
+          echo "suffix=$SUFFIX" >> $GITHUB_OUTPUT
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: pkg/docker/Dockerfile.prebuilt
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: |
+            ${{ env.DOCKER_HUB_REPO }}:${{ needs.check-release.outputs.version_short }}-${{ steps.platform.outputs.suffix }}
+            ${{ env.GHCR_REPO }}:${{ needs.check-release.outputs.version_short }}-${{ steps.platform.outputs.suffix }}
+          labels: |
+            org.opencontainers.image.version=${{ needs.check-release.outputs.version_short }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+  create-manifest:
+    needs: [check-release, build-and-push]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push Docker Hub manifest
+        run: |
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+
+          echo "Creating Docker Hub manifests for version: ${VERSION_SHORT}"
+
+          # Create versioned manifest (e.g., 0.5.15)
+          docker manifest create ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT} \
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT}-linux-amd64 \
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT}-linux-arm64
+          docker manifest push ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT}
+
+          # Create latest manifest
+          docker manifest create ${{ env.DOCKER_HUB_REPO }}:latest \
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT}-linux-amd64 \
+            ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT}-linux-arm64
+          docker manifest push ${{ env.DOCKER_HUB_REPO }}:latest
+
+      - name: Create and push GHCR manifest
+        run: |
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+
+          echo "Creating GHCR manifests for version: ${VERSION_SHORT}"
+
+          # Create versioned manifest (e.g., 0.5.15)
+          docker manifest create ${{ env.GHCR_REPO }}:${VERSION_SHORT} \
+            ${{ env.GHCR_REPO }}:${VERSION_SHORT}-linux-amd64 \
+            ${{ env.GHCR_REPO }}:${VERSION_SHORT}-linux-arm64
+          docker manifest push ${{ env.GHCR_REPO }}:${VERSION_SHORT}
+
+          # Create latest manifest
+          docker manifest create ${{ env.GHCR_REPO }}:latest \
+            ${{ env.GHCR_REPO }}:${VERSION_SHORT}-linux-amd64 \
+            ${{ env.GHCR_REPO }}:${VERSION_SHORT}-linux-arm64
+          docker manifest push ${{ env.GHCR_REPO }}:latest
+
+  summary:
+    needs: [check-release, create-manifest]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+          echo "## Docker Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pull Commands" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# Docker Hub" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull loonghao/vx:${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull loonghao/vx:latest" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# GitHub Container Registry" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/loonghao/vx:${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/loonghao/vx:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
 name: Documentation
 
 # Build and deploy documentation to GitHub Pages
@@ -30,7 +1172,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup vx
         uses: ./
@@ -76,6 +1218,1900 @@ jobs:
         run: |
           echo "## Documentation Deployed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "âœ… Documentation has been deployed to GitHub Pages!" >> $GITHUB_STEP_SUMMARY
+          echo "âœ?Documentation has been deployed to GitHub Pages!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "ðŸ”— **URL:** ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+
+name: Linux Packages
+
+# Build and publish Linux packages (DEB, RPM, AUR)
+# Triggered after successful release or manually
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  check-release:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_short: ${{ steps.version.outputs.version_short }}
+    steps:
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/loonghao/vx/releases/latest" | \
+              jq -r '.tag_name // empty')
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          # Extract version number: v0.6.7 -> 0.6.7, vx-v0.6.7 -> 0.6.7
+          VERSION_SHORT=$(echo "${VERSION}" | sed -E 's/^(vx-)?v//')
+          echo "version_short=${VERSION_SHORT}" >> $GITHUB_OUTPUT
+          echo "Tag: ${VERSION}, Version: ${VERSION_SHORT}"
+
+  # Build DEB packages
+  build-deb:
+    needs: check-release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download release binary
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+
+          if [[ "${{ matrix.arch }}" == "amd64" ]]; then
+            RUST_ARCH="x86_64-unknown-linux-gnu"
+          else
+            RUST_ARCH="aarch64-unknown-linux-gnu"
+          fi
+
+          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${RUST_ARCH}.tar.gz"
+          echo "Downloading from: $DOWNLOAD_URL"
+
+          curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz
+          tar -xzf vx.tar.gz
+
+      - name: Build DEB package
+        run: |
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+          ARCH="${{ matrix.arch }}"
+
+          # Create package structure
+          PKG_DIR="vx_${VERSION_SHORT}_${ARCH}"
+          mkdir -p "${PKG_DIR}/DEBIAN"
+          mkdir -p "${PKG_DIR}/usr/bin"
+          mkdir -p "${PKG_DIR}/usr/share/doc/vx"
+          mkdir -p "${PKG_DIR}/usr/share/bash-completion/completions"
+          mkdir -p "${PKG_DIR}/usr/share/zsh/vendor-completions"
+          mkdir -p "${PKG_DIR}/usr/share/fish/vendor_completions.d"
+
+          # Copy binary
+          cp vx "${PKG_DIR}/usr/bin/vx"
+          chmod 755 "${PKG_DIR}/usr/bin/vx"
+
+          # Copy docs
+          cp README.md "${PKG_DIR}/usr/share/doc/vx/"
+          cp LICENSE "${PKG_DIR}/usr/share/doc/vx/copyright"
+
+          # Create control file
+          cat > "${PKG_DIR}/DEBIAN/control" << EOF
+          Package: vx
+          Version: ${VERSION_SHORT}
+          Section: devel
+          Priority: optional
+          Architecture: ${ARCH}
+          Maintainer: Long Hao <hal.long@outlook.com>
+          Homepage: https://github.com/loonghao/vx
+          Description: Universal version manager for developer tools
+           vx is a fast, cross-platform version manager for developer tools
+           including Node.js (npm, pnpm, yarn, bun), Python (uv, pip), Go, Rust,
+           and more.
+          Depends: libc6 (>= 2.17)
+          Recommends: git, curl
+          EOF
+
+          # Create postinst script
+          cat > "${PKG_DIR}/DEBIAN/postinst" << 'EOF'
+          #!/bin/sh
+          set -e
+          if command -v vx >/dev/null 2>&1; then
+              vx completions bash > /usr/share/bash-completion/completions/vx 2>/dev/null || true
+              vx completions zsh > /usr/share/zsh/vendor-completions/_vx 2>/dev/null || true
+              vx completions fish > /usr/share/fish/vendor_completions.d/vx.fish 2>/dev/null || true
+          fi
+          EOF
+          chmod 755 "${PKG_DIR}/DEBIAN/postinst"
+
+          # Build package
+          dpkg-deb --build "${PKG_DIR}"
+
+          echo "Built: ${PKG_DIR}.deb"
+          ls -la *.deb
+
+      - name: Upload DEB artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: deb-${{ matrix.arch }}
+          path: "*.deb"
+
+  # Build RPM packages
+  build-rpm:
+    needs: check-release
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - x86_64
+          - aarch64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          dnf install -y rpm-build rpmdevtools curl tar gzip
+
+      - name: Setup RPM build environment
+        run: |
+          rpmdev-setuptree
+
+      - name: Download release binary
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+
+          if [[ "${{ matrix.arch }}" == "x86_64" ]]; then
+            RUST_ARCH="x86_64-unknown-linux-gnu"
+          else
+            RUST_ARCH="aarch64-unknown-linux-gnu"
+          fi
+
+          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${RUST_ARCH}.tar.gz"
+          echo "Downloading from: $DOWNLOAD_URL"
+
+          # Download to SOURCES
+          curl -fsSL "$DOWNLOAD_URL" -o ~/rpmbuild/SOURCES/vx-${{ matrix.arch }}.tar.gz
+
+      - name: Create RPM spec
+        run: |
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+
+          cat > ~/rpmbuild/SPECS/vx.spec << EOF
+          Name:           vx
+          Version:        ${VERSION_SHORT}
+          Release:        1%{?dist}
+          Summary:        Universal version manager for developer tools
+
+          License:        MIT
+          URL:            https://github.com/loonghao/vx
+          Source0:        vx-${{ matrix.arch }}.tar.gz
+
+          %description
+          vx is a fast, cross-platform version manager for developer tools
+          including Node.js, Python, Go, Rust, and more.
+
+          %prep
+          %setup -q -c -T
+          tar -xzf %{SOURCE0}
+
+          %install
+          mkdir -p %{buildroot}%{_bindir}
+          install -m 755 vx %{buildroot}%{_bindir}/vx
+
+          %files
+          %{_bindir}/vx
+
+          %changelog
+          * $(date "+%a %b %d %Y") Long Hao <hal.long@outlook.com> - ${VERSION_SHORT}-1
+          - Release v${VERSION_SHORT}
+          EOF
+
+      - name: Build RPM
+        run: |
+          rpmbuild -bb ~/rpmbuild/SPECS/vx.spec --target ${{ matrix.arch }}
+
+          # Copy to workspace
+          find ~/rpmbuild/RPMS -name "*.rpm" -exec cp {} . \;
+          ls -la *.rpm
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: rpm-${{ matrix.arch }}
+          path: "*.rpm"
+
+  # Upload packages to GitHub Release
+  upload-to-release:
+    needs: [check-release, build-deb, build-rpm]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: packages
+
+      - name: List packages
+        run: |
+          find packages -type f \( -name "*.deb" -o -name "*.rpm" \)
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.check-release.outputs.version }}
+          files: |
+            packages/**/*.deb
+            packages/**/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Update AUR package (only if SSH key is configured)
+  update-aur:
+    needs: check-release
+    runs-on: ubuntu-latest
+    # This job will fail gracefully if AUR_SSH_PRIVATE_KEY is not set
+    continue-on-error: true
+    steps:
+      - name: Check if AUR SSH key is configured
+        id: check-key
+        run: |
+          if [ -z "${{ secrets.AUR_SSH_PRIVATE_KEY }}" ]; then
+            echo "AUR_SSH_PRIVATE_KEY is not configured, skipping AUR update"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        if: steps.check-key.outputs.skip != 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        if: steps.check-key.outputs.skip != 'true'
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+
+      - name: Update AUR package
+        if: steps.check-key.outputs.skip != 'true'
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+
+          # Clone AUR repo
+          git clone ssh://aur@aur.archlinux.org/vx-bin.git aur-repo || {
+            echo "AUR repo not found, skipping..."
+            exit 0
+          }
+
+          cd aur-repo
+
+          # Download and calculate checksums
+          X86_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-x86_64-unknown-linux-gnu.tar.gz"
+          ARM_URL="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-aarch64-unknown-linux-gnu.tar.gz"
+
+          X86_SHA256=$(curl -fsSL "$X86_URL" | sha256sum | cut -d' ' -f1)
+          ARM_SHA256=$(curl -fsSL "$ARM_URL" | sha256sum | cut -d' ' -f1)
+
+          # Update PKGBUILD
+          sed -i "s/pkgver=.*/pkgver=${VERSION_SHORT}/" PKGBUILD
+          sed -i "s/sha256sums_x86_64=.*/sha256sums_x86_64=('${X86_SHA256}')/" PKGBUILD
+          sed -i "s/sha256sums_aarch64=.*/sha256sums_aarch64=('${ARM_SHA256}')/" PKGBUILD
+
+          # Update .SRCINFO
+          cat > .SRCINFO << EOF
+          pkgbase = vx-bin
+          	pkgdesc = Universal version manager for developer tools
+          	pkgver = ${VERSION_SHORT}
+          	pkgrel = 1
+          	url = https://github.com/loonghao/vx
+          	arch = x86_64
+          	arch = aarch64
+          	license = MIT
+          	depends = gcc-libs
+          	provides = vx
+          	conflicts = vx
+          	conflicts = vx-git
+          	source_x86_64 = vx-bin-${VERSION_SHORT}-x86_64.tar.gz::${X86_URL}
+          	source_aarch64 = vx-bin-${VERSION_SHORT}-aarch64.tar.gz::${ARM_URL}
+          	sha256sums_x86_64 = ${X86_SHA256}
+          	sha256sums_aarch64 = ${ARM_SHA256}
+
+          pkgname = vx-bin
+          EOF
+
+          # Commit and push
+          git config user.name "vx-bot"
+          git config user.email "vx-bot@users.noreply.github.com"
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update to ${VERSION}" || echo "No changes to commit"
+          git push || echo "Push failed, may need manual intervention"
+
+  summary:
+    needs: [check-release, build-deb, build-rpm, upload-to-release]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          echo "## Linux Packages Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation Commands" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Debian/Ubuntu:**" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# Download and install" >> $GITHUB_STEP_SUMMARY
+          echo "curl -fsSLO https://github.com/loonghao/vx/releases/download/${VERSION}/vx_\${VERSION#v}_amd64.deb" >> $GITHUB_STEP_SUMMARY
+          echo "sudo dpkg -i vx_*.deb" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Fedora/RHEL:**" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# Download and install" >> $GITHUB_STEP_SUMMARY
+          echo "curl -fsSLO https://github.com/loonghao/vx/releases/download/${VERSION}/vx-\${VERSION#v}-1.x86_64.rpm" >> $GITHUB_STEP_SUMMARY
+          echo "sudo rpm -i vx-*.rpm" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Arch Linux (AUR):**" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "yay -S vx-bin" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+name: Package Managers
+
+# Publish to various package managers using pre-built artifacts
+# Downloads binaries from GitHub Release
+# No building - only packaging and distribution
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., v1.0.0)'
+        required: true
+        type: string
+      force_run:
+        description: 'Force run even if Release workflow failed'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  # Only run if the Release workflow was successful or forced
+  check-release:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    outputs:
+      should-publish: ${{ steps.check.outputs.should-publish }}
+      version: ${{ steps.version.outputs.version }}
+      normalized_version: ${{ steps.normalize.outputs.normalized_version }}
+    steps:
+      - name: Debug workflow event
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Workflow run head branch: ${{ github.event.workflow_run.head_branch }}"
+          echo "Force run input: ${{ github.event.inputs.force_run }}"
+
+      - name: Check if should publish
+        id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Manual dispatch - will publish"
+            echo "should-publish=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.force_run }}" == "true" ]]; then
+            echo "Force run enabled - will publish"
+            echo "should-publish=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.workflow_run.conclusion }}" == "success" ]]; then
+            echo "Release workflow successful - will publish"
+            echo "should-publish=true" >> $GITHUB_OUTPUT
+          else
+            echo "Release workflow failed or conditions not met - will not publish"
+            echo "should-publish=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Get the latest release tag from GitHub API
+            echo "Getting latest release version from GitHub API..."
+            latest_release=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/loonghao/vx/releases/latest" | \
+              jq -r '.tag_name // empty')
+
+            if [[ -n "$latest_release" && "$latest_release" != "null" ]]; then
+              echo "Found latest release: $latest_release"
+              echo "version=$latest_release" >> $GITHUB_OUTPUT
+            else
+              echo "No release found, trying to get from workflow run..."
+              version="${{ github.event.workflow_run.head_branch }}"
+              if [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+                echo "version=$version" >> $GITHUB_OUTPUT
+              else
+                echo "version=unknown" >> $GITHUB_OUTPUT
+              fi
+            fi
+          fi
+
+      - name: Normalize version for WinGet
+        id: normalize
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          echo "Original version: $version"
+          
+          # Remove 'vx-' prefix if present (vx-v0.1.0 -> v0.1.0)
+          normalized_version="${version#vx-}"
+          # Remove 'v' prefix for WinGet (v0.1.0 -> 0.1.0)
+          normalized_version="${normalized_version#v}"
+          echo "Normalized version: $normalized_version"
+          echo "normalized_version=$normalized_version" >> $GITHUB_OUTPUT
+
+      - name: Verify GitHub Release exists
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          echo "Checking if GitHub Release exists for version: $version"
+
+          # Check if release exists
+          release_url="https://api.github.com/repos/loonghao/vx/releases/tags/$version"
+          if curl -s -f -H "Accept: application/vnd.github.v3+json" "$release_url" > /dev/null; then
+            echo "âœ?GitHub Release found for $version"
+
+            # List available assets
+            echo "ðŸ“¦ Available release assets:"
+            curl -s -H "Accept: application/vnd.github.v3+json" "$release_url" | \
+              jq -r '.assets[] | "  - \(.name) (\(.size) bytes)"'
+          else
+            echo "â?GitHub Release not found for $version"
+            echo "Please ensure the Release workflow completed successfully"
+            exit 1
+          fi
+
+  # Publish to Windows Package Manager (WinGet)
+  # Uses vedantmgoyal9/winget-releaser to automatically create PR at microsoft/winget-pkgs
+  # Requires: WINGET_TOKEN secret with public_repo scope
+  # Requires: Fork of microsoft/winget-pkgs under the same account
+  publish-winget:
+    needs: check-release
+    runs-on: windows-latest
+    if: needs.check-release.outputs.should-publish == 'true'
+    steps:
+      - name: Publish to WinGet
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: loonghao.vx
+          # Use normalized version without 'vx-' and 'v' prefix (e.g., "0.1.0" instead of "vx-v0.1.0")
+          release-tag: ${{ needs.check-release.outputs.normalized_version }}
+          # Only match Windows MSVC zip files (exclude sha256 files and non-Windows builds)
+          # Matches: vx-0.6.2-x86_64-pc-windows-msvc.zip, vx-x86_64-pc-windows-msvc.zip
+          installers-regex: 'windows-msvc\.zip$'
+          max-versions-to-keep: 5
+          token: ${{ secrets.WINGET_TOKEN }}
+
+  # Publish to Chocolatey
+  # Downloads release assets and creates Chocolatey package
+  publish-chocolatey:
+    needs: check-release
+    runs-on: windows-latest
+    if: needs.check-release.outputs.should-publish == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Windows binary from release
+        run: |
+          # Download pre-built binary from GitHub Release (built by release.yml)
+          $version = "${{ needs.check-release.outputs.version }}"
+          # Extract version number: vx-v0.6.2 -> 0.6.2, v0.6.2 -> 0.6.2
+          $versionNum = $version -replace '^(vx-)?v', ''
+
+          # Try versioned format first, then fall back to non-versioned format
+          $downloadUrlVersioned = "https://github.com/loonghao/vx/releases/download/$version/vx-$versionNum-x86_64-pc-windows-msvc.zip"
+          $downloadUrlCompat = "https://github.com/loonghao/vx/releases/download/$version/vx-x86_64-pc-windows-msvc.zip"
+
+          Write-Host "Trying versioned URL: $downloadUrlVersioned"
+
+          try {
+            Invoke-WebRequest -Uri $downloadUrlVersioned -OutFile "vx-windows.zip" -ErrorAction Stop
+            Write-Host "Downloaded from versioned URL"
+          } catch {
+            Write-Host "Versioned URL failed, trying compatible URL: $downloadUrlCompat"
+            try {
+              Invoke-WebRequest -Uri $downloadUrlCompat -OutFile "vx-windows.zip" -ErrorAction Stop
+              Write-Host "Downloaded from compatible URL"
+            } catch {
+              Write-Host "Failed to download binary from both URLs"
+              Write-Host "Available releases:"
+              $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/loonghao/vx/releases"
+              $releases | ForEach-Object { Write-Host "  - $($_.tag_name)" }
+              exit 1
+            }
+          }
+
+          Write-Host "Downloaded zip size: $((Get-Item vx-windows.zip).Length) bytes"
+
+          # Extract the exe from zip
+          Expand-Archive -Path "vx-windows.zip" -DestinationPath "." -Force
+
+          # Find the vx.exe file (it might be in a subdirectory)
+          $exeFile = Get-ChildItem -Recurse -Name "vx.exe" | Select-Object -First 1
+          if ($exeFile) {
+            Copy-Item $exeFile "vx.exe"
+            Write-Host "Extracted vx.exe size: $((Get-Item vx.exe).Length) bytes"
+          } else {
+            Write-Host "vx.exe not found in the zip file"
+            Write-Host "Contents of zip:"
+            Get-ChildItem -Recurse | ForEach-Object { Write-Host "  - $($_.FullName)" }
+            exit 1
+          }
+
+      - name: Create Chocolatey package
+        run: |
+          $version = "${{ needs.check-release.outputs.version }}"
+
+          # Create chocolatey package structure
+          New-Item -ItemType Directory -Force -Path "chocolatey/tools"
+          Copy-Item "vx.exe" "chocolatey/tools/"
+
+          # Update nuspec file with current version
+          $nuspecContent = Get-Content "chocolatey/vx.nuspec" -Raw
+          $nuspecContent = $nuspecContent -replace "{{VERSION}}", $version.TrimStart('v')
+          $nuspecContent = $nuspecContent -replace "{{RELEASE_NOTES}}", "See https://github.com/loonghao/vx/releases/tag/$version"
+          Set-Content "chocolatey/vx.nuspec" $nuspecContent
+
+          # Build package
+          choco pack chocolatey/vx.nuspec --outputdirectory .
+
+          Write-Host "Created Chocolatey package for version $version"
+          Get-ChildItem *.nupkg | ForEach-Object { Write-Host "Package: $($_.Name)" }
+
+      - name: Publish to Chocolatey
+        run: |
+          $nupkgFile = Get-ChildItem *.nupkg | Select-Object -First 1
+          if ($nupkgFile) {
+            Write-Host "Publishing $($nupkgFile.Name) to Chocolatey..."
+            choco push $nupkgFile.Name --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCOLATEY_API_KEY }}
+          } else {
+            Write-Host "No .nupkg file found!"
+            exit 1
+          }
+
+  # Publish to Homebrew (Custom implementation)
+  # Creates formula using our custom asset naming convention
+  publish-homebrew:
+    needs: check-release
+    runs-on: ubuntu-latest
+    if: needs.check-release.outputs.should-publish == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate Homebrew formula
+        id: generate
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          VERSION_NUM="${VERSION#v}"
+
+          echo "Generating Homebrew formula for version: $VERSION_NUM"
+
+          BASE_URL="https://github.com/loonghao/vx/releases/download/${VERSION}"
+
+          # Get SHA256 checksums for each platform
+          DARWIN_AMD64_SHA256=$(curl -sL "${BASE_URL}/vx-x86_64-apple-darwin.tar.gz.sha256" | awk '{print $1}')
+          DARWIN_ARM64_SHA256=$(curl -sL "${BASE_URL}/vx-aarch64-apple-darwin.tar.gz.sha256" | awk '{print $1}')
+          LINUX_AMD64_SHA256=$(curl -sL "${BASE_URL}/vx-x86_64-unknown-linux-gnu.tar.gz.sha256" | awk '{print $1}')
+
+          echo "Darwin AMD64 SHA256: $DARWIN_AMD64_SHA256"
+          echo "Darwin ARM64 SHA256: $DARWIN_ARM64_SHA256"
+          echo "Linux AMD64 SHA256: $LINUX_AMD64_SHA256"
+
+          # Validate checksums
+          if [[ -z "$DARWIN_AMD64_SHA256" || "$DARWIN_AMD64_SHA256" == "null" ]]; then
+            echo "Failed to get Darwin AMD64 SHA256"
+            exit 1
+          fi
+
+          # Create Homebrew formula
+          cat > vx.rb << EOF
+          # typed: false
+          # frozen_string_literal: true
+
+          class Vx < Formula
+            desc "Universal development tool manager - run any dev tool with automatic runtime management"
+            homepage "https://github.com/loonghao/vx"
+            license "MIT"
+            version "${VERSION_NUM}"
+
+            on_macos do
+              on_intel do
+                url "${BASE_URL}/vx-x86_64-apple-darwin.tar.gz"
+                sha256 "${DARWIN_AMD64_SHA256}"
+              end
+              on_arm do
+                url "${BASE_URL}/vx-aarch64-apple-darwin.tar.gz"
+                sha256 "${DARWIN_ARM64_SHA256}"
+              end
+            end
+
+            on_linux do
+              on_intel do
+                url "${BASE_URL}/vx-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${LINUX_AMD64_SHA256}"
+              end
+            end
+
+            def install
+              bin.install "vx"
+            end
+
+            test do
+              assert_match "vx", shell_output("#{bin}/vx --version")
+            end
+          end
+          EOF
+
+          # Remove leading whitespace from heredoc
+          sed -i 's/^          //' vx.rb
+
+          echo "Generated formula:"
+          cat vx.rb
+
+          echo "version=${VERSION_NUM}" >> $GITHUB_OUTPUT
+
+      - name: Push to Homebrew tap
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+        with:
+          source-directory: '.'
+          destination-github-username: 'loonghao'
+          destination-repository-name: 'homebrew-vx'
+          user-email: github-actions[bot]@users.noreply.github.com
+          user-name: github-actions[bot]
+          target-branch: main
+          commit-message: "Update vx to ${{ steps.generate.outputs.version }}"
+        continue-on-error: true
+
+      - name: Fallback - Push using token
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          VERSION_NUM="${{ steps.generate.outputs.version }}"
+
+          # Setup git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Clone using token (ensure no newlines in URL)
+          CLEAN_TOKEN=$(echo "$GITHUB_TOKEN" | tr -d '\n\r')
+          git clone "https://x-access-token:${CLEAN_TOKEN}@github.com/loonghao/homebrew-vx.git" homebrew-tap
+
+          cd homebrew-tap
+
+          # Create Formula directory if not exists
+          mkdir -p Formula
+
+          # Copy formula
+          cp ../vx.rb Formula/vx.rb
+
+          # Commit and push
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update vx to ${VERSION_NUM}"
+            git push
+            echo "Successfully updated Homebrew tap"
+          fi
+
+  # Publish to Scoop (Custom implementation)
+  publish-scoop:
+    needs: check-release
+    runs-on: ubuntu-latest
+    if: needs.check-release.outputs.should-publish == 'true'
+    steps:
+      - name: Generate and push Scoop manifest
+        env:
+          GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          # Remove 'v' prefix for version number
+          VERSION_NUM="${VERSION#v}"
+
+          echo "Generating Scoop manifest for version: $VERSION_NUM"
+
+          # Download SHA256 checksums from release
+          BASE_URL="https://github.com/loonghao/vx/releases/download/${VERSION}"
+
+          # Get SHA256 for Windows x64
+          WIN_X64_SHA256=$(curl -sL "${BASE_URL}/vx-x86_64-pc-windows-msvc.zip.sha256" | awk '{print $1}')
+          # Get SHA256 for Windows ARM64
+          WIN_ARM64_SHA256=$(curl -sL "${BASE_URL}/vx-aarch64-pc-windows-msvc.zip.sha256" | awk '{print $1}')
+
+          echo "Windows x64 SHA256: $WIN_X64_SHA256"
+          echo "Windows ARM64 SHA256: $WIN_ARM64_SHA256"
+
+          # Validate checksums
+          if [[ -z "$WIN_X64_SHA256" || "$WIN_X64_SHA256" == "null" ]]; then
+            echo "Failed to get Windows x64 SHA256"
+            exit 1
+          fi
+
+          # Create Scoop manifest
+          cat > vx.json << EOF
+          {
+              "version": "${VERSION_NUM}",
+              "description": "Universal development tool manager - run any dev tool with automatic runtime management",
+              "homepage": "https://github.com/loonghao/vx",
+              "license": "MIT",
+              "architecture": {
+                  "64bit": {
+                      "url": "${BASE_URL}/vx-x86_64-pc-windows-msvc.zip",
+                      "hash": "${WIN_X64_SHA256}"
+                  },
+                  "arm64": {
+                      "url": "${BASE_URL}/vx-aarch64-pc-windows-msvc.zip",
+                      "hash": "${WIN_ARM64_SHA256}"
+                  }
+              },
+              "bin": "vx.exe",
+              "checkver": "github",
+              "autoupdate": {
+                  "architecture": {
+                      "64bit": {
+                          "url": "https://github.com/loonghao/vx/releases/download/v\$version/vx-x86_64-pc-windows-msvc.zip"
+                      },
+                      "arm64": {
+                          "url": "https://github.com/loonghao/vx/releases/download/v\$version/vx-aarch64-pc-windows-msvc.zip"
+                      }
+                  }
+              }
+          }
+          EOF
+
+          echo "Generated manifest:"
+          cat vx.json
+
+          # Clone the scoop bucket repo and update
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Clean token to remove any newlines
+          CLEAN_TOKEN=$(echo "$GITHUB_TOKEN" | tr -d '\n\r')
+          git clone "https://x-access-token:${CLEAN_TOKEN}@github.com/loonghao/scoop-vx.git" scoop-bucket
+          cd scoop-bucket
+
+          # Create bucket directory if not exists
+          mkdir -p bucket
+
+          # Copy manifest to bucket
+          cp ../vx.json bucket/vx.json
+
+          # Commit and push
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update vx to ${VERSION_NUM}"
+            git push
+            echo "Successfully updated Scoop bucket"
+          fi
+
+  # Summary job
+  publish-summary:
+    needs: [check-release, publish-winget, publish-chocolatey, publish-homebrew, publish-scoop]
+    runs-on: ubuntu-latest
+    if: always() && needs.check-release.outputs.should-publish == 'true'
+    steps:
+      - name: Publish Summary
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+
+          echo "## ðŸ“¦ Package Manager Publishing Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Package Manager | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ðŸªŸ WinGet | ${{ needs.publish-winget.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ðŸ« Chocolatey | ${{ needs.publish-chocolatey.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ðŸº Homebrew | ${{ needs.publish-homebrew.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ðŸ¥„ Scoop | ${{ needs.publish-scoop.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation Commands" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# Windows (WinGet)" >> $GITHUB_STEP_SUMMARY
+          echo "winget install loonghao.vx" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Windows (Chocolatey)" >> $GITHUB_STEP_SUMMARY
+          echo "choco install vx" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Windows (Scoop)" >> $GITHUB_STEP_SUMMARY
+          echo "scoop bucket add vx https://github.com/loonghao/scoop-vx" >> $GITHUB_STEP_SUMMARY
+          echo "scoop install vx" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# macOS/Linux (Homebrew)" >> $GITHUB_STEP_SUMMARY
+          echo "brew install loonghao/vx/vx" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Rust (Cargo)" >> $GITHUB_STEP_SUMMARY
+          echo "cargo install vx" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+name: Release
+
+# This workflow runs on main branch pushes and handles the complete release process:
+# 1. Regular commits to main: Runs release-please to check if a release PR should be created/updated
+# 2. release-please PR merge: Creates a release, builds binaries, and publishes to crates.io
+# 3. Manual trigger: Rebuild binaries for a specific tag (useful when build failed)
+#
+# Note: release-please creates tags in format "v0.4.1" (v format)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to rebuild (e.g., v0.4.1). Leave empty to use latest release.'
+        required: false
+        type: string
+        default: ''
+      skip-crates-publish:
+        description: 'Skip publishing to crates.io'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  attestations: write
+  actions: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # First job: Run release-please to create releases and tags
+  # This only runs on main branch pushes (not tag pushes or manual triggers)
+  release-please:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      releases_created: ${{ steps.release.outputs.releases_created }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Get the tag to build (from release-please or manual input)
+  get-tag:
+    runs-on: ubuntu-latest
+    needs: [release-please]
+    if: |
+      always() &&
+      (
+        (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
+        github.event_name == 'workflow_dispatch'
+      )
+    outputs:
+      tag_name: ${{ steps.get-tag.outputs.tag_name }}
+      version: ${{ steps.get-tag.outputs.version }}
+    steps:
+      - name: Get tag name
+        id: get-tag
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ -n "${{ inputs.tag }}" ]; then
+              TAG="${{ inputs.tag }}"
+            else
+              # Get latest release tag
+              TAG=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+            fi
+          else
+            TAG="${{ needs.release-please.outputs.tag_name }}"
+          fi
+          echo "tag_name=${TAG}" >> $GITHUB_OUTPUT
+          # Extract version number: vx-v0.5.0 -> 0.5.0, v0.5.0 -> 0.5.0
+          VERSION=$(echo "${TAG}" | sed -E 's/^(vx-)?v//')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building for tag: ${TAG}, version: ${VERSION}"
+
+  # Build CLI binaries for all platforms
+  build-binaries:
+    name: Build (${{ matrix.platform.os_name }})
+    needs: [get-tag]
+    if: needs.get-tag.result == 'success' && needs.get-tag.outputs.tag_name != ''
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          # Linux platforms
+          - os_name: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+
+          - os_name: Linux-x86_64-musl
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+
+          - os_name: Linux-aarch64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+
+          - os_name: Linux-aarch64-musl
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+
+          # Windows platforms
+          - os_name: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+
+          - os_name: Windows-aarch64
+            os: windows-latest
+            target: aarch64-pc-windows-msvc
+
+          # macOS platforms
+          - os_name: macOS-x86_64
+            os: macos-latest
+            target: x86_64-apple-darwin
+
+          - os_name: macOS-aarch64
+            os: macos-latest
+            target: aarch64-apple-darwin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.get-tag.outputs.tag_name }}
+
+      # Install cross-compilation dependencies for ARM64 targets
+      - name: Install cross-compilation dependencies
+        if: contains(matrix.platform.target, 'aarch64') && matrix.platform.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      # Install musl tools for musl targets
+      - name: Install musl tools
+        if: contains(matrix.platform.target, 'musl') && matrix.platform.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Build executable
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          target: ${{ matrix.platform.target }}
+          # turbo-cdn 0.6+ uses rustls-tls by default, no OpenSSL needed
+          args: "--release --bin vx"
+          strip: true
+
+      - name: Set archive name
+        id: archive
+        shell: bash
+        run: |
+          VERSION="${{ needs.get-tag.outputs.version }}"
+          # Use format with version: vx-{version}-{target}.{ext}
+          # Also create a symlink/copy without version for backward compatibility
+          if [[ "${{ matrix.platform.os }}" == "windows-latest" ]]; then
+            echo "name=vx-${VERSION}-${{ matrix.platform.target }}.zip" >> $GITHUB_OUTPUT
+            echo "name_compat=vx-${{ matrix.platform.target }}.zip" >> $GITHUB_OUTPUT
+            echo "ext=zip" >> $GITHUB_OUTPUT
+          else
+            echo "name=vx-${VERSION}-${{ matrix.platform.target }}.tar.gz" >> $GITHUB_OUTPUT
+            echo "name_compat=vx-${{ matrix.platform.target }}.tar.gz" >> $GITHUB_OUTPUT
+            echo "ext=tar.gz" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create archive (Unix)
+        if: matrix.platform.os != 'windows-latest'
+        run: |
+          cd target/${{ matrix.platform.target }}/release
+          # Create versioned archive
+          tar -czvf ../../../${{ steps.archive.outputs.name }} vx
+          cd ../../..
+          sha256sum ${{ steps.archive.outputs.name }} > ${{ steps.archive.outputs.name }}.sha256
+          # Create backward-compatible archive (copy without version)
+          cp ${{ steps.archive.outputs.name }} ${{ steps.archive.outputs.name_compat }}
+          sha256sum ${{ steps.archive.outputs.name_compat }} > ${{ steps.archive.outputs.name_compat }}.sha256
+
+      - name: Create archive (Windows)
+        if: matrix.platform.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cd target/${{ matrix.platform.target }}/release
+          # Create versioned archive
+          Compress-Archive -Path vx.exe -DestinationPath ../../../${{ steps.archive.outputs.name }}
+          cd ../../..
+          $hash = (Get-FileHash ${{ steps.archive.outputs.name }} -Algorithm SHA256).Hash.ToLower()
+          "$hash  ${{ steps.archive.outputs.name }}" | Out-File -Encoding ASCII ${{ steps.archive.outputs.name }}.sha256
+          # Create backward-compatible archive (copy without version)
+          Copy-Item ${{ steps.archive.outputs.name }} ${{ steps.archive.outputs.name_compat }}
+          $hashCompat = (Get-FileHash ${{ steps.archive.outputs.name_compat }} -Algorithm SHA256).Hash.ToLower()
+          "$hashCompat  ${{ steps.archive.outputs.name_compat }}" | Out-File -Encoding ASCII ${{ steps.archive.outputs.name_compat }}.sha256
+
+      - name: Upload artifacts to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.get-tag.outputs.tag_name }}
+          files: |
+            ${{ steps.archive.outputs.name }}
+            ${{ steps.archive.outputs.name }}.sha256
+            ${{ steps.archive.outputs.name_compat }}
+            ${{ steps.archive.outputs.name_compat }}.sha256
+          fail_on_unmatched_files: true
+
+  # Finalize GitHub Release - append installation instructions without overwriting changelog
+  finalize-release:
+    name: Finalize GitHub Release
+    runs-on: ubuntu-latest
+    needs: [get-tag, build-binaries]
+    if: needs.build-binaries.result == 'success'
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.get-tag.outputs.tag_name }}
+          fetch-depth: 0
+
+      - name: Append installation instructions to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.get-tag.outputs.tag_name }}
+          append_body: true
+          body: |
+
+            ---
+
+            ### Installation
+
+            #### Quick Install (Recommended)
+
+            **Linux/macOS:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+            ```
+
+            **Windows (PowerShell):**
+            ```powershell
+            irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+            ```
+
+            #### Static Binary (musl, no runtime dependencies)
+
+            For environments without glibc (Alpine, minimal containers):
+            ```bash
+            PREFER_STATIC=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+            ```
+
+            #### Package Managers
+
+            **Homebrew (macOS/Linux):**
+            ```bash
+            brew install loonghao/vx/vx
+            ```
+
+            **Debian/Ubuntu:**
+            ```bash
+            curl -fsSLO https://github.com/loonghao/vx/releases/download/${{ needs.get-tag.outputs.tag_name }}/vx_${{ needs.get-tag.outputs.version }}_amd64.deb
+            sudo dpkg -i vx_*.deb
+            ```
+
+            **Fedora/RHEL:**
+            ```bash
+            curl -fsSLO https://github.com/loonghao/vx/releases/download/${{ needs.get-tag.outputs.tag_name }}/vx-${{ needs.get-tag.outputs.version }}-1.x86_64.rpm
+            sudo rpm -i vx-*.rpm
+            ```
+
+            **Arch Linux (AUR):**
+            ```bash
+            yay -S vx-bin
+            ```
+
+            #### Manual Download
+
+            Download the appropriate binary for your platform from the assets below.
+
+
+  # Publish to crates.io
+  publish-crates:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: [get-tag, finalize-release]
+    if: |
+      needs.finalize-release.result == 'success' &&
+      (github.event_name != 'workflow_dispatch' || inputs.skip-crates-publish != true)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.get-tag.outputs.tag_name }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "CARGO_REGISTRY_TOKEN not set, skipping crates.io publishing"
+            exit 0
+          fi
+          # Publish packages in dependency order
+          # Note: Some packages may already be published, so we use --no-fail-fast
+          cargo publish -p vx-paths --allow-dirty || true
+          cargo publish -p vx-config --allow-dirty || true
+          cargo publish -p vx-version --allow-dirty || true
+          cargo publish -p vx-plugin --allow-dirty || true
+          cargo publish -p vx-installer --allow-dirty || true
+          cargo publish -p vx-dependency --allow-dirty || true
+          cargo publish -p vx-tool-standard --allow-dirty || true
+          cargo publish -p vx-sdk --allow-dirty || true
+          cargo publish -p vx-core --allow-dirty || true
+          cargo publish -p vx --allow-dirty || true
+
+name: Security Audit
+
+# NOTE: PR security audit is handled by ci.yml to avoid duplication
+# This workflow only runs on schedule and manual dispatch
+
+on:
+  schedule:
+    - cron: '0 2 * * 1' # Weekly on Monday at 2:00 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cargo-audit:
+    name: Cargo Audit (via vx)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup vx
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache vx tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.vx
+          key: ${{ runner.os }}-vx-audit-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-vx-audit-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Run cargo audit (via vx)
+        run: |
+          vx cargo generate-lockfile || true
+          vx cargo audit --deny warnings || true
+
+name: Test Setup Action
+
+# Test the setup-vx action to ensure it works correctly
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'action.yml'
+      - '.github/workflows/test-action.yml'
+      - 'install.sh'
+      - 'install.ps1'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'action.yml'
+      - '.github/workflows/test-action.yml'
+      - 'install.sh'
+      - 'install.ps1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-action:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Test 1: Basic installation with latest version
+      - name: Setup vx (latest)
+        uses: ./
+        id: setup-latest
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Disable cache for testing to ensure fresh installation
+          cache: 'false'
+
+      - name: Verify vx installation
+        shell: bash
+        run: |
+          echo "Installed version: ${{ steps.setup-latest.outputs.version }}"
+          vx --version
+          vx --help
+          vx list
+
+      # Test 2: Use vx to run tools
+      - name: Test Node.js via vx
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          vx node --version
+          vx node -e "console.log('Hello from Node.js via vx!')"
+
+      - name: Test UV via vx
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          vx uv self version
+          vx uvx ruff --version
+
+      - name: Test Go via vx
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          vx go version
+
+      # Test 3: Show vx stats
+      - name: Show vx stats
+        shell: bash
+        run: |
+          vx stats
+          vx list --status
+
+  test-action-with-tools:
+    name: Test with pre-installed tools (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Test: Installation with pre-installed tools
+      - name: Setup vx with tools
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          tools: 'node uv'
+          cache: 'true'
+
+      - name: Verify pre-installed tools
+        shell: bash
+        run: |
+          echo "Verifying pre-installed tools..."
+          vx node --version
+          vx uv self version
+          vx list --status
+
+  test-action-specific-version:
+    name: Test specific version
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Test: Installation with specific version (if available)
+      - name: Setup vx (specific version)
+        uses: ./
+        id: setup-specific
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Use latest for now, can be changed to specific version when needed
+          version: 'latest'
+
+      - name: Verify installation
+        run: |
+          echo "Installed version: ${{ steps.setup-specific.outputs.version }}"
+          vx --version
+
+# GitHub Actions workflow for testing all providers with real network downloads
+# Uses `vx test --ci` for comprehensive end-to-end testing
+# Split into multiple parallel jobs to avoid disk space issues
+
+name: Test All Providers
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'crates/vx-providers/**'
+      - 'crates/vx-runtime/**'
+      - 'crates/vx-installer/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'crates/vx-providers/**'
+      - 'crates/vx-runtime/**'
+      - 'crates/vx-installer/**'
+  workflow_dispatch:
+    inputs:
+      runtimes:
+        description: 'Specific runtimes to test (comma-separated, empty for all)'
+        required: false
+        default: ''
+      skip:
+        description: 'Runtimes to skip (comma-separated)'
+        required: false
+        default: ''
+
+# Provider groups for parallel testing
+# Each group should be small enough to fit in GitHub Actions disk space (~14GB)
+env:
+  # Core runtimes - essential and fast
+  GROUP_CORE: "node,go,uv,just,jq"
+  # JavaScript ecosystem
+  GROUP_JS: "npm,npx,yarn,pnpm,bun,vite,release-please"
+  # Python ecosystem
+  GROUP_PYTHON: "uvx,pre-commit,rez"
+  # Rust ecosystem
+  GROUP_RUST: "rust,cargo,rustc"
+  # DevOps tools
+  GROUP_DEVOPS: "terraform,helm,kubectl"
+  # Build tools
+  GROUP_BUILD: "ninja,cmake,meson,task,make"
+  # Cloud & containers
+  GROUP_CLOUD: "docker,gcloud,aws"
+  # Large tools (test separately)
+  GROUP_LARGE: "ollama,ffmpeg,zig"
+  # Misc tools
+  GROUP_MISC: "protoc,spack,git,code"
+
+jobs:
+  # Build VX binary first (shared across all test jobs)
+  build:
+    name: Build VX
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Build VX
+        run: cargo build --release
+      
+      - name: Upload VX binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: |
+            target/release/vx
+            target/release/vx.exe
+          retention-days: 1
+
+  # Test core runtimes (essential, fast)
+  test-core:
+    name: Core (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test Core Runtimes
+        run: |
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_CORE }} --temp-root --keep-going --verbose
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Test JavaScript ecosystem
+  test-js:
+    name: JavaScript (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test JS Runtimes
+        run: |
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_JS }} --temp-root --keep-going --json > test-report.json || true
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_JS }} --temp-root --keep-going --detailed
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: report-js-${{ matrix.os }}
+          path: test-report.json
+          retention-days: 7
+
+  # Test Python ecosystem
+  test-python:
+    name: Python (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test Python Runtimes
+        run: |
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_PYTHON }} --temp-root --keep-going --json > test-report.json || true
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_PYTHON }} --temp-root --keep-going --detailed
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: report-python-${{ matrix.os }}
+          path: test-report.json
+          retention-days: 7
+
+  # Test Rust ecosystem
+  test-rust:
+    name: Rust (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test Rust Runtimes
+        run: |
+          # Skip rustup as it uses installer script
+          RUNTIMES="${{ env.GROUP_RUST }}"
+          SKIP="rustup"
+          ./bin/vx test --ci --ci-runtimes $RUNTIMES --ci-skip $SKIP --temp-root --keep-going --json > test-report.json || true
+          ./bin/vx test --ci --ci-runtimes $RUNTIMES --ci-skip $SKIP --temp-root --keep-going --detailed
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: report-rust-${{ matrix.os }}
+          path: test-report.json
+          retention-days: 7
+
+  # Test DevOps tools
+  test-devops:
+    name: DevOps (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test DevOps Runtimes
+        run: |
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_DEVOPS }} --temp-root --keep-going --json > test-report.json || true
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_DEVOPS }} --temp-root --keep-going --detailed
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: report-devops-${{ matrix.os }}
+          path: test-report.json
+          retention-days: 7
+
+  # Test Build tools
+  test-build:
+    name: Build Tools (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test Build Runtimes
+        run: |
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_BUILD }} --temp-root --keep-going --json > test-report.json || true
+          ./bin/vx test --ci --ci-runtimes ${{ env.GROUP_BUILD }} --temp-root --keep-going --detailed
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: report-build-${{ matrix.os }}
+          path: test-report.json
+          retention-days: 7
+
+  # Test Misc tools
+  test-misc:
+    name: Misc (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test Misc Runtimes
+        run: |
+          RUNTIMES="${{ env.GROUP_MISC }}"
+          # Platform-specific skips
+          SKIP=""
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            SKIP="spack"
+          fi
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            # git only provides Windows binaries
+            SKIP="git"
+          fi
+          
+          if [ -n "$SKIP" ]; then
+            ./bin/vx test --ci --ci-runtimes $RUNTIMES --ci-skip $SKIP --temp-root --keep-going --json > test-report.json || true
+            ./bin/vx test --ci --ci-runtimes $RUNTIMES --ci-skip $SKIP --temp-root --keep-going --detailed
+          else
+            ./bin/vx test --ci --ci-runtimes $RUNTIMES --temp-root --keep-going --json > test-report.json || true
+            ./bin/vx test --ci --ci-runtimes $RUNTIMES --temp-root --keep-going --detailed
+          fi
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: report-misc-${{ matrix.os }}
+          path: test-report.json
+          retention-days: 7
+
+  # Test specific runtimes if provided via workflow_dispatch
+  test-specific:
+    name: Specific Runtimes (${{ matrix.os }})
+    if: inputs.runtimes != ''
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download VX binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-${{ matrix.os }}
+          path: ./bin
+      
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+      
+      - name: Test Specific Runtimes
+        run: |
+          SKIP="${{ inputs.skip }}"
+          if [ -n "$SKIP" ]; then
+            ./bin/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --ci-skip $SKIP --temp-root --keep-going --json > test-report.json || true
+            ./bin/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --ci-skip $SKIP --temp-root --keep-going --detailed
+          else
+            ./bin/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --temp-root --keep-going --json > test-report.json || true
+            ./bin/vx test --ci --ci-runtimes ${{ inputs.runtimes }} --temp-root --keep-going --detailed
+          fi
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: report-specific-${{ matrix.os }}
+          path: test-report.json
+          retention-days: 7
+
+  # Quick smoke test for PRs (only test a subset)
+  quick-test:
+    name: Quick Provider Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Build VX
+        run: cargo build --release
+      
+      - name: Quick Provider Test
+        run: |
+          # Test essential runtimes only for fast PR feedback
+          ./target/release/vx test --ci --ci-runtimes node,go,uv,just --temp-root --verbose
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Summary job to report overall status
+  summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [test-core, test-js, test-python, test-rust, test-devops, test-build, test-misc]
+    if: always()
+    
+    steps:
+      - name: Download all reports
+        uses: actions/download-artifact@v6
+        with:
+          pattern: report-*
+          merge-multiple: false
+      
+      - name: Generate Summary
+        run: |
+          echo "## Provider Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Find all test reports
+          for dir in report-*/; do
+            if [ -d "$dir" ]; then
+              GROUP=$(echo "$dir" | sed 's/report-//' | sed 's/-ubuntu-latest//' | sed 's/-macos-latest//' | sed 's/-windows-latest//' | sed 's/\///')
+              OS=$(echo "$dir" | grep -oE '(ubuntu|macos|windows)-latest' || echo "unknown")
+              
+              if [ -f "${dir}test-report.json" ]; then
+                TOTAL=$(cat "${dir}test-report.json" | jq '.total // 0')
+                PASSED=$(cat "${dir}test-report.json" | jq '.passed // 0')
+                FAILED=$(cat "${dir}test-report.json" | jq '.failed // 0')
+                SKIPPED=$(cat "${dir}test-report.json" | jq '.skipped // 0')
+                
+                echo "### $GROUP ($OS)" >> $GITHUB_STEP_SUMMARY
+                echo "- âœ?Passed: $PASSED" >> $GITHUB_STEP_SUMMARY
+                echo "- â?Failed: $FAILED" >> $GITHUB_STEP_SUMMARY
+                echo "- â­ï¸ Skipped: $SKIPPED" >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done
+      
+      - name: Check for failures
+        run: |
+          TOTAL_FAILED=0
+          for dir in report-*/; do
+            if [ -d "$dir" ] && [ -f "${dir}test-report.json" ]; then
+              FAILED=$(cat "${dir}test-report.json" | jq '.failed // 0')
+              TOTAL_FAILED=$((TOTAL_FAILED + FAILED))
+            fi
+          done
+          
+          if [ "$TOTAL_FAILED" -gt 0 ]; then
+            echo "::error::$TOTAL_FAILED provider(s) failed across all groups"
+            exit 1
+          fi
+
