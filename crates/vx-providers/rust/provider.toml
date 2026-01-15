@@ -123,7 +123,7 @@ install_verification = [
 
 [[runtimes.constraints]]
 when = "*"
-requires = ["rustup"]
+requires = [{ runtime = "rustup", version = "*" }]
 
 # Cargo - Rust package manager (provided by rustup)
 [[runtimes]]
@@ -147,4 +147,4 @@ install_verification = [
 
 [[runtimes.constraints]]
 when = "*"
-requires = ["rustup"]
+requires = [{ runtime = "rustup", version = "*" }]

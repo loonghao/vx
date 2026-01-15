@@ -62,17 +62,9 @@ priority = 70
 platforms = ["linux"]
 
 # Layout configuration for direct download (fallback)
+# Note: AWS CLI uses MSI on Windows and zip on Linux/macOS
 [runtimes.layout]
-download_type = "msi"
-
-[runtimes.layout.msi."windows-x86_64"]
-url_template = "https://awscli.amazonaws.com/AWSCLIV2-{version}.msi"
-# AWS CLI MSI extracts to Amazon/AWSCLIV2/ directory structure
-executable_paths = [
-    "Amazon/AWSCLIV2/aws.exe",
-    "aws.exe",
-    "**/aws.exe"
-]
+download_type = "installer"
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe", ".cmd"]
