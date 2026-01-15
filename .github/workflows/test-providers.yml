@@ -271,10 +271,10 @@ jobs:
       - name: Test providers
         run: |
           echo "Testing providers: ${{ matrix.chunk }}"
-          ./bin/vx.exe test --ci --ci-runtimes "${{ matrix.chunk }}" --temp-root --keep-going --verbose --json > test-report.json
-          type test-report.json
-          ./bin/vx.exe test --ci --ci-runtimes "${{ matrix.chunk }}" --temp-root --keep-going --detailed
-        shell: cmd
+          .\bin\vx.exe test --ci --ci-runtimes "${{ matrix.chunk }}" --temp-root --keep-going --verbose --json > test-report.json
+          if (Test-Path test-report.json) { Get-Content test-report.json }
+          .\bin\vx.exe test --ci --ci-runtimes "${{ matrix.chunk }}" --temp-root --keep-going --detailed
+        shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       

@@ -40,7 +40,13 @@ PROVIDERS_DIR="${VX_PROVIDERS_DIR:-crates/vx-providers}"
 # - xcodebuild, xcrun, xcode-select: macOS only, requires full Xcode
 # - swift, swiftc: requires Xcode toolchain
 # - make: no download URL available (system tool only) - TODO: add system_install
-SKIP_ALWAYS="msbuild,msvc,openssl,systemctl,journalctl,systemd-analyze,loginctl,choco,xcodebuild,xcrun,xcode-select,swift,swiftc,make"
+# - awscli, azcli: use MSI installer format, can't be extracted in CI
+# - curl: only has manifest, no implementation
+# - nasm: not registered in provider registry
+# - rust, rustc, cargo, rustup: require system install (winget/brew), not suitable for CI
+# - ollama: download URL issues with proxy
+# - python: requires system install, network timeout issues
+SKIP_ALWAYS="msbuild,msvc,openssl,systemctl,journalctl,systemd-analyze,loginctl,choco,xcodebuild,xcrun,xcode-select,swift,swiftc,make,awscli,aws,azcli,az,curl,nasm,rust,rustc,cargo,rustup,ollama,python"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
