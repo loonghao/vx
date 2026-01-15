@@ -639,12 +639,12 @@ async fn install_with_uv(
     }
 
     cmd.stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
         .kill_on_drop(true);
 
-    let status = match tokio::time::timeout(pip_timeout, cmd.status()).await {
-        Ok(Ok(status)) => status,
+    let output = match tokio::time::timeout(pip_timeout, cmd.output()).await {
+        Ok(Ok(output)) => output,
         Ok(Err(e)) => return Err(anyhow::anyhow!("uv venv creation failed: {}", e)),
         Err(_) => {
             return Err(anyhow::anyhow!(
@@ -654,8 +654,12 @@ async fn install_with_uv(
         }
     };
 
-    if !status.success() {
-        return Err(anyhow::anyhow!("uv venv creation failed"));
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!(
+            "uv venv creation failed: {}",
+            stderr.trim()
+        ));
     }
 
     // Install package with uv pip
@@ -670,12 +674,12 @@ async fn install_with_uv(
         &install_spec,
     ])
     .stdin(std::process::Stdio::null())
-    .stdout(std::process::Stdio::null())
-    .stderr(std::process::Stdio::null())
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::piped())
     .kill_on_drop(true);
 
-    let status = match tokio::time::timeout(pip_timeout, cmd.status()).await {
-        Ok(Ok(status)) => status,
+    let output = match tokio::time::timeout(pip_timeout, cmd.output()).await {
+        Ok(Ok(output)) => output,
         Ok(Err(e)) => return Err(anyhow::anyhow!("uv pip install failed: {}", e)),
         Err(_) => {
             return Err(anyhow::anyhow!(
@@ -687,11 +691,13 @@ async fn install_with_uv(
         }
     };
 
-    if !status.success() {
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(anyhow::anyhow!(
-            "Failed to install pip package {}=={} with uv",
+            "Failed to install pip package {}=={} with uv: {}",
             package_name,
-            version
+            version,
+            stderr.trim()
         ));
     }
 
@@ -738,12 +744,12 @@ async fn install_with_system_python(
     let mut cmd = TokioCommand::new(&python_exe);
     cmd.args(["-m", "venv", venv_dir.to_str().unwrap()])
         .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
         .kill_on_drop(true);
 
-    let status = match tokio::time::timeout(pip_timeout, cmd.status()).await {
-        Ok(Ok(status)) => status,
+    let output = match tokio::time::timeout(pip_timeout, cmd.output()).await {
+        Ok(Ok(output)) => output,
         Ok(Err(e)) => {
             return Err(anyhow::anyhow!(
                 "Failed to create venv at {}: {}",
@@ -759,10 +765,12 @@ async fn install_with_system_python(
         }
     };
 
-    if !status.success() {
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(anyhow::anyhow!(
-            "Failed to create venv at {}",
-            venv_dir.display()
+            "Failed to create venv at {}: {}",
+            venv_dir.display(),
+            stderr.trim()
         ));
     }
 
@@ -778,12 +786,12 @@ async fn install_with_system_python(
     let mut cmd = TokioCommand::new(&venv_python);
     cmd.args(["-m", "pip", "install", "--quiet", &install_spec])
         .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
         .kill_on_drop(true);
 
-    let status = match tokio::time::timeout(pip_timeout, cmd.status()).await {
-        Ok(Ok(status)) => status,
+    let output = match tokio::time::timeout(pip_timeout, cmd.output()).await {
+        Ok(Ok(output)) => output,
         Ok(Err(e)) => {
             return Err(anyhow::anyhow!(
                 "Failed to install pip package {}=={}: {}",
@@ -802,11 +810,13 @@ async fn install_with_system_python(
         }
     };
 
-    if !status.success() {
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(anyhow::anyhow!(
-            "Failed to install pip package {}=={}",
+            "Failed to install pip package {}=={}: {}",
             package_name,
-            version
+            version,
+            stderr.trim()
         ));
     }
 

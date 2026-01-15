@@ -163,6 +163,11 @@ impl Runtime for BunxRuntime {
         meta
     }
 
+    /// Bunx is bundled with Bun, so store under "bun" directory
+    fn store_name(&self) -> &str {
+        "bun"
+    }
+
     /// Bunx uses the bun executable
     fn executable_name(&self) -> &str {
         "bun"

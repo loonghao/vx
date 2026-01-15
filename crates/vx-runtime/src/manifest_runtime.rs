@@ -54,6 +54,8 @@ pub struct ManifestDrivenRuntime {
     pub executable: String,
     /// Aliases
     pub aliases: Vec<String>,
+    /// If bundled with another runtime (affects store_name)
+    pub bundled_with: Option<String>,
     /// Provider name
     pub provider_name: String,
     /// Provider source
@@ -246,6 +248,7 @@ impl ManifestDrivenRuntime {
             name,
             description: String::new(),
             aliases: Vec::new(),
+            bundled_with: None,
             provider_name: provider_name.into(),
             source,
             install_strategies: Vec::new(),
@@ -258,6 +261,12 @@ impl ManifestDrivenRuntime {
     /// Set description
     pub fn with_description(mut self, description: impl Into<String>) -> Self {
         self.description = description.into();
+        self
+    }
+
+    /// Set bundled_with (parent runtime for bundled tools)
+    pub fn with_bundled_with(mut self, bundled_with: impl Into<String>) -> Self {
+        self.bundled_with = Some(bundled_with.into());
         self
     }
 
@@ -294,7 +303,7 @@ impl ManifestDrivenRuntime {
             .collect();
 
         // Sort by priority (descending)
-        candidates.sort_by(|a, b| b.priority().cmp(&a.priority()));
+        candidates.sort_by_key(|b| std::cmp::Reverse(b.priority()));
 
         // Return the first available strategy
         for strategy in candidates {
@@ -398,7 +407,18 @@ impl Runtime for ManifestDrivenRuntime {
         meta.insert("provider".to_string(), self.provider_name.clone());
         meta.insert("source".to_string(), self.source.to_string());
         meta.insert("manifest_driven".to_string(), "true".to_string());
+        if let Some(ref bundled) = self.bundled_with {
+            meta.insert("bundled_with".to_string(), bundled.clone());
+        }
         meta
+    }
+
+    /// Get the store directory name for this runtime
+    ///
+    /// For bundled runtimes, returns the parent runtime's name.
+    /// For standalone runtimes, returns self.name.
+    fn store_name(&self) -> &str {
+        self.bundled_with.as_deref().unwrap_or(&self.name)
     }
 
     /// For manifest-driven runtimes, we return "system" as the only version

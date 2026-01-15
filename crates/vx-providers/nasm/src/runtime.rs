@@ -86,14 +86,11 @@ impl Runtime for NasmRuntime {
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
         // Fetch the release page and parse versions
         let url = "https://www.nasm.us/pub/nasm/releasebuilds/";
-        match ctx.http.get(url).await {
-            Ok(html) => {
-                let versions = Self::parse_versions_from_html(&html);
-                if !versions.is_empty() {
-                    return Ok(versions.into_iter().map(VersionInfo::new).collect());
-                }
+        if let Ok(html) = ctx.http.get(url).await {
+            let versions = Self::parse_versions_from_html(&html);
+            if !versions.is_empty() {
+                return Ok(versions.into_iter().map(VersionInfo::new).collect());
             }
-            Err(_) => {}
         }
 
         // Fallback: provide known stable versions

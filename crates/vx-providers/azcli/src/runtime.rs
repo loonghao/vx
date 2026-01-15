@@ -142,7 +142,7 @@ impl Runtime for AzCliRuntime {
             let arm64_filename = format!("azure-cli-{}-arm64.msi", version);
 
             // Check multiple possible locations
-            let possible_paths = vec![
+            let possible_paths = [
                 install_path.join(&msi_filename),
                 install_path.join(&arm64_filename),
                 install_path.join("bin").join(&msi_filename),

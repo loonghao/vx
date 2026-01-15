@@ -181,6 +181,11 @@ impl Runtime for GsutilRuntime {
         meta
     }
 
+    /// gsutil is bundled with gcloud, so store under "gcloud" directory
+    fn store_name(&self) -> &str {
+        "gcloud"
+    }
+
     fn supported_platforms(&self) -> Vec<Platform> {
         Platform::all_common()
     }
@@ -254,6 +259,11 @@ impl Runtime for BqRuntime {
         );
         meta.insert("bundled_with".to_string(), "gcloud".to_string());
         meta
+    }
+
+    /// bq is bundled with gcloud, so store under "gcloud" directory
+    fn store_name(&self) -> &str {
+        "gcloud"
     }
 
     fn supported_platforms(&self) -> Vec<Platform> {
