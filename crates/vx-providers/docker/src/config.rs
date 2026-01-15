@@ -19,9 +19,8 @@ impl DockerUrlBuilder {
     /// Generate download URL for Docker CLI version
     /// Docker CLI releases are available from download.docker.com
     ///
-    /// Note: Docker Desktop requires separate installation, this provides
-    /// the standalone Docker CLI binary for Linux and the Docker CLI
-    /// extracted from Docker Desktop for Windows/macOS.
+    /// Note: Docker Desktop requires separate installation on Windows.
+    /// This provides the standalone Docker CLI binary for Linux and macOS only.
     pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
         use vx_runtime::{Arch, Os};
 
@@ -35,8 +34,7 @@ impl DockerUrlBuilder {
                 "https://download.docker.com/linux/static/stable/aarch64/docker-{}.tgz",
                 version
             )),
-            // macOS - Docker CLI from Homebrew bottles or manual extraction
-            // For simplicity, we use the Linux approach with Rosetta on ARM
+            // macOS - Docker CLI from download.docker.com
             (Os::MacOS, Arch::X86_64) => Some(format!(
                 "https://download.docker.com/mac/static/stable/x86_64/docker-{}.tgz",
                 version
@@ -45,15 +43,9 @@ impl DockerUrlBuilder {
                 "https://download.docker.com/mac/static/stable/aarch64/docker-{}.tgz",
                 version
             )),
-            // Windows - Docker CLI from docker/cli releases
-            (Os::Windows, Arch::X86_64) => Some(format!(
-                "https://github.com/docker/cli/releases/download/v{}/docker-{}-windows-amd64.zip",
-                version, version
-            )),
-            (Os::Windows, Arch::Aarch64) => Some(format!(
-                "https://github.com/docker/cli/releases/download/v{}/docker-{}-windows-arm64.zip",
-                version, version
-            )),
+            // Windows - Docker CLI is not available as standalone binary
+            // Requires Docker Desktop installation
+            (Os::Windows, _) => None,
             _ => None,
         }
     }
