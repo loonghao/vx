@@ -638,7 +638,7 @@ package = "fd"
 priority = 90
 "#;
 
-        let provider_toml = create_test_provider(temp_dir.path(), "mytools", content);
+        let _provider_toml = create_test_provider(temp_dir.path(), "mytools", content);
 
         let mut loader = ProviderLoader::new();
         loader.config.search_paths = vec![temp_dir.path().to_path_buf()];
