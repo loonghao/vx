@@ -634,7 +634,7 @@ async fn handle_test_local_provider(
     path: &std::path::Path,
     opts: &Args,
 ) -> Result<()> {
-    if !opts.quiet {
+    if !opts.quiet && !opts.json {
         println!("🧪 Testing local provider: {}", path.display());
     }
 
@@ -652,7 +652,7 @@ async fn handle_test_local_provider(
     let manifest: vx_manifest::ProviderManifest =
         toml::from_str(&content).context("Failed to parse provider.toml")?;
 
-    if !opts.quiet {
+    if !opts.quiet && !opts.json {
         println!(
             "✓ Provider: {} ({})",
             manifest.provider.name,
@@ -666,7 +666,7 @@ async fn handle_test_local_provider(
     for runtime_def in &manifest.runtimes {
         let runtime_name = &runtime_def.name;
 
-        if opts.verbose && !opts.quiet {
+        if opts.verbose && !opts.quiet && !opts.json {
             println!("\n--- Testing Runtime: {} ---", runtime_name);
         }
 
