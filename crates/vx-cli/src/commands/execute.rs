@@ -56,7 +56,7 @@ pub async fn handle_with_version(
         cache_mode,
     )
     .await?;
-    
+
     // Exit with the appropriate code
     // Note: exit_code 130 indicates Ctrl+C termination (128 + SIGINT)
     // We exit silently in this case to avoid confusing error messages

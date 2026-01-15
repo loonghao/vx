@@ -561,7 +561,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_resolver_creation() {
-        let resolver = SystemDependencyResolver::new();
+        let _resolver = SystemDependencyResolver::new();
         // Just ensure it creates without panicking
         assert!(true);
     }

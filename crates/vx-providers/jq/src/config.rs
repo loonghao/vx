@@ -20,12 +20,7 @@ impl JqUrlBuilder {
     /// Build the download URL for a specific version and platform
     pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
         let asset_name = Self::get_asset_name(platform)?;
-        Some(format!(
-            "{}/jq-{}/{}",
-            Self::BASE_URL,
-            version,
-            asset_name
-        ))
+        Some(format!("{}/jq-{}/{}", Self::BASE_URL, version, asset_name))
     }
 
     /// Get the asset name for the platform
@@ -72,7 +67,10 @@ mod tests {
         let url = JqUrlBuilder::download_url("1.7.1", &platform);
         assert_eq!(
             url,
-            Some("https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64".to_string())
+            Some(
+                "https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64"
+                    .to_string()
+            )
         );
     }
 
@@ -85,7 +83,10 @@ mod tests {
         let url = JqUrlBuilder::download_url("1.7.1", &platform);
         assert_eq!(
             url,
-            Some("https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-windows-amd64.exe".to_string())
+            Some(
+                "https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-windows-amd64.exe"
+                    .to_string()
+            )
         );
     }
 
@@ -98,7 +99,10 @@ mod tests {
         let url = JqUrlBuilder::download_url("1.7.1", &platform);
         assert_eq!(
             url,
-            Some("https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-macos-arm64".to_string())
+            Some(
+                "https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-macos-arm64"
+                    .to_string()
+            )
         );
     }
 

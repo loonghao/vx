@@ -94,7 +94,7 @@ impl Runtime for VscodeRuntime {
             }),
             macos: Some(PlatformLayout {
                 executable_paths: vec![
-                    "Visual Studio Code.app/Contents/Resources/app/bin/code".to_string(),
+                    "Visual Studio Code.app/Contents/Resources/app/bin/code".to_string()
                 ],
                 strip_prefix: None, // macOS archive extracts directly
                 permissions: Some("755".to_string()),
@@ -202,9 +202,8 @@ impl Runtime for VscodeRuntime {
                 candidates.push(format!("VSCode-{}/Code.exe", platform_id));
             }
             vx_runtime::Os::MacOS => {
-                candidates.push(
-                    "Visual Studio Code.app/Contents/Resources/app/bin/code".to_string(),
-                );
+                candidates
+                    .push("Visual Studio Code.app/Contents/Resources/app/bin/code".to_string());
                 candidates.push(format!(
                     "VSCode-{}/Visual Studio Code.app/Contents/Resources/app/bin/code",
                     platform_id
@@ -224,7 +223,12 @@ impl Runtime for VscodeRuntime {
         }
 
         // Last resort: shallow search for a matching executable path.
-        fn search_executable(root: &Path, file_name: &str, depth: usize, max_depth: usize) -> Option<std::path::PathBuf> {
+        fn search_executable(
+            root: &Path,
+            file_name: &str,
+            depth: usize,
+            max_depth: usize,
+        ) -> Option<std::path::PathBuf> {
             if depth > max_depth {
                 return None;
             }
@@ -246,9 +250,18 @@ impl Runtime for VscodeRuntime {
         }
 
         let (needle, hint) = match platform.os {
-            vx_runtime::Os::Windows => ("code.cmd", "On Windows, use the VS Code archive build (win32-*-archive)."),
-            vx_runtime::Os::MacOS => ("code", "On macOS, the archive should contain 'Visual Studio Code.app'."),
-            _ => ("code", "On Linux, the archive should contain a 'bin/code' launcher."),
+            vx_runtime::Os::Windows => (
+                "code.cmd",
+                "On Windows, use the VS Code archive build (win32-*-archive).",
+            ),
+            vx_runtime::Os::MacOS => (
+                "code",
+                "On macOS, the archive should contain 'Visual Studio Code.app'.",
+            ),
+            _ => (
+                "code",
+                "On Linux, the archive should contain a 'bin/code' launcher.",
+            ),
         };
 
         if let Some(found) = search_executable(install_path, needle, 0, 4) {
@@ -263,7 +276,8 @@ impl Runtime for VscodeRuntime {
             )],
             vec![
                 "Try reinstalling with: vx install code".to_string(),
-                "If this keeps failing, install VS Code via your system package manager/installer.".to_string(),
+                "If this keeps failing, install VS Code via your system package manager/installer."
+                    .to_string(),
             ],
         )
     }

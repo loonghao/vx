@@ -1,8 +1,8 @@
 //! Context factory functions
 
 use super::{RealFileSystem, RealHttpClient, RealInstaller, RealPathProvider};
-use crate::traits::PathProvider;
 use crate::context::RuntimeContext;
+use crate::traits::PathProvider;
 use crate::version_cache::VersionCache;
 use anyhow::Result;
 use std::path::Path;

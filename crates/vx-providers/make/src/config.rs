@@ -59,7 +59,11 @@ mod tests {
 
         for platform in platforms {
             let paths = MakeConfig::system_paths(&platform);
-            assert!(!paths.is_empty(), "Should have system paths for {:?}", platform.os);
+            assert!(
+                !paths.is_empty(),
+                "Should have system paths for {:?}",
+                platform.os
+            );
         }
     }
 

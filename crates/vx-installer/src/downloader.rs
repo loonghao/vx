@@ -325,9 +325,11 @@ impl Downloader {
     /// Download a file to a temporary location and return the path
     pub async fn download_temp(&self, url: &str, progress: &ProgressContext) -> Result<PathBuf> {
         // First, try to get the actual filename from the server
-        let filename = self.get_filename_from_server(url).await
+        let filename = self
+            .get_filename_from_server(url)
+            .await
             .unwrap_or_else(|| self.extract_filename_from_url(url));
-        
+
         let temp_dir = tempfile::tempdir()?;
         let temp_path = temp_dir.path().join(filename);
 
@@ -339,16 +341,16 @@ impl Downloader {
 
         Ok(persistent_path)
     }
-    
+
     /// Get filename from server response headers
-    /// 
+    ///
     /// This method sends a HEAD request to get the actual filename from:
     /// 1. Content-Disposition header
     /// 2. Final redirected URL
     async fn get_filename_from_server(&self, url: &str) -> Option<String> {
         // Send HEAD request following redirects
         let response = self.client.head(url).send().await.ok()?;
-        
+
         // Try Content-Disposition header first
         if let Some(content_disposition) = response.headers().get("content-disposition") {
             if let Ok(value) = content_disposition.to_str() {
@@ -359,7 +361,7 @@ impl Downloader {
                 }
             }
         }
-        
+
         // Try to get filename from final URL (after redirects)
         let final_url = response.url().as_str();
         if final_url != url {
@@ -370,19 +372,19 @@ impl Downloader {
                 return Some(filename);
             }
         }
-        
+
         None
     }
-    
+
     /// Parse filename from Content-Disposition header value
     fn parse_content_disposition(value: &str) -> Option<String> {
         // Handle: attachment; filename=xxx.zip
         // Handle: attachment; filename="xxx.zip"
         // Handle: attachment; filename*=UTF-8''xxx.zip
-        
+
         for part in value.split(';') {
             let part = part.trim();
-            
+
             // Standard filename parameter
             if let Some(filename) = part.strip_prefix("filename=") {
                 let filename = filename.trim_matches('"').trim_matches('\'');
@@ -390,7 +392,7 @@ impl Downloader {
                     return Some(filename.to_string());
                 }
             }
-            
+
             // RFC 5987 encoded filename (filename*=)
             if let Some(encoded) = part.strip_prefix("filename*=") {
                 // Format: charset'language'encoded_filename
@@ -406,7 +408,7 @@ impl Downloader {
                 }
             }
         }
-        
+
         None
     }
 

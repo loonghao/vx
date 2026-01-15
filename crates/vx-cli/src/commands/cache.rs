@@ -36,7 +36,18 @@ pub async fn handle(command: CacheCommand) -> Result<()> {
             orphaned,
             older_than,
             verbose,
-        } => handle_prune(dry_run, versions, downloads, resolutions, orphaned, older_than, verbose).await,
+        } => {
+            handle_prune(
+                dry_run,
+                versions,
+                downloads,
+                resolutions,
+                orphaned,
+                older_than,
+                verbose,
+            )
+            .await
+        }
         CacheCommand::Purge {
             versions,
             downloads,
@@ -195,7 +206,10 @@ async fn handle_prune(
         if dry_run {
             if let Ok(stats) = version_cache.stats() {
                 if stats.expired_entries > 0 {
-                    UI::hint(&format!("  Would prune {} expired entries", stats.expired_entries));
+                    UI::hint(&format!(
+                        "  Would prune {} expired entries",
+                        stats.expired_entries
+                    ));
                 }
             }
         } else {
@@ -224,12 +238,18 @@ async fn handle_prune(
 
         if dry_run {
             if stats.expired_entries > 0 {
-                UI::hint(&format!("  Would prune {} expired entries", stats.expired_entries));
+                UI::hint(&format!(
+                    "  Would prune {} expired entries",
+                    stats.expired_entries
+                ));
             }
         } else {
             let pruned = resolution_cache.prune_expired()?;
             if pruned > 0 {
-                UI::success(&format!("Pruned {} expired resolution cache entries", pruned));
+                UI::success(&format!(
+                    "Pruned {} expired resolution cache entries",
+                    pruned
+                ));
                 total_pruned += pruned;
             } else if verbose {
                 UI::info("No expired resolution cache entries to prune");
@@ -332,9 +352,15 @@ async fn handle_purge(
     if !yes {
         UI::warning("This will permanently remove all cache data!");
         let mut targets = vec![];
-        if purge_versions { targets.push("version cache"); }
-        if purge_downloads { targets.push("download cache"); }
-        if purge_resolutions { targets.push("resolution cache"); }
+        if purge_versions {
+            targets.push("version cache");
+        }
+        if purge_downloads {
+            targets.push("download cache");
+        }
+        if purge_resolutions {
+            targets.push("resolution cache");
+        }
         UI::info(&format!("Targets: {}", targets.join(", ")));
 
         if !confirm_action()? {
