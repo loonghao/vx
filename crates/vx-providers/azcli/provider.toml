@@ -62,11 +62,9 @@ priority = 70
 platforms = ["linux"]
 
 # Layout configuration for MSI installation (fallback)
+# Note: Azure CLI uses MSI on Windows
 [runtimes.layout]
-download_type = "msi"
-
-[runtimes.layout.msi."windows-x86_64"]
-url_template = "https://azcliprod.blob.core.windows.net/msi/azure-cli-{version}-x64.msi"
+download_type = "installer"
 
 [runtimes.platforms.windows]
 executable_extensions = [".cmd", ".exe"]
