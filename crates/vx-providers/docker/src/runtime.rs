@@ -57,7 +57,9 @@ impl Runtime for DockerRuntime {
     }
 
     fn supported_platforms(&self) -> Vec<Platform> {
-        Platform::all_common()
+        // Docker CLI binaries are only available for Linux and macOS
+        // Windows requires Docker Desktop installation
+        Platform::unix_only()
     }
 
     /// Docker is extracted from archive to docker/docker

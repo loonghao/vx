@@ -762,9 +762,11 @@ fn get_installed_executable(ctx: &CommandContext, runtime_name: &str) -> Option<
         }
         _ => {
             // Binary installation - check store directory
-            let versions = path_manager.list_store_versions(runtime_name).ok()?;
+            // IMPORTANT: Use runtime.name() (canonical name) not runtime_name (which might be an alias)
+            let canonical_name = runtime.name();
+            let versions = path_manager.list_store_versions(canonical_name).ok()?;
             if let Some(version) = versions.first() {
-                let store_dir = path_manager.version_store_dir(runtime_name, version);
+                let store_dir = path_manager.version_store_dir(canonical_name, version);
                 let exe_relative = runtime.executable_relative_path(version, &platform);
                 let exe_path = store_dir.join(&exe_relative);
                 if exe_path.exists() {
@@ -832,11 +834,14 @@ fn get_executable_path_for_runtime(
         }
         _ => {
             // Binary installation - use store directory
+            // IMPORTANT: Use runtime.name() (canonical name) not runtime_name (which might be an alias)
+            // e.g., "vscode" is an alias for "code", but files are installed under "code"
+            let canonical_name = runtime.name();
             // For bundled runtimes (like uvx, bunx, npm, npx), use the parent runtime's store directory
             let actual_runtime_name = metadata
                 .get("bundled_with")
                 .map(|s| s.as_str())
-                .unwrap_or(runtime_name);
+                .unwrap_or(canonical_name);
             let store_dir = path_manager.version_store_dir(actual_runtime_name, version);
 
             // Use verify_installation to find the actual executable path
