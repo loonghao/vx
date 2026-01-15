@@ -460,17 +460,16 @@ impl SystemDependencyResolver {
             }
             SystemDepType::Package => {
                 // Use the best available package manager
-                if let Some(pm) = self.detector.get_preferred().await {
-                    Some(InstallStrategy::PackageManager {
+                self.detector
+                    .get_preferred()
+                    .await
+                    .map(|pm| InstallStrategy::PackageManager {
                         manager: pm,
                         package: dep.id.clone(),
                         params: None,
                         install_args: None,
                         priority: 70,
                     })
-                } else {
-                    None
-                }
             }
             SystemDepType::Runtime => {
                 // Runtime dependencies are handled by vx-resolver
