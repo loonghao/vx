@@ -263,6 +263,11 @@ impl Runtime for FfprobeRuntime {
         meta
     }
 
+    /// FFprobe is bundled with FFmpeg, so store under "ffmpeg" directory
+    fn store_name(&self) -> &str {
+        "ffmpeg"
+    }
+
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         FfmpegUrlBuilder::get_executable_relative_path("ffprobe", platform)
     }
@@ -351,6 +356,11 @@ impl Runtime for FfplayRuntime {
         meta.insert("category".to_string(), "media-processing".to_string());
         meta.insert("bundled_with".to_string(), "ffmpeg".to_string());
         meta
+    }
+
+    /// FFplay is bundled with FFmpeg, so store under "ffmpeg" directory
+    fn store_name(&self) -> &str {
+        "ffmpeg"
     }
 
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {

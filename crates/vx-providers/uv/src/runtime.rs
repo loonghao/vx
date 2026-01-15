@@ -165,6 +165,11 @@ impl Runtime for UvxRuntime {
         meta
     }
 
+    /// UVX is bundled with UV, so store under "uv" directory
+    fn store_name(&self) -> &str {
+        "uv"
+    }
+
     /// UVX archives have different structures per platform:
     /// - Windows (zip): uvx.exe (direct, no subdirectory)
     /// - Linux/macOS (tar.gz): uv-{platform}/uvx (in subdirectory)

@@ -115,6 +115,7 @@ predicates = { workspace = true }
 # Test dependencies for integration tests
 vx-core = { workspace = true }
 walkdir.workspace = true
+serde_json = { workspace = true }
 
 
 [workspace.package]

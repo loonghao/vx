@@ -224,11 +224,9 @@ async fn handle_ci_test(ctx: &CommandContext, opts: &Args) -> Result<()> {
     let (test_root, _temp_dir) = setup_test_root(opts)?;
 
     // Create a custom runtime context if using custom root
-    let custom_context = if let Some(ref root) = test_root {
-        Some(vx_runtime::create_runtime_context_with_base(root))
-    } else {
-        None
-    };
+    let custom_context = test_root
+        .as_ref()
+        .map(vx_runtime::create_runtime_context_with_base);
 
     let runtime_context = custom_context
         .as_ref()
@@ -339,7 +337,7 @@ fn get_ci_test_runtimes(ctx: &CommandContext, opts: &Args) -> Vec<String> {
             // Skip bundled runtimes by default in CI mode
             // They will be tested as part of their parent runtime
             // e.g., npm/npx are tested when node is tested
-            if runtime.metadata().get("bundled_with").is_some() {
+            if runtime.metadata().contains_key("bundled_with") {
                 continue;
             }
 
@@ -633,7 +631,7 @@ async fn handle_test_all_providers(ctx: &CommandContext, opts: &Args) -> Result<
 /// Test a local provider (development mode)
 async fn handle_test_local_provider(
     _ctx: &CommandContext,
-    path: &PathBuf,
+    path: &std::path::Path,
     opts: &Args,
 ) -> Result<()> {
     if !opts.quiet {
@@ -762,28 +760,15 @@ fn get_installed_executable(ctx: &CommandContext, runtime_name: &str) -> Option<
         }
         _ => {
             // Binary installation - check store directory
-            // IMPORTANT: Use runtime.name() (canonical name) not runtime_name (which might be an alias)
-            let canonical_name = runtime.name();
-            let versions = path_manager.list_store_versions(canonical_name).ok()?;
+            // IMPORTANT: Use runtime.store_name() which handles aliases and bundled runtimes
+            let store_name = runtime.store_name();
+            let versions = path_manager.list_store_versions(store_name).ok()?;
             if let Some(version) = versions.first() {
-                let store_dir = path_manager.version_store_dir(canonical_name, version);
+                let store_dir = path_manager.version_store_dir(store_name, version);
                 let exe_relative = runtime.executable_relative_path(version, &platform);
                 let exe_path = store_dir.join(&exe_relative);
                 if exe_path.exists() {
                     return Some(exe_path);
-                }
-            }
-
-            // Check for bundled runtimes (e.g., ffprobe bundled with ffmpeg)
-            if let Some(parent_tool) = metadata.get("bundled_with") {
-                let parent_versions = path_manager.list_store_versions(parent_tool).ok()?;
-                for version in &parent_versions {
-                    let parent_path = path_manager.version_store_dir(parent_tool, version);
-                    let exe_relative = runtime.executable_relative_path(version, &platform);
-                    let exe_path = parent_path.join(&exe_relative);
-                    if exe_path.exists() {
-                        return Some(exe_path);
-                    }
                 }
             }
         }
@@ -834,15 +819,11 @@ fn get_executable_path_for_runtime(
         }
         _ => {
             // Binary installation - use store directory
-            // IMPORTANT: Use runtime.name() (canonical name) not runtime_name (which might be an alias)
-            // e.g., "vscode" is an alias for "code", but files are installed under "code"
-            let canonical_name = runtime.name();
-            // For bundled runtimes (like uvx, bunx, npm, npx), use the parent runtime's store directory
-            let actual_runtime_name = metadata
-                .get("bundled_with")
-                .map(|s| s.as_str())
-                .unwrap_or(canonical_name);
-            let store_dir = path_manager.version_store_dir(actual_runtime_name, version);
+            // IMPORTANT: Use runtime.store_name() which handles:
+            // 1. Aliases (e.g., "vscode" -> "code")
+            // 2. Bundled runtimes (e.g., "npm" -> "node", "uvx" -> "uv")
+            let store_name = runtime.store_name();
+            let store_dir = path_manager.version_store_dir(store_name, version);
 
             // Use verify_installation to find the actual executable path
             // This handles complex layouts like VSCode's platform-specific directories

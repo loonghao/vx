@@ -4,6 +4,7 @@
 //! the `vx.lock` file for reproducible environments.
 
 use anyhow::{Context, Result};
+use std::collections::HashSet;
 use vx_config::{parse_config, ToolVersion, VxConfig};
 use vx_paths::project::{find_vx_config, LOCK_FILE_NAME};
 use vx_resolver::{Ecosystem, LockFile, LockedTool, VersionRequest, VersionSolver};
@@ -58,35 +59,27 @@ pub async fn handle(
     // Create solver and resolve versions
     let solver = VersionSolver::new();
     let mut new_lock = existing_lock.clone().unwrap_or_default();
+    let mut resolved_tools: HashSet<String> = HashSet::new();
 
+    // Resolve all tools and their dependencies recursively
     for (tool_name, version_str) in &tools_to_resolve {
-        if verbose {
-            println!("  Resolving {} @ {}...", tool_name, version_str);
-        }
-
-        match resolve_tool_version(registry, ctx, &solver, tool_name, version_str).await {
-            Ok(locked) => {
-                if verbose {
-                    println!("    → {} (from {})", locked.version, locked.resolved_from);
-                }
-                new_lock.lock_tool(tool_name.clone(), locked);
-            }
-            Err(e) => {
-                eprintln!("  ✗ Failed to resolve {}: {}", tool_name, e);
-                if !update {
-                    // Keep existing lock entry if not updating
-                    if let Some(ref existing) = existing_lock {
-                        if let Some(existing_tool) = existing.get_tool(tool_name) {
-                            new_lock.lock_tool(tool_name.clone(), existing_tool.clone());
-                        }
-                    }
-                }
-            }
-        }
+        resolve_tool_with_dependencies(
+            registry,
+            ctx,
+            &solver,
+            tool_name,
+            version_str,
+            &mut new_lock,
+            &mut resolved_tools,
+            &existing_lock,
+            update,
+            verbose,
+        )
+        .await;
     }
 
-    // Add dependency information
-    add_dependencies(&mut new_lock);
+    // Add dependency relationships to lock file
+    add_dependencies(&mut new_lock, registry);
 
     if dry_run {
         println!("\n--- vx.lock (dry run) ---\n");
@@ -126,6 +119,96 @@ fn get_version_string(version: &ToolVersion) -> String {
     match version {
         ToolVersion::Simple(s) => s.clone(),
         ToolVersion::Detailed(d) => d.version.clone(),
+    }
+}
+
+/// Recursively resolve a tool and all its dependencies
+///
+/// This function:
+/// 1. Resolves the tool's version
+/// 2. Gets its dependencies from the runtime
+/// 3. Recursively resolves each dependency
+/// 4. Locks all resolved tools
+#[allow(clippy::too_many_arguments)]
+async fn resolve_tool_with_dependencies(
+    registry: &ProviderRegistry,
+    ctx: &RuntimeContext,
+    solver: &VersionSolver,
+    tool_name: &str,
+    version_str: &str,
+    lock: &mut LockFile,
+    resolved: &mut HashSet<String>,
+    existing_lock: &Option<LockFile>,
+    update: bool,
+    verbose: bool,
+) {
+    // Avoid circular dependencies
+    if resolved.contains(tool_name) {
+        return;
+    }
+    resolved.insert(tool_name.to_string());
+
+    if verbose {
+        println!("  Resolving {} @ {}...", tool_name, version_str);
+    }
+
+    // Resolve the tool's version
+    match resolve_tool_version(registry, ctx, solver, tool_name, version_str).await {
+        Ok(locked) => {
+            if verbose {
+                println!("    → {} (from {})", locked.version, locked.resolved_from);
+            }
+            lock.lock_tool(tool_name.to_string(), locked);
+
+            // Get and resolve dependencies
+            if let Some(provider) = registry.get_provider(tool_name) {
+                if let Some(runtime) = provider.get_runtime(tool_name) {
+                    for dep in runtime.dependencies() {
+                        if !resolved.contains(&dep.name) {
+                            // Use the dependency's version constraint, or "latest" if not specified
+                            let dep_version = dep
+                                .min_version
+                                .as_ref()
+                                .map(|v| format!(">={}", v))
+                                .unwrap_or_else(|| "latest".to_string());
+
+                            if verbose {
+                                println!(
+                                    "    └─ Dependency: {} (required by {})",
+                                    dep.name, tool_name
+                                );
+                            }
+
+                            // Recursively resolve the dependency
+                            Box::pin(resolve_tool_with_dependencies(
+                                registry,
+                                ctx,
+                                solver,
+                                &dep.name,
+                                &dep_version,
+                                lock,
+                                resolved,
+                                existing_lock,
+                                update,
+                                verbose,
+                            ))
+                            .await;
+                        }
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("  ✗ Failed to resolve {}: {}", tool_name, e);
+            if !update {
+                // Keep existing lock entry if not updating
+                if let Some(ref existing) = existing_lock {
+                    if let Some(existing_tool) = existing.get_tool(tool_name) {
+                        lock.lock_tool(tool_name.to_string(), existing_tool.clone());
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -232,29 +315,35 @@ async fn resolve_tool_version(
 }
 
 /// Add dependency relationships to lock file
-fn add_dependencies(lock: &mut LockFile) {
-    // Common dependency mappings
-    let dependencies = [
-        ("npm", vec!["node"]),
-        ("npx", vec!["node"]),
-        ("yarn", vec!["node"]),
-        ("pnpm", vec!["node"]),
-        ("bun", vec![]),
-        ("uvx", vec!["uv"]),
-        ("pip", vec!["python"]),
-        ("cargo", vec!["rust"]),
-        ("rustc", vec!["rust"]),
-    ];
+///
+/// This function dynamically retrieves dependencies from the ProviderRegistry
+/// instead of using hardcoded mappings. This ensures that:
+/// 1. New tools with dependencies are automatically handled
+/// 2. Dependencies declared in provider manifests are respected
+/// 3. The lock file accurately reflects the dependency graph
+fn add_dependencies(lock: &mut LockFile, registry: &ProviderRegistry) {
+    // Collect all locked tool names first to avoid borrow issues
+    let locked_tools: Vec<String> = lock.tool_names().iter().map(|s| s.to_string()).collect();
 
-    for (tool, deps) in dependencies {
-        if lock.is_locked(tool) {
-            let deps: Vec<String> = deps
-                .iter()
-                .filter(|d| lock.is_locked(d))
-                .map(|s| s.to_string())
-                .collect();
-            if !deps.is_empty() {
-                lock.add_dependency(tool, deps);
+    for tool_name in &locked_tools {
+        // Get the runtime from registry to access its dependencies
+        if let Some(provider) = registry.get_provider(tool_name) {
+            if let Some(runtime) = provider.get_runtime(tool_name) {
+                // Get dependencies from the runtime
+                let deps: Vec<String> = runtime
+                    .dependencies()
+                    .iter()
+                    .map(|d| d.name.clone())
+                    .filter(|dep_name| {
+                        // Only include dependencies that are also locked
+                        // or that we need to auto-lock
+                        lock.is_locked(dep_name)
+                    })
+                    .collect();
+
+                if !deps.is_empty() {
+                    lock.add_dependency(tool_name.clone(), deps);
+                }
             }
         }
     }

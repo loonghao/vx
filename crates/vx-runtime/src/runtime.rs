@@ -165,6 +165,28 @@ pub trait Runtime: Send + Sync {
         HashMap::new()
     }
 
+    /// Get the store directory name for this runtime
+    ///
+    /// This is the canonical name used for the store directory path.
+    /// For bundled runtimes (e.g., npm, npx bundled with node), this returns
+    /// the parent runtime's name. For standalone runtimes, this returns `self.name()`.
+    ///
+    /// **IMPORTANT**: Always use this method (not `name()`) when constructing store paths
+    /// to ensure consistency between installation and lookup.
+    ///
+    /// # Examples
+    ///
+    /// - `node.store_name()` → `"node"` (standalone)
+    /// - `npm.store_name()` → `"node"` (bundled with node)
+    /// - `uvx.store_name()` → `"uv"` (bundled with uv)
+    /// - `vscode.store_name()` → `"code"` (alias, canonical name is "code")
+    fn store_name(&self) -> &str {
+        // Check if bundled_with is set in metadata
+        // Note: This has a limitation - can't return &str from owned String
+        // Providers that use bundled_with should override this method directly
+        self.name()
+    }
+
     /// Returns the platforms this runtime supports
     ///
     /// By default, returns all common platforms (Windows, macOS, Linux on x64 and arm64).
@@ -702,13 +724,17 @@ pub trait Runtime: Send + Sync {
             return Err(anyhow::anyhow!(msg));
         }
 
-        let install_path = ctx.paths.version_store_dir(self.name(), version);
+        // Use store_name() which handles aliases and bundled runtimes
+        // e.g., "npm" -> "node", "uvx" -> "uv", "vscode" -> "code"
+        let store_name = self.store_name();
+        let install_path = ctx.paths.version_store_dir(store_name, version);
         let platform = Platform::current();
         let exe_relative = self.executable_relative_path(version, &platform);
 
         debug!(
-            "Install path for {} {}: {}",
+            "Install path for {} (store: {}) {}: {}",
             self.name(),
+            store_name,
             version,
             install_path.display()
         );
@@ -848,13 +874,13 @@ pub trait Runtime: Send + Sync {
 
     /// Check if a version is installed
     async fn is_installed(&self, version: &str, ctx: &RuntimeContext) -> Result<bool> {
-        let install_path = ctx.paths.version_store_dir(self.name(), version);
+        let install_path = ctx.paths.version_store_dir(self.store_name(), version);
         Ok(ctx.fs.exists(&install_path))
     }
 
     /// Get installed versions
     async fn installed_versions(&self, ctx: &RuntimeContext) -> Result<Vec<String>> {
-        let runtime_dir = ctx.paths.runtime_store_dir(self.name());
+        let runtime_dir = ctx.paths.runtime_store_dir(self.store_name());
         if !ctx.fs.exists(&runtime_dir) {
             return Ok(vec![]);
         }
@@ -976,7 +1002,7 @@ pub trait Runtime: Send + Sync {
 
     /// Uninstall a specific version
     async fn uninstall(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
-        let install_path = ctx.paths.version_store_dir(self.name(), version);
+        let install_path = ctx.paths.version_store_dir(self.store_name(), version);
         if ctx.fs.exists(&install_path) {
             ctx.fs.remove_dir_all(&install_path)?;
         }

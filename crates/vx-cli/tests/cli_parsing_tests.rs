@@ -21,6 +21,8 @@ fn test_cli_version_command() {
     assert!(matches!(cli.command, Some(Commands::Version)));
 }
 
+// Note: Stats command has been removed from vx-cli
+/*
 #[test]
 fn test_cli_stats_command() {
     let args = vec!["vx", "stats"];
@@ -28,6 +30,7 @@ fn test_cli_stats_command() {
 
     assert!(matches!(cli.command, Some(Commands::Stats)));
 }
+*/
 
 // ============================================
 // Global Flag Tests
@@ -249,6 +252,8 @@ fn test_cli_uninstall_no_alias() {
 // Update Command Tests
 // ============================================
 
+// Note: Update command has been removed from vx-cli
+/*
 #[test]
 fn test_cli_update_command() {
     let args = vec!["vx", "update"];
@@ -288,6 +293,7 @@ fn test_cli_update_with_apply() {
         _ => panic!("Expected Update command"),
     }
 }
+*/
 
 // ============================================
 // Self-Update Command Tests
@@ -572,6 +578,8 @@ fn test_cli_init_list_templates() {
 // Clean Command Tests
 // ============================================
 
+// Note: Clean command has been removed from vx-cli
+/*
 #[test]
 fn test_cli_clean_command() {
     let args = vec!["vx", "clean", "--cache", "--dry-run"];
@@ -625,6 +633,7 @@ fn test_cli_clean_older_than() {
         _ => panic!("Expected Clean command"),
     }
 }
+*/
 
 // ============================================
 // Setup Command Tests

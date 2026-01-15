@@ -282,6 +282,11 @@ impl ProviderLoader {
                 }
             }
 
+            // Bundled with (for bundled runtimes like npm with node)
+            if let Some(bundled) = runtime_value.get("bundled_with").and_then(|v| v.as_str()) {
+                runtime = runtime.with_bundled_with(bundled);
+            }
+
             // Detection configuration
             if let Some(detection) = runtime_value.get("detection") {
                 runtime.detection = self.parse_detection(detection);

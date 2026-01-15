@@ -135,6 +135,16 @@ pub enum InstallStrategyDef {
         #[serde(default = "default_priority")]
         priority: i32,
     },
+
+    /// Manual installation required (display instructions to user)
+    Manual {
+        /// Human-readable installation instructions
+        #[serde(default)]
+        instructions: String,
+        /// Priority
+        #[serde(default = "default_priority")]
+        priority: i32,
+    },
 }
 
 fn default_priority() -> i32 {

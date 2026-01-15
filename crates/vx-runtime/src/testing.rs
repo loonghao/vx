@@ -700,7 +700,7 @@ impl RuntimeTester {
         let mut result = RuntimeTestResult::new(&self.runtime_name);
 
         // Check availability first
-        result.installed = self.executable_path.as_ref().map_or(false, |p| p.exists());
+        result.installed = self.executable_path.as_ref().is_some_and(|p| p.exists());
         result.system_available = self.check_system_available();
 
         // Check if we have an executable

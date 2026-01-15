@@ -290,6 +290,11 @@ impl Runtime for PipRuntime {
         meta
     }
 
+    /// Pip is bundled with Python, so store under "python" directory
+    fn store_name(&self) -> &str {
+        "python"
+    }
+
     /// Pip executable path within Python installation
     /// - Windows: python/Scripts/pip.exe
     /// - Unix: python/bin/pip3
