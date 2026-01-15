@@ -1,12 +1,10 @@
 //! Tests for SystemDependencyResolver
 
-use vx_system_pm::{
-    DependencyResolution, SystemDepType, SystemDependency, SystemDependencyResolver,
-};
+use vx_system_pm::{SystemDepType, SystemDependency, SystemDependencyResolver};
 
 #[tokio::test]
 async fn test_resolver_creation() {
-    let resolver = SystemDependencyResolver::new();
+    let _resolver = SystemDependencyResolver::new();
     // Just ensure it creates without panicking
     assert!(true);
 }

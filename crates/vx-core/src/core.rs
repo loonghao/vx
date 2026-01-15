@@ -319,16 +319,16 @@ mod tests {
 // ============================================================================
 
 /// Check if an exit status indicates the process was terminated by Ctrl+C
-/// 
+///
 /// On Windows, STATUS_CONTROL_C_EXIT (0xC000013A) indicates Ctrl+C termination.
 /// On Unix, signal 2 (SIGINT) indicates Ctrl+C termination.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```rust,ignore
 /// use std::process::Command;
 /// use vx_core::is_ctrl_c_exit;
-/// 
+///
 /// let status = Command::new("some_command").status().unwrap();
 /// if is_ctrl_c_exit(&status) {
 ///     // Process was terminated by Ctrl+C
@@ -346,7 +346,7 @@ pub fn is_ctrl_c_exit(status: &ExitStatus) -> bool {
             false
         }
     }
-    
+
     #[cfg(unix)]
     {
         use std::os::unix::process::ExitStatusExt;
@@ -356,16 +356,16 @@ pub fn is_ctrl_c_exit(status: &ExitStatus) -> bool {
 }
 
 /// Convert an exit status to an appropriate exit code
-/// 
+///
 /// This handles special cases like Ctrl+C termination, returning 130 (128 + SIGINT)
 /// which is the standard Unix convention for signal termination.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```rust,ignore
 /// use std::process::Command;
 /// use vx_core::exit_code_from_status;
-/// 
+///
 /// let status = Command::new("some_command").status().unwrap();
 /// let code = exit_code_from_status(&status);
 /// std::process::exit(code);
