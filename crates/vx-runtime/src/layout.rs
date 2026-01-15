@@ -394,6 +394,7 @@ fn default_bin_dir() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Arch;
 
     fn test_context() -> LayoutContext {
         LayoutContext {
@@ -434,6 +435,7 @@ mod tests {
             download_type: DownloadType::Binary,
             binary: Some(binary_map),
             archive: None,
+            msi: None,
             windows: None,
             macos: None,
             linux: None,
@@ -467,6 +469,7 @@ mod tests {
                 strip_prefix: Some("{name}-{version}".to_string()),
                 permissions: None,
             }),
+            msi: None,
             windows: None,
             macos: None,
             linux: None,

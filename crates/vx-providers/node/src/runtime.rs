@@ -155,6 +155,11 @@ impl Runtime for NpmRuntime {
         meta
     }
 
+    /// NPM is bundled with Node.js, so store under "node" directory
+    fn store_name(&self) -> &str {
+        "node"
+    }
+
     /// NPM uses .cmd on Windows
     fn executable_extensions(&self) -> &[&str] {
         &[".cmd", ".exe"]
@@ -232,6 +237,11 @@ impl Runtime for NpxRuntime {
         meta.insert("ecosystem".to_string(), "javascript".to_string());
         meta.insert("bundled_with".to_string(), "node".to_string());
         meta
+    }
+
+    /// NPX is bundled with Node.js, so store under "node" directory
+    fn store_name(&self) -> &str {
+        "node"
     }
 
     /// NPX uses .cmd on Windows

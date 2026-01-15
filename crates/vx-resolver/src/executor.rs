@@ -771,8 +771,10 @@ impl<'a> Executor<'a> {
             .unwrap_or_default();
 
         // Get the bin directory for this version and prepend to PATH
-        let store_dir = context.paths.version_store_dir(dep_name, version);
-        let bin_dir = self.find_bin_dir(&store_dir, dep_name);
+        // IMPORTANT: Use runtime.store_name() which handles aliases and bundled runtimes
+        let store_name = runtime.store_name();
+        let store_dir = context.paths.version_store_dir(store_name, version);
+        let bin_dir = self.find_bin_dir(&store_dir, store_name);
 
         if let Some(bin) = bin_dir {
             // Prepend the bin directory to PATH

@@ -105,7 +105,7 @@ impl Runtime for RceditRuntime {
         let bin_dir = install_path.join("bin");
         fs::create_dir_all(&bin_dir)?;
 
-        let original_path = bin_dir.join(&original_name);
+        let original_path = bin_dir.join(original_name);
         let standard_path = bin_dir.join("rcedit.exe");
 
         // Rename if not already standard name

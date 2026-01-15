@@ -30,10 +30,11 @@ executable_extensions = [".exe"]
 executable_extensions = []
 
 # pre-commit 4.x requires Python 3.10+
+# Installation uses uv for faster, isolated pip package installation
 [[runtimes.constraints]]
 when = "*"
 requires = [
-    { runtime = "python", version = ">=3.10", recommended = "3.12", reason = "pre-commit 4.x requires Python 3.10+" }
+    { runtime = "uv", version = "*", reason = "uv is used to install pre-commit as an isolated pip package" }
 ]
 recommends = [
     { runtime = "git", version = "*", reason = "Git is required for pre-commit hooks" }

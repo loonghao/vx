@@ -3929,6 +3929,7 @@ dependencies = [
  "anyhow",
  "assert_cmd",
  "predicates",
+ "serde_json",
  "tempfile",
  "tokio",
  "vx-cli",

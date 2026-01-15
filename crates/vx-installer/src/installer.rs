@@ -163,7 +163,7 @@ impl Installer {
         let target_name = config
             .metadata
             .get("target_name")
-            .map(|s| s.clone())
+            .cloned()
             .unwrap_or_else(|| {
                 if cfg!(windows) {
                     format!("{}.exe", config.tool_name)
