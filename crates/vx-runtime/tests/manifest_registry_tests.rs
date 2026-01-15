@@ -23,6 +23,8 @@ fn make_runtime_def(name: &str) -> RuntimeDef {
         platform_constraint: None,
         versions: None,
         executable_config: None,
+        layout: None,
+        download: None,
         priority: None,
         auto_installable: None,
         env_config: None,
@@ -34,6 +36,9 @@ fn make_runtime_def(name: &str) -> RuntimeDef {
         commands: vec![],
         output: None,
         shell: None,
+        test: None,
+        system_deps: None,
+        system_install: None,
     }
 }
 
