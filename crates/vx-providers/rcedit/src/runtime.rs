@@ -62,8 +62,13 @@ impl Runtime for RceditRuntime {
     }
 
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        // rcedit is a single executable, no subdirectory
-        RceditUrlBuilder::get_executable_name(platform).to_string()
+        // rcedit is installed to bin/rcedit.exe after post_extract renames it
+        if platform.os == vx_runtime::Os::Windows {
+            "bin/rcedit.exe".to_string()
+        } else {
+            // Unsupported platform, return original name
+            RceditUrlBuilder::get_executable_name(platform).to_string()
+        }
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
