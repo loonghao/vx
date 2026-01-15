@@ -8,7 +8,9 @@ use anyhow::{bail, Result};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use vx_runtime::{Arch, Ecosystem, Os, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
+use vx_runtime::{
+    Arch, Ecosystem, Os, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
+};
 
 /// Static list of known make versions
 const KNOWN_VERSIONS: &[&str] = &[
@@ -161,16 +163,14 @@ impl Runtime for MakeRuntime {
     fn check_platform_support(&self) -> Result<(), String> {
         let current = Platform::current();
         if current.os == Os::Windows {
-            return Err(
-                "GNU Make is not supported on Windows via vx.\n\n\
+            return Err("GNU Make is not supported on Windows via vx.\n\n\
                 💡 Use 'just' as a modern, cross-platform alternative:\n\
                    vx install just\n\n\
                 Or install make via your Windows package manager:\n\
                    choco install make\n\
                    winget install GnuWin32.Make\n\
                    scoop install make"
-                    .to_string(),
-            );
+                .to_string());
         }
         Ok(())
     }

@@ -495,7 +495,16 @@ async fn install_pip_package(
     // (uv has known issues on some Windows configurations)
     let uv_result = if let Ok(uv_exe) = find_runtime_executable("uv", ctx).await {
         debug!("Trying uv: {}", uv_exe.display());
-        install_with_uv(&uv_exe, package_name, bin_name, version, &venv_dir, &bin_dir, ctx).await
+        install_with_uv(
+            &uv_exe,
+            package_name,
+            bin_name,
+            version,
+            &venv_dir,
+            &bin_dir,
+            ctx,
+        )
+        .await
     } else {
         Err(anyhow::anyhow!("uv not found"))
     };
@@ -914,9 +923,9 @@ fn create_npm_shim(shim_path: &Path, source_bin: &Path, node_exe: &Path) -> Resu
     {
         // On Windows, create a .cmd wrapper that ensures vx-managed node is on PATH.
         // npm's generated *.cmd wrappers typically call `node` from PATH.
-        let node_dir = node_exe
-            .parent()
-            .ok_or_else(|| anyhow::anyhow!("Invalid node executable path: {}", node_exe.display()))?;
+        let node_dir = node_exe.parent().ok_or_else(|| {
+            anyhow::anyhow!("Invalid node executable path: {}", node_exe.display())
+        })?;
 
         let content = format!(
             "@echo off\r\nset \"PATH={};%PATH%\"\r\ncall \"{}\" %*\r\n",
@@ -930,9 +939,9 @@ fn create_npm_shim(shim_path: &Path, source_bin: &Path, node_exe: &Path) -> Resu
     {
         // On Unix, create a shell wrapper that ensures vx-managed node is on PATH.
         // This makes npm-installed CLIs work even when system node is absent.
-        let node_dir = node_exe
-            .parent()
-            .ok_or_else(|| anyhow::anyhow!("Invalid node executable path: {}", node_exe.display()))?;
+        let node_dir = node_exe.parent().ok_or_else(|| {
+            anyhow::anyhow!("Invalid node executable path: {}", node_exe.display())
+        })?;
 
         let content = format!(
             "#!/bin/sh\nexport PATH=\"{}:$PATH\"\nexec \"{}\" \"$@\"\n",

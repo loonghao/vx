@@ -943,10 +943,12 @@ impl RuntimeTester {
 
         // Execute script with timeout
         #[cfg(windows)]
-        let output = run_command_with_timeout("cmd", &["/C", &script_path.to_string_lossy()], self.timeout)?;
+        let output =
+            run_command_with_timeout("cmd", &["/C", &script_path.to_string_lossy()], self.timeout)?;
 
         #[cfg(unix)]
-        let output = run_command_with_timeout("sh", &[&script_path.to_string_lossy()], self.timeout)?;
+        let output =
+            run_command_with_timeout("sh", &[&script_path.to_string_lossy()], self.timeout)?;
 
         // Clean up
         let _ = std::fs::remove_file(&script_path);
