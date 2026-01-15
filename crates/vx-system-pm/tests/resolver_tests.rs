@@ -6,7 +6,6 @@ use vx_system_pm::{SystemDepType, SystemDependency, SystemDependencyResolver};
 async fn test_resolver_creation() {
     let _resolver = SystemDependencyResolver::new();
     // Just ensure it creates without panicking
-    assert!(true);
 }
 
 #[tokio::test]
