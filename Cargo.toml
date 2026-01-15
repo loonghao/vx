@@ -38,6 +38,7 @@ members = [
   "crates/vx-providers/rcedit",
   "crates/vx-providers/git",
   "crates/vx-providers/choco",
+  "crates/vx-providers/brew",
   # Cloud & Container providers (P0)
   "crates/vx-providers/docker",
   "crates/vx-providers/awscli",
@@ -167,6 +168,7 @@ vx-provider-helm = { path = "crates/vx-providers/helm" }
 vx-provider-rcedit = { path = "crates/vx-providers/rcedit" }
 vx-provider-git = { path = "crates/vx-providers/git" }
 vx-provider-choco = { path = "crates/vx-providers/choco" }
+vx-provider-brew = { path = "crates/vx-providers/brew" }
 vx-provider-docker = { path = "crates/vx-providers/docker" }
 vx-provider-awscli = { path = "crates/vx-providers/awscli" }
 vx-provider-azcli = { path = "crates/vx-providers/azcli" }

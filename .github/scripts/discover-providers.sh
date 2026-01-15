@@ -46,7 +46,8 @@ PROVIDERS_DIR="${VX_PROVIDERS_DIR:-crates/vx-providers}"
 # - rust, rustc, cargo, rustup: require system install (winget/brew), not suitable for CI
 # - ollama: download URL issues with proxy
 # - python: requires system install, network timeout issues
-SKIP_ALWAYS="msbuild,msvc,openssl,systemctl,journalctl,systemd-analyze,loginctl,choco,xcodebuild,xcrun,xcode-select,swift,swiftc,make,awscli,aws,azcli,az,curl,nasm,rust,rustc,cargo,rustup,ollama,python"
+# - brew, homebrew: require script installation, not suitable for CI
+SKIP_ALWAYS="msbuild,msvc,openssl,systemctl,journalctl,systemd-analyze,loginctl,choco,xcodebuild,xcrun,xcode-select,swift,swiftc,make,awscli,aws,azcli,az,curl,nasm,rust,rustc,cargo,rustup,ollama,python,brew,homebrew"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do

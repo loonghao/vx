@@ -4009,6 +4009,7 @@ dependencies = [
  "vx-project-analyzer",
  "vx-provider-awscli",
  "vx-provider-azcli",
+ "vx-provider-brew",
  "vx-provider-bun",
  "vx-provider-choco",
  "vx-provider-cmake",
@@ -4026,6 +4027,7 @@ dependencies = [
  "vx-provider-make",
  "vx-provider-meson",
  "vx-provider-msvc",
+ "vx-provider-nasm",
  "vx-provider-ninja",
  "vx-provider-node",
  "vx-provider-ollama",
@@ -4266,6 +4268,19 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-azcli"
+version = "0.6.13"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-brew"
 version = "0.6.13"
 dependencies = [
  "anyhow",

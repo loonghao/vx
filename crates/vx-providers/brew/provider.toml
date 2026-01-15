@@ -1,0 +1,80 @@
+# Homebrew Provider Manifest
+#
+# Homebrew is the missing package manager for macOS (and Linux).
+# This provider ensures brew is available for other runtimes that depend on it.
+#
+# Installation:
+# - macOS/Linux: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+[provider]
+name = "brew"
+description = "The Missing Package Manager for macOS (or Linux)"
+homepage = "https://brew.sh"
+repository = "https://github.com/Homebrew/brew"
+ecosystem = "system"
+
+# Platform constraint: brew is primarily for macOS and Linux
+[provider.platforms]
+os = ["macos", "linux"]
+
+# Homebrew
+[[runtimes]]
+name = "brew"
+description = "Homebrew package manager"
+executable = "brew"
+aliases = ["homebrew"]
+
+# Homebrew versions from GitHub releases
+[runtimes.versions]
+source = "github-releases"
+owner = "Homebrew"
+repo = "brew"
+strip_v_prefix = false
+
+# Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "Homebrew ([\\d.]+)"
+
+# Homebrew is installed via shell script, not a binary download
+# We use script_install strategy
+[runtimes.script_install]
+# macOS and Linux installation script
+install_command = '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+# Environment setup after installation
+post_install = [
+    'eval "$(/opt/homebrew/bin/brew shellenv)"',  # macOS ARM
+    'eval "$(/usr/local/bin/brew shellenv)"',     # macOS Intel
+    'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"',  # Linux
+]
+
+[runtimes.platforms.macos]
+executable_extensions = []
+# Common macOS paths for brew
+search_paths = [
+    "/opt/homebrew/bin",      # Apple Silicon
+    "/usr/local/bin",         # Intel
+]
+
+[runtimes.platforms.linux]
+executable_extensions = []
+# Common Linux paths for brew (Linuxbrew)
+search_paths = [
+    "/home/linuxbrew/.linuxbrew/bin",
+    "/usr/local/bin",
+]
+
+# RFC 0020: Test configuration
+[runtimes.test]
+timeout_ms = 120000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "Homebrew \\d+\\.\\d+", name = "version_check" },
+]
+install_verification = [
+    { command = "{executable} --version", expect_success = true },
+]
+
+# Homebrew has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []

@@ -26,7 +26,42 @@ strip_v_prefix = false
 command = "{executable} version --output json"
 pattern = "\"azure-cli\": \"([\\d.]+)\""
 
-# Layout configuration for MSI installation
+# System install strategies (preferred for Windows CI)
+[runtimes.system_install]
+
+# Windows: winget installation (preferred - no MSI extraction needed)
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "winget"
+package = "Microsoft.AzureCLI"
+priority = 100
+platforms = ["windows"]
+
+# Windows: chocolatey installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "azure-cli"
+priority = 80
+platforms = ["windows"]
+
+# macOS: brew installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "azure-cli"
+priority = 90
+platforms = ["macos"]
+
+# Linux: brew installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "azure-cli"
+priority = 70
+platforms = ["linux"]
+
+# Layout configuration for MSI installation (fallback)
 [runtimes.layout]
 download_type = "msi"
 
