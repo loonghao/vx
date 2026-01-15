@@ -177,6 +177,7 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         rcedit,
         git,
         choco,
+        brew,
         docker,
         awscli,
         azcli,
@@ -194,6 +195,7 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         python,
         msvc,
         ffmpeg,
+        nasm,
     );
 
     registry
@@ -226,6 +228,7 @@ fn create_static_registry() -> ProviderRegistry {
         rcedit,
         git,
         choco,
+        brew,
         docker,
         awscli,
         azcli,
@@ -243,6 +246,7 @@ fn create_static_registry() -> ProviderRegistry {
         python,
         msvc,
         ffmpeg,
+        nasm,
     );
 
     registry

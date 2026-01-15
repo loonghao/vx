@@ -48,6 +48,7 @@ vx-provider-helm = { workspace = true }
 vx-provider-rcedit = { workspace = true }
 vx-provider-git = { workspace = true }
 vx-provider-choco = { workspace = true }
+vx-provider-brew = { workspace = true }
 vx-provider-docker = { workspace = true }
 vx-provider-awscli = { workspace = true }
 vx-provider-azcli = { workspace = true }
@@ -65,6 +66,7 @@ vx-provider-release-please = { workspace = true }
 vx-provider-python = { workspace = true }
 vx-provider-msvc = { workspace = true }
 vx-provider-ffmpeg = { workspace = true }
+vx-provider-nasm = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }

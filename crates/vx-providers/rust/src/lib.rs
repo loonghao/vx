@@ -5,9 +5,10 @@
 //!
 //! # Installation Methods
 //!
-//! - Windows: `winget install Rustlang.Rustup`
-//! - macOS: `brew install rustup-init && rustup-init -y`
-//! - Linux: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y`
+//! - Direct download: Downloads rustup-init binary from static.rust-lang.org
+//! - Windows fallback: `winget install Rustlang.Rustup`
+//! - macOS fallback: `brew install rustup-init && rustup-init -y`
+//! - Linux fallback: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y`
 //!
 //! # Runtimes
 //!
@@ -28,9 +29,11 @@
 //! vx rustc --version
 //! ```
 
+mod config;
 mod provider;
 mod runtime;
 
+pub use config::RustupUrlBuilder;
 pub use provider::RustProvider;
 pub use runtime::{CargoRuntime, RustcRuntime, RustupRuntime};
 
