@@ -64,7 +64,9 @@ impl SystemPackageManager for ScoopManager {
             info!("Scoop installed successfully");
             Ok(())
         } else {
-            Err(SystemPmError::InstallFailed("Failed to install Scoop".to_string()).into())
+            Err(SystemPmError::InstallFailed(
+                "Failed to install Scoop".to_string(),
+            ))
         }
     }
 
@@ -91,7 +93,10 @@ impl SystemPackageManager for ScoopManager {
                 .with_version(version.unwrap_or_else(|| "unknown".to_string())))
         } else {
             warn!("Scoop install failed: {}", stderr);
-            Err(SystemPmError::InstallFailed(format!("Scoop install failed: {}", stderr)).into())
+            Err(SystemPmError::InstallFailed(format!(
+                "Scoop install failed: {}",
+                stderr
+            )))
         }
     }
 
@@ -105,7 +110,10 @@ impl SystemPackageManager for ScoopManager {
         if status.success() {
             Ok(())
         } else {
-            Err(SystemPmError::UninstallFailed(format!("Failed to uninstall {}", package)).into())
+            Err(SystemPmError::UninstallFailed(format!(
+                "Failed to uninstall {}",
+                package
+            )))
         }
     }
 

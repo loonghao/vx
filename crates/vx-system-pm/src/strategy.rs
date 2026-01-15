@@ -196,7 +196,7 @@ impl ProvidedTool {
     }
 
     /// Get the full path to the tool given the provider's installation directory
-    pub fn full_path(&self, provider_install_dir: &PathBuf) -> PathBuf {
+    pub fn full_path(&self, provider_install_dir: &std::path::Path) -> PathBuf {
         provider_install_dir.join(&self.relative_path)
     }
 }
