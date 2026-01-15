@@ -15,13 +15,10 @@ impl BrewConfig {
     pub fn search_paths(platform: &Platform) -> Vec<&'static str> {
         match platform.os.as_str() {
             "macos" => vec![
-                "/opt/homebrew/bin",   // Apple Silicon
-                "/usr/local/bin",      // Intel
+                "/opt/homebrew/bin", // Apple Silicon
+                "/usr/local/bin",    // Intel
             ],
-            "linux" => vec![
-                "/home/linuxbrew/.linuxbrew/bin",
-                "/usr/local/bin",
-            ],
+            "linux" => vec!["/home/linuxbrew/.linuxbrew/bin", "/usr/local/bin"],
             _ => vec![],
         }
     }

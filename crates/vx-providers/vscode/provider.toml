@@ -34,9 +34,11 @@ strip_prefix = ""
 executable_paths = ["Visual Studio Code.app/Contents/Resources/app/bin/code"]
 strip_prefix = ""
 
+# Linux tar.gz extracts to VSCode-linux-{arch}/ directory
+# Support both x64 and arm64 architectures
 [runtimes.layout.linux]
-executable_paths = ["bin/code"]
-strip_prefix = "VSCode-linux-x64"
+executable_paths = ["bin/code", "VSCode-linux-x64/bin/code", "VSCode-linux-arm64/bin/code"]
+strip_prefix = ""
 
 [runtimes.platforms.windows]
 executable_extensions = [".cmd", ".exe"]
