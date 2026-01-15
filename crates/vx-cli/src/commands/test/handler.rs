@@ -838,6 +838,17 @@ fn get_executable_path_for_runtime(
                 .map(|s| s.as_str())
                 .unwrap_or(runtime_name);
             let store_dir = path_manager.version_store_dir(actual_runtime_name, version);
+
+            // Use verify_installation to find the actual executable path
+            // This handles complex layouts like VSCode's platform-specific directories
+            let verification = runtime.verify_installation(version, &store_dir, platform);
+            if verification.valid {
+                if let Some(exe_path) = verification.executable_path {
+                    return exe_path;
+                }
+            }
+
+            // Fallback to the expected path from executable_relative_path
             let exe_relative = runtime.executable_relative_path(version, platform);
             store_dir.join(&exe_relative)
         }
