@@ -59,20 +59,27 @@ impl Runtime for VscodeRuntime {
     /// VSCode archives have different structures per platform:
     /// - Windows (zip): bin/code.cmd (CLI wrapper) or Code.exe (GUI)
     /// - macOS (zip): Visual Studio Code.app/Contents/Resources/app/bin/code
-    /// - Linux (tar.gz): VSCode-linux-x64/bin/code (needs strip_prefix)
+    /// - Linux (tar.gz): VSCode-linux-{arch}/bin/code
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        use vx_runtime::Os;
+        use vx_runtime::{Arch, Os};
 
         match platform.os {
             Os::Windows => "bin/code.cmd".to_string(),
             Os::MacOS => "Visual Studio Code.app/Contents/Resources/app/bin/code".to_string(),
-            // After strip_prefix is applied, the path is just bin/code
+            // Linux: include the platform-specific directory prefix
+            Os::Linux => {
+                let arch_str = match platform.arch {
+                    Arch::Aarch64 => "arm64",
+                    _ => "x64",
+                };
+                format!("VSCode-linux-{}/bin/code", arch_str)
+            }
             _ => "bin/code".to_string(),
         }
     }
 
     /// Layout configuration for archive extraction
-    /// Linux tar.gz extracts to VSCode-linux-x64/ which needs to be stripped
+    /// Linux tar.gz extracts to VSCode-linux-{arch}/ directory
     fn executable_layout(&self) -> Option<ExecutableLayout> {
         Some(ExecutableLayout {
             download_type: DownloadType::Archive,
@@ -100,8 +107,13 @@ impl Runtime for VscodeRuntime {
                 permissions: Some("755".to_string()),
             }),
             linux: Some(PlatformLayout {
-                executable_paths: vec!["bin/code".to_string()],
-                strip_prefix: Some("VSCode-linux-x64".to_string()), // Linux needs strip
+                // Include both x64 and arm64 paths; installer will find the matching one
+                executable_paths: vec![
+                    "VSCode-linux-x64/bin/code".to_string(),
+                    "VSCode-linux-arm64/bin/code".to_string(),
+                    "bin/code".to_string(),
+                ],
+                strip_prefix: None, // Don't strip - we include full paths
                 permissions: Some("755".to_string()),
             }),
         })
@@ -208,6 +220,13 @@ impl Runtime for VscodeRuntime {
                     "VSCode-{}/Visual Studio Code.app/Contents/Resources/app/bin/code",
                     platform_id
                 ));
+            }
+            vx_runtime::Os::Linux => {
+                // Try architecture-specific directories
+                candidates.push("VSCode-linux-x64/bin/code".to_string());
+                candidates.push("VSCode-linux-arm64/bin/code".to_string());
+                candidates.push(format!("VSCode-{}/bin/code", platform_id));
+                candidates.push("bin/code".to_string());
             }
             _ => {
                 candidates.push("bin/code".to_string());
