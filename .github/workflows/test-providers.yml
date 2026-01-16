@@ -192,9 +192,12 @@ jobs:
       - name: Test providers
         run: |
           echo "Testing providers: ${{ matrix.chunk }}"
-          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --temp-root --keep-going --verbose --json > test-report.json || true
+          # Pre-install uv so pip packages (pre-commit, rez, meson) can use it
+          # This ensures we have a proper Python environment with Python 3.12+
+          ./bin/vx install uv --force
+          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --verbose --json > test-report.json || true
           cat test-report.json
-          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --temp-root --keep-going --detailed
+          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --detailed
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
@@ -233,9 +236,12 @@ jobs:
       - name: Test providers
         run: |
           echo "Testing providers: ${{ matrix.chunk }}"
-          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --temp-root --keep-going --verbose --json > test-report.json || true
+          # Pre-install uv so pip packages (pre-commit, rez, meson) can use it
+          # This ensures we have a proper Python environment with Python 3.12+
+          ./bin/vx install uv --force
+          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --verbose --json > test-report.json || true
           cat test-report.json
-          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --temp-root --keep-going --detailed
+          ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --detailed
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
@@ -271,9 +277,12 @@ jobs:
       - name: Test providers
         run: |
           echo "Testing providers: ${{ matrix.chunk }}"
-          .\bin\vx.exe test --ci --ci-runtimes "${{ matrix.chunk }}" --temp-root --keep-going --verbose --json > test-report.json
+          # Pre-install uv in the temp root so pip packages (pre-commit, rez, meson) can use it
+          # This ensures we have a proper Python environment with Python 3.12+
+          .\bin\vx.exe install uv --force
+          .\bin\vx.exe test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --verbose --json > test-report.json
           if (Test-Path test-report.json) { Get-Content test-report.json }
-          .\bin\vx.exe test --ci --ci-runtimes "${{ matrix.chunk }}" --temp-root --keep-going --detailed
+          .\bin\vx.exe test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --detailed
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
