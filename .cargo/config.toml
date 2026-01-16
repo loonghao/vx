@@ -3,30 +3,15 @@
 # ============================================================================
 
 # ----------------------------------------------------------------------------
-# Build Optimization - Speed up compilation
+# Build Configuration
 # ----------------------------------------------------------------------------
 
 [build]
 # Use all available CPU cores for parallel compilation
 jobs = -1
 
-[profile.dev]
-# Faster incremental builds
-incremental = true
-# Optimize dependencies even in debug builds (much faster runtime, slightly slower compile)
-opt-level = 0
-
-[profile.dev.package."*"]
-# Optimize dependencies in dev mode for faster runtime
-opt-level = 2
-
-[profile.release]
-# Enable LTO for smaller and faster binaries
-lto = "thin"
-# Single codegen unit for better optimization (slower compile, faster binary)
-codegen-units = 1
-# Strip debug symbols for smaller binaries
-strip = true
+# NOTE: Profile settings (dev, release) are defined in Cargo.toml
+# Do NOT duplicate them here as .cargo/config.toml overrides Cargo.toml
 
 # ----------------------------------------------------------------------------
 # Static Linking Configuration
