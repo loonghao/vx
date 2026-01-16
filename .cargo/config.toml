@@ -52,13 +52,10 @@ rustflags = ["-C", "target-feature=+crt-static", "-C", "link-self-contained=yes"
 [target.aarch64-unknown-linux-musl]
 rustflags = ["-C", "target-feature=+crt-static", "-C", "link-self-contained=yes"]
 
-# Linux x86_64 gnu - Static linking where possible
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "target-feature=+crt-static"]
-
-# Linux aarch64 gnu - Static linking where possible
-[target.aarch64-unknown-linux-gnu]
-rustflags = ["-C", "target-feature=+crt-static"]
+# NOTE: Linux gnu targets (glibc) do NOT support static linking.
+# For fully static Linux binaries, use musl targets:
+#   rustup target add x86_64-unknown-linux-musl
+#   cargo build --release --target x86_64-unknown-linux-musl
 
 # macOS x86_64 - Static linking (limited on macOS)
 [target.x86_64-apple-darwin]
