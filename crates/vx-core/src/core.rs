@@ -276,44 +276,6 @@ impl Default for VxConfig {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_platform_current() {
-        let platform = Platform::current();
-        assert!(!platform.os.is_empty());
-        assert!(!platform.arch.is_empty());
-    }
-
-    #[test]
-    fn test_platform_to_string() {
-        let platform = Platform {
-            os: "linux".to_string(),
-            arch: "x86_64".to_string(),
-        };
-        assert_eq!(platform.to_string(), "linux-x64");
-    }
-
-    #[test]
-    fn test_version_creation() {
-        let version = Version::new("1.0.0");
-        assert_eq!(version.version, "1.0.0");
-        assert!(!version.prerelease);
-
-        let prerelease = Version::prerelease("2.0.0-beta.1");
-        assert!(prerelease.prerelease);
-    }
-
-    #[test]
-    fn test_vx_config_default() {
-        let config = VxConfig::default();
-        assert!(config.install_dir.to_string_lossy().contains(".vx"));
-        assert!(!config.registries.is_empty());
-    }
-}
-
 // ============================================================================
 // Process Exit Status Utilities
 // ============================================================================
@@ -377,5 +339,43 @@ pub fn exit_code_from_status(status: &ExitStatus) -> i32 {
         130
     } else {
         status.code().unwrap_or(1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_platform_current() {
+        let platform = Platform::current();
+        assert!(!platform.os.is_empty());
+        assert!(!platform.arch.is_empty());
+    }
+
+    #[test]
+    fn test_platform_to_string() {
+        let platform = Platform {
+            os: "linux".to_string(),
+            arch: "x86_64".to_string(),
+        };
+        assert_eq!(platform.to_string(), "linux-x64");
+    }
+
+    #[test]
+    fn test_version_creation() {
+        let version = Version::new("1.0.0");
+        assert_eq!(version.version, "1.0.0");
+        assert!(!version.prerelease);
+
+        let prerelease = Version::prerelease("2.0.0-beta.1");
+        assert!(prerelease.prerelease);
+    }
+
+    #[test]
+    fn test_vx_config_default() {
+        let config = VxConfig::default();
+        assert!(config.install_dir.to_string_lossy().contains(".vx"));
+        assert!(!config.registries.is_empty());
     }
 }
