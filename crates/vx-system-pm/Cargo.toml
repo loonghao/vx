@@ -36,7 +36,7 @@ libc = "0.2"
 
 # Windows-specific
 [target.'cfg(windows)'.dependencies]
-winreg = "0.52"
+winreg = "0.55"
 
 [dev-dependencies]
 rstest = { workspace = true }
