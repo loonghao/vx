@@ -309,11 +309,11 @@ mod tests {
             },
         );
 
-        let binary = BinaryLayoutConfig::PlatformSpecific(configs);
+        let _binary = BinaryLayoutConfig::PlatformSpecific(configs);
 
         #[cfg(all(windows, target_arch = "x86_64"))]
         {
-            let path = binary.get_executable_path();
+            let path = _binary.get_executable_path();
             assert_eq!(path, Some("bin/ninja.exe".to_string()));
         }
     }
