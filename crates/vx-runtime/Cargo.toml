@@ -58,7 +58,7 @@ vx-paths = { path = "../vx-paths" }
 vx-manifest = { workspace = true }
 
 # CDN acceleration (optional)
-turbo-cdn = { version = "0.7", default-features = false, features = ["rustls", "fast-hash", "high-performance"], optional = true }
+turbo-cdn = { version = "0.8", default-features = false, features = ["rustls", "fast-hash", "high-performance"], optional = true }
 
 [features]
 default = []
