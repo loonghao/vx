@@ -58,15 +58,15 @@ fn test_pnpm_provider_get_runtime() {
     assert!(unknown.is_none());
 }
 
-/// Test that executable_relative_path returns standard name (after post_extract rename)
-/// The downloaded file is renamed from platform-specific name to standard name
+/// Test that executable_relative_path returns path in bin/ directory
+/// The BinaryHandler extracts to bin/ subdirectory
 #[rstest]
-#[case(Os::Linux, Arch::X86_64, "pnpm")]
-#[case(Os::Linux, Arch::Aarch64, "pnpm")]
-#[case(Os::MacOS, Arch::X86_64, "pnpm")]
-#[case(Os::MacOS, Arch::Aarch64, "pnpm")]
-#[case(Os::Windows, Arch::X86_64, "pnpm.exe")]
-#[case(Os::Windows, Arch::Aarch64, "pnpm.exe")]
+#[case(Os::Linux, Arch::X86_64, "bin/pnpm")]
+#[case(Os::Linux, Arch::Aarch64, "bin/pnpm")]
+#[case(Os::MacOS, Arch::X86_64, "bin/pnpm")]
+#[case(Os::MacOS, Arch::Aarch64, "bin/pnpm")]
+#[case(Os::Windows, Arch::X86_64, "bin/pnpm.exe")]
+#[case(Os::Windows, Arch::Aarch64, "bin/pnpm.exe")]
 fn test_pnpm_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
     let runtime = PnpmRuntime::new();
     let platform = Platform { os, arch };
