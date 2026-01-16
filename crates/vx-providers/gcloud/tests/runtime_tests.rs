@@ -26,7 +26,7 @@ fn test_runtime_ecosystem() {
 fn test_runtime_aliases() {
     let runtime = GcloudRuntime::new();
     assert!(runtime.aliases().contains(&"google-cloud-sdk"));
-    assert!(runtime.aliases().contains(&"gsutil"));
+    assert!(runtime.aliases().contains(&"google-cloud-cli"));
 }
 
 #[test]
@@ -58,8 +58,12 @@ fn test_provider_supports() {
 fn test_provider_runtimes() {
     let provider = GcloudProvider::new();
     let runtimes = provider.runtimes();
-    assert_eq!(runtimes.len(), 1);
-    assert_eq!(runtimes[0].name(), "gcloud");
+    // Provider includes gcloud, gsutil, and bq (all bundled in Google Cloud SDK)
+    assert_eq!(runtimes.len(), 3);
+    let names: Vec<&str> = runtimes.iter().map(|r| r.name()).collect();
+    assert!(names.contains(&"gcloud"));
+    assert!(names.contains(&"gsutil"));
+    assert!(names.contains(&"bq"));
 }
 
 #[test]
