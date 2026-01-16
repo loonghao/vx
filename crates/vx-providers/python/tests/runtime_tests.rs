@@ -22,8 +22,11 @@ fn test_provider_description() {
 fn test_provider_runtimes() {
     let provider = PythonProvider::new();
     let runtimes = provider.runtimes();
-    assert_eq!(runtimes.len(), 1);
-    assert_eq!(runtimes[0].name(), "python");
+    // Provider includes python and pip (bundled with python)
+    assert_eq!(runtimes.len(), 2);
+    let names: Vec<&str> = runtimes.iter().map(|r| r.name()).collect();
+    assert!(names.contains(&"python"));
+    assert!(names.contains(&"pip"));
 }
 
 #[test]
