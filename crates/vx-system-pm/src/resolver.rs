@@ -562,6 +562,5 @@ mod tests {
     async fn test_resolver_creation() {
         let _resolver = SystemDependencyResolver::new();
         // Just ensure it creates without panicking
-        assert!(true);
     }
 }
