@@ -1,6 +1,83 @@
-# Static linking configuration for Windows
+# ============================================================================
+# VX Cargo Configuration
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Build Optimization - Speed up compilation
+# ----------------------------------------------------------------------------
+
+[build]
+# Use all available CPU cores for parallel compilation
+jobs = -1
+
+[profile.dev]
+# Faster incremental builds
+incremental = true
+# Optimize dependencies even in debug builds (much faster runtime, slightly slower compile)
+opt-level = 0
+
+[profile.dev.package."*"]
+# Optimize dependencies in dev mode for faster runtime
+opt-level = 2
+
+[profile.release]
+# Enable LTO for smaller and faster binaries
+lto = "thin"
+# Single codegen unit for better optimization (slower compile, faster binary)
+codegen-units = 1
+# Strip debug symbols for smaller binaries
+strip = true
+
+# ----------------------------------------------------------------------------
+# Static Linking Configuration
+# ----------------------------------------------------------------------------
+
+# Windows x86_64 - Static CRT linking
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static"]
 
+# Windows i686 - Static CRT linking
 [target.i686-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static"]
+
+# Windows aarch64 - Static CRT linking
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+# Linux x86_64 musl - Fully static binary
+[target.x86_64-unknown-linux-musl]
+rustflags = ["-C", "target-feature=+crt-static", "-C", "link-self-contained=yes"]
+
+# Linux aarch64 musl - Fully static binary
+[target.aarch64-unknown-linux-musl]
+rustflags = ["-C", "target-feature=+crt-static", "-C", "link-self-contained=yes"]
+
+# Linux x86_64 gnu - Static linking where possible
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+# Linux aarch64 gnu - Static linking where possible
+[target.aarch64-unknown-linux-gnu]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+# macOS x86_64 - Static linking (limited on macOS)
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-args=-dead_strip"]
+
+# macOS aarch64 (Apple Silicon) - Static linking (limited on macOS)
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-args=-dead_strip"]
+
+# ----------------------------------------------------------------------------
+# Linker Configuration (faster linking)
+# ----------------------------------------------------------------------------
+
+# Use mold linker on Linux if available (much faster)
+# Uncomment if mold is installed: sudo apt install mold
+# [target.x86_64-unknown-linux-gnu]
+# linker = "clang"
+# rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
+# Use lld on Windows (faster than link.exe)
+# [target.x86_64-pc-windows-msvc]
+# linker = "lld-link"
