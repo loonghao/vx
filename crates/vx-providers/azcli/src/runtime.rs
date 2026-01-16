@@ -132,7 +132,8 @@ impl Runtime for AzCliRuntime {
     /// Custom post-extract for Azure CLI on Windows
     ///
     /// Uses msiexec to install MSI silently to a custom directory
-    fn post_extract(&self, version: &str, _install_path: &std::path::PathBuf) -> Result<()> {
+    #[allow(unused_variables)]
+    fn post_extract(&self, version: &str, install_path: &std::path::PathBuf) -> Result<()> {
         #[cfg(target_os = "windows")]
         {
             use std::process::Command;
