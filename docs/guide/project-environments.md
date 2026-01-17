@@ -287,5 +287,6 @@ test-backend = "cd backend && pytest"
 
 ## Next Steps
 
+- [Virtual Environment Isolation](/guide/virtual-env-isolation) - How vx isolates tool versions per project
 - [Environment Management](/guide/environment-management) - Managing multiple environments
 - [vx.toml Reference](/config/vx-toml) - Complete configuration reference

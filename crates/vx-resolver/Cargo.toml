@@ -11,6 +11,7 @@ vx-core = { workspace = true }
 vx-runtime = { workspace = true }
 vx-cache = { workspace = true }
 vx-paths = { workspace = true }
+vx-config = { workspace = true }
 vx-console = { workspace = true, features = ["progress"] }
 
 anyhow = { workspace = true }
