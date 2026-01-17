@@ -3,6 +3,7 @@ members = [
   "crates/vx-core",
   "crates/vx-cache",
   "crates/vx-runtime",
+  "crates/vx-version-fetcher",
   "crates/vx-resolver",
   "crates/vx-manifest",
   "crates/vx-paths",
@@ -190,6 +191,7 @@ vx-provider-msvc = { path = "crates/vx-providers/msvc" }
 vx-provider-ffmpeg = { path = "crates/vx-providers/ffmpeg" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
+vx-version-fetcher = { path = "crates/vx-version-fetcher" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }

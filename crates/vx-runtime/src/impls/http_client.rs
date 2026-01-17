@@ -363,13 +363,32 @@ impl Default for RealHttpClient {
     }
 }
 
-/// Get GitHub token from environment variables
-/// Checks in order: GITHUB_TOKEN, GH_TOKEN
+/// Get GitHub token from environment variables or stored config
+/// Checks in order: GITHUB_TOKEN, GH_TOKEN, ~/.vx/config/github_token
 fn get_github_token() -> Option<String> {
-    std::env::var("GITHUB_TOKEN")
-        .ok()
-        .or_else(|| std::env::var("GH_TOKEN").ok())
-        .filter(|t| !t.is_empty())
+    // First check environment variables (highest priority)
+    if let Some(token) = std::env::var("GITHUB_TOKEN").ok().filter(|t| !t.is_empty()) {
+        return Some(token);
+    }
+
+    if let Some(token) = std::env::var("GH_TOKEN").ok().filter(|t| !t.is_empty()) {
+        return Some(token);
+    }
+
+    // Then check stored token file
+    if let Ok(paths) = vx_paths::VxPaths::new() {
+        let token_file = paths.config_dir.join("github_token");
+        if token_file.exists() {
+            if let Ok(token) = std::fs::read_to_string(&token_file) {
+                let token = token.trim();
+                if !token.is_empty() {
+                    return Some(token.to_string());
+                }
+            }
+        }
+    }
+
+    None
 }
 
 /// HTTP error that can be retried

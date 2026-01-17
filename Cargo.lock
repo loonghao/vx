@@ -4258,6 +4258,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
@@ -4299,6 +4300,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
@@ -4388,6 +4390,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
@@ -4433,6 +4436,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
@@ -4446,6 +4450,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
@@ -4524,6 +4529,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
@@ -4554,6 +4560,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
@@ -4567,6 +4574,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
@@ -4598,6 +4606,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
@@ -4702,6 +4711,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
@@ -4731,6 +4741,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
@@ -4774,6 +4785,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
@@ -4887,6 +4899,22 @@ dependencies = [
  "tracing",
  "which",
  "winreg 0.55.0",
+]
+
+[[package]]
+name = "vx-version-fetcher"
+version = "0.6.14"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "vx-runtime",
 ]
 
 [[package]]

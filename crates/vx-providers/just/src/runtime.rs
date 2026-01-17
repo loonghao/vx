@@ -8,10 +8,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use vx_runtime::{
-    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
-    VersionInfo,
-};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
+use vx_version_fetcher::VersionFetcherBuilder;
 
 /// Just runtime implementation
 #[derive(Debug, Clone, Default)]
@@ -62,16 +60,16 @@ impl Runtime for JustRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Just uses plain version numbers without 'v' prefix, skip prereleases
-        ctx.fetch_github_releases(
-            "just",
-            "casey",
-            "just",
-            GitHubReleaseOptions::new()
-                .strip_v_prefix(false)
-                .skip_prereleases(true),
-        )
-        .await
+        // Just uses plain version numbers without 'v' prefix
+        VersionFetcherBuilder::jsdelivr("casey", "just")
+            .tool_name("just")
+            .prerelease_markers(&["-alpha", "-beta", "-rc", "-dev"])
+            .skip_prereleases()
+            .limit(50)
+            .build()
+            .fetch(ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

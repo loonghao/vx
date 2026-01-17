@@ -159,6 +159,25 @@ CI 流水线采用 **crate 级别的变更检测** 优化，以最小化构建�
 3. 点击 "Run workflow"
 4. 勾选 "Force full CI run"
 
+## 依赖限制
+
+部分依赖存在版本限制，无法自动升级：
+
+### bincode（v1.3 → v3.x 被阻止）
+
+`bincode` crate 被锁定在 v1.3，原因如下：
+
+- **msvc-kit**（用于 Windows 上 MSVC 构建工具的安装）依赖 `bincode ^1.3`
+- `bincode v3` 具有完全不同的 API（该 crate 已被重构）
+- 在 `msvc-kit` 发布支持 `bincode v3` 的版本之前，我们无法升级
+
+**解决方案**：Renovate 已配置为跳过 `bincode` 的主版本更新。详情请参阅 [PR #378](https://github.com/loonghao/vx/pull/378)。
+
+**后续处理**：监控 `msvc-kit` 的新版本以获取 `bincode v3` 支持。一旦可用：
+1. 将 `msvc-kit` 更新到新版本
+2. 移除 Renovate 中关于 `bincode` 的规则
+3. 将代码迁移到 `bincode v3` API
+
 ## 获取帮助
 
 - 提交 Issue

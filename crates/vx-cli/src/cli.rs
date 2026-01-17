@@ -562,6 +562,15 @@ pub enum Commands {
         #[arg(short, long)]
         verbose: bool,
     },
+
+    // =========================================================================
+    // Authentication
+    // =========================================================================
+    /// Authentication for external services (GitHub, etc.)
+    Auth {
+        #[command(subcommand)]
+        command: AuthCommand,
+    },
 }
 
 // =============================================================================
@@ -924,6 +933,31 @@ pub enum ExtCommand {
     },
 }
 
+#[derive(Subcommand, Clone)]
+pub enum AuthCommand {
+    /// Login to a service (GitHub, etc.)
+    Login {
+        /// Service to authenticate with (github)
+        #[arg(default_value = "github")]
+        service: String,
+        /// Provide token directly instead of using device flow
+        #[arg(long)]
+        token: Option<String>,
+    },
+    /// Logout from a service
+    Logout {
+        /// Service to logout from (github)
+        #[arg(default_value = "github")]
+        service: String,
+    },
+    /// Show authentication status
+    Status {
+        /// Service to check (github, or all)
+        #[arg(default_value = "github")]
+        service: String,
+    },
+}
+
 // =============================================================================
 // CommandHandler Implementation
 // =============================================================================
@@ -965,6 +999,7 @@ impl CommandHandler for Commands {
             Commands::Migrate { .. } => "migrate",
             Commands::Lock { .. } => "lock",
             Commands::Info { .. } => "info",
+            Commands::Auth { .. } => "auth",
         }
     }
 
@@ -1415,6 +1450,166 @@ impl CommandHandler for Commands {
             }
 
             Commands::Info { json } => commands::capabilities::handle(ctx.registry(), *json).await,
+
+            Commands::Auth { command } => match command {
+                AuthCommand::Login { service, token } => {
+                    handle_auth_login(service, token.as_deref()).await
+                }
+                AuthCommand::Logout { service } => handle_auth_logout(service).await,
+                AuthCommand::Status { service } => handle_auth_status(service).await,
+            },
+        }
+    }
+}
+
+// =============================================================================
+// Auth Command Handlers
+// =============================================================================
+
+async fn handle_auth_login(service: &str, token: Option<&str>) -> Result<()> {
+    use crate::commands::auth::{
+        get_token_status, store_github_token, GitHubDeviceFlow, TokenSource,
+    };
+
+    match service {
+        "github" | "gh" => {
+            // Check if already authenticated
+            let status = get_token_status().await?;
+            if !matches!(status.source, TokenSource::None) {
+                println!("Already authenticated with GitHub via {}", status.source);
+                if let Some(rl) = status.rate_limit {
+                    println!("Rate limit: {}/{} remaining", rl.remaining, rl.limit);
+                }
+                println!(
+                    "\nTo re-authenticate, run: vx auth logout github && vx auth login github"
+                );
+                return Ok(());
+            }
+
+            // If token provided directly, store it
+            if let Some(t) = token {
+                store_github_token(t)?;
+                println!("GitHub token stored successfully!");
+                println!("\nYou can also set GITHUB_TOKEN or GH_TOKEN environment variable.");
+                return Ok(());
+            }
+
+            // Use Device Flow
+            println!("Authenticating with GitHub using Device Flow...\n");
+
+            let flow = GitHubDeviceFlow::new();
+            let device_code = flow.start().await?;
+
+            println!("Please visit: {}", device_code.verification_uri);
+            println!("And enter code: {}\n", device_code.user_code);
+
+            // Try to open browser
+            #[cfg(target_os = "windows")]
+            {
+                let _ = std::process::Command::new("cmd")
+                    .args(["/c", "start", &device_code.verification_uri])
+                    .spawn();
+            }
+            #[cfg(target_os = "macos")]
+            {
+                let _ = std::process::Command::new("open")
+                    .arg(&device_code.verification_uri)
+                    .spawn();
+            }
+            #[cfg(target_os = "linux")]
+            {
+                let _ = std::process::Command::new("xdg-open")
+                    .arg(&device_code.verification_uri)
+                    .spawn();
+            }
+
+            println!("Waiting for authorization...");
+
+            let token = flow
+                .poll_for_token(
+                    &device_code.device_code,
+                    device_code.interval,
+                    device_code.expires_in,
+                )
+                .await?;
+
+            store_github_token(&token)?;
+
+            println!("\n✓ Successfully authenticated with GitHub!");
+            println!("  Token stored in ~/.vx/config/github_token");
+            println!("\nYou can also set GITHUB_TOKEN or GH_TOKEN environment variable for CI.");
+
+            Ok(())
+        }
+        _ => {
+            anyhow::bail!("Unknown service: {}. Supported services: github", service);
+        }
+    }
+}
+
+async fn handle_auth_logout(service: &str) -> Result<()> {
+    use crate::commands::auth::remove_github_token;
+
+    match service {
+        "github" | "gh" => {
+            remove_github_token()?;
+            println!("✓ Logged out from GitHub");
+            println!("\nNote: This only removes the stored token.");
+            println!("Environment variables (GITHUB_TOKEN, GH_TOKEN) are not affected.");
+            Ok(())
+        }
+        _ => {
+            anyhow::bail!("Unknown service: {}. Supported services: github", service);
+        }
+    }
+}
+
+async fn handle_auth_status(service: &str) -> Result<()> {
+    use crate::commands::auth::{get_token_status, TokenSource};
+
+    match service {
+        "github" | "gh" | "all" => {
+            println!("GitHub Authentication Status\n");
+
+            let status = get_token_status().await?;
+
+            match &status.source {
+                TokenSource::None => {
+                    println!("  Status: Not authenticated");
+                    println!("\n  To authenticate:");
+                    println!("    vx auth login github");
+                    println!("\n  Or set environment variable:");
+                    println!("    export GITHUB_TOKEN=<your-token>");
+                }
+                source => {
+                    println!("  Status: ✓ Authenticated");
+                    println!("  Source: {}", source);
+
+                    if !status.scopes.is_empty() {
+                        println!("  Scopes: {}", status.scopes.join(", "));
+                    }
+
+                    if let Some(rl) = status.rate_limit {
+                        println!("\n  Rate Limit:");
+                        println!("    Remaining: {}/{}", rl.remaining, rl.limit);
+
+                        // Calculate reset time
+                        let now = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs();
+                        if rl.reset > now {
+                            let mins = (rl.reset - now) / 60;
+                            println!("    Resets in: {} minutes", mins);
+                        }
+                    }
+                }
+            }
+
+            Ok(())
+        }
+        _ => {
+            anyhow::bail!("Unknown service: {}. Supported services: github", service);
         }
     }
 }
