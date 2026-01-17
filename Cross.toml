@@ -1,18 +1,12 @@
 [build.env]
 passthrough = ["GITHUB_TOKEN"]
 
-# Use vendored OpenSSL for musl targets to avoid system dependency issues
+# musl targets now use rustls (pure Rust TLS), no OpenSSL needed
 [target.x86_64-unknown-linux-musl]
 pre-build = []
 
-[target.x86_64-unknown-linux-musl.env]
-passthrough = ["OPENSSL_STATIC=1", "OPENSSL_NO_VENDOR=0"]
-
 [target.aarch64-unknown-linux-musl]
 pre-build = []
-
-[target.aarch64-unknown-linux-musl.env]
-passthrough = ["OPENSSL_STATIC=1", "OPENSSL_NO_VENDOR=0"]
 
 # workaround for https://github.com/cross-rs/cross/issues/1345
 [target.x86_64-unknown-netbsd]

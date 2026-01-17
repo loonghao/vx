@@ -17,6 +17,28 @@ cd vx
 cargo build
 ```
 
+### Cross-Platform Build Notes
+
+vx uses **rustls** (pure Rust TLS implementation) instead of OpenSSL, which enables:
+
+- **No system dependencies**: Cross-compilation to musl targets works out of the box
+- **Smaller binaries**: No need to bundle OpenSSL
+- **Consistent behavior**: Same TLS implementation across all platforms
+
+The HTTP client (`reqwest`) is configured with:
+- `rustls-tls`: Pure Rust TLS backend
+- `rustls-tls-native-roots`: Uses system certificate store for trust roots
+
+This means you can build static musl binaries without installing OpenSSL:
+
+```bash
+# Build for Linux musl (static binary)
+cross build --release --target x86_64-unknown-linux-musl
+
+# Build for ARM64 musl
+cross build --release --target aarch64-unknown-linux-musl
+```
+
 ### Run Tests
 
 ```bash

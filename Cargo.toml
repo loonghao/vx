@@ -203,12 +203,13 @@ tokio = { version = "1.0", features = [
   "fs",
   "process",
 ] }
-# HTTP client - use native TLS (OpenSSL on Linux, SChannel on Windows)
-# This avoids aws-lc-sys which requires cmake and NASM
+# HTTP client - use rustls TLS (pure Rust, no OpenSSL dependency)
+# This enables cross-compilation to musl targets without OpenSSL
 reqwest = { version = "0.12", features = [
   "json",
   "stream",
-  "native-tls",
+  "rustls-tls",
+  "rustls-tls-native-roots",
 ], default-features = false }
 serde_json = "1.0.148"
 anyhow = "1.0"

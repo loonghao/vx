@@ -27,6 +27,28 @@ git checkout -b feature/my-feature
 cargo build
 ```
 
+### 跨平台构建说明
+
+vx 使用 **rustls**（纯 Rust TLS 实现）而不是 OpenSSL，这带来了以下好处：
+
+- **无系统依赖**：可以直接交叉编译到 musl 目标
+- **更小的二进制文件**：无需打包 OpenSSL
+- **行为一致**：所有平台使用相同的 TLS 实现
+
+HTTP 客户端（`reqwest`）配置了：
+- `rustls-tls`：纯 Rust TLS 后端
+- `rustls-tls-native-roots`：使用系统证书存储作为信任根
+
+这意味着你可以在不安装 OpenSSL 的情况下构建静态 musl 二进制文件：
+
+```bash
+# 构建 Linux musl（静态二进制）
+cross build --release --target x86_64-unknown-linux-musl
+
+# 构建 ARM64 musl
+cross build --release --target aarch64-unknown-linux-musl
+```
+
 ### 测试
 
 ```bash
