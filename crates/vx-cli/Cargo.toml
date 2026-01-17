@@ -101,7 +101,7 @@ windows-sys = { workspace = true }
 
 [features]
 default = ["cdn-acceleration"]
-# CDN acceleration for faster downloads in China (requires OpenSSL on some platforms)
+# CDN acceleration for faster downloads in China (uses rustls, no OpenSSL required)
 cdn-acceleration = ["vx-runtime/cdn-acceleration"]
 
 [dev-dependencies]
