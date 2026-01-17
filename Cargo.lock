@@ -143,15 +143,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
-name = "arbitrary"
-version = "1.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
-dependencies = [
- "derive_arbitrary",
-]
-
-[[package]]
 name = "askama"
 version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -298,6 +289,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "bincode"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
+dependencies = [
+ "bincode_derive",
+ "serde",
+ "unty",
+]
+
+[[package]]
+name = "bincode_derive"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf95709a440f45e986983918d0e8a1f30a9b1df04918fc828670606804ac3c09"
+dependencies = [
+ "virtue",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -370,30 +381,11 @@ checksum = "b35204fbdc0b3f4446b89fc1ac2cf84a8a68971995d0bf2e925ec7cd960f9cb3"
 
 [[package]]
 name = "bzip2"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49ecfb22d906f800d4fe833b6282cf4dc1c298f5057ca0b5445e5c209735ca47"
-dependencies = [
- "bzip2-sys",
-]
-
-[[package]]
-name = "bzip2"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3a53fac24f34a81bc9954b5d6cfce0c21e18ec6959f44f56e8e90e4bb7c346c"
 dependencies = [
  "libbz2-rs-sys",
-]
-
-[[package]]
-name = "bzip2-sys"
-version = "0.1.13+1.0.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "225bff33b2141874fe80d71e07d6eec4f85c5c216453dd96388240f96e1acc14"
-dependencies = [
- "cc",
- "pkg-config",
 ]
 
 [[package]]
@@ -647,9 +639,9 @@ dependencies = [
 
 [[package]]
 name = "crc"
-version = "3.4.0"
+version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5eb8a2a1cd12ab0d987a5d5e825195d372001a4094a0376319d5a0ad71c1ba0d"
+checksum = "9710d3b3739c2e349eb44fe848ad0b7c8cb1e42bd87ee49371df2f7acaf3e675"
 dependencies = [
  "crc-catalog",
 ]
@@ -794,17 +786,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ececcb659e7ba858fb4f10388c250a7252eb0a27373f1a72b8748afdd248e587"
 dependencies = [
  "powerfmt",
-]
-
-[[package]]
-name = "derive_arbitrary"
-version = "1.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e567bd82dcff979e4b03460c307b3cdc9e96fde3d73bed1496d2bc75d9dd62a"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -1825,13 +1806,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
-name = "lzma-rs"
-version = "0.3.0"
+name = "lzma-rust2"
+version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "297e814c836ae64db86b36cf2a557ba54368d03f6afcd7d947c266692f71115e"
+checksum = "1670343e58806300d87950e3401e820b519b9384281bbabfb15e3636689ffd69"
 dependencies = [
- "byteorder",
  "crc",
+ "sha2",
 ]
 
 [[package]]
@@ -1930,14 +1911,14 @@ dependencies = [
 
 [[package]]
 name = "msvc-kit"
-version = "0.2.4"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab8474fb306d38a21ec51e68e0aa17b45618e58ba961a79ab87d3716d27bd6f6"
+checksum = "834cb53adf5a1adbfd96cba5af523463982c9782b4da675ae53309814e72a1ad"
 dependencies = [
  "anyhow",
  "askama",
  "async-trait",
- "bincode",
+ "bincode 2.0.1",
  "cab",
  "chrono",
  "clap",
@@ -1958,7 +1939,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "winreg 0.55.0",
- "zip 2.4.2",
+ "zip",
 ]
 
 [[package]]
@@ -2347,7 +2328,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
@@ -2384,9 +2365,9 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2455,9 +2436,9 @@ dependencies = [
 
 [[package]]
 name = "redb"
-version = "1.5.2"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17a0b35b8077c954324cc3504bea8d35e27a2f5d07c0ba41052a35d92f020f84"
+checksum = "ae323eb086579a3769daa2c753bb96deb95993c534711e0dbe881b5192906a06"
 dependencies = [
  "libc",
 ]
@@ -3806,6 +3787,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
+name = "unty"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d49784317cd0d1ee7ec5c716dd598ec5b4483ea832a2dced265471cc0f690ae"
+
+[[package]]
 name = "url"
 version = "2.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3877,8 +3864,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
+name = "virtue"
+version = "0.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
+
+[[package]]
 name = "vx"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -3893,7 +3886,7 @@ dependencies = [
 
 [[package]]
 name = "vx-args"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "indexmap",
  "regex",
@@ -3906,10 +3899,10 @@ dependencies = [
 
 [[package]]
 name = "vx-cache"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
- "bincode",
+ "bincode 1.3.3",
  "hex",
  "rstest",
  "serde",
@@ -3920,7 +3913,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cli"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4008,12 +4001,12 @@ dependencies = [
  "walkdir",
  "which",
  "windows-sys 0.61.2",
- "zip 7.1.0",
+ "zip",
 ]
 
 [[package]]
 name = "vx-config"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4035,7 +4028,7 @@ dependencies = [
 
 [[package]]
 name = "vx-console"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anstream",
  "anstyle",
@@ -4055,7 +4048,7 @@ dependencies = [
 
 [[package]]
 name = "vx-core"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4074,7 +4067,7 @@ dependencies = [
 
 [[package]]
 name = "vx-env"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "pretty_assertions",
@@ -4088,7 +4081,7 @@ dependencies = [
 
 [[package]]
 name = "vx-extension"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4110,7 +4103,7 @@ dependencies = [
 
 [[package]]
 name = "vx-installer"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4133,12 +4126,12 @@ dependencies = [
  "turbo-cdn",
  "urlencoding",
  "walkdir",
- "zip 7.1.0",
+ "zip",
 ]
 
 [[package]]
 name = "vx-manifest"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "pretty_assertions",
  "rstest",
@@ -4152,7 +4145,7 @@ dependencies = [
 
 [[package]]
 name = "vx-migration"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4173,7 +4166,7 @@ dependencies = [
 
 [[package]]
 name = "vx-paths"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "dirs",
@@ -4186,7 +4179,7 @@ dependencies = [
 
 [[package]]
 name = "vx-project-analyzer"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4210,7 +4203,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-awscli"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4223,7 +4216,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-azcli"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4236,7 +4229,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-brew"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4249,7 +4242,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-bun"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4262,7 +4255,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-choco"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4275,7 +4268,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-cmake"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4290,7 +4283,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-deno"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4303,7 +4296,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-docker"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4317,7 +4310,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-ffmpeg"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4334,7 +4327,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-gcloud"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4348,7 +4341,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-git"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4363,7 +4356,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-go"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4379,7 +4372,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-helm"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4392,7 +4385,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-java"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4407,7 +4400,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-jq"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4422,7 +4415,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-just"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4437,7 +4430,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-kubectl"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4450,7 +4443,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-make"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4466,7 +4459,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-meson"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4482,7 +4475,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-msvc"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4499,7 +4492,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-nasm"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4513,7 +4506,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-ninja"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4528,7 +4521,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-node"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4544,7 +4537,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-ollama"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4558,7 +4551,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-pnpm"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4571,7 +4564,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-pre-commit"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4587,7 +4580,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-protoc"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4602,7 +4595,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-python"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4619,7 +4612,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-rcedit"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4634,7 +4627,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-release-please"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4649,7 +4642,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-rez"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4665,7 +4658,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-rust"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4676,7 +4669,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-spack"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4691,7 +4684,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-task"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4706,7 +4699,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-terraform"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4719,7 +4712,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-uv"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4735,7 +4728,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-vite"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4750,7 +4743,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-vscode"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4765,7 +4758,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-yarn"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4778,7 +4771,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-zig"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4791,11 +4784,11 @@ dependencies = [
 
 [[package]]
 name = "vx-resolver"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
- "bincode",
+ "bincode 1.3.3",
  "regex",
  "rstest",
  "serde",
@@ -4817,12 +4810,12 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "async-trait",
  "backon",
- "bincode",
+ "bincode 1.3.3",
  "chrono",
  "flate2",
  "futures-util",
@@ -4849,12 +4842,12 @@ dependencies = [
  "vx-paths",
  "which",
  "xz2",
- "zip 7.1.0",
+ "zip",
 ]
 
 [[package]]
 name = "vx-setup"
-version = "0.6.14"
+version = "0.6.15"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5636,42 +5629,12 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "2.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fabe6324e908f85a1c52063ce7aa26b68dcb7eb6dbc83a2d148403c9bc3eba50"
-dependencies = [
- "aes",
- "arbitrary",
- "bzip2 0.5.2",
- "constant_time_eq",
- "crc32fast",
- "crossbeam-utils",
- "deflate64",
- "displaydoc",
- "flate2",
- "getrandom 0.3.4",
- "hmac",
- "indexmap",
- "lzma-rs",
- "memchr",
- "pbkdf2",
- "sha1",
- "thiserror 2.0.17",
- "time",
- "xz2",
- "zeroize",
- "zopfli",
- "zstd",
-]
-
-[[package]]
-name = "zip"
 version = "7.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9013f1222db8a6d680f13a7ccdc60a781199cd09c2fa4eff58e728bb181757fc"
 dependencies = [
  "aes",
- "bzip2 0.6.1",
+ "bzip2",
  "constant_time_eq",
  "crc32fast",
  "deflate64",
@@ -5680,6 +5643,7 @@ dependencies = [
  "getrandom 0.3.4",
  "hmac",
  "indexmap",
+ "lzma-rust2",
  "memchr",
  "pbkdf2",
  "ppmd-rust",
