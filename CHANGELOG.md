@@ -5,6 +5,101 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.14](https://github.com/loonghao/vx/compare/vx-v0.6.13...vx-v0.6.14) (2026-01-17)
+
+
+### Features
+
+* add binary download support for rust/rustup and improve CI coverage ([3ae9600](https://github.com/loonghao/vx/commit/3ae9600e9345deb7a0cf2287f5cc2c5457e8a669))
+* add jsDelivr CDN fallback for GitHub releases API ([43ea611](https://github.com/loonghao/vx/commit/43ea61155e0a9548434b07e2704e8ce3e5e9b174))
+* add meson and make providers, fix git and yasm issues ([1203ae9](https://github.com/loonghao/vx/commit/1203ae93cdf022c8c43b86d7890525852ed1b4a8))
+* add package manager install support and improve static binary handling ([7c812bc](https://github.com/loonghao/vx/commit/7c812bc4c088b058f50ce4070a4703f5f11db87b)), closes [#389](https://github.com/loonghao/vx/issues/389)
+* add pipx provider and fix rust/rustup issues ([e7b2f99](https://github.com/loonghao/vx/commit/e7b2f998ed7238d8d3458e4e7de09cf4a68cd2a8))
+* add provider.toml manifests for meson and make ([f914d91](https://github.com/loonghao/vx/commit/f914d91d6a61e7893c9779d6b1f8fc96fc7eabf3))
+* add Runtime::store_name() method for consistent store path resolution ([682a47f](https://github.com/loonghao/vx/commit/682a47f92b16018137b1362090ab381a6c8f47dd))
+* add static linking for Linux/macOS and optimize build speed ([a0b624f](https://github.com/loonghao/vx/commit/a0b624f0756a4f9fde4408485a7c7535d28f795f))
+* **cli:** implement RFC 0020 Phase 2 - modular command structure ([f844015](https://github.com/loonghao/vx/commit/f844015e35b97ada8d78d04ed4135d4dbcbd3927))
+* implement RFC 0020 & 0021 - system package manager integration and manifest-driven runtimes ([322f624](https://github.com/loonghao/vx/commit/322f624ab9d9f6a405cc19c03190297834e1b1fd))
+* improve download timeout handling for large files ([f4ea792](https://github.com/loonghao/vx/commit/f4ea7921bbcbc1cf50079d98bb66fcc32fd8480e))
+* **providers:** add jq provider with binary layout support ([fc9aa90](https://github.com/loonghao/vx/commit/fc9aa904c5115adcef407b100e24b06cbcd3271d))
+* **resolver:** add subprocess PATH inheritance for vx-managed tools ([74b6d21](https://github.com/loonghao/vx/commit/74b6d21cde34ee5ca8f07d49d0b70a9f087596ba))
+* **test:** add --ci mode for full end-to-end testing ([6576953](https://github.com/loonghao/vx/commit/657695375172d4d371a468ed519f07f12bb604f5))
+* **test:** add --vx-root and --temp-root for isolated CI testing ([fde4a2f](https://github.com/loonghao/vx/commit/fde4a2fd9883bb3748d42a88de769639284d46e9))
+* **test:** add comprehensive vx test command for provider testing ([b7ed2e8](https://github.com/loonghao/vx/commit/b7ed2e8afb5b723080b2fca1a2943d00c5724037))
+* **vx-paths:** add debug logging for executable search ([2ebda23](https://github.com/loonghao/vx/commit/2ebda23f246906bd1b4715bdf551b425306b5e76))
+
+
+### Bug Fixes
+
+* add libc dependency for Unix-specific syscalls ([3e422ea](https://github.com/loonghao/vx/commit/3e422ea8c92bf590e166fd441ecb2c209eac53ea))
+* **awscli:** use post_extract instead of post_install for MSI installation ([126d795](https://github.com/loonghao/vx/commit/126d7950187fbb32cc137e3003dd2d1f6fb46f37))
+* CI issues for brew, ffmpeg, and vscode providers ([353f4f7](https://github.com/loonghao/vx/commit/353f4f7b81c407c6a484835f7972d60dbbb84ee8))
+* CI test issues for vscode, docker, and rcedit ([210fcbf](https://github.com/loonghao/vx/commit/210fcbf66a52f5c643edbd46119c1212d2792ffb))
+* **ci:** downgrade actions/checkout from v6 to v4 ([49dee31](https://github.com/loonghao/vx/commit/49dee3117e3a31e89c53dff6f97a1615048bde2f))
+* **ci:** only skip spack on Windows, not all platforms ([e9522f4](https://github.com/loonghao/vx/commit/e9522f4fb1348660b1b704b86a954a39815bdd54))
+* **ci:** pass GITHUB_TOKEN to vx test commands to avoid rate limits ([9a72d77](https://github.com/loonghao/vx/commit/9a72d7715961ab31a1efd23e1b16bd77873a6489))
+* **ci:** restore corrupted workflow files and upgrade actions to v6 ([f0fbd40](https://github.com/loonghao/vx/commit/f0fbd4052cdb73d244eb2a0fc5011400b3750aa2))
+* correct manifest syntax for awscli, azcli, and rust providers ([b37860d](https://github.com/loonghao/vx/commit/b37860d231c5bc5c36567754363691e4b0cb0be5))
+* **deps:** update rust crate turbo-cdn to 0.8 ([9753c66](https://github.com/loonghao/vx/commit/9753c663f20038b88bf3cfcf5b8aa5290821293a))
+* **deps:** update rust crate winreg to 0.55 ([67c5327](https://github.com/loonghao/vx/commit/67c53278e7f718c27ec0745ea215d6223714bad7))
+* ensure Python 3.12 for pip package installation in CI ([a7e55f3](https://github.com/loonghao/vx/commit/a7e55f38b529755b5d5070509c493a1cf1b39db6))
+* **executor:** add executable existence check before execution ([c625ecc](https://github.com/loonghao/vx/commit/c625ecc51a8b5510c0947551bf8a089aed5f86fd))
+* handle Ctrl+C exit gracefully and fix Java download URL detection ([1168fb9](https://github.com/loonghao/vx/commit/1168fb9108a6403e1471e718018212784ab78aab))
+* **jq:** use tag_prefix for version parsing ([55ca72b](https://github.com/loonghao/vx/commit/55ca72bd529c7bcdc1f44a0930a2034daf5d56e7))
+* make test-all-providers.sh compatible with Bash 3.x (macOS) ([8332946](https://github.com/loonghao/vx/commit/8332946e70b18e69a540d4cab6d786d6bfdf7415))
+* **make:** use static versions and system package manager installation ([617baf1](https://github.com/loonghao/vx/commit/617baf1899a44a3abbf3013301efa98891dd95a1))
+* **make:** use success_system_installed() for verification ([55ca72b](https://github.com/loonghao/vx/commit/55ca72bd529c7bcdc1f44a0930a2034daf5d56e7))
+* **meson:** use PackageRuntime trait for pip-based installation ([42fa897](https://github.com/loonghao/vx/commit/42fa897f935a6eb2ade1621f2bee551e79768ad0))
+* **pip:** pass bin_name to install functions for correct binary verification ([f9cb7ef](https://github.com/loonghao/vx/commit/f9cb7ef67ebe01a4cfba9be92eac0c0b1ab006e7))
+* prefix unused variable with underscore to fix warning ([10d576d](https://github.com/loonghao/vx/commit/10d576d4309feeed29f190932cc41a2be8a4c7ef))
+* **providers:** fix rust path calculation and make Windows support ([9f636d4](https://github.com/loonghao/vx/commit/9f636d41efebd5c9094708faac507db4a2df35f8))
+* **providers:** implement strip_prefix for archive extraction ([67dcabe](https://github.com/loonghao/vx/commit/67dcabef5c0967fe21b1d13467944d873b147185))
+* **providers:** platform gating, npm shims, and vscode/jq layouts ([56d0bb4](https://github.com/loonghao/vx/commit/56d0bb46ded371036aa4d515d7cca8fc7ec64ccb))
+* remove duplicate profile config from .cargo/config.toml ([5a8d454](https://github.com/loonghao/vx/commit/5a8d454df2ebf743a4c68df4301ee85152fc4d15))
+* remove unsupported crt-static for Linux gnu targets ([f5f9847](https://github.com/loonghao/vx/commit/f5f9847d1f5d2ac6c1bf7b8301f22b70d7c9706c))
+* remove useless assert!(true) to fix clippy warning ([75f8cdf](https://github.com/loonghao/vx/commit/75f8cdf8da54e7e24633291db3266b1ad3f47453))
+* remove yasm/pipx providers and fix Windows test hanging ([c814502](https://github.com/loonghao/vx/commit/c81450208beee49f9c39875831411f960c30faa3))
+* resolve CI failures on Windows ([6f7c5d9](https://github.com/loonghao/vx/commit/6f7c5d9d1139c32433660ccdd5b6ff532613f05d))
+* resolve clippy error and pnpm test failures ([8e2e4f4](https://github.com/loonghao/vx/commit/8e2e4f4df3b316f920c106be86fb6482828c5e3c))
+* resolve clippy warnings in vx-system-pm and test handler ([7824e97](https://github.com/loonghao/vx/commit/7824e97d44fe1e8e1f8f059647ebacae73d73b0a))
+* resolve compilation errors and lint issues in vx-system-pm ([d97cbec](https://github.com/loonghao/vx/commit/d97cbec48d5316178830f0dd7321a00fb6cc6c93))
+* resolve lint warnings and update rust tests ([8d20ea7](https://github.com/loonghao/vx/commit/8d20ea7179b9367289a3945a1402abc5a10b4bfe))
+* resolve msi.rs compilation errors on non-Windows platforms ([bf67aec](https://github.com/loonghao/vx/commit/bf67aec2474342d8ff50cf843d42580600441215))
+* resolve remaining clippy warnings and flaky e2e tests ([271013f](https://github.com/loonghao/vx/commit/271013fc86d570b5f6bd159de44436fb08b789f7))
+* **scripts:** move function definitions before usage in PowerShell script ([92ee92e](https://github.com/loonghao/vx/commit/92ee92ef060822b88e5f746778525f0546e8867d))
+* suppress dead_code warning in make provider ([ac5414e](https://github.com/loonghao/vx/commit/ac5414ed97fda20fe0cdf2d02edae0337bac7a78))
+* **test:** fix command parsing for quoted arguments ([5542b86](https://github.com/loonghao/vx/commit/5542b86092afdd4557786c6d729faa56a0ae644c))
+* **test:** improve test command and add progress tracking ([5a01706](https://github.com/loonghao/vx/commit/5a017067f76e5e82f718419a92f1813d8367ddcf))
+* **test:** improve test command logic and add --install mode ([e14c869](https://github.com/loonghao/vx/commit/e14c8694a88c40a101c64d1f66686ebb6112a0aa))
+* update boundary e2e tests to use correct CLI commands ([c675b00](https://github.com/loonghao/vx/commit/c675b0039cfca35105656969e7b82a25cc813fbc))
+* update gcloud provider tests to match implementation ([f568151](https://github.com/loonghao/vx/commit/f568151027b23c8488dfaabdedcde1ad93a5978f))
+* update Java provider tests to match post_extract flattening ([d0c29f0](https://github.com/loonghao/vx/commit/d0c29f02a070bbd115c14cb7469ff5deae745030))
+* update project_context tests to use cache commands ([9d0e475](https://github.com/loonghao/vx/commit/9d0e475d973328990b0a6490fd310911fa6610c5))
+* update Python provider test to expect 2 runtimes (python, pip) ([cc396ac](https://github.com/loonghao/vx/commit/cc396aced10a4aaa36e5bb74528512f2ae596d21))
+* update tests to match current API signatures ([6f49c2b](https://github.com/loonghao/vx/commit/6f49c2b4cf297f311fd86c5924307d0ab3c47274))
+* update VSCode provider test for Linux executable path ([1b37932](https://github.com/loonghao/vx/commit/1b379324bdee93b00e821a86680038b2fb05c83c))
+* use 'uv self version' instead of 'uv --version'\n\nUV's version command is 'uv self version', not 'uv --version'.\nFixes CI test failures. ([9db4c09](https://github.com/loonghao/vx/commit/9db4c09260238027e916023c5bf6fb53520a87e9))
+* use runtime.name() instead of runtime_name for store paths ([d29e363](https://github.com/loonghao/vx/commit/d29e3635b482bf7db64e571bec477a5bb3ab4534))
+* use synchronous filesystem scan for vx tools PATH building ([db0be5d](https://github.com/loonghao/vx/commit/db0be5d6b032c881b71b9b7e0d4eb4b5c927f280))
+* Windows CI shell syntax and skip problematic runtimes ([859ee2d](https://github.com/loonghao/vx/commit/859ee2da7a34cca81d614f09a66bd3ec87b42508))
+
+
+### Code Refactoring
+
+* **ci:** extract provider discovery to reusable scripts ([55ca72b](https://github.com/loonghao/vx/commit/55ca72bd529c7bcdc1f44a0930a2034daf5d56e7))
+* **ci:** split provider tests into parallel jobs ([8a2c0b2](https://github.com/loonghao/vx/commit/8a2c0b2e122475a21bda1cffce6289fc5fb8ef8a))
+* **cli:** consolidate commands and add common utilities ([a179d23](https://github.com/loonghao/vx/commit/a179d23ab19e4b85f67b552fb91d30f26c537b51))
+* **cli:** redesign cache subcommands for clarity ([12c5f0d](https://github.com/loonghao/vx/commit/12c5f0d1736b04fab386af5232752f2ff67264d7))
+* **rust:** use system_install strategy via rustup ([55ca72b](https://github.com/loonghao/vx/commit/55ca72bd529c7bcdc1f44a0930a2034daf5d56e7))
+* simplify .cargo/config.toml following uv's approach ([968709a](https://github.com/loonghao/vx/commit/968709a02417e25ff23d584310a6b81574efd8a4))
+* **vx-runtime:** split impls.rs into modular structure ([d351582](https://github.com/loonghao/vx/commit/d351582563b6960fbac1f88e067e1b035543714a))
+
+
+### Documentation
+
+* add manifest-driven providers documentation (EN/ZH) ([7cbc622](https://github.com/loonghao/vx/commit/7cbc622d15cf209b0d185e92439f47f525458143))
+* add vx test command documentation (EN/ZH) ([143dd0f](https://github.com/loonghao/vx/commit/143dd0f2723189c3053e37a84493bfa7f06da757))
+
 ## [0.6.13](https://github.com/loonghao/vx/compare/vx-v0.6.12...vx-v0.6.13) (2026-01-11)
 
 

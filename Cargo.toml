@@ -119,7 +119,7 @@ serde_json = { workspace = true }
 
 
 [workspace.package]
-version = "0.6.13"                                                # x-release-please-version
+version = "0.6.14"                                                # x-release-please-version
 edition = "2021"
 description = "Universal Development Tool Manager"
 license = "MIT"
@@ -195,7 +195,7 @@ vx-manifest = { path = "crates/vx-manifest" }
 clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.9.10"
-toml_edit = "0.24"
+toml_edit = "0.23"
 # Optimize tokio - only include needed features for better compile times
 tokio = { version = "1.0", features = [
   "rt-multi-thread",
