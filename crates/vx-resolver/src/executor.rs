@@ -1415,14 +1415,41 @@ impl<'a> Executor<'a> {
         // Add user arguments
         cmd.args(args);
 
-        // Inject runtime-specific environment variables
-        if !runtime_env.is_empty() {
+        // Build the final environment with optional vx PATH inheritance
+        let mut final_env = runtime_env.clone();
+
+        // If inherit_vx_path is enabled, prepend all vx-managed tool bin directories to PATH
+        if self.config.inherit_vx_path {
+            if let Some(vx_path) = self.build_vx_tools_path() {
+                let current_path = final_env
+                    .get("PATH")
+                    .cloned()
+                    .or_else(|| std::env::var("PATH").ok())
+                    .unwrap_or_default();
+
+                let path_sep = if cfg!(windows) { ";" } else { ":" };
+                let new_path = if current_path.is_empty() {
+                    vx_path
+                } else {
+                    format!("{}{}{}", vx_path, path_sep, current_path)
+                };
+
+                final_env.insert("PATH".to_string(), new_path);
+                debug!(
+                    "Subprocess PATH includes vx-managed tools for {}",
+                    resolution.runtime
+                );
+            }
+        }
+
+        // Inject environment variables
+        if !final_env.is_empty() {
             debug!(
                 "Injecting {} environment variables for {}",
-                runtime_env.len(),
+                final_env.len(),
                 resolution.runtime
             );
-            for (key, value) in runtime_env {
+            for (key, value) in &final_env {
                 cmd.env(key, value);
             }
         }
@@ -1433,6 +1460,57 @@ impl<'a> Executor<'a> {
         cmd.stderr(Stdio::inherit());
 
         Ok(cmd)
+    }
+
+    /// Build PATH string containing all vx-managed tool bin directories
+    ///
+    /// This allows subprocesses to access vx-managed tools without the `vx` prefix.
+    /// For example, when running `vx just lint`, the justfile can use `uvx nox -s lint`
+    /// directly instead of `vx uvx nox -s lint`.
+    fn build_vx_tools_path(&self) -> Option<String> {
+        let context = self.context?;
+        let registry = self.registry?;
+
+        let mut paths: Vec<String> = Vec::new();
+        let path_sep = if cfg!(windows) { ";" } else { ":" };
+
+        // Add vx bin directory first (for shims)
+        let vx_bin = context.paths.bin_dir();
+        if vx_bin.exists() {
+            paths.push(vx_bin.to_string_lossy().to_string());
+        }
+
+        // Collect all installed runtime bin directories
+        for runtime in registry.supported_runtimes() {
+            let runtime_name = runtime.store_name();
+
+            // Get installed versions for this runtime
+            if let Ok(versions) = tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current()
+                    .block_on(runtime.installed_versions(context))
+            }) {
+                // Use the first (latest) installed version
+                if let Some(version) = versions.first() {
+                    let store_dir = context.paths.version_store_dir(runtime_name, version);
+
+                    if let Some(bin_dir) = self.find_bin_dir(&store_dir, runtime_name) {
+                        if bin_dir.exists() {
+                            let bin_path = bin_dir.to_string_lossy().to_string();
+                            // Avoid duplicates
+                            if !paths.contains(&bin_path) {
+                                paths.push(bin_path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if paths.is_empty() {
+            None
+        } else {
+            Some(paths.join(path_sep))
+        }
     }
 
     /// Run the command and return its status

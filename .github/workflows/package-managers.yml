@@ -130,8 +130,11 @@ jobs:
         uses: vedantmgoyal9/winget-releaser@v2
         with:
           identifier: loonghao.vx
-          # Use normalized version without 'vx-' and 'v' prefix (e.g., "0.1.0" instead of "vx-v0.1.0")
-          release-tag: ${{ needs.check-release.outputs.normalized_version }}
+          # Use the actual GitHub release tag (e.g., "vx-v0.6.13") to find the release
+          # The action needs the exact tag name to locate the release assets
+          release-tag: ${{ needs.check-release.outputs.version }}
+          # Use normalized version for WinGet package version (without 'vx-' and 'v' prefix)
+          version: ${{ needs.check-release.outputs.normalized_version }}
           # Only match Windows MSVC zip files (exclude sha256 files and non-Windows builds)
           # Matches: vx-0.6.2-x86_64-pc-windows-msvc.zip, vx-x86_64-pc-windows-msvc.zip
           installers-regex: 'windows-msvc\.zip$'
