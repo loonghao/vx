@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.16](https://github.com/loonghao/vx/compare/vx-v0.6.15...vx-v0.6.16) (2026-01-17)
+
+
+### Features
+
+* add GitHub auth and unified version fetcher ([e2b946d](https://github.com/loonghao/vx/commit/e2b946d32a3a64d38ab3abafdb5a40a82d564faf))
+
+
+### Bug Fixes
+
+* resolve clippy warnings in vx-version-fetcher ([91fa10e](https://github.com/loonghao/vx/commit/91fa10e2361b6ff1c3dfcecf1d6793f233ddb26d))
+* use is_empty() instead of len() &lt; 1 in jq provider ([4e611a8](https://github.com/loonghao/vx/commit/4e611a87078ca275d5343234428b55b539fad22f))
+
 ## [0.6.15](https://github.com/loonghao/vx/compare/vx-v0.6.14...vx-v0.6.15) (2026-01-17)
 
 
