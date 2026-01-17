@@ -287,5 +287,6 @@ test-backend = "cd backend && pytest"
 
 ## 下一步
 
+- [虚拟环境隔离](/zh/guide/virtual-env-isolation) - vx 如何按项目隔离工具版本
 - [环境管理](/zh/guide/environment-management) - 管理多个环境
 - [vx.toml 参考](/zh/config/vx-toml) - 完整配置参考

@@ -4,16 +4,29 @@
 //! 1. Resolve runtime and dependencies
 //! 2. Auto-install missing components
 //! 3. Forward command to the appropriate executable
+//!
+//! ## Project Configuration Support
+//!
+//! When a `vx.toml` file is found in the current directory or parent directories,
+//! the executor will prioritize using the tool versions specified in the project
+//! configuration when building the subprocess PATH. This ensures that:
+//!
+//! - Subprocesses use the same tool versions as defined in `vx.toml`
+//! - Environment isolation is maintained per-project
+//! - No global pollution from globally installed tool versions
 
 use crate::resolution_cache::log_cache_result;
 use crate::{
     ResolutionCache, ResolutionCacheKey, ResolvedGraph, Resolver, ResolverConfig, Result,
     RuntimeMap,
 };
+use std::collections::HashMap;
 use std::process::{ExitStatus, Stdio};
 use tokio::process::Command;
 use tracing::{debug, info, info_span, warn, Instrument};
+use vx_config::parse_config;
 use vx_console::ProgressSpinner;
+use vx_paths::find_config_file_upward;
 use vx_runtime::{get_default_constraints, CacheMode, ProviderRegistry, RuntimeContext};
 
 // Re-export from vx_core for convenience
@@ -35,6 +48,44 @@ pub struct Executor<'a> {
 
     /// Runtime context for installation
     context: Option<&'a RuntimeContext>,
+
+    /// Project configuration (loaded from vx.toml if present)
+    /// This stores the tool versions specified in the project configuration.
+    project_config: Option<ProjectToolsConfig>,
+}
+
+/// Project tools configuration extracted from vx.toml
+#[derive(Debug, Clone)]
+struct ProjectToolsConfig {
+    /// Tool versions from vx.toml (tool_name -> version)
+    tools: HashMap<String, String>,
+}
+
+impl ProjectToolsConfig {
+    /// Load project configuration from vx.toml in current directory or parent directories
+    fn load() -> Option<Self> {
+        let cwd = std::env::current_dir().ok()?;
+        let config_path = find_config_file_upward(&cwd)?;
+        let config = parse_config(&config_path).ok()?;
+        let tools = config.tools_as_hashmap();
+
+        if tools.is_empty() {
+            debug!("No tools defined in vx.toml at {}", config_path.display());
+            None
+        } else {
+            debug!(
+                "Loaded {} tool(s) from vx.toml at {}",
+                tools.len(),
+                config_path.display()
+            );
+            Some(Self { tools })
+        }
+    }
+
+    /// Get the version for a specific tool
+    fn get_version(&self, tool: &str) -> Option<&str> {
+        self.tools.get(tool).map(|s| s.as_str())
+    }
 }
 
 impl<'a> Executor<'a> {
@@ -42,6 +93,11 @@ impl<'a> Executor<'a> {
     ///
     /// The RuntimeMap should be built from provider manifests using
     /// `RuntimeMap::from_manifests()`. See RFC 0017.
+    ///
+    /// This constructor automatically loads project configuration from `vx.toml`
+    /// if present in the current directory or parent directories. When project
+    /// configuration is available, the executor will prioritize using the tool
+    /// versions specified in `vx.toml` for subprocess PATH construction.
     pub fn new(
         config: ResolverConfig,
         registry: &'a ProviderRegistry,
@@ -55,12 +111,20 @@ impl<'a> Executor<'a> {
                 e
             })
             .ok();
+
+        // Load project configuration from vx.toml
+        let project_config = ProjectToolsConfig::load();
+        if project_config.is_some() {
+            debug!("Project configuration loaded for executor");
+        }
+
         Ok(Self {
             config,
             resolver,
             resolution_cache,
             registry: Some(registry),
             context: Some(context),
+            project_config,
         })
     }
 
@@ -1435,6 +1499,21 @@ impl<'a> Executor<'a> {
     /// This allows subprocesses to access vx-managed tools without the `vx` prefix.
     /// For example, when running `vx just lint`, the justfile can use `uvx nox -s lint`
     /// directly instead of `vx uvx nox -s lint`.
+    ///
+    /// ## Project Configuration Priority
+    ///
+    /// When a `vx.toml` file is present, the executor prioritizes using the tool
+    /// versions specified in the project configuration. This ensures:
+    ///
+    /// - **Environment Isolation**: Each project uses its own tool versions
+    /// - **No Global Pollution**: Globally installed newer versions don't affect projects
+    /// - **Reproducibility**: Same tool versions across all team members
+    ///
+    /// ### Version Selection Order
+    ///
+    /// 1. If `vx.toml` specifies a version for the tool → use that version
+    /// 2. If the specified version is not installed → fall back to latest installed
+    /// 3. If no `vx.toml` exists → use latest installed version (existing behavior)
     fn build_vx_tools_path(&self) -> Option<String> {
         let context = self.context?;
         let registry = self.registry?;
@@ -1461,18 +1540,22 @@ impl<'a> Executor<'a> {
 
             // Get installed versions by reading directory entries
             if let Ok(entries) = std::fs::read_dir(&runtime_store_dir) {
-                let mut versions: Vec<String> = entries
+                let installed_versions: Vec<String> = entries
                     .filter_map(|e| e.ok())
                     .filter(|e| e.path().is_dir())
                     .filter_map(|e| e.file_name().into_string().ok())
                     .collect();
 
-                // Sort versions in descending order to get the latest first
-                versions.sort_by(|a, b| b.cmp(a));
+                // Determine which version to use:
+                // 1. Priority: version from vx.toml (project configuration)
+                // 2. Fallback: latest installed version
+                let version_to_use = self.select_version_for_runtime(
+                    runtime_name,
+                    &installed_versions,
+                );
 
-                // Use the first (latest) installed version
-                if let Some(version) = versions.first() {
-                    let store_dir = context.paths.version_store_dir(runtime_name, version);
+                if let Some(version) = version_to_use {
+                    let store_dir = context.paths.version_store_dir(runtime_name, &version);
 
                     if let Some(bin_dir) = self.find_bin_dir(&store_dir, runtime_name) {
                         if bin_dir.exists() {
@@ -1492,6 +1575,126 @@ impl<'a> Executor<'a> {
         } else {
             Some(paths.join(path_sep))
         }
+    }
+
+    /// Select the version to use for a runtime, prioritizing project configuration
+    ///
+    /// This method implements the version selection logic:
+    /// 1. If `vx.toml` specifies a version and it's installed → use it
+    /// 2. If `vx.toml` specifies a version but it's not installed → log warning, use latest
+    /// 3. If no `vx.toml` or no version specified → use latest installed
+    fn select_version_for_runtime(
+        &self,
+        runtime_name: &str,
+        installed_versions: &[String],
+    ) -> Option<String> {
+        if installed_versions.is_empty() {
+            return None;
+        }
+
+        // Check if project configuration specifies a version for this runtime
+        if let Some(ref project_config) = self.project_config {
+            if let Some(requested_version) = project_config.get_version(runtime_name) {
+                // Try to find exact match or compatible version
+                let matching_version = self.find_matching_version(
+                    runtime_name,
+                    requested_version,
+                    installed_versions,
+                );
+
+                if let Some(version) = matching_version {
+                    debug!(
+                        "Using {} version {} from vx.toml",
+                        runtime_name, version
+                    );
+                    return Some(version);
+                } else {
+                    // Requested version not installed, warn and fall back to latest
+                    warn!(
+                        "Version {} specified in vx.toml for {} is not installed. \
+                         Using latest installed version instead. \
+                         Run 'vx install {}@{}' to install the specified version.",
+                        requested_version, runtime_name, runtime_name, requested_version
+                    );
+                }
+            }
+        }
+
+        // Fall back to latest installed version
+        let mut versions = installed_versions.to_vec();
+        versions.sort_by(|a, b| {
+            // Try semver comparison, fall back to string comparison
+            self.compare_versions(a, b)
+        });
+
+        versions.last().cloned()
+    }
+
+    /// Find a matching version from installed versions
+    ///
+    /// Supports:
+    /// - Exact version match (e.g., "20.0.0" matches "20.0.0")
+    /// - Major version prefix (e.g., "20" matches "20.0.0", "20.1.0")
+    /// - Major.minor prefix (e.g., "20.0" matches "20.0.0", "20.0.1")
+    fn find_matching_version(
+        &self,
+        _runtime_name: &str,
+        requested: &str,
+        installed: &[String],
+    ) -> Option<String> {
+        // First try exact match
+        if installed.contains(&requested.to_string()) {
+            return Some(requested.to_string());
+        }
+
+        // Try prefix match for partial versions (e.g., "20" matches "20.0.0")
+        let mut matches: Vec<&String> = installed
+            .iter()
+            .filter(|v| {
+                v.starts_with(requested) &&
+                    (v.len() == requested.len() || v.chars().nth(requested.len()) == Some('.'))
+            })
+            .collect();
+
+        if matches.is_empty() {
+            return None;
+        }
+
+        // Sort and return the latest matching version
+        matches.sort_by(|a, b| self.compare_versions(a, b));
+        matches.last().map(|s| (*s).clone())
+    }
+
+    /// Compare two version strings
+    ///
+    /// Attempts semver comparison, falls back to string comparison
+    fn compare_versions(&self, a: &str, b: &str) -> std::cmp::Ordering {
+        // Try to parse as semver (handling potential 'v' prefix)
+        let a_clean = a.trim_start_matches('v');
+        let b_clean = b.trim_start_matches('v');
+
+        // Split into parts and compare numerically
+        let a_parts: Vec<u64> = a_clean
+            .split('.')
+            .filter_map(|s| s.split('-').next())
+            .filter_map(|s| s.parse().ok())
+            .collect();
+        let b_parts: Vec<u64> = b_clean
+            .split('.')
+            .filter_map(|s| s.split('-').next())
+            .filter_map(|s| s.parse().ok())
+            .collect();
+
+        // Compare each part
+        for (ap, bp) in a_parts.iter().zip(b_parts.iter()) {
+            match ap.cmp(bp) {
+                std::cmp::Ordering::Equal => continue,
+                other => return other,
+            }
+        }
+
+        // If all compared parts are equal, longer version is "greater"
+        a_parts.len().cmp(&b_parts.len())
     }
 
     /// Run the command and return its status
