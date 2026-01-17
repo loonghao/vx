@@ -195,7 +195,7 @@ vx-manifest = { path = "crates/vx-manifest" }
 clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.9.10"
-toml_edit = "0.23"
+toml_edit = "0.24"
 # Optimize tokio - only include needed features for better compile times
 tokio = { version = "1.0", features = [
   "rt-multi-thread",
