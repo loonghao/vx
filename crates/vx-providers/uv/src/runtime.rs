@@ -12,7 +12,8 @@ use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
-use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_version_fetcher::VersionFetcherBuilder;
 
 /// UV Python package installer runtime
 #[derive(Debug, Clone, Default)]
@@ -69,13 +70,15 @@ impl Runtime for UvRuntime {
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
         // UV tags don't have 'v' prefix (e.g., "0.5.0")
-        ctx.fetch_github_releases(
-            "uv",
-            "astral-sh",
-            "uv",
-            GitHubReleaseOptions::new().strip_v_prefix(false),
-        )
-        .await
+        VersionFetcherBuilder::jsdelivr("astral-sh", "uv")
+            .tool_name("uv")
+            .prerelease_markers(&["-alpha", "-beta", "-rc", "-dev"])
+            .skip_prereleases()
+            .limit(50)
+            .build()
+            .fetch(ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

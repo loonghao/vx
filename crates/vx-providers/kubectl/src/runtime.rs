@@ -4,7 +4,8 @@ use crate::config::KubectlUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_version_fetcher::VersionFetcherBuilder;
 
 /// kubectl runtime
 #[derive(Debug, Clone)]
@@ -63,13 +64,15 @@ impl Runtime for KubectlRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        ctx.fetch_github_releases(
-            "kubectl",
-            "kubernetes",
-            "kubernetes",
-            GitHubReleaseOptions::new().strip_v_prefix(true),
-        )
-        .await
+        VersionFetcherBuilder::jsdelivr("kubernetes", "kubernetes")
+            .tool_name("kubectl")
+            .strip_v_prefix()
+            .skip_prereleases()
+            .limit(50)
+            .build()
+            .fetch(ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

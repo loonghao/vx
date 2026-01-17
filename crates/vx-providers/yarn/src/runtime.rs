@@ -7,7 +7,8 @@ use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
-use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_version_fetcher::VersionFetcherBuilder;
 
 // Note: Yarn's Node.js version constraints are now defined in vx_runtime::ConstraintsRegistry
 // This provides version-aware constraints:
@@ -70,17 +71,16 @@ impl Runtime for YarnRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Yarn 1.x uses yarnpkg/yarn repo
-        // Mark 1.22.x as LTS (latest stable Yarn 1.x)
-        ctx.fetch_github_releases(
-            "yarn",
-            "yarnpkg",
-            "yarn",
-            GitHubReleaseOptions::new()
-                .strip_v_prefix(true)
-                .lts_detector(|v| v.starts_with("1.22.")),
-        )
-        .await
+        // Use npm registry API instead of GitHub API to avoid rate limits
+        // Note: This is for Yarn 1.x (classic), Yarn 2+ uses different distribution
+        VersionFetcherBuilder::npm("yarn")
+            .skip_prereleases()
+            .lts_pattern("1.22.")
+            .limit(100)
+            .build()
+            .fetch(ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     async fn download_url(&self, version: &str, _platform: &Platform) -> Result<Option<String>> {

@@ -4,7 +4,8 @@ use crate::config::HelmUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_version_fetcher::VersionFetcherBuilder;
 
 /// Helm runtime
 #[derive(Debug, Clone)]
@@ -60,13 +61,15 @@ impl Runtime for HelmRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        ctx.fetch_github_releases(
-            "helm",
-            "helm",
-            "helm",
-            GitHubReleaseOptions::new().strip_v_prefix(true),
-        )
-        .await
+        VersionFetcherBuilder::jsdelivr("helm", "helm")
+            .tool_name("helm")
+            .strip_v_prefix()
+            .skip_prereleases()
+            .limit(50)
+            .build()
+            .fetch(ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

@@ -225,6 +225,25 @@ To run all tests regardless of changes:
 3. Click "Run workflow"
 4. Check "Force full CI run"
 
+## Dependency Constraints
+
+Some dependencies have version constraints that cannot be automatically upgraded:
+
+### bincode (v1.3 → v3.x blocked)
+
+The `bincode` crate is pinned to v1.3 because:
+
+- **msvc-kit** (used for MSVC Build Tools installation on Windows) depends on `bincode ^1.3`
+- `bincode v3` has a completely different API (the crate was restructured)
+- Until `msvc-kit` releases a version supporting `bincode v3`, we cannot upgrade
+
+**Workaround**: Renovate is configured to skip major `bincode` updates. See [PR #378](https://github.com/loonghao/vx/pull/378) for details.
+
+**Resolution**: Monitor `msvc-kit` releases for `bincode v3` support. Once available:
+1. Update `msvc-kit` to the new version
+2. Remove the Renovate rule for `bincode`
+3. Migrate code to `bincode v3` API
+
 ## Reporting Issues
 
 When reporting bugs:

@@ -8,7 +8,8 @@ use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
-use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_version_fetcher::VersionFetcherBuilder;
 
 /// Bun runtime
 #[derive(Debug, Clone)]
@@ -65,14 +66,16 @@ impl Runtime for BunRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Bun tags are like "bun-v1.3.4"
-        ctx.fetch_github_releases(
-            "bun",
-            "oven-sh",
-            "bun",
-            GitHubReleaseOptions::new().tag_prefix("bun-v"),
-        )
-        .await
+        VersionFetcherBuilder::jsdelivr("oven-sh", "bun")
+            .tool_name("bun")
+            .tag_prefix("bun-v")
+            .prerelease_markers(&["canary", "-alpha", "-beta", "-rc"])
+            .skip_prereleases()
+            .limit(50)
+            .build()
+            .fetch(ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     async fn download_url(&self, version: &str, _platform: &Platform) -> Result<Option<String>> {

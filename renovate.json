@@ -2,5 +2,13 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": ["bincode"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false,
+      "description": "Disable major updates for bincode until msvc-kit supports bincode v3. See: https://github.com/loonghao/vx/pull/378"
+    }
   ]
 }

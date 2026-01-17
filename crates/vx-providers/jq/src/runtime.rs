@@ -10,8 +10,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use vx_runtime::{
     layout::{BinaryLayout, DownloadType, ExecutableLayout},
-    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
-    VersionInfo,
+    Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
 };
 
 /// jq runtime implementation
@@ -154,16 +153,70 @@ impl Runtime for JqRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // Use jsDelivr CDN to fetch versions from GitHub without rate limits
         // jq uses 'jq-X.Y.Z' tag format, strip the 'jq-' prefix
-        ctx.fetch_github_releases(
-            "jq",
-            "jqlang",
-            "jq",
-            GitHubReleaseOptions::new()
-                .strip_v_prefix(false)
-                .tag_prefix("jq-")
-                .skip_prereleases(true),
-        )
+        let url = "https://data.jsdelivr.com/v1/package/gh/jqlang/jq";
+
+        ctx.fetch_json_versions("jq", url, |response| {
+            let versions_array = response
+                .get("versions")
+                .and_then(|v| v.as_array())
+                .ok_or_else(|| anyhow::anyhow!("Invalid jsDelivr response format"))?;
+
+            let mut versions: Vec<VersionInfo> = versions_array
+                .iter()
+                .filter_map(|v| {
+                    let version_str = v.as_str()?;
+
+                    // jq tags are like "jq-1.7", strip the prefix
+                    let version = version_str.strip_prefix("jq-")?.to_string();
+
+                    // Skip prereleases
+                    let lower = version.to_lowercase();
+                    if lower.contains("-alpha")
+                        || lower.contains("-beta")
+                        || lower.contains("rc")
+                        || lower.contains("-dev")
+                    {
+                        return None;
+                    }
+
+                    // Basic semver validation
+                    let parts: Vec<&str> = version.split('.').collect();
+                    if parts.len() < 1 {
+                        return None;
+                    }
+                    if parts[0].parse::<u32>().is_err() {
+                        return None;
+                    }
+
+                    Some(VersionInfo::new(&version).with_prerelease(false))
+                })
+                .collect();
+
+            // Sort by version (newest first)
+            versions.sort_by(|a, b| {
+                let parse_semver = |v: &str| -> (u64, u64, u64) {
+                    let parts: Vec<&str> = v.split('.').collect();
+                    let major = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
+                    let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+                    let patch = parts
+                        .get(2)
+                        .and_then(|s| s.split('-').next())
+                        .and_then(|s| s.parse().ok())
+                        .unwrap_or(0);
+                    (major, minor, patch)
+                };
+                let a_ver = parse_semver(&a.version);
+                let b_ver = parse_semver(&b.version);
+                b_ver.cmp(&a_ver)
+            });
+
+            // Limit to reasonable number
+            versions.truncate(30);
+
+            Ok(versions)
+        })
         .await
     }
 

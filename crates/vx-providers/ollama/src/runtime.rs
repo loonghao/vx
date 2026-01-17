@@ -11,10 +11,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use vx_runtime::{
-    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
-    VersionInfo,
-};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
+use vx_version_fetcher::VersionFetcherBuilder;
 
 /// Ollama runtime implementation
 #[derive(Debug, Clone, Default)]
@@ -72,15 +70,16 @@ impl Runtime for OllamaRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        ctx.fetch_github_releases(
-            "ollama",
-            "ollama",
-            "ollama",
-            GitHubReleaseOptions::new()
-                .strip_v_prefix(true) // Ollama uses 'v' prefix in tags
-                .skip_prereleases(true),
-        )
-        .await
+        // Ollama uses 'v' prefix in tags
+        VersionFetcherBuilder::jsdelivr("ollama", "ollama")
+            .tool_name("ollama")
+            .strip_v_prefix()
+            .skip_prereleases()
+            .limit(50)
+            .build()
+            .fetch(ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

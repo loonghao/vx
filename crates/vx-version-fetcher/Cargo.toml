@@ -1,0 +1,28 @@
+[package]
+name = "vx-version-fetcher"
+version.workspace = true
+edition.workspace = true
+description = "Unified version fetcher abstraction for vx - provides various data source implementations"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Core
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Internal dependencies
+vx-runtime = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tokio-test = { workspace = true }

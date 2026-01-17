@@ -533,22 +533,10 @@ impl<'a> Executor<'a> {
             );
             runtime.pre_install(&resolved_version, context).await?;
 
-            // Show progress spinner for installation
-            // Note: new_install template already includes "Installing" prefix
-            let spinner = ProgressSpinner::new_install(&format!(
-                "{} {} for compatibility...",
-                dep_name, resolved_version
-            ));
-            let result = match runtime.install(&resolved_version, context).await {
-                Ok(r) => {
-                    spinner.finish_and_clear();
-                    r
-                }
-                Err(e) => {
-                    spinner.finish_with_error(&format!("Installation failed: {}", e));
-                    return Err(e);
-                }
-            };
+            // Install the runtime
+            // Note: We don't show a spinner here because runtime.install() will show
+            // its own download progress, and having two progress indicators causes flickering
+            let result = runtime.install(&resolved_version, context).await?;
             if !context.fs.exists(&result.executable_path) {
                 return Err(anyhow::anyhow!(
                     "Installation completed but executable not found at {}",
@@ -937,20 +925,10 @@ impl<'a> Executor<'a> {
         // Run pre-install hook
         runtime.pre_install(&resolved_version, context).await?;
 
-        // Install the runtime - show progress spinner
-        // Note: new_install template already includes "Installing" prefix
-        let spinner =
-            ProgressSpinner::new_install(&format!("{} {}...", runtime_name, resolved_version));
-        let result = match runtime.install(&resolved_version, context).await {
-            Ok(r) => {
-                spinner.finish_and_clear();
-                r
-            }
-            Err(e) => {
-                spinner.finish_with_error(&format!("Installation failed: {}", e));
-                return Err(e);
-            }
-        };
+        // Install the runtime
+        // Note: We don't show a spinner here because runtime.install() will show
+        // its own download progress, and having two progress indicators causes flickering
+        let result = runtime.install(&resolved_version, context).await?;
 
         // Verify the installation
         if !context.fs.exists(&result.executable_path) {
@@ -1132,23 +1110,13 @@ impl<'a> Executor<'a> {
                 // Run pre-install hook
                 runtime.pre_install(&version, context).await?;
 
-                // Actually install the runtime - show progress spinner
-                // Note: new_install template already includes "Installing" prefix
-                let spinner =
-                    ProgressSpinner::new_install(&format!("{} {}...", runtime_name, version));
+                // Install the runtime
+                // Note: We don't show a spinner here because runtime.install() will show
+                // its own download progress, and having two progress indicators causes flickering
                 // Note: Runtime::install() calls post_extract() internally before verification,
                 // which handles file renaming (e.g., pnpm-macos-arm64 -> pnpm)
                 debug!("Calling runtime.install() for {} {}", runtime_name, version);
-                let result = match runtime.install(&version, context).await {
-                    Ok(r) => {
-                        spinner.finish_and_clear();
-                        r
-                    }
-                    Err(e) => {
-                        spinner.finish_with_error(&format!("Installation failed: {}", e));
-                        return Err(e);
-                    }
-                };
+                let result = runtime.install(&version, context).await?;
                 debug!(
                     "Install result: path={}, exe={}, already_installed={}",
                     result.install_path.display(),

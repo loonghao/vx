@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
-use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_version_fetcher::VersionFetcherBuilder;
 
 /// PNPM runtime
 #[derive(Debug, Clone)]
@@ -50,13 +51,13 @@ impl Runtime for PnpmRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        ctx.fetch_github_releases(
-            "pnpm",
-            "pnpm",
-            "pnpm",
-            GitHubReleaseOptions::new().strip_v_prefix(true),
-        )
-        .await
+        VersionFetcherBuilder::npm("pnpm")
+            .skip_prereleases()
+            .limit(100)
+            .build()
+            .fetch(ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
