@@ -1480,15 +1480,28 @@ impl<'a> Executor<'a> {
             paths.push(vx_bin.to_string_lossy().to_string());
         }
 
-        // Collect all installed runtime bin directories
+        // Collect all installed runtime bin directories by scanning the store directory
+        // We use synchronous filesystem operations to avoid runtime issues with block_in_place
         for runtime in registry.supported_runtimes() {
             let runtime_name = runtime.store_name();
+            let runtime_store_dir = context.paths.runtime_store_dir(runtime_name);
 
-            // Get installed versions for this runtime
-            if let Ok(versions) = tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current()
-                    .block_on(runtime.installed_versions(context))
-            }) {
+            // Skip if the runtime store directory doesn't exist
+            if !runtime_store_dir.exists() {
+                continue;
+            }
+
+            // Get installed versions by reading directory entries
+            if let Ok(entries) = std::fs::read_dir(&runtime_store_dir) {
+                let mut versions: Vec<String> = entries
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.path().is_dir())
+                    .filter_map(|e| e.file_name().into_string().ok())
+                    .collect();
+
+                // Sort versions in descending order to get the latest first
+                versions.sort_by(|a, b| b.cmp(a));
+
                 // Use the first (latest) installed version
                 if let Some(version) = versions.first() {
                     let store_dir = context.paths.version_store_dir(runtime_name, version);
