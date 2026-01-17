@@ -183,7 +183,7 @@ impl Runtime for JqRuntime {
 
                     // Basic semver validation
                     let parts: Vec<&str> = version.split('.').collect();
-                    if parts.len() < 1 {
+                    if parts.is_empty() {
                         return None;
                     }
                     if parts[0].parse::<u32>().is_err() {
