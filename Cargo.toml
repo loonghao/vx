@@ -119,7 +119,7 @@ serde_json = { workspace = true }
 
 
 [workspace.package]
-version = "0.6.14"                                                # x-release-please-version
+version = "0.6.15"                                                # x-release-please-version
 edition = "2021"
 description = "Universal Development Tool Manager"
 license = "MIT"
