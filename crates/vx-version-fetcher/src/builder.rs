@@ -12,6 +12,9 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use vx_runtime::{RuntimeContext, VersionInfo};
 
+/// Type alias for custom version parser function
+type VersionParser = dyn Fn(&serde_json::Value) -> anyhow::Result<Vec<VersionInfo>> + Send + Sync;
+
 /// Builder for creating version fetchers
 ///
 /// Provides a fluent API for configuring and creating version fetchers.
@@ -71,7 +74,7 @@ enum BuilderInner {
     },
     Custom {
         url: String,
-        parser: Arc<dyn Fn(&serde_json::Value) -> anyhow::Result<Vec<VersionInfo>> + Send + Sync>,
+        parser: Arc<VersionParser>,
         name: Option<String>,
         cache_key: Option<String>,
     },
@@ -303,9 +306,8 @@ impl VersionFetcherBuilder {
     /// ```
     pub fn prerelease_markers(mut self, markers: &[&str]) -> Self {
         let markers: Vec<String> = markers.iter().map(|s| s.to_string()).collect();
-        match &mut self.inner {
-            BuilderInner::JsDelivr { config, .. } => config.prerelease_markers = markers,
-            _ => {}
+        if let BuilderInner::JsDelivr { config, .. } = &mut self.inner {
+            config.prerelease_markers = markers;
         }
         self
     }
@@ -343,11 +345,11 @@ impl VersionFetcherBuilder {
     /// Set custom fetcher name (for logging)
     pub fn with_name(mut self, name: impl Into<String>) -> Self {
         let name = name.into();
-        match &mut self.inner {
-            BuilderInner::Custom {
-                name: custom_name, ..
-            } => *custom_name = Some(name),
-            _ => {}
+        if let BuilderInner::Custom {
+            name: custom_name, ..
+        } = &mut self.inner
+        {
+            *custom_name = Some(name);
         }
         self
     }
