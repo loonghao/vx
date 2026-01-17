@@ -181,7 +181,7 @@ jobs:
       - uses: actions/checkout@v6
       
       - name: Download VX binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: vx-linux
           path: ./bin
@@ -225,7 +225,7 @@ jobs:
       - uses: actions/checkout@v6
       
       - name: Download VX binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: vx-macos
           path: ./bin
@@ -269,7 +269,7 @@ jobs:
       - uses: actions/checkout@v6
       
       - name: Download VX binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: vx-windows
           path: ./bin
@@ -336,7 +336,7 @@ jobs:
       - uses: actions/checkout@v6
       
       - name: Download all reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: report-*
           merge-multiple: false
