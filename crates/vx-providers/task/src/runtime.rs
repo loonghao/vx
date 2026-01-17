@@ -8,10 +8,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use vx_runtime::{
-    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
-    VersionInfo,
-};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
+use vx_version_fetcher::VersionFetcherBuilder;
 
 /// Task runtime implementation
 #[derive(Debug, Clone, Default)]
@@ -64,15 +62,15 @@ impl Runtime for TaskRuntime {
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
         // Task uses 'v' prefix in tags, strip it for version display
-        ctx.fetch_github_releases(
-            "task",
-            "go-task",
-            "task",
-            GitHubReleaseOptions::new()
-                .strip_v_prefix(true)
-                .skip_prereleases(true),
-        )
-        .await
+        VersionFetcherBuilder::jsdelivr("go-task", "task")
+            .tool_name("task")
+            .strip_v_prefix()
+            .skip_prereleases()
+            .limit(50)
+            .build()
+            .fetch(ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
