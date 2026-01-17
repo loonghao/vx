@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.15](https://github.com/loonghao/vx/compare/vx-v0.6.14...vx-v0.6.15) (2026-01-17)
+
+
+### Bug Fixes
+
+* add on.push trigger for CodeQL to show alerts in Security tab ([a3b704d](https://github.com/loonghao/vx/commit/a3b704d4f195ee1b14c671f11746aac57be81863))
+* use rustls instead of native-tls for musl cross-compilation ([780106e](https://github.com/loonghao/vx/commit/780106e69b0fb04fbea5f6546578b0375da8de3f))
+
 ## [0.6.14](https://github.com/loonghao/vx/compare/vx-v0.6.13...vx-v0.6.14) (2026-01-17)
 
 
