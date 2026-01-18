@@ -878,6 +878,33 @@ pub trait Runtime: Send + Sync {
         Ok(ctx.fs.exists(&install_path))
     }
 
+    /// Get the executable path for an installed version
+    ///
+    /// Returns the absolute path to the executable for the specified version.
+    /// This method should be overridden by runtimes that install to non-standard
+    /// locations (e.g., Python installed via uv).
+    ///
+    /// The default implementation looks in the vx store directory.
+    async fn get_executable_path_for_version(
+        &self,
+        version: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<Option<std::path::PathBuf>> {
+        let install_path = ctx.paths.version_store_dir(self.store_name(), version);
+        if !ctx.fs.exists(&install_path) {
+            return Ok(None);
+        }
+
+        let platform = Platform::current();
+        let verification = self.verify_installation(version, &install_path, &platform);
+
+        if verification.valid {
+            Ok(verification.executable_path)
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Get installed versions
     async fn installed_versions(&self, ctx: &RuntimeContext) -> Result<Vec<String>> {
         let runtime_dir = ctx.paths.runtime_store_dir(self.store_name());

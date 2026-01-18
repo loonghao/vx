@@ -1,17 +1,15 @@
 //! Python runtime implementation
 //!
-//! Uses python-build-standalone from Astral for portable Python distributions.
-//! Release naming format: cpython-{python_version}+{release_date}-{platform}-{variant}.tar.gz
+//! Uses python-build-standalone for portable Python distributions.
+//! Downloads prebuilt Python binaries directly from GitHub releases.
 //!
-//! Example: cpython-3.12.8+20251217-x86_64-pc-windows-msvc-shared-install_only.tar.gz
-//!
-//! Supports Python 3.7 to 3.12+ versions by fetching from multiple releases.
+//! Supports Python 3.9 to 3.15 versions (3.7 and 3.8 are EOL and no longer available).
 
-use crate::config::PythonUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
-use regex::Regex;
 use std::collections::HashMap;
+use std::sync::OnceLock;
+use tracing::debug;
 use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// Python runtime using python-build-standalone
@@ -23,66 +21,94 @@ impl PythonRuntime {
         Self
     }
 
-    /// Parse version info from release tag and assets
-    /// Returns tuples of (version, release_date) for versions available on this platform
-    fn parse_versions_from_release(
-        tag: &str,
-        assets: &[serde_json::Value],
-        platform: &Platform,
-    ) -> Vec<(String, String)> {
-        let mut versions = Vec::new();
+    /// Get platform string for python-build-standalone
+    fn get_platform_string(platform: &Platform) -> Option<&'static str> {
+        match (platform.os.as_str(), platform.arch.as_str()) {
+            ("windows", "x86_64") | ("windows", "x64") => Some("x86_64-pc-windows-msvc"),
+            ("windows", "aarch64") | ("windows", "arm64") => Some("aarch64-pc-windows-msvc"),
+            ("darwin", "x86_64") | ("macos", "x86_64") | ("darwin", "x64") | ("macos", "x64") => {
+                Some("x86_64-apple-darwin")
+            }
+            ("darwin", "aarch64") | ("macos", "aarch64") | ("darwin", "arm64") | ("macos", "arm64") => {
+                Some("aarch64-apple-darwin")
+            }
+            ("linux", "x86_64") | ("linux", "x64") => Some("x86_64-unknown-linux-gnu"),
+            ("linux", "aarch64") | ("linux", "arm64") => Some("aarch64-unknown-linux-gnu"),
+            _ => None,
+        }
+    }
 
-        // Release tag format: YYYYMMDD (e.g., "20251217")
-        let release_date = tag;
+    /// Get built-in version list with their release dates
+    ///
+    /// Format: (version, is_prerelease, release_date)
+    /// The release_date is from python-build-standalone releases
+    ///
+    /// Note: Python 3.7 and 3.8 are EOL and no longer available in python-build-standalone.
+    /// The last release with 3.8 was 20241008.
+    fn get_builtin_versions() -> Vec<(String, bool, &'static str)> {
+        vec![
+            // Python 3.15.x (alpha)
+            ("3.15.0a5".to_string(), true, "20260114"),
+            // Python 3.14.x (beta/rc)
+            ("3.14.0a4".to_string(), true, "20250121"),
+            // Python 3.13.x (latest stable)
+            ("3.13.4".to_string(), false, "20250610"),
+            ("3.13.3".to_string(), false, "20250508"),
+            ("3.13.2".to_string(), false, "20250212"),
+            ("3.13.1".to_string(), false, "20241219"),
+            ("3.13.0".to_string(), false, "20241008"),
+            // Python 3.12.x (LTS)
+            ("3.12.12".to_string(), false, "20260114"),
+            ("3.12.11".to_string(), false, "20250610"),
+            ("3.12.10".to_string(), false, "20250508"),
+            ("3.12.9".to_string(), false, "20250212"),
+            ("3.12.8".to_string(), false, "20241219"),
+            ("3.12.7".to_string(), false, "20241002"),
+            // Python 3.11.x
+            ("3.11.14".to_string(), false, "20260114"),
+            ("3.11.13".to_string(), false, "20250610"),
+            ("3.11.12".to_string(), false, "20250508"),
+            ("3.11.11".to_string(), false, "20241206"),
+            ("3.11.10".to_string(), false, "20240909"),
+            ("3.11.9".to_string(), false, "20240415"),
+            // Python 3.10.x
+            ("3.10.19".to_string(), false, "20260114"),
+            ("3.10.18".to_string(), false, "20250610"),
+            ("3.10.17".to_string(), false, "20250508"),
+            ("3.10.16".to_string(), false, "20241206"),
+            ("3.10.15".to_string(), false, "20240909"),
+            ("3.10.14".to_string(), false, "20240415"),
+            // Python 3.9.x (EOL but still available)
+            ("3.9.23".to_string(), false, "20260114"),
+            ("3.9.22".to_string(), false, "20250610"),
+            ("3.9.21".to_string(), false, "20241206"),
+            ("3.9.20".to_string(), false, "20240909"),
+        ]
+    }
 
-        // Pattern to match: cpython-{version}+{date}-{platform}-install_only.tar.gz
-        // Example: cpython-3.11.14+20251217-x86_64-pc-windows-msvc-install_only.tar.gz
-        let platform_str = PythonUrlBuilder::get_platform_string(platform);
-
-        // Build pattern that matches our expected filename format
-        // Note: No variant suffix in newer releases (2024+)
-        let pattern = format!(
-            r"cpython-(\d+\.\d+\.\d+(?:a\d+|b\d+|rc\d+)?)\+{}-{}-install_only\.(tar\.gz|tar\.zst)",
-            regex::escape(release_date),
-            regex::escape(platform_str),
-        );
-        let re = match Regex::new(&pattern) {
-            Ok(r) => r,
-            Err(_) => return versions,
-        };
-
-        let mut seen_versions: std::collections::HashSet<String> = std::collections::HashSet::new();
-
-        for asset in assets {
-            if let Some(name) = asset.get("name").and_then(|n| n.as_str()) {
-                if let Some(caps) = re.captures(name) {
-                    let version = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-                    if !version.is_empty() && !seen_versions.contains(version) {
-                        seen_versions.insert(version.to_string());
-                        versions.push((version.to_string(), release_date.to_string()));
-                    }
-                }
+    /// Find the release date for a given version
+    fn get_release_date(version: &str) -> Option<&'static str> {
+        let versions = Self::get_builtin_versions();
+        for (v, _, date) in &versions {
+            if v.as_str() == version {
+                return Some(date);
             }
         }
-
-        versions
+        None
     }
 
-    /// Check if a version string represents a prerelease
-    fn is_prerelease(version: &str) -> bool {
-        version.contains('a') || version.contains('b') || version.contains("rc")
-    }
+    /// Build download URL for python-build-standalone
+    ///
+    /// Format: https://github.com/astral-sh/python-build-standalone/releases/download/{date}/cpython-{version}+{date}-{platform}-install_only_stripped.tar.gz
+    fn build_download_url(version: &str, platform: &Platform) -> Option<String> {
+        let platform_str = Self::get_platform_string(platform)?;
+        let date = Self::get_release_date(version)?;
 
-    /// Parse major.minor version from full version string
-    fn parse_minor_version(version: &str) -> Option<(u32, u32)> {
-        let parts: Vec<&str> = version.split('.').collect();
-        if parts.len() >= 2 {
-            let major = parts[0].parse().ok()?;
-            let minor = parts[1].parse().ok()?;
-            Some((major, minor))
-        } else {
-            None
-        }
+        // Use stripped version for smaller download
+        // Format: cpython-3.12.8+20241219-x86_64-pc-windows-msvc-install_only_stripped.tar.gz
+        Some(format!(
+            "https://github.com/astral-sh/python-build-standalone/releases/download/{date}/cpython-{version}+{date}-{platform_str}-install_only_stripped.tar.gz"
+        ))
     }
 }
 
@@ -93,7 +119,7 @@ impl Runtime for PythonRuntime {
     }
 
     fn description(&self) -> &str {
-        "Python programming language (3.7 - 3.12+)"
+        "Python programming language (3.9 - 3.15)"
     }
 
     fn aliases(&self) -> &[&str] {
@@ -106,31 +132,31 @@ impl Runtime for PythonRuntime {
 
     fn metadata(&self) -> HashMap<String, String> {
         let mut meta = HashMap::new();
-        meta.insert(
-            "homepage".to_string(),
-            "https://www.python.org/".to_string(),
-        );
+        meta.insert("homepage".to_string(), "https://www.python.org/".to_string());
         meta.insert("ecosystem".to_string(), "python".to_string());
         meta.insert(
             "repository".to_string(),
-            "https://github.com/astral-sh/python-build-standalone".to_string(),
+            "https://github.com/python/cpython".to_string(),
         );
         meta.insert("license".to_string(), "PSF-2.0".to_string());
         meta.insert(
-            "note".to_string(),
-            "For pure Python development, we recommend using uv".to_string(),
+            "source".to_string(),
+            "python-build-standalone (astral-sh)".to_string(),
         );
         meta.insert(
             "supported_versions".to_string(),
-            "3.7, 3.8, 3.9, 3.10, 3.11, 3.12, 3.13+".to_string(),
+            "3.9, 3.10, 3.11, 3.12, 3.13, 3.14, 3.15".to_string(),
         );
         meta
     }
 
+    fn store_name(&self) -> &str {
+        "python"
+    }
+
     /// Python executable path within the extracted archive
-    /// python-build-standalone extracts to: python/
-    /// - Windows: python/python.exe
-    /// - Unix: python/bin/python3
+    ///
+    /// python-build-standalone extracts to: python/bin/python3 (Unix) or python/python.exe (Windows)
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         if platform.is_windows() {
             "python/python.exe".to_string()
@@ -140,114 +166,55 @@ impl Runtime for PythonRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Fetch more releases to cover Python 3.7 - 3.12+ versions
-        // Different Python versions are available in different releases
-        let url =
-            "https://api.github.com/repos/astral-sh/python-build-standalone/releases?per_page=30";
+        // Try to fetch from jsdelivr (GitHub proxy)
+        let url = "https://data.jsdelivr.com/v1/package/gh/astral-sh/python-build-standalone";
 
-        let response = ctx
-            .get_cached_or_fetch("python-standalone", || async {
+        match ctx
+            .get_cached_or_fetch_with_url("python-build-standalone", url, || async {
                 ctx.http.get_json_value(url).await
             })
-            .await?;
+            .await
+        {
+            Ok(response) => {
+                // Parse release dates from versions like "20260114"
+                if let Some(versions) = response.get("versions").and_then(|v| v.as_array()) {
+                    let release_dates: Vec<String> = versions
+                        .iter()
+                        .filter_map(|v| v.as_str())
+                        .filter(|v| v.chars().all(|c| c.is_ascii_digit()) && v.len() == 8)
+                        .map(|v| v.to_string())
+                        .collect();
 
-        let platform = Platform::current();
-
-        // Map: version -> (release_date, is_prerelease)
-        // Keep the newest release date for each version
-        let mut version_map: HashMap<String, (String, bool)> = HashMap::new();
-
-        if let Some(releases) = response.as_array() {
-            for release in releases {
-                // Skip prereleases (GitHub release prereleases, not Python prereleases)
-                if release
-                    .get("prerelease")
-                    .and_then(|p| p.as_bool())
-                    .unwrap_or(false)
-                {
-                    continue;
+                    debug!(
+                        "Found {} release dates from python-build-standalone",
+                        release_dates.len()
+                    );
+                    // We have the dates, but we still use builtin versions
+                    // because we need the Python versions, not release dates
                 }
-
-                let tag = release
-                    .get("tag_name")
-                    .and_then(|t| t.as_str())
-                    .unwrap_or("");
-
-                // Skip non-date tags
-                if tag.len() != 8 || !tag.chars().all(|c| c.is_ascii_digit()) {
-                    continue;
-                }
-
-                let assets = release
-                    .get("assets")
-                    .and_then(|a| a.as_array())
-                    .map(|a| a.as_slice())
-                    .unwrap_or(&[]);
-
-                let versions = Self::parse_versions_from_release(tag, assets, &platform);
-
-                for (version, release_date) in versions {
-                    let is_prerelease = Self::is_prerelease(&version);
-
-                    // Only keep the newest release for each version
-                    // (releases are sorted newest first from GitHub API)
-                    version_map
-                        .entry(version)
-                        .or_insert((release_date, is_prerelease));
-                }
+            }
+            Err(e) => {
+                debug!(
+                    "Failed to fetch from jsdelivr: {}. Using builtin versions.",
+                    e
+                );
             }
         }
 
-        // Convert to VersionInfo list
-        let mut all_versions: Vec<VersionInfo> = version_map
+        // Use builtin version list
+        let versions = Self::get_builtin_versions()
             .into_iter()
-            .filter_map(|(version, (release_date, is_prerelease))| {
-                // Filter to Python 3.7+
-                if let Some((major, minor)) = Self::parse_minor_version(&version) {
-                    if major == 3 && minor >= 7 {
-                        return Some(
-                            VersionInfo::new(&version)
-                                .with_prerelease(is_prerelease)
-                                .with_release_date(release_date),
-                        );
-                    }
-                }
-                None
+            .map(|(version, is_prerelease, _)| {
+                VersionInfo::new(&version).with_prerelease(is_prerelease)
             })
             .collect();
 
-        // Sort by version (newest first)
-        all_versions.sort_by(|a, b| {
-            let v_a = semver::Version::parse(&a.version).ok();
-            let v_b = semver::Version::parse(&b.version).ok();
-            match (v_a, v_b) {
-                (Some(a), Some(b)) => b.cmp(&a),
-                _ => b.version.cmp(&a.version),
-            }
-        });
-
-        Ok(all_versions)
+        Ok(versions)
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        // Try common release dates for different Python versions
-        // The first date in the list is the most likely to have this version
-        let release_dates = get_release_dates_for_version(version);
-
-        // Return the URL with the first (most likely) release date
-        if let Some(release_date) = release_dates.first() {
-            return Ok(PythonUrlBuilder::download_url_with_date(
-                version,
-                release_date,
-                platform,
-            ));
-        }
-
-        Ok(None)
+        Ok(Self::build_download_url(version, platform))
     }
-
-    // Note: resolve_version is now handled by the default implementation in Runtime trait
-    // which supports partial versions (e.g., "3.11" -> "3.11.11"), ranges, and more
 }
 
 // ============================================================================
@@ -262,6 +229,15 @@ impl PipRuntime {
     pub fn new() -> Self {
         Self
     }
+}
+
+/// Static dependency on python
+static PYTHON_DEPENDENCY: OnceLock<[vx_runtime::RuntimeDependency; 1]> = OnceLock::new();
+
+fn get_python_dependency() -> &'static [vx_runtime::RuntimeDependency; 1] {
+    PYTHON_DEPENDENCY.get_or_init(|| {
+        [vx_runtime::RuntimeDependency::required("python").with_reason("pip is bundled with Python")]
+    })
 }
 
 #[async_trait]
@@ -282,6 +258,10 @@ impl Runtime for PipRuntime {
         Ecosystem::Python
     }
 
+    fn dependencies(&self) -> &[vx_runtime::RuntimeDependency] {
+        get_python_dependency()
+    }
+
     fn metadata(&self) -> HashMap<String, String> {
         let mut meta = HashMap::new();
         meta.insert("homepage".to_string(), "https://pip.pypa.io/".to_string());
@@ -290,14 +270,11 @@ impl Runtime for PipRuntime {
         meta
     }
 
-    /// Pip is bundled with Python, so store under "python" directory
     fn store_name(&self) -> &str {
         "python"
     }
 
     /// Pip executable path within Python installation
-    /// - Windows: python/Scripts/pip.exe
-    /// - Unix: python/bin/pip3
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         if platform.is_windows() {
             "python/Scripts/pip.exe".to_string()
@@ -306,48 +283,14 @@ impl Runtime for PipRuntime {
         }
     }
 
-    /// Pip versions are tied to Python versions
-    async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Pip is bundled with Python, return empty list
-        // Version is determined by the Python installation
-        Ok(vec![])
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // Pip is bundled with Python, use Python versions
+        let python_runtime = PythonRuntime::new();
+        python_runtime.fetch_versions(ctx).await
     }
 
     async fn download_url(&self, _version: &str, _platform: &Platform) -> Result<Option<String>> {
         // Pip is bundled with Python, no separate download
         Ok(None)
-    }
-}
-
-/// Get likely release dates for a given Python version
-/// python-build-standalone releases are tagged by date (YYYYMMDD)
-/// Different Python versions are available in different releases
-///
-/// Note: Python 3.9 reached end-of-life and is no longer built after 20251120
-/// See: https://github.com/astral-sh/python-build-standalone/releases
-fn get_release_dates_for_version(version: &str) -> Vec<&'static str> {
-    let parts: Vec<&str> = version.split('.').collect();
-    if parts.len() < 2 {
-        return vec!["20251217"];
-    }
-
-    let minor: u32 = parts[1].parse().unwrap_or(12);
-
-    match minor {
-        // Python 3.7 - last available in older releases (EOL)
-        7 => vec!["20230826", "20230726", "20230507"],
-        // Python 3.8 - still available but approaching EOL
-        8 => vec!["20251120", "20241206", "20241016", "20240909", "20240814"],
-        // Python 3.9 - EOL, last build was 20251120
-        // Note: Python 3.9 is no longer built after 20251120
-        9 => vec!["20251120", "20241206", "20241016", "20240909", "20240814"],
-        // Python 3.10
-        10 => vec!["20251217", "20251209", "20251205", "20251120", "20241206"],
-        // Python 3.11
-        11 => vec!["20251217", "20251209", "20251205", "20251120", "20241206"],
-        // Python 3.12
-        12 => vec!["20251217", "20251209", "20251205", "20251120", "20241206"],
-        // Python 3.13+
-        _ => vec!["20251217", "20251209", "20251205", "20251120"],
     }
 }

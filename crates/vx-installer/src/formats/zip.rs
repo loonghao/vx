@@ -71,6 +71,32 @@ impl FormatHandler for ZipHandler {
                 }
             };
 
+            // On Windows, check path length and use extended-length path if needed
+            #[cfg(windows)]
+            let file_path = {
+                use vx_paths::windows::{check_path_length, to_long_path, PathLengthStatus};
+
+                match check_path_length(&file_path) {
+                    PathLengthStatus::TooLong { length, .. } => {
+                        tracing::warn!(
+                            "Path length ({}) exceeds Windows MAX_PATH limit, using extended path: {}",
+                            length,
+                            file_path.display()
+                        );
+                        to_long_path(&file_path)
+                    }
+                    PathLengthStatus::Warning { length, .. } => {
+                        tracing::debug!(
+                            "Path length ({}) approaching Windows limit: {}",
+                            length,
+                            file_path.display()
+                        );
+                        file_path
+                    }
+                    PathLengthStatus::Safe => file_path,
+                }
+            };
+
             // Create parent directories
             if let Some(parent) = file_path.parent() {
                 std::fs::create_dir_all(parent)?;
@@ -93,7 +119,17 @@ impl FormatHandler for ZipHandler {
                     }
                 }
 
-                extracted_files.push(file_path);
+                // Store the original path (without extended prefix) for return value
+                #[cfg(windows)]
+                {
+                    use vx_paths::windows::from_long_path;
+                    extracted_files.push(from_long_path(&file_path));
+                }
+
+                #[cfg(not(windows))]
+                {
+                    extracted_files.push(file_path);
+                }
             }
 
             progress.increment(1).await?;

@@ -51,6 +51,7 @@ pub mod link;
 pub mod manager;
 pub mod project;
 pub mod resolver;
+pub mod windows;
 
 pub use config::PathConfig;
 pub use link::{LinkResult, LinkStrategy};

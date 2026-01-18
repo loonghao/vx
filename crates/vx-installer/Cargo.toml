@@ -23,6 +23,7 @@ reqwest = { workspace = true }
 dirs = { workspace = true }
 tempfile = { workspace = true }
 walkdir = { workspace = true }
+vx-paths = { path = "../vx-paths" }
 
 # Archive handling
 zip = { workspace = true }

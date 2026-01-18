@@ -4137,6 +4137,7 @@ dependencies = [
  "tracing",
  "turbo-cdn",
  "urlencoding",
+ "vx-paths",
  "walkdir",
  "zip",
 ]
@@ -4620,14 +4621,8 @@ version = "0.6.16"
 dependencies = [
  "anyhow",
  "async-trait",
- "chrono",
- "regex",
- "reqwest 0.12.28",
  "rstest",
- "semver",
- "serde",
- "serde_json",
- "tokio",
+ "tracing",
  "vx-runtime",
 ]
 

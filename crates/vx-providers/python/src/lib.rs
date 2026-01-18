@@ -2,34 +2,29 @@
 //!
 //! This provider includes:
 //! - Python programming language runtime (`python`)
+//! - pip package installer (`pip`) - bundled with Python
 //!
-//! Uses python-build-standalone from Astral for portable Python distributions.
-//!
-//! **Note**: For pure Python development, we recommend using `uv` which provides:
-//! - Faster package installation
-//! - Built-in virtual environment management
-//! - Automatic Python version management
+//! Uses python-build-standalone for portable Python distributions:
+//! - Direct download from GitHub releases
+//! - Consistent installation across platforms
+//! - Support for Python 3.9 - 3.15 (3.7 and 3.8 are EOL)
 //!
 //! Example:
 //! ```bash
 //! # Install Python
-//! vx install python 3.12
+//! vx install python@3.12
 //!
 //! # Run Python
-//! vx python --version
+//! vx python@3.11 --version
 //! vx python script.py
 //!
-//! # For development, prefer uv:
-//! vx uv init my-project
-//! vx uv add requests
-//! vx uv run python script.py
+//! # pip is also available
+//! vx pip install requests
 //! ```
 
-mod config;
 mod provider;
 mod runtime;
 
-pub use config::PythonUrlBuilder;
 pub use provider::PythonProvider;
 pub use runtime::{PipRuntime, PythonRuntime};
 
