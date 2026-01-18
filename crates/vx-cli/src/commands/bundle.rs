@@ -981,6 +981,7 @@ mod tests {
             BundledTool {
                 version: "3.12.12".to_string(),
                 path: "store/python/3.12.12".to_string(),
+                platform_paths: HashMap::new(),
                 size: 100_000_000,
                 source: "/home/user/.vx/store/python/3.12.12".to_string(),
             },
