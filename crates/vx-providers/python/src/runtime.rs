@@ -29,9 +29,10 @@ impl PythonRuntime {
             ("darwin", "x86_64") | ("macos", "x86_64") | ("darwin", "x64") | ("macos", "x64") => {
                 Some("x86_64-apple-darwin")
             }
-            ("darwin", "aarch64") | ("macos", "aarch64") | ("darwin", "arm64") | ("macos", "arm64") => {
-                Some("aarch64-apple-darwin")
-            }
+            ("darwin", "aarch64")
+            | ("macos", "aarch64")
+            | ("darwin", "arm64")
+            | ("macos", "arm64") => Some("aarch64-apple-darwin"),
             ("linux", "x86_64") | ("linux", "x64") => Some("x86_64-unknown-linux-gnu"),
             ("linux", "aarch64") | ("linux", "arm64") => Some("aarch64-unknown-linux-gnu"),
             _ => None,
@@ -132,7 +133,10 @@ impl Runtime for PythonRuntime {
 
     fn metadata(&self) -> HashMap<String, String> {
         let mut meta = HashMap::new();
-        meta.insert("homepage".to_string(), "https://www.python.org/".to_string());
+        meta.insert(
+            "homepage".to_string(),
+            "https://www.python.org/".to_string(),
+        );
         meta.insert("ecosystem".to_string(), "python".to_string());
         meta.insert(
             "repository".to_string(),
@@ -236,7 +240,8 @@ static PYTHON_DEPENDENCY: OnceLock<[vx_runtime::RuntimeDependency; 1]> = OnceLoc
 
 fn get_python_dependency() -> &'static [vx_runtime::RuntimeDependency; 1] {
     PYTHON_DEPENDENCY.get_or_init(|| {
-        [vx_runtime::RuntimeDependency::required("python").with_reason("pip is bundled with Python")]
+        [vx_runtime::RuntimeDependency::required("python")
+            .with_reason("pip is bundled with Python")]
     })
 }
 

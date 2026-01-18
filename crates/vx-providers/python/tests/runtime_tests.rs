@@ -65,7 +65,10 @@ fn test_runtime_metadata() {
     assert!(meta.contains_key("repository"));
     assert!(meta.contains_key("license"));
     assert!(meta.contains_key("supported_versions"));
-    assert!(meta.get("source").unwrap().contains("python-build-standalone"));
+    assert!(meta
+        .get("source")
+        .unwrap()
+        .contains("python-build-standalone"));
     // Check supported versions includes 3.9 to 3.15
     let supported = meta.get("supported_versions").unwrap();
     assert!(supported.contains("3.9"));

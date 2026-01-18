@@ -1,4 +1,4 @@
-//! Executor - the core command forwarding engine
+﻿//! Executor - the core command forwarding engine
 //!
 //! This module implements the main execution logic:
 //! 1. Resolve runtime and dependencies
@@ -209,7 +209,7 @@ impl<'a> Executor<'a> {
         let force_offline = self.context
             .map(|ctx| ctx.config.cache_mode == CacheMode::Offline)
             .unwrap_or(false);
-        
+
         if let Some(bundle_ctx) = try_get_bundle_context(runtime_name, force_offline) {
             info!(
                 "Using offline bundle for {} {} (network: {})",
@@ -219,8 +219,6 @@ impl<'a> Executor<'a> {
             );
             return execute_bundle(&bundle_ctx, args).await;
         }
-        
-        // If offline mode is forced (either via flag or no network), check for bundle
         let network_offline = !is_online();
         if force_offline || network_offline {
             // Try to find if there's a bundle at all
@@ -228,7 +226,7 @@ impl<'a> Executor<'a> {
             let has_project_bundle = cwd.and_then(|cwd| {
                 find_vx_config(&cwd).ok().and_then(|p| p.parent().map(|r| has_bundle(r)))
             }).unwrap_or(false);
-            
+
             if has_project_bundle {
                 // Bundle exists but tool not found in it
                 return Err(anyhow::anyhow!(
@@ -652,7 +650,7 @@ impl<'a> Executor<'a> {
             }
         };
         info!(
-            "Resolved {}@{} → {}",
+            "Resolved {}@{} 鈫?{}",
             dep_name, version_to_install, resolved_version
         );
 
@@ -1035,7 +1033,7 @@ impl<'a> Executor<'a> {
             }
         };
         info!(
-            "Resolved {}@{} → {}",
+            "Resolved {}@{} 鈫?{}",
             runtime_name, requested_version, resolved_version
         );
 
@@ -1590,9 +1588,9 @@ impl<'a> Executor<'a> {
     ///
     /// ### Version Selection Order
     ///
-    /// 1. If `vx.toml` specifies a version for the tool → use that version
-    /// 2. If the specified version is not installed → fall back to latest installed
-    /// 3. If no `vx.toml` exists → use latest installed version (existing behavior)
+    /// 1. If `vx.toml` specifies a version for the tool 鈫?use that version
+    /// 2. If the specified version is not installed 鈫?fall back to latest installed
+    /// 3. If no `vx.toml` exists 鈫?use latest installed version (existing behavior)
     fn build_vx_tools_path(&self) -> Option<String> {
         let context = self.context?;
         let registry = self.registry?;
@@ -1628,10 +1626,8 @@ impl<'a> Executor<'a> {
                 // Determine which version to use:
                 // 1. Priority: version from vx.toml (project configuration)
                 // 2. Fallback: latest installed version
-                let version_to_use = self.select_version_for_runtime(
-                    runtime_name,
-                    &installed_versions,
-                );
+                let version_to_use =
+                    self.select_version_for_runtime(runtime_name, &installed_versions);
 
                 if let Some(version) = version_to_use {
                     let store_dir = context.paths.version_store_dir(runtime_name, &version);
@@ -1659,9 +1655,9 @@ impl<'a> Executor<'a> {
     /// Select the version to use for a runtime, prioritizing project configuration
     ///
     /// This method implements the version selection logic:
-    /// 1. If `vx.toml` specifies a version and it's installed → use it
-    /// 2. If `vx.toml` specifies a version but it's not installed → log warning, use latest
-    /// 3. If no `vx.toml` or no version specified → use latest installed
+    /// 1. If `vx.toml` specifies a version and it's installed 鈫?use it
+    /// 2. If `vx.toml` specifies a version but it's not installed 鈫?log warning, use latest
+    /// 3. If no `vx.toml` or no version specified 鈫?use latest installed
     fn select_version_for_runtime(
         &self,
         runtime_name: &str,
@@ -1675,17 +1671,11 @@ impl<'a> Executor<'a> {
         if let Some(ref project_config) = self.project_config {
             if let Some(requested_version) = project_config.get_version(runtime_name) {
                 // Try to find exact match or compatible version
-                let matching_version = self.find_matching_version(
-                    runtime_name,
-                    requested_version,
-                    installed_versions,
-                );
+                let matching_version =
+                    self.find_matching_version(runtime_name, requested_version, installed_versions);
 
                 if let Some(version) = matching_version {
-                    debug!(
-                        "Using {} version {} from vx.toml",
-                        runtime_name, version
-                    );
+                    debug!("Using {} version {} from vx.toml", runtime_name, version);
                     return Some(version);
                 } else {
                     // Requested version not installed, warn and fall back to latest
@@ -1730,8 +1720,8 @@ impl<'a> Executor<'a> {
         let mut matches: Vec<&String> = installed
             .iter()
             .filter(|v| {
-                v.starts_with(requested) &&
-                    (v.len() == requested.len() || v.chars().nth(requested.len()) == Some('.'))
+                v.starts_with(requested)
+                    && (v.len() == requested.len() || v.chars().nth(requested.len()) == Some('.'))
             })
             .collect();
 
@@ -1976,14 +1966,17 @@ fn get_bundle_tool_path(
                 .filter_map(|e| e.ok())
                 .filter(|e| e.path().is_dir())
                 .collect();
-            
-            // If subdirs look like platform names (e.g., "windows-x86_64"), 
+
+            // If subdirs look like platform names (e.g., "windows-x86_64"),
             // this is v2 format and current platform is not available
             let has_platform_subdirs = subdirs.iter().any(|d| {
                 let name = d.file_name().to_string_lossy().to_string();
-                name.contains('-') && (name.contains("windows") || name.contains("linux") || name.contains("macos"))
+                name.contains('-')
+                    && (name.contains("windows")
+                        || name.contains("linux")
+                        || name.contains("macos"))
             });
-            
+
             if has_platform_subdirs {
                 // v2 structure, but current platform not available
                 debug!(
@@ -1992,7 +1985,7 @@ fn get_bundle_tool_path(
                 );
                 return None;
             }
-            
+
             // v1 structure
             return Some(base_path);
         }
