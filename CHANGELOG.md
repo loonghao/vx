@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.17](https://github.com/loonghao/vx/compare/vx-v0.6.16...vx-v0.6.17) (2026-01-18)
+
+
+### Features
+
+* add Windows long path support and fix macOS/Linux installer compatibility ([e077ce8](https://github.com/loonghao/vx/commit/e077ce8217ae734811a35d1319db3256cda073cd))
+* **resolver:** prioritize project vx.toml tool versions in subprocess PATH ([fa5f18c](https://github.com/loonghao/vx/commit/fa5f18ce1a4ab5afeca7339979939703a583010d))
+
+
+### Bug Fixes
+
+* add missing platform_paths field in BundledTool test ([2225547](https://github.com/loonghao/vx/commit/2225547dec06d5201b05a0e89a17073aff0d7e09))
+* replace non-existent vx stats command with vx cache info ([1c975ce](https://github.com/loonghao/vx/commit/1c975ce5cadc51d26cac688cc8cd64b507f8d68b))
+* resolve doc tests and lint issues ([5c6a4ab](https://github.com/loonghao/vx/commit/5c6a4abe2defa922c6c7bf7aacb0b2acc0f39e45))
+* resolve Windows CI test failures ([8d184e2](https://github.com/loonghao/vx/commit/8d184e24f9affc94e8fa322a6f4d83fbf1eb7816))
+
 ## [0.6.16](https://github.com/loonghao/vx/compare/vx-v0.6.15...vx-v0.6.16) (2026-01-17)
 
 
