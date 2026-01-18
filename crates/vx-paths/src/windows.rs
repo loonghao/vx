@@ -10,13 +10,17 @@
 //!
 //! ## Usage
 //! ```rust
-//! use vx_paths::windows::{to_long_path, check_path_length, is_long_path_enabled};
+//! use std::path::PathBuf;
+//! use vx_paths::windows::{to_long_path, check_path_length, PathLengthStatus};
+//!
+//! let my_path = PathBuf::from(r"C:\Users\name\.vx\store\node\20.0.0");
 //!
 //! // Convert path to extended-length format on Windows
 //! let long_path = to_long_path(&my_path);
 //!
 //! // Check if path exceeds safe length
-//! if let Err(warning) = check_path_length(&path) {
+//! let status = check_path_length(&my_path);
+//! if let Some(warning) = status.message() {
 //!     eprintln!("{}", warning);
 //! }
 //! ```

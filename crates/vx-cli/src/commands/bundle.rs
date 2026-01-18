@@ -342,7 +342,13 @@ pub async fn handle_create(
             source_path.display().to_string(),
         );
 
-        println!("  ✓ {} {} [{}] ({} MB)", tool_name, locked.version, platform, size / 1024 / 1024);
+        println!(
+            "  ✓ {} {} [{}] ({} MB)",
+            tool_name,
+            locked.version,
+            platform,
+            size / 1024 / 1024
+        );
     }
 
     // Save manifest
@@ -370,8 +376,8 @@ pub async fn handle_update(
     verbose: bool,
 ) -> Result<()> {
     let current_dir = std::env::current_dir()?;
-    let config_path = find_vx_config(&current_dir)
-        .map_err(|e| anyhow::anyhow!("No vx.toml found: {}", e))?;
+    let config_path =
+        find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("No vx.toml found: {}", e))?;
 
     let project_root = config_path.parent().unwrap_or(&current_dir);
     let lock_path = project_root.join(LOCK_FILE_NAME);
@@ -403,7 +409,11 @@ pub async fn handle_update(
     // Determine which tools to check
     let tools_to_check: Vec<String> = match tools {
         Some(t) => t,
-        None => lockfile.tool_names().iter().map(|s| s.to_string()).collect(),
+        None => lockfile
+            .tool_names()
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
     };
 
     let vx_paths = VxPaths::default();
