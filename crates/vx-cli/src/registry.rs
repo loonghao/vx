@@ -196,6 +196,7 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         msvc,
         ffmpeg,
         nasm,
+        gh,
     );
 
     registry
@@ -247,6 +248,7 @@ fn create_static_registry() -> ProviderRegistry {
         msvc,
         ffmpeg,
         nasm,
+        gh,
     );
 
     registry

@@ -1,0 +1,44 @@
+[provider]
+name = "gh"
+description = "GitHub CLI - command line tool for GitHub"
+homepage = "https://github.com/cli/cli"
+repository = "https://github.com/cli/cli"
+ecosystem = "devtools"
+
+[[runtimes]]
+name = "gh"
+description = "GitHub CLI"
+executable = "gh"
+aliases = ["github"]
+
+[runtimes.versions]
+source = "github-releases"
+owner = "cli"
+repo = "cli"
+strip_v_prefix = true
+
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+strip_prefix = "gh_{version}_"
+
+[runtimes.layout.archive]
+executable_paths = [
+    "bin/gh.exe",  # Windows
+    "bin/gh"      # Unix
+]
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+[runtimes.platforms.linux]
+executable_extensions = []
+
+[runtimes.platforms.darwin]
+executable_extensions = []
+
+[runtimes.platforms.macos]
+executable_extensions = []
