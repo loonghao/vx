@@ -112,14 +112,14 @@ impl BundleManifest {
     pub fn load(path: &Path) -> Result<Self> {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read bundle manifest: {}", path.display()))?;
-        let mut manifest: Self = serde_json::from_str(&content)
-            .with_context(|| "Failed to parse bundle manifest")?;
-        
+        let mut manifest: Self =
+            serde_json::from_str(&content).with_context(|| "Failed to parse bundle manifest")?;
+
         // Migrate v1 to v2 format if needed
         if manifest.version < 2 {
             manifest.migrate_to_v2();
         }
-        
+
         Ok(manifest)
     }
 
@@ -129,11 +129,12 @@ impl BundleManifest {
         if self.platforms.is_empty() {
             self.platforms = vec![self.platform.clone()];
         }
-        
+
         // Migrate tool paths to platform_paths
         for tool in self.tools.values_mut() {
             if tool.platform_paths.is_empty() && !tool.path.is_empty() {
-                tool.platform_paths.insert(self.platform.clone(), tool.path.clone());
+                tool.platform_paths
+                    .insert(self.platform.clone(), tool.path.clone());
             }
         }
     }
@@ -153,7 +154,15 @@ impl BundleManifest {
     }
 
     /// Add or update a tool for a specific platform
-    pub fn add_tool_platform(&mut self, name: String, platform: &str, version: String, path: String, size: u64, source: String) {
+    pub fn add_tool_platform(
+        &mut self,
+        name: String,
+        platform: &str,
+        version: String,
+        path: String,
+        size: u64,
+        source: String,
+    ) {
         // Add platform to list if not present
         if !self.platforms.contains(&platform.to_string()) {
             self.platforms.push(platform.to_string());
@@ -172,7 +181,7 @@ impl BundleManifest {
         tool.platform_paths.insert(platform.to_string(), path);
         tool.size += size;
         tool.source = source;
-        
+
         self.total_size += size;
     }
 
@@ -214,11 +223,11 @@ fn now_rfc3339() -> String {
     let hours = time_of_day / 3600;
     let minutes = (time_of_day % 3600) / 60;
     let seconds = time_of_day % 60;
-    
+
     // Calculate year, month, day from days since epoch (1970-01-01)
     let mut year = 1970i32;
     let mut remaining_days = days as i32;
-    
+
     loop {
         let days_in_year = if is_leap_year(year) { 366 } else { 365 };
         if remaining_days < days_in_year {
@@ -227,14 +236,23 @@ fn now_rfc3339() -> String {
         remaining_days -= days_in_year;
         year += 1;
     }
-    
+
     let is_leap = is_leap_year(year);
     let days_in_months: [i32; 12] = [
         31,
         if is_leap { 29 } else { 28 },
-        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
     ];
-    
+
     let mut month = 1;
     for &days_in_month in &days_in_months {
         if remaining_days < days_in_month {
@@ -244,7 +262,7 @@ fn now_rfc3339() -> String {
         month += 1;
     }
     let day = remaining_days + 1;
-    
+
     format!(
         "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
         year, month, day, hours, minutes, seconds
@@ -263,8 +281,8 @@ pub async fn handle_create(
     verbose: bool,
 ) -> Result<()> {
     let current_dir = std::env::current_dir()?;
-    let config_path = find_vx_config(&current_dir)
-        .map_err(|e| anyhow::anyhow!("No vx.toml found: {}", e))?;
+    let config_path =
+        find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("No vx.toml found: {}", e))?;
 
     let project_root = config_path.parent().unwrap_or(&current_dir);
     let lock_path = project_root.join(LOCK_FILE_NAME);
@@ -286,7 +304,11 @@ pub async fn handle_create(
     // Determine which tools to bundle
     let tools_to_bundle: Vec<String> = match tools {
         Some(t) => t,
-        None => lockfile.tool_names().iter().map(|s| s.to_string()).collect(),
+        None => lockfile
+            .tool_names()
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
     };
 
     if tools_to_bundle.is_empty() {
@@ -327,9 +349,12 @@ pub async fn handle_create(
         }
 
         let platform = current_platform();
-        
+
         // Copy to bundle with platform subdirectory: store/{tool}/{version}/{platform}/
-        let dest_path = bundle_store.join(tool_name).join(&locked.version).join(&platform);
+        let dest_path = bundle_store
+            .join(tool_name)
+            .join(&locked.version)
+            .join(&platform);
         let size = copy_dir_recursive(&source_path, &dest_path)?;
 
         // Add tool with platform-specific path
@@ -440,15 +465,17 @@ pub async fn handle_update(
         let needs_update = match existing_tool {
             Some(bundled) => {
                 // Version changed or platform not present
-                bundled.version != locked.version || 
-                bundled.path_for_platform(&platform).is_none()
-            },
+                bundled.version != locked.version || bundled.path_for_platform(&platform).is_none()
+            }
             None => true, // New tool
         };
 
         if !needs_update {
             if verbose {
-                println!("  ○ {} {} [{}] (unchanged)", tool_name, locked.version, platform);
+                println!(
+                    "  ○ {} {} [{}] (unchanged)",
+                    tool_name, locked.version, platform
+                );
             }
             continue;
         }
@@ -465,13 +492,20 @@ pub async fn handle_update(
         }
 
         // Remove old version for this platform if version changed
-        let is_version_update = existing_tool.map(|t| t.version != locked.version).unwrap_or(false);
-        let is_platform_add = existing_tool.map(|t| t.path_for_platform(&platform).is_none()).unwrap_or(false);
-        
+        let is_version_update = existing_tool
+            .map(|t| t.version != locked.version)
+            .unwrap_or(false);
+        let is_platform_add = existing_tool
+            .map(|t| t.path_for_platform(&platform).is_none())
+            .unwrap_or(false);
+
         if is_version_update {
             if let Some(old_tool) = existing_tool {
                 // Remove old version's platform directory
-                let old_path = bundle_store.join(tool_name).join(&old_tool.version).join(&platform);
+                let old_path = bundle_store
+                    .join(tool_name)
+                    .join(&old_tool.version)
+                    .join(&platform);
                 if old_path.exists() {
                     fs::remove_dir_all(&old_path)?;
                 }
@@ -489,7 +523,10 @@ pub async fn handle_update(
         }
 
         // Copy new version with platform subdirectory
-        let dest_path = bundle_store.join(tool_name).join(&locked.version).join(&platform);
+        let dest_path = bundle_store
+            .join(tool_name)
+            .join(&locked.version)
+            .join(&platform);
         let size = copy_dir_recursive(&source_path, &dest_path)?;
 
         // Add/update tool with platform-specific path
@@ -502,7 +539,13 @@ pub async fn handle_update(
             source_path.display().to_string(),
         );
 
-        let action = if is_version_update { "↑" } else if is_platform_add { "⊕" } else { "+" };
+        let action = if is_version_update {
+            "↑"
+        } else if is_platform_add {
+            "⊕"
+        } else {
+            "+"
+        };
         println!(
             "  {} {} {} [{}] ({} MB)",
             action,
@@ -525,7 +568,11 @@ pub async fn handle_update(
             updated, added, platform_added
         );
         println!("  Platforms: {}", manifest.platforms.join(", "));
-        println!("  Total: {} tools, {} MB", manifest.tools.len(), manifest.total_size / 1024 / 1024);
+        println!(
+            "  Total: {} tools, {} MB",
+            manifest.tools.len(),
+            manifest.total_size / 1024 / 1024
+        );
     }
 
     Ok(())
@@ -534,8 +581,8 @@ pub async fn handle_update(
 /// Handle bundle status command
 pub async fn handle_status(verbose: bool) -> Result<()> {
     let current_dir = std::env::current_dir()?;
-    let config_path = find_vx_config(&current_dir)
-        .map_err(|e| anyhow::anyhow!("No vx.toml found: {}", e))?;
+    let config_path =
+        find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("No vx.toml found: {}", e))?;
 
     let project_root = config_path.parent().unwrap_or(&current_dir);
     let bundle_dir = project_root.join(PROJECT_VX_DIR).join(BUNDLE_DIR);
@@ -559,12 +606,18 @@ pub async fn handle_status(verbose: bool) -> Result<()> {
     println!("Tools:     {}", manifest.tools.len());
     println!();
     println!("Platforms: {}", manifest.platforms.join(", "));
-    
+
     let supports_current = manifest.supports_platform(&current_platform);
     if supports_current {
-        println!("           ✓ Current platform ({}) is supported", current_platform);
+        println!(
+            "           ✓ Current platform ({}) is supported",
+            current_platform
+        );
     } else {
-        println!("           ⚠ Current platform ({}) NOT in bundle", current_platform);
+        println!(
+            "           ⚠ Current platform ({}) NOT in bundle",
+            current_platform
+        );
         println!("           Run 'vx bundle update' to add it");
     }
 
@@ -586,7 +639,10 @@ pub async fn handle_status(verbose: bool) -> Result<()> {
     }
 
     // Check if online detection is working
-    println!("\nNetwork status: {}", if is_online() { "Online" } else { "Offline" });
+    println!(
+        "\nNetwork status: {}",
+        if is_online() { "Online" } else { "Offline" }
+    );
 
     Ok(())
 }
@@ -594,8 +650,8 @@ pub async fn handle_status(verbose: bool) -> Result<()> {
 /// Handle bundle clean command
 pub async fn handle_clean(force: bool) -> Result<()> {
     let current_dir = std::env::current_dir()?;
-    let config_path = find_vx_config(&current_dir)
-        .map_err(|e| anyhow::anyhow!("No vx.toml found: {}", e))?;
+    let config_path =
+        find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("No vx.toml found: {}", e))?;
 
     let project_root = config_path.parent().unwrap_or(&current_dir);
     let bundle_dir = project_root.join(PROJECT_VX_DIR).join(BUNDLE_DIR);
@@ -626,8 +682,8 @@ pub async fn handle_export(
     verbose: bool,
 ) -> Result<()> {
     let current_dir = std::env::current_dir()?;
-    let config_path = find_vx_config(&current_dir)
-        .map_err(|e| anyhow::anyhow!("No vx.toml found: {}", e))?;
+    let config_path =
+        find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("No vx.toml found: {}", e))?;
 
     let project_root = config_path.parent().unwrap_or(&current_dir);
     let bundle_dir = project_root.join(PROJECT_VX_DIR).join(BUNDLE_DIR);
@@ -643,7 +699,8 @@ pub async fn handle_export(
 
     // Determine which platforms to export
     let platforms_to_export: Vec<String> = match &platforms {
-        Some(p) => p.iter()
+        Some(p) => p
+            .iter()
             .filter(|plat| manifest.platforms.contains(plat))
             .cloned()
             .collect(),
@@ -671,11 +728,7 @@ pub async fn handle_export(
 
     // Filter tools if specified
     let tools_to_export: Vec<&String> = match &tools {
-        Some(t) => manifest
-            .tools
-            .keys()
-            .filter(|k| t.contains(k))
-            .collect(),
+        Some(t) => manifest.tools.keys().filter(|k| t.contains(k)).collect(),
         None => manifest.tools.keys().collect(),
     };
 
@@ -697,23 +750,26 @@ pub async fn handle_export(
 
     // Create filtered manifest for export
     let mut export_manifest = manifest.clone();
-    
+
     // Filter tools
     if tools.is_some() {
-        export_manifest.tools.retain(|k, _| tools_to_export.contains(&k));
+        export_manifest
+            .tools
+            .retain(|k, _| tools_to_export.contains(&k));
     }
-    
+
     // Filter platforms in manifest and tool paths
     if platforms.is_some() {
         export_manifest.platforms = platforms_to_export.clone();
         for tool in export_manifest.tools.values_mut() {
-            tool.platform_paths.retain(|k, _| platforms_to_export.contains(k));
+            tool.platform_paths
+                .retain(|k, _| platforms_to_export.contains(k));
         }
     }
-    
+
     // Recalculate total size (will be approximate since we don't track per-platform sizes)
     export_manifest.total_size = export_manifest.tools.values().map(|t| t.size).sum();
-    
+
     // Write manifest
     let manifest_json = serde_json::to_string_pretty(&export_manifest)?;
     let manifest_bytes = manifest_json.as_bytes();
@@ -721,10 +777,12 @@ pub async fn handle_export(
     header.set_path(BUNDLE_MANIFEST)?;
     header.set_size(manifest_bytes.len() as u64);
     header.set_mode(0o644);
-    header.set_mtime(std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs());
+    header.set_mtime(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+    );
     header.set_cksum();
     tar.append(&header, manifest_bytes)?;
 
@@ -746,9 +804,7 @@ pub async fn handle_export(
                 if verbose {
                     println!(
                         "  Adding {} {} [{}]...",
-                        tool_name,
-                        tool_info.version,
-                        platform
+                        tool_name, tool_info.version, platform
                     );
                 }
                 add_dir_to_tar(
@@ -760,19 +816,16 @@ pub async fn handle_export(
                 // Check for legacy v1 structure (no platform subdirectory)
                 let has_platform_subdirs = tool_version_path
                     .read_dir()
-                    .map(|d| d.filter_map(|e| e.ok()).any(|e| {
-                        e.file_name().to_string_lossy().contains('-')
-                    }))
+                    .map(|d| {
+                        d.filter_map(|e| e.ok())
+                            .any(|e| e.file_name().to_string_lossy().contains('-'))
+                    })
                     .unwrap_or(false);
-                
+
                 if !has_platform_subdirs {
                     // v1 structure - export entire version directory
                     if verbose {
-                        println!(
-                            "  Adding {} {} (legacy)...",
-                            tool_name,
-                            tool_info.version,
-                        );
+                        println!("  Adding {} {} (legacy)...", tool_name, tool_info.version,);
                     }
                     add_dir_to_tar(
                         &mut tar,
@@ -806,8 +859,8 @@ pub async fn handle_import(archive: &Path, force: bool, verbose: bool) -> Result
     }
 
     let current_dir = std::env::current_dir()?;
-    let config_path = find_vx_config(&current_dir)
-        .map_err(|e| anyhow::anyhow!("No vx.toml found: {}", e))?;
+    let config_path =
+        find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("No vx.toml found: {}", e))?;
 
     let project_root = config_path.parent().unwrap_or(&current_dir);
     let bundle_dir = project_root.join(PROJECT_VX_DIR).join(BUNDLE_DIR);
@@ -826,8 +879,8 @@ pub async fn handle_import(archive: &Path, force: bool, verbose: bool) -> Result
     fs::create_dir_all(&bundle_dir)?;
 
     // Extract tar.gz archive
-    let file = fs::File::open(archive)
-        .with_context(|| format!("Failed to open {}", archive.display()))?;
+    let file =
+        fs::File::open(archive).with_context(|| format!("Failed to open {}", archive.display()))?;
 
     let dec = flate2::read::GzDecoder::new(file);
     let mut tar = tar::Archive::new(dec);
@@ -871,7 +924,8 @@ pub async fn handle_import(archive: &Path, force: bool, verbose: bool) -> Result
                 // Only log top-level tool directories
                 let parts: Vec<_> = path.components().collect();
                 if parts.len() >= 3 {
-                    println!("  Extracting {}/{}", 
+                    println!(
+                        "  Extracting {}/{}",
                         parts[1].as_os_str().to_string_lossy(),
                         parts[2].as_os_str().to_string_lossy()
                     );
@@ -898,11 +952,7 @@ pub async fn handle_import(archive: &Path, force: bool, verbose: bool) -> Result
 
 /// Add a directory recursively to a tar archive
 /// Uses append_path_with_name for PAX extension support (long paths)
-fn add_dir_to_tar<W: Write>(
-    tar: &mut tar::Builder<W>,
-    src: &Path,
-    prefix: &str,
-) -> Result<()> {
+fn add_dir_to_tar<W: Write>(tar: &mut tar::Builder<W>, src: &Path, prefix: &str) -> Result<()> {
     for entry in fs::read_dir(src)? {
         let entry = entry?;
         let path = entry.path();

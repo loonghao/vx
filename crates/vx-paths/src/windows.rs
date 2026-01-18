@@ -45,15 +45,9 @@ pub enum PathLengthStatus {
     /// Path is within safe limits
     Safe,
     /// Path is approaching the limit (warning)
-    Warning {
-        length: usize,
-        path: PathBuf,
-    },
+    Warning { length: usize, path: PathBuf },
     /// Path exceeds MAX_PATH limit
-    TooLong {
-        length: usize,
-        path: PathBuf,
-    },
+    TooLong { length: usize, path: PathBuf },
 }
 
 impl PathLengthStatus {
@@ -315,18 +309,12 @@ mod tests {
         // Regular absolute path
         let path = PathBuf::from(r"C:\Users\name\file.txt");
         let long_path = to_long_path(&path);
-        assert_eq!(
-            long_path.to_string_lossy(),
-            r"\\?\C:\Users\name\file.txt"
-        );
+        assert_eq!(long_path.to_string_lossy(), r"\\?\C:\Users\name\file.txt");
 
         // Already has prefix
         let path = PathBuf::from(r"\\?\C:\Users\name\file.txt");
         let long_path = to_long_path(&path);
-        assert_eq!(
-            long_path.to_string_lossy(),
-            r"\\?\C:\Users\name\file.txt"
-        );
+        assert_eq!(long_path.to_string_lossy(), r"\\?\C:\Users\name\file.txt");
 
         // UNC path
         let path = PathBuf::from(r"\\server\share\file.txt");

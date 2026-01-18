@@ -1544,16 +1544,20 @@ impl CommandHandler for Commands {
                     platforms,
                     verbose,
                 } => {
-                    commands::bundle::handle_export(output.clone(), tools.clone(), platforms.clone(), *verbose).await
+                    commands::bundle::handle_export(
+                        output.clone(),
+                        tools.clone(),
+                        platforms.clone(),
+                        *verbose,
+                    )
+                    .await
                 }
                 BundleCommand::Import {
                     archive,
                     force,
                     verbose,
                 } => commands::bundle::handle_import(archive, *force, *verbose).await,
-                BundleCommand::Clean { force } => {
-                    commands::bundle::handle_clean(*force).await
-                }
+                BundleCommand::Clean { force } => commands::bundle::handle_clean(*force).await,
             },
 
             Commands::Info { json } => commands::capabilities::handle(ctx.registry(), *json).await,

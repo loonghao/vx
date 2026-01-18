@@ -292,17 +292,32 @@ mod version_selection_tests {
 
     #[test]
     fn test_version_comparison() {
-        assert_eq!(compare_versions("20.0.0", "20.0.0"), std::cmp::Ordering::Equal);
-        assert_eq!(compare_versions("20.0.0", "20.0.1"), std::cmp::Ordering::Less);
-        assert_eq!(compare_versions("20.10.0", "20.9.0"), std::cmp::Ordering::Greater);
-        assert_eq!(compare_versions("v20.0.0", "20.0.0"), std::cmp::Ordering::Equal);
+        assert_eq!(
+            compare_versions("20.0.0", "20.0.0"),
+            std::cmp::Ordering::Equal
+        );
+        assert_eq!(
+            compare_versions("20.0.0", "20.0.1"),
+            std::cmp::Ordering::Less
+        );
+        assert_eq!(
+            compare_versions("20.10.0", "20.9.0"),
+            std::cmp::Ordering::Greater
+        );
+        assert_eq!(
+            compare_versions("v20.0.0", "20.0.0"),
+            std::cmp::Ordering::Equal
+        );
     }
 
     #[test]
     fn test_version_sorting() {
         let mut versions = vec!["20.0.0", "18.0.0", "20.10.0", "22.0.0", "20.1.0"];
         versions.sort_by(|a, b| compare_versions(a, b));
-        assert_eq!(versions, vec!["18.0.0", "20.0.0", "20.1.0", "20.10.0", "22.0.0"]);
+        assert_eq!(
+            versions,
+            vec!["18.0.0", "20.0.0", "20.1.0", "20.10.0", "22.0.0"]
+        );
     }
 
     #[test]
