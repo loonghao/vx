@@ -42,6 +42,7 @@ pub mod test;
 
 pub mod analyze;
 pub mod auth;
+pub mod bundle;
 pub mod cache;
 pub mod capabilities;
 pub mod config;

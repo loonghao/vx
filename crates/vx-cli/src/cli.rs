@@ -356,6 +356,12 @@ pub enum Commands {
         verbose: bool,
     },
 
+    /// Create offline development environment bundle
+    Bundle {
+        #[command(subcommand)]
+        command: BundleCommand,
+    },
+
     /// Run a script defined in vx.toml
     Run {
         /// Script name (use --list to see available scripts)
@@ -637,6 +643,66 @@ pub enum CacheCommand {
 
     /// Show cache directory path
     Dir,
+}
+
+#[derive(Subcommand, Clone)]
+pub enum BundleCommand {
+    /// Create offline bundle from vx.lock
+    Create {
+        /// Only bundle specific tools (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        tools: Option<Vec<String>>,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Update bundle with changed tools (incremental)
+    Update {
+        /// Only update specific tools (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        tools: Option<Vec<String>>,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show bundle status
+    Status {
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Export bundle to a portable archive
+    Export {
+        /// Output archive path (default: vx-bundle-{platform}.tar.gz)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        /// Include only specific tools
+        #[arg(long, value_delimiter = ',')]
+        tools: Option<Vec<String>>,
+        /// Export only specific platforms (default: all platforms in bundle)
+        #[arg(long, value_delimiter = ',')]
+        platforms: Option<Vec<String>>,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Import bundle from an archive
+    Import {
+        /// Archive path to import from
+        archive: PathBuf,
+        /// Force overwrite existing bundle
+        #[arg(short, long)]
+        force: bool,
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Remove the bundle
+    Clean {
+        /// Force removal without confirmation
+        #[arg(short, long)]
+        force: bool,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -998,6 +1064,7 @@ impl CommandHandler for Commands {
             Commands::X { .. } => "x",
             Commands::Migrate { .. } => "migrate",
             Commands::Lock { .. } => "lock",
+            Commands::Bundle { .. } => "bundle",
             Commands::Info { .. } => "info",
             Commands::Auth { .. } => "auth",
         }
@@ -1448,6 +1515,46 @@ impl CommandHandler for Commands {
                     .await
                 }
             }
+
+            Commands::Bundle { command } => match command {
+                BundleCommand::Create { tools, verbose } => {
+                    commands::bundle::handle_create(
+                        ctx.registry(),
+                        ctx.runtime_context(),
+                        tools.clone(),
+                        *verbose,
+                    )
+                    .await
+                }
+                BundleCommand::Update { tools, verbose } => {
+                    commands::bundle::handle_update(
+                        ctx.registry(),
+                        ctx.runtime_context(),
+                        tools.clone(),
+                        *verbose,
+                    )
+                    .await
+                }
+                BundleCommand::Status { verbose } => {
+                    commands::bundle::handle_status(*verbose).await
+                }
+                BundleCommand::Export {
+                    output,
+                    tools,
+                    platforms,
+                    verbose,
+                } => {
+                    commands::bundle::handle_export(output.clone(), tools.clone(), platforms.clone(), *verbose).await
+                }
+                BundleCommand::Import {
+                    archive,
+                    force,
+                    verbose,
+                } => commands::bundle::handle_import(archive, *force, *verbose).await,
+                BundleCommand::Clean { force } => {
+                    commands::bundle::handle_clean(*force).await
+                }
+            },
 
             Commands::Info { json } => commands::capabilities::handle(ctx.registry(), *json).await,
 

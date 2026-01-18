@@ -43,7 +43,11 @@ mod runtime_spec;
 pub mod version;
 
 pub use config::{ResolverConfig, DEFAULT_RESOLUTION_CACHE_TTL};
-pub use executor::{execute_system_runtime, exit_code_from_status, is_ctrl_c_exit, Executor};
+pub use executor::{
+    execute_bundle, execute_system_runtime, exit_code_from_status, has_bundle, is_ctrl_c_exit,
+    is_online, try_get_bundle_context, BundleContext, BundleManifest, BundledToolInfo, Executor,
+    BUNDLE_DIR, BUNDLE_MANIFEST,
+};
 pub use resolution_cache::{
     ResolutionCache, ResolutionCacheKey, RESOLUTION_CACHE_DIR_NAME, RESOLUTION_CACHE_SCHEMA_VERSION,
 };
