@@ -69,6 +69,18 @@ mod project_config_tests {
     use std::fs;
     use tempfile::tempdir;
 
+    /// RAII guard to restore the original directory when dropped
+    struct DirGuard {
+        original: std::path::PathBuf,
+    }
+
+    impl Drop for DirGuard {
+        fn drop(&mut self) {
+            // Best effort to restore - ignore errors as the original dir might not exist
+            let _ = std::env::set_current_dir(&self.original);
+        }
+    }
+
     /// Create a temporary directory with a vx.toml file
     fn create_project_with_config(config_content: &str) -> tempfile::TempDir {
         let dir = tempdir().unwrap();
@@ -88,8 +100,10 @@ go = "1.21.0"
 "#,
         );
 
-        // Change to the project directory
-        let original_dir = std::env::current_dir().unwrap();
+        // Change to the project directory with RAII guard
+        let _guard = DirGuard {
+            original: std::env::current_dir().unwrap_or_default(),
+        };
         std::env::set_current_dir(dir.path()).unwrap();
 
         // Create executor - should load project config
@@ -102,8 +116,7 @@ go = "1.21.0"
         // Verify executor was created successfully
         assert!(executor.config().auto_install);
 
-        // Restore original directory
-        std::env::set_current_dir(original_dir).unwrap();
+        // Directory is automatically restored when _guard is dropped
     }
 
     #[test]
@@ -111,8 +124,10 @@ go = "1.21.0"
         // Create a temporary directory without vx.toml
         let dir = tempdir().unwrap();
 
-        // Change to the directory
-        let original_dir = std::env::current_dir().unwrap();
+        // Change to the directory with RAII guard
+        let _guard = DirGuard {
+            original: std::env::current_dir().unwrap_or_default(),
+        };
         std::env::set_current_dir(dir.path()).unwrap();
 
         // Create executor - should work without project config
@@ -123,8 +138,7 @@ go = "1.21.0"
         let executor = Executor::new(config, &registry, &context, runtime_map);
         assert!(executor.is_ok());
 
-        // Restore original directory
-        std::env::set_current_dir(original_dir).unwrap();
+        // Directory is automatically restored when _guard is dropped
     }
 
     #[test]
@@ -137,7 +151,9 @@ name = "test-project"
 "#,
         );
 
-        let original_dir = std::env::current_dir().unwrap();
+        let _guard = DirGuard {
+            original: std::env::current_dir().unwrap_or_default(),
+        };
         std::env::set_current_dir(dir.path()).unwrap();
 
         let config = ResolverConfig::default();
@@ -147,7 +163,7 @@ name = "test-project"
         let executor = Executor::new(config, &registry, &context, runtime_map);
         assert!(executor.is_ok());
 
-        std::env::set_current_dir(original_dir).unwrap();
+        // Directory is automatically restored when _guard is dropped
     }
 
     #[test]
@@ -160,7 +176,9 @@ node = "18.0.0"
 "#,
         );
 
-        let original_dir = std::env::current_dir().unwrap();
+        let _guard = DirGuard {
+            original: std::env::current_dir().unwrap_or_default(),
+        };
         std::env::set_current_dir(dir.path()).unwrap();
 
         let config = ResolverConfig::default();
@@ -170,7 +188,7 @@ node = "18.0.0"
         let executor = Executor::new(config, &registry, &context, runtime_map);
         assert!(executor.is_ok());
 
-        std::env::set_current_dir(original_dir).unwrap();
+        // Directory is automatically restored when _guard is dropped
     }
 }
 

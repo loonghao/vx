@@ -75,11 +75,11 @@ jobs:
         run: |
           vx go version
 
-      # Test 3: Show vx stats
-      - name: Show vx stats
+      # Test 3: Show vx cache info
+      - name: Show vx cache info
         shell: bash
         run: |
-          vx stats
+          vx cache info
           vx list --status
 
   test-action-with-tools:
