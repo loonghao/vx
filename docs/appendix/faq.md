@@ -147,7 +147,7 @@ vx is written in Rust and is very fast. The first run of a tool may be slower du
 Depends on installed tools. Check with:
 
 ```bash
-vx stats
+vx cache info
 ```
 
 Clean up with:

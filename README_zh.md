@@ -204,7 +204,7 @@ vx sync                         # 同步工具与 vx.toml
 
 | 命令 | 描述 |
 |---------|-------------|
-| `vx stats` | 显示磁盘使用和统计信息 |
+| `vx cache info` | 显示磁盘使用和缓存统计信息 |
 | `vx clean` | 清理缓存和孤立包 |
 | `vx config` | 管理全局配置 |
 | `vx self-update` | 更新 vx 本身 |
