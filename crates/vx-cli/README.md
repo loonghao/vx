@@ -211,9 +211,9 @@ vx config edit --local    # Edit project config
 ### Maintenance
 
 ```bash
-# Statistics
-vx stats                  # Show usage statistics
-vx stats --detailed       # Detailed statistics
+# Cache Statistics
+vx cache info             # Show cache usage statistics
+vx cache info --detailed  # Detailed cache information
 
 # Cleanup
 vx cleanup                # Clean orphaned files
@@ -419,7 +419,7 @@ vx --verbose <command>
 vx config --sources
 
 # Verify installation
-vx stats
+vx cache info
 ```
 
 ## License

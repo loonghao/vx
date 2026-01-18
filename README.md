@@ -204,7 +204,7 @@ vx sync                         # Sync tools with vx.toml
 
 | Command | Description |
 |---------|-------------|
-| `vx stats` | Show disk usage and statistics |
+| `vx cache info` | Show disk usage and cache statistics |
 | `vx clean` | Clean up cache and orphaned packages |
 | `vx config` | Manage global configuration |
 | `vx self-update` | Update vx itself |
