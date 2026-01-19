@@ -1262,7 +1262,7 @@ dependencies = [
  "once_cell",
  "rand",
  "ring",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tinyvec",
  "tokio",
  "tracing",
@@ -1285,7 +1285,7 @@ dependencies = [
  "rand",
  "resolv-conf",
  "smallvec",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
 ]
@@ -1933,7 +1933,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "simd-json",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "toml 0.9.11+spec-1.1.0",
  "tracing",
@@ -2171,7 +2171,7 @@ checksum = "81b4488e1f58b23169e168e9c85dc16e817fb9655de81ce1206f7d575f750e04"
 dependencies = [
  "rand",
  "socket2 0.6.1",
- "thiserror 2.0.17",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2329,7 +2329,7 @@ dependencies = [
  "rustc-hash",
  "rustls",
  "socket2 0.6.1",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "web-time",
@@ -2350,7 +2350,7 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "slab",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tinyvec",
  "tracing",
  "web-time",
@@ -2469,7 +2469,7 @@ checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
 dependencies = [
  "getrandom 0.2.17",
  "libredox",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -3279,11 +3279,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.17"
+version = "2.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f63587ca0f12b72a0600bcba1d40081f830876000bb46dd2337a3051618f4fc8"
+checksum = "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4"
 dependencies = [
- "thiserror-impl 2.0.17",
+ "thiserror-impl 2.0.18",
 ]
 
 [[package]]
@@ -3299,9 +3299,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.17"
+version = "2.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ff15c8ecd7de3849db632e14d18d2571fa09dfc5ed93479bc4485c7a517c913"
+checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3639,7 +3639,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "786d480bce6247ab75f005b14ae1624ad978d3029d9113f0a22fa1ac773faeaf"
 dependencies = [
  "crossbeam-channel",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "time",
  "tracing-subscriber",
 ]
@@ -3743,7 +3743,7 @@ dependencies = [
  "rustls-webpki",
  "serde",
  "serde_json",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-util",
  "tracing",
@@ -3905,7 +3905,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "vx-paths",
 ]
 
@@ -4033,7 +4033,7 @@ dependencies = [
  "sha2",
  "shellexpand",
  "tempfile",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "toml 0.9.11+spec-1.1.0",
  "toml_edit 0.24.0+spec-1.1.0",
  "tracing",
@@ -4054,7 +4054,7 @@ dependencies = [
  "serde",
  "serde_json",
  "terminal_size",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "windows-sys 0.61.2",
 ]
@@ -4073,7 +4073,7 @@ dependencies = [
  "serial_test",
  "tempfile",
  "test-case",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-test",
 ]
@@ -4087,7 +4087,7 @@ dependencies = [
  "rstest",
  "shell-words",
  "tempfile",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tracing",
  "vx-paths",
 ]
@@ -4102,7 +4102,7 @@ dependencies = [
  "rstest",
  "serde",
  "tempfile",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "toml 0.9.11+spec-1.1.0",
  "tracing",
@@ -4132,7 +4132,7 @@ dependencies = [
  "sha2",
  "tar",
  "tempfile",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-test",
  "tracing",
@@ -4153,7 +4153,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "toml 0.9.11+spec-1.1.0",
  "tracing",
 ]
@@ -4171,7 +4171,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "toml 0.9.11+spec-1.1.0",
  "tracing",
@@ -4187,7 +4187,7 @@ dependencies = [
  "dirs",
  "serde",
  "tempfile",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tracing",
  "walkdir",
 ]
@@ -4205,7 +4205,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "toml 0.9.11+spec-1.1.0",
  "tracing",
@@ -4866,7 +4866,7 @@ dependencies = [
  "serde_json",
  "tar",
  "tempfile",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-test",
  "toml 0.9.11+spec-1.1.0",
@@ -4894,7 +4894,7 @@ dependencies = [
  "serde_json",
  "shellexpand",
  "tempfile",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "vx-paths",
 ]
@@ -4911,7 +4911,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-test",
  "toml 0.9.11+spec-1.1.0",
@@ -4929,7 +4929,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-test",
  "tracing",
