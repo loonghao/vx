@@ -121,14 +121,14 @@ impl PythonRuntime {
             if !platform.is_windows() {
                 return None;
             }
-            
+
             // Only specific 3.7 versions have embeddable downloads on Python.org
             // Check if version is in our supported list
             let supported_37_versions = ["3.7.9", "3.7.8", "3.7.7", "3.7.6", "3.7.5"];
             if !supported_37_versions.contains(&version) {
                 return None;
             }
-            
+
             // Python.org embeddable format
             // amd64 for x86_64, win32 for x86
             let arch = match platform.arch.as_str() {
