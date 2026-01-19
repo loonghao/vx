@@ -58,6 +58,7 @@ vx-core = { path = "../vx-core" }
 vx-cache = { workspace = true }
 vx-paths = { path = "../vx-paths" }
 vx-manifest = { workspace = true }
+vx-system-pm = { workspace = true }
 
 # CDN acceleration (optional)
 turbo-cdn = { version = "0.8", default-features = false, features = ["rustls", "fast-hash", "high-performance"], optional = true }

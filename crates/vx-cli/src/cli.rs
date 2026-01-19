@@ -249,6 +249,10 @@ pub enum Commands {
         #[arg(long)]
         temp_root: bool,
 
+        /// Clean up after CI test: uninstall runtimes and verify removal
+        #[arg(long)]
+        cleanup: bool,
+
         /// Check if runtime is installed in vx store
         #[arg(long)]
         installed: bool,
@@ -1257,6 +1261,7 @@ impl CommandHandler for Commands {
                 keep_going,
                 vx_root,
                 temp_root,
+                cleanup,
                 installed,
                 system,
                 detailed,
@@ -1279,6 +1284,7 @@ impl CommandHandler for Commands {
                     keep_going: *keep_going,
                     vx_root: vx_root.clone(),
                     temp_root: *temp_root,
+                    cleanup: *cleanup,
                     installed: *installed,
                     system: *system,
                     detailed: *detailed,
