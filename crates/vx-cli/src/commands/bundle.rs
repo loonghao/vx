@@ -995,7 +995,6 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<u64> {
             // Preserve executable permissions on Unix
             #[cfg(unix)]
             {
-                use std::os::unix::fs::PermissionsExt;
                 let perms = metadata.permissions();
                 fs::set_permissions(&dst_path, perms)?;
             }
