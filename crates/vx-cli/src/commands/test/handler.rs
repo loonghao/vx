@@ -408,11 +408,31 @@ async fn run_ci_test_for_runtime(
 
     result.install_duration_secs = install_start.elapsed().as_secs_f64();
 
-    let version = match install_result {
-        Ok(Ok(v)) => {
+    let (version, exe_path) = match install_result {
+        Ok(Ok(ir)) => {
             result.install_success = true;
-            result.version_installed = Some(v.clone());
-            v
+            let version = ir.version.clone();
+            result.version_installed = Some(version.clone());
+            
+            // Use executable path from InstallResult
+            // For system installs, executable_path points to the actual location
+            let exe_path = if ir.executable_path.to_str() != Some("system") && ir.executable_path.exists() {
+                ir.executable_path.clone()
+            } else {
+                // Try to find in system PATH
+                which::which(runtime_name).unwrap_or_else(|_| {
+                    // Fall back to computed path
+                    get_executable_path_for_runtime(
+                        &runtime,
+                        runtime_name,
+                        &version,
+                        path_manager,
+                        &current_platform,
+                    )
+                })
+            };
+            
+            (version, exe_path)
         }
         Ok(Err(e)) => {
             // Installation failed - check if system installation is available
@@ -456,16 +476,7 @@ async fn run_ci_test_for_runtime(
         }
     };
 
-    // Get executable path using the provided path manager
-    // Handle different installation methods: binary, npm, pip
-    let exe_path = get_executable_path_for_runtime(
-        &runtime,
-        runtime_name,
-        &version,
-        path_manager,
-        &current_platform,
-    );
-
+    // exe_path was already computed from InstallResult above
     if !exe_path.exists() {
         result.error = Some(format!("Executable not found: {}", exe_path.display()));
         return result;
@@ -480,7 +491,7 @@ async fn run_ci_test_for_runtime(
         .get_runtime_manifest(runtime_name)
         .and_then(|def| def.test.clone());
 
-    let mut tester = RuntimeTester::new(runtime_name).with_executable(exe_path);
+    let mut tester = RuntimeTester::new(runtime_name).with_executable(exe_path.clone());
 
     if let Some(config) = test_config {
         tester = tester.with_config(config);
