@@ -125,12 +125,14 @@ impl Installer for RealInstaller {
             Some("tar.zst")
         } else if archive_str.ends_with(".zip") {
             Some("zip")
+        } else if archive_str.ends_with(".7z") {
+            Some("7z")
         } else {
             // Try to detect by magic bytes
             let file = std::fs::File::open(archive)?;
             use std::io::Read;
-            let mut magic = [0u8; 4];
-            if (&file).take(4).read(&mut magic).is_ok() {
+            let mut magic = [0u8; 6];
+            if (&file).take(6).read(&mut magic).is_ok() {
                 if magic[0] == 0x50 && magic[1] == 0x4B {
                     // ZIP magic: PK\x03\x04
                     Some("zip")
@@ -151,6 +153,15 @@ impl Installer for RealInstaller {
                 {
                     // Zstd magic: \x28\xB5\x2F\xFD
                     Some("tar.zst")
+                } else if magic[0] == 0x37
+                    && magic[1] == 0x7A
+                    && magic[2] == 0xBC
+                    && magic[3] == 0xAF
+                    && magic[4] == 0x27
+                    && magic[5] == 0x1C
+                {
+                    // 7z magic: 7z\xBC\xAF\x27\x1C
+                    Some("7z")
                 } else {
                     None
                 }
@@ -182,6 +193,10 @@ impl Installer for RealInstaller {
                 let file = std::fs::File::open(archive)?;
                 let mut archive = zip::ZipArchive::new(file)?;
                 archive.extract(dest)?;
+            }
+            Some("7z") => {
+                sevenz_rust::decompress_file(archive, dest)
+                    .map_err(|e| anyhow::anyhow!("Failed to extract 7z archive: {}", e))?;
             }
             _ => {
                 return Err(anyhow::anyhow!(
@@ -240,7 +255,8 @@ impl Installer for RealInstaller {
             || archive_str.ends_with(".tar.xz")
             || archive_str.ends_with(".tar.zst")
             || archive_str.ends_with(".tzst")
-            || archive_str.ends_with(".zip");
+            || archive_str.ends_with(".zip")
+            || archive_str.ends_with(".7z");
 
         // Check extension hint from URL fragment
         if !is_archive {
@@ -248,7 +264,8 @@ impl Installer for RealInstaller {
                 is_archive = hint.ends_with(".tar.gz")
                     || hint.ends_with(".tgz")
                     || hint.ends_with(".tar.xz")
-                    || hint.ends_with(".zip");
+                    || hint.ends_with(".zip")
+                    || hint.ends_with(".7z");
             }
         }
 
@@ -256,12 +273,15 @@ impl Installer for RealInstaller {
         if !is_archive {
             if let Ok(mut file) = std::fs::File::open(&temp_path) {
                 use std::io::Read;
-                let mut magic = [0u8; 4];
+                let mut magic = [0u8; 6];
                 if file.read_exact(&mut magic).is_ok() {
                     // ZIP magic: PK\x03\x04
                     // GZIP magic: \x1f\x8b
+                    // 7z magic: 7z\xBC\xAF\x27\x1C (first 6 bytes: 37 7A BC AF 27 1C)
                     is_archive = (magic[0] == 0x50 && magic[1] == 0x4B)  // ZIP
-                        || (magic[0] == 0x1f && magic[1] == 0x8b); // GZIP (tar.gz)
+                        || (magic[0] == 0x1f && magic[1] == 0x8b) // GZIP (tar.gz)
+                        || (magic[0] == 0x37 && magic[1] == 0x7A && magic[2] == 0xBC 
+                            && magic[3] == 0xAF && magic[4] == 0x27 && magic[5] == 0x1C); // 7z
                 }
             }
         }
