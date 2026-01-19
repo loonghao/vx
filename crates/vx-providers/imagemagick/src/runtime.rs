@@ -265,6 +265,56 @@ impl Runtime for MagickRuntime {
             ))
         }
     }
+
+    /// Custom version resolver for ImageMagick's special version format (e.g., 7.1.2-12)
+    ///
+    /// ImageMagick uses a version format like "7.1.2-12" where the "-12" is NOT a prerelease
+    /// tag but rather a build/patch number. The default vx version resolver interprets "-"
+    /// as a prerelease separator, which causes "latest" to fail finding any stable versions.
+    async fn resolve_version(&self, version: &str, ctx: &RuntimeContext) -> Result<String> {
+        let versions = self.fetch_versions(ctx).await?;
+
+        if versions.is_empty() {
+            return Err(anyhow::anyhow!("No versions available for magick"));
+        }
+
+        let trimmed = version.trim();
+
+        // Handle "latest" - return the first (newest) version
+        if trimmed.is_empty() || trimmed == "latest" {
+            return Ok(versions[0].version.clone());
+        }
+
+        // Handle exact match
+        if let Some(v) = versions.iter().find(|v| v.version == trimmed) {
+            return Ok(v.version.clone());
+        }
+
+        // Handle partial match (e.g., "7.1" matches "7.1.2-12")
+        if let Some(v) = versions.iter().find(|v| v.version.starts_with(trimmed)) {
+            return Ok(v.version.clone());
+        }
+
+        // No match found
+        let available_range = if versions.len() > 1 {
+            format!(
+                "{} to {}",
+                versions.last().map(|v| v.version.as_str()).unwrap_or("?"),
+                versions.first().map(|v| v.version.as_str()).unwrap_or("?")
+            )
+        } else {
+            versions
+                .first()
+                .map(|v| v.version.clone())
+                .unwrap_or_default()
+        };
+
+        Err(anyhow::anyhow!(
+            "No version found for magick matching '{}'. Available versions: {}",
+            version,
+            available_range
+        ))
+    }
 }
 
 impl MagickRuntime {
@@ -385,5 +435,10 @@ impl Runtime for ConvertRuntime {
     /// Uninstall convert (same as uninstalling magick)
     async fn uninstall(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
         MagickRuntime::new().uninstall(version, ctx).await
+    }
+
+    /// Custom version resolver (delegates to MagickRuntime)
+    async fn resolve_version(&self, version: &str, ctx: &RuntimeContext) -> Result<String> {
+        MagickRuntime::new().resolve_version(version, ctx).await
     }
 }
