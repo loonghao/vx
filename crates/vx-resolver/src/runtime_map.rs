@@ -10,7 +10,7 @@
 
 use crate::runtime_spec::{Ecosystem, RuntimeDependency, RuntimeSpec};
 use std::collections::HashMap;
-use vx_manifest::{ProviderManifest, RuntimeDef};
+use vx_manifest::{ProviderManifest, RuntimeDef, SystemDepTypeDef};
 
 /// A registry of runtime specifications and their dependencies
 #[derive(Debug, Default)]
@@ -125,6 +125,42 @@ impl RuntimeMap {
             spec.env_vars = env_config.vars.clone();
         }
 
+        // RFC 0021: Convert system_deps to RuntimeDependency
+        // Only include Runtime type dependencies that match the current platform
+        if let Some(ref system_deps) = runtime.system_deps {
+            let current_platform = Self::current_platform_name();
+
+            for dep in &system_deps.pre_depends {
+                // Only process Runtime type dependencies (vx-managed runtimes)
+                if dep.dep_type != SystemDepTypeDef::Runtime {
+                    continue;
+                }
+
+                // Check platform filter
+                if !dep.platforms.is_empty()
+                    && !dep.platforms.iter().any(|p| p == current_platform)
+                {
+                    continue;
+                }
+
+                // Create RuntimeDependency
+                let reason = dep.reason.as_deref().unwrap_or("System dependency");
+                let mut runtime_dep = if dep.optional {
+                    RuntimeDependency::optional(&dep.id, reason)
+                } else {
+                    RuntimeDependency::required(&dep.id, reason)
+                };
+
+                if let Some(ref version) = dep.version {
+                    if let Some(min) = Self::extract_min_version(version) {
+                        runtime_dep = runtime_dep.with_min_version(min);
+                    }
+                }
+
+                spec.dependencies.push(runtime_dep);
+            }
+        }
+
         spec
     }
 
@@ -138,6 +174,26 @@ impl RuntimeMap {
             }
         }
         None
+    }
+
+    /// Get the current platform name (for system_deps platform filtering)
+    fn current_platform_name() -> &'static str {
+        #[cfg(target_os = "windows")]
+        {
+            "windows"
+        }
+        #[cfg(target_os = "macos")]
+        {
+            "macos"
+        }
+        #[cfg(target_os = "linux")]
+        {
+            "linux"
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        {
+            "unknown"
+        }
     }
 
     /// Convert vx_manifest::Ecosystem to vx_resolver::Ecosystem

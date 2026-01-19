@@ -152,6 +152,7 @@ vx-migration = { path = "crates/vx-migration" }
 vx-env = { path = "crates/vx-env" }
 vx-extension = { path = "crates/vx-extension" }
 vx-project-analyzer = { path = "crates/vx-project-analyzer" }
+vx-system-pm = { path = "crates/vx-system-pm" }
 vx-cli = { path = "crates/vx-cli" }
 vx-provider-node = { path = "crates/vx-providers/node" }
 vx-provider-go = { path = "crates/vx-providers/go" }

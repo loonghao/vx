@@ -16,8 +16,10 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use tracing::{debug, info, warn};
 
-use crate::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use crate::{Ecosystem, InstallResult, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_system_pm::{PackageInstallSpec, PackageManagerRegistry};
 
 /// Source of a provider
 #[derive(Debug, Clone, PartialEq)]
@@ -469,6 +471,143 @@ impl Runtime for ManifestDrivenRuntime {
             }
         }
         Ok(None)
+    }
+
+    /// Install the runtime using the best available strategy
+    ///
+    /// This method tries installation strategies in priority order:
+    /// 1. Direct download (if available for this platform)
+    /// 2. System package managers (brew, choco, apt, etc.)
+    /// 3. Installation scripts
+    async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
+        let platform = Platform::current();
+
+        // First try the default install (direct download) if URL is available
+        if let Some(url) = self.download_url(version, &platform).await? {
+            info!(
+                "Installing {} via direct download from {}",
+                self.name, url
+            );
+            // Delegate to the default Runtime::install implementation
+            // by getting the URL and using the installer
+            let store_name = self.bundled_with.as_deref().unwrap_or(&self.name);
+            let install_path = ctx.paths.version_store_dir(store_name, version);
+
+            if ctx.fs.exists(&install_path) {
+                // Already installed
+                let exe_path = install_path.join(&self.executable);
+                return Ok(InstallResult::already_installed(
+                    install_path,
+                    exe_path,
+                    version.to_string(),
+                ));
+            }
+
+            ctx.installer.download_and_extract(&url, &install_path).await?;
+            let exe_path = install_path.join(&self.executable);
+            return Ok(InstallResult::success(install_path, exe_path, version.to_string()));
+        }
+
+        // No direct download, try system package manager strategies
+        info!(
+            "No direct download for {} on {:?}, trying system package managers",
+            self.name, platform.os
+        );
+
+        // Get applicable strategies sorted by priority
+        let mut strategies: Vec<_> = self
+            .install_strategies
+            .iter()
+            .filter(|s| s.matches_platform(&platform))
+            .collect();
+        strategies.sort_by_key(|s| std::cmp::Reverse(s.priority()));
+
+        let registry = PackageManagerRegistry::new();
+        let available_managers = registry.get_available().await;
+
+        for strategy in strategies {
+            match strategy {
+                InstallStrategy::PackageManager { manager, package, params, install_args, .. } => {
+                    // Check if this package manager is available
+                    let pm = available_managers
+                        .iter()
+                        .find(|pm| pm.name().eq_ignore_ascii_case(manager));
+
+                    if let Some(pm) = pm {
+                        debug!("Trying to install {} via {} (package: {})", self.name, manager, package);
+
+                        let spec = PackageInstallSpec {
+                            package: package.clone(),
+                            params: params.clone(),
+                            install_args: install_args.clone(),
+                            ..Default::default()
+                        };
+
+                        match pm.install_package(&spec).await {
+                            Ok(_) => {
+                                info!("Successfully installed {} via {}", self.name, manager);
+                                // System-installed, find the executable path
+                                let exe_path = which::which(&self.executable).ok();
+                                return Ok(InstallResult::system_installed(
+                                    format!("system ({})", manager),
+                                    exe_path,
+                                ));
+                            }
+                            Err(e) => {
+                                warn!("Failed to install {} via {}: {}", self.name, manager, e);
+                                continue;
+                            }
+                        }
+                    } else {
+                        debug!("Package manager {} not available, skipping", manager);
+                    }
+                }
+                InstallStrategy::Script { url, script_type, args, .. } => {
+                    debug!("Script installation not yet implemented for {}", self.name);
+                    // TODO: Implement script-based installation
+                    let _ = (url, script_type, args);
+                }
+                InstallStrategy::ProvidedBy { provider, relative_path, .. } => {
+                    // Check if the provider runtime is installed
+                    if which::which(provider).is_ok() {
+                        debug!("{} is provided by {}", self.name, provider);
+                        let exe_path = PathBuf::from(relative_path);
+                        return Ok(InstallResult::system_installed(
+                            format!("provided by {}", provider),
+                            Some(exe_path),
+                        ));
+                    }
+                }
+                InstallStrategy::DirectDownload { .. } => {
+                    // Already tried above
+                }
+            }
+        }
+
+        // All strategies failed
+        let tried_managers: Vec<_> = self
+            .install_strategies
+            .iter()
+            .filter_map(|s| match s {
+                InstallStrategy::PackageManager { manager, .. } => Some(manager.as_str()),
+                _ => None,
+            })
+            .collect();
+
+        if tried_managers.is_empty() {
+            Err(anyhow::anyhow!(
+                "No installation strategy available for {} on this platform",
+                self.name
+            ))
+        } else {
+            Err(anyhow::anyhow!(
+                "Failed to install {}. Tried package managers: {}.\n\
+                 Please ensure a package manager is installed (brew, choco, scoop, apt, etc.) \
+                 and try again.",
+                self.name,
+                tried_managers.join(", ")
+            ))
+        }
     }
 }
 

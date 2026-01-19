@@ -307,6 +307,20 @@ impl InstallResult {
             already_installed: true,
         }
     }
+
+    /// Create a result for system-installed tools (via package manager)
+    ///
+    /// For system-installed tools, install_path is set to a placeholder
+    /// since the tool is managed by the system package manager.
+    pub fn system_installed(version: String, executable_path: Option<PathBuf>) -> Self {
+        Self {
+            success: true,
+            install_path: PathBuf::from("system"),
+            executable_path: executable_path.unwrap_or_else(|| PathBuf::from("system")),
+            version,
+            already_installed: false,
+        }
+    }
 }
 
 /// Result of a command execution

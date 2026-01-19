@@ -4959,6 +4959,7 @@ dependencies = [
  "vx-core",
  "vx-manifest",
  "vx-paths",
+ "vx-system-pm",
  "which",
  "xz2",
  "zip",

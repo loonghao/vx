@@ -2,14 +2,16 @@
 # This file defines the metadata, runtimes, and dependency constraints for ImageMagick.
 #
 # ImageMagick is a powerful image manipulation software suite.
-# - Linux: Uses AppImage binary from imagemagick.org
-# - macOS: Recommends Homebrew installation
-# - Windows: Recommends Chocolatey/Scoop installation
+# - Linux: Uses AppImage binary from imagemagick.org (direct download)
+# - macOS: Requires Homebrew (vx-managed brew runtime)
+# - Windows: Requires Chocolatey or Scoop (vx-managed choco/scoop runtime)
 #
-# Note: Direct download support is limited due to platform-specific packaging:
-# - Windows uses .7z format (not currently supported by vx-installer)
-# - macOS requires compilation or package manager
-# - Linux AppImage works well as a portable binary
+# Installation flow:
+# 1. Resolver detects platform-specific dependencies (brew on macOS, choco/scoop on Windows)
+# 2. Resolver ensures package managers are installed first
+# 3. ImageMagick is installed via the appropriate package manager
+#
+# This is a "version-insensitive" tool - users just need "any working version"
 
 [provider]
 name = "imagemagick"
@@ -47,6 +49,33 @@ executable_extensions = [".exe"]
 [runtimes.platforms.unix]
 executable_extensions = []
 
+# RFC 0021: System-level dependencies
+# These are resolved by vx-resolver BEFORE installation attempts
+[runtimes.system_deps]
+
+# macOS requires Homebrew to be available
+[[runtimes.system_deps.pre_depends]]
+type = "runtime"
+id = "brew"
+platforms = ["macos"]
+reason = "Required to install ImageMagick on macOS (no portable binary available)"
+optional = false
+
+# Windows requires Chocolatey OR Scoop (optional = true means any one is sufficient)
+[[runtimes.system_deps.pre_depends]]
+type = "runtime"
+id = "choco"
+platforms = ["windows"]
+reason = "Required to install ImageMagick on Windows (no portable binary available)"
+optional = true
+
+[[runtimes.system_deps.pre_depends]]
+type = "runtime"
+id = "scoop"
+platforms = ["windows"]
+reason = "Alternative to Chocolatey for Windows installation"
+optional = true
+
 # System installation strategies for platforms where binary download is not available
 [[runtimes.system_install.strategies]]
 type = "package_manager"
@@ -83,7 +112,7 @@ package = "ImageMagick"
 platforms = ["linux"]
 priority = 80
 
-# No external runtime dependencies
+# No vx-runtime dependencies (different from system_deps)
 [[runtimes.constraints]]
 when = "*"
 recommends = []

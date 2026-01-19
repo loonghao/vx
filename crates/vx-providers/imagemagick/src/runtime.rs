@@ -6,6 +6,17 @@
 //!
 //! ImageMagick is a powerful image manipulation software suite.
 //! Homepage: https://imagemagick.org/
+//!
+//! # Installation Flow
+//!
+//! ImageMagick installation is platform-dependent:
+//! - **Linux**: Direct download of AppImage binary (handled by this runtime)
+//! - **macOS**: Requires Homebrew (dependency declared in provider.toml)
+//! - **Windows**: Requires Chocolatey or Scoop (dependency declared in provider.toml)
+//!
+//! Platform-specific package manager dependencies are declared in `provider.toml`
+//! under `system_deps.pre_depends`. The resolver automatically ensures these
+//! dependencies are installed before attempting ImageMagick installation.
 
 use crate::config::ImageMagickUrlBuilder;
 use anyhow::Result;
@@ -14,7 +25,9 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
+use vx_runtime::{
+    Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
+};
 
 /// Magick runtime implementation (main ImageMagick CLI)
 #[derive(Debug, Clone, Default)]
@@ -129,24 +142,15 @@ impl Runtime for MagickRuntime {
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        let url = ImageMagickUrlBuilder::download_url(version, platform);
-
-        // If no direct download available, return an error with installation instructions
-        if url.is_none() {
-            if let Some(instructions) =
-                ImageMagickUrlBuilder::get_installation_instructions(platform)
-            {
-                return Err(anyhow::anyhow!(
-                    "Direct download not available for {} on this platform.\n\
-                     Please install via system package manager:\n  {}",
-                    self.name(),
-                    instructions
-                ));
-            }
-        }
-
-        Ok(url)
+        // Returns None if no direct download available (Windows/macOS)
+        // Platform-specific package manager dependencies are handled by vx-resolver
+        // based on system_deps.pre_depends in provider.toml
+        Ok(ImageMagickUrlBuilder::download_url(version, platform))
     }
+
+    // Note: install() uses the default Runtime implementation
+    // Platform-specific dependencies (brew on macOS, choco/scoop on Windows)
+    // are declared in provider.toml and resolved automatically by vx-resolver
 
     fn verify_installation(
         &self,
@@ -407,24 +411,11 @@ impl Runtime for ConvertRuntime {
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        // Convert is bundled with magick, use the same download logic
-        let url = ImageMagickUrlBuilder::download_url(version, platform);
-
-        if url.is_none() {
-            if let Some(instructions) =
-                ImageMagickUrlBuilder::get_installation_instructions(platform)
-            {
-                return Err(anyhow::anyhow!(
-                    "Direct download not available for {} on this platform.\n\
-                     Please install via system package manager:\n  {}",
-                    self.name(),
-                    instructions
-                ));
-            }
-        }
-
-        Ok(url)
+        // Convert is bundled with magick, delegate to MagickRuntime
+        MagickRuntime::new().download_url(version, platform).await
     }
+
+    // Note: install() uses default Runtime implementation (delegates to MagickRuntime via bundled_with)
 
     fn verify_installation(
         &self,
