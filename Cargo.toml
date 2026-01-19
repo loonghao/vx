@@ -67,6 +67,9 @@ members = [
   # Media processing tools (RFC 0016)
   "crates/vx-providers/ffmpeg",
   "crates/vx-providers/gh",
+  "crates/vx-providers/imagemagick",
+  # CLI tools
+  "crates/vx-providers/jq",
 ]
 resolver = "2"
 
@@ -191,6 +194,7 @@ vx-provider-python = { path = "crates/vx-providers/python" }
 vx-provider-msvc = { path = "crates/vx-providers/msvc" }
 vx-provider-ffmpeg = { path = "crates/vx-providers/ffmpeg" }
 vx-provider-gh = { path = "crates/vx-providers/gh" }
+vx-provider-imagemagick = { path = "crates/vx-providers/imagemagick" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
 vx-version-fetcher = { path = "crates/vx-version-fetcher" }
