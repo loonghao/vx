@@ -3981,6 +3981,7 @@ dependencies = [
  "vx-provider-git",
  "vx-provider-go",
  "vx-provider-helm",
+ "vx-provider-imagemagick",
  "vx-provider-java",
  "vx-provider-jq",
  "vx-provider-just",
@@ -4414,6 +4415,23 @@ dependencies = [
  "tokio",
  "vx-runtime",
  "vx-version-fetcher",
+]
+
+[[package]]
+name = "vx-provider-imagemagick"
+version = "0.6.17"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "regex",
+ "reqwest 0.12.28",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+ "which",
 ]
 
 [[package]]

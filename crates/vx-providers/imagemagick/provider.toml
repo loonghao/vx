@@ -1,0 +1,102 @@
+# ImageMagick Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for ImageMagick.
+#
+# ImageMagick is a powerful image manipulation software suite.
+# - Linux: Uses AppImage binary from imagemagick.org
+# - macOS: Recommends Homebrew installation
+# - Windows: Recommends Chocolatey/Scoop installation
+#
+# Note: Direct download support is limited due to platform-specific packaging:
+# - Windows uses .7z format (not currently supported by vx-installer)
+# - macOS requires compilation or package manager
+# - Linux AppImage works well as a portable binary
+
+[provider]
+name = "imagemagick"
+description = "ImageMagick - A powerful image manipulation and conversion tool"
+homepage = "https://imagemagick.org/"
+repository = "https://github.com/ImageMagick/ImageMagick"
+ecosystem = "system"
+
+# Main magick runtime (unified CLI since ImageMagick 7)
+[[runtimes]]
+name = "magick"
+description = "ImageMagick unified command-line tool"
+executable = "magick"
+aliases = ["imagemagick"]
+
+[runtimes.versions]
+source = "github-releases"
+owner = "ImageMagick"
+repo = "ImageMagick"
+strip_v_prefix = false
+
+# Layout configuration for binary download (Linux AppImage)
+[runtimes.layout]
+download_type = "binary"
+
+[runtimes.layout.binary."linux-x86_64"]
+source_name = "magick"
+target_name = "magick"
+target_dir = "bin"
+target_permissions = "755"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# System installation strategies for platforms where binary download is not available
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "imagemagick"
+platforms = ["macos"]
+priority = 90
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "imagemagick"
+platforms = ["windows"]
+priority = 90
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "scoop"
+package = "imagemagick"
+platforms = ["windows"]
+priority = 85
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "imagemagick"
+platforms = ["linux"]
+priority = 80
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "dnf"
+package = "ImageMagick"
+platforms = ["linux"]
+priority = 80
+
+# No external runtime dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []
+
+# Legacy convert command (symlink/alias to magick)
+[[runtimes]]
+name = "convert"
+description = "ImageMagick convert tool (legacy, use 'magick' instead)"
+executable = "convert"
+bundled_with = "magick"
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "magick", version = "*", reason = "convert is part of ImageMagick" }
+]
