@@ -7,7 +7,7 @@ use anyhow::Result;
 use std::env;
 use vx_paths::project::{find_vx_config, LOCK_FILE_NAME};
 use vx_resolver::{LockFile, LockedTool};
-use vx_runtime::{ProviderRegistry, RuntimeContext};
+use vx_runtime::{InstallResult, ProviderRegistry, RuntimeContext};
 
 /// Parse tool specification in format "tool" or "tool@version"
 fn parse_tool_spec(spec: &str) -> (&str, Option<&str>) {
@@ -286,12 +286,12 @@ fn update_lockfile_if_exists(
 }
 
 /// Install a runtime quietly (for CI testing)
-/// Returns the installed version on success
+/// Returns the InstallResult on success, including executable path
 pub async fn install_quiet(
     registry: &ProviderRegistry,
     context: &RuntimeContext,
     tool_name: &str,
-) -> Result<String> {
+) -> Result<InstallResult> {
     // Get the runtime from registry
     let runtime = match registry.get_runtime(tool_name) {
         Some(r) => r,
@@ -312,17 +312,34 @@ pub async fn install_quiet(
 
     // Check if already installed
     if runtime.is_installed(&target_version, context).await? {
-        return Ok(target_version);
+        // For already installed, we need to construct an InstallResult
+        // Try to find the executable in system PATH first (for system installs)
+        let exe_name = runtime.name();
+        if let Ok(exe_path) = which::which(exe_name) {
+            return Ok(InstallResult::system_installed(
+                target_version,
+                Some(exe_path),
+            ));
+        }
+        // Fall back to store path
+        let store_name = runtime.store_name();
+        let install_path = context.paths.version_store_dir(store_name, &target_version);
+        let exe_path = install_path.join("bin").join(exe_name);
+        return Ok(InstallResult::already_installed(
+            install_path,
+            exe_path,
+            target_version,
+        ));
     }
 
     // Run pre-install hook
     runtime.pre_install(&target_version, context).await?;
 
     // Install the version
-    runtime.install(&target_version, context).await?;
+    let install_result = runtime.install(&target_version, context).await?;
 
     // Run post-install hook
     runtime.post_install(&target_version, context).await?;
 
-    Ok(target_version)
+    Ok(install_result)
 }
