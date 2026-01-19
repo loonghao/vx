@@ -18,6 +18,28 @@ aliases = ["vscode", "vs-code"]
 [runtimes.versions]
 source = "vscode-releases"
 
+# RFC 0019: Executable Layout Configuration
+# VSCode archives have platform-specific structures:
+# - Windows: VSCode-win32-x64/ (we use -archive suffix for portable zip)
+# - macOS: "Visual Studio Code.app" is at root
+# - Linux: VSCode-linux-x64/
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.windows]
+executable_paths = ["bin/code.cmd", "Code.exe"]
+strip_prefix = ""
+
+[runtimes.layout.macos]
+executable_paths = ["Visual Studio Code.app/Contents/Resources/app/bin/code"]
+strip_prefix = ""
+
+# Linux tar.gz extracts to VSCode-linux-{arch}/ directory
+# Support both x64 and arm64 architectures
+[runtimes.layout.linux]
+executable_paths = ["bin/code", "VSCode-linux-x64/bin/code", "VSCode-linux-arm64/bin/code"]
+strip_prefix = ""
+
 [runtimes.platforms.windows]
 executable_extensions = [".cmd", ".exe"]
 

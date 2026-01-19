@@ -363,13 +363,54 @@ async fn install_npm_package(
         std::fs::write(&package_json, init_content)?;
     }
 
-    // Run npm install
+    // Run npm install with proper output handling and timeout to prevent hanging
     let install_spec = format!("{}@{}", package_name, version);
-    let status = std::process::Command::new(&npm_exe)
-        .args(["install", "--save", "--silent", &install_spec])
-        .current_dir(&install_dir)
-        .stdin(std::process::Stdio::null())
-        .status()?;
+
+    // Use tokio process with timeout to prevent indefinite hanging
+    use std::time::Duration;
+    use tokio::process::Command as TokioCommand;
+
+    // Default timeout of 5 minutes for npm install
+    let npm_timeout = Duration::from_secs(300);
+
+    let mut cmd = TokioCommand::new(&npm_exe);
+    cmd.args([
+        "install",
+        "--save",
+        "--silent",
+        "--no-progress",
+        "--no-audit",
+        "--no-fund",
+        &install_spec,
+    ])
+    .current_dir(&install_dir)
+    .stdin(std::process::Stdio::null())
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::piped())
+    // Kill the process tree on drop to prevent orphaned npm processes
+    .kill_on_drop(true);
+
+    let output = match tokio::time::timeout(npm_timeout, cmd.output()).await {
+        Ok(Ok(output)) => output,
+        Ok(Err(e)) => {
+            return Err(anyhow::anyhow!(
+                "Failed to run npm install for {}@{}: {}",
+                package_name,
+                version,
+                e
+            ));
+        }
+        Err(_) => {
+            return Err(anyhow::anyhow!(
+                "npm install timed out after {} seconds for {}@{}. \
+                 This may be due to network issues or npm registry problems.",
+                npm_timeout.as_secs(),
+                package_name,
+                version
+            ));
+        }
+    };
+    let status = output.status;
 
     if !status.success() {
         return Err(anyhow::anyhow!(
@@ -454,7 +495,16 @@ async fn install_pip_package(
     // (uv has known issues on some Windows configurations)
     let uv_result = if let Ok(uv_exe) = find_runtime_executable("uv", ctx).await {
         debug!("Trying uv: {}", uv_exe.display());
-        install_with_uv(&uv_exe, package_name, version, &venv_dir, &bin_dir, ctx).await
+        install_with_uv(
+            &uv_exe,
+            package_name,
+            bin_name,
+            version,
+            &venv_dir,
+            &bin_dir,
+            ctx,
+        )
+        .await
     } else {
         Err(anyhow::anyhow!("uv not found"))
     };
@@ -471,7 +521,7 @@ async fn install_pip_package(
         }
 
         // Fall back to system Python
-        install_with_system_python(package_name, version, &venv_dir, &bin_dir).await?;
+        install_with_system_python(package_name, bin_name, version, &venv_dir, &bin_dir).await?;
     }
 
     if !exe_path.exists() {
@@ -550,12 +600,18 @@ fn find_vx_python(ctx: &RuntimeContext) -> Option<std::path::PathBuf> {
 async fn install_with_uv(
     uv_exe: &Path,
     package_name: &str,
+    bin_name: &str,
     version: &str,
     venv_dir: &Path,
     bin_dir: &Path,
     ctx: &RuntimeContext,
 ) -> Result<()> {
+    use std::time::Duration;
+    use tokio::process::Command as TokioCommand;
     use tracing::debug;
+
+    // Default timeout for pip operations
+    let pip_timeout = Duration::from_secs(300);
 
     // Python executable path in venv
     let venv_python = if cfg!(windows) {
@@ -568,55 +624,98 @@ async fn install_with_uv(
     let vx_python = find_vx_python(ctx);
 
     // Create venv with uv, using vx-managed Python if available
-    let mut cmd = std::process::Command::new(uv_exe);
+    let mut cmd = TokioCommand::new(uv_exe);
     cmd.args(["venv", "--quiet", venv_dir.to_str().unwrap()]);
 
     if let Some(ref python_path) = vx_python {
         debug!("Using vx-managed Python: {}", python_path.display());
         cmd.arg("--python").arg(python_path);
     } else {
-        debug!("No vx-managed Python found, using uv's default Python");
+        // When no vx-managed Python is found, specify a modern Python version
+        // for uv to download automatically. Python 3.12 is well-supported and
+        // meets requirements of most modern packages (e.g., pre-commit 4.x requires 3.10+)
+        debug!("No vx-managed Python found, using Python 3.12 via uv");
+        cmd.arg("--python").arg("3.12");
     }
 
-    let status = cmd
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()?;
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .kill_on_drop(true);
 
-    if !status.success() {
-        return Err(anyhow::anyhow!("uv venv creation failed"));
+    let output = match tokio::time::timeout(pip_timeout, cmd.output()).await {
+        Ok(Ok(output)) => output,
+        Ok(Err(e)) => return Err(anyhow::anyhow!("uv venv creation failed: {}", e)),
+        Err(_) => {
+            return Err(anyhow::anyhow!(
+                "uv venv creation timed out after {} seconds",
+                pip_timeout.as_secs()
+            ))
+        }
+    };
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!(
+            "uv venv creation failed: {}",
+            stderr.trim()
+        ));
     }
 
     // Install package with uv pip
     let install_spec = format!("{}=={}", package_name, version);
-    let status = std::process::Command::new(uv_exe)
-        .args([
-            "pip",
-            "install",
-            "--quiet",
-            "--python",
-            venv_python.to_str().unwrap(),
-            &install_spec,
-        ])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()?;
+    let mut cmd = TokioCommand::new(uv_exe);
+    cmd.args([
+        "pip",
+        "install",
+        "--quiet",
+        "--python",
+        venv_python.to_str().unwrap(),
+        &install_spec,
+    ])
+    .stdin(std::process::Stdio::null())
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::piped())
+    .kill_on_drop(true);
 
-    if !status.success() {
-        return Err(anyhow::anyhow!("uv pip install failed"));
+    let output = match tokio::time::timeout(pip_timeout, cmd.output()).await {
+        Ok(Ok(output)) => output,
+        Ok(Err(e)) => return Err(anyhow::anyhow!("uv pip install failed: {}", e)),
+        Err(_) => {
+            return Err(anyhow::anyhow!(
+                "uv pip install timed out after {} seconds for {}=={}",
+                pip_timeout.as_secs(),
+                package_name,
+                version
+            ))
+        }
+    };
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!(
+            "Failed to install pip package {}=={} with uv: {}",
+            package_name,
+            version,
+            stderr.trim()
+        ));
     }
 
     // Verify the binary exists
     let exe_name = if cfg!(windows) {
-        format!("{}.exe", package_name)
+        format!("{}.exe", bin_name)
     } else {
-        package_name.to_string()
+        bin_name.to_string()
     };
 
-    if !bin_dir.join(&exe_name).exists() {
-        return Err(anyhow::anyhow!("binary not created by uv"));
+    let exe_path = bin_dir.join(&exe_name);
+    if !exe_path.exists() {
+        return Err(anyhow::anyhow!(
+            "Binary '{}' not found at {} after installing with uv. \
+             This may indicate the package name differs from the binary name.",
+            exe_name,
+            exe_path.display()
+        ));
     }
 
     debug!("Successfully installed with uv");
@@ -626,27 +725,52 @@ async fn install_with_uv(
 /// Install pip package using system Python
 async fn install_with_system_python(
     package_name: &str,
+    bin_name: &str,
     version: &str,
     venv_dir: &Path,
-    _bin_dir: &Path,
+    bin_dir: &Path,
 ) -> Result<()> {
+    use std::time::Duration;
+    use tokio::process::Command as TokioCommand;
     use tracing::debug;
+
+    // Default timeout for pip operations
+    let pip_timeout = Duration::from_secs(300);
 
     let python_exe = find_system_python()?;
     debug!("Using system python: {}", python_exe.display());
 
     // Create venv
-    let status = std::process::Command::new(&python_exe)
-        .args(["-m", "venv", venv_dir.to_str().unwrap()])
+    let mut cmd = TokioCommand::new(&python_exe);
+    cmd.args(["-m", "venv", venv_dir.to_str().unwrap()])
         .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()?;
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .kill_on_drop(true);
 
-    if !status.success() {
+    let output = match tokio::time::timeout(pip_timeout, cmd.output()).await {
+        Ok(Ok(output)) => output,
+        Ok(Err(e)) => {
+            return Err(anyhow::anyhow!(
+                "Failed to create venv at {}: {}",
+                venv_dir.display(),
+                e
+            ))
+        }
+        Err(_) => {
+            return Err(anyhow::anyhow!(
+                "venv creation timed out after {} seconds",
+                pip_timeout.as_secs()
+            ))
+        }
+    };
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(anyhow::anyhow!(
-            "Failed to create venv at {}",
-            venv_dir.display()
+            "Failed to create venv at {}: {}",
+            venv_dir.display(),
+            stderr.trim()
         ));
     }
 
@@ -659,18 +783,56 @@ async fn install_with_system_python(
 
     // Install package
     let install_spec = format!("{}=={}", package_name, version);
-    let status = std::process::Command::new(&venv_python)
-        .args(["-m", "pip", "install", "--quiet", &install_spec])
+    let mut cmd = TokioCommand::new(&venv_python);
+    cmd.args(["-m", "pip", "install", "--quiet", &install_spec])
         .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()?;
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .kill_on_drop(true);
 
-    if !status.success() {
+    let output = match tokio::time::timeout(pip_timeout, cmd.output()).await {
+        Ok(Ok(output)) => output,
+        Ok(Err(e)) => {
+            return Err(anyhow::anyhow!(
+                "Failed to install pip package {}=={}: {}",
+                package_name,
+                version,
+                e
+            ))
+        }
+        Err(_) => {
+            return Err(anyhow::anyhow!(
+                "pip install timed out after {} seconds for {}=={}",
+                pip_timeout.as_secs(),
+                package_name,
+                version
+            ))
+        }
+    };
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(anyhow::anyhow!(
-            "Failed to install pip package {}=={}",
+            "Failed to install pip package {}=={}: {}",
             package_name,
-            version
+            version,
+            stderr.trim()
+        ));
+    }
+
+    // Verify the binary exists
+    let exe_name = if cfg!(windows) {
+        format!("{}.exe", bin_name)
+    } else {
+        bin_name.to_string()
+    };
+    let exe_path = bin_dir.join(&exe_name);
+    if !exe_path.exists() {
+        return Err(anyhow::anyhow!(
+            "Binary '{}' not found at {} after installing with system Python. \
+             This may indicate the package name differs from the binary name.",
+            exe_name,
+            exe_path.display()
         ));
     }
 
@@ -766,28 +928,43 @@ fn search_executable(
 }
 
 /// Create an npm shim script
-fn create_npm_shim(shim_path: &Path, source_bin: &Path, _node_exe: &Path) -> Result<()> {
+fn create_npm_shim(shim_path: &Path, source_bin: &Path, node_exe: &Path) -> Result<()> {
     #[cfg(windows)]
     {
-        // On Windows, create a .cmd wrapper
-        let content = format!("@echo off\r\n\"{}\"\r\n", source_bin.display());
+        // On Windows, create a .cmd wrapper that ensures vx-managed node is on PATH.
+        // npm's generated *.cmd wrappers typically call `node` from PATH.
+        let node_dir = node_exe.parent().ok_or_else(|| {
+            anyhow::anyhow!("Invalid node executable path: {}", node_exe.display())
+        })?;
+
+        let content = format!(
+            "@echo off\r\nset \"PATH={};%PATH%\"\r\ncall \"{}\" %*\r\n",
+            node_dir.display(),
+            source_bin.display()
+        );
         std::fs::write(shim_path, content)?;
     }
 
     #[cfg(not(windows))]
     {
-        // On Unix, create a symlink or shell script
-        if std::os::unix::fs::symlink(source_bin, shim_path).is_err() {
-            // Fall back to shell script if symlink fails
-            let content = format!("#!/bin/sh\nexec \"{}\" \"$@\"\n", source_bin.display());
-            std::fs::write(shim_path, content)?;
+        // On Unix, create a shell wrapper that ensures vx-managed node is on PATH.
+        // This makes npm-installed CLIs work even when system node is absent.
+        let node_dir = node_exe.parent().ok_or_else(|| {
+            anyhow::anyhow!("Invalid node executable path: {}", node_exe.display())
+        })?;
 
-            // Make executable
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = std::fs::metadata(shim_path)?.permissions();
-            perms.set_mode(0o755);
-            std::fs::set_permissions(shim_path, perms)?;
-        }
+        let content = format!(
+            "#!/bin/sh\nexport PATH=\"{}:$PATH\"\nexec \"{}\" \"$@\"\n",
+            node_dir.display(),
+            source_bin.display()
+        );
+        std::fs::write(shim_path, content)?;
+
+        // Make executable
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(shim_path)?.permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(shim_path, perms)?;
     }
 
     Ok(())

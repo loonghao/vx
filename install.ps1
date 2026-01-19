@@ -74,6 +74,43 @@ function Write-ProgressInfo {
     }
 }
 
+# Check if Windows long path support is enabled
+function Test-LongPathEnabled {
+    try {
+        $key = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -ErrorAction SilentlyContinue
+        return $key.LongPathsEnabled -eq 1
+    }
+    catch {
+        return $false
+    }
+}
+
+# Show instructions for enabling long path support
+function Show-LongPathInstructions {
+    Write-Host ""
+    Write-Host "⚠️  Windows Long Path Support is NOT enabled" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "vx may encounter issues with deep directory paths (>260 characters)," -ForegroundColor Gray
+    Write-Host "especially when installing npm packages with nested dependencies." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "To enable long path support (recommended):" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Option 1: Run this PowerShell command (requires Administrator):" -ForegroundColor White
+    Write-Host '  New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `' -ForegroundColor Gray
+    Write-Host '      -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force' -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "Option 2: Via Group Policy (Windows 10 Pro/Enterprise):" -ForegroundColor White
+    Write-Host "  1. Open gpedit.msc" -ForegroundColor Gray
+    Write-Host "  2. Navigate to: Computer Configuration > Administrative Templates > System > Filesystem" -ForegroundColor Gray
+    Write-Host "  3. Enable 'Enable Win32 long paths'" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "Option 3: Use a shorter VX_HOME path:" -ForegroundColor White
+    Write-Host '  $env:VX_HOME = "C:\vx"' -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "After enabling, restart your terminal or reboot Windows." -ForegroundColor Yellow
+    Write-Host ""
+}
+
 # Detect platform and map to release naming convention
 function Get-Platform {
     # Detect architecture more accurately
@@ -458,7 +495,7 @@ function Test-Installation {
         Write-Host "   vx --help" -ForegroundColor Gray
         Write-Host "   vx list" -ForegroundColor Gray
         Write-Host "   vx npm --version" -ForegroundColor Gray
-        Write-Host "   vx uv --version" -ForegroundColor Gray
+        Write-Host "   vx uv self version" -ForegroundColor Gray
     }
     catch {
         Write-Error "Installation verification failed: $_"
@@ -475,6 +512,13 @@ function Main {
     if ($PSVersionTable.PSVersion.Major -lt 5) {
         Write-Error "PowerShell 5.0 or later is required"
         exit 1
+    }
+
+    # Check Windows long path support
+    if (-not (Test-LongPathEnabled)) {
+        Show-LongPathInstructions
+        Write-Info "Continuing with installation... (vx has built-in long path workarounds)"
+        Write-Host ""
     }
 
     # Install vx

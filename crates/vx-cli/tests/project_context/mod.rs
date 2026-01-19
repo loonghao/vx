@@ -457,24 +457,24 @@ node = "20"
 }
 
 // ============================================================================
-// Stats Command Tests
+// Cache Command Tests
 // ============================================================================
 
-/// Test: vx stats
+/// Test: vx cache info
 #[rstest]
 #[test]
-fn test_stats() {
+fn test_cache_info() {
     skip_if_no_vx!();
 
-    let output = run_vx(&["stats"]).expect("Failed to run vx stats");
+    let output = run_vx(&["cache", "info"]).expect("Failed to run vx cache info");
 
-    assert!(is_success(&output), "vx stats should succeed");
+    assert!(is_success(&output), "vx cache info should succeed");
 }
 
-/// Test: vx stats in project
+/// Test: vx cache info in project
 #[rstest]
 #[test]
-fn test_stats_in_project() {
+fn test_cache_info_in_project() {
     skip_if_no_vx!();
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -487,39 +487,24 @@ node = "20"
     )
     .expect("Failed to write vx.toml");
 
-    let output = run_vx_in_dir(temp_dir.path(), &["stats"]).expect("Failed to run vx stats");
-
-    assert!(is_success(&output), "vx stats should succeed in project");
-}
-
-// ============================================================================
-// Clean Command Tests
-// ============================================================================
-
-/// Test: vx clean --dry-run
-#[rstest]
-#[test]
-fn test_clean_dry_run() {
-    skip_if_no_vx!();
-
-    let output = run_vx(&["clean", "--dry-run"]).expect("Failed to run vx clean --dry-run");
-
-    assert!(is_success(&output), "vx clean --dry-run should succeed");
-}
-
-/// Test: vx clean --cache --dry-run
-#[rstest]
-#[test]
-fn test_clean_cache_dry_run() {
-    skip_if_no_vx!();
-
     let output =
-        run_vx(&["clean", "--cache", "--dry-run"]).expect("Failed to run vx clean --cache");
+        run_vx_in_dir(temp_dir.path(), &["cache", "info"]).expect("Failed to run vx cache info");
 
     assert!(
         is_success(&output),
-        "vx clean --cache --dry-run should succeed"
+        "vx cache info should succeed in project"
     );
+}
+
+/// Test: vx cache dir
+#[rstest]
+#[test]
+fn test_cache_dir() {
+    skip_if_no_vx!();
+
+    let output = run_vx(&["cache", "dir"]).expect("Failed to run vx cache dir");
+
+    assert!(is_success(&output), "vx cache dir should succeed");
 }
 
 // ============================================================================

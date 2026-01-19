@@ -49,7 +49,7 @@ mod list_tests {
     async fn test_list_all_tools(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let ctx = create_test_context();
-        let result = list::handle(&registry, &ctx, None, false, false, false).await;
+        let result = list::handle_list(&registry, &ctx, None, false, false, false).await;
         assert!(result.is_ok(), "List command should succeed");
         cleanup_test_env();
     }
@@ -59,7 +59,7 @@ mod list_tests {
     async fn test_list_with_status(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let ctx = create_test_context();
-        let result = list::handle(&registry, &ctx, None, true, false, false).await;
+        let result = list::handle_list(&registry, &ctx, None, true, false, false).await;
         assert!(result.is_ok(), "List with status should succeed");
         cleanup_test_env();
     }
@@ -77,7 +77,7 @@ mod list_tests {
     ) {
         let registry = registry.await;
         let ctx = create_test_context();
-        let result = list::handle(&registry, &ctx, Some(tool_name), false, false, false).await;
+        let result = list::handle_list(&registry, &ctx, Some(tool_name), false, false, false).await;
         assert!(
             result.is_ok(),
             "List for {} should succeed: {:?}",
@@ -92,7 +92,7 @@ mod list_tests {
     async fn test_list_nonexistent_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let ctx = create_test_context();
-        let result = list::handle(
+        let result = list::handle_list(
             &registry,
             &ctx,
             Some("nonexistent-tool-xyz"),
@@ -378,6 +378,9 @@ mod init_tests {
 // Clean Command Tests
 // ============================================================================
 
+// Note: cleanup command has been removed from vx-cli. These tests are commented out.
+// If the command is re-added, uncomment these tests.
+/*
 mod clean_tests {
     use super::*;
     use vx_cli::commands::cleanup;
@@ -433,11 +436,15 @@ mod clean_tests {
         cleanup_test_env();
     }
 }
+*/
 
 // ============================================================================
 // Stats Command Tests
 // ============================================================================
 
+// Note: stats command has been removed from vx-cli. These tests are commented out.
+// If the command is re-added, uncomment these tests.
+/*
 mod stats_tests {
     use super::*;
     use vx_cli::commands::stats;
@@ -451,6 +458,7 @@ mod stats_tests {
         cleanup_test_env();
     }
 }
+*/
 
 // ============================================================================
 // Plugin Command Tests
@@ -732,7 +740,7 @@ mod install_tests {
     async fn test_install_nonexistent_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let ctx = create_test_context();
-        let result = install::handle(
+        let result = install::handle_install(
             &registry,
             &ctx,
             &["nonexistent-tool-xyz@1.0.0".to_string()],
@@ -958,7 +966,8 @@ mod error_handling_tests {
             false,
         )
         .await;
-        let _ = install::handle(&registry, &ctx, &["invalid-tool-xyz".to_string()], false).await;
+        let _ = install::handle_install(&registry, &ctx, &["invalid-tool-xyz".to_string()], false)
+            .await;
         let _ = remove::handle(&registry, &ctx, "invalid-tool-xyz", None, true).await;
         let _ = switch::handle(&registry, "invalid-tool-xyz", false).await;
 
@@ -976,7 +985,7 @@ mod error_handling_tests {
 
         for name in special_names {
             // These should return errors but not panic
-            let _ = install::handle(&registry, &ctx, &[name.to_string()], false).await;
+            let _ = install::handle_install(&registry, &ctx, &[name.to_string()], false).await;
             let _ = remove::handle(&registry, &ctx, name, None, true).await;
         }
 

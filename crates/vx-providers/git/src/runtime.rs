@@ -58,16 +58,49 @@ impl Runtime for GitRuntime {
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
         // Fetch versions from Git for Windows releases
         // This provides portable Git versions for Windows
-        ctx.fetch_github_releases(
-            "git",
-            "git-for-windows",
-            "git",
-            GitHubReleaseOptions::new()
-                .strip_v_prefix(true)
-                .skip_prereleases(true)
-                .per_page(50),
+        // Note: Git for Windows uses tags like "v2.52.0.windows.1", we extract just "2.52.0"
+        let mut versions = ctx
+            .fetch_github_releases(
+                "git",
+                "git-for-windows",
+                "git",
+                GitHubReleaseOptions::new()
+                    .strip_v_prefix(true)
+                    .skip_prereleases(true)
+                    .per_page(50),
+            )
+            .await?;
+
+        // Transform versions: "2.52.0.windows.1" -> "2.52.0"
+        for v in &mut versions {
+            if let Some(base_version) = v.version.split(".windows.").next() {
+                v.version = base_version.to_string();
+            }
+        }
+
+        // Deduplicate versions (multiple .windows.X releases for same base version)
+        let mut seen = std::collections::HashSet::new();
+        versions.retain(|v| seen.insert(v.version.clone()));
+
+        Ok(versions)
+    }
+
+    fn supported_platforms(&self) -> Vec<Platform> {
+        // We only support installing Git via portable MinGit downloads on Windows.
+        // On Linux/macOS, users should install Git via their system package manager.
+        Platform::windows_only()
+    }
+
+    fn check_platform_support(&self) -> Result<(), String> {
+        let current = Platform::current();
+        if self.is_platform_supported(&current) {
+            return Ok(());
+        }
+
+        Err(
+            "Git installs via vx are only supported on Windows (portable MinGit).\n\nOn macOS/Linux, please install Git via your system package manager:\n  - macOS: brew install git\n  - Ubuntu/Debian: sudo apt install git\n  - Fedora/RHEL: sudo dnf install git\n  - Arch: sudo pacman -S git"
+                .to_string(),
         )
-        .await
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

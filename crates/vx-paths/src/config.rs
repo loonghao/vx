@@ -77,6 +77,7 @@ impl PathConfig {
             cache_dir: self.cache_dir.clone().unwrap_or(default_paths.cache_dir),
             config_dir: self.config_dir.clone().unwrap_or(default_paths.config_dir),
             tmp_dir: self.tmp_dir.clone().unwrap_or(default_paths.tmp_dir),
+            providers_dir: default_paths.providers_dir,
         })
     }
 

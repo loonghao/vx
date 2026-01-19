@@ -9,6 +9,7 @@ use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info};
 use vx_args::{ArgParser, HelpFormatter, Interpolator, ParsedArgs};
+use vx_core::exit_code_from_status;
 
 /// Extension executor - executes extension scripts
 pub struct ExtensionExecutor {
@@ -106,7 +107,7 @@ impl ExtensionExecutor {
                 )
             })?;
 
-        let exit_code = status.code().unwrap_or(1);
+        let exit_code = exit_code_from_status(&status);
         if !status.success() {
             debug!(
                 "Extension '{}' exited with code {}",

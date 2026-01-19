@@ -6,7 +6,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
-use vx_runtime::{CacheMode, ProviderRegistry, RuntimeContext};
+use vx_manifest::RuntimeDef;
+use vx_runtime::{CacheMode, ManifestRegistry, ProviderRegistry, RuntimeContext};
 
 /// Global CLI options
 ///
@@ -69,6 +70,8 @@ pub struct CommandContext {
     pub runtime_context: Arc<RuntimeContext>,
     /// Global CLI options
     pub options: GlobalOptions,
+    /// Manifest registry for accessing provider manifests (lazy-loaded)
+    manifest_registry: std::sync::OnceLock<ManifestRegistry>,
 }
 
 impl CommandContext {
@@ -82,6 +85,7 @@ impl CommandContext {
             registry: Arc::new(registry),
             runtime_context: Arc::new(runtime_context),
             options,
+            manifest_registry: std::sync::OnceLock::new(),
         }
     }
 
@@ -95,6 +99,7 @@ impl CommandContext {
             registry,
             runtime_context,
             options,
+            manifest_registry: std::sync::OnceLock::new(),
         }
     }
 
@@ -151,6 +156,31 @@ impl CommandContext {
     /// Check if debug mode is enabled
     pub fn debug(&self) -> bool {
         self.options.debug
+    }
+
+    /// Get the manifest registry (lazy-loaded from embedded manifests)
+    pub fn manifest_registry(&self) -> Option<&ManifestRegistry> {
+        Some(self.manifest_registry.get_or_init(|| {
+            let mut registry = ManifestRegistry::new();
+            let manifests = crate::registry::load_manifests_with_overrides();
+            registry.load_from_manifests(manifests);
+            registry
+        }))
+    }
+
+    /// Get runtime manifest definition by name
+    pub fn get_runtime_manifest(&self, runtime_name: &str) -> Option<RuntimeDef> {
+        let registry = self.manifest_registry()?;
+
+        // Search through all manifests for the runtime
+        for manifest in registry.manifest_names() {
+            if let Some(provider_manifest) = registry.get_manifest(&manifest) {
+                if let Some(runtime) = provider_manifest.get_runtime(runtime_name) {
+                    return Some(runtime.clone());
+                }
+            }
+        }
+        None
     }
 }
 

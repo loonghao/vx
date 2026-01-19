@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
-use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_version_fetcher::VersionFetcherBuilder;
 
 /// PNPM runtime
 #[derive(Debug, Clone)]
@@ -44,19 +45,19 @@ impl Runtime for PnpmRuntime {
         &[]
     }
 
-    /// PNPM executable path - uses standard name after post_extract rename
+    /// PNPM executable path - in bin/ directory after BinaryHandler extraction
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        platform.exe_name("pnpm")
+        format!("bin/{}", platform.exe_name("pnpm"))
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        ctx.fetch_github_releases(
-            "pnpm",
-            "pnpm",
-            "pnpm",
-            GitHubReleaseOptions::new().strip_v_prefix(true),
-        )
-        .await
+        VersionFetcherBuilder::npm("pnpm")
+            .skip_prereleases()
+            .limit(100)
+            .build()
+            .fetch(ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
@@ -67,13 +68,16 @@ impl Runtime for PnpmRuntime {
     fn post_extract(&self, _version: &str, install_path: &PathBuf) -> Result<()> {
         let platform = Platform::current();
 
+        // BinaryHandler puts files in bin/ directory
+        let bin_dir = install_path.join("bin");
+
         // Downloaded filename (e.g., pnpm-linux-x64, pnpm-win-x64.exe)
         let downloaded_name = PnpmUrlBuilder::get_filename(&platform);
-        let downloaded_path = install_path.join(&downloaded_name);
+        let downloaded_path = bin_dir.join(&downloaded_name);
 
         // Standard filename (e.g., pnpm, pnpm.exe)
         let standard_name = platform.exe_name("pnpm");
-        let standard_path = install_path.join(&standard_name);
+        let standard_path = bin_dir.join(&standard_name);
 
         // Rename if the downloaded file exists and standard doesn't
         if downloaded_path.exists() && !standard_path.exists() {

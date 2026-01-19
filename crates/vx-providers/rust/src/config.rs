@@ -1,89 +1,123 @@
-//! Rust configuration
+//! URL builder and platform configuration for Rust/Rustup
+//!
+//! Rustup releases are available at: https://static.rust-lang.org/rustup/dist/
+//! Download URL format:
+//! - Windows x64: https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe
+//! - Windows x86: https://static.rust-lang.org/rustup/dist/i686-pc-windows-msvc/rustup-init.exe
+//! - macOS x64: https://static.rust-lang.org/rustup/dist/x86_64-apple-darwin/rustup-init
+//! - macOS ARM64: https://static.rust-lang.org/rustup/dist/aarch64-apple-darwin/rustup-init
+//! - Linux x64: https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init
+//! - Linux ARM64: https://static.rust-lang.org/rustup/dist/aarch64-unknown-linux-gnu/rustup-init
 
-use serde::{Deserialize, Serialize};
+use vx_runtime::{Arch, Os, Platform};
 
-/// Rust configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RustConfig {
-    /// Default Rust version/channel
-    pub default_channel: Option<String>,
-    /// Default target
-    pub default_target: Option<String>,
-    /// RUSTUP_HOME override
-    pub rustup_home: Option<String>,
-    /// CARGO_HOME override
-    pub cargo_home: Option<String>,
-}
+/// URL builder for Rustup downloads
+pub struct RustupUrlBuilder;
 
-impl Default for RustConfig {
-    fn default() -> Self {
-        Self {
-            default_channel: Some("stable".to_string()),
-            default_target: None,
-            rustup_home: None,
-            cargo_home: None,
+impl RustupUrlBuilder {
+    /// Rustup distribution base URL
+    const BASE_URL: &'static str = "https://static.rust-lang.org/rustup/dist";
+
+    /// Get the platform target triple for rustup downloads
+    pub fn get_target_triple(platform: &Platform) -> Option<&'static str> {
+        match (&platform.os, &platform.arch) {
+            (Os::Windows, Arch::X86_64) => Some("x86_64-pc-windows-msvc"),
+            (Os::Windows, Arch::X86) => Some("i686-pc-windows-msvc"),
+            (Os::MacOS, Arch::X86_64) => Some("x86_64-apple-darwin"),
+            (Os::MacOS, Arch::Aarch64) => Some("aarch64-apple-darwin"),
+            (Os::Linux, Arch::X86_64) => Some("x86_64-unknown-linux-gnu"),
+            (Os::Linux, Arch::Aarch64) => Some("aarch64-unknown-linux-gnu"),
+            (Os::Linux, Arch::Arm) => Some("arm-unknown-linux-gnueabihf"),
+            _ => None,
+        }
+    }
+
+    /// Get the executable filename for the platform
+    pub fn get_executable_name(platform: &Platform) -> &'static str {
+        match platform.os {
+            Os::Windows => "rustup-init.exe",
+            _ => "rustup-init",
+        }
+    }
+
+    /// Build the download URL for rustup-init
+    /// Note: rustup downloads are not versioned in the URL, always downloads latest
+    pub fn download_url(platform: &Platform) -> Option<String> {
+        let target = Self::get_target_triple(platform)?;
+        let filename = Self::get_executable_name(platform);
+        Some(format!("{}/{}/{}", Self::BASE_URL, target, filename))
+    }
+
+    /// Get the final rustup executable name (after rename from rustup-init)
+    pub fn get_final_executable_name(platform: &Platform) -> &'static str {
+        match platform.os {
+            Os::Windows => "rustup.exe",
+            _ => "rustup",
         }
     }
 }
 
-/// Rust URL builder for download URLs
-pub struct RustUrlBuilder;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl RustUrlBuilder {
-    /// Generate download URL for Rust version
-    ///
-    /// Uses `.tar.gz` format for all platforms (including Windows) as it's
-    /// universally supported by our archive extraction logic.
-    /// Note: Rust official releases provide both `.tar.gz` and `.tar.xz` for Windows.
-    pub fn download_url(version: &str) -> Option<String> {
-        let platform = Self::get_platform_string();
-        // Use tar.gz for all platforms - Windows also has tar.gz downloads available
-        // from static.rust-lang.org, and our extractor supports it natively
-        Some(format!(
-            "https://static.rust-lang.org/dist/rust-{}-{}.tar.gz",
-            version, platform
-        ))
+    #[test]
+    fn test_download_url_windows_x64() {
+        let platform = Platform {
+            os: Os::Windows,
+            arch: Arch::X86_64,
+        };
+        let url = RustupUrlBuilder::download_url(&platform);
+        assert_eq!(
+            url,
+            Some(
+                "https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe"
+                    .to_string()
+            )
+        );
     }
 
-    /// Get rustup download URL
-    pub fn rustup_url() -> String {
-        if cfg!(windows) {
-            "https://win.rustup.rs/x86_64".to_string()
-        } else {
-            "https://sh.rustup.rs".to_string()
-        }
+    #[test]
+    fn test_download_url_macos_arm64() {
+        let platform = Platform {
+            os: Os::MacOS,
+            arch: Arch::Aarch64,
+        };
+        let url = RustupUrlBuilder::download_url(&platform);
+        assert_eq!(
+            url,
+            Some(
+                "https://static.rust-lang.org/rustup/dist/aarch64-apple-darwin/rustup-init"
+                    .to_string()
+            )
+        );
     }
 
-    /// Get platform string for downloads
-    pub fn get_platform_string() -> String {
-        if cfg!(target_os = "windows") {
-            if cfg!(target_arch = "x86_64") {
-                "x86_64-pc-windows-msvc".to_string()
-            } else if cfg!(target_arch = "x86") {
-                "i686-pc-windows-msvc".to_string()
-            } else if cfg!(target_arch = "aarch64") {
-                "aarch64-pc-windows-msvc".to_string()
-            } else {
-                "x86_64-pc-windows-msvc".to_string()
-            }
-        } else if cfg!(target_os = "macos") {
-            if cfg!(target_arch = "x86_64") {
-                "x86_64-apple-darwin".to_string()
-            } else if cfg!(target_arch = "aarch64") {
-                "aarch64-apple-darwin".to_string()
-            } else {
-                "x86_64-apple-darwin".to_string()
-            }
-        } else if cfg!(target_os = "linux") {
-            if cfg!(target_arch = "x86_64") {
-                "x86_64-unknown-linux-gnu".to_string()
-            } else if cfg!(target_arch = "aarch64") {
-                "aarch64-unknown-linux-gnu".to_string()
-            } else {
-                "x86_64-unknown-linux-gnu".to_string()
-            }
-        } else {
-            "x86_64-unknown-linux-gnu".to_string()
-        }
+    #[test]
+    fn test_download_url_linux_x64() {
+        let platform = Platform {
+            os: Os::Linux,
+            arch: Arch::X86_64,
+        };
+        let url = RustupUrlBuilder::download_url(&platform);
+        assert_eq!(
+            url,
+            Some(
+                "https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn test_get_target_triple() {
+        let win64 = Platform {
+            os: Os::Windows,
+            arch: Arch::X86_64,
+        };
+        assert_eq!(
+            RustupUrlBuilder::get_target_triple(&win64),
+            Some("x86_64-pc-windows-msvc")
+        );
     }
 }

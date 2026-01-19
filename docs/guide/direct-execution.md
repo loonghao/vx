@@ -127,6 +127,61 @@ If you want to use a system-installed tool instead of vx-managed:
 vx --use-system-path node --version
 ```
 
+## Subprocess PATH Inheritance
+
+When running a tool via `vx`, any subprocess spawned by that tool will automatically have access to all vx-managed tools in PATH. This means build tools, task runners, and scripts can use vx-managed tools directly without the `vx` prefix.
+
+### Example: justfile
+
+```just
+# justfile
+lint:
+    uvx ruff check .      # Works! uvx is in subprocess PATH
+    uvx mypy src/
+
+test:
+    uv run pytest         # Works! uv is in subprocess PATH
+
+build:
+    npm run build         # Works! npm is in subprocess PATH
+```
+
+Run with:
+
+```bash
+vx just lint    # justfile recipes can use vx tools directly
+vx just test
+```
+
+### Example: Makefile
+
+```makefile
+# Makefile
+lint:
+	uvx ruff check .
+
+test:
+	npm test
+
+build:
+	go build -o app
+```
+
+Run with:
+
+```bash
+vx make lint    # Make targets can use vx tools directly
+```
+
+### Disabling PATH Inheritance
+
+If you need to disable subprocess PATH inheritance (e.g., for isolation), you can configure it in your project's `vx.toml`:
+
+```toml
+[settings]
+inherit_vx_path = false
+```
+
 ## Verbose Output
 
 For debugging, use verbose mode:

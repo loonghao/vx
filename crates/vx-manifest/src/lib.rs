@@ -47,9 +47,16 @@ pub use error::ManifestError;
 pub use loader::ManifestLoader;
 pub use platform::{Arch, Os, Platform, PlatformConstraint, PlatformExclusion};
 pub use provider::{
-    ConstraintRule, DependencyDef, ExecutableConfig, HooksDef, PlatformConfig, PlatformsDef,
-    ProviderManifest, ProviderMeta, RuntimeDef, VersionSourceDef,
+    ArchiveLayoutConfig, BinaryLayoutConfig, CacheConfig, CommandDef, ConstraintRule,
+    DependencyDef, DetectionConfig, DownloadConfig, DownloadType, EnvConfig, ExecutableConfig,
+    HealthConfig, HooksConfig, HooksDef, InlineTestScripts, InstallStrategyDef, LayoutConfig,
+    MachineFlagsConfig, MirrorConfig, MirrorStrategy, OutputColorConfig, OutputConfig,
+    PlatformBinaryConfig, PlatformConfig, PlatformTestCommands, PlatformsDef, ProvidedToolDef,
+    ProviderManifest, ProviderMeta, RuntimeDef, ScriptTypeDef, ShellCompletionsConfig, ShellConfig,
+    SystemDepTypeDef, SystemDependencyDef, SystemDepsConfigDef, SystemInstallConfigDef,
+    TestCommand, TestConfig, TestPlatformConfig, VersionSourceDef,
 };
+
 pub use r#override::{apply_override, extract_provider_name, ProviderOverride, RuntimeOverride};
 pub use satisfies::{
     RangeConstraint, RangeOp, Version, VersionConstraint, VersionRequest, VersionSatisfies,

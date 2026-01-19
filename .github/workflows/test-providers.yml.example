@@ -1,0 +1,144 @@
+# Example GitHub Actions workflow for testing all providers
+# Copy to .github/workflows/test-providers.yml to enable
+
+name: Test All Providers
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'crates/vx-providers/**'
+      - 'scripts/test-all-providers.*'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'crates/vx-providers/**'
+      - 'scripts/test-all-providers.*'
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  test-providers:
+    name: Test Providers on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Build VX
+        run: cargo build
+      
+      - name: Test All Providers (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x scripts/test-all-providers.sh
+          ./scripts/test-all-providers.sh --keep-cache
+      
+      - name: Test All Providers (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          pwsh scripts/test-all-providers.ps1 -KeepCache
+      
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: provider-test-report-${{ matrix.os }}
+          path: |
+            **/test-report.json
+            /tmp/vx-test-*/test-report.json
+          retention-days: 7
+      
+      - name: Comment PR with Results (Optional)
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = fs.readdirSync('/tmp')
+              .filter(f => f.startsWith('vx-test-'))
+              .map(f => `/tmp/${f}/test-report.json`)[0];
+            
+            if (!fs.existsSync(reportPath)) return;
+            
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            const successRate = ((report.Passed / report.Total) * 100).toFixed(2);
+            
+            const body = `## Provider Test Results (${{ matrix.os }})
+            
+            - ✅ Passed: ${report.Passed}
+            - ❌ Failed: ${report.Failed}
+            - ⏭️  Skipped: ${report.Skipped}
+            - 📊 Success Rate: ${successRate}%
+            
+            <details>
+            <summary>Per-Provider Results</summary>
+            
+            ${report.Providers.map(p => {
+              const passed = p.Tests.filter(t => t.Result.Success).length;
+              const total = p.Tests.length;
+              const icon = passed === total ? '✅' : '❌';
+              return `${icon} **${p.Name}**: ${passed}/${total}`;
+            }).join('\n')}
+            
+            </details>`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # Optional: Test only specific providers that changed
+  test-changed-providers:
+    name: Test Changed Providers
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Build VX
+        run: cargo build
+      
+      - name: Get Changed Providers
+        id: changed
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | \
+            grep '^crates/vx-providers/' | \
+            cut -d'/' -f3 | \
+            sort -u | \
+            tr '\n' '|' | \
+            sed 's/|$//')
+          echo "providers=$CHANGED" >> $GITHUB_OUTPUT
+      
+      - name: Test Changed Providers
+        if: steps.changed.outputs.providers != ''
+        run: |
+          chmod +x scripts/test-all-providers.sh
+          ./scripts/test-all-providers.sh --filter "${{ steps.changed.outputs.providers }}"

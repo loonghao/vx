@@ -23,6 +23,7 @@ reqwest = { workspace = true }
 dirs = { workspace = true }
 tempfile = { workspace = true }
 walkdir = { workspace = true }
+vx-paths = { path = "../vx-paths" }
 
 # Archive handling
 zip = { workspace = true }
@@ -48,8 +49,11 @@ tracing = { workspace = true }
 # Retry with backoff
 backon = { workspace = true }
 
+# URL encoding/decoding
+urlencoding = "2.1"
+
 # CDN acceleration (optional)
-turbo-cdn = { version = "0.7", default-features = false, features = ["rustls", "fast-hash", "high-performance"], optional = true }
+turbo-cdn = { version = "0.8", default-features = false, features = ["rustls", "fast-hash", "high-performance"], optional = true }
 
 # Platform-specific dependencies
 [target.'cfg(unix)'.dependencies]

@@ -28,6 +28,16 @@ repo = "yarn"
 strip_v_prefix = true
 lts_pattern = "1.22.*"
 
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "yarn-v{version}"
+executable_paths = [
+    "bin/yarn.js",  # Yarn is a JS file
+]
+
 # RFC 0018: Detection configuration
 [runtimes.detection]
 command = "{executable} --version"
@@ -56,6 +66,12 @@ executable_extensions = [".cmd", ".exe"]
 
 [runtimes.platforms.unix]
 executable_extensions = []
+
+[runtimes.test]
+timeout_ms = 30000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "\\d+\\.\\d+\\.\\d+", name = "version_check" },
+]
 
 # Yarn 1.x (Classic) requires Node.js 12-22
 [[runtimes.constraints]]

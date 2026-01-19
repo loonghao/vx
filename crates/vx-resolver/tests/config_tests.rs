@@ -11,6 +11,7 @@ fn test_default_config() {
     assert!(config.auto_install_dependencies);
     assert!(config.prefer_vx_managed);
     assert!(config.fallback_to_system);
+    assert!(config.inherit_vx_path); // Should be enabled by default
 }
 
 #[rstest]
@@ -39,4 +40,19 @@ fn test_timeout_config() {
     let config = ResolverConfig::new().with_timeout(Duration::from_secs(60));
 
     assert_eq!(config.execution_timeout, Some(Duration::from_secs(60)));
+}
+
+#[rstest]
+fn test_inherit_vx_path_config() {
+    // Default: inherit_vx_path is enabled
+    let config = ResolverConfig::default();
+    assert!(config.inherit_vx_path);
+
+    // Can disable inherit_vx_path
+    let config = ResolverConfig::new().with_inherit_vx_path(false);
+    assert!(!config.inherit_vx_path);
+
+    // Can explicitly enable inherit_vx_path
+    let config = ResolverConfig::new().with_inherit_vx_path(true);
+    assert!(config.inherit_vx_path);
 }

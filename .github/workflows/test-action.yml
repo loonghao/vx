@@ -40,6 +40,8 @@ jobs:
         id: setup-latest
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Disable cache for testing to ensure fresh installation
+          cache: 'false'
 
       - name: Verify vx installation
         shell: bash
@@ -63,7 +65,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          vx uv --version
+          vx uv self version
           vx uvx ruff --version
 
       - name: Test Go via vx
@@ -73,11 +75,11 @@ jobs:
         run: |
           vx go version
 
-      # Test 3: Show vx stats
-      - name: Show vx stats
+      # Test 3: Show vx cache info
+      - name: Show vx cache info
         shell: bash
         run: |
-          vx stats
+          vx cache info
           vx list --status
 
   test-action-with-tools:
@@ -104,7 +106,7 @@ jobs:
         run: |
           echo "Verifying pre-installed tools..."
           vx node --version
-          vx uv --version
+          vx uv self version
           vx list --status
 
   test-action-specific-version:

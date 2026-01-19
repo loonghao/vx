@@ -95,11 +95,11 @@ fn test_java_provider_get_runtime() {
 }
 
 /// Test that executable_relative_path returns correct path for Java archives
-/// Java archives extract to a versioned directory like jdk-21.0.1+12/
+/// After post_extract flattening, the executable is at bin/java
 #[rstest]
-#[case(Os::Linux, Arch::X86_64, "*/bin/java")]
-#[case(Os::Linux, Arch::Aarch64, "*/bin/java")]
-#[case(Os::Windows, Arch::X86_64, "*/bin/java.exe")]
+#[case(Os::Linux, Arch::X86_64, "bin/java")]
+#[case(Os::Linux, Arch::Aarch64, "bin/java")]
+#[case(Os::Windows, Arch::X86_64, "bin/java.exe")]
 fn test_java_executable_relative_path_linux_windows(
     #[case] os: Os,
     #[case] arch: Arch,
@@ -112,9 +112,10 @@ fn test_java_executable_relative_path_linux_windows(
 }
 
 /// macOS has a different structure (Contents/Home/bin/java)
+/// After post_extract flattening, the executable is at Contents/Home/bin/java
 #[rstest]
-#[case(Os::MacOS, Arch::X86_64, "*/Contents/Home/bin/java")]
-#[case(Os::MacOS, Arch::Aarch64, "*/Contents/Home/bin/java")]
+#[case(Os::MacOS, Arch::X86_64, "Contents/Home/bin/java")]
+#[case(Os::MacOS, Arch::Aarch64, "Contents/Home/bin/java")]
 fn test_java_executable_relative_path_macos(
     #[case] os: Os,
     #[case] arch: Arch,

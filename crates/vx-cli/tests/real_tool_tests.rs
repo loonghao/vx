@@ -159,10 +159,11 @@ mod smoke_tests {
     #[rstest]
     #[test]
     #[ignore = "Requires vx binary"]
-    fn smoke_vx_stats() {
+    fn smoke_vx_cache_info() {
         require_vx!();
-        let output = run_vx(&["stats"]).expect("Failed to run vx");
-        assert_success(&output, "vx stats");
+        // Note: `vx stats` was never implemented; use `vx cache info` instead
+        let output = run_vx(&["cache", "info"]).expect("Failed to run vx");
+        assert_success(&output, "vx cache info");
     }
 }
 

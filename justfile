@@ -56,6 +56,43 @@ test:
 test-verbose:
     cargo test -- --nocapture
 
+# Test all providers in a clean temporary environment
+test-providers:
+    @echo "Building VX first..."
+    @pwsh -NoProfile -Command "Get-Process vx -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
+    @cargo build
+    @echo ""
+    ./target/debug/vx test --ci --temp-root --keep-going --detailed
+
+# Test all providers with verbose output
+test-providers-verbose:
+    @echo "Building VX first..."
+    @pwsh -NoProfile -Command "Get-Process vx -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
+    @cargo build  
+    @echo ""
+    ./target/debug/vx test --ci --temp-root --keep-going --verbose
+
+# Test all providers and output JSON report
+test-providers-json:
+    @echo "Building VX first..."
+    @cargo build
+    @echo ""
+    ./target/debug/vx test --ci --temp-root --keep-going --json
+
+# Test specific runtimes (comma-separated)
+test-runtimes RUNTIMES:
+    @echo "Building VX first..."
+    @cargo build
+    @echo ""
+    ./target/debug/vx test --ci --ci-runtimes {{RUNTIMES}} --temp-root --verbose
+
+# Quick CI test with core runtimes only
+test-ci-quick:
+    @echo "Building VX first..."
+    @cargo build
+    @echo ""
+    ./target/debug/vx test --ci --ci-runtimes node,go,uv,just,cargo --temp-root --verbose
+
 # ============================================
 # Code Quality
 # ============================================

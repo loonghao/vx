@@ -1,6 +1,6 @@
 //! Python provider implementation
 
-use crate::runtime::PythonRuntime;
+use crate::runtime::{PipRuntime, PythonRuntime};
 use std::sync::Arc;
 use vx_runtime::{Provider, Runtime};
 
@@ -27,6 +27,6 @@ impl Provider for PythonProvider {
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(PythonRuntime::new())]
+        vec![Arc::new(PythonRuntime::new()), Arc::new(PipRuntime::new())]
     }
 }

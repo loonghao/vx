@@ -48,6 +48,12 @@ impl Os {
     }
 }
 
+impl std::fmt::Display for Os {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 /// CPU architecture
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Arch {
@@ -83,6 +89,12 @@ impl Arch {
             Arch::X86 => "x86",
             Arch::Unknown => "unknown",
         }
+    }
+}
+
+impl std::fmt::Display for Arch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -125,6 +137,19 @@ impl Platform {
     /// Check if this is a Linux platform
     pub fn is_linux(&self) -> bool {
         self.os == Os::Linux
+    }
+
+    /// Get OS name as a string (for platform filtering)
+    ///
+    /// Returns "windows", "macos", "linux", etc.
+    pub fn os_name(&self) -> &str {
+        match self.os {
+            Os::Windows => "windows",
+            Os::MacOS => "macos",
+            Os::Linux => "linux",
+            Os::FreeBSD => "freebsd",
+            Os::Unknown => "unknown",
+        }
     }
 
     /// Get executable name with platform-appropriate extension
@@ -205,6 +230,39 @@ impl Platform {
             names
         } else {
             vec![base.to_string()]
+        }
+    }
+
+    /// Get Rust target triple for this platform
+    ///
+    /// Returns the Rust target triple string (e.g., "x86_64-unknown-linux-gnu")
+    /// used for Rust toolchain downloads.
+    ///
+    /// # Example
+    /// ```
+    /// use vx_runtime::{Platform, Os, Arch};
+    ///
+    /// let linux = Platform::new(Os::Linux, Arch::X86_64);
+    /// assert_eq!(linux.rust_target_triple(), "x86_64-unknown-linux-gnu");
+    ///
+    /// let windows = Platform::new(Os::Windows, Arch::X86_64);
+    /// assert_eq!(windows.rust_target_triple(), "x86_64-pc-windows-msvc");
+    /// ```
+    pub fn rust_target_triple(&self) -> &'static str {
+        match (&self.os, &self.arch) {
+            // Windows
+            (Os::Windows, Arch::X86_64) => "x86_64-pc-windows-msvc",
+            (Os::Windows, Arch::X86) => "i686-pc-windows-msvc",
+            (Os::Windows, Arch::Aarch64) => "aarch64-pc-windows-msvc",
+            // macOS
+            (Os::MacOS, Arch::X86_64) => "x86_64-apple-darwin",
+            (Os::MacOS, Arch::Aarch64) => "aarch64-apple-darwin",
+            // Linux
+            (Os::Linux, Arch::X86_64) => "x86_64-unknown-linux-gnu",
+            (Os::Linux, Arch::Aarch64) => "aarch64-unknown-linux-gnu",
+            (Os::Linux, Arch::Arm) => "arm-unknown-linux-gnueabihf",
+            // Default fallback
+            _ => "x86_64-unknown-linux-gnu",
         }
     }
 }

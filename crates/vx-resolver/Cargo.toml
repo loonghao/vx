@@ -7,13 +7,16 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
+vx-core = { workspace = true }
 vx-runtime = { workspace = true }
 vx-cache = { workspace = true }
 vx-paths = { workspace = true }
+vx-config = { workspace = true }
 vx-console = { workspace = true, features = ["progress"] }
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+bincode = "1.3"
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

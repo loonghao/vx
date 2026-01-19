@@ -56,6 +56,10 @@ pub async fn handle_with_version(
         cache_mode,
     )
     .await?;
+
+    // Exit with the appropriate code
+    // Note: exit_code 130 indicates Ctrl+C termination (128 + SIGINT)
+    // We exit silently in this case to avoid confusing error messages
     if exit_code != 0 {
         std::process::exit(exit_code);
     }
@@ -200,11 +204,3 @@ impl RuntimeAvailability {
         )
     }
 }
-
-// Backward compatibility aliases
-pub use execute_runtime as execute_tool;
-pub use execute_runtime_with_version as execute_tool_with_version;
-pub use execute_system_runtime as execute_system_tool;
-pub use get_runtime_info as get_tool_info;
-pub use is_runtime_available as is_tool_available;
-pub type ToolAvailability = RuntimeAvailability;

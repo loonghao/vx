@@ -60,6 +60,26 @@ impl Downloader {
         })
     }
 
+    /// Create a downloader with custom timeout
+    ///
+    /// # Arguments
+    /// * `timeout` - Download timeout duration
+    /// * `cdn_enabled` - Whether to enable CDN acceleration
+    pub fn with_timeout(timeout: Duration, cdn_enabled: bool) -> Result<Self> {
+        let client = reqwest::Client::builder()
+            .user_agent(USER_AGENT)
+            .timeout(timeout)
+            .build()?;
+
+        Ok(Self {
+            client,
+            cdn_optimizer: CdnOptimizer::new(cdn_enabled),
+            max_retries: Self::DEFAULT_MAX_RETRIES,
+            min_delay: Self::DEFAULT_MIN_DELAY,
+            max_delay: Self::DEFAULT_MAX_DELAY,
+        })
+    }
+
     /// Create a downloader with custom client configuration
     pub fn with_client(client: reqwest::Client) -> Self {
         Self {
@@ -304,7 +324,12 @@ impl Downloader {
 
     /// Download a file to a temporary location and return the path
     pub async fn download_temp(&self, url: &str, progress: &ProgressContext) -> Result<PathBuf> {
-        let filename = self.extract_filename_from_url(url);
+        // First, try to get the actual filename from the server
+        let filename = self
+            .get_filename_from_server(url)
+            .await
+            .unwrap_or_else(|| self.extract_filename_from_url(url));
+
         let temp_dir = tempfile::tempdir()?;
         let temp_path = temp_dir.path().join(filename);
 
@@ -315,6 +340,76 @@ impl Downloader {
         std::mem::forget(temp_dir); // Prevent automatic cleanup
 
         Ok(persistent_path)
+    }
+
+    /// Get filename from server response headers
+    ///
+    /// This method sends a HEAD request to get the actual filename from:
+    /// 1. Content-Disposition header
+    /// 2. Final redirected URL
+    async fn get_filename_from_server(&self, url: &str) -> Option<String> {
+        // Send HEAD request following redirects
+        let response = self.client.head(url).send().await.ok()?;
+
+        // Try Content-Disposition header first
+        if let Some(content_disposition) = response.headers().get("content-disposition") {
+            if let Ok(value) = content_disposition.to_str() {
+                // Parse filename from Content-Disposition: attachment; filename=xxx.zip
+                if let Some(filename) = Self::parse_content_disposition(value) {
+                    debug!("Got filename from Content-Disposition: {}", filename);
+                    return Some(filename);
+                }
+            }
+        }
+
+        // Try to get filename from final URL (after redirects)
+        let final_url = response.url().as_str();
+        if final_url != url {
+            let filename = self.extract_filename_from_url(final_url);
+            // Only use if it has a valid extension
+            if filename.contains('.') && !filename.starts_with('.') {
+                debug!("Got filename from final URL: {}", filename);
+                return Some(filename);
+            }
+        }
+
+        None
+    }
+
+    /// Parse filename from Content-Disposition header value
+    fn parse_content_disposition(value: &str) -> Option<String> {
+        // Handle: attachment; filename=xxx.zip
+        // Handle: attachment; filename="xxx.zip"
+        // Handle: attachment; filename*=UTF-8''xxx.zip
+
+        for part in value.split(';') {
+            let part = part.trim();
+
+            // Standard filename parameter
+            if let Some(filename) = part.strip_prefix("filename=") {
+                let filename = filename.trim_matches('"').trim_matches('\'');
+                if !filename.is_empty() {
+                    return Some(filename.to_string());
+                }
+            }
+
+            // RFC 5987 encoded filename (filename*=)
+            if let Some(encoded) = part.strip_prefix("filename*=") {
+                // Format: charset'language'encoded_filename
+                // e.g., UTF-8''OpenJDK25U-jdk_x64_windows_hotspot_25.0.1_8.zip
+                if let Some(pos) = encoded.rfind("''") {
+                    let filename = &encoded[pos + 2..];
+                    // URL decode the filename
+                    if let Ok(decoded) = urlencoding::decode(filename) {
+                        if !decoded.is_empty() {
+                            return Some(decoded.into_owned());
+                        }
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     /// Download and verify checksum

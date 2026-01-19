@@ -20,11 +20,28 @@ owner = "oven-sh"
 repo = "bun"
 strip_v_prefix = true
 
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "bun-{os}-{arch}"
+executable_paths = [
+    "bun.exe",  # Windows
+    "bun"       # Unix
+]
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 
 [runtimes.platforms.unix]
 executable_extensions = []
+
+[runtimes.test]
+timeout_ms = 30000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "\\d+\\.\\d+\\.\\d+", name = "version_check" },
+]
 
 # Bun is self-contained, no external dependencies required
 [[runtimes.constraints]]

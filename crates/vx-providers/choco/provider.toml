@@ -25,5 +25,8 @@ owner = "chocolatey"
 repo = "choco"
 strip_v_prefix = true
 
+# Note: Chocolatey uses a special .NET-based installer
+# Layout configuration will be added when .NET installer support is implemented
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]

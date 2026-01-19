@@ -1,0 +1,47 @@
+[package]
+name = "vx-system-pm"
+version = "0.1.0"
+edition = "2021"
+description = "System package manager integration for vx"
+license = "MIT"
+repository = "https://github.com/pplmx/vx"
+readme = "README.md"
+
+[dependencies]
+# Async runtime
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["process", "fs"] }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+toml = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Path utilities
+which = { workspace = true }
+
+# Platform detection
+cfg-if = "1.0"
+
+# Unix-specific
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+# Windows-specific
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
+
+[dev-dependencies]
+rstest = { workspace = true }
+tempfile = { workspace = true }
+tokio-test = "0.4"
+
+[features]
+default = []

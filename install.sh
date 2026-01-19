@@ -13,9 +13,18 @@
 # Build from source:
 #   BUILD_FROM_SOURCE=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 #
-# Alternative package managers:
+# Use package manager (auto-detect or specify):
+#   USE_PACKAGE_MANAGER=auto curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#   USE_PACKAGE_MANAGER=brew curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#   USE_PACKAGE_MANAGER=apt curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#
+# Prefer static binary (musl):
+#   PREFER_STATIC=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+#
+# Alternative package managers (manual):
 #   # Homebrew: brew install loonghao/vx/vx
 #   # Cargo: cargo install vx
+#   # APT (Debian/Ubuntu): See instructions below
 
 set -euo pipefail
 
@@ -28,6 +37,8 @@ BASE_URL="https://github.com/$REPO_OWNER/$REPO_NAME/releases"
 VX_VERSION="${VX_VERSION:-latest}"
 VX_INSTALL_DIR="${VX_INSTALL_DIR:-$HOME/.local/bin}"
 BUILD_FROM_SOURCE="${BUILD_FROM_SOURCE:-false}"
+USE_PACKAGE_MANAGER="${USE_PACKAGE_MANAGER:-}"
+PREFER_STATIC="${PREFER_STATIC:-false}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -53,9 +64,229 @@ success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
+# Detect available package managers
+detect_package_manager() {
+    local os_type
+    os_type=$(uname -s)
+    
+    case "$os_type" in
+        Darwin)
+            # macOS - prefer Homebrew
+            if command -v brew >/dev/null 2>&1; then
+                echo "brew"
+                return
+            fi
+            ;;
+        Linux)
+            # Check for various Linux package managers
+            if command -v apt-get >/dev/null 2>&1; then
+                echo "apt"
+                return
+            elif command -v dnf >/dev/null 2>&1; then
+                echo "dnf"
+                return
+            elif command -v yum >/dev/null 2>&1; then
+                echo "yum"
+                return
+            elif command -v pacman >/dev/null 2>&1; then
+                echo "pacman"
+                return
+            elif command -v apk >/dev/null 2>&1; then
+                echo "apk"
+                return
+            elif command -v zypper >/dev/null 2>&1; then
+                echo "zypper"
+                return
+            elif command -v brew >/dev/null 2>&1; then
+                # Linuxbrew
+                echo "brew"
+                return
+            fi
+            ;;
+    esac
+    
+    echo "none"
+}
+
+# Install using Homebrew (macOS/Linux)
+install_with_brew() {
+    info "Installing vx using Homebrew..."
+    
+    # Check if tap exists, add if not
+    if ! brew tap | grep -q "loonghao/vx"; then
+        info "Adding loonghao/vx tap..."
+        brew tap loonghao/vx
+    fi
+    
+    if [[ "$VX_VERSION" == "latest" ]]; then
+        brew install loonghao/vx/vx
+    else
+        # Install specific version if available
+        brew install "loonghao/vx/vx@$VX_VERSION" 2>/dev/null || brew install loonghao/vx/vx
+    fi
+    
+    success "vx installed via Homebrew"
+    return 0
+}
+
+# Install using APT (Debian/Ubuntu)
+install_with_apt() {
+    info "Installing vx using APT..."
+    
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' EXIT
+    
+    # Download the .deb package from GitHub releases
+    local tag_name version_number deb_url deb_file arch
+    
+    if [[ "$VX_VERSION" == "latest" ]]; then
+        tag_name=$(get_latest_version)
+    else
+        if [[ "$VX_VERSION" =~ ^v ]]; then
+            tag_name="$VX_VERSION"
+        else
+            tag_name="v$VX_VERSION"
+        fi
+    fi
+    
+    version_number=$(echo "$tag_name" | sed -E 's/^(vx-)?v//')
+    
+    # Detect architecture
+    case "$(uname -m)" in
+        x86_64|amd64) arch="amd64" ;;
+        aarch64|arm64) arch="arm64" ;;
+        *) error "Unsupported architecture for APT install: $(uname -m)"; return 1 ;;
+    esac
+    
+    deb_file="vx_${version_number}_${arch}.deb"
+    deb_url="$BASE_URL/download/$tag_name/$deb_file"
+    
+    info "Downloading $deb_file..."
+    if curl -fsSL "$deb_url" -o "$temp_dir/$deb_file"; then
+        info "Installing package..."
+        sudo dpkg -i "$temp_dir/$deb_file" || sudo apt-get install -f -y
+        success "vx installed via APT"
+        return 0
+    else
+        warn "DEB package not available, falling back to binary install"
+        return 1
+    fi
+}
+
+# Install using DNF/YUM (Fedora/RHEL/CentOS)
+install_with_dnf() {
+    local pkg_manager="$1"
+    info "Installing vx using $pkg_manager..."
+    
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' EXIT
+    
+    # Download the .rpm package from GitHub releases
+    local tag_name version_number rpm_url rpm_file arch
+    
+    if [[ "$VX_VERSION" == "latest" ]]; then
+        tag_name=$(get_latest_version)
+    else
+        if [[ "$VX_VERSION" =~ ^v ]]; then
+            tag_name="$VX_VERSION"
+        else
+            tag_name="v$VX_VERSION"
+        fi
+    fi
+    
+    version_number=$(echo "$tag_name" | sed -E 's/^(vx-)?v//')
+    
+    # Detect architecture
+    case "$(uname -m)" in
+        x86_64|amd64) arch="x86_64" ;;
+        aarch64|arm64) arch="aarch64" ;;
+        *) error "Unsupported architecture for RPM install: $(uname -m)"; return 1 ;;
+    esac
+    
+    rpm_file="vx-${version_number}-1.${arch}.rpm"
+    rpm_url="$BASE_URL/download/$tag_name/$rpm_file"
+    
+    info "Downloading $rpm_file..."
+    if curl -fsSL "$rpm_url" -o "$temp_dir/$rpm_file"; then
+        info "Installing package..."
+        sudo "$pkg_manager" install -y "$temp_dir/$rpm_file"
+        success "vx installed via $pkg_manager"
+        return 0
+    else
+        warn "RPM package not available, falling back to binary install"
+        return 1
+    fi
+}
+
+# Install using Pacman (Arch Linux)
+install_with_pacman() {
+    info "Installing vx using Pacman..."
+    
+    # Check if yay or paru is available for AUR
+    if command -v yay >/dev/null 2>&1; then
+        yay -S --noconfirm vx-bin 2>/dev/null || yay -S --noconfirm vx
+        success "vx installed via yay (AUR)"
+        return 0
+    elif command -v paru >/dev/null 2>&1; then
+        paru -S --noconfirm vx-bin 2>/dev/null || paru -S --noconfirm vx
+        success "vx installed via paru (AUR)"
+        return 0
+    else
+        warn "AUR helper (yay/paru) not found, falling back to binary install"
+        return 1
+    fi
+}
+
+# Install using APK (Alpine Linux)
+install_with_apk() {
+    info "Installing vx using APK..."
+    
+    # Alpine uses musl, so we'll download the static binary
+    warn "APK package not available, will install static musl binary"
+    PREFER_STATIC=true
+    return 1
+}
+
+# Try to install using package manager
+try_package_manager_install() {
+    local pm="$1"
+    
+    case "$pm" in
+        brew)
+            install_with_brew && return 0
+            ;;
+        apt)
+            install_with_apt && return 0
+            ;;
+        dnf)
+            install_with_dnf "dnf" && return 0
+            ;;
+        yum)
+            install_with_dnf "yum" && return 0
+            ;;
+        pacman)
+            install_with_pacman && return 0
+            ;;
+        apk)
+            install_with_apk && return 0
+            ;;
+        zypper)
+            warn "Zypper package not yet available, falling back to binary install"
+            return 1
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+    
+    return 1
+}
+
 # Detect platform and architecture - returns Rust target triple
 detect_platform() {
-    local os arch
+    local os arch libc
 
     case "$(uname -s)" in
         Linux*)  os="unknown-linux" ;;
@@ -69,8 +300,22 @@ detect_platform() {
         *) error "Unsupported architecture: $(uname -m)"; exit 1 ;;
     esac
 
-    # Return Rust target triple format
-    echo "$arch-$os"
+    # For Linux, determine libc type (gnu vs musl)
+    if [[ "$os" == "unknown-linux" ]]; then
+        # Check if user prefers static binary
+        if [[ "$PREFER_STATIC" == "true" ]]; then
+            libc="musl"
+        # Check if running on Alpine or musl-based system
+        elif [[ -f /etc/alpine-release ]] || ldd --version 2>&1 | grep -q musl; then
+            libc="musl"
+        else
+            libc="gnu"
+        fi
+        echo "$arch-$os-$libc"
+    else
+        # macOS doesn't have libc suffix
+        echo "$arch-$os"
+    fi
 }
 
 # Get latest version from GitHub API with optional authentication and fallback
@@ -268,20 +513,34 @@ install_from_release() {
     # Construct download URL based on Rust target triple
     # New format: vx-{version}-{target}.tar.gz (e.g., vx-0.6.1-x86_64-unknown-linux-gnu.tar.gz)
     # Legacy format: vx-{target}.tar.gz (e.g., vx-x86_64-unknown-linux-gnu.tar.gz)
+    local fallback_archive_versioned="" fallback_archive_legacy=""
+    
     case "$platform" in
-        x86_64-unknown-linux)
-            # Try gnu first (more commonly available), fallback to musl
+        x86_64-unknown-linux-gnu)
             archive_name_versioned="vx-${version_number}-x86_64-unknown-linux-gnu.tar.gz"
             archive_name_legacy="vx-x86_64-unknown-linux-gnu.tar.gz"
+            # Fallback to musl if gnu fails
             fallback_archive_versioned="vx-${version_number}-x86_64-unknown-linux-musl.tar.gz"
             fallback_archive_legacy="vx-x86_64-unknown-linux-musl.tar.gz"
             ;;
-        aarch64-unknown-linux)
-            # Try gnu first (more commonly available), fallback to musl
+        x86_64-unknown-linux-musl)
+            # Prefer musl (static), fallback to gnu
+            archive_name_versioned="vx-${version_number}-x86_64-unknown-linux-musl.tar.gz"
+            archive_name_legacy="vx-x86_64-unknown-linux-musl.tar.gz"
+            fallback_archive_versioned="vx-${version_number}-x86_64-unknown-linux-gnu.tar.gz"
+            fallback_archive_legacy="vx-x86_64-unknown-linux-gnu.tar.gz"
+            ;;
+        aarch64-unknown-linux-gnu)
             archive_name_versioned="vx-${version_number}-aarch64-unknown-linux-gnu.tar.gz"
             archive_name_legacy="vx-aarch64-unknown-linux-gnu.tar.gz"
             fallback_archive_versioned="vx-${version_number}-aarch64-unknown-linux-musl.tar.gz"
             fallback_archive_legacy="vx-aarch64-unknown-linux-musl.tar.gz"
+            ;;
+        aarch64-unknown-linux-musl)
+            archive_name_versioned="vx-${version_number}-aarch64-unknown-linux-musl.tar.gz"
+            archive_name_legacy="vx-aarch64-unknown-linux-musl.tar.gz"
+            fallback_archive_versioned="vx-${version_number}-aarch64-unknown-linux-gnu.tar.gz"
+            fallback_archive_legacy="vx-aarch64-unknown-linux-gnu.tar.gz"
             ;;
         x86_64-apple-darwin)
             archive_name_versioned="vx-${version_number}-x86_64-apple-darwin.tar.gz"
@@ -509,7 +768,7 @@ test_installation() {
         echo "   vx --help"
         echo "   vx list"
         echo "   vx npm --version"
-        echo "   vx uv --version"
+        echo "   vx uv self version"
     else
         error "Installation verification failed"
         exit 1
@@ -520,6 +779,31 @@ test_installation() {
 main() {
     info "vx installer"
     echo ""
+
+    # Try package manager install if requested
+    if [[ -n "$USE_PACKAGE_MANAGER" ]]; then
+        local pm="$USE_PACKAGE_MANAGER"
+        
+        # Auto-detect package manager if "auto" is specified
+        if [[ "$pm" == "auto" ]]; then
+            pm=$(detect_package_manager)
+            if [[ "$pm" == "none" ]]; then
+                info "No supported package manager found, falling back to binary install"
+            else
+                info "Detected package manager: $pm"
+            fi
+        fi
+        
+        if [[ "$pm" != "none" ]]; then
+            if try_package_manager_install "$pm"; then
+                # Package manager install succeeded
+                test_installation "$(command -v vx || echo "/usr/local/bin/vx")"
+                return 0
+            fi
+            # Package manager install failed, continue with binary install
+            info "Package manager install failed, falling back to binary install"
+        fi
+    fi
 
     # Install vx
     if [[ "$BUILD_FROM_SOURCE" == "true" ]]; then

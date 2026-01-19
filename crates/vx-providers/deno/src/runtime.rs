@@ -4,7 +4,8 @@ use crate::config::DenoUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use vx_runtime::{Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_version_fetcher::VersionFetcherBuilder;
 
 /// Deno runtime
 #[derive(Debug, Clone)]
@@ -59,13 +60,16 @@ impl Runtime for DenoRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        ctx.fetch_github_releases(
-            "deno",
-            "denoland",
-            "deno",
-            GitHubReleaseOptions::new().strip_v_prefix(true),
-        )
-        .await
+        VersionFetcherBuilder::jsdelivr("denoland", "deno")
+            .tool_name("deno")
+            .strip_v_prefix()
+            .prerelease_markers(&["canary", "-alpha", "-beta", "-rc"])
+            .skip_prereleases()
+            .limit(50)
+            .build()
+            .fetch(ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

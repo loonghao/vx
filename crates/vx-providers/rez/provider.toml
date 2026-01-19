@@ -20,17 +20,20 @@ owner = "AcademySoftwareFoundation"
 repo = "rez"
 strip_v_prefix = false
 
+# Note: Rez is typically installed via pip/uv as a Python package
+# Binary releases layout to be added if needed
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 
 [runtimes.platforms.unix]
 executable_extensions = []
 
-# Rez requires Python 3.7+
+# Rez requires Python 3.8+
 [[runtimes.constraints]]
 when = "*"
 requires = [
-    { runtime = "python", version = ">=3.7", recommended = "3.11", reason = "Rez requires Python 3.7+" }
+    { runtime = "python", version = ">=3.8", recommended = "3.11", reason = "Rez requires Python 3.8+" }
 ]
 
 # rez-env is bundled with rez
@@ -39,6 +42,18 @@ name = "rez-env"
 description = "Rez environment resolver"
 executable = "rez-env"
 bundled_with = "rez"
+auto_installable = false
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "rez-env ([\\d.]+)"
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "rez", version = "*", reason = "rez-env is bundled with rez" }
+]
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
@@ -52,6 +67,18 @@ name = "rez-build"
 description = "Rez package builder"
 executable = "rez-build"
 bundled_with = "rez"
+auto_installable = false
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "rez-build ([\\d.]+)"
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "rez", version = "*", reason = "rez-build is bundled with rez" }
+]
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]

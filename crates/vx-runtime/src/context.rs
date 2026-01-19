@@ -277,7 +277,7 @@ impl RuntimeContext {
                 // Check for GitHub API error response
                 if let Some(message) = response.get("message").and_then(|m| m.as_str()) {
                     // If we have stale cache, use it
-                    if let Some(stale) = stale_versions {
+                    if let Some(stale) = stale_versions.clone() {
                         tracing::warn!(
                             "GitHub API error for {}: {}, using stale cache",
                             tool_name,
@@ -285,6 +285,25 @@ impl RuntimeContext {
                         );
                         return Ok(compact_to_version_info(stale));
                     }
+
+                    // Try jsDelivr CDN as fallback for rate limit errors
+                    tracing::info!(
+                        "GitHub API returned error for {}: {}, trying jsDelivr CDN fallback...",
+                        tool_name,
+                        message
+                    );
+                    if let Ok(versions) = self
+                        .try_jsdelivr_fallback(tool_name, owner, repo, &options)
+                        .await
+                    {
+                        tracing::info!(
+                            "Successfully fetched {} versions for {} from jsDelivr CDN",
+                            versions.len(),
+                            tool_name
+                        );
+                        return Ok(versions);
+                    }
+
                     return Err(anyhow::anyhow!(
                         "GitHub API error: {}. Set GITHUB_TOKEN or GH_TOKEN environment variable to avoid rate limits.",
                         message
@@ -316,8 +335,8 @@ impl RuntimeContext {
                 Ok(compact_to_version_info(compact_versions))
             }
             Err(fetch_error) => {
-                // On network error, try stale cache
-                if let Some(stale) = stale_versions {
+                // On network error, try stale cache first
+                if let Some(stale) = stale_versions.clone() {
                     tracing::warn!(
                         "Network error fetching versions for {}, using stale cache: {}",
                         tool_name,
@@ -326,7 +345,24 @@ impl RuntimeContext {
                     return Ok(compact_to_version_info(stale));
                 }
 
-                // No stale cache, return helpful error
+                // Try jsDelivr CDN as fallback (doesn't have GitHub API rate limits)
+                tracing::info!(
+                    "GitHub API failed for {}, trying jsDelivr CDN fallback...",
+                    tool_name
+                );
+                if let Ok(versions) = self
+                    .try_jsdelivr_fallback(tool_name, owner, repo, &options)
+                    .await
+                {
+                    tracing::info!(
+                        "Successfully fetched {} versions for {} from jsDelivr CDN",
+                        versions.len(),
+                        tool_name
+                    );
+                    return Ok(versions);
+                }
+
+                // No stale cache and CDN failed, return helpful error
                 let error_msg = fetch_error.to_string();
                 if error_msg.contains("timeout") || error_msg.contains("timed out") {
                     Err(anyhow::anyhow!(
@@ -340,6 +376,20 @@ impl RuntimeContext {
                         tool_name,
                         error_msg
                     ))
+                } else if error_msg.contains("rate limit")
+                    || error_msg.contains("403")
+                    || error_msg.contains("API rate limit")
+                {
+                    Err(anyhow::anyhow!(
+                        "GitHub API rate limit exceeded for {}.\n\n\
+                        Possible solutions:\n\
+                        1. Set GITHUB_TOKEN or GH_TOKEN environment variable to increase rate limit\n\
+                        2. Wait a few minutes and try again\n\
+                        3. Use --offline flag if you have cached versions\n\n\
+                        Original error: {}",
+                        tool_name,
+                        error_msg
+                    ))
                 } else {
                     Err(fetch_error)
                 }
@@ -347,7 +397,130 @@ impl RuntimeContext {
         }
     }
 
-    /// Fetch versions from a generic JSON API with caching
+    /// Try jsDelivr CDN as fallback for GitHub releases
+    ///
+    /// jsDelivr provides an API that doesn't have GitHub's rate limits.
+    /// This is used when GitHub API fails due to rate limiting.
+    async fn try_jsdelivr_fallback(
+        &self,
+        tool_name: &str,
+        owner: &str,
+        repo: &str,
+        options: &GitHubReleaseOptions,
+    ) -> anyhow::Result<Vec<VersionInfo>> {
+        let jsdelivr_url = format!("https://data.jsdelivr.com/v1/package/gh/{}/{}", owner, repo);
+
+        tracing::debug!(
+            "Fetching versions for {} from jsDelivr: {}",
+            tool_name,
+            jsdelivr_url
+        );
+
+        let response = self.http.get_json_value(&jsdelivr_url).await?;
+
+        // jsDelivr API returns: { "versions": ["v1.0.0", "v0.9.0", ...], ... }
+        let versions_array = response
+            .get("versions")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| anyhow::anyhow!("Invalid jsDelivr response format"))?;
+
+        let mut versions: Vec<VersionInfo> = versions_array
+            .iter()
+            .filter_map(|v| {
+                let version_str = v.as_str()?;
+
+                // Parse version string, optionally stripping 'v' prefix
+                let version = if options.strip_v_prefix {
+                    version_str.trim_start_matches('v').to_string()
+                } else {
+                    version_str.to_string()
+                };
+
+                // Skip prereleases if configured
+                if options.skip_prereleases {
+                    let lower = version.to_lowercase();
+                    if lower.contains("-alpha")
+                        || lower.contains("-beta")
+                        || lower.contains("-rc")
+                        || lower.contains("-dev")
+                        || lower.contains("-pre")
+                        || lower.contains("-snapshot")
+                    {
+                        return None;
+                    }
+                }
+
+                // Basic semver validation
+                let parts: Vec<&str> = version.split('.').collect();
+                if parts.len() < 2 {
+                    return None;
+                }
+                if parts[0].parse::<u32>().is_err() {
+                    return None;
+                }
+
+                Some(VersionInfo {
+                    version,
+                    released_at: None, // jsDelivr doesn't provide release dates
+                    lts: false,
+                    prerelease: false,
+                    download_url: None,
+                    checksum: None,
+                    metadata: std::collections::HashMap::new(),
+                })
+            })
+            .collect();
+
+        // Sort by version (newest first) using semver comparison
+        versions.sort_by(|a, b| {
+            // Parse versions for comparison
+            let parse_semver = |v: &str| -> (u64, u64, u64) {
+                let parts: Vec<&str> = v.split('.').collect();
+                let major = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
+                let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+                let patch = parts
+                    .get(2)
+                    .and_then(|s| s.split('-').next())
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(0);
+                (major, minor, patch)
+            };
+            let a_ver = parse_semver(&a.version);
+            let b_ver = parse_semver(&b.version);
+            b_ver.cmp(&a_ver) // Reverse order for newest first
+        });
+
+        // Limit to per_page
+        versions.truncate(options.per_page as usize);
+
+        if versions.is_empty() {
+            return Err(anyhow::anyhow!(
+                "No valid versions found from jsDelivr for {}/{}",
+                owner,
+                repo
+            ));
+        }
+
+        // Cache the result
+        let compact_versions: Vec<CompactVersion> = versions
+            .iter()
+            .map(|v| CompactVersion {
+                version: v.version.clone(),
+                prerelease: v.prerelease,
+                published_at: 0, // jsDelivr doesn't provide timestamps
+            })
+            .collect();
+
+        if let Some(cache) = &self.version_cache {
+            if let Err(e) =
+                cache.set_with_options(tool_name, compact_versions, Some(&jsdelivr_url), None)
+            {
+                tracing::warn!("Failed to cache versions for {}: {}", tool_name, e);
+            }
+        }
+
+        Ok(versions)
+    }
     ///
     /// This is a convenience method for fetching versions from any JSON API.
     /// The caller provides a parser function to convert the response into versions.
@@ -435,6 +608,133 @@ impl RuntimeContext {
             }
         }
     }
+
+    /// Fetch versions from GitHub tags API with caching
+    ///
+    /// This is useful for repositories that don't use GitHub Releases,
+    /// only tags (like rustup).
+    ///
+    /// # Arguments
+    /// * `tool_name` - Name of the tool (used as cache key)
+    /// * `owner` - GitHub repository owner
+    /// * `repo` - GitHub repository name
+    /// * `options` - Options for parsing tags
+    pub async fn fetch_github_tags(
+        &self,
+        tool_name: &str,
+        owner: &str,
+        repo: &str,
+        options: GitHubReleaseOptions,
+    ) -> anyhow::Result<Vec<VersionInfo>> {
+        // Try cache first (fast path)
+        if let Some(cache) = &self.version_cache {
+            if let Some(versions) = cache.get(tool_name) {
+                tracing::debug!(
+                    "Using cached versions for {} ({} versions)",
+                    tool_name,
+                    versions.len()
+                );
+                return Ok(compact_to_version_info(versions));
+            }
+
+            // Check for offline mode
+            if cache.mode() == CacheMode::Offline {
+                return Err(anyhow::anyhow!(
+                    "Offline mode: no cached versions available for {}. Run without --offline to fetch.",
+                    tool_name
+                ));
+            }
+        }
+
+        // Get stale cache for fallback before fetching
+        let stale_versions = self
+            .version_cache
+            .as_ref()
+            .and_then(|c| c.get_stale(tool_name));
+
+        // Fetch from GitHub Tags API
+        let url = format!(
+            "https://api.github.com/repos/{}/{}/tags?per_page={}",
+            owner, repo, options.per_page
+        );
+
+        tracing::debug!("Fetching versions for {} from {}", tool_name, url);
+        let fetch_result = self.http.get_json_value(&url).await;
+
+        match fetch_result {
+            Ok(response) => {
+                // Check for GitHub API error response
+                if let Some(message) = response.get("message").and_then(|m| m.as_str()) {
+                    // If we have stale cache, use it
+                    if let Some(stale) = stale_versions {
+                        tracing::warn!(
+                            "GitHub API error for {}: {}, using stale cache",
+                            tool_name,
+                            message
+                        );
+                        return Ok(compact_to_version_info(stale));
+                    }
+                    return Err(anyhow::anyhow!(
+                        "GitHub API error: {}. Set GITHUB_TOKEN or GH_TOKEN environment variable to avoid rate limits.",
+                        message
+                    ));
+                }
+
+                let tags = response
+                    .as_array()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid response format from GitHub API"))?;
+
+                // Convert tags to compact format
+                let compact_versions: Vec<CompactVersion> = tags
+                    .iter()
+                    .filter_map(|tag| parse_github_tag_to_compact(tag, &options))
+                    .collect();
+
+                // Store in cache
+                if let Some(cache) = &self.version_cache {
+                    if let Err(e) = cache.set_with_options(
+                        tool_name,
+                        compact_versions.clone(),
+                        Some(&url),
+                        None,
+                    ) {
+                        tracing::warn!("Failed to cache versions for {}: {}", tool_name, e);
+                    }
+                }
+
+                Ok(compact_to_version_info(compact_versions))
+            }
+            Err(fetch_error) => {
+                // On network error, try stale cache
+                if let Some(stale) = stale_versions {
+                    tracing::warn!(
+                        "Network error fetching versions for {}, using stale cache: {}",
+                        tool_name,
+                        fetch_error
+                    );
+                    return Ok(compact_to_version_info(stale));
+                }
+
+                // No stale cache, return helpful error
+                let error_msg = fetch_error.to_string();
+                if error_msg.contains("timeout") || error_msg.contains("timed out") {
+                    Err(anyhow::anyhow!(
+                        "Network timeout while fetching versions for {}.\n\n\
+                        Possible solutions:\n\
+                        1. Check your internet connection\n\
+                        2. If behind a firewall/proxy, set HTTPS_PROXY environment variable\n\
+                        3. Try again later (GitHub API may be temporarily slow)\n\
+                        4. Use --offline flag if you have cached versions\n\n\
+                        Original error: {}",
+                        tool_name,
+                        error_msg
+                    ))
+                } else {
+                    Err(fetch_error)
+                }
+            }
+        }
+    }
 }
 
 /// Convert CompactVersion list to VersionInfo list
@@ -509,6 +809,37 @@ fn parse_github_release_to_compact(
             .with_prerelease(prerelease)
             .with_published_at(published_at),
     )
+}
+
+/// Parse a GitHub tag JSON to CompactVersion
+fn parse_github_tag_to_compact(
+    tag: &serde_json::Value,
+    options: &GitHubReleaseOptions,
+) -> Option<CompactVersion> {
+    let tag_name = tag.get("name")?.as_str()?;
+
+    // Apply tag prefix stripping
+    let version = if let Some(prefix) = &options.tag_prefix {
+        tag_name.strip_prefix(prefix).unwrap_or(tag_name)
+    } else if options.strip_v_prefix {
+        tag_name.strip_prefix('v').unwrap_or(tag_name)
+    } else {
+        tag_name
+    };
+
+    // Skip prereleases if configured (detect by version string)
+    let prerelease = version.contains("alpha")
+        || version.contains("beta")
+        || version.contains("rc")
+        || version.contains("dev")
+        || version.contains("pre");
+
+    if options.skip_prereleases && prerelease {
+        return None;
+    }
+
+    // Tags don't have published_at, so we use 0
+    Some(CompactVersion::new(version).with_prerelease(prerelease))
 }
 
 /// Options for parsing GitHub releases

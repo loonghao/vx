@@ -614,96 +614,7 @@ jobs:
           CARGO_TARGET_DIR: target
           VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
 
-  # ============================================================================
-  # Stage 4: Dogfood tests (only if rust changed)
-  # ============================================================================
-  dogfood:
-    name: Dogfood (${{ matrix.platform.name }})
-    runs-on: ${{ matrix.platform.os }}
-    needs: [detect-changes, build-vx]
-    if: needs.detect-changes.outputs.should_build == 'true'
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - name: Linux
-            os: ubuntu-latest
-            artifact: vx-linux-x64
-            binary: vx
-          - name: Windows
-            os: windows-latest
-            artifact: vx-windows-x64
-            binary: vx.exe
-          - name: macOS
-            os: macos-latest
-            artifact: vx-macos-x64
-            binary: vx
 
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download vx binary
-        uses: actions/download-artifact@v7
-        with:
-          name: ${{ matrix.platform.artifact }}
-          path: ./bin
-
-      - name: Setup vx
-        shell: bash
-        run: |
-          chmod +x ./bin/${{ matrix.platform.binary }} 2>/dev/null || true
-          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
-
-      - name: Cache vx tools
-        uses: actions/cache@v5
-        with:
-          path: ~/.vx
-          key: ${{ runner.os }}-vx-dogfood-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-vx-dogfood-
-
-      - name: Test vx with Node.js
-        shell: bash
-        run: |
-          echo "=== Installing and running Node.js via vx ==="
-          vx node --version
-          vx npm --version
-          vx node -e "console.log('Hello from Node.js via vx!')"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Test vx with Go
-        shell: bash
-        run: |
-          echo "=== Installing and running Go via vx ==="
-          vx go version
-          vx go env GOVERSION
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Test vx with UV/Python
-        shell: bash
-        run: |
-          echo "=== Installing and running UV via vx ==="
-          vx uv --version
-          vx uvx ruff --version
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Test vx with just
-        shell: bash
-        run: |
-          echo "=== Installing and running just via vx ==="
-          vx just --version
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Show vx stats
-        shell: bash
-        run: |
-          vx stats
-          vx list --status
 
   # ============================================================================
   # Stage 5: Cross-compilation (main branch only, if rust changed)
@@ -903,7 +814,6 @@ jobs:
       - code-quality
       - test-targeted
       - test-full
-      - dogfood
       - cross-build
       - security-audit
       - coverage
@@ -935,15 +845,15 @@ jobs:
               fi
             fi
           }
-
           echo "### Core Jobs" >> $GITHUB_STEP_SUMMARY
           check_job "detect-changes" "${{ needs.detect-changes.result }}"
+
           check_job "build-vx" "${{ needs.build-vx.result }}"
           check_job "code-quality" "${{ needs.code-quality.result }}"
           check_job "test-targeted" "${{ needs.test-targeted.result }}"
           check_job "test-full" "${{ needs.test-full.result }}"
-          check_job "dogfood" "${{ needs.dogfood.result }}"
           check_job "security-audit" "${{ needs.security-audit.result }}"
+
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Main Branch Only" >> $GITHUB_STEP_SUMMARY

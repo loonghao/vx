@@ -1,5 +1,8 @@
 # Docker Provider Manifest
 # This file defines the metadata, runtimes, and dependency constraints for Docker.
+#
+# Note: Docker CLI binaries are only available for Linux and macOS.
+# Windows requires Docker Desktop installation (system_install strategy).
 
 [provider]
 name = "docker"
@@ -7,6 +10,10 @@ description = "Container platform for building, sharing, and running application
 homepage = "https://www.docker.com"
 repository = "https://github.com/docker/cli"
 ecosystem = "container"
+
+# Binary download only available for Linux and macOS
+[provider.platforms]
+os = ["linux", "macos"]
 
 # Docker CLI
 [[runtimes]]
@@ -19,12 +26,37 @@ source = "github-releases"
 owner = "docker"
 repo = "cli"
 strip_v_prefix = true
+# Note: Docker CLI releases use tags like 'v27.5.1'
+# The GitHub releases API may have rate limits or format issues
+# Consider adding fallback version source if needed
 
-[runtimes.platforms.windows]
-executable_extensions = [".exe"]
+# RFC 0019: Docker CLI layout
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "docker"
+executable_paths = [
+    "docker"       # Unix only
+]
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "Docker version ([\\d.]+)"
+system_paths = ["/usr/bin/docker", "/usr/local/bin/docker", "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"]
 
 [runtimes.platforms.unix]
 executable_extensions = []
+
+# System install strategy for platforms without binary download (Windows)
+[[runtimes.system_install.strategies]]
+type = "manual"
+priority = 50
+instructions = """
+Docker CLI requires Docker Desktop on Windows.
+Download and install from: https://www.docker.com/products/docker-desktop/
+"""
 
 # Docker requires Docker Engine running
 [[runtimes.constraints]]

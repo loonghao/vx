@@ -58,13 +58,13 @@ fn test_platform_string(#[case] os: Os, #[case] arch: Arch, #[case] expected: &s
     Os::MacOS,
     Arch::Aarch64,
     "1.85.0",
-    "https://update.code.visualstudio.com/1.85.0/darwin-arm64-archive/stable#.zip"
+    "https://update.code.visualstudio.com/1.85.0/darwin-arm64/stable#.zip"
 )]
 #[case(
     Os::Linux,
     Arch::X86_64,
     "1.85.0",
-    "https://update.code.visualstudio.com/1.85.0/linux-x64-archive/stable#.zip"
+    "https://update.code.visualstudio.com/1.85.0/linux-x64/stable#.tar.gz"
 )]
 fn test_download_url(
     #[case] os: Os,
@@ -84,7 +84,8 @@ fn test_download_url(
     Arch::Aarch64,
     "Visual Studio Code.app/Contents/Resources/app/bin/code"
 )]
-#[case(Os::Linux, Arch::X86_64, "bin/code")]
+#[case(Os::Linux, Arch::X86_64, "VSCode-linux-x64/bin/code")]
+#[case(Os::Linux, Arch::Aarch64, "VSCode-linux-arm64/bin/code")]
 fn test_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
     let runtime = VscodeRuntime::new();
     let platform = Platform { os, arch };

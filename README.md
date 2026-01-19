@@ -204,7 +204,7 @@ vx sync                         # Sync tools with vx.toml
 
 | Command | Description |
 |---------|-------------|
-| `vx stats` | Show disk usage and statistics |
+| `vx cache info` | Show disk usage and cache statistics |
 | `vx clean` | Clean up cache and orphaned packages |
 | `vx config` | Manage global configuration |
 | `vx self-update` | Update vx itself |
@@ -554,6 +554,35 @@ Use vx in your CI/CD workflows:
 > **Note**: Use a specific version tag (e.g., `vx-v0.5.15`) instead of `v1`. Check [releases](https://github.com/loonghao/vx/releases) for the latest version.
 
 See [GitHub Action Guide](docs/guides/github-action.md) for full documentation.
+
+---
+
+## 🧪 Testing
+
+vx includes a comprehensive test suite for all providers:
+
+```bash
+# Test all providers in a clean temporary environment
+just test-providers
+
+# Test with verbose output
+just test-providers-verbose
+
+# Test specific providers only
+just test-providers-filter "node"
+
+# Keep cache for inspection
+just test-providers-keep
+```
+
+The test suite:
+- ✅ Uses temporary VX_HOME (auto-cleaned after tests)
+- ✅ Auto-discovers all providers from source
+- ✅ Tests command execution and auto-installation
+- ✅ Generates detailed test reports
+- ✅ CI/CD ready with exit codes and JSON output
+
+See [scripts/README.md](scripts/README.md) for detailed documentation.
 
 ---
 

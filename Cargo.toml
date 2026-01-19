@@ -3,6 +3,7 @@ members = [
   "crates/vx-core",
   "crates/vx-cache",
   "crates/vx-runtime",
+  "crates/vx-version-fetcher",
   "crates/vx-resolver",
   "crates/vx-manifest",
   "crates/vx-paths",
@@ -15,6 +16,7 @@ members = [
   "crates/vx-args",
   "crates/vx-project-analyzer",
   "crates/vx-console",
+  "crates/vx-system-pm",
   "crates/vx-cli",
   # Providers
   "crates/vx-providers/node",
@@ -37,6 +39,7 @@ members = [
   "crates/vx-providers/rcedit",
   "crates/vx-providers/git",
   "crates/vx-providers/choco",
+  "crates/vx-providers/brew",
   # Cloud & Container providers (P0)
   "crates/vx-providers/docker",
   "crates/vx-providers/awscli",
@@ -45,8 +48,9 @@ members = [
   # Build tools & Task runners (P1)
   "crates/vx-providers/ninja",
   "crates/vx-providers/cmake",
+  "crates/vx-providers/meson",
+  "crates/vx-providers/make",
   "crates/vx-providers/nasm",
-  "crates/vx-providers/yasm",
   "crates/vx-providers/protoc",
   "crates/vx-providers/task",
   "crates/vx-providers/pre-commit",
@@ -60,8 +64,13 @@ members = [
   "crates/vx-providers/python",
   # MSVC Build Tools (Windows-only)
   "crates/vx-providers/msvc",
+<<<<<<< HEAD
   # Conda package manager
   "crates/vx-providers/conda",
+=======
+  # Media processing tools (RFC 0016)
+  "crates/vx-providers/ffmpeg",
+>>>>>>> upstream/main
 ]
 resolver = "2"
 
@@ -112,10 +121,11 @@ predicates = { workspace = true }
 # Test dependencies for integration tests
 vx-core = { workspace = true }
 walkdir.workspace = true
+serde_json = { workspace = true }
 
 
 [workspace.package]
-version = "0.6.13"                                                # x-release-please-version
+version = "0.6.17"                                                # x-release-please-version
 edition = "2021"
 description = "Universal Development Tool Manager"
 license = "MIT"
@@ -153,6 +163,7 @@ vx-provider-bun = { path = "crates/vx-providers/bun" }
 vx-provider-rust = { path = "crates/vx-providers/rust" }
 vx-provider-vscode = { path = "crates/vx-providers/vscode" }
 vx-provider-just = { path = "crates/vx-providers/just" }
+vx-provider-jq = { path = "crates/vx-providers/jq" }
 vx-provider-vite = { path = "crates/vx-providers/vite" }
 vx-provider-rez = { path = "crates/vx-providers/rez" }
 vx-provider-deno = { path = "crates/vx-providers/deno" }
@@ -164,14 +175,16 @@ vx-provider-helm = { path = "crates/vx-providers/helm" }
 vx-provider-rcedit = { path = "crates/vx-providers/rcedit" }
 vx-provider-git = { path = "crates/vx-providers/git" }
 vx-provider-choco = { path = "crates/vx-providers/choco" }
+vx-provider-brew = { path = "crates/vx-providers/brew" }
 vx-provider-docker = { path = "crates/vx-providers/docker" }
 vx-provider-awscli = { path = "crates/vx-providers/awscli" }
 vx-provider-azcli = { path = "crates/vx-providers/azcli" }
 vx-provider-gcloud = { path = "crates/vx-providers/gcloud" }
 vx-provider-ninja = { path = "crates/vx-providers/ninja" }
 vx-provider-cmake = { path = "crates/vx-providers/cmake" }
+vx-provider-meson = { path = "crates/vx-providers/meson" }
+vx-provider-make = { path = "crates/vx-providers/make" }
 vx-provider-nasm = { path = "crates/vx-providers/nasm" }
-vx-provider-yasm = { path = "crates/vx-providers/yasm" }
 vx-provider-protoc = { path = "crates/vx-providers/protoc" }
 vx-provider-task = { path = "crates/vx-providers/task" }
 vx-provider-pre-commit = { path = "crates/vx-providers/pre-commit" }
@@ -181,14 +194,16 @@ vx-provider-release-please = { path = "crates/vx-providers/release-please" }
 vx-provider-python = { path = "crates/vx-providers/python" }
 vx-provider-msvc = { path = "crates/vx-providers/msvc" }
 vx-provider-conda = { path = "crates/vx-providers/conda" }
+vx-provider-ffmpeg = { path = "crates/vx-providers/ffmpeg" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
+vx-version-fetcher = { path = "crates/vx-version-fetcher" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.9.10"
-toml_edit = "0.22"
+toml_edit = "0.24"
 # Optimize tokio - only include needed features for better compile times
 tokio = { version = "1.0", features = [
   "rt-multi-thread",
@@ -196,12 +211,13 @@ tokio = { version = "1.0", features = [
   "fs",
   "process",
 ] }
-# HTTP client - use native TLS (OpenSSL on Linux, SChannel on Windows)
-# This avoids aws-lc-sys which requires cmake and NASM
+# HTTP client - use rustls TLS (pure Rust, no OpenSSL dependency)
+# This enables cross-compilation to musl targets without OpenSSL
 reqwest = { version = "0.12", features = [
   "json",
   "stream",
-  "native-tls",
+  "rustls-tls",
+  "rustls-tls-native-roots",
 ], default-features = false }
 serde_json = "1.0.148"
 anyhow = "1.0"
@@ -212,7 +228,9 @@ figment = { version = "0.10", features = ["toml", "env"] }
 which = "8.0"
 regex = "1.10"
 tempfile = "3.8"
-# zip 7.0 with lzma-rust2 has crc version conflict, disable lzma/xz
+# zip 7.0 with lzma-rust2 has crc version conflict
+# Disable lzma/xz features to avoid lzma-rust2 dependency
+# Other compression formats (bzip2, zstd, deflate64, ppmd) are still available
 zip = { version = "7.0", default-features = false, features = ["aes-crypto", "bzip2", "deflate64", "deflate", "ppmd", "time", "zstd"] }
 tar = "0.4"
 flate2 = "1.0"

@@ -228,7 +228,7 @@ TOML syntax error.
 1. Check usage:
 
    ```bash
-   vx stats
+   vx cache info
    ```
 
 2. Clean up:

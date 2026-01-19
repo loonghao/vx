@@ -124,6 +124,32 @@ impl TarHandler {
             let path = entry.path()?;
             let target_path = target_dir.join(&path);
 
+            // On Windows, check path length and use extended-length path if needed
+            #[cfg(windows)]
+            let target_path = {
+                use vx_paths::windows::{check_path_length, to_long_path, PathLengthStatus};
+
+                match check_path_length(&target_path) {
+                    PathLengthStatus::TooLong { length, .. } => {
+                        tracing::warn!(
+                            "Path length ({}) exceeds Windows MAX_PATH limit, using extended path: {}",
+                            length,
+                            target_path.display()
+                        );
+                        to_long_path(&target_path)
+                    }
+                    PathLengthStatus::Warning { length, .. } => {
+                        tracing::debug!(
+                            "Path length ({}) approaching Windows limit: {}",
+                            length,
+                            target_path.display()
+                        );
+                        target_path
+                    }
+                    PathLengthStatus::Safe => target_path,
+                }
+            };
+
             // Create parent directories
             if let Some(parent) = target_path.parent() {
                 std::fs::create_dir_all(parent)?;
@@ -144,7 +170,17 @@ impl TarHandler {
                     }
                 }
 
-                extracted_files.push(target_path);
+                // Store the original path (without extended prefix) for return value
+                #[cfg(windows)]
+                {
+                    use vx_paths::windows::from_long_path;
+                    extracted_files.push(from_long_path(&target_path));
+                }
+
+                #[cfg(not(windows))]
+                {
+                    extracted_files.push(target_path);
+                }
             }
         }
 

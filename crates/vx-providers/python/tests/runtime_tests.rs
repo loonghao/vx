@@ -1,7 +1,7 @@
 //! Python runtime tests
 
 use rstest::rstest;
-use vx_provider_python::{PythonProvider, PythonRuntime, PythonUrlBuilder};
+use vx_provider_python::{PythonProvider, PythonRuntime};
 use vx_runtime::{Arch, Ecosystem, Os, Platform, Provider, Runtime};
 
 #[test]
@@ -22,8 +22,11 @@ fn test_provider_description() {
 fn test_provider_runtimes() {
     let provider = PythonProvider::new();
     let runtimes = provider.runtimes();
-    assert_eq!(runtimes.len(), 1);
-    assert_eq!(runtimes[0].name(), "python");
+    // Provider includes python and pip (bundled with python)
+    assert_eq!(runtimes.len(), 2);
+    let names: Vec<&str> = runtimes.iter().map(|r| r.name()).collect();
+    assert!(names.contains(&"python"));
+    assert!(names.contains(&"pip"));
 }
 
 #[test]
@@ -37,7 +40,7 @@ fn test_runtime_description() {
     let runtime = PythonRuntime::new();
     let desc = runtime.description();
     assert!(desc.contains("Python"));
-    assert!(desc.contains("3.7") || desc.contains("3.12"));
+    assert!(desc.contains("3.9") || desc.contains("3.15"));
 }
 
 #[test]
@@ -62,11 +65,15 @@ fn test_runtime_metadata() {
     assert!(meta.contains_key("repository"));
     assert!(meta.contains_key("license"));
     assert!(meta.contains_key("supported_versions"));
-    assert!(meta.get("note").unwrap().contains("uv"));
-    // Check supported versions includes 3.7 to 3.12+
+    assert!(meta
+        .get("source")
+        .unwrap()
+        .contains("python-build-standalone"));
+    // Check supported versions includes 3.9 to 3.15
     let supported = meta.get("supported_versions").unwrap();
-    assert!(supported.contains("3.7"));
+    assert!(supported.contains("3.9"));
     assert!(supported.contains("3.12"));
+    assert!(supported.contains("3.15"));
 }
 
 #[rstest]
@@ -78,177 +85,4 @@ fn test_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] exp
     let platform = Platform { os, arch };
     let path = runtime.executable_relative_path("3.12.8", &platform);
     assert_eq!(path, expected_path);
-}
-
-#[rstest]
-#[case(Os::Windows, Arch::X86_64, "x86_64-pc-windows-msvc")]
-#[case(Os::Windows, Arch::X86, "i686-pc-windows-msvc")]
-#[case(Os::Windows, Arch::Aarch64, "aarch64-pc-windows-msvc")]
-#[case(Os::MacOS, Arch::X86_64, "x86_64-apple-darwin")]
-#[case(Os::MacOS, Arch::Aarch64, "aarch64-apple-darwin")]
-#[case(Os::Linux, Arch::X86_64, "x86_64-unknown-linux-gnu")]
-#[case(Os::Linux, Arch::Aarch64, "aarch64-unknown-linux-gnu")]
-fn test_platform_string(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
-    let platform = Platform { os, arch };
-    assert_eq!(PythonUrlBuilder::get_platform_string(&platform), expected);
-}
-
-#[test]
-fn test_download_url_format_python312() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
-    let url = PythonUrlBuilder::download_url_with_date("3.12.12", "20251217", &platform).unwrap();
-
-    assert_eq!(
-        url,
-        "https://github.com/astral-sh/python-build-standalone/releases/download/20251217/cpython-3.12.12+20251217-x86_64-unknown-linux-gnu-install_only.tar.gz"
-    );
-}
-
-#[test]
-fn test_download_url_format_python311() {
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
-    let url = PythonUrlBuilder::download_url_with_date("3.11.14", "20251217", &platform).unwrap();
-
-    assert_eq!(
-        url,
-        "https://github.com/astral-sh/python-build-standalone/releases/download/20251217/cpython-3.11.14+20251217-x86_64-pc-windows-msvc-install_only.tar.gz"
-    );
-}
-
-#[test]
-fn test_download_url_macos_arm() {
-    let platform = Platform {
-        os: Os::MacOS,
-        arch: Arch::Aarch64,
-    };
-    let url = PythonUrlBuilder::download_url_with_date("3.12.12", "20251217", &platform).unwrap();
-
-    assert_eq!(
-        url,
-        "https://github.com/astral-sh/python-build-standalone/releases/download/20251217/cpython-3.12.12+20251217-aarch64-apple-darwin-install_only.tar.gz"
-    );
-}
-
-#[test]
-fn test_filename_includes_release_date() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
-
-    // Test different release dates
-    let filename1 =
-        PythonUrlBuilder::get_filename_with_date("3.12.12", "20251217", &platform).unwrap();
-    assert_eq!(
-        filename1,
-        "cpython-3.12.12+20251217-x86_64-unknown-linux-gnu-install_only.tar.gz"
-    );
-
-    let filename2 =
-        PythonUrlBuilder::get_filename_with_date("3.10.16", "20241206", &platform).unwrap();
-    assert_eq!(
-        filename2,
-        "cpython-3.10.16+20241206-x86_64-unknown-linux-gnu-install_only.tar.gz"
-    );
-}
-
-#[rstest]
-#[case("3.10.19", "20251217", Os::Linux)]
-#[case("3.11.14", "20251217", Os::Linux)]
-#[case("3.12.12", "20251217", Os::Linux)]
-#[case("3.13.11", "20251217", Os::Linux)]
-#[case("3.11.14", "20251217", Os::Windows)]
-#[case("3.12.12", "20251217", Os::MacOS)]
-fn test_download_url_various_versions(
-    #[case] version: &str,
-    #[case] release_date: &str,
-    #[case] os: Os,
-) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
-    let url = PythonUrlBuilder::download_url_with_date(version, release_date, &platform).unwrap();
-
-    assert!(url.contains(&format!("cpython-{}", version)));
-    assert!(url.contains(release_date));
-    assert!(url.contains("install_only.tar.gz"));
-}
-
-#[test]
-fn test_filename_format_no_variant() {
-    // Verify the new format without variant (shared/pgo+lto)
-    let windows_platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
-    let linux_platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
-
-    let windows_filename =
-        PythonUrlBuilder::get_filename_with_date("3.11.14", "20251217", &windows_platform).unwrap();
-    let linux_filename =
-        PythonUrlBuilder::get_filename_with_date("3.11.14", "20251217", &linux_platform).unwrap();
-
-    // Should NOT contain variant suffixes
-    assert!(!windows_filename.contains("shared"));
-    assert!(!linux_filename.contains("pgo+lto"));
-
-    // Should end with platform-install_only.tar.gz
-    assert!(windows_filename.ends_with("-x86_64-pc-windows-msvc-install_only.tar.gz"));
-    assert!(linux_filename.ends_with("-x86_64-unknown-linux-gnu-install_only.tar.gz"));
-}
-
-// ============================================================================
-// Release Date Mapping Tests
-// ============================================================================
-
-#[test]
-fn test_python39_eol_release_date() {
-    // Python 3.9 reached EOL and is no longer built after 20251120
-    // The download URL should use 20251120 (last available), not 20251217
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
-
-    // Python 3.9 should use older release dates
-    let url_39 = PythonUrlBuilder::download_url_with_date("3.9.22", "20251120", &platform).unwrap();
-    assert!(url_39.contains("20251120"));
-    assert!(url_39.contains("cpython-3.9.22"));
-}
-
-#[test]
-fn test_python310_current_release_date() {
-    // Python 3.10+ should use the latest release date
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
-
-    let url_310 =
-        PythonUrlBuilder::download_url_with_date("3.10.19", "20251217", &platform).unwrap();
-    assert!(url_310.contains("20251217"));
-    assert!(url_310.contains("cpython-3.10.19"));
-}
-
-#[test]
-fn test_python37_legacy_release_date() {
-    // Python 3.7 is very old and only available in legacy releases
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
-
-    let url_37 = PythonUrlBuilder::download_url_with_date("3.7.17", "20230826", &platform).unwrap();
-    assert!(url_37.contains("20230826"));
-    assert!(url_37.contains("cpython-3.7.17"));
 }

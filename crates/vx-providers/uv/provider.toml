@@ -20,11 +20,33 @@ owner = "astral-sh"
 repo = "uv"
 strip_v_prefix = true
 
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = ""
+executable_paths = [
+    "uv.exe",  # Windows (root directory)
+    "uv"       # Unix (root directory)
+]
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 
 [runtimes.platforms.unix]
 executable_extensions = []
+
+# RFC 0020: Test configuration
+[runtimes.test]
+timeout_ms = 30000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "uv \\d+\\.\\d+\\.\\d+", name = "version_check" },
+    { command = "{executable} self version", expect_success = true, expected_output = "uv \\d+\\.\\d+\\.\\d+", name = "self_version" },
+]
+install_verification = [
+    { command = "{executable} --version", expect_success = true },
+]
 
 # UV manages Python internally, no external dependencies required
 [[runtimes.constraints]]

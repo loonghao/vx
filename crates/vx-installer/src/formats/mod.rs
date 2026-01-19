@@ -8,6 +8,7 @@ use crate::{progress::ProgressContext, Error, Result};
 use std::path::{Path, PathBuf};
 
 pub mod binary;
+pub mod msi;
 pub mod tar;
 pub mod zip;
 
@@ -148,7 +149,8 @@ impl ArchiveExtractor {
         let handlers: Vec<Box<dyn FormatHandler>> = vec![
             Box::new(zip::ZipHandler::new()),
             Box::new(tar::TarHandler::new()),
-            Box::new(binary::BinaryHandler::new()),
+            Box::new(msi::MsiHandler::new()),
+            Box::new(binary::BinaryHandler::new()), // Keep binary as fallback
         ];
 
         Self { handlers }
@@ -279,6 +281,8 @@ pub fn detect_format(file_path: &Path) -> Option<&str> {
         Some("tar.bz2")
     } else if filename.ends_with(".zip") {
         Some("zip")
+    } else if filename.ends_with(".msi") {
+        Some("msi")
     } else if filename.ends_with(".7z") {
         Some("7z")
     } else {

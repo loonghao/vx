@@ -200,4 +200,86 @@ pub trait Installer: Send + Sync {
 
     /// Download and extract in one operation
     async fn download_and_extract(&self, url: &str, dest: &Path) -> Result<()>;
+
+    /// Download and install with layout configuration (RFC 0019)
+    ///
+    /// This method accepts layout metadata to handle file renaming, moving, and permissions.
+    /// If not implemented, falls back to `download_and_extract`.
+    async fn download_with_layout(
+        &self,
+        url: &str,
+        dest: &Path,
+        metadata: &std::collections::HashMap<String, String>,
+    ) -> Result<()> {
+        // Default implementation - use metadata for post-processing
+        self.download_and_extract(url, dest).await?;
+
+        // Handle strip_prefix for archive extraction
+        // This moves contents from a nested directory to the root of dest
+        if let Some(strip_prefix) = metadata.get("strip_prefix") {
+            if !strip_prefix.is_empty() {
+                let prefix_dir = dest.join(strip_prefix);
+                if prefix_dir.exists() && prefix_dir.is_dir() {
+                    // Move all contents from prefix_dir to dest
+                    for entry in std::fs::read_dir(&prefix_dir)? {
+                        let entry = entry?;
+                        let source = entry.path();
+                        let target = dest.join(entry.file_name());
+
+                        // Remove target if it exists (shouldn't normally happen)
+                        if target.exists() {
+                            if target.is_dir() {
+                                let _ = std::fs::remove_dir_all(&target);
+                            } else {
+                                let _ = std::fs::remove_file(&target);
+                            }
+                        }
+
+                        // Move (rename) the entry
+                        std::fs::rename(&source, &target)?;
+                    }
+
+                    // Remove the now-empty prefix directory
+                    let _ = std::fs::remove_dir(&prefix_dir);
+                }
+            }
+        }
+
+        // Apply layout transformations if metadata is provided
+        if let (Some(source_name), Some(target_name), Some(target_dir)) = (
+            metadata.get("source_name"),
+            metadata.get("target_name"),
+            metadata.get("target_dir"),
+        ) {
+            let source_path = dest.join(target_dir).join(source_name);
+            let target_path = dest.join(target_dir).join(target_name);
+
+            if source_path.exists() && source_path != target_path {
+                // On Windows, rename might fail if target exists, so remove target first
+                if target_path.exists() {
+                    let _ = std::fs::remove_file(&target_path);
+                }
+
+                // Try rename first (atomic on same filesystem)
+                if std::fs::rename(&source_path, &target_path).is_err() {
+                    // Fallback to copy + delete
+                    std::fs::copy(&source_path, &target_path)?;
+                    let _ = std::fs::remove_file(&source_path);
+                }
+
+                // Set permissions if specified
+                #[cfg(unix)]
+                if let Some(perm_str) = metadata.get("target_permissions") {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Ok(mode) = u32::from_str_radix(perm_str, 8) {
+                        let mut perms = std::fs::metadata(&target_path)?.permissions();
+                        perms.set_mode(mode);
+                        std::fs::set_permissions(&target_path, perms)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }

@@ -18,6 +18,42 @@ aliases = ["golang"]
 source = "go-dev"
 stable_pattern = "stable"
 
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} version"
+pattern = "go version go([\\d.]+)"
+system_paths = ["/usr/local/go/bin/go", "/usr/bin/go", "C:\\Program Files\\Go\\bin\\go.exe"]
+
+# RFC 0020: Test configuration
+[runtimes.test]
+timeout_ms = 30000
+functional_commands = [
+    { command = "{executable} version", expect_success = true, expected_output = "go version go\\d+\\.\\d+", name = "version_check" },
+    { command = "{executable} env GOVERSION", expect_success = true, expected_output = "go\\d+\\.\\d+", name = "env_check" },
+]
+install_verification = [
+    { command = "{executable} version", expect_success = true },
+]
+
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "go"
+executable_paths = [
+    "bin/go.exe",  # Windows
+    "bin/go"       # Unix
+]
+
+# RFC 0020: Download Configuration
+# Go SDK is a large file (~100MB), needs longer timeout
+[runtimes.download]
+timeout_ms = 600000  # 10 minutes for large file
+max_retries = 5
+resume_enabled = true
+execution_timeout_ms = 30000  # 30 seconds for execution
+
 [runtimes.executable_config]
 dir_pattern = "go{version}"
 
@@ -47,6 +83,19 @@ name = "gofmt"
 description = "Go source code formatter"
 executable = "gofmt"
 bundled_with = "go"
+auto_installable = false
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} -version"
+pattern = "v([\\d.]+)"
+system_paths = ["/usr/local/go/bin/gofmt", "/usr/bin/gofmt", "C:\\Program Files\\Go\\bin\\gofmt.exe"]
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "go", version = "*", reason = "gofmt is bundled with go" }
+]
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]

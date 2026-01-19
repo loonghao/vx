@@ -20,6 +20,17 @@ owner = "Kitware"
 repo = "CMake"
 strip_v_prefix = true
 
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "cmake-{version}-{os}-{arch}"
+executable_paths = [
+    "bin/cmake.exe",  # Windows
+    "bin/cmake"       # Unix
+]
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 

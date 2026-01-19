@@ -18,16 +18,29 @@ impl VscodeUrlBuilder {
         Self
     }
 
-    /// Generate download URL for VSCode version
-    /// URL format: https://update.code.visualstudio.com/{version}/{platform}-archive/stable
-    /// This URL redirects to a .zip or .tar.gz file
+    /// Generate download URL for VSCode version.
+    ///
+    /// VS Code uses platform-specific identifiers. Only Windows uses the `-archive` suffix.
+    /// For other platforms the base platform id already points to an archive download.
+    ///
+    /// URL format:
+    /// - Windows: https://update.code.visualstudio.com/{version}/{platform}-archive/stable
+    /// - macOS/Linux: https://update.code.visualstudio.com/{version}/{platform}/stable
+    ///
+    /// Note: We add a URL fragment as an extension hint for our downloader. Fragments are not
+    /// sent to the server, but they help us classify archive types when the URL has no suffix.
     pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
         let platform_str = Self::get_platform_string(platform);
-        // Use archive format for portable installation
-        // Add .zip extension hint for the downloader to recognize it as an archive
+
+        let (path, hint) = match platform.os {
+            vx_runtime::Os::Windows => (format!("{}-archive", platform_str), "#.zip"),
+            vx_runtime::Os::MacOS => (platform_str, "#.zip"),
+            _ => (platform_str, "#.tar.gz"),
+        };
+
         Some(format!(
-            "https://update.code.visualstudio.com/{}/{}-archive/stable#.zip",
-            version, platform_str
+            "https://update.code.visualstudio.com/{}/{}/stable{}",
+            version, path, hint
         ))
     }
 

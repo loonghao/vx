@@ -48,6 +48,15 @@ pub struct ResolverConfig {
 
     /// Whether to verify runtime after installation
     pub verify_after_install: bool,
+
+    /// Whether to inherit vx-managed tools PATH in subprocesses
+    ///
+    /// When enabled, subprocesses spawned by vx-managed tools will have access
+    /// to all other vx-managed tools in PATH. This allows tools like `just` to
+    /// invoke other vx tools (e.g., `uvx`, `npm`) without needing the `vx` prefix.
+    ///
+    /// This is enabled by default.
+    pub inherit_vx_path: bool,
 }
 
 impl Default for ResolverConfig {
@@ -65,6 +74,7 @@ impl Default for ResolverConfig {
             prompt_before_install: false,
             max_parallel_installs: 4,
             verify_after_install: true,
+            inherit_vx_path: true, // Enable subprocess PATH inheritance by default
         }
     }
 }
@@ -117,6 +127,16 @@ impl ResolverConfig {
     /// Disable progress display
     pub fn quiet(mut self) -> Self {
         self.show_progress = false;
+        self
+    }
+
+    /// Set whether to inherit vx-managed tools PATH in subprocesses
+    ///
+    /// When enabled, subprocesses will have access to all vx-managed tools.
+    /// This allows justfiles, makefiles, and other tools to use vx-managed
+    /// tools directly without needing the `vx` prefix.
+    pub fn with_inherit_vx_path(mut self, inherit: bool) -> Self {
+        self.inherit_vx_path = inherit;
         self
     }
 }

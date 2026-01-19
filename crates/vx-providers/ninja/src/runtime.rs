@@ -8,10 +8,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use vx_runtime::{
-    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
-    VersionInfo,
-};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
+use vx_version_fetcher::VersionFetcherBuilder;
 
 /// Ninja runtime implementation
 #[derive(Debug, Clone, Default)]
@@ -66,16 +64,16 @@ impl Runtime for NinjaRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Ninja uses 'v' prefix in tags, strip it for version display
-        ctx.fetch_github_releases(
-            "ninja",
-            "ninja-build",
-            "ninja",
-            GitHubReleaseOptions::new()
-                .strip_v_prefix(true)
-                .skip_prereleases(true),
-        )
-        .await
+        VersionFetcherBuilder::jsdelivr("ninja-build", "ninja")
+            .tool_name("ninja")
+            .strip_v_prefix()
+            .prerelease_markers(&["-alpha", "-beta", "-rc", "-dev"])
+            .skip_prereleases()
+            .limit(30)
+            .build()
+            .fetch(ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {

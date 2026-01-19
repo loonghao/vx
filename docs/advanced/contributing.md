@@ -17,6 +17,28 @@ cd vx
 cargo build
 ```
 
+### Cross-Platform Build Notes
+
+vx uses **rustls** (pure Rust TLS implementation) instead of OpenSSL, which enables:
+
+- **No system dependencies**: Cross-compilation to musl targets works out of the box
+- **Smaller binaries**: No need to bundle OpenSSL
+- **Consistent behavior**: Same TLS implementation across all platforms
+
+The HTTP client (`reqwest`) is configured with:
+- `rustls-tls`: Pure Rust TLS backend
+- `rustls-tls-native-roots`: Uses system certificate store for trust roots
+
+This means you can build static musl binaries without installing OpenSSL:
+
+```bash
+# Build for Linux musl (static binary)
+cross build --release --target x86_64-unknown-linux-musl
+
+# Build for ARM64 musl
+cross build --release --target aarch64-unknown-linux-musl
+```
+
 ### Run Tests
 
 ```bash
@@ -202,6 +224,25 @@ To run all tests regardless of changes:
 2. Select "CI" workflow
 3. Click "Run workflow"
 4. Check "Force full CI run"
+
+## Dependency Constraints
+
+Some dependencies have version constraints that cannot be automatically upgraded:
+
+### bincode (v1.3 → v3.x blocked)
+
+The `bincode` crate is pinned to v1.3 because:
+
+- **msvc-kit** (used for MSVC Build Tools installation on Windows) depends on `bincode ^1.3`
+- `bincode v3` has a completely different API (the crate was restructured)
+- Until `msvc-kit` releases a version supporting `bincode v3`, we cannot upgrade
+
+**Workaround**: Renovate is configured to skip major `bincode` updates. See [PR #378](https://github.com/loonghao/vx/pull/378) for details.
+
+**Resolution**: Monitor `msvc-kit` releases for `bincode v3` support. Once available:
+1. Update `msvc-kit` to the new version
+2. Remove the Renovate rule for `bincode`
+3. Migrate code to `bincode v3` API
 
 ## Reporting Issues
 

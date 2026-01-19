@@ -220,10 +220,12 @@ vx clean --dry-run
 
 ### stats
 
-Show disk usage statistics.
+### cache
+
+Show cache and disk usage statistics.
 
 ```bash
-vx stats
+vx cache info
 ```
 
 ### self-update

@@ -59,6 +59,19 @@ impl VerificationResult {
             suggestions,
         }
     }
+
+    /// Create a successful verification result for system-installed tools
+    ///
+    /// Used for tools installed via system package managers (winget, brew, apt, etc.)
+    /// where the executable is available in the system PATH rather than a specific install path.
+    pub fn success_system_installed() -> Self {
+        Self {
+            valid: true,
+            executable_path: None, // System-installed, no specific path
+            issues: vec![],
+            suggestions: vec![],
+        }
+    }
 }
 
 /// Core trait for implementing runtime support
@@ -150,6 +163,28 @@ pub trait Runtime: Send + Sync {
     /// Additional metadata
     fn metadata(&self) -> HashMap<String, String> {
         HashMap::new()
+    }
+
+    /// Get the store directory name for this runtime
+    ///
+    /// This is the canonical name used for the store directory path.
+    /// For bundled runtimes (e.g., npm, npx bundled with node), this returns
+    /// the parent runtime's name. For standalone runtimes, this returns `self.name()`.
+    ///
+    /// **IMPORTANT**: Always use this method (not `name()`) when constructing store paths
+    /// to ensure consistency between installation and lookup.
+    ///
+    /// # Examples
+    ///
+    /// - `node.store_name()` → `"node"` (standalone)
+    /// - `npm.store_name()` → `"node"` (bundled with node)
+    /// - `uvx.store_name()` → `"uv"` (bundled with uv)
+    /// - `vscode.store_name()` → `"code"` (alias, canonical name is "code")
+    fn store_name(&self) -> &str {
+        // Check if bundled_with is set in metadata
+        // Note: This has a limitation - can't return &str from owned String
+        // Providers that use bundled_with should override this method directly
+        self.name()
     }
 
     /// Returns the platforms this runtime supports
@@ -272,16 +307,37 @@ pub trait Runtime: Send + Sync {
     /// Get the relative path to the executable within the install directory
     ///
     /// **Most providers should NOT override this method.**
-    /// Instead, override `executable_name()`, `executable_extensions()`, or `executable_dir_path()`.
+    /// Instead, override `executable_name()`, `executable_extensions()`, `executable_dir_path()`,
+    /// or `executable_layout()` (RFC 0019).
     ///
     /// This method combines the above methods to construct the full relative path.
     /// Only override this for complex cases that can't be handled by the simpler methods.
     ///
     /// # Default behavior
-    /// - Constructs path from `executable_dir_path()` + `executable_name()` + extension
+    /// 1. If `executable_layout()` is provided, use it to resolve the path
+    /// 2. Otherwise, construct path from `executable_dir_path()` + `executable_name()` + extension
     /// - On Windows: tries extensions from `executable_extensions()` in order
     /// - On Unix: no extension
     fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        // Try layout-based resolution first (RFC 0019)
+        if let Some(layout) = self.executable_layout() {
+            use crate::layout::LayoutContext;
+
+            let ctx = LayoutContext {
+                version: version.to_string(),
+                name: self.name().to_string(),
+                platform: platform.clone(),
+            };
+
+            if let Ok(resolved) = layout.resolve(&ctx) {
+                // Return the relative path from resolved layout
+                let install_root = std::path::Path::new("");
+                let exe_path = resolved.executable_path(install_root);
+                return exe_path.to_string_lossy().to_string();
+            }
+        }
+
+        // Fallback to legacy method
         let exe_name = self.executable_name();
         let full_name = platform.executable_with_extensions(exe_name, self.executable_extensions());
 
@@ -289,6 +345,34 @@ pub trait Runtime: Send + Sync {
             Some(dir) => format!("{}/{}", dir, full_name),
             None => full_name,
         }
+    }
+
+    // ========== RFC 0019: Executable Layout Configuration ==========
+
+    /// Get executable layout configuration from provider.toml (RFC 0019)
+    ///
+    /// This provides a declarative way to configure executable file layouts
+    /// instead of hardcoding in Rust. Supports:
+    /// - Single binary files with renaming (e.g., yasm-1.3.0-win64.exe → bin/yasm.exe)
+    /// - Archives with nested directories (e.g., ffmpeg-6.0/bin/ffmpeg.exe)
+    /// - Platform-specific layouts
+    /// - Variable interpolation ({version}, {name}, {platform}, etc.)
+    ///
+    /// # Example (provider.toml)
+    /// ```toml
+    /// [runtimes.layout]
+    /// download_type = "binary"
+    ///
+    /// [runtimes.layout.binary."windows-x86_64"]
+    /// source_name = "tool-{version}-win64.exe"
+    /// target_name = "tool.exe"
+    /// target_dir = "bin"
+    /// ```
+    ///
+    /// Most providers should return `None` and rely on the default path resolution.
+    /// Only override this for tools with complex file layouts.
+    fn executable_layout(&self) -> Option<crate::layout::ExecutableLayout> {
+        None
     }
 
     // ========== Lifecycle Hooks ==========
@@ -635,13 +719,22 @@ pub trait Runtime: Send + Sync {
     async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
         use tracing::{debug, info};
 
-        let install_path = ctx.paths.version_store_dir(self.name(), version);
+        // Fail early with a clear message when the provider doesn't support this platform.
+        if let Err(msg) = self.check_platform_support() {
+            return Err(anyhow::anyhow!(msg));
+        }
+
+        // Use store_name() which handles aliases and bundled runtimes
+        // e.g., "npm" -> "node", "uvx" -> "uv", "vscode" -> "code"
+        let store_name = self.store_name();
+        let install_path = ctx.paths.version_store_dir(store_name, version);
         let platform = Platform::current();
         let exe_relative = self.executable_relative_path(version, &platform);
 
         debug!(
-            "Install path for {} {}: {}",
+            "Install path for {} (store: {}) {}: {}",
             self.name(),
+            store_name,
             version,
             install_path.display()
         );
@@ -683,12 +776,61 @@ pub trait Runtime: Send + Sync {
 
         info!("Downloading {} {} from {}", self.name(), version, url);
 
-        // Download and extract
-        ctx.installer
-            .download_and_extract(&url, &install_path)
-            .await?;
+        // Prepare layout metadata if available
+        let mut layout_metadata = std::collections::HashMap::new();
+        if let Some(layout) = self.executable_layout() {
+            use crate::layout::LayoutContext;
 
-        // Run post-extract hook (e.g., rename downloaded files to standard names)
+            let layout_ctx = LayoutContext {
+                version: version.to_string(),
+                name: self.name().to_string(),
+                platform: platform.clone(),
+            };
+
+            if let Ok(resolved) = layout.resolve(&layout_ctx) {
+                match resolved {
+                    crate::layout::ResolvedLayout::Binary {
+                        source_name,
+                        target_name,
+                        target_dir,
+                        permissions,
+                    } => {
+                        layout_metadata.insert("source_name".to_string(), source_name);
+                        layout_metadata.insert("target_name".to_string(), target_name);
+                        layout_metadata.insert("target_dir".to_string(), target_dir);
+                        if let Some(perms) = permissions {
+                            layout_metadata.insert("target_permissions".to_string(), perms);
+                        }
+                    }
+                    crate::layout::ResolvedLayout::Archive {
+                        strip_prefix,
+                        permissions,
+                        ..
+                    } => {
+                        // Pass strip_prefix to installer for archive extraction
+                        if let Some(prefix) = strip_prefix {
+                            layout_metadata.insert("strip_prefix".to_string(), prefix);
+                        }
+                        if let Some(perms) = permissions {
+                            layout_metadata.insert("target_permissions".to_string(), perms);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Download and extract (with layout support if metadata is provided)
+        if !layout_metadata.is_empty() {
+            ctx.installer
+                .download_with_layout(&url, &install_path, &layout_metadata)
+                .await?;
+        } else {
+            ctx.installer
+                .download_and_extract(&url, &install_path)
+                .await?;
+        }
+
+        // Run post-extract hook
         self.post_extract(version, &install_path)?;
 
         debug!("Expected executable path pattern: {}", exe_relative);
@@ -732,13 +874,40 @@ pub trait Runtime: Send + Sync {
 
     /// Check if a version is installed
     async fn is_installed(&self, version: &str, ctx: &RuntimeContext) -> Result<bool> {
-        let install_path = ctx.paths.version_store_dir(self.name(), version);
+        let install_path = ctx.paths.version_store_dir(self.store_name(), version);
         Ok(ctx.fs.exists(&install_path))
+    }
+
+    /// Get the executable path for an installed version
+    ///
+    /// Returns the absolute path to the executable for the specified version.
+    /// This method should be overridden by runtimes that install to non-standard
+    /// locations (e.g., Python installed via uv).
+    ///
+    /// The default implementation looks in the vx store directory.
+    async fn get_executable_path_for_version(
+        &self,
+        version: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<Option<std::path::PathBuf>> {
+        let install_path = ctx.paths.version_store_dir(self.store_name(), version);
+        if !ctx.fs.exists(&install_path) {
+            return Ok(None);
+        }
+
+        let platform = Platform::current();
+        let verification = self.verify_installation(version, &install_path, &platform);
+
+        if verification.valid {
+            Ok(verification.executable_path)
+        } else {
+            Ok(None)
+        }
     }
 
     /// Get installed versions
     async fn installed_versions(&self, ctx: &RuntimeContext) -> Result<Vec<String>> {
-        let runtime_dir = ctx.paths.runtime_store_dir(self.name());
+        let runtime_dir = ctx.paths.runtime_store_dir(self.store_name());
         if !ctx.fs.exists(&runtime_dir) {
             return Ok(vec![]);
         }
@@ -860,7 +1029,7 @@ pub trait Runtime: Send + Sync {
 
     /// Uninstall a specific version
     async fn uninstall(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
-        let install_path = ctx.paths.version_store_dir(self.name(), version);
+        let install_path = ctx.paths.version_store_dir(self.store_name(), version);
         if ctx.fs.exists(&install_path) {
             ctx.fs.remove_dir_all(&install_path)?;
         }

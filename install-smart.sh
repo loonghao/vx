@@ -16,6 +16,8 @@ VX_VERSION="${VX_VERSION:-latest}"
 VX_INSTALL_DIR="${VX_INSTALL_DIR:-$HOME/.local/bin}"
 VX_BUILD_FROM_SOURCE="${VX_BUILD_FROM_SOURCE:-false}"
 VX_FORCE_CHANNEL="${VX_FORCE_CHANNEL:-}"
+PREFER_STATIC="${PREFER_STATIC:-false}"
+USE_PACKAGE_MANAGER="${USE_PACKAGE_MANAGER:-}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -50,7 +52,7 @@ debug() {
 
 # Detect platform
 detect_platform() {
-    local os arch
+    local os arch libc
     os=$(uname -s | tr '[:upper:]' '[:lower:]')
     arch=$(uname -m)
 
@@ -61,9 +63,24 @@ detect_platform() {
     esac
 
     case "$os" in
-        linux) echo "linux-musl-$arch" ;;
-        darwin) echo "darwin-$arch" ;;
-        *) error "Unsupported OS: $os"; exit 1 ;;
+        linux)
+            # Determine libc type for Linux
+            if [[ "$PREFER_STATIC" == "true" ]]; then
+                libc="musl"
+            elif [[ -f /etc/alpine-release ]] || ldd --version 2>&1 | grep -q musl; then
+                libc="musl"
+            else
+                libc="gnu"
+            fi
+            echo "linux-$libc-$arch"
+            ;;
+        darwin)
+            echo "darwin-$arch"
+            ;;
+        *)
+            error "Unsupported OS: $os"
+            exit 1
+            ;;
     esac
 }
 
@@ -117,62 +134,39 @@ test_channel_speed() {
 }
 
 # Get optimal channel order based on region and speed tests
+# Note: This function is written to be compatible with bash 3.x (macOS default)
 get_optimal_channels() {
     local region="$1"
     local version="$2"
     local platform="$3"
 
-    # Define all available channels
-    local -A channels=(
-        ["github"]="https://github.com/$REPO_OWNER/$REPO_NAME/releases/download/v$version"
-        ["jsdelivr"]="https://cdn.jsdelivr.net/gh/$REPO_OWNER/$REPO_NAME@v$version"
-        ["fastly"]="https://fastly.jsdelivr.net/gh/$REPO_OWNER/$REPO_NAME@v$version"
-    )
-
-    # Region-specific channel preferences
+    # Region-specific channel preferences (bash 3.x compatible - no associative arrays)
     local channel_order
     case "$region" in
         "asia")
-            channel_order=("jsdelivr" "fastly" "github")
+            channel_order="jsdelivr fastly github"
             ;;
         "europe")
-            channel_order=("fastly" "jsdelivr" "github")
+            channel_order="fastly jsdelivr github"
             ;;
         "americas")
-            channel_order=("github" "fastly" "jsdelivr")
+            channel_order="github fastly jsdelivr"
             ;;
         *)
-            channel_order=("github" "jsdelivr" "fastly")
+            channel_order="github jsdelivr fastly"
             ;;
     esac
 
     # If user forced a specific channel, use it first
     if [[ -n "$VX_FORCE_CHANNEL" ]]; then
         debug "Using forced channel: $VX_FORCE_CHANNEL"
-        echo "$VX_FORCE_CHANNEL ${channel_order[@]}" | tr ' ' '\n' | awk '!seen[$0]++'
+        echo "$VX_FORCE_CHANNEL $channel_order" | tr ' ' '\n' | awk '!seen[$0]++'
         return
     fi
 
-    # Test channel speeds (optional, can be disabled for faster installs)
-    if [[ "${VX_SPEED_TEST:-true}" == "true" ]]; then
-        info "Testing channel speeds..."
-        local -A speeds
-
-        for channel in "${channel_order[@]}"; do
-            local test_url="${channels[$channel]}"
-            local speed
-            speed=$(test_channel_speed "$test_url" 3)
-            speeds[$channel]=$speed
-            debug "Channel $channel speed: ${speed}ms"
-        done
-
-        # Sort channels by speed
-        for channel in $(printf '%s\n' "${!speeds[@]}" | sort -k1,1 -t' ' | while read -r ch; do echo "$ch ${speeds[$ch]}"; done | sort -k2,2n | cut -d' ' -f1); do
-            echo "$channel"
-        done
-    else
-        printf '%s\n' "${channel_order[@]}"
-    fi
+    # Skip speed test for simplicity and compatibility - just use region-based order
+    # Speed tests can cause issues on some systems and delay installation
+    echo "$channel_order" | tr ' ' '\n'
 }
 
 # Get latest version with intelligent fallback
@@ -236,6 +230,17 @@ get_latest_version() {
     exit 1
 }
 
+# Helper function to get file size (portable across macOS and Linux)
+get_file_size() {
+    local file="$1"
+    if [[ -f "$file" ]]; then
+        # Try macOS stat first, then Linux stat, then wc as fallback
+        stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || wc -c < "$file" 2>/dev/null | tr -d ' ' || echo 0
+    else
+        echo 0
+    fi
+}
+
 # Download with intelligent channel selection
 download_with_smart_fallback() {
     local version="$1"
@@ -245,8 +250,12 @@ download_with_smart_fallback() {
     local region="$5"
 
     local archive_path="$temp_dir/$archive_name"
+    # Use a portable method to read channels into array (bash 3.x compatible)
+    local channels_str
+    channels_str=$(get_optimal_channels "$region" "$version" "$platform")
     local channels
-    readarray -t channels < <(get_optimal_channels "$region" "$version" "$platform")
+    # Convert string to array in bash 3.x compatible way
+    IFS=$'\n' read -r -d '' -a channels <<< "$channels_str" || true
 
     info "Trying channels in optimal order for region: $region"
 
@@ -271,28 +280,30 @@ download_with_smart_fallback() {
         info "Trying $channel: $download_url"
 
         if command -v curl >/dev/null 2>&1; then
-            if curl -fsSL --connect-timeout 10 --max-time 30 "$download_url" -o "$archive_path"; then
+            if curl -fsSL --connect-timeout 10 --max-time 30 "$download_url" -o "$archive_path" 2>/dev/null; then
                 # Verify download
-                if [[ -f "$archive_path" ]] && [[ $(stat -f%z "$archive_path" 2>/dev/null || stat -c%s "$archive_path" 2>/dev/null || echo 0) -gt 1024 ]]; then
-                    local file_size
-                    file_size=$(stat -f%z "$archive_path" 2>/dev/null || stat -c%s "$archive_path" 2>/dev/null || echo 0)
-                    success "Downloaded from $channel ($(echo "scale=2; $file_size/1024/1024" | bc 2>/dev/null || echo "unknown") MB)"
+                local file_size
+                file_size=$(get_file_size "$archive_path")
+                if [[ "$file_size" -gt 1024 ]]; then
+                    local size_mb=$((file_size / 1024 / 1024))
+                    success "Downloaded from $channel (${size_mb} MB)"
                     return 0
                 else
-                    warn "Downloaded file too small, trying next channel..."
+                    warn "Downloaded file too small ($file_size bytes), trying next channel..."
                     rm -f "$archive_path"
                 fi
             fi
         elif command -v wget >/dev/null 2>&1; then
-            if wget -q --timeout=30 "$download_url" -O "$archive_path"; then
+            if wget -q --timeout=30 "$download_url" -O "$archive_path" 2>/dev/null; then
                 # Verify download
-                if [[ -f "$archive_path" ]] && [[ $(stat -f%z "$archive_path" 2>/dev/null || stat -c%s "$archive_path" 2>/dev/null || echo 0) -gt 1024 ]]; then
-                    local file_size
-                    file_size=$(stat -f%z "$archive_path" 2>/dev/null || stat -c%s "$archive_path" 2>/dev/null || echo 0)
-                    success "Downloaded from $channel ($(echo "scale=2; $file_size/1024/1024" | bc 2>/dev/null || echo "unknown") MB)"
+                local file_size
+                file_size=$(get_file_size "$archive_path")
+                if [[ "$file_size" -gt 1024 ]]; then
+                    local size_mb=$((file_size / 1024 / 1024))
+                    success "Downloaded from $channel (${size_mb} MB)"
                     return 0
                 else
-                    warn "Downloaded file too small, trying next channel..."
+                    warn "Downloaded file too small ($file_size bytes), trying next channel..."
                     rm -f "$archive_path"
                 fi
             fi
@@ -329,11 +340,23 @@ install_from_release() {
     # Legacy format: vx-{target}.tar.gz (e.g., vx-x86_64-unknown-linux-musl.tar.gz)
     local archive_name_versioned archive_name_legacy fallback_archive_versioned fallback_archive_legacy
     case "$platform" in
+        linux-gnu-x86_64)
+            archive_name_versioned="vx-$version-x86_64-unknown-linux-gnu.tar.gz"
+            archive_name_legacy="vx-x86_64-unknown-linux-gnu.tar.gz"
+            fallback_archive_versioned="vx-$version-x86_64-unknown-linux-musl.tar.gz"
+            fallback_archive_legacy="vx-x86_64-unknown-linux-musl.tar.gz"
+            ;;
         linux-musl-x86_64)
             archive_name_versioned="vx-$version-x86_64-unknown-linux-musl.tar.gz"
             archive_name_legacy="vx-x86_64-unknown-linux-musl.tar.gz"
             fallback_archive_versioned="vx-$version-x86_64-unknown-linux-gnu.tar.gz"
             fallback_archive_legacy="vx-x86_64-unknown-linux-gnu.tar.gz"
+            ;;
+        linux-gnu-aarch64)
+            archive_name_versioned="vx-$version-aarch64-unknown-linux-gnu.tar.gz"
+            archive_name_legacy="vx-aarch64-unknown-linux-gnu.tar.gz"
+            fallback_archive_versioned="vx-$version-aarch64-unknown-linux-musl.tar.gz"
+            fallback_archive_legacy="vx-aarch64-unknown-linux-musl.tar.gz"
             ;;
         linux-musl-aarch64)
             archive_name_versioned="vx-$version-aarch64-unknown-linux-musl.tar.gz"
@@ -541,7 +564,7 @@ main() {
     echo "   vx --help          # Show help"
     echo "   vx list            # List available tools"
     echo "   vx npm --version   # Use npm through vx"
-    echo "   vx uv --version    # Use uv through vx"
+    echo "   vx uv self version    # Use uv through vx"
 }
 
 # Run main function

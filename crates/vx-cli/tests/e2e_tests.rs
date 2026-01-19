@@ -313,16 +313,16 @@ mod init_e2e_tests {
 }
 
 // ============================================================================
-// Clean Command E2E Tests
+// Cache Command E2E Tests
 // ============================================================================
 
-mod clean_e2e_tests {
+mod cache_e2e_tests {
     use super::*;
 
-    /// Test vx clean --dry-run
+    /// Test vx cache info
     #[rstest]
     #[test]
-    fn test_vx_clean_dry_run() {
+    fn test_vx_cache_info() {
         init_test_env();
 
         if !vx_exists() {
@@ -331,19 +331,19 @@ mod clean_e2e_tests {
         }
 
         let output = Command::new(vx_binary())
-            .args(["clean", "--dry-run"])
+            .args(["cache", "info"])
             .output()
             .expect("Failed to execute vx");
 
-        assert!(output.status.success(), "vx clean --dry-run should succeed");
+        assert!(output.status.success(), "vx cache info should succeed");
 
         cleanup_test_env();
     }
 
-    /// Test vx clean --cache --dry-run
+    /// Test vx cache dir
     #[rstest]
     #[test]
-    fn test_vx_clean_cache_dry_run() {
+    fn test_vx_cache_dir() {
         init_test_env();
 
         if !vx_exists() {
@@ -352,43 +352,11 @@ mod clean_e2e_tests {
         }
 
         let output = Command::new(vx_binary())
-            .args(["clean", "--cache", "--dry-run"])
+            .args(["cache", "dir"])
             .output()
             .expect("Failed to execute vx");
 
-        assert!(
-            output.status.success(),
-            "vx clean --cache --dry-run should succeed"
-        );
-
-        cleanup_test_env();
-    }
-}
-
-// ============================================================================
-// Stats Command E2E Tests
-// ============================================================================
-
-mod stats_e2e_tests {
-    use super::*;
-
-    /// Test vx stats
-    #[rstest]
-    #[test]
-    fn test_vx_stats() {
-        init_test_env();
-
-        if !vx_exists() {
-            eprintln!("Skipping test: vx binary not found");
-            return;
-        }
-
-        let output = Command::new(vx_binary())
-            .arg("stats")
-            .output()
-            .expect("Failed to execute vx");
-
-        assert!(output.status.success(), "vx stats should succeed");
+        assert!(output.status.success(), "vx cache dir should succeed");
 
         cleanup_test_env();
     }

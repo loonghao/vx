@@ -254,6 +254,37 @@ jobs:
             irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
             ```
 
+            #### Static Binary (musl, no runtime dependencies)
+
+            For environments without glibc (Alpine, minimal containers):
+            ```bash
+            PREFER_STATIC=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+            ```
+
+            #### Package Managers
+
+            **Homebrew (macOS/Linux):**
+            ```bash
+            brew install loonghao/vx/vx
+            ```
+
+            **Debian/Ubuntu:**
+            ```bash
+            curl -fsSLO https://github.com/loonghao/vx/releases/download/${{ needs.get-tag.outputs.tag_name }}/vx_${{ needs.get-tag.outputs.version }}_amd64.deb
+            sudo dpkg -i vx_*.deb
+            ```
+
+            **Fedora/RHEL:**
+            ```bash
+            curl -fsSLO https://github.com/loonghao/vx/releases/download/${{ needs.get-tag.outputs.tag_name }}/vx-${{ needs.get-tag.outputs.version }}-1.x86_64.rpm
+            sudo rpm -i vx-*.rpm
+            ```
+
+            **Arch Linux (AUR):**
+            ```bash
+            yay -S vx-bin
+            ```
+
             #### Manual Download
 
             Download the appropriate binary for your platform from the assets below.

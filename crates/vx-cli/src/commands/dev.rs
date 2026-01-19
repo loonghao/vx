@@ -206,7 +206,7 @@ fn execute_command_in_env(cmd: &[String], env_vars: &HashMap<String, String>) ->
         .with_context(|| format!("Failed to execute: {}", program))?;
 
     if !status.success() {
-        std::process::exit(status.code().unwrap_or(1));
+        std::process::exit(vx_resolver::exit_code_from_status(&status));
     }
 
     Ok(())
@@ -239,7 +239,25 @@ fn spawn_dev_shell(
     #[cfg(windows)]
     {
         if shell_path.contains("powershell") || shell_path.contains("pwsh") {
-            command.args(["-NoLogo", "-NoExit"]);
+            // Create a temporary init script for PowerShell
+            let init_script = create_powershell_init_script(config)?;
+            let init_path =
+                std::env::temp_dir().join(format!("vx_dev_init_{}.ps1", std::process::id()));
+            std::fs::write(&init_path, init_script)?;
+
+            // Use -NoLogo to suppress banner, -NoExit to keep shell open
+            // -NoProfile to avoid loading user profile (which might conflict)
+            // -File to execute our init script
+            command.args([
+                "-NoLogo",
+                "-NoExit",
+                "-Command",
+                &format!(
+                    ". '{}'; Remove-Item '{}'",
+                    init_path.display(),
+                    init_path.display()
+                ),
+            ]);
         } else if shell_path.contains("cmd") {
             command.args(["/K"]);
         }
@@ -265,11 +283,54 @@ fn spawn_dev_shell(
     })?;
 
     if !status.success() {
-        std::process::exit(status.code().unwrap_or(1));
+        std::process::exit(vx_resolver::exit_code_from_status(&status));
     }
 
     UI::info("Left vx development environment");
     Ok(())
+}
+
+/// Create PowerShell initialization script for dev environment
+#[cfg(windows)]
+fn create_powershell_init_script(config: &ConfigView) -> Result<String> {
+    let tools = config.tools.keys().cloned().collect::<Vec<_>>().join(", ");
+
+    Ok(format!(
+        r#"
+# VX Development Environment Initialization
+
+# Set custom prompt to indicate vx dev environment
+function prompt {{
+    "(vx) " + $(if (Test-Path function:\DefaultPrompt) {{ & $function:DefaultPrompt }} else {{ "PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1)) " }})
+}}
+
+# Show welcome message
+Write-Host "VX Development Environment" -ForegroundColor Green
+Write-Host "Tools: {}" -ForegroundColor Cyan
+Write-Host ""
+
+# Enable PSReadLine for better command history and completion
+if (Get-Module -ListAvailable -Name PSReadLine) {{
+    Import-Module PSReadLine -ErrorAction SilentlyContinue
+    
+    # Use shared history file across sessions
+    Set-PSReadLineOption -HistorySavePath "$env:APPDATA\vx\powershell_history.txt" -ErrorAction SilentlyContinue
+    
+    # Enable predictive IntelliSense
+    Set-PSReadLineOption -PredictionSource History -ErrorAction SilentlyContinue
+}}
+
+# Define helpful aliases
+function vx-tools {{ Get-Command | Where-Object {{ $_.Source -match "vx" }} }}
+function vx-exit {{ exit }}
+
+# Load user's profile if it exists (for custom completions/aliases)
+if (Test-Path $PROFILE) {{
+    . $PROFILE
+}}
+"#,
+        tools
+    ))
 }
 
 /// Detect the user's preferred shell

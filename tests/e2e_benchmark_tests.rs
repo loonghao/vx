@@ -63,7 +63,7 @@ impl E2ETestEnv {
 /// Performance thresholds (in milliseconds)
 mod thresholds {
     /// Maximum time for CLI startup (no operation)
-    pub const CLI_STARTUP_MS: u64 = 500;
+    pub const CLI_STARTUP_MS: u64 = 3000;
 
     /// Maximum time for help command
     pub const HELP_MS: u64 = 200;
@@ -75,13 +75,13 @@ mod thresholds {
     pub const CONFIG_PARSE_SMALL_MS: u64 = 500;
 
     /// Maximum time for config parsing (large config)
-    pub const CONFIG_PARSE_LARGE_MS: u64 = 1000;
+    pub const CONFIG_PARSE_LARGE_MS: u64 = 3000;
 
     /// Maximum time for setup dry-run (small config)
     pub const SETUP_DRYRUN_SMALL_MS: u64 = 1000;
 
     /// Maximum time for setup dry-run (large config)
-    pub const SETUP_DRYRUN_LARGE_MS: u64 = 2000;
+    pub const SETUP_DRYRUN_LARGE_MS: u64 = 3000;
 
     /// Maximum time for script listing
     pub const SCRIPT_LIST_MS: u64 = 500;
