@@ -25,9 +25,11 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
+use tracing::{debug, info, warn};
 use vx_runtime::{
-    Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
+    Ecosystem, InstallResult, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
 };
+use vx_system_pm::{PackageInstallSpec, PackageManagerRegistry};
 
 /// Magick runtime implementation (main ImageMagick CLI)
 #[derive(Debug, Clone, Default)]
@@ -148,9 +150,27 @@ impl Runtime for MagickRuntime {
         Ok(ImageMagickUrlBuilder::download_url(version, platform))
     }
 
-    // Note: install() uses the default Runtime implementation
-    // Platform-specific dependencies (brew on macOS, choco/scoop on Windows)
-    // are declared in provider.toml and resolved automatically by vx-resolver
+    /// Install ImageMagick
+    ///
+    /// This method tries direct download first (Linux), and falls back to
+    /// system package managers (brew/choco/scoop) on platforms without portable binaries.
+    async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
+        let platform = Platform::current();
+
+        // Try direct download first (Linux has AppImage)
+        if let Some(url) = ImageMagickUrlBuilder::download_url(version, &platform) {
+            info!("Installing ImageMagick {} via direct download", version);
+            return self.install_via_download(version, &url, ctx).await;
+        }
+
+        // No direct download available (macOS/Windows), try system package manager
+        info!(
+            "No direct download available for ImageMagick on {}, trying system package manager",
+            platform.os_name()
+        );
+
+        self.install_via_package_manager(version, ctx).await
+    }
 
     fn verify_installation(
         &self,
@@ -346,6 +366,141 @@ impl MagickRuntime {
             .and_then(|c| c.get(1))
             .map(|m| m.as_str().to_string())
     }
+
+    /// Get the package name for a specific package manager
+    fn get_package_name_for_manager(manager: &str) -> &'static str {
+        match manager {
+            // Most package managers use "imagemagick"
+            "brew" | "choco" | "scoop" | "apt" | "winget" => "imagemagick",
+            // Fedora/RHEL uses "ImageMagick" (capital I and M)
+            "dnf" | "yum" => "ImageMagick",
+            // Default
+            _ => "imagemagick",
+        }
+    }
+
+    /// Install via direct download (used for Linux AppImage)
+    async fn install_via_download(
+        &self,
+        version: &str,
+        url: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<InstallResult> {
+        let store_name = Runtime::store_name(self);
+        let install_path = ctx.paths.version_store_dir(store_name, version);
+        let platform = Platform::current();
+
+        // Check if already installed
+        if ctx.fs.exists(&install_path) {
+            let verification =
+                Runtime::verify_installation(self, version, &install_path, &platform);
+            if verification.valid {
+                let exe_path = verification
+                    .executable_path
+                    .unwrap_or_else(|| install_path.join("bin").join("magick"));
+                return Ok(InstallResult::already_installed(
+                    install_path,
+                    exe_path,
+                    version.to_string(),
+                ));
+            }
+            // Clean up incomplete installation
+            let _ = std::fs::remove_dir_all(&install_path);
+        }
+
+        info!("Downloading {} {} from {}", Runtime::name(self), version, url);
+
+        // Download and extract
+        ctx.installer
+            .download_and_extract(url, &install_path)
+            .await?;
+
+        // Verify installation
+        let verification = Runtime::verify_installation(self, version, &install_path, &platform);
+        if !verification.valid {
+            return Err(anyhow::anyhow!(
+                "Installation verification failed: {}",
+                verification.issues.join(", ")
+            ));
+        }
+
+        let exe_path = verification
+            .executable_path
+            .unwrap_or_else(|| install_path.join("bin").join("magick"));
+
+        Ok(InstallResult::success(
+            install_path,
+            exe_path,
+            version.to_string(),
+        ))
+    }
+
+    /// Install via system package manager (macOS/Windows)
+    async fn install_via_package_manager(
+        &self,
+        version: &str,
+        _ctx: &RuntimeContext,
+    ) -> Result<InstallResult> {
+        let registry = PackageManagerRegistry::new();
+        let available_managers = registry.get_available().await;
+
+        if available_managers.is_empty() {
+            let platform = Platform::current();
+            let instructions = ImageMagickUrlBuilder::get_installation_instructions(&platform)
+                .unwrap_or("Please install a package manager (brew, choco, scoop) first");
+
+            return Err(anyhow::anyhow!(
+                "No direct download available and no system package manager found.\n\
+                 Please install manually:\n  {}",
+                instructions
+            ));
+        }
+
+        // Try each available package manager
+        for pm in &available_managers {
+            let package_name = Self::get_package_name_for_manager(pm.name());
+            debug!(
+                "Trying to install ImageMagick via {} (package: {})",
+                pm.name(),
+                package_name
+            );
+
+            let spec = PackageInstallSpec {
+                package: package_name.to_string(),
+                ..Default::default()
+            };
+
+            match pm.install_package(&spec).await {
+                Ok(_) => {
+                    info!("Successfully installed ImageMagick via {}", pm.name());
+                    // Return a system-installed result
+                    // For system installs, we use the version from the package manager
+                    let installed_version = format!("{} (via {})", version, pm.name());
+                    return Ok(InstallResult::system_installed(
+                        installed_version,
+                        which::which("magick").ok(),
+                    ));
+                }
+                Err(e) => {
+                    warn!("Failed to install via {}: {}", pm.name(), e);
+                    continue;
+                }
+            }
+        }
+
+        // All package managers failed
+        let tried = available_managers
+            .iter()
+            .map(|m| m.name())
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        Err(anyhow::anyhow!(
+            "Failed to install ImageMagick. Tried package managers: {}.\n\
+             Please install manually using your preferred package manager.",
+            tried
+        ))
+    }
 }
 
 /// Convert runtime implementation (legacy, bundled with magick)
@@ -415,7 +570,11 @@ impl Runtime for ConvertRuntime {
         MagickRuntime::new().download_url(version, platform).await
     }
 
-    // Note: install() uses default Runtime implementation (delegates to MagickRuntime via bundled_with)
+    /// Install convert (delegates to MagickRuntime since convert is bundled)
+    async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
+        // Convert is bundled with magick, use MagickRuntime's install
+        MagickRuntime::new().install(version, ctx).await
+    }
 
     fn verify_installation(
         &self,
