@@ -83,8 +83,8 @@ fn test_provider_get_runtime() {
 #[case(Os::Linux, Arch::Aarch64, false)]
 #[case(Os::MacOS, Arch::X86_64, false)]
 #[case(Os::MacOS, Arch::Aarch64, false)]
-#[case(Os::Windows, Arch::X86_64, false)]
-#[case(Os::Windows, Arch::Aarch64, false)]
+#[case(Os::Windows, Arch::X86_64, true)]
+#[case(Os::Windows, Arch::Aarch64, true)]
 fn test_direct_download_support(#[case] os: Os, #[case] arch: Arch, #[case] expected: bool) {
     let platform = Platform { os, arch };
     assert_eq!(
@@ -120,13 +120,18 @@ fn test_download_url_linux_x64() {
 }
 
 #[test]
-fn test_download_url_windows_none() {
+fn test_download_url_windows_x64() {
     let platform = Platform {
         os: Os::Windows,
         arch: Arch::X86_64,
     };
     let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
-    assert!(url.is_none());
+    assert!(url.is_some());
+    let url = url.unwrap();
+    assert!(url.contains("imagemagick.org"));
+    assert!(url.contains("7.1.2-12"));
+    assert!(url.contains("portable-Q16-HDRI-x64"));
+    assert!(url.ends_with(".7z"));
 }
 
 #[test]
@@ -174,11 +179,20 @@ fn test_installation_instructions() {
     assert!(instructions.is_some());
     assert!(instructions.unwrap().contains("brew"));
 
-    let windows = Platform {
+    // Windows x64/ARM64 now supports direct download, so no instructions needed
+    let windows_x64 = Platform {
         os: Os::Windows,
         arch: Arch::X86_64,
     };
-    let instructions = ImageMagickUrlBuilder::get_installation_instructions(&windows);
+    let instructions = ImageMagickUrlBuilder::get_installation_instructions(&windows_x64);
+    assert!(instructions.is_none()); // Direct download supported
+
+    // But Windows x86 still needs package manager
+    let windows_x86 = Platform {
+        os: Os::Windows,
+        arch: Arch::X86,
+    };
+    let instructions = ImageMagickUrlBuilder::get_installation_instructions(&windows_x86);
     assert!(instructions.is_some());
     assert!(instructions.unwrap().contains("choco"));
 }
