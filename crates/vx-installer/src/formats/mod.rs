@@ -279,6 +279,8 @@ pub fn detect_format(file_path: &Path) -> Option<&str> {
         Some("tar.xz")
     } else if filename.ends_with(".tar.bz2") || filename.ends_with(".tbz2") {
         Some("tar.bz2")
+    } else if filename.ends_with(".tar.zst") || filename.ends_with(".tzst") {
+        Some("tar.zst")
     } else if filename.ends_with(".zip") {
         Some("zip")
     } else if filename.ends_with(".msi") {
