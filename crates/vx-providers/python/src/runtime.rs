@@ -3,7 +3,9 @@
 //! Uses python-build-standalone for portable Python distributions.
 //! Downloads prebuilt Python binaries directly from GitHub releases.
 //!
-//! Supports Python 3.9 to 3.15 versions (3.7 and 3.8 are EOL and no longer available).
+//! Supports Python 3.7 to 3.13 versions.
+//! - Python 3.8-3.13: Uses python-build-standalone (all platforms)
+//! - Python 3.7: Uses Python.org embeddable (Windows only)
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -42,16 +44,15 @@ impl PythonRuntime {
     /// Get built-in version list with their release dates
     ///
     /// Format: (version, is_prerelease, release_date)
-    /// The release_date is from python-build-standalone releases
+    /// The release_date is from python-build-standalone releases.
+    /// For Python 3.7.x, release_date is "pythonorg" indicating Python.org source.
     ///
-    /// Note: Python 3.7 and 3.8 are EOL and no longer available in python-build-standalone.
-    /// The last release with 3.8 was 20241008.
+    /// Note:
+    /// - Python 3.7 is EOL and only available from Python.org (Windows only)
+    /// - Python 3.8 is EOL (Oct 2024) but recent releases still include it.
+    /// - Python 3.9 is EOL (Oct 2024) - only versions up to 3.9.21 are available.
     fn get_builtin_versions() -> Vec<(String, bool, &'static str)> {
         vec![
-            // Python 3.15.x (alpha)
-            ("3.15.0a5".to_string(), true, "20260114"),
-            // Python 3.14.x (beta/rc)
-            ("3.14.0a4".to_string(), true, "20250121"),
             // Python 3.13.x (latest stable)
             ("3.13.4".to_string(), false, "20250610"),
             ("3.13.3".to_string(), false, "20250508"),
@@ -59,31 +60,35 @@ impl PythonRuntime {
             ("3.13.1".to_string(), false, "20241219"),
             ("3.13.0".to_string(), false, "20241008"),
             // Python 3.12.x (LTS)
-            ("3.12.12".to_string(), false, "20260114"),
             ("3.12.11".to_string(), false, "20250610"),
             ("3.12.10".to_string(), false, "20250508"),
             ("3.12.9".to_string(), false, "20250212"),
             ("3.12.8".to_string(), false, "20241219"),
             ("3.12.7".to_string(), false, "20241002"),
             // Python 3.11.x
-            ("3.11.14".to_string(), false, "20260114"),
             ("3.11.13".to_string(), false, "20250610"),
             ("3.11.12".to_string(), false, "20250508"),
             ("3.11.11".to_string(), false, "20241206"),
             ("3.11.10".to_string(), false, "20240909"),
             ("3.11.9".to_string(), false, "20240415"),
             // Python 3.10.x
-            ("3.10.19".to_string(), false, "20260114"),
             ("3.10.18".to_string(), false, "20250610"),
             ("3.10.17".to_string(), false, "20250508"),
             ("3.10.16".to_string(), false, "20241206"),
             ("3.10.15".to_string(), false, "20240909"),
             ("3.10.14".to_string(), false, "20240415"),
-            // Python 3.9.x (EOL but still available)
-            ("3.9.23".to_string(), false, "20260114"),
-            ("3.9.22".to_string(), false, "20250610"),
+            // Python 3.9.x (EOL Oct 2024)
             ("3.9.21".to_string(), false, "20241206"),
             ("3.9.20".to_string(), false, "20240909"),
+            // Python 3.8.x (EOL Oct 2024 - only recent releases have install_only_stripped)
+            ("3.8.20".to_string(), false, "20241002"),
+            ("3.8.19".to_string(), false, "20240814"),
+            // Python 3.7.x (EOL - Windows only from Python.org)
+            ("3.7.9".to_string(), false, "pythonorg"),
+            ("3.7.8".to_string(), false, "pythonorg"),
+            ("3.7.7".to_string(), false, "pythonorg"),
+            ("3.7.6".to_string(), false, "pythonorg"),
+            ("3.7.5".to_string(), false, "pythonorg"),
         ]
     }
 
@@ -98,18 +103,54 @@ impl PythonRuntime {
         None
     }
 
-    /// Build download URL for python-build-standalone
-    ///
-    /// Format: https://github.com/astral-sh/python-build-standalone/releases/download/{date}/cpython-{version}+{date}-{platform}-install_only_stripped.tar.gz
-    fn build_download_url(version: &str, platform: &Platform) -> Option<String> {
-        let platform_str = Self::get_platform_string(platform)?;
-        let date = Self::get_release_date(version)?;
+    /// Check if version is Python 3.7.x
+    pub fn is_python_37(version: &str) -> bool {
+        version.starts_with("3.7.")
+    }
 
-        // Use stripped version for smaller download
-        // Format: cpython-3.12.8+20241219-x86_64-pc-windows-msvc-install_only_stripped.tar.gz
-        Some(format!(
-            "https://github.com/astral-sh/python-build-standalone/releases/download/{date}/cpython-{version}+{date}-{platform_str}-install_only_stripped.tar.gz"
-        ))
+    /// Build download URL for Python
+    ///
+    /// For Python 3.8+: Uses python-build-standalone
+    /// Format: https://github.com/astral-sh/python-build-standalone/releases/download/{date}/cpython-{version}+{date}-{platform}-install_only_stripped.tar.gz
+    ///
+    /// For Python 3.7: Uses Python.org embeddable (Windows only)
+    /// Format: https://www.python.org/ftp/python/{version}/python-{version}-embed-{arch}.zip
+    fn build_download_url(version: &str, platform: &Platform) -> Option<String> {
+        if Self::is_python_37(version) {
+            // Python 3.7: Only Windows supported via Python.org embeddable
+            if !platform.is_windows() {
+                return None;
+            }
+            
+            // Only specific 3.7 versions have embeddable downloads on Python.org
+            // Check if version is in our supported list
+            let supported_37_versions = ["3.7.9", "3.7.8", "3.7.7", "3.7.6", "3.7.5"];
+            if !supported_37_versions.contains(&version) {
+                return None;
+            }
+            
+            // Python.org embeddable format
+            // amd64 for x86_64, win32 for x86
+            let arch = match platform.arch.as_str() {
+                "x86_64" | "x64" | "amd64" => "amd64",
+                "x86" | "i686" => "win32",
+                "aarch64" | "arm64" => "arm64", // Not available for 3.7, but include for completeness
+                _ => return None,
+            };
+            Some(format!(
+                "https://www.python.org/ftp/python/{version}/python-{version}-embed-{arch}.zip"
+            ))
+        } else {
+            // Python 3.8+: Use python-build-standalone
+            let platform_str = Self::get_platform_string(platform)?;
+            let date = Self::get_release_date(version)?;
+
+            // Use stripped version for smaller download
+            // Format: cpython-3.12.8+20241219-x86_64-pc-windows-msvc-install_only_stripped.tar.gz
+            Some(format!(
+                "https://github.com/astral-sh/python-build-standalone/releases/download/{date}/cpython-{version}+{date}-{platform_str}-install_only_stripped.tar.gz"
+            ))
+        }
     }
 }
 
@@ -120,7 +161,7 @@ impl Runtime for PythonRuntime {
     }
 
     fn description(&self) -> &str {
-        "Python programming language (3.9 - 3.15)"
+        "Python programming language (3.7 - 3.13)"
     }
 
     fn aliases(&self) -> &[&str] {
@@ -149,7 +190,7 @@ impl Runtime for PythonRuntime {
         );
         meta.insert(
             "supported_versions".to_string(),
-            "3.9, 3.10, 3.11, 3.12, 3.13, 3.14, 3.15".to_string(),
+            "3.7 (Windows only), 3.8, 3.9, 3.10, 3.11, 3.12, 3.13".to_string(),
         );
         meta
     }
@@ -161,8 +202,12 @@ impl Runtime for PythonRuntime {
     /// Python executable path within the extracted archive
     ///
     /// python-build-standalone extracts to: python/bin/python3 (Unix) or python/python.exe (Windows)
-    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        if platform.is_windows() {
+    /// Python.org embeddable (3.7) extracts to: python.exe (flat structure)
+    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        if Self::is_python_37(version) {
+            // Python.org embeddable has flat structure
+            "python.exe".to_string()
+        } else if platform.is_windows() {
             "python/python.exe".to_string()
         } else {
             "python/bin/python3".to_string()
@@ -280,8 +325,15 @@ impl Runtime for PipRuntime {
     }
 
     /// Pip executable path within Python installation
-    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        if platform.is_windows() {
+    ///
+    /// Note: Python 3.7 from Python.org embeddable does NOT include pip.
+    /// For Python 3.7, pip needs to be installed separately.
+    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        if PythonRuntime::is_python_37(version) {
+            // Python.org embeddable doesn't include pip
+            // Return the path where pip would be if installed via get-pip.py
+            "Scripts/pip.exe".to_string()
+        } else if platform.is_windows() {
             "python/Scripts/pip.exe".to_string()
         } else {
             "python/bin/pip3".to_string()
