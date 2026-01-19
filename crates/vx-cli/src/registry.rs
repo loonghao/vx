@@ -197,6 +197,7 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         ffmpeg,
         nasm,
         gh,
+        imagemagick,
     );
 
     registry
@@ -249,6 +250,7 @@ fn create_static_registry() -> ProviderRegistry {
         ffmpeg,
         nasm,
         gh,
+        imagemagick,
     );
 
     registry
