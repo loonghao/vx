@@ -4,15 +4,9 @@
 version = 1
 
 [metadata]
-generated_at = "2026-01-19T00:12:47Z"
+generated_at = "2026-01-19T12:55:42Z"
 vx_version = "0.6.6"
 platform = "x86_64-pc-windows-msvc"
-
-[tools.python]
-version = "3.12.12"
-source = "vx install"
-resolved_from = "3.12"
-ecosystem = "Python"
 
 [tools.node]
 version = "24.12.0"
@@ -20,14 +14,8 @@ source = "vx install"
 resolved_from = "latest"
 ecosystem = "Node"
 
-[tools.java]
-version = "25"
-source = "vx install"
-resolved_from = "latest"
-ecosystem = "Generic"
-
-[tools.cmake]
-version = "4.2.1"
+[tools.just]
+version = "1.46.0"
 source = "vx install"
 resolved_from = "latest"
 ecosystem = "Generic"
@@ -38,23 +26,23 @@ source = "vx install"
 resolved_from = "latest"
 ecosystem = "Python"
 
-[tools.uv]
-version = "0.9.22"
+[tools.python]
+version = "3.12.12"
 source = "vx install"
-resolved_from = "latest"
+resolved_from = "3.12"
 ecosystem = "Python"
 
-[tools.go]
-version = "1.25.5"
+[tools.cmake]
+version = "4.2.1"
 source = "vx install"
 resolved_from = "latest"
-ecosystem = "Go"
+ecosystem = "Generic"
 
-[tools.bun]
-version = "1.3.5"
+[tools.magick]
+version = "7.1.2-12"
 source = "vx install"
-resolved_from = "latest"
-ecosystem = "Node"
+resolved_from = "7.1.2-12"
+ecosystem = "Generic"
 
 [tools.gh]
 version = "2.85.0"
@@ -62,8 +50,26 @@ source = "vx install"
 resolved_from = "latest"
 ecosystem = "Generic"
 
-[tools.just]
-version = "1.46.0"
+[tools.uv]
+version = "0.9.22"
+source = "vx install"
+resolved_from = "latest"
+ecosystem = "Python"
+
+[tools.bun]
+version = "1.3.5"
+source = "vx install"
+resolved_from = "latest"
+ecosystem = "Node"
+
+[tools.java]
+version = "25"
 source = "vx install"
 resolved_from = "latest"
 ecosystem = "Generic"
+
+[tools.go]
+version = "1.25.5"
+source = "vx install"
+resolved_from = "latest"
+ecosystem = "Go"
