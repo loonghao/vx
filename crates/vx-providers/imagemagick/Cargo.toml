@@ -13,6 +13,7 @@ rust-version.workspace = true
 
 [dependencies]
 vx-runtime = { workspace = true }
+vx-system-pm = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
@@ -22,6 +23,7 @@ reqwest = { workspace = true }
 chrono = { workspace = true }
 regex = { workspace = true }
 which = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }

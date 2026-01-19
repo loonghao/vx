@@ -4493,7 +4493,9 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
+ "vx-system-pm",
  "which",
 ]
 
