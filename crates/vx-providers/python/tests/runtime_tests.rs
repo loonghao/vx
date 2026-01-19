@@ -40,7 +40,8 @@ fn test_runtime_description() {
     let runtime = PythonRuntime::new();
     let desc = runtime.description();
     assert!(desc.contains("Python"));
-    assert!(desc.contains("3.9") || desc.contains("3.15"));
+    // Description should mention 3.7 - 3.13 range
+    assert!(desc.contains("3.7") || desc.contains("3.13"));
 }
 
 #[test]
@@ -69,11 +70,12 @@ fn test_runtime_metadata() {
         .get("source")
         .unwrap()
         .contains("python-build-standalone"));
-    // Check supported versions includes 3.9 to 3.15
+    // Check supported versions includes 3.7 to 3.13
     let supported = meta.get("supported_versions").unwrap();
+    assert!(supported.contains("3.7"));
     assert!(supported.contains("3.9"));
     assert!(supported.contains("3.12"));
-    assert!(supported.contains("3.15"));
+    assert!(supported.contains("3.13"));
 }
 
 #[rstest]
