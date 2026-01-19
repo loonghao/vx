@@ -1055,10 +1055,27 @@ pub trait Runtime: Send + Sync {
         resolver
             .resolve(version, &versions, &ecosystem)
             .ok_or_else(|| {
+                // Build a helpful error message with available version range
+                let stable_versions: Vec<_> = versions
+                    .iter()
+                    .filter(|v| !v.prerelease)
+                    .map(|v| &v.version)
+                    .collect();
+
+                let hint = if stable_versions.is_empty() {
+                    "No stable versions available.".to_string()
+                } else {
+                    // Get min and max versions
+                    let min = stable_versions.last().map(|v| v.as_str()).unwrap_or("?");
+                    let max = stable_versions.first().map(|v| v.as_str()).unwrap_or("?");
+                    format!("Available versions: {} to {}", min, max)
+                };
+
                 anyhow::anyhow!(
-                    "No version found for {} matching '{}'",
+                    "No version found for {} matching '{}'. {}",
                     self.name(),
-                    version
+                    version,
+                    hint
                 )
             })
     }

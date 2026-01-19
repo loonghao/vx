@@ -1005,10 +1005,6 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<u64> {
     Ok(total_size)
 }
 
-/// Quick network connectivity check
-///
-/// Re-exported from vx_resolver for CLI commands that need it directly.
-
 /// Check if a bundle exists for the current project
 pub fn has_bundle_at(project_root: &Path) -> bool {
     let manifest_path = project_root
