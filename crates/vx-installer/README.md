@@ -154,6 +154,7 @@ vx-installer supports multiple installation methods:
 | TAR.GZ | `.tar.gz`, `.tgz` | Gzip | Unix-like |
 | TAR.XZ | `.tar.xz`, `.txz` | XZ | Unix-like |
 | TAR.BZ2 | `.tar.bz2`, `.tbz2` | Bzip2 | Unix-like |
+| TAR.ZST | `.tar.zst`, `.tzst` | Zstandard | Cross-platform |
 
 ### Progress Styles
 

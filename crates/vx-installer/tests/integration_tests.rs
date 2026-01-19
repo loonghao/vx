@@ -58,6 +58,8 @@ fn test_archive_format_detection() {
     assert_eq!(detect_format(Path::new("test.tgz")), Some("tar.gz"));
     assert_eq!(detect_format(Path::new("test.tar.xz")), Some("tar.xz"));
     assert_eq!(detect_format(Path::new("test.tar.bz2")), Some("tar.bz2"));
+    assert_eq!(detect_format(Path::new("test.tar.zst")), Some("tar.zst"));
+    assert_eq!(detect_format(Path::new("test.tzst")), Some("tar.zst"));
     assert_eq!(detect_format(Path::new("test.exe")), Some("exe"));
 }
 

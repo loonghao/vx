@@ -231,6 +231,7 @@ zip = { version = "7.0", default-features = false, features = ["aes-crypto", "bz
 tar = "0.4"
 flate2 = "1.0"
 xz2 = "0.1"
+zstd = "0.13"
 walkdir = "2.4"
 glob = "0.3"
 # Optimize chrono - remove serde feature if not needed everywhere

@@ -2,10 +2,10 @@
 
 use super::FormatHandler;
 use crate::{progress::ProgressContext, Error, Result};
-use std::io::Read;
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
-/// Handler for TAR archive formats (tar, tar.gz, tar.xz, tar.bz2)
+/// Handler for TAR archive formats (tar, tar.gz, tar.xz, tar.bz2, tar.zst)
 pub struct TarHandler;
 
 impl TarHandler {
@@ -23,6 +23,8 @@ impl TarHandler {
                 CompressionType::Xz
             } else if filename.ends_with(".tar.bz2") || filename.ends_with(".tbz2") {
                 CompressionType::Bzip2
+            } else if filename.ends_with(".tar.zst") || filename.ends_with(".tzst") {
+                CompressionType::Zstd
             } else if filename.ends_with(".tar") {
                 CompressionType::None
             } else {
@@ -41,6 +43,7 @@ enum CompressionType {
     Gzip,
     Xz,
     Bzip2,
+    Zstd,
     Unknown,
 }
 
@@ -59,6 +62,8 @@ impl FormatHandler for TarHandler {
                 || filename.ends_with(".txz")
                 || filename.ends_with(".tar.bz2")
                 || filename.ends_with(".tbz2")
+                || filename.ends_with(".tar.zst")
+                || filename.ends_with(".tzst")
         } else {
             false
         }
@@ -97,6 +102,11 @@ impl FormatHandler for TarHandler {
             CompressionType::Bzip2 => {
                 // Note: bzip2 support would require additional dependency
                 return Err(Error::unsupported_format("tar.bz2"));
+            }
+            CompressionType::Zstd => {
+                let decoder = zstd::stream::read::Decoder::new(BufReader::new(file))?;
+                self.extract_tar(decoder, target_dir, &mut extracted_files)
+                    .await?;
             }
             CompressionType::Unknown => {
                 return Err(Error::unsupported_format("unknown tar format"));
@@ -207,6 +217,8 @@ mod tests {
         assert!(handler.can_handle(Path::new("test.tgz")));
         assert!(handler.can_handle(Path::new("test.tar.xz")));
         assert!(handler.can_handle(Path::new("test.tar.bz2")));
+        assert!(handler.can_handle(Path::new("test.tar.zst")));
+        assert!(handler.can_handle(Path::new("test.tzst")));
         assert!(!handler.can_handle(Path::new("test.zip")));
         assert!(!handler.can_handle(Path::new("test.exe")));
     }
@@ -236,6 +248,14 @@ mod tests {
         assert!(matches!(
             handler.detect_compression(Path::new("test.tar.xz")),
             CompressionType::Xz
+        ));
+        assert!(matches!(
+            handler.detect_compression(Path::new("test.tar.zst")),
+            CompressionType::Zstd
+        ));
+        assert!(matches!(
+            handler.detect_compression(Path::new("test.tzst")),
+            CompressionType::Zstd
         ));
     }
 }

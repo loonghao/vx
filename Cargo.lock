@@ -4141,6 +4141,7 @@ dependencies = [
  "vx-paths",
  "walkdir",
  "zip",
+ "zstd",
 ]
 
 [[package]]
@@ -4879,6 +4880,7 @@ dependencies = [
  "which",
  "xz2",
  "zip",
+ "zstd",
 ]
 
 [[package]]
