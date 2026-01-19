@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 pub mod binary;
 pub mod msi;
+pub mod sevenz;
 pub mod tar;
 pub mod zip;
 
@@ -149,6 +150,7 @@ impl ArchiveExtractor {
         let handlers: Vec<Box<dyn FormatHandler>> = vec![
             Box::new(zip::ZipHandler::new()),
             Box::new(tar::TarHandler::new()),
+            Box::new(sevenz::SevenZipHandler::new()),
             Box::new(msi::MsiHandler::new()),
             Box::new(binary::BinaryHandler::new()), // Keep binary as fallback
         ];

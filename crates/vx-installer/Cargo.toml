@@ -30,6 +30,7 @@ zip = { workspace = true }
 tar = { workspace = true }
 flate2 = { workspace = true }
 zstd = { workspace = true }
+sevenz-rust = "0.6"
 
 # Progress and UI
 indicatif = { version = "0.17", optional = true }

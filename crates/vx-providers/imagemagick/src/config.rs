@@ -5,8 +5,8 @@
 //! # Platform Support
 //!
 //! - **Linux x86_64**: AppImage binary (direct download)
+//! - **Windows x86_64/ARM64**: Portable .7z archive (direct download)
 //! - **macOS**: Not available for direct download (use Homebrew)
-//! - **Windows**: Not available for direct download (use Chocolatey/Scoop)
 //!
 //! The AppImage is a self-contained binary that works on most Linux distributions.
 
@@ -21,23 +21,32 @@ impl ImageMagickUrlBuilder {
 
     /// Build the download URL for a specific version and platform
     ///
-    /// Currently only supports Linux x86_64 via AppImage.
-    /// Other platforms should use system package managers.
-    pub fn download_url(_version: &str, platform: &Platform) -> Option<String> {
+    /// Supports:
+    /// - Linux x86_64: AppImage binary
+    /// - Windows x86_64/ARM64: Portable .7z archive
+    /// - macOS: Not supported (use Homebrew)
+    pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
         match (&platform.os, &platform.arch) {
             // Linux x86_64: Use AppImage
             // The AppImage is always named "magick" (no version in filename)
             (Os::Linux, Arch::X86_64) => Some(format!("{}/magick", Self::BASE_URL)),
 
+            // Windows: Use portable .7z archive
+            // Format: ImageMagick-{version}-portable-Q16-HDRI-{arch}.7z
+            (Os::Windows, Arch::X86_64) => Some(format!(
+                "{}/ImageMagick-{}-portable-Q16-HDRI-x64.7z",
+                Self::BASE_URL,
+                version
+            )),
+            (Os::Windows, Arch::Aarch64) => Some(format!(
+                "{}/ImageMagick-{}-portable-Q16-HDRI-arm64.7z",
+                Self::BASE_URL,
+                version
+            )),
+
             // macOS: No direct download available
             // Users should use: brew install imagemagick
             (Os::MacOS, _) => None,
-
-            // Windows: No supported format available
-            // Windows uses .7z format which vx doesn't support
-            // Users should use: choco install imagemagick
-            // Or: scoop install imagemagick
-            (Os::Windows, _) => None,
 
             // Other platforms not supported
             _ => None,
@@ -45,11 +54,10 @@ impl ImageMagickUrlBuilder {
     }
 
     /// Get the archive extension for the platform
-    ///
-    /// Linux AppImage is a binary file (no extension needed)
     pub fn get_archive_extension(platform: &Platform) -> Option<&'static str> {
         match &platform.os {
             Os::Linux => None, // AppImage is a binary, not an archive
+            Os::Windows => Some("7z"),
             _ => None,
         }
     }
@@ -64,14 +72,22 @@ impl ImageMagickUrlBuilder {
 
     /// Check if direct download is supported for the platform
     pub fn is_direct_download_supported(platform: &Platform) -> bool {
-        matches!((&platform.os, &platform.arch), (Os::Linux, Arch::X86_64))
+        matches!(
+            (&platform.os, &platform.arch),
+            (Os::Linux, Arch::X86_64)
+                | (Os::Windows, Arch::X86_64)
+                | (Os::Windows, Arch::Aarch64)
+        )
     }
 
     /// Get installation instructions for unsupported platforms
     pub fn get_installation_instructions(platform: &Platform) -> Option<&'static str> {
         match &platform.os {
             Os::MacOS => Some("brew install imagemagick"),
-            Os::Windows => Some("choco install imagemagick  # or: scoop install imagemagick"),
+            Os::Windows => match &platform.arch {
+                Arch::X86_64 | Arch::Aarch64 => None, // Direct download supported
+                _ => Some("choco install imagemagick  # or: scoop install imagemagick"),
+            },
             Os::Linux => match &platform.arch {
                 Arch::X86_64 => None, // Direct download supported
                 _ => Some("Use your distribution's package manager (apt, dnf, pacman, etc.)"),
@@ -99,13 +115,31 @@ mod tests {
     }
 
     #[test]
-    fn test_download_url_windows_not_supported() {
+    fn test_download_url_windows_x64() {
         let platform = Platform {
             os: Os::Windows,
             arch: Arch::X86_64,
         };
         let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
-        assert!(url.is_none());
+        assert!(url.is_some());
+        let url = url.unwrap();
+        assert!(url.contains("imagemagick.org/archive/binaries"));
+        assert!(url.contains("7.1.2-12"));
+        assert!(url.contains("portable-Q16-HDRI-x64"));
+        assert!(url.ends_with(".7z"));
+    }
+
+    #[test]
+    fn test_download_url_windows_arm64() {
+        let platform = Platform {
+            os: Os::Windows,
+            arch: Arch::Aarch64,
+        };
+        let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
+        assert!(url.is_some());
+        let url = url.unwrap();
+        assert!(url.contains("portable-Q16-HDRI-arm64"));
+        assert!(url.ends_with(".7z"));
     }
 
     #[test]
@@ -160,12 +194,20 @@ mod tests {
             &linux_arm
         ));
 
-        let windows = Platform {
+        let windows_x64 = Platform {
             os: Os::Windows,
             arch: Arch::X86_64,
         };
-        assert!(!ImageMagickUrlBuilder::is_direct_download_supported(
-            &windows
+        assert!(ImageMagickUrlBuilder::is_direct_download_supported(
+            &windows_x64
+        ));
+
+        let windows_arm64 = Platform {
+            os: Os::Windows,
+            arch: Arch::Aarch64,
+        };
+        assert!(ImageMagickUrlBuilder::is_direct_download_supported(
+            &windows_arm64
         ));
 
         let macos = Platform {
@@ -185,13 +227,12 @@ mod tests {
         assert!(instructions.is_some());
         assert!(instructions.unwrap().contains("brew"));
 
-        let windows = Platform {
+        let windows_x64 = Platform {
             os: Os::Windows,
             arch: Arch::X86_64,
         };
-        let instructions = ImageMagickUrlBuilder::get_installation_instructions(&windows);
-        assert!(instructions.is_some());
-        assert!(instructions.unwrap().contains("choco"));
+        let instructions = ImageMagickUrlBuilder::get_installation_instructions(&windows_x64);
+        assert!(instructions.is_none()); // Direct download now supported
 
         let linux_x64 = Platform {
             os: Os::Linux,
@@ -199,5 +240,23 @@ mod tests {
         };
         let instructions = ImageMagickUrlBuilder::get_installation_instructions(&linux_x64);
         assert!(instructions.is_none()); // Direct download supported
+    }
+
+    #[test]
+    fn test_archive_extension() {
+        let linux = Platform {
+            os: Os::Linux,
+            arch: Arch::X86_64,
+        };
+        assert_eq!(ImageMagickUrlBuilder::get_archive_extension(&linux), None);
+
+        let windows = Platform {
+            os: Os::Windows,
+            arch: Arch::X86_64,
+        };
+        assert_eq!(
+            ImageMagickUrlBuilder::get_archive_extension(&windows),
+            Some("7z")
+        );
     }
 }

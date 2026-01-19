@@ -129,7 +129,23 @@ impl Runtime for MagickRuntime {
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        Ok(ImageMagickUrlBuilder::download_url(version, platform))
+        let url = ImageMagickUrlBuilder::download_url(version, platform);
+
+        // If no direct download available, return an error with installation instructions
+        if url.is_none() {
+            if let Some(instructions) =
+                ImageMagickUrlBuilder::get_installation_instructions(platform)
+            {
+                return Err(anyhow::anyhow!(
+                    "Direct download not available for {} on this platform.\n\
+                     Please install via system package manager:\n  {}",
+                    self.name(),
+                    instructions
+                ));
+            }
+        }
+
+        Ok(url)
     }
 
     fn verify_installation(
@@ -391,8 +407,23 @@ impl Runtime for ConvertRuntime {
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        // Convert is bundled with magick
-        MagickRuntime::new().download_url(version, platform).await
+        // Convert is bundled with magick, use the same download logic
+        let url = ImageMagickUrlBuilder::download_url(version, platform);
+
+        if url.is_none() {
+            if let Some(instructions) =
+                ImageMagickUrlBuilder::get_installation_instructions(platform)
+            {
+                return Err(anyhow::anyhow!(
+                    "Direct download not available for {} on this platform.\n\
+                     Please install via system package manager:\n  {}",
+                    self.name(),
+                    instructions
+                ));
+            }
+        }
+
+        Ok(url)
     }
 
     fn verify_installation(
