@@ -151,7 +151,7 @@ impl SystemPackageManager for ScoopManager {
     }
 
     fn priority(&self) -> i32 {
-        60 // Lower than choco (80) and winget (70)
+        60 // Lower than winget (95) and choco (80)
     }
 }
 

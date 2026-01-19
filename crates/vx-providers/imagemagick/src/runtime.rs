@@ -370,8 +370,10 @@ impl MagickRuntime {
     /// Get the package name for a specific package manager
     fn get_package_name_for_manager(manager: &str) -> &'static str {
         match manager {
+            // winget uses the full package ID
+            "winget" => "ImageMagick.ImageMagick",
             // Most package managers use "imagemagick"
-            "brew" | "choco" | "scoop" | "apt" | "winget" => "imagemagick",
+            "brew" | "choco" | "scoop" | "apt" => "imagemagick",
             // Fedora/RHEL uses "ImageMagick" (capital I and M)
             "dnf" | "yum" => "ImageMagick",
             // Default

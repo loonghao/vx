@@ -186,7 +186,9 @@ impl SystemPackageManager for WingetManager {
     }
 
     fn priority(&self) -> i32 {
-        70
+        // winget is built-in on Windows 11 and modern Windows 10 (1709+)
+        // Prefer winget over choco/scoop as it's the official Microsoft tool
+        95
     }
 }
 
@@ -199,6 +201,7 @@ mod tests {
         let manager = WingetManager::new();
         assert_eq!(manager.name(), "winget");
         assert_eq!(manager.supported_platforms(), vec!["windows"]);
-        assert_eq!(manager.priority(), 70);
+        // winget has highest priority on Windows as it's built-in on Win11
+        assert_eq!(manager.priority(), 95);
     }
 }
