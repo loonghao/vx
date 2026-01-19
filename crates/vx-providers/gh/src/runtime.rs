@@ -79,7 +79,7 @@ impl Runtime for GitHubRuntime {
         };
 
         match platform.os {
-            vx_runtime::Os::Windows => format!("bin/gh.exe"),
+            vx_runtime::Os::Windows => "bin/gh.exe".to_string(),
             _ => format!(
                 "gh_{version}_{platform_dir}/bin/gh",
                 version = version,

@@ -1153,14 +1153,20 @@ impl CommandHandler for Commands {
                 detailed,
                 interactive,
             } => {
+                // Support tool@version format - extract just the tool name
+                let tool_name = if let Some((t, _)) = tool.split_once('@') {
+                    t
+                } else {
+                    tool.as_str()
+                };
                 commands::fetch::handle(
                     ctx.registry(),
                     ctx.runtime_context(),
-                    tool,
+                    tool_name,
                     *latest,
+                    *prerelease,
                     *detailed,
                     *interactive,
-                    *prerelease,
                 )
                 .await
             }

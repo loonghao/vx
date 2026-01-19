@@ -121,6 +121,8 @@ impl Installer for RealInstaller {
             Some("tar.gz")
         } else if archive_str.ends_with(".tar.xz") {
             Some("tar.xz")
+        } else if archive_str.ends_with(".tar.zst") || archive_str.ends_with(".tzst") {
+            Some("tar.zst")
         } else if archive_str.ends_with(".zip") {
             Some("zip")
         } else {
@@ -142,6 +144,13 @@ impl Installer for RealInstaller {
                 {
                     // XZ magic: \xFD7zXZ
                     Some("tar.xz")
+                } else if magic[0] == 0x28
+                    && magic[1] == 0xB5
+                    && magic[2] == 0x2F
+                    && magic[3] == 0xFD
+                {
+                    // Zstd magic: \x28\xB5\x2F\xFD
+                    Some("tar.zst")
                 } else {
                     None
                 }
@@ -160,6 +169,12 @@ impl Installer for RealInstaller {
             Some("tar.xz") => {
                 let file = std::fs::File::open(archive)?;
                 let decoder = xz2::read::XzDecoder::new(file);
+                let mut archive = tar::Archive::new(decoder);
+                archive.unpack(dest)?;
+            }
+            Some("tar.zst") => {
+                let file = std::fs::File::open(archive)?;
+                let decoder = zstd::stream::read::Decoder::new(std::io::BufReader::new(file))?;
                 let mut archive = tar::Archive::new(decoder);
                 archive.unpack(dest)?;
             }
@@ -223,6 +238,8 @@ impl Installer for RealInstaller {
         let mut is_archive = archive_str.ends_with(".tar.gz")
             || archive_str.ends_with(".tgz")
             || archive_str.ends_with(".tar.xz")
+            || archive_str.ends_with(".tar.zst")
+            || archive_str.ends_with(".tzst")
             || archive_str.ends_with(".zip");
 
         // Check extension hint from URL fragment

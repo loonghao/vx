@@ -332,34 +332,67 @@ impl VersionResolver {
             return None;
         }
 
-        // Parse and filter versions
-        let mut versions: Vec<(Version, &VersionInfo)> = available
+        // Parse all versions (including prereleases for fallback)
+        let mut all_versions: Vec<(Version, &VersionInfo)> = available
             .iter()
             .filter_map(|v| {
                 let parsed = Version::parse(&v.version)?;
-                // Filter prereleases unless allowed
-                if !self.allow_prerelease && (parsed.is_prerelease() || v.prerelease) {
-                    return None;
-                }
                 Some((parsed, v))
             })
             .collect();
 
         // Sort by version descending (newest first)
-        versions.sort_by(|a, b| b.0.cmp(&a.0));
+        all_versions.sort_by(|a, b| b.0.cmp(&a.0));
+
+        // Filter stable versions (non-prerelease)
+        let stable_versions: Vec<_> = all_versions
+            .iter()
+            .filter(|(parsed, info)| {
+                self.allow_prerelease || (!parsed.is_prerelease() && !info.prerelease)
+            })
+            .cloned()
+            .collect();
 
         // For Latest constraint with prefer_lts, prefer LTS versions
         if matches!(constraint, VersionConstraint::Latest) && self.prefer_lts {
-            let lts_versions: Vec<_> = versions.iter().filter(|(_, v)| v.lts).collect();
+            let lts_versions: Vec<_> = stable_versions.iter().filter(|(_, v)| v.lts).collect();
             if !lts_versions.is_empty() {
                 return lts_versions.first().map(|(_, v)| v.version.clone());
             }
         }
 
-        // Find matching version
-        for (parsed, info) in &versions {
+        // First, try to find matching stable version
+        for (parsed, info) in &stable_versions {
             if self.version_satisfies(parsed, constraint) {
                 return Some(info.version.clone());
+            }
+        }
+
+        // If no stable version found and allow_prerelease is false,
+        // try to find a matching prerelease as fallback for specific version requests
+        // (Partial, Major, Exact, Wildcard constraints)
+        if !self.allow_prerelease {
+            let should_fallback = matches!(
+                constraint,
+                VersionConstraint::Partial { .. }
+                    | VersionConstraint::Major(_)
+                    | VersionConstraint::Exact(_)
+                    | VersionConstraint::Wildcard { .. }
+            );
+
+            if should_fallback {
+                // Try prerelease versions
+                let prerelease_versions: Vec<_> = all_versions
+                    .iter()
+                    .filter(|(parsed, info)| parsed.is_prerelease() || info.prerelease)
+                    .cloned()
+                    .collect();
+
+                for (parsed, info) in &prerelease_versions {
+                    if self.version_satisfies(parsed, constraint) {
+                        return Some(info.version.clone());
+                    }
+                }
             }
         }
 
@@ -539,6 +572,45 @@ mod tests {
 
         let result = resolver.resolve("latest", &available, &Ecosystem::NodeJs);
         assert_eq!(result, Some("20.0.0".to_string()));
+    }
+
+    #[test]
+    fn test_prerelease_fallback_for_partial_version() {
+        // When requesting a partial version (e.g., 3.14) that only has prerelease versions,
+        // the resolver should fall back to the prerelease version
+        let resolver = VersionResolver::new();
+        let mut available = make_versions(&["3.13.4", "3.14.0-alpha.1"]);
+        available[1].prerelease = true;
+
+        // Request 3.14 - should get the prerelease since no stable 3.14.x exists
+        let result = resolver.resolve("3.14", &available, &Ecosystem::Python);
+        assert_eq!(result, Some("3.14.0-alpha.1".to_string()));
+
+        // Request 3.13 - should get stable version
+        let result = resolver.resolve("3.13", &available, &Ecosystem::Python);
+        assert_eq!(result, Some("3.13.4".to_string()));
+    }
+
+    #[test]
+    fn test_prerelease_fallback_for_major_version() {
+        let resolver = VersionResolver::new();
+        let mut available = make_versions(&["3.13.4", "4.0.0-beta.1"]);
+        available[1].prerelease = true;
+
+        // Request major version 4 - should get prerelease since no stable 4.x.x exists
+        let result = resolver.resolve("4", &available, &Ecosystem::Python);
+        assert_eq!(result, Some("4.0.0-beta.1".to_string()));
+    }
+
+    #[test]
+    fn test_no_prerelease_fallback_for_latest() {
+        // "latest" should NOT fall back to prerelease versions
+        let resolver = VersionResolver::new();
+        let mut available = make_versions(&["3.13.4", "3.14.0-alpha.1"]);
+        available[1].prerelease = true;
+
+        let result = resolver.resolve("latest", &available, &Ecosystem::Python);
+        assert_eq!(result, Some("3.13.4".to_string()));
     }
 
     #[test]

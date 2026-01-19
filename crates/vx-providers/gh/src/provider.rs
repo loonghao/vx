@@ -4,6 +4,7 @@ use vx_runtime::Provider;
 use crate::runtime::GitHubRuntime;
 
 /// GitHub Provider implementation
+#[derive(Debug, Clone, Default)]
 pub struct GitHubProvider;
 
 impl GitHubProvider {

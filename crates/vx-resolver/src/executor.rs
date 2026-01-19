@@ -224,7 +224,7 @@ impl<'a> Executor<'a> {
             // Try to find if there's a bundle at all
             let cwd = std::env::current_dir().ok();
             let has_project_bundle = cwd.and_then(|cwd| {
-                find_vx_config(&cwd).ok().and_then(|p| p.parent().map(|r| has_bundle(r)))
+                find_vx_config(&cwd).ok().and_then(|p| p.parent().map(has_bundle))
             }).unwrap_or(false);
 
             if has_project_bundle {

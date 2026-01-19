@@ -136,14 +136,13 @@ pub fn to_long_path(path: &Path) -> PathBuf {
 pub fn from_long_path(path: &Path) -> PathBuf {
     let path_str = path.to_string_lossy();
 
-    if path_str.starts_with(EXTENDED_UNC_PREFIX) {
+    if let Some(unc_path) = path_str.strip_prefix(EXTENDED_UNC_PREFIX) {
         // Convert \\?\UNC\server\share back to \\server\share
-        let unc_path = &path_str[EXTENDED_UNC_PREFIX.len()..];
         return PathBuf::from(format!(r"\\{}", unc_path));
     }
 
-    if path_str.starts_with(EXTENDED_PATH_PREFIX) {
-        return PathBuf::from(&path_str[EXTENDED_PATH_PREFIX.len()..]);
+    if let Some(regular_path) = path_str.strip_prefix(EXTENDED_PATH_PREFIX) {
+        return PathBuf::from(regular_path);
     }
 
     path.to_path_buf()
