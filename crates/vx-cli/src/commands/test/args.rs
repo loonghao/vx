@@ -66,6 +66,10 @@ pub struct Args {
     #[arg(long)]
     pub temp_root: bool,
 
+    /// Clean up after CI test: uninstall runtimes and verify removal
+    #[arg(long)]
+    pub cleanup: bool,
+
     // === Checks ===
     /// Check if runtime is installed in vx store
     #[arg(long)]
