@@ -375,6 +375,32 @@ pub trait Runtime: Send + Sync {
         None
     }
 
+    /// Return the post-install normalization configuration (RFC 0022)
+    ///
+    /// Normalization ensures a consistent directory structure after installation:
+    /// - Creates a standard `bin/` directory
+    /// - Links or copies executables to standard locations
+    /// - Creates aliases for additional commands
+    ///
+    /// # Example provider.toml
+    ///
+    /// ```toml
+    /// [runtimes.normalize]
+    /// enabled = true
+    ///
+    /// [[runtimes.normalize.executables]]
+    /// source = "ImageMagick-*-Q16-HDRI/magick.exe"
+    /// target = "magick.exe"
+    /// action = "link"
+    ///
+    /// [[runtimes.normalize.aliases]]
+    /// name = "convert"
+    /// target = "magick"
+    /// ```
+    fn normalize_config(&self) -> Option<&vx_manifest::NormalizeConfig> {
+        None
+    }
+
     // ========== Lifecycle Hooks ==========
     //
     // All hooks have default empty implementations.
@@ -832,6 +858,24 @@ pub trait Runtime: Send + Sync {
 
         // Run post-extract hook
         self.post_extract(version, &install_path)?;
+
+        // RFC 0022: Post-install normalization
+        if let Some(normalize_config) = self.normalize_config() {
+            use crate::normalizer::{NormalizeContext, Normalizer};
+
+            let normalize_ctx = NormalizeContext::new(self.name(), version);
+            match Normalizer::normalize(&install_path, normalize_config, &normalize_ctx) {
+                Ok(result) => {
+                    if result.has_changes() {
+                        debug!("Normalization completed: {}", result.summary());
+                    }
+                }
+                Err(e) => {
+                    // Normalization errors are warnings, not failures
+                    debug!("Normalization warning: {}", e);
+                }
+            }
+        }
 
         debug!("Expected executable path pattern: {}", exe_relative);
 

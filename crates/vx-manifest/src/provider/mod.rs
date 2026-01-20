@@ -10,6 +10,7 @@ pub mod hooks;
 pub mod layout;
 pub mod manifest;
 pub mod mirror;
+pub mod normalize;
 pub mod output;
 pub mod platform_config;
 pub mod runtime;
@@ -31,6 +32,10 @@ pub use layout::{
 };
 pub use manifest::{ProviderManifest, ProviderMeta};
 pub use mirror::{CacheConfig, MirrorConfig, MirrorStrategy};
+pub use normalize::{
+    AliasNormalize, DirectoryNormalize, EffectiveNormalizeConfig, ExecutableNormalize,
+    NormalizeAction, NormalizeConfig, PlatformNormalizeConfig,
+};
 pub use output::{MachineFlagsConfig, OutputColorConfig, OutputConfig};
 pub use platform_config::{PlatformConfig, PlatformsDef};
 pub use runtime::RuntimeDef;

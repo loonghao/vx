@@ -312,8 +312,21 @@ pub async fn install_quiet(
 
     // Check if already installed
     if runtime.is_installed(&target_version, context).await? {
-        // For already installed, we need to construct an InstallResult
-        // Try to find the executable in system PATH first (for system installs)
+        // For already installed, use the runtime's method to get the correct executable path
+        // This handles different directory structures (e.g., node-v24.13.0-win-x64/node.exe)
+        let store_name = runtime.store_name();
+        let install_path = context.paths.version_store_dir(store_name, &target_version);
+        
+        // Use get_executable_path_for_version which properly handles each runtime's layout
+        if let Ok(Some(exe_path)) = runtime.get_executable_path_for_version(&target_version, context).await {
+            return Ok(InstallResult::already_installed(
+                install_path,
+                exe_path,
+                target_version,
+            ));
+        }
+        
+        // Fall back to system PATH if store path not found
         let exe_name = runtime.name();
         if let Ok(exe_path) = which::which(exe_name) {
             return Ok(InstallResult::system_installed(
@@ -321,10 +334,11 @@ pub async fn install_quiet(
                 Some(exe_path),
             ));
         }
-        // Fall back to store path
-        let store_name = runtime.store_name();
-        let install_path = context.paths.version_store_dir(store_name, &target_version);
-        let exe_path = install_path.join("bin").join(exe_name);
+        
+        // Last resort: return a reasonable default (may not exist)
+        let platform = vx_runtime::Platform::current();
+        let exe_relative = runtime.executable_relative_path(&target_version, &platform);
+        let exe_path = install_path.join(&exe_relative);
         return Ok(InstallResult::already_installed(
             install_path,
             exe_path,
