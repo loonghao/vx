@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.19](https://github.com/loonghao/vx/compare/vx-v0.6.18...vx-v0.6.19) (2026-01-20)
+
+
+### Features
+
+* **system-pm:** add silent installation support for Windows package managers ([00ead9d](https://github.com/loonghao/vx/commit/00ead9d510b05e44d41160da2149435eccf503ca))
+
 ## [0.6.18](https://github.com/loonghao/vx/compare/vx-v0.6.17...vx-v0.6.18) (2026-01-20)
 
 
