@@ -60,9 +60,7 @@ impl ChocolateyManager {
     /// Run a choco command with streaming output for progress tracking
     fn run_choco_with_progress(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
         let mut cmd = Command::new("choco");
-        cmd.args(args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+        cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
 
         let mut child = cmd.spawn()?;
 
@@ -263,7 +261,8 @@ impl SystemPackageManager for ChocolateyManager {
             return Ok(false);
         }
 
-        let output = self.run_choco(&["list", "--local-only", "--exact", package, "--limit-output"])?;
+        let output =
+            self.run_choco(&["list", "--local-only", "--exact", package, "--limit-output"])?;
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -284,7 +283,8 @@ impl SystemPackageManager for ChocolateyManager {
             return Ok(None);
         }
 
-        let output = self.run_choco(&["list", "--local-only", "--exact", package, "--limit-output"])?;
+        let output =
+            self.run_choco(&["list", "--local-only", "--exact", package, "--limit-output"])?;
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);

@@ -41,7 +41,10 @@ fn test_package_install_spec_defaults_to_silent() {
     let spec = PackageInstallSpec::new("test-package");
 
     // By default, silent should be true
-    assert!(spec.silent, "PackageInstallSpec should default to silent mode");
+    assert!(
+        spec.silent,
+        "PackageInstallSpec should default to silent mode"
+    );
 }
 
 /// Test that PackageInstallSpec can be customized
