@@ -12,6 +12,7 @@ use super::{
     hooks::HooksDef,
     layout::LayoutConfig,
     mirror::{CacheConfig, MirrorConfig, MirrorStrategy},
+    normalize::NormalizeConfig,
     output::OutputConfig,
     platform_config::PlatformsDef,
     shell::ShellConfig,
@@ -123,6 +124,11 @@ pub struct RuntimeDef {
     /// System installation configuration (package manager strategies)
     #[serde(default)]
     pub system_install: Option<SystemInstallConfigDef>,
+
+    // === RFC 0022: Install Normalize ===
+    /// Post-install normalization configuration
+    #[serde(default)]
+    pub normalize: Option<NormalizeConfig>,
 }
 
 impl RuntimeDef {
