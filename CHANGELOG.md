@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.18](https://github.com/loonghao/vx/compare/vx-v0.6.17...vx-v0.6.18) (2026-01-20)
+
+
+### Features
+
+* add GitHub CLI (gh) provider ([e3dd7f4](https://github.com/loonghao/vx/commit/e3dd7f45a1bcaed9611d39afa730b1de512583f0))
+* **imagemagick:** add system_deps for platform-specific package managers ([131e558](https://github.com/loonghao/vx/commit/131e5587ec64f14a28f755f805185a6ff68cac2c))
+* **imagemagick:** improve error messages and add e2e tests ([5d1ace2](https://github.com/loonghao/vx/commit/5d1ace2faec3d51e1066655411a78220196e6c8c))
+* **installer:** add .tar.zst (Zstandard) format support ([48761b8](https://github.com/loonghao/vx/commit/48761b88098bd14bf72f3934fd1e23c488ee64a8))
+* **installer:** add 7z archive format support in RealInstaller ([c9b291e](https://github.com/loonghao/vx/commit/c9b291e020a3d69f427304c2554301743b4705be))
+* **providers:** add ImageMagick provider ([d617818](https://github.com/loonghao/vx/commit/d6178180926ae9c8c5e59126c774bce575eb3543))
+* **python:** add Python 3.7 support (Windows only via Python.org embeddable) ([824623e](https://github.com/loonghao/vx/commit/824623e55818744c4ebb7bd31063d60a39e24e06))
+* **system-pm:** prioritize winget on Windows (built-in on Win11) ([208c99f](https://github.com/loonghao/vx/commit/208c99f2218b26e77129335dcf3fa00dc1473b76))
+* **vx-runtime:** implement RFC 0022 post-install normalization ([68e1cb9](https://github.com/loonghao/vx/commit/68e1cb93b9e7e41d0713c487b004e806a6aaa781))
+
+
+### Bug Fixes
+
+* **imagemagick:** add custom resolve_version for special version format ([f1c69eb](https://github.com/loonghao/vx/commit/f1c69eb1bbb0bfac814538d6de4330232f6f36d9))
+* **imagemagick:** implement system package manager fallback for macOS/Windows ([40f23e9](https://github.com/loonghao/vx/commit/40f23e9cd87fc88d54caef83dd5301f8f773a91a))
+* **imagemagick:** use package managers on Windows instead of direct download ([016b195](https://github.com/loonghao/vx/commit/016b19581d2f3d8941ebda2d859023da70f56481))
+* remove unused PermissionsExt import in bundle.rs ([4ebfd63](https://github.com/loonghao/vx/commit/4ebfd638206182ce1ae0d6d47b904da948bb4057))
+* resolve clippy field_reassign_with_default warnings ([6aa7896](https://github.com/loonghao/vx/commit/6aa78968e2f6b0d67ef830dc6fe503fff63722bf))
+* **test:** use executable_path from InstallResult for system installs ([10cebb1](https://github.com/loonghao/vx/commit/10cebb117a1728b4fc739a24e201cf8bd1b1330e))
+
+
+### Code Refactoring
+
+* various improvements and fixes ([f321c3c](https://github.com/loonghao/vx/commit/f321c3c0bb058aeb623e4d906aa67420b93f2383))
+
 ## [0.6.17](https://github.com/loonghao/vx/compare/vx-v0.6.16...vx-v0.6.17) (2026-01-18)
 
 
