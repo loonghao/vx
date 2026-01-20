@@ -493,10 +493,7 @@ impl Runtime for ManifestDrivenRuntime {
 
         // First try the default install (direct download) if URL is available
         if let Some(url) = self.download_url(version, &platform).await? {
-            info!(
-                "Installing {} via direct download from {}",
-                self.name, url
-            );
+            info!("Installing {} via direct download from {}", self.name, url);
             // Delegate to the default Runtime::install implementation
             // by getting the URL and using the installer
             let store_name = self.bundled_with.as_deref().unwrap_or(&self.name);
@@ -512,9 +509,15 @@ impl Runtime for ManifestDrivenRuntime {
                 ));
             }
 
-            ctx.installer.download_and_extract(&url, &install_path).await?;
+            ctx.installer
+                .download_and_extract(&url, &install_path)
+                .await?;
             let exe_path = install_path.join(&self.executable);
-            return Ok(InstallResult::success(install_path, exe_path, version.to_string()));
+            return Ok(InstallResult::success(
+                install_path,
+                exe_path,
+                version.to_string(),
+            ));
         }
 
         // No direct download, try system package manager strategies
@@ -536,14 +539,23 @@ impl Runtime for ManifestDrivenRuntime {
 
         for strategy in strategies {
             match strategy {
-                InstallStrategy::PackageManager { manager, package, params, install_args, .. } => {
+                InstallStrategy::PackageManager {
+                    manager,
+                    package,
+                    params,
+                    install_args,
+                    ..
+                } => {
                     // Check if this package manager is available
                     let pm = available_managers
                         .iter()
                         .find(|pm| pm.name().eq_ignore_ascii_case(manager));
 
                     if let Some(pm) = pm {
-                        debug!("Trying to install {} via {} (package: {})", self.name, manager, package);
+                        debug!(
+                            "Trying to install {} via {} (package: {})",
+                            self.name, manager, package
+                        );
 
                         let spec = PackageInstallSpec {
                             package: package.clone(),
@@ -571,12 +583,21 @@ impl Runtime for ManifestDrivenRuntime {
                         debug!("Package manager {} not available, skipping", manager);
                     }
                 }
-                InstallStrategy::Script { url, script_type, args, .. } => {
+                InstallStrategy::Script {
+                    url,
+                    script_type,
+                    args,
+                    ..
+                } => {
                     debug!("Script installation not yet implemented for {}", self.name);
                     // TODO: Implement script-based installation
                     let _ = (url, script_type, args);
                 }
-                InstallStrategy::ProvidedBy { provider, relative_path, .. } => {
+                InstallStrategy::ProvidedBy {
+                    provider,
+                    relative_path,
+                    ..
+                } => {
                     // Check if the provider runtime is installed
                     if which::which(provider).is_ok() {
                         debug!("{} is provided by {}", self.name, provider);

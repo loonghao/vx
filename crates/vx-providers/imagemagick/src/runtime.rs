@@ -410,7 +410,12 @@ impl MagickRuntime {
             let _ = std::fs::remove_dir_all(&install_path);
         }
 
-        info!("Downloading {} {} from {}", Runtime::name(self), version, url);
+        info!(
+            "Downloading {} {} from {}",
+            Runtime::name(self),
+            version,
+            url
+        );
 
         // Download and extract
         ctx.installer

@@ -52,11 +52,11 @@ pub use provider::{
     DownloadType, EffectiveNormalizeConfig, EnvConfig, ExecutableConfig, ExecutableNormalize,
     HealthConfig, HooksConfig, HooksDef, InlineTestScripts, InstallStrategyDef, LayoutConfig,
     MachineFlagsConfig, MirrorConfig, MirrorStrategy, NormalizeAction, NormalizeConfig,
-    OutputColorConfig, OutputConfig, PlatformBinaryConfig, PlatformConfig,
-    PlatformNormalizeConfig, PlatformTestCommands, PlatformsDef, ProvidedToolDef,
-    ProviderManifest, ProviderMeta, RuntimeDef, ScriptTypeDef, ShellCompletionsConfig, ShellConfig,
-    SystemDepTypeDef, SystemDependencyDef, SystemDepsConfigDef, SystemInstallConfigDef,
-    TestCommand, TestConfig, TestPlatformConfig, VersionSourceDef,
+    OutputColorConfig, OutputConfig, PlatformBinaryConfig, PlatformConfig, PlatformNormalizeConfig,
+    PlatformTestCommands, PlatformsDef, ProvidedToolDef, ProviderManifest, ProviderMeta,
+    RuntimeDef, ScriptTypeDef, ShellCompletionsConfig, ShellConfig, SystemDepTypeDef,
+    SystemDependencyDef, SystemDepsConfigDef, SystemInstallConfigDef, TestCommand, TestConfig,
+    TestPlatformConfig, VersionSourceDef,
 };
 
 pub use r#override::{apply_override, extract_provider_name, ProviderOverride, RuntimeOverride};
