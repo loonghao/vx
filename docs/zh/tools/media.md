@@ -42,8 +42,24 @@ vx magick montage *.jpg -geometry +2+2 collage.png
 
 **平台支持：**
 - **Linux**: 通过 AppImage 直接下载
-- **macOS**: 使用 `brew install imagemagick`
-- **Windows**: 使用 `choco install imagemagick` 或 `scoop install imagemagick`
+- **macOS**: 通过 Homebrew 安装（`brew install imagemagick`）
+- **Windows**: 通过系统包管理器**静默/非交互模式**安装：
+  - `winget`（首选，Windows 11 内置）- 使用 `--silent --disable-interactivity`
+  - `choco` - 使用 `-y --no-progress --limit-output`
+  - `scoop` - 默认非交互
+
+**静默安装：**
+
+在 Windows 上安装 ImageMagick 时，vx 会自动使用静默安装参数以避免交互式提示。这使其适合 CI/CD 环境和自动化工作流程：
+
+```bash
+# vx 自动处理所有静默安装参数
+vx install magick latest
+
+# 在后台，vx 使用：
+# winget: winget install --id ImageMagick.ImageMagick --silent --disable-interactivity
+# choco:  choco install imagemagick -y --no-progress --limit-output
+```
 
 **常用操作：**
 

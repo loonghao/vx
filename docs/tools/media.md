@@ -42,8 +42,24 @@ vx magick montage *.jpg -geometry +2+2 collage.png
 
 **Platform Support:**
 - **Linux**: Direct download via AppImage
-- **macOS**: Use `brew install imagemagick`
-- **Windows**: Use `choco install imagemagick` or `scoop install imagemagick`
+- **macOS**: Installed via Homebrew (`brew install imagemagick`)
+- **Windows**: Installed via system package managers with **silent/non-interactive mode**:
+  - `winget` (preferred, built-in on Windows 11) - Uses `--silent --disable-interactivity`
+  - `choco` - Uses `-y --no-progress --limit-output`
+  - `scoop` - Non-interactive by default
+
+**Silent Installation:**
+
+When installing ImageMagick on Windows, vx automatically uses silent installation flags to avoid interactive prompts. This makes it suitable for CI/CD environments and automated workflows:
+
+```bash
+# vx handles all the silent flags automatically
+vx install magick latest
+
+# Behind the scenes, vx uses:
+# winget: winget install --id ImageMagick.ImageMagick --silent --disable-interactivity
+# choco:  choco install imagemagick -y --no-progress --limit-output
+```
 
 **Common operations:**
 
