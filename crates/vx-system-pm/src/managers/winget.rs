@@ -55,9 +55,7 @@ impl WingetManager {
     /// Run a winget command with streaming output for progress tracking
     fn run_winget_with_progress(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
         let mut cmd = Command::new("winget");
-        cmd.args(args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+        cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
 
         let mut child = cmd.spawn()?;
 
