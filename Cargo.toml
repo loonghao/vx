@@ -64,13 +64,10 @@ members = [
   "crates/vx-providers/python",
   # MSVC Build Tools (Windows-only)
   "crates/vx-providers/msvc",
-<<<<<<< HEAD
   # Conda package manager
   "crates/vx-providers/conda",
-=======
   # Media processing tools (RFC 0016)
   "crates/vx-providers/ffmpeg",
->>>>>>> upstream/main
 ]
 resolver = "2"
 
