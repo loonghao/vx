@@ -79,12 +79,12 @@ fn test_provider_get_runtime() {
 }
 
 #[rstest]
-#[case(Os::Linux, Arch::X86_64, true)]   // Linux x86_64: AppImage download supported
+#[case(Os::Linux, Arch::X86_64, true)] // Linux x86_64: AppImage download supported
 #[case(Os::Linux, Arch::Aarch64, false)] // Linux ARM: No download, use package manager
-#[case(Os::MacOS, Arch::X86_64, false)]  // macOS: Use Homebrew
+#[case(Os::MacOS, Arch::X86_64, false)] // macOS: Use Homebrew
 #[case(Os::MacOS, Arch::Aarch64, false)] // macOS ARM: Use Homebrew
-#[case(Os::Windows, Arch::X86_64, false)]   // Windows: Use winget/choco/scoop
-#[case(Os::Windows, Arch::Aarch64, false)]  // Windows ARM: Use winget/choco/scoop
+#[case(Os::Windows, Arch::X86_64, false)] // Windows: Use winget/choco/scoop
+#[case(Os::Windows, Arch::Aarch64, false)] // Windows ARM: Use winget/choco/scoop
 fn test_direct_download_support(#[case] os: Os, #[case] arch: Arch, #[case] expected: bool) {
     let platform = Platform { os, arch };
     assert_eq!(
@@ -127,7 +127,10 @@ fn test_download_url_windows_uses_package_manager() {
         arch: Arch::X86_64,
     };
     let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
-    assert!(url.is_none(), "Windows should use package managers, not direct download");
+    assert!(
+        url.is_none(),
+        "Windows should use package managers, not direct download"
+    );
 }
 
 #[test]
@@ -194,5 +197,8 @@ fn test_installation_instructions() {
         arch: Arch::X86_64,
     };
     let instructions = ImageMagickUrlBuilder::get_installation_instructions(&linux_x64);
-    assert!(instructions.is_none(), "Linux x86_64 supports direct download");
+    assert!(
+        instructions.is_none(),
+        "Linux x86_64 supports direct download"
+    );
 }

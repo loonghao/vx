@@ -413,25 +413,26 @@ async fn run_ci_test_for_runtime(
             result.install_success = true;
             let version = ir.version.clone();
             result.version_installed = Some(version.clone());
-            
+
             // Use executable path from InstallResult
             // For system installs, executable_path points to the actual location
-            let exe_path = if ir.executable_path.to_str() != Some("system") && ir.executable_path.exists() {
-                ir.executable_path.clone()
-            } else {
-                // Try to find in system PATH
-                which::which(runtime_name).unwrap_or_else(|_| {
-                    // Fall back to computed path
-                    get_executable_path_for_runtime(
-                        &runtime,
-                        runtime_name,
-                        &version,
-                        path_manager,
-                        &current_platform,
-                    )
-                })
-            };
-            
+            let exe_path =
+                if ir.executable_path.to_str() != Some("system") && ir.executable_path.exists() {
+                    ir.executable_path.clone()
+                } else {
+                    // Try to find in system PATH
+                    which::which(runtime_name).unwrap_or_else(|_| {
+                        // Fall back to computed path
+                        get_executable_path_for_runtime(
+                            &runtime,
+                            runtime_name,
+                            &version,
+                            path_manager,
+                            &current_platform,
+                        )
+                    })
+                };
+
             (version, exe_path)
         }
         Ok(Err(e)) => {
@@ -518,7 +519,8 @@ async fn run_ci_test_for_runtime(
         }
 
         // Verify uninstall with "where" check - should NOT find the executable
-        let where_found = check_where_after_uninstall(runtime_name, path_manager, &current_platform);
+        let where_found =
+            check_where_after_uninstall(runtime_name, path_manager, &current_platform);
         result.where_after_uninstall = Some(where_found);
 
         if opts.verbose && !opts.quiet && !opts.json {
@@ -534,7 +536,8 @@ async fn run_ci_test_for_runtime(
     result.overall_passed = result.install_success
         && result.functional_success
         && (!opts.cleanup
-            || (result.uninstall_success == Some(true) && result.where_after_uninstall == Some(false)));
+            || (result.uninstall_success == Some(true)
+                && result.where_after_uninstall == Some(false)));
 
     result
 }
@@ -582,7 +585,11 @@ fn print_ci_result_line(result: &CITestResult, opts: &Args) {
     let cleanup_info = if result.uninstall_success.is_some() {
         let uninstall_ok = result.uninstall_success == Some(true);
         let where_clean = result.where_after_uninstall == Some(false);
-        let cleanup_status = if uninstall_ok && where_clean { "✓" } else { "✗" };
+        let cleanup_status = if uninstall_ok && where_clean {
+            "✓"
+        } else {
+            "✗"
+        };
         format!(", cleanup: {}", cleanup_status)
     } else {
         String::new()
@@ -608,7 +615,11 @@ fn print_ci_result_line(result: &CITestResult, opts: &Args) {
             print!(" | Uninstall: {}", uninstall_status);
         }
         if let Some(where_found) = result.where_after_uninstall {
-            let where_status = if !where_found { "✓" } else { "✗ (still found)" };
+            let where_status = if !where_found {
+                "✓"
+            } else {
+                "✗ (still found)"
+            };
             print!(" | Where: {}", where_status);
         }
         println!();

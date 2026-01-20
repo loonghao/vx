@@ -178,9 +178,9 @@ impl NormalizeConfig {
             None => true, // No platform restriction
             Some(platforms) => {
                 let current = Self::current_platform_key();
-                platforms.iter().any(|p| {
-                    p == current || (p == "unix" && !cfg!(windows))
-                })
+                platforms
+                    .iter()
+                    .any(|p| p == current || (p == "unix" && !cfg!(windows)))
             }
         }
     }
@@ -310,7 +310,9 @@ mod tests {
             permissions: None,
             platforms: None,
         });
-        config.platforms.insert("windows".to_string(), windows_config);
+        config
+            .platforms
+            .insert("windows".to_string(), windows_config);
 
         let effective = config.get_effective_config();
 

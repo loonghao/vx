@@ -80,7 +80,9 @@ impl ImageMagickUrlBuilder {
         match &platform.os {
             Os::MacOS => Some("brew install imagemagick"),
             // Windows uses package managers via system_install strategies
-            Os::Windows => Some("winget install ImageMagick.ImageMagick  # or: choco install imagemagick"),
+            Os::Windows => {
+                Some("winget install ImageMagick.ImageMagick  # or: choco install imagemagick")
+            }
             Os::Linux => match &platform.arch {
                 Arch::X86_64 => None, // Direct download supported
                 _ => Some("Use your distribution's package manager (apt, dnf, pacman, etc.)"),
@@ -115,7 +117,10 @@ mod tests {
             arch: Arch::X86_64,
         };
         let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
-        assert!(url.is_none(), "Windows should use package managers, not direct download");
+        assert!(
+            url.is_none(),
+            "Windows should use package managers, not direct download"
+        );
     }
 
     #[test]
@@ -126,7 +131,10 @@ mod tests {
             arch: Arch::Aarch64,
         };
         let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
-        assert!(url.is_none(), "Windows ARM64 should use package managers, not direct download");
+        assert!(
+            url.is_none(),
+            "Windows ARM64 should use package managers, not direct download"
+        );
     }
 
     #[test]
@@ -224,7 +232,9 @@ mod tests {
         };
         let instructions = ImageMagickUrlBuilder::get_installation_instructions(&windows_x64);
         assert!(instructions.is_some());
-        assert!(instructions.unwrap().contains("winget") || instructions.unwrap().contains("choco"));
+        assert!(
+            instructions.unwrap().contains("winget") || instructions.unwrap().contains("choco")
+        );
 
         // Linux x86_64 has direct download, no instructions needed
         let linux_x64 = Platform {
@@ -248,9 +258,6 @@ mod tests {
             os: Os::Windows,
             arch: Arch::X86_64,
         };
-        assert_eq!(
-            ImageMagickUrlBuilder::get_archive_extension(&windows),
-            None
-        );
+        assert_eq!(ImageMagickUrlBuilder::get_archive_extension(&windows), None);
     }
 }

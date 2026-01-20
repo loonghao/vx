@@ -137,8 +137,7 @@ impl RuntimeMap {
                 }
 
                 // Check platform filter
-                if !dep.platforms.is_empty()
-                    && !dep.platforms.iter().any(|p| p == current_platform)
+                if !dep.platforms.is_empty() && !dep.platforms.iter().any(|p| p == current_platform)
                 {
                     continue;
                 }

@@ -316,16 +316,19 @@ pub async fn install_quiet(
         // This handles different directory structures (e.g., node-v24.13.0-win-x64/node.exe)
         let store_name = runtime.store_name();
         let install_path = context.paths.version_store_dir(store_name, &target_version);
-        
+
         // Use get_executable_path_for_version which properly handles each runtime's layout
-        if let Ok(Some(exe_path)) = runtime.get_executable_path_for_version(&target_version, context).await {
+        if let Ok(Some(exe_path)) = runtime
+            .get_executable_path_for_version(&target_version, context)
+            .await
+        {
             return Ok(InstallResult::already_installed(
                 install_path,
                 exe_path,
                 target_version,
             ));
         }
-        
+
         // Fall back to system PATH if store path not found
         let exe_name = runtime.name();
         if let Ok(exe_path) = which::which(exe_name) {
@@ -334,7 +337,7 @@ pub async fn install_quiet(
                 Some(exe_path),
             ));
         }
-        
+
         // Last resort: return a reasonable default (may not exist)
         let platform = vx_runtime::Platform::current();
         let exe_relative = runtime.executable_relative_path(&target_version, &platform);
