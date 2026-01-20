@@ -496,16 +496,17 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let install_path = temp.path();
 
-        let mut config = NormalizeConfig::default();
-        config.enabled = true;
-        // Add a rule to trigger bin directory creation
-        config.executables.push(ExecutableNormalize {
-            source: "nonexistent".to_string(),
-            target: "nonexistent".to_string(),
-            action: NormalizeAction::Link,
-            permissions: None,
-            platforms: None,
-        });
+        let config = NormalizeConfig {
+            enabled: true,
+            executables: vec![ExecutableNormalize {
+                source: "nonexistent".to_string(),
+                target: "nonexistent".to_string(),
+                action: NormalizeAction::Link,
+                permissions: None,
+                platforms: None,
+            }],
+            ..Default::default()
+        };
 
         let ctx = NormalizeContext::new("test", "1.0.0");
 
@@ -526,15 +527,17 @@ mod tests {
         std::fs::create_dir_all(&source_dir).unwrap();
         std::fs::write(source_dir.join("tool.exe"), "binary").unwrap();
 
-        let mut config = NormalizeConfig::default();
-        config.enabled = true;
-        config.executables.push(ExecutableNormalize {
-            source: "nested/tool.exe".to_string(),
-            target: "tool.exe".to_string(),
-            action: NormalizeAction::Copy, // Use copy for test portability
-            permissions: None,
-            platforms: None,
-        });
+        let config = NormalizeConfig {
+            enabled: true,
+            executables: vec![ExecutableNormalize {
+                source: "nested/tool.exe".to_string(),
+                target: "tool.exe".to_string(),
+                action: NormalizeAction::Copy, // Use copy for test portability
+                permissions: None,
+                platforms: None,
+            }],
+            ..Default::default()
+        };
 
         let ctx = NormalizeContext::new("tool", "1.0.0");
 
