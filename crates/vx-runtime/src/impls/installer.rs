@@ -280,8 +280,9 @@ impl Installer for RealInstaller {
                     // 7z magic: 7z\xBC\xAF\x27\x1C (first 6 bytes: 37 7A BC AF 27 1C)
                     is_archive = (magic[0] == 0x50 && magic[1] == 0x4B)  // ZIP
                         || (magic[0] == 0x1f && magic[1] == 0x8b) // GZIP (tar.gz)
-                        || (magic[0] == 0x37 && magic[1] == 0x7A && magic[2] == 0xBC 
-                            && magic[3] == 0xAF && magic[4] == 0x27 && magic[5] == 0x1C); // 7z
+                        || (magic[0] == 0x37 && magic[1] == 0x7A && magic[2] == 0xBC
+                            && magic[3] == 0xAF && magic[4] == 0x27 && magic[5] == 0x1C);
+                    // 7z
                 }
             }
         }

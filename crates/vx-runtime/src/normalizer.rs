@@ -133,8 +133,9 @@ impl Normalizer {
         // Ensure bin directory exists
         let bin_dir = install_path.join("bin");
         if !bin_dir.exists() {
-            std::fs::create_dir_all(&bin_dir)
-                .with_context(|| format!("Failed to create bin directory: {}", bin_dir.display()))?;
+            std::fs::create_dir_all(&bin_dir).with_context(|| {
+                format!("Failed to create bin directory: {}", bin_dir.display())
+            })?;
         }
 
         // Process executables
@@ -178,11 +179,7 @@ impl Normalizer {
                     result.aliases_created.push(alias.name.clone());
                 }
                 Ok(false) => {
-                    trace!(
-                        "Alias target not found: {} -> {}",
-                        alias.name,
-                        alias.target
-                    );
+                    trace!("Alias target not found: {} -> {}", alias.name, alias.target);
                 }
                 Err(e) => {
                     let msg = format!("Failed to create alias {}: {}", alias.name, e);
@@ -332,15 +329,13 @@ impl Normalizer {
             NormalizeAction::Link => Self::create_link(source, target),
             NormalizeAction::HardLink => Self::create_hardlink(source, target),
             NormalizeAction::Copy => Self::copy_recursive(source, target),
-            NormalizeAction::Move => {
-                std::fs::rename(source, target).with_context(|| {
-                    format!(
-                        "Failed to move {} to {}",
-                        source.display(),
-                        target.display()
-                    )
-                })
-            }
+            NormalizeAction::Move => std::fs::rename(source, target).with_context(|| {
+                format!(
+                    "Failed to move {} to {}",
+                    source.display(),
+                    target.display()
+                )
+            }),
         }
     }
 
@@ -408,15 +403,13 @@ impl Normalizer {
         if source.is_dir() {
             Self::copy_dir_all(source, target)
         } else {
-            std::fs::copy(source, target)
-                .map(|_| ())
-                .with_context(|| {
-                    format!(
-                        "Failed to copy {} to {}",
-                        source.display(),
-                        target.display()
-                    )
-                })
+            std::fs::copy(source, target).map(|_| ()).with_context(|| {
+                format!(
+                    "Failed to copy {} to {}",
+                    source.display(),
+                    target.display()
+                )
+            })
         }
     }
 
@@ -547,7 +540,9 @@ mod tests {
 
         let result = Normalizer::normalize(install_path, &config, &ctx).unwrap();
 
-        assert!(result.executables_normalized.contains(&"tool.exe".to_string()));
+        assert!(result
+            .executables_normalized
+            .contains(&"tool.exe".to_string()));
         assert!(install_path.join("bin/tool.exe").exists());
     }
 }
