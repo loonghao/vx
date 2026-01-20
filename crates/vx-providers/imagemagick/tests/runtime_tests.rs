@@ -79,12 +79,12 @@ fn test_provider_get_runtime() {
 }
 
 #[rstest]
-#[case(Os::Linux, Arch::X86_64, true)]
-#[case(Os::Linux, Arch::Aarch64, false)]
-#[case(Os::MacOS, Arch::X86_64, false)]
-#[case(Os::MacOS, Arch::Aarch64, false)]
-#[case(Os::Windows, Arch::X86_64, true)]
-#[case(Os::Windows, Arch::Aarch64, true)]
+#[case(Os::Linux, Arch::X86_64, true)]   // Linux x86_64: AppImage download supported
+#[case(Os::Linux, Arch::Aarch64, false)] // Linux ARM: No download, use package manager
+#[case(Os::MacOS, Arch::X86_64, false)]  // macOS: Use Homebrew
+#[case(Os::MacOS, Arch::Aarch64, false)] // macOS ARM: Use Homebrew
+#[case(Os::Windows, Arch::X86_64, false)]   // Windows: Use winget/choco/scoop
+#[case(Os::Windows, Arch::Aarch64, false)]  // Windows ARM: Use winget/choco/scoop
 fn test_direct_download_support(#[case] os: Os, #[case] arch: Arch, #[case] expected: bool) {
     let platform = Platform { os, arch };
     assert_eq!(
@@ -120,18 +120,14 @@ fn test_download_url_linux_x64() {
 }
 
 #[test]
-fn test_download_url_windows_x64() {
+fn test_download_url_windows_uses_package_manager() {
+    // Windows should use package managers (winget/choco/scoop), not direct download
     let platform = Platform {
         os: Os::Windows,
         arch: Arch::X86_64,
     };
     let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
-    assert!(url.is_some());
-    let url = url.unwrap();
-    assert!(url.contains("imagemagick.org"));
-    assert!(url.contains("7.1.2-12"));
-    assert!(url.contains("portable-Q16-HDRI-x64"));
-    assert!(url.ends_with(".7z"));
+    assert!(url.is_none(), "Windows should use package managers, not direct download");
 }
 
 #[test]
@@ -171,6 +167,7 @@ fn test_executable_dir_path() {
 /// Test that installation instructions are provided for unsupported platforms
 #[test]
 fn test_installation_instructions() {
+    // macOS: Use Homebrew
     let macos = Platform {
         os: Os::MacOS,
         arch: Arch::Aarch64,
@@ -179,20 +176,23 @@ fn test_installation_instructions() {
     assert!(instructions.is_some());
     assert!(instructions.unwrap().contains("brew"));
 
-    // Windows x64/ARM64 now supports direct download, so no instructions needed
+    // Windows now uses package managers (winget/choco/scoop)
     let windows_x64 = Platform {
         os: Os::Windows,
         arch: Arch::X86_64,
     };
     let instructions = ImageMagickUrlBuilder::get_installation_instructions(&windows_x64);
-    assert!(instructions.is_none()); // Direct download supported
-
-    // But Windows x86 still needs package manager
-    let windows_x86 = Platform {
-        os: Os::Windows,
-        arch: Arch::X86,
-    };
-    let instructions = ImageMagickUrlBuilder::get_installation_instructions(&windows_x86);
     assert!(instructions.is_some());
-    assert!(instructions.unwrap().contains("choco"));
+    assert!(
+        instructions.unwrap().contains("winget") || instructions.unwrap().contains("choco"),
+        "Windows should have package manager instructions"
+    );
+
+    // Linux x86_64 supports direct download, no instructions needed
+    let linux_x64 = Platform {
+        os: Os::Linux,
+        arch: Arch::X86_64,
+    };
+    let instructions = ImageMagickUrlBuilder::get_installation_instructions(&linux_x64);
+    assert!(instructions.is_none(), "Linux x86_64 supports direct download");
 }
