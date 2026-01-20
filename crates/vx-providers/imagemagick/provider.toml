@@ -2,14 +2,19 @@
 # This file defines the metadata, runtimes, and dependency constraints for ImageMagick.
 #
 # ImageMagick is a powerful image manipulation software suite.
-# - Linux: Uses AppImage binary from imagemagick.org (direct download)
-# - macOS: Requires Homebrew (vx-managed brew runtime)
-# - Windows: Prefers winget (built-in on Win11), falls back to choco/scoop
 #
-# Installation flow:
-# 1. Resolver detects platform-specific dependencies (brew on macOS, winget/choco/scoop on Windows)
-# 2. Resolver ensures package managers are installed first
-# 3. ImageMagick is installed via the appropriate package manager
+# Installation strategy by platform:
+# - Linux x86_64: Direct download of AppImage binary (no package manager needed)
+# - macOS: Uses Homebrew (vx-managed brew runtime)
+# - Windows: Uses package managers in priority order:
+#   1. winget (priority=95) - Built-in on Windows 11, preferred
+#   2. choco (priority=80) - Chocolatey, common in CI
+#   3. scoop (priority=60) - Alternative package manager
+#
+# Note: Windows portable .7z archives exist but we prefer package managers for:
+# - Better reliability in CI environments
+# - Automatic PATH configuration
+# - Easier updates and uninstallation
 #
 # This is a "version-insensitive" tool - users just need "any working version"
 
