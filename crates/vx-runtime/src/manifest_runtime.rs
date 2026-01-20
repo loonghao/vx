@@ -70,6 +70,8 @@ pub struct ManifestDrivenRuntime {
     pub detection: Option<DetectionConfig>,
     /// System dependencies
     pub system_deps: Option<SystemDepsConfig>,
+    /// Post-install normalize configuration (RFC 0022)
+    pub normalize: Option<vx_manifest::NormalizeConfig>,
 }
 
 /// Installation strategy for system tools
@@ -257,6 +259,7 @@ impl ManifestDrivenRuntime {
             provides: Vec::new(),
             detection: None,
             system_deps: None,
+            normalize: None,
         }
     }
 
@@ -293,6 +296,12 @@ impl ManifestDrivenRuntime {
     /// Set detection configuration
     pub fn with_detection(mut self, detection: DetectionConfig) -> Self {
         self.detection = Some(detection);
+        self
+    }
+
+    /// Set normalize configuration
+    pub fn with_normalize(mut self, normalize: vx_manifest::NormalizeConfig) -> Self {
+        self.normalize = Some(normalize);
         self
     }
 
@@ -608,6 +617,10 @@ impl Runtime for ManifestDrivenRuntime {
                 tried_managers.join(", ")
             ))
         }
+    }
+
+    fn normalize_config(&self) -> Option<&vx_manifest::NormalizeConfig> {
+        self.normalize.as_ref()
     }
 }
 

@@ -48,6 +48,31 @@ target_name = "magick"
 target_dir = "bin"
 target_permissions = "755"
 
+# RFC 0022: Post-install normalization
+# Ensures a consistent bin/ directory structure across all platforms
+[runtimes.normalize]
+enabled = true
+
+# Linux AppImage normalization (create symlink for standard name)
+[[runtimes.normalize.executables]]
+source = "bin/magick"
+target = "magick"
+action = "link"
+platforms = ["linux"]
+
+# Create aliases for legacy commands
+[[runtimes.normalize.aliases]]
+name = "convert"
+target = "magick"
+
+[[runtimes.normalize.aliases]]
+name = "identify"
+target = "magick"
+
+[[runtimes.normalize.aliases]]
+name = "composite"
+target = "magick"
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 

@@ -39,6 +39,7 @@ fn make_runtime_def(name: &str) -> RuntimeDef {
         test: None,
         system_deps: None,
         system_install: None,
+        normalize: None,
     }
 }
 

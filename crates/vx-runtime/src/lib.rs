@@ -43,6 +43,7 @@ pub mod impls;
 pub mod layout;
 pub mod manifest_registry;
 pub mod manifest_runtime;
+pub mod normalizer;
 pub mod package_runtime;
 pub mod platform;
 pub mod plugin;
@@ -108,3 +109,6 @@ pub use manifest_runtime::{
 pub use provider_loader::{
     LoadedProvider, ProviderLoader as ManifestProviderLoader, ProviderLoaderConfig,
 };
+
+// RFC 0022: Post-install normalization
+pub use normalizer::{NormalizeContext, NormalizeResult, Normalizer};

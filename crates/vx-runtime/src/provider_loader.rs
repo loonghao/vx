@@ -319,6 +319,16 @@ impl ProviderLoader {
                 runtime.system_deps = Some(self.parse_system_deps(system_deps));
             }
 
+            // RFC 0022: Normalize configuration
+            if let Some(normalize) = runtime_value.get("normalize") {
+                // Try to deserialize the normalize section using serde
+                if let Ok(normalize_config) =
+                    normalize.clone().try_into::<vx_manifest::NormalizeConfig>()
+                {
+                    runtime = runtime.with_normalize(normalize_config);
+                }
+            }
+
             runtimes.push(runtime);
         }
 
