@@ -12,11 +12,18 @@
 //! ImageMagick installation is platform-dependent:
 //! - **Linux**: Direct download of AppImage binary (handled by this runtime)
 //! - **macOS**: Requires Homebrew (dependency declared in provider.toml)
-//! - **Windows**: Requires Chocolatey or Scoop (dependency declared in provider.toml)
+//! - **Windows**: Uses system package managers (winget/choco/scoop) with silent installation
 //!
 //! Platform-specific package manager dependencies are declared in `provider.toml`
 //! under `system_deps.pre_depends`. The resolver automatically ensures these
 //! dependencies are installed before attempting ImageMagick installation.
+//!
+//! # Silent Installation
+//!
+//! On Windows, package managers are invoked with silent/non-interactive flags:
+//! - **winget**: `--silent --disable-interactivity`
+//! - **choco**: `-y --no-progress --limit-output`
+//! - **scoop**: No user interaction by default
 
 use crate::config::ImageMagickUrlBuilder;
 use anyhow::Result;
@@ -443,6 +450,11 @@ impl MagickRuntime {
     }
 
     /// Install via system package manager (macOS/Windows)
+    ///
+    /// This method uses silent/non-interactive installation flags:
+    /// - **winget**: `--silent --disable-interactivity`
+    /// - **choco**: `-y --no-progress --limit-output`
+    /// - **brew**: Non-interactive by default
     async fn install_via_package_manager(
         &self,
         version: &str,
@@ -466,20 +478,31 @@ impl MagickRuntime {
         // Try each available package manager
         for pm in &available_managers {
             let package_name = Self::get_package_name_for_manager(pm.name());
-            debug!(
-                "Trying to install ImageMagick via {} (package: {})",
+            info!(
+                "Installing ImageMagick via {} (package: {}) with silent mode...",
                 pm.name(),
                 package_name
             );
 
+            // Build install spec with silent mode enabled
             let spec = PackageInstallSpec {
                 package: package_name.to_string(),
+                silent: true, // Enable silent/non-interactive installation
                 ..Default::default()
             };
 
+            debug!(
+                "Using silent installation for {} via {}",
+                package_name,
+                pm.name()
+            );
+
             match pm.install_package(&spec).await {
                 Ok(_) => {
-                    info!("Successfully installed ImageMagick via {}", pm.name());
+                    info!(
+                        "Successfully installed ImageMagick via {} (silent mode)",
+                        pm.name()
+                    );
                     // Return a system-installed result
                     // For system installs, we use the version from the package manager
                     let installed_version = format!("{} (via {})", version, pm.name());
