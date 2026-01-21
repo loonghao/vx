@@ -90,10 +90,7 @@ mod tests {
 
     #[test]
     fn test_download_url_linux_x64() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         let url = OllamaUrlBuilder::download_url("0.13.5", &platform);
         assert!(url.is_some());
         let url = url.unwrap();
@@ -105,10 +102,7 @@ mod tests {
 
     #[test]
     fn test_download_url_linux_arm64() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::Aarch64);
         let url = OllamaUrlBuilder::download_url("0.13.5", &platform);
         assert!(url.is_some());
         let url = url.unwrap();
@@ -120,10 +114,7 @@ mod tests {
 
     #[test]
     fn test_download_url_windows_x64() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         let url = OllamaUrlBuilder::download_url("0.13.5", &platform);
         assert!(url.is_some());
         let url = url.unwrap();
@@ -135,10 +126,7 @@ mod tests {
 
     #[test]
     fn test_download_url_windows_arm64() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::Aarch64);
         let url = OllamaUrlBuilder::download_url("0.13.5", &platform);
         assert!(url.is_some());
         let url = url.unwrap();
@@ -150,10 +138,7 @@ mod tests {
 
     #[test]
     fn test_download_url_macos_x64() {
-        let platform = Platform {
-            os: Os::MacOS,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::MacOS, Arch::X86_64);
         let url = OllamaUrlBuilder::download_url("0.13.5", &platform);
         assert!(url.is_some());
         let url = url.unwrap();
@@ -165,10 +150,7 @@ mod tests {
 
     #[test]
     fn test_download_url_macos_arm64() {
-        let platform = Platform {
-            os: Os::MacOS,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::MacOS, Arch::Aarch64);
         let url = OllamaUrlBuilder::download_url("0.13.5", &platform);
         assert!(url.is_some());
         let url = url.unwrap();
@@ -181,10 +163,7 @@ mod tests {
 
     #[test]
     fn test_download_url_with_v_prefix() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         let url = OllamaUrlBuilder::download_url("v0.13.5", &platform);
         assert!(url.is_some());
         let url = url.unwrap();
@@ -198,24 +177,15 @@ mod tests {
     #[test]
     fn test_archive_extension() {
         assert_eq!(
-            OllamaUrlBuilder::get_archive_extension(&Platform {
-                os: Os::Windows,
-                arch: Arch::X86_64
-            }),
+            OllamaUrlBuilder::get_archive_extension(&Platform::new(Os::Windows, Arch::X86_64)),
             "zip"
         );
         assert_eq!(
-            OllamaUrlBuilder::get_archive_extension(&Platform {
-                os: Os::Linux,
-                arch: Arch::X86_64
-            }),
+            OllamaUrlBuilder::get_archive_extension(&Platform::new(Os::Linux, Arch::X86_64)),
             "tgz"
         );
         assert_eq!(
-            OllamaUrlBuilder::get_archive_extension(&Platform {
-                os: Os::MacOS,
-                arch: Arch::Aarch64
-            }),
+            OllamaUrlBuilder::get_archive_extension(&Platform::new(Os::MacOS, Arch::Aarch64)),
             "tgz"
         );
     }
@@ -223,24 +193,15 @@ mod tests {
     #[test]
     fn test_executable_name() {
         assert_eq!(
-            OllamaUrlBuilder::get_executable_name(&Platform {
-                os: Os::Windows,
-                arch: Arch::X86_64
-            }),
+            OllamaUrlBuilder::get_executable_name(&Platform::new(Os::Windows, Arch::X86_64)),
             "ollama.exe"
         );
         assert_eq!(
-            OllamaUrlBuilder::get_executable_name(&Platform {
-                os: Os::Linux,
-                arch: Arch::X86_64
-            }),
+            OllamaUrlBuilder::get_executable_name(&Platform::new(Os::Linux, Arch::X86_64)),
             "ollama"
         );
         assert_eq!(
-            OllamaUrlBuilder::get_executable_name(&Platform {
-                os: Os::MacOS,
-                arch: Arch::Aarch64
-            }),
+            OllamaUrlBuilder::get_executable_name(&Platform::new(Os::MacOS, Arch::Aarch64)),
             "ollama"
         );
     }

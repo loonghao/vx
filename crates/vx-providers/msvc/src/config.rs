@@ -109,37 +109,25 @@ mod tests {
 
     #[test]
     fn test_arch_string_x64() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         assert_eq!(PlatformHelper::get_arch_string(&platform), Some("x64"));
     }
 
     #[test]
     fn test_arch_string_arm64() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::Aarch64);
         assert_eq!(PlatformHelper::get_arch_string(&platform), Some("arm64"));
     }
 
     #[test]
     fn test_platform_supported_windows() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         assert!(PlatformHelper::is_platform_supported(&platform));
     }
 
     #[test]
     fn test_platform_unsupported_linux() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         assert!(!PlatformHelper::is_platform_supported(&platform));
     }
 }

@@ -76,7 +76,7 @@ fn test_provider_get_runtime() {
 #[case(Os::Windows, Arch::X86_64, Some("windows-amd64"))]
 #[case(Os::Windows, Arch::Aarch64, Some("windows-arm64"))]
 fn test_target_string(#[case] os: Os, #[case] arch: Arch, #[case] expected: Option<&str>) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let target = OllamaUrlBuilder::get_target_string(&platform);
     assert_eq!(target, expected);
 }
@@ -86,10 +86,7 @@ fn test_target_string(#[case] os: Os, #[case] arch: Arch, #[case] expected: Opti
 #[case(Os::Linux, "tgz")]
 #[case(Os::MacOS, "tgz")]
 fn test_archive_extension(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     let ext = OllamaUrlBuilder::get_archive_extension(&platform);
     assert_eq!(ext, expected);
 }
@@ -99,20 +96,14 @@ fn test_archive_extension(#[case] os: Os, #[case] expected: &str) {
 #[case(Os::Linux, "ollama")]
 #[case(Os::MacOS, "ollama")]
 fn test_executable_name(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     let name = OllamaUrlBuilder::get_executable_name(&platform);
     assert_eq!(name, expected);
 }
 
 #[test]
 fn test_download_url_format_linux() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     let url = OllamaUrlBuilder::download_url("0.13.5", &platform).unwrap();
     assert!(url.contains("github.com/ollama/ollama"));
     assert!(url.contains("v0.13.5"));
@@ -122,10 +113,7 @@ fn test_download_url_format_linux() {
 
 #[test]
 fn test_download_url_format_windows() {
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
     let url = OllamaUrlBuilder::download_url("0.13.5", &platform).unwrap();
     assert!(url.contains("github.com/ollama/ollama"));
     assert!(url.contains("v0.13.5"));
@@ -135,10 +123,7 @@ fn test_download_url_format_windows() {
 
 #[test]
 fn test_download_url_format_macos() {
-    let platform = Platform {
-        os: Os::MacOS,
-        arch: Arch::Aarch64,
-    };
+    let platform = Platform::new(Os::MacOS, Arch::Aarch64);
     let url = OllamaUrlBuilder::download_url("0.13.5", &platform).unwrap();
     assert!(url.contains("github.com/ollama/ollama"));
     assert!(url.contains("v0.13.5"));
@@ -148,10 +133,7 @@ fn test_download_url_format_macos() {
 
 #[test]
 fn test_download_url_with_v_prefix() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     // Should handle version with 'v' prefix without doubling it
     let url = OllamaUrlBuilder::download_url("v0.13.5", &platform).unwrap();
     assert!(url.contains("/v0.13.5/"));
@@ -161,10 +143,7 @@ fn test_download_url_with_v_prefix() {
 #[test]
 fn test_executable_relative_path_linux() {
     let runtime = OllamaRuntime::new();
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     assert_eq!(
         runtime.executable_relative_path("0.13.5", &platform),
         "bin/ollama"
@@ -174,10 +153,7 @@ fn test_executable_relative_path_linux() {
 #[test]
 fn test_executable_relative_path_macos() {
     let runtime = OllamaRuntime::new();
-    let platform = Platform {
-        os: Os::MacOS,
-        arch: Arch::Aarch64,
-    };
+    let platform = Platform::new(Os::MacOS, Arch::Aarch64);
     assert_eq!(
         runtime.executable_relative_path("0.13.5", &platform),
         "bin/ollama"
@@ -187,10 +163,7 @@ fn test_executable_relative_path_macos() {
 #[test]
 fn test_executable_relative_path_windows() {
     let runtime = OllamaRuntime::new();
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
     assert_eq!(
         runtime.executable_relative_path("0.13.5", &platform),
         "ollama.exe"

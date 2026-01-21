@@ -88,7 +88,7 @@ fn test_config_default() {
 #[case(Os::Windows, Arch::X86_64, "google-cloud-sdk/bin/gcloud.cmd")]
 fn test_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
     let runtime = GcloudRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     assert_eq!(
         runtime.executable_relative_path("500.0.0", &platform),
         expected
@@ -103,7 +103,7 @@ fn test_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] exp
 #[case(Os::Windows, Arch::X86_64, true)]
 #[case(Os::Windows, Arch::Aarch64, true)]
 fn test_download_url_availability(#[case] os: Os, #[case] arch: Arch, #[case] available: bool) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let url = GcloudUrlBuilder::download_url("500.0.0", &platform);
     assert_eq!(url.is_some(), available);
 }
@@ -113,19 +113,13 @@ fn test_download_url_availability(#[case] os: Os, #[case] arch: Arch, #[case] av
 #[case(Os::MacOS, "tar.gz")]
 #[case(Os::Windows, "zip")]
 fn test_archive_type(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     assert_eq!(GcloudUrlBuilder::archive_type(&platform), expected);
 }
 
 #[test]
 fn test_download_url_format() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     let url = GcloudUrlBuilder::download_url("500.0.0", &platform).unwrap();
     assert!(url.contains("dl.google.com"));
     assert!(url.contains("500.0.0"));

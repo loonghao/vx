@@ -76,10 +76,7 @@ mod tests {
 
     #[test]
     fn test_download_url_windows_x64() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         let url = RceditUrlBuilder::download_url("2.0.0", &platform);
         assert_eq!(
             url,
@@ -92,10 +89,7 @@ mod tests {
 
     #[test]
     fn test_download_url_windows_arm64() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::Aarch64);
         let url = RceditUrlBuilder::download_url("2.0.0", &platform);
         assert_eq!(
             url,
@@ -108,39 +102,27 @@ mod tests {
 
     #[test]
     fn test_download_url_linux_unsupported() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         let url = RceditUrlBuilder::download_url("2.0.0", &platform);
         assert_eq!(url, None);
     }
 
     #[test]
     fn test_download_url_macos_unsupported() {
-        let platform = Platform {
-            os: Os::MacOS,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::MacOS, Arch::Aarch64);
         let url = RceditUrlBuilder::download_url("2.0.0", &platform);
         assert_eq!(url, None);
     }
 
     #[test]
     fn test_executable_name() {
-        let platform_x64 = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform_x64 = Platform::new(Os::Windows, Arch::X86_64);
         assert_eq!(
             RceditUrlBuilder::get_executable_name(&platform_x64),
             "rcedit-x64.exe"
         );
 
-        let platform_arm64 = Platform {
-            os: Os::Windows,
-            arch: Arch::Aarch64,
-        };
+        let platform_arm64 = Platform::new(Os::Windows, Arch::Aarch64);
         assert_eq!(
             RceditUrlBuilder::get_executable_name(&platform_arm64),
             "rcedit-arm64.exe"
@@ -149,16 +131,10 @@ mod tests {
 
     #[test]
     fn test_platform_supported() {
-        let windows_x64 = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let windows_x64 = Platform::new(Os::Windows, Arch::X86_64);
         assert!(RceditUrlBuilder::is_platform_supported(&windows_x64));
 
-        let linux_x64 = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let linux_x64 = Platform::new(Os::Linux, Arch::X86_64);
         assert!(!RceditUrlBuilder::is_platform_supported(&linux_x64));
     }
 }

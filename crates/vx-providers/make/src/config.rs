@@ -47,14 +47,8 @@ mod tests {
     #[test]
     fn test_system_paths_unix() {
         let platforms = vec![
-            Platform {
-                os: Os::MacOS,
-                arch: Arch::Aarch64,
-            },
-            Platform {
-                os: Os::Linux,
-                arch: Arch::X86_64,
-            },
+            Platform::new(Os::MacOS, Arch::Aarch64),
+            Platform::new(Os::Linux, Arch::X86_64),
         ];
 
         for platform in platforms {
@@ -69,10 +63,7 @@ mod tests {
 
     #[test]
     fn test_windows_not_supported() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         let paths = MakeConfig::system_paths(&platform);
         assert!(paths.is_empty(), "Windows should have no system paths");
     }

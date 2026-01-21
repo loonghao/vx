@@ -66,7 +66,7 @@ fn test_provider_get_runtime() {
 #[case(Os::Windows, Arch::X86_64, "x86_64-pc-windows-msvc")]
 #[case(Os::Windows, Arch::Aarch64, "aarch64-pc-windows-msvc")]
 fn test_target_triple(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let triple = ViteUrlBuilder::get_target_triple(&platform);
     assert_eq!(triple, Some(expected.to_string()));
 }
@@ -76,10 +76,7 @@ fn test_target_triple(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str
 #[case(Os::Linux, "tar.gz")]
 #[case(Os::MacOS, "tar.gz")]
 fn test_archive_extension(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     let ext = ViteUrlBuilder::get_archive_extension(&platform);
     assert_eq!(ext, expected);
 }
@@ -89,20 +86,14 @@ fn test_archive_extension(#[case] os: Os, #[case] expected: &str) {
 #[case(Os::Linux, "vite")]
 #[case(Os::MacOS, "vite")]
 fn test_executable_name(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     let name = ViteUrlBuilder::get_executable_name(&platform);
     assert_eq!(name, expected);
 }
 
 #[test]
 fn test_download_url_linux_x64() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     let url = ViteUrlBuilder::download_url("6.0.0", &platform);
     assert!(url.is_some());
     let url = url.unwrap();
@@ -114,10 +105,7 @@ fn test_download_url_linux_x64() {
 
 #[test]
 fn test_download_url_windows_x64() {
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
     let url = ViteUrlBuilder::download_url("6.0.0", &platform);
     assert!(url.is_some());
     let url = url.unwrap();
@@ -127,10 +115,7 @@ fn test_download_url_windows_x64() {
 
 #[test]
 fn test_download_url_macos_arm64() {
-    let platform = Platform {
-        os: Os::MacOS,
-        arch: Arch::Aarch64,
-    };
+    let platform = Platform::new(Os::MacOS, Arch::Aarch64);
     let url = ViteUrlBuilder::download_url("6.0.0", &platform);
     assert!(url.is_some());
     let url = url.unwrap();

@@ -67,7 +67,7 @@ fn test_provider_get_runtime() {
 #[case(Os::Windows, Arch::Aarch64, "aarch64-pc-windows-msvc")]
 #[case(Os::Linux, Arch::Arm, "arm-unknown-linux-musleabihf")]
 fn test_target_triple(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let triple = JustUrlBuilder::get_target_triple(&platform);
     assert_eq!(triple, Some(expected.to_string()));
 }
@@ -77,10 +77,7 @@ fn test_target_triple(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str
 #[case(Os::Linux, "tar.gz")]
 #[case(Os::MacOS, "tar.gz")]
 fn test_archive_extension(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     let ext = JustUrlBuilder::get_archive_extension(&platform);
     assert_eq!(ext, expected);
 }
@@ -90,20 +87,14 @@ fn test_archive_extension(#[case] os: Os, #[case] expected: &str) {
 #[case(Os::Linux, "just")]
 #[case(Os::MacOS, "just")]
 fn test_executable_name(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     let name = JustUrlBuilder::get_executable_name(&platform);
     assert_eq!(name, expected);
 }
 
 #[test]
 fn test_download_url_format() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     let url = JustUrlBuilder::download_url("1.45.0", &platform).unwrap();
     assert!(url.contains("github.com/casey/just"));
     assert!(url.contains("1.45.0"));
@@ -115,19 +106,13 @@ fn test_download_url_format() {
 fn test_executable_relative_path() {
     let runtime = JustRuntime::new();
 
-    let linux_platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let linux_platform = Platform::new(Os::Linux, Arch::X86_64);
     assert_eq!(
         runtime.executable_relative_path("1.45.0", &linux_platform),
         "just"
     );
 
-    let windows_platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let windows_platform = Platform::new(Os::Windows, Arch::X86_64);
     assert_eq!(
         runtime.executable_relative_path("1.45.0", &windows_platform),
         "just.exe"

@@ -66,7 +66,7 @@ fn test_provider_get_runtime() {
 #[case(Os::Windows, Arch::X86_64, Some(("windows", "amd64")))]
 #[case(Os::Windows, Arch::Aarch64, Some(("windows", "arm64")))]
 fn test_platform_parts(#[case] os: Os, #[case] arch: Arch, #[case] expected: Option<(&str, &str)>) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     assert_eq!(TaskUrlBuilder::get_platform_parts(&platform), expected);
 }
 
@@ -75,10 +75,7 @@ fn test_platform_parts(#[case] os: Os, #[case] arch: Arch, #[case] expected: Opt
 #[case(Os::Linux, "tar.gz")]
 #[case(Os::MacOS, "tar.gz")]
 fn test_archive_extension(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     assert_eq!(TaskUrlBuilder::get_archive_extension(&platform), expected);
 }
 
@@ -87,19 +84,13 @@ fn test_archive_extension(#[case] os: Os, #[case] expected: &str) {
 #[case(Os::Linux, "task")]
 #[case(Os::MacOS, "task")]
 fn test_executable_name(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     assert_eq!(TaskUrlBuilder::get_executable_name(&platform), expected);
 }
 
 #[test]
 fn test_download_url_format() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     let url = TaskUrlBuilder::download_url("3.40.1", &platform).unwrap();
     assert!(url.contains("github.com/go-task/task"));
     assert!(url.contains("v3.40.1"));
@@ -109,10 +100,7 @@ fn test_download_url_format() {
 
 #[test]
 fn test_download_url_with_v_prefix() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     let url1 = TaskUrlBuilder::download_url("3.40.1", &platform);
     let url2 = TaskUrlBuilder::download_url("v3.40.1", &platform);
     // Both should produce the same URL

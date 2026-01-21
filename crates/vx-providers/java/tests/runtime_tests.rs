@@ -106,7 +106,7 @@ fn test_java_executable_relative_path_linux_windows(
     #[case] expected: &str,
 ) {
     let runtime = JavaRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let path = runtime.executable_relative_path("21", &platform);
     assert_eq!(path, expected);
 }
@@ -122,7 +122,7 @@ fn test_java_executable_relative_path_macos(
     #[case] expected: &str,
 ) {
     let runtime = JavaRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let path = runtime.executable_relative_path("21", &platform);
     assert_eq!(path, expected);
 }
@@ -130,10 +130,7 @@ fn test_java_executable_relative_path_macos(
 #[tokio::test]
 async fn test_java_download_url_format() {
     let runtime = JavaRuntime::new();
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
 
     let url = runtime.download_url("21", &platform).await.unwrap();
     assert!(url.is_some());
@@ -147,10 +144,7 @@ async fn test_java_download_url_format() {
 #[tokio::test]
 async fn test_java_download_url_macos() {
     let runtime = JavaRuntime::new();
-    let platform = Platform {
-        os: Os::MacOS,
-        arch: Arch::Aarch64,
-    };
+    let platform = Platform::new(Os::MacOS, Arch::Aarch64);
 
     let url = runtime.download_url("17", &platform).await.unwrap();
     assert!(url.is_some());

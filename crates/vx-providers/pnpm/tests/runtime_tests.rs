@@ -69,7 +69,7 @@ fn test_pnpm_provider_get_runtime() {
 #[case(Os::Windows, Arch::Aarch64, "bin/pnpm.exe")]
 fn test_pnpm_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
     let runtime = PnpmRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let path = runtime.executable_relative_path("9.0.0", &platform);
     assert_eq!(path, expected);
 }
@@ -82,7 +82,7 @@ fn test_pnpm_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case
 #[tokio::test]
 async fn test_pnpm_download_url(#[case] os: Os, #[case] arch: Arch, #[case] expected_suffix: &str) {
     let runtime = PnpmRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let url = runtime.download_url("9.0.0", &platform).await.unwrap();
     assert!(url.is_some());
     let url = url.unwrap();

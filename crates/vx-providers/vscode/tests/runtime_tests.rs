@@ -43,7 +43,7 @@ fn test_vscode_runtime_metadata() {
 #[case(Os::Linux, Arch::X86_64, "linux-x64")]
 #[case(Os::Linux, Arch::Aarch64, "linux-arm64")]
 fn test_platform_string(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     assert_eq!(VscodeUrlBuilder::get_platform_string(&platform), expected);
 }
 
@@ -72,7 +72,7 @@ fn test_download_url(
     #[case] version: &str,
     #[case] expected: &str,
 ) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let url = VscodeUrlBuilder::download_url(version, &platform);
     assert_eq!(url, Some(expected.to_string()));
 }
@@ -88,7 +88,7 @@ fn test_download_url(
 #[case(Os::Linux, Arch::Aarch64, "VSCode-linux-arm64/bin/code")]
 fn test_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
     let runtime = VscodeRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     assert_eq!(
         runtime.executable_relative_path("1.85.0", &platform),
         expected

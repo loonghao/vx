@@ -105,7 +105,7 @@ fn test_kubectl_executable_relative_path(
     #[case] expected: &str,
 ) {
     let runtime = KubectlRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let path = runtime.executable_relative_path("1.28.0", &platform);
     assert_eq!(path, expected);
 }
@@ -113,10 +113,7 @@ fn test_kubectl_executable_relative_path(
 #[tokio::test]
 async fn test_kubectl_download_url_format() {
     let runtime = KubectlRuntime::new();
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
 
     let url = runtime.download_url("1.28.0", &platform).await.unwrap();
     assert!(url.is_some());
@@ -130,10 +127,7 @@ async fn test_kubectl_download_url_format() {
 #[tokio::test]
 async fn test_kubectl_download_url_macos() {
     let runtime = KubectlRuntime::new();
-    let platform = Platform {
-        os: Os::MacOS,
-        arch: Arch::Aarch64,
-    };
+    let platform = Platform::new(Os::MacOS, Arch::Aarch64);
 
     let url = runtime.download_url("1.28.0", &platform).await.unwrap();
     assert!(url.is_some());
@@ -144,10 +138,7 @@ async fn test_kubectl_download_url_macos() {
 #[tokio::test]
 async fn test_kubectl_download_url_windows() {
     let runtime = KubectlRuntime::new();
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
 
     let url = runtime.download_url("1.28.0", &platform).await.unwrap();
     assert!(url.is_some());
