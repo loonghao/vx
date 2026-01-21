@@ -11,12 +11,12 @@
 #   docker pull ghcr.io/loonghao/vx:tools-latest
 #   docker pull longhal/vx:tools-latest
 #
-# We use Debian-based images (glibc) for maximum compatibility:
+# We use Ubuntu 24.04 (Noble) for glibc 2.39 compatibility:
+# - vx is compiled with glibc 2.39 (Ubuntu 24.04 runner)
 # - All tools installed by vx use glibc binaries
-# - No "No such file or directory" errors that occur with Alpine/musl
-# - Works out of the box with any tool that vx supports
+# - No "GLIBC_X.XX not found" errors
 
-FROM debian:bookworm-slim
+FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.title="vx-tools"
 LABEL org.opencontainers.image.description="Universal version manager with pre-installed common tools"
