@@ -56,7 +56,7 @@ fn test_git_provider_get_runtime() {
 #[case(Os::MacOS, Arch::Aarch64, "bin/git")]
 fn test_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
     let runtime = GitRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     assert_eq!(
         runtime.executable_relative_path("2.43.0", &platform),
         expected
@@ -69,7 +69,7 @@ fn test_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] exp
 #[case(Os::Linux, Arch::X86_64, None)]
 #[case(Os::MacOS, Arch::X86_64, None)]
 fn test_get_filename(#[case] os: Os, #[case] arch: Arch, #[case] expected: Option<String>) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     assert_eq!(GitUrlBuilder::get_filename("2.43.0", &platform), expected);
 }
 
@@ -78,7 +78,7 @@ fn test_get_filename(#[case] os: Os, #[case] arch: Arch, #[case] expected: Optio
 #[case(Os::MacOS, Arch::Aarch64, "aarch64-apple-darwin")]
 #[case(Os::Linux, Arch::X86_64, "x86_64-unknown-linux-gnu")]
 fn test_get_target_triple(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     assert_eq!(GitUrlBuilder::get_target_triple(&platform), expected);
 }
 
@@ -87,10 +87,7 @@ fn test_get_target_triple(#[case] os: Os, #[case] arch: Arch, #[case] expected: 
 #[case(Os::Linux, "tar.gz")]
 #[case(Os::MacOS, "tar.gz")]
 fn test_get_archive_extension(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     assert_eq!(GitUrlBuilder::get_archive_extension(&platform), expected);
 }
 
@@ -99,19 +96,13 @@ fn test_get_archive_extension(#[case] os: Os, #[case] expected: &str) {
 #[case(Os::Linux, "git")]
 #[case(Os::MacOS, "git")]
 fn test_get_executable_name(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     assert_eq!(GitUrlBuilder::get_executable_name(&platform), expected);
 }
 
 #[test]
 fn test_download_url_windows() {
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
     let url = GitUrlBuilder::download_url("2.43.0.windows.1", &platform);
     assert!(url.is_some());
     let url = url.unwrap();
@@ -121,10 +112,7 @@ fn test_download_url_windows() {
 
 #[test]
 fn test_download_url_linux() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     let url = GitUrlBuilder::download_url("2.43.0", &platform);
     // Linux should return None as Git should be installed via system package manager
     assert!(url.is_none());
@@ -133,10 +121,7 @@ fn test_download_url_linux() {
 #[test]
 fn test_extract_base_version() {
     // Test that Windows version strings are properly parsed
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
 
     // Full Windows version
     let url = GitUrlBuilder::download_url("2.43.0.windows.1", &platform);

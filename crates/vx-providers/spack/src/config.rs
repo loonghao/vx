@@ -108,28 +108,19 @@ mod tests {
 
     #[test]
     fn test_executable_name_linux() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         assert_eq!(SpackUrlBuilder::get_executable_name(&platform), "spack");
     }
 
     #[test]
     fn test_executable_name_macos() {
-        let platform = Platform {
-            os: Os::MacOS,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::MacOS, Arch::Aarch64);
         assert_eq!(SpackUrlBuilder::get_executable_name(&platform), "spack");
     }
 
     #[test]
     fn test_executable_name_windows() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         assert_eq!(SpackUrlBuilder::get_executable_name(&platform), "spack");
     }
 }
