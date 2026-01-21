@@ -60,11 +60,11 @@ jobs:
 
           echo "Downloading vx $TAG_NAME..."
 
-          # Try versioned format first
-          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-${VERSION_NUM}-x86_64-unknown-linux-gnu.tar.gz"
+          # Use musl build for Alpine compatibility
+          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-${VERSION_NUM}-x86_64-unknown-linux-musl.tar.gz"
           if ! curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz 2>/dev/null; then
             # Fallback to legacy format
-            DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-x86_64-unknown-linux-gnu.tar.gz"
+            DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-x86_64-unknown-linux-musl.tar.gz"
             curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz
           fi
 
@@ -109,11 +109,11 @@ jobs:
 
           echo "Downloading vx $TAG_NAME..."
 
-          # Try versioned format first
-          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-${VERSION_NUM}-x86_64-unknown-linux-gnu.tar.gz"
+          # Use musl build for Alpine compatibility
+          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-${VERSION_NUM}-x86_64-unknown-linux-musl.tar.gz"
           if ! curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz 2>/dev/null; then
             # Fallback to legacy format
-            DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-x86_64-unknown-linux-gnu.tar.gz"
+            DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-x86_64-unknown-linux-musl.tar.gz"
             curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz
           fi
 
