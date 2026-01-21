@@ -4,17 +4,19 @@
 #
 # Pre-installed tools:
 # - uv: Fast Python package manager and virtual environment tool
-# - ruff: Extremely fast Python linter and formatter
+# - ruff: Extremely fast Python linter and formatter (via uvx)
 # - node: Node.js runtime (LTS version)
 #
 # Usage:
 #   docker pull ghcr.io/loonghao/vx:tools-latest
 #   docker pull longhal/vx:tools-latest
 #
-# Note: We use musl-compiled binaries (x86_64-unknown-linux-musl) which are
-# statically linked and work natively on Alpine without glibc compatibility layers.
+# We use Debian-based images (glibc) for maximum compatibility:
+# - All tools installed by vx use glibc binaries
+# - No "No such file or directory" errors that occur with Alpine/musl
+# - Works out of the box with any tool that vx supports
 
-FROM alpine:3.23
+FROM debian:bookworm-slim
 
 LABEL org.opencontainers.image.title="vx-tools"
 LABEL org.opencontainers.image.description="Universal version manager with pre-installed common tools"
@@ -24,21 +26,19 @@ LABEL org.opencontainers.image.vendor="loonghao"
 LABEL org.opencontainers.image.licenses="MIT"
 
 # Install runtime dependencies
-# - libstdc++: C++ standard library (needed for Node.js and other tools)
-RUN apk add --no-cache \
+# Including libstdc++ which is needed by Node.js and other tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     git \
     curl \
-    bash \
-    libstdc++ \
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN addgroup -g 1000 vx && \
-    adduser -D -s /bin/bash -u 1000 -G vx vx
+RUN groupadd -g 1000 vx && \
+    useradd -m -s /bin/bash -u 1000 -g vx vx
 
 # Copy pre-built vx binary (passed via build context)
-# This should be a musl-compiled binary for Alpine compatibility
+# This should be a gnu-compiled binary for glibc compatibility
 COPY vx /usr/local/bin/vx
 
 # Ensure binary is executable

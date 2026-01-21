@@ -69,7 +69,7 @@ pub use layout::{
     ResolvedLayout,
 };
 pub use package_runtime::{InstallMethod, PackageRuntime};
-pub use platform::{compare_semver, Arch, Os, Platform};
+pub use platform::{compare_semver, Arch, Libc, Os, Platform};
 pub use provider::Provider;
 pub use registry::{PlatformError, ProviderRegistry};
 pub use runtime::{Runtime, VerificationResult};
