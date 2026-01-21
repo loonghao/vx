@@ -1,15 +1,14 @@
 # vx Docker image using pre-built binary
 # This Dockerfile is used by CI to create images from release binaries
 #
-# We use Debian-based images (glibc) for maximum compatibility:
-# - vx itself works with gnu binaries
+# We use Ubuntu 24.04 (Noble) for glibc 2.39 compatibility:
+# - vx is compiled with glibc 2.39 (Ubuntu 24.04 runner)
 # - All tools installed by vx (node, uv, python, etc.) use glibc binaries
 # - No libc compatibility issues - everything works out of the box
 #
-# Note: Alpine was considered but rejected because most tools only provide
-# glibc binaries, causing "No such file or directory" errors on musl systems.
+# Note: Alpine was rejected (musl incompatible), Debian Bookworm rejected (glibc 2.36 too old)
 
-FROM debian:bookworm-slim
+FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.title="vx"
 LABEL org.opencontainers.image.description="Universal version manager for developer tools"
