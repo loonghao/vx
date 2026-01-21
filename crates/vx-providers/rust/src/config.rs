@@ -8,8 +8,9 @@
 //! - macOS ARM64: https://static.rust-lang.org/rustup/dist/aarch64-apple-darwin/rustup-init
 //! - Linux x64: https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init
 //! - Linux ARM64: https://static.rust-lang.org/rustup/dist/aarch64-unknown-linux-gnu/rustup-init
+//! - Linux musl: https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-musl/rustup-init
 
-use vx_runtime::{Arch, Os, Platform};
+use vx_runtime::{Arch, Libc, Os, Platform};
 
 /// URL builder for Rustup downloads
 pub struct RustupUrlBuilder;
@@ -20,14 +21,34 @@ impl RustupUrlBuilder {
 
     /// Get the platform target triple for rustup downloads
     pub fn get_target_triple(platform: &Platform) -> Option<&'static str> {
-        match (&platform.os, &platform.arch) {
-            (Os::Windows, Arch::X86_64) => Some("x86_64-pc-windows-msvc"),
-            (Os::Windows, Arch::X86) => Some("i686-pc-windows-msvc"),
-            (Os::MacOS, Arch::X86_64) => Some("x86_64-apple-darwin"),
-            (Os::MacOS, Arch::Aarch64) => Some("aarch64-apple-darwin"),
-            (Os::Linux, Arch::X86_64) => Some("x86_64-unknown-linux-gnu"),
-            (Os::Linux, Arch::Aarch64) => Some("aarch64-unknown-linux-gnu"),
-            (Os::Linux, Arch::Arm) => Some("arm-unknown-linux-gnueabihf"),
+        match (&platform.os, &platform.arch, &platform.libc) {
+            // Windows
+            (Os::Windows, Arch::X86_64, _) => Some("x86_64-pc-windows-msvc"),
+            (Os::Windows, Arch::X86, _) => Some("i686-pc-windows-msvc"),
+            (Os::Windows, Arch::Aarch64, _) => Some("aarch64-pc-windows-msvc"),
+
+            // macOS
+            (Os::MacOS, Arch::X86_64, _) => Some("x86_64-apple-darwin"),
+            (Os::MacOS, Arch::Aarch64, _) => Some("aarch64-apple-darwin"),
+
+            // Linux GNU
+            (Os::Linux, Arch::X86_64, Libc::Gnu) => Some("x86_64-unknown-linux-gnu"),
+            (Os::Linux, Arch::X86, Libc::Gnu) => Some("i686-unknown-linux-gnu"),
+            (Os::Linux, Arch::Aarch64, Libc::Gnu) => Some("aarch64-unknown-linux-gnu"),
+            (Os::Linux, Arch::Arm, Libc::Gnu) => Some("arm-unknown-linux-gnueabihf"),
+            (Os::Linux, Arch::Armv7, Libc::Gnu) => Some("armv7-unknown-linux-gnueabihf"),
+            (Os::Linux, Arch::PowerPC64, Libc::Gnu) => Some("powerpc64-unknown-linux-gnu"),
+            (Os::Linux, Arch::PowerPC64LE, Libc::Gnu) => Some("powerpc64le-unknown-linux-gnu"),
+            (Os::Linux, Arch::S390x, Libc::Gnu) => Some("s390x-unknown-linux-gnu"),
+            (Os::Linux, Arch::Riscv64, Libc::Gnu) => Some("riscv64gc-unknown-linux-gnu"),
+
+            // Linux MUSL
+            (Os::Linux, Arch::X86_64, Libc::Musl) => Some("x86_64-unknown-linux-musl"),
+            (Os::Linux, Arch::X86, Libc::Musl) => Some("i686-unknown-linux-musl"),
+            (Os::Linux, Arch::Aarch64, Libc::Musl) => Some("aarch64-unknown-linux-musl"),
+            (Os::Linux, Arch::Arm, Libc::Musl) => Some("arm-unknown-linux-musleabihf"),
+            (Os::Linux, Arch::Armv7, Libc::Musl) => Some("armv7-unknown-linux-musleabihf"),
+
             _ => None,
         }
     }
@@ -63,10 +84,7 @@ mod tests {
 
     #[test]
     fn test_download_url_windows_x64() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         let url = RustupUrlBuilder::download_url(&platform);
         assert_eq!(
             url,
@@ -79,10 +97,7 @@ mod tests {
 
     #[test]
     fn test_download_url_macos_arm64() {
-        let platform = Platform {
-            os: Os::MacOS,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::MacOS, Arch::Aarch64);
         let url = RustupUrlBuilder::download_url(&platform);
         assert_eq!(
             url,
@@ -95,10 +110,7 @@ mod tests {
 
     #[test]
     fn test_download_url_linux_x64() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         let url = RustupUrlBuilder::download_url(&platform);
         assert_eq!(
             url,
@@ -110,11 +122,21 @@ mod tests {
     }
 
     #[test]
+    fn test_download_url_linux_musl() {
+        let platform = Platform::with_libc(Os::Linux, Arch::X86_64, Libc::Musl);
+        let url = RustupUrlBuilder::download_url(&platform);
+        assert_eq!(
+            url,
+            Some(
+                "https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-musl/rustup-init"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
     fn test_get_target_triple() {
-        let win64 = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let win64 = Platform::new(Os::Windows, Arch::X86_64);
         assert_eq!(
             RustupUrlBuilder::get_target_triple(&win64),
             Some("x86_64-pc-windows-msvc")

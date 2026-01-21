@@ -108,10 +108,7 @@ mod tests {
 
     #[test]
     fn test_get_filename_windows() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         assert_eq!(
             GitUrlBuilder::get_filename("2.43.0", &platform),
             Some("MinGit-2.43.0-64-bit.zip".to_string())
@@ -120,10 +117,7 @@ mod tests {
 
     #[test]
     fn test_get_filename_linux() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         assert_eq!(GitUrlBuilder::get_filename("2.43.0", &platform), None);
     }
 }

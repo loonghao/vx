@@ -131,7 +131,12 @@ pub enum Arch {
     X86_64,
     Aarch64,
     Arm,
+    Armv7,
     X86,
+    PowerPC64,
+    PowerPC64LE,
+    S390x,
+    Riscv64,
     Unknown,
 }
 
@@ -146,6 +151,17 @@ impl Arch {
             Arch::Arm
         } else if cfg!(target_arch = "x86") {
             Arch::X86
+        } else if cfg!(target_arch = "powerpc64") {
+            // Distinguish between big-endian (BE) and little-endian (LE)
+            if cfg!(target_endian = "little") {
+                Arch::PowerPC64LE
+            } else {
+                Arch::PowerPC64
+            }
+        } else if cfg!(target_arch = "s390x") {
+            Arch::S390x
+        } else if cfg!(target_arch = "riscv64") {
+            Arch::Riscv64
         } else {
             Arch::Unknown
         }
@@ -157,7 +173,12 @@ impl Arch {
             Arch::X86_64 => "x64",
             Arch::Aarch64 => "arm64",
             Arch::Arm => "arm",
+            Arch::Armv7 => "armv7",
             Arch::X86 => "x86",
+            Arch::PowerPC64 => "ppc64",
+            Arch::PowerPC64LE => "ppc64le",
+            Arch::S390x => "s390x",
+            Arch::Riscv64 => "riscv64",
             Arch::Unknown => "unknown",
         }
     }
@@ -354,11 +375,19 @@ impl Platform {
             // Linux with musl
             (Os::Linux, Arch::X86_64, Libc::Musl) => "x86_64-unknown-linux-musl",
             (Os::Linux, Arch::Aarch64, Libc::Musl) => "aarch64-unknown-linux-musl",
+            (Os::Linux, Arch::X86, Libc::Musl) => "i686-unknown-linux-musl",
             (Os::Linux, Arch::Arm, Libc::Musl) => "arm-unknown-linux-musleabihf",
-            // Linux with glibc (default)
+            (Os::Linux, Arch::Armv7, Libc::Musl) => "armv7-unknown-linux-musleabihf",
+            // Linux with glibc
             (Os::Linux, Arch::X86_64, Libc::Gnu) => "x86_64-unknown-linux-gnu",
             (Os::Linux, Arch::Aarch64, Libc::Gnu) => "aarch64-unknown-linux-gnu",
+            (Os::Linux, Arch::X86, Libc::Gnu) => "i686-unknown-linux-gnu",
             (Os::Linux, Arch::Arm, Libc::Gnu) => "arm-unknown-linux-gnueabihf",
+            (Os::Linux, Arch::Armv7, Libc::Gnu) => "armv7-unknown-linux-gnueabihf",
+            (Os::Linux, Arch::PowerPC64, Libc::Gnu) => "powerpc64-unknown-linux-gnu",
+            (Os::Linux, Arch::PowerPC64LE, Libc::Gnu) => "powerpc64le-unknown-linux-gnu",
+            (Os::Linux, Arch::S390x, Libc::Gnu) => "s390x-unknown-linux-gnu",
+            (Os::Linux, Arch::Riscv64, Libc::Gnu) => "riscv64gc-unknown-linux-gnu",
             // Default fallback
             _ => "x86_64-unknown-linux-gnu",
         }

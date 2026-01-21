@@ -141,22 +141,10 @@ impl Runtime for MakeRuntime {
     fn supported_platforms(&self) -> Vec<Platform> {
         // Only Unix platforms are supported - Windows users should use 'just'
         vec![
-            Platform {
-                os: Os::MacOS,
-                arch: Arch::X86_64,
-            },
-            Platform {
-                os: Os::MacOS,
-                arch: Arch::Aarch64,
-            },
-            Platform {
-                os: Os::Linux,
-                arch: Arch::X86_64,
-            },
-            Platform {
-                os: Os::Linux,
-                arch: Arch::Aarch64,
-            },
+            Platform::new(Os::MacOS, Arch::X86_64),
+            Platform::new(Os::MacOS, Arch::Aarch64),
+            Platform::new(Os::Linux, Arch::X86_64),
+            Platform::new(Os::Linux, Arch::Aarch64),
         ]
     }
 
