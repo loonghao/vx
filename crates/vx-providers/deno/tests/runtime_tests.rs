@@ -90,7 +90,7 @@ fn test_deno_provider_get_runtime() {
 #[case(Os::Windows, Arch::X86_64, "deno.exe")]
 fn test_deno_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
     let runtime = DenoRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let path = runtime.executable_relative_path("1.40.0", &platform);
     assert_eq!(path, expected);
 }
@@ -108,18 +108,15 @@ fn test_deno_download_url_contains_platform(
     #[case] expected_filename: &str,
 ) {
     // Test that the config generates correct filenames
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let filename = vx_provider_deno::config::DenoUrlBuilder::get_filename(&platform);
-    assert_eq!(filename, expected_filename);
+    assert_eq!(filename, Some(expected_filename.to_string()));
 }
 
 #[tokio::test]
 async fn test_deno_download_url_format() {
     let runtime = DenoRuntime::new();
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
 
     let url = runtime.download_url("1.40.0", &platform).await.unwrap();
     assert!(url.is_some());

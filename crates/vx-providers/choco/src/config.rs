@@ -92,10 +92,7 @@ mod tests {
 
     #[test]
     fn test_executable_name_windows() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         assert_eq!(ChocoUrlBuilder::get_executable_name(&platform), "choco.exe");
     }
 }

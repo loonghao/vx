@@ -66,7 +66,7 @@ fn test_provider_get_runtime() {
 #[case(Os::Windows, Arch::X86_64, Some("windows-x86_64"))]
 #[case(Os::Windows, Arch::Aarch64, Some("windows-arm64"))]
 fn test_platform_suffix(#[case] os: Os, #[case] arch: Arch, #[case] expected: Option<&str>) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     assert_eq!(CMakeUrlBuilder::get_platform_suffix(&platform), expected);
 }
 
@@ -75,10 +75,7 @@ fn test_platform_suffix(#[case] os: Os, #[case] arch: Arch, #[case] expected: Op
 #[case(Os::Linux, "tar.gz")]
 #[case(Os::MacOS, "tar.gz")]
 fn test_archive_extension(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     assert_eq!(CMakeUrlBuilder::get_archive_extension(&platform), expected);
 }
 
@@ -87,19 +84,13 @@ fn test_archive_extension(#[case] os: Os, #[case] expected: &str) {
 #[case(Os::Linux, "cmake")]
 #[case(Os::MacOS, "cmake")]
 fn test_executable_name(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     assert_eq!(CMakeUrlBuilder::get_executable_name(&platform), expected);
 }
 
 #[test]
 fn test_download_url_format() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     let url = CMakeUrlBuilder::download_url("3.31.3", &platform).unwrap();
     assert!(url.contains("github.com/Kitware/CMake"));
     assert!(url.contains("v3.31.3"));
@@ -109,10 +100,7 @@ fn test_download_url_format() {
 
 #[test]
 fn test_archive_dir_name() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     let dir = CMakeUrlBuilder::get_archive_dir_name("3.31.3", &platform);
     assert_eq!(dir, Some("cmake-3.31.3-linux-x86_64".to_string()));
 }

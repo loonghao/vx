@@ -96,7 +96,7 @@ fn test_helm_provider_get_runtime() {
 #[case(Os::Windows, Arch::X86_64, "windows-amd64/helm.exe")]
 fn test_helm_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
     let runtime = HelmRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let path = runtime.executable_relative_path("3.13.0", &platform);
     assert_eq!(path, expected);
 }
@@ -104,10 +104,7 @@ fn test_helm_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case
 #[tokio::test]
 async fn test_helm_download_url_format() {
     let runtime = HelmRuntime::new();
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
 
     let url = runtime.download_url("3.13.0", &platform).await.unwrap();
     assert!(url.is_some());
@@ -121,10 +118,7 @@ async fn test_helm_download_url_format() {
 #[tokio::test]
 async fn test_helm_download_url_macos() {
     let runtime = HelmRuntime::new();
-    let platform = Platform {
-        os: Os::MacOS,
-        arch: Arch::Aarch64,
-    };
+    let platform = Platform::new(Os::MacOS, Arch::Aarch64);
 
     let url = runtime.download_url("3.13.0", &platform).await.unwrap();
     assert!(url.is_some());
@@ -136,10 +130,7 @@ async fn test_helm_download_url_macos() {
 #[tokio::test]
 async fn test_helm_download_url_windows() {
     let runtime = HelmRuntime::new();
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
 
     let url = runtime.download_url("3.13.0", &platform).await.unwrap();
     assert!(url.is_some());

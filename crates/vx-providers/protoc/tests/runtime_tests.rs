@@ -67,7 +67,7 @@ fn test_provider_get_runtime() {
 #[case(Os::Windows, Arch::X86_64, Some("win64"))]
 #[case(Os::Windows, Arch::X86, Some("win32"))]
 fn test_platform_suffix(#[case] os: Os, #[case] arch: Arch, #[case] expected: Option<&str>) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     assert_eq!(ProtocUrlBuilder::get_platform_suffix(&platform), expected);
 }
 
@@ -76,19 +76,13 @@ fn test_platform_suffix(#[case] os: Os, #[case] arch: Arch, #[case] expected: Op
 #[case(Os::Linux, "protoc")]
 #[case(Os::MacOS, "protoc")]
 fn test_executable_name(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     assert_eq!(ProtocUrlBuilder::get_executable_name(&platform), expected);
 }
 
 #[test]
 fn test_download_url_format() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     let url = ProtocUrlBuilder::download_url("29.2", &platform).unwrap();
     assert!(url.contains("github.com/protocolbuffers/protobuf"));
     assert!(url.contains("v29.2"));
@@ -98,10 +92,7 @@ fn test_download_url_format() {
 
 #[test]
 fn test_download_url_with_v_prefix() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     let url1 = ProtocUrlBuilder::download_url("29.2", &platform);
     let url2 = ProtocUrlBuilder::download_url("v29.2", &platform);
     // Both should produce the same URL

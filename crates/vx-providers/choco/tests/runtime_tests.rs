@@ -91,10 +91,7 @@ fn test_choco_executable_path() {
     use vx_runtime::{Arch, Os, Platform};
 
     let runtime = ChocoRuntime::new();
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
 
     let path = runtime.executable_relative_path("2.4.3", &platform);
     assert!(path.contains("choco.exe"));

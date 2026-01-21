@@ -84,7 +84,7 @@ fn test_runtime_metadata() {
 #[case(Os::MacOS, Arch::Aarch64, "python/bin/python3")]
 fn test_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected_path: &str) {
     let runtime = PythonRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let path = runtime.executable_relative_path("3.12.8", &platform);
     assert_eq!(path, expected_path);
 }
