@@ -500,11 +500,15 @@ vx provides official Docker images that can be used directly in your CI/CD workf
 
 | Image Tag | Description | Base |
 |-----------|-------------|------|
-| `vx:latest` | Minimal image with just vx | Debian Bookworm Slim |
-| `vx:tools-latest` | Image with pre-installed tools (uv, ruff, node) | Debian Bookworm Slim |
+| `vx:latest` | Minimal image with just vx | Ubuntu 24.04 (Noble) |
+| `vx:tools-latest` | Image with pre-installed tools (uv, ruff, node) | Ubuntu 24.04 (Noble) |
 
-::: info Why Debian?
-We use Debian-based images (glibc) instead of Alpine (musl) because most development tools only provide glibc-compiled binaries. This ensures all tools installed by vx work out of the box without "No such file or directory" errors that occur with musl-based systems.
+::: info Why Ubuntu 24.04?
+We use Ubuntu 24.04 (glibc 2.39) because:
+1. vx is compiled on Ubuntu 24.04 runners, requiring glibc 2.39
+2. Most development tools provide glibc-compiled binaries
+3. Alpine (musl) causes "No such file or directory" errors
+4. Older Debian/Ubuntu versions have outdated glibc
 :::
 
 ### Using the Tools Image in Container Jobs

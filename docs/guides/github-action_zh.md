@@ -86,11 +86,15 @@ vx 提供官方 Docker 镜像，可以直接在您的 CI/CD 工作流程中使�
 
 | 镜像标签 | 描述 | 基础镜像 |
 |----------|------|----------|
-| `vx:latest` | 仅包含 vx 的最小镜像 | Debian Bookworm Slim |
-| `vx:tools-latest` | 预装常用工具（uv, ruff, node）的镜像 | Debian Bookworm Slim |
+| `vx:latest` | 仅包含 vx 的最小镜像 | Ubuntu 24.04 (Noble) |
+| `vx:tools-latest` | 预装常用工具（uv, ruff, node）的镜像 | Ubuntu 24.04 (Noble) |
 
-::: info 为什么使用 Debian？
-我们使用基于 Debian 的镜像（glibc）而不是 Alpine（musl），因为大多数开发工具只提供 glibc 编译的二进制文件。这确保了 vx 安装的所有工具都能开箱即用，不会出现 musl 系统上常见的"找不到文件或目录"错误。
+::: info 为什么使用 Ubuntu 24.04？
+我们使用 Ubuntu 24.04（glibc 2.39）因为：
+1. vx 在 Ubuntu 24.04 runner 上编译，需要 glibc 2.39
+2. 大多数开发工具提供 glibc 编译的二进制文件
+3. Alpine（musl）会导致"找不到文件或目录"错误
+4. 旧版 Debian/Ubuntu 的 glibc 版本过低
 :::
 
 ### 在容器作业中使用工具镜像
