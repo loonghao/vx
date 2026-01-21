@@ -86,11 +86,12 @@ jobs:
           VERSION="${{ needs.check-release.outputs.version }}"
 
           # Determine architecture
-          # Use musl builds for Alpine compatibility (statically linked, no glibc needed)
+          # Use gnu builds for Debian/glibc compatibility
+          # This ensures all tools installed by vx work correctly
           if [[ "${{ matrix.platform }}" == "linux/amd64" ]]; then
-            ARCH="x86_64-unknown-linux-musl"
+            ARCH="x86_64-unknown-linux-gnu"
           else
-            ARCH="aarch64-unknown-linux-musl"
+            ARCH="aarch64-unknown-linux-gnu"
           fi
 
           # Try versioned format first, then fall back to non-versioned format
@@ -227,11 +228,12 @@ jobs:
           VERSION="${{ needs.check-release.outputs.version }}"
 
           # Determine architecture
-          # Use musl builds for Alpine compatibility (statically linked, no glibc needed)
+          # Use gnu builds for Debian/glibc compatibility
+          # This ensures all tools installed by vx work correctly
           if [[ "${{ matrix.platform }}" == "linux/amd64" ]]; then
-            ARCH="x86_64-unknown-linux-musl"
+            ARCH="x86_64-unknown-linux-gnu"
           else
-            ARCH="aarch64-unknown-linux-musl"
+            ARCH="aarch64-unknown-linux-gnu"
           fi
 
           # Try versioned format first, then fall back to non-versioned format

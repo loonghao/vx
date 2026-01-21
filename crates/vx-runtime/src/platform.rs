@@ -2,6 +2,77 @@
 
 use serde::{Deserialize, Serialize};
 
+/// C library implementation (primarily for Linux)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum Libc {
+    /// GNU libc (glibc) - default on most Linux distributions
+    #[default]
+    Gnu,
+    /// musl libc - used in Alpine Linux and other minimal distributions
+    Musl,
+}
+
+impl Libc {
+    /// Detect the current libc implementation at runtime
+    ///
+    /// This checks if running on a musl-based system by examining /etc/os-release
+    /// or checking for musl-specific indicators.
+    pub fn current() -> Self {
+        // First check if we're in a musl environment via environment variable
+        // This allows explicit override in containers
+        if std::env::var("VX_LIBC").ok().as_deref() == Some("musl") {
+            return Libc::Musl;
+        }
+
+        // Only relevant for Linux
+        if !cfg!(target_os = "linux") {
+            return Libc::Gnu;
+        }
+
+        // Check /etc/os-release for Alpine (uses musl)
+        if let Ok(content) = std::fs::read_to_string("/etc/os-release") {
+            let content_lower = content.to_lowercase();
+            if content_lower.contains("alpine") {
+                return Libc::Musl;
+            }
+        }
+
+        // Check if /lib/ld-musl-*.so.1 exists (musl dynamic linker)
+        if std::path::Path::new("/lib/ld-musl-x86_64.so.1").exists()
+            || std::path::Path::new("/lib/ld-musl-aarch64.so.1").exists()
+        {
+            return Libc::Musl;
+        }
+
+        // Default to GNU libc
+        Libc::Gnu
+    }
+
+    /// Get the libc suffix for Rust target triples
+    pub fn as_str(&self) -> &str {
+        match self {
+            Libc::Gnu => "gnu",
+            Libc::Musl => "musl",
+        }
+    }
+
+    /// Check if this is musl libc
+    pub fn is_musl(&self) -> bool {
+        matches!(self, Libc::Musl)
+    }
+
+    /// Check if this is GNU libc
+    pub fn is_gnu(&self) -> bool {
+        matches!(self, Libc::Gnu)
+    }
+}
+
+impl std::fmt::Display for Libc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 /// Operating system
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Os {
@@ -98,25 +169,43 @@ impl std::fmt::Display for Arch {
     }
 }
 
-/// Platform information (OS + Architecture)
+/// Platform information (OS + Architecture + Libc)
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Platform {
     pub os: Os,
     pub arch: Arch,
+    /// C library implementation (relevant for Linux)
+    #[serde(default)]
+    pub libc: Libc,
 }
 
 impl Platform {
-    /// Create a new platform
+    /// Create a new platform with default libc (GNU)
     pub fn new(os: Os, arch: Arch) -> Self {
-        Self { os, arch }
+        Self {
+            os,
+            arch,
+            libc: Libc::default(),
+        }
     }
 
-    /// Detect current platform
+    /// Create a new platform with specific libc
+    pub fn with_libc(os: Os, arch: Arch, libc: Libc) -> Self {
+        Self { os, arch, libc }
+    }
+
+    /// Detect current platform including libc
     pub fn current() -> Self {
         Self {
             os: Os::current(),
             arch: Arch::current(),
+            libc: Libc::current(),
         }
+    }
+
+    /// Check if this platform uses musl libc
+    pub fn is_musl(&self) -> bool {
+        self.os == Os::Linux && self.libc.is_musl()
     }
 
     /// Get platform string for download URLs (e.g., "linux-x64", "darwin-arm64")
@@ -238,29 +327,38 @@ impl Platform {
     /// Returns the Rust target triple string (e.g., "x86_64-unknown-linux-gnu")
     /// used for Rust toolchain downloads.
     ///
+    /// For Linux, this takes into account the libc type (gnu vs musl).
+    ///
     /// # Example
     /// ```
-    /// use vx_runtime::{Platform, Os, Arch};
+    /// use vx_runtime::{Platform, Os, Arch, Libc};
     ///
     /// let linux = Platform::new(Os::Linux, Arch::X86_64);
     /// assert_eq!(linux.rust_target_triple(), "x86_64-unknown-linux-gnu");
+    ///
+    /// let alpine = Platform::with_libc(Os::Linux, Arch::X86_64, Libc::Musl);
+    /// assert_eq!(alpine.rust_target_triple(), "x86_64-unknown-linux-musl");
     ///
     /// let windows = Platform::new(Os::Windows, Arch::X86_64);
     /// assert_eq!(windows.rust_target_triple(), "x86_64-pc-windows-msvc");
     /// ```
     pub fn rust_target_triple(&self) -> &'static str {
-        match (&self.os, &self.arch) {
+        match (&self.os, &self.arch, &self.libc) {
             // Windows
-            (Os::Windows, Arch::X86_64) => "x86_64-pc-windows-msvc",
-            (Os::Windows, Arch::X86) => "i686-pc-windows-msvc",
-            (Os::Windows, Arch::Aarch64) => "aarch64-pc-windows-msvc",
+            (Os::Windows, Arch::X86_64, _) => "x86_64-pc-windows-msvc",
+            (Os::Windows, Arch::X86, _) => "i686-pc-windows-msvc",
+            (Os::Windows, Arch::Aarch64, _) => "aarch64-pc-windows-msvc",
             // macOS
-            (Os::MacOS, Arch::X86_64) => "x86_64-apple-darwin",
-            (Os::MacOS, Arch::Aarch64) => "aarch64-apple-darwin",
-            // Linux
-            (Os::Linux, Arch::X86_64) => "x86_64-unknown-linux-gnu",
-            (Os::Linux, Arch::Aarch64) => "aarch64-unknown-linux-gnu",
-            (Os::Linux, Arch::Arm) => "arm-unknown-linux-gnueabihf",
+            (Os::MacOS, Arch::X86_64, _) => "x86_64-apple-darwin",
+            (Os::MacOS, Arch::Aarch64, _) => "aarch64-apple-darwin",
+            // Linux with musl
+            (Os::Linux, Arch::X86_64, Libc::Musl) => "x86_64-unknown-linux-musl",
+            (Os::Linux, Arch::Aarch64, Libc::Musl) => "aarch64-unknown-linux-musl",
+            (Os::Linux, Arch::Arm, Libc::Musl) => "arm-unknown-linux-musleabihf",
+            // Linux with glibc (default)
+            (Os::Linux, Arch::X86_64, Libc::Gnu) => "x86_64-unknown-linux-gnu",
+            (Os::Linux, Arch::Aarch64, Libc::Gnu) => "aarch64-unknown-linux-gnu",
+            (Os::Linux, Arch::Arm, Libc::Gnu) => "arm-unknown-linux-gnueabihf",
             // Default fallback
             _ => "x86_64-unknown-linux-gnu",
         }

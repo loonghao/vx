@@ -2,6 +2,9 @@ name: Test Docker Images
 
 # Test Docker image builds to ensure they work correctly
 # This workflow validates both the base and tools images
+#
+# We use Debian-based images with glibc for maximum compatibility.
+# This ensures all tools installed by vx work correctly.
 
 on:
   push:
@@ -35,10 +38,10 @@ jobs:
           sudo mv hadolint /usr/local/bin/
 
       - name: Lint Dockerfile.prebuilt
-        run: hadolint pkg/docker/Dockerfile.prebuilt --ignore DL3018
+        run: hadolint pkg/docker/Dockerfile.prebuilt --ignore DL3008
 
       - name: Lint Dockerfile.tools
-        run: hadolint pkg/docker/Dockerfile.tools --ignore DL3018
+        run: hadolint pkg/docker/Dockerfile.tools --ignore DL3008
 
   test-build-base-image:
     name: Test base image build
@@ -60,11 +63,11 @@ jobs:
 
           echo "Downloading vx $TAG_NAME..."
 
-          # Use musl build for Alpine compatibility
-          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-${VERSION_NUM}-x86_64-unknown-linux-musl.tar.gz"
+          # Use gnu build for Debian/glibc compatibility
+          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-${VERSION_NUM}-x86_64-unknown-linux-gnu.tar.gz"
           if ! curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz 2>/dev/null; then
             # Fallback to legacy format
-            DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-x86_64-unknown-linux-musl.tar.gz"
+            DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-x86_64-unknown-linux-gnu.tar.gz"
             curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz
           fi
 
@@ -109,11 +112,11 @@ jobs:
 
           echo "Downloading vx $TAG_NAME..."
 
-          # Use musl build for Alpine compatibility
-          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-${VERSION_NUM}-x86_64-unknown-linux-musl.tar.gz"
+          # Use gnu build for Debian/glibc compatibility
+          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-${VERSION_NUM}-x86_64-unknown-linux-gnu.tar.gz"
           if ! curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz 2>/dev/null; then
             # Fallback to legacy format
-            DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-x86_64-unknown-linux-musl.tar.gz"
+            DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-x86_64-unknown-linux-gnu.tar.gz"
             curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz
           fi
 
@@ -167,14 +170,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: test-build-tools-image
     container:
-      # Note: This uses a placeholder. In production, use the actual published image
-      # image: ghcr.io/loonghao/vx:tools-latest
-      image: alpine:3.23
+      # Use Debian for testing to match the actual tools image
+      image: debian:bookworm-slim
     steps:
       - name: Install vx for testing
         run: |
-          # This step simulates what would be pre-installed in the tools image
-          apk add --no-cache curl bash jq
+          # Install dependencies
+          apt-get update && apt-get install -y --no-install-recommends curl jq ca-certificates
 
           # Get latest release
           RELEASE_INFO=$(curl -s "https://api.github.com/repos/loonghao/vx/releases/latest")
