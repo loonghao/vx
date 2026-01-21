@@ -1,7 +1,7 @@
 //! Tests for release-please runtime
 
 use vx_provider_release_please::{ReleasePleaseProvider, ReleasePleaseRuntime};
-use vx_runtime::{Ecosystem, Os, Platform, Provider, Runtime};
+use vx_runtime::{Arch, Ecosystem, Os, Platform, Provider, Runtime};
 
 #[test]
 fn test_runtime_name() {
@@ -61,10 +61,7 @@ fn test_provider_get_runtime() {
 #[test]
 fn test_executable_relative_path_linux() {
     let runtime = ReleasePleaseRuntime::new();
-    let platform = Platform {
-        os: Os::Linux,
-        arch: vx_runtime::Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     assert_eq!(
         runtime.executable_relative_path("17.0.0", &platform),
         "bin/release-please"
@@ -74,10 +71,7 @@ fn test_executable_relative_path_linux() {
 #[test]
 fn test_executable_relative_path_windows() {
     let runtime = ReleasePleaseRuntime::new();
-    let platform = Platform {
-        os: Os::Windows,
-        arch: vx_runtime::Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
     assert_eq!(
         runtime.executable_relative_path("17.0.0", &platform),
         "bin/release-please.cmd"
@@ -87,10 +81,7 @@ fn test_executable_relative_path_windows() {
 #[test]
 fn test_executable_relative_path_macos() {
     let runtime = ReleasePleaseRuntime::new();
-    let platform = Platform {
-        os: Os::MacOS,
-        arch: vx_runtime::Arch::Aarch64,
-    };
+    let platform = Platform::new(Os::MacOS, Arch::Aarch64);
     assert_eq!(
         runtime.executable_relative_path("17.0.0", &platform),
         "bin/release-please"
