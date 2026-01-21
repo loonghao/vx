@@ -400,10 +400,7 @@ mod tests {
         LayoutContext {
             version: "1.3.0".to_string(),
             name: "yasm".to_string(),
-            platform: Platform {
-                os: Os::Windows,
-                arch: Arch::X86_64,
-            },
+            platform: Platform::new(Os::Windows, Arch::X86_64),
         }
     }
 

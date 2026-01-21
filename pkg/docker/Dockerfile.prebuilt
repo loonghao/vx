@@ -1,10 +1,15 @@
 # vx Docker image using pre-built binary
 # This Dockerfile is used by CI to create images from release binaries
 #
-# Note: We use musl-compiled binaries (x86_64-unknown-linux-musl) which are
-# statically linked and work natively on Alpine without glibc compatibility layers.
+# We use Debian-based images (glibc) for maximum compatibility:
+# - vx itself works with gnu binaries
+# - All tools installed by vx (node, uv, python, etc.) use glibc binaries
+# - No libc compatibility issues - everything works out of the box
+#
+# Note: Alpine was considered but rejected because most tools only provide
+# glibc binaries, causing "No such file or directory" errors on musl systems.
 
-FROM alpine:3.23
+FROM debian:bookworm-slim
 
 LABEL org.opencontainers.image.title="vx"
 LABEL org.opencontainers.image.description="Universal version manager for developer tools"
@@ -14,19 +19,19 @@ LABEL org.opencontainers.image.vendor="loonghao"
 LABEL org.opencontainers.image.licenses="MIT"
 
 # Install runtime dependencies
-RUN apk add --no-cache \
+# Using apt-get with proper cleanup for smaller image size
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     git \
     curl \
-    bash \
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN addgroup -g 1000 vx && \
-    adduser -D -s /bin/bash -u 1000 -G vx vx
+RUN groupadd -g 1000 vx && \
+    useradd -m -s /bin/bash -u 1000 -g vx vx
 
 # Copy pre-built binary (passed via build context)
-# This should be a musl-compiled binary for Alpine compatibility
+# This should be a gnu-compiled binary for glibc compatibility
 COPY vx /usr/local/bin/vx
 
 # Ensure binary is executable

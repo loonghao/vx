@@ -84,10 +84,14 @@ vx 提供官方 Docker 镜像，可以直接在您的 CI/CD 工作流程中使�
 
 ### 可用镜像
 
-| 镜像标签 | 描述 | 大小 |
-|----------|------|------|
-| `vx:latest` | 仅包含 vx 的最小镜像 | ~15MB |
-| `vx:tools-latest` | 预装常用工具（uv, ruff, node）的镜像 | ~150MB |
+| 镜像标签 | 描述 | 基础镜像 |
+|----------|------|----------|
+| `vx:latest` | 仅包含 vx 的最小镜像 | Debian Bookworm Slim |
+| `vx:tools-latest` | 预装常用工具（uv, ruff, node）的镜像 | Debian Bookworm Slim |
+
+::: info 为什么使用 Debian？
+我们使用基于 Debian 的镜像（glibc）而不是 Alpine（musl），因为大多数开发工具只提供 glibc 编译的二进制文件。这确保了 vx 安装的所有工具都能开箱即用，不会出现 musl 系统上常见的"找不到文件或目录"错误。
+:::
 
 ### 在容器作业中使用工具镜像
 

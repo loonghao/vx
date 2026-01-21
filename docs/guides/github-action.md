@@ -498,10 +498,14 @@ vx provides official Docker images that can be used directly in your CI/CD workf
 
 ### Available Images
 
-| Image Tag | Description | Size |
+| Image Tag | Description | Base |
 |-----------|-------------|------|
-| `vx:latest` | Minimal image with just vx | ~15MB |
-| `vx:tools-latest` | Image with pre-installed tools (uv, ruff, node) | ~150MB |
+| `vx:latest` | Minimal image with just vx | Debian Bookworm Slim |
+| `vx:tools-latest` | Image with pre-installed tools (uv, ruff, node) | Debian Bookworm Slim |
+
+::: info Why Debian?
+We use Debian-based images (glibc) instead of Alpine (musl) because most development tools only provide glibc-compiled binaries. This ensures all tools installed by vx work out of the box without "No such file or directory" errors that occur with musl-based systems.
+:::
 
 ### Using the Tools Image in Container Jobs
 
