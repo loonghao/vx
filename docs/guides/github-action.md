@@ -491,3 +491,113 @@ After:
 3. **Cross-Platform**: Works on Linux, macOS, and Windows
 4. **Caching**: Automatic caching for faster CI runs
 5. **Simplicity**: No need to configure multiple setup actions
+
+## Using Docker Images
+
+vx provides official Docker images that can be used directly in your CI/CD workflows. These images are available on both Docker Hub and GitHub Container Registry.
+
+### Available Images
+
+| Image Tag | Description | Size |
+|-----------|-------------|------|
+| `vx:latest` | Minimal image with just vx | ~15MB |
+| `vx:tools-latest` | Image with pre-installed tools (uv, ruff, node) | ~150MB |
+
+### Using the Tools Image in Container Jobs
+
+The `vx:tools-latest` image comes with commonly used tools pre-installed, making it perfect for CI/CD workflows where you need fast startup times:
+
+**Pre-installed tools:**
+- **uv** - Fast Python package manager
+- **ruff** (via uvx) - Python linter and formatter
+- **Node.js** - JavaScript runtime (LTS version)
+
+```yaml
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/loonghao/vx:tools-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Tools are already available - no installation needed!
+      - name: Lint Python
+        run: vx uvx ruff check .
+
+      - name: Run tests
+        run: |
+          vx uv sync
+          vx uv run pytest
+
+      - name: Build frontend
+        run: |
+          vx npm ci
+          vx npm run build
+```
+
+### Pulling the Images
+
+```bash
+# From GitHub Container Registry (recommended)
+docker pull ghcr.io/loonghao/vx:latest
+docker pull ghcr.io/loonghao/vx:tools-latest
+
+# From Docker Hub
+docker pull longhal/vx:latest
+docker pull longhal/vx:tools-latest
+```
+
+### Using in Docker Compose
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  dev:
+    image: ghcr.io/loonghao/vx:tools-latest
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: bash -c "vx uv sync && vx uv run pytest"
+```
+
+### Building Custom Images
+
+You can extend the vx images with your own tools:
+
+```dockerfile
+FROM ghcr.io/loonghao/vx:tools-latest
+
+# Pre-install additional tools
+RUN vx go version
+
+# Add your project files
+COPY . /app
+WORKDIR /app
+
+# Run your application
+CMD ["vx", "uv", "run", "main.py"]
+```
+
+### Image Tags
+
+Both Docker Hub and GHCR provide the following tags:
+
+- `latest` - Latest stable base image
+- `tools-latest` - Latest stable tools image
+- `{version}` - Specific version (e.g., `0.6.5`)
+- `tools-{version}` - Specific version with tools
+
+::: tip When to use the tools image
+Use `vx:tools-latest` when:
+- Your workflow needs Python (uv/ruff) or Node.js
+- You want faster CI startup times
+- You're running multiple jobs that all need the same tools
+
+Use `vx:latest` when:
+- You only need specific tools not in the tools image
+- You want the smallest possible image size
+- You're building a custom image on top of vx
+:::
