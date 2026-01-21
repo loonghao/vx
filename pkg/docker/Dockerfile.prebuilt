@@ -19,10 +19,12 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 # Install runtime dependencies
 # Using apt-get with proper cleanup for smaller image size
+# libatomic1 is required by Node.js and other tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     git \
     curl \
+    libatomic1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user (use different UID/GID to avoid conflicts with existing ubuntu user)
