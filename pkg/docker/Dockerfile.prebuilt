@@ -11,11 +11,15 @@ LABEL org.opencontainers.image.vendor="loonghao"
 LABEL org.opencontainers.image.licenses="MIT"
 
 # Install runtime dependencies
+# - gcompat: provides glibc compatibility layer for musl (needed for glibc-compiled binaries)
+# - libstdc++: C++ standard library (needed for some tools)
 RUN apk add --no-cache \
     ca-certificates \
     git \
     curl \
     bash \
+    gcompat \
+    libstdc++ \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user
@@ -37,7 +41,7 @@ USER vx
 WORKDIR /home/vx
 
 # Verify installation
-RUN vx --version
+RUN /usr/local/bin/vx --version
 
 ENTRYPOINT ["/usr/local/bin/vx"]
 CMD ["--help"]
