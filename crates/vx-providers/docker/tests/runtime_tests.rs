@@ -86,7 +86,7 @@ fn test_config_default() {
 #[case(Os::Windows, Arch::X86_64, "docker/docker.exe")]
 fn test_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
     let runtime = DockerRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     assert_eq!(
         runtime.executable_relative_path("27.0.0", &platform),
         expected
