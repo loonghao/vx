@@ -1,5 +1,8 @@
 # vx Docker image using pre-built binary
 # This Dockerfile is used by CI to create images from release binaries
+#
+# Note: We use Alpine with gcompat for glibc compatibility since
+# vx is compiled with glibc (x86_64-unknown-linux-gnu)
 
 FROM alpine:3.23
 
@@ -13,6 +16,7 @@ LABEL org.opencontainers.image.licenses="MIT"
 # Install runtime dependencies
 # - gcompat: provides glibc compatibility layer for musl (needed for glibc-compiled binaries)
 # - libstdc++: C++ standard library (needed for some tools)
+# - libc6-compat: additional glibc compatibility
 RUN apk add --no-cache \
     ca-certificates \
     git \
@@ -20,6 +24,7 @@ RUN apk add --no-cache \
     bash \
     gcompat \
     libstdc++ \
+    libc6-compat \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user
@@ -36,12 +41,12 @@ RUN chmod +x /usr/local/bin/vx
 RUN mkdir -p /home/vx/.vx && \
     chown -R vx:vx /home/vx
 
+# Verify binary can be executed (use full path)
+RUN /usr/local/bin/vx --version
+
 # Switch to non-root user
 USER vx
 WORKDIR /home/vx
-
-# Verify installation
-RUN /usr/local/bin/vx --version
 
 ENTRYPOINT ["/usr/local/bin/vx"]
 CMD ["--help"]

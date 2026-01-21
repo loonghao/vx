@@ -10,6 +10,9 @@
 # Usage:
 #   docker pull ghcr.io/loonghao/vx:tools-latest
 #   docker pull longhal/vx:tools-latest
+#
+# Note: We use Alpine with gcompat for glibc compatibility since
+# vx is compiled with glibc (x86_64-unknown-linux-gnu)
 
 FROM alpine:3.23
 
@@ -21,8 +24,9 @@ LABEL org.opencontainers.image.vendor="loonghao"
 LABEL org.opencontainers.image.licenses="MIT"
 
 # Install runtime dependencies
-# - gcompat: provides glibc compatibility layer for musl (needed for some tools)
+# - gcompat: provides glibc compatibility layer for musl (needed for glibc-compiled binaries)
 # - libstdc++: C++ standard library (needed for Node.js and other tools)
+# - libc6-compat: additional glibc compatibility
 RUN apk add --no-cache \
     ca-certificates \
     git \
@@ -30,6 +34,7 @@ RUN apk add --no-cache \
     bash \
     gcompat \
     libstdc++ \
+    libc6-compat \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user
@@ -48,6 +53,9 @@ RUN mkdir -p /home/vx/.vx/bin && \
     mkdir -p /home/vx/.vx/cache && \
     chown -R vx:vx /home/vx
 
+# Verify vx binary can be executed (use full path, before switching user)
+RUN /usr/local/bin/vx --version
+
 # Switch to non-root user for tool installation
 USER vx
 WORKDIR /home/vx
@@ -56,24 +64,21 @@ WORKDIR /home/vx
 ENV PATH="/home/vx/.vx/bin:/usr/local/bin:$PATH"
 ENV VX_HOME="/home/vx/.vx"
 
-# Verify vx installation
-RUN vx --version
-
 # Pre-install common tools
 # Using vx to install tools ensures they are properly managed and versioned
 
 # Install uv (Python package manager) - this provides uvx as well
-RUN vx uv --version && echo "uv installed successfully"
+RUN /usr/local/bin/vx uv --version && echo "uv installed successfully"
 
 # Install ruff via uvx (Python linter/formatter)
 # Note: ruff is installed as a uvx tool, not a vx-managed runtime
-RUN vx uvx ruff --version && echo "ruff installed successfully"
+RUN /usr/local/bin/vx uvx ruff --version && echo "ruff installed successfully"
 
 # Install Node.js LTS (provides node, npm, npx)
-RUN vx node --version && echo "node installed successfully"
+RUN /usr/local/bin/vx node --version && echo "node installed successfully"
 
 # List all installed tools for verification
-RUN vx list --status
+RUN /usr/local/bin/vx list --status
 
 # Default entrypoint
 ENTRYPOINT ["/usr/local/bin/vx"]
