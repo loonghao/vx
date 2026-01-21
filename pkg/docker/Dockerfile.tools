@@ -1,0 +1,80 @@
+# vx Docker image with pre-installed common tools
+# This Dockerfile builds on top of the base vx image and includes commonly used tools
+# for CI/CD workflows, so users don't need to install them every time.
+#
+# Pre-installed tools:
+# - uv: Fast Python package manager and virtual environment tool
+# - ruff: Extremely fast Python linter and formatter
+# - node: Node.js runtime (LTS version)
+#
+# Usage:
+#   docker pull ghcr.io/loonghao/vx:tools-latest
+#   docker pull longhal/vx:tools-latest
+
+FROM alpine:3.23
+
+LABEL org.opencontainers.image.title="vx-tools"
+LABEL org.opencontainers.image.description="Universal version manager with pre-installed common tools"
+LABEL org.opencontainers.image.url="https://github.com/loonghao/vx"
+LABEL org.opencontainers.image.source="https://github.com/loonghao/vx"
+LABEL org.opencontainers.image.vendor="loonghao"
+LABEL org.opencontainers.image.licenses="MIT"
+
+# Install runtime dependencies
+# - gcompat: provides glibc compatibility layer for musl (needed for some tools)
+# - libstdc++: C++ standard library (needed for Node.js and other tools)
+RUN apk add --no-cache \
+    ca-certificates \
+    git \
+    curl \
+    bash \
+    gcompat \
+    libstdc++ \
+    && rm -rf /var/cache/apk/*
+
+# Create non-root user
+RUN addgroup -g 1000 vx && \
+    adduser -D -s /bin/bash -u 1000 -G vx vx
+
+# Copy pre-built vx binary (passed via build context)
+COPY vx /usr/local/bin/vx
+
+# Ensure binary is executable
+RUN chmod +x /usr/local/bin/vx
+
+# Create vx directories with proper permissions
+RUN mkdir -p /home/vx/.vx/bin && \
+    mkdir -p /home/vx/.vx/store && \
+    mkdir -p /home/vx/.vx/cache && \
+    chown -R vx:vx /home/vx
+
+# Switch to non-root user for tool installation
+USER vx
+WORKDIR /home/vx
+
+# Set PATH to include vx bin directory
+ENV PATH="/home/vx/.vx/bin:/usr/local/bin:$PATH"
+ENV VX_HOME="/home/vx/.vx"
+
+# Verify vx installation
+RUN vx --version
+
+# Pre-install common tools
+# Using vx to install tools ensures they are properly managed and versioned
+
+# Install uv (Python package manager) - this provides uvx as well
+RUN vx uv --version && echo "uv installed successfully"
+
+# Install ruff via uvx (Python linter/formatter)
+# Note: ruff is installed as a uvx tool, not a vx-managed runtime
+RUN vx uvx ruff --version && echo "ruff installed successfully"
+
+# Install Node.js LTS (provides node, npm, npx)
+RUN vx node --version && echo "node installed successfully"
+
+# List all installed tools for verification
+RUN vx list --status
+
+# Default entrypoint
+ENTRYPOINT ["/usr/local/bin/vx"]
+CMD ["--help"]
