@@ -102,7 +102,7 @@ fn test_zig_executable_relative_path(
     #[case] expected: &str,
 ) {
     let runtime = ZigRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let path = runtime.executable_relative_path(version, &platform);
     assert_eq!(path, expected);
 }
@@ -110,10 +110,7 @@ fn test_zig_executable_relative_path(
 #[tokio::test]
 async fn test_zig_download_url_format() {
     let runtime = ZigRuntime::new();
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
 
     let url = runtime.download_url("0.11.0", &platform).await.unwrap();
     assert!(url.is_some());
@@ -128,10 +125,7 @@ async fn test_zig_download_url_format() {
 #[tokio::test]
 async fn test_zig_download_url_windows() {
     let runtime = ZigRuntime::new();
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
 
     let url = runtime.download_url("0.11.0", &platform).await.unwrap();
     assert!(url.is_some());
@@ -147,10 +141,7 @@ async fn test_zig_download_url_exact_format() {
     let runtime = ZigRuntime::new();
 
     // Test Linux x86_64
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     let url = runtime.download_url("0.15.2", &platform).await.unwrap();
     assert_eq!(
         url,
@@ -158,10 +149,7 @@ async fn test_zig_download_url_exact_format() {
     );
 
     // Test Windows x86_64
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
     let url = runtime.download_url("0.15.2", &platform).await.unwrap();
     assert_eq!(
         url,
@@ -169,10 +157,7 @@ async fn test_zig_download_url_exact_format() {
     );
 
     // Test macOS aarch64
-    let platform = Platform {
-        os: Os::MacOS,
-        arch: Arch::Aarch64,
-    };
+    let platform = Platform::new(Os::MacOS, Arch::Aarch64);
     let url = runtime.download_url("0.15.2", &platform).await.unwrap();
     assert_eq!(
         url,
