@@ -145,7 +145,7 @@ fn test_install_config_builder() {
 #[case(Os::Linux, Arch::X86_64, None)]
 #[case(Os::MacOS, Arch::Aarch64, None)]
 fn test_arch_string(#[case] os: Os, #[case] arch: Arch, #[case] expected: Option<&str>) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     assert_eq!(PlatformHelper::get_arch_string(&platform), expected);
 }
 
@@ -157,7 +157,7 @@ fn test_arch_string(#[case] os: Os, #[case] arch: Arch, #[case] expected: Option
 #[case(Os::MacOS, Arch::X86_64, false)]
 #[case(Os::MacOS, Arch::Aarch64, false)]
 fn test_platform_support(#[case] os: Os, #[case] arch: Arch, #[case] expected: bool) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     assert_eq!(PlatformHelper::is_platform_supported(&platform), expected);
 }
 
@@ -168,10 +168,7 @@ fn test_platform_support(#[case] os: Os, #[case] arch: Arch, #[case] expected: b
 #[test]
 fn test_executable_relative_path_x64() {
     let runtime = MsvcRuntime::new();
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
     let path = runtime.executable_relative_path("14.40.33807", &platform);
     assert_eq!(path, "VC/Tools/MSVC/14.40.33807/bin/Hostx64/x64/cl.exe");
 }
@@ -179,10 +176,7 @@ fn test_executable_relative_path_x64() {
 #[test]
 fn test_executable_relative_path_x86() {
     let runtime = MsvcRuntime::new();
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86);
     let path = runtime.executable_relative_path("14.40.33807", &platform);
     assert_eq!(path, "VC/Tools/MSVC/14.40.33807/bin/Hostx86/x86/cl.exe");
 }
@@ -190,10 +184,7 @@ fn test_executable_relative_path_x86() {
 #[test]
 fn test_executable_relative_path_arm64() {
     let runtime = MsvcRuntime::new();
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::Aarch64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::Aarch64);
     let path = runtime.executable_relative_path("14.40.33807", &platform);
     assert_eq!(path, "VC/Tools/MSVC/14.40.33807/bin/Hostarm64/arm64/cl.exe");
 }

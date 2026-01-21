@@ -98,10 +98,7 @@ mod tests {
 
     #[test]
     fn test_download_url_linux_x64() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
         assert!(url.is_some());
         let url = url.unwrap();
@@ -112,10 +109,7 @@ mod tests {
     #[test]
     fn test_download_url_windows_x64_uses_package_manager() {
         // Windows should use package managers, not direct download
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
         assert!(
             url.is_none(),
@@ -126,10 +120,7 @@ mod tests {
     #[test]
     fn test_download_url_windows_arm64_uses_package_manager() {
         // Windows ARM64 should also use package managers
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::Aarch64);
         let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
         assert!(
             url.is_none(),
@@ -139,20 +130,14 @@ mod tests {
 
     #[test]
     fn test_download_url_macos_not_supported() {
-        let platform = Platform {
-            os: Os::MacOS,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::MacOS, Arch::Aarch64);
         let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
         assert!(url.is_none());
     }
 
     #[test]
     fn test_executable_name_linux() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         assert_eq!(
             ImageMagickUrlBuilder::get_executable_name(&platform),
             "magick"
@@ -161,10 +146,7 @@ mod tests {
 
     #[test]
     fn test_executable_name_windows() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         assert_eq!(
             ImageMagickUrlBuilder::get_executable_name(&platform),
             "magick.exe"
@@ -174,62 +156,41 @@ mod tests {
     #[test]
     fn test_is_direct_download_supported() {
         // Only Linux x86_64 supports direct download (AppImage)
-        let linux_x64 = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let linux_x64 = Platform::new(Os::Linux, Arch::X86_64);
         assert!(ImageMagickUrlBuilder::is_direct_download_supported(
             &linux_x64
         ));
 
-        let linux_arm = Platform {
-            os: Os::Linux,
-            arch: Arch::Aarch64,
-        };
+        let linux_arm = Platform::new(Os::Linux, Arch::Aarch64);
         assert!(!ImageMagickUrlBuilder::is_direct_download_supported(
             &linux_arm
         ));
 
         // Windows uses package managers (winget/choco/scoop)
-        let windows_x64 = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let windows_x64 = Platform::new(Os::Windows, Arch::X86_64);
         assert!(!ImageMagickUrlBuilder::is_direct_download_supported(
             &windows_x64
         ));
 
-        let windows_arm64 = Platform {
-            os: Os::Windows,
-            arch: Arch::Aarch64,
-        };
+        let windows_arm64 = Platform::new(Os::Windows, Arch::Aarch64);
         assert!(!ImageMagickUrlBuilder::is_direct_download_supported(
             &windows_arm64
         ));
 
         // macOS uses Homebrew
-        let macos = Platform {
-            os: Os::MacOS,
-            arch: Arch::Aarch64,
-        };
+        let macos = Platform::new(Os::MacOS, Arch::Aarch64);
         assert!(!ImageMagickUrlBuilder::is_direct_download_supported(&macos));
     }
 
     #[test]
     fn test_installation_instructions() {
-        let macos = Platform {
-            os: Os::MacOS,
-            arch: Arch::Aarch64,
-        };
+        let macos = Platform::new(Os::MacOS, Arch::Aarch64);
         let instructions = ImageMagickUrlBuilder::get_installation_instructions(&macos);
         assert!(instructions.is_some());
         assert!(instructions.unwrap().contains("brew"));
 
         // Windows should have instructions for package managers
-        let windows_x64 = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let windows_x64 = Platform::new(Os::Windows, Arch::X86_64);
         let instructions = ImageMagickUrlBuilder::get_installation_instructions(&windows_x64);
         assert!(instructions.is_some());
         assert!(
@@ -237,27 +198,18 @@ mod tests {
         );
 
         // Linux x86_64 has direct download, no instructions needed
-        let linux_x64 = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let linux_x64 = Platform::new(Os::Linux, Arch::X86_64);
         let instructions = ImageMagickUrlBuilder::get_installation_instructions(&linux_x64);
         assert!(instructions.is_none()); // Direct download supported
     }
 
     #[test]
     fn test_archive_extension() {
-        let linux = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let linux = Platform::new(Os::Linux, Arch::X86_64);
         assert_eq!(ImageMagickUrlBuilder::get_archive_extension(&linux), None);
 
         // Windows uses package managers, no archive extension
-        let windows = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let windows = Platform::new(Os::Windows, Arch::X86_64);
         assert_eq!(ImageMagickUrlBuilder::get_archive_extension(&windows), None);
     }
 }

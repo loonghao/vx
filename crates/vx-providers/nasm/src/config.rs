@@ -65,10 +65,7 @@ mod tests {
 
     #[test]
     fn test_download_url_windows_x64() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         let url = NasmUrlBuilder::download_url("2.16.01", &platform);
         assert_eq!(
             url,
@@ -81,10 +78,7 @@ mod tests {
 
     #[test]
     fn test_download_url_windows_x86() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86);
         let url = NasmUrlBuilder::download_url("2.16.01", &platform);
         assert_eq!(
             url,
@@ -97,10 +91,7 @@ mod tests {
 
     #[test]
     fn test_download_url_macos() {
-        let platform = Platform {
-            os: Os::MacOS,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::MacOS, Arch::X86_64);
         let url = NasmUrlBuilder::download_url("2.16.01", &platform);
         assert_eq!(
             url,
@@ -113,20 +104,14 @@ mod tests {
 
     #[test]
     fn test_download_url_linux_not_supported() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         let url = NasmUrlBuilder::download_url("2.16.01", &platform);
         assert_eq!(url, None);
     }
 
     #[test]
     fn test_get_archive_dir_name() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         assert_eq!(
             NasmUrlBuilder::get_archive_dir_name("2.16.01", &platform),
             Some("nasm-2.16.01".to_string())
@@ -135,14 +120,8 @@ mod tests {
 
     #[test]
     fn test_is_binary_supported() {
-        let win64 = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
-        let linux = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let win64 = Platform::new(Os::Windows, Arch::X86_64);
+        let linux = Platform::new(Os::Linux, Arch::X86_64);
         assert!(NasmUrlBuilder::is_binary_supported(&win64));
         assert!(!NasmUrlBuilder::is_binary_supported(&linux));
     }

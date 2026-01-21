@@ -75,10 +75,7 @@ mod tests {
 
     #[test]
     fn test_download_url_linux_x64() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         let url = TaskUrlBuilder::download_url("3.40.1", &platform);
         assert_eq!(
             url,
@@ -91,10 +88,7 @@ mod tests {
 
     #[test]
     fn test_download_url_windows_x64() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         let url = TaskUrlBuilder::download_url("3.40.1", &platform);
         assert_eq!(
             url,
@@ -107,10 +101,7 @@ mod tests {
 
     #[test]
     fn test_download_url_macos_arm64() {
-        let platform = Platform {
-            os: Os::MacOS,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::MacOS, Arch::Aarch64);
         let url = TaskUrlBuilder::download_url("3.40.1", &platform);
         assert_eq!(
             url,
@@ -123,10 +114,7 @@ mod tests {
 
     #[test]
     fn test_download_url_with_v_prefix() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         let url = TaskUrlBuilder::download_url("v3.40.1", &platform);
         assert_eq!(
             url,

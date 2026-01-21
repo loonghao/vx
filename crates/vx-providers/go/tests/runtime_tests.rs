@@ -76,7 +76,7 @@ fn test_go_provider_get_runtime() {
 #[case(Os::Windows, Arch::Aarch64, "go/bin/go.exe")]
 fn test_go_executable_relative_path(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
     let runtime = GoRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let path = runtime.executable_relative_path("1.21.0", &platform);
     assert_eq!(path, expected);
 }
