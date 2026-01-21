@@ -95,10 +95,7 @@ fn test_download_url_with_v_prefix() {
 #[case(Os::MacOS, "spack")]
 #[case(Os::Windows, "spack")]
 fn test_executable_name(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     let name = SpackUrlBuilder::get_executable_name(&platform);
     assert_eq!(name, expected);
 }
@@ -111,7 +108,7 @@ fn test_executable_name(#[case] os: Os, #[case] expected: &str) {
 #[case(Os::Windows, Arch::X86_64)]
 fn test_executable_relative_path(#[case] os: Os, #[case] arch: Arch) {
     let runtime = SpackRuntime::new();
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     let path = runtime.executable_relative_path("1.1.0", &platform);
     assert_eq!(path, "spack-1.1.0/bin/spack");
 }
