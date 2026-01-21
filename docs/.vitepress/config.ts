@@ -185,7 +185,7 @@ const zhSidebar = {
     {
       text: '指南',
       items: [
-        { text: 'GitHub Action', link: '/guides/github-action' },
+        { text: 'GitHub Action', link: '/guides/github-action_zh' },
         { text: '使用案例', link: '/zh/guides/use-cases' }
       ]
     }
@@ -318,7 +318,7 @@ export default defineConfig({
           { text: 'CLI', link: '/zh/cli/overview' },
           { text: '配置', link: '/zh/config/vx-toml' },
           { text: '工具', link: '/zh/tools/overview' },
-          { text: 'GitHub Action', link: '/guides/github-action' },
+          { text: 'GitHub Action', link: '/guides/github-action_zh' },
           {
             text: '更多',
             items: [

@@ -2,6 +2,10 @@ name: Docker Publish
 
 # Publish Docker images to Docker Hub and GitHub Container Registry
 # Triggered after successful release or manually
+#
+# This workflow publishes two types of images:
+# 1. Base image (vx:latest) - minimal image with just vx
+# 2. Tools image (vx:tools-latest) - includes pre-installed common tools (uv, ruff, node)
 
 on:
   workflow_run:
@@ -14,6 +18,11 @@ on:
         description: 'Version to publish (e.g., v1.0.0)'
         required: true
         type: string
+      build_tools_image:
+        description: 'Also build the tools image (with pre-installed uv, ruff, node)'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -190,25 +199,177 @@ jobs:
             ${{ env.GHCR_REPO }}:${VERSION_SHORT}-linux-arm64
           docker manifest push ${{ env.GHCR_REPO }}:latest
 
-  summary:
+  # Build and push the tools image (with pre-installed common tools)
+  # This image includes uv, ruff, and node pre-installed for faster CI/CD workflows
+  build-and-push-tools:
     needs: [check-release, create-manifest]
+    runs-on: ubuntu-latest
+    # Build tools image by default for workflow_run, or when explicitly requested
+    if: github.event_name == 'workflow_run' || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_tools_image == 'true')
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download release binary
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+
+          # Determine architecture
+          if [[ "${{ matrix.platform }}" == "linux/amd64" ]]; then
+            ARCH="x86_64-unknown-linux-gnu"
+          else
+            ARCH="aarch64-unknown-linux-gnu"
+          fi
+
+          # Try versioned format first, then fall back to non-versioned format
+          VERSION_NUM=$(echo "${VERSION}" | sed -E 's/^(vx-)?v//')
+          DOWNLOAD_URL_VERSIONED="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${VERSION_NUM}-${ARCH}.tar.gz"
+          DOWNLOAD_URL_COMPAT="https://github.com/loonghao/vx/releases/download/${VERSION}/vx-${ARCH}.tar.gz"
+
+          echo "Trying versioned URL: $DOWNLOAD_URL_VERSIONED"
+          if curl -fsSL "$DOWNLOAD_URL_VERSIONED" -o vx.tar.gz 2>/dev/null; then
+            echo "Downloaded from versioned URL"
+          else
+            echo "Versioned URL failed, trying compatible URL: $DOWNLOAD_URL_COMPAT"
+            curl -fsSL "$DOWNLOAD_URL_COMPAT" -o vx.tar.gz
+          fi
+
+          tar -xzf vx.tar.gz
+          chmod +x vx
+
+          # Verify binary
+          file vx
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract platform suffix
+        id: platform
+        run: |
+          PLATFORM="${{ matrix.platform }}"
+          SUFFIX="${PLATFORM//\//-}"
+          echo "suffix=$SUFFIX" >> $GITHUB_OUTPUT
+
+      - name: Build and push tools image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: pkg/docker/Dockerfile.tools
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: |
+            ${{ env.DOCKER_HUB_REPO }}:tools-${{ needs.check-release.outputs.version_short }}-${{ steps.platform.outputs.suffix }}
+            ${{ env.GHCR_REPO }}:tools-${{ needs.check-release.outputs.version_short }}-${{ steps.platform.outputs.suffix }}
+          labels: |
+            org.opencontainers.image.version=${{ needs.check-release.outputs.version_short }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=vx with pre-installed tools (uv, ruff, node)
+
+  create-tools-manifest:
+    needs: [check-release, build-and-push-tools]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push Docker Hub tools manifest
+        run: |
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+
+          echo "Creating Docker Hub tools manifests for version: ${VERSION_SHORT}"
+
+          # Create versioned tools manifest (e.g., tools-0.5.15)
+          docker manifest create ${{ env.DOCKER_HUB_REPO }}:tools-${VERSION_SHORT} \
+            ${{ env.DOCKER_HUB_REPO }}:tools-${VERSION_SHORT}-linux-amd64 \
+            ${{ env.DOCKER_HUB_REPO }}:tools-${VERSION_SHORT}-linux-arm64
+          docker manifest push ${{ env.DOCKER_HUB_REPO }}:tools-${VERSION_SHORT}
+
+          # Create tools-latest manifest
+          docker manifest create ${{ env.DOCKER_HUB_REPO }}:tools-latest \
+            ${{ env.DOCKER_HUB_REPO }}:tools-${VERSION_SHORT}-linux-amd64 \
+            ${{ env.DOCKER_HUB_REPO }}:tools-${VERSION_SHORT}-linux-arm64
+          docker manifest push ${{ env.DOCKER_HUB_REPO }}:tools-latest
+
+      - name: Create and push GHCR tools manifest
+        run: |
+          VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
+
+          echo "Creating GHCR tools manifests for version: ${VERSION_SHORT}"
+
+          # Create versioned tools manifest (e.g., tools-0.5.15)
+          docker manifest create ${{ env.GHCR_REPO }}:tools-${VERSION_SHORT} \
+            ${{ env.GHCR_REPO }}:tools-${VERSION_SHORT}-linux-amd64 \
+            ${{ env.GHCR_REPO }}:tools-${VERSION_SHORT}-linux-arm64
+          docker manifest push ${{ env.GHCR_REPO }}:tools-${VERSION_SHORT}
+
+          # Create tools-latest manifest
+          docker manifest create ${{ env.GHCR_REPO }}:tools-latest \
+            ${{ env.GHCR_REPO }}:tools-${VERSION_SHORT}-linux-amd64 \
+            ${{ env.GHCR_REPO }}:tools-${VERSION_SHORT}-linux-arm64
+          docker manifest push ${{ env.GHCR_REPO }}:tools-latest
+
+  summary:
+    needs: [check-release, create-manifest, create-tools-manifest]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Summary
         run: |
           VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
-          echo "## Docker Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "## Docker Images Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Pull Commands" >> $GITHUB_STEP_SUMMARY
+          echo "### Base Image (minimal)" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
           echo "# Docker Hub" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull loonghao/vx:${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull loonghao/vx:latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull longhal/vx:${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull longhal/vx:latest" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "# GitHub Container Registry" >> $GITHUB_STEP_SUMMARY
           echo "docker pull ghcr.io/loonghao/vx:${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
           echo "docker pull ghcr.io/loonghao/vx:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tools Image (with pre-installed uv, ruff, node)" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# Docker Hub" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull longhal/vx:tools-${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull longhal/vx:tools-latest" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# GitHub Container Registry" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/loonghao/vx:tools-${VERSION_SHORT}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/loonghao/vx:tools-latest" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

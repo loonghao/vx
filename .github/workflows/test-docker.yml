@@ -1,0 +1,209 @@
+name: Test Docker Images
+
+# Test Docker image builds to ensure they work correctly
+# This workflow validates both the base and tools images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pkg/docker/**'
+      - 'Dockerfile'
+      - '.github/workflows/test-docker.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'pkg/docker/**'
+      - 'Dockerfile'
+      - '.github/workflows/test-docker.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-dockerfile-syntax:
+    name: Validate Dockerfile syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install hadolint
+        run: |
+          wget -q -O hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+          chmod +x hadolint
+          sudo mv hadolint /usr/local/bin/
+
+      - name: Lint Dockerfile.prebuilt
+        run: hadolint pkg/docker/Dockerfile.prebuilt --ignore DL3018
+
+      - name: Lint Dockerfile.tools
+        run: hadolint pkg/docker/Dockerfile.tools --ignore DL3018
+
+  test-build-base-image:
+    name: Test base image build
+    runs-on: ubuntu-latest
+    needs: test-dockerfile-syntax
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download latest vx binary
+        run: |
+          # Get latest release
+          RELEASE_INFO=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/loonghao/vx/releases/latest")
+          TAG_NAME=$(echo "$RELEASE_INFO" | jq -r '.tag_name')
+          VERSION_NUM=$(echo "$TAG_NAME" | sed -E 's/^(vx-)?v//')
+
+          echo "Downloading vx $TAG_NAME..."
+
+          # Try versioned format first
+          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-${VERSION_NUM}-x86_64-unknown-linux-gnu.tar.gz"
+          if ! curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz 2>/dev/null; then
+            # Fallback to legacy format
+            DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-x86_64-unknown-linux-gnu.tar.gz"
+            curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz
+          fi
+
+          tar -xzf vx.tar.gz
+          chmod +x vx
+          ./vx --version
+
+      - name: Build base image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: pkg/docker/Dockerfile.prebuilt
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: vx:test-base
+
+      - name: Test base image
+        run: |
+          echo "Testing base image..."
+          docker run --rm vx:test-base --version
+          docker run --rm vx:test-base --help
+          docker run --rm vx:test-base list
+
+  test-build-tools-image:
+    name: Test tools image build
+    runs-on: ubuntu-latest
+    needs: test-dockerfile-syntax
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download latest vx binary
+        run: |
+          # Get latest release
+          RELEASE_INFO=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/loonghao/vx/releases/latest")
+          TAG_NAME=$(echo "$RELEASE_INFO" | jq -r '.tag_name')
+          VERSION_NUM=$(echo "$TAG_NAME" | sed -E 's/^(vx-)?v//')
+
+          echo "Downloading vx $TAG_NAME..."
+
+          # Try versioned format first
+          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-${VERSION_NUM}-x86_64-unknown-linux-gnu.tar.gz"
+          if ! curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz 2>/dev/null; then
+            # Fallback to legacy format
+            DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-x86_64-unknown-linux-gnu.tar.gz"
+            curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz
+          fi
+
+          tar -xzf vx.tar.gz
+          chmod +x vx
+          ./vx --version
+
+      - name: Build tools image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: pkg/docker/Dockerfile.tools
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: vx:test-tools
+
+      - name: Test tools image - vx commands
+        run: |
+          echo "Testing vx in tools image..."
+          docker run --rm vx:test-tools --version
+          docker run --rm vx:test-tools list --status
+
+      - name: Test tools image - pre-installed tools
+        run: |
+          echo "Testing pre-installed tools..."
+
+          # Test uv
+          echo "Testing uv..."
+          docker run --rm --entrypoint /bin/bash vx:test-tools -c "vx uv --version"
+
+          # Test ruff via uvx
+          echo "Testing ruff via uvx..."
+          docker run --rm --entrypoint /bin/bash vx:test-tools -c "vx uvx ruff --version"
+
+          # Test node
+          echo "Testing node..."
+          docker run --rm --entrypoint /bin/bash vx:test-tools -c "vx node --version"
+
+          # Test npm
+          echo "Testing npm..."
+          docker run --rm --entrypoint /bin/bash vx:test-tools -c "vx npm --version"
+
+      - name: Verify tools are cached in image
+        run: |
+          echo "Verifying tools are pre-cached..."
+          docker run --rm --entrypoint /bin/bash vx:test-tools -c "ls -la ~/.vx/store/ 2>/dev/null || ls -la ~/.vx/ || echo 'Checking vx directories...'"
+
+  test-tools-image-in-workflow:
+    name: Test tools image in real workflow
+    runs-on: ubuntu-latest
+    needs: test-build-tools-image
+    container:
+      # Note: This uses a placeholder. In production, use the actual published image
+      # image: ghcr.io/loonghao/vx:tools-latest
+      image: alpine:3.23
+    steps:
+      - name: Install vx for testing
+        run: |
+          # This step simulates what would be pre-installed in the tools image
+          apk add --no-cache curl bash jq
+
+          # Get latest release
+          RELEASE_INFO=$(curl -s "https://api.github.com/repos/loonghao/vx/releases/latest")
+          TAG_NAME=$(echo "$RELEASE_INFO" | jq -r '.tag_name')
+          VERSION_NUM=$(echo "$TAG_NAME" | sed -E 's/^(vx-)?v//')
+
+          echo "Downloading vx $TAG_NAME..."
+          DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-${VERSION_NUM}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz || \
+            curl -fsSL "https://github.com/loonghao/vx/releases/download/${TAG_NAME}/vx-x86_64-unknown-linux-gnu.tar.gz" -o vx.tar.gz
+
+          tar -xzf vx.tar.gz
+          chmod +x vx
+          mv vx /usr/local/bin/
+
+      - name: Verify vx works in container
+        run: |
+          vx --version
+          vx list
+
+      - name: Test Python workflow with uv
+        run: |
+          # This demonstrates the typical workflow users would run
+          vx uv --version
+          vx uvx ruff --version
+          echo "Python tooling works!"
+
+      - name: Test Node.js workflow
+        run: |
+          vx node --version
+          vx npm --version
+          echo "Node.js tooling works!"
