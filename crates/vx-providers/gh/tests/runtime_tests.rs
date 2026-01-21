@@ -30,14 +30,26 @@ fn test_runtime_ecosystem() {
 }
 
 #[rstest]
-#[case("2.45.0", Platform::new(Os::Windows, Arch::X86_64),
-    "https://github.com/cli/cli/releases/download/v2.45.0/gh_2.45.0_windows_amd64.zip")]
-#[case("2.44.0", Platform::new(Os::Linux, Arch::X86_64),
-    "https://github.com/cli/cli/releases/download/v2.44.0/gh_2.44.0_linux_amd64.tar.gz")]
-#[case("2.43.0", Platform::new(Os::MacOS, Arch::X86_64),
-    "https://github.com/cli/cli/releases/download/v2.43.0/gh_2.43.0_macOS_amd64.zip")]
-#[case("2.42.0", Platform::new(Os::MacOS, Arch::Aarch64),
-    "https://github.com/cli/cli/releases/download/v2.42.0/gh_2.42.0_macOS_arm64.zip")]
+#[case(
+    "2.45.0",
+    Platform::new(Os::Windows, Arch::X86_64),
+    "https://github.com/cli/cli/releases/download/v2.45.0/gh_2.45.0_windows_amd64.zip"
+)]
+#[case(
+    "2.44.0",
+    Platform::new(Os::Linux, Arch::X86_64),
+    "https://github.com/cli/cli/releases/download/v2.44.0/gh_2.44.0_linux_amd64.tar.gz"
+)]
+#[case(
+    "2.43.0",
+    Platform::new(Os::MacOS, Arch::X86_64),
+    "https://github.com/cli/cli/releases/download/v2.43.0/gh_2.43.0_macOS_amd64.zip"
+)]
+#[case(
+    "2.42.0",
+    Platform::new(Os::MacOS, Arch::Aarch64),
+    "https://github.com/cli/cli/releases/download/v2.42.0/gh_2.42.0_macOS_arm64.zip"
+)]
 fn test_url_builder(#[case] version: &str, #[case] platform: Platform, #[case] expected_url: &str) {
     let url = GitHubUrlBuilder::download_url(version, &platform);
     assert_eq!(url, expected_url);
@@ -45,8 +57,16 @@ fn test_url_builder(#[case] version: &str, #[case] platform: Platform, #[case] e
 
 #[rstest]
 #[case(Platform::new(Os::Windows, Arch::X86_64), "2.45.0", "bin/gh.exe")]
-#[case(Platform::new(Os::Linux, Arch::X86_64), "2.44.0", "gh_2.44.0_linux_amd64/bin/gh")]
-#[case(Platform::new(Os::MacOS, Arch::X86_64), "2.43.0", "gh_2.43.0_macOS_amd64/bin/gh")]
+#[case(
+    Platform::new(Os::Linux, Arch::X86_64),
+    "2.44.0",
+    "gh_2.44.0_linux_amd64/bin/gh"
+)]
+#[case(
+    Platform::new(Os::MacOS, Arch::X86_64),
+    "2.43.0",
+    "gh_2.43.0_macOS_amd64/bin/gh"
+)]
 fn test_executable_relative_path(
     #[case] platform: Platform,
     #[case] version: &str,
