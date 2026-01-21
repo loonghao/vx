@@ -86,7 +86,7 @@ fn test_provider_get_runtime() {
 #[case(Os::Windows, Arch::X86_64, false)] // Windows: Use winget/choco/scoop
 #[case(Os::Windows, Arch::Aarch64, false)] // Windows ARM: Use winget/choco/scoop
 fn test_direct_download_support(#[case] os: Os, #[case] arch: Arch, #[case] expected: bool) {
-    let platform = Platform { os, arch };
+    let platform = Platform::new(os, arch);
     assert_eq!(
         ImageMagickUrlBuilder::is_direct_download_supported(&platform),
         expected
@@ -98,20 +98,14 @@ fn test_direct_download_support(#[case] os: Os, #[case] arch: Arch, #[case] expe
 #[case(Os::Linux, "magick")]
 #[case(Os::MacOS, "magick")]
 fn test_executable_name(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform {
-        os,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(os, Arch::X86_64);
     let name = ImageMagickUrlBuilder::get_executable_name(&platform);
     assert_eq!(name, expected);
 }
 
 #[test]
 fn test_download_url_linux_x64() {
-    let platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
     let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
     assert!(url.is_some());
     let url = url.unwrap();
@@ -122,10 +116,7 @@ fn test_download_url_linux_x64() {
 #[test]
 fn test_download_url_windows_uses_package_manager() {
     // Windows should use package managers (winget/choco/scoop), not direct download
-    let platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
     let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
     assert!(
         url.is_none(),
@@ -135,10 +126,7 @@ fn test_download_url_windows_uses_package_manager() {
 
 #[test]
 fn test_download_url_macos_none() {
-    let platform = Platform {
-        os: Os::MacOS,
-        arch: Arch::Aarch64,
-    };
+    let platform = Platform::new(Os::MacOS, Arch::Aarch64);
     let url = ImageMagickUrlBuilder::download_url("7.1.2-12", &platform);
     assert!(url.is_none());
 }
@@ -148,19 +136,13 @@ fn test_download_url_macos_none() {
 fn test_executable_dir_path() {
     let runtime = MagickRuntime::new();
 
-    let linux_platform = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let linux_platform = Platform::new(Os::Linux, Arch::X86_64);
     assert_eq!(
         runtime.executable_dir_path("7.1.2-12", &linux_platform),
         Some("bin".to_string())
     );
 
-    let windows_platform = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let windows_platform = Platform::new(Os::Windows, Arch::X86_64);
     assert_eq!(
         runtime.executable_dir_path("7.1.2-12", &windows_platform),
         Some("bin".to_string())
@@ -171,19 +153,13 @@ fn test_executable_dir_path() {
 #[test]
 fn test_installation_instructions() {
     // macOS: Use Homebrew
-    let macos = Platform {
-        os: Os::MacOS,
-        arch: Arch::Aarch64,
-    };
+    let macos = Platform::new(Os::MacOS, Arch::Aarch64);
     let instructions = ImageMagickUrlBuilder::get_installation_instructions(&macos);
     assert!(instructions.is_some());
     assert!(instructions.unwrap().contains("brew"));
 
     // Windows now uses package managers (winget/choco/scoop)
-    let windows_x64 = Platform {
-        os: Os::Windows,
-        arch: Arch::X86_64,
-    };
+    let windows_x64 = Platform::new(Os::Windows, Arch::X86_64);
     let instructions = ImageMagickUrlBuilder::get_installation_instructions(&windows_x64);
     assert!(instructions.is_some());
     assert!(
@@ -192,10 +168,7 @@ fn test_installation_instructions() {
     );
 
     // Linux x86_64 supports direct download, no instructions needed
-    let linux_x64 = Platform {
-        os: Os::Linux,
-        arch: Arch::X86_64,
-    };
+    let linux_x64 = Platform::new(Os::Linux, Arch::X86_64);
     let instructions = ImageMagickUrlBuilder::get_installation_instructions(&linux_x64);
     assert!(
         instructions.is_none(),
