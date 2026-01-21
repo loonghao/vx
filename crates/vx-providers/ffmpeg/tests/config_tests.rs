@@ -8,10 +8,7 @@ mod url_builder {
 
     #[test]
     fn test_windows_x64_gpl() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         let url = FfmpegUrlBuilder::download_url("7.0", &platform, FfmpegBuild::Gpl);
         assert_eq!(
             url,
@@ -24,10 +21,7 @@ mod url_builder {
 
     #[test]
     fn test_windows_x64_lgpl() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         let url = FfmpegUrlBuilder::download_url("7.0", &platform, FfmpegBuild::Lgpl);
         assert_eq!(
             url,
@@ -40,10 +34,7 @@ mod url_builder {
 
     #[test]
     fn test_windows_arm64() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::Aarch64);
         let url = FfmpegUrlBuilder::download_url("7.0", &platform, FfmpegBuild::Gpl);
         assert_eq!(
             url,
@@ -56,10 +47,7 @@ mod url_builder {
 
     #[test]
     fn test_macos_x64() {
-        let platform = Platform {
-            os: Os::MacOS,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::MacOS, Arch::X86_64);
         let url = FfmpegUrlBuilder::download_url("7.0", &platform, FfmpegBuild::Gpl);
         assert_eq!(
             url,
@@ -69,10 +57,7 @@ mod url_builder {
 
     #[test]
     fn test_macos_arm64() {
-        let platform = Platform {
-            os: Os::MacOS,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::MacOS, Arch::Aarch64);
         let url = FfmpegUrlBuilder::download_url("7.0", &platform, FfmpegBuild::Gpl);
         assert_eq!(
             url,
@@ -82,10 +67,7 @@ mod url_builder {
 
     #[test]
     fn test_linux_x64() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         let url = FfmpegUrlBuilder::download_url("7.0", &platform, FfmpegBuild::Gpl);
         assert_eq!(
             url,
@@ -98,10 +80,7 @@ mod url_builder {
 
     #[test]
     fn test_linux_arm64() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::Aarch64);
         let url = FfmpegUrlBuilder::download_url("7.0", &platform, FfmpegBuild::Gpl);
         assert_eq!(
             url,
@@ -114,10 +93,7 @@ mod url_builder {
 
     #[test]
     fn test_linux_arm_not_supported() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::Arm,
-        };
+        let platform = Platform::new(Os::Linux, Arch::Arm);
         let url = FfmpegUrlBuilder::download_url("7.0", &platform, FfmpegBuild::Gpl);
         // BtbN does not support armhf
         assert!(url.is_none());
@@ -125,10 +101,7 @@ mod url_builder {
 
     #[test]
     fn test_master_version() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         let url = FfmpegUrlBuilder::download_url("latest", &platform, FfmpegBuild::Gpl);
         assert_eq!(
             url,
@@ -145,10 +118,7 @@ mod executable_name {
 
     #[test]
     fn test_windows_executable_name() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         assert_eq!(
             FfmpegUrlBuilder::get_executable_name("ffmpeg", &platform),
             "ffmpeg.exe"
@@ -165,10 +135,7 @@ mod executable_name {
 
     #[test]
     fn test_unix_executable_name() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         assert_eq!(
             FfmpegUrlBuilder::get_executable_name("ffmpeg", &platform),
             "ffmpeg"
@@ -185,10 +152,7 @@ mod executable_path {
 
     #[test]
     fn test_windows_relative_path() {
-        let platform = Platform {
-            os: Os::Windows,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Windows, Arch::X86_64);
         assert_eq!(
             FfmpegUrlBuilder::get_executable_relative_path("ffmpeg", &platform),
             "bin/ffmpeg.exe"
@@ -197,10 +161,7 @@ mod executable_path {
 
     #[test]
     fn test_linux_relative_path() {
-        let platform = Platform {
-            os: Os::Linux,
-            arch: Arch::X86_64,
-        };
+        let platform = Platform::new(Os::Linux, Arch::X86_64);
         assert_eq!(
             FfmpegUrlBuilder::get_executable_relative_path("ffmpeg", &platform),
             "bin/ffmpeg"
@@ -209,10 +170,7 @@ mod executable_path {
 
     #[test]
     fn test_macos_relative_path() {
-        let platform = Platform {
-            os: Os::MacOS,
-            arch: Arch::Aarch64,
-        };
+        let platform = Platform::new(Os::MacOS, Arch::Aarch64);
         // macOS uses evermeet.cx which puts ffmpeg at root
         assert_eq!(
             FfmpegUrlBuilder::get_executable_relative_path("ffmpeg", &platform),
