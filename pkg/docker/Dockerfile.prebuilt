@@ -25,9 +25,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN groupadd -g 1000 vx && \
-    useradd -m -s /bin/bash -u 1000 -g vx vx
+# Create non-root user (use different UID/GID to avoid conflicts with existing ubuntu user)
+RUN groupadd -g 1001 vx && \
+    useradd -m -s /bin/bash -u 1001 -g vx vx
 
 # Copy pre-built binary (passed via build context)
 # This should be a gnu-compiled binary for glibc compatibility
