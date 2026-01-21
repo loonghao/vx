@@ -63,8 +63,10 @@ impl Runtime for UvRuntime {
             platform.exe_name("uv")
         } else {
             // Linux/macOS tar.gz extracts to a subdirectory
-            let platform_str = UvUrlBuilder::get_platform_string(platform);
-            format!("uv-{}/uv", platform_str)
+            match UvUrlBuilder::get_platform_string(platform) {
+                Some(platform_str) => format!("uv-{}/uv", platform_str),
+                None => platform.exe_name("uv"), // Fallback for unsupported platforms
+            }
         }
     }
 
@@ -182,8 +184,10 @@ impl Runtime for UvxRuntime {
             platform.exe_name("uvx")
         } else {
             // Linux/macOS tar.gz extracts to a subdirectory
-            let platform_str = UvUrlBuilder::get_platform_string(platform);
-            format!("uv-{}/uvx", platform_str)
+            match UvUrlBuilder::get_platform_string(platform) {
+                Some(platform_str) => format!("uv-{}/uvx", platform_str),
+                None => platform.exe_name("uvx"), // Fallback for unsupported platforms
+            }
         }
     }
 

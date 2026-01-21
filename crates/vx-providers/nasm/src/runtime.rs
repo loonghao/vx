@@ -131,22 +131,10 @@ impl Runtime for NasmRuntime {
     fn supported_platforms(&self) -> Vec<Platform> {
         use vx_runtime::Arch;
         vec![
-            Platform {
-                os: Os::Windows,
-                arch: Arch::X86_64,
-            },
-            Platform {
-                os: Os::Windows,
-                arch: Arch::X86,
-            },
-            Platform {
-                os: Os::MacOS,
-                arch: Arch::X86_64,
-            },
-            Platform {
-                os: Os::MacOS,
-                arch: Arch::Aarch64,
-            },
+            Platform::new(Os::Windows, Arch::X86_64),
+            Platform::new(Os::Windows, Arch::X86),
+            Platform::new(Os::MacOS, Arch::X86_64),
+            Platform::new(Os::MacOS, Arch::Aarch64),
         ]
     }
 }
