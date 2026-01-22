@@ -66,14 +66,21 @@ ENV VX_HOME="/home/vx/.vx"
 # Using vx to install tools ensures they are properly managed and versioned
 
 # Install uv (Python package manager) - this provides uvx as well
-RUN /usr/local/bin/vx uv --version && echo "uv installed successfully"
+RUN /usr/local/bin/vx install uv && \
+    /usr/local/bin/vx uv --version && echo "uv installed successfully"
 
 # Install ruff via uvx (Python linter/formatter)
 # Note: ruff is installed as a uvx tool, not a vx-managed runtime
 RUN /usr/local/bin/vx uvx ruff --version && echo "ruff installed successfully"
 
-# Install Node.js LTS (provides node, npm, npx)
-RUN /usr/local/bin/vx node --version && echo "node installed successfully"
+# Install Node.js LTS v22 (provides node, npm, npx)
+# We pin to LTS version 22.x for stability - avoid latest/unstable versions
+# which may have npm path issues (e.g., Node.js v25)
+RUN /usr/local/bin/vx install node@22 && \
+    /usr/local/bin/vx node --version && echo "node installed successfully"
+
+# Verify npm works correctly
+RUN /usr/local/bin/vx npm --version && echo "npm installed successfully"
 
 # List all installed tools for verification
 RUN /usr/local/bin/vx list --status
