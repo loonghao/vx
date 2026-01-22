@@ -829,10 +829,7 @@ mod tool_status_tests {
 
         // System path should come after
         let vx_pos = parts.iter().position(|p| p.contains(".vx")).unwrap_or(999);
-        let sys_pos = parts
-            .iter()
-            .position(|p| !p.contains(".vx"))
-            .unwrap_or(999);
+        let sys_pos = parts.iter().position(|p| !p.contains(".vx")).unwrap_or(999);
         assert!(
             vx_pos < sys_pos,
             "vx tool path should come before system path"
@@ -962,8 +959,8 @@ mod tool_status_tests {
 
         // Check various tools
         let tools = [
-            ("uv", "0.7.12", true),    // should be installed (mock)
-            ("node", "22.0.0", true),  // should be installed (mock)
+            ("uv", "0.7.12", true),      // should be installed (mock)
+            ("node", "22.0.0", true),    // should be installed (mock)
             ("python", "3.12.0", false), // should not be installed
         ];
 

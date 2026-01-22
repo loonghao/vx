@@ -6,6 +6,12 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use vx_paths::PathManager;
 
+/// Version parser function type
+type VersionParser = fn(&str) -> Option<String>;
+
+/// Version command information: (executable, args, parser)
+type VersionCommandInfo = (&'static str, &'static [&'static str], VersionParser);
+
 /// Tool installation status
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolStatus {
@@ -27,11 +33,15 @@ pub fn get_tool_status(
     if version == "system" {
         if let Some(system_path) = find_system_tool(tool) {
             let detected_version = get_system_tool_version(tool);
-            return Ok((ToolStatus::SystemFallback, Some(system_path), detected_version));
+            return Ok((
+                ToolStatus::SystemFallback,
+                Some(system_path),
+                detected_version,
+            ));
         }
         return Ok((ToolStatus::NotInstalled, None, None));
     }
-    
+
     let actual_version = if version == "latest" {
         path_manager
             .list_store_versions(tool)?
@@ -64,7 +74,11 @@ pub fn get_tool_status(
     // Check if available in system PATH as fallback
     if let Some(system_path) = find_system_tool(tool) {
         let detected_version = get_system_tool_version(tool);
-        return Ok((ToolStatus::SystemFallback, Some(system_path), detected_version));
+        return Ok((
+            ToolStatus::SystemFallback,
+            Some(system_path),
+            detected_version,
+        ));
     }
 
     Ok((ToolStatus::NotInstalled, None, None))
@@ -108,7 +122,7 @@ pub fn get_vx_tool_path(
 }
 
 /// Get the version command and parser for a tool
-fn get_version_command(tool: &str) -> Option<(&'static str, &'static [&'static str], fn(&str) -> Option<String>)> {
+fn get_version_command(tool: &str) -> Option<VersionCommandInfo> {
     match tool {
         "rust" => Some(("cargo", &["--version"][..], |output| {
             // "cargo 1.91.1 (ea2d97820 2025-10-10)" -> "1.91.1"
@@ -116,7 +130,8 @@ fn get_version_command(tool: &str) -> Option<(&'static str, &'static [&'static s
         })),
         "go" | "golang" => Some(("go", &["version"][..], |output| {
             // "go version go1.21.0 linux/amd64" -> "1.21.0"
-            output.split_whitespace()
+            output
+                .split_whitespace()
                 .find(|s| s.starts_with("go"))
                 .and_then(|s| s.strip_prefix("go"))
                 .map(|s| s.to_string())
@@ -135,7 +150,9 @@ fn get_version_command(tool: &str) -> Option<(&'static str, &'static [&'static s
         })),
         "deno" => Some(("deno", &["--version"][..], |output| {
             // "deno 1.40.0 ..." -> "1.40.0"
-            output.lines().next()
+            output
+                .lines()
+                .next()
                 .and_then(|line| line.split_whitespace().nth(1))
                 .map(|s| s.to_string())
         })),
@@ -151,21 +168,21 @@ fn get_version_command(tool: &str) -> Option<(&'static str, &'static [&'static s
 /// Get the version of a system-installed tool
 pub fn get_system_tool_version(tool: &str) -> Option<String> {
     let (exe, args, parser) = get_version_command(tool)?;
-    
+
     let output = Command::new(exe)
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
         .ok()?;
-    
+
     if !output.status.success() {
         return None;
     }
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    
+
     // Some tools output version to stderr
     parser(&stdout).or_else(|| parser(&stderr))
 }
