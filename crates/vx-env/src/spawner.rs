@@ -112,7 +112,11 @@ impl ShellSpawner {
 
         let mut command = Command::new(&shell_path);
 
-        // Set environment variables
+        // IMPORTANT: Clear inherited environment to ensure our PATH takes effect
+        // Without this, the shell inherits the parent's PATH which may not include vx tools
+        command.env_clear();
+
+        // Set all environment variables from our built environment
         for (key, value) in &self.env_vars {
             command.env(key, value);
         }
