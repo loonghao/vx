@@ -414,6 +414,9 @@ pub enum Commands {
         /// Output format for --export: shell, powershell, batch, github
         #[arg(long, short = 'f')]
         format: Option<String>,
+        /// Show detailed environment information (tools, paths, conflicts)
+        #[arg(long, short = 'i')]
+        info: bool,
     },
 
     /// Setup development environment (install all project tools)
@@ -1331,6 +1334,7 @@ impl CommandHandler for Commands {
                 verbose,
                 export,
                 format,
+                info,
             } => {
                 commands::dev::handle(
                     shell.clone(),
@@ -1339,6 +1343,7 @@ impl CommandHandler for Commands {
                     *verbose,
                     *export,
                     format.clone(),
+                    *info,
                 )
                 .await
             }
