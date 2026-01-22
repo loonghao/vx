@@ -137,10 +137,7 @@ impl Runtime for NodeRuntime {
                         // Always ensure the file has execute permissions for owner/group/others
                         // This is particularly important for npm/npx which are shell scripts
                         // with #!/usr/bin/env node shebang
-                        debug!(
-                            "Ensuring executable permissions on {}",
-                            tool_path.display()
-                        );
+                        debug!("Ensuring executable permissions on {}", tool_path.display());
                         if let Ok(metadata) = std::fs::metadata(&tool_path) {
                             let mut permissions = metadata.permissions();
                             // Set to 0o755: rwxr-xr-x

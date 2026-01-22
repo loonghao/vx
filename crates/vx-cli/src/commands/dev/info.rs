@@ -21,8 +21,7 @@ pub async fn handle_info(config: &ConfigView) -> Result<()> {
     println!();
 
     for (tool, version) in &config.tools {
-        let (status, actual_path, actual_version) =
-            get_tool_status(&path_manager, tool, version)?;
+        let (status, actual_path, actual_version) = get_tool_status(&path_manager, tool, version)?;
 
         let status_icon = match status {
             ToolStatus::Installed => "✓".green(),
@@ -32,7 +31,9 @@ pub async fn handle_info(config: &ConfigView) -> Result<()> {
 
         // For system tools, show the detected version instead of "system"
         let display_version = if version == "system" {
-            actual_version.clone().unwrap_or_else(|| "system".to_string())
+            actual_version
+                .clone()
+                .unwrap_or_else(|| "system".to_string())
         } else {
             version.clone()
         };
@@ -112,7 +113,7 @@ pub async fn handle_info(config: &ConfigView) -> Result<()> {
     println!();
 
     let mut has_conflicts = false;
-    for (tool, _version) in &config.tools {
+    for tool in config.tools.keys() {
         if let Some(system_path) = find_system_tool(tool) {
             let vx_path = get_vx_tool_path(&path_manager, tool, &config.tools[tool])?;
             if let Some(vx_p) = vx_path {
@@ -129,7 +130,7 @@ pub async fn handle_info(config: &ConfigView) -> Result<()> {
     }
 
     if !has_conflicts {
-        println!("  {} {}", "✓".green(), "No conflicts detected");
+        println!("  {} No conflicts detected", "✓".green());
     }
 
     println!();

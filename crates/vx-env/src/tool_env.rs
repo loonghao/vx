@@ -95,17 +95,22 @@ fn essential_system_paths() -> Vec<PathBuf> {
     #[cfg(windows)]
     {
         let mut paths = Vec::new();
-        
+
         // System32 - contains essential Windows commands (where, cmd, etc.)
         if let Ok(system_root) = std::env::var("SYSTEMROOT") {
             let system_root = PathBuf::from(&system_root);
             paths.push(system_root.join("System32"));
             paths.push(system_root.join("System32").join("Wbem"));
-            paths.push(system_root.join("System32").join("WindowsPowerShell").join("v1.0"));
+            paths.push(
+                system_root
+                    .join("System32")
+                    .join("WindowsPowerShell")
+                    .join("v1.0"),
+            );
             // Also include the root for some edge cases
             paths.push(system_root.clone());
         }
-        
+
         // Fallback to common Windows paths if SYSTEMROOT is not set
         if paths.is_empty() {
             paths.push(PathBuf::from(r"C:\Windows\System32"));
@@ -113,7 +118,7 @@ fn essential_system_paths() -> Vec<PathBuf> {
             paths.push(PathBuf::from(r"C:\Windows\System32\WindowsPowerShell\v1.0"));
             paths.push(PathBuf::from(r"C:\Windows"));
         }
-        
+
         paths
     }
     #[cfg(not(windows))]
@@ -303,7 +308,10 @@ impl ToolEnvironment {
             // Prepend to existing PATH
             if let Some(existing_path) = env.get("PATH").cloned() {
                 if !new_path.is_empty() {
-                    env.insert("PATH".to_string(), format!("{}{}{}", new_path, sep, existing_path));
+                    env.insert(
+                        "PATH".to_string(),
+                        format!("{}{}{}", new_path, sep, existing_path),
+                    );
                 }
             } else if !new_path.is_empty() {
                 env.insert("PATH".to_string(), new_path);
@@ -333,10 +341,8 @@ impl ToolEnvironment {
         let current_env: HashMap<String, String> = std::env::vars().collect();
 
         // Always include default passenv patterns
-        let mut all_patterns: Vec<String> = default_passenv()
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
+        let mut all_patterns: Vec<String> =
+            default_passenv().iter().map(|s| s.to_string()).collect();
 
         // Add user-specified patterns
         all_patterns.extend(self.passenv.clone());
@@ -388,7 +394,7 @@ impl ToolEnvironment {
         if version == "system" {
             return Ok(find_system_tool_path(tool));
         }
-        
+
         let actual_version = if version == "latest" {
             // Find the latest installed version
             let versions = path_manager.list_store_versions(tool)?;
@@ -435,7 +441,7 @@ fn find_system_tool_path(tool: &str) -> Option<PathBuf> {
         "uv" => vec!["uv"],
         _ => vec![tool],
     };
-    
+
     let path_var = std::env::var("PATH").ok()?;
     let sep = if cfg!(windows) { ';' } else { ':' };
 
@@ -445,7 +451,7 @@ fn find_system_tool_path(tool: &str) -> Option<PathBuf> {
         } else {
             exe.to_string()
         };
-        
+
         for dir in path_var.split(sep) {
             // Skip vx directories - we want system tools
             if dir.contains(".vx") {
@@ -523,12 +529,12 @@ fn find_bin_recursive(dir: &PathBuf, tool: &str, max_depth: u32) -> Option<PathB
             let path = entry.path();
             if path.is_dir() {
                 let dir_name = path.file_name().unwrap_or_default().to_string_lossy();
-                
+
                 // Check if this is a bin directory
                 if dir_name == "bin" && has_executable(&path, tool) {
                     return Some(path);
                 }
-                
+
                 // Recurse into subdirectories
                 if let Some(found) = find_bin_recursive(&path, tool, max_depth - 1) {
                     return Some(found);
@@ -593,7 +599,7 @@ mod tests {
     fn test_passenv_exact_match() {
         let builder = ToolEnvironment::new();
         let patterns = vec!["HOME".to_string(), "USER".to_string()];
-        
+
         assert!(builder.matches_passenv("HOME", &patterns));
         assert!(builder.matches_passenv("USER", &patterns));
         assert!(!builder.matches_passenv("PATH", &patterns));
@@ -603,7 +609,7 @@ mod tests {
     fn test_passenv_glob_pattern() {
         let builder = ToolEnvironment::new();
         let patterns = vec!["SSH_*".to_string(), "GITHUB_*".to_string()];
-        
+
         assert!(builder.matches_passenv("SSH_AUTH_SOCK", &patterns));
         assert!(builder.matches_passenv("SSH_AGENT_PID", &patterns));
         assert!(builder.matches_passenv("GITHUB_TOKEN", &patterns));
@@ -617,7 +623,7 @@ mod tests {
         let builder = ToolEnvironment::new()
             .isolation(true)
             .passenv(vec!["CI".to_string(), "CUSTOM_*".to_string()]);
-        
+
         assert!(builder.isolation);
         assert_eq!(builder.passenv.len(), 2);
     }
@@ -625,7 +631,7 @@ mod tests {
     #[test]
     fn test_default_passenv() {
         let defaults = default_passenv();
-        
+
         #[cfg(windows)]
         {
             assert!(defaults.contains(&"SYSTEMROOT"));
@@ -633,7 +639,7 @@ mod tests {
             assert!(defaults.contains(&"USERPROFILE"));
             assert!(defaults.contains(&"VX_*"));
         }
-        
+
         #[cfg(not(windows))]
         {
             assert!(defaults.contains(&"HOME"));
@@ -647,22 +653,20 @@ mod tests {
     fn test_essential_system_paths() {
         let paths = essential_system_paths();
         assert!(!paths.is_empty(), "Should have essential system paths");
-        
+
         #[cfg(windows)]
         {
             // Should contain System32 path
-            let has_system32 = paths.iter().any(|p| {
-                p.to_string_lossy().to_lowercase().contains("system32")
-            });
+            let has_system32 = paths
+                .iter()
+                .any(|p| p.to_string_lossy().to_lowercase().contains("system32"));
             assert!(has_system32, "Should include System32 on Windows");
         }
-        
+
         #[cfg(not(windows))]
         {
             // Should contain /usr/bin
-            let has_usr_bin = paths.iter().any(|p| {
-                p.to_string_lossy() == "/usr/bin"
-            });
+            let has_usr_bin = paths.iter().any(|p| p.to_string_lossy() == "/usr/bin");
             assert!(has_usr_bin, "Should include /usr/bin on Unix");
         }
     }

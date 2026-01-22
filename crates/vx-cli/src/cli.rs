@@ -1239,7 +1239,9 @@ impl CommandHandler for Commands {
             }
 
             Commands::Env { command } => {
-                let args = commands::env::Args { command: command.clone() };
+                let args = commands::env::Args {
+                    command: command.clone(),
+                };
                 commands::env::handle(&args).await
             }
 
