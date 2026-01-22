@@ -7,8 +7,10 @@
 use crate::commands::setup::{parse_vx_config, ConfigView};
 use crate::ui::{InstallProgress, UI};
 use anyhow::{Context, Result};
+use colored::Colorize;
 use std::collections::HashMap;
 use std::env;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use vx_env::ToolEnvironment;
 use vx_paths::{find_vx_config, PathManager};
@@ -21,6 +23,7 @@ pub async fn handle(
     verbose: bool,
     export: bool,
     format: Option<String>,
+    info: bool,
 ) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
 
@@ -37,6 +40,11 @@ pub async fn handle(
     // Handle --export mode
     if export {
         return handle_export(&config, format);
+    }
+
+    // Handle --info mode
+    if info {
+        return handle_info(&config).await;
     }
 
     // Check and install missing tools if needed
@@ -65,6 +73,148 @@ pub async fn handle(
     Ok(())
 }
 
+/// Tool installation status
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ToolStatus {
+    /// Tool is installed by vx
+    Installed,
+    /// Tool is not installed
+    NotInstalled,
+    /// Tool is available from system PATH (not vx managed)
+    SystemFallback,
+}
+
+/// Get the status and path of a tool
+fn get_tool_status(
+    path_manager: &PathManager,
+    tool: &str,
+    version: &str,
+) -> Result<(ToolStatus, Option<PathBuf>, Option<String>)> {
+    let actual_version = if version == "latest" {
+        path_manager
+            .list_store_versions(tool)?
+            .last()
+            .cloned()
+            .unwrap_or_else(|| version.to_string())
+    } else {
+        version.to_string()
+    };
+
+    // Check store first
+    let store_dir = path_manager.version_store_dir(tool, &actual_version);
+    if store_dir.exists() {
+        let bin_path = find_tool_bin_dir(&store_dir, tool);
+        return Ok((ToolStatus::Installed, Some(bin_path), Some(actual_version)));
+    }
+
+    // Check npm-tools
+    let npm_bin = path_manager.npm_tool_bin_dir(tool, &actual_version);
+    if npm_bin.exists() {
+        return Ok((ToolStatus::Installed, Some(npm_bin), Some(actual_version)));
+    }
+
+    // Check pip-tools
+    let pip_bin = path_manager.pip_tool_bin_dir(tool, &actual_version);
+    if pip_bin.exists() {
+        return Ok((ToolStatus::Installed, Some(pip_bin), Some(actual_version)));
+    }
+
+    // Check if available in system PATH
+    if let Some(system_path) = find_system_tool(tool) {
+        return Ok((ToolStatus::SystemFallback, Some(system_path), None));
+    }
+
+    Ok((ToolStatus::NotInstalled, None, None))
+}
+
+/// Get the vx-managed path for a tool
+fn get_vx_tool_path(
+    path_manager: &PathManager,
+    tool: &str,
+    version: &str,
+) -> Result<Option<PathBuf>> {
+    let actual_version = if version == "latest" {
+        path_manager
+            .list_store_versions(tool)?
+            .last()
+            .cloned()
+            .unwrap_or_else(|| version.to_string())
+    } else {
+        version.to_string()
+    };
+
+    // Check store
+    let store_dir = path_manager.version_store_dir(tool, &actual_version);
+    if store_dir.exists() {
+        return Ok(Some(find_tool_bin_dir(&store_dir, tool)));
+    }
+
+    // Check npm-tools
+    let npm_bin = path_manager.npm_tool_bin_dir(tool, &actual_version);
+    if npm_bin.exists() {
+        return Ok(Some(npm_bin));
+    }
+
+    // Check pip-tools
+    let pip_bin = path_manager.pip_tool_bin_dir(tool, &actual_version);
+    if pip_bin.exists() {
+        return Ok(Some(pip_bin));
+    }
+
+    Ok(None)
+}
+
+/// Find a tool in the system PATH (excluding vx paths)
+fn find_system_tool(tool: &str) -> Option<PathBuf> {
+    let exe_name = if cfg!(windows) {
+        format!("{}.exe", tool)
+    } else {
+        tool.to_string()
+    };
+
+    let path_var = env::var("PATH").ok()?;
+    let sep = if cfg!(windows) { ';' } else { ':' };
+
+    for dir in path_var.split(sep) {
+        // Skip vx directories
+        if dir.contains(".vx") {
+            continue;
+        }
+
+        let exe_path = PathBuf::from(dir).join(&exe_name);
+        if exe_path.exists() {
+            return Some(exe_path);
+        }
+    }
+
+    None
+}
+
+/// Find the bin directory within a tool installation
+fn find_tool_bin_dir(store_dir: &PathBuf, tool: &str) -> PathBuf {
+    // Check bin/ subdirectory
+    let bin_dir = store_dir.join("bin");
+    if bin_dir.exists() {
+        return bin_dir;
+    }
+
+    // Check for platform-specific subdirectories
+    if let Ok(entries) = std::fs::read_dir(store_dir) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_dir() {
+                let dir_name = path.file_name().unwrap_or_default().to_string_lossy();
+                if dir_name.starts_with(&format!("{}-", tool)) {
+                    return path;
+                }
+            }
+        }
+    }
+
+    // Return store_dir as fallback
+    store_dir.clone()
+}
+
 /// Handle --export mode: output shell script for environment activation
 fn handle_export(config: &ConfigView, format: Option<String>) -> Result<()> {
     let export_format = match format {
@@ -83,32 +233,159 @@ fn handle_export(config: &ConfigView, format: Option<String>) -> Result<()> {
     Ok(())
 }
 
-/// Check if tools are installed and install missing ones
-async fn check_and_install_tools(tools: &HashMap<String, String>, verbose: bool) -> Result<()> {
+/// Handle --info mode: display detailed environment information
+async fn handle_info(config: &ConfigView) -> Result<()> {
     let path_manager = PathManager::new()?;
-    let mut missing_tools = Vec::new();
 
-    for (tool, version) in tools {
-        let version_to_check = if version == "latest" {
-            // For latest, check if any version is installed
-            let versions = path_manager.list_store_versions(tool)?;
-            if versions.is_empty() {
-                missing_tools.push((tool.clone(), version.clone()));
-            }
-            continue;
-        } else {
-            version.clone()
+    println!("{}", "VX Development Environment Information".bold());
+    println!("{}", "═".repeat(50));
+    println!();
+
+    // Display configured tools and their status
+    println!("{}", "Configured Tools:".bold().cyan());
+    println!();
+
+    for (tool, version) in &config.tools {
+        let (status, actual_path, actual_version) =
+            get_tool_status(&path_manager, tool, version)?;
+
+        let status_icon = match status {
+            ToolStatus::Installed => "✓".green(),
+            ToolStatus::NotInstalled => "✗".red(),
+            ToolStatus::SystemFallback => "⚠".yellow(),
         };
 
-        if !path_manager.is_version_in_store(tool, &version_to_check) {
-            missing_tools.push((tool.clone(), version.clone()));
+        println!("  {} {}@{}", status_icon, tool.cyan(), version);
+
+        if let Some(path) = actual_path {
+            println!("    {} {}", "Path:".dimmed(), path.display());
+        }
+
+        if let Some(ver) = actual_version {
+            if ver != *version && version != "latest" {
+                println!("    {} {}", "Actual version:".dimmed(), ver);
+            }
         }
     }
 
-    if missing_tools.is_empty() {
-        if verbose {
-            UI::success("All tools are installed");
+    println!();
+
+    // Display PATH entries that will be added
+    println!("{}", "PATH Entries (in priority order):".bold().cyan());
+    println!();
+
+    let env_vars = ToolEnvironment::new()
+        .tools(&config.tools)
+        .env_vars(&config.env)
+        .warn_missing(false)
+        .build()?;
+
+    if let Some(path) = env_vars.get("PATH") {
+        let sep = if cfg!(windows) { ";" } else { ":" };
+        let current_path = env::var("PATH").unwrap_or_default();
+
+        // Show only the new entries (before current PATH starts)
+        for (i, entry) in path.split(sep).enumerate() {
+            if current_path.starts_with(entry) {
+                println!("  {} {}", (i + 1).to_string().dimmed(), "... (system PATH)".dimmed());
+                break;
+            }
+            println!("  {} {}", (i + 1).to_string().dimmed(), entry);
         }
+    }
+
+    println!();
+
+    // Display custom environment variables
+    if !config.env.is_empty() {
+        println!("{}", "Custom Environment Variables:".bold().cyan());
+        println!();
+        for (key, value) in &config.env {
+            println!("  {} = {}", key.yellow(), value);
+        }
+        println!();
+    }
+
+    // Show potential conflicts with system tools
+    println!("{}", "System Tool Conflicts:".bold().cyan());
+    println!();
+
+    let mut has_conflicts = false;
+    for (tool, _version) in &config.tools {
+        if let Some(system_path) = find_system_tool(tool) {
+            let vx_path = get_vx_tool_path(&path_manager, tool, &config.tools[tool])?;
+            if let Some(vx_p) = vx_path {
+                println!(
+                    "  {} {}",
+                    "⚠".yellow(),
+                    format!("{} found in system PATH:", tool).yellow()
+                );
+                println!("    {} {}", "System:".dimmed(), system_path.display());
+                println!("    {} {} (will be used)", "VX:".dimmed(), vx_p.display());
+                has_conflicts = true;
+            }
+        }
+    }
+
+    if !has_conflicts {
+        println!("  {} {}", "✓".green(), "No conflicts detected");
+    }
+
+    println!();
+    println!(
+        "{}",
+        "Run 'vx dev' to enter the development environment.".dimmed()
+    );
+
+    Ok(())
+}
+
+/// Check if tools are installed and install missing ones
+async fn check_and_install_tools(tools: &HashMap<String, String>, verbose: bool) -> Result<()> {
+    let path_manager = PathManager::new()?;
+    let mut tool_states: Vec<(String, String, ToolStatus)> = Vec::new();
+    let mut missing_tools: Vec<(String, String)> = Vec::new();
+
+    // First pass: check all tools
+    for (tool, version) in tools {
+        let status = if version == "latest" {
+            let versions = path_manager.list_store_versions(tool)?;
+            if versions.is_empty() {
+                missing_tools.push((tool.clone(), version.clone()));
+                ToolStatus::NotInstalled
+            } else {
+                ToolStatus::Installed
+            }
+        } else if path_manager.is_version_in_store(tool, version) {
+            ToolStatus::Installed
+        } else {
+            missing_tools.push((tool.clone(), version.clone()));
+            ToolStatus::NotInstalled
+        };
+        tool_states.push((tool.clone(), version.clone(), status));
+    }
+
+    // Show status of all tools
+    if verbose || !missing_tools.is_empty() {
+        println!();
+        for (tool, version, status) in &tool_states {
+            let icon = match status {
+                ToolStatus::Installed => "✓".green(),
+                ToolStatus::NotInstalled => "○".yellow(),
+                ToolStatus::SystemFallback => "⚠".yellow(),
+            };
+            let status_text = match status {
+                ToolStatus::Installed => "installed".green(),
+                ToolStatus::NotInstalled => "pending".yellow(),
+                ToolStatus::SystemFallback => "system".yellow(),
+            };
+            println!("  {} {}@{} ({})", icon, tool, version, status_text);
+        }
+        println!();
+    }
+
+    if missing_tools.is_empty() {
+        UI::success("All tools installed");
         return Ok(());
     }
 
@@ -117,6 +394,8 @@ async fn check_and_install_tools(tools: &HashMap<String, String>, verbose: bool)
         missing_tools.len(),
         &format!("Installing {} missing tool(s)", missing_tools.len()),
     );
+
+    let mut install_results: Vec<(String, String, bool)> = Vec::new();
 
     for (tool, version) in &missing_tools {
         progress.start_tool(tool, version);
@@ -129,10 +408,26 @@ async fn check_and_install_tools(tools: &HashMap<String, String>, verbose: bool)
             .status()
             .with_context(|| format!("Failed to install {}@{}", tool, version))?;
 
-        progress.complete_tool(status.success(), tool, version);
+        let success = status.success();
+        progress.complete_tool(success, tool, version);
+        install_results.push((tool.clone(), version.clone(), success));
     }
 
-    progress.finish("✓ All tools installed");
+    // Check if all installations succeeded
+    let all_success = install_results.iter().all(|(_, _, s)| *s);
+    if all_success {
+        progress.finish("✓ All tools installed");
+    } else {
+        progress.finish("⚠ Some tools failed to install");
+
+        // Show which tools failed
+        for (tool, version, success) in &install_results {
+            if !success {
+                UI::error(&format!("Failed to install {}@{}", tool, version));
+            }
+        }
+    }
+
     Ok(())
 }
 

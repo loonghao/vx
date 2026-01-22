@@ -8,15 +8,17 @@
 vx dev [OPTIONS]
 vx dev -c <COMMAND>
 vx dev --export [--format <FORMAT>]
+vx dev --info
 ```
 
 ## 描述
 
-`vx dev` 命令是使用 vx 管理工具的主要方式。它提供三种操作模式：
+`vx dev` 命令是使用 vx 管理工具的主要方式。它提供四种操作模式：
 
 1. **交互式 Shell 模式**（默认）：启动一个新的 shell，所有项目工具都可在 PATH 中使用
 2. **命令模式**（`-c`）：在开发环境中运行单个命令
 3. **导出模式**（`--export`）：输出用于环境激活的 shell 脚本
+4. **信息模式**（`--info`）：显示详细的环境信息，包括工具状态、路径和冲突
 
 ## 选项
 
@@ -28,6 +30,7 @@ vx dev --export [--format <FORMAT>]
 | `-v`, `--verbose` | 显示详细输出 |
 | `-e`, `--export` | 导出环境变量用于 shell 激活 |
 | `-f`, `--format <FORMAT>` | `--export` 的输出格式：shell、powershell、batch、github |
+| `-i`, `--info` | 显示详细的环境信息 |
 
 ## 使用场景
 
@@ -55,7 +58,48 @@ v20.10.0
 
 **适用场景**：日常开发、探索代码库、运行临时命令。
 
-### 场景 2：运行单个命令
+### 场景 2：环境信息
+
+在进入开发环境前检查环境状态：
+
+```bash
+vx dev --info
+```
+
+输出：
+
+```
+VX Development Environment Information
+══════════════════════════════════════════════════
+
+Configured Tools:
+
+  ✓ uv@latest
+    Path: /home/user/.vx/store/uv/0.7.12
+  ✓ python@3.11
+    Path: /home/user/.vx/store/python/3.11.0/bin
+  ○ cmake@latest
+    (待安装)
+
+PATH Entries (in priority order):
+
+  1 /home/user/.vx/store/uv/0.7.12
+  2 /home/user/.vx/store/python/3.11.0/bin
+  3 /home/user/.vx/bin
+  4 ... (system PATH)
+
+System Tool Conflicts:
+
+  ⚠ cmake found in system PATH:
+    System: /usr/bin/cmake
+    VX: /home/user/.vx/store/cmake/3.28.0/bin (will be used)
+
+Run 'vx dev' to enter the development environment.
+```
+
+**适用场景**：问题排查、验证环境设置、检查与系统工具的冲突。
+
+### 场景 3：运行单个命令
 
 在开发环境中执行命令，无需进入 shell：
 
@@ -67,7 +111,7 @@ vx dev -c "go test ./..."
 
 **适用场景**：CI/CD 流水线、脚本、一次性任务。
 
-### 场景 3：Shell 激活（导出模式）
+### 场景 4：Shell 激活（导出模式）
 
 导出环境变量以在当前 shell 中激活工具：
 
@@ -97,7 +141,7 @@ vx dev --export --format batch > activate.bat && activate.bat
 
 **适用场景**：IDE 集成、shell 配置文件、自定义脚本。
 
-### 场景 4：CI/CD 集成
+### 场景 5：CI/CD 集成
 
 在 GitHub Actions 中使用导出模式：
 
