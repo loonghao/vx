@@ -467,7 +467,7 @@ fn find_system_tool_path(tool: &str) -> Option<PathBuf> {
 /// Different tools have different bin directory structures:
 /// - Standard: `bin/` subdirectory
 /// - Direct: executables in version directory
-/// - Platform-specific: `tool-{platform}/` subdirectory
+/// - Platform-specific: `tool-{platform}/bin/` subdirectory (e.g., cmake-4.2.2-windows-x86_64/bin)
 fn find_bin_dir(store_dir: &PathBuf, tool: &str) -> PathBuf {
     // Priority order:
     // 1. bin/ subdirectory (standard layout)
@@ -476,14 +476,23 @@ fn find_bin_dir(store_dir: &PathBuf, tool: &str) -> PathBuf {
         return bin_dir;
     }
 
-    // 2. Check for platform-specific subdirectories (e.g., uv-x86_64-unknown-linux-gnu)
+    // 2. Check for platform-specific subdirectories (e.g., cmake-4.2.2-windows-x86_64)
+    //    These may have their own bin/ subdirectory
     if let Ok(entries) = std::fs::read_dir(store_dir) {
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
             if path.is_dir() {
                 let dir_name = path.file_name().unwrap_or_default().to_string_lossy();
-                if dir_name.starts_with(&format!("{}-", tool)) && has_executable(&path, tool) {
-                    return path;
+                if dir_name.starts_with(&format!("{}-", tool)) {
+                    // Check for bin/ inside the platform-specific directory (e.g., cmake)
+                    let nested_bin = path.join("bin");
+                    if nested_bin.exists() && has_executable(&nested_bin, tool) {
+                        return nested_bin;
+                    }
+                    // Check for executable directly in the platform-specific directory
+                    if has_executable(&path, tool) {
+                        return path;
+                    }
                 }
             }
         }
@@ -494,8 +503,41 @@ fn find_bin_dir(store_dir: &PathBuf, tool: &str) -> PathBuf {
         return store_dir.clone();
     }
 
+    // 4. Search recursively for bin/ directory with executable (handles nested structures)
+    if let Some(bin_path) = find_bin_recursive(store_dir, tool, 2) {
+        return bin_path;
+    }
+
     // Fallback: return store_dir (tool might use a different executable name)
     store_dir.clone()
+}
+
+/// Recursively search for a bin directory containing the tool executable
+fn find_bin_recursive(dir: &PathBuf, tool: &str, max_depth: u32) -> Option<PathBuf> {
+    if max_depth == 0 {
+        return None;
+    }
+
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_dir() {
+                let dir_name = path.file_name().unwrap_or_default().to_string_lossy();
+                
+                // Check if this is a bin directory
+                if dir_name == "bin" && has_executable(&path, tool) {
+                    return Some(path);
+                }
+                
+                // Recurse into subdirectories
+                if let Some(found) = find_bin_recursive(&path, tool, max_depth - 1) {
+                    return Some(found);
+                }
+            }
+        }
+    }
+
+    None
 }
 
 /// Check if a directory contains the tool executable
