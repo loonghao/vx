@@ -1238,7 +1238,10 @@ impl CommandHandler for Commands {
                 commands::plugin::handle(ctx.registry(), command.clone()).await
             }
 
-            Commands::Env { command } => commands::env::handle(command.clone()).await,
+            Commands::Env { command } => {
+                let args = commands::env::Args { command: command.clone() };
+                commands::env::handle(&args).await
+            }
 
             Commands::Search {
                 query,
@@ -1349,18 +1352,18 @@ impl CommandHandler for Commands {
                 inherit_system,
                 passenv,
             } => {
-                commands::dev::handle(
-                    shell.clone(),
-                    command.clone(),
-                    *no_install,
-                    *verbose,
-                    *export,
-                    format.clone(),
-                    *info,
-                    *inherit_system,
-                    passenv.clone(),
-                )
-                .await
+                let args = commands::dev::Args {
+                    shell: shell.clone(),
+                    command: command.clone(),
+                    no_install: *no_install,
+                    verbose: *verbose,
+                    export: *export,
+                    format: format.clone(),
+                    info: *info,
+                    inherit_system: *inherit_system,
+                    passenv: passenv.clone(),
+                };
+                commands::dev::handle(&args).await
             }
 
             Commands::Setup {
