@@ -206,6 +206,8 @@ jobs:
 
       - name: Test Node.js workflow
         run: |
+          # Install Node.js LTS v22 for stability (avoid latest/unstable versions)
+          vx install node@22
           vx node --version
           vx npm --version
           echo "Node.js tooling works!"
