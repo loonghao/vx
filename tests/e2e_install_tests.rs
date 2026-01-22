@@ -168,14 +168,18 @@ fn test_versions_list_uv() {
         );
     } else {
         // Network errors are acceptable
+        let combined = format!("{}{}", stdout, stderr);
         assert!(
-            stderr.contains("network")
-                || stderr.contains("timeout")
-                || stderr.contains("connection")
-                || stderr.contains("rate limit")
-                || stderr.contains("Failed to fetch"),
+            combined.contains("network")
+                || combined.contains("Network")
+                || combined.contains("timeout")
+                || combined.contains("connection")
+                || combined.contains("Connection")
+                || combined.contains("rate limit")
+                || combined.contains("Failed to fetch")
+                || combined.contains("error sending request"),
             "Unexpected error: {}",
-            stderr
+            combined
         );
     }
 }
