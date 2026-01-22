@@ -54,7 +54,8 @@ pub async fn handle(
 
     if locations.is_empty() {
         // Not found in vx-managed installations, check system PATH as fallback
-        match which::which(tool) {
+        // Use executable name for system PATH search (handles aliases like imagemagick -> magick)
+        match which::which(&exe_name) {
             Ok(path) => {
                 // Found in system PATH
                 println!("{} (system)", path.display());

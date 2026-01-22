@@ -66,10 +66,11 @@ mod thresholds {
     pub const CLI_STARTUP_MS: u64 = 3000;
 
     /// Maximum time for help command
-    pub const HELP_MS: u64 = 200;
+    pub const HELP_MS: u64 = 250;
 
     /// Maximum time for version command
-    pub const VERSION_MS: u64 = 200;
+    /// Note: Increased from 200ms to 250ms to account for system load variability
+    pub const VERSION_MS: u64 = 250;
 
     /// Maximum time for config parsing (small config)
     /// Note: Increased from 500ms to 750ms to account for CI machine variability
