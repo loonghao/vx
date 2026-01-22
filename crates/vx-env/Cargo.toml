@@ -17,6 +17,9 @@ thiserror = { workspace = true }
 shell-words = "1.1"
 vx-paths = { workspace = true }
 tracing = { workspace = true }
+dirs = { workspace = true }
+which = { workspace = true }
+rust-embed = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

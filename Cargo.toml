@@ -265,6 +265,9 @@ windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
 # SHA256 checksum verification
 sha2 = "0.10"
 
+# Embed static assets in binary
+rust-embed = "8.5"
+
 # Retry with backoff - similar to Python's tenacity
 backon = "1.6.0"
 

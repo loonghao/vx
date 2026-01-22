@@ -417,6 +417,17 @@ pub enum Commands {
         /// Show detailed environment information (tools, paths, conflicts)
         #[arg(long, short = 'i')]
         info: bool,
+        /// Inherit system PATH (disable isolation mode)
+        ///
+        /// By default, vx dev uses isolation mode where only vx-managed tools
+        /// are available. Use this flag to include system tools in PATH.
+        #[arg(long)]
+        inherit_system: bool,
+        /// Additional environment variables to pass through (can be specified multiple times)
+        ///
+        /// Supports glob patterns like SSH_*, GITHUB_*
+        #[arg(long = "passenv", short = 'p', action = clap::ArgAction::Append)]
+        passenv: Vec<String>,
     },
 
     /// Setup development environment (install all project tools)
@@ -1335,6 +1346,8 @@ impl CommandHandler for Commands {
                 export,
                 format,
                 info,
+                inherit_system,
+                passenv,
             } => {
                 commands::dev::handle(
                     shell.clone(),
@@ -1344,6 +1357,8 @@ impl CommandHandler for Commands {
                     *export,
                     format.clone(),
                     *info,
+                    *inherit_system,
+                    passenv.clone(),
                 )
                 .await
             }
