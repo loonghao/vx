@@ -192,7 +192,34 @@ impl VxConfig {
             if let Some(duration) = &settings.cache_duration {
                 map.insert("cache_duration".to_string(), duration.clone());
             }
+            if let Some(isolation) = settings.isolation {
+                map.insert("isolation".to_string(), isolation.to_string());
+            }
         }
         map
+    }
+
+    /// Get isolation setting (defaults to true if not specified)
+    pub fn is_isolation_mode(&self) -> bool {
+        self.settings
+            .as_ref()
+            .and_then(|s| s.isolation)
+            .unwrap_or(true) // Default to isolation mode
+    }
+
+    /// Get passenv patterns (environment variables to pass through)
+    pub fn get_passenv(&self) -> Vec<String> {
+        self.settings
+            .as_ref()
+            .and_then(|s| s.passenv.clone())
+            .unwrap_or_default()
+    }
+
+    /// Get setenv variables (environment variables to explicitly set)
+    pub fn get_setenv(&self) -> HashMap<String, String> {
+        self.settings
+            .as_ref()
+            .and_then(|s| s.setenv.clone())
+            .unwrap_or_default()
     }
 }
