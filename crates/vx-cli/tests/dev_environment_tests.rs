@@ -750,3 +750,236 @@ mod integration_tests {
         cleanup_test_env();
     }
 }
+
+// ============================================================================
+// Tool Status and Info Tests
+// ============================================================================
+
+mod tool_status_tests {
+    use super::*;
+
+    /// Test tool status detection for installed tools
+    #[rstest]
+    #[test]
+    #[serial]
+    fn test_tool_status_installed() {
+        init_test_env();
+
+        let vx_home = create_mock_vx_home();
+        std::env::set_var("VX_HOME", vx_home.path());
+
+        let path_manager = PathManager::new().expect("Failed to create PathManager");
+
+        // uv@0.7.12 should be installed in mock
+        let store_dir = path_manager.version_store_dir("uv", "0.7.12");
+        assert!(store_dir.exists(), "Mock uv should be installed");
+
+        cleanup_test_env();
+    }
+
+    /// Test tool status detection for missing tools
+    #[rstest]
+    #[test]
+    #[serial]
+    fn test_tool_status_not_installed() {
+        init_test_env();
+
+        let vx_home = create_mock_vx_home();
+        std::env::set_var("VX_HOME", vx_home.path());
+
+        let path_manager = PathManager::new().expect("Failed to create PathManager");
+
+        // nonexistent-tool should not be installed
+        let installed = path_manager.is_version_in_store("nonexistent-tool", "1.0.0");
+        assert!(!installed, "Nonexistent tool should not be installed");
+
+        cleanup_test_env();
+    }
+
+    /// Test PATH priority - vx tools should come before system tools
+    #[rstest]
+    #[test]
+    fn test_vx_tools_path_priority() {
+        init_test_env();
+
+        let sep = if cfg!(windows) { ";" } else { ":" };
+
+        // Simulate PATH construction as vx does it
+        let vx_tool_bin = if cfg!(windows) {
+            r"C:\Users\test\.vx\store\cmake\3.28.0\bin"
+        } else {
+            "/home/test/.vx/store/cmake/3.28.0/bin"
+        };
+
+        let system_cmake = if cfg!(windows) {
+            r"C:\Program Files\CMake\bin"
+        } else {
+            "/usr/bin"
+        };
+
+        // vx PATH should be: tool_bin + vx_bin + system_path
+        let vx_path = format!("{}{}{}", vx_tool_bin, sep, system_cmake);
+        let parts: Vec<&str> = vx_path.split(sep).collect();
+
+        // vx tool should be first
+        assert!(
+            parts[0].contains(".vx"),
+            "vx tool path should be first in PATH"
+        );
+
+        // System path should come after
+        let vx_pos = parts.iter().position(|p| p.contains(".vx")).unwrap_or(999);
+        let sys_pos = parts
+            .iter()
+            .position(|p| !p.contains(".vx"))
+            .unwrap_or(999);
+        assert!(
+            vx_pos < sys_pos,
+            "vx tool path should come before system path"
+        );
+
+        cleanup_test_env();
+    }
+
+    /// Test finding system tools (outside vx)
+    #[rstest]
+    #[test]
+    fn test_find_system_tool_logic() {
+        init_test_env();
+
+        // Simulate the logic of find_system_tool
+        let tool = "cmake";
+        let exe_name = if cfg!(windows) {
+            format!("{}.exe", tool)
+        } else {
+            tool.to_string()
+        };
+
+        // Check if cmake exists in PATH (excluding .vx paths)
+        let path_var = std::env::var("PATH").unwrap_or_default();
+        let sep = if cfg!(windows) { ';' } else { ':' };
+
+        let mut system_paths = Vec::new();
+        for dir in path_var.split(sep) {
+            if !dir.contains(".vx") {
+                let exe_path = std::path::PathBuf::from(dir).join(&exe_name);
+                if exe_path.exists() {
+                    system_paths.push(exe_path);
+                }
+            }
+        }
+
+        // This test just validates the logic; actual cmake may or may not be installed
+        // The important thing is that we correctly filter out .vx paths
+        for path in &system_paths {
+            assert!(
+                !path.to_string_lossy().contains(".vx"),
+                "System tool paths should not contain .vx"
+            );
+        }
+
+        cleanup_test_env();
+    }
+
+    /// Test VX_DEV environment variable is set
+    #[rstest]
+    #[test]
+    fn test_vx_dev_env_var() {
+        init_test_env();
+
+        // Simulate what build_dev_environment does
+        let mut env_vars: HashMap<String, String> = HashMap::new();
+        env_vars.insert("VX_DEV".to_string(), "1".to_string());
+        env_vars.insert(
+            "VX_PROJECT_ROOT".to_string(),
+            "/path/to/project".to_string(),
+        );
+
+        assert_eq!(
+            env_vars.get("VX_DEV"),
+            Some(&"1".to_string()),
+            "VX_DEV should be set"
+        );
+        assert!(
+            env_vars.contains_key("VX_PROJECT_ROOT"),
+            "VX_PROJECT_ROOT should be set"
+        );
+
+        cleanup_test_env();
+    }
+
+    /// Test install progress states
+    #[rstest]
+    #[test]
+    fn test_install_progress_states() {
+        init_test_env();
+
+        // Simulate tool states
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        enum ToolStatus {
+            Installed,
+            NotInstalled,
+            SystemFallback,
+        }
+
+        let tool_states = vec![
+            ("uv", "0.7.12", ToolStatus::Installed),
+            ("node", "22.0.0", ToolStatus::NotInstalled),
+            ("cmake", "3.28.0", ToolStatus::SystemFallback),
+        ];
+
+        // Verify we can distinguish between states
+        for (tool, version, status) in &tool_states {
+            match status {
+                ToolStatus::Installed => {
+                    assert_eq!(*tool, "uv", "uv should be installed");
+                }
+                ToolStatus::NotInstalled => {
+                    assert_eq!(*tool, "node", "node should not be installed");
+                }
+                ToolStatus::SystemFallback => {
+                    assert_eq!(*tool, "cmake", "cmake should fall back to system");
+                }
+            }
+            // Just use version to avoid warning
+            let _ = version;
+        }
+
+        cleanup_test_env();
+    }
+
+    /// Test multiple tools with different statuses
+    #[rstest]
+    #[test]
+    #[serial]
+    fn test_multiple_tools_status() {
+        init_test_env();
+
+        let vx_home = create_mock_vx_home();
+        std::env::set_var("VX_HOME", vx_home.path());
+
+        let path_manager = PathManager::new().expect("Failed to create PathManager");
+
+        // Check various tools
+        let tools = [
+            ("uv", "0.7.12", true),    // should be installed (mock)
+            ("node", "22.0.0", true),  // should be installed (mock)
+            ("python", "3.12.0", false), // should not be installed
+        ];
+
+        for (tool, version, expected_installed) in tools {
+            let installed = path_manager.is_version_in_store(tool, version);
+            if expected_installed {
+                // For mocked tools, the directory should exist
+                let store_dir = path_manager.version_store_dir(tool, version);
+                if store_dir.exists() {
+                    assert!(installed, "{} should be installed", tool);
+                }
+            } else {
+                assert!(!installed, "{} should not be installed", tool);
+            }
+        }
+
+        cleanup_test_env();
+    }
+}

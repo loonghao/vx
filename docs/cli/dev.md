@@ -8,15 +8,17 @@ Enter development environment with all project tools.
 vx dev [OPTIONS]
 vx dev -c <COMMAND>
 vx dev --export [--format <FORMAT>]
+vx dev --info
 ```
 
 ## Description
 
-The `vx dev` command is the primary way to work with vx-managed tools. It provides three modes of operation:
+The `vx dev` command is the primary way to work with vx-managed tools. It provides four modes of operation:
 
 1. **Interactive Shell Mode** (default): Spawns a new shell with all project tools available in PATH
 2. **Command Mode** (`-c`): Runs a single command in the dev environment
 3. **Export Mode** (`--export`): Outputs shell script for environment activation
+4. **Info Mode** (`--info`): Shows detailed environment information including tool status, paths, and conflicts
 
 ## Options
 
@@ -28,6 +30,7 @@ The `vx dev` command is the primary way to work with vx-managed tools. It provid
 | `-v`, `--verbose` | Show verbose output |
 | `-e`, `--export` | Export environment variables for shell activation |
 | `-f`, `--format <FORMAT>` | Output format for `--export`: shell, powershell, batch, github |
+| `-i`, `--info` | Show detailed environment information |
 
 ## Usage Scenarios
 
@@ -55,7 +58,48 @@ v20.10.0
 
 **When to use**: Daily development work, exploring the codebase, running ad-hoc commands.
 
-### Scenario 2: Run Single Command
+### Scenario 2: Environment Information
+
+Check the status of your development environment before entering:
+
+```bash
+vx dev --info
+```
+
+Output:
+
+```
+VX Development Environment Information
+══════════════════════════════════════════════════
+
+Configured Tools:
+
+  ✓ uv@latest
+    Path: /home/user/.vx/store/uv/0.7.12
+  ✓ python@3.11
+    Path: /home/user/.vx/store/python/3.11.0/bin
+  ○ cmake@latest
+    (pending installation)
+
+PATH Entries (in priority order):
+
+  1 /home/user/.vx/store/uv/0.7.12
+  2 /home/user/.vx/store/python/3.11.0/bin
+  3 /home/user/.vx/bin
+  4 ... (system PATH)
+
+System Tool Conflicts:
+
+  ⚠ cmake found in system PATH:
+    System: /usr/bin/cmake
+    VX: /home/user/.vx/store/cmake/3.28.0/bin (will be used)
+
+Run 'vx dev' to enter the development environment.
+```
+
+**When to use**: Troubleshooting, verifying environment setup, checking for conflicts with system tools.
+
+### Scenario 3: Run Single Command
 
 Execute a command in the dev environment without entering a shell:
 
@@ -67,7 +111,7 @@ vx dev -c "go test ./..."
 
 **When to use**: CI/CD pipelines, scripts, one-off tasks.
 
-### Scenario 3: Shell Activation (Export Mode)
+### Scenario 4: Shell Activation (Export Mode)
 
 Export environment variables to activate tools in your current shell:
 
@@ -97,7 +141,7 @@ vx dev --export --format batch > activate.bat && activate.bat
 
 **When to use**: IDE integration, shell profiles, custom scripts.
 
-### Scenario 4: CI/CD Integration
+### Scenario 5: CI/CD Integration
 
 Use export mode with GitHub Actions format:
 
