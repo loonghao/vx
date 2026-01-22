@@ -9,7 +9,7 @@ use crate::config::NodeUrlBuilder;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
@@ -112,6 +112,59 @@ impl Runtime for NodeRuntime {
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         Ok(NodeUrlBuilder::download_url(version, platform))
+    }
+
+    /// Ensure bundled tools (npm, npx) have correct permissions after extraction
+    ///
+    /// On Unix systems, npm and npx are shell scripts that need execute permissions.
+    /// The tar extraction should preserve these, but in some environments (like Docker)
+    /// the permissions may not be set correctly. This hook ensures they are.
+    fn post_extract(&self, version: &str, install_path: &PathBuf) -> Result<()> {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let platform = Platform::current();
+            if let Some(bin_dir_relative) = self.executable_dir_path(version, &platform) {
+                let bin_dir = install_path.join(&bin_dir_relative);
+
+                // List of bundled tools that need execute permissions
+                let bundled_tools = ["npm", "npx", "node", "corepack"];
+
+                for tool in &bundled_tools {
+                    let tool_path = bin_dir.join(tool);
+                    if tool_path.exists() {
+                        // Always ensure the file has execute permissions for owner/group/others
+                        // This is particularly important for npm/npx which are shell scripts
+                        // with #!/usr/bin/env node shebang
+                        debug!(
+                            "Ensuring executable permissions on {}",
+                            tool_path.display()
+                        );
+                        if let Ok(metadata) = std::fs::metadata(&tool_path) {
+                            let mut permissions = metadata.permissions();
+                            // Set to 0o755: rwxr-xr-x
+                            permissions.set_mode(0o755);
+                            if let Err(e) = std::fs::set_permissions(&tool_path, permissions) {
+                                warn!(
+                                    "Failed to set permissions on {}: {}",
+                                    tool_path.display(),
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Suppress unused variable warnings on non-Unix platforms
+        #[cfg(not(unix))]
+        {
+            let _ = (version, install_path);
+        }
+
+        Ok(())
     }
 }
 
