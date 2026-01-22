@@ -106,9 +106,7 @@ impl ShellSpawner {
 
     /// Spawn an interactive shell
     pub fn spawn_interactive(&self, shell: Option<&str>) -> Result<ExitStatus> {
-        let shell_path = shell
-            .map(|s| s.to_string())
-            .unwrap_or_else(detect_shell);
+        let shell_path = shell.map(|s| s.to_string()).unwrap_or_else(detect_shell);
 
         let mut command = Command::new(&shell_path);
 

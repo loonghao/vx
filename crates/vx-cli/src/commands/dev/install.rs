@@ -1,13 +1,13 @@
 //! Tool installation and status checking
 
+use super::tools::{find_system_tool, get_system_tool_version, ToolStatus};
+use crate::ui::{InstallProgress, UI};
+use anyhow::{Context, Result};
+use colored::Colorize;
 use std::collections::HashMap;
 use std::env;
 use std::process::{Command, Stdio};
-use anyhow::{Context, Result};
-use colored::Colorize;
 use vx_paths::PathManager;
-use crate::ui::{InstallProgress, UI};
-use super::tools::{ToolStatus, find_system_tool, get_system_tool_version};
 
 /// Check if tools are installed and install missing ones
 pub async fn check_and_install_tools(tools: &HashMap<String, String>, verbose: bool) -> Result<()> {
@@ -23,17 +23,20 @@ pub async fn check_and_install_tools(tools: &HashMap<String, String>, verbose: b
         if version == "system" {
             if find_system_tool(tool).is_some() {
                 // Try to detect the actual version
-                let display_version = get_system_tool_version(tool)
-                    .unwrap_or_else(|| "system".to_string());
+                let display_version =
+                    get_system_tool_version(tool).unwrap_or_else(|| "system".to_string());
                 tool_states.push((tool.clone(), display_version, ToolStatus::SystemFallback));
             } else {
                 // System tool not found, but we don't try to install it
-                UI::warn(&format!("{} specified as 'system' but not found in PATH", tool));
+                UI::warn(&format!(
+                    "{} specified as 'system' but not found in PATH",
+                    tool
+                ));
                 tool_states.push((tool.clone(), "system".to_string(), ToolStatus::NotInstalled));
             }
             continue;
         }
-        
+
         let status = if version == "latest" {
             let versions = path_manager.list_store_versions(tool)?;
             if versions.is_empty() {
@@ -58,7 +61,7 @@ pub async fn check_and_install_tools(tools: &HashMap<String, String>, verbose: b
             let icon = match status {
                 ToolStatus::Installed => "✓".green(),
                 ToolStatus::NotInstalled => "○".yellow(),
-                ToolStatus::SystemFallback => "✓".green(),  // System tools are valid
+                ToolStatus::SystemFallback => "✓".green(), // System tools are valid
             };
             let status_text = match status {
                 ToolStatus::Installed => "installed".green(),

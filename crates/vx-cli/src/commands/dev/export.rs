@@ -1,10 +1,10 @@
 //! Environment export functionality for various formats
 
+use crate::commands::setup::ConfigView;
+use anyhow::Result;
 use std::collections::HashMap;
 use std::env;
-use anyhow::Result;
 use vx_env::ToolEnvironment;
-use crate::commands::setup::ConfigView;
 
 /// Output format for environment export
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

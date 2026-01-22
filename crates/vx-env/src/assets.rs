@@ -32,8 +32,7 @@ impl ShellScript {
 
     /// Get the raw script content from embedded assets
     pub fn get_raw(&self) -> Option<String> {
-        ShellAssets::get(self.filename())
-            .map(|f| String::from_utf8_lossy(&f.data).into_owned())
+        ShellAssets::get(self.filename()).map(|f| String::from_utf8_lossy(&f.data).into_owned())
     }
 
     /// Get the script with project-specific substitutions
