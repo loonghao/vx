@@ -1,10 +1,10 @@
 //! Tool discovery and version detection utilities
 
+use anyhow::Result;
 use std::env;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use vx_paths::PathManager;
-use anyhow::Result;
 
 /// Tool installation status
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
