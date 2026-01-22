@@ -2,10 +2,20 @@
 cmake = "latest"
 python = "3.11"
 uv = "latest"
+rust = "system"  # Use system-installed rust/cargo
 
 [settings]
 cache_duration = "7d"
 auto_install = true
+# isolation = true  # Default: isolated environment (only vx-managed tools in PATH)
+# Pass through specific environment variables to the dev environment (like tox's passenv)
+passenv = [
+    "CARGO_*",      # Cargo configuration
+    "RUSTUP_*",     # Rustup configuration  
+    "GITHUB_*",     # GitHub Actions environment
+    "CI",           # CI indicator
+    "RUST_LOG",     # Logging level
+]
 
 [scripts]
 build = "cargo build"

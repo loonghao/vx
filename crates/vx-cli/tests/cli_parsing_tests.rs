@@ -701,6 +701,7 @@ fn test_cli_dev_command() {
             verbose,
             export,
             format,
+            ..
         }) => {
             assert!(shell.is_none());
             assert!(command.is_none());

@@ -45,15 +45,39 @@ pub struct ConfigView {
     pub settings: HashMap<String, String>,
     pub env: HashMap<String, String>,
     pub scripts: HashMap<String, String>,
+    /// Project name (from [project] section or directory name)
+    pub project_name: String,
+    /// Whether to use isolation mode (default: true)
+    pub isolation: bool,
+    /// Environment variables to pass through in isolation mode
+    pub passenv: Vec<String>,
+    /// Environment variables to explicitly set (setenv)
+    pub setenv: HashMap<String, String>,
 }
 
 impl From<VxConfig> for ConfigView {
     fn from(config: VxConfig) -> Self {
+        // Get project name from config, fallback to current directory name
+        let project_name = config
+            .project
+            .as_ref()
+            .and_then(|p| p.name.clone())
+            .unwrap_or_else(|| {
+                std::env::current_dir()
+                    .ok()
+                    .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+                    .unwrap_or_else(|| "project".to_string())
+            });
+
         ConfigView {
             tools: config.tools_as_hashmap(),
             settings: config.settings_as_hashmap(),
             env: config.env_as_hashmap(),
             scripts: config.scripts_as_hashmap(),
+            project_name,
+            isolation: config.is_isolation_mode(),
+            passenv: config.get_passenv(),
+            setenv: config.get_setenv(),
         }
     }
 }
