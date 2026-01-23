@@ -8,7 +8,6 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use tracing;
 use vx_runtime::{
     layout::{ArchiveLayout, DownloadType, ExecutableLayout, PlatformLayout},
     Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
