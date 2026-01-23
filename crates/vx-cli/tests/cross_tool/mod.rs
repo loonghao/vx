@@ -346,33 +346,31 @@ func main() { fmt.Println(os.Getenv("VX_CROSS_TOOL_TEST")) }
 fn test_exit_code_propagation() {
     skip_if_no_vx!();
 
-    // Node exit 0
-    let node_success = run_vx(&["node", "-e", "process.exit(0)"]).expect("Failed to run node");
+    // Node exit tests - only if node is installed
     if tool_installed("node") {
+        // Node exit 0
+        let node_success = run_vx(&["node", "-e", "process.exit(0)"]).expect("Failed to run node");
         assert!(is_success(&node_success), "Node exit 0 should succeed");
-    }
 
-    // Node exit 1
-    let node_fail = run_vx(&["node", "-e", "process.exit(1)"]).expect("Failed to run node");
-    if tool_installed("node") {
+        // Node exit 1
+        let node_fail = run_vx(&["node", "-e", "process.exit(1)"]).expect("Failed to run node");
         assert!(!is_success(&node_fail), "Node exit 1 should fail");
     }
 
-    // Go exit
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    std::fs::write(
-        temp_dir.path().join("exit.go"),
-        r#"package main
+    // Go exit tests - only if go is installed
+    if tool_installed("go") {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        std::fs::write(
+            temp_dir.path().join("exit.go"),
+            r#"package main
 import "os"
 func main() { os.Exit(2) }
 "#,
-    )
-    .expect("Failed to write exit.go");
+        )
+        .expect("Failed to write exit.go");
 
-    let go_exit =
-        run_vx_in_dir(temp_dir.path(), &["go", "run", "exit.go"]).expect("Failed to run go");
-
-    if tool_installed("go") {
+        let go_exit =
+            run_vx_in_dir(temp_dir.path(), &["go", "run", "exit.go"]).expect("Failed to run go");
         assert!(!is_success(&go_exit), "Go exit 2 should fail");
     }
 }

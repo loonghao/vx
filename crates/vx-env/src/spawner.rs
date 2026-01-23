@@ -3,6 +3,7 @@
 //! This module provides unified shell spawning functionality used by both
 //! `vx dev` and `vx env shell` commands.
 
+#[cfg(windows)]
 use crate::assets::ShellScript;
 use crate::session::SessionContext;
 use crate::ToolEnvironment;
