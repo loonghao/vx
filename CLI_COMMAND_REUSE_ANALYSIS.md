@@ -263,9 +263,175 @@ let status = if version == "latest" {
 
 ---
 
+## 6. vx setup 和 vx dev 概念分析 ⚠️ 高优先级
+
+### 命令职责对比
+
+**vx setup（一次性设置）**：
+- ✅ 调用 `sync` 命令安装所有工具
+- ✅ 执行生命周期钩子（pre_setup, post_setup）
+- ✅ 显示下一步和可用脚本列表
+- ✅ 在 CI 模式下输出工具路径
+- ✅ 不会进入交互式 shell
+- ✅ 适用于 CI/CD 或初始项目设置
+
+**vx dev（交互式开发环境）**：
+- ✅ 检查并安装缺失的工具
+- ✅ 构建开发环境（PATH、环境变量等）
+- ✅ 进入交互式 shell（或执行单个命令）
+- ✅ 支持继承系统 PATH（`--inherit-system`）
+- ✅ 提供隔离模式和 passenv 控制
+- ✅ 适用于日常开发工作流
+
+### 当前问题：工具安装逻辑重复
+
+**setup 的实现**（setup.rs:139-148）：
+```rust
+// Delegate to sync command for tool installation
+sync::handle(
+    registry,
+    false,       // check: false - we want to install
+    force,
+    dry_run,
+    verbose,
+    no_parallel,
+    false,       // no_auto_install: false - we want auto install
+).await?;
+```
+
+**dev 的实现**（dev/handler.rs:60）：
+```rust
+if auto_install {
+    check_and_install_tools(&config.tools, args.verbose).await?;
+}
+```
+
+**重复的工具安装逻辑**：
+
+| 特性 | setup (通过 sync) | dev (通过 check_and_install_tools) |
+|------|---------------------|--------------------------------|
+| 配置解析 | ✅ 使用 `parse_vx_config` | ✅ 使用 `parse_vx_config` |
+| 状态检查 | ✅ `check_tool_status` | ✅ 内联在 `check_and_install_tools` |
+| 安装方式 | ✅ `install_tool` 调用 `vx install` | ✅ 调用 `vx install`（相同逻辑） |
+| 进度显示 | ✅ `InstallProgress` 或手动输出 | ✅ `InstallProgress` |
+| 并行安装 | ✅ 支持 `--no-parallel` | ✅ 固定并行 |
+| 参数格式 | ✅ 使用 `tool@version` 格式 | ✅ 使用 `tool@version` 格式（已修复）|
+
+### 代码重复位置
+
+**sync.rs** (setup 委托的命令)：
+- `install_tool` 函数（第 300 行）
+- `check_tool_status` 函数（第 176 行）
+- `install_sequential` 函数（第 236 行）
+- `install_parallel` 函数（第 269 行）
+
+**dev/install.rs** (dev 直接使用的模块)：
+- `check_and_install_tools` 函数（第 13 行）
+- 内联状态检查逻辑（第 40-53 行）
+
+### 问题分析
+
+1. **概念混淆**：
+   - `setup` 和 `dev` 都提供"安装工具"的功能
+   - 但 `dev` 被定位为"进入开发环境"，而不是"安装工具"
+   - 用户可能不清楚何时使用哪个命令
+
+2. **代码重复**：
+   - 两个独立实现相同的工具安装逻辑
+   - 维护成本高：bug 修复需要在两处进行
+   - 行为可能不一致（如进度显示、错误处理）
+
+3. **用户体验不一致**：
+   - `vx setup` 使用 `sync` 的进度显示
+   - `vx dev` 使用 `InstallProgress`
+   - 错误信息格式可能不同
+
+### 建议的统一方案
+
+#### 方案 A：dev 直接调用 sync（推荐）
+
+**优点**：
+- ✅ 完全消除代码重复
+- ✅ 确保两个命令行为一致
+- ✅ 简化维护：只需维护 `sync` 的逻辑
+
+**实现**：
+```rust
+// dev/handler.rs:51-62
+// 替换 check_and_install_tools 调用：
+if !args.no_install {
+    let auto_install = config
+        .settings
+        .get("auto_install")
+        .map(|v| v == "true")
+        .unwrap_or(true);
+
+    if auto_install {
+        // 调用 sync 命令，而不是 check_and_install_tools
+        let (registry, context) = (/* 获取 registry 和 context */);
+        crate::commands::sync::handle(
+            &registry,
+            false,   // check: false
+            false,   // force: false
+            false,   // dry_run: false
+            args.verbose,
+            false,   // no_parallel: false (dev 默认并行)
+            false,   // no_auto_install: false
+        ).await?;
+    }
+}
+```
+
+#### 方案 B：提取公共工具管理器
+
+**优点**：
+- ✅ 更灵活：允许 dev 使用不同的配置
+- ✅ 可以处理不同的进度显示需求
+
+**实现**：
+```rust
+// crates/vx-cli/src/commands/common/tool_manager.rs
+
+pub struct ToolManager {
+    registry: Arc<ProviderRegistry>,
+    context: Arc<RuntimeContext>,
+}
+
+impl ToolManager {
+    pub async fn install_tools(
+        &self,
+        tools: &HashMap<String, String>,
+        options: InstallOptions,
+    ) -> Result<InstallResult> {
+        // 统一的安装逻辑
+        // 可配置：并行、进度显示、强制重装等
+    }
+}
+
+// sync.rs 和 dev/install.rs 都使用 ToolManager
+```
+
+### 推荐方案
+
+**阶段 1：dev 调用 sync**
+1. 修改 `dev/handler.rs` 移除 `check_and_install_tools` 调用
+2. 改为调用 `sync::handle()`
+3. 删除 `dev/install.rs` 模块（或简化为只包含辅助函数）
+
+**阶段 2：配置和选项映射**
+1. 将 `dev` 的选项映射到 `sync` 的参数
+2. 处理差异（如 `--inherit-system` 只影响 dev）
+
+**阶段 3：清理**
+1. 删除 `dev/install.rs` 中的重复逻辑
+2. 简化 `sync.rs` 中的函数签名（如果需要）
+
+---
+
 ## 待办事项
 
 - [ ] 统一配置解析逻辑（高优先级）
+- [ ] **重构：dev 调用 sync 统一工具安装**（高优先级）
 - [ ] 创建公共工具管理模块（中优先级）
 - [ ] 统一工具状态检查逻辑（中优先级）
 - [ ] 调查环境变量处理逻辑复用（低优先级）
