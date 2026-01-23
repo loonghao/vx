@@ -4909,13 +4909,10 @@ version = "0.6.19"
 dependencies = [
  "anyhow",
  "async-trait",
- "chrono",
- "reqwest 0.12.28",
  "rstest",
- "serde",
- "serde_json",
- "tokio",
+ "tracing",
  "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
