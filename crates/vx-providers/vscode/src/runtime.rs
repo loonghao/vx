@@ -8,10 +8,12 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
+use tracing;
 use vx_runtime::{
     layout::{ArchiveLayout, DownloadType, ExecutableLayout, PlatformLayout},
     Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
 };
+use vx_version_fetcher::VersionFetcherBuilder;
 
 /// Visual Studio Code runtime
 #[derive(Debug, Clone, Default)]
@@ -120,65 +122,17 @@ impl Runtime for VscodeRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Fetch version info from VSCode official API
-        // This API returns { "products": [...] } with all platform builds
-        let url = "https://code.visualstudio.com/sha";
+        // Use version fetcher to get versions from GitHub Releases API
+        // with automatic fallback to jsDelivr CDN on rate limiting
+        let fetcher = VersionFetcherBuilder::github_releases("microsoft", "vscode")
+            .strip_v_prefix()
+            .skip_prereleases()
+            .build();
 
-        let response = ctx
-            .get_cached_or_fetch("vscode", || async { ctx.http.get_json_value(url).await })
-            .await?;
+        tracing::debug!("Fetching VSCode versions using version fetcher");
 
-        let mut versions: Vec<VersionInfo> = Vec::new();
-        let mut seen_versions = std::collections::HashSet::new();
-
-        // Parse the response - it's an object with "products" array
-        // Each entry has: url, name, version, productVersion, hash, timestamp, sha256hash, build, platform
-        let entries = response
-            .get("products")
-            .and_then(|p| p.as_array())
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Invalid response format from VSCode API: expected object with 'products' array"
-                )
-            })?;
-
-        for entry in entries {
-            // Only include stable versions (skip insider builds)
-            let build = entry.get("build").and_then(|b| b.as_str()).unwrap_or("");
-            if build != "stable" {
-                continue;
-            }
-
-            // Get product version (e.g., "1.107.1")
-            if let Some(version) = entry.get("productVersion").and_then(|v| v.as_str()) {
-                // Deduplicate versions (same version appears for multiple platforms)
-                if seen_versions.contains(version) {
-                    continue;
-                }
-                seen_versions.insert(version.to_string());
-
-                let timestamp = entry
-                    .get("timestamp")
-                    .and_then(|t| t.as_i64())
-                    .map(|ts| chrono::DateTime::from_timestamp(ts / 1000, 0).unwrap_or_default());
-
-                versions.push(VersionInfo {
-                    version: version.to_string(),
-                    released_at: timestamp,
-                    prerelease: false,
-                    lts: false,
-                    download_url: None,
-                    checksum: None,
-                    metadata: HashMap::new(),
-                });
-            }
-        }
-
-        if versions.is_empty() {
-            return Err(anyhow::anyhow!(
-                "No stable versions found in VSCode API response"
-            ));
-        }
+        let versions = fetcher.fetch(ctx).await?;
+        tracing::info!("Fetched {} VSCode versions", versions.len());
 
         Ok(versions)
     }
