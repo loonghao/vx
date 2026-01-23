@@ -90,8 +90,9 @@ pub async fn check_and_install_tools(tools: &HashMap<String, String>, verbose: b
         progress.start_tool(tool, version);
 
         // Use vx install command with suppressed output
+        // Use tool@version format instead of separate arguments
         let status = Command::new(env::current_exe()?)
-            .args(["install", tool, version])
+            .args(["install", &format!("{}@{}", tool, version)])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()

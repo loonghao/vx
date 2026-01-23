@@ -304,7 +304,8 @@ async fn install_tool(name: &str, version: &str) -> (bool, Option<String>) {
     };
 
     let mut cmd = Command::new(exe);
-    cmd.args(["install", name, version]);
+    // Use tool@version format instead of separate arguments
+    cmd.args(["install", &format!("{}@{}", name, version)]);
 
     // Capture output instead of suppressing it
     cmd.stdout(std::process::Stdio::piped());
