@@ -582,9 +582,6 @@ mod ci_scenario_tests {
     fn test_vx_run_independent_of_github_path() {
         init_test_env();
 
-        // Clear any existing PATH modifications
-        let original_path = std::env::var("PATH").unwrap_or_default();
-
         let vx_home = create_mock_vx_home_with_bin_structure();
         std::env::set_var("VX_HOME", vx_home.path());
 
