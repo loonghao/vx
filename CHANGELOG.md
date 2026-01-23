@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.20](https://github.com/loonghao/vx/compare/vx-v0.6.19...vx-v0.6.20) (2026-01-23)
+
+
+### Features
+
+* **cli:** enhance vx dev with --info option and improved status display ([e732512](https://github.com/loonghao/vx/commit/e732512f69c0c2167a0ca4545f5834d174e04bda))
+* **docker:** add tools image with pre-installed uv, ruff, and node ([1a92cd1](https://github.com/loonghao/vx/commit/1a92cd12c952881f4397f29ecc5ad93a0d7d622c))
+* expand platform support for multiple architectures and libc variants ([283b995](https://github.com/loonghao/vx/commit/283b995795172d3b8fe8b98f071c960adf0732ae))
+* **vx-env:** unify shell spawning with embedded assets ([9a03c5a](https://github.com/loonghao/vx/commit/9a03c5aed9e3d16142cb5d91b6e8f44cbb0e8a96))
+
+
+### Bug Fixes
+
+* batch update all remaining files to use Platform::new() ([bb0ca17](https://github.com/loonghao/vx/commit/bb0ca17ccb9303767cb9d5c99ca5ec7c52c29587))
+* conditional import for ShellScript and fix test logic ([889995e](https://github.com/loonghao/vx/commit/889995e777b8ecb255d90cc70c1ed38c948ba37e))
+* **docker:** add gcompat for glibc compatibility on Alpine ([d395244](https://github.com/loonghao/vx/commit/d39524466b17e8a7b668def27223a34f5cd6155a))
+* **docker:** add libatomic1 for Node.js compatibility ([87ea2bd](https://github.com/loonghao/vx/commit/87ea2bd0acd25f41e322b81bf4ce89b46973b543))
+* **docker:** add libc6-compat and verify binary before USER switch ([0f9d9eb](https://github.com/loonghao/vx/commit/0f9d9ebe4053e46a674e616cad65768e4a597f12))
+* **docker:** use musl binaries for Alpine compatibility ([315af4f](https://github.com/loonghao/vx/commit/315af4f33d06aa661c9b9d76155de5b29f7d92e0))
+* **docker:** use Ubuntu 24.04 for glibc 2.39 compatibility ([c637cf0](https://github.com/loonghao/vx/commit/c637cf027b9bea6f6a2d1c66dac80e958155af05))
+* **docker:** use UID/GID 1001 to avoid conflict with existing ubuntu user ([da5b085](https://github.com/loonghao/vx/commit/da5b085dfb96a4d3cd44cea493c876e26b780c1a))
+* **node:** add post_extract hook to ensure npm/npx executable permissions ([e2dbc0c](https://github.com/loonghao/vx/commit/e2dbc0ca7539388aa41cc765b49f83a9f41e91dc))
+* pin Node.js to LTS v22 in Docker images ([a13b7e6](https://github.com/loonghao/vx/commit/a13b7e6ad42a4281fcde9ce43db5b749639ad107))
+* remove redundant tracing import in vscode provider ([c22961f](https://github.com/loonghao/vx/commit/c22961ff18e2a934f8abef2f6d28b2ef9ab76a54))
+* **tests:** increase config parse threshold for CI variability ([11ab726](https://github.com/loonghao/vx/commit/11ab726d3cd4c333706735ad2cc9230148072408))
+* update ffmpeg and zig tests to use Platform::new() ([33a4472](https://github.com/loonghao/vx/commit/33a447223005585d5d9514e9fc3e5248c757c5ec))
+* update imagemagick, awscli, spack tests to use Platform::new() ([47cc69f](https://github.com/loonghao/vx/commit/47cc69fb0574cc196906341be6d2a84346ff803f))
+* update more test files to use Platform::new() ([a44bc82](https://github.com/loonghao/vx/commit/a44bc8252e5b8b91734447fc0697ebb1684a8abc))
+* update remaining test files to use Platform::new() constructor ([3fba1de](https://github.com/loonghao/vx/commit/3fba1de2ae85634d859bc8ababc15871f51a2669))
+* **vx-env:** fix PATH inheritance and nested bin directory detection ([727fe3d](https://github.com/loonghao/vx/commit/727fe3d229b64ae3c18f724cec89d80a74b7dc02))
+* where command alias resolution and E2E test improvements ([2e70581](https://github.com/loonghao/vx/commit/2e705816c620d56f97f214293442964086ee6d1a))
+
+
+### Code Refactoring
+
+* **cli:** modularize dev and env commands following RFC 0020 ([2872e13](https://github.com/loonghao/vx/commit/2872e13e9e11f7b9cdf54eec35a25c8360e9f883))
+* **docker:** switch to Debian-based images for glibc compatibility ([1248d12](https://github.com/loonghao/vx/commit/1248d12cc00eb3b94f80e7ac0381e95e793f6219))
+* use VersionFetcher interface for vscode provider ([f38ce20](https://github.com/loonghao/vx/commit/f38ce207d6dba5885970cb87b502fa9bca259a93))
+
+
+### Documentation
+
+* add llms.txt and llms-full.txt for LLM accessibility ([bc6420f](https://github.com/loonghao/vx/commit/bc6420f084ca5b040de64558c749442dbc8c4a13))
+
 ## [0.6.19](https://github.com/loonghao/vx/compare/vx-v0.6.18...vx-v0.6.19) (2026-01-20)
 
 
