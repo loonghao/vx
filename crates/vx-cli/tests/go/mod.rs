@@ -420,7 +420,10 @@ func main() {
         // go vet may fail if go.mod is not properly initialized, skip in that case
         if !is_success(&output) {
             let stderr = stderr_str(&output);
-            if stderr.contains("go.mod") || stderr.contains("module") || stderr.contains("cannot find package") {
+            if stderr.contains("go.mod")
+                || stderr.contains("module")
+                || stderr.contains("cannot find package")
+            {
                 return; // Skip - module initialization issue
             }
         }
