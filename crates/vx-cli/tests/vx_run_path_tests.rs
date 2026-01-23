@@ -602,17 +602,14 @@ mod ci_scenario_tests {
 
         let new_path = env_vars.get("PATH").expect("PATH should be set");
 
-        // The new PATH should have tool paths prepended to original PATH
+        // In isolation mode (default when no [settings] section),
+        // vx-managed paths take precedence over system PATH
+        // The original PATH should NOT be preserved in isolation mode
+        // Verify vx-managed tools are available in PATH
         assert!(
             new_path.contains("uv") && new_path.contains("0.7.12"),
-            "vx run should add tool paths regardless of GITHUB_PATH.\nNew PATH: {}",
+            "vx run should add tool paths in isolation mode.\nNew PATH: {}",
             new_path
-        );
-
-        // Original PATH should still be included
-        assert!(
-            new_path.contains(&original_path) || original_path.is_empty(),
-            "Original PATH should be preserved"
         );
 
         cleanup_test_env();
