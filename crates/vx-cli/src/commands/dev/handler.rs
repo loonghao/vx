@@ -5,22 +5,18 @@ use super::info::handle_info;
 use super::shell::spawn_dev_shell;
 use super::Args;
 use super::tools::get_registry;
-use crate::commands::setup::{parse_vx_config, ConfigView};
+use crate::commands::common::load_config_view_cwd;
 use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
 use std::process::Command;
 use vx_env::ToolEnvironment;
-use vx_paths::find_vx_config;
 
 /// Handle dev command with Args
 pub async fn handle(args: &Args) -> Result<()> {
-    let current_dir = env::current_dir().context("Failed to get current directory")?;
-
-    // Find and parse vx.toml
-    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
-    let mut config = parse_vx_config(&config_path)?;
+    // Use common configuration loading
+    let (_config_path, mut config) = load_config_view_cwd()?;
 
     // Override isolation mode if --inherit-system is specified
     if args.inherit_system {

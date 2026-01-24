@@ -29,8 +29,8 @@ use std::env;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use vx_config::{parse_config, ServiceConfig, VxConfig};
-use vx_paths::find_vx_config;
-
+use crate::commands::common::find_project_config_cwd;
+use crate::commands::common::load_full_config;
 use crate::ui::UI;
 
 /// Container runtime (docker or podman)
@@ -97,8 +97,8 @@ pub async fn handle_start(
     verbose: bool,
 ) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
-    let config = parse_vx_config(&config_path)?;
+    let config_path = find_project_config_cwd()?;
+    let config = load_full_config(&config_path)?;
 
     if config.services.is_empty() {
         UI::warn("No services defined in vx.toml");

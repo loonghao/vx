@@ -12,7 +12,9 @@
 use anyhow::{Context, Result};
 use std::env;
 use std::path::{Path, PathBuf};
-use vx_config::{parse_config, VxConfig};
+use vx_config::{
+    parse_config, EnvConfig, ScriptConfig, ToolVersion, VxConfig,
+};
 use vx_paths::find_vx_config as find_vx_config_path;
 
 // =============================================================================
@@ -33,17 +35,107 @@ pub fn find_project_config_cwd() -> Result<PathBuf> {
     find_project_config(&current_dir)
 }
 
-/// Load and parse project configuration
-pub fn load_project_config(path: &Path) -> Result<VxConfig> {
+/// Load and parse VxConfig (full typed configuration)
+///
+/// This is the recommended way to load configuration for new code.
+/// For backward compatibility, see load_config_view().
+pub fn load_full_config(path: &Path) -> Result<VxConfig> {
     parse_config(path)
         .with_context(|| format!("Failed to parse configuration file: {}", path.display()))
 }
 
-/// Find and load project configuration from current directory
-pub fn load_project_config_cwd() -> Result<(PathBuf, VxConfig)> {
+/// Find and load VxConfig from current directory
+///
+/// This combines find_project_config_cwd() and load_full_config().
+pub fn load_full_config_cwd() -> Result<(PathBuf, VxConfig)> {
     let path = find_project_config_cwd()?;
-    let config = load_project_config(&path)?;
+    let config = load_full_config(&path)?;
     Ok((path, config))
+}
+
+/// Find and parse VxConfig, then convert to ConfigView (backward-compatible)
+///
+/// This provides backward compatibility with code that uses ConfigView.
+/// New code should prefer load_full_config() or load_full_config_cwd().
+///
+/// Note: This re-imports setup::ConfigView for compatibility.
+pub fn load_config_view(path: &Path) -> Result<(PathBuf, crate::commands::setup::ConfigView)> {
+    let config = load_full_config(path)?;
+    let project_name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("project")
+        .to_string();
+    
+    let view = crate::commands::setup::ConfigView {
+        tools: config.tools.iter().map(|(k, v)| {
+            let version = match v {
+                ToolVersion::Simple(v_str) => v_str.clone(),
+                ToolVersion::Detailed(details) => details.version.clone(),
+            };
+            (k.clone(), version)
+        }).collect(),
+        settings: config.settings.map(|s| {
+            use vx_config::SettingsConfig;
+            // Convert SettingsConfig to HashMap for backward compatibility
+            let mut map = std::collections::HashMap::new();
+            if let Some(v) = s.auto_install {
+                map.insert("auto_install".to_string(), if v { "true".to_string() } else { "false".to_string() });
+            }
+            if let Some(isolation) = s.isolation {
+                map.insert("isolation".to_string(), if isolation { "true".to_string() } else { "false".to_string() });
+            }
+            if let Some(ref setenv) = s.setenv {
+                for (k, v) in setenv {
+                    map.insert(k.clone(), v.clone());
+                }
+            }
+            if let Some(ref passenv) = s.passenv {
+                let passenv_str = passenv.join(",");
+                map.insert("passenv".to_string(), passenv_str);
+            }
+            map
+        })
+        .unwrap_or_default(),
+        env: config.env.map(|e| {
+            use vx_config::EnvConfig;
+            // Convert EnvConfig to HashMap for backward compatibility
+            let mut map = std::collections::HashMap::new();
+            for (k, v) in &e.vars {
+                map.insert(k.clone(), v.clone());
+            }
+            map
+        })
+        .unwrap_or_default(),
+        scripts: config.scripts.iter().map(|(k, v)| {
+            let command = match v {
+                ScriptConfig::Simple(cmd) => cmd.clone(),
+                ScriptConfig::Detailed(details) => details.command.clone(),
+            };
+            (k.clone(), command)
+        }).collect(),
+        project_name,
+        isolation: config.settings.as_ref()
+            .and_then(|s| s.isolation)
+            .unwrap_or(true),
+        setenv: config.settings.as_ref()
+            .and_then(|s| s.setenv.as_ref())
+            .cloned()
+            .unwrap_or_default(),
+        passenv: config.settings.as_ref()
+            .and_then(|s| s.passenv.as_ref())
+            .cloned()
+            .unwrap_or_default(),
+    };
+    Ok((path.to_path_buf(), view))
+}
+
+/// Find and load ConfigView from current working directory
+///
+/// This is the backward-compatible version of load_full_config_cwd().
+pub fn load_config_view_cwd() -> Result<(PathBuf, crate::commands::setup::ConfigView)> {
+    let path = find_project_config_cwd()?;
+    load_config_view(&path)
 }
 
 // =============================================================================

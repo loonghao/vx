@@ -6,13 +6,13 @@ use super::helpers::{
     list_env_runtimes, parse_runtime_version, resolve_env_for_shell, set_default_env,
 };
 use super::Args;
-use crate::commands::setup::parse_vx_config;
+use crate::commands::common::load_config_view_cwd;
 use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::env;
 use std::io::Write;
 use vx_env::{ExportFormat, SessionContext, ShellSpawner};
-use vx_paths::{find_config_file, link, LinkStrategy, PathManager, PROJECT_ENV_DIR};
+use vx_paths::{link, LinkStrategy, PathManager, PROJECT_ENV_DIR};
 
 /// Handle env command with Args
 pub async fn handle(args: &Args) -> Result<()> {
