@@ -424,7 +424,18 @@ impl ToolEnvironment {
                 None => return Ok(None),
             }
         } else {
-            tool.version.clone()
+            // Try exact version first
+            let exact_store_dir = path_manager.version_store_dir(&tool.name, &tool.version);
+            if exact_store_dir.exists() {
+                tool.version.clone()
+            } else {
+                // Try to find a matching version (e.g., "3.11" matches "3.11.14")
+                let versions = path_manager.list_store_versions(&tool.name)?;
+                versions
+                    .into_iter()
+                    .find(|v| v.starts_with(&tool.version))
+                    .unwrap_or_else(|| tool.version.clone())
+            }
         };
 
         // Check store first
