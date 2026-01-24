@@ -2,9 +2,9 @@
 
 use super::export::handle_export;
 use super::info::handle_info;
-use super::install::check_and_install_tools;
 use super::shell::spawn_dev_shell;
 use super::Args;
+use super::tools::get_registry;
 use crate::commands::setup::{parse_vx_config, ConfigView};
 use crate::ui::UI;
 use anyhow::{Context, Result};
@@ -57,7 +57,17 @@ pub async fn handle(args: &Args) -> Result<()> {
             .unwrap_or(true);
 
         if auto_install {
-            check_and_install_tools(&config.tools, args.verbose).await?;
+            // Reuse sync's tool installation logic to avoid duplication
+            let (registry, _) = get_registry()?;
+            crate::commands::sync::handle(
+                &registry,
+                false,   // check: false - we want to install
+                false,   // force: false
+                false,   // dry_run: false
+                args.verbose,
+                false,   // no_parallel: false - dev prefers parallel
+                false,   // no_auto_install: false
+            ).await?;
         }
     }
 

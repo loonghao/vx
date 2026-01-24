@@ -5,6 +5,7 @@ use std::env;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use vx_paths::PathManager;
+use vx_runtime::{create_runtime_context, ProviderRegistry};
 
 /// Version parser function type
 type VersionParser = fn(&str) -> Option<String>;
@@ -249,4 +250,14 @@ pub fn find_tool_bin_dir(store_dir: &PathBuf, tool: &str) -> PathBuf {
 
     // Return store_dir as fallback
     store_dir.clone()
+}
+
+/// Get provider registry and runtime context for dev command
+///
+/// This function creates a new registry instance for tool installation operations.
+/// It's used by dev command to delegate to sync for tool installation.
+pub fn get_registry() -> Result<(ProviderRegistry, vx_runtime::RuntimeContext)> {
+    let registry = crate::registry::create_registry();
+    let context = create_runtime_context()?;
+    Ok((registry, context))
 }
