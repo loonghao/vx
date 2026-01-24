@@ -165,6 +165,29 @@ pub trait Runtime: Send + Sync {
         HashMap::new()
     }
 
+    /// Get possible bin directory names for this runtime
+    ///
+    /// Returns a list of possible subdirectory names where executables might be located.
+    /// The first matching directory will be used.
+    ///
+    /// Default implementation returns ["bin"], but providers can override this
+    /// for runtimes with non-standard directory structures.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// fn possible_bin_dirs(&self) -> Vec<&str> {
+    ///     match self.name() {
+    ///         "python" => vec!["python", "bin"],
+    ///         "uv" => vec!["bin"],
+    ///         _ => vec!["bin"],
+    ///     }
+    /// }
+    /// ```
+    fn possible_bin_dirs(&self) -> Vec<&str> {
+        vec!["bin"]
+    }
+
     /// Get the store directory name for this runtime
     ///
     /// This is the canonical name used for the store directory path.

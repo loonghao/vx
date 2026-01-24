@@ -12,7 +12,7 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
 use std::process::Command;
-use vx_env::ToolEnvironment;
+use vx_env::{ToolEnvironment, ToolSpec};
 
 /// Handle dev command with Args
 pub async fn handle(args: &Args) -> Result<()> {
@@ -87,9 +87,29 @@ fn build_dev_environment(config: &ConfigView, verbose: bool) -> Result<HashMap<S
     let mut env_vars = config.env.clone();
     env_vars.extend(config.setenv.clone());
 
+    // Get registry to query runtime bin directories
+    let (registry, _) = get_registry()?;
+
+    // Create ToolSpecs with proper bin directories from runtime providers
+    let mut tool_specs = Vec::new();
+    for (tool_name, version) in &config.tools {
+        // Find the runtime for this tool
+        let bin_dirs = if let Some(provider) = registry.providers().iter().find(|p| p.supports(tool_name)) {
+            if let Some(runtime) = provider.get_runtime(tool_name) {
+                runtime.possible_bin_dirs().into_iter().map(|s| s.to_string()).collect()
+            } else {
+                vec!["bin".to_string()]
+            }
+        } else {
+            vec!["bin".to_string()]
+        };
+
+        tool_specs.push(ToolSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs));
+    }
+
     // Use ToolEnvironment from vx-env with isolation settings
     let mut builder = ToolEnvironment::new()
-        .tools(&config.tools)
+        .tools_from_specs(tool_specs)
         .env_vars(&env_vars)
         .warn_missing(verbose)
         .isolation(config.isolation);

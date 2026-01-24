@@ -314,10 +314,13 @@ impl Runtime for PipRuntime {
 
     fn metadata(&self) -> HashMap<String, String> {
         let mut meta = HashMap::new();
-        meta.insert("homepage".to_string(), "https://pip.pypa.io/".to_string());
-        meta.insert("ecosystem".to_string(), "python".to_string());
-        meta.insert("bundled_with".to_string(), "python".to_string());
+        meta.insert("provider".to_string(), "python-build-standalone".to_string());
+        meta.insert("source".to_string(), "https://github.com/astral-sh/python-build-standalone".to_string());
         meta
+    }
+
+    fn possible_bin_dirs(&self) -> Vec<&str> {
+        vec!["python", "bin"]
     }
 
     fn store_name(&self) -> &str {

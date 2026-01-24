@@ -16,6 +16,8 @@ pub struct ToolSpec {
     pub name: String,
     /// Version specification (e.g., "20.0.0", "latest")
     pub version: String,
+    /// Possible bin directory names (defaults to ["bin"])
+    pub possible_bin_dirs: Vec<String>,
 }
 
 impl ToolSpec {
@@ -24,6 +26,20 @@ impl ToolSpec {
         Self {
             name: name.into(),
             version: version.into(),
+            possible_bin_dirs: vec!["bin".to_string()],
+        }
+    }
+
+    /// Create a tool specification with custom bin directories
+    pub fn with_bin_dirs(
+        name: impl Into<String>,
+        version: impl Into<String>,
+        bin_dirs: Vec<impl Into<String>>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            version: version.into(),
+            possible_bin_dirs: bin_dirs.into_iter().map(|s| s.into()).collect(),
         }
     }
 }
@@ -197,6 +213,12 @@ impl ToolEnvironment {
         self
     }
 
+    /// Add multiple tools from ToolSpec instances
+    pub fn tools_from_specs(mut self, specs: Vec<ToolSpec>) -> Self {
+        self.tools.extend(specs);
+        self
+    }
+
     /// Add an environment variable
     pub fn env_var(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.env_vars.insert(key.into(), value.into());
@@ -258,7 +280,7 @@ impl ToolEnvironment {
         // Add tool bin directories to PATH
         let mut missing_tools = Vec::new();
         for tool in &self.tools {
-            let tool_path = self.resolve_tool_path(&path_manager, &tool.name, &tool.version)?;
+            let tool_path = self.resolve_tool_path(&path_manager, tool)?;
 
             match tool_path {
                 Some(path) if path.exists() => {
@@ -387,39 +409,38 @@ impl ToolEnvironment {
     fn resolve_tool_path(
         &self,
         path_manager: &PathManager,
-        tool: &str,
-        version: &str,
+        tool: &ToolSpec,
     ) -> Result<Option<PathBuf>> {
         // Handle "system" version - find tool from system PATH
-        if version == "system" {
-            return Ok(find_system_tool_path(tool));
+        if tool.version == "system" {
+            return Ok(find_system_tool_path(&tool.name));
         }
 
-        let actual_version = if version == "latest" {
+        let actual_version = if tool.version == "latest" {
             // Find the latest installed version
-            let versions = path_manager.list_store_versions(tool)?;
+            let versions = path_manager.list_store_versions(&tool.name)?;
             match versions.last() {
                 Some(v) => v.clone(),
                 None => return Ok(None),
             }
         } else {
-            version.to_string()
+            tool.version.clone()
         };
 
         // Check store first
-        let store_dir = path_manager.version_store_dir(tool, &actual_version);
+        let store_dir = path_manager.version_store_dir(&tool.name, &actual_version);
         if store_dir.exists() {
             return Ok(Some(find_bin_dir(&store_dir, tool)));
         }
 
         // Check npm-tools
-        let npm_bin = path_manager.npm_tool_bin_dir(tool, &actual_version);
+        let npm_bin = path_manager.npm_tool_bin_dir(&tool.name, &actual_version);
         if npm_bin.exists() {
             return Ok(Some(npm_bin));
         }
 
         // Check pip-tools
-        let pip_bin = path_manager.pip_tool_bin_dir(tool, &actual_version);
+        let pip_bin = path_manager.pip_tool_bin_dir(&tool.name, &actual_version);
         if pip_bin.exists() {
             return Ok(Some(pip_bin));
         }
@@ -474,19 +495,13 @@ fn find_system_tool_path(tool: &str) -> Option<PathBuf> {
 /// - Standard: `bin/` subdirectory
 /// - Direct: executables in version directory
 /// - Platform-specific: `tool-{platform}/bin/` subdirectory (e.g., cmake-4.2.2-windows-x86_64/bin)
-fn find_bin_dir(store_dir: &PathBuf, tool: &str) -> PathBuf {
+fn find_bin_dir(store_dir: &PathBuf, tool: &ToolSpec) -> PathBuf {
     // Priority order:
-    // 1. bin/ subdirectory (standard layout)
-    let bin_dir = store_dir.join("bin");
-    if bin_dir.exists() && has_executable(&bin_dir, tool) {
-        return bin_dir;
-    }
-
-    // Special case for python: executable is in python/ subdirectory
-    if tool == "python" {
-        let python_dir = store_dir.join("python");
-        if python_dir.exists() && has_executable(&python_dir, tool) {
-            return python_dir;
+    // 1. Check tool-specific bin directories
+    for bin_dir_name in &tool.possible_bin_dirs {
+        let bin_dir = store_dir.join(bin_dir_name);
+        if bin_dir.exists() && has_executable(&bin_dir, &tool.name) {
+            return bin_dir;
         }
     }
 
@@ -497,14 +512,14 @@ fn find_bin_dir(store_dir: &PathBuf, tool: &str) -> PathBuf {
             let path = entry.path();
             if path.is_dir() {
                 let dir_name = path.file_name().unwrap_or_default().to_string_lossy();
-                if dir_name.starts_with(&format!("{}-", tool)) {
+                if dir_name.starts_with(&format!("{}-", tool.name)) {
                     // Check for bin/ inside the platform-specific directory (e.g., cmake)
                     let nested_bin = path.join("bin");
-                    if nested_bin.exists() && has_executable(&nested_bin, tool) {
+                    if nested_bin.exists() && has_executable(&nested_bin, &tool.name) {
                         return nested_bin;
                     }
                     // Check for executable directly in the platform-specific directory
-                    if has_executable(&path, tool) {
+                    if has_executable(&path, &tool.name) {
                         return path;
                     }
                 }
@@ -513,12 +528,12 @@ fn find_bin_dir(store_dir: &PathBuf, tool: &str) -> PathBuf {
     }
 
     // 3. Direct in version directory
-    if has_executable(store_dir, tool) {
+    if has_executable(store_dir, &tool.name) {
         return store_dir.clone();
     }
 
     // 4. Search recursively for bin/ directory with executable (handles nested structures)
-    if let Some(bin_path) = find_bin_recursive(store_dir, tool, 2) {
+    if let Some(bin_path) = find_bin_recursive(store_dir, &tool.name, 2) {
         return bin_path;
     }
 
