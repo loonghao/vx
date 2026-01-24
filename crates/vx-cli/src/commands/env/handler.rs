@@ -7,7 +7,7 @@ use super::helpers::{
 };
 use super::Args;
 use crate::commands::setup::find_vx_config as find_config_file;
-use crate::commands::setup::parse_vx_config;
+use crate::commands::common::load_config_view_cwd;
 use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::env;
@@ -107,7 +107,7 @@ async fn create_env(
         // Create project environment
         let current_dir = env::current_dir().context("Failed to get current directory")?;
 
-        if find_config_file(&current_dir).is_none() {
+        if find_config_file(&current_dir).is_err() {
             anyhow::bail!(
                 "No vx.toml found. Create one with 'vx init' or use '--global' for a global environment"
             );
@@ -551,11 +551,8 @@ async fn remove_runtime(runtime: &str, env_name: Option<&str>, global: bool) -> 
 
 /// Sync project environment from vx.toml
 async fn sync_env() -> Result<()> {
-    let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = find_config_file(&current_dir)
-        .ok_or_else(|| anyhow::anyhow!("No vx.toml found in current directory"))?;
-
-    let config = parse_vx_config(&config_path)?;
+    let (config_path, config) = load_config_view_cwd()?;
+    let current_dir = config_path.parent().unwrap();
     let path_manager = PathManager::new()?;
     let env_dir = current_dir.join(PROJECT_ENV_DIR);
 

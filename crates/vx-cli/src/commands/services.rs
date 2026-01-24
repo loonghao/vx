@@ -27,7 +27,7 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::{Command, Stdio};
-use vx_config::{ServiceConfig, VxConfig};
+use vx_config::ServiceConfig;
 use crate::commands::common::load_full_config_cwd;
 use crate::ui::UI;
 

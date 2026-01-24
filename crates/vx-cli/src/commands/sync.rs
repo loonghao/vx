@@ -18,6 +18,9 @@ use vx_paths::project::LOCK_FILE_NAME;
 use vx_resolver::LockFile;
 use vx_runtime::ProviderRegistry;
 
+/// Type alias for complex tool tuple reference
+type ToolInfoRef<'a> = &'a (String, String, ToolStatus, Option<PathBuf>, Option<String>);
+
 /// Install result with optional error message
 type InstallResult = (String, bool, Option<String>);
 
@@ -204,7 +207,7 @@ fn resolve_effective_versions(
 
 /// Install tools sequentially with progress display
 async fn install_sequential_with_progress(
-    tools: &[&(String, String, ToolStatus, Option<PathBuf>, Option<String>)],
+    tools: &[ToolInfoRef<'_>],
     verbose: bool,
     progress: &mut InstallProgress,
 ) -> Result<Vec<InstallResult>> {
@@ -233,7 +236,7 @@ async fn install_sequential_with_progress(
 
 /// Install tools in parallel with progress display
 async fn install_parallel_with_progress(
-    tools: &[&(String, String, ToolStatus, Option<PathBuf>, Option<String>)],
+    tools: &[ToolInfoRef<'_>],
     _verbose: bool,
     progress: &mut InstallProgress,
 ) -> Result<Vec<InstallResult>> {

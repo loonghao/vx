@@ -27,7 +27,6 @@ mod args;
 mod export;
 mod handler;
 mod info;
-mod install;
 mod shell;
 mod tools;
 

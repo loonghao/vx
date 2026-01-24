@@ -9,12 +9,7 @@ use vx_paths::PathManager;
 use vx_runtime::{create_runtime_context, ProviderRegistry};
 
 // Re-export types and functions from common.rs
-pub use crate::commands::common::{
-    find_system_tool,
-    get_system_tool_version,
-    get_vx_tool_path,
-    ToolStatus,
-};
+pub use crate::commands::common::{find_system_tool, get_vx_tool_path, ToolStatus};
 
 /// Get the status and path of a tool (re-exported from common.rs)
 ///
