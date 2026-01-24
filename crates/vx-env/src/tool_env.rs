@@ -482,6 +482,14 @@ fn find_bin_dir(store_dir: &PathBuf, tool: &str) -> PathBuf {
         return bin_dir;
     }
 
+    // Special case for python: executable is in python/ subdirectory
+    if tool == "python" {
+        let python_dir = store_dir.join("python");
+        if python_dir.exists() && has_executable(&python_dir, tool) {
+            return python_dir;
+        }
+    }
+
     // 2. Check for platform-specific subdirectories (e.g., cmake-4.2.2-windows-x86_64)
     //    These may have their own bin/ subdirectory
     if let Ok(entries) = std::fs::read_dir(store_dir) {
