@@ -6,6 +6,7 @@ use super::shell::spawn_dev_shell;
 use super::Args;
 use super::tools::get_registry;
 use crate::commands::common::load_config_view_cwd;
+use crate::commands::setup::ConfigView;
 use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::collections::HashMap;

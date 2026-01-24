@@ -6,7 +6,8 @@ use super::helpers::{
     list_env_runtimes, parse_runtime_version, resolve_env_for_shell, set_default_env,
 };
 use super::Args;
-use crate::commands::common::load_config_view_cwd;
+use crate::commands::setup::find_vx_config as find_config_file;
+use crate::commands::setup::parse_vx_config;
 use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::env;

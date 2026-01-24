@@ -6,20 +6,17 @@
 //! When a `vx.lock` file exists, the sync command will use the exact
 //! versions specified in the lock file for reproducible environments.
 
+use crate::commands::common::{check_tools_status, ToolStatus};
 use crate::commands::setup::{find_vx_config, parse_vx_config};
-use crate::ui::UI;
+use crate::ui::{InstallProgress, UI};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 use vx_paths::project::LOCK_FILE_NAME;
-use vx_paths::PathManager;
 use vx_resolver::LockFile;
 use vx_runtime::ProviderRegistry;
-
-/// Tool status tuple: (name, version, installed, path)
-type ToolStatusTuple = (String, String, bool, Option<PathBuf>);
 
 /// Install result with optional error message
 type InstallResult = (String, bool, Option<String>);
@@ -76,22 +73,23 @@ pub async fn handle(
     let effective_tools = resolve_effective_versions(&config.tools, &lockfile);
 
     // Check tool status
-    let statuses = check_tool_status(&effective_tools)?;
+    let statuses = check_tools_status(&effective_tools)?;
 
     // Show status
     if verbose || check {
         println!("Project tools:");
-        for (name, version, installed, path) in &statuses {
-            let status_icon = if *installed { "✓" } else { "✗" };
-            let status_text = if *installed {
-                format!(
+        for (name, version, status, path, _) in &statuses {
+            let installed = matches!(status, ToolStatus::Installed | ToolStatus::SystemFallback);
+            let status_icon = if installed { "✓" } else { "✗" };
+            let status_text = match status {
+                ToolStatus::Installed => format!(
                     "installed at {}",
                     path.as_ref()
                         .map(|p| p.display().to_string())
                         .unwrap_or_default()
-                )
-            } else {
-                "missing".to_string()
+                ),
+                ToolStatus::SystemFallback => "system".to_string(),
+                ToolStatus::NotInstalled => "missing".to_string(),
             };
             println!("  {} {}@{} ({})", status_icon, name, version, status_text);
         }
@@ -101,7 +99,7 @@ pub async fn handle(
     // Count missing tools
     let missing: Vec<_> = statuses
         .iter()
-        .filter(|(_, _, installed, _)| !installed || force)
+        .filter(|(_, _, status, _, _)| matches!(status, ToolStatus::NotInstalled) || force)
         .collect();
 
     if missing.is_empty() {
@@ -117,44 +115,49 @@ pub async fn handle(
 
     if dry_run {
         UI::info(&format!("Would install {} tool(s):", missing.len()));
-        for (name, version, _, _) in &missing {
+        for (name, version, _, _, _) in &missing {
             println!("  - {}@{}", name, version);
         }
         return Ok(());
     }
 
-    // Install missing tools
-    UI::info(&format!("Installing {} tool(s)...", missing.len()));
+    // Install missing tools using InstallProgress for unified progress display
+    let mut progress = InstallProgress::new(
+        missing.len(),
+        &format!("Installing {} tool(s)", missing.len()),
+    );
 
     let results = if no_parallel {
-        install_sequential(&missing, verbose).await?
+        install_sequential_with_progress(&missing, verbose, &mut progress).await?
     } else {
-        install_parallel(&missing, verbose).await?
+        install_parallel_with_progress(&missing, verbose, &mut progress).await?
     };
 
-    // Show results
+    // Finish progress
     let successful = results.iter().filter(|(_, ok, _)| *ok).count();
     let failed = results.len() - successful;
 
     if failed == 0 {
-        UI::success(&format!("Successfully synchronized {} tool(s)", successful));
+        progress.finish(&format!("✓ Successfully synchronized {} tool(s)", successful));
     } else {
-        UI::warn(&format!(
-            "Synchronized {}/{} tools ({} failed)",
+        progress.finish(&format!(
+            "⚠ Synchronized {}/{} tools ({} failed)",
             successful,
             results.len(),
             failed
         ));
+    }
 
-        // Show detailed error information for failed tools
+    // Show detailed error information for failed tools
+    if failed > 0 {
         println!();
         UI::error("Failed installations:");
-        for (result, tool) in results.iter().zip(missing.iter()) {
-            if !result.1 {
-                println!("  ✗ {}@{}", tool.0, tool.1);
-                if let Some(error) = &result.2 {
+        for (name, success, error) in &results {
+            if !success {
+                println!("  ✗ {}", name);
+                if let Some(err) = error {
                     // Show error details, indented
-                    for line in error.lines().take(5) {
+                    for line in err.lines().take(5) {
                         // Skip empty lines and spinner characters
                         let trimmed = line.trim();
                         if !trimmed.is_empty() && !trimmed.starts_with('�') {
@@ -170,39 +173,6 @@ pub async fn handle(
     }
 
     Ok(())
-}
-
-/// Check the installation status of all tools
-fn check_tool_status(tools: &HashMap<String, String>) -> Result<Vec<ToolStatusTuple>> {
-    let path_manager = PathManager::new()?;
-    let mut statuses = Vec::new();
-
-    for (name, version) in tools {
-        let (installed, path) = if version == "latest" {
-            // For latest, check if any version is installed
-            let versions = path_manager.list_store_versions(name)?;
-            if let Some(latest) = versions.last() {
-                let store_path = path_manager.version_store_dir(name, latest);
-                (true, Some(store_path))
-            } else {
-                (false, None)
-            }
-        } else {
-            let store_path = path_manager.version_store_dir(name, version);
-            (store_path.exists(), Some(store_path))
-        };
-
-        statuses.push((
-            name.clone(),
-            version.clone(),
-            installed,
-            if installed { path } else { None },
-        ));
-    }
-
-    // Sort by name
-    statuses.sort_by(|a, b| a.0.cmp(&b.0));
-    Ok(statuses)
 }
 
 /// Resolve effective versions by preferring lock file versions over config versions
@@ -232,27 +202,23 @@ fn resolve_effective_versions(
     effective
 }
 
-/// Install tools sequentially
-async fn install_sequential(
-    tools: &[&(String, String, bool, Option<PathBuf>)],
+/// Install tools sequentially with progress display
+async fn install_sequential_with_progress(
+    tools: &[&(String, String, ToolStatus, Option<PathBuf>, Option<String>)],
     verbose: bool,
+    progress: &mut InstallProgress,
 ) -> Result<Vec<InstallResult>> {
     let mut results = Vec::new();
 
-    for (name, version, _, _) in tools {
-        if verbose {
-            UI::info(&format!("Installing {}@{}...", name, version));
-        }
+    for (name, version, _, _, _) in tools {
+        progress.start_tool(name, version);
 
         let (success, error) = install_tool(name, version).await;
         results.push((name.clone(), success, error.clone()));
 
-        if success {
-            if verbose {
-                UI::success(&format!("  ✓ {}@{}", name, version));
-            }
-        } else {
-            UI::error(&format!("  ✗ {}@{}", name, version));
+        progress.complete_tool(success, name, version);
+
+        if verbose && !success {
             if let Some(err) = &error {
                 // Show first line of error for brief context
                 if let Some(first_line) = err.lines().next() {
@@ -265,31 +231,34 @@ async fn install_sequential(
     Ok(results)
 }
 
-/// Install tools in parallel
-async fn install_parallel(
-    tools: &[&(String, String, bool, Option<PathBuf>)],
+/// Install tools in parallel with progress display
+async fn install_parallel_with_progress(
+    tools: &[&(String, String, ToolStatus, Option<PathBuf>, Option<String>)],
     _verbose: bool,
+    progress: &mut InstallProgress,
 ) -> Result<Vec<InstallResult>> {
     use tokio::task::JoinSet;
 
     let mut join_set = JoinSet::new();
 
-    for (name, version, _, _) in tools {
+    // Start all installations
+    for (name, version, _, _, _) in tools {
         let name = name.clone();
         let version = version.clone();
 
+        progress.start_tool(&name, &version);
+
         join_set.spawn(async move {
             let (success, error) = install_tool(&name, &version).await;
-            (name, success, error)
+            (name, version, success, error)
         });
     }
 
     let mut results = Vec::new();
     while let Some(result) = join_set.join_next().await {
-        if let Ok((name, success, error)) = result {
-            let icon = if success { "✓" } else { "✗" };
-            println!("  {} {}", icon, name);
-            results.push((name, success, error));
+        if let Ok((name, version, success, error)) = result {
+            results.push((name.clone(), success, error.clone()));
+            progress.complete_tool(success, &name, &version);
         }
     }
 
@@ -366,8 +335,10 @@ pub async fn quick_check() -> Result<bool> {
     // Resolve effective versions
     let effective_tools = resolve_effective_versions(&config.tools, &lockfile);
 
-    let statuses = check_tool_status(&effective_tools)?;
-    let all_installed = statuses.iter().all(|(_, _, installed, _)| *installed);
+    let statuses = check_tools_status(&effective_tools)?;
+    let all_installed = statuses
+        .iter()
+        .all(|(_, _, status, _, _)| matches!(status, ToolStatus::Installed | ToolStatus::SystemFallback));
 
     Ok(all_installed)
 }

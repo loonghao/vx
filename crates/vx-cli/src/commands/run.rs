@@ -90,7 +90,8 @@ pub async fn handle(
     let mut env_vars = build_script_environment(&config)?;
 
     // Load .env files
-    load_dotenv_files(&current_dir, &mut env_vars);
+    let current_dir = config_path.parent().unwrap();
+    load_dotenv_files(current_dir, &mut env_vars);
 
     // Add config env vars
     for (key, value) in &config.env {
@@ -288,9 +289,7 @@ fn print_script_help(script_name: &str, config: &ConfigView) -> Result<()> {
 
 /// List all available scripts in vx.toml
 pub async fn handle_list() -> Result<()> {
-    let current_dir = std::env::current_dir()?;
-    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
-    let config = parse_vx_config(&config_path)?;
+    let (_config_path, config) = load_config_view_cwd()?;
 
     if config.scripts.is_empty() {
         UI::info("No scripts defined in vx.toml");
