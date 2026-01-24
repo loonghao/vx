@@ -44,128 +44,7 @@ impl ToolSpec {
     }
 }
 
-/// Default environment variables that are always passed through
-/// These are essential for the system to function properly
-fn default_passenv() -> Vec<&'static str> {
-    #[cfg(windows)]
-    {
-        vec![
-            // Essential Windows system variables
-            "SYSTEMROOT",
-            "SYSTEMDRIVE",
-            "WINDIR",
-            "TEMP",
-            "TMP",
-            "USERPROFILE",
-            "APPDATA",
-            "LOCALAPPDATA",
-            "HOMEDRIVE",
-            "HOMEPATH",
-            "USERNAME",
-            "USERDOMAIN",
-            // Windows path handling
-            "PATHEXT",
-            "COMSPEC",
-            // Program Files paths (needed for some tools)
-            "PROGRAMFILES",
-            "PROGRAMFILES(X86)",
-            "PROGRAMDATA",
-            "COMMONPROGRAMFILES",
-            "COMMONPROGRAMFILES(X86)",
-            // Locale
-            "LANG",
-            "LC_*",
-            // VX specific
-            "VX_*",
-        ]
-    }
-    #[cfg(not(windows))]
-    {
-        vec![
-            // Essential Unix variables
-            "HOME",
-            "USER",
-            "SHELL",
-            "TERM",
-            "COLORTERM",
-            // Locale settings
-            "LANG",
-            "LC_*",
-            "LANGUAGE",
-            // Display (for GUI apps)
-            "DISPLAY",
-            "WAYLAND_DISPLAY",
-            "XDG_*",
-            // SSH agent
-            "SSH_AUTH_SOCK",
-            "SSH_AGENT_PID",
-            // VX specific
-            "VX_*",
-        ]
-    }
-}
-
-/// Get essential system PATH directories that should always be included
-/// even in isolation mode
-fn essential_system_paths() -> Vec<PathBuf> {
-    #[cfg(windows)]
-    {
-        let mut paths = Vec::new();
-
-        // System32 - contains essential Windows commands (where, cmd, etc.)
-        if let Ok(system_root) = std::env::var("SYSTEMROOT") {
-            let system_root = PathBuf::from(&system_root);
-            paths.push(system_root.join("System32"));
-            paths.push(system_root.join("System32").join("Wbem"));
-            paths.push(
-                system_root
-                    .join("System32")
-                    .join("WindowsPowerShell")
-                    .join("v1.0"),
-            );
-            // Also include the root for some edge cases
-            paths.push(system_root.clone());
-        }
-
-        // Fallback to common Windows paths if SYSTEMROOT is not set
-        if paths.is_empty() {
-            paths.push(PathBuf::from(r"C:\Windows\System32"));
-            paths.push(PathBuf::from(r"C:\Windows\System32\Wbem"));
-            paths.push(PathBuf::from(r"C:\Windows\System32\WindowsPowerShell\v1.0"));
-            paths.push(PathBuf::from(r"C:\Windows"));
-        }
-
-        paths
-    }
-    #[cfg(not(windows))]
-    {
-        vec![
-            PathBuf::from("/usr/local/bin"),
-            PathBuf::from("/usr/bin"),
-            PathBuf::from("/bin"),
-            PathBuf::from("/usr/sbin"),
-            PathBuf::from("/sbin"),
-        ]
-    }
-}
-
-/// Builder for tool execution environments
-///
-/// This struct provides a fluent API for building environment configurations
-/// that include vx-managed tools in PATH.
-///
-/// # Example
-///
-/// ```rust,no_run
-/// use vx_env::ToolEnvironment;
-///
-/// let env = ToolEnvironment::new()
-///     .tool("node", "20.0.0")
-///     .tool("go", "1.21.0")
-///     .env_var("NODE_ENV", "production")
-///     .build()
-///     .unwrap();
-/// ```
+/// Tool environment builder for vx-managed tools
 #[derive(Debug, Default)]
 pub struct ToolEnvironment {
     /// Tools to include in the environment
@@ -349,6 +228,40 @@ impl ToolEnvironment {
         Ok(env)
     }
 
+    /// Resolve the bin path for a tool
+    fn resolve_tool_path(
+        &self,
+        path_manager: &PathManager,
+        tool: &ToolSpec,
+    ) -> Result<Option<PathBuf>> {
+        // Handle "system" version - find tool from system PATH
+        if tool.version == "system" {
+            return Ok(find_system_tool_path(&tool.name));
+        }
+
+        let actual_version = tool.version.clone();
+
+        // Check store first
+        let store_dir = path_manager.version_store_dir(&tool.name, &actual_version);
+        if store_dir.exists() {
+            return Ok(Some(find_bin_dir(&store_dir, tool)));
+        }
+
+        // Check npm-tools
+        let npm_bin = path_manager.npm_tool_bin_dir(&tool.name, &actual_version);
+        if npm_bin.exists() {
+            return Ok(Some(npm_bin));
+        }
+
+        // Check pip-tools
+        let pip_bin = path_manager.pip_tool_bin_dir(&tool.name, &actual_version);
+        if pip_bin.exists() {
+            return Ok(Some(pip_bin));
+        }
+
+        Ok(None)
+    }
+
     /// Build environment in inherited mode (legacy behavior)
     fn build_inherited_env(&self) -> Result<HashMap<String, String>> {
         let builder = EnvBuilder::new().inherit(self.inherit_path);
@@ -371,93 +284,107 @@ impl ToolEnvironment {
 
         // Filter environment variables based on patterns
         for (key, value) in &current_env {
-            if self.matches_passenv(key, &all_patterns) {
+            let key_upper = key.to_uppercase();
+
+            let should_include = all_patterns.iter().any(|pattern| {
+                if pattern.contains('*') {
+                    // Complex glob pattern (simplified: only support * at end)
+                    let parts: Vec<&str> = pattern.split('*').collect();
+                    if parts.len() == 2
+                        && key_upper.starts_with(parts[0])
+                        && key_upper.ends_with(parts[1])
+                    {
+                        return true;
+                    }
+                } else {
+                    // Exact match
+                    if key_upper == *pattern {
+                        return true;
+                    }
+                }
+                false
+            });
+
+            if should_include {
                 env.insert(key.clone(), value.clone());
             }
         }
 
         Ok(env)
     }
+}
 
-    /// Check if an environment variable name matches any passenv pattern
-    fn matches_passenv(&self, name: &str, patterns: &[String]) -> bool {
-        for pattern in patterns {
-            if pattern.ends_with('*') {
-                // Glob pattern: PREFIX*
-                let prefix = &pattern[..pattern.len() - 1];
-                if name.starts_with(prefix) {
-                    return true;
-                }
-            } else if pattern.contains('*') {
-                // Complex glob pattern (simplified: only support * at end)
-                // For more complex patterns, could use glob crate
-                let parts: Vec<&str> = pattern.split('*').collect();
-                if parts.len() == 2 && name.starts_with(parts[0]) && name.ends_with(parts[1]) {
-                    return true;
-                }
-            } else {
-                // Exact match
-                if name == pattern {
-                    return true;
-                }
-            }
+/// Default environment variables that are always passed through
+/// These are essential for the system to function properly
+fn default_passenv() -> Vec<&'static str> {
+    #[cfg(windows)]
+    {
+        vec![
+            // Essential Windows system variables
+            "SYSTEMROOT",
+            "SYSTEMDRIVE",
+            "WINDIR",
+            "TEMP",
+            "TMP",
+            "USERPROFILE",
+            "APPDATA",
+            "LOCALAPPDATA",
+            "HOMEDRIVE",
+            "HOMEPATH",
+            "USERNAME",
+            "USERDOMAIN",
+            // Windows path handling
+            "PATHEXT",
+        ]
+    }
+    #[cfg(not(windows))]
+    {
+        vec![
+            "HOME", "USER", "SHELL", "TERM", "LANG",
+            "PATH", // Include PATH for Unix systems in isolation mode
+        ]
+    }
+}
+
+/// Get essential system paths that should be included in isolated environments
+fn essential_system_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    #[cfg(windows)]
+    {
+        if let Ok(system_root) = std::env::var("SYSTEMROOT") {
+            let system_root = PathBuf::from(&system_root);
+            paths.push(system_root.join("System32"));
+            paths.push(system_root.join("System32").join("Wbem"));
+            paths.push(
+                system_root
+                    .join("System32")
+                    .join("WindowsPowerShell")
+                    .join("v1.0"),
+            );
+            // Also include the root for some edge cases
+            paths.push(system_root.clone());
         }
-        false
+
+        // Fallback to common Windows paths if SYSTEMROOT is not set
+        if paths.is_empty() {
+            paths.push(PathBuf::from(r"C:\Windows\System32"));
+            paths.push(PathBuf::from(r"C:\Windows\System32\Wbem"));
+            paths.push(PathBuf::from(r"C:\Windows\System32\WindowsPowerShell\v1.0"));
+            paths.push(PathBuf::from(r"C:\Windows"));
+        }
     }
 
-    /// Resolve the bin path for a tool
-    fn resolve_tool_path(
-        &self,
-        path_manager: &PathManager,
-        tool: &ToolSpec,
-    ) -> Result<Option<PathBuf>> {
-        // Handle "system" version - find tool from system PATH
-        if tool.version == "system" {
-            return Ok(find_system_tool_path(&tool.name));
-        }
-
-        let actual_version = if tool.version == "latest" {
-            // Find the latest installed version
-            let versions = path_manager.list_store_versions(&tool.name)?;
-            match versions.last() {
-                Some(v) => v.clone(),
-                None => return Ok(None),
-            }
-        } else {
-            // Try exact version first
-            let exact_store_dir = path_manager.version_store_dir(&tool.name, &tool.version);
-            if exact_store_dir.exists() {
-                tool.version.clone()
-            } else {
-                // Try to find a matching version (e.g., "3.11" matches "3.11.14")
-                let versions = path_manager.list_store_versions(&tool.name)?;
-                versions
-                    .into_iter()
-                    .find(|v| v.starts_with(&tool.version))
-                    .unwrap_or_else(|| tool.version.clone())
-            }
-        };
-
-        // Check store first
-        let store_dir = path_manager.version_store_dir(&tool.name, &actual_version);
-        if store_dir.exists() {
-            return Ok(Some(find_bin_dir(&store_dir, tool)));
-        }
-
-        // Check npm-tools
-        let npm_bin = path_manager.npm_tool_bin_dir(&tool.name, &actual_version);
-        if npm_bin.exists() {
-            return Ok(Some(npm_bin));
-        }
-
-        // Check pip-tools
-        let pip_bin = path_manager.pip_tool_bin_dir(&tool.name, &actual_version);
-        if pip_bin.exists() {
-            return Ok(Some(pip_bin));
-        }
-
-        Ok(None)
+    #[cfg(not(windows))]
+    {
+        paths.push(PathBuf::from("/usr/local/bin"));
+        paths.push(PathBuf::from("/usr/bin"));
+        paths.push(PathBuf::from("/bin"));
+        paths.push(PathBuf::from("/usr/sbin"));
+        paths.push(PathBuf::from("/sbin"));
     }
+
+    paths
 }
 
 /// Find a tool's directory from the system PATH

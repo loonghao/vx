@@ -210,6 +210,51 @@ pub trait Runtime: Send + Sync {
         self.name()
     }
 
+    /// Resolve a version specification to an actual installed version
+    ///
+    /// This method handles version resolution including:
+    /// - "latest": resolve to the latest installed version
+    /// - Partial versions: "3.11" -> "3.11.14"
+    /// - Exact versions: return as-is if installed
+    ///
+    /// Returns the actual version string that should be used for path construction.
+    /// Returns None if no matching version is installed.
+    ///
+    /// # Arguments
+    ///
+    /// * `version_spec` - Version specification from user (e.g., "3.11", "latest")
+    /// * `ctx` - Runtime context for accessing installed versions
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// // Assuming 3.11.14 is installed
+    /// assert_eq!(runtime.resolve_installed_version("3.11", ctx).await?, Some("3.11.14".to_string()));
+    /// assert_eq!(runtime.resolve_installed_version("latest", ctx).await?, Some("3.12.0".to_string()));
+    /// ```
+    async fn resolve_installed_version(&self, version_spec: &str, ctx: &RuntimeContext) -> Result<Option<String>> {
+        // Default implementation: try exact match, then prefix match
+        if version_spec == "latest" {
+            let versions = self.installed_versions(ctx).await?;
+            return Ok(versions.into_iter().max());
+        }
+
+        // Try exact match first
+        let versions = self.installed_versions(ctx).await?;
+        if versions.contains(&version_spec.to_string()) {
+            return Ok(Some(version_spec.to_string()));
+        }
+
+        // Try prefix match (e.g., "3.11" matches "3.11.14")
+        for version in versions {
+            if version.starts_with(version_spec) {
+                return Ok(Some(version));
+            }
+        }
+
+        Ok(None)
+    }
+
     /// Returns the platforms this runtime supports
     ///
     /// By default, returns all common platforms (Windows, macOS, Linux on x64 and arm64).

@@ -93,7 +93,7 @@ fn build_dev_environment(config: &ConfigView, verbose: bool) -> Result<HashMap<S
     // Create ToolSpecs with proper bin directories from runtime providers
     let mut tool_specs = Vec::new();
     for (tool_name, version) in &config.tools {
-        // Find the runtime for this tool
+        // Find the runtime for this tool to get bin directories
         let bin_dirs = if let Some(provider) = registry.providers().iter().find(|p| p.supports(tool_name)) {
             if let Some(runtime) = provider.get_runtime(tool_name) {
                 runtime.possible_bin_dirs().into_iter().map(|s| s.to_string()).collect()
