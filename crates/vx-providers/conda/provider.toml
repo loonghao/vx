@@ -1,0 +1,79 @@
+# Conda Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for Conda.
+#
+# Supported runtimes:
+# - micromamba: Recommended - single binary, no installer needed
+# - conda: Full Conda via Miniforge (requires installer execution)
+# - mamba: Fast package manager (bundled with Miniforge)
+
+[provider]
+name = "conda"
+description = "Conda package, dependency and environment management for any language"
+homepage = "https://conda.io/"
+repository = "https://github.com/conda-forge/miniforge"
+ecosystem = "python"
+
+# Micromamba - Recommended for vx users
+# Single binary, no installer needed, fully compatible with conda
+[[runtimes]]
+name = "micromamba"
+description = "Fast, minimal conda package manager (single binary, recommended)"
+executable = "micromamba"
+aliases = ["umamba"]
+priority = 100
+auto_installable = true
+
+[runtimes.versions]
+source = "github-releases"
+owner = "mamba-org"
+repo = "micromamba-releases"
+strip_v_prefix = false
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Conda - Full installation via Miniforge
+# Note: Requires running installer script, not yet fully automated
+[[runtimes]]
+name = "conda"
+description = "Package and environment management (via Miniforge installer)"
+executable = "conda"
+aliases = ["miniconda", "miniforge"]
+priority = 90
+auto_installable = true
+
+[runtimes.versions]
+source = "github-releases"
+owner = "conda-forge"
+repo = "miniforge"
+strip_v_prefix = false
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe", ".bat"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Mamba - Fast conda alternative (bundled with Miniforge)
+[[runtimes]]
+name = "mamba"
+description = "Fast package manager (bundled with Miniforge)"
+executable = "mamba"
+bundled_with = "conda"
+priority = 80
+auto_installable = true
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe", ".bat"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "conda", version = "*", reason = "mamba is bundled with Miniforge/Conda" }
+]

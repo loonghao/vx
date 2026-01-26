@@ -90,3 +90,127 @@ fn test_store_version_check() {
     assert_eq!(manager.list_store_versions("node").unwrap(), vec!["20.0.0"]);
     assert_eq!(manager.list_store_runtimes().unwrap(), vec!["node"]);
 }
+
+// ============================================================================
+// Conda-tools Tests
+// ============================================================================
+
+#[test]
+fn test_conda_tools_dir() {
+    let temp_dir = TempDir::new().unwrap();
+    let manager = PathManager::with_base_dir(temp_dir.path()).unwrap();
+
+    assert_eq!(
+        manager.conda_tools_dir(),
+        temp_dir.path().join("conda-tools")
+    );
+}
+
+#[test]
+fn test_conda_tool_dir() {
+    let temp_dir = TempDir::new().unwrap();
+    let manager = PathManager::with_base_dir(temp_dir.path()).unwrap();
+
+    assert_eq!(
+        manager.conda_tool_dir("pytorch"),
+        temp_dir.path().join("conda-tools/pytorch")
+    );
+}
+
+#[test]
+fn test_conda_tool_version_dir() {
+    let temp_dir = TempDir::new().unwrap();
+    let manager = PathManager::with_base_dir(temp_dir.path()).unwrap();
+
+    assert_eq!(
+        manager.conda_tool_version_dir("pytorch", "2.2.0"),
+        temp_dir.path().join("conda-tools/pytorch/2.2.0")
+    );
+}
+
+#[test]
+fn test_conda_tool_env_dir() {
+    let temp_dir = TempDir::new().unwrap();
+    let manager = PathManager::with_base_dir(temp_dir.path()).unwrap();
+
+    assert_eq!(
+        manager.conda_tool_env_dir("pytorch", "2.2.0"),
+        temp_dir.path().join("conda-tools/pytorch/2.2.0/env")
+    );
+}
+
+#[test]
+fn test_conda_tool_bin_dir() {
+    let temp_dir = TempDir::new().unwrap();
+    let manager = PathManager::with_base_dir(temp_dir.path()).unwrap();
+
+    let bin_dir = manager.conda_tool_bin_dir("pytorch", "2.2.0");
+    if cfg!(windows) {
+        assert_eq!(
+            bin_dir,
+            temp_dir.path().join("conda-tools/pytorch/2.2.0/env/Scripts")
+        );
+    } else {
+        assert_eq!(
+            bin_dir,
+            temp_dir.path().join("conda-tools/pytorch/2.2.0/env/bin")
+        );
+    }
+}
+
+#[test]
+fn test_list_conda_tool_versions_empty() {
+    let temp_dir = TempDir::new().unwrap();
+    let manager = PathManager::with_base_dir(temp_dir.path()).unwrap();
+
+    let versions = manager.list_conda_tool_versions("pytorch").unwrap();
+    assert!(versions.is_empty());
+}
+
+#[test]
+fn test_list_conda_tool_versions() {
+    let temp_dir = TempDir::new().unwrap();
+    let manager = PathManager::with_base_dir(temp_dir.path()).unwrap();
+
+    // Create version directories
+    let tool_dir = manager.conda_tool_dir("pytorch");
+    std::fs::create_dir_all(tool_dir.join("2.0.0")).unwrap();
+    std::fs::create_dir_all(tool_dir.join("2.1.0")).unwrap();
+    std::fs::create_dir_all(tool_dir.join("2.2.0")).unwrap();
+
+    let versions = manager.list_conda_tool_versions("pytorch").unwrap();
+    assert_eq!(versions.len(), 3);
+    assert_eq!(versions, vec!["2.0.0", "2.1.0", "2.2.0"]);
+}
+
+#[test]
+fn test_list_pip_tool_versions() {
+    let temp_dir = TempDir::new().unwrap();
+    let manager = PathManager::with_base_dir(temp_dir.path()).unwrap();
+
+    // Create version directories
+    let tool_dir = manager.pip_tool_dir("rez");
+    std::fs::create_dir_all(tool_dir.join("2.113.0")).unwrap();
+    std::fs::create_dir_all(tool_dir.join("2.114.0")).unwrap();
+
+    let versions = manager.list_pip_tool_versions("rez").unwrap();
+    assert_eq!(versions.len(), 2);
+    assert!(versions.contains(&"2.113.0".to_string()));
+    assert!(versions.contains(&"2.114.0".to_string()));
+}
+
+#[test]
+fn test_list_npm_tool_versions() {
+    let temp_dir = TempDir::new().unwrap();
+    let manager = PathManager::with_base_dir(temp_dir.path()).unwrap();
+
+    // Create version directories
+    let tool_dir = manager.npm_tool_dir("vite");
+    std::fs::create_dir_all(tool_dir.join("5.3.0")).unwrap();
+    std::fs::create_dir_all(tool_dir.join("5.4.0")).unwrap();
+
+    let versions = manager.list_npm_tool_versions("vite").unwrap();
+    assert_eq!(versions.len(), 2);
+    assert!(versions.contains(&"5.3.0".to_string()));
+    assert!(versions.contains(&"5.4.0".to_string()));
+}

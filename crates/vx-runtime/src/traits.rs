@@ -173,6 +173,23 @@ pub trait PathProvider: Send + Sync {
 
     /// Get the bin directory for a pip tool
     fn pip_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf;
+
+    // ========== conda-tools paths ==========
+
+    /// Get the conda-tools directory (~/.vx/conda-tools)
+    fn conda_tools_dir(&self) -> PathBuf;
+
+    /// Get the conda-tools directory for a specific package
+    fn conda_tool_dir(&self, package_name: &str) -> PathBuf;
+
+    /// Get the conda-tools directory for a specific package version
+    fn conda_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf;
+
+    /// Get the conda environment directory for a conda tool
+    fn conda_tool_env_dir(&self, package_name: &str, version: &str) -> PathBuf;
+
+    /// Get the bin directory for a conda tool
+    fn conda_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf;
 }
 
 /// Installer abstraction for testability

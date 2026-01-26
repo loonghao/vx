@@ -140,6 +140,33 @@ impl PathProvider for MockPathProvider {
             venv_dir.join("bin")
         }
     }
+
+    // ========== conda-tools paths ==========
+
+    fn conda_tools_dir(&self) -> PathBuf {
+        self.base_dir.join("conda-tools")
+    }
+
+    fn conda_tool_dir(&self, package_name: &str) -> PathBuf {
+        self.conda_tools_dir().join(package_name)
+    }
+
+    fn conda_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.conda_tool_dir(package_name).join(version)
+    }
+
+    fn conda_tool_env_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.conda_tool_version_dir(package_name, version).join("env")
+    }
+
+    fn conda_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        let env_dir = self.conda_tool_env_dir(package_name, version);
+        if cfg!(windows) {
+            env_dir.join("Scripts")
+        } else {
+            env_dir.join("bin")
+        }
+    }
 }
 
 // ============================================================================

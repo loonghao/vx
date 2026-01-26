@@ -65,6 +65,7 @@ vx-provider-spack = { workspace = true }
 vx-provider-release-please = { workspace = true }
 vx-provider-python = { workspace = true }
 vx-provider-msvc = { workspace = true }
+vx-provider-conda = { workspace = true }
 vx-provider-ffmpeg = { workspace = true }
 vx-provider-gh = { workspace = true }
 vx-provider-imagemagick = { workspace = true }
