@@ -1,4 +1,4 @@
-﻿//! Executor - the core command forwarding engine
+//! Executor - the core command forwarding engine
 //!
 //! This module implements the main execution logic:
 //! 1. Resolve runtime and dependencies
@@ -15,24 +15,27 @@
 //! - Environment isolation is maintained per-project
 //! - No global pollution from globally installed tool versions
 
-use crate::resolution_cache::log_cache_result;
 use crate::{
-    ResolutionCache, ResolutionCacheKey, ResolvedGraph, Resolver, ResolverConfig, Result,
-    RuntimeMap,
+    ResolutionCache, Resolver, ResolverConfig, Result, RuntimeMap,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
+use std::sync::Mutex;
 use tokio::process::Command;
-use tracing::{debug, info, info_span, warn, Instrument};
+use tracing::{debug, info, info_span, trace, warn};
 use vx_config::parse_config;
 use vx_console::ProgressSpinner;
 use vx_paths::find_config_file_upward;
 use vx_paths::project::{find_vx_config, PROJECT_VX_DIR};
-use vx_runtime::{get_default_constraints, CacheMode, ProviderRegistry, RuntimeContext};
+use vx_runtime::{CacheMode, ProviderRegistry, RuntimeContext};
 
 // Re-export from vx_core for convenience
 pub use vx_core::{exit_code_from_status, is_ctrl_c_exit};
+
+/// Track which tools have been warned about missing versions
+/// This prevents duplicate warnings when building PATH
+static WARNED_TOOLS: Mutex<Option<HashSet<String>>> = Mutex::new(None);
 
 /// Executor for runtime command forwarding
 pub struct Executor<'a> {
@@ -87,6 +90,43 @@ impl ProjectToolsConfig {
     /// Get the version for a specific tool
     fn get_version(&self, tool: &str) -> Option<&str> {
         self.tools.get(tool).map(|s| s.as_str())
+    }
+
+    /// Get the version for a tool with ecosystem fallback
+    ///
+    /// First tries to find the tool directly. If not found, it checks if the tool
+    /// belongs to a known ecosystem and tries to use the primary runtime's version.
+    ///
+    /// Examples:
+    /// - `cargo` -> checks `cargo` then `rust` (primary for Rust ecosystem)
+    /// - `rustc` -> checks `rustc` then `rust`
+    /// - `python` -> checks `python` then `uv` (primary for Python ecosystem)
+    /// - `pip` -> checks `pip` then `uv`
+    /// - `npm` -> checks `npm` then `node` (primary for Node.js ecosystem)
+    fn get_version_with_fallback(&self, tool: &str) -> Option<&str> {
+        // First, try direct lookup
+        if let Some(version) = self.get_version(tool) {
+            return Some(version);
+        }
+
+        // Fallback to primary runtime for the ecosystem
+        let primary = self.primary_runtime_for(tool)?;
+        self.get_version(&primary)
+    }
+
+    /// Get the primary runtime name for a given tool based on its ecosystem
+    fn primary_runtime_for(&self, tool: &str) -> Option<&'static str> {
+        match tool {
+            // Rust ecosystem
+            "rustc" | "cargo" | "rustup" => Some("rust"),
+            // Node.js ecosystem
+            "npm" | "npx" | "yarn" | "pnpm" | "bun" => Some("node"),
+            // Python ecosystem (note: "python" itself is also valid)
+            "python" | "python3" | "pip" => Some("python"),
+            // Go ecosystem
+            "gofmt" | "golang" => Some("go"),
+            _ => None,
+        }
     }
 }
 
@@ -186,20 +226,32 @@ impl<'a> Executor<'a> {
         version: Option<&str>,
         args: &[String],
     ) -> Result<i32> {
+        self.execute_with_version_and_env(runtime_name, version, args, false).await
+    }
+
+    /// Execute a runtime with environment inheritance control
+    pub async fn execute_with_version_and_env(
+        &self,
+        runtime_name: &str,
+        version: Option<&str>,
+        args: &[String],
+        inherit_env: bool,
+    ) -> Result<i32> {
         // Create a span for the entire execution
         let span = info_span!(
-            "vx_execute",
-            runtime = %runtime_name,
-            version = version.unwrap_or("latest"),
-            args_count = args.len()
+            "execute",
+            tool = %runtime_name,
+            ver = version.unwrap_or("latest"),
         );
 
-        async move {
-            if let Some(ver) = version {
-                debug!("Executing: {}@{} {}", runtime_name, ver, args.join(" "));
-            } else {
-                debug!("Executing: {} {}", runtime_name, args.join(" "));
-            }
+        let _guard = span.enter();
+        
+        // Log the command being executed
+        if let Some(ver) = version {
+            debug!(">>> vx {}@{} {}", runtime_name, ver, args.join(" "));
+        } else {
+            debug!(">>> vx {} {}", runtime_name, args.join(" "));
+        }
 
         // -------------------------
         // Offline Bundle Check
@@ -254,129 +306,63 @@ impl<'a> Executor<'a> {
             }
         }
 
-        // Check provider dependencies and handle version constraints
-        // This supplements the RuntimeMap-based resolution with provider-specific constraints
-        let provider_incompatible_deps = self
-            .check_provider_dependencies(runtime_name, version)
-            .await?;
-
         // -------------------------
         // Resolve
         // -------------------------
-        // Note: we cache resolution results for speed, but after installing missing runtimes
-        // we must refresh the cache (otherwise we may keep using a stale "not installed" graph).
-        let resolve_stage = |runtime_name: &str,
-                             version: Option<&str>,
-                             args: &[String],
-                             force_refresh: bool|
-         -> Result<(ResolutionCacheKey, ResolvedGraph)> {
-            let key = ResolutionCacheKey::from_context(runtime_name, version, args, &self.config);
+        debug!("[RESOLVE]");
 
-            // Fast path: use cache when allowed
-            if !force_refresh {
-                if let Some(cache) = &self.resolution_cache {
-                    let cached = cache.get(&key);
-                    log_cache_result(cached.is_some(), runtime_name);
-
-                    if cached.is_none() && cache.mode() == CacheMode::Offline {
-                        return Err(anyhow::anyhow!(
-                            "Offline mode: no cached resolution available for {}. Run without offline mode to resolve.",
-                            runtime_name
-                        ));
-                    }
-
-                    if let Some(g) = cached {
-                        // Validate cached resolution: installation state or executable path may have changed.
-                        let mut cache_valid = true;
-
-                        // If runtime needs install but install_order is empty, cache is inconsistent.
-                        if g.runtime_needs_install && g.install_order.is_empty() {
-                            cache_valid = false;
-                        }
-
-                        // If cached executable is an absolute path but no longer exists, drop cache.
-                        if cache_valid && g.executable.is_absolute() && !g.executable.exists() {
-                            cache_valid = false;
-                        }
-
-                        // If cached executable is a bare name and not in PATH, drop cache.
-                        if cache_valid && !g.executable.is_absolute() && g.install_order.is_empty() {
-                            if let Some(name) = g.executable.to_str() {
-                                if which::which(name).is_err() {
-                                    cache_valid = false;
-                                }
-                            }
-                        }
-
-                        if cache_valid {
-                            return Ok((key, g));
-                        }
-                    }
-                }
-            }
-
-            // Resolve fresh and update cache (best-effort)
-            let g = self
-                .resolver
-                .resolve_graph_with_version(runtime_name, version)?;
-
-            if let Some(cache) = &self.resolution_cache {
-                let _ = cache.set(&key, &g);
-            }
-
-            Ok((key, g))
+        // Determine the version to use:
+        // 1. Explicit version from command line (e.g., "cargo@1.83")
+        // 2. Version from project config (vx.toml)
+        // 3. None (use latest installed)
+        let resolved_version = if let Some(v) = version {
+            Some(v.to_string())
+        } else if let Some(ref project_config) = self.project_config {
+            // Use project config version with ecosystem fallback
+            project_config.get_version_with_fallback(runtime_name).map(|s| s.to_string())
+        } else {
+            None
         };
 
-        let (mut cache_key, mut graph) = resolve_stage(runtime_name, version, args, false)?;
-        let mut resolution: crate::ResolutionResult = graph.clone().into();
+        debug!("  version: {:?}",
+            resolved_version.as_ref().unwrap_or(&"latest".to_string())
+        );
+
+        let resolution = self.resolver.resolve_with_version(runtime_name, resolved_version.as_deref())?;
+        debug!("  executable: {}",
+            resolution.executable.display(),
+        );
+        debug!("  needs_install: {}",
+            resolution.runtime_needs_install
+        );
+        debug!("[/RESOLVE]");
 
         // -------------------------
         // Ensure Installed
         // -------------------------
-        // Track the installed version for environment preparation
+        debug!("[INSTALL_CHECK]");
         let mut installed_version: Option<String> = None;
-
-        // Track dependency environment overrides (for version-constrained dependencies)
-        let mut dependency_env_overrides: std::collections::HashMap<String, String> =
+        let dependency_env_overrides: std::collections::HashMap<String, String> =
             std::collections::HashMap::new();
 
-        // If a specific version is requested, ensure it's installed first, then resolve again
-        if let Some(requested_version) = version {
+        // If a specific version is requested (from command line or project config), ensure it's installed first
+        if let Some(requested_version) = resolved_version {
             installed_version = self
-                .ensure_version_installed(runtime_name, requested_version)
+                .ensure_version_installed(runtime_name, &requested_version)
                 .await?;
 
-            // The environment changed (we just ensured a version is installed), so refresh resolution.
-            (cache_key, graph) = resolve_stage(runtime_name, installed_version.as_deref(), args, true)?;
-            resolution = graph.clone().into();
-
-            // Important: Remove the runtime itself from install_order since we just installed it
-            // This prevents re-installing with a different (latest) version
-            resolution.install_order.retain(|r| r != runtime_name);
-            if resolution.install_order.is_empty() {
-                resolution.runtime_needs_install = false;
-            }
+            debug!("  installed_version: {:?}", installed_version);
         }
 
         // Install missing runtimes/dependencies (if any)
         if !resolution.install_order.is_empty() {
             if self.config.auto_install {
                 info!(
-                    "Auto-installing missing runtimes: {:?}",
+                    "  auto-installing: {:?}",
                     resolution.install_order
                 );
 
-                // Best-effort: keep the last installed version for env preparation.
-                installed_version = self.install_runtimes(&resolution.install_order).await?;
-
-                // Re-resolve after installation (force refresh, cache may be stale)
-                (cache_key, graph) = resolve_stage(runtime_name, version, args, true)?;
-                resolution = graph.clone().into();
-
-                debug!(
-                    "Re-resolved after installation: executable={}",
-                    resolution.executable.display()
-                );
+                self.install_runtimes(&resolution.install_order).await?;
             } else {
                 // Report missing dependencies
                 let missing = if resolution.runtime_needs_install {
@@ -399,52 +385,11 @@ impl<'a> Executor<'a> {
             }
         }
 
-        // Handle platform incompatibility - fail early with helpful error message
-        if !resolution.unsupported_platform_runtimes.is_empty() {
-            let mut error_msg = String::new();
-
-            for unsupported in &resolution.unsupported_platform_runtimes {
-                if unsupported.is_primary {
-                    error_msg.push_str(&format!(
-                        "Runtime '{}' is not supported on {}.\n",
-                        unsupported.runtime_name, unsupported.current_platform
-                    ));
-                } else {
-                    error_msg.push_str(&format!(
-                        "Dependency '{}' (required by '{}') is not supported on {}.\n",
-                        unsupported.runtime_name, runtime_name, unsupported.current_platform
-                    ));
-                }
-
-                if unsupported.supported_platforms != "none" {
-                    error_msg.push_str(&format!(
-                        "Supported platforms: {}\n",
-                        unsupported.supported_platforms
-                    ));
-                }
-            }
-
-            return Err(anyhow::anyhow!(
-                "Platform compatibility error:\n{}",
-                error_msg.trim()
-            ));
-        }
-
-        // Handle incompatible dependencies - find or install compatible versions
-        // Merge provider-level dependencies with RuntimeMap-based resolution
-        let mut all_incompatible_deps = resolution.incompatible_dependencies.clone();
-        for provider_dep in provider_incompatible_deps {
-            // Avoid duplicates
-            if !all_incompatible_deps
-                .iter()
-                .any(|d| d.runtime_name == provider_dep.runtime_name)
-            {
-                all_incompatible_deps.push(provider_dep);
-            }
-        }
-
-        if !all_incompatible_deps.is_empty() {
-            for incompatible in &all_incompatible_deps {
+        // -------------------------
+        // Handle incompatible dependencies
+        // -------------------------
+        if !resolution.incompatible_dependencies.is_empty() {
+            for incompatible in &resolution.incompatible_dependencies {
                 warn!(
                     "Dependency {} version {:?} is incompatible with {} (requires: min={:?}, max={:?})",
                     incompatible.runtime_name,
@@ -453,72 +398,32 @@ impl<'a> Executor<'a> {
                     incompatible.constraint.min_version,
                     incompatible.constraint.max_version
                 );
-
-                // Try to find or install a compatible version
-                if let Some(compatible_env) = self
-                    .ensure_compatible_dependency(
-                        &incompatible.runtime_name,
-                        &incompatible.constraint,
-                    )
-                    .await?
-                {
-                    // Merge the environment overrides
-                    dependency_env_overrides.extend(compatible_env);
-                }
             }
+
+            return Err(anyhow::anyhow!(
+                "Some dependencies are incompatible. Please install compatible versions."
+            ));
         }
 
         // -------------------------
-        // Plan
+        // Prepare Environment
         // -------------------------
-        // Prepare environment variables for the runtime
+        debug!("[/INSTALL_CHECK]");
+        debug!("[PREPARE_ENV]");
         let mut runtime_env = self
-            .prepare_runtime_environment(runtime_name, installed_version.as_deref())
+            .prepare_runtime_environment(runtime_name, installed_version.as_deref(), inherit_env)
             .await?;
 
-        // Apply dependency environment overrides (these take precedence)
+        // Apply dependency environment overrides
         runtime_env.extend(dependency_env_overrides);
+        debug!("  env_vars: {} variables set", runtime_env.len());
+        debug!("[/PREPARE_ENV]");
 
         // -------------------------
         // Execute
         // -------------------------
-        // When a specific version is requested (installed_version.is_some()), prefer getting the
-        // executable path from the Runtime. This handles runtimes like Python that install to
-        // non-standard locations (e.g., uv's directory instead of vx store).
-        //
-        // The resolver might find an executable in the vx store, but the runtime may have
-        // installed to a different location. Always trust the runtime's get_executable_path_for_version
-        // when available.
-        if let (Some(registry), Some(context), Some(ref ver)) =
-            (self.registry, self.context, &installed_version)
-        {
-            if let Some(runtime) = registry.get_runtime(runtime_name) {
-                if let Ok(Some(exe_path)) =
-                    runtime.get_executable_path_for_version(ver, context).await
-                {
-                    debug!(
-                        "Using runtime-provided executable path: {}",
-                        exe_path.display()
-                    );
-                    resolution.executable = exe_path;
-                }
-            }
-        }
-
-        // Call pre_run hook if provider is available
-        if let Some(registry) = self.registry {
-            if let Some(runtime) = registry.get_runtime(runtime_name) {
-                let should_continue = runtime.pre_run(args, &resolution.executable).await?;
-                if !should_continue {
-                    debug!("pre_run returned false, skipping execution");
-                    return Ok(0);
-                }
-            }
-        }
-
-
+        debug!("[EXECUTE]");
         // Verify executable exists before attempting to run
-        // This provides a clearer error message than "No such file or directory"
         if resolution.executable.is_absolute() && !resolution.executable.exists() {
             return Err(anyhow::anyhow!(
                 "Executable not found at '{}'. The runtime may not have been installed correctly. \
@@ -528,353 +433,87 @@ impl<'a> Executor<'a> {
             ));
         }
 
-        // Build the command with environment variables
+        // Build command with environment variables
         let mut cmd = self.build_command(&resolution, args, &runtime_env)?;
+
+        debug!("  cmd: {} {:?}", resolution.executable.display(), args);
+        debug!("--- tool output below ---");
 
         // Execute
         let status = self.run_command(&mut cmd).await?;
-
-        // Keep cache_key used to silence unused warning in some builds.
-        let _ = cache_key;
+        debug!("--- tool output above ---");
+        debug!("[/EXECUTE] exit={}", exit_code_from_status(&status));
 
         Ok(exit_code_from_status(&status))
-        }
-        .instrument(span)
-        .await
     }
 
-    /// Ensure a compatible version of a dependency is available
-    ///
-    /// Returns environment variables to override PATH to use the compatible version
-    async fn ensure_compatible_dependency(
-        &self,
-        dep_name: &str,
-        constraint: &crate::RuntimeDependency,
-    ) -> Result<Option<std::collections::HashMap<String, String>>> {
-        let (registry, context) = match (self.registry, self.context) {
-            (Some(r), Some(c)) => (r, c),
-            _ => {
-                warn!(
-                    "Cannot ensure compatible {} version: no registry or context available",
-                    dep_name
-                );
-                return Ok(None);
+    /// Expand template variables in environment values
+    fn expand_template(&self, template: &str, runtime_name: &str, version: Option<&str>) -> Result<String> {
+        let mut result = template.to_string();
+
+        // Get runtime spec for template expansion
+        if let Some(_spec) = self.resolver.get_spec(runtime_name) {
+            // Replace {install_dir} - TODO: Get from PathManager or IntegratedVersionResolver
+            // if let Some(install_dir) = &spec.install_dir {
+            //     result = result.replace("{install_dir}", &install_dir.to_string_lossy());
+            // }
+
+            // Replace {version}
+            if let Some(ver) = version {
+                result = result.replace("{version}", ver);
             }
-        };
 
-        let runtime = match registry.get_runtime(dep_name) {
-            Some(r) => r,
-            None => {
-                warn!("Unknown runtime: {}", dep_name);
-                return Ok(None);
+            // Replace {executable} - TODO: Get from PathManager or IntegratedVersionResolver
+            // result = result.replace("{executable}", &spec.executable_path.to_string_lossy());
+
+            // Replace {PATH} with current PATH
+            if let Ok(path) = std::env::var("PATH") {
+                result = result.replace("{PATH}", &path);
             }
-        };
 
-        // First, try to find an already installed compatible version
-        let installed_versions = runtime
-            .installed_versions(context)
-            .await
-            .unwrap_or_default();
-        debug!(
-            "Checking {} installed versions of {} for compatibility",
-            installed_versions.len(),
-            dep_name
-        );
-
-        for version in &installed_versions {
-            if constraint.is_version_compatible(version) {
-                info!(
-                    "Found compatible {} version {} already installed",
-                    dep_name, version
-                );
-                return self.prepare_dependency_env(dep_name, version).await;
+            // Replace shell-style variables: $HOME, $USER, etc.
+            if result.contains("$HOME") {
+                if let Ok(home) = std::env::var("HOME").or_else(|_| {
+                    // Fallback to USERPROFILE on Windows
+                    std::env::var("USERPROFILE")
+                }) {
+                    result = result.replace("$HOME", &home);
+                }
             }
-        }
 
-        // No compatible version installed, need to install one
-        if !self.config.auto_install {
-            return Err(anyhow::anyhow!(
-                "No compatible {} version found. Required: min={:?}, max={:?}. \
-                 Run 'vx install {}@{}' or enable auto-install.",
-                dep_name,
-                constraint.min_version,
-                constraint.max_version,
-                dep_name,
-                constraint
-                    .recommended_version
-                    .as_deref()
-                    .unwrap_or("compatible-version")
-            ));
-        }
-
-        // Determine which version to install
-        let version_to_install = if let Some(ref recommended) = constraint.recommended_version {
-            // Use recommended version
-            info!(
-                "Installing recommended {} version {} for compatibility",
-                dep_name, recommended
-            );
-            recommended.clone()
-        } else if let Some(ref max) = constraint.max_version {
-            // Use max version as a hint (install the highest compatible version)
-            info!(
-                "Installing {} version <= {} for compatibility",
-                dep_name, max
-            );
-            max.clone()
-        } else if let Some(ref min) = constraint.min_version {
-            // Use min version
-            info!(
-                "Installing {} version >= {} for compatibility",
-                dep_name, min
-            );
-            min.clone()
-        } else {
-            // No constraints, use latest
-            return Ok(None);
-        };
-
-        // Resolve and install the version - show progress spinner
-        let spinner = ProgressSpinner::new(&format!(
-            "Resolving compatible {}@{}...",
-            dep_name, version_to_install
-        ));
-        let resolved_version = match runtime.resolve_version(&version_to_install, context).await {
-            Ok(v) => {
-                spinner.finish_and_clear();
-                v
+            if result.contains("$CARGO_HOME") {
+                if let Ok(cargo_home) = std::env::var("CARGO_HOME") {
+                    result = result.replace("$CARGO_HOME", &cargo_home);
+                }
             }
-            Err(e) => {
-                spinner.finish_with_error(&format!("Failed to resolve version: {}", e));
-                return Err(e);
+
+            if result.contains("$RUSTUP_HOME") {
+                if let Ok(rustup_home) = std::env::var("RUSTUP_HOME") {
+                    result = result.replace("$RUSTUP_HOME", &rustup_home);
+                }
             }
-        };
-        info!(
-            "Resolved {}@{} 鈫?{}",
-            dep_name, version_to_install, resolved_version
-        );
 
-        // Check if this resolved version is compatible
-        if !constraint.is_version_compatible(&resolved_version) {
-            return Err(anyhow::anyhow!(
-                "Resolved {} version {} does not meet constraints (min={:?}, max={:?}). \
-                 Please install a compatible version manually.",
-                dep_name,
-                resolved_version,
-                constraint.min_version,
-                constraint.max_version
-            ));
-        }
-
-        // Install if not already installed
-        if !runtime.is_installed(&resolved_version, context).await? {
-            info!(
-                "Installing {} {} for compatibility",
-                dep_name, resolved_version
-            );
-            runtime.pre_install(&resolved_version, context).await?;
-
-            // Install the runtime
-            // Note: We don't show a spinner here because runtime.install() will show
-            // its own download progress, and having two progress indicators causes flickering
-            let result = runtime.install(&resolved_version, context).await?;
-            if !context.fs.exists(&result.executable_path) {
-                return Err(anyhow::anyhow!(
-                    "Installation completed but executable not found at {}",
-                    result.executable_path.display()
-                ));
+            if result.contains("$USER") {
+                if let Ok(user) = std::env::var("USER").or_else(|_| {
+                    std::env::var("USERNAME")
+                }) {
+                    result = result.replace("$USER", &user);
+                }
             }
-            runtime.post_install(&resolved_version, context).await?;
-        }
 
-        self.prepare_dependency_env(dep_name, &resolved_version)
-            .await
-    }
-
-    /// Check provider-level dependencies and return incompatible ones
-    ///
-    /// This uses a two-tier system:
-    /// 1. **ConstraintsRegistry** - Centralized, version-aware constraints (preferred)
-    /// 2. **Provider.dependencies()** - Provider-defined constraints (fallback)
-    ///
-    /// It checks both vx-managed installations AND system-installed versions.
-    async fn check_provider_dependencies(
-        &self,
-        runtime_name: &str,
-        runtime_version: Option<&str>,
-    ) -> Result<Vec<crate::IncompatibleDependency>> {
-        let mut incompatible_deps = Vec::new();
-
-        let (registry, context) = match (self.registry, self.context) {
-            (Some(r), Some(c)) => (r, c),
-            _ => return Ok(incompatible_deps),
-        };
-
-        // Collect dependencies from both sources
-        let mut all_deps: Vec<vx_runtime::RuntimeDependency> = Vec::new();
-
-        // 1. Get constraints from ConstraintsRegistry (version-aware)
-        if let Some(version) = runtime_version {
-            let registry_deps = get_default_constraints(runtime_name, version);
-            if !registry_deps.is_empty() {
-                debug!(
-                    "Found {} constraints from registry for {}@{}",
-                    registry_deps.len(),
-                    runtime_name,
-                    version
-                );
-                all_deps.extend(registry_deps);
-            }
-        }
-
-        // 2. Get dependencies from Provider (fallback if no registry constraints)
-        if all_deps.is_empty() {
-            if let Some(runtime) = registry.get_runtime(runtime_name) {
-                let provider_deps = runtime.dependencies();
-                if !provider_deps.is_empty() {
-                    debug!(
-                        "Using {} provider dependencies for {}",
-                        provider_deps.len(),
-                        runtime_name
-                    );
-                    all_deps.extend(provider_deps.iter().cloned());
+            // Replace {env:VAR} with environment variable
+            while let Some(start) = result.find("{env:") {
+                if let Some(end) = result[start..].find('}') {
+                    let env_var = &result[start + 5..start + end];
+                    let env_value = std::env::var(env_var).unwrap_or_default();
+                    result.replace_range(start..=start + end, &env_value);
+                } else {
+                    break;
                 }
             }
         }
 
-        if all_deps.is_empty() {
-            return Ok(incompatible_deps);
-        }
-
-        // Show progress spinner for dependency checking (only if multiple deps)
-        let spinner = if all_deps.len() > 1 {
-            Some(ProgressSpinner::new(&format!(
-                "Checking {} dependencies for {}...",
-                all_deps.len(),
-                runtime_name
-            )))
-        } else {
-            None
-        };
-
-        debug!(
-            "Checking {} dependencies for {}",
-            all_deps.len(),
-            runtime_name
-        );
-
-        for dep in all_deps {
-            if dep.optional {
-                continue;
-            }
-
-            // First, check vx-managed versions
-            let mut found_version: Option<String> = None;
-            let mut is_vx_managed = false;
-
-            if let Some(dep_runtime) = registry.get_runtime(&dep.name) {
-                let installed_versions = dep_runtime
-                    .installed_versions(context)
-                    .await
-                    .unwrap_or_default();
-
-                if let Some(version) = installed_versions.first() {
-                    found_version = Some(version.clone());
-                    is_vx_managed = true;
-                }
-            }
-
-            // If no vx-managed version, check system PATH
-            if found_version.is_none() {
-                if let Some(system_version) = self.get_system_dependency_version(&dep.name) {
-                    debug!("Found system {} version: {}", dep.name, system_version);
-                    found_version = Some(system_version);
-                }
-            }
-
-            // Check version compatibility
-            if let Some(version) = found_version {
-                if !dep.is_version_compatible(&version) {
-                    let source = if is_vx_managed {
-                        "vx-managed"
-                    } else {
-                        "system"
-                    };
-                    warn!(
-                        "Dependency {} ({}) version {} is incompatible with {} (min: {:?}, max: {:?})",
-                        dep.name, source, version, runtime_name, dep.min_version, dep.max_version
-                    );
-
-                    // Convert vx_runtime::RuntimeDependency to vx_resolver::RuntimeDependency
-                    let resolver_dep = crate::RuntimeDependency {
-                        runtime_name: dep.name.clone(),
-                        min_version: dep.min_version.clone(),
-                        max_version: dep.max_version.clone(),
-                        recommended_version: dep.recommended_version.clone(),
-                        required: !dep.optional,
-                        reason: dep.reason.clone().unwrap_or_default(),
-                        provided_by: None,
-                    };
-
-                    incompatible_deps.push(crate::IncompatibleDependency {
-                        runtime_name: dep.name.clone(),
-                        current_version: Some(version),
-                        constraint: resolver_dep,
-                        recommended_version: dep.recommended_version.clone(),
-                    });
-                }
-            }
-        }
-
-        // Clear spinner when done
-        if let Some(spinner) = spinner {
-            spinner.finish_and_clear();
-        }
-
-        Ok(incompatible_deps)
-    }
-
-    /// Get the version of a system-installed dependency by running `<dep> --version`
-    fn get_system_dependency_version(&self, dep_name: &str) -> Option<String> {
-        use std::process::Command;
-
-        // Determine the executable name
-        let exe_name = if cfg!(windows) {
-            format!("{}.exe", dep_name)
-        } else {
-            dep_name.to_string()
-        };
-
-        // Try to find the executable in PATH
-        let output = Command::new(&exe_name).arg("--version").output().ok()?;
-
-        if !output.status.success() {
-            return None;
-        }
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let combined = format!("{}{}", stdout, stderr);
-
-        // Parse version from output (e.g., "v23.11.0", "Node.js v23.11.0", "Python 3.12.0")
-        self.parse_version_from_output(&combined, dep_name)
-    }
-
-    /// Parse version string from command output
-    fn parse_version_from_output(&self, output: &str, _dep_name: &str) -> Option<String> {
-        // Common patterns:
-        // - "v23.11.0" or "23.11.0"
-        // - "Node.js v23.11.0"
-        // - "Python 3.12.0"
-        // - "go version go1.21.0"
-
-        let version_regex = regex::Regex::new(r"v?(\d+\.\d+\.\d+)").ok()?;
-
-        if let Some(captures) = version_regex.captures(output) {
-            return captures.get(1).map(|m| m.as_str().to_string());
-        }
-
-        None
+        Ok(result)
     }
 
     /// Prepare environment variables to use a specific version of a dependency
@@ -950,6 +589,8 @@ impl<'a> Executor<'a> {
             store_dir.join("bin"),
             store_dir.to_path_buf(),
             store_dir.join(tool_name).join("bin"),
+            store_dir.join("Scripts"),  // Windows Python pattern
+            store_dir.join(tool_name),     // Check tool-name subdirectory (e.g., python/)
         ];
 
         for pattern in &patterns {
@@ -957,31 +598,6 @@ impl<'a> Executor<'a> {
                 // Check if this directory contains executables
                 if pattern.join(&exe_name).exists() {
                     return Some(pattern.clone());
-                }
-            }
-        }
-
-        // Search for executable in subdirectories (e.g., node-v18.17.0-win-x64/)
-        // This handles cases where archives extract to versioned subdirectories
-        if let Ok(entries) = std::fs::read_dir(store_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    // Check if executable is directly in this subdirectory
-                    if path.join(&exe_name).exists() {
-                        debug!("Found {} in subdirectory: {}", exe_name, path.display());
-                        return Some(path);
-                    }
-                    // Check if executable is in bin/ subdirectory
-                    let bin_path = path.join("bin");
-                    if bin_path.join(&exe_name).exists() {
-                        debug!(
-                            "Found {} in subdirectory bin: {}",
-                            exe_name,
-                            bin_path.display()
-                        );
-                        return Some(bin_path);
-                    }
                 }
             }
         }
@@ -1012,6 +628,23 @@ impl<'a> Executor<'a> {
                 ))
             }
         };
+
+        // Check if this runtime is provided by another runtime
+        // For example, cargo and rustc are provided by rustup
+        if let Some(spec) = self.resolver.get_spec(runtime_name) {
+            for dep in &spec.dependencies {
+                if dep.required {
+                    if let Some(ref provider) = dep.provided_by {
+                        // This runtime is provided by another runtime
+                        info!("{} is provided by {}, installing {}@{} instead",
+                              runtime_name, provider, provider, requested_version);
+
+                        // Install the provider with the requested version
+                        return Box::pin(self.ensure_version_installed(provider, requested_version)).await;
+                    }
+                }
+            }
+        }
 
         let runtime = registry
             .get_runtime(runtime_name)
@@ -1144,25 +777,137 @@ impl<'a> Executor<'a> {
 
     /// Prepare environment variables for a runtime
     ///
-    /// This calls the runtime's `prepare_environment` method to get any
-    /// additional environment variables needed for execution.
+    /// This combines environment variables from:
+    /// 1. Runtime's prepare_environment method
+    /// 2. Manifest's env_config (including advanced configuration)
     async fn prepare_runtime_environment(
         &self,
         runtime_name: &str,
         version: Option<&str>,
+        inherit_env: bool,
     ) -> Result<std::collections::HashMap<String, String>> {
         use std::collections::HashMap;
 
-        // If we don't have registry and context, return empty environment
+        let mut env = HashMap::new();
+
+        // Get environment from manifest's env_config
+        if let Some(spec) = self.resolver.get_spec(runtime_name) {
+            if let Some(env_config) = &spec.env_config {
+                // Handle advanced environment configuration
+                if let Some(advanced) = &env_config.advanced {
+                    // Handle PATH manipulation
+                    let mut path_parts = Vec::new();
+
+                    // Prepend entries
+                    for entry in &advanced.path_prepend {
+                        let expanded = self.expand_template(entry, runtime_name, version)?;
+                        path_parts.push(expanded);
+                    }
+
+                    // Get current PATH if not isolated or if inheriting
+                    let isolate_env = if inherit_env { false } else { advanced.isolate };
+                    let current_path = if !isolate_env {
+                        std::env::var("PATH").unwrap_or_default()
+                    } else {
+                        // When isolated, only include inherited vars
+                        let mut inherited_path = String::new();
+                        for var in &advanced.inherit_system_vars {
+                            if var == "PATH" {
+                                if let Ok(p) = std::env::var("PATH") {
+                                    inherited_path = p;
+                                    break;
+                                }
+                            }
+                        }
+                        inherited_path
+                    };
+
+                    if !current_path.is_empty() {
+                        path_parts.push(current_path);
+                    }
+
+                    // Append entries
+                    for entry in &advanced.path_append {
+                        let expanded = self.expand_template(entry, runtime_name, version)?;
+                        path_parts.push(expanded);
+                    }
+
+                    // Set PATH
+                    if !path_parts.is_empty() {
+                        env.insert("PATH".to_string(), std::env::join_paths(path_parts)?.to_string_lossy().to_string());
+                    }
+
+                    // Handle advanced env vars
+                    for (var_name, var_config) in &advanced.env_vars {
+                        match var_config {
+                            vx_manifest::EnvVarConfig::Simple(value) => {
+                                let expanded = self.expand_template(&value, runtime_name, version)?;
+                                env.insert(var_name.clone(), expanded);
+                            }
+                            vx_manifest::EnvVarConfig::Advanced { value, prepend, append, replace } => {
+                                let mut final_value = String::new();
+
+                                if *replace {
+                                    if let Some(v) = value {
+                                        final_value = self.expand_template(&v, runtime_name, version)?;
+                                    }
+                                } else {
+                                    // Prepend
+                                    if let Some(pre) = prepend {
+                                        for item in pre {
+                                            let expanded = self.expand_template(&item, runtime_name, version)?;
+                                            final_value.push_str(&expanded);
+                                            final_value.push(if cfg!(windows) { ';' } else { ':' });
+                                        }
+                                    }
+
+                                    // Current value
+                                    if let Ok(current) = std::env::var(var_name) {
+                                        final_value.push_str(&current);
+                                        if !final_value.ends_with(if cfg!(windows) { ';' } else { ':' }) {
+                                            final_value.push(if cfg!(windows) { ';' } else { ':' });
+                                        }
+                                    }
+
+                                    // Append
+                                    if let Some(app) = append {
+                                        for item in app {
+                                            let expanded = self.expand_template(&item, runtime_name, version)?;
+                                            final_value.push_str(&expanded);
+                                            final_value.push(if cfg!(windows) { ';' } else { ':' });
+                                        }
+                                    }
+
+                            // Remove trailing separator
+                            final_value = final_value.trim_end_matches(if cfg!(windows) { ';' } else { ':' }).to_string();
+                                }
+
+                                if !final_value.is_empty() {
+                                    env.insert(var_name.clone(), final_value);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Add basic vars
+                for (key, value) in &spec.env_vars {
+                    let expanded = self.expand_template(value, runtime_name, version)?;
+                    env.insert(key.clone(), expanded);
+                }
+            }
+        }
+
+        // If we don't have registry and context, return what we have
         let (registry, context) = match (self.registry, self.context) {
             (Some(r), Some(c)) => (r, c),
-            _ => return Ok(HashMap::new()),
+            _ => return Ok(env),
         };
 
         // Get the runtime
         let runtime = match registry.get_runtime(runtime_name) {
             Some(r) => r,
-            None => return Ok(HashMap::new()),
+            None => return Ok(env),
         };
 
         // Determine the version to use
@@ -1172,14 +917,15 @@ impl<'a> Executor<'a> {
                 // Try to get the installed version from the store
                 match runtime.installed_versions(context).await {
                     Ok(versions) if !versions.is_empty() => versions[0].clone(),
-                    _ => return Ok(HashMap::new()),
+                    _ => return Ok(env),
                 }
             }
         };
 
-        // Call prepare_environment
+        // Call prepare_environment and merge
         match runtime.prepare_environment(&version, context).await {
-            Ok(env) => {
+            Ok(runtime_env) => {
+                env.extend(runtime_env);
                 if !env.is_empty() {
                     debug!(
                         "Prepared {} environment variables for {} {}",
@@ -1193,12 +939,14 @@ impl<'a> Executor<'a> {
             Err(e) => {
                 warn!(
                     "Failed to prepare environment for {} {}: {}",
-                    runtime_name, version, e
+                    runtime_name,
+                    version,
+                    e
                 );
-                Ok(HashMap::new())
+                Ok(env)
             }
-        }
     }
+}
 
     /// Install a list of runtimes in order
     ///
@@ -1544,8 +1292,8 @@ impl<'a> Executor<'a> {
                 };
 
                 final_env.insert("PATH".to_string(), new_path);
-                debug!(
-                    "Subprocess PATH includes vx-managed tools for {}",
+                trace!(
+                    "PATH includes vx-managed tools for {}",
                     resolution.runtime
                 );
             }
@@ -1553,8 +1301,8 @@ impl<'a> Executor<'a> {
 
         // Inject environment variables
         if !final_env.is_empty() {
-            debug!(
-                "Injecting {} environment variables for {}",
+            trace!(
+                "injecting {} env vars for {}",
                 final_env.len(),
                 resolution.runtime
             );
@@ -1570,6 +1318,8 @@ impl<'a> Executor<'a> {
 
         Ok(cmd)
     }
+
+
 
     /// Build PATH string containing all vx-managed tool bin directories
     ///
@@ -1668,23 +1418,29 @@ impl<'a> Executor<'a> {
         }
 
         // Check if project configuration specifies a version for this runtime
+        // Uses ecosystem fallback: e.g., "cargo" falls back to "rust" configuration
         if let Some(ref project_config) = self.project_config {
-            if let Some(requested_version) = project_config.get_version(runtime_name) {
+            if let Some(requested_version) = project_config.get_version_with_fallback(runtime_name) {
                 // Try to find exact match or compatible version
                 let matching_version =
                     self.find_matching_version(runtime_name, requested_version, installed_versions);
 
                 if let Some(version) = matching_version {
-                    debug!("Using {} version {} from vx.toml", runtime_name, version);
+                    trace!("Using {} version {} from vx.toml", runtime_name, version);
                     return Some(version);
                 } else {
                     // Requested version not installed, warn and fall back to latest
-                    warn!(
-                        "Version {} specified in vx.toml for {} is not installed. \
-                         Using latest installed version instead. \
-                         Run 'vx install {}@{}' to install the specified version.",
-                        requested_version, runtime_name, runtime_name, requested_version
-                    );
+                    // Only warn once per tool to avoid flooding the output
+                    let mut warned = WARNED_TOOLS.lock().unwrap();
+                    let warned_set = warned.get_or_insert_with(HashSet::new);
+                    if warned_set.insert(runtime_name.to_string()) {
+                        warn!(
+                            "Version {} specified in vx.toml for {} is not installed. \
+                             Using latest installed version instead. \
+                             Run 'vx install {}@{}' to install the specified version.",
+                            requested_version, runtime_name, runtime_name, requested_version
+                        );
+                    }
                 }
             }
         }

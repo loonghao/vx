@@ -68,6 +68,8 @@
 
 pub mod assets;
 mod builder;
+pub mod context;
+pub mod env_assembler;
 mod error;
 mod executor;
 pub mod session;
@@ -78,6 +80,8 @@ mod words;
 
 pub use assets::ShellScript;
 pub use builder::EnvBuilder;
+pub use context::{ContextOverride, EnvContext};
+pub use env_assembler::{EnvAssembler, EnvOperation, EnvVar, priority};
 pub use error::EnvError;
 pub use executor::{execute_with_env, generate_wrapper_script};
 pub use session::{IsolationConfig, SessionContext, SessionSource};

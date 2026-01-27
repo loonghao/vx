@@ -1,0 +1,42 @@
+{
+  "name": "vx-promo-video",
+  "version": "1.0.0",
+  "description": "VX project promotional video",
+  "scripts": {
+    "start": "npx remotion preview src/Root.tsx",
+    "build": "npm run build-intro && npm run build-problem && npm run build-solution && npm run build-mcp && npm run build-providers && npm run build-features && npm run build-cta && npm run build-full",
+    "build-intro": "npx remotion render src/Root.tsx vx-intro --output=out/vx-intro.mp4",
+    "build-problem": "npx remotion render src/Root.tsx vx-problem --output=out/vx-problem.mp4",
+    "build-solution": "npx remotion render src/Root.tsx vx-solution --output=out/vx-solution.mp4",
+    "build-mcp": "npx remotion render src/Root.tsx vx-mcp --output=out/vx-mcp.mp4",
+    "build-providers": "npx remotion render src/Root.tsx vx-providers --output=out/vx-providers.mp4",
+    "build-features": "npx remotion render src/Root.tsx vx-features --output=out/vx-features.mp4",
+    "build-cta": "npx remotion render src/Root.tsx vx-cta --output=out/vx-cta.mp4",
+    "build-full": "npx remotion render src/Root.tsx vx-full --output=out/vx-full.mp4",
+    "upgrade": "npx remotion upgrade"
+  },
+  "dependencies": {
+    "@remotion/animated-emoji": "^4.0.409",
+    "@remotion/animation-utils": "^4.0.409",
+    "@remotion/enable-scss": "^4.0.409",
+    "@remotion/fonts": "^4.0.409",
+    "@remotion/gif": "^4.0.409",
+    "@remotion/google-fonts": "^4.0.0",
+    "@remotion/media-utils": "^4.0.409",
+    "@remotion/motion-blur": "^4.0.409",
+    "@remotion/noise": "^4.0.409",
+    "@remotion/paths": "^4.0.409",
+    "@remotion/preload": "^4.0.409",
+    "@remotion/shapes": "^4.0.409",
+    "@remotion/transitions": "^4.0.409",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@remotion/bundler": "^4.0.0",
+    "@remotion/cli": "^4.0.0",
+    "@types/react": "^18.2.0",
+    "typescript": "^5.3.0"
+  }
+}

@@ -49,14 +49,15 @@ pub use platform::{Arch, Os, Platform, PlatformConstraint, PlatformExclusion};
 pub use provider::{
     AliasNormalize, ArchiveLayoutConfig, BinaryLayoutConfig, CacheConfig, CommandDef,
     ConstraintRule, DependencyDef, DetectionConfig, DirectoryNormalize, DownloadConfig,
-    DownloadType, EffectiveNormalizeConfig, EnvConfig, ExecutableConfig, ExecutableNormalize,
-    HealthConfig, HooksConfig, HooksDef, InlineTestScripts, InstallStrategyDef, LayoutConfig,
-    MachineFlagsConfig, MirrorConfig, MirrorStrategy, NormalizeAction, NormalizeConfig,
-    OutputColorConfig, OutputConfig, PlatformBinaryConfig, PlatformConfig, PlatformNormalizeConfig,
-    PlatformTestCommands, PlatformsDef, ProvidedToolDef, ProviderManifest, ProviderMeta,
-    RuntimeDef, ScriptTypeDef, ShellCompletionsConfig, ShellConfig, SystemDepTypeDef,
-    SystemDependencyDef, SystemDepsConfigDef, SystemInstallConfigDef, TestCommand, TestConfig,
-    TestPlatformConfig, VersionSourceDef,
+    DownloadType, EffectiveNormalizeConfig, EnvConfig, EnvVarConfig, ExecutableConfig,
+    ExecutableNormalize, HealthConfig, HooksConfig, HooksDef, InlineTestScripts,
+    InstallStrategyDef, LayoutConfig, MachineFlagsConfig, MirrorConfig, MirrorStrategy,
+    NormalizeAction, NormalizeConfig, OutputColorConfig, OutputConfig, PinningStrategy,
+    PlatformBinaryConfig, PlatformConfig, PlatformNormalizeConfig, PlatformTestCommands,
+    PlatformsDef, ProvidedToolDef, ProviderManifest, ProviderMeta, RuntimeDef, ScriptTypeDef,
+    ShellCompletionsConfig, ShellConfig, SystemDepTypeDef, SystemDependencyDef,
+    SystemDepsConfigDef, SystemInstallConfigDef, TestCommand, TestConfig, TestPlatformConfig,
+    VersionRangeConfig, VersionSourceDef,
 };
 
 pub use r#override::{apply_override, extract_provider_name, ProviderOverride, RuntimeOverride};

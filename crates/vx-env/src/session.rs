@@ -9,8 +9,8 @@ use std::path::PathBuf;
 /// Source of the session configuration
 #[derive(Debug, Clone)]
 pub enum SessionSource {
-    /// Configuration from vx.toml
-    VxToml(PathBuf),
+    /// Configuration from vx.toml with project name
+    VxToml { path: PathBuf, project_name: String },
     /// Configuration from an environment directory
     EnvDir { path: PathBuf, name: String },
     /// Inline configuration (from command line)
@@ -21,13 +21,22 @@ impl SessionSource {
     /// Get a display name for the source
     pub fn display_name(&self) -> String {
         match self {
-            SessionSource::VxToml(path) => {
+            SessionSource::VxToml { path, .. } => {
                 format!("vx.toml ({})", path.display())
             }
             SessionSource::EnvDir { name, .. } => {
                 format!("env:{}", name)
             }
             SessionSource::Inline => "inline".to_string(),
+        }
+    }
+
+    /// Get the name to use in the shell prompt
+    pub fn prompt_name(&self) -> &str {
+        match self {
+            SessionSource::VxToml { project_name, .. } => project_name,
+            SessionSource::EnvDir { name, .. } => name,
+            SessionSource::Inline => "project",
         }
     }
 }
@@ -148,5 +157,14 @@ impl SessionContext {
                 .collect::<Vec<_>>()
                 .join(", ")
         }
+    }
+
+    /// Get the name to use in the shell prompt
+    ///
+    /// For VxToml sources, this returns the project name from the configuration.
+    /// For EnvDir sources, this returns the environment name.
+    /// For Inline sources, this returns a default name.
+    pub fn prompt_name(&self) -> &str {
+        self.source.prompt_name()
     }
 }

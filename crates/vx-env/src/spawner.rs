@@ -89,10 +89,108 @@ impl ShellSpawner {
             builder = builder.env_var("VX_PROJECT_ROOT", root.display().to_string());
         }
 
-        builder = builder.env_var("VX_PROJECT_NAME", &session.name);
+        builder = builder.env_var("VX_PROJECT_NAME", session.prompt_name());
         builder = builder.env_var("VX_DEV", "1");
 
         builder.build().map_err(|e| anyhow::anyhow!("{}", e))
+    }
+
+    /// Install completion scripts for the shell
+    fn install_completion_scripts(&self, shell_path: &str) -> Result<()> {
+        let data_dir = Self::get_data_dir()?;
+        std::fs::create_dir_all(&data_dir)?;
+
+        // Install completion scripts based on shell type
+        if shell_path.contains("bash") {
+            self.install_bash_completion(&data_dir)?;
+        } else if shell_path.contains("zsh") {
+            self.install_zsh_completion(&data_dir)?;
+        } else if shell_path.contains("powershell") || shell_path.contains("pwsh") {
+            self.install_powershell_completion(&data_dir)?;
+        }
+
+        Ok(())
+    }
+
+    /// Get the vx data directory for storing completion scripts and history
+    fn get_data_dir() -> Result<std::path::PathBuf> {
+        if cfg!(windows) {
+            Ok(dirs::data_local_dir()
+                .ok_or_else(|| anyhow::anyhow!("Failed to get local data directory"))?
+                .join("vx"))
+        } else {
+            if let Ok(xdg_data) = env::var("XDG_DATA_HOME") {
+                Ok(std::path::PathBuf::from(xdg_data).join("vx"))
+            } else {
+                let home = env::var("HOME")
+                    .map_err(|_| anyhow::anyhow!("HOME environment variable not set"))?;
+                Ok(std::path::PathBuf::from(home).join(".local/share/vx"))
+            }
+        }
+    }
+
+    /// Install Bash completion script
+    fn install_bash_completion(&self, data_dir: &std::path::Path) -> Result<()> {
+        let completion_path = data_dir.join("vx_completion.bash");
+
+        // Check if completion script already exists and is up-to-date
+        if completion_path.exists() {
+            // Optionally check if it needs updating (compare version or content)
+            return Ok(());
+        }
+
+        // Get completion script from embedded assets
+        let completion_content = crate::assets::CompletionScript::Bash
+            .get_raw()
+            .ok_or_else(|| anyhow::anyhow!("Failed to load Bash completion script"))?;
+
+        // Write completion script
+        std::fs::write(&completion_path, completion_content)
+            .with_context(|| format!("Failed to write completion script to {}", completion_path.display()))?;
+
+        Ok(())
+    }
+
+    /// Install Zsh completion script
+    fn install_zsh_completion(&self, data_dir: &std::path::Path) -> Result<()> {
+        let completion_path = data_dir.join("vx_completion.zsh");
+
+        // Check if completion script already exists and is up-to-date
+        if completion_path.exists() {
+            return Ok(());
+        }
+
+        // Get completion script from embedded assets
+        let completion_content = crate::assets::CompletionScript::Zsh
+            .get_raw()
+            .ok_or_else(|| anyhow::anyhow!("Failed to load Zsh completion script"))?;
+
+        // Write completion script
+        std::fs::write(&completion_path, completion_content)
+            .with_context(|| format!("Failed to write completion script to {}", completion_path.display()))?;
+
+        Ok(())
+    }
+
+    /// Install PowerShell completion script
+    fn install_powershell_completion(&self, data_dir: &std::path::Path) -> Result<()> {
+        let completion_path = data_dir.join("vx_completion.ps1");
+
+        // Check if completion script already exists and is up-to-date
+        if completion_path.exists() {
+            return Ok(());
+        }
+
+        // Get completion script from embedded assets
+        let completion_content = crate::assets::CompletionScript::PowerShell
+            .get_raw()
+            .ok_or_else(|| anyhow::anyhow!("Failed to load PowerShell completion script"))?;
+
+        // Write completion script
+        std::fs::write(&completion_path, completion_content)
+            .with_context(|| format!("Failed to write completion script to {}", completion_path.display()))?;
+
+        Ok(())
     }
 
     /// Get the built environment variables
@@ -109,6 +207,9 @@ impl ShellSpawner {
     pub fn spawn_interactive(&self, shell: Option<&str>) -> Result<ExitStatus> {
         let shell_path = shell.map(|s| s.to_string()).unwrap_or_else(detect_shell);
 
+        // Install completion scripts if needed
+        self.install_completion_scripts(&shell_path)?;
+
         let mut command = Command::new(&shell_path);
 
         // IMPORTANT: Clear inherited environment to ensure our PATH takes effect
@@ -121,19 +222,37 @@ impl ShellSpawner {
         }
 
         // Set VX_PROJECT_NAME for prompt customization
-        command.env("VX_PROJECT_NAME", &self.session.name);
+        command.env("VX_PROJECT_NAME", self.session.prompt_name());
 
         // Platform-specific shell configuration
         self.configure_shell_platform(&mut command, &shell_path)?;
 
-        let status = command.status().with_context(|| {
-            format!(
-                "Failed to spawn shell: {}. Try specifying a shell with --shell",
-                shell_path
-            )
-        })?;
+        #[cfg(windows)]
+        {
+            // On Windows, wait for the shell to exit just like Unix
+            // This ensures the user stays in the dev environment until they exit
+            let status = command.status().with_context(|| {
+                format!(
+                    "Failed to spawn shell: {}. Try specifying a shell with --shell",
+                    shell_path
+                )
+            })?;
 
-        Ok(status)
+            Ok(status)
+        }
+
+        #[cfg(not(windows))]
+        {
+            // On Unix, use status() as normal
+            let status = command.status().with_context(|| {
+                format!(
+                    "Failed to spawn shell: {}. Try specifying a shell with --shell",
+                    shell_path
+                )
+            })?;
+
+            Ok(status)
+        }
     }
 
     /// Configure shell for the current platform
@@ -160,7 +279,7 @@ impl ShellSpawner {
             ]);
         } else if shell_path.contains("cmd") {
             // For cmd.exe, we set the prompt via environment variable
-            let prompt = format!("({}[vx]) $P$G", self.session.name);
+            let prompt = format!("({}[vx]) $P$G", self.session.prompt_name());
             command.env("PROMPT", prompt);
             command.args(["/K"]);
         }
@@ -172,10 +291,10 @@ impl ShellSpawner {
     fn configure_shell_platform(&self, command: &mut Command, shell_path: &str) -> Result<()> {
         // For bash/zsh, we can set a custom prompt
         if shell_path.contains("bash") {
-            let prompt = format!("({}[vx]) \\w\\$ ", self.session.name);
+            let prompt = format!("({}[vx]) \\w\\$ ", self.session.prompt_name());
             command.env("PS1", prompt);
         } else if shell_path.contains("zsh") {
-            let prompt = format!("({}[vx]) %~%# ", self.session.name);
+            let prompt = format!("({}[vx]) %~%# ", self.session.prompt_name());
             command.env("PROMPT", prompt);
         }
 
@@ -186,7 +305,7 @@ impl ShellSpawner {
     #[cfg(windows)]
     fn create_powershell_init_script(&self) -> Result<String> {
         let tools = self.session.tools_display();
-        let project_name = &self.session.name;
+        let project_name = self.session.prompt_name();
 
         // Use embedded asset for better maintainability
         ShellScript::PowerShell
@@ -288,18 +407,74 @@ pub fn detect_shell() -> String {
 fn generate_shell_export(path_entries: &[String], env_vars: &HashMap<String, String>) -> String {
     let mut output = String::new();
 
+    // Header comment
+    output.push_str("# VX Environment Activation Script\n");
+    output.push_str("# Usage: eval \"$(vx dev --export)\"\n\n");
+
+    // Define deactivate function (similar to venv)
+    output.push_str(r#"# Deactivate function to restore previous environment
+vx_deactivate() {
+    # Restore old PATH
+    if [ -n "${_OLD_VX_PATH:-}" ]; then
+        export PATH="$_OLD_VX_PATH"
+        unset _OLD_VX_PATH
+    fi
+
+    # Restore old PS1 prompt
+    if [ -n "${_OLD_VX_PS1:-}" ]; then
+        export PS1="$_OLD_VX_PS1"
+        unset _OLD_VX_PS1
+    fi
+
+    # Unset VX environment variables
+    unset VX_DEV
+    unset VX_PROJECT_NAME
+    unset VX_PROJECT_ROOT
+
+    # Self-destruct
+    unset -f vx_deactivate
+}
+
+"#);
+
+    // Save old environment (if not already in a vx environment)
+    output.push_str(r#"# Save current environment (only if not already activated)
+if [ -z "${VX_DEV:-}" ]; then
+    export _OLD_VX_PATH="$PATH"
+    export _OLD_VX_PS1="${PS1:-}"
+fi
+
+"#);
+
     // Export PATH
     if !path_entries.is_empty() {
         let paths = path_entries.join(":");
         output.push_str(&format!("export PATH=\"{}:$PATH\"\n", paths));
     }
 
-    // Export custom environment variables
+    // Export VX-specific environment variables
+    output.push_str("\n# VX environment variables\n");
+    output.push_str("export VX_DEV=1\n");
+
+    // Export custom environment variables (filter out PATH)
+    let project_name = env_vars.get("VX_PROJECT_NAME").cloned().unwrap_or_default();
     for (key, value) in env_vars {
-        // Escape special characters in value
+        if key == "PATH" {
+            continue;
+        }
         let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
         output.push_str(&format!("export {}=\"{}\"\n", key, escaped));
     }
+
+    // Update prompt
+    if !project_name.is_empty() {
+        output.push_str(&format!(
+            "\n# Update prompt\nexport PS1=\"({}[vx]) ${{_OLD_VX_PS1:-\\w\\$ }}\"\n",
+            project_name
+        ));
+    }
+
+    output.push_str("\n# Type 'vx_deactivate' to exit the vx environment\n");
 
     output
 }
@@ -310,20 +485,86 @@ fn generate_powershell_export(
 ) -> String {
     let mut output = String::new();
 
+    // Header
+    output.push_str("# VX Environment Activation Script for PowerShell\n");
+    output.push_str("# Usage: Invoke-Expression (vx dev --export --format powershell)\n\n");
+
+    // Define deactivate function
+    output.push_str(r#"# Deactivate function
+function global:Vx-Deactivate {
+    [CmdletBinding()]
+    param([switch]$NonDestructive)
+
+    if (Test-Path variable:global:_OLD_VX_PATH) {
+        $env:PATH = $global:_OLD_VX_PATH
+        Remove-Variable -Name _OLD_VX_PATH -Scope Global
+    }
+
+    if (Test-Path function:global:_old_vx_prompt) {
+        $function:prompt = $function:_old_vx_prompt
+        Remove-Item function:\_old_vx_prompt -ErrorAction SilentlyContinue
+    }
+
+    Remove-Item env:VX_DEV -ErrorAction SilentlyContinue
+    Remove-Item env:VX_PROJECT_NAME -ErrorAction SilentlyContinue
+    Remove-Item env:VX_PROJECT_ROOT -ErrorAction SilentlyContinue
+
+    if (-not $NonDestructive) {
+        Remove-Item function:Vx-Deactivate -ErrorAction SilentlyContinue
+    }
+}
+
+"#);
+
+    // Save old environment
+    output.push_str(r#"# Save current environment
+if (-not $env:VX_DEV) {
+    $global:_OLD_VX_PATH = $env:PATH
+    if (Test-Path function:prompt) {
+        $function:global:_old_vx_prompt = $function:prompt
+    }
+}
+
+"#);
+
     // Export PATH
     if !path_entries.is_empty() {
         let paths = path_entries.join(";");
+        output.push_str(&format!("$env:PATH = \"{};$env:PATH\"\n", paths));
+    }
+
+    // Export VX environment variables
+    output.push_str("\n# VX environment variables\n");
+    output.push_str("$env:VX_DEV = \"1\"\n");
+
+    let project_name = env_vars.get("VX_PROJECT_NAME").cloned().unwrap_or_default();
+    for (key, value) in env_vars {
+        if key == "PATH" {
+            continue;
+        }
+        let escaped = value.replace('"', "`\"");
+        output.push_str(&format!("$env:{} = \"{}\"\n", key, escaped));
+    }
+
+    // Update prompt
+    if !project_name.is_empty() {
         output.push_str(&format!(
-            "$env:PATH = \"{};$env:PATH\"\n",
-            paths.replace('\\', "\\\\")
+            r#"
+# Update prompt
+function global:prompt {{
+    $previous_prompt = if (Test-Path function:global:_old_vx_prompt) {{
+        & $function:_old_vx_prompt
+    }} else {{
+        "PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1)) "
+    }}
+    "({}[vx]) $previous_prompt"
+}}
+"#,
+            project_name
         ));
     }
 
-    // Export custom environment variables
-    for (key, value) in env_vars {
-        let escaped = value.replace('\\', "\\\\").replace('"', "`\"");
-        output.push_str(&format!("$env:{} = \"{}\"\n", key, escaped));
-    }
+    output.push_str("\n# Type 'Vx-Deactivate' to exit the vx environment\n");
 
     output
 }
@@ -331,16 +572,43 @@ fn generate_powershell_export(
 fn generate_batch_export(path_entries: &[String], env_vars: &HashMap<String, String>) -> String {
     let mut output = String::new();
 
+    // Header
+    output.push_str("@REM VX Environment Activation Script for CMD\n\n");
+
+    // Save old PATH
+    output.push_str("@REM Save current environment\n");
+    output.push_str("@if not defined VX_DEV (\n");
+    output.push_str("    @set \"_OLD_VX_PATH=%PATH%\"\n");
+    output.push_str("    @set \"_OLD_VX_PROMPT=%PROMPT%\"\n");
+    output.push_str(")\n\n");
+
     // Export PATH
     if !path_entries.is_empty() {
         let paths = path_entries.join(";");
-        output.push_str(&format!("set PATH={};%PATH%\n", paths));
+        output.push_str(&format!("@set \"PATH={};%PATH%\"\n", paths));
     }
 
-    // Export custom environment variables
+    // VX environment variables
+    output.push_str("\n@REM VX environment variables\n");
+    output.push_str("@set VX_DEV=1\n");
+
+    let project_name = env_vars.get("VX_PROJECT_NAME").cloned().unwrap_or_default();
     for (key, value) in env_vars {
-        output.push_str(&format!("set {}={}\n", key, value));
+        if key == "PATH" {
+            continue;
+        }
+        output.push_str(&format!("@set \"{}={}\"\n", key, value));
     }
+
+    // Update prompt
+    if !project_name.is_empty() {
+        output.push_str(&format!(
+            "\n@REM Update prompt\n@set \"PROMPT=({}[vx]) $P$G\"\n",
+            project_name
+        ));
+    }
+
+    output.push_str("\n@REM To deactivate: set PATH=%_OLD_VX_PATH%\n");
 
     output
 }

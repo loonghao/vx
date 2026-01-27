@@ -11,6 +11,7 @@ homepage.workspace = true
 anyhow = { workspace = true }
 dirs = { workspace = true }
 serde = { workspace = true }
+semver = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 walkdir = { workspace = true }

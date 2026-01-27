@@ -18,7 +18,19 @@ aliases = ["python3", "py"]
 priority = 100
 auto_installable = true
 # RFC 0018: Environment configuration
-env = { vars = { PATH = "{install_dir}/bin", PYTHONHOME = "{install_dir}" } }
+[env]
+# Note: Don't set PYTHONPATH to avoid interfering with module search path
+# Python automatically uses site-packages
+# Users should use virtual environments (uv venv, venv, poetry, etc.) for package management
+vars = { PYTHONDONTWRITEBYTECODE = "1" }
+
+[env.advanced]
+# PATH configuration (in order of priority)
+# Python's executable is in python/ subdirectory (old structure) or in root (new structure)
+path_prepend = ["{install_dir}/python", "{install_dir}/bin", "{install_dir}/Scripts"]
+# Isolation mode: don't inherit PYTHON_* variables from system environment
+isolate = true
+inherit_system_vars = ["HOME", "USER", "LANG", "LC_*", "TZ"]
 # RFC 0018: Mirror configuration
 mirrors = [
     { name = "huaweicloud", region = "cn", url = "https://mirrors.huaweicloud.com/python", priority = 100 },
@@ -34,10 +46,18 @@ stable_pattern = "3.*"
 download_type = "archive"
 
 [runtimes.layout.archive]
-strip_prefix = "python"
+# python-build-standalone archive structure:
+# cpython-{version}+{date}-{platform}-install_only_stripped/
+#   └── python/
+#       ├── python.exe (Windows)
+#       └── bin/python3 (Unix)
+#
+# We don't use strip_prefix because the directory name varies with version/date/platform
+# Instead, we search for the executable using glob patterns
 executable_paths = [
-    "bin/python3.exe",  # Windows
-    "bin/python3"       # Unix
+    "**/python.exe",     # Windows - search for python.exe anywhere in archive
+    "**/python3",        # Unix - search for python3 anywhere in archive
+    "**/python"           # Fallback - search for python (without extension)
 ]
 
 [runtimes.executable_config]

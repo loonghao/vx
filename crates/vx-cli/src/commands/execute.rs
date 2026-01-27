@@ -18,6 +18,7 @@ pub async fn handle(
     runtime_name: &str,
     args: &[String],
     use_system_path: bool,
+    inherit_env: bool,
     cache_mode: CacheMode,
 ) -> Result<()> {
     handle_with_version(
@@ -27,6 +28,7 @@ pub async fn handle(
         None,
         args,
         use_system_path,
+        inherit_env,
         cache_mode,
     )
     .await
@@ -44,6 +46,7 @@ pub async fn handle_with_version(
     version: Option<&str>,
     args: &[String],
     use_system_path: bool,
+    inherit_env: bool,
     cache_mode: CacheMode,
 ) -> Result<()> {
     let exit_code = execute_runtime_with_version(
@@ -53,6 +56,7 @@ pub async fn handle_with_version(
         version,
         args,
         use_system_path,
+        inherit_env,
         cache_mode,
     )
     .await?;
@@ -87,6 +91,7 @@ pub async fn execute_runtime(
         None,
         args,
         use_system_path,
+        false,
         cache_mode,
     )
     .await
@@ -106,8 +111,10 @@ pub async fn execute_runtime_with_version(
     version: Option<&str>,
     args: &[String],
     use_system_path: bool,
+    inherit_env: bool,
     cache_mode: CacheMode,
 ) -> Result<i32> {
+    // Print debug information
     if let Some(ver) = version {
         UI::debug(&format!(
             "Executing: {}@{} {}",
@@ -133,9 +140,9 @@ pub async fn execute_runtime_with_version(
 
     let executor = Executor::new(config, registry, context, runtime_map)?;
 
-    // Execute the runtime with optional version
+    // Execute the runtime with optional version and environment inheritance
     executor
-        .execute_with_version(runtime_name, version, args)
+        .execute_with_version_and_env(runtime_name, version, args, inherit_env)
         .await
 }
 

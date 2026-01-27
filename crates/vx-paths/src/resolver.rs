@@ -162,9 +162,9 @@ impl PathResolver {
         version: &str,
         exe_name: &str,
     ) -> Option<ToolLocation> {
-        // Check store
-        let store_dir = self.manager.version_store_dir(tool_name, version);
-        if let Some(path) = self.find_executable_in_dir(&store_dir, exe_name) {
+        // Check store with platform redirection
+        let platform_store_dir = self.manager.platform_store_dir(tool_name, version);
+        if let Some(path) = self.find_executable_in_dir(&platform_store_dir, exe_name) {
             return Some(ToolLocation {
                 path,
                 version: version.to_string(),
@@ -213,6 +213,9 @@ impl PathResolver {
 
     /// Find a tool in the store directory with a specific executable name
     ///
+    /// This method uses the new directory structure:
+    /// - New (post-platform-redirection): <provider>/<version>/<platform>/
+    ///
     /// # Arguments
     /// * `tool_name` - The runtime/tool name (used for directory lookup)
     /// * `exe_name` - The executable name to search for
@@ -224,8 +227,9 @@ impl PathResolver {
         let versions = self.manager.list_store_versions(tool_name)?;
         // Return the latest version (last after sort)
         for version in versions.iter().rev() {
-            let version_dir = self.manager.version_store_dir(tool_name, version);
-            if let Some(path) = self.find_executable_in_dir(&version_dir, exe_name) {
+            // Try platform-specific directory (new structure)
+            let platform_dir = self.manager.platform_store_dir(tool_name, version);
+            if let Some(path) = self.find_executable_in_dir(&platform_dir, exe_name) {
                 return Ok(Some(ToolLocation {
                     path,
                     version: version.clone(),
@@ -242,6 +246,9 @@ impl PathResolver {
     }
 
     /// Find all versions of a tool in the store directory with a specific executable name
+    ///
+    /// This method uses the new directory structure:
+    /// - New (post-platform-redirection): <provider>/<version>/<platform>/
     pub fn find_all_in_store_with_exe(
         &self,
         tool_name: &str,
@@ -250,12 +257,13 @@ impl PathResolver {
         let mut locations = Vec::new();
         let versions = self.manager.list_store_versions(tool_name)?;
 
-        for version in versions {
-            let version_dir = self.manager.version_store_dir(tool_name, &version);
-            if let Some(path) = self.find_executable_in_dir(&version_dir, exe_name) {
+        for version in &versions {
+            // Try platform-specific directory (new structure)
+            let platform_dir = self.manager.platform_store_dir(tool_name, version);
+            if let Some(path) = self.find_executable_in_dir(&platform_dir, exe_name) {
                 locations.push(ToolLocation {
                     path,
-                    version,
+                    version: version.clone(),
                     source: ToolSource::Store,
                 });
             }
@@ -451,14 +459,14 @@ impl PathResolver {
     /// - Platform-suffixed: ~/.vx/store/rcedit/2.0.0/rcedit-x64.exe
     pub fn find_executable_in_dir(&self, dir: &Path, exe_name: &str) -> Option<PathBuf> {
         if !dir.exists() {
-            tracing::debug!(
+            tracing::trace!(
                 "find_executable_in_dir: directory does not exist: {}",
                 dir.display()
             );
             return None;
         }
 
-        tracing::debug!(
+        tracing::trace!(
             "find_executable_in_dir: searching for '{}' in {}",
             exe_name,
             dir.display()
@@ -521,12 +529,12 @@ impl PathResolver {
             .or_else(|| Self::find_best_match(&platform_candidates, &platform_patterns));
 
         if let Some(ref path) = result {
-            tracing::debug!(
+            tracing::trace!(
                 "find_executable_in_dir: found executable at {}",
                 path.display()
             );
         } else {
-            tracing::debug!(
+            tracing::trace!(
                 "find_executable_in_dir: no executable found for '{}' in {} (candidates: {}, platform_candidates: {})",
                 exe_name,
                 dir.display(),
@@ -579,11 +587,11 @@ mod tests {
         );
         assert_eq!(resolver.find_latest_executable("node").unwrap(), None);
 
-        // Create a tool installation in store directory
-        let version_dir = resolver.manager().version_store_dir("node", "18.17.0");
-        std::fs::create_dir_all(&version_dir).unwrap();
+        // Create a tool installation in platform-specific store directory
+        let platform_dir = resolver.manager().platform_store_dir("node", "18.17.0");
+        std::fs::create_dir_all(&platform_dir).unwrap();
         let exe_name = if cfg!(windows) { "node.exe" } else { "node" };
-        let exe_path = version_dir.join(exe_name);
+        let exe_path = platform_dir.join(exe_name);
         std::fs::write(&exe_path, "fake executable").unwrap();
 
         // Now it should be found
@@ -617,16 +625,17 @@ mod tests {
         let resolver = PathResolver::new(manager);
 
         // Create a deep directory structure like MSVC
-        // msvc/14.42/VC/Tools/MSVC/14.42.34433/bin/Hostx64/x64/cl.exe
+        // msvc/14.42/<platform>/VC/Tools/MSVC/14.42.34433/bin/Hostx64/x64/cl.exe
         let version_dir = resolver.manager().version_store_dir("msvc", "14.42");
-        let deep_dir = version_dir.join("VC/Tools/MSVC/14.42.34433/bin/Hostx64/x64");
+        let platform_dir = resolver.manager().platform_store_dir("msvc", "14.42");
+        let deep_dir = platform_dir.join("VC/Tools/MSVC/14.42.34433/bin/Hostx64/x64");
         std::fs::create_dir_all(&deep_dir).unwrap();
         let exe_name = if cfg!(windows) { "cl.exe" } else { "cl" };
         let exe_path = deep_dir.join(exe_name);
         std::fs::write(&exe_path, "fake executable").unwrap();
 
         // Should find the executable using find_executable_in_dir
-        let found = resolver.find_executable_in_dir(&version_dir, "cl");
+        let found = resolver.find_executable_in_dir(&platform_dir, "cl");
         assert_eq!(found, Some(exe_path.clone()));
 
         // Should find using find_tool_executables_with_exe
@@ -643,15 +652,16 @@ mod tests {
         let resolver = PathResolver::new(manager);
 
         // Create a tool with platform-suffixed executable (like rcedit)
-        // rcedit/2.0.0/rcedit-x64.exe
+        // rcedit/2.0.0/<platform>/rcedit-x64.exe
         let version_dir = resolver.manager().version_store_dir("rcedit", "2.0.0");
-        std::fs::create_dir_all(&version_dir).unwrap();
+        let platform_dir = resolver.manager().platform_store_dir("rcedit", "2.0.0");
+        std::fs::create_dir_all(&platform_dir).unwrap();
         let exe_name = if cfg!(windows) {
             "rcedit-x64.exe"
         } else {
             "rcedit-x64"
         };
-        let exe_path = version_dir.join(exe_name);
+        let exe_path = platform_dir.join(exe_name);
         std::fs::write(&exe_path, "fake executable").unwrap();
 
         // Should find the platform-suffixed executable when searching for "rcedit"

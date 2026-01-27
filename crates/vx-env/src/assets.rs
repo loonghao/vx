@@ -10,6 +10,11 @@ use rust_embed::Embed;
 #[folder = "assets/shell/"]
 pub struct ShellAssets;
 
+/// Embedded completion assets
+#[derive(Embed)]
+#[folder = "assets/completion/"]
+pub struct CompletionAssets;
+
 /// Shell script types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShellScript {
@@ -17,6 +22,14 @@ pub enum ShellScript {
     Bash,
     Zsh,
     Cmd,
+}
+
+/// Completion script types
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompletionScript {
+    PowerShell,
+    Bash,
+    Zsh,
 }
 
 impl ShellScript {
@@ -53,6 +66,22 @@ impl ShellScript {
                 Some(render_cmd_script(&raw, project_name, tools))
             }
         }
+    }
+}
+
+impl CompletionScript {
+    /// Get the asset filename for this completion script type
+    fn filename(&self) -> &'static str {
+        match self {
+            Self::PowerShell => "vx_completion.ps1",
+            Self::Bash => "vx_completion.bash",
+            Self::Zsh => "vx_completion.zsh",
+        }
+    }
+
+    /// Get raw completion script content from embedded assets
+    pub fn get_raw(&self) -> Option<String> {
+        CompletionAssets::get(self.filename()).map(|f| String::from_utf8_lossy(&f.data).into_owned())
     }
 }
 
@@ -134,5 +163,42 @@ mod tests {
             .unwrap();
         assert!(script.contains("my-project"));
         assert!(script.contains("node@20, go@1.21"));
+    }
+
+    // Completion script tests
+    #[test]
+    fn test_bash_completion_exists() {
+        assert!(CompletionScript::Bash.get_raw().is_some());
+    }
+
+    #[test]
+    fn test_zsh_completion_exists() {
+        assert!(CompletionScript::Zsh.get_raw().is_some());
+    }
+
+    #[test]
+    fn test_powershell_completion_exists() {
+        assert!(CompletionScript::PowerShell.get_raw().is_some());
+    }
+
+    #[test]
+    fn test_bash_completion_content() {
+        let script = CompletionScript::Bash.get_raw().unwrap();
+        assert!(script.contains("_vx_completion"));
+        assert!(script.contains("complete -F"));
+    }
+
+    #[test]
+    fn test_zsh_completion_content() {
+        let script = CompletionScript::Zsh.get_raw().unwrap();
+        assert!(script.contains("#compdef vx"));
+        assert!(script.contains("_describe"));
+    }
+
+    #[test]
+    fn test_powershell_completion_content() {
+        let script = CompletionScript::PowerShell.get_raw().unwrap();
+        assert!(script.contains("Register-ArgumentCompleter"));
+        assert!(script.contains("-CommandName vx"));
     }
 }
