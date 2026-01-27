@@ -247,18 +247,30 @@ impl ToolEnvironment {
 
         if self.inherit_path && !self.isolation {
             // Prepend to existing PATH
-            if let Some(existing_path) = env.get("PATH").cloned() {
+            // Note: On Windows, environment variable names are case-insensitive,
+            // but HashMap keys are case-sensitive. The PATH variable might be
+            // stored as "Path" or "PATH" depending on Windows version/locale.
+            let existing_path = get_path_case_insensitive(&env);
+            
+            if let Some(existing) = existing_path {
+                // Remove old PATH entry (might be "Path" or "PATH")
+                env.retain(|k, _| !k.eq_ignore_ascii_case("PATH"));
+                
                 if !new_path.is_empty() {
                     env.insert(
                         "PATH".to_string(),
-                        format!("{}{}{}", new_path, sep, existing_path),
+                        format!("{}{}{}", new_path, sep, existing),
                     );
+                } else {
+                    env.insert("PATH".to_string(), existing);
                 }
             } else if !new_path.is_empty() {
                 env.insert("PATH".to_string(), new_path);
             }
         } else {
             // In isolation mode, only use vx-managed paths + essential system paths
+            // Also remove any existing PATH entries to avoid confusion
+            env.retain(|k, _| !k.eq_ignore_ascii_case("PATH"));
             env.insert("PATH".to_string(), new_path);
         }
 
@@ -438,6 +450,20 @@ fn default_passenv() -> Vec<&'static str> {
             "PATH", // Include PATH for Unix systems in isolation mode
         ]
     }
+}
+
+/// Get PATH value from environment map in a case-insensitive way
+///
+/// On Windows, environment variable names are case-insensitive, but HashMap
+/// keys are case-sensitive. The PATH variable might be stored as "Path",
+/// "PATH", or "path" depending on Windows version/locale.
+fn get_path_case_insensitive(env: &HashMap<String, String>) -> Option<String> {
+    for (key, value) in env {
+        if key.eq_ignore_ascii_case("PATH") {
+            return Some(value.clone());
+        }
+    }
+    None
 }
 
 /// Get essential system paths that should be included in isolated environments
