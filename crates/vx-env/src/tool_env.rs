@@ -3,7 +3,6 @@
 //! This module provides functionality to build environment variables
 //! for vx-managed tools, including PATH configuration.
 
-use crate::EnvBuilder;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -349,9 +348,18 @@ impl ToolEnvironment {
     }
 
     /// Build environment in inherited mode (legacy behavior)
+    ///
+    /// In inherited mode, all current environment variables are passed through,
+    /// including PATH. This allows tools installed outside of vx (e.g., via
+    /// system package managers or rustup) to be available.
     fn build_inherited_env(&self) -> Result<HashMap<String, String>> {
-        let builder = EnvBuilder::new().inherit(self.inherit_path);
-        Ok(builder.build())
+        if self.inherit_path {
+            // Inherit all current environment variables
+            Ok(std::env::vars().collect())
+        } else {
+            // Don't inherit anything
+            Ok(HashMap::new())
+        }
     }
 
     /// Build environment in isolation mode
