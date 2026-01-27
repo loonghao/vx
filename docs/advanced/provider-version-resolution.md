@@ -427,21 +427,24 @@ pub fn build_tools_from_version_strings(
 
 ## 环境变量说明
 
-### VX_<PROVIDER>_ROOT
+### `VX_<PROVIDER>_ROOT`
+
 指向该 provider 的安装根目录。
 ```bash
 VX_PYTHON_ROOT=/home/user/.vx/store/python/3.11.11
 VX_NODE_ROOT=/home/user/.vx/store/node/20.0.0
 ```
 
-### VX_<PROVIDER>_VERSION
+### `VX_<PROVIDER>_VERSION`
+
 完整版本号。
 ```bash
 VX_PYTHON_VERSION=3.11.11
 VX_NODE_VERSION=20.0.0
 ```
 
-### VX_<PROVIDER>_ORIGINAL_REQUEST
+### `VX_<PROVIDER>_ORIGINAL_REQUEST`
+
 用户原始的版本请求字符串。
 ```bash
 VX_PYTHON_ORIGINAL_REQUEST=3.11
