@@ -330,6 +330,21 @@ impl ToolEnvironment {
             return Ok(Some(pip_bin));
         }
 
+        // Fallback: Try to find tool in system PATH
+        // This is important for tools that are installed via other means (e.g., Rust via rustup)
+        // In non-isolation mode, we want to use system tools if vx-managed version is not available
+        if !self.isolation {
+            if let Some(system_path) = find_system_tool_path(&tool.name) {
+                tracing::debug!(
+                    "Tool '{}' version '{}' not found in vx store, using system tool at: {:?}",
+                    tool.name,
+                    tool.version,
+                    system_path
+                );
+                return Ok(Some(system_path));
+            }
+        }
+
         Ok(None)
     }
 
