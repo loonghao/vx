@@ -18,6 +18,9 @@ pub struct ToolSpec {
     pub version: String,
     /// Possible bin directory names (defaults to ["bin"])
     pub possible_bin_dirs: Vec<String>,
+    /// Pre-resolved bin directory path (if provided by Runtime/Provider)
+    /// When set, this takes precedence over path guessing
+    pub resolved_bin_dir: Option<PathBuf>,
 }
 
 impl ToolSpec {
@@ -27,6 +30,7 @@ impl ToolSpec {
             name: name.into(),
             version: version.into(),
             possible_bin_dirs: vec!["bin".to_string()],
+            resolved_bin_dir: None,
         }
     }
 
@@ -40,7 +44,31 @@ impl ToolSpec {
             name: name.into(),
             version: version.into(),
             possible_bin_dirs: bin_dirs.into_iter().map(|s| s.into()).collect(),
+            resolved_bin_dir: None,
         }
+    }
+
+    /// Create a tool specification with a pre-resolved bin directory path
+    ///
+    /// Use this when the Runtime/Provider already knows the exact bin directory path.
+    /// This bypasses the path guessing logic in `find_bin_dir`.
+    pub fn with_resolved_bin_dir(
+        name: impl Into<String>,
+        version: impl Into<String>,
+        bin_dir: PathBuf,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            version: version.into(),
+            possible_bin_dirs: vec!["bin".to_string()],
+            resolved_bin_dir: Some(bin_dir),
+        }
+    }
+
+    /// Set the resolved bin directory path
+    pub fn set_resolved_bin_dir(mut self, bin_dir: PathBuf) -> Self {
+        self.resolved_bin_dir = Some(bin_dir);
+        self
     }
 }
 
@@ -145,6 +173,19 @@ impl ToolEnvironment {
         self
     }
 
+    /// Check if an environment variable name matches passenv patterns
+    pub fn matches_passenv(&self, env_name: &str, patterns: &[String]) -> bool {
+        patterns.iter().any(|pattern| {
+            if pattern.contains('*') {
+                // Simple glob matching
+                let pattern = pattern.trim_end_matches('*');
+                env_name.starts_with(pattern)
+            } else {
+                env_name == pattern
+            }
+        })
+    }
+
     /// Build the environment variables
     pub fn build(self) -> Result<HashMap<String, String>> {
         let path_manager = PathManager::new()?;
@@ -239,11 +280,41 @@ impl ToolEnvironment {
             return Ok(find_system_tool_path(&tool.name));
         }
 
-        let actual_version = tool.version.clone();
+        // If a resolved bin directory is provided, use it directly
+        // This is the preferred path - Provider/Runtime knows the exact location
+        if let Some(ref bin_dir) = tool.resolved_bin_dir {
+            if bin_dir.exists() {
+                return Ok(Some(bin_dir.clone()));
+            }
+            // Fall through to try other methods if resolved path doesn't exist
+        }
 
-        // Check store first
+        let actual_version = if tool.version == "latest" {
+            // Resolve "latest" to the actual installed version
+            if let Ok(versions) = path_manager.list_store_versions(&tool.name) {
+                if let Some(version) = versions.last() {
+                    version.clone()
+                } else {
+                    tool.version.clone()
+                }
+            } else {
+                tool.version.clone()
+            }
+        } else {
+            // Try to resolve version prefix (e.g., "3.11" -> "3.11.13")
+            resolve_version_prefix(path_manager, &tool.name, &tool.version)
+        };
+
+        // Check store first - with platform subdirectory support
         let store_dir = path_manager.version_store_dir(&tool.name, &actual_version);
         if store_dir.exists() {
+            // Try platform-specific subdirectory first (new structure)
+            let platform_str = get_current_platform_str();
+            let platform_dir = store_dir.join(&platform_str);
+            if platform_dir.exists() {
+                return Ok(Some(find_bin_dir(&platform_dir, tool)));
+            }
+            // Fall back to old structure (no platform subdirectory)
             return Ok(Some(find_bin_dir(&store_dir, tool)));
         }
 
@@ -366,12 +437,21 @@ fn essential_system_paths() -> Vec<PathBuf> {
             paths.push(system_root.clone());
         }
 
+        // Include PowerShell 7 (pwsh) if installed
+        if let Ok(program_files) = std::env::var("ProgramFiles") {
+            let ps7_path = PathBuf::from(&program_files).join("PowerShell").join("7");
+            if ps7_path.exists() {
+                paths.push(ps7_path);
+            }
+        }
+
         // Fallback to common Windows paths if SYSTEMROOT is not set
         if paths.is_empty() {
             paths.push(PathBuf::from(r"C:\Windows\System32"));
             paths.push(PathBuf::from(r"C:\Windows\System32\Wbem"));
             paths.push(PathBuf::from(r"C:\Windows\System32\WindowsPowerShell\v1.0"));
             paths.push(PathBuf::from(r"C:\Windows"));
+            paths.push(PathBuf::from(r"C:\Program Files\PowerShell\7"));
         }
     }
 
@@ -385,6 +465,62 @@ fn essential_system_paths() -> Vec<PathBuf> {
     }
 
     paths
+}
+
+/// Resolve a version prefix to an actual installed version
+///
+/// For example: "3.11" -> "3.11.13" if 3.11.13 is installed
+fn resolve_version_prefix(path_manager: &PathManager, tool_name: &str, version_spec: &str) -> String {
+    if let Ok(versions) = path_manager.list_store_versions(tool_name) {
+        // First, try exact match
+        if versions.contains(&version_spec.to_string()) {
+            return version_spec.to_string();
+        }
+        
+        // Then, try prefix match (e.g., "3.11" matches "3.11.13")
+        // Sort versions to get the latest matching version
+        let mut matching: Vec<_> = versions
+            .iter()
+            .filter(|v| v.starts_with(version_spec) && (v.len() == version_spec.len() || v.chars().nth(version_spec.len()) == Some('.')))
+            .collect();
+        
+        // Sort in descending order to get the latest version
+        matching.sort_by(|a, b| b.cmp(a));
+        
+        if let Some(matched) = matching.first() {
+            return (*matched).clone();
+        }
+    }
+    
+    // Fallback to original version spec
+    version_spec.to_string()
+}
+
+/// Get the current platform string (e.g., "windows-x64", "darwin-arm64", "linux-x64")
+///
+/// This matches the format used by vx-runtime's Platform::as_str()
+fn get_current_platform_str() -> String {
+    let os = if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "darwin"
+    } else if cfg!(target_os = "linux") {
+        "linux"
+    } else {
+        "unknown"
+    };
+
+    let arch = if cfg!(target_arch = "x86_64") {
+        "x64"
+    } else if cfg!(target_arch = "aarch64") {
+        "arm64"
+    } else if cfg!(target_arch = "x86") {
+        "x86"
+    } else {
+        "unknown"
+    };
+
+    format!("{}-{}", os, arch)
 }
 
 /// Find a tool's directory from the system PATH
@@ -433,9 +569,10 @@ fn find_system_tool_path(tool: &str) -> Option<PathBuf> {
 /// - Standard: `bin/` subdirectory
 /// - Direct: executables in version directory
 /// - Platform-specific: `tool-{platform}/bin/` subdirectory (e.g., cmake-4.2.2-windows-x86_64/bin)
+/// - Nested platform: `{platform}/python/` subdirectory (e.g., windows-x64/python)
 fn find_bin_dir(store_dir: &PathBuf, tool: &ToolSpec) -> PathBuf {
     // Priority order:
-    // 1. Check tool-specific bin directories
+    // 1. Check tool-specific bin directories directly under store_dir
     for bin_dir_name in &tool.possible_bin_dirs {
         let bin_dir = store_dir.join(bin_dir_name);
         if bin_dir.exists() && has_executable(&bin_dir, &tool.name) {
@@ -443,23 +580,45 @@ fn find_bin_dir(store_dir: &PathBuf, tool: &ToolSpec) -> PathBuf {
         }
     }
 
-    // 2. Check for platform-specific subdirectories (e.g., cmake-4.2.2-windows-x86_64)
-    //    These may have their own bin/ subdirectory
+    // 2. Check for platform-specific subdirectories (e.g., windows-x64, darwin-arm64)
+    //    These may contain possible_bin_dirs or bin/ subdirectory
     if let Ok(entries) = std::fs::read_dir(store_dir) {
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
             if path.is_dir() {
                 let dir_name = path.file_name().unwrap_or_default().to_string_lossy();
-                if dir_name.starts_with(&format!("{}-", tool.name)) {
-                    // Check for bin/ inside the platform-specific directory (e.g., cmake)
-                    let nested_bin = path.join("bin");
+                
+                // Check for possible_bin_dirs inside platform directory
+                // This handles structures like windows-x64/python/ for Python
+                for bin_dir_name in &tool.possible_bin_dirs {
+                    let nested_bin = path.join(bin_dir_name);
                     if nested_bin.exists() && has_executable(&nested_bin, &tool.name) {
                         return nested_bin;
                     }
-                    // Check for executable directly in the platform-specific directory
+                }
+                
+                // Check for bin/ inside platform directory
+                let nested_bin = path.join("bin");
+                if nested_bin.exists() && has_executable(&nested_bin, &tool.name) {
+                    return nested_bin;
+                }
+                
+                // Check for tool-{platform} directories (e.g., cmake-4.2.2-windows-x86_64)
+                if dir_name.starts_with(&format!("{}-", tool.name)) {
+                    // Check for bin/ inside the tool-platform directory
+                    let tool_nested_bin = path.join("bin");
+                    if tool_nested_bin.exists() && has_executable(&tool_nested_bin, &tool.name) {
+                        return tool_nested_bin;
+                    }
+                    // Check for executable directly in the tool-platform directory
                     if has_executable(&path, &tool.name) {
                         return path;
                     }
+                }
+                
+                // Check for executable directly in platform directory
+                if has_executable(&path, &tool.name) {
+                    return path;
                 }
             }
         }
@@ -470,8 +629,8 @@ fn find_bin_dir(store_dir: &PathBuf, tool: &ToolSpec) -> PathBuf {
         return store_dir.clone();
     }
 
-    // 4. Search recursively for bin/ directory with executable (handles nested structures)
-    if let Some(bin_path) = find_bin_recursive(store_dir, &tool.name, 2) {
+    // 4. Search recursively for bin/ directory or possible_bin_dirs with executable (handles nested structures)
+    if let Some(bin_path) = find_bin_recursive_with_dirs(store_dir, &tool.name, &tool.possible_bin_dirs, 3) {
         return bin_path;
     }
 
@@ -479,8 +638,8 @@ fn find_bin_dir(store_dir: &PathBuf, tool: &ToolSpec) -> PathBuf {
     store_dir.clone()
 }
 
-/// Recursively search for a bin directory containing the tool executable
-fn find_bin_recursive(dir: &PathBuf, tool: &str, max_depth: u32) -> Option<PathBuf> {
+/// Recursively search for a bin directory or possible_bin_dirs containing the tool executable
+fn find_bin_recursive_with_dirs(dir: &PathBuf, tool: &str, possible_bin_dirs: &[String], max_depth: u32) -> Option<PathBuf> {
     if max_depth == 0 {
         return None;
     }
@@ -495,9 +654,16 @@ fn find_bin_recursive(dir: &PathBuf, tool: &str, max_depth: u32) -> Option<PathB
                 if dir_name == "bin" && has_executable(&path, tool) {
                     return Some(path);
                 }
+                
+                // Check if this matches any of the possible_bin_dirs
+                for bin_dir_name in possible_bin_dirs {
+                    if dir_name == *bin_dir_name && has_executable(&path, tool) {
+                        return Some(path);
+                    }
+                }
 
                 // Recurse into subdirectories
-                if let Some(found) = find_bin_recursive(&path, tool, max_depth - 1) {
+                if let Some(found) = find_bin_recursive_with_dirs(&path, tool, possible_bin_dirs, max_depth - 1) {
                     return Some(found);
                 }
             }
@@ -598,7 +764,6 @@ mod tests {
             assert!(defaults.contains(&"SYSTEMROOT"));
             assert!(defaults.contains(&"TEMP"));
             assert!(defaults.contains(&"USERPROFILE"));
-            assert!(defaults.contains(&"VX_*"));
         }
 
         #[cfg(not(windows))]

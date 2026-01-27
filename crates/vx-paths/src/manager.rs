@@ -4,7 +4,82 @@ use crate::{with_executable_extension, VxPaths};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
+/// Current platform information
+///
+/// This is a lightweight platform detection used within vx-paths
+/// to avoid circular dependency with vx-runtime.
+#[derive(Debug, Clone, Copy)]
+pub struct CurrentPlatform {
+    /// Operating system
+    pub os: &'static str,
+    /// Architecture
+    pub arch: &'static str,
+}
+
+impl CurrentPlatform {
+    /// Detect current platform
+    pub fn current() -> Self {
+        let os = if cfg!(target_os = "windows") {
+            "windows"
+        } else if cfg!(target_os = "macos") {
+            "darwin"
+        } else if cfg!(target_os = "linux") {
+            "linux"
+        } else if cfg!(target_os = "freebsd") {
+            "freebsd"
+        } else {
+            "unknown"
+        };
+
+        let arch = if cfg!(target_arch = "x86_64") {
+            "x64"
+        } else if cfg!(target_arch = "aarch64") {
+            "arm64"
+        } else if cfg!(target_arch = "arm") {
+            "arm"
+        } else if cfg!(target_arch = "x86") {
+            "x86"
+        } else {
+            "unknown"
+        };
+
+        Self { os, arch }
+    }
+
+    /// Get platform string for directory names
+    ///
+    /// Returns strings like "windows-x64", "darwin-arm64", "linux-x64", etc.
+    pub fn as_str(&self) -> String {
+        format!("{}-{}", self.os, self.arch)
+    }
+}
+
 /// Manages paths for vx tool installations with standardized structure
+///
+/// The PathManager provides platform-agnostic access to the vx store.
+/// All access to `<provider>/<version>/` automatically redirects to
+/// `<provider>/<version>/<platform>/` for the current platform.
+///
+/// # Platform Redirection
+///
+/// - **External API**: Uses `<provider>/<version>/` paths
+/// - **Internal Storage**: Uses `<provider>/<version>/<platform>/` paths
+/// - **Automatic Redirection**: The PathManager handles platform redirection transparently
+///
+/// # Directory Structure
+///
+/// ```text
+/// ~/.vx/store/
+/// ├── node/
+/// │   └── 20.0.0/              # Unified version directory
+/// │       ├── windows-x64/          # Platform-specific (internal)
+/// │       ├── darwin-x64/
+/// │       └── linux-x64/
+/// └── python/
+///     └── 3.9.21/
+///         ├── windows-x64/
+///         └── linux-x64/
+/// ```
 #[derive(Debug, Clone)]
 pub struct PathManager {
     paths: VxPaths,
@@ -69,20 +144,81 @@ impl PathManager {
 
     // ========== Store Paths (Content-Addressable Storage) ==========
 
+    /// Get the platform directory name for the current platform
+    ///
+    /// Returns platform string like "windows-x64", "darwin-arm64", "linux-x64", etc.
+    ///
+    /// This is used internally for platform-specific storage.
+    pub fn platform_dir_name(&self) -> String {
+        CurrentPlatform::current().as_str()
+    }
+
+    /// Get the actual platform-specific store directory for a runtime version
+    ///
+    /// Returns: ~/.vx/store/<runtime>/<version>/<platform>
+    ///
+    /// This is the **actual** directory where files are stored.
+    /// Use this when installing or directly accessing platform-specific files.
+    ///
+    /// # Example
+    /// ```ignore
+    /// let manager = PathManager::new()?;
+    /// let platform_dir = manager.platform_store_dir("python", "3.9.21");
+    /// // Returns: ~/.vx/store/python/3.9.21/windows-x64 (on Windows x64)
+    /// ```
+    pub fn platform_store_dir(&self, runtime_name: &str, version: &str) -> PathBuf {
+        self.version_store_dir(runtime_name, version).join(self.platform_dir_name())
+    }
+
     /// Get the store directory for a specific runtime
     /// Returns: ~/.vx/store/<runtime>
+    ///
+    /// This returns the unified runtime directory, not platform-specific.
     pub fn runtime_store_dir(&self, runtime_name: &str) -> PathBuf {
         self.paths.store_dir.join(runtime_name)
     }
 
     /// Get the store directory for a specific runtime version
     /// Returns: ~/.vx/store/<runtime>/<version>
+    ///
+    /// This returns the unified version directory. All file access through this
+    /// path will automatically redirect to the platform-specific directory.
+    ///
+    /// # Platform Redirection
+    /// When checking if a version exists or accessing files, the PathManager
+    /// automatically redirects to `<runtime>/<version>/<platform>/` for
+    /// the current platform.
     pub fn version_store_dir(&self, runtime_name: &str, version: &str) -> PathBuf {
         self.runtime_store_dir(runtime_name).join(version)
     }
 
+    /// Get the actual executable path in the platform-specific store
+    ///
+    /// Returns: ~/.vx/store/<runtime>/<version>/<platform>/bin/<runtime>.exe (Windows)
+    ///
+    /// This returns the path to the executable in the platform-specific directory.
+    /// Use this when installing or directly accessing executables.
+    ///
+    /// # Example
+    /// ```ignore
+    /// let manager = PathManager::new()?;
+    /// let exe_path = manager.platform_executable_path("python", "3.9.21");
+    /// // Returns: ~/.vx/store/python/3.9.21/windows-x64/python.exe (on Windows)
+    /// ```
+    pub fn platform_executable_path(&self, runtime_name: &str, version: &str) -> PathBuf {
+        let platform_dir = self.platform_store_dir(runtime_name, version);
+        let executable_name = with_executable_extension(runtime_name);
+        platform_dir.join("bin").join(executable_name)
+    }
+
     /// Get the executable path in the store for a specific runtime version
     /// Returns: ~/.vx/store/<runtime>/<version>/bin/<runtime>.exe (Windows)
+    ///
+    /// This is a **unified** path that automatically redirects to the
+    /// platform-specific directory. Use this for general executable access.
+    ///
+    /// # Note
+    /// For actual file operations (install, check existence), use `platform_executable_path()`.
     pub fn store_executable_path(&self, runtime_name: &str, version: &str) -> PathBuf {
         let version_dir = self.version_store_dir(runtime_name, version);
         let executable_name = with_executable_extension(runtime_name);
@@ -90,12 +226,20 @@ impl PathManager {
     }
 
     /// Check if a runtime version is installed in the store
+    ///
+    /// This checks the platform-specific directory:
+    /// `~/.vx/store/<runtime>/<version>/<platform>/`
     pub fn is_version_in_store(&self, runtime_name: &str, version: &str) -> bool {
-        let version_dir = self.version_store_dir(runtime_name, version);
-        version_dir.exists()
+        let platform_dir = self.platform_store_dir(runtime_name, version);
+        platform_dir.exists()
     }
 
     /// List all installed versions of a runtime in the store
+    ///
+    /// This checks the new directory structure:
+    /// - New: <runtime>/<version>/<platform>/
+    ///
+    /// Returns: List of version strings, sorted by semantic version (highest first)
     pub fn list_store_versions(&self, runtime_name: &str) -> Result<Vec<String>> {
         let runtime_dir = self.runtime_store_dir(runtime_name);
 
@@ -103,17 +247,42 @@ impl PathManager {
             return Ok(Vec::new());
         }
 
+        let current_platform = self.platform_dir_name();
         let mut versions = Vec::new();
+
+        // Scan version directories
         for entry in std::fs::read_dir(&runtime_dir)? {
             let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                if let Some(version) = entry.file_name().to_str() {
-                    versions.push(version.to_string());
-                }
+            let path = entry.path();
+
+            // Only check directories
+            if !entry.file_type()?.is_dir() {
+                continue;
+            }
+
+            // Check if this is a version directory (e.g., "3.13.4")
+            // Version directories should start with a digit
+            let version_str = entry.file_name().to_string_lossy().to_string();
+            
+            // Skip non-version directories
+            if !version_str.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+                continue;
+            }
+
+            // Check new structure: <version>/<platform>/
+            let platform_dir = path.join(&current_platform);
+            if platform_dir.exists() {
+                versions.push(version_str);
             }
         }
 
-        versions.sort();
+        // Sort by semantic version (highest first)
+        versions.sort_by(|a, b| {
+            semver::Version::parse(a)
+                .and_then(|va| semver::Version::parse(b).map(|vb| vb.cmp(&va)))
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .reverse() // Highest first
+        });
         Ok(versions)
     }
 

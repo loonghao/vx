@@ -5,6 +5,13 @@
 //!
 //! When a `vx.lock` file exists, the sync command will use the exact
 //! versions specified in the lock file for reproducible environments.
+//!
+//! ## Lock File Behavior
+//!
+//! - If `vx.lock` exists and is consistent: use locked versions
+//! - If `vx.lock` exists but is inconsistent: warn and suggest `vx lock`
+//! - If `vx.lock` doesn't exist and `--auto-lock` is set: generate it automatically
+//! - If `vx.lock` doesn't exist: use versions from vx.toml
 
 use crate::commands::common::{check_tools_status, ToolStatus};
 use crate::commands::setup::{find_vx_config, parse_vx_config};
@@ -12,10 +19,11 @@ use crate::ui::{InstallProgress, UI};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use vx_paths::project::LOCK_FILE_NAME;
-use vx_resolver::LockFile;
+use vx_project_analyzer::{AnalyzerConfig, ProjectAnalyzer};
+use vx_resolver::{LockFile, LockFileInconsistency};
 use vx_runtime::ProviderRegistry;
 
 /// Type alias for complex tool tuple reference
@@ -23,6 +31,40 @@ type ToolInfoRef<'a> = &'a (String, String, ToolStatus, Option<PathBuf>, Option<
 
 /// Install result with optional error message
 type InstallResult = (String, bool, Option<String>);
+
+/// Lock file status check result
+enum LockStatus {
+    /// Lock file is up to date
+    UpToDate(LockFile),
+    /// Lock file has inconsistencies
+    NeedsUpdate(LockFile, Vec<LockFileInconsistency>),
+    /// Lock file doesn't exist
+    NotFound,
+    /// Lock file failed to load
+    LoadError(String),
+}
+
+/// Check lock file status against config
+fn check_lock_status(
+    lock_path: &std::path::Path,
+    config_tools: &HashMap<String, String>,
+) -> LockStatus {
+    if !lock_path.exists() {
+        return LockStatus::NotFound;
+    }
+
+    match LockFile::load(lock_path) {
+        Ok(lockfile) => {
+            let inconsistencies = lockfile.check_consistency(config_tools);
+            if inconsistencies.is_empty() {
+                LockStatus::UpToDate(lockfile)
+            } else {
+                LockStatus::NeedsUpdate(lockfile, inconsistencies)
+            }
+        }
+        Err(e) => LockStatus::LoadError(e.to_string()),
+    }
+}
 
 /// Handle the sync command
 pub async fn handle(
@@ -33,6 +75,44 @@ pub async fn handle(
     verbose: bool,
     no_parallel: bool,
     _no_auto_install: bool,
+) -> Result<()> {
+    handle_with_options(
+        _registry,
+        SyncOptions {
+            check,
+            force,
+            dry_run,
+            verbose,
+            no_parallel,
+            auto_lock: false, // Default behavior
+            analyze: true,    // Enable project analysis by default
+        },
+    )
+    .await
+}
+
+/// Sync options
+pub struct SyncOptions {
+    /// Only check, don't install
+    pub check: bool,
+    /// Force reinstall all tools
+    pub force: bool,
+    /// Preview operations without executing
+    pub dry_run: bool,
+    /// Show verbose output
+    pub verbose: bool,
+    /// Disable parallel installation
+    pub no_parallel: bool,
+    /// Automatically generate/update lock file if needed
+    pub auto_lock: bool,
+    /// Analyze project files for additional tools (e.g., detect just from Justfile)
+    pub analyze: bool,
+}
+
+/// Handle the sync command with options
+pub async fn handle_with_options(
+    _registry: &ProviderRegistry,
+    options: SyncOptions,
 ) -> Result<()> {
     let current_dir = env::current_dir().context("Failed to get current directory")?;
 
@@ -45,41 +125,99 @@ pub async fn handle(
         return Ok(());
     }
 
-    // Check for lock file
+    // Check lock file status
     let project_root = config_path.parent().unwrap_or(&current_dir);
     let lock_path = project_root.join(LOCK_FILE_NAME);
-    let lockfile = if lock_path.exists() {
-        match LockFile::load(&lock_path) {
-            Ok(lf) => {
-                if verbose {
-                    UI::info(&format!("Using versions from {}", LOCK_FILE_NAME));
+    let lock_status = check_lock_status(&lock_path, &config.tools);
+
+    let lockfile = match lock_status {
+        LockStatus::UpToDate(lf) => {
+            if options.verbose {
+                UI::info(&format!("Using versions from {}", LOCK_FILE_NAME));
+            }
+            
+            // RFC 0023: Check version range warnings
+            check_version_ranges(&lf, &config.tools, options.verbose);
+            
+            Some(lf)
+        }
+        LockStatus::NeedsUpdate(lf, inconsistencies) => {
+            UI::warn(&format!("{} is out of sync with vx.toml:", LOCK_FILE_NAME));
+            for inc in &inconsistencies {
+                UI::detail(&format!("  - {}", inc));
+            }
+            
+            if options.auto_lock {
+                UI::info("Auto-updating lock file...");
+                // Run vx lock to update
+                run_lock_command()?;
+                // Reload the updated lock file
+                match LockFile::load(&lock_path) {
+                    Ok(updated_lf) => Some(updated_lf),
+                    Err(_) => {
+                        UI::warn("Failed to reload lock file, using config versions");
+                        None
+                    }
                 }
+            } else {
+                UI::hint("Run 'vx lock' to update, or use 'vx sync --auto-lock'");
+                // Use existing lock file but warn
                 Some(lf)
             }
-            Err(e) => {
-                UI::warn(&format!("Failed to load {}: {}", LOCK_FILE_NAME, e));
-                UI::hint("Run 'vx lock' to regenerate the lock file");
+        }
+        LockStatus::NotFound => {
+            if options.auto_lock && !config.tools.is_empty() {
+                UI::info("No lock file found, generating...");
+                run_lock_command()?;
+                // Load the newly generated lock file
+                match LockFile::load(&lock_path) {
+                    Ok(lf) => {
+                        UI::success(&format!("Generated {}", LOCK_FILE_NAME));
+                        Some(lf)
+                    }
+                    Err(_) => {
+                        UI::warn("Failed to load generated lock file, using config versions");
+                        None
+                    }
+                }
+            } else {
+                if options.verbose {
+                    UI::detail(&format!(
+                        "No {} found, using versions from vx.toml",
+                        LOCK_FILE_NAME
+                    ));
+                }
                 None
             }
         }
-    } else {
-        if verbose {
-            UI::detail(&format!(
-                "No {} found, using versions from vx.toml",
-                LOCK_FILE_NAME
-            ));
+        LockStatus::LoadError(e) => {
+            UI::warn(&format!("Failed to load {}: {}", LOCK_FILE_NAME, e));
+            UI::hint("Run 'vx lock' to regenerate the lock file");
+            None
         }
-        None
     };
 
     // Resolve effective versions (lock file takes precedence)
-    let effective_tools = resolve_effective_versions(&config.tools, &lockfile);
+    let mut effective_tools = resolve_effective_versions(&config.tools, &lockfile);
+
+    // Analyze project files for additional required tools if enabled
+    if options.analyze {
+        let analyzed_tools = analyze_project_tools(project_root, options.verbose).await?;
+        for (name, version) in analyzed_tools {
+            if !effective_tools.contains_key(&name) {
+                if options.verbose {
+                    UI::info(&format!("Detected {} from project analysis", name));
+                }
+                effective_tools.insert(name, version);
+            }
+        }
+    }
 
     // Check tool status
     let statuses = check_tools_status(&effective_tools)?;
 
     // Show status
-    if verbose || check {
+    if options.verbose || options.check {
         println!("Project tools:");
         for (name, version, status, path, _) in &statuses {
             let installed = matches!(status, ToolStatus::Installed | ToolStatus::SystemFallback);
@@ -102,7 +240,7 @@ pub async fn handle(
     // Count missing tools
     let missing: Vec<_> = statuses
         .iter()
-        .filter(|(_, _, status, _, _)| matches!(status, ToolStatus::NotInstalled) || force)
+        .filter(|(_, _, status, _, _)| matches!(status, ToolStatus::NotInstalled) || options.force)
         .collect();
 
     if missing.is_empty() {
@@ -110,13 +248,13 @@ pub async fn handle(
         return Ok(());
     }
 
-    if check {
+    if options.check {
         UI::warn(&format!("{} tool(s) need to be installed", missing.len()));
         UI::hint("Run 'vx sync' or 'vx setup' to install missing tools");
         return Ok(());
     }
 
-    if dry_run {
+    if options.dry_run {
         UI::info(&format!("Would install {} tool(s):", missing.len()));
         for (name, version, _, _, _) in &missing {
             println!("  - {}@{}", name, version);
@@ -130,10 +268,10 @@ pub async fn handle(
         &format!("Installing {} tool(s)", missing.len()),
     );
 
-    let results = if no_parallel {
-        install_sequential_with_progress(&missing, verbose, &mut progress).await?
+    let results = if options.no_parallel {
+        install_sequential_with_progress(&missing, options.verbose, &mut progress).await?
     } else {
-        install_parallel_with_progress(&missing, verbose, &mut progress).await?
+        install_parallel_with_progress(&missing, options.verbose, &mut progress).await?
     };
 
     // Finish progress
@@ -175,6 +313,25 @@ pub async fn handle(
         UI::hint("Run 'vx install <tool> <version>' for more details on specific failures");
     }
 
+    Ok(())
+}
+
+/// Run `vx lock` command to generate/update lock file
+fn run_lock_command() -> Result<()> {
+    let exe = env::current_exe().context("Failed to get current exe")?;
+    
+    let output = Command::new(exe)
+        .args(["lock"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .output()
+        .context("Failed to run vx lock")?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("vx lock failed: {}", stderr);
+    }
+    
     Ok(())
 }
 
@@ -344,4 +501,87 @@ pub async fn quick_check() -> Result<bool> {
         .all(|(_, _, status, _, _)| matches!(status, ToolStatus::Installed | ToolStatus::SystemFallback));
 
     Ok(all_installed)
+}
+
+/// Analyze project files to detect additional required tools
+///
+/// This function uses the ProjectAnalyzer to detect tools needed by the project
+/// that may not be explicitly listed in vx.toml. For example:
+/// - `just` if a Justfile exists
+/// - Package managers based on lock files
+/// - Build tools based on project configuration
+async fn analyze_project_tools(project_root: &Path, verbose: bool) -> Result<HashMap<String, String>> {
+    let mut detected_tools = HashMap::new();
+    
+    let analyzer_config = AnalyzerConfig {
+        check_installed: false,  // We just want to detect, not check installation
+        check_tools: true,
+        generate_sync_actions: false,
+        max_depth: 1,
+    };
+    
+    let analyzer = ProjectAnalyzer::new(analyzer_config);
+    
+    match analyzer.analyze(project_root).await {
+        Ok(analysis) => {
+            // Extract required tools from analysis
+            for tool in &analysis.required_tools {
+                // Use "latest" as default version for detected tools
+                // unless the tool has a specific version requirement
+                let version = "latest".to_string();
+                
+                if verbose {
+                    UI::detail(&format!(
+                        "  Project analysis detected: {} ({})",
+                        tool.name,
+                        if tool.reason.is_empty() { "auto-detected" } else { &tool.reason }
+                    ));
+                }
+                
+                detected_tools.insert(tool.name.clone(), version);
+            }
+        }
+        Err(e) => {
+            if verbose {
+                UI::warn(&format!("Project analysis failed: {}", e));
+            }
+        }
+    }
+    
+    Ok(detected_tools)
+}
+
+/// Check version ranges for RFC 0023 compliance
+///
+/// This function checks if locked versions are still within their original ranges
+/// and warns the user if updates are available within the range.
+fn check_version_ranges(
+    lockfile: &LockFile,
+    _config_tools: &HashMap<String, String>,
+    verbose: bool,
+) {
+    let mut outdated_in_range = Vec::new();
+
+    for (name, locked) in &lockfile.tools {
+        // Check if the locked version is marked as latest in range
+        if let Some(false) = locked.is_latest_in_range {
+            // Not the latest in range - there might be an update available
+            if let Some(ref range) = locked.original_range {
+                outdated_in_range.push((name.clone(), locked.version.clone(), range.clone()));
+            }
+        }
+    }
+
+    if !outdated_in_range.is_empty() {
+        if verbose {
+            UI::warn("Some tools have updates available within their version ranges:");
+            for (name, current, range) in &outdated_in_range {
+                UI::detail(&format!(
+                    "  {} {} is not the latest in range {}",
+                    name, current, range
+                ));
+            }
+            UI::hint("Run 'vx update' to update within ranges, or 'vx check' for details");
+        }
+    }
 }

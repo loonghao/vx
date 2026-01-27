@@ -38,6 +38,8 @@ node_modules/
 dist/
 .opencode/
 .codebuddy/
+.claude/
+
 .vitepress/
 $null
 

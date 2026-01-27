@@ -201,15 +201,24 @@ impl Runtime for PythonRuntime {
 
     /// Python executable path within the extracted archive
     ///
-    /// python-build-standalone extracts to: python/bin/python3 (Unix) or python/python.exe (Windows)
+    /// python-build-standalone extracts to:
+    /// cpython-{version}+{date}-{platform}-install_only_stripped/python/python.exe (Windows)
+    /// cpython-{version}+{date}-{platform}-install_only_stripped/python/bin/python3 (Unix)
+    ///
     /// Python.org embeddable (3.7) extracts to: python.exe (flat structure)
+    ///
+    /// Note: We use glob patterns in the manifest to search for the executable
+    /// This method returns a reasonable fallback for verification
     fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
         if Self::is_python_37(version) {
             // Python.org embeddable has flat structure
             "python.exe".to_string()
         } else if platform.is_windows() {
+            // Windows: python/python.exe relative to extracted root
+            // But the root directory name varies, so we search with glob in manifest
             "python/python.exe".to_string()
         } else {
+            // Unix: python/bin/python3 relative to extracted root
             "python/bin/python3".to_string()
         }
     }

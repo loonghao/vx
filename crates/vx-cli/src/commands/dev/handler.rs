@@ -11,13 +11,15 @@ use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
+use std::path::Path;
 use std::process::Command;
 use vx_env::{ToolEnvironment, ToolSpec};
+use vx_project_analyzer::{AnalyzerConfig, ProjectAnalyzer};
 
 /// Handle dev command with Args
 pub async fn handle(args: &Args) -> Result<()> {
     // Use common configuration loading
-    let (_config_path, mut config) = load_config_view_cwd()?;
+    let (config_path, mut config) = load_config_view_cwd()?;
 
     // Override isolation mode if --inherit-system is specified
     if args.inherit_system {
@@ -37,7 +39,7 @@ pub async fn handle(args: &Args) -> Result<()> {
 
     // Handle --export mode
     if args.export {
-        return handle_export(&config, args.format.clone());
+        return handle_export(&config, args.format.clone()).await;
     }
 
     // Handle --info mode
@@ -69,42 +71,66 @@ pub async fn handle(args: &Args) -> Result<()> {
     }
 
     // Build the environment
-    let env_vars = build_dev_environment(&config, args.verbose)?;
+    let env_vars = build_dev_environment(&config, args.verbose).await?;
 
     // Execute command or spawn shell
     if let Some(cmd) = &args.command {
         execute_command_in_env(cmd, &env_vars)?;
     } else {
-        spawn_dev_shell(args.shell.clone(), &env_vars, &config)?;
+        spawn_dev_shell(args.shell.clone(), &env_vars, &config, Some(config_path.clone()))?;
     }
 
     Ok(())
 }
 
 /// Build environment variables for the dev shell
-fn build_dev_environment(config: &ConfigView, verbose: bool) -> Result<HashMap<String, String>> {
+async fn build_dev_environment(config: &ConfigView, verbose: bool) -> Result<HashMap<String, String>> {
     // Merge env from vx.toml with setenv from settings
     let mut env_vars = config.env.clone();
     env_vars.extend(config.setenv.clone());
 
     // Get registry to query runtime bin directories
-    let (registry, _) = get_registry()?;
+    let (registry, context) = get_registry()?;
 
     // Create ToolSpecs with proper bin directories from runtime providers
     let mut tool_specs = Vec::new();
     for (tool_name, version) in &config.tools {
         // Find the runtime for this tool to get bin directories
-        let bin_dirs = if let Some(provider) = registry.providers().iter().find(|p| p.supports(tool_name)) {
+        let (bin_dirs, resolved_bin_dir) = if let Some(provider) = registry.providers().iter().find(|p| p.supports(tool_name)) {
             if let Some(runtime) = provider.get_runtime(tool_name) {
-                runtime.possible_bin_dirs().into_iter().map(|s| s.to_string()).collect()
+                // Call prepare_environment to get runtime-specific environment variables
+                if let Ok(runtime_env) = runtime.prepare_environment(version, &context).await {
+                    // Merge runtime-specific environment variables (e.g., MSVC's INCLUDE, LIB)
+                    for (key, value) in runtime_env {
+                        if verbose {
+                            UI::info(&format!("  Runtime env: {}={}", key, value));
+                        }
+                        env_vars.insert(key, value);
+                    }
+                }
+                
+                // Try to get the resolved bin directory from the runtime
+                let resolved = if let Ok(Some(exe_path)) = runtime.get_executable_path_for_version(version, &context).await {
+                    // Get the parent directory of the executable as the bin directory
+                    exe_path.parent().map(|p| p.to_path_buf())
+                } else {
+                    None
+                };
+                
+                let dirs = runtime.possible_bin_dirs().into_iter().map(|s| s.to_string()).collect();
+                (dirs, resolved)
             } else {
-                vec!["bin".to_string()]
+                (vec!["bin".to_string()], None)
             }
         } else {
-            vec!["bin".to_string()]
+            (vec!["bin".to_string()], None)
         };
 
-        tool_specs.push(ToolSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs));
+        let mut spec = ToolSpec::with_bin_dirs(tool_name.clone(), version.clone(), bin_dirs);
+        if let Some(bin_dir) = resolved_bin_dir {
+            spec = spec.set_resolved_bin_dir(bin_dir);
+        }
+        tool_specs.push(spec);
     }
 
     // Use ToolEnvironment from vx-env with isolation settings

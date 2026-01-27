@@ -88,6 +88,91 @@ fn test_optional_dependency() {
     assert_eq!(dep.name, "python");
 }
 
+#[test]
+fn test_rust_cargo_dependency() {
+    // cargo requires rustup (via rust toolchain)
+    let dep = RuntimeDependency::required("rustup")
+        .with_reason("cargo is provided by rustup toolchain");
+
+    // rustup manages rustc and cargo versions
+    assert!(dep.is_version_compatible("1.27.1"));
+    assert!(dep.is_version_compatible("1.28.0"));
+    assert!(!dep.is_version_compatible("1.0.0")); // Too old
+}
+
+#[test]
+fn test_rustc_dependency() {
+    // rustc is provided by rustup
+    let dep = RuntimeDependency::required("rustup")
+        .with_reason("rustc is provided by rustup");
+
+    assert!(dep.is_version_compatible("1.27.1"));
+}
+
+#[test]
+fn test_npm_node_compatibility() {
+    // npm 9.x+ requires Node.js 14+
+    let dep = RuntimeDependency::required("node")
+        .with_min_version("14.0.0")
+        .with_recommended_version("20")
+        .with_reason("npm 9.x+ requires Node.js 14+");
+
+    // Compatible versions
+    assert!(dep.is_version_compatible("20.10.0"));
+    assert!(dep.is_version_compatible("18.19.0"));
+    assert!(dep.is_version_compatible("14.0.0"));
+
+    // Incompatible versions
+    assert!(!dep.is_version_compatible("12.0.0"));
+    assert!(!dep.is_version_compatible("10.0.0"));
+}
+
+#[test]
+fn test_npx_node_compatibility() {
+    // npx requires Node.js 12+ (comes with npm 5.2+)
+    let dep = RuntimeDependency::required("node")
+        .with_min_version("12.0.0")
+        .with_recommended_version("20")
+        .with_reason("npx requires Node.js 12+");
+
+    assert!(dep.is_version_compatible("20.10.0"));
+    assert!(dep.is_version_compatible("18.19.0"));
+    assert!(dep.is_version_compatible("12.0.0"));
+    assert!(!dep.is_version_compatible("10.0.0"));
+}
+
+#[test]
+fn test_gofmt_dependency() {
+    // gofmt is bundled with go
+    let dep = RuntimeDependency::required("go")
+        .with_reason("gofmt is bundled with go");
+
+    // All go versions should be compatible
+    assert!(dep.is_version_compatible("1.21.0"));
+    assert!(dep.is_version_compatible("1.20.0"));
+    assert!(dep.is_version_compatible("1.18.0"));
+}
+
+#[test]
+fn test_bunx_dependency() {
+    // bunx is bundled with bun
+    let dep = RuntimeDependency::required("bun")
+        .with_reason("bunx is bundled with bun");
+
+    assert!(dep.is_version_compatible("1.0.0"));
+    assert!(dep.is_version_compatible("0.8.0"));
+}
+
+#[test]
+fn test_uvx_dependency() {
+    // uvx is bundled with uv
+    let dep = RuntimeDependency::required("uv")
+        .with_reason("uvx is bundled with uv");
+
+    assert!(dep.is_version_compatible("0.5.0"));
+    assert!(dep.is_version_compatible("0.1.0"));
+}
+
 #[rstest]
 #[case("20", "20", true)]
 #[case("20.10", "20", true)]

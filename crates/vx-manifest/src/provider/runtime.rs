@@ -18,6 +18,7 @@ use super::{
     shell::ShellConfig,
     system_deps::{SystemDepsConfigDef, SystemInstallConfigDef},
     test_config::TestConfig,
+    version_range::VersionRangeConfig,
     version_source::VersionSourceDef,
 };
 
@@ -129,6 +130,18 @@ pub struct RuntimeDef {
     /// Post-install normalization configuration
     #[serde(default)]
     pub normalize: Option<NormalizeConfig>,
+
+    // === RFC 0023: Version Range Locking ===
+    /// Version range configuration for this runtime
+    ///
+    /// This allows providers to define:
+    /// - Default version range for "latest" requests
+    /// - Maximum/minimum allowed versions
+    /// - Deprecated version ranges
+    /// - Versions with known issues
+    /// - Recommended stable version ranges
+    #[serde(default)]
+    pub version_ranges: Option<VersionRangeConfig>,
 }
 
 impl RuntimeDef {

@@ -57,6 +57,10 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub use_system_path: bool,
 
+    /// Inherit system environment variables when using isolated environments
+    #[arg(long, global = true)]
+    pub inherit_env: bool,
+
     /// Cache mode: normal, refresh, offline, no-cache
     #[arg(long, global = true, value_enum, default_value = "normal")]
     pub cache_mode: CacheModeArg,
@@ -78,6 +82,7 @@ impl From<&Cli> for GlobalOptions {
     fn from(cli: &Cli) -> Self {
         GlobalOptions {
             use_system_path: cli.use_system_path,
+            inherit_env: cli.inherit_env,
             cache_mode: cli.cache_mode.into(),
             verbose: cli.verbose,
             debug: cli.debug,
@@ -339,6 +344,9 @@ pub enum Commands {
         /// Disable auto-install
         #[arg(long)]
         no_auto_install: bool,
+        /// Automatically generate/update vx.lock if needed
+        #[arg(long)]
+        auto_lock: bool,
     },
 
     /// Generate or update vx.lock for reproducible environments
@@ -358,6 +366,18 @@ pub enum Commands {
         /// Show verbose output
         #[arg(short, long)]
         verbose: bool,
+    },
+
+    /// Check version constraints and tool availability (RFC 0023)
+    Check {
+        /// Tool name to check (optional, checks all if not specified)
+        tool: Option<String>,
+        /// Show detailed information about each tool
+        #[arg(long, short = 'd')]
+        detailed: bool,
+        /// Quiet mode: exit code only, no output
+        #[arg(long, short = 'q')]
+        quiet: bool,
     },
 
     /// Create offline development environment bundle
@@ -1082,6 +1102,7 @@ impl CommandHandler for Commands {
             Commands::X { .. } => "x",
             Commands::Migrate { .. } => "migrate",
             Commands::Lock { .. } => "lock",
+            Commands::Check { .. } => "check",
             Commands::Bundle { .. } => "bundle",
             Commands::Info { .. } => "info",
             Commands::Auth { .. } => "auth",
@@ -1320,16 +1341,20 @@ impl CommandHandler for Commands {
                 dry_run,
                 verbose,
                 no_parallel,
-                no_auto_install,
+                no_auto_install: _,
+                auto_lock,
             } => {
-                commands::sync::handle(
+                commands::sync::handle_with_options(
                     ctx.registry(),
-                    *check,
-                    *force,
-                    *dry_run,
-                    *verbose,
-                    *no_parallel,
-                    *no_auto_install,
+                    commands::sync::SyncOptions {
+                        check: *check,
+                        force: *force,
+                        dry_run: *dry_run,
+                        verbose: *verbose,
+                        no_parallel: *no_parallel,
+                        auto_lock: *auto_lock,
+                        analyze: true,  // Enable project analysis by default
+                    },
                 )
                 .await
             }
@@ -1551,6 +1576,14 @@ impl CommandHandler for Commands {
                     )
                     .await
                 }
+            }
+
+            Commands::Check {
+                tool,
+                detailed,
+                quiet,
+            } => {
+                commands::check::handle(ctx.registry(), tool.clone(), *detailed, *quiet).await
             }
 
             Commands::Bundle { command } => match command {

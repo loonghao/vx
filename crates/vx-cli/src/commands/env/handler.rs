@@ -12,7 +12,7 @@ use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::env;
 use std::io::Write;
-use vx_env::{ExportFormat, SessionContext, ShellSpawner};
+use vx_env::{ExportFormat, SessionContext, SessionSource, ShellSpawner};
 use vx_paths::{link, LinkStrategy, PathManager, PROJECT_ENV_DIR};
 
 /// Handle env command with Args
@@ -637,7 +637,12 @@ async fn env_shell(
     }
 
     // Create SessionContext from environment
-    let mut session = SessionContext::new(&env_name).tools(&tools);
+    let mut session = SessionContext::new(&env_name)
+        .tools(&tools)
+        .source(SessionSource::EnvDir {
+            path: env_dir.clone(),
+            name: env_name.clone(),
+        });
 
     // If we're in a project directory, set the project root
     if let Ok(current_dir) = env::current_dir() {

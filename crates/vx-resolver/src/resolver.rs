@@ -249,11 +249,10 @@ impl Resolver {
             .find_tool_with_executable(runtime_name, executable_name)
         {
             Ok(Some(location)) => {
-                debug!(
-                    "Found vx-managed {} version {} in {} at {}",
+                trace!(
+                    "found {} {} at {}",
                     runtime_name,
                     location.version,
-                    location.source,
                     location.path.display()
                 );
                 Some(RuntimeStatus::VxManaged {
@@ -262,11 +261,11 @@ impl Resolver {
                 })
             }
             Ok(None) => {
-                debug!("Tool {} not found in vx-managed directories", runtime_name);
+                trace!("tool {} not in store", runtime_name);
                 None
             }
             Err(e) => {
-                debug!("Error checking vx-managed {}: {}", runtime_name, e);
+                trace!("error checking {}: {}", runtime_name, e);
                 None
             }
         }
@@ -310,16 +309,10 @@ impl Resolver {
         runtime_name: &str,
         version: Option<&str>,
     ) -> Result<ResolutionResult> {
-        if let Some(ver) = version {
-            debug!("Resolving runtime: {}@{}", runtime_name, ver);
-        } else {
-            debug!("Resolving runtime: {}", runtime_name);
-        }
-
         // Get the runtime specification
         let spec = self.runtime_map.get(runtime_name);
-        debug!(
-            ">>> SPEC CHECK: {} has {} dependencies",
+        trace!(
+            "spec: {} has {} dependencies",
             runtime_name,
             spec.map(|s| s.dependencies.len()).unwrap_or(0)
         );
@@ -352,26 +345,20 @@ impl Resolver {
 
                 let dep_status = self.check_runtime_status(dep_name);
 
-                debug!(
-                    "Checking dependency {} for {} (min: {:?}, max: {:?})",
-                    dep_name, runtime_name, dep.min_version, dep.max_version
+                trace!(
+                    "checking dep {} (min: {:?}, max: {:?})",
+                    dep_name, dep.min_version, dep.max_version
                 );
 
                 match &dep_status {
                     RuntimeStatus::VxManaged { version, .. } => {
                         // Check version constraints
                         let is_compatible = dep.is_version_compatible(version);
-                        debug!(
-                            "Dependency {} version {} is {} (min: {:?}, max: {:?})",
+                        trace!(
+                            "dep {} {} is {}",
                             dep_name,
                             version,
-                            if is_compatible {
-                                "compatible"
-                            } else {
-                                "INCOMPATIBLE"
-                            },
-                            dep.min_version,
-                            dep.max_version
+                            if is_compatible { "ok" } else { "INCOMPATIBLE" }
                         );
                         if !is_compatible {
                             warn!(
@@ -406,7 +393,7 @@ impl Resolver {
                         }
                     }
                     RuntimeStatus::NotInstalled | RuntimeStatus::Unknown => {
-                        debug!("Missing dependency: {} (for {})", dep_name, runtime_name);
+                        trace!("missing dep: {}", dep_name);
                         missing_deps.push(dep_name.to_string());
                     }
                 }
@@ -540,8 +527,8 @@ impl Resolver {
             executable_name,
         ) {
             Some(location) => {
-                debug!(
-                    "Found vx-managed {} version {} at {}",
+                trace!(
+                    "found {} {} at {}",
                     runtime_name,
                     location.version,
                     location.path.display()
@@ -552,8 +539,8 @@ impl Resolver {
                 })
             }
             None => {
-                debug!(
-                    "Tool {} version {} not found in vx-managed directories",
+                trace!(
+                    "{} {} not in store",
                     runtime_name, version
                 );
                 None

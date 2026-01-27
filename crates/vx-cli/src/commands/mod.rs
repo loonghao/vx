@@ -45,6 +45,7 @@ pub mod auth;
 pub mod bundle;
 pub mod cache;
 pub mod capabilities;
+pub mod check;
 pub mod config;
 pub mod container;
 pub mod dev;

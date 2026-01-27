@@ -15,7 +15,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use vx_config::{
-    parse_config, ScriptConfig, ToolVersion, VxConfig,
+    parse_config, VxConfig,
 };
 use vx_paths::{find_vx_config as find_vx_config_path, PathManager};
 
@@ -63,68 +63,7 @@ pub fn load_full_config_cwd() -> Result<(PathBuf, VxConfig)> {
 /// Note: This re-imports setup::ConfigView for compatibility.
 pub fn load_config_view(path: &Path) -> Result<(PathBuf, crate::commands::setup::ConfigView)> {
     let config = load_full_config(path)?;
-    let project_name = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("project")
-        .to_string();
-    
-    let view = crate::commands::setup::ConfigView {
-        tools: config.tools.iter().map(|(k, v)| {
-            let version = match v {
-                ToolVersion::Simple(v_str) => v_str.clone(),
-                ToolVersion::Detailed(details) => details.version.clone(),
-            };
-            (k.clone(), version)
-        }).collect(),
-        settings: config.settings.as_ref().map(|s| {
-            // Convert SettingsConfig to HashMap for backward compatibility
-            let mut map = std::collections::HashMap::new();
-            if let Some(v) = s.auto_install {
-                map.insert("auto_install".to_string(), if v { "true".to_string() } else { "false".to_string() });
-            }
-            if let Some(isolation) = s.isolation {
-                map.insert("isolation".to_string(), if isolation { "true".to_string() } else { "false".to_string() });
-            }
-            if let Some(ref setenv) = s.setenv {
-                for (k, v) in setenv {
-                    map.insert(k.clone(), v.clone());
-                }
-            }
-            if let Some(ref passenv) = s.passenv {
-                let passenv_str = passenv.join(",");
-                map.insert("passenv".to_string(), passenv_str);
-            }
-            map
-        }).unwrap_or_default(),
-        env: config.env.as_ref().map(|e| {
-            // Convert EnvConfig to HashMap for backward compatibility
-            let mut map = std::collections::HashMap::new();
-            for (k, v) in &e.vars {
-                map.insert(k.clone(), v.clone());
-            }
-            map
-        }).unwrap_or_default(),
-        scripts: config.scripts.iter().map(|(k, v)| {
-            let command = match v {
-                ScriptConfig::Simple(cmd) => cmd.clone(),
-                ScriptConfig::Detailed(details) => details.command.clone(),
-            };
-            (k.clone(), command)
-        }).collect(),
-        project_name,
-        isolation: config.settings.as_ref()
-            .and_then(|s| s.isolation)
-            .unwrap_or(true),
-        setenv: config.settings.as_ref()
-            .and_then(|s| s.setenv.as_ref())
-            .cloned()
-            .unwrap_or_default(),
-        passenv: config.settings.as_ref()
-            .and_then(|s| s.passenv.as_ref())
-            .cloned()
-            .unwrap_or_default(),
-    };
+    let view = crate::commands::setup::ConfigView::from(config);
     Ok((path.to_path_buf(), view))
 }
 

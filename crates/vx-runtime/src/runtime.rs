@@ -821,16 +821,21 @@ pub trait Runtime: Send + Sync {
         // Use store_name() which handles aliases and bundled runtimes
         // e.g., "npm" -> "node", "uvx" -> "uv", "vscode" -> "code"
         let store_name = self.store_name();
-        let install_path = ctx.paths.version_store_dir(store_name, version);
         let platform = Platform::current();
         let exe_relative = self.executable_relative_path(version, &platform);
 
+        // Get base version directory, then append platform-specific subdirectory
+        // This implements platform redirection: <provider>/<version>/<platform>/
+        let base_install_path = ctx.paths.version_store_dir(store_name, version);
+        let install_path = base_install_path.join(platform.as_str());
+
         debug!(
-            "Install path for {} (store: {}) {}: {}",
+            "Install path for {} (store: {}) {}: {} (platform: {})",
             self.name(),
             store_name,
             version,
-            install_path.display()
+            install_path.display(),
+            platform.as_str()
         );
         debug!("Executable relative path: {}", exe_relative);
 
@@ -863,10 +868,20 @@ pub trait Runtime: Send + Sync {
         // Get download URL
         debug!("Platform: {:?}", platform);
 
-        let url = self
-            .download_url(version, &platform)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("No download URL for {} {}", self.name(), version))?;
+        // Try to use cached URL from lock file first
+        // Try tool_name first, then store_name (for bundled tools like npm -> node)
+        let url = if let Some(cached_url) = ctx.get_cached_download_url(self.name()) {
+            debug!("Using cached download URL from lock file for {}: {}", self.name(), cached_url);
+            cached_url
+        } else if let Some(cached_url) = ctx.get_cached_download_url(self.store_name()) {
+            debug!("Using cached download URL from lock file for {}: {}", self.store_name(), cached_url);
+            cached_url
+        } else {
+            // Fall back to runtime's download_url method
+            self.download_url(version, &platform)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("No download URL for {} {}", self.name(), version))?
+        };
 
         info!("Downloading {} {} from {}", self.name(), version, url);
 
@@ -986,7 +1001,10 @@ pub trait Runtime: Send + Sync {
 
     /// Check if a version is installed
     async fn is_installed(&self, version: &str, ctx: &RuntimeContext) -> Result<bool> {
-        let install_path = ctx.paths.version_store_dir(self.store_name(), version);
+        // Use platform-specific directory for installation check
+        let platform = Platform::current();
+        let base_path = ctx.paths.version_store_dir(self.store_name(), version);
+        let install_path = base_path.join(platform.as_str());
         Ok(ctx.fs.exists(&install_path))
     }
 
@@ -1002,7 +1020,10 @@ pub trait Runtime: Send + Sync {
         version: &str,
         ctx: &RuntimeContext,
     ) -> Result<Option<std::path::PathBuf>> {
-        let install_path = ctx.paths.version_store_dir(self.store_name(), version);
+        // Use platform-specific directory for executable lookup
+        let platform = Platform::current();
+        let base_path = ctx.paths.version_store_dir(self.store_name(), version);
+        let install_path = base_path.join(platform.as_str());
         if !ctx.fs.exists(&install_path) {
             return Ok(None);
         }
@@ -1141,7 +1162,10 @@ pub trait Runtime: Send + Sync {
 
     /// Uninstall a specific version
     async fn uninstall(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
-        let install_path = ctx.paths.version_store_dir(self.store_name(), version);
+        // Use platform-specific directory for uninstallation
+        let platform = Platform::current();
+        let base_path = ctx.paths.version_store_dir(self.store_name(), version);
+        let install_path = base_path.join(platform.as_str());
         if ctx.fs.exists(&install_path) {
             ctx.fs.remove_dir_all(&install_path)?;
         }

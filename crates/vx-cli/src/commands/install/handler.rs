@@ -120,6 +120,21 @@ async fn install_single(
     // Determine version to install
     let requested_version = version.unwrap_or("latest");
 
+    // Try to load lock file and get download URL
+    let mut context_with_cache = context.clone();
+    if let Some((locked_version, download_url)) = get_download_url_from_lock(tool_name, requested_version) {
+        if context.config.verbose {
+            UI::detail(&format!(
+                "Using locked version {} from {} (download URL cached)",
+                locked_version, LOCK_FILE_NAME
+            ));
+        }
+        // Cache the download URL
+        let mut cache = std::collections::HashMap::new();
+        cache.insert(tool_name.to_string(), download_url);
+        context_with_cache.set_download_url_cache(cache);
+    }
+
     // Resolve version (handles "latest", partial versions like "3.11", etc.)
     let resolve_msg = if is_multi {
         format!("Resolving {}...", requested_version)
@@ -133,7 +148,7 @@ async fn install_single(
 
     // Update spinner message to show network activity
     spinner.set_message(&format!("{} (fetching versions...)", resolve_msg));
-    let target_version = runtime.resolve_version(requested_version, context).await?;
+    let target_version = runtime.resolve_version(requested_version, &context_with_cache).await?;
     spinner.finish_and_clear();
 
     if requested_version != target_version {
@@ -144,7 +159,7 @@ async fn install_single(
     }
 
     // Check if already installed
-    if !force && runtime.is_installed(&target_version, context).await? {
+    if !force && runtime.is_installed(&target_version, &context_with_cache).await? {
         UI::success(&format!(
             "{} {} is already installed",
             tool_name, target_version
@@ -154,18 +169,18 @@ async fn install_single(
     }
 
     // Run pre-install hook
-    runtime.pre_install(&target_version, context).await?;
+    runtime.pre_install(&target_version, &context_with_cache).await?;
 
     // Install the version
     let install_result = if is_multi {
         // In multi-tool mode, use simpler output without spinner
         // to avoid visual clutter
-        runtime.install(&target_version, context).await
+        runtime.install(&target_version, &context_with_cache).await
     } else {
         // In single-tool mode, show spinner
         // Note: new_install template already includes "Installing" prefix
         let spinner = ProgressSpinner::new_install(&format!("{} {}...", tool_name, target_version));
-        let result = runtime.install(&target_version, context).await;
+        let result = runtime.install(&target_version, &context_with_cache).await;
         match &result {
             Ok(_) => spinner.finish_with_message(&format!(
                 "✓ Successfully installed {} {}",
@@ -186,7 +201,7 @@ async fn install_single(
             }
 
             // Run post-install hook
-            runtime.post_install(&target_version, context).await?;
+            runtime.post_install(&target_version, &context_with_cache).await?;
 
             // Show installation path
             UI::detail(&format!("Installed to: {}", result.install_path.display()));
@@ -285,6 +300,50 @@ fn update_lockfile_if_exists(
     }
 }
 
+/// Get download URL from lock file for a tool
+///
+/// Returns (locked_version, download_url) if found, None otherwise.
+/// This allows install commands to use pre-resolved URLs from vx.lock
+/// instead of re-fetching them from providers.
+fn get_download_url_from_lock(tool_name: &str, requested_version: &str) -> Option<(String, String)> {
+    // Try to find project root with vx.toml
+    let current_dir = env::current_dir().ok()?;
+    let config_path = find_vx_config(&current_dir).ok()?;
+    let project_root = config_path.parent()?;
+    let lock_path = project_root.join(LOCK_FILE_NAME);
+
+    // Load lock file
+    let lockfile = LockFile::load(&lock_path).ok()?;
+
+    // Get locked tool
+    let locked_tool = lockfile.get_tool(tool_name)?;
+
+    // Get download URL
+    let download_url = locked_tool.download_url.clone()?;
+
+    // Use locked version
+    let locked_version = locked_tool.version.clone();
+
+    // Check if requested version matches locked version or uses version constraint
+    // For "latest", always use locked version
+    // For specific versions, check if they match
+    let matches = if requested_version == "latest" {
+        true
+    } else if requested_version == locked_version {
+        true
+    } else {
+        // Version constraint or partial version - use locked version anyway
+        // since lock file already resolved to a specific version
+        true
+    };
+
+    if matches {
+        Some((locked_version, download_url))
+    } else {
+        None
+    }
+}
+
 /// Install a runtime quietly (for CI testing)
 /// Returns the InstallResult on success, including executable path
 pub async fn install_quiet(
@@ -310,8 +369,16 @@ pub async fn install_quiet(
     // Resolve latest version
     let target_version = runtime.resolve_version("latest", context).await?;
 
+    // Try to use lock file URL
+    let mut context_with_cache = context.clone();
+    if let Some((_locked_version, download_url)) = get_download_url_from_lock(tool_name, "latest") {
+        let mut cache = std::collections::HashMap::new();
+        cache.insert(tool_name.to_string(), download_url);
+        context_with_cache.set_download_url_cache(cache);
+    }
+
     // Check if already installed
-    if runtime.is_installed(&target_version, context).await? {
+    if runtime.is_installed(&target_version, &context_with_cache).await? {
         // For already installed, use the runtime's method to get the correct executable path
         // This handles different directory structures (e.g., node-v24.13.0-win-x64/node.exe)
         let store_name = runtime.store_name();
@@ -350,10 +417,10 @@ pub async fn install_quiet(
     }
 
     // Run pre-install hook
-    runtime.pre_install(&target_version, context).await?;
+    runtime.pre_install(&target_version, &context_with_cache).await?;
 
     // Install the version
-    let install_result = runtime.install(&target_version, context).await?;
+    let install_result = runtime.install(&target_version, &context_with_cache).await?;
 
     // Run post-install hook
     runtime.post_install(&target_version, context).await?;

@@ -35,7 +35,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 /// Lock file version
-pub const LOCK_FILE_VERSION: u32 = 1;
+pub const LOCK_FILE_VERSION: u32 = 2;
 
 /// Lock file metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,9 +73,32 @@ pub struct LockedTool {
     /// SHA256 checksum of the downloaded artifact
     #[serde(skip_serializing_if = "Option::is_none")]
     pub checksum: Option<String>,
+    /// Download URL for the current platform
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub download_url: Option<String>,
+    /// Platform-specific download URLs (platform -> URL)
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub platform_urls: HashMap<String, String>,
     /// Additional metadata
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub metadata: HashMap<String, String>,
+
+    // === RFC 0023: Version Range Locking ===
+    /// Original version range from vx.toml (e.g., "^5.0", "latest")
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_range: Option<String>,
+    /// Pinning strategy used for this tool
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pinning: Option<String>,
+    /// Whether this is the latest version within the range
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_latest_in_range: Option<bool>,
+    /// Source of the version constraint: "user", "provider", or "merged"
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub constraint_source: Option<String>,
+    /// Provider's default range that was applied (when original was "latest")
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub applied_default: Option<String>,
 }
 
 impl LockedTool {
@@ -87,7 +110,15 @@ impl LockedTool {
             resolved_from: String::new(),
             ecosystem: Ecosystem::Generic,
             checksum: None,
+            download_url: None,
+            platform_urls: HashMap::new(),
             metadata: HashMap::new(),
+            // RFC 0023 fields
+            original_range: None,
+            pinning: None,
+            is_latest_in_range: None,
+            constraint_source: None,
+            applied_default: None,
         }
     }
 
@@ -115,9 +146,68 @@ impl LockedTool {
         self
     }
 
+    /// Set download URL for the current platform
+    pub fn with_download_url(mut self, url: impl Into<String>) -> Self {
+        self.download_url = Some(url.into());
+        self
+    }
+
+    /// Add platform-specific download URL
+    pub fn with_platform_url(mut self, platform: impl Into<String>, url: impl Into<String>) -> Self {
+        self.platform_urls.insert(platform.into(), url.into());
+        self
+    }
+
+    /// Get download URL for a specific platform
+    ///
+    /// Returns:
+    /// 1. Platform-specific URL if available
+    /// 2. Current platform URL as fallback
+    /// 3. None if neither is available
+    pub fn download_url_for_platform(&self, platform: &str) -> Option<&String> {
+        // Try platform-specific URL first
+        if let Some(url) = self.platform_urls.get(platform) {
+            return Some(url);
+        }
+        // Fall back to current platform URL
+        self.download_url.as_ref()
+    }
+
     /// Parse the version string into a Version struct
     pub fn parsed_version(&self) -> Option<Version> {
         Version::parse(&self.version)
+    }
+
+    // === RFC 0023: Version Range Locking Methods ===
+
+    /// Set the original version range from vx.toml
+    pub fn with_original_range(mut self, range: impl Into<String>) -> Self {
+        self.original_range = Some(range.into());
+        self
+    }
+
+    /// Set the pinning strategy
+    pub fn with_pinning(mut self, pinning: impl Into<String>) -> Self {
+        self.pinning = Some(pinning.into());
+        self
+    }
+
+    /// Set whether this is the latest version in the range
+    pub fn with_is_latest_in_range(mut self, is_latest: bool) -> Self {
+        self.is_latest_in_range = Some(is_latest);
+        self
+    }
+
+    /// Set the constraint source
+    pub fn with_constraint_source(mut self, source: impl Into<String>) -> Self {
+        self.constraint_source = Some(source.into());
+        self
+    }
+
+    /// Set the applied default range (from provider)
+    pub fn with_applied_default(mut self, default: impl Into<String>) -> Self {
+        self.applied_default = Some(default.into());
+        self
     }
 }
 
@@ -129,7 +219,20 @@ impl From<&ResolvedVersion> for LockedTool {
             resolved_from: resolved.resolved_from.clone(),
             ecosystem: Ecosystem::Generic,
             checksum: resolved.get_metadata("checksum").cloned(),
+            download_url: resolved.get_metadata("download_url").cloned(),
+            platform_urls: resolved
+                .get_metadata("platform_urls")
+                .and_then(|v| serde_json::from_str(v).ok())
+                .unwrap_or_default(),
             metadata: resolved.metadata.clone(),
+            // RFC 0023 fields - extract from metadata if available
+            original_range: resolved.get_metadata("original_range").cloned(),
+            pinning: resolved.get_metadata("pinning").cloned(),
+            is_latest_in_range: resolved
+                .get_metadata("is_latest_in_range")
+                .and_then(|v| v.parse().ok()),
+            constraint_source: resolved.get_metadata("constraint_source").cloned(),
+            applied_default: resolved.get_metadata("applied_default").cloned(),
         }
     }
 }
@@ -174,6 +277,69 @@ impl LockFile {
         })?;
 
         Self::parse(&content)
+    }
+
+    /// Load a lock file from a path with automatic migration
+    ///
+    /// If the lock file is version 1, it will be automatically migrated to version 2.
+    /// The migrated file is NOT automatically saved - call `save()` explicitly.
+    pub fn load_with_migration(path: impl AsRef<Path>) -> Result<(Self, bool), LockFileError> {
+        let content = std::fs::read_to_string(path.as_ref()).map_err(|e| LockFileError::Io {
+            path: path.as_ref().to_path_buf(),
+            error: e.to_string(),
+        })?;
+
+        let mut lockfile: Self = toml::from_str(&content).map_err(|e| LockFileError::Parse {
+            error: e.to_string(),
+        })?;
+
+        let migrated = if lockfile.version < LOCK_FILE_VERSION {
+            lockfile.migrate_to_current();
+            true
+        } else {
+            false
+        };
+
+        Ok((lockfile, migrated))
+    }
+
+    /// Migrate lock file to the current version
+    ///
+    /// This method updates the lock file format from older versions to the current version.
+    pub fn migrate_to_current(&mut self) {
+        // Migrate from v1 to v2
+        if self.version < 2 {
+            self.version = 2;
+            
+            // Update metadata
+            self.metadata.vx_version = env!("CARGO_PKG_VERSION").to_string();
+            self.metadata.generated_at = chrono_now();
+            
+            // Fill in missing RFC 0023 fields for existing tools
+            for (_name, tool) in &mut self.tools {
+                // Set default values for new fields if not present
+                if tool.original_range.is_none() {
+                    tool.original_range = Some(tool.resolved_from.clone());
+                }
+                if tool.constraint_source.is_none() {
+                    tool.constraint_source = Some("user".to_string());
+                }
+                // Mark tools that might need URL refresh
+                if tool.download_url.is_none() && tool.platform_urls.is_empty() {
+                    tool.metadata.insert("_needs_refresh".to_string(), "true".to_string());
+                }
+            }
+        }
+    }
+
+    /// Check if the lock file needs migration
+    pub fn needs_migration(&self) -> bool {
+        self.version < LOCK_FILE_VERSION
+    }
+
+    /// Get the current lock file version
+    pub fn current_version() -> u32 {
+        LOCK_FILE_VERSION
     }
 
     /// Parse a lock file from a string

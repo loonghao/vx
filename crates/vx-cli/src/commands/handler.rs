@@ -20,6 +20,8 @@ use vx_runtime::{CacheMode, ManifestRegistry, ProviderRegistry, RuntimeContext};
 pub struct GlobalOptions {
     /// Whether to use system PATH for tool lookup
     pub use_system_path: bool,
+    /// Whether to inherit system environment variables in isolated environments
+    pub inherit_env: bool,
     /// Cache mode for network-dependent operations (versions/resolutions)
     pub cache_mode: CacheMode,
     /// Verbose output mode
@@ -37,6 +39,12 @@ impl GlobalOptions {
     /// Builder method: set use_system_path
     pub fn with_use_system_path(mut self, value: bool) -> Self {
         self.use_system_path = value;
+        self
+    }
+
+    /// Builder method: set inherit_env
+    pub fn with_inherit_env(mut self, value: bool) -> Self {
+        self.inherit_env = value;
         self
     }
 
@@ -116,6 +124,7 @@ impl CommandContext {
             runtime_context,
             GlobalOptions {
                 use_system_path,
+                inherit_env: false,
                 cache_mode: CacheMode::Normal,
                 verbose,
                 debug,
@@ -141,6 +150,11 @@ impl CommandContext {
     /// Check if using system PATH
     pub fn use_system_path(&self) -> bool {
         self.options.use_system_path
+    }
+
+    /// Check if inheriting system environment variables
+    pub fn inherit_env(&self) -> bool {
+        self.options.inherit_env
     }
 
     /// Get current cache mode
