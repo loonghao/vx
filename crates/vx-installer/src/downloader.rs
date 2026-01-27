@@ -218,6 +218,15 @@ impl Downloader {
                         Error::download_failed(*download_url, e.to_string())
                     };
 
+                    // Log the error with context
+                    tracing::error!(
+                        url = %download_url,
+                        error = %e,
+                        has_fallback = optimized.has_fallback(),
+                        is_fallback = is_fallback,
+                        "Download request failed"
+                    );
+
                     attempt_errors.push((download_url.to_string(), error.to_string()));
 
                     if is_fallback || !optimized.has_fallback() {
@@ -242,10 +251,20 @@ impl Downloader {
 
             // Check response status
             if !response.status().is_success() {
-                let error =
-                    Error::download_failed(*download_url, format!("HTTP {}", response.status()));
+                let status = response.status();
+                let error_detail = format!("HTTP {} {}", status.as_u16(), status.canonical_reason().unwrap_or("Unknown"));
+                let error = Error::download_failed(*download_url, error_detail.clone());
 
-                attempt_errors.push((download_url.to_string(), error.to_string()));
+                // Log the error with context
+                tracing::error!(
+                    url = %download_url,
+                    status = %status,
+                    has_fallback = optimized.has_fallback(),
+                    is_fallback = is_fallback,
+                    "Download failed with HTTP error"
+                );
+
+                attempt_errors.push((download_url.to_string(), error_detail));
 
                 if is_fallback || !optimized.has_fallback() {
                     let _ = progress.error("HTTP error").await;
