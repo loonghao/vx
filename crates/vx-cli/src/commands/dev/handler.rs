@@ -11,10 +11,8 @@ use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
-use std::path::Path;
 use std::process::Command;
 use vx_env::{ToolEnvironment, ToolSpec};
-use vx_project_analyzer::{AnalyzerConfig, ProjectAnalyzer};
 
 /// Handle dev command with Args
 pub async fn handle(args: &Args) -> Result<()> {

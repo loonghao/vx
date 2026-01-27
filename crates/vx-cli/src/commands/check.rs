@@ -34,7 +34,7 @@ use std::collections::HashMap;
 use std::env;
 use vx_paths::project::LOCK_FILE_NAME;
 use vx_resolver::{
-    BoundsCheckResult, ConflictDetector, LockFile, Version, VersionRangeConfig,
+    ConflictDetector, LockFile, Version, VersionRangeConfig,
     VersionRangeResolver, VersionRequest,
 };
 use vx_runtime::ProviderRegistry;

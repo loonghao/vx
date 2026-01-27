@@ -9,7 +9,7 @@
 use crate::{ResolverConfig, Result, RuntimeDependency, RuntimeMap, RuntimeSpec};
 use std::collections::HashSet;
 use std::path::PathBuf;
-use tracing::{debug, trace, warn};
+use tracing::{trace, warn};
 use vx_paths::PathResolver as VxPathResolver;
 
 /// Status of a runtime
