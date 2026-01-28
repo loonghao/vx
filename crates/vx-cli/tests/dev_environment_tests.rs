@@ -17,6 +17,33 @@ use vx_paths::PathManager;
 // Test Fixtures
 // ============================================================================
 
+/// Get platform directory name for current platform
+fn get_platform_dir_name() -> String {
+    let os = if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "darwin"
+    } else if cfg!(target_os = "linux") {
+        "linux"
+    } else {
+        "unknown"
+    };
+
+    let arch = if cfg!(target_arch = "x86_64") {
+        "x64"
+    } else if cfg!(target_arch = "aarch64") {
+        "arm64"
+    } else if cfg!(target_arch = "arm") {
+        "arm"
+    } else if cfg!(target_arch = "x86") {
+        "x86"
+    } else {
+        "unknown"
+    };
+
+    format!("{}-{}", os, arch)
+}
+
 /// Create a temporary vx home directory with mock tool installations
 fn create_mock_vx_home() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -25,7 +52,10 @@ fn create_mock_vx_home() -> TempDir {
     let store_dir = temp_dir.path().join("store");
     fs::create_dir_all(&store_dir).expect("Failed to create store dir");
 
-    // Create mock tool installations
+    // Get platform directory name
+    let platform = get_platform_dir_name();
+
+    // Create mock tool installations with platform-specific directory
     let tools = [
         ("uv", "0.7.12"),
         ("node", "22.0.0"),
@@ -34,7 +64,8 @@ fn create_mock_vx_home() -> TempDir {
     ];
 
     for (tool, version) in tools {
-        let tool_bin = store_dir.join(tool).join(version).join("bin");
+        // Create platform-specific structure: store/<tool>/<version>/<platform>/bin
+        let tool_bin = store_dir.join(tool).join(version).join(&platform).join("bin");
         fs::create_dir_all(&tool_bin).expect("Failed to create tool bin dir");
 
         // Create mock executable
@@ -278,10 +309,11 @@ mod version_resolution_tests {
         let vx_home = create_mock_vx_home();
         std::env::set_var("VX_HOME", vx_home.path());
 
-        // Create multiple versions of a tool
+        // Create multiple versions of a tool with platform-specific directories
+        let platform = get_platform_dir_name();
         let store_dir = vx_home.path().join("store").join("node");
         for version in &["18.0.0", "20.0.0", "22.0.0"] {
-            let version_dir = store_dir.join(version).join("bin");
+            let version_dir = store_dir.join(version).join(&platform).join("bin");
             fs::create_dir_all(&version_dir).expect("Failed to create version dir");
         }
 

@@ -12,7 +12,7 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use vx_paths::PathManager;
 
 /// Integrated resolver that uses vx's existing infrastructure
@@ -81,7 +81,7 @@ impl IntegratedVersionResolver {
             if entry.path().is_dir() {
                 if let Some(version_str) = entry.file_name().to_str() {
                     if let Some(version) = crate::version_resolver::Version::parse(version_str) {
-                        available_versions.push(VersionInfo::new(&version.to_string()));
+                        available_versions.push(VersionInfo::new(version.to_string()));
                     }
                 }
             }
@@ -112,7 +112,7 @@ impl IntegratedVersionResolver {
         &self,
         runtime_name: &str,
         version_request: &str,
-        install_dir: &PathBuf,
+        install_dir: &Path,
     ) -> Result<ResolvedVersionInfo> {
         // Determine version from directory name
         let version = install_dir
@@ -129,19 +129,20 @@ impl IntegratedVersionResolver {
         Ok(ResolvedVersionInfo::new(
             version.to_string(),
             version_request.to_string(),
-            install_dir.clone(),
+            install_dir.to_path_buf(),
             executable_path,
             bin_dir,
         ))
     }
 
     /// Detect the bin directory for a runtime
-    fn detect_bin_dir(&self, _runtime_name: &str, install_dir: &PathBuf) -> PathBuf {
+    fn detect_bin_dir(&self, _runtime_name: &str, install_dir: &Path) -> PathBuf {
+        let install_dir_buf = install_dir.to_path_buf();
         // Common bin directory locations
         let possible_bins = [
-            install_dir.join("bin"),
-            install_dir.join("Scripts"), // Windows (Python)
-            install_dir.clone(),         // Some tools have binaries in root
+            install_dir_buf.join("bin"),
+            install_dir_buf.join("Scripts"), // Windows (Python)
+            install_dir_buf,                 // Some tools have binaries in root
         ];
 
         for bin_path in &possible_bins {
@@ -158,8 +159,8 @@ impl IntegratedVersionResolver {
     fn detect_executable(
         &self,
         runtime_name: &str,
-        bin_dir: &PathBuf,
-        install_dir: &PathBuf,
+        bin_dir: &Path,
+        install_dir: &Path,
     ) -> Result<PathBuf> {
         // Check in bin_dir
         let exe_in_bin = bin_dir.join(runtime_name);
