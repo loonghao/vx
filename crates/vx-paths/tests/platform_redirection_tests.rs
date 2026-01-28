@@ -92,5 +92,5 @@ fn test_list_store_versions_filters_by_platform() {
     assert_eq!(versions, vec!["1.0.0"]);
 
     // Clean up
-    fs::remove_dir_all(&manager.runtime_store_dir("test-tool")).unwrap();
+    fs::remove_dir_all(manager.runtime_store_dir("test-tool")).unwrap();
 }
