@@ -65,7 +65,11 @@ fn create_mock_vx_home() -> TempDir {
 
     for (tool, version) in tools {
         // Create platform-specific structure: store/<tool>/<version>/<platform>/bin
-        let tool_bin = store_dir.join(tool).join(version).join(&platform).join("bin");
+        let tool_bin = store_dir
+            .join(tool)
+            .join(version)
+            .join(&platform)
+            .join("bin");
         fs::create_dir_all(&tool_bin).expect("Failed to create tool bin dir");
 
         // Create mock executable
