@@ -11,6 +11,9 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
+/// Version fetcher function type for resolving versions
+pub type VersionFetcherFn = Box<dyn Fn(&str, &[VersionInfo]) -> Option<String> + Send + Sync>;
+
 /// Resolved version information with paths
 #[derive(Debug, Clone)]
 pub struct ResolvedVersionInfo {
@@ -229,7 +232,7 @@ pub struct VersionResolverCache {
     /// Cache TTL (for future use)
     ttl: Duration,
     /// Version resolution function
-    version_fetcher: Box<dyn Fn(&str, &[VersionInfo]) -> Option<String> + Send + Sync>,
+    version_fetcher: VersionFetcherFn,
 }
 
 impl VersionResolverCache {
