@@ -33,15 +33,21 @@
 //! └─────────────────────────────────────────────────────────────┘
 //! ```
 
+mod conflict;
 mod constraint;
 mod lockfile;
+mod range;
 mod request;
 mod resolved;
 mod solver;
 mod strategy;
 
+pub use conflict::{
+    Conflict, ConflictDetectionError, ConflictDetector, DependencyRequirement, MergedRequirement,
+};
 pub use constraint::{RangeConstraint, RangeOp, Version, VersionConstraint};
 pub use lockfile::{LockFile, LockFileError, LockFileInconsistency, LockedTool};
+pub use range::{ApplyConfigResult, BoundsCheckResult, VersionRangeConfig, VersionRangeResolver};
 pub use request::VersionRequest;
 pub use resolved::ResolvedVersion;
 pub use solver::{SolverConfig, SolverError, SolverResult, SolverStatus, VersionSolver};

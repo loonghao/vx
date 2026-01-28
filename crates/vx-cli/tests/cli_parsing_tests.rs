@@ -507,6 +507,7 @@ fn test_cli_sync_command() {
             verbose,
             no_parallel,
             no_auto_install,
+            auto_lock,
         }) => {
             assert!(!check);
             assert!(!force);
@@ -514,6 +515,7 @@ fn test_cli_sync_command() {
             assert!(verbose);
             assert!(!no_parallel);
             assert!(!no_auto_install);
+            assert!(!auto_lock);
         }
         _ => panic!("Expected Sync command"),
     }

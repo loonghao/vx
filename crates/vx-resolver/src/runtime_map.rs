@@ -122,7 +122,8 @@ impl RuntimeMap {
 
         // Environment variables from RFC 0018
         if let Some(ref env_config) = runtime.env_config {
-            spec.env_vars = env_config.vars.clone();
+            spec.env_vars = env_config.get_vars_for_version(&runtime.name);
+            spec.env_config = Some(env_config.clone());
         }
 
         // RFC 0021: Convert system_deps to RuntimeDependency

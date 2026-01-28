@@ -200,6 +200,7 @@ jobs:
           ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --detailed
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUST_LOG: warn,vx_installer=info
       
       - name: Upload test report
         if: always()
@@ -244,6 +245,7 @@ jobs:
           ./bin/vx test --ci --ci-runtimes "${{ matrix.chunk }}" --keep-going --detailed
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUST_LOG: warn,vx_installer=info
       
       - name: Upload test report
         if: always()
@@ -286,6 +288,7 @@ jobs:
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUST_LOG: warn,vx_installer=info
       
       - name: Upload test report
         if: always()

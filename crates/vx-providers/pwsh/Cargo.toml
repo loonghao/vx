@@ -1,0 +1,21 @@
+[package]
+name = "vx-provider-pwsh"
+version = "0.6.19"
+edition = "2021"
+authors = ["vx contributors"]
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+vx-runtime = { workspace = true }
+vx-manifest = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+
+[lib]
+name = "vx_provider_pwsh"
+path = "src/lib.rs"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

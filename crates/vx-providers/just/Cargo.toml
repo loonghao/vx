@@ -1,26 +1,21 @@
 [package]
 name = "vx-provider-just"
-version.workspace = true
-edition.workspace = true
-description = "Just command runner provider for vx"
-license.workspace = true
-repository.workspace = true
-homepage.workspace = true
-authors.workspace = true
-keywords.workspace = true
-categories.workspace = true
-rust-version.workspace = true
+version = "0.6.19"
+edition = "2021"
+authors = ["vx contributors"]
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 vx-runtime = { workspace = true }
-vx-version-fetcher = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-anyhow = { workspace = true }
 async-trait = { workspace = true }
-tokio = { workspace = true }
-reqwest = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
 chrono = { workspace = true }
 
+[lib]
+name = "vx_provider_just"
+path = "src/lib.rs"
+
 [dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
 rstest = { workspace = true }

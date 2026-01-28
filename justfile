@@ -116,6 +116,12 @@ format-check:
 # Quick development cycle: format, lint, test, build
 quick: format lint test build
 
+# Quick video workflow: setup, start, build (for testing changes)
+video-quick: video-setup video-start
+
+# Video development workflow: clean, build
+video-rebuild: video-clean video-build
+
 # Clean build artifacts
 clean:
     cargo clean
@@ -123,3 +129,58 @@ clean:
 # Install vx locally
 install:
     cargo install --path .
+
+# ============================================
+# Promotional Video (Remotion)
+# ============================================
+
+# Setup and install video dependencies
+video-setup:
+    @echo "Setting up Remotion video project..."
+    cd vx-promo-video && npm install
+
+# Start Remotion preview server for video development
+video-start:
+    @echo "Starting Remotion preview server..."
+    cd vx-promo-video && npm start
+
+# Build the promotional video (renders all scenes to MP4)
+video-build:
+    @echo "Building promotional video..."
+    cd vx-promo-video && npm run build
+
+# Render specific video scene
+video-render-scene SCENE:
+    @echo "Rendering scene: {{SCENE}}..."
+    cd vx-promo-video && npx remotion render src/Root.tsx {{SCENE}} --out=out/{{SCENE}}.mp4
+
+# Build video for different platforms (square, vertical, etc.)
+video-build-platform PLATFORM:
+    @echo "Building video for platform: {{PLATFORM}}..."
+    cd vx-promo-video && npx remotion render src/Root.tsx vx-intro --out=out/vx-intro-{{PLATFORM}}.mp4 --size={{PLATFORM}}
+
+# Clean video output directory
+video-clean:
+    @echo "Cleaning video output..."
+    cd vx-promo-video && rm -rf out/ public/
+
+# Upgrade Remotion dependencies
+video-upgrade:
+    @echo "Upgrading Remotion..."
+    cd vx-promo-video && npm run upgrade
+
+# Show video-related commands
+video-help:
+    @echo "VX Promotional Video Commands:"
+    @echo ""
+    @echo "  just video-setup         - Install video dependencies"
+    @echo "  just video-start         - Start preview server"
+    @echo "  just video-build         - Build full video"
+    @echo "  just video-render-scene <SCENE>  - Render specific scene"
+    @echo "  just video-build-platform <PLATFORM> - Build for platform"
+    @echo "  just video-clean         - Clean video output"
+    @echo "  just video-upgrade       - Upgrade Remotion"
+    @echo ""
+    @echo "Available scenes: vx-intro, vx-problem, vx-solution, vx-features, vx-cta"
+    @echo "Available platforms: 1080x1080 (Instagram), 1080x1920 (TikTok)"
+    @echo ""

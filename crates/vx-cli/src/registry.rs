@@ -17,7 +17,7 @@
 //! See RFC 0013: Manifest-Driven Provider Registration
 
 use std::sync::Arc;
-use tracing::debug;
+use tracing::trace;
 use vx_manifest::{ManifestLoader, ProviderManifest};
 use vx_paths::{find_project_root, VxPaths, PROJECT_VX_DIR};
 use vx_runtime::{
@@ -40,8 +40,8 @@ include!(concat!(env!("OUT_DIR"), "/provider_manifests.rs"));
 ///     node, go, rust, uv, bun, pnpm, yarn, vscode, just, vite,
 ///     rez, deno, zig, java, terraform, kubectl, helm, rcedit,
 ///     git, choco, docker, awscli, azcli, gcloud, ninja, cmake,
-///     protoc, task, pre_commit, ollama, spack, release_please,
-///     python, msvc,
+///     protoc, task, pre_commit, ollama, spack,
+///     release_please, python, msvc,
 /// );
 /// ```
 macro_rules! register_providers {
@@ -198,6 +198,7 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         nasm,
         gh,
         imagemagick,
+        pwsh,
     );
 
     registry
@@ -251,6 +252,7 @@ fn create_static_registry() -> ProviderRegistry {
         nasm,
         gh,
         imagemagick,
+        pwsh,
     );
 
     registry
@@ -271,7 +273,7 @@ pub fn load_manifests_with_overrides() -> Vec<ProviderManifest> {
             let _ = loader.load_from_dir(&user_dir);
             // Load .override.toml files (for constraint overrides)
             let _ = loader.load_overrides_from_dir(&user_dir);
-            debug!("Loaded user provider overrides from {:?}", user_dir);
+            trace!("Loaded user provider overrides from {:?}", user_dir);
         }
     }
 
@@ -284,7 +286,7 @@ pub fn load_manifests_with_overrides() -> Vec<ProviderManifest> {
                 let _ = loader.load_from_dir(&project_dir);
                 // Load .override.toml files (for constraint overrides)
                 let _ = loader.load_overrides_from_dir(&project_dir);
-                debug!("Loaded project provider overrides from {:?}", project_dir);
+                trace!("Loaded project provider overrides from {:?}", project_dir);
             }
         }
     }

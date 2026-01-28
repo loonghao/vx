@@ -7,7 +7,9 @@ use anyhow::{Context, Result};
 use std::collections::HashSet;
 use vx_config::{parse_config, ToolVersion, VxConfig};
 use vx_paths::project::{find_vx_config, LOCK_FILE_NAME};
-use vx_resolver::{Ecosystem, LockFile, LockedTool, VersionRequest, VersionSolver};
+use vx_resolver::{
+    Ecosystem, LockFile, LockedTool, ResolvedVersion, Version, VersionRequest, VersionSolver,
+};
 use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 /// Handle the lock command
@@ -153,7 +155,7 @@ async fn resolve_tool_with_dependencies(
     }
 
     // Resolve the tool's version
-    match resolve_tool_version(registry, ctx, solver, tool_name, version_str).await {
+    match resolve_tool_version(registry, ctx, solver, tool_name, version_str, verbose).await {
         Ok(locked) => {
             if verbose {
                 println!("    → {} (from {})", locked.version, locked.resolved_from);
@@ -163,7 +165,11 @@ async fn resolve_tool_with_dependencies(
             // Get and resolve dependencies
             if let Some(provider) = registry.get_provider(tool_name) {
                 if let Some(runtime) = provider.get_runtime(tool_name) {
-                    for dep in runtime.dependencies() {
+                    let deps = runtime.dependencies();
+                    if verbose && !deps.is_empty() {
+                        println!("    Found {} dependencies for {}", deps.len(), tool_name);
+                    }
+                    for dep in deps {
                         if !resolved.contains(&dep.name) {
                             // Use the dependency's version constraint, or "latest" if not specified
                             let dep_version = dep
@@ -265,6 +271,7 @@ async fn resolve_tool_version(
     solver: &VersionSolver,
     tool_name: &str,
     version_str: &str,
+    verbose: bool,
 ) -> Result<LockedTool> {
     // Find provider for this tool
     let provider = registry
@@ -283,9 +290,6 @@ async fn resolve_tool_version(
         return Err(anyhow::anyhow!("No versions available for {}", tool_name));
     }
 
-    // Parse version request
-    let request = VersionRequest::parse(version_str);
-
     // Get ecosystem from runtime and convert to vx_resolver::Ecosystem
     let runtime_ecosystem = runtime.ecosystem();
     let ecosystem = match runtime_ecosystem {
@@ -296,15 +300,75 @@ async fn resolve_tool_version(
         _ => Ecosystem::Generic,
     };
 
-    // Resolve version
-    let resolved = solver
-        .resolve(tool_name, &request, &versions, &ecosystem)
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+    // Check if this tool supports passthrough versions (e.g., Rust with rustup)
+    // Passthrough means the version manager (like rustup) handles version validation,
+    // so we accept any user-specified version without needing it in available versions.
+    let is_passthrough = versions.iter().any(|v| {
+        v.metadata
+            .get("passthrough")
+            .map(|s| s == "true")
+            .unwrap_or(false)
+    });
+
+    // Parse version request
+    let request = VersionRequest::parse(version_str);
+
+    // For passthrough tools, check if the requested version matches a known channel
+    // or use it directly as a version number
+    let resolved = if is_passthrough {
+        // Check if version matches a channel (stable, beta, nightly)
+        if let Some(channel_version) = versions.iter().find(|v| v.version == version_str) {
+            // Use the channel version directly
+            ResolvedVersion {
+                version: Version::parse(&channel_version.version)
+                    .unwrap_or_else(|| Version::new(0, 0, 0)),
+                source: ecosystem.to_string(),
+                metadata: channel_version.metadata.clone(),
+                resolved_from: version_str.to_string(),
+            }
+        } else {
+            // Use user-specified version directly (e.g., "1.83.0")
+            // This allows exact version numbers like from rust-version in Cargo.toml
+            if verbose {
+                println!("    ℹ Using passthrough version: {}", version_str);
+            }
+            ResolvedVersion {
+                version: Version::parse(version_str).unwrap_or_else(|| Version::new(0, 0, 0)),
+                source: ecosystem.to_string(),
+                metadata: std::collections::HashMap::new(),
+                resolved_from: version_str.to_string(),
+            }
+        }
+    } else {
+        // Normal resolution through version solver
+        solver
+            .resolve(tool_name, &request, &versions, &ecosystem)
+            .map_err(|e| anyhow::anyhow!("{}", e))?
+    };
+
+    // Get download URL for the current platform
+    let current_platform = vx_runtime::Platform::current();
+    let download_url = if let Ok(Some(url)) = runtime
+        .download_url(&resolved.version.to_string(), &current_platform)
+        .await
+    {
+        Some(url)
+    } else {
+        if verbose {
+            eprintln!("    ⚠ Warning: No download URL available for {}", tool_name);
+        }
+        None
+    };
 
     // Create locked tool entry
     let mut locked = LockedTool::new(resolved.version.to_string(), resolved.source.clone())
         .with_resolved_from(version_str)
         .with_ecosystem(ecosystem);
+
+    // Add download URL if available
+    if let Some(url) = download_url {
+        locked = locked.with_download_url(url);
+    }
 
     // Copy metadata
     for (key, value) in &resolved.metadata {
