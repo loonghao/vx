@@ -44,6 +44,7 @@ pub struct Executor<'a> {
     resolver: Resolver,
 
     /// Optional disk-backed resolution cache
+    #[allow(dead_code)]
     resolution_cache: Option<ResolutionCache>,
 
     /// Optional provider registry for installation
@@ -109,7 +110,7 @@ impl ProjectToolsConfig {
 
         // Fallback to primary runtime for the ecosystem
         let primary = self.primary_runtime_for(tool)?;
-        self.get_version(&primary)
+        self.get_version(primary)
     }
 
     /// Get the primary runtime name for a given tool based on its ecosystem
@@ -526,6 +527,7 @@ impl<'a> Executor<'a> {
     }
 
     /// Prepare environment variables to use a specific version of a dependency
+    #[allow(dead_code)]
     async fn prepare_dependency_env(
         &self,
         dep_name: &str,
@@ -861,7 +863,7 @@ impl<'a> Executor<'a> {
                         match var_config {
                             vx_manifest::EnvVarConfig::Simple(value) => {
                                 let expanded =
-                                    self.expand_template(&value, runtime_name, version)?;
+                                    self.expand_template(value, runtime_name, version)?;
                                 env.insert(var_name.clone(), expanded);
                             }
                             vx_manifest::EnvVarConfig::Advanced {
@@ -875,14 +877,14 @@ impl<'a> Executor<'a> {
                                 if *replace {
                                     if let Some(v) = value {
                                         final_value =
-                                            self.expand_template(&v, runtime_name, version)?;
+                                            self.expand_template(v, runtime_name, version)?;
                                     }
                                 } else {
                                     // Prepend
                                     if let Some(pre) = prepend {
                                         for item in pre {
                                             let expanded =
-                                                self.expand_template(&item, runtime_name, version)?;
+                                                self.expand_template(item, runtime_name, version)?;
                                             final_value.push_str(&expanded);
                                             final_value.push(if cfg!(windows) { ';' } else { ':' });
                                         }
@@ -904,7 +906,7 @@ impl<'a> Executor<'a> {
                                     if let Some(app) = append {
                                         for item in app {
                                             let expanded =
-                                                self.expand_template(&item, runtime_name, version)?;
+                                                self.expand_template(item, runtime_name, version)?;
                                             final_value.push_str(&expanded);
                                             final_value.push(if cfg!(windows) { ';' } else { ':' });
                                         }

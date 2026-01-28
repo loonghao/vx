@@ -342,15 +342,9 @@ fn get_download_url_from_lock(
     // Check if requested version matches locked version or uses version constraint
     // For "latest", always use locked version
     // For specific versions, check if they match
-    let matches = if requested_version == "latest" {
-        true
-    } else if requested_version == locked_version {
-        true
-    } else {
-        // Version constraint or partial version - use locked version anyway
-        // since lock file already resolved to a specific version
-        true
-    };
+    // Version constraint or partial version - use locked version anyway
+    // since lock file already resolved to a specific version
+    let matches = requested_version == "latest" || requested_version == locked_version || true;
 
     if matches {
         Some((locked_version, download_url))

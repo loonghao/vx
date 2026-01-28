@@ -144,7 +144,7 @@ impl Runtime for RustupRuntime {
 
         // Spawn threads to read and display output
         let stdout_handle = std::thread::spawn(move || {
-            for line in stdout_reader.lines().flatten() {
+            for line in stdout_reader.lines().map_while(Result::ok) {
                 if !line.contains("info: downloading component")
                     && !line.contains("info: installing component")
                     && !line.trim().is_empty()
@@ -155,7 +155,7 @@ impl Runtime for RustupRuntime {
         });
 
         let stderr_handle = std::thread::spawn(move || {
-            for line in stderr_reader.lines().flatten() {
+            for line in stderr_reader.lines().map_while(Result::ok) {
                 if line.contains("error:") || line.contains("warning:") {
                     tracing::warn!("  {}", line);
                 } else if !line.trim().is_empty() {
@@ -398,7 +398,7 @@ impl Runtime for CargoRuntime {
 
         // Spawn threads to read and display output
         let stdout_handle = std::thread::spawn(move || {
-            for line in stdout_reader.lines().flatten() {
+            for line in stdout_reader.lines().map_while(Result::ok) {
                 // Filter out common rustup messages
                 if !line.contains("info: downloading component")
                     && !line.contains("info: installing component")
@@ -410,7 +410,7 @@ impl Runtime for CargoRuntime {
         });
 
         let stderr_handle = std::thread::spawn(move || {
-            for line in stderr_reader.lines().flatten() {
+            for line in stderr_reader.lines().map_while(Result::ok) {
                 if line.contains("error:") || line.contains("warning:") {
                     tracing::warn!("  {}", line);
                 } else if !line.trim().is_empty() {
@@ -946,7 +946,7 @@ impl Runtime for RustcRuntime {
 
         // Spawn threads to read and display output
         let stdout_handle = std::thread::spawn(move || {
-            for line in stdout_reader.lines().flatten() {
+            for line in stdout_reader.lines().map_while(Result::ok) {
                 if !line.contains("info: downloading component")
                     && !line.contains("info: installing component")
                     && !line.trim().is_empty()
@@ -957,7 +957,7 @@ impl Runtime for RustcRuntime {
         });
 
         let stderr_handle = std::thread::spawn(move || {
-            for line in stderr_reader.lines().flatten() {
+            for line in stderr_reader.lines().map_while(Result::ok) {
                 if line.contains("error:") || line.contains("warning:") {
                     tracing::warn!("  {}", line);
                 } else if !line.trim().is_empty() {
