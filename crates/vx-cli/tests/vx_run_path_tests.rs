@@ -19,19 +19,52 @@ use vx_cli::commands::setup::{parse_vx_config, ConfigView};
 use vx_paths::PathManager;
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Get platform directory name for current platform
+fn get_platform_dir_name() -> String {
+    let os = if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "darwin"
+    } else if cfg!(target_os = "linux") {
+        "linux"
+    } else {
+        "unknown"
+    };
+
+    let arch = if cfg!(target_arch = "x86_64") {
+        "x64"
+    } else if cfg!(target_arch = "aarch64") {
+        "arm64"
+    } else if cfg!(target_arch = "arm") {
+        "arm"
+    } else if cfg!(target_arch = "x86") {
+        "x86"
+    } else {
+        "unknown"
+    };
+
+    format!("{}-{}", os, arch)
+}
+
+// ============================================================================
 // Test Fixtures
 // ============================================================================
 
 /// Create a mock vx home with a tool installed in the standard bin/ structure
 fn create_mock_vx_home_with_bin_structure() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let platform = get_platform_dir_name();
 
-    // Create store/uv/0.7.12/bin/uv structure (standard layout)
+    // Create store/uv/0.7.12/<platform>/bin/uv structure (platform-specific layout)
     let uv_bin = temp_dir
         .path()
         .join("store")
         .join("uv")
         .join("0.7.12")
+        .join(&platform)
         .join("bin");
     fs::create_dir_all(&uv_bin).expect("Failed to create uv bin dir");
 
@@ -227,14 +260,16 @@ mod latest_version_tests {
         init_test_env();
 
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let platform = get_platform_dir_name();
 
-        // Create multiple versions
+        // Create multiple versions with platform-specific structure
         for version in &["0.7.10", "0.7.11", "0.7.12"] {
             let uv_bin = temp_dir
                 .path()
                 .join("store")
                 .join("uv")
                 .join(version)
+                .join(&platform)
                 .join("bin");
             fs::create_dir_all(&uv_bin).expect("Failed to create uv bin dir");
 
@@ -273,13 +308,15 @@ mod latest_version_tests {
         init_test_env();
 
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let platform = get_platform_dir_name();
 
-        // Create a version
+        // Create a version with platform-specific structure
         let uv_bin = temp_dir
             .path()
             .join("store")
             .join("uv")
             .join("0.7.12")
+            .join(&platform)
             .join("bin");
         fs::create_dir_all(&uv_bin).expect("Failed to create uv bin dir");
 
