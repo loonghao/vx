@@ -319,7 +319,7 @@ fn update_lockfile_if_exists(
 /// instead of re-fetching them from providers.
 fn get_download_url_from_lock(
     tool_name: &str,
-    requested_version: &str,
+    _requested_version: &str,
 ) -> Option<(String, String)> {
     // Try to find project root with vx.toml
     let current_dir = env::current_dir().ok()?;
@@ -344,13 +344,8 @@ fn get_download_url_from_lock(
     // For specific versions, check if they match
     // Version constraint or partial version - use locked version anyway
     // since lock file already resolved to a specific version
-    let matches = requested_version == "latest" || requested_version == locked_version || true;
-
-    if matches {
-        Some((locked_version, download_url))
-    } else {
-        None
-    }
+    // Always use locked version when lock file exists
+    Some((locked_version, download_url))
 }
 
 /// Install a runtime quietly (for CI testing)
