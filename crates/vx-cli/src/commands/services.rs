@@ -23,15 +23,13 @@
 //! - `vx services status` - Show service status
 //! - `vx services logs <service>` - Show service logs
 
+use crate::commands::common::load_full_config_cwd;
+use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
-use std::env;
 use std::path::Path;
 use std::process::{Command, Stdio};
-use vx_config::{parse_config, ServiceConfig, VxConfig};
-use vx_paths::find_vx_config;
-
-use crate::ui::UI;
+use vx_config::ServiceConfig;
 
 /// Container runtime (docker or podman)
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -96,9 +94,7 @@ pub async fn handle_start(
     force: bool,
     verbose: bool,
 ) -> Result<()> {
-    let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
-    let config = parse_vx_config(&config_path)?;
+    let (config_path, config) = load_full_config_cwd()?;
 
     if config.services.is_empty() {
         UI::warn("No services defined in vx.toml");
@@ -162,9 +158,7 @@ pub async fn handle_start(
 
 /// Handle services stop command
 pub async fn handle_stop(services: Option<Vec<String>>, verbose: bool) -> Result<()> {
-    let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
-    let config = parse_vx_config(&config_path)?;
+    let (config_path, config) = load_full_config_cwd()?;
 
     if config.services.is_empty() {
         UI::warn("No services defined in vx.toml");
@@ -216,9 +210,7 @@ pub async fn handle_stop(services: Option<Vec<String>>, verbose: bool) -> Result
 
 /// Handle services status command
 pub async fn handle_status(verbose: bool) -> Result<()> {
-    let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
-    let config = parse_vx_config(&config_path)?;
+    let (config_path, config) = load_full_config_cwd()?;
 
     if config.services.is_empty() {
         UI::warn("No services defined in vx.toml");
@@ -278,9 +270,7 @@ pub async fn handle_status(verbose: bool) -> Result<()> {
 
 /// Handle services logs command
 pub async fn handle_logs(service: &str, follow: bool, tail: Option<usize>) -> Result<()> {
-    let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
-    let config = parse_vx_config(&config_path)?;
+    let (config_path, config) = load_full_config_cwd()?;
 
     if !config.services.contains_key(service) {
         let available: Vec<_> = config.services.keys().collect();
@@ -340,12 +330,6 @@ pub async fn handle_restart(services: Option<Vec<String>>, verbose: bool) -> Res
 // ============================================
 // Helper functions
 // ============================================
-
-fn parse_vx_config(path: &Path) -> Result<VxConfig> {
-    let content = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read {}", path.display()))?;
-    parse_config(&content).context("Failed to parse vx.toml")
-}
 
 fn get_project_name(config_path: &Path) -> String {
     config_path

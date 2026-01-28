@@ -46,14 +46,14 @@ members = [
   "crates/vx-providers/azcli",
   "crates/vx-providers/gcloud",
   # Build tools & Task runners (P1)
-  "crates/vx-providers/ninja",
-  "crates/vx-providers/cmake",
-  "crates/vx-providers/meson",
-  "crates/vx-providers/make",
-  "crates/vx-providers/nasm",
-  "crates/vx-providers/protoc",
-  "crates/vx-providers/task",
-  "crates/vx-providers/pre-commit",
+    "crates/vx-providers/ninja",
+    "crates/vx-providers/cmake",
+    "crates/vx-providers/meson",
+    "crates/vx-providers/make",
+    "crates/vx-providers/nasm",
+    "crates/vx-providers/protoc",
+    "crates/vx-providers/task",
+    "crates/vx-providers/pre-commit",
   # AI tools (P2)
   "crates/vx-providers/ollama",
   # HPC/Scientific computing
@@ -70,6 +70,7 @@ members = [
   "crates/vx-providers/imagemagick",
   # CLI tools
   "crates/vx-providers/jq",
+  "crates/vx-providers/pwsh",
 ]
 resolver = "2"
 
@@ -197,6 +198,7 @@ vx-provider-msvc = { path = "crates/vx-providers/msvc" }
 vx-provider-ffmpeg = { path = "crates/vx-providers/ffmpeg" }
 vx-provider-gh = { path = "crates/vx-providers/gh" }
 vx-provider-imagemagick = { path = "crates/vx-providers/imagemagick" }
+vx-provider-pwsh = { path = "crates/vx-providers/pwsh" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
 
@@ -252,6 +254,9 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 # Pin to 0.3.9 - versions 0.3.10+ require Rust 2024 Edition (incompatible with MSRV 1.80)
 tracing-indicatif = "0.3.9"
+
+# Lazy static initialization
+once_cell = "1.19"
 
 # Semantic versioning
 semver = "1.0"

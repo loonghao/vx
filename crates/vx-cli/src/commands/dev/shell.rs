@@ -5,21 +5,32 @@ use crate::ui::UI;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::env;
-use vx_env::{SessionContext, ShellSpawner};
+use std::path::PathBuf;
+use vx_env::{SessionContext, SessionSource, ShellSpawner};
 
 /// Spawn an interactive dev shell
 pub fn spawn_dev_shell(
     shell: Option<String>,
-    _env_vars: &HashMap<String, String>,
+    env_vars: &HashMap<String, String>,
     config: &ConfigView,
+    config_path: Option<PathBuf>,
 ) -> Result<()> {
     // Create SessionContext from config
     let mut session = SessionContext::new(&config.project_name)
         .tools(&config.tools)
-        .env_vars(&config.env)
-        .env_vars(&config.setenv)
+        .env_vars(env_vars) // Use the complete environment from build_dev_environment
         .isolated(config.isolation)
         .passenv(config.passenv.clone());
+
+    // Set source based on config_path
+    if let Some(path) = config_path {
+        session = session.source(SessionSource::VxToml {
+            path,
+            project_name: config.project_name.clone(),
+        });
+    } else {
+        session = session.source(SessionSource::Inline);
+    }
 
     if let Ok(current_dir) = env::current_dir() {
         session = session.project_root(current_dir);
@@ -34,7 +45,6 @@ pub fn spawn_dev_shell(
         config.tools.keys().cloned().collect::<Vec<_>>().join(", ")
     ));
     UI::hint("Type 'exit' to leave the dev environment");
-    println!();
 
     let status = spawner.spawn_interactive(shell.as_deref())?;
 

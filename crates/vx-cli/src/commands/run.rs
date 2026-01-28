@@ -14,12 +14,12 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
 
+use crate::commands::common::load_config_view_cwd;
 use crate::commands::dev::build_script_environment;
-use crate::commands::setup::{parse_vx_config, ConfigView};
+use crate::commands::setup::ConfigView;
 use crate::ui::UI;
 use vx_args::Interpolator;
 use vx_env::execute_with_env;
-use vx_paths::find_vx_config;
 
 /// Handle the run command - execute a script from vx.toml
 ///
@@ -37,12 +37,8 @@ pub async fn handle(
     script_help: bool,
     args: &[String],
 ) -> Result<()> {
-    let current_dir = std::env::current_dir()?;
-
-    // Find vx.toml (search current and parent directories)
-
-    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
-    let config = parse_vx_config(&config_path)?;
+    // Use common configuration loading
+    let (config_path, config) = load_config_view_cwd()?;
 
     // Handle --list flag
     if list {
@@ -94,7 +90,8 @@ pub async fn handle(
     let mut env_vars = build_script_environment(&config)?;
 
     // Load .env files
-    load_dotenv_files(&current_dir, &mut env_vars);
+    let current_dir = config_path.parent().unwrap();
+    load_dotenv_files(current_dir, &mut env_vars);
 
     // Add config env vars
     for (key, value) in &config.env {
@@ -292,9 +289,7 @@ fn print_script_help(script_name: &str, config: &ConfigView) -> Result<()> {
 
 /// List all available scripts in vx.toml
 pub async fn handle_list() -> Result<()> {
-    let current_dir = std::env::current_dir()?;
-    let config_path = find_vx_config(&current_dir).map_err(|e| anyhow::anyhow!("{}", e))?;
-    let config = parse_vx_config(&config_path)?;
+    let (_config_path, config) = load_config_view_cwd()?;
 
     if config.scripts.is_empty() {
         UI::info("No scripts defined in vx.toml");

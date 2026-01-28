@@ -69,6 +69,7 @@ vx-provider-ffmpeg = { workspace = true }
 vx-provider-gh = { workspace = true }
 vx-provider-imagemagick = { workspace = true }
 vx-provider-nasm = { workspace = true }
+vx-provider-pwsh = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
