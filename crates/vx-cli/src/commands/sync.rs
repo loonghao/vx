@@ -200,6 +200,7 @@ pub async fn handle_with_options(_registry: &ProviderRegistry, options: SyncOpti
     // Analyze project files for additional required tools if enabled
     if options.analyze {
         let analyzed_tools = analyze_project_tools(project_root, options.verbose).await?;
+        #[allow(clippy::map_entry)]
         for (name, version) in analyzed_tools {
             if !effective_tools.contains_key(&name) {
                 if options.verbose {
@@ -579,16 +580,14 @@ fn check_version_ranges(
         }
     }
 
-    if !outdated_in_range.is_empty() {
-        if verbose {
-            UI::warn("Some tools have updates available within their version ranges:");
-            for (name, current, range) in &outdated_in_range {
-                UI::detail(&format!(
-                    "  {} {} is not the latest in range {}",
-                    name, current, range
-                ));
-            }
-            UI::hint("Run 'vx update' to update within ranges, or 'vx check' for details");
+    if !outdated_in_range.is_empty() && verbose {
+        UI::warn("Some tools have updates available within their version ranges:");
+        for (name, current, range) in &outdated_in_range {
+            UI::detail(&format!(
+                "  {} {} is not the latest in range {}",
+                name, current, range
+            ));
         }
+        UI::hint("Run 'vx update' to update within ranges, or 'vx check' for details");
     }
 }

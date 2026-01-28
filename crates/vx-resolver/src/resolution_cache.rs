@@ -346,6 +346,7 @@ fn find_lock_file(project_root: &Path) -> Option<PathBuf> {
 /// Helper for logging cache hit/miss with structured fields.
 ///
 /// Uses structured logging for better observability.
+#[allow(dead_code)]
 pub(crate) fn log_cache_result(hit: bool, runtime: &str) {
     if hit {
         debug!(

@@ -101,10 +101,8 @@ pub async fn handle(
     // Check tool status (installed/missing)
     let statuses = check_tools_status(&tools_to_check)?;
 
-    if !quiet {
-        if detailed {
-            println!("Checking project tools...\n");
-        }
+    if !quiet && detailed {
+        println!("Checking project tools...\n");
     }
 
     for (name, config_version, status, path, _) in &statuses {

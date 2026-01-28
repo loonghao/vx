@@ -39,6 +39,7 @@ pub async fn handle(
 /// Supports `runtime@version` syntax:
 /// - `vx yarn@1.21.1 global add terminalizer`
 /// - `vx node@20 --version`
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_with_version(
     registry: &ProviderRegistry,
     context: &RuntimeContext,
@@ -104,6 +105,7 @@ pub async fn execute_runtime(
 /// 2. If a version is specified, ensures that version is installed
 /// 3. Auto-installs missing components if enabled
 /// 4. Forwards the command to the appropriate executable
+#[allow(clippy::too_many_arguments)]
 pub async fn execute_runtime_with_version(
     registry: &ProviderRegistry,
     context: &RuntimeContext,
