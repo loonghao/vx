@@ -20,15 +20,16 @@ auto_installable = true
 
 # RFC 0018: Environment configuration
 [env]
-# Note: Don't set NODE_PATH to avoid interfering with node_modules resolution
-# Node.js automatically searches for node_modules in parent directories
-# Users can configure global installation location via npm config
+vars.PATH = "{install_dir}/bin"
 
 [env.advanced]
 # PATH configuration (in order of priority)
 path_prepend = ["{install_dir}/bin"]
 # Isolation mode: don't inherit NODE_* variables from system environment
 inherit_system_vars = ["HOME", "USER", "LANG", "LC_*", "TZ"]
+
+[env.conditional]
+"*" = { PATH = "{install_dir}/bin" }
 
 # RFC 0018: Mirror configuration
 mirrors = [

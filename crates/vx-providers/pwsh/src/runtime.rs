@@ -56,7 +56,7 @@ impl Runtime for PwshRuntime {
     }
 
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        format!("{}", PwshUrlBuilder::get_executable_name(platform))
+        PwshUrlBuilder::get_executable_name(platform).to_string()
     }
 
     async fn execute(

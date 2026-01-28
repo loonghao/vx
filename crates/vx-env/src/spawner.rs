@@ -118,14 +118,12 @@ impl ShellSpawner {
             Ok(dirs::data_local_dir()
                 .ok_or_else(|| anyhow::anyhow!("Failed to get local data directory"))?
                 .join("vx"))
+        } else if let Ok(xdg_data) = env::var("XDG_DATA_HOME") {
+            Ok(std::path::PathBuf::from(xdg_data).join("vx"))
         } else {
-            if let Ok(xdg_data) = env::var("XDG_DATA_HOME") {
-                Ok(std::path::PathBuf::from(xdg_data).join("vx"))
-            } else {
-                let home = env::var("HOME")
-                    .map_err(|_| anyhow::anyhow!("HOME environment variable not set"))?;
-                Ok(std::path::PathBuf::from(home).join(".local/share/vx"))
-            }
+            let home = env::var("HOME")
+                .map_err(|_| anyhow::anyhow!("HOME environment variable not set"))?;
+            Ok(std::path::PathBuf::from(home).join(".local/share/vx"))
         }
     }
 

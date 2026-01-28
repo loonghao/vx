@@ -987,7 +987,7 @@ fn extract_rust_toolchain_version(content: &str) -> Option<String> {
         let line = line.trim();
         if let Some(channel) = line.strip_prefix("channel") {
             // Handle: channel = "stable" or channel="stable"
-            let value = channel.trim_start_matches(|c| c == ' ' || c == '=').trim();
+            let value = channel.trim_start_matches([' ', '=']).trim();
             let value = value.trim_matches('"').trim_matches('\'');
             if !value.is_empty() {
                 return Some(value.to_string());
@@ -1008,7 +1008,7 @@ fn extract_cargo_rust_version(content: &str) -> Option<String> {
         let line = line.trim();
         if let Some(value) = line.strip_prefix("rust-version") {
             // Handle: rust-version = "1.83.0" or rust-version="1.83.0"
-            let value = value.trim_start_matches(|c| c == ' ' || c == '=').trim();
+            let value = value.trim_start_matches([' ', '=']).trim();
             let value = value.trim_matches('"').trim_matches('\'');
             if !value.is_empty() {
                 return Some(value.to_string());

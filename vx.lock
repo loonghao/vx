@@ -4,33 +4,9 @@
 version = 1
 
 [metadata]
-generated_at = "2026-01-26T03:09:05Z"
+generated_at = "2026-01-28T17:13:04Z"
 vx_version = "0.6.19"
 platform = "x86_64-pc-windows-msvc"
-
-[tools.uv]
-version = "0.9.26"
-source = "vx install"
-resolved_from = "latest"
-ecosystem = "Python"
-
-[tools.rust]
-version = "1.93.0"
-source = "rust"
-resolved_from = "1.93.0"
-ecosystem = "Rust"
-
-[tools.pwsh]
-version = "7.4.13"
-source = "generic"
-resolved_from = "7.4.13"
-ecosystem = "Generic"
-
-[tools.python]
-version = "3.11.13"
-source = "vx install"
-resolved_from = "3.11.13"
-ecosystem = "Python"
 
 [tools.cmake]
 version = "4.2.2"
@@ -38,8 +14,38 @@ source = "vx install"
 resolved_from = "latest"
 ecosystem = "Generic"
 
+[tools.pwsh]
+version = "7.4.13"
+source = "generic"
+resolved_from = "7.4.13"
+ecosystem = "Generic"
+
+[tools.rust]
+version = "1.93.0"
+source = "rust"
+resolved_from = "1.93.0"
+ecosystem = "Rust"
+
 [tools.just]
 version = "1.46.0"
 source = "vx install"
 resolved_from = "latest"
 ecosystem = "Generic"
+
+[tools.uv]
+version = "0.9.26"
+source = "vx install"
+resolved_from = "latest"
+ecosystem = "Python"
+
+[tools.magick]
+version = "7.1.2-13"
+source = "vx install"
+resolved_from = "latest"
+ecosystem = "Generic"
+
+[tools.python]
+version = "3.11.13"
+source = "vx install"
+resolved_from = "3.11.13"
+ecosystem = "Python"
