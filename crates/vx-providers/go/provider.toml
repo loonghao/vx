@@ -14,6 +14,16 @@ description = "Go programming language runtime"
 executable = "go"
 aliases = ["golang"]
 
+# RFC 0018: Environment configuration
+[env]
+# Go requires explicit GOROOT and GOBIN configuration
+vars = { GOROOT = "{install_dir}", GOBIN = "{install_dir}/bin" }
+
+[env.advanced]
+path_prepend = ["{install_dir}/bin"]
+# Isolation mode: don't inherit GO_* variables from system environment
+inherit_system_vars = ["HOME", "USER", "LANG", "LC_*", "TZ"]
+
 [runtimes.versions]
 source = "go-dev"
 stable_pattern = "stable"

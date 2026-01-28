@@ -17,13 +17,14 @@ pub mod runtime;
 pub mod shell;
 pub mod system_deps;
 pub mod test_config;
+pub mod version_range;
 pub mod version_source;
 
 pub use command::CommandDef;
 pub use constraint::{ConstraintRule, DependencyDef};
 pub use detection::DetectionConfig;
 pub use download::DownloadConfig;
-pub use env::EnvConfig;
+pub use env::{EnvConfig, EnvVarConfig};
 pub use executable::ExecutableConfig;
 pub use health::HealthConfig;
 pub use hooks::{HooksConfig, HooksDef};
@@ -47,4 +48,5 @@ pub use system_deps::{
 pub use test_config::{
     InlineTestScripts, PlatformTestCommands, TestCommand, TestConfig, TestPlatformConfig,
 };
+pub use version_range::{PinningStrategy, VersionRangeConfig};
 pub use version_source::VersionSourceDef;

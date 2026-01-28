@@ -21,6 +21,22 @@ name = "rustup"
 description = "The Rust toolchain installer"
 executable = "rustup"
 
+# RFC 0018: Environment configuration
+[env]
+# Rust toolchain environment variables
+# CARGO_HOME and RUSTUP_HOME should be set in the vx store directory
+vars = {
+    RUSTUP_HOME = "store/rustup",
+    CARGO_HOME = "store/cargo"
+}
+
+[env.advanced]
+# PATH configuration (priority ordering)
+# cargo/bin should be first in PATH so user-installed tools take precedence
+path_prepend = ["$CARGO_HOME/bin", "{install_dir}/bin"]
+# Isolation mode: don't inherit RUST_* variables from system environment
+inherit_system_vars = ["HOME", "USER", "LANG", "LC_*", "TZ"]
+
 [runtimes.versions]
 source = "github-releases"
 owner = "rust-lang"

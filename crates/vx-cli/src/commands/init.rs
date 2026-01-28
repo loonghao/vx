@@ -452,15 +452,37 @@ pub fn detect_project(dir: &Path) -> Result<ProjectDetection> {
     // Check for Rust project
     if dir.join("Cargo.toml").exists() {
         detection.project_types.push(ProjectType::Rust);
-        detection
-            .tools
-            .insert("rust".to_string(), "latest".to_string());
         if detection.package_manager.is_none() {
             detection.package_manager = Some(PackageManager::Cargo);
         }
 
-        // Try to get package name from Cargo.toml
+        // Try to get rust version from rust-toolchain.toml first, then Cargo.toml
+        let mut rust_version = None;
+
+        // Check rust-toolchain.toml
+        let toolchain_path = dir.join("rust-toolchain.toml");
+        if toolchain_path.exists() {
+            if let Ok(content) = fs::read_to_string(&toolchain_path) {
+                rust_version = extract_rust_toolchain_version(&content);
+            }
+        }
+
+        // Check rust-toolchain (legacy format)
+        if rust_version.is_none() {
+            let toolchain_legacy_path = dir.join("rust-toolchain");
+            if toolchain_legacy_path.exists() {
+                if let Ok(content) = fs::read_to_string(&toolchain_legacy_path) {
+                    let trimmed = content.trim();
+                    if !trimmed.is_empty() {
+                        rust_version = Some(trimmed.to_string());
+                    }
+                }
+            }
+        }
+
+        // Check Cargo.toml for rust-version or package.rust-version
         if let Ok(content) = fs::read_to_string(dir.join("Cargo.toml")) {
+            // Get project name
             for line in content.lines() {
                 if let Some(name) = line.strip_prefix("name = ") {
                     let name = name.trim().trim_matches('"');
@@ -470,7 +492,16 @@ pub fn detect_project(dir: &Path) -> Result<ProjectDetection> {
                     break;
                 }
             }
+
+            // Get rust-version if not already found
+            if rust_version.is_none() {
+                rust_version = extract_cargo_rust_version(&content);
+            }
         }
+
+        // Use detected version or default to "stable"
+        let version = rust_version.unwrap_or_else(|| "stable".to_string());
+        detection.tools.insert("rust".to_string(), version);
     }
 
     // Check for Justfile
@@ -942,4 +973,47 @@ fn format_value(value: &str) -> String {
     } else {
         format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
     }
+}
+
+/// Extract Rust version from rust-toolchain.toml content
+///
+/// Supports formats like:
+/// - `channel = "stable"`
+/// - `channel = "nightly"`
+/// - `channel = "1.83.0"`
+/// - `[toolchain]\nchannel = "stable"`
+fn extract_rust_toolchain_version(content: &str) -> Option<String> {
+    for line in content.lines() {
+        let line = line.trim();
+        if let Some(channel) = line.strip_prefix("channel") {
+            // Handle: channel = "stable" or channel="stable"
+            let value = channel.trim_start_matches(|c| c == ' ' || c == '=').trim();
+            let value = value.trim_matches('"').trim_matches('\'');
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Extract rust-version from Cargo.toml content
+///
+/// Supports formats like:
+/// - `rust-version = "1.83.0"`
+/// - `rust-version = "1.83"`
+/// - `[package]\nrust-version = "1.83.0"`
+fn extract_cargo_rust_version(content: &str) -> Option<String> {
+    for line in content.lines() {
+        let line = line.trim();
+        if let Some(value) = line.strip_prefix("rust-version") {
+            // Handle: rust-version = "1.83.0" or rust-version="1.83.0"
+            let value = value.trim_start_matches(|c| c == ' ' || c == '=').trim();
+            let value = value.trim_matches('"').trim_matches('\'');
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+        }
+    }
+    None
 }

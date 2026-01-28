@@ -30,7 +30,16 @@ mod execute_tests {
     async fn test_execute_empty_tool(#[future] registry: ProviderRegistry) {
         let registry = registry.await;
         let context = create_test_context();
-        let result = execute::handle(&registry, &context, "", &[], false, CacheMode::Normal).await;
+        let result = execute::handle(
+            &registry,
+            &context,
+            "",
+            &[],
+            false,
+            false,
+            CacheMode::Normal,
+        )
+        .await;
         assert!(result.is_err(), "Execute with empty tool should fail");
 
         cleanup_test_env();
@@ -47,6 +56,7 @@ mod execute_tests {
             &context,
             "nonexistent-tool-xyz",
             &[],
+            false,
             false,
             CacheMode::Normal,
         )
@@ -69,6 +79,7 @@ mod execute_tests {
             "echo",
             &["hello".to_string()],
             true,
+            false,
             CacheMode::Normal,
         )
         .await;

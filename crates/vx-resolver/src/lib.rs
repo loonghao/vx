@@ -65,9 +65,11 @@ pub use runtime_spec::{Ecosystem, RuntimeDependency, RuntimeSpec};
 
 // Re-export version types for convenience
 pub use version::{
-    LockFile, LockFileError, LockFileInconsistency, LockedTool, RangeConstraint, RangeOp,
-    ResolvedVersion, SolverConfig, SolverError, SolverResult, SolverStatus, Version,
-    VersionConstraint, VersionRequest, VersionSolver, VersionStrategy,
+    ApplyConfigResult, BoundsCheckResult, Conflict, ConflictDetectionError, ConflictDetector,
+    DependencyRequirement, LockFile, LockFileError, LockFileInconsistency, LockedTool,
+    MergedRequirement, RangeConstraint, RangeOp, ResolvedVersion, SolverConfig, SolverError,
+    SolverResult, SolverStatus, Version, VersionConstraint, VersionRangeConfig,
+    VersionRangeResolver, VersionRequest, VersionSolver, VersionStrategy,
 };
 
 /// Result type for resolver operations

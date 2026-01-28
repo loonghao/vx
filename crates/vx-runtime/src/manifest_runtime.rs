@@ -497,7 +497,9 @@ impl Runtime for ManifestDrivenRuntime {
             // Delegate to the default Runtime::install implementation
             // by getting the URL and using the installer
             let store_name = self.bundled_with.as_deref().unwrap_or(&self.name);
-            let install_path = ctx.paths.version_store_dir(store_name, version);
+            // Use platform-specific directory for installation
+            let base_path = ctx.paths.version_store_dir(store_name, version);
+            let install_path = base_path.join(platform.as_str());
 
             if ctx.fs.exists(&install_path) {
                 // Already installed

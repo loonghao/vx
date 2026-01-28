@@ -1,6 +1,7 @@
 //! Tests for the ConstraintsRegistry system
 
 use rstest::rstest;
+use vx_manifest::ProviderManifest;
 use vx_runtime::constraints::{
     ConstraintRule, ConstraintsRegistry, DependencyConstraint, VersionPattern,
 };
@@ -246,4 +247,188 @@ requires = [
     assert_eq!(deps_v2[0].min_version.as_deref(), Some("18.0.0"));
     assert_eq!(deps_v2[0].max_version.as_deref(), None);
     assert_eq!(deps_v2[0].recommended_version.as_deref(), Some("22"));
+}
+
+#[test]
+fn test_rust_cargo_constraints() {
+    // Test cargo dependency on rustup
+    let toml = r#"
+[provider]
+name = "rust"
+ecosystem = "rust"
+
+[[runtimes]]
+name = "cargo"
+executable = "cargo"
+
+[[runtimes.runtime_dependency]]
+runtime = "rustup"
+"#;
+
+    let manifest = ProviderManifest::parse(toml).unwrap();
+    let mut registry = ConstraintsRegistry::new();
+    registry.load_from_manifest(&manifest);
+
+    // cargo should require rustup
+    let deps = registry.get_constraints("cargo", "1.83.0");
+    assert_eq!(deps.len(), 1);
+    assert_eq!(deps[0].name, "rustup");
+}
+
+#[test]
+fn test_rustc_constraints() {
+    // Test rustc dependency on rustup
+    let toml = r#"
+[provider]
+name = "rust"
+ecosystem = "rust"
+
+[[runtimes]]
+name = "rustc"
+executable = "rustc"
+
+[[runtimes.runtime_dependency]]
+runtime = "rustup"
+"#;
+
+    let manifest = ProviderManifest::parse(toml).unwrap();
+    let mut registry = ConstraintsRegistry::new();
+    registry.load_from_manifest(&manifest);
+
+    // rustc should require rustup
+    let deps = registry.get_constraints("rustc", "1.83.0");
+    assert_eq!(deps.len(), 1);
+    assert_eq!(deps[0].name, "rustup");
+}
+
+#[test]
+fn test_npm_node_version_constraints() {
+    // Test npm 9.x+ requires Node.js 14+
+    let toml = r#"
+[provider]
+name = "node"
+ecosystem = "nodejs"
+
+[[runtimes]]
+name = "npm"
+executable = "npm"
+bundled_with = "node"
+
+[[runtimes.constraints]]
+when = ">=9"
+requires = [
+    { runtime = "node", version = ">=14", recommended = "20", reason = "npm 9.x+ requires Node.js 14+" }
+]
+
+[[runtimes.constraints]]
+when = "^8"
+requires = [
+    { runtime = "node", version = ">=12", recommended = "20" }
+]
+"#;
+
+    let manifest = ProviderManifest::parse(toml).unwrap();
+    let mut registry = ConstraintsRegistry::new();
+    registry.load_from_manifest(&manifest);
+
+    // npm 9.x requires Node.js 14+
+    let deps_v9 = registry.get_constraints("npm", "9.0.0");
+    assert_eq!(deps_v9.len(), 1);
+    assert_eq!(deps_v9[0].min_version.as_deref(), Some("14.0.0"));
+
+    // npm 8.x requires Node.js 12+
+    let deps_v8 = registry.get_constraints("npm", "8.0.0");
+    assert_eq!(deps_v8.len(), 1);
+    assert_eq!(deps_v8[0].min_version.as_deref(), Some("12.0.0"));
+}
+
+#[test]
+fn test_gofmt_go_constraints() {
+    // Test gofmt bundled with go
+    let toml = r#"
+[provider]
+name = "go"
+ecosystem = "go"
+
+[[runtimes]]
+name = "gofmt"
+executable = "gofmt"
+bundled_with = "go"
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "go", version = "*", reason = "gofmt is bundled with go" }
+]
+"#;
+
+    let manifest = ProviderManifest::parse(toml).unwrap();
+    let mut registry = ConstraintsRegistry::new();
+    registry.load_from_manifest(&manifest);
+
+    // gofmt should require go
+    let deps = registry.get_constraints("gofmt", "1.21.0");
+    assert_eq!(deps.len(), 1);
+    assert_eq!(deps[0].name, "go");
+}
+
+#[test]
+fn test_bunx_bun_constraints() {
+    // Test bunx bundled with bun
+    let toml = r#"
+[provider]
+name = "bun"
+ecosystem = "nodejs"
+
+[[runtimes]]
+name = "bunx"
+executable = "bun"
+bundled_with = "bun"
+command_prefix = ["x"]
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "bun", version = "*", reason = "bunx is bundled with bun" }
+]
+"#;
+
+    let manifest = ProviderManifest::parse(toml).unwrap();
+    let mut registry = ConstraintsRegistry::new();
+    registry.load_from_manifest(&manifest);
+
+    // bunx should require bun
+    let deps = registry.get_constraints("bunx", "1.0.0");
+    assert_eq!(deps.len(), 1);
+    assert_eq!(deps[0].name, "bun");
+}
+
+#[test]
+fn test_uvx_uv_constraints() {
+    // Test uvx bundled with uv
+    let toml = r#"
+[provider]
+name = "uv"
+ecosystem = "python"
+
+[[runtimes]]
+name = "uvx"
+executable = "uvx"
+bundled_with = "uv"
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "uv", version = "*", reason = "uvx is bundled with uv" }
+]
+"#;
+
+    let manifest = ProviderManifest::parse(toml).unwrap();
+    let mut registry = ConstraintsRegistry::new();
+    registry.load_from_manifest(&manifest);
+
+    // uvx should require uv
+    let deps = registry.get_constraints("uvx", "0.5.0");
+    assert_eq!(deps.len(), 1);
+    assert_eq!(deps[0].name, "uv");
 }

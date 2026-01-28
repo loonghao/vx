@@ -4,7 +4,7 @@
 
 use crate::runtime::JustRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{provider::Provider, Runtime};
 
 /// Just provider
 #[derive(Debug, Default)]
@@ -41,4 +41,9 @@ impl Provider for JustProvider {
             None
         }
     }
+}
+
+/// Create the Just provider
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(JustProvider::new())
 }

@@ -1,0 +1,7 @@
+node_modules/
+out/
+public/
+.DS_Store
+*.log
+*.mp4
+*.mov

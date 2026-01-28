@@ -90,6 +90,7 @@ async fn test_handle_execute_success() {
         "echo",
         &["test".to_string()],
         false,
+        false,
         CacheMode::Normal,
     )
     .await;

@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
+use vx_config::parse_config;
 use vx_paths::{find_config_file, link, project_env_dir, LinkStrategy, PathManager};
 
 /// Get the project environment directory if in a project with vx.toml
@@ -15,6 +16,27 @@ pub fn get_project_env_dir() -> Option<PathBuf> {
     } else {
         None
     }
+}
+
+/// Get the project name from vx.toml in current directory
+fn get_project_name() -> Result<String> {
+    let current_dir = env::current_dir().context("Failed to get current directory")?;
+    let config_path = find_config_file(&current_dir)
+        .ok_or_else(|| anyhow::anyhow!("No vx.toml found in current directory"))?;
+
+    let config = parse_config(&config_path).with_context(|| {
+        format!(
+            "Failed to parse configuration file: {}",
+            config_path.display()
+        )
+    })?;
+
+    let project_name = config
+        .project
+        .and_then(|p| p.name.clone())
+        .ok_or_else(|| anyhow::anyhow!("[project] name not specified in vx.toml"))?;
+
+    Ok(project_name)
 }
 
 /// Set the default global environment
@@ -135,7 +157,9 @@ pub fn resolve_env_for_shell(
         // Use project environment if available
         if let Some(project_env) = get_project_env_dir() {
             if project_env.exists() {
-                return Ok((project_env, "project".to_string()));
+                // Try to get the actual project name from vx.toml
+                let project_name = get_project_name().unwrap_or_else(|_| "project".to_string());
+                return Ok((project_env, project_name));
             }
         }
 

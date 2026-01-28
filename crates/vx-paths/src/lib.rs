@@ -4,14 +4,32 @@
 //! across different platforms, ensuring consistent directory structures and
 //! proper handling of executable file extensions.
 //!
+//! # Platform Redirection
+//!
+//! vx uses a **platform-agnostic API** with automatic platform-specific storage.
+//!
+//! - **External API**: Access tools using `<provider>/<version>/` paths
+//! - **Internal Storage**: Files stored in `<provider>/<version>/<platform>/` directories
+//! - **Automatic Redirection**: PathManager transparently redirects to current platform
+//!
 //! # Directory Structure
 //!
 //! ```text
 //! ~/.vx/
 //! ├── store/                      # Global storage (Content-Addressable)
-//! │   ├── node/20.0.0/           # Complete installation
-//! │   ├── go/1.21.0/
-//! │   └── uv/0.5.0/
+//! │   ├── node/
+//! │   │   └── 20.0.0/           # Unified version directory (API)
+//! │   │       ├── windows-x64/      # Platform-specific (storage)
+//! │   │       ├── darwin-x64/
+//! │   │       └── linux-x64/
+//! │   ├── go/
+//! │   │   └── 1.21.0/
+//! │   │       ├── windows-x64/
+//! │   │       └── linux-x64/
+//! │   └── python/
+//! │       └── 3.9.21/
+//! │           ├── windows-x64/
+//! │           └── linux-x64/
 //! │
 //! ├── npm-tools/                  # npm package tools (isolated environments)
 //! │   └── vite/
@@ -42,6 +60,23 @@
 //! ├── config/                     # Configuration
 //! └── tmp/                        # Temporary files
 //! ```
+//!
+//! # Offline Bundle Support
+//!
+//! The platform redirection design enables efficient offline bundles:
+//!
+//! ```text
+//! bundle/
+//! └── store/
+//!     └── node/
+//!         └── 20.0.0/
+//!             ├── windows-x64/    # All platforms in one bundle
+//!             ├── darwin-x64/
+//!             └── linux-x64/
+//! ```
+//!
+//! When extracting the bundle, vx automatically selects the correct platform
+//! directory for the current system.
 
 use anyhow::Result;
 use std::path::{Path, PathBuf};

@@ -90,6 +90,7 @@ async fn execute_tool(ctx: &CommandContext, args: &[String]) -> Result<()> {
         request.version.as_deref(),
         tool_args,
         ctx.use_system_path(),
+        ctx.inherit_env(),
         ctx.cache_mode(),
     )
     .await

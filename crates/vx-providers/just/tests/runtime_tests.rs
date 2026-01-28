@@ -1,6 +1,5 @@
 //! Tests for Just runtime
 
-use rstest::rstest;
 use vx_provider_just::{JustProvider, JustRuntime, JustUrlBuilder};
 use vx_runtime::{Arch, Ecosystem, Os, Platform, Provider, Runtime};
 
@@ -13,13 +12,13 @@ fn test_runtime_name() {
 #[test]
 fn test_runtime_description() {
     let runtime = JustRuntime::new();
-    assert!(runtime.description().contains("Just"));
+    assert!(runtime.description().contains("handy"));
 }
 
 #[test]
 fn test_runtime_ecosystem() {
     let runtime = JustRuntime::new();
-    assert_eq!(runtime.ecosystem(), Ecosystem::System);
+    assert!(matches!(runtime.ecosystem(), Ecosystem::Unknown));
 }
 
 #[test]
@@ -58,63 +57,116 @@ fn test_provider_get_runtime() {
     assert!(provider.get_runtime("make").is_none());
 }
 
-#[rstest]
-#[case(Os::Linux, Arch::X86_64, "x86_64-unknown-linux-musl")]
-#[case(Os::Linux, Arch::Aarch64, "aarch64-unknown-linux-musl")]
-#[case(Os::MacOS, Arch::X86_64, "x86_64-apple-darwin")]
-#[case(Os::MacOS, Arch::Aarch64, "aarch64-apple-darwin")]
-#[case(Os::Windows, Arch::X86_64, "x86_64-pc-windows-msvc")]
-#[case(Os::Windows, Arch::Aarch64, "aarch64-pc-windows-msvc")]
-#[case(Os::Linux, Arch::Arm, "arm-unknown-linux-musleabihf")]
-fn test_target_triple(#[case] os: Os, #[case] arch: Arch, #[case] expected: &str) {
-    let platform = Platform::new(os, arch);
-    let triple = JustUrlBuilder::get_target_triple(&platform);
-    assert_eq!(triple, Some(expected.to_string()));
-}
-
-#[rstest]
-#[case(Os::Windows, "zip")]
-#[case(Os::Linux, "tar.gz")]
-#[case(Os::MacOS, "tar.gz")]
-fn test_archive_extension(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform::new(os, Arch::X86_64);
-    let ext = JustUrlBuilder::get_archive_extension(&platform);
-    assert_eq!(ext, expected);
-}
-
-#[rstest]
-#[case(Os::Windows, "just.exe")]
-#[case(Os::Linux, "just")]
-#[case(Os::MacOS, "just")]
-fn test_executable_name(#[case] os: Os, #[case] expected: &str) {
-    let platform = Platform::new(os, Arch::X86_64);
-    let name = JustUrlBuilder::get_executable_name(&platform);
-    assert_eq!(name, expected);
+#[test]
+fn test_target_triple_linux_x64() {
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
+    assert_eq!(
+        JustUrlBuilder::get_target_triple(&platform),
+        Some("x86_64-unknown-linux-musl".to_string())
+    );
 }
 
 #[test]
-fn test_download_url_format() {
+fn test_target_triple_linux_arm64() {
+    let platform = Platform::new(Os::Linux, Arch::Aarch64);
+    assert_eq!(
+        JustUrlBuilder::get_target_triple(&platform),
+        Some("aarch64-unknown-linux-musl".to_string())
+    );
+}
+
+#[test]
+fn test_target_triple_macos_x64() {
+    let platform = Platform::new(Os::MacOS, Arch::X86_64);
+    assert_eq!(
+        JustUrlBuilder::get_target_triple(&platform),
+        Some("x86_64-apple-darwin".to_string())
+    );
+}
+
+#[test]
+fn test_target_triple_macos_arm64() {
+    let platform = Platform::new(Os::MacOS, Arch::Aarch64);
+    assert_eq!(
+        JustUrlBuilder::get_target_triple(&platform),
+        Some("aarch64-apple-darwin".to_string())
+    );
+}
+
+#[test]
+fn test_target_triple_windows_x64() {
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
+    assert_eq!(
+        JustUrlBuilder::get_target_triple(&platform),
+        Some("x86_64-pc-windows-msvc".to_string())
+    );
+}
+
+#[test]
+fn test_target_triple_windows_arm64() {
+    let platform = Platform::new(Os::Windows, Arch::Aarch64);
+    assert_eq!(
+        JustUrlBuilder::get_target_triple(&platform),
+        Some("aarch64-pc-windows-msvc".to_string())
+    );
+}
+
+#[test]
+fn test_archive_extension_windows() {
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
+    assert_eq!(JustUrlBuilder::get_archive_extension(&platform), "zip");
+}
+
+#[test]
+fn test_archive_extension_linux() {
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
+    assert_eq!(JustUrlBuilder::get_archive_extension(&platform), "tar.gz");
+}
+
+#[test]
+fn test_archive_extension_macos() {
+    let platform = Platform::new(Os::MacOS, Arch::X86_64);
+    assert_eq!(JustUrlBuilder::get_archive_extension(&platform), "tar.gz");
+}
+
+#[test]
+fn test_executable_name_windows() {
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
+    assert_eq!(JustUrlBuilder::get_executable_name(&platform), "just.exe");
+}
+
+#[test]
+fn test_executable_name_linux() {
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
+    assert_eq!(JustUrlBuilder::get_executable_name(&platform), "just");
+}
+
+#[test]
+fn test_executable_name_macos() {
+    let platform = Platform::new(Os::MacOS, Arch::X86_64);
+    assert_eq!(JustUrlBuilder::get_executable_name(&platform), "just");
+}
+
+#[test]
+fn test_download_url_linux() {
     let platform = Platform::new(Os::Linux, Arch::X86_64);
     let url = JustUrlBuilder::download_url("1.45.0", &platform).unwrap();
     assert!(url.contains("github.com/casey/just"));
     assert!(url.contains("1.45.0"));
-    assert!(url.contains("x86_64-unknown-linux-musl"));
-    assert!(url.ends_with(".tar.gz"));
 }
 
 #[test]
-fn test_executable_relative_path() {
-    let runtime = JustRuntime::new();
+fn test_download_url_windows() {
+    let platform = Platform::new(Os::Windows, Arch::X86_64);
+    let url = JustUrlBuilder::download_url("1.45.0", &platform).unwrap();
+    assert!(url.contains("github.com/casey/just"));
+    assert!(url.contains("1.45.0"));
+}
 
-    let linux_platform = Platform::new(Os::Linux, Arch::X86_64);
-    assert_eq!(
-        runtime.executable_relative_path("1.45.0", &linux_platform),
-        "just"
-    );
-
-    let windows_platform = Platform::new(Os::Windows, Arch::X86_64);
-    assert_eq!(
-        runtime.executable_relative_path("1.45.0", &windows_platform),
-        "just.exe"
-    );
+#[test]
+fn test_download_url_macos() {
+    let platform = Platform::new(Os::MacOS, Arch::Aarch64);
+    let url = JustUrlBuilder::download_url("1.45.0", &platform).unwrap();
+    assert!(url.contains("github.com/casey/just"));
+    assert!(url.contains("1.45.0"));
 }

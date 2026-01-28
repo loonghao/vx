@@ -40,16 +40,38 @@ pub fn init_tracing(verbose: bool, debug: bool) {
             tracing_subscriber::EnvFilter::new("warn,error")
         };
 
-        tracing_subscriber::registry()
-            .with(env_filter)
-            .with(
-                tracing_subscriber::fmt::layer()
-                    .with_target(debug)
-                    .with_level(verbose || debug)
-                    .without_time(),
-            )
-            .try_init()
-            .ok(); // Ignore errors if already initialized
+        if debug {
+            // Debug mode: clean hierarchical format for stderr
+            // Use pretty format with minimal noise
+            tracing_subscriber::registry()
+                .with(env_filter)
+                .with(
+                    tracing_subscriber::fmt::layer()
+                        .with_writer(std::io::stderr) // Write to stderr to separate from tool output
+                        .with_target(false) // Hide target for cleaner output
+                        .with_level(true)
+                        .with_thread_ids(false)
+                        .with_thread_names(false)
+                        .with_file(false)
+                        .with_line_number(false)
+                        .without_time()
+                        .with_ansi(true),
+                )
+                .try_init()
+                .ok();
+        } else {
+            // Normal/verbose mode: simple format
+            tracing_subscriber::registry()
+                .with(env_filter)
+                .with(
+                    tracing_subscriber::fmt::layer()
+                        .with_target(verbose)
+                        .with_level(verbose)
+                        .without_time(),
+                )
+                .try_init()
+                .ok();
+        }
     });
 }
 
