@@ -320,7 +320,7 @@ impl LockFile {
             self.metadata.generated_at = chrono_now();
 
             // Fill in missing RFC 0023 fields for existing tools
-            for (_name, tool) in &mut self.tools {
+            for tool in self.tools.values_mut() {
                 // Set default values for new fields if not present
                 if tool.original_range.is_none() {
                     tool.original_range = Some(tool.resolved_from.clone());
