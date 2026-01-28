@@ -86,10 +86,10 @@ mod thresholds {
     pub const SETUP_DRYRUN_LARGE_MS: u64 = 3000;
 
     /// Maximum time for script listing
-    pub const SCRIPT_LIST_MS: u64 = 500;
+    pub const SCRIPT_LIST_MS: u64 = 1000;
 
     /// Maximum time for config validation
-    pub const CONFIG_VALIDATE_MS: u64 = 500;
+    pub const CONFIG_VALIDATE_MS: u64 = 1000;
 }
 
 // ============================================

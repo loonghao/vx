@@ -144,27 +144,22 @@ impl Runtime for RustupRuntime {
 
         // Spawn threads to read and display output
         let stdout_handle = std::thread::spawn(move || {
-            for line in stdout_reader.lines() {
-                if let Ok(line) = line {
-                    if !line.contains("info: downloading component")
-                        && !line.contains("info: installing component")
-                    {
-                        if !line.trim().is_empty() {
-                            tracing::debug!("  {}", line);
-                        }
-                    }
+            for line in stdout_reader.lines().flatten() {
+                if !line.contains("info: downloading component")
+                    && !line.contains("info: installing component")
+                    && !line.trim().is_empty()
+                {
+                    tracing::debug!("  {}", line);
                 }
             }
         });
 
         let stderr_handle = std::thread::spawn(move || {
-            for line in stderr_reader.lines() {
-                if let Ok(line) = line {
-                    if line.contains("error:") || line.contains("warning:") {
-                        tracing::warn!("  {}", line);
-                    } else if !line.trim().is_empty() {
-                        tracing::debug!("  {}", line);
-                    }
+            for line in stderr_reader.lines().flatten() {
+                if line.contains("error:") || line.contains("warning:") {
+                    tracing::warn!("  {}", line);
+                } else if !line.trim().is_empty() {
+                    tracing::debug!("  {}", line);
                 }
             }
         });
@@ -403,28 +398,23 @@ impl Runtime for CargoRuntime {
 
         // Spawn threads to read and display output
         let stdout_handle = std::thread::spawn(move || {
-            for line in stdout_reader.lines() {
-                if let Ok(line) = line {
-                    // Filter out common rustup messages
-                    if !line.contains("info: downloading component")
-                        && !line.contains("info: installing component")
-                    {
-                        if !line.trim().is_empty() {
-                            tracing::debug!("  {}", line);
-                        }
-                    }
+            for line in stdout_reader.lines().flatten() {
+                // Filter out common rustup messages
+                if !line.contains("info: downloading component")
+                    && !line.contains("info: installing component")
+                    && !line.trim().is_empty()
+                {
+                    tracing::debug!("  {}", line);
                 }
             }
         });
 
         let stderr_handle = std::thread::spawn(move || {
-            for line in stderr_reader.lines() {
-                if let Ok(line) = line {
-                    if line.contains("error:") || line.contains("warning:") {
-                        tracing::warn!("  {}", line);
-                    } else if !line.trim().is_empty() {
-                        tracing::debug!("  {}", line);
-                    }
+            for line in stderr_reader.lines().flatten() {
+                if line.contains("error:") || line.contains("warning:") {
+                    tracing::warn!("  {}", line);
+                } else if !line.trim().is_empty() {
+                    tracing::debug!("  {}", line);
                 }
             }
         });
@@ -487,8 +477,8 @@ impl Runtime for CargoRuntime {
             let cargo_bin = cargo_home.join("bin");
             let exe_name = if cfg!(windows) { "cargo.exe" } else { "cargo" };
 
-            if cargo_bin.join(&exe_name).exists() {
-                return VerificationResult::success(cargo_bin.join(&exe_name));
+            if cargo_bin.join(exe_name).exists() {
+                return VerificationResult::success(cargo_bin.join(exe_name));
             }
         }
 
@@ -517,7 +507,7 @@ impl Runtime for CargoRuntime {
         let rustup_home = vx_home.join("store").join("rustup").join("rustup");
         let cargo_bin = cargo_home.join("bin");
         let exe_name = if cfg!(windows) { "cargo.exe" } else { "cargo" };
-        let cargo_exe = cargo_bin.join(&exe_name);
+        let cargo_exe = cargo_bin.join(exe_name);
 
         if !cargo_exe.exists() {
             return Err(anyhow::anyhow!(
@@ -956,27 +946,22 @@ impl Runtime for RustcRuntime {
 
         // Spawn threads to read and display output
         let stdout_handle = std::thread::spawn(move || {
-            for line in stdout_reader.lines() {
-                if let Ok(line) = line {
-                    if !line.contains("info: downloading component")
-                        && !line.contains("info: installing component")
-                    {
-                        if !line.trim().is_empty() {
-                            tracing::debug!("  {}", line);
-                        }
-                    }
+            for line in stdout_reader.lines().flatten() {
+                if !line.contains("info: downloading component")
+                    && !line.contains("info: installing component")
+                    && !line.trim().is_empty()
+                {
+                    tracing::debug!("  {}", line);
                 }
             }
         });
 
         let stderr_handle = std::thread::spawn(move || {
-            for line in stderr_reader.lines() {
-                if let Ok(line) = line {
-                    if line.contains("error:") || line.contains("warning:") {
-                        tracing::warn!("  {}", line);
-                    } else if !line.trim().is_empty() {
-                        tracing::debug!("  {}", line);
-                    }
+            for line in stderr_reader.lines().flatten() {
+                if line.contains("error:") || line.contains("warning:") {
+                    tracing::warn!("  {}", line);
+                } else if !line.trim().is_empty() {
+                    tracing::debug!("  {}", line);
                 }
             }
         });
@@ -1032,8 +1017,8 @@ impl Runtime for RustcRuntime {
             let cargo_bin = cargo_home.join("bin");
             let exe_name = if cfg!(windows) { "rustc.exe" } else { "rustc" };
 
-            if cargo_bin.join(&exe_name).exists() {
-                return VerificationResult::success(cargo_bin.join(&exe_name));
+            if cargo_bin.join(exe_name).exists() {
+                return VerificationResult::success(cargo_bin.join(exe_name));
             }
         }
 
@@ -1062,7 +1047,7 @@ impl Runtime for RustcRuntime {
         let rustup_home = vx_home.join("store").join("rustup").join("rustup");
         let cargo_bin = cargo_home.join("bin");
         let exe_name = if cfg!(windows) { "rustc.exe" } else { "rustc" };
-        let rustc_exe = cargo_bin.join(&exe_name);
+        let rustc_exe = cargo_bin.join(exe_name);
 
         if !rustc_exe.exists() {
             return Err(anyhow::anyhow!(
