@@ -479,7 +479,7 @@ fn test_imagemagick_install_platform_handling() {
                 combined
             );
         } else {
-            // Installation failed - should mention package manager options
+            // Installation failed - should mention package manager options or rate limit
             assert!(
                 combined.contains("choco")
                     || combined.contains("scoop")
@@ -487,8 +487,11 @@ fn test_imagemagick_install_platform_handling() {
                     || combined.contains("winget")
                     || combined.contains("package manager")
                     || combined.contains("system package")
-                    || combined.contains("install manually"),
-                "Expected package manager guidance, got: {}",
+                    || combined.contains("install manually")
+                    || combined.contains("rate limit")
+                    || combined.contains("GITHUB_TOKEN")
+                    || combined.contains("GH_TOKEN"),
+                "Expected package manager guidance or rate limit error, got: {}",
                 combined
             );
         }
