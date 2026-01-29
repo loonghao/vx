@@ -190,8 +190,10 @@ export PATH="/home/user/.vx/bin:/home/user/.vx/store/node/20.0.0/bin:/home/user/
 **PowerShell 格式:**
 
 ```powershell
-$env:PATH = "C:\Users\user\.vx\bin;C:\Users\user\.vx\store\node\20.0.0;C:\Users\user\.vx\store\uv\0.5.14;$env:PATH"
+$env:PATH = 'C:\Users\user\.vx\bin;C:\Users\user\.vx\store\node\20.0.0;C:\Users\user\.vx\store\uv\0.5.14;$env:PATH'
 ```
+
+> **注意：** PowerShell 导出使用单引号字符串来处理环境变量值，以确保字面量解释（无变量扩展）。值内的单引号通过双写（`''`）正确转义。
 
 **GitHub Actions 格式:**
 
