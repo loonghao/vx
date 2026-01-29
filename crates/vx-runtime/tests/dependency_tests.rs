@@ -91,13 +91,14 @@ fn test_optional_dependency() {
 #[test]
 fn test_rust_cargo_dependency() {
     // cargo requires rustup (via rust toolchain)
-    let dep =
-        RuntimeDependency::required("rustup").with_reason("cargo is provided by rustup toolchain");
+    let dep = RuntimeDependency::required("rustup")
+        .with_min_version("1.20.0")
+        .with_reason("cargo is provided by rustup toolchain");
 
     // rustup manages rustc and cargo versions
     assert!(dep.is_version_compatible("1.27.1"));
     assert!(dep.is_version_compatible("1.28.0"));
-    assert!(!dep.is_version_compatible("1.0.0")); // Too old
+    assert!(!dep.is_version_compatible("1.0.0")); // Too old (below min 1.20.0)
 }
 
 #[test]
