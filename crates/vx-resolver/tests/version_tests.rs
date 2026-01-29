@@ -370,7 +370,7 @@ mod lockfile_tests {
     #[test]
     fn test_lockfile_new() {
         let lockfile = LockFile::new();
-        assert_eq!(lockfile.version, 1);
+        assert_eq!(lockfile.version, LockFile::current_version());
         assert!(lockfile.tools.is_empty());
         assert!(lockfile.dependencies.is_empty());
     }
