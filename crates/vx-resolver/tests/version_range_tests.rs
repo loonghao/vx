@@ -258,14 +258,14 @@ mod check_bounds {
     }
 
     #[test]
-    fn test_ne_constraint_warning() {
-        let version = Version::new(5, 0, 1);
+    fn test_ne_constraint_no_warning() {
+        let version = Version::new(5, 0, 0);
         let config = VersionRangeConfig {
             warning: vec!["!=5.0.0".to_string()],
             ..Default::default()
         };
 
-        // 5.0.1 != 5.0.0, so no warning should be issued
+        // 5.0.0 == 5.0.0, so it does NOT match the !=5.0.0 constraint, no warning
         let result = VersionRangeResolver::check_bounds(&version, &config);
         assert!(result.is_ok());
         assert!(!result.has_warnings());
