@@ -81,9 +81,10 @@ fn test_store_version_check() {
     // Initially not in store
     assert!(!manager.is_version_in_store("node", "20.0.0"));
 
-    // Create version directory
-    let version_dir = manager.version_store_dir("node", "20.0.0");
-    std::fs::create_dir_all(&version_dir).unwrap();
+    // Create platform-specific directory (required for is_version_in_store)
+    // The new directory structure is: <runtime>/<version>/<platform>/
+    let platform_dir = manager.platform_store_dir("node", "20.0.0");
+    std::fs::create_dir_all(&platform_dir).unwrap();
 
     // Now it should be detected
     assert!(manager.is_version_in_store("node", "20.0.0"));

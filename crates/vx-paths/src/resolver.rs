@@ -626,7 +626,7 @@ mod tests {
 
         // Create a deep directory structure like MSVC
         // msvc/14.42/<platform>/VC/Tools/MSVC/14.42.34433/bin/Hostx64/x64/cl.exe
-        let version_dir = resolver.manager().version_store_dir("msvc", "14.42");
+        let _version_dir = resolver.manager().version_store_dir("msvc", "14.42");
         let platform_dir = resolver.manager().platform_store_dir("msvc", "14.42");
         let deep_dir = platform_dir.join("VC/Tools/MSVC/14.42.34433/bin/Hostx64/x64");
         std::fs::create_dir_all(&deep_dir).unwrap();
