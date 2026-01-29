@@ -66,18 +66,22 @@ fn test_is_version_in_store_with_platform() {
 fn test_list_store_versions_filters_by_platform() {
     let manager = PathManager::new().unwrap();
 
-    // Clean up any existing test-tool directory first
-    let runtime_dir = manager.runtime_store_dir("test-tool");
+    // Use a unique test tool name to avoid conflicts with parallel tests
+    let test_tool = format!("test-tool-{}", std::process::id());
+
+    // Clean up any existing test directory first
+    let runtime_dir = manager.runtime_store_dir(&test_tool);
     if runtime_dir.exists() {
         fs::remove_dir_all(&runtime_dir).unwrap();
     }
 
     // Create base version directory
-    let base_dir = manager.version_store_dir("test-tool", "1.0.0");
+    let base_dir = manager.version_store_dir(&test_tool, "1.0.0");
     fs::create_dir_all(&base_dir).unwrap();
 
-    // Create wrong platform directory
-    let wrong_platform = if manager.platform_dir_name().contains("windows") {
+    // Create wrong platform directory (not the current platform)
+    let current_platform = manager.platform_dir_name();
+    let wrong_platform = if current_platform.contains("windows") {
         "linux-x64"
     } else {
         "windows-x64"
@@ -85,16 +89,34 @@ fn test_list_store_versions_filters_by_platform() {
     let wrong_platform_dir = base_dir.join(wrong_platform);
     fs::create_dir_all(&wrong_platform_dir).unwrap();
 
-    // Should NOT list the version (wrong platform)
-    let versions = manager.list_store_versions("test-tool").unwrap();
-    assert!(versions.is_empty(), "Expected no versions when only wrong platform exists, but got: {:?}", versions);
+    // Verify the wrong platform directory exists but correct one doesn't
+    assert!(
+        wrong_platform_dir.exists(),
+        "Wrong platform dir should exist: {:?}",
+        wrong_platform_dir
+    );
+    let correct_platform_dir = manager.platform_store_dir(&test_tool, "1.0.0");
+    assert!(
+        !correct_platform_dir.exists(),
+        "Correct platform dir should NOT exist yet: {:?}",
+        correct_platform_dir
+    );
+
+    // Should NOT list the version (wrong platform only)
+    let versions = manager.list_store_versions(&test_tool).unwrap();
+    assert!(
+        versions.is_empty(),
+        "Expected no versions when only wrong platform '{}' exists (current: '{}'), but got: {:?}",
+        wrong_platform,
+        current_platform,
+        versions
+    );
 
     // Create correct platform directory
-    let correct_platform_dir = manager.platform_store_dir("test-tool", "1.0.0");
     fs::create_dir_all(&correct_platform_dir).unwrap();
 
     // Should list the version (correct platform)
-    let versions = manager.list_store_versions("test-tool").unwrap();
+    let versions = manager.list_store_versions(&test_tool).unwrap();
     assert_eq!(versions, vec!["1.0.0"]);
 
     // Clean up
