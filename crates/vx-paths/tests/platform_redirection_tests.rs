@@ -66,6 +66,12 @@ fn test_is_version_in_store_with_platform() {
 fn test_list_store_versions_filters_by_platform() {
     let manager = PathManager::new().unwrap();
 
+    // Clean up any existing test-tool directory first
+    let runtime_dir = manager.runtime_store_dir("test-tool");
+    if runtime_dir.exists() {
+        fs::remove_dir_all(&runtime_dir).unwrap();
+    }
+
     // Create base version directory
     let base_dir = manager.version_store_dir("test-tool", "1.0.0");
     fs::create_dir_all(&base_dir).unwrap();
@@ -81,7 +87,7 @@ fn test_list_store_versions_filters_by_platform() {
 
     // Should NOT list the version (wrong platform)
     let versions = manager.list_store_versions("test-tool").unwrap();
-    assert!(versions.is_empty());
+    assert!(versions.is_empty(), "Expected no versions when only wrong platform exists, but got: {:?}", versions);
 
     // Create correct platform directory
     let correct_platform_dir = manager.platform_store_dir("test-tool", "1.0.0");
@@ -92,5 +98,5 @@ fn test_list_store_versions_filters_by_platform() {
     assert_eq!(versions, vec!["1.0.0"]);
 
     // Clean up
-    fs::remove_dir_all(manager.runtime_store_dir("test-tool")).unwrap();
+    fs::remove_dir_all(&runtime_dir).unwrap();
 }

@@ -455,6 +455,7 @@ fn default_passenv() -> Vec<&'static str> {
         vec![
             "HOME", "USER", "SHELL", "TERM", "LANG",
             "PATH", // Include PATH for Unix systems in isolation mode
+            "VX_*", // Allow vx-specific environment variables
         ]
     }
 }
