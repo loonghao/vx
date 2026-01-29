@@ -490,6 +490,63 @@ impl PathManager {
         versions.sort();
         Ok(versions)
     }
+
+    // ========== conda-tools Paths ==========
+
+    /// Get the conda-tools directory
+    pub fn conda_tools_dir(&self) -> &Path {
+        &self.paths.conda_tools_dir
+    }
+
+    /// Get the conda-tools directory for a specific package
+    /// Returns: ~/.vx/conda-tools/<package>
+    pub fn conda_tool_dir(&self, package_name: &str) -> PathBuf {
+        self.paths.conda_tools_dir.join(package_name)
+    }
+
+    /// Get the conda-tools directory for a specific package version
+    /// Returns: ~/.vx/conda-tools/<package>/<version>
+    pub fn conda_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.conda_tool_dir(package_name).join(version)
+    }
+
+    /// Get the conda environment directory for a conda tool
+    /// Returns: ~/.vx/conda-tools/<package>/<version>/env
+    pub fn conda_tool_env_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.conda_tool_version_dir(package_name, version).join("env")
+    }
+
+    /// Get the bin directory for a conda tool
+    /// Returns: ~/.vx/conda-tools/<package>/<version>/env/Scripts (Windows) or env/bin (Unix)
+    pub fn conda_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        let env_dir = self.conda_tool_env_dir(package_name, version);
+        if cfg!(windows) {
+            env_dir.join("Scripts")
+        } else {
+            env_dir.join("bin")
+        }
+    }
+
+    /// List all installed versions of a conda tool
+    pub fn list_conda_tool_versions(&self, package_name: &str) -> Result<Vec<String>> {
+        let tool_dir = self.conda_tool_dir(package_name);
+        if !tool_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut versions = Vec::new();
+        for entry in std::fs::read_dir(&tool_dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                if let Some(version) = entry.file_name().to_str() {
+                    versions.push(version.to_string());
+                }
+            }
+        }
+
+        versions.sort();
+        Ok(versions)
+    }
 }
 
 impl Default for PathManager {

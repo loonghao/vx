@@ -42,6 +42,12 @@
 //! │       └── 2.114.0/
 //! │           ├── venv/
 //! │           └── bin/rez         # shim script
+//!
+//! ├── conda-tools/                 # conda package tools (isolated environments)
+//! │   └── pytorch/
+//! │       └── 2.2.0/
+//! │           ├── env/            # conda environment
+//! │           └── bin/python      # environment executables
 //! │
 //! ├── envs/                       # Virtual environments (links to store)
 //! │   ├── default/               # Default environment
@@ -110,6 +116,8 @@ pub struct VxPaths {
     pub npm_tools_dir: PathBuf,
     /// pip package tools directory (~/.vx/pip-tools)
     pub pip_tools_dir: PathBuf,
+    /// conda package tools directory (~/.vx/conda-tools)
+    pub conda_tools_dir: PathBuf,
     /// Virtual environments directory (~/.vx/envs)
     pub envs_dir: PathBuf,
     /// Global shims directory (~/.vx/bin)
@@ -143,6 +151,7 @@ impl VxPaths {
             store_dir: base_dir.join("store"),
             npm_tools_dir: base_dir.join("npm-tools"),
             pip_tools_dir: base_dir.join("pip-tools"),
+            conda_tools_dir: base_dir.join("conda-tools"),
             envs_dir: base_dir.join("envs"),
             bin_dir: base_dir.join("bin"),
             cache_dir: base_dir.join("cache"),
@@ -161,6 +170,7 @@ impl VxPaths {
             store_dir: base_dir.join("store"),
             npm_tools_dir: base_dir.join("npm-tools"),
             pip_tools_dir: base_dir.join("pip-tools"),
+            conda_tools_dir: base_dir.join("conda-tools"),
             envs_dir: base_dir.join("envs"),
             bin_dir: base_dir.join("bin"),
             cache_dir: base_dir.join("cache"),
@@ -177,6 +187,7 @@ impl VxPaths {
         std::fs::create_dir_all(&self.store_dir)?;
         std::fs::create_dir_all(&self.npm_tools_dir)?;
         std::fs::create_dir_all(&self.pip_tools_dir)?;
+        std::fs::create_dir_all(&self.conda_tools_dir)?;
         std::fs::create_dir_all(&self.envs_dir)?;
         std::fs::create_dir_all(&self.bin_dir)?;
         std::fs::create_dir_all(&self.cache_dir)?;
@@ -248,6 +259,35 @@ impl VxPaths {
             venv_dir.join("Scripts")
         } else {
             venv_dir.join("bin")
+        }
+    }
+
+    // ========== conda-tools paths ==========
+
+    /// Get the conda-tools directory for a specific package
+    pub fn conda_tool_dir(&self, package_name: &str) -> PathBuf {
+        self.conda_tools_dir.join(package_name)
+    }
+
+    /// Get the conda-tools directory for a specific package version
+    pub fn conda_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.conda_tool_dir(package_name).join(version)
+    }
+
+    /// Get the conda environment directory for a conda tool
+    /// Returns: ~/.vx/conda-tools/<package>/<version>/env
+    pub fn conda_tool_env_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.conda_tool_version_dir(package_name, version).join("env")
+    }
+
+    /// Get the bin directory for a conda tool
+    /// Returns: ~/.vx/conda-tools/<package>/<version>/env/Scripts (Windows) or env/bin (Unix)
+    pub fn conda_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        let env_dir = self.conda_tool_env_dir(package_name, version);
+        if cfg!(windows) {
+            env_dir.join("Scripts")
+        } else {
+            env_dir.join("bin")
         }
     }
 }
