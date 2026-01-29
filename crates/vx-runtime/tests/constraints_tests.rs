@@ -261,8 +261,9 @@ ecosystem = "rust"
 name = "cargo"
 executable = "cargo"
 
-[[runtimes.runtime_dependency]]
-runtime = "rustup"
+[[runtimes.constraints]]
+when = "*"
+requires = [{ runtime = "rustup", version = "*" }]
 "#;
 
     let manifest = ProviderManifest::parse(toml).unwrap();
@@ -287,8 +288,9 @@ ecosystem = "rust"
 name = "rustc"
 executable = "rustc"
 
-[[runtimes.runtime_dependency]]
-runtime = "rustup"
+[[runtimes.constraints]]
+when = "*"
+requires = [{ runtime = "rustup", version = "*" }]
 "#;
 
     let manifest = ProviderManifest::parse(toml).unwrap();
