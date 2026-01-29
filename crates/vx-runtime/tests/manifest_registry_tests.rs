@@ -40,6 +40,7 @@ fn make_runtime_def(name: &str) -> RuntimeDef {
         system_deps: None,
         system_install: None,
         normalize: None,
+        version_ranges: None,
     }
 }
 

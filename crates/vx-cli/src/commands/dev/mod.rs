@@ -27,7 +27,6 @@ mod args;
 mod export;
 mod handler;
 mod info;
-mod install;
 mod shell;
 mod tools;
 
@@ -35,3 +34,4 @@ pub use args::Args;
 pub use export::{generate_env_export, ExportFormat};
 pub use handler::build_script_environment;
 pub use handler::handle;
+pub use tools::get_registry;

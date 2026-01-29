@@ -1,44 +1,66 @@
 [tools]
 cmake = "latest"
+just = "latest"
+pwsh = "7.4.13"
 python = "3.11"
+rust = "1.83.0"
 uv = "latest"
-rust = "system"  # Use system-installed rust/cargo
 
 [settings]
 cache_duration = "7d"
 auto_install = true
-# isolation = true  # Default: isolated environment (only vx-managed tools in PATH)
-# Pass through specific environment variables to the dev environment (like tox's passenv)
-passenv = [
-    "CARGO_*",      # Cargo configuration
-    "RUSTUP_*",     # Rustup configuration  
-    "GITHUB_*",     # GitHub Actions environment
-    "CI",           # CI indicator
-    "RUST_LOG",     # Logging level
-]
 
 [scripts]
 build = "cargo build"
+build-fast = "just build-fast"
+build-release = "cargo build --release"
 check = "cargo check --workspace --all-targets"
 ci-docs = "cargo doc --all-features --no-deps --document-private-items"
 ci-quality = "echo 'Running CI quality checks...'"
 ci-test-full = "cargo test --workspace"
 ci-test-targeted = "cargo test -p vx-provider-* -p vx-cli -p vx-extension -p vx-migration -p vx-resolver -p vx-runtime"
+clean = "just clean"
 clippy = "cargo clippy --workspace --all-targets -- -D warnings"
+default = "just default"
+doc = "cargo doc"
+docs-build = "just docs-build"
+docs-dev = "just docs-dev"
+docs-install = "just docs-install"
+docs-preview = "just docs-preview"
 fmt = "cargo fmt --all"
 fmt-check = "cargo fmt --all -- --check"
+format = "cargo fmt"
+format-check = "just format-check"
+install = "just install"
 just = "just {{args}}"
 lint = "cargo clippy --workspace --all-targets -- -D warnings"
 nox = "uv run nox {{args}}"
 nox-test = "uv run nox -s tests"
+quick = "just quick"
 release = "cargo build --release"
 test = "cargo test --workspace"
 test-all = "cargo test --workspace --all-targets"
+test-ci-quick = "just test-ci-quick"
 test-core = "cargo test -p vx-provider-* -p vx-cli -p vx-extension -p vx-migration -p vx-resolver -p vx-runtime"
 test-doc = "cargo test --workspace --doc"
 test-integration = "cargo test --workspace --test '*'"
 test-lib = "cargo test --workspace --lib"
 test-pkgs = "cargo test {{args}}"
+test-providers = "just test-providers"
+test-providers-json = "just test-providers-json"
+test-providers-verbose = "just test-providers-verbose"
 test-python = "cargo test {{args}}"
 test-runtime = "cargo test {{args}}"
+test-runtimes = "just test-runtimes"
+test-verbose = "just test-verbose"
 tox = "uv run tox {{args}}"
+video-build = "just video-build"
+video-build-platform = "just video-build-platform"
+video-clean = "just video-clean"
+video-help = "just video-help"
+video-quick = "just video-quick"
+video-rebuild = "just video-rebuild"
+video-render-scene = "just video-render-scene"
+video-setup = "just video-setup"
+video-start = "just video-start"
+video-upgrade = "just video-upgrade"

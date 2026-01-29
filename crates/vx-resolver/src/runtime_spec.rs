@@ -32,6 +32,9 @@ pub struct RuntimeSpec {
     /// Environment variables to set when executing
     pub env_vars: HashMap<String, String>,
 
+    /// Advanced environment configuration
+    pub env_config: Option<vx_manifest::EnvConfig>,
+
     /// Whether this runtime can be auto-installed
     pub auto_installable: bool,
 
@@ -100,6 +103,7 @@ impl RuntimeSpec {
             executable: None,
             command_prefix: Vec::new(),
             env_vars: HashMap::new(),
+            env_config: None,
             auto_installable: true,
             priority: 0,
             ecosystem: Ecosystem::Generic,

@@ -165,6 +165,29 @@ pub trait Runtime: Send + Sync {
         HashMap::new()
     }
 
+    /// Get possible bin directory names for this runtime
+    ///
+    /// Returns a list of possible subdirectory names where executables might be located.
+    /// The first matching directory will be used.
+    ///
+    /// Default implementation returns ["bin"], but providers can override this
+    /// for runtimes with non-standard directory structures.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// fn possible_bin_dirs(&self) -> Vec<&str> {
+    ///     match self.name() {
+    ///         "python" => vec!["python", "bin"],
+    ///         "uv" => vec!["bin"],
+    ///         _ => vec!["bin"],
+    ///     }
+    /// }
+    /// ```
+    fn possible_bin_dirs(&self) -> Vec<&str> {
+        vec!["bin"]
+    }
+
     /// Get the store directory name for this runtime
     ///
     /// This is the canonical name used for the store directory path.
@@ -185,6 +208,55 @@ pub trait Runtime: Send + Sync {
         // Note: This has a limitation - can't return &str from owned String
         // Providers that use bundled_with should override this method directly
         self.name()
+    }
+
+    /// Resolve a version specification to an actual installed version
+    ///
+    /// This method handles version resolution including:
+    /// - "latest": resolve to the latest installed version
+    /// - Partial versions: "3.11" -> "3.11.14"
+    /// - Exact versions: return as-is if installed
+    ///
+    /// Returns the actual version string that should be used for path construction.
+    /// Returns None if no matching version is installed.
+    ///
+    /// # Arguments
+    ///
+    /// * `version_spec` - Version specification from user (e.g., "3.11", "latest")
+    /// * `ctx` - Runtime context for accessing installed versions
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// // Assuming 3.11.14 is installed
+    /// assert_eq!(runtime.resolve_installed_version("3.11", ctx).await?, Some("3.11.14".to_string()));
+    /// assert_eq!(runtime.resolve_installed_version("latest", ctx).await?, Some("3.12.0".to_string()));
+    /// ```
+    async fn resolve_installed_version(
+        &self,
+        version_spec: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<Option<String>> {
+        // Default implementation: try exact match, then prefix match
+        if version_spec == "latest" {
+            let versions = self.installed_versions(ctx).await?;
+            return Ok(versions.into_iter().max());
+        }
+
+        // Try exact match first
+        let versions = self.installed_versions(ctx).await?;
+        if versions.contains(&version_spec.to_string()) {
+            return Ok(Some(version_spec.to_string()));
+        }
+
+        // Try prefix match (e.g., "3.11" matches "3.11.14")
+        for version in versions {
+            if version.starts_with(version_spec) {
+                return Ok(Some(version));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Returns the platforms this runtime supports
@@ -753,16 +825,21 @@ pub trait Runtime: Send + Sync {
         // Use store_name() which handles aliases and bundled runtimes
         // e.g., "npm" -> "node", "uvx" -> "uv", "vscode" -> "code"
         let store_name = self.store_name();
-        let install_path = ctx.paths.version_store_dir(store_name, version);
         let platform = Platform::current();
         let exe_relative = self.executable_relative_path(version, &platform);
 
+        // Get base version directory, then append platform-specific subdirectory
+        // This implements platform redirection: <provider>/<version>/<platform>/
+        let base_install_path = ctx.paths.version_store_dir(store_name, version);
+        let install_path = base_install_path.join(platform.as_str());
+
         debug!(
-            "Install path for {} (store: {}) {}: {}",
+            "Install path for {} (store: {}) {}: {} (platform: {})",
             self.name(),
             store_name,
             version,
-            install_path.display()
+            install_path.display(),
+            platform.as_str()
         );
         debug!("Executable relative path: {}", exe_relative);
 
@@ -795,10 +872,28 @@ pub trait Runtime: Send + Sync {
         // Get download URL
         debug!("Platform: {:?}", platform);
 
-        let url = self
-            .download_url(version, &platform)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("No download URL for {} {}", self.name(), version))?;
+        // Try to use cached URL from lock file first
+        // Try tool_name first, then store_name (for bundled tools like npm -> node)
+        let url = if let Some(cached_url) = ctx.get_cached_download_url(self.name()) {
+            debug!(
+                "Using cached download URL from lock file for {}: {}",
+                self.name(),
+                cached_url
+            );
+            cached_url
+        } else if let Some(cached_url) = ctx.get_cached_download_url(self.store_name()) {
+            debug!(
+                "Using cached download URL from lock file for {}: {}",
+                self.store_name(),
+                cached_url
+            );
+            cached_url
+        } else {
+            // Fall back to runtime's download_url method
+            self.download_url(version, &platform)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("No download URL for {} {}", self.name(), version))?
+        };
 
         info!("Downloading {} {} from {}", self.name(), version, url);
 
@@ -918,7 +1013,10 @@ pub trait Runtime: Send + Sync {
 
     /// Check if a version is installed
     async fn is_installed(&self, version: &str, ctx: &RuntimeContext) -> Result<bool> {
-        let install_path = ctx.paths.version_store_dir(self.store_name(), version);
+        // Use platform-specific directory for installation check
+        let platform = Platform::current();
+        let base_path = ctx.paths.version_store_dir(self.store_name(), version);
+        let install_path = base_path.join(platform.as_str());
         Ok(ctx.fs.exists(&install_path))
     }
 
@@ -934,7 +1032,10 @@ pub trait Runtime: Send + Sync {
         version: &str,
         ctx: &RuntimeContext,
     ) -> Result<Option<std::path::PathBuf>> {
-        let install_path = ctx.paths.version_store_dir(self.store_name(), version);
+        // Use platform-specific directory for executable lookup
+        let platform = Platform::current();
+        let base_path = ctx.paths.version_store_dir(self.store_name(), version);
+        let install_path = base_path.join(platform.as_str());
         if !ctx.fs.exists(&install_path) {
             return Ok(None);
         }
@@ -1073,7 +1174,10 @@ pub trait Runtime: Send + Sync {
 
     /// Uninstall a specific version
     async fn uninstall(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
-        let install_path = ctx.paths.version_store_dir(self.store_name(), version);
+        // Use platform-specific directory for uninstallation
+        let platform = Platform::current();
+        let base_path = ctx.paths.version_store_dir(self.store_name(), version);
+        let install_path = base_path.join(platform.as_str());
         if ctx.fs.exists(&install_path) {
             ctx.fs.remove_dir_all(&install_path)?;
         }

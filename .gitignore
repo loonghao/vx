@@ -36,7 +36,10 @@ node_modules/
 
 .shrimp-config.json
 dist/
+.opencode/
 .codebuddy/
+.claude/
+
 .vitepress/
 $null
 

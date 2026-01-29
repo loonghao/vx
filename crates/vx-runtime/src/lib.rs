@@ -40,6 +40,7 @@ pub mod constraints;
 pub mod context;
 pub mod ecosystem;
 pub mod impls;
+pub mod integrated_resolver;
 pub mod layout;
 pub mod manifest_registry;
 pub mod manifest_runtime;
@@ -48,6 +49,7 @@ pub mod package_runtime;
 pub mod platform;
 pub mod plugin;
 pub mod provider;
+pub mod provider_env;
 pub mod provider_loader;
 pub mod registry;
 pub mod runtime;
@@ -83,6 +85,14 @@ pub use testing::{
 };
 pub use version_cache::{CacheEntry, CacheMode, CacheStats, VersionCache, DEFAULT_CACHE_TTL};
 pub use version_resolver::VersionResolver;
+
+// Provider environment and version resolution (REZ-like environment)
+pub use provider_env::{
+    ProviderEnvironment, ProviderEnvironmentResolver, ResolvedVersionInfo, VersionResolverCache,
+};
+
+// Integrated resolver using existing vx infrastructure
+pub use integrated_resolver::{IntegratedVersionResolver, ProviderEnvBuilder};
 
 // Constraints system
 pub use constraints::{

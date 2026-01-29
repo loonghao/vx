@@ -1,18 +1,17 @@
-# Just Provider Manifest
-# This file defines the metadata, runtimes, and dependency constraints for Just.
-
 [provider]
 name = "just"
-description = "A handy way to save and run project-specific commands"
-homepage = "https://just.systems"
-repository = "https://github.com/casey/just"
-ecosystem = "devtools"
+description = "Just is a command runner for projects, similar to make but simpler"
+homepage = "https://github.com/casey/just"
+version = "0.1.0"
 
-# Just
+[provider.platforms]
+os = ["windows", "linux", "macos"]
+
 [[runtimes]]
 name = "just"
-description = "Just command runner"
 executable = "just"
+description = "Command runner for projects"
+homepage = "https://github.com/casey/just"
 
 [runtimes.versions]
 source = "github-releases"
@@ -21,15 +20,35 @@ repo = "just"
 strip_v_prefix = true
 
 # RFC 0019: Executable Layout Configuration
+# just releases are zip files with the executable in the root directory
+# URL format: https://github.com/casey/just/releases/download/v{version}/just-{version}-{arch}-{os}.zip
 [runtimes.layout]
 download_type = "archive"
 
 [runtimes.layout.archive]
 strip_prefix = ""
 executable_paths = [
-    "just.exe",  # Windows (root directory)
-    "just"       # Unix (root directory)
+    "just.exe",
+    "just"
 ]
+
+[runtimes.platforms.windows-x86_64]
+download_url = "https://github.com/casey/just/releases/download/{version}/just-{version}-x86_64-pc-windows-msvc.zip"
+
+[runtimes.platforms.windows-aarch64]
+download_url = "https://github.com/casey/just/releases/download/{version}/just-{version}-aarch64-pc-windows-msvc.zip"
+
+[runtimes.platforms.linux-x86_64]
+download_url = "https://github.com/casey/just/releases/download/{version}/just-{version}-x86_64-unknown-linux-musl.tar.gz"
+
+[runtimes.platforms.linux-aarch64]
+download_url = "https://github.com/casey/just/releases/download/{version}/just-{version}-aarch64-unknown-linux-musl.tar.gz"
+
+[runtimes.platforms.macos-x86_64]
+download_url = "https://github.com/casey/just/releases/download/{version}/just-{version}-x86_64-apple-darwin.tar.gz"
+
+[runtimes.platforms.macos-aarch64]
+download_url = "https://github.com/casey/just/releases/download/{version}/just-{version}-aarch64-apple-darwin.tar.gz"
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
@@ -37,7 +56,8 @@ executable_extensions = [".exe"]
 [runtimes.platforms.unix]
 executable_extensions = []
 
-# Just has no external dependencies
-[[runtimes.constraints]]
-when = "*"
-recommends = []
+[runtimes.test]
+timeout_ms = 10000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "just \\d+\\.\\d+\\.\\d+", name = "version_check" }
+]

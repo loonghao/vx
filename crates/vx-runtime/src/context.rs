@@ -46,6 +46,7 @@ impl Default for RuntimeConfig {
 ///
 /// This context provides all dependencies needed for runtime operations,
 /// allowing for easy mocking in tests.
+#[derive(Clone)]
 pub struct RuntimeContext {
     /// Path provider for directory management
     pub paths: Arc<dyn PathProvider>,
@@ -59,6 +60,12 @@ pub struct RuntimeContext {
     pub config: RuntimeConfig,
     /// High-performance version cache (bincode format)
     pub version_cache: Option<VersionCache>,
+    /// Pre-resolved download URLs from lock file (tool_name -> download_url)
+    ///
+    /// When a tool is being installed and its download URL is already known
+    /// from vx.lock, this cache can be used to avoid re-fetching the URL.
+    /// This improves performance and ensures reproducibility.
+    pub download_url_cache: Option<HashMap<String, String>>,
 }
 
 impl RuntimeContext {
@@ -76,6 +83,7 @@ impl RuntimeContext {
             installer,
             config: RuntimeConfig::default(),
             version_cache: None,
+            download_url_cache: None,
         }
     }
 
@@ -105,6 +113,30 @@ impl RuntimeContext {
             self.version_cache = Some(cache.with_mode(mode));
         }
         self
+    }
+
+    /// Set download URL cache from lock file
+    ///
+    /// This allows runtimes to use pre-resolved download URLs instead of
+    /// re-fetching them during installation.
+    pub fn with_download_url_cache(mut self, cache: HashMap<String, String>) -> Self {
+        self.download_url_cache = Some(cache);
+        self
+    }
+
+    /// Set download URL cache from lock file (mutating version)
+    pub fn set_download_url_cache(&mut self, cache: HashMap<String, String>) {
+        self.download_url_cache = Some(cache);
+    }
+
+    /// Get cached download URL for a tool
+    ///
+    /// Returns the cached URL if available, otherwise None.
+    pub fn get_cached_download_url(&self, tool_name: &str) -> Option<String> {
+        self.download_url_cache
+            .as_ref()
+            .and_then(|cache| cache.get(tool_name))
+            .cloned()
     }
 
     /// Get cached data or fetch with a custom fetcher function

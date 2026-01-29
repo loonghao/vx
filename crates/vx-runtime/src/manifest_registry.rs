@@ -30,7 +30,7 @@ use crate::{Provider, ProviderRegistry};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::{info, trace, warn};
 use vx_manifest::{ManifestLoader, PlatformConstraint, ProviderManifest};
 
 /// Manifest-driven provider registry
@@ -65,7 +65,7 @@ impl ManifestRegistry {
     /// Load manifests from a directory
     pub fn load_from_directory(&mut self, dir: &Path) -> anyhow::Result<usize> {
         let count = self.loader.load_from_dir(dir)?;
-        debug!("Loaded {} manifests from {:?}", count, dir);
+        trace!("loaded {} manifests from {:?}", count, dir);
         Ok(count)
     }
 
@@ -104,7 +104,7 @@ impl ManifestRegistry {
             if let Some(factory) = self.factories.get(name) {
                 let provider = factory();
                 registry.register(provider);
-                debug!("Registered provider '{}' from manifest", name);
+                trace!("registered provider '{}'", name);
             } else {
                 warn!(
                     "No factory registered for manifest '{}' - provider will not be available",
@@ -114,7 +114,7 @@ impl ManifestRegistry {
         }
 
         info!(
-            "Built registry with {} providers from manifests",
+            "loaded {} providers from manifests",
             registry.providers().len()
         );
 
@@ -130,11 +130,11 @@ impl ManifestRegistry {
         for (name, factory) in &self.factories {
             let provider = factory();
             registry.register(provider);
-            debug!("Registered provider '{}' from factory", name);
+            trace!("registered provider '{}'", name);
         }
 
         info!(
-            "Built registry with {} providers from factories",
+            "loaded {} providers from factories",
             registry.providers().len()
         );
 

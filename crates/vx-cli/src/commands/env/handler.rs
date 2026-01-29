@@ -6,13 +6,14 @@ use super::helpers::{
     list_env_runtimes, parse_runtime_version, resolve_env_for_shell, set_default_env,
 };
 use super::Args;
-use crate::commands::setup::parse_vx_config;
+use crate::commands::common::load_config_view_cwd;
+use crate::commands::setup::find_vx_config as find_config_file;
 use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::env;
 use std::io::Write;
-use vx_env::{ExportFormat, SessionContext, ShellSpawner};
-use vx_paths::{find_config_file, link, LinkStrategy, PathManager, PROJECT_ENV_DIR};
+use vx_env::{ExportFormat, SessionContext, SessionSource, ShellSpawner};
+use vx_paths::{link, LinkStrategy, PathManager, PROJECT_ENV_DIR};
 
 /// Handle env command with Args
 pub async fn handle(args: &Args) -> Result<()> {
@@ -106,7 +107,7 @@ async fn create_env(
         // Create project environment
         let current_dir = env::current_dir().context("Failed to get current directory")?;
 
-        if find_config_file(&current_dir).is_none() {
+        if find_config_file(&current_dir).is_err() {
             anyhow::bail!(
                 "No vx.toml found. Create one with 'vx init' or use '--global' for a global environment"
             );
@@ -550,11 +551,8 @@ async fn remove_runtime(runtime: &str, env_name: Option<&str>, global: bool) -> 
 
 /// Sync project environment from vx.toml
 async fn sync_env() -> Result<()> {
-    let current_dir = env::current_dir().context("Failed to get current directory")?;
-    let config_path = find_config_file(&current_dir)
-        .ok_or_else(|| anyhow::anyhow!("No vx.toml found in current directory"))?;
-
-    let config = parse_vx_config(&config_path)?;
+    let (config_path, config) = load_config_view_cwd()?;
+    let current_dir = config_path.parent().unwrap();
     let path_manager = PathManager::new()?;
     let env_dir = current_dir.join(PROJECT_ENV_DIR);
 
@@ -639,7 +637,12 @@ async fn env_shell(
     }
 
     // Create SessionContext from environment
-    let mut session = SessionContext::new(&env_name).tools(&tools);
+    let mut session = SessionContext::new(&env_name)
+        .tools(&tools)
+        .source(SessionSource::EnvDir {
+            path: env_dir.clone(),
+            name: env_name.clone(),
+        });
 
     // If we're in a project directory, set the project root
     if let Ok(current_dir) = env::current_dir() {

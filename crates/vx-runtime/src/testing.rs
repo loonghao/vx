@@ -491,6 +491,7 @@ pub fn mock_context() -> RuntimeContext {
         installer: Arc::new(MockInstaller::with_fs(fs)),
         config: RuntimeConfig::default(),
         version_cache: None,
+        download_url_cache: None,
     }
 }
 
