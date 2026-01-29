@@ -322,3 +322,123 @@ fn test_generate_script_env_vars_present() {
 
     cleanup_test_env();
 }
+
+/// Test PowerShell script generation with single quotes in values
+#[rstest]
+#[test]
+fn test_powershell_escape_single_quotes() {
+    let mut env_vars: HashMap<String, String> = HashMap::new();
+    env_vars.insert("MSG".to_string(), "It's a test".to_string());
+    env_vars.insert("QUOTE".to_string(), "'quoted'".to_string());
+
+    let cmd = "echo";
+
+    let script = generate_wrapper_script(cmd, &env_vars);
+
+    #[cfg(windows)]
+    {
+        // Single quotes should be escaped by doubling them
+        assert!(script.contains("$env:MSG = 'It''s a test'"));
+        assert!(script.contains("$env:QUOTE = '''quoted'''"));
+    }
+
+    cleanup_test_env();
+}
+
+/// Test PowerShell script generation with dollar signs in values
+#[rstest]
+#[test]
+fn test_powershell_dollar_sign_in_value() {
+    let mut env_vars: HashMap<String, String> = HashMap::new();
+    env_vars.insert("PATTERN".to_string(), "$HOME/path".to_string());
+    env_vars.insert("VAR".to_string(), "value $var".to_string());
+
+    let cmd = "echo";
+
+    let script = generate_wrapper_script(cmd, &env_vars);
+
+    #[cfg(windows)]
+    {
+        // In single-quoted strings, dollar signs should be literal (no variable expansion)
+        assert!(script.contains("$env:PATTERN = '$HOME/path'"));
+        assert!(script.contains("$env:VAR = 'value $var'"));
+    }
+
+    cleanup_test_env();
+}
+
+/// Test PowerShell script generation with backticks in values
+#[rstest]
+#[test]
+fn test_powershell_backtick_in_value() {
+    let mut env_vars: HashMap<String, String> = HashMap::new();
+    env_vars.insert("CODE".to_string(), "`test`".to_string());
+
+    let cmd = "echo";
+
+    let script = generate_wrapper_script(cmd, &env_vars);
+
+    #[cfg(windows)]
+    {
+        // In single-quoted strings, backticks should be literal
+        assert!(script.contains("$env:CODE = '`test`'"));
+    }
+
+    cleanup_test_env();
+}
+
+/// Test PowerShell script generation with double quotes in values
+#[rstest]
+#[test]
+fn test_powershell_double_quotes_in_value() {
+    let mut env_vars: HashMap<String, String> = HashMap::new();
+    env_vars.insert("MSG".to_string(), r#"He said "hello""#.to_string());
+
+    let cmd = "echo";
+
+    let script = generate_wrapper_script(cmd, &env_vars);
+
+    #[cfg(windows)]
+    {
+        // In single-quoted strings, double quotes should be literal
+        assert!(script.contains(r#"$env:MSG = 'He said "hello"'"#));
+    }
+
+    cleanup_test_env();
+}
+
+/// Test PowerShell script generation with special characters in command
+#[rstest]
+#[test]
+fn test_powershell_special_chars_in_command() {
+    let env_vars: HashMap<String, String> = HashMap::new();
+
+    // Test command with double quotes
+    let script = generate_wrapper_script(r#"echo "hello world""#, &env_vars);
+    #[cfg(windows)]
+    {
+        // Double quotes in command should be escaped with backtick in double-quoted context
+        let expected = r#"cmd /c "echo `"hello world`"""#;
+        assert!(script.contains(expected));
+    }
+
+    // Test command with dollar sign
+    let script = generate_wrapper_script("echo $HOME", &env_vars);
+    #[cfg(windows)]
+    {
+        // Dollar signs should be escaped with backtick in double-quoted context
+        let expected = r#"cmd /c "echo `$HOME""#;
+        assert!(script.contains(expected));
+    }
+
+    // Test command with backtick
+    let script = generate_wrapper_script("echo `test`", &env_vars);
+    #[cfg(windows)]
+    {
+        // Backticks should be doubled in double-quoted context
+        let expected = r#"cmd /c "echo ``test``""#;
+        assert!(script.contains(expected));
+    }
+
+    cleanup_test_env();
+}
