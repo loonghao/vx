@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.21](https://github.com/loonghao/vx/compare/vx-v0.6.20...vx-v0.6.21) (2026-01-29)
+
+
+### Bug Fixes
+
+* allow system tool fallback in isolation mode ([28dbb23](https://github.com/loonghao/vx/commit/28dbb23f706a786b33df11c1d0ae4dd107353060))
+* fix remaining tests to use platform-specific directory structure ([de5b0b7](https://github.com/loonghao/vx/commit/de5b0b7e86ef08589ff57e85330d05e3d7c7539d))
+* remove needless borrow in platform redirection test ([b606f59](https://github.com/loonghao/vx/commit/b606f59323f8b3d9383f82c388522d6661a87827))
+* resolve clippy warnings and fix test failures ([2463f79](https://github.com/loonghao/vx/commit/2463f79342f039d561bc983a0df7ba02a2469400))
+* resolve clippy warnings and improve code quality ([19ead74](https://github.com/loonghao/vx/commit/19ead7480c94b48b1db01291bb96eedf14488bff))
+* resolve remaining clippy errors and adjust benchmark thresholds ([2805010](https://github.com/loonghao/vx/commit/2805010dee055a82f9350ccf3464764d7ac4ef91))
+* resolve test failures and lint warnings ([781e423](https://github.com/loonghao/vx/commit/781e4236242a73d3a6213f544f8e30d6e546a8fb))
+* simplify lock file version matching logic ([05a12b2](https://github.com/loonghao/vx/commit/05a12b274e7db13fdb7f9d05d3edc0de8b6f9d4f))
+
 ## [0.6.20](https://github.com/loonghao/vx/compare/vx-v0.6.19...vx-v0.6.20) (2026-01-23)
 
 
