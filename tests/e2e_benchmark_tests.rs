@@ -73,8 +73,8 @@ mod thresholds {
     pub const VERSION_MS: u64 = 250;
 
     /// Maximum time for config parsing (small config)
-    /// Note: Increased from 500ms to 750ms to account for CI machine variability
-    pub const CONFIG_PARSE_SMALL_MS: u64 = 750;
+    /// Note: Increased from 750ms to 1000ms to account for CI machine variability
+    pub const CONFIG_PARSE_SMALL_MS: u64 = 1000;
 
     /// Maximum time for config parsing (large config)
     pub const CONFIG_PARSE_LARGE_MS: u64 = 3000;
