@@ -308,16 +308,17 @@ if (-not $env:VX_DEV) {
 "#,
     );
 
-    // Export PATH
+    // Export PATH using single-quoted string for literal paths
     if !path_entries.is_empty() {
         let paths = path_entries.join(";");
-        // Don't double-escape backslashes on Windows paths
-        output.push_str(&format!("$env:PATH = \"{};$env:PATH\"\n", paths));
+        // Escape single quotes in paths and use single-quoted string
+        let escaped_paths = paths.replace('\'', "''");
+        output.push_str(&format!("$env:PATH = '{};$env:PATH'\n", escaped_paths));
     }
 
     // Export VX-specific environment variables
     output.push_str("\n# VX environment variables\n");
-    output.push_str("$env:VX_DEV = \"1\"\n");
+    output.push_str("$env:VX_DEV = '1'\n");
 
     // Export custom environment variables (filter out PATH)
     let project_name = env_vars.get("VX_PROJECT_NAME").cloned().unwrap_or_default();
@@ -325,9 +326,10 @@ if (-not $env:VX_DEV) {
         if key == "PATH" {
             continue; // Already handled
         }
-        // PowerShell uses backtick for escaping
-        let escaped = value.replace('"', "`\"");
-        output.push_str(&format!("$env:{} = \"{}\"\n", key, escaped));
+        // Use single-quoted string for literal values (no variable expansion)
+        // Escape single quotes by doubling them
+        let escaped = value.replace('\'', "''");
+        output.push_str(&format!("$env:{} = '{}'\n", key, escaped));
     }
 
     // Update prompt to show vx environment
