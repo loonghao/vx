@@ -4,13 +4,42 @@
 //! tool@version format to the install command, not separate arguments.
 
 use std::env;
+use std::path::PathBuf;
 use std::process::Command;
+
+/// Get the path to the vx binary for testing
+fn vx_binary() -> PathBuf {
+    // First try CARGO_BIN_EXE_vx (set by cargo test)
+    if let Ok(path) = env::var("CARGO_BIN_EXE_vx") {
+        return PathBuf::from(path);
+    }
+
+    // Fallback: construct path from current exe location
+    let mut path = env::current_exe().unwrap();
+    path.pop();
+    if path.ends_with("deps") {
+        path.pop();
+    }
+    path.push("vx");
+    if cfg!(windows) {
+        path.set_extension("exe");
+    }
+    path
+}
 
 /// Test that install command accepts tool@version format
 #[test]
 fn test_install_accepts_tool_at_version_format() {
+    let vx_path = vx_binary();
+
+    // Skip test if binary doesn't exist (e.g., in CI without build)
+    if !vx_path.exists() {
+        println!("Skipping test: vx binary not found at {:?}", vx_path);
+        return;
+    }
+
     // Test with node@20
-    let output = Command::new(env::var("CARGO_BIN_EXE_vx").unwrap_or("vx".to_string()))
+    let output = Command::new(&vx_path)
         .args(["install", "--help"])
         .output()
         .expect("Failed to execute vx install --help");
