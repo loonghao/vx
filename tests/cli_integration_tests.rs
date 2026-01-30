@@ -425,3 +425,367 @@ fn test_verbose_flag() {
 fn test_debug_flag() {
     vx().args(["--debug", "version"]).assert().success();
 }
+
+// ============================================
+// Add Command
+// ============================================
+
+#[test]
+fn test_add_help() {
+    vx().args(["add", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Add"))
+        .stdout(predicate::str::contains("tool"));
+}
+
+#[test]
+fn test_add_no_tool_error() {
+    vx().arg("add")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("required"));
+}
+
+// ============================================
+// Remove Command
+// ============================================
+
+#[test]
+fn test_remove_help() {
+    vx().args(["remove", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Remove"));
+}
+
+#[test]
+fn test_remove_no_tool_error() {
+    vx().arg("remove")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("required"));
+}
+
+// ============================================
+// Lock Command
+// ============================================
+
+#[test]
+fn test_lock_help() {
+    vx().args(["lock", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("lock"));
+}
+
+// ============================================
+// Check Command
+// ============================================
+
+#[test]
+fn test_check_help() {
+    vx().args(["check", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Check"));
+}
+
+// ============================================
+// Run Command
+// ============================================
+
+#[test]
+fn test_run_help() {
+    vx().args(["run", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Run"));
+}
+
+#[test]
+fn test_run_list_scripts() {
+    vx().args(["run", "--list"]).assert().success();
+}
+
+// ============================================
+// Analyze Command
+// ============================================
+
+#[test]
+fn test_analyze_help() {
+    vx().args(["analyze", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Analyze"));
+}
+
+// ============================================
+// Dev Command
+// ============================================
+
+#[test]
+fn test_dev_help() {
+    vx().args(["dev", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("development"))
+        .stdout(predicate::str::contains("environment"));
+}
+
+// ============================================
+// Setup Command
+// ============================================
+
+#[test]
+fn test_setup_help() {
+    vx().args(["setup", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Setup"));
+}
+
+#[test]
+fn test_setup_dry_run() {
+    vx().args(["setup", "--dry-run"]).assert().success();
+}
+
+// ============================================
+// Cache Command
+// ============================================
+
+#[test]
+fn test_cache_help() {
+    vx().args(["cache", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Cache"));
+}
+
+#[test]
+fn test_cache_info() {
+    vx().args(["cache", "info"]).assert().success();
+}
+
+#[test]
+fn test_cache_list() {
+    vx().args(["cache", "list"]).assert().success();
+}
+
+#[test]
+fn test_cache_dir() {
+    vx().args(["cache", "dir"]).assert().success();
+}
+
+#[test]
+fn test_cache_prune_dry_run() {
+    vx().args(["cache", "prune", "--dry-run"])
+        .assert()
+        .success();
+}
+
+// ============================================
+// Ext Command
+// ============================================
+
+#[test]
+fn test_ext_help() {
+    vx().args(["ext", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Extension"));
+}
+
+#[test]
+fn test_ext_list() {
+    vx().args(["ext", "list"]).assert().success();
+}
+
+#[test]
+fn test_extension_alias() {
+    vx().args(["extension", "list"]).assert().success();
+}
+
+// ============================================
+// Hook Command
+// ============================================
+
+#[test]
+fn test_hook_help() {
+    vx().args(["hook", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("hook"));
+}
+
+// ============================================
+// Services Command
+// ============================================
+
+#[test]
+fn test_services_help() {
+    vx().args(["services", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("service"));
+}
+
+#[test]
+fn test_services_status() {
+    vx().args(["services", "status"]).assert().success();
+}
+
+// ============================================
+// Container Command
+// ============================================
+
+#[test]
+fn test_container_help() {
+    vx().args(["container", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Container"));
+}
+
+// ============================================
+// Migrate Command
+// ============================================
+
+#[test]
+fn test_migrate_help() {
+    vx().args(["migrate", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Migrate"));
+}
+
+#[test]
+fn test_migrate_check() {
+    vx().args(["migrate", "--check"]).assert().success();
+}
+
+// ============================================
+// Auth Command
+// ============================================
+
+#[test]
+fn test_auth_help() {
+    vx().args(["auth", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Auth"));
+}
+
+#[test]
+fn test_auth_status() {
+    vx().args(["auth", "status"]).assert().success();
+}
+
+// ============================================
+// Info Command
+// ============================================
+
+#[test]
+fn test_info_command() {
+    vx().arg("info")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("vx"));
+}
+
+#[test]
+fn test_info_json() {
+    vx().args(["info", "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("{"));
+}
+
+// ============================================
+// Global Command
+// ============================================
+
+#[test]
+fn test_global_help() {
+    vx().args(["global", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("global"));
+}
+
+#[test]
+fn test_global_list() {
+    vx().args(["global", "list"]).assert().success();
+}
+
+#[test]
+fn test_global_alias_g() {
+    vx().args(["g", "list"]).assert().success();
+}
+
+// ============================================
+// Test Command
+// ============================================
+
+#[test]
+fn test_test_help() {
+    vx().args(["test", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("test"));
+}
+
+// ============================================
+// Bundle Command
+// ============================================
+
+#[test]
+fn test_bundle_help() {
+    vx().args(["bundle", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("bundle"));
+}
+
+// ============================================
+// Cache Mode Flag
+// ============================================
+
+#[test]
+fn test_cache_mode_normal() {
+    vx().args(["--cache-mode", "normal", "version"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_cache_mode_offline() {
+    vx().args(["--cache-mode", "offline", "list"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_cache_mode_refresh() {
+    vx().args(["--cache-mode", "refresh", "version"])
+        .assert()
+        .success();
+}
+
+// ============================================
+// Use System Path Flag
+// ============================================
+
+#[test]
+fn test_use_system_path_flag() {
+    vx().args(["--use-system-path", "list"]).assert().success();
+}
+
+// ============================================
+// Inherit Env Flag
+// ============================================
+
+#[test]
+fn test_inherit_env_flag() {
+    vx().args(["--inherit-env", "list"]).assert().success();
+}
