@@ -39,7 +39,7 @@ jobs:
         with:
           tool: cargo-audit
 
-      - name: Run cargo audit (via vx)
+      - name: Run cargo audit
         run: |
-          vx cargo generate-lockfile || true
-          vx cargo audit --deny warnings || true
+          cargo generate-lockfile || true
+          cargo audit --deny warnings || true
