@@ -10,7 +10,7 @@
 //! - **Composability**: Functions can be combined for complex operations
 
 use anyhow::{Context, Result};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -359,6 +359,39 @@ pub fn check_tools_status(tools: &HashMap<String, String>) -> Result<Vec<ToolSta
     }
 
     // Sort by name for consistent output
+    statuses.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(statuses)
+}
+
+/// Check the installation status of multiple tools (BTreeMap version)
+///
+/// This is a convenience function that checks all tools in a BTreeMap
+/// and returns a sorted list of status tuples.
+/// Using BTreeMap ensures deterministic ordering for lock file operations.
+///
+/// # Arguments
+/// * `tools` - BTreeMap of tool names to versions
+///
+/// # Returns
+/// Sorted vector of tool status tuples
+pub fn check_tools_status_ordered(
+    tools: &BTreeMap<String, String>,
+) -> Result<Vec<ToolStatusTuple>> {
+    let path_manager = PathManager::new()?;
+    let mut statuses = Vec::new();
+
+    for (name, version) in tools {
+        let (status, path, detected_version) = check_tool_status(&path_manager, name, version)?;
+        statuses.push((
+            name.clone(),
+            version.clone(),
+            status,
+            path,
+            detected_version,
+        ));
+    }
+
+    // BTreeMap is already sorted, but we still sort the output for consistency
     statuses.sort_by(|a, b| a.0.cmp(&b.0));
     Ok(statuses)
 }

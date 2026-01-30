@@ -31,7 +31,7 @@ use super::constraint::Version;
 use super::resolved::ResolvedVersion;
 use crate::runtime_spec::Ecosystem;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::Path;
 
 /// Lock file version
@@ -77,11 +77,11 @@ pub struct LockedTool {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub download_url: Option<String>,
     /// Platform-specific download URLs (platform -> URL)
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub platform_urls: HashMap<String, String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub platform_urls: BTreeMap<String, String>,
     /// Additional metadata
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub metadata: HashMap<String, String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub metadata: BTreeMap<String, String>,
 
     // === RFC 0023: Version Range Locking ===
     /// Original version range from vx.toml (e.g., "^5.0", "latest")
@@ -111,8 +111,8 @@ impl LockedTool {
             ecosystem: Ecosystem::Generic,
             checksum: None,
             download_url: None,
-            platform_urls: HashMap::new(),
-            metadata: HashMap::new(),
+            platform_urls: BTreeMap::new(),
+            metadata: BTreeMap::new(),
             // RFC 0023 fields
             original_range: None,
             pinning: None,
@@ -228,7 +228,12 @@ impl From<&ResolvedVersion> for LockedTool {
                 .get_metadata("platform_urls")
                 .and_then(|v| serde_json::from_str(v).ok())
                 .unwrap_or_default(),
-            metadata: resolved.metadata.clone(),
+            // Convert HashMap to BTreeMap for deterministic ordering
+            metadata: resolved
+                .metadata
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
             // RFC 0023 fields - extract from metadata if available
             original_range: resolved.get_metadata("original_range").cloned(),
             pinning: resolved.get_metadata("pinning").cloned(),
@@ -250,10 +255,10 @@ pub struct LockFile {
     pub metadata: LockFileMetadata,
     /// Locked tool versions
     #[serde(default)]
-    pub tools: HashMap<String, LockedTool>,
+    pub tools: BTreeMap<String, LockedTool>,
     /// Tool dependencies (e.g., npm -> [node])
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub dependencies: HashMap<String, Vec<String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub dependencies: BTreeMap<String, Vec<String>>,
 }
 
 impl Default for LockFile {
@@ -261,8 +266,8 @@ impl Default for LockFile {
         Self {
             version: LOCK_FILE_VERSION,
             metadata: LockFileMetadata::default(),
-            tools: HashMap::new(),
-            dependencies: HashMap::new(),
+            tools: BTreeMap::new(),
+            dependencies: BTreeMap::new(),
         }
     }
 }
@@ -427,7 +432,7 @@ impl LockFile {
     /// Returns a list of inconsistencies if any are found.
     pub fn check_consistency(
         &self,
-        config_tools: &HashMap<String, String>,
+        config_tools: &BTreeMap<String, String>,
     ) -> Vec<LockFileInconsistency> {
         let mut inconsistencies = Vec::new();
 
@@ -476,7 +481,7 @@ impl LockFile {
     }
 
     /// Create a lock file from resolved versions
-    pub fn from_resolved(resolved: &HashMap<String, ResolvedVersion>) -> Self {
+    pub fn from_resolved(resolved: &BTreeMap<String, ResolvedVersion>) -> Self {
         let mut lockfile = Self::new();
         for (name, version) in resolved {
             lockfile.lock_tool(name.clone(), LockedTool::from(version));
@@ -724,7 +729,7 @@ resolved_from = "20"
             LockedTool::new("20.18.0", "nodejs.org").with_resolved_from("20"),
         );
 
-        let mut config = HashMap::new();
+        let mut config = BTreeMap::new();
         config.insert("python".to_string(), "3.11".to_string());
         config.insert("rust".to_string(), "stable".to_string());
 
