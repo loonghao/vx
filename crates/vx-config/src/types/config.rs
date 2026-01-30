@@ -2,7 +2,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use super::{
     AiConfig, ContainerConfig, DependenciesConfig, DocsConfig, EnvConfig, HooksConfig,
@@ -127,6 +127,32 @@ impl VxConfig {
     /// Merges both `tools` and `runtimes` sections, with `tools` taking priority
     pub fn tools_as_hashmap(&self) -> HashMap<String, String> {
         let mut result = HashMap::new();
+
+        // Add runtimes first (lower priority)
+        for (k, v) in &self.runtimes {
+            let version = match v {
+                ToolVersion::Simple(s) => s.clone(),
+                ToolVersion::Detailed(d) => d.version.clone(),
+            };
+            result.insert(k.clone(), version);
+        }
+
+        // Add tools (higher priority, overwrites runtimes)
+        for (k, v) in &self.tools {
+            let version = match v {
+                ToolVersion::Simple(s) => s.clone(),
+                ToolVersion::Detailed(d) => d.version.clone(),
+            };
+            result.insert(k.clone(), version);
+        }
+
+        result
+    }
+
+    /// Get all tools as BTreeMap (for deterministic ordering in lock files)
+    /// Merges both `tools` and `runtimes` sections, with `tools` taking priority
+    pub fn tools_as_btreemap(&self) -> BTreeMap<String, String> {
+        let mut result = BTreeMap::new();
 
         // Add runtimes first (lower priority)
         for (k, v) in &self.runtimes {

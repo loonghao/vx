@@ -13,11 +13,11 @@
 //! - If `vx.lock` doesn't exist and `--auto-lock` is set: generate it automatically
 //! - If `vx.lock` doesn't exist: use versions from vx.toml
 
-use crate::commands::common::{check_tools_status, ToolStatus};
+use crate::commands::common::{check_tools_status_ordered, ToolStatus};
 use crate::commands::setup::{find_vx_config, parse_vx_config};
 use crate::ui::{InstallProgress, UI};
 use anyhow::{Context, Result};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -47,7 +47,7 @@ enum LockStatus {
 /// Check lock file status against config
 fn check_lock_status(
     lock_path: &std::path::Path,
-    config_tools: &HashMap<String, String>,
+    config_tools: &BTreeMap<String, String>,
 ) -> LockStatus {
     if !lock_path.exists() {
         return LockStatus::NotFound;
@@ -122,10 +122,13 @@ pub async fn handle_with_options(_registry: &ProviderRegistry, options: SyncOpti
         return Ok(());
     }
 
+    // Get tools as BTreeMap for deterministic ordering
+    let config_tools = config.tools_as_btreemap();
+
     // Check lock file status
     let project_root = config_path.parent().unwrap_or(&current_dir);
     let lock_path = project_root.join(LOCK_FILE_NAME);
-    let lock_status = check_lock_status(&lock_path, &config.tools);
+    let lock_status = check_lock_status(&lock_path, &config_tools);
 
     let lockfile = match lock_status {
         LockStatus::UpToDate(lf) => {
@@ -134,7 +137,7 @@ pub async fn handle_with_options(_registry: &ProviderRegistry, options: SyncOpti
             }
 
             // RFC 0023: Check version range warnings
-            check_version_ranges(&lf, &config.tools, options.verbose);
+            check_version_ranges(&lf, &config_tools, options.verbose);
 
             Some(lf)
         }
@@ -195,7 +198,7 @@ pub async fn handle_with_options(_registry: &ProviderRegistry, options: SyncOpti
     };
 
     // Resolve effective versions (lock file takes precedence)
-    let mut effective_tools = resolve_effective_versions(&config.tools, &lockfile);
+    let mut effective_tools = resolve_effective_versions(&config_tools, &lockfile);
 
     // Analyze project files for additional required tools if enabled
     if options.analyze {
@@ -212,7 +215,7 @@ pub async fn handle_with_options(_registry: &ProviderRegistry, options: SyncOpti
     }
 
     // Check tool status
-    let statuses = check_tools_status(&effective_tools)?;
+    let statuses = check_tools_status_ordered(&effective_tools)?;
 
     // Show status
     if options.verbose || options.check {
@@ -338,10 +341,10 @@ fn run_lock_command() -> Result<()> {
 
 /// Resolve effective versions by preferring lock file versions over config versions
 fn resolve_effective_versions(
-    config_tools: &HashMap<String, String>,
+    config_tools: &BTreeMap<String, String>,
     lockfile: &Option<LockFile>,
-) -> HashMap<String, String> {
-    let mut effective = HashMap::new();
+) -> BTreeMap<String, String> {
+    let mut effective = BTreeMap::new();
 
     for (name, config_version) in config_tools {
         let version = if let Some(lock) = lockfile {
@@ -484,6 +487,9 @@ pub async fn quick_check() -> Result<bool> {
         return Ok(true);
     }
 
+    // Get tools as BTreeMap for deterministic ordering
+    let config_tools = config.tools_as_btreemap();
+
     // Check for lock file
     let project_root = config_path.parent().unwrap_or(&current_dir);
     let lock_path = project_root.join(LOCK_FILE_NAME);
@@ -494,9 +500,9 @@ pub async fn quick_check() -> Result<bool> {
     };
 
     // Resolve effective versions
-    let effective_tools = resolve_effective_versions(&config.tools, &lockfile);
+    let effective_tools = resolve_effective_versions(&config_tools, &lockfile);
 
-    let statuses = check_tools_status(&effective_tools)?;
+    let statuses = check_tools_status_ordered(&effective_tools)?;
     let all_installed = statuses.iter().all(|(_, _, status, _, _)| {
         matches!(status, ToolStatus::Installed | ToolStatus::SystemFallback)
     });
@@ -514,8 +520,8 @@ pub async fn quick_check() -> Result<bool> {
 async fn analyze_project_tools(
     project_root: &Path,
     verbose: bool,
-) -> Result<HashMap<String, String>> {
-    let mut detected_tools = HashMap::new();
+) -> Result<BTreeMap<String, String>> {
+    let mut detected_tools = BTreeMap::new();
 
     let analyzer_config = AnalyzerConfig {
         check_installed: false, // We just want to detect, not check installation
@@ -565,7 +571,7 @@ async fn analyze_project_tools(
 /// and warns the user if updates are available within the range.
 fn check_version_ranges(
     lockfile: &LockFile,
-    _config_tools: &HashMap<String, String>,
+    _config_tools: &BTreeMap<String, String>,
     verbose: bool,
 ) {
     let mut outdated_in_range = Vec::new();
