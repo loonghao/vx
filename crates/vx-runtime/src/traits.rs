@@ -173,6 +173,26 @@ pub trait PathProvider: Send + Sync {
 
     /// Get the bin directory for a pip tool
     fn pip_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf;
+
+    // ========== RFC 0025: Global Package Isolation ==========
+
+    /// Get the global packages directory (~/.vx/packages)
+    fn packages_dir(&self) -> PathBuf;
+
+    /// Get the global shims directory (~/.vx/shims)
+    fn shims_dir(&self) -> PathBuf;
+
+    /// Get the packages registry file path (~/.vx/config/global-packages.json)
+    fn packages_registry_file(&self) -> PathBuf;
+
+    /// Get the package directory for a specific ecosystem
+    fn ecosystem_packages_dir(&self, ecosystem: &str) -> PathBuf;
+
+    /// Get the package directory for a specific global package
+    fn global_package_dir(&self, ecosystem: &str, package: &str, version: &str) -> PathBuf;
+
+    /// Get the bin directory for a global package
+    fn global_package_bin_dir(&self, ecosystem: &str, package: &str, version: &str) -> PathBuf;
 }
 
 /// Installer abstraction for testability

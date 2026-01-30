@@ -77,6 +77,9 @@ impl PathConfig {
             config_dir: self.config_dir.clone().unwrap_or(default_paths.config_dir),
             tmp_dir: self.tmp_dir.clone().unwrap_or(default_paths.tmp_dir),
             providers_dir: default_paths.providers_dir,
+            // RFC 0025: Global packages CAS
+            packages_dir: default_paths.packages_dir,
+            shims_dir: default_paths.shims_dir,
         })
     }
 

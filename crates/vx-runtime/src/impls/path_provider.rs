@@ -115,4 +115,31 @@ impl PathProvider for RealPathProvider {
     fn pip_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
         self.paths.pip_tool_bin_dir(package_name, version)
     }
+
+    // ========== RFC 0025: Global Package Isolation ==========
+
+    fn packages_dir(&self) -> PathBuf {
+        self.paths.packages_dir.clone()
+    }
+
+    fn shims_dir(&self) -> PathBuf {
+        self.paths.shims_dir.clone()
+    }
+
+    fn packages_registry_file(&self) -> PathBuf {
+        self.paths.packages_registry_file()
+    }
+
+    fn ecosystem_packages_dir(&self, ecosystem: &str) -> PathBuf {
+        self.paths.ecosystem_packages_dir(ecosystem)
+    }
+
+    fn global_package_dir(&self, ecosystem: &str, package: &str, version: &str) -> PathBuf {
+        self.paths.global_package_dir(ecosystem, package, version)
+    }
+
+    fn global_package_bin_dir(&self, ecosystem: &str, package: &str, version: &str) -> PathBuf {
+        self.paths
+            .global_package_bin_dir(ecosystem, package, version)
+    }
 }

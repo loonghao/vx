@@ -140,6 +140,35 @@ impl PathProvider for MockPathProvider {
             venv_dir.join("bin")
         }
     }
+
+    // ========== RFC 0025: Global Package Isolation ==========
+
+    fn packages_dir(&self) -> PathBuf {
+        self.base_dir.join("packages")
+    }
+
+    fn shims_dir(&self) -> PathBuf {
+        self.base_dir.join("shims")
+    }
+
+    fn packages_registry_file(&self) -> PathBuf {
+        self.config_dir().join("global-packages.json")
+    }
+
+    fn ecosystem_packages_dir(&self, ecosystem: &str) -> PathBuf {
+        self.packages_dir().join(ecosystem)
+    }
+
+    fn global_package_dir(&self, ecosystem: &str, package: &str, version: &str) -> PathBuf {
+        self.ecosystem_packages_dir(ecosystem)
+            .join(vx_paths::normalize_package_name(package))
+            .join(version)
+    }
+
+    fn global_package_bin_dir(&self, ecosystem: &str, package: &str, version: &str) -> PathBuf {
+        self.global_package_dir(ecosystem, package, version)
+            .join("bin")
+    }
 }
 
 // ============================================================================
