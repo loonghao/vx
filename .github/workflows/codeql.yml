@@ -44,8 +44,8 @@ jobs:
         with:
           languages: rust
 
-      - name: Build with vx
-        run: vx cargo build --release
+      - name: Build with cargo
+        run: cargo build --release
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
