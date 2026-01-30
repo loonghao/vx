@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.22](https://github.com/loonghao/vx/compare/vx-v0.6.21...vx-v0.6.22) (2026-01-30)
+
+
+### Features
+
+* implement global package management with cross-language isolation ([b1e873b](https://github.com/loonghao/vx/commit/b1e873bd951c4d23937bd8886fc12a1ec3356f7f))
+
+
+### Bug Fixes
+
+* add install() method to RustupRuntime for system rustup detection ([b6bdb3f](https://github.com/loonghao/vx/commit/b6bdb3fc86750edc68f78c1ce3fbf574d5c640de))
+* PowerShell escaping and display issues in vx dev ([b4b86ef](https://github.com/loonghao/vx/commit/b4b86efbda8b73ef330c5c6fbcd40e75f80ad518))
+* resolve unused variable warnings in script_generator_tests ([064c986](https://github.com/loonghao/vx/commit/064c9868999cc2b6b042b7857aaee320fc9aa2ce))
+* use BTreeMap for deterministic lock file ordering ([d3ec5b2](https://github.com/loonghao/vx/commit/d3ec5b2479fdc98afac3d1a2544fe48737d139cf))
+* use system cargo/rustc paths when using system rustup ([05351ba](https://github.com/loonghao/vx/commit/05351ba5e8870eca70706a9b5f0b9e297b00021f))
+
 ## [0.6.21](https://github.com/loonghao/vx/compare/vx-v0.6.20...vx-v0.6.21) (2026-01-29)
 
 
