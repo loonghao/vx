@@ -4,27 +4,9 @@
 version = 1
 
 [metadata]
-generated_at = "2026-01-28T17:13:04Z"
+generated_at = "2026-01-29T16:00:39Z"
 vx_version = "0.6.19"
 platform = "x86_64-pc-windows-msvc"
-
-[tools.cmake]
-version = "4.2.2"
-source = "vx install"
-resolved_from = "latest"
-ecosystem = "Generic"
-
-[tools.pwsh]
-version = "7.4.13"
-source = "generic"
-resolved_from = "7.4.13"
-ecosystem = "Generic"
-
-[tools.rust]
-version = "1.93.0"
-source = "rust"
-resolved_from = "1.93.0"
-ecosystem = "Rust"
 
 [tools.just]
 version = "1.46.0"
@@ -44,8 +26,27 @@ source = "vx install"
 resolved_from = "latest"
 ecosystem = "Generic"
 
+[tools.cmake]
+version = "4.2.2"
+source = "vx install"
+resolved_from = "latest"
+ecosystem = "Generic"
+
+[tools.rust]
+version = "1.83.0"
+source = "rust"
+resolved_from = "1.83.0"
+ecosystem = "Rust"
+
+[tools.pwsh]
+version = "7.4.13"
+source = "generic"
+resolved_from = "7.4.13"
+ecosystem = "Generic"
+
 [tools.python]
 version = "3.11.13"
-source = "vx install"
-resolved_from = "3.11.13"
+source = "python"
+resolved_from = "3.11"
 ecosystem = "Python"
+download_url = "https://github.com/astral-sh/python-build-standalone/releases/download/20250610/cpython-3.11.13+20250610-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
