@@ -82,15 +82,20 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 
 pub mod config;
+pub mod global_packages;
 pub mod link;
 pub mod manager;
+pub mod package_spec;
 pub mod project;
 pub mod resolver;
+pub mod shims;
 pub mod windows;
 
 pub use config::PathConfig;
+pub use global_packages::{GlobalPackage, PackageRegistry, RuntimeDependency};
 pub use link::{LinkResult, LinkStrategy};
 pub use manager::PathManager;
+pub use package_spec::PackageSpec;
 pub use project::{
     find_config_file, find_config_file_upward, find_project_root, find_vx_config, is_in_vx_project,
     project_env_dir, ConfigNotFoundError, CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY, CONFIG_NAMES,
@@ -122,6 +127,10 @@ pub struct VxPaths {
     pub tmp_dir: PathBuf,
     /// User providers directory (~/.vx/providers) - Manifest-driven runtimes
     pub providers_dir: PathBuf,
+    /// Global packages CAS directory (~/.vx/packages) - RFC 0025
+    pub packages_dir: PathBuf,
+    /// Global shims directory (~/.vx/shims) - RFC 0025
+    pub shims_dir: PathBuf,
 }
 
 impl VxPaths {
@@ -149,6 +158,8 @@ impl VxPaths {
             config_dir: base_dir.join("config"),
             tmp_dir: base_dir.join("tmp"),
             providers_dir: base_dir.join("providers"),
+            packages_dir: base_dir.join("packages"),
+            shims_dir: base_dir.join("shims"),
             base_dir,
         })
     }
@@ -167,6 +178,8 @@ impl VxPaths {
             config_dir: base_dir.join("config"),
             tmp_dir: base_dir.join("tmp"),
             providers_dir: base_dir.join("providers"),
+            packages_dir: base_dir.join("packages"),
+            shims_dir: base_dir.join("shims"),
             base_dir,
         }
     }
@@ -183,6 +196,8 @@ impl VxPaths {
         std::fs::create_dir_all(&self.config_dir)?;
         std::fs::create_dir_all(&self.tmp_dir)?;
         std::fs::create_dir_all(&self.providers_dir)?;
+        std::fs::create_dir_all(&self.packages_dir)?;
+        std::fs::create_dir_all(&self.shims_dir)?;
         Ok(())
     }
 
@@ -250,6 +265,85 @@ impl VxPaths {
             venv_dir.join("bin")
         }
     }
+
+    // ========== RFC 0025: Global Packages CAS ==========
+
+    /// Get the ecosystem directory for global packages
+    ///
+    /// Returns: ~/.vx/packages/{ecosystem}
+    ///
+    /// # Example
+    /// ```
+    /// use vx_paths::VxPaths;
+    /// let paths = VxPaths::with_base_dir("/tmp/vx");
+    /// let npm_dir = paths.ecosystem_packages_dir("npm");
+    /// assert!(npm_dir.ends_with("packages/npm"));
+    /// ```
+    pub fn ecosystem_packages_dir(&self, ecosystem: &str) -> PathBuf {
+        self.packages_dir.join(ecosystem.to_lowercase())
+    }
+
+    /// Get the package directory for a specific global package
+    ///
+    /// Returns: ~/.vx/packages/{ecosystem}/{package}/{version}
+    ///
+    /// # Example
+    /// ```
+    /// use vx_paths::VxPaths;
+    /// let paths = VxPaths::with_base_dir("/tmp/vx");
+    /// let ts_dir = paths.global_package_dir("npm", "typescript", "5.3.3");
+    /// assert!(ts_dir.ends_with("packages/npm/typescript/5.3.3"));
+    /// ```
+    pub fn global_package_dir(&self, ecosystem: &str, package: &str, version: &str) -> PathBuf {
+        self.ecosystem_packages_dir(ecosystem)
+            .join(normalize_package_name(package))
+            .join(version)
+    }
+
+    /// Get the bin directory for a global package
+    ///
+    /// Returns: ~/.vx/packages/{ecosystem}/{package}/{version}/bin
+    pub fn global_package_bin_dir(&self, ecosystem: &str, package: &str, version: &str) -> PathBuf {
+        self.global_package_dir(ecosystem, package, version)
+            .join("bin")
+    }
+
+    /// Get the venv directory for a pip global package
+    ///
+    /// Returns: ~/.vx/packages/pip/{package}/{version}/venv
+    pub fn global_pip_venv_dir(&self, package: &str, version: &str) -> PathBuf {
+        self.global_package_dir("pip", package, version)
+            .join("venv")
+    }
+
+    /// Get the node_modules directory for an npm global package
+    ///
+    /// Returns: ~/.vx/packages/npm/{package}/{version}/node_modules
+    pub fn global_npm_node_modules_dir(&self, package: &str, version: &str) -> PathBuf {
+        self.global_package_dir("npm", package, version)
+            .join("node_modules")
+    }
+
+    /// Get the project-local bin directory
+    ///
+    /// Returns: {project_root}/.vx/bin
+    pub fn project_bin_dir(&self, project_root: &Path) -> PathBuf {
+        project_root.join(".vx").join("bin")
+    }
+
+    /// Get the global tools configuration file path
+    ///
+    /// Returns: ~/.vx/config/global-tools.toml
+    pub fn global_tools_config(&self) -> PathBuf {
+        self.config_dir.join("global-tools.toml")
+    }
+
+    /// Get the global packages registry file path
+    ///
+    /// Returns: ~/.vx/config/packages-registry.json
+    pub fn packages_registry_file(&self) -> PathBuf {
+        self.config_dir.join("packages-registry.json")
+    }
 }
 
 impl Default for VxPaths {
@@ -273,4 +367,20 @@ pub fn executable_extension() -> &'static str {
 /// Add executable extension to a tool name if needed
 pub fn with_executable_extension(tool_name: &str) -> String {
     format!("{}{}", tool_name, executable_extension())
+}
+
+/// Normalize package name for filesystem lookup
+///
+/// On Windows and macOS (case-insensitive filesystems), convert to lowercase.
+/// On Linux, keep the original case.
+pub fn normalize_package_name(name: &str) -> String {
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    {
+        name.to_lowercase()
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        name.to_string()
+    }
 }

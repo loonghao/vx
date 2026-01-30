@@ -27,6 +27,9 @@ pub mod common;
 // Modular Commands (RFC 0020 Phase 2)
 // =============================================================================
 
+/// Global package management - RFC 0025
+pub mod global;
+
 /// Install command - modular structure
 pub mod install;
 

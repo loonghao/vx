@@ -7,7 +7,9 @@
 // - Subcommand organization: cache, shell, ext
 // - No redundant commands - each command has a single purpose
 
-use crate::commands::{env::EnvCommand, CommandContext, CommandHandler, GlobalOptions};
+use crate::commands::{
+    env::EnvCommand, global::GlobalCommand, CommandContext, CommandHandler, GlobalOptions,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use clap::{Parser, Subcommand, ValueEnum};
@@ -195,6 +197,16 @@ pub enum Commands {
         /// Show verbose information
         #[arg(short, long)]
         verbose: bool,
+    },
+
+    /// Global package management (RFC 0025)
+    ///
+    /// Install, list, and manage globally installed packages with isolation.
+    /// Packages are installed to ~/.vx/packages/ and accessed via shims.
+    #[command(alias = "g")]
+    Global {
+        #[command(subcommand)]
+        command: GlobalCommand,
     },
 
     /// Test runtime availability and providers (CI-friendly)
@@ -1083,6 +1095,7 @@ impl CommandHandler for Commands {
             Commands::Switch { .. } => "switch",
             Commands::Config { .. } => "config",
             Commands::Search { .. } => "search",
+            Commands::Global { .. } => "global",
             Commands::Test { .. } => "test",
             Commands::Sync { .. } => "sync",
             Commands::Init { .. } => "init",
@@ -1285,6 +1298,8 @@ impl CommandHandler for Commands {
                 )
                 .await
             }
+
+            Commands::Global { command } => commands::global::handle(ctx, command).await,
 
             Commands::Test {
                 runtime,
