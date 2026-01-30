@@ -23,7 +23,7 @@
 use crate::commands::sync;
 use crate::ui::UI;
 use anyhow::{Context, Result};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -53,6 +53,19 @@ pub struct ConfigView {
     pub passenv: Vec<String>,
     /// Environment variables to explicitly set (setenv)
     pub setenv: HashMap<String, String>,
+}
+
+impl ConfigView {
+    /// Get tools as BTreeMap for deterministic ordering
+    ///
+    /// This is useful for lock file operations where consistent ordering
+    /// is required to avoid unnecessary git diffs.
+    pub fn tools_as_btreemap(&self) -> BTreeMap<String, String> {
+        self.tools
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect()
+    }
 }
 
 impl From<VxConfig> for ConfigView {

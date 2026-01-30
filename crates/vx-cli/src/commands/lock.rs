@@ -4,7 +4,7 @@
 //! the `vx.lock` file for reproducible environments.
 
 use anyhow::{Context, Result};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use vx_config::{parse_config, ToolVersion, VxConfig};
 use vx_paths::project::{find_vx_config, LOCK_FILE_NAME};
 use vx_resolver::{
@@ -437,8 +437,8 @@ pub async fn handle_check(verbose: bool) -> Result<()> {
     let lock = LockFile::load(&lock_path)
         .with_context(|| format!("Failed to load {}", lock_path.display()))?;
 
-    // Build config tools map
-    let config_tools: std::collections::HashMap<String, String> = config
+    // Build config tools map (use BTreeMap for deterministic ordering)
+    let config_tools: BTreeMap<String, String> = config
         .tools
         .iter()
         .map(|(k, v)| (k.clone(), get_version_string(v)))

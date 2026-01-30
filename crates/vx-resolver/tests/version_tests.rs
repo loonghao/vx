@@ -364,7 +364,7 @@ mod resolved_version_tests {
 
 mod lockfile_tests {
     use super::*;
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
     use vx_resolver::version::{LockFile, LockFileInconsistency, LockedTool};
 
     #[test]
@@ -502,7 +502,7 @@ npm = ["node"]
             LockedTool::new("20.18.0", "test").with_resolved_from("20"),
         );
 
-        let mut config = HashMap::new();
+        let mut config = BTreeMap::new();
         config.insert("python".to_string(), "3.11".to_string());
         config.insert("node".to_string(), "20".to_string());
 
@@ -518,7 +518,7 @@ npm = ["node"]
             LockedTool::new("3.11.11", "test").with_resolved_from("3.11"),
         );
 
-        let mut config = HashMap::new();
+        let mut config = BTreeMap::new();
         config.insert("python".to_string(), "3.11".to_string());
         config.insert("node".to_string(), "20".to_string());
 
@@ -542,7 +542,7 @@ npm = ["node"]
             LockedTool::new("20.18.0", "test").with_resolved_from("20"),
         );
 
-        let mut config = HashMap::new();
+        let mut config = BTreeMap::new();
         config.insert("python".to_string(), "3.11".to_string());
 
         let inconsistencies = lockfile.check_consistency(&config);
@@ -561,7 +561,7 @@ npm = ["node"]
             LockedTool::new("3.11.11", "test").with_resolved_from("3.11"),
         );
 
-        let mut config = HashMap::new();
+        let mut config = BTreeMap::new();
         config.insert("python".to_string(), "3.12".to_string()); // Changed version
 
         let inconsistencies = lockfile.check_consistency(&config);
