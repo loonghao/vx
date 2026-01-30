@@ -319,12 +319,42 @@ impl Runtime for CargoRuntime {
         let rustup_exe = Self::find_rustup_executable(ctx)?;
         let rustup_store_dir = ctx.paths.runtime_store_dir("rustup");
 
-        // Set up vx-managed paths (no leading dots)
-        let rustup_home = rustup_store_dir.join("rustup");
-        let cargo_home = rustup_store_dir.join("cargo");
+        // Determine if we're using system rustup or vx-managed rustup
+        let is_system_rustup = Self::is_system_rustup(&rustup_exe);
 
-        // Install path
-        let install_path = rustup_store_dir.join("cargo");
+        // Set up paths based on whether we're using system or vx-managed rustup
+        let (rustup_home, cargo_home, install_path) = if is_system_rustup {
+            // Using system rustup - use system's CARGO_HOME and RUSTUP_HOME
+            let system_cargo_home = std::env::var("CARGO_HOME")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|_| {
+                    dirs::home_dir()
+                        .unwrap_or_else(|| std::path::PathBuf::from("."))
+                        .join(".cargo")
+                });
+            let system_rustup_home = std::env::var("RUSTUP_HOME")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|_| {
+                    dirs::home_dir()
+                        .unwrap_or_else(|| std::path::PathBuf::from("."))
+                        .join(".rustup")
+                });
+            let cargo_bin = system_cargo_home.join("bin").join(if cfg!(windows) {
+                "cargo.exe"
+            } else {
+                "cargo"
+            });
+            (system_rustup_home, system_cargo_home, cargo_bin)
+        } else {
+            // Using vx-managed rustup
+            let rustup_home = rustup_store_dir.join("rustup");
+            let cargo_home = rustup_store_dir.join("cargo");
+            let cargo_bin =
+                cargo_home
+                    .join("bin")
+                    .join(if cfg!(windows) { "cargo.exe" } else { "cargo" });
+            (rustup_home, cargo_home, cargo_bin)
+        };
 
         // Check if the requested version is already the default toolchain
         if Self::is_current_toolchain(&rustup_exe, version, &rustup_home, &cargo_home) {
@@ -364,13 +394,35 @@ impl Runtime for CargoRuntime {
 
         let rustup_exe = Self::find_rustup_executable(ctx)?;
         let rustup_store_dir = ctx.paths.runtime_store_dir("rustup");
+        let is_system_rustup = Self::is_system_rustup(&rustup_exe);
 
         info!("⏳ Installing Rust toolchain {}...", version);
 
-        // Set CARGO_HOME to store/cargo (managed by vx, no leading dot)
-        // Set RUSTUP_HOME to store/rustup (managed by vx, no leading dot)
-        let cargo_home = rustup_store_dir.join("cargo");
-        let rustup_home = rustup_store_dir.join("rustup");
+        // Set up paths based on whether we're using system or vx-managed rustup
+        let (rustup_home, cargo_home) = if is_system_rustup {
+            // Using system rustup - use system's CARGO_HOME and RUSTUP_HOME
+            let system_cargo_home = std::env::var("CARGO_HOME")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|_| {
+                    dirs::home_dir()
+                        .unwrap_or_else(|| std::path::PathBuf::from("."))
+                        .join(".cargo")
+                });
+            let system_rustup_home = std::env::var("RUSTUP_HOME")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|_| {
+                    dirs::home_dir()
+                        .unwrap_or_else(|| std::path::PathBuf::from("."))
+                        .join(".rustup")
+                });
+            (system_rustup_home, system_cargo_home)
+        } else {
+            // Using vx-managed rustup
+            (
+                rustup_store_dir.join("rustup"),
+                rustup_store_dir.join("cargo"),
+            )
+        };
 
         // Run: rustup toolchain install <version>
         let mut child = Command::new(&rustup_exe)
@@ -547,6 +599,13 @@ impl Runtime for CargoRuntime {
 }
 
 impl CargoRuntime {
+    /// Check if the given rustup executable is a system rustup (not managed by vx)
+    pub fn is_system_rustup(rustup_exe: &std::path::Path) -> bool {
+        let rustup_path = rustup_exe.to_string_lossy();
+        // System rustup is NOT in .vx directory
+        !rustup_path.contains(".vx")
+    }
+
     /// Find rustup executable
     pub fn find_rustup_executable(ctx: &RuntimeContext) -> Result<std::path::PathBuf> {
         let rustup_store_dir = ctx.paths.runtime_store_dir("rustup");
@@ -797,17 +856,46 @@ impl Runtime for RustcRuntime {
     ) -> Result<vx_runtime::InstallResult> {
         use vx_runtime::InstallResult;
 
-        // Rustc versions are managed by rustup toolchains
-        // We use a single install path for all rustc versions
-        let rustup_store_dir = ctx.paths.runtime_store_dir("rustup");
-        let install_path = rustup_store_dir.join("rustc");
-
         // Find rustup executable
         let rustup_exe = CargoRuntime::find_rustup_executable(ctx)?;
+        let rustup_store_dir = ctx.paths.runtime_store_dir("rustup");
 
-        // Set up vx-managed paths (no leading dots)
-        let rustup_home = rustup_store_dir.join("rustup");
-        let cargo_home = rustup_store_dir.join("cargo");
+        // Determine if we're using system rustup or vx-managed rustup
+        let is_system_rustup = CargoRuntime::is_system_rustup(&rustup_exe);
+
+        // Set up paths based on whether we're using system or vx-managed rustup
+        let (rustup_home, cargo_home, install_path) = if is_system_rustup {
+            // Using system rustup - use system's CARGO_HOME and RUSTUP_HOME
+            let system_cargo_home = std::env::var("CARGO_HOME")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|_| {
+                    dirs::home_dir()
+                        .unwrap_or_else(|| std::path::PathBuf::from("."))
+                        .join(".cargo")
+                });
+            let system_rustup_home = std::env::var("RUSTUP_HOME")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|_| {
+                    dirs::home_dir()
+                        .unwrap_or_else(|| std::path::PathBuf::from("."))
+                        .join(".rustup")
+                });
+            let rustc_bin = system_cargo_home.join("bin").join(if cfg!(windows) {
+                "rustc.exe"
+            } else {
+                "rustc"
+            });
+            (system_rustup_home, system_cargo_home, rustc_bin)
+        } else {
+            // Using vx-managed rustup
+            let rustup_home = rustup_store_dir.join("rustup");
+            let cargo_home = rustup_store_dir.join("cargo");
+            let rustc_bin =
+                cargo_home
+                    .join("bin")
+                    .join(if cfg!(windows) { "rustc.exe" } else { "rustc" });
+            (rustup_home, cargo_home, rustc_bin)
+        };
 
         // Check if the requested version is already the default toolchain
         if CargoRuntime::is_current_toolchain(&rustup_exe, version, &rustup_home, &cargo_home) {
@@ -850,75 +938,37 @@ impl Runtime for RustcRuntime {
         use std::io::{BufRead, BufReader};
         use std::process::{Command, Stdio};
 
-        // Find rustup executable
-        // rustup could be in several locations:
-        // 1. ~/.vx/store/rustup/<version>/rustup (or rustup.exe on Windows)
-        // 2. ~/.vx/store/rustup/cargo/bin/rustup (where rustup-init installs itself)
-        // 3. System PATH (if installed system-wide)
-
+        let rustup_exe = CargoRuntime::find_rustup_executable(ctx)?;
         let rustup_store_dir = ctx.paths.runtime_store_dir("rustup");
-
-        // Try to find the latest installed rustup version
-        let rustup_exe = if let Ok(versions) = std::fs::read_dir(&rustup_store_dir) {
-            let mut found_exe = None;
-
-            for version_entry in versions.flatten() {
-                if !version_entry.path().is_dir() {
-                    continue;
-                }
-
-                // Check direct path
-                let exe_name = if cfg!(windows) {
-                    "rustup.exe"
-                } else {
-                    "rustup"
-                };
-                let direct_path = version_entry.path().join(exe_name);
-                if direct_path.exists() {
-                    found_exe = Some(direct_path);
-                    break;
-                }
-            }
-
-            if found_exe.is_none() {
-                // Check cargo/bin directory (where rustup-init installs itself)
-                let exe_name = if cfg!(windows) {
-                    "rustup.exe"
-                } else {
-                    "rustup"
-                };
-                let cargo_bin_path = rustup_store_dir.join("cargo").join("bin").join(exe_name);
-                if cargo_bin_path.exists() {
-                    found_exe = Some(cargo_bin_path);
-                }
-            }
-
-            found_exe
-        } else {
-            None
-        };
-
-        let rustup_exe = if let Some(exe) = rustup_exe {
-            exe
-        } else {
-            // Try system PATH as fallback
-            let exe_name = if cfg!(windows) {
-                "rustup.exe"
-            } else {
-                "rustup"
-            };
-            which::which(exe_name).map_err(|_| {
-                anyhow::anyhow!(
-                    "rustup not found. Please install rustup first using 'vx install rustup'"
-                )
-            })?
-        };
+        let is_system_rustup = CargoRuntime::is_system_rustup(&rustup_exe);
 
         info!("⏳ Installing Rust toolchain {}...", version);
 
-        // Always set RUSTUP_HOME and CARGO_HOME to use vx's managed directories (no leading dots)
-        let rustup_home = rustup_store_dir.join("rustup");
-        let cargo_home = rustup_store_dir.join("cargo");
+        // Set up paths based on whether we're using system or vx-managed rustup
+        let (rustup_home, cargo_home) = if is_system_rustup {
+            // Using system rustup - use system's CARGO_HOME and RUSTUP_HOME
+            let system_cargo_home = std::env::var("CARGO_HOME")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|_| {
+                    dirs::home_dir()
+                        .unwrap_or_else(|| std::path::PathBuf::from("."))
+                        .join(".cargo")
+                });
+            let system_rustup_home = std::env::var("RUSTUP_HOME")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|_| {
+                    dirs::home_dir()
+                        .unwrap_or_else(|| std::path::PathBuf::from("."))
+                        .join(".rustup")
+                });
+            (system_rustup_home, system_cargo_home)
+        } else {
+            // Using vx-managed rustup
+            (
+                rustup_store_dir.join("rustup"),
+                rustup_store_dir.join("cargo"),
+            )
+        };
 
         // Run: rustup toolchain install <version>
         let mut child = Command::new(&rustup_exe)
