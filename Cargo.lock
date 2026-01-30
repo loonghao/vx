@@ -4327,9 +4327,11 @@ name = "vx-paths"
 version = "0.6.21"
 dependencies = [
  "anyhow",
+ "chrono",
  "dirs 6.0.0",
  "semver",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
