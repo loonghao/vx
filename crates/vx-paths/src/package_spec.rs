@@ -94,8 +94,36 @@ impl PackageSpec {
     }
 
     /// Parse package@version format
+    ///
+    /// Handles scoped npm packages like @scope/package@version correctly
     fn parse_package_version(s: &str) -> Result<(String, Option<String>)> {
-        if let Some(at_pos) = s.rfind('@') {
+        if s.is_empty() {
+            return Err(anyhow!("Empty package name"));
+        }
+
+        // Handle scoped npm packages (e.g., @scope/package@version)
+        // For scoped packages, we need to find @ that comes after /
+        let version_at_pos = if s.starts_with('@') {
+            // Scoped package - find @ after the first /
+            if let Some(slash_pos) = s.find('/') {
+                // Look for @ after the slash
+                s[slash_pos..].rfind('@').map(|pos| slash_pos + pos)
+            } else {
+                // No slash found, treat as regular package
+                s.rfind('@')
+            }
+        } else {
+            // Regular package
+            s.rfind('@')
+        };
+
+        if let Some(at_pos) = version_at_pos {
+            // Make sure we're not just finding the @ at the start of a scoped package
+            if at_pos == 0 {
+                // This is a scoped package without version (@scope/package)
+                return Ok((s.to_string(), None));
+            }
+
             let package = &s[..at_pos];
             let version = &s[at_pos + 1..];
 
@@ -108,9 +136,6 @@ impl PackageSpec {
 
             Ok((package.to_string(), Some(version.to_string())))
         } else {
-            if s.is_empty() {
-                return Err(anyhow!("Empty package name"));
-            }
             Ok((s.to_string(), None))
         }
     }
@@ -136,30 +161,70 @@ impl PackageSpec {
     fn detect_ecosystem(package: &str) -> Result<String> {
         // Common npm packages
         let npm_packages = [
+            // Build tools
             "typescript",
             "tsc",
-            "eslint",
-            "prettier",
+            "esbuild",
+            "rollup",
+            "parcel",
             "webpack",
             "vite",
+            "turbo",
+            "nx",
+            // Frameworks
             "react",
             "vue",
             "angular",
             "next",
             "nuxt",
-            "nx",
-            "turbo",
+            "svelte",
+            "astro",
+            "remix",
+            // Testing
             "jest",
             "vitest",
             "mocha",
             "cypress",
             "playwright",
+            // Linting & Formatting
+            "eslint",
+            "prettier",
+            "biome",
+            // Runtime tools
             "nodemon",
             "ts-node",
             "tsx",
-            "esbuild",
-            "rollup",
-            "parcel",
+            // Video/Media
+            "remotion",
+            "ffmpeg-static",
+            // AI/CLI tools
+            "@anthropic-ai/claude-code",
+            "claude-code",
+            "@openai/codex",
+            "codex",
+            // Package managers & tools
+            "npm",
+            "yarn",
+            "pnpm",
+            "bun",
+            // Database tools
+            "prisma",
+            "drizzle-kit",
+            // API tools
+            "openapi-typescript",
+            "swagger-cli",
+            // Other popular tools
+            "zx",
+            "concurrently",
+            "npm-run-all",
+            "cross-env",
+            "dotenv-cli",
+            "http-server",
+            "serve",
+            "create-react-app",
+            "create-next-app",
+            "create-vite",
+            "@biomejs/biome",
         ];
 
         // Common pip packages
@@ -372,5 +437,198 @@ mod tests {
         let spec: PackageSpec = "cargo:ripgrep@14".parse().unwrap();
         assert_eq!(spec.ecosystem, "cargo");
         assert_eq!(spec.package, "ripgrep");
+    }
+
+    // Real-world package tests for global package management (RFC 0025)
+
+    #[test]
+    fn test_parse_vitest() {
+        // vitest is a popular npm test runner
+        let spec = PackageSpec::parse("vitest@1.0.0").unwrap();
+        assert_eq!(spec.ecosystem, "npm");
+        assert_eq!(spec.package, "vitest");
+        assert_eq!(spec.version, Some("1.0.0".to_string()));
+
+        // Also test explicit ecosystem
+        let spec2 = PackageSpec::parse("npm:vitest@2.0").unwrap();
+        assert_eq!(spec2.ecosystem, "npm");
+        assert_eq!(spec2.package, "vitest");
+    }
+
+    #[test]
+    fn test_parse_remotion() {
+        // remotion is a video creation framework for React
+        let spec = PackageSpec::parse("remotion@4.0").unwrap();
+        assert_eq!(spec.ecosystem, "npm");
+        assert_eq!(spec.package, "remotion");
+        assert_eq!(spec.version, Some("4.0".to_string()));
+
+        // Without version
+        let spec2 = PackageSpec::parse("npm:remotion").unwrap();
+        assert_eq!(spec2.ecosystem, "npm");
+        assert_eq!(spec2.package, "remotion");
+        assert_eq!(spec2.version, None);
+    }
+
+    #[test]
+    fn test_parse_claude_code() {
+        // @anthropic-ai/claude-code - AI coding assistant CLI
+        let spec = PackageSpec::parse("npm:@anthropic-ai/claude-code@1.0").unwrap();
+        assert_eq!(spec.ecosystem, "npm");
+        assert_eq!(spec.package, "@anthropic-ai/claude-code");
+        assert_eq!(spec.version, Some("1.0".to_string()));
+
+        // Short form (auto-detect)
+        let spec2 = PackageSpec::parse("claude-code@0.2.0").unwrap();
+        assert_eq!(spec2.ecosystem, "npm");
+        assert_eq!(spec2.package, "claude-code");
+    }
+
+    #[test]
+    fn test_parse_codex() {
+        // @openai/codex - OpenAI Codex CLI
+        let spec = PackageSpec::parse("npm:@openai/codex@1.0").unwrap();
+        assert_eq!(spec.ecosystem, "npm");
+        assert_eq!(spec.package, "@openai/codex");
+        assert_eq!(spec.version, Some("1.0".to_string()));
+
+        // Short form
+        let spec2 = PackageSpec::parse("codex").unwrap();
+        assert_eq!(spec2.ecosystem, "npm");
+        assert_eq!(spec2.package, "codex");
+    }
+
+    #[test]
+    fn test_parse_common_npm_tools() {
+        // Build tools
+        let vite = PackageSpec::parse("vite@5.0").unwrap();
+        assert_eq!(vite.ecosystem, "npm");
+        assert_eq!(vite.package, "vite");
+
+        let turbo = PackageSpec::parse("turbo").unwrap();
+        assert_eq!(turbo.ecosystem, "npm");
+        assert_eq!(turbo.package, "turbo");
+
+        let esbuild = PackageSpec::parse("esbuild@0.20").unwrap();
+        assert_eq!(esbuild.ecosystem, "npm");
+
+        // Frameworks
+        let next = PackageSpec::parse("next@14").unwrap();
+        assert_eq!(next.ecosystem, "npm");
+
+        let nuxt = PackageSpec::parse("nuxt@3.10").unwrap();
+        assert_eq!(nuxt.ecosystem, "npm");
+
+        // Testing
+        let playwright = PackageSpec::parse("playwright@1.42").unwrap();
+        assert_eq!(playwright.ecosystem, "npm");
+
+        let cypress = PackageSpec::parse("cypress@13").unwrap();
+        assert_eq!(cypress.ecosystem, "npm");
+    }
+
+    #[test]
+    fn test_parse_common_pip_tools() {
+        // Python linters
+        let ruff = PackageSpec::parse("ruff@0.3").unwrap();
+        assert_eq!(ruff.ecosystem, "pip");
+        assert_eq!(ruff.package, "ruff");
+
+        let black = PackageSpec::parse("black@24.2").unwrap();
+        assert_eq!(black.ecosystem, "pip");
+
+        let mypy = PackageSpec::parse("mypy@1.8").unwrap();
+        assert_eq!(mypy.ecosystem, "pip");
+
+        // Frameworks
+        let fastapi = PackageSpec::parse("fastapi@0.110").unwrap();
+        assert_eq!(fastapi.ecosystem, "pip");
+
+        let django = PackageSpec::parse("django@5.0").unwrap();
+        assert_eq!(django.ecosystem, "pip");
+
+        // Testing
+        let pytest = PackageSpec::parse("pytest@8.0").unwrap();
+        assert_eq!(pytest.ecosystem, "pip");
+
+        let nox = PackageSpec::parse("nox").unwrap();
+        assert_eq!(nox.ecosystem, "pip");
+    }
+
+    #[test]
+    fn test_parse_common_cargo_tools() {
+        // CLI tools
+        let ripgrep = PackageSpec::parse("ripgrep@14").unwrap();
+        assert_eq!(ripgrep.ecosystem, "cargo");
+        assert_eq!(ripgrep.package, "ripgrep");
+
+        let fd = PackageSpec::parse("fd-find@9").unwrap();
+        assert_eq!(fd.ecosystem, "cargo");
+
+        let bat = PackageSpec::parse("bat@0.24").unwrap();
+        assert_eq!(bat.ecosystem, "cargo");
+
+        let hyperfine = PackageSpec::parse("hyperfine@1.18").unwrap();
+        assert_eq!(hyperfine.ecosystem, "cargo");
+
+        let just = PackageSpec::parse("just@1.24").unwrap();
+        assert_eq!(just.ecosystem, "cargo");
+
+        // Cargo extensions
+        let tauri = PackageSpec::parse("tauri-cli@2.0").unwrap();
+        assert_eq!(tauri.ecosystem, "cargo");
+    }
+
+    #[test]
+    fn test_parse_common_go_tools() {
+        let golangci = PackageSpec::parse("golangci-lint@1.56").unwrap();
+        assert_eq!(golangci.ecosystem, "go");
+        assert_eq!(golangci.package, "golangci-lint");
+
+        let gopls = PackageSpec::parse("gopls").unwrap();
+        assert_eq!(gopls.ecosystem, "go");
+    }
+
+    #[test]
+    fn test_parse_common_gem_tools() {
+        let bundler = PackageSpec::parse("bundler@2.5").unwrap();
+        assert_eq!(bundler.ecosystem, "gem");
+        assert_eq!(bundler.package, "bundler");
+
+        let rails = PackageSpec::parse("rails@7.1").unwrap();
+        assert_eq!(rails.ecosystem, "gem");
+
+        let rubocop = PackageSpec::parse("rubocop@1.60").unwrap();
+        assert_eq!(rubocop.ecosystem, "gem");
+    }
+
+    #[test]
+    fn test_parse_scoped_npm_packages() {
+        // Scoped packages like @org/package
+        let biome = PackageSpec::parse("npm:@biomejs/biome@1.5").unwrap();
+        assert_eq!(biome.ecosystem, "npm");
+        assert_eq!(biome.package, "@biomejs/biome");
+        assert_eq!(biome.version, Some("1.5".to_string()));
+
+        let claude = PackageSpec::parse("npm:@anthropic-ai/claude-code").unwrap();
+        assert_eq!(claude.ecosystem, "npm");
+        assert_eq!(claude.package, "@anthropic-ai/claude-code");
+        assert_eq!(claude.version, None);
+    }
+
+    #[test]
+    fn test_version_constraints() {
+        // Simple version
+        let spec1 = PackageSpec::parse("npm:typescript@5.3.3").unwrap();
+        assert_eq!(spec1.version, Some("5.3.3".to_string()));
+
+        // Semver range (passed as string)
+        let spec2 = PackageSpec::parse("npm:typescript@^5.0").unwrap();
+        assert_eq!(spec2.version, Some("^5.0".to_string()));
+
+        // Latest
+        let spec3 = PackageSpec::parse("npm:typescript").unwrap();
+        assert_eq!(spec3.version, None);
+        assert_eq!(spec3.version_or_latest(), "latest");
     }
 }
