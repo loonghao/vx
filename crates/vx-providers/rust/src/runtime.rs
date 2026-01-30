@@ -191,6 +191,105 @@ impl Runtime for RustupRuntime {
         Ok(())
     }
 
+    /// Install rustup, handling both system and vx-managed installations
+    async fn install(
+        &self,
+        version: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<vx_runtime::InstallResult> {
+        use vx_runtime::InstallResult;
+
+        let rustup_store_dir = ctx.paths.runtime_store_dir("rustup");
+        let exe_name = if cfg!(windows) {
+            "rustup.exe"
+        } else {
+            "rustup"
+        };
+
+        // First, check if system rustup is available
+        if let Ok(system_exe) = which::which(exe_name) {
+            let is_system = !system_exe.to_string_lossy().contains(".vx");
+            if is_system {
+                eprintln!("✓ Using system rustup at: {}", system_exe.display());
+                // For system rustup, return the system path
+                return Ok(InstallResult::already_installed(
+                    system_exe.clone(),
+                    system_exe,
+                    version.to_string(),
+                ));
+            }
+        }
+
+        // Check if vx-managed rustup is already installed
+        // Check in cargo/bin directory (where rustup-init installs itself)
+        let cargo_bin_rustup = rustup_store_dir.join("cargo").join("bin").join(exe_name);
+        if cargo_bin_rustup.exists() {
+            eprintln!(
+                "✓ Using vx-managed rustup at: {}",
+                cargo_bin_rustup.display()
+            );
+            return Ok(InstallResult::already_installed(
+                cargo_bin_rustup.clone(),
+                cargo_bin_rustup,
+                version.to_string(),
+            ));
+        }
+
+        // Fall back to default installation
+        // The default implementation will download and install rustup
+        let platform = vx_runtime::Platform::current();
+        let install_path = ctx
+            .paths
+            .version_store_dir(self.store_name(), version)
+            .join(platform.as_str());
+
+        // If already installed, return early
+        let verification = self.verify_installation(version, &install_path, &platform);
+        if verification.valid {
+            let exe_path = verification
+                .executable_path
+                .unwrap_or_else(|| install_path.join(exe_name));
+            return Ok(InstallResult::already_installed(
+                install_path,
+                exe_path,
+                version.to_string(),
+            ));
+        }
+
+        // Download and install using the default mechanism
+        let url = self
+            .download_url(version, &platform)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("No download URL for rustup {}", version))?;
+
+        info!("Downloading rustup {} from {}", version, url);
+
+        ctx.installer
+            .download_and_extract(&url, &install_path)
+            .await?;
+
+        // Run post-extract hook
+        self.post_extract(version, &install_path)?;
+
+        // After installation, rustup should be in cargo/bin
+        let rustup_exe = rustup_store_dir.join("cargo").join("bin").join(exe_name);
+        if rustup_exe.exists() {
+            Ok(InstallResult::success(
+                rustup_store_dir.clone(),
+                rustup_exe,
+                version.to_string(),
+            ))
+        } else {
+            // Fallback to install_path
+            let exe_path = install_path.join(exe_name);
+            Ok(InstallResult::success(
+                install_path,
+                exe_path,
+                version.to_string(),
+            ))
+        }
+    }
+
     fn verify_installation(
         &self,
         _version: &str,
