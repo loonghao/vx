@@ -775,7 +775,7 @@ impl<'a> Executor<'a> {
     async fn install_dependencies_for_version(
         &self,
         runtime_name: &str,
-        _version: &str,
+        version: &str,
     ) -> Result<()> {
         // Get the runtime spec to check dependencies
         let spec = self.resolver.get_spec(runtime_name);
@@ -808,20 +808,50 @@ impl<'a> Executor<'a> {
                 // Get the provider name (the actual runtime to install)
                 let dep_runtime = dep.provided_by.as_deref().unwrap_or(&dep.runtime_name);
 
-                // Install the dependency
-                // TODO: Support version constraints from RuntimeDependency.min_version
+                // For Rust ecosystem (cargo, rustc depend on rustup), the dependency
+                // should use the same version as the parent runtime since rustup manages
+                // Rust toolchain versions (e.g., 1.90.0, stable, nightly).
+                // This ensures that when installing cargo@1.90.0, rustup also installs
+                // toolchain 1.90.0 instead of defaulting to "stable".
+                let dep_version = if self.is_rust_ecosystem(runtime_name, dep_runtime) {
+                    Some(version)
+                } else {
+                    // For other ecosystems, use the version from RuntimeDependency if specified
+                    dep.recommended_version.as_deref()
+                };
+
+                // Install the dependency with version if available
                 info!(
-                    "Installing dependency {} for {} ({})",
-                    dep_runtime, runtime_name, dep.reason
+                    "Installing dependency {}@{} for {} ({})",
+                    dep_runtime,
+                    dep_version.unwrap_or("latest"),
+                    runtime_name,
+                    dep.reason
                 );
-                spinner.set_message(&format!("Installing dependency {}...", dep_runtime));
-                self.install_runtime(dep_runtime).await?;
+                spinner.set_message(&format!(
+                    "Installing dependency {}@{}...",
+                    dep_runtime,
+                    dep_version.unwrap_or("latest")
+                ));
+
+                if let Some(ver) = dep_version {
+                    self.install_runtime_with_version(dep_runtime, ver).await?;
+                } else {
+                    self.install_runtime(dep_runtime).await?;
+                }
             }
 
             spinner.finish_and_clear();
         }
 
         Ok(())
+    }
+
+    /// Check if the runtime and its dependency belong to the Rust ecosystem
+    /// where version consistency is important (rustup manages toolchain versions)
+    fn is_rust_ecosystem(&self, runtime_name: &str, dep_runtime: &str) -> bool {
+        let rust_runtimes = ["cargo", "rustc", "rust", "rustup"];
+        rust_runtimes.contains(&runtime_name) && rust_runtimes.contains(&dep_runtime)
     }
 
     /// Prepare environment variables for a runtime
@@ -1097,6 +1127,74 @@ impl<'a> Executor<'a> {
         }
 
         // Fallback: try to install using known methods
+        self.install_runtime_fallback(runtime_name).await?;
+        Ok(None)
+    }
+
+    /// Install a single runtime with a specific version
+    ///
+    /// This is used when installing dependencies that need to match the parent runtime's version,
+    /// such as rustup needing to install the same toolchain version as cargo.
+    ///
+    /// Returns the installed version if successful
+    async fn install_runtime_with_version(
+        &self,
+        runtime_name: &str,
+        version: &str,
+    ) -> Result<Option<String>> {
+        info!("Installing: {}@{}", runtime_name, version);
+
+        // Try using the provider registry first
+        if let (Some(registry), Some(context)) = (self.registry, self.context) {
+            if let Some(runtime) = registry.get_runtime(runtime_name) {
+                // Check platform support before attempting installation
+                if let Err(e) = runtime.check_platform_support() {
+                    return Err(anyhow::anyhow!("{}", e));
+                }
+
+                info!(
+                    "Installing {} {} via provider (explicit version)",
+                    runtime_name, version
+                );
+
+                // Run pre-install hook
+                runtime.pre_install(version, context).await?;
+
+                // Install the runtime with the specified version
+                debug!(
+                    "Calling runtime.install() for {} {} (explicit version)",
+                    runtime_name, version
+                );
+                let result = runtime.install(version, context).await?;
+                debug!(
+                    "Install result: path={}, exe={}, already_installed={}",
+                    result.install_path.display(),
+                    result.executable_path.display(),
+                    result.already_installed
+                );
+
+                // Verify the installation actually succeeded
+                if !context.fs.exists(&result.executable_path) {
+                    return Err(anyhow::anyhow!(
+                        "Installation completed but executable not found at {}",
+                        result.executable_path.display()
+                    ));
+                }
+
+                // Run post-install hook (for symlinks, PATH setup, etc.)
+                runtime.post_install(version, context).await?;
+
+                info!("Successfully installed {} {}", runtime_name, version);
+                return Ok(Some(version.to_string()));
+            }
+        }
+
+        // Fallback: try to install using known methods
+        // Note: Fallback doesn't support version specification
+        warn!(
+            "No provider found for {}, falling back to system installation (version {} will be ignored)",
+            runtime_name, version
+        );
         self.install_runtime_fallback(runtime_name).await?;
         Ok(None)
     }
