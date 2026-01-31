@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
+* pass version to Rust ecosystem dependencies during installation ([14ec0e1](https://github.com/loonghao/vx/commit/14ec0e1b54541aa6a5b3d824fae268caf3156022))
 * **sync:** filter out non-vx tools from project analysis ([20ab704](https://github.com/loonghao/vx/commit/20ab7044a7f4183de339500bb02374493174cfd7))
 
 
