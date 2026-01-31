@@ -54,7 +54,7 @@ vx [OPTIONS] <TOOL> [TOOL_ARGS]
 | Command | Description |
 |---------|-------------|
 | [`env`](./env) | Manage environments |
-| `global` | Manage global tool versions |
+| [`global`](./global) | Manage global packages (isolated) |
 | `venv` | Python virtual environment management |
 
 ### Configuration
