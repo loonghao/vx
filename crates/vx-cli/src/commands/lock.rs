@@ -62,10 +62,11 @@ pub async fn handle(
     let solver = VersionSolver::new();
     let mut new_lock = existing_lock.clone().unwrap_or_default();
     let mut resolved_tools: HashSet<String> = HashSet::new();
+    let mut failed_tools: Vec<(String, String)> = Vec::new();
 
     // Resolve all tools and their dependencies recursively
     for (tool_name, version_str) in &tools_to_resolve {
-        resolve_tool_with_dependencies(
+        let success = resolve_tool_with_dependencies(
             registry,
             ctx,
             &solver,
@@ -78,6 +79,10 @@ pub async fn handle(
             verbose,
         )
         .await;
+
+        if !success {
+            failed_tools.push((tool_name.clone(), version_str.clone()));
+        }
     }
 
     // Add dependency relationships to lock file
@@ -86,7 +91,31 @@ pub async fn handle(
     if dry_run {
         println!("\n--- vx.lock (dry run) ---\n");
         println!("{}", new_lock.to_string()?);
+        if !failed_tools.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Failed to resolve {} tool(s): {}",
+                failed_tools.len(),
+                failed_tools
+                    .iter()
+                    .map(|(name, _)| name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
         return Ok(());
+    }
+
+    // If any tools failed to resolve, don't save the lock file
+    if !failed_tools.is_empty() {
+        println!("\n✗ Failed to resolve {} tool(s):", failed_tools.len());
+        for (name, version) in &failed_tools {
+            println!("  - {}@{}", name, version);
+        }
+        println!("\n💡 Fix the tool configuration in vx.toml before generating the lock file");
+        return Err(anyhow::anyhow!(
+            "Cannot generate lock file: {} tool(s) failed to resolve",
+            failed_tools.len()
+        ));
     }
 
     // Save lock file
@@ -131,6 +160,8 @@ fn get_version_string(version: &ToolVersion) -> String {
 /// 2. Gets its dependencies from the runtime
 /// 3. Recursively resolves each dependency
 /// 4. Locks all resolved tools
+///
+/// Returns `true` if the tool was resolved successfully, `false` otherwise.
 #[allow(clippy::too_many_arguments)]
 async fn resolve_tool_with_dependencies(
     registry: &ProviderRegistry,
@@ -143,10 +174,10 @@ async fn resolve_tool_with_dependencies(
     existing_lock: &Option<LockFile>,
     update: bool,
     verbose: bool,
-) {
+) -> bool {
     // Avoid circular dependencies
     if resolved.contains(tool_name) {
-        return;
+        return true; // Already resolved
     }
     resolved.insert(tool_name.to_string());
 
@@ -186,6 +217,7 @@ async fn resolve_tool_with_dependencies(
                             }
 
                             // Recursively resolve the dependency
+                            // Note: Dependency resolution failures don't fail the parent tool
                             Box::pin(resolve_tool_with_dependencies(
                                 registry,
                                 ctx,
@@ -203,6 +235,7 @@ async fn resolve_tool_with_dependencies(
                     }
                 }
             }
+            true
         }
         Err(e) => {
             eprintln!("  ✗ Failed to resolve {}: {}", tool_name, e);
@@ -211,9 +244,11 @@ async fn resolve_tool_with_dependencies(
                 if let Some(ref existing) = existing_lock {
                     if let Some(existing_tool) = existing.get_tool(tool_name) {
                         lock.lock_tool(tool_name.to_string(), existing_tool.clone());
+                        return true; // Kept existing, so not a failure
                     }
                 }
             }
+            false
         }
     }
 }

@@ -517,6 +517,10 @@ pub async fn quick_check() -> Result<bool> {
 /// - `just` if a Justfile exists
 /// - Package managers based on lock files
 /// - Build tools based on project configuration
+///
+/// **Important:** Only tools with `InstallMethod::vx()` are added to the result.
+/// Tools that should be installed via other methods (npm, pip, cargo, etc.) are
+/// filtered out to avoid attempting to install unsupported tools.
 async fn analyze_project_tools(
     project_root: &Path,
     verbose: bool,
@@ -536,6 +540,34 @@ async fn analyze_project_tools(
         Ok(analysis) => {
             // Extract required tools from analysis
             for tool in &analysis.required_tools {
+                // Only add tools that should be installed via vx
+                // Skip tools that should be installed via npm, pip, cargo, etc.
+                let should_install_via_vx = matches!(
+                    &tool.install_method,
+                    vx_project_analyzer::InstallMethod::Vx { .. }
+                );
+
+                if !should_install_via_vx {
+                    if verbose {
+                        UI::detail(&format!(
+                            "  Skipping {}: should be installed via {}",
+                            tool.name,
+                            match &tool.install_method {
+                                vx_project_analyzer::InstallMethod::Npm { .. } => "npm",
+                                vx_project_analyzer::InstallMethod::Uv { .. } => "uv",
+                                vx_project_analyzer::InstallMethod::Pip { .. } => "pip",
+                                vx_project_analyzer::InstallMethod::Cargo { .. } => "cargo",
+                                vx_project_analyzer::InstallMethod::Go { .. } => "go install",
+                                vx_project_analyzer::InstallMethod::Manual { .. } => "manual",
+                                vx_project_analyzer::InstallMethod::System { .. } =>
+                                    "system package manager",
+                                _ => "other",
+                            }
+                        ));
+                    }
+                    continue;
+                }
+
                 // Use "latest" as default version for detected tools
                 // unless the tool has a specific version requirement
                 let version = "latest".to_string();
