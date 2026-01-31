@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.23](https://github.com/loonghao/vx/compare/vx-v0.6.22...vx-v0.6.23) (2026-01-31)
+
+
+### Bug Fixes
+
+* **sync:** filter out non-vx tools from project analysis ([20ab704](https://github.com/loonghao/vx/commit/20ab7044a7f4183de339500bb02374493174cfd7))
+
+
+### Code Refactoring
+
+* **script-parser:** redesign with extensible pattern provider architecture ([1482f76](https://github.com/loonghao/vx/commit/1482f766a872f94724639fdea8c6c282f6c8e68b))
+
 ## [0.6.22](https://github.com/loonghao/vx/compare/vx-v0.6.21...vx-v0.6.22) (2026-01-30)
 
 
