@@ -356,6 +356,104 @@ black .
 ruff check .
 ```
 
+## 实现细节
+
+### vx-shim Crate
+
+`vx-shim` crate 实现了 RFC 0027 的解析和执行逻辑：
+
+```rust
+// 解析 RFC 0027 语法
+let request = PackageRequest::parse("npm@20:typescript@5.3::tsc")?;
+// request.ecosystem = "npm"
+// request.package = "typescript"
+// request.version = Some("5.3")
+// request.executable = Some("tsc")
+// request.runtime_spec = Some(RuntimeSpec { runtime: "node", version: "20" })
+```
+
+**架构：**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         vx-shim 架构                                    │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  PackageRequest（包请求）                                        │   │
+│  │  ├── parse(input: &str) -> Result<Self>                         │   │
+│  │  ├── is_package_request(input: &str) -> bool                    │   │
+│  │  └── executable_name() -> &str                                  │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  ShimExecutor（Shim 执行器）                                     │   │
+│  │  ├── execute_request(req, args) -> Result<ExitCode>             │   │
+│  │  ├── find_package(ecosystem, package) -> Option<GlobalPackage>  │   │
+│  │  └── resolve_executable(package, exe_name) -> PathBuf           │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  执行流程                                                        │   │
+│  │  1. 解析请求 (ecosystem:package@version::executable)             │   │
+│  │  2. 检查包是否已安装在 PackageRegistry 中                        │   │
+│  │  3. 如未安装：返回 PackageNotInstalled 错误                      │   │
+│  │  4. 如已安装：解析可执行文件路径                                 │   │
+│  │  5. 使用运行时环境执行                                           │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 自动安装机制
+
+当找不到包时，CLI 触发自动安装：
+
+```rust
+// 在 vx-cli/src/lib.rs 中
+async fn execute_package_request(ctx, spec, args) {
+    match executor.execute_request(&pkg_request, args).await {
+        Ok(exit_code) => Ok(()),
+        Err(ShimError::PackageNotInstalled { ecosystem, package }) => {
+            // 自动安装包
+            auto_install_package(ctx, &pkg_request).await?;
+            // 重试执行
+            executor.execute_request(&pkg_request, args).await
+        }
+    }
+}
+```
+
+这提供了类似 `uvx`/`npx` 的无缝体验：
+- 首次运行：自动安装并执行
+- 后续运行：从缓存执行
+
+### 支持的语法模式
+
+| 模式 | 示例 | 描述 |
+|------|------|------|
+| 简单 | `npm:typescript` | 包名 = 可执行文件名 |
+| 带版本 | `npm:typescript@5.3` | 指定包版本 |
+| 不同可执行文件 | `npm:typescript::tsc` | 显式可执行文件名 |
+| 完整语法 | `npm@20:typescript@5.3::tsc` | 运行时 + 包版本 + 可执行文件 |
+| 作用域 npm | `npm:@biomejs/biome::biome` | 作用域包与可执行文件 |
+| 运行时版本 | `pip@3.11:black` | 指定运行时版本 |
+
+### 解析器实现
+
+解析器处理带作用域的 npm 包等边界情况：
+
+```rust
+// 作用域包：@org/package@version
+if part.starts_with('@') {
+    // 处理 @types/node 或 @types/node@1.0
+    if let Some(slash_pos) = part.find('/') {
+        // 解析作用域和包名
+        // 处理包名后的版本
+    }
+}
+```
+
 ## 相关命令
 
 - [`vx global`](./global) - 管理全局包
