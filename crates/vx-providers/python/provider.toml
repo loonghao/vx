@@ -129,6 +129,8 @@ recommends = [
 ]
 
 # pip is bundled with Python
+# RFC 0026: bundled_with auto-infers dependency on python;
+# constraint adds minimum version requirement
 [[runtimes]]
 name = "pip"
 description = "Python package installer"
