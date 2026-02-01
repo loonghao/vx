@@ -22,6 +22,7 @@ vx-extension = { workspace = true }
 vx-manifest = { workspace = true }
 vx-migration = { workspace = true }
 vx-paths = { workspace = true }
+vx-shim = { workspace = true }
 vx-project-analyzer = { workspace = true }
 vx-resolver = { workspace = true }
 vx-runtime = { workspace = true }

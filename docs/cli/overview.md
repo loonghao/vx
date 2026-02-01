@@ -90,6 +90,64 @@ vx go build
 vx cargo test
 ```
 
+## Package Execution (RFC 0027)
+
+Execute globally installed packages or run packages on-demand using the unified syntax:
+
+### Syntax
+
+```
+vx <ecosystem>[@runtime_version]:<package>[@version][::executable] [args...]
+```
+
+### Examples
+
+```bash
+# Run installed package executables directly
+vx tsc --version                    # Execute tsc from installed typescript
+
+# Explicit package syntax
+vx npm:typescript::tsc --version    # Package name differs from executable
+vx pip:httpie::http GET example.com # httpie package provides 'http' command
+vx npm:eslint .                     # Package name = executable name
+
+# Scoped npm packages
+vx npm:@openai/codex::codex         # @scope/package::executable
+vx npm:@biomejs/biome::biome check .
+
+# With package version
+vx npm:typescript@5.3::tsc --version
+vx pip:ruff@0.3 check .
+
+# With runtime version
+vx npm@20:typescript::tsc --version  # Use Node.js 20
+vx pip@3.11:black .                  # Use Python 3.11
+```
+
+### Supported Ecosystems
+
+| Ecosystem | Runtime | Example |
+|-----------|---------|---------|
+| `npm` | Node.js | `vx npm:typescript::tsc` |
+| `pip` | Python | `vx pip:httpie::http` |
+| `uv` | Python | `vx uv:ruff` |
+| `cargo` | Rust | `vx cargo:ripgrep::rg` |
+| `go` | Go | `vx go:golangci-lint` |
+| `bun` | Bun | `vx bun:typescript::tsc` |
+| `yarn` | Node.js | `vx yarn:typescript::tsc` |
+| `pnpm` | Node.js | `vx pnpm:typescript::tsc` |
+
+### The `::` Separator
+
+Use `::` when the package name differs from the executable:
+
+| Package | Executable | Command |
+|---------|------------|---------|
+| `typescript` | `tsc` | `vx npm:typescript::tsc` |
+| `httpie` | `http` | `vx pip:httpie::http` |
+| `@openai/codex` | `codex` | `vx npm:@openai/codex::codex` |
+| `ripgrep` | `rg` | `vx cargo:ripgrep::rg` |
+
 ## Exit Codes
 
 | Code | Meaning |
