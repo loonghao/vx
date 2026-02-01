@@ -547,16 +547,28 @@ impl PathResolver {
     }
 
     /// Helper to find the best matching executable from a list of candidates
-    /// Returns the one with highest priority (lowest index in possible_names)
+    /// Returns the one with highest priority:
+    /// 1. Match by name priority (lowest index in possible_names)
+    /// 2. Prefer shorter paths (closer to root directory) to avoid picking up
+    ///    nested copies (e.g., corepack shims in node_modules)
     fn find_best_match(candidates: &[PathBuf], possible_names: &[String]) -> Option<PathBuf> {
         for name in possible_names {
-            for candidate in candidates {
-                if let Some(file_name) = candidate.file_name().and_then(|n| n.to_str()) {
-                    if file_name == name {
-                        return Some(candidate.clone());
-                    }
-                }
+            // Find all candidates matching this name
+            let mut matching: Vec<&PathBuf> = candidates
+                .iter()
+                .filter(|c| c.file_name().and_then(|n| n.to_str()) == Some(name.as_str()))
+                .collect();
+
+            if matching.is_empty() {
+                continue;
             }
+
+            // Sort by path depth (number of components) - prefer shallower paths
+            // This ensures we pick node-v20.20.0-win-x64/npx.cmd over
+            // node-v20.20.0-win-x64/node_modules/corepack/shims/nodewin/npx.cmd
+            matching.sort_by_key(|p| p.components().count());
+
+            return matching.first().map(|p| (*p).clone());
         }
         None
     }

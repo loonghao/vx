@@ -43,6 +43,9 @@ mod registry;
 mod resolver;
 mod strategy;
 
+// Re-export ecosystems from vx-ecosystem-pm for backward compatibility
+pub use vx_ecosystem_pm as ecosystems;
+
 pub mod managers;
 
 pub use dependency::{SystemDepType, SystemDependency, SystemDepsConfig};
