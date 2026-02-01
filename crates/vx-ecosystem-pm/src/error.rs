@@ -42,4 +42,3 @@ pub enum EcosystemPmError {
     #[error("Command execution failed: {0}")]
     CommandFailed(String),
 }
-

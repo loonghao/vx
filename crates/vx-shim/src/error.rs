@@ -44,4 +44,3 @@ pub enum ShimError {
     #[error("{0}")]
     Other(#[from] anyhow::Error),
 }
-

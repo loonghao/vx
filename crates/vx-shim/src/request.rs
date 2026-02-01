@@ -44,10 +44,7 @@ impl PackageRequest {
     pub fn parse(input: &str) -> ShimResult<Self> {
         // Must contain a colon to be a package request
         let colon_pos = input.find(':').ok_or_else(|| {
-            ShimError::InvalidRequest(format!(
-                "Missing ecosystem separator ':' in '{}'",
-                input
-            ))
+            ShimError::InvalidRequest(format!("Missing ecosystem separator ':' in '{}'", input))
         })?;
 
         let ecosystem_part = &input[..colon_pos];
@@ -97,7 +94,9 @@ impl PackageRequest {
             let runtime_version = part[at_pos + 1..].to_string();
 
             if ecosystem.is_empty() {
-                return Err(ShimError::InvalidRequest("Empty ecosystem name".to_string()));
+                return Err(ShimError::InvalidRequest(
+                    "Empty ecosystem name".to_string(),
+                ));
             }
             if runtime_version.is_empty() {
                 return Err(ShimError::InvalidRequest(
@@ -117,7 +116,9 @@ impl PackageRequest {
             ))
         } else {
             if part.is_empty() {
-                return Err(ShimError::InvalidRequest("Empty ecosystem name".to_string()));
+                return Err(ShimError::InvalidRequest(
+                    "Empty ecosystem name".to_string(),
+                ));
             }
             Ok((part.to_string(), None))
         }
@@ -399,8 +400,11 @@ mod tests {
     #[test]
     fn test_is_package_request_with_scoped() {
         assert!(PackageRequest::is_package_request("npm:@openai/codex"));
-        assert!(PackageRequest::is_package_request("npm:@openai/codex::codex"));
-        assert!(PackageRequest::is_package_request("npm@20:@openai/codex::codex"));
+        assert!(PackageRequest::is_package_request(
+            "npm:@openai/codex::codex"
+        ));
+        assert!(PackageRequest::is_package_request(
+            "npm@20:@openai/codex::codex"
+        ));
     }
 }
-
