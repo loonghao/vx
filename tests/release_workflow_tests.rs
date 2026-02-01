@@ -90,6 +90,20 @@ fn test_is_release_commit() {
     }
 }
 
+/// Test release commit detection with leading whitespace
+#[test]
+fn test_is_release_commit_with_leading_whitespace() {
+    // Should handle leading whitespace correctly
+    assert!(is_release_commit("  chore: release v0.6.24"));
+    assert!(is_release_commit("\nchore: release v0.6.24"));
+    assert!(is_release_commit("\tchore: release v0.6.24"));
+    assert!(is_release_commit("   chore: release v1.0.0"));
+    
+    // Non-release commits with whitespace should still return false
+    assert!(!is_release_commit("  feat: add feature"));
+    assert!(!is_release_commit("\nchore(deps): bump package"));
+}
+
 /// Test workflow trigger condition logic
 #[test]
 fn test_should_trigger_build() {
@@ -156,7 +170,9 @@ fn normalize_version(version: &str) -> String {
 }
 
 fn is_release_commit(message: &str) -> bool {
-    message.starts_with("chore: release") && extract_version_from_commit(message).is_some()
+    // Be tolerant to leading whitespace/newlines in commit messages
+    let msg = message.trim_start();
+    msg.starts_with("chore: release") && extract_version_from_commit(msg).is_some()
 }
 
 fn should_trigger_build(event_name: &str, commit_message: &str, release_created: bool) -> bool {

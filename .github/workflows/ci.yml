@@ -786,20 +786,28 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: Download vx binary
+        uses: actions/download-artifact@v7
         with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: docs/package-lock.json
+          name: vx-linux-x64
+          path: ./bin
+
+      - name: Setup vx
+        run: |
+          chmod +x ./bin/vx
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Install Node.js via vx
+        run: vx install node
 
       - name: Install dependencies
         working-directory: docs
-        run: npm ci
+        # Use --inherit-env to ensure npm postinstall scripts can access system tools like sh
+        run: vx --inherit-env npm ci
 
       - name: Build documentation
         working-directory: docs
-        run: npm run build
+        run: vx --inherit-env npm run build
 
   # Docs build without vx binary (when only docs changed)
   docs-build-standalone:
