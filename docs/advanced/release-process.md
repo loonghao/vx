@@ -47,6 +47,41 @@ This workflow runs on pushes to the main branch and handles:
 VERSION=$(echo "${TAG}" | sed -E 's/^(vx-)?v//')
 ```
 
+#### Workflow Trigger Logic
+
+The release workflow uses a sophisticated trigger mechanism to handle different scenarios:
+
+| Scenario | Release-Please Job | Build Job | Notes |
+|----------|-------------------|-----------|-------|
+| Regular push (feat, fix, etc.) | Runs | Triggered if release created | Normal development flow |
+| Release PR merge (`chore: release vX.Y.Z`) | **Skipped** | **Triggered** | Extracts version from commit message |
+| Dependabot PR (`chore(deps): bump...`) | Skipped | Not triggered | Prevents duplicate builds |
+| Manual workflow dispatch | Skipped | Triggered | Emergency/manual releases |
+
+**Key Logic**:
+```yaml
+# Release-please job skips release commits to prevent recursion
+if: |
+  github.event_name == 'push' &&
+  github.ref == 'refs/heads/main' &&
+  !contains(github.event.head_commit.message, 'chore: release') &&
+  github.event.head_commit.author.name != 'github-actions[bot]'
+
+# Build job triggers on:
+# 1. Release created by release-please
+# 2. Release PR merge (detected via commit message)
+# 3. Manual workflow dispatch
+if: |
+  always() &&
+  (
+    (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
+    github.event_name == 'workflow_dispatch' ||
+    (github.event_name == 'push' && contains(github.event.head_commit.message, 'chore: release'))
+  )
+```
+
+This ensures that when a release PR is merged (e.g., "chore: release v0.6.24"), the build job still runs even though release-please is skipped.
+
 ### Package Managers Workflow (`.github/workflows/package-managers.yml`)
 
 This workflow runs after the Release workflow completes and publishes to package managers.
@@ -75,9 +110,25 @@ This ensures WinGet receives `0.1.0` instead of `vx-v0.1.0`, which resolves the 
 - **Homebrew** (`publish-homebrew`): Generates formula with checksums
 - **Scoop** (`publish-scoop`): Creates JSON manifest
 
-## Testing Version Extraction
+## Testing Release Workflow Logic
 
-The project includes test scripts to validate version extraction logic:
+The project includes tests to validate the release workflow trigger logic:
+
+### Run Workflow Tests
+
+```bash
+cargo test --test release_workflow_tests
+```
+
+This validates:
+- Version extraction from commit messages
+- Version normalization
+- Release commit detection
+- Workflow trigger conditions for different scenarios
+
+### Test Version Extraction
+
+The project also includes test scripts to validate version extraction logic:
 
 ### Test Version Normalization
 
@@ -112,6 +163,27 @@ If you need to manually trigger package publishing:
 Each package manager can be published independently by running the respective job.
 
 ## Troubleshooting
+
+### Release Workflow Not Triggering
+
+**Problem**: After merging a release PR (e.g., "chore: release v0.6.24"), the build job doesn't run.
+
+**Cause**: The original workflow logic required `release-please` job to succeed and create a release. However, when a release PR is merged, the `release-please` job is intentionally skipped to prevent recursive PR creation. This caused the `get-tag` job (and subsequent build jobs) to be skipped as well.
+
+**Solution**: The workflow now includes additional conditions to detect release PR merges:
+
+```yaml
+# Build job now triggers on release PR merges
+if: |
+  always() &&
+  (
+    (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
+    github.event_name == 'workflow_dispatch' ||
+    (github.event_name == 'push' && contains(github.event.head_commit.message, 'chore: release'))  # <-- Added
+  )
+```
+
+When a commit message contains "chore: release", the workflow extracts the version from the message and proceeds with the build.
 
 ### WinGet Version Issues
 
