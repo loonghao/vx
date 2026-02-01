@@ -345,11 +345,7 @@ mod environment_isolation_tests {
     use std::collections::HashSet;
 
     /// Essential system paths that should always be present in isolated mode
-    const ESSENTIAL_PATHS: &[&str] = &[
-        "/bin",
-        "/usr/bin",
-        "/usr/local/bin",
-    ];
+    const ESSENTIAL_PATHS: &[&str] = &["/bin", "/usr/bin", "/usr/local/bin"];
 
     #[test]
     fn test_essential_paths_defined() {
