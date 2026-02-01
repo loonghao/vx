@@ -45,6 +45,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-vx-docs-
 
+      - name: Install Node.js (via vx)
+        run: vx install node
+
       - name: Install dependencies (via vx)
         working-directory: docs
         run: vx npm install
