@@ -1,0 +1,30 @@
+[package]
+name = "vx-shim"
+version.workspace = true
+edition.workspace = true
+description = "Smart shim system for vx global packages with runtime dependency resolution"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords = ["shim", "executable", "wrapper", "vx"]
+categories = ["command-line-utilities", "development-tools"]
+readme = "README.md"
+
+[dependencies]
+# Internal crates
+vx-paths = { workspace = true }
+vx-core = { workspace = true }
+
+# External dependencies
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["process", "fs"] }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["test-util", "macros", "rt-multi-thread"] }
+

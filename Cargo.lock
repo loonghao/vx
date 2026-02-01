@@ -4149,6 +4149,7 @@ dependencies = [
  "vx-resolver",
  "vx-runtime",
  "vx-setup",
+ "vx-shim",
  "walkdir",
  "which",
  "windows-sys 0.61.2",
@@ -5094,6 +5095,21 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "vx-paths",
+]
+
+[[package]]
+name = "vx-shim"
+version = "0.6.23"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "vx-core",
  "vx-paths",
 ]
 

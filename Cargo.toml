@@ -18,6 +18,7 @@ members = [
   "crates/vx-console",
   "crates/vx-system-pm",
   "crates/vx-ecosystem-pm",
+  "crates/vx-shim",
   "crates/vx-cli",
   # Providers
   "crates/vx-providers/node",
@@ -157,6 +158,7 @@ vx-extension = { path = "crates/vx-extension" }
 vx-project-analyzer = { path = "crates/vx-project-analyzer" }
 vx-system-pm = { path = "crates/vx-system-pm" }
 vx-ecosystem-pm = { path = "crates/vx-ecosystem-pm" }
+vx-shim = { path = "crates/vx-shim" }
 vx-cli = { path = "crates/vx-cli" }
 vx-provider-node = { path = "crates/vx-providers/node" }
 vx-provider-go = { path = "crates/vx-providers/go" }
