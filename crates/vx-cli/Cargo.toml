@@ -16,6 +16,7 @@ rust-version.workspace = true
 vx-cache = { workspace = true }
 vx-core = { workspace = true }
 vx-config = { workspace = true }
+vx-ecosystem-pm = { workspace = true }
 vx-env = { workspace = true }
 vx-extension = { workspace = true }
 vx-manifest = { workspace = true }

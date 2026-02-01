@@ -51,6 +51,7 @@ recommends = [
 ]
 
 # bunx - Bun package runner (bundled with Bun)
+# RFC 0026: No need for constraints.requires - automatically inferred from bundled_with
 [[runtimes]]
 name = "bunx"
 description = "Bun package runner"
@@ -63,9 +64,3 @@ executable_extensions = [".exe"]
 
 [runtimes.platforms.unix]
 executable_extensions = []
-
-[[runtimes.constraints]]
-when = "*"
-requires = [
-    { runtime = "bun", version = "*", reason = "bunx is bundled with bun" }
-]

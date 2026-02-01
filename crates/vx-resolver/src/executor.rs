@@ -373,7 +373,7 @@ impl<'a> Executor<'a> {
             resolved_version.as_ref().unwrap_or(&"latest".to_string())
         );
 
-        let resolution = self
+        let mut resolution = self
             .resolver
             .resolve_with_version(runtime_name, resolved_version.as_deref())?;
         debug!("  executable: {}", resolution.executable.display(),);
@@ -388,8 +388,11 @@ impl<'a> Executor<'a> {
         let dependency_env_overrides: std::collections::HashMap<String, String> =
             std::collections::HashMap::new();
 
+        // Track if we need to re-resolve after installation
+        let needs_re_resolve = resolution.runtime_needs_install || !resolution.executable.is_absolute();
+
         // If a specific version is requested (from command line or project config), ensure it's installed first
-        if let Some(requested_version) = resolved_version {
+        if let Some(requested_version) = resolved_version.clone() {
             installed_version = self
                 .ensure_version_installed(runtime_name, &requested_version)
                 .await?;
@@ -424,6 +427,21 @@ impl<'a> Executor<'a> {
                 ));
             }
         }
+
+        // Re-resolve after installation to get the correct executable path
+        // This is necessary because the initial resolution may have been done before
+        // the runtime was installed, resulting in a relative executable path
+        if needs_re_resolve {
+            debug!("[RE-RESOLVE] Re-resolving after installation to get correct executable path");
+            // Use the installed version if available, otherwise use the original version
+            let re_resolve_version = installed_version.as_deref().or(resolved_version.as_deref());
+            resolution = self
+                .resolver
+                .resolve_with_version(runtime_name, re_resolve_version)?;
+            debug!("  executable (after re-resolve): {}", resolution.executable.display());
+        }
+
+        debug!("[/INSTALL_CHECK]");
 
         // -------------------------
         // Handle incompatible dependencies
@@ -473,6 +491,42 @@ impl<'a> Executor<'a> {
             ));
         }
 
+        // For bundled tools (like npx, npm), ensure the executable's parent directory
+        // is in PATH so the runtime (node) can be found
+        if resolution.executable.is_absolute() {
+            if let Some(exe_dir) = resolution.executable.parent() {
+                let exe_dir_str = exe_dir.to_string_lossy().to_string();
+                let path_sep = if cfg!(windows) { ";" } else { ":" };
+
+                // Also add the grandparent directory in case the executable is in a subdirectory
+                // This handles cases like node-v20.20.0-win-x64/npx.cmd where node.exe is in the same dir
+                let grandparent_dir = exe_dir.parent().map(|p| p.to_string_lossy().to_string());
+
+                let current_path = runtime_env
+                    .get("PATH")
+                    .cloned()
+                    .or_else(|| std::env::var("PATH").ok())
+                    .unwrap_or_default();
+
+                // Build new PATH: exe_dir + grandparent_dir (if different) + current_path
+                let mut new_path = exe_dir_str;
+                if let Some(ref gp) = grandparent_dir {
+                    if !new_path.contains(gp) {
+                        new_path = format!("{}{}{}", new_path, path_sep, gp);
+                    }
+                }
+                if !current_path.is_empty() {
+                    new_path = format!("{}{}{}", new_path, path_sep, current_path);
+                }
+
+                runtime_env.insert("PATH".to_string(), new_path);
+                debug!(
+                    "  Added executable dir to PATH: {}",
+                    exe_dir.display()
+                );
+            }
+        }
+
         // Build command with environment variables
         let mut cmd = self.build_command(&resolution, args, &runtime_env)?;
 
@@ -498,18 +552,34 @@ impl<'a> Executor<'a> {
 
         // Get runtime spec for template expansion
         if let Some(_spec) = self.resolver.get_spec(runtime_name) {
-            // Replace {install_dir} - TODO: Get from PathManager or IntegratedVersionResolver
-            // if let Some(install_dir) = &spec.install_dir {
-            //     result = result.replace("{install_dir}", &install_dir.to_string_lossy());
-            // }
+            // Replace {install_dir} using PathProvider
+            // The install_dir is: ~/.vx/store/<runtime>/<version>/<platform>
+            if result.contains("{install_dir}") {
+                if let (Some(ctx), Some(ver)) = (self.context, version) {
+                    // Get the version store directory and add platform subdirectory
+                    let version_dir = ctx.paths.version_store_dir(runtime_name, ver);
+                    let platform = vx_paths::manager::CurrentPlatform::current();
+                    let install_dir = version_dir.join(platform.as_str());
+                    result = result.replace("{install_dir}", &install_dir.to_string_lossy());
+                    debug!(
+                        "  expand_template: {{install_dir}} -> {}",
+                        install_dir.display()
+                    );
+                }
+            }
 
             // Replace {version}
             if let Some(ver) = version {
                 result = result.replace("{version}", ver);
             }
 
-            // Replace {executable} - TODO: Get from PathManager or IntegratedVersionResolver
-            // result = result.replace("{executable}", &spec.executable_path.to_string_lossy());
+            // Replace {executable} using PathProvider
+            if result.contains("{executable}") {
+                if let (Some(ctx), Some(ver)) = (self.context, version) {
+                    let exe_path = ctx.paths.executable_path(runtime_name, ver);
+                    result = result.replace("{executable}", &exe_path.to_string_lossy());
+                }
+            }
 
             // Replace {PATH} with current PATH
             if let Ok(path) = std::env::var("PATH") {
@@ -854,11 +924,39 @@ impl<'a> Executor<'a> {
         rust_runtimes.contains(&runtime_name) && rust_runtimes.contains(&dep_runtime)
     }
 
+    /// Get the provider runtime for a bundled tool
+    ///
+    /// For bundled tools (e.g., npx bundled with node), returns the provider runtime
+    /// name and version. This is used to set up the correct environment.
+    ///
+    /// Returns (Some(provider_name), Some(version)) if this is a bundled tool,
+    /// or (None, None) if it's a standalone runtime.
+    fn get_provider_runtime(
+        &self,
+        runtime_name: &str,
+        version: Option<&str>,
+    ) -> (Option<String>, Option<String>) {
+        if let Some(spec) = self.resolver.get_spec(runtime_name) {
+            for dep in &spec.dependencies {
+                if dep.required {
+                    if let Some(ref provider) = dep.provided_by {
+                        // This is a bundled tool, return the provider
+                        return (Some(provider.clone()), version.map(|v| v.to_string()));
+                    }
+                }
+            }
+        }
+        (None, None)
+    }
+
     /// Prepare environment variables for a runtime
     ///
     /// This combines environment variables from:
     /// 1. Runtime's prepare_environment method
     /// 2. Manifest's env_config (including advanced configuration)
+    ///
+    /// For bundled tools (e.g., npx bundled with node), this uses the provider
+    /// runtime's environment configuration to ensure correct PATH setup.
     async fn prepare_runtime_environment(
         &self,
         runtime_name: &str,
@@ -869,17 +967,28 @@ impl<'a> Executor<'a> {
 
         let mut env = HashMap::new();
 
+        // For bundled tools, use the provider runtime's environment configuration
+        // e.g., for npx (bundled with node), use node's env_config
+        let (effective_runtime, effective_version) = self.get_provider_runtime(runtime_name, version);
+        let effective_runtime_name = effective_runtime.as_deref().unwrap_or(runtime_name);
+        let effective_version_ref = effective_version.as_deref().or(version);
+
+        debug!(
+            "  prepare_env for {} (effective: {}@{:?})",
+            runtime_name, effective_runtime_name, effective_version_ref
+        );
+
         // Get environment from manifest's env_config
-        if let Some(spec) = self.resolver.get_spec(runtime_name) {
+        if let Some(spec) = self.resolver.get_spec(effective_runtime_name) {
             if let Some(env_config) = &spec.env_config {
                 // Handle advanced environment configuration
                 if let Some(advanced) = &env_config.advanced {
                     // Handle PATH manipulation
                     let mut path_parts = Vec::new();
 
-                    // Prepend entries
+                    // Prepend entries - use effective runtime for template expansion
                     for entry in &advanced.path_prepend {
-                        let expanded = self.expand_template(entry, runtime_name, version)?;
+                        let expanded = self.expand_template(entry, effective_runtime_name, effective_version_ref)?;
                         path_parts.push(expanded);
                     }
 
@@ -905,9 +1014,9 @@ impl<'a> Executor<'a> {
                         path_parts.push(current_path);
                     }
 
-                    // Append entries
+                    // Append entries - use effective runtime for template expansion
                     for entry in &advanced.path_append {
-                        let expanded = self.expand_template(entry, runtime_name, version)?;
+                        let expanded = self.expand_template(entry, effective_runtime_name, effective_version_ref)?;
                         path_parts.push(expanded);
                     }
 
@@ -922,11 +1031,12 @@ impl<'a> Executor<'a> {
                     }
 
                     // Handle advanced env vars
+                    // Use effective runtime for all template expansions
                     for (var_name, var_config) in &advanced.env_vars {
                         match var_config {
                             vx_manifest::EnvVarConfig::Simple(value) => {
                                 let expanded =
-                                    self.expand_template(value, runtime_name, version)?;
+                                    self.expand_template(value, effective_runtime_name, effective_version_ref)?;
                                 env.insert(var_name.clone(), expanded);
                             }
                             vx_manifest::EnvVarConfig::Advanced {
@@ -940,14 +1050,14 @@ impl<'a> Executor<'a> {
                                 if *replace {
                                     if let Some(v) = value {
                                         final_value =
-                                            self.expand_template(v, runtime_name, version)?;
+                                            self.expand_template(v, effective_runtime_name, effective_version_ref)?;
                                     }
                                 } else {
                                     // Prepend
                                     if let Some(pre) = prepend {
                                         for item in pre {
                                             let expanded =
-                                                self.expand_template(item, runtime_name, version)?;
+                                                self.expand_template(item, effective_runtime_name, effective_version_ref)?;
                                             final_value.push_str(&expanded);
                                             final_value.push(if cfg!(windows) { ';' } else { ':' });
                                         }
@@ -969,7 +1079,7 @@ impl<'a> Executor<'a> {
                                     if let Some(app) = append {
                                         for item in app {
                                             let expanded =
-                                                self.expand_template(item, runtime_name, version)?;
+                                                self.expand_template(item, effective_runtime_name, effective_version_ref)?;
                                             final_value.push_str(&expanded);
                                             final_value.push(if cfg!(windows) { ';' } else { ':' });
                                         }
@@ -989,9 +1099,9 @@ impl<'a> Executor<'a> {
                     }
                 }
 
-                // Add basic vars
+                // Add basic vars - use effective runtime for template expansion
                 for (key, value) in &spec.env_vars {
-                    let expanded = self.expand_template(value, runtime_name, version)?;
+                    let expanded = self.expand_template(value, effective_runtime_name, effective_version_ref)?;
                     env.insert(key.clone(), expanded);
                 }
             }

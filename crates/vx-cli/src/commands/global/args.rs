@@ -43,6 +43,10 @@ pub struct InstallGlobalArgs {
     /// Verbose output
     #[arg(short, long)]
     pub verbose: bool,
+
+    /// Extra arguments to pass to the package manager
+    #[arg(last = true)]
+    pub extra_args: Vec<String>,
 }
 
 /// Arguments for `vx list-global` / `vx global list`

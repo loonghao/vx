@@ -1,16 +1,13 @@
 [package]
-name = "vx-system-pm"
-version = "0.1.0"
-edition = "2021"
-description = "System package manager integration for vx"
-license = "MIT"
-repository = "https://github.com/pplmx/vx"
+name = "vx-ecosystem-pm"
+version.workspace = true
+edition.workspace = true
+description = "Development ecosystem package managers for vx (npm, pip, cargo, uv, bun, etc.)"
+license.workspace = true
+repository.workspace = true
 readme = "README.md"
 
 [dependencies]
-# Re-export ecosystem package managers
-vx-ecosystem-pm = { workspace = true }
-
 # Async runtime
 async-trait = { workspace = true }
 tokio = { workspace = true, features = ["process", "fs"] }
@@ -22,24 +19,12 @@ thiserror = { workspace = true }
 # Serialization
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-toml = { workspace = true }
 
 # Logging
 tracing = { workspace = true }
 
 # Path utilities
 which = { workspace = true }
-
-# Platform detection
-cfg-if = "1.0"
-
-# Unix-specific
-[target.'cfg(unix)'.dependencies]
-libc = "0.2"
-
-# Windows-specific
-[target.'cfg(windows)'.dependencies]
-winreg = "0.55"
 
 [dev-dependencies]
 rstest = { workspace = true }
@@ -48,3 +33,4 @@ tokio-test = "0.4"
 
 [features]
 default = []
+

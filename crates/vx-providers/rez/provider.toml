@@ -37,6 +37,7 @@ requires = [
 ]
 
 # rez-env is bundled with rez
+# RFC 0026: No need for constraints.requires - automatically inferred from bundled_with
 [[runtimes]]
 name = "rez-env"
 description = "Rez environment resolver"
@@ -49,12 +50,6 @@ auto_installable = false
 command = "{executable} --version"
 pattern = "rez-env ([\\d.]+)"
 
-[[runtimes.constraints]]
-when = "*"
-requires = [
-    { runtime = "rez", version = "*", reason = "rez-env is bundled with rez" }
-]
-
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
 
@@ -62,6 +57,7 @@ executable_extensions = [".exe"]
 executable_extensions = []
 
 # rez-build is bundled with rez
+# RFC 0026: No need for constraints.requires - automatically inferred from bundled_with
 [[runtimes]]
 name = "rez-build"
 description = "Rez package builder"
@@ -73,12 +69,6 @@ auto_installable = false
 [runtimes.detection]
 command = "{executable} --version"
 pattern = "rez-build ([\\d.]+)"
-
-[[runtimes.constraints]]
-when = "*"
-requires = [
-    { runtime = "rez", version = "*", reason = "rez-build is bundled with rez" }
-]
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
