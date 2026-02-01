@@ -31,9 +31,9 @@ vars = { PATH = "{install_dir}/bin" }
 [runtimes.env.advanced]
 # PATH configuration (in order of priority)
 path_prepend = ["{install_dir}/bin"]
-# Isolation mode: don't inherit NODE_* variables from system environment
-# Default system vars (HOME, USER, SHELL, TERM, etc.) are automatically inherited
-# No extra vars needed for Node.js
+# Don't isolate environment - child processes (npm scripts, postinstall hooks)
+# need full access to system tools like sh, bash, etc.
+isolate = false
 
 [runtimes.env.conditional]
 "*" = { PATH = "{install_dir}/bin" }
