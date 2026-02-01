@@ -134,4 +134,3 @@ pub fn get_preferred_installer(ecosystem: &str) -> anyhow::Result<Box<dyn Ecosys
         other => get_installer(other),
     }
 }
-

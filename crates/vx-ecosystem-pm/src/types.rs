@@ -76,7 +76,7 @@ impl InstallEnv {
 }
 
 /// Options for package installation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct InstallOptions {
     /// Force reinstallation even if package exists
     pub force: bool,
@@ -86,17 +86,6 @@ pub struct InstallOptions {
     pub runtime_version: Option<String>,
     /// Additional arguments to pass to the package manager
     pub extra_args: Vec<String>,
-}
-
-impl Default for InstallOptions {
-    fn default() -> Self {
-        Self {
-            force: false,
-            verbose: false,
-            runtime_version: None,
-            extra_args: Vec::new(),
-        }
-    }
 }
 
 impl InstallOptions {
@@ -129,4 +118,3 @@ impl InstallOptions {
         self
     }
 }
-

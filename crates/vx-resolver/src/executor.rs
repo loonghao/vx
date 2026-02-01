@@ -389,7 +389,8 @@ impl<'a> Executor<'a> {
             std::collections::HashMap::new();
 
         // Track if we need to re-resolve after installation
-        let needs_re_resolve = resolution.runtime_needs_install || !resolution.executable.is_absolute();
+        let needs_re_resolve =
+            resolution.runtime_needs_install || !resolution.executable.is_absolute();
 
         // If a specific version is requested (from command line or project config), ensure it's installed first
         if let Some(requested_version) = resolved_version.clone() {
@@ -438,7 +439,10 @@ impl<'a> Executor<'a> {
             resolution = self
                 .resolver
                 .resolve_with_version(runtime_name, re_resolve_version)?;
-            debug!("  executable (after re-resolve): {}", resolution.executable.display());
+            debug!(
+                "  executable (after re-resolve): {}",
+                resolution.executable.display()
+            );
         }
 
         debug!("[/INSTALL_CHECK]");
@@ -520,10 +524,7 @@ impl<'a> Executor<'a> {
                 }
 
                 runtime_env.insert("PATH".to_string(), new_path);
-                debug!(
-                    "  Added executable dir to PATH: {}",
-                    exe_dir.display()
-                );
+                debug!("  Added executable dir to PATH: {}", exe_dir.display());
             }
         }
 
@@ -969,7 +970,8 @@ impl<'a> Executor<'a> {
 
         // For bundled tools, use the provider runtime's environment configuration
         // e.g., for npx (bundled with node), use node's env_config
-        let (effective_runtime, effective_version) = self.get_provider_runtime(runtime_name, version);
+        let (effective_runtime, effective_version) =
+            self.get_provider_runtime(runtime_name, version);
         let effective_runtime_name = effective_runtime.as_deref().unwrap_or(runtime_name);
         let effective_version_ref = effective_version.as_deref().or(version);
 
@@ -988,7 +990,11 @@ impl<'a> Executor<'a> {
 
                     // Prepend entries - use effective runtime for template expansion
                     for entry in &advanced.path_prepend {
-                        let expanded = self.expand_template(entry, effective_runtime_name, effective_version_ref)?;
+                        let expanded = self.expand_template(
+                            entry,
+                            effective_runtime_name,
+                            effective_version_ref,
+                        )?;
                         path_parts.push(expanded);
                     }
 
@@ -1016,7 +1022,11 @@ impl<'a> Executor<'a> {
 
                     // Append entries - use effective runtime for template expansion
                     for entry in &advanced.path_append {
-                        let expanded = self.expand_template(entry, effective_runtime_name, effective_version_ref)?;
+                        let expanded = self.expand_template(
+                            entry,
+                            effective_runtime_name,
+                            effective_version_ref,
+                        )?;
                         path_parts.push(expanded);
                     }
 
@@ -1035,8 +1045,11 @@ impl<'a> Executor<'a> {
                     for (var_name, var_config) in &advanced.env_vars {
                         match var_config {
                             vx_manifest::EnvVarConfig::Simple(value) => {
-                                let expanded =
-                                    self.expand_template(value, effective_runtime_name, effective_version_ref)?;
+                                let expanded = self.expand_template(
+                                    value,
+                                    effective_runtime_name,
+                                    effective_version_ref,
+                                )?;
                                 env.insert(var_name.clone(), expanded);
                             }
                             vx_manifest::EnvVarConfig::Advanced {
@@ -1049,15 +1062,21 @@ impl<'a> Executor<'a> {
 
                                 if *replace {
                                     if let Some(v) = value {
-                                        final_value =
-                                            self.expand_template(v, effective_runtime_name, effective_version_ref)?;
+                                        final_value = self.expand_template(
+                                            v,
+                                            effective_runtime_name,
+                                            effective_version_ref,
+                                        )?;
                                     }
                                 } else {
                                     // Prepend
                                     if let Some(pre) = prepend {
                                         for item in pre {
-                                            let expanded =
-                                                self.expand_template(item, effective_runtime_name, effective_version_ref)?;
+                                            let expanded = self.expand_template(
+                                                item,
+                                                effective_runtime_name,
+                                                effective_version_ref,
+                                            )?;
                                             final_value.push_str(&expanded);
                                             final_value.push(if cfg!(windows) { ';' } else { ':' });
                                         }
@@ -1078,8 +1097,11 @@ impl<'a> Executor<'a> {
                                     // Append
                                     if let Some(app) = append {
                                         for item in app {
-                                            let expanded =
-                                                self.expand_template(item, effective_runtime_name, effective_version_ref)?;
+                                            let expanded = self.expand_template(
+                                                item,
+                                                effective_runtime_name,
+                                                effective_version_ref,
+                                            )?;
                                             final_value.push_str(&expanded);
                                             final_value.push(if cfg!(windows) { ';' } else { ':' });
                                         }
@@ -1101,7 +1123,8 @@ impl<'a> Executor<'a> {
 
                 // Add basic vars - use effective runtime for template expansion
                 for (key, value) in &spec.env_vars {
-                    let expanded = self.expand_template(value, effective_runtime_name, effective_version_ref)?;
+                    let expanded =
+                        self.expand_template(value, effective_runtime_name, effective_version_ref)?;
                     env.insert(key.clone(), expanded);
                 }
             }
