@@ -786,27 +786,20 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Download vx binary
-        uses: actions/download-artifact@v7
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
-          name: vx-linux-x64
-          path: ./bin
-
-      - name: Setup vx
-        run: |
-          chmod +x ./bin/vx
-          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
-
-      - name: Install Node.js via vx
-        run: vx install node
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: docs/package-lock.json
 
       - name: Install dependencies
         working-directory: docs
-        run: vx npm ci
+        run: npm ci
 
       - name: Build documentation
         working-directory: docs
-        run: vx npm run build
+        run: npm run build
 
   # Docs build without vx binary (when only docs changed)
   docs-build-standalone:
