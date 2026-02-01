@@ -47,8 +47,8 @@ pub use error::ManifestError;
 pub use loader::ManifestLoader;
 pub use platform::{Arch, Os, Platform, PlatformConstraint, PlatformExclusion};
 pub use provider::{
-    AliasNormalize, ArchiveLayoutConfig, BinaryLayoutConfig, CacheConfig, CommandDef,
-    ConstraintRule, DependencyDef, DetectionConfig, DirectoryNormalize, DownloadConfig,
+    filter_system_path, AliasNormalize, ArchiveLayoutConfig, BinaryLayoutConfig, CacheConfig,
+    CommandDef, ConstraintRule, DependencyDef, DetectionConfig, DirectoryNormalize, DownloadConfig,
     DownloadType, EffectiveNormalizeConfig, EnvConfig, EnvVarConfig, ExecutableConfig,
     ExecutableNormalize, HealthConfig, HooksConfig, HooksDef, InlineTestScripts,
     InstallStrategyDef, LayoutConfig, MachineFlagsConfig, MirrorConfig, MirrorStrategy,
@@ -57,7 +57,7 @@ pub use provider::{
     PlatformsDef, ProvidedToolDef, ProviderManifest, ProviderMeta, RuntimeDef, ScriptTypeDef,
     ShellCompletionsConfig, ShellConfig, SystemDepTypeDef, SystemDependencyDef,
     SystemDepsConfigDef, SystemInstallConfigDef, TestCommand, TestConfig, TestPlatformConfig,
-    VersionRangeConfig, VersionSourceDef, DEFAULT_INHERIT_SYSTEM_VARS,
+    VersionRangeConfig, VersionSourceDef, DEFAULT_INHERIT_SYSTEM_VARS, SYSTEM_PATH_PREFIXES,
 };
 
 pub use r#override::{apply_override, extract_provider_name, ProviderOverride, RuntimeOverride};

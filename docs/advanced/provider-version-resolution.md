@@ -39,7 +39,7 @@
 vx 自动为所有 Provider 继承一组常用的系统环境变量，无需在 `inherit_system_vars` 中显式指定：
 
 ```rust
-// DEFAULT_INHERIT_SYSTEM_VARS
+// DEFAULT_INHERIT_SYSTEM_VARS（不包含 PATH，PATH 有专门处理）
 const DEFAULT: &[&str] = &[
     // 用户和会话
     "HOME", "USER", "USERNAME", "USERPROFILE", "LOGNAME",
@@ -55,6 +55,19 @@ const DEFAULT: &[&str] = &[
     "DISPLAY", "WAYLAND_DISPLAY",
     // XDG 目录（Linux）
     "XDG_*",
+];
+
+// SYSTEM_PATH_PREFIXES - 隔离模式下保留的系统 PATH 目录
+// 这些目录包含基础系统工具（sh, bash, cat 等），子进程可能需要
+// 用户目录（如 ~/.local/bin）被排除以保持隔离
+const SYSTEM_PATHS: &[&str] = &[
+    // Unix
+    "/bin", "/usr/bin", "/usr/local/bin",
+    "/sbin", "/usr/sbin", "/usr/local/sbin",
+    "/opt/homebrew/bin",  // macOS Homebrew (Apple Silicon)
+    // Windows
+    "C:\\Windows\\System32", "C:\\Windows\\SysWOW64",
+    "C:\\Windows\\System32\\WindowsPowerShell",
 ];
 ```
 

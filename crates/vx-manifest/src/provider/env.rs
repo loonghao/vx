@@ -1,10 +1,13 @@
 use crate::VersionRequest;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// Default system environment variables to inherit when isolated.
 ///
 /// These are essential for child processes (e.g., shell scripts, postinstall hooks)
 /// to function correctly. Providers can extend this list with `extra_inherit_system_vars`.
+///
+/// **Note**: PATH is handled specially - see [`SYSTEM_PATH_PREFIXES`] and [`filter_system_path`].
 ///
 /// Categories:
 /// - User/Session: HOME, USER, USERNAME, USERPROFILE, LOGNAME
@@ -18,8 +21,8 @@ pub const DEFAULT_INHERIT_SYSTEM_VARS: &[&str] = &[
     // User and session
     "HOME",
     "USER",
-    "USERNAME",      // Windows
-    "USERPROFILE",   // Windows
+    "USERNAME",    // Windows
+    "USERPROFILE", // Windows
     "LOGNAME",
     // Shell and terminal
     "SHELL",
@@ -41,6 +44,122 @@ pub const DEFAULT_INHERIT_SYSTEM_VARS: &[&str] = &[
     // XDG directories (Linux)
     "XDG_*", // Glob pattern for XDG_RUNTIME_DIR, XDG_CONFIG_HOME, etc.
 ];
+
+/// System PATH prefixes that should be inherited in isolated mode.
+///
+/// These directories contain essential system tools (sh, bash, cat, etc.)
+/// that child processes may need. User-specific directories (like ~/.local/bin)
+/// are intentionally excluded to maintain isolation.
+///
+/// ## Unix (Linux/macOS)
+/// - `/bin` - Essential user commands (sh, bash, ls, cat, etc.)
+/// - `/usr/bin` - Standard user commands
+/// - `/usr/local/bin` - Locally installed programs
+/// - `/sbin` - System binaries (root commands)
+/// - `/usr/sbin` - Non-essential system binaries
+/// - `/usr/local/sbin` - Local system binaries
+/// - `/opt/homebrew/bin` - Homebrew on Apple Silicon
+/// - `/opt/homebrew/sbin` - Homebrew system binaries
+///
+/// ## Windows
+/// - `C:\Windows\System32` - Core Windows executables
+/// - `C:\Windows\SysWOW64` - 32-bit compatibility layer
+/// - `C:\Windows` - Windows directory
+/// - `C:\Windows\System32\Wbem` - WMI tools
+/// - `C:\Windows\System32\WindowsPowerShell` - PowerShell
+/// - `C:\Windows\System32\OpenSSH` - OpenSSH client
+pub const SYSTEM_PATH_PREFIXES: &[&str] = &[
+    // Unix essential directories
+    "/bin",
+    "/usr/bin",
+    "/usr/local/bin",
+    "/sbin",
+    "/usr/sbin",
+    "/usr/local/sbin",
+    // macOS Homebrew (Apple Silicon)
+    "/opt/homebrew/bin",
+    "/opt/homebrew/sbin",
+    // macOS Homebrew (Intel)
+    "/usr/local/Cellar",
+    // Nix
+    "/nix/var/nix/profiles/default/bin",
+    "/run/current-system/sw/bin",
+    // Windows (case-insensitive matching will be used)
+    "C:\\Windows\\System32",
+    "C:\\Windows\\SysWOW64",
+    "C:\\Windows",
+    "C:\\Windows\\System32\\Wbem",
+    "C:\\Windows\\System32\\WindowsPowerShell",
+    "C:\\Windows\\System32\\OpenSSH",
+];
+
+/// Filter the system PATH to only include essential system directories.
+///
+/// This function takes the full PATH and returns only the directories that
+/// match [`SYSTEM_PATH_PREFIXES`], maintaining environment isolation while
+/// ensuring child processes can find basic tools like `sh`, `bash`, etc.
+///
+/// # Arguments
+/// * `path` - The full PATH string (colon-separated on Unix, semicolon on Windows)
+///
+/// # Returns
+/// A filtered PATH string containing only system directories
+///
+/// # Example (Unix)
+/// ```ignore
+/// use vx_manifest::filter_system_path;
+///
+/// let full_path = "/home/user/.local/bin:/usr/local/bin:/usr/bin:/bin";
+/// let filtered = filter_system_path(full_path);
+/// assert_eq!(filtered, "/usr/local/bin:/usr/bin:/bin");
+/// ```
+///
+/// # Example (Windows)
+/// ```ignore
+/// use vx_manifest::filter_system_path;
+///
+/// let full_path = "C:\\Users\\user\\.local\\bin;C:\\Windows\\System32;C:\\Windows";
+/// let filtered = filter_system_path(full_path);
+/// assert_eq!(filtered, "C:\\Windows\\System32;C:\\Windows");
+/// ```
+pub fn filter_system_path(path: &str) -> String {
+    let separator = if cfg!(windows) { ';' } else { ':' };
+
+    let filtered: Vec<&str> = path
+        .split(separator)
+        .filter(|entry| {
+            let entry_path = Path::new(entry);
+            is_system_path(entry_path)
+        })
+        .collect();
+
+    filtered.join(&separator.to_string())
+}
+
+/// Check if a path is a system path that should be inherited.
+fn is_system_path(path: &Path) -> bool {
+    let path_str = path.to_string_lossy();
+
+    for prefix in SYSTEM_PATH_PREFIXES {
+        if cfg!(windows) {
+            // Case-insensitive comparison on Windows
+            if path_str.to_lowercase().starts_with(&prefix.to_lowercase()) {
+                return true;
+            }
+        } else {
+            // Case-sensitive on Unix
+            if path_str.starts_with(prefix) {
+                return true;
+            }
+            // Also check if it equals the prefix exactly
+            if path_str.as_ref() == *prefix {
+                return true;
+            }
+        }
+    }
+
+    false
+}
 
 /// Environment variable configuration
 ///
