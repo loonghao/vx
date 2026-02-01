@@ -86,6 +86,7 @@ pub mod global_packages;
 pub mod link;
 pub mod manager;
 pub mod package_spec;
+pub mod platform;
 pub mod project;
 pub mod resolver;
 pub mod shims;
@@ -103,6 +104,13 @@ pub use project::{
     PROJECT_ENV_DIR, PROJECT_VX_DIR,
 };
 pub use resolver::{PathResolver, ToolLocation, ToolSource};
+
+// Re-export platform module utilities for convenience
+pub use platform::{
+    append_to_path, executable_extension, filter_system_path, is_system_path, is_unix_path,
+    is_windows_path, join_paths_env, join_paths_simple, path_separator, prepend_to_path,
+    split_path, split_path_owned, venv_bin_dir, with_executable_extension, Arch, Os, Platform,
+};
 
 /// Standard vx directory structure
 #[derive(Debug, Clone)]
@@ -259,11 +267,7 @@ impl VxPaths {
     /// Get the bin directory for a pip tool
     pub fn pip_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
         let venv_dir = self.pip_tool_venv_dir(package_name, version);
-        if cfg!(windows) {
-            venv_dir.join("Scripts")
-        } else {
-            venv_dir.join("bin")
-        }
+        venv_dir.join(venv_bin_dir())
     }
 
     // ========== RFC 0025: Global Packages CAS ==========
@@ -356,17 +360,22 @@ impl Default for VxPaths {
 }
 
 /// Get the executable file extension for the current platform
-pub fn executable_extension() -> &'static str {
-    if cfg!(target_os = "windows") {
-        ".exe"
-    } else {
-        ""
-    }
+///
+/// Deprecated: Use `platform::executable_extension()` instead.
+#[deprecated(since = "0.6.0", note = "Use platform::executable_extension() instead")]
+pub fn executable_extension_legacy() -> &'static str {
+    platform::executable_extension()
 }
 
 /// Add executable extension to a tool name if needed
-pub fn with_executable_extension(tool_name: &str) -> String {
-    format!("{}{}", tool_name, executable_extension())
+///
+/// Deprecated: Use `platform::with_executable_extension()` instead.
+#[deprecated(
+    since = "0.6.0",
+    note = "Use platform::with_executable_extension() instead"
+)]
+pub fn with_executable_extension_legacy(tool_name: &str) -> String {
+    platform::with_executable_extension(tool_name)
 }
 
 /// Normalize package name for filesystem lookup
@@ -374,13 +383,5 @@ pub fn with_executable_extension(tool_name: &str) -> String {
 /// On Windows and macOS (case-insensitive filesystems), convert to lowercase.
 /// On Linux, keep the original case.
 pub fn normalize_package_name(name: &str) -> String {
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
-    {
-        name.to_lowercase()
-    }
-
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    {
-        name.to_string()
-    }
+    platform::normalize_for_comparison(name)
 }
