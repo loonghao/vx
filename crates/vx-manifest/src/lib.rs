@@ -57,7 +57,7 @@ pub use provider::{
     PlatformsDef, ProvidedToolDef, ProviderManifest, ProviderMeta, RuntimeDef, ScriptTypeDef,
     ShellCompletionsConfig, ShellConfig, SystemDepTypeDef, SystemDependencyDef,
     SystemDepsConfigDef, SystemInstallConfigDef, TestCommand, TestConfig, TestPlatformConfig,
-    VersionRangeConfig, VersionSourceDef,
+    VersionRangeConfig, VersionSourceDef, DEFAULT_INHERIT_SYSTEM_VARS,
 };
 
 pub use r#override::{apply_override, extract_provider_name, ProviderOverride, RuntimeOverride};

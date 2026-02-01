@@ -41,7 +41,9 @@ executable_extensions = []
 # CMake runs external build tools (make, ninja) which may spawn shell processes
 [runtimes.env.advanced]
 path_prepend = ["{install_dir}/bin"]
-inherit_system_vars = ["HOME", "USER", "SHELL", "TERM", "LANG", "LC_*", "TZ", "TMPDIR", "TEMP", "TMP", "CC", "CXX", "CFLAGS", "CXXFLAGS", "LDFLAGS"]
+# Default system vars are automatically inherited
+# Extra vars for CMake: C/C++ compiler and flags configuration
+inherit_system_vars = ["CC", "CXX", "CFLAGS", "CXXFLAGS", "LDFLAGS"]
 
 # CMake recommends ninja for faster builds
 [[runtimes.constraints]]

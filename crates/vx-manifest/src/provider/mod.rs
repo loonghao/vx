@@ -24,7 +24,7 @@ pub use command::CommandDef;
 pub use constraint::{ConstraintRule, DependencyDef};
 pub use detection::DetectionConfig;
 pub use download::DownloadConfig;
-pub use env::{EnvConfig, EnvVarConfig};
+pub use env::{EnvConfig, EnvVarConfig, DEFAULT_INHERIT_SYSTEM_VARS};
 pub use executable::ExecutableConfig;
 pub use health::HealthConfig;
 pub use hooks::{HooksConfig, HooksDef};
