@@ -36,4 +36,3 @@ pub use pip::PipInstaller;
 pub use pnpm::PnpmInstaller;
 pub use uv::UvInstaller;
 pub use yarn::YarnInstaller;
-

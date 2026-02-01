@@ -40,6 +40,11 @@ pub async fn main() -> anyhow::Result<()> {
         setup_tracing();
     }
 
+    // Set UI verbose mode based on CLI flags
+    if cli.verbose || cli.debug {
+        ui::UI::set_verbose(true);
+    }
+
     // Initialize constraints registry from embedded provider manifests
     // This makes manifest-defined dependency constraints available globally.
     let _ = init_constraints_from_manifests(registry::get_embedded_manifests().iter().copied());
@@ -139,11 +144,7 @@ async fn execute_tool(ctx: &CommandContext, args: &[String]) -> Result<()> {
 /// This function implements uvx/npx-like behavior:
 /// - If the package is already installed, execute it directly
 /// - If not installed, auto-install it first, then execute
-async fn execute_package_request(
-    ctx: &CommandContext,
-    spec: &str,
-    args: &[String],
-) -> Result<()> {
+async fn execute_package_request(ctx: &CommandContext, spec: &str, args: &[String]) -> Result<()> {
     let pkg_request = PackageRequest::parse(spec)?;
 
     let paths = ctx.runtime_context().paths.clone();

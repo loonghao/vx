@@ -52,7 +52,7 @@ impl ShimExecutor {
             }
         };
 
-        self.execute_package_shim(&package, exe_name, args).await
+        self.execute_package_shim(package, exe_name, args).await
     }
 
     /// Execute a package request (RFC 0027 syntax)
@@ -73,7 +73,7 @@ impl ShimExecutor {
         // Try to find the package
         if let Some(package) = registry.get(&request.ecosystem, &request.package) {
             // Package is installed, execute it
-            if let Some(exit_code) = self.execute_package_shim(&package, exe_name, args).await? {
+            if let Some(exit_code) = self.execute_package_shim(package, exe_name, args).await? {
                 return Ok(exit_code);
             }
             // Shim not found for this executable
@@ -131,4 +131,3 @@ impl ShimExecutor {
         Ok(Some(status.code().unwrap_or(1)))
     }
 }
-

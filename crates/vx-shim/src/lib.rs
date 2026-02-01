@@ -24,4 +24,3 @@ pub use request::{PackageRequest, RuntimeSpec};
 pub mod prelude {
     pub use super::{PackageRequest, RuntimeSpec, ShimError, ShimExecutor, ShimResult};
 }
-

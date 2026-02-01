@@ -2,7 +2,7 @@
 
 use crate::types::InstallEnv;
 use anyhow::{Context, Result};
-use std::path::PathBuf;
+use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
 /// Run a command with the specified environment
@@ -15,7 +15,12 @@ use std::process::{Command, Output, Stdio};
 ///
 /// # Returns
 /// The command output
-pub fn run_command(command: &str, args: &[&str], env: &InstallEnv, verbose: bool) -> Result<Output> {
+pub fn run_command(
+    command: &str,
+    args: &[&str],
+    env: &InstallEnv,
+    verbose: bool,
+) -> Result<Output> {
     let mut cmd = Command::new(command);
     cmd.args(args);
 
@@ -44,13 +49,9 @@ pub fn run_command(command: &str, args: &[&str], env: &InstallEnv, verbose: bool
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
     }
 
-    let output = cmd.output().with_context(|| {
-        format!(
-            "Failed to execute command: {} {}",
-            command,
-            args.join(" ")
-        )
-    })?;
+    let output = cmd
+        .output()
+        .with_context(|| format!("Failed to execute command: {} {}", command, args.join(" ")))?;
 
     Ok(output)
 }
@@ -62,7 +63,7 @@ pub fn run_command(command: &str, args: &[&str], env: &InstallEnv, verbose: bool
 ///
 /// # Returns
 /// List of executable names (without extensions on Windows)
-pub fn detect_executables_in_dir(bin_dir: &PathBuf) -> Result<Vec<String>> {
+pub fn detect_executables_in_dir(bin_dir: &Path) -> Result<Vec<String>> {
     let mut executables = Vec::new();
 
     if !bin_dir.exists() {
@@ -111,4 +112,3 @@ pub fn detect_executables_in_dir(bin_dir: &PathBuf) -> Result<Vec<String>> {
     executables.sort();
     Ok(executables)
 }
-

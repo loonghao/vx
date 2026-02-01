@@ -3,7 +3,7 @@
 use crate::types::{EcosystemInstallResult, InstallEnv, InstallOptions};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Trait for ecosystem-specific package installers
 ///
@@ -31,7 +31,7 @@ pub trait EcosystemInstaller: Send + Sync {
     /// Installation result with detected executables
     async fn install(
         &self,
-        install_dir: &PathBuf,
+        install_dir: &Path,
         package: &str,
         version: &str,
         options: &InstallOptions,
@@ -44,7 +44,7 @@ pub trait EcosystemInstaller: Send + Sync {
     ///
     /// # Returns
     /// List of executable names (without extensions on Windows)
-    fn detect_executables(&self, bin_dir: &PathBuf) -> Result<Vec<String>>;
+    fn detect_executables(&self, bin_dir: &Path) -> Result<Vec<String>>;
 
     /// Build environment variables for installation
     ///
@@ -56,7 +56,7 @@ pub trait EcosystemInstaller: Send + Sync {
     ///
     /// # Returns
     /// Environment configuration for the installation
-    fn build_install_env(&self, install_dir: &PathBuf) -> InstallEnv;
+    fn build_install_env(&self, install_dir: &Path) -> InstallEnv;
 
     /// Get the bin directory path for a package installation
     ///
@@ -65,13 +65,13 @@ pub trait EcosystemInstaller: Send + Sync {
     ///
     /// # Returns
     /// Path to the bin directory containing executables
-    fn get_bin_dir(&self, install_dir: &PathBuf) -> PathBuf;
+    fn get_bin_dir(&self, install_dir: &Path) -> PathBuf;
 
     /// Uninstall a package by removing its directory
     ///
     /// # Arguments
     /// * `install_dir` - The installation directory to remove
-    fn uninstall(&self, install_dir: &PathBuf) -> Result<()> {
+    fn uninstall(&self, install_dir: &Path) -> Result<()> {
         if install_dir.exists() {
             std::fs::remove_dir_all(install_dir)
                 .with_context(|| format!("Failed to remove {}", install_dir.display()))?;
@@ -82,4 +82,3 @@ pub trait EcosystemInstaller: Send + Sync {
     /// Check if the package manager is available
     fn is_available(&self) -> bool;
 }
-

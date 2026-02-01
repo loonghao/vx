@@ -7,7 +7,7 @@ use crate::types::{EcosystemInstallResult, InstallEnv, InstallOptions};
 use crate::utils::{detect_executables_in_dir, run_command};
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// pnpm package installer
 #[derive(Debug, Clone, Default)]
@@ -36,10 +36,8 @@ impl PnpmInstaller {
         }
 
         // On Windows, prefer pnpm.cmd
-        if cfg!(windows) {
-            if which::which("pnpm.cmd").is_ok() {
-                return Ok("pnpm.cmd".to_string());
-            }
+        if cfg!(windows) && which::which("pnpm.cmd").is_ok() {
+            return Ok("pnpm.cmd".to_string());
         }
 
         if which::which("pnpm").is_ok() {
@@ -58,7 +56,7 @@ impl EcosystemInstaller for PnpmInstaller {
 
     async fn install(
         &self,
-        install_dir: &PathBuf,
+        install_dir: &Path,
         package: &str,
         version: &str,
         options: &InstallOptions,
@@ -106,30 +104,29 @@ impl EcosystemInstaller for PnpmInstaller {
             package.to_string(),
             version.to_string(),
             "pnpm".to_string(),
-            install_dir.clone(),
+            install_dir.to_path_buf(),
             bin_dir,
         )
         .with_executables(executables))
     }
 
-    fn detect_executables(&self, bin_dir: &PathBuf) -> Result<Vec<String>> {
+    fn detect_executables(&self, bin_dir: &Path) -> Result<Vec<String>> {
         detect_executables_in_dir(bin_dir)
     }
 
-    fn build_install_env(&self, install_dir: &PathBuf) -> InstallEnv {
+    fn build_install_env(&self, install_dir: &Path) -> InstallEnv {
         InstallEnv::new()
             .var("PNPM_HOME", install_dir.display().to_string())
             .var("npm_config_global_dir", install_dir.display().to_string())
     }
 
-    fn get_bin_dir(&self, install_dir: &PathBuf) -> PathBuf {
+    fn get_bin_dir(&self, install_dir: &Path) -> PathBuf {
         // pnpm global puts binaries in global-dir (directly, not in bin subdirectory)
         // But with --global-bin-dir we can control it
-        install_dir.clone()
+        install_dir.to_path_buf()
     }
 
     fn is_available(&self) -> bool {
         self.get_pnpm().is_ok()
     }
 }
-

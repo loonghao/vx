@@ -7,7 +7,7 @@ use crate::types::{EcosystemInstallResult, InstallEnv, InstallOptions};
 use crate::utils::{detect_executables_in_dir, run_command};
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// npm package installer
 #[derive(Debug, Clone, Default)]
@@ -36,10 +36,8 @@ impl NpmInstaller {
         }
 
         // On Windows, prefer npm.cmd
-        if cfg!(windows) {
-            if which::which("npm.cmd").is_ok() {
-                return Ok("npm.cmd".to_string());
-            }
+        if cfg!(windows) && which::which("npm.cmd").is_ok() {
+            return Ok("npm.cmd".to_string());
         }
 
         if which::which("npm").is_ok() {
@@ -58,7 +56,7 @@ impl EcosystemInstaller for NpmInstaller {
 
     async fn install(
         &self,
-        install_dir: &PathBuf,
+        install_dir: &Path,
         package: &str,
         version: &str,
         options: &InstallOptions,
@@ -106,26 +104,26 @@ impl EcosystemInstaller for NpmInstaller {
             package.to_string(),
             version.to_string(),
             "npm".to_string(),
-            install_dir.clone(),
+            install_dir.to_path_buf(),
             bin_dir,
         )
         .with_executables(executables))
     }
 
-    fn detect_executables(&self, bin_dir: &PathBuf) -> Result<Vec<String>> {
+    fn detect_executables(&self, bin_dir: &Path) -> Result<Vec<String>> {
         detect_executables_in_dir(bin_dir)
     }
 
-    fn build_install_env(&self, install_dir: &PathBuf) -> InstallEnv {
+    fn build_install_env(&self, install_dir: &Path) -> InstallEnv {
         InstallEnv::new()
             .var("NPM_CONFIG_PREFIX", install_dir.display().to_string())
             .var("NO_UPDATE_NOTIFIER", "1")
     }
 
-    fn get_bin_dir(&self, install_dir: &PathBuf) -> PathBuf {
+    fn get_bin_dir(&self, install_dir: &Path) -> PathBuf {
         if cfg!(windows) {
             // On Windows, npm installs binaries directly in the prefix directory
-            install_dir.clone()
+            install_dir.to_path_buf()
         } else {
             // On Unix, npm installs binaries in prefix/bin
             install_dir.join("bin")
@@ -136,4 +134,3 @@ impl EcosystemInstaller for NpmInstaller {
         self.get_npm().is_ok()
     }
 }
-

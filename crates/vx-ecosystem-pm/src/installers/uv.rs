@@ -8,7 +8,7 @@ use crate::types::{EcosystemInstallResult, InstallEnv, InstallOptions};
 use crate::utils::{detect_executables_in_dir, run_command};
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// uv package installer
 ///
@@ -54,7 +54,7 @@ impl EcosystemInstaller for UvInstaller {
 
     async fn install(
         &self,
-        install_dir: &PathBuf,
+        install_dir: &Path,
         package: &str,
         version: &str,
         options: &InstallOptions,
@@ -111,23 +111,23 @@ impl EcosystemInstaller for UvInstaller {
             package.to_string(),
             version.to_string(),
             "uv".to_string(),
-            install_dir.clone(),
+            install_dir.to_path_buf(),
             bin_dir,
         )
         .with_executables(executables))
     }
 
-    fn detect_executables(&self, bin_dir: &PathBuf) -> Result<Vec<String>> {
+    fn detect_executables(&self, bin_dir: &Path) -> Result<Vec<String>> {
         detect_executables_in_dir(bin_dir)
     }
 
-    fn build_install_env(&self, install_dir: &PathBuf) -> InstallEnv {
+    fn build_install_env(&self, install_dir: &Path) -> InstallEnv {
         InstallEnv::new()
             .var("UV_TOOL_DIR", install_dir.display().to_string())
             .var("UV_NO_PROGRESS", "1")
     }
 
-    fn get_bin_dir(&self, install_dir: &PathBuf) -> PathBuf {
+    fn get_bin_dir(&self, install_dir: &Path) -> PathBuf {
         // uv tool puts binaries in tool-dir/bin
         if cfg!(windows) {
             install_dir.join("Scripts")
@@ -140,4 +140,3 @@ impl EcosystemInstaller for UvInstaller {
         self.get_uv().is_ok()
     }
 }
-

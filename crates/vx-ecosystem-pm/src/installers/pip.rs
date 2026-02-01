@@ -7,7 +7,7 @@ use crate::types::{EcosystemInstallResult, InstallEnv, InstallOptions};
 use crate::utils::{detect_executables_in_dir, run_command};
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// pip package installer
 #[derive(Debug, Clone, Default)]
@@ -46,7 +46,7 @@ impl PipInstaller {
     }
 
     /// Get pip executable in venv
-    fn get_venv_pip(&self, venv_dir: &PathBuf) -> PathBuf {
+    fn get_venv_pip(&self, venv_dir: &Path) -> PathBuf {
         if cfg!(windows) {
             venv_dir.join("Scripts").join("pip.exe")
         } else {
@@ -55,7 +55,7 @@ impl PipInstaller {
     }
 
     /// Create a virtual environment
-    fn create_venv(&self, venv_dir: &PathBuf, verbose: bool) -> Result<()> {
+    fn create_venv(&self, venv_dir: &Path, verbose: bool) -> Result<()> {
         let python = self.get_python()?;
 
         let venv_dir_str = venv_dir.to_string_lossy().to_string();
@@ -81,7 +81,7 @@ impl EcosystemInstaller for PipInstaller {
 
     async fn install(
         &self,
-        install_dir: &PathBuf,
+        install_dir: &Path,
         package: &str,
         version: &str,
         options: &InstallOptions,
@@ -146,23 +146,23 @@ impl EcosystemInstaller for PipInstaller {
             package.to_string(),
             version.to_string(),
             "pip".to_string(),
-            venv_dir.clone(),
+            venv_dir.to_path_buf(),
             bin_dir,
         )
         .with_executables(executables))
     }
 
-    fn detect_executables(&self, bin_dir: &PathBuf) -> Result<Vec<String>> {
+    fn detect_executables(&self, bin_dir: &Path) -> Result<Vec<String>> {
         detect_executables_in_dir(bin_dir)
     }
 
-    fn build_install_env(&self, install_dir: &PathBuf) -> InstallEnv {
+    fn build_install_env(&self, install_dir: &Path) -> InstallEnv {
         InstallEnv::new()
             .var("VIRTUAL_ENV", install_dir.display().to_string())
             .var("PIP_DISABLE_PIP_VERSION_CHECK", "1")
     }
 
-    fn get_bin_dir(&self, install_dir: &PathBuf) -> PathBuf {
+    fn get_bin_dir(&self, install_dir: &Path) -> PathBuf {
         if cfg!(windows) {
             install_dir.join("Scripts")
         } else {
@@ -174,4 +174,3 @@ impl EcosystemInstaller for PipInstaller {
         self.get_python().is_ok()
     }
 }
-
