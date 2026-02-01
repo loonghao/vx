@@ -37,7 +37,8 @@ vars = { PYTHONHOME = "{install_dir}", PYTHONDONTWRITEBYTECODE = "1" }
 path_prepend = ["{install_dir}/python", "{install_dir}/bin", "{install_dir}/Scripts"]
 # Isolation mode: don't inherit PYTHON_* variables from system environment
 isolate = true
-inherit_system_vars = ["HOME", "USER", "LANG", "LC_*", "TZ"]
+# Include SHELL, TERM, TMPDIR for pip/uv build scripts that spawn shell processes
+inherit_system_vars = ["HOME", "USER", "SHELL", "TERM", "LANG", "LC_*", "TZ", "TMPDIR", "TEMP", "TMP"]
 
 [runtimes.versions]
 source = "python-build-standalone"
