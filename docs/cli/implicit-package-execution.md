@@ -356,6 +356,104 @@ black .
 ruff check .
 ```
 
+## Implementation Details
+
+### vx-shim Crate
+
+The `vx-shim` crate implements the RFC 0027 parsing and execution logic:
+
+```rust
+// Parse RFC 0027 syntax
+let request = PackageRequest::parse("npm@20:typescript@5.3::tsc")?;
+// request.ecosystem = "npm"
+// request.package = "typescript"
+// request.version = Some("5.3")
+// request.executable = Some("tsc")
+// request.runtime_spec = Some(RuntimeSpec { runtime: "node", version: "20" })
+```
+
+**Architecture:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         vx-shim Architecture                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  PackageRequest                                                  │   │
+│  │  ├── parse(input: &str) -> Result<Self>                         │   │
+│  │  ├── is_package_request(input: &str) -> bool                    │   │
+│  │  └── executable_name() -> &str                                  │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  ShimExecutor                                                    │   │
+│  │  ├── execute_request(req, args) -> Result<ExitCode>             │   │
+│  │  ├── find_package(ecosystem, package) -> Option<GlobalPackage>  │   │
+│  │  └── resolve_executable(package, exe_name) -> PathBuf           │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  Execution Flow                                                  │   │
+│  │  1. Parse request (ecosystem:package@version::executable)        │   │
+│  │  2. Check if package is installed in PackageRegistry             │   │
+│  │  3. If not installed: return PackageNotInstalled error           │   │
+│  │  4. If installed: resolve executable path                        │   │
+│  │  5. Execute with runtime in PATH                                 │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Auto-Install Mechanism
+
+When a package is not found, the CLI triggers automatic installation:
+
+```rust
+// In vx-cli/src/lib.rs
+async fn execute_package_request(ctx, spec, args) {
+    match executor.execute_request(&pkg_request, args).await {
+        Ok(exit_code) => Ok(()),
+        Err(ShimError::PackageNotInstalled { ecosystem, package }) => {
+            // Auto-install the package
+            auto_install_package(ctx, &pkg_request).await?;
+            // Retry execution
+            executor.execute_request(&pkg_request, args).await
+        }
+    }
+}
+```
+
+This provides a seamless `uvx`/`npx`-like experience:
+- First run: Auto-installs and executes
+- Subsequent runs: Executes from cache
+
+### Supported Syntax Patterns
+
+| Pattern | Example | Description |
+|---------|---------|-------------|
+| Simple | `npm:typescript` | Package name = executable |
+| With version | `npm:typescript@5.3` | Specific package version |
+| Different executable | `npm:typescript::tsc` | Explicit executable name |
+| Full syntax | `npm@20:typescript@5.3::tsc` | Runtime + package version + executable |
+| Scoped npm | `npm:@biomejs/biome::biome` | Scoped package with executable |
+| Runtime version | `pip@3.11:black` | Specific runtime version |
+
+### Parser Implementation
+
+The parser handles edge cases like scoped npm packages:
+
+```rust
+// Scoped packages: @org/package@version
+if part.starts_with('@') {
+    // Handle @types/node or @types/node@1.0
+    if let Some(slash_pos) = part.find('/') {
+        // Parse scope and package name
+        // Handle version after package name
+    }
+}
+```
+
 ## See Also
 
 - [`vx global`](./global) - Manage global packages

@@ -59,6 +59,32 @@ vx global install <package-spec> [options]
 | `go` | `golang` | go install | `go:golangci-lint@1.55` |
 | `gem` | `ruby`, `rubygems` | gem | `gem:bundler@2.5` |
 
+### Preferred Installers
+
+vx automatically selects the best installer for each ecosystem:
+
+| Ecosystem | Preferred | Fallback | Notes |
+|-----------|-----------|----------|-------|
+| **Python** | `uv` | `pip` | uv is significantly faster |
+| **Node.js** | `npm` | - | Use explicit `yarn:`, `pnpm:`, or `bun:` for alternatives |
+
+To use a specific installer, specify it explicitly:
+
+```bash
+# Use uv (faster) for Python packages
+vx global install uv:black@24.1
+vx global install uv:ruff
+
+# Use pip (standard) for Python packages
+vx global install pip:black@24.1
+
+# Use yarn instead of npm
+vx global install yarn:typescript
+
+# Use pnpm
+vx global install pnpm:eslint
+```
+
 ### Options
 
 | Option | Short | Description |
@@ -326,6 +352,46 @@ vx tsc --version
 vx black --check .
 ```
 
+## Auto-Install Behavior
+
+When you run a tool through vx that hasn't been installed yet, vx can automatically install it for you (similar to `npx` or `uvx`).
+
+### Explicit Package Execution (RFC 0027)
+
+Use the `ecosystem:package` syntax to run any package without prior installation:
+
+```bash
+# Auto-install and run (if not already installed)
+vx npm:typescript::tsc --version
+vx pip:ruff check .
+vx cargo:ripgrep::rg "pattern" ./src
+
+# With specific versions
+vx npm:typescript@5.3::tsc --version
+vx pip@3.11:black .
+
+# Full syntax with runtime version
+vx npm@20:typescript@5.3::tsc --version
+```
+
+**How it works:**
+1. Check if package is already installed
+2. If not, automatically install it (equivalent to `vx global install`)
+3. Execute the tool with the correct environment
+
+### Shim Execution
+
+For already installed packages, simply use the executable name:
+
+```bash
+# These are equivalent after installation
+vx tsc --version          # Via vx shim
+vx npm:typescript::tsc    # Via RFC 0027 syntax
+tsc --version             # Direct shim (if PATH is configured)
+```
+
+**See [Implicit Package Execution](./implicit-package-execution.md) for complete documentation.**
+
 ## Best Practices
 
 ### 1. Specify Ecosystem for Unknown Packages
@@ -408,8 +474,96 @@ ls -la ~/.vx/packages/
 chmod -R u+rwX ~/.vx/packages/
 ```
 
+## Architecture
+
+### vx-ecosystem-pm
+
+The `vx-ecosystem-pm` crate provides isolated package installation for multiple ecosystems:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        vx-ecosystem-pm Architecture                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  EcosystemInstaller Trait                                       │   │
+│  │  ├── install(dir, package, version, options) -> Result          │   │
+│  │  ├── is_available() -> bool                                     │   │
+│  │  └── ecosystem() -> String                                      │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  Installers (per ecosystem)                                     │   │
+│  │  ├── npm.rs    - npm, yarn, pnpm, bun support                   │   │
+│  │  ├── pip.rs    - Standard pip installer                         │   │
+│  │  ├── uv.rs     - Fast uv-based Python installer                 │   │
+│  │  ├── cargo.rs  - Rust cargo installer                           │   │
+│  │  ├── go.rs     - Go installer                                   │   │
+│  │  └── gem.rs    - Ruby gem installer                             │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  Isolation Strategy                                             │   │
+│  │  ├── npm:  NPM_CONFIG_PREFIX redirection                        │   │
+│  │  ├── pip:  Isolated virtual environment                         │   │
+│  │  ├── uv:   UV_INSTALL_DIR redirection                           │   │
+│  │  ├── cargo: CARGO_INSTALL_ROOT redirection                      │   │
+│  │  ├── go:   GOBIN redirection                                    │   │
+│  │  └── gem:  GEM_HOME/GEM_PATH redirection                        │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Directory Structure
+
+Packages are installed in isolated directories with environment variable redirection:
+
+```
+~/.vx/
+├── packages/                    # Isolated package installations
+│   ├── npm/
+│   │   └── typescript/
+│   │       └── 5.3.3/          # NPM_CONFIG_PREFIX set to this dir
+│   │           ├── lib/
+│   │           │   └── node_modules/
+│   │           │       └── typescript/
+│   │           └── bin/
+│   │               └── tsc -> ../lib/node_modules/typescript/bin/tsc
+│   │
+│   ├── pip/
+│   │   └── black/
+│   │       └── 24.1.0/         # VIRTUAL_ENV set to this dir
+│   │           ├── venv/       # Isolated Python virtual environment
+│   │           │   ├── bin/
+│   │           │   │   ├── python -> ~/.vx/store/python/3.11.x/bin/python
+│   │           │   │   └── black
+│   │           │   └── lib/python3.11/site-packages/
+│   │           │       └── black/
+│   │           └── bin/
+│   │               └── black -> ../venv/bin/black
+│   │
+│   ├── cargo/
+│   │   └── ripgrep/
+│   │       └── 14.0.0/         # CARGO_INSTALL_ROOT set to this dir
+│   │           └── bin/
+│   │               └── rg
+│   │
+│   └── go/
+│       └── golangci-lint/
+│           └── 1.55.0/         # GOBIN set to this dir
+│               └── bin/
+│                   └── golangci-lint
+│
+└── shims/                       # Global executable shims
+    ├── tsc -> ../packages/npm/typescript/5.3.3/bin/tsc
+    ├── black -> ../packages/pip/black/24.1.0/bin/black
+    └── rg -> ../packages/cargo/ripgrep/14.0.0/bin/rg
+```
+
 ## See Also
 
 - [install](./install) - Install runtime versions
 - [list](./list) - List available runtimes
 - [env](./env) - Manage environments
+- [Implicit Package Execution](./implicit-package-execution.md) - Run packages without installation
