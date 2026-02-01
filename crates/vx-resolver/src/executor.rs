@@ -1119,6 +1119,30 @@ impl<'a> Executor<'a> {
                             }
                         }
                     }
+
+                    // Inherit system vars from inherit_system_vars (excluding PATH which is handled above)
+                    // This ensures variables like SHELL, TERM, HOME, etc. are available to child processes
+                    // which may spawn shell scripts (e.g., npm postinstall scripts)
+                    for var_pattern in &advanced.inherit_system_vars {
+                        if var_pattern == "PATH" {
+                            continue; // PATH is handled separately above
+                        }
+
+                        // Handle glob patterns like "LC_*"
+                        if var_pattern.contains('*') {
+                            let prefix = var_pattern.trim_end_matches('*');
+                            for (key, value) in std::env::vars() {
+                                if key.starts_with(prefix) && !env.contains_key(&key) {
+                                    env.insert(key, value);
+                                }
+                            }
+                        } else if let Ok(value) = std::env::var(var_pattern) {
+                            // Only insert if not already set
+                            if !env.contains_key(var_pattern) {
+                                env.insert(var_pattern.clone(), value);
+                            }
+                        }
+                    }
                 }
 
                 // Add basic vars - use effective runtime for template expansion
