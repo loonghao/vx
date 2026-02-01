@@ -1018,18 +1018,21 @@ impl<'a> Executor<'a> {
                         }
                     }
 
-                    // CRITICAL: In isolated mode, ensure essential system paths are always present
+                    // CRITICAL: Ensure essential system paths are always present
                     // even if the original PATH didn't include them.
                     // This fixes issues where npm postinstall scripts cannot find 'sh'.
-                    if isolate_env {
-                        let essential_paths = [
-                            "/bin",
-                            "/usr/bin",
-                            "/usr/local/bin",
-                        ];
+                    // We do this for ALL modes (not just isolated) because:
+                    // 1. Some CI environments may have unusual PATH configurations
+                    // 2. Child processes (npm postinstall, esbuild) need access to sh/bash
+                    // 3. It's safe to add these paths even if they're already present
+                    #[cfg(unix)]
+                    {
+                        let essential_paths = ["/bin", "/usr/bin", "/usr/local/bin"];
                         for essential in &essential_paths {
                             let essential_str = essential.to_string();
-                            if !path_parts.contains(&essential_str) && std::path::Path::new(essential).exists() {
+                            if !path_parts.iter().any(|p| p == &essential_str)
+                                && std::path::Path::new(essential).exists()
+                            {
                                 path_parts.push(essential_str);
                                 trace!("Added essential system path: {}", essential);
                             }

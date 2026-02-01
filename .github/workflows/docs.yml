@@ -50,7 +50,10 @@ jobs:
 
       - name: Install dependencies
         working-directory: docs
-        run: vx npm ci
+        run: |
+          # Ensure system paths are available for npm postinstall scripts
+          export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+          vx npm ci
 
       - name: Build documentation
         working-directory: docs
