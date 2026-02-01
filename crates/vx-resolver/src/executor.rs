@@ -1018,6 +1018,24 @@ impl<'a> Executor<'a> {
                         }
                     }
 
+                    // CRITICAL: In isolated mode, ensure essential system paths are always present
+                    // even if the original PATH didn't include them.
+                    // This fixes issues where npm postinstall scripts cannot find 'sh'.
+                    if isolate_env {
+                        let essential_paths = [
+                            "/bin",
+                            "/usr/bin",
+                            "/usr/local/bin",
+                        ];
+                        for essential in &essential_paths {
+                            let essential_str = essential.to_string();
+                            if !path_parts.contains(&essential_str) && std::path::Path::new(essential).exists() {
+                                path_parts.push(essential_str);
+                                trace!("Added essential system path: {}", essential);
+                            }
+                        }
+                    }
+
                     // Append entries - use effective runtime for template expansion
                     for entry in &advanced.path_append {
                         let expanded = self.expand_template(
