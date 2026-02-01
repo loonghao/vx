@@ -802,12 +802,11 @@ jobs:
 
       - name: Install dependencies
         working-directory: docs
-        # Use --inherit-env to ensure npm postinstall scripts can access system tools like sh
-        run: vx --inherit-env npm ci
+        run: vx npm ci
 
       - name: Build documentation
         working-directory: docs
-        run: vx --inherit-env npm run build
+        run: vx npm run build
 
   # Docs build without vx binary (when only docs changed)
   docs-build-standalone:
