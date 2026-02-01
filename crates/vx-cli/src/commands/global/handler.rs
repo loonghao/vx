@@ -8,6 +8,7 @@ use crate::commands::CommandContext;
 use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::io::Write;
+use vx_ecosystem_pm::{get_installer, InstallOptions};
 use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
 use vx_paths::package_spec::PackageSpec;
 use vx_paths::shims;
@@ -64,21 +65,43 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
         spec.ecosystem, spec.package, version
     ));
 
-    // TODO: Implement actual package installation using npm/pip/cargo/etc.
-    // For now, create a placeholder entry
-    let install_dir = paths.global_package_dir(&spec.ecosystem, &spec.package, version);
-    std::fs::create_dir_all(&install_dir)?;
+    // Get the appropriate installer for this ecosystem
+    let installer = get_installer(&spec.ecosystem)
+        .with_context(|| format!("Unsupported ecosystem: {}", spec.ecosystem))?;
 
-    // Create package entry
-    let package = GlobalPackage::new(
+    // Build install options
+    let options = InstallOptions {
+        force: args.force,
+        verbose: args.verbose,
+        runtime_version: None, // TODO: Support runtime version selection
+        extra_args: args.extra_args.clone(),
+    };
+
+    // Get the installation directory
+    let install_dir = paths.global_package_dir(&spec.ecosystem, &spec.package, version);
+
+    // Perform the actual installation (async)
+    let result = installer
+        .install(&install_dir, &spec.package, version, &options)
+        .await
+        .with_context(|| {
+            format!(
+                "Failed to install {}:{}@{}",
+                spec.ecosystem, spec.package, version
+            )
+        })?;
+
+    // Create GlobalPackage from EcosystemInstallResult for registry
+    let global_package = GlobalPackage::new(
         spec.package.clone(),
-        version.to_string(),
+        result.version.clone(),
         spec.ecosystem.clone(),
-        install_dir.clone(),
-    );
+        result.install_dir.clone(),
+    )
+    .with_executables(result.executables.clone());
 
     // Register package
-    registry.register(package);
+    registry.register(global_package);
     registry.save(&registry_path)?;
 
     UI::success(&format!(
@@ -86,11 +109,63 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
         spec.ecosystem,
         spec.package,
         version,
-        install_dir.display()
+        result.install_dir.display()
     ));
 
-    // TODO: Create shims for package executables
-    UI::hint("Run 'vx global shim-update' to update shims after installation");
+    // Report detected executables
+    if !result.executables.is_empty() {
+        UI::detail(&format!(
+            "Detected executables: {}",
+            result.executables.join(", ")
+        ));
+    }
+
+    // Create shims for package executables
+    let shims_dir = paths.shims_dir();
+    let bin_dir = result.bin_dir.clone();
+
+    let mut shim_count = 0;
+    for exe in &result.executables {
+        let exe_path = bin_dir.join(if cfg!(windows) {
+            format!("{}.exe", exe)
+        } else {
+            exe.to_string()
+        });
+
+        // Try with the extension first, then without on Windows
+        let target_path = if exe_path.exists() {
+            exe_path
+        } else {
+            bin_dir.join(exe)
+        };
+
+        if target_path.exists() {
+            match shims::create_shim(&shims_dir, exe, &target_path) {
+                Ok(_) => {
+                    shim_count += 1;
+                    if args.verbose {
+                        UI::detail(&format!("Created shim for: {}", exe));
+                    }
+                }
+                Err(e) => {
+                    UI::warn(&format!("Failed to create shim for {}: {}", exe, e));
+                }
+            }
+        } else if args.verbose {
+            UI::warn(&format!(
+                "Executable not found for shim: {}",
+                target_path.display()
+            ));
+        }
+    }
+
+    if shim_count > 0 {
+        UI::success(&format!("Created {} shim(s)", shim_count));
+        UI::hint(&format!(
+            "Add {} to your PATH to use global tools directly",
+            shims_dir.display()
+        ));
+    }
 
     Ok(())
 }

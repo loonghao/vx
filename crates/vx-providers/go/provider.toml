@@ -88,6 +88,7 @@ recommends = [
 ]
 
 # gofmt is bundled with Go
+# RFC 0026: No need for constraints.requires - automatically inferred from bundled_with
 [[runtimes]]
 name = "gofmt"
 description = "Go source code formatter"
@@ -100,12 +101,6 @@ auto_installable = false
 command = "{executable} -version"
 pattern = "v([\\d.]+)"
 system_paths = ["/usr/local/go/bin/gofmt", "/usr/bin/gofmt", "C:\\Program Files\\Go\\bin\\gofmt.exe"]
-
-[[runtimes.constraints]]
-when = "*"
-requires = [
-    { runtime = "go", version = "*", reason = "gofmt is bundled with go" }
-]
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]

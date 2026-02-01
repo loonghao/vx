@@ -38,9 +38,14 @@ env:
 jobs:
   # First job: Run release-please to create releases and tags
   # This only runs on main branch pushes (not tag pushes or manual triggers)
+  # Skip if the commit is from release-please itself (prevents duplicate PR creation)
   release-please:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      !contains(github.event.head_commit.message, 'chore: release') &&
+      github.event.head_commit.author.name != 'github-actions[bot]'
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
