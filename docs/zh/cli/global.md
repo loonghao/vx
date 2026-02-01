@@ -59,6 +59,32 @@ vx global install <包规格> [选项]
 | `go` | `golang` | go install | `go:golangci-lint@1.55` |
 | `gem` | `ruby`, `rubygems` | gem | `gem:bundler@2.5` |
 
+### 首选安装器
+
+vx 自动为每个生态系统选择最佳安装器：
+
+| 生态系统 | 首选 | 备用 | 说明 |
+|----------|------|------|------|
+| **Python** | `uv` | `pip` | uv 速度显著更快 |
+| **Node.js** | `npm` | - | 使用显式 `yarn:`、`pnpm:` 或 `bun:` 选择替代方案 |
+
+要使用特定安装器，请显式指定：
+
+```bash
+# 使用 uv（更快）安装 Python 包
+vx global install uv:black@24.1
+vx global install uv:ruff
+
+# 使用 pip（标准）安装 Python 包
+vx global install pip:black@24.1
+
+# 使用 yarn 替代 npm
+vx global install yarn:typescript
+
+# 使用 pnpm
+vx global install pnpm:eslint
+```
+
 ### 选项
 
 | 选项 | 简写 | 描述 |
@@ -326,6 +352,46 @@ vx tsc --version
 vx black --check .
 ```
 
+## 自动安装行为
+
+当你通过 vx 运行一个尚未安装的工具时，vx 可以自动为你安装（类似于 `npx` 或 `uvx`）。
+
+### 显式包执行（RFC 0027）
+
+使用 `ecosystem:package` 语法运行任何包，无需预先安装：
+
+```bash
+# 自动安装并运行（如果尚未安装）
+vx npm:typescript::tsc --version
+vx pip:ruff check .
+vx cargo:ripgrep::rg "pattern" ./src
+
+# 指定特定版本
+vx npm:typescript@5.3::tsc --version
+vx pip@3.11:black .
+
+# 完整语法，包含运行时版本
+vx npm@20:typescript@5.3::tsc --version
+```
+
+**工作原理：**
+1. 检查包是否已安装
+2. 如果未安装，自动安装（相当于 `vx global install`）
+3. 使用正确的环境执行工具
+
+### Shim 执行
+
+对于已安装的包，直接使用可执行文件名：
+
+```bash
+# 安装后，以下命令等价
+vx tsc --version          # 通过 vx shim
+vx npm:typescript::tsc    # 通过 RFC 0027 语法
+tsc --version             # 直接 shim（如果 PATH 已配置）
+```
+
+**参见 [隐式包执行](./implicit-package-execution.md) 获取完整文档。**
+
 ## 最佳实践
 
 ### 1. 为未知包指定生态系统
@@ -408,8 +474,96 @@ ls -la ~/.vx/packages/
 chmod -R u+rwX ~/.vx/packages/
 ```
 
+## 架构
+
+### vx-ecosystem-pm
+
+`vx-ecosystem-pm` crate 为多个生态系统提供隔离的包安装：
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        vx-ecosystem-pm 架构                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  EcosystemInstaller Trait（生态系统安装器特质）                  │   │
+│  │  ├── install(dir, package, version, options) -> Result          │   │
+│  │  ├── is_available() -> bool                                     │   │
+│  │  └── ecosystem() -> String                                      │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  安装器（按生态系统）                                            │   │
+│  │  ├── npm.rs    - npm、yarn、pnpm、bun 支持                      │   │
+│  │  ├── pip.rs    - 标准 pip 安装器                                │   │
+│  │  ├── uv.rs     - 基于 uv 的快速 Python 安装器                   │   │
+│  │  ├── cargo.rs  - Rust cargo 安装器                              │   │
+│  │  ├── go.rs     - Go 安装器                                      │   │
+│  │  └── gem.rs    - Ruby gem 安装器                                │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  隔离策略                                                        │   │
+│  │  ├── npm:  NPM_CONFIG_PREFIX 重定向                             │   │
+│  │  ├── pip:  隔离的虚拟环境                                        │   │
+│  │  ├── uv:   UV_INSTALL_DIR 重定向                                │   │
+│  │  ├── cargo: CARGO_INSTALL_ROOT 重定向                           │   │
+│  │  ├── go:   GOBIN 重定向                                         │   │
+│  │  └── gem:  GEM_HOME/GEM_PATH 重定向                             │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 目录结构
+
+包安装在隔离目录中，使用环境变量重定向：
+
+```
+~/.vx/
+├── packages/                    # 隔离的包安装
+│   ├── npm/
+│   │   └── typescript/
+│   │       └── 5.3.3/          # NPM_CONFIG_PREFIX 设置为此目录
+│   │           ├── lib/
+│   │           │   └── node_modules/
+│   │           │       └── typescript/
+│   │           └── bin/
+│   │               └── tsc -> ../lib/node_modules/typescript/bin/tsc
+│   │
+│   ├── pip/
+│   │   └── black/
+│   │       └── 24.1.0/         # VIRTUAL_ENV 设置为此目录
+│   │           ├── venv/       # 隔离的 Python 虚拟环境
+│   │           │   ├── bin/
+│   │           │   │   ├── python -> ~/.vx/store/python/3.11.x/bin/python
+│   │           │   │   └── black
+│   │           │   └── lib/python3.11/site-packages/
+│   │           │       └── black/
+│   │           └── bin/
+│   │               └── black -> ../venv/bin/black
+│   │
+│   ├── cargo/
+│   │   └── ripgrep/
+│   │       └── 14.0.0/         # CARGO_INSTALL_ROOT 设置为此目录
+│   │           └── bin/
+│   │               └── rg
+│   │
+│   └── go/
+│       └── golangci-lint/
+│           └── 1.55.0/         # GOBIN 设置为此目录
+│               └── bin/
+│                   └── golangci-lint
+│
+└── shims/                       # 全局可执行文件 shims
+    ├── tsc -> ../packages/npm/typescript/5.3.3/bin/tsc
+    ├── black -> ../packages/pip/black/24.1.0/bin/black
+    └── rg -> ../packages/cargo/ripgrep/14.0.0/bin/rg
+```
+
 ## 相关命令
 
 - [install](./install) - 安装运行时版本
 - [list](./list) - 列出可用的运行时
 - [env](./env) - 管理环境
+- [隐式包执行](./implicit-package-execution.md) - 无需安装即可运行包
