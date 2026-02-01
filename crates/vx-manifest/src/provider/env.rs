@@ -133,7 +133,11 @@ pub enum EnvVarConfig {
 }
 
 fn default_isolate_env() -> bool {
-    true
+    // Default to NOT isolating environment
+    // Most tools need access to system tools (sh, bash, etc.) for their
+    // child processes (npm scripts, postinstall hooks, etc.)
+    // Set isolate = true explicitly in provider.toml for tools that need isolation
+    false
 }
 
 impl EnvConfig {
@@ -157,8 +161,11 @@ impl EnvConfig {
     }
 
     /// Check if environment isolation is enabled
+    ///
+    /// Returns false by default - most tools need access to system tools.
+    /// Only returns true if explicitly set in the provider manifest.
     pub fn is_isolated(&self) -> bool {
-        self.advanced.as_ref().map(|a| a.isolate).unwrap_or(true)
+        self.advanced.as_ref().map(|a| a.isolate).unwrap_or(false)
     }
 
     /// Get system variables to inherit when isolated (legacy method)
