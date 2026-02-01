@@ -500,7 +500,7 @@ impl<'a> Executor<'a> {
         if resolution.executable.is_absolute() {
             if let Some(exe_dir) = resolution.executable.parent() {
                 let exe_dir_str = exe_dir.to_string_lossy().to_string();
-                let path_sep = if cfg!(windows) { ";" } else { ":" };
+                let path_sep = vx_paths::path_separator();
 
                 // Also add the grandparent directory in case the executable is in a subdirectory
                 // This handles cases like node-v20.20.0-win-x64/npx.cmd where node.exe is in the same dir
@@ -662,11 +662,7 @@ impl<'a> Executor<'a> {
         if let Some(bin) = bin_dir {
             // Prepend the bin directory to PATH
             let current_path = std::env::var("PATH").unwrap_or_default();
-            let new_path = if cfg!(windows) {
-                format!("{};{}", bin.display(), current_path)
-            } else {
-                format!("{}:{}", bin.display(), current_path)
-            };
+            let new_path = vx_paths::prepend_to_path(&current_path, &[bin.display().to_string()]);
             env.insert("PATH".to_string(), new_path);
             info!(
                 "Using {} {} from {} (prepended to PATH)",
@@ -693,11 +689,7 @@ impl<'a> Executor<'a> {
             return None;
         }
 
-        let exe_name = if cfg!(windows) {
-            format!("{}.exe", tool_name)
-        } else {
-            tool_name.to_string()
-        };
+        let exe_name = vx_paths::with_executable_extension(tool_name);
 
         // Common bin directory patterns
         let patterns = [
@@ -1021,11 +1013,8 @@ impl<'a> Executor<'a> {
                     // This is necessary because std::env::join_paths expects individual paths,
                     // not a single string containing the path separator
                     if !current_path.is_empty() {
-                        let separator = if cfg!(windows) { ';' } else { ':' };
-                        for part in current_path.split(separator) {
-                            if !part.is_empty() {
-                                path_parts.push(part.to_string());
-                            }
+                        for part in vx_paths::split_path(&current_path) {
+                            path_parts.push(part.to_string());
                         }
                     }
 
@@ -1087,19 +1076,15 @@ impl<'a> Executor<'a> {
                                                 effective_version_ref,
                                             )?;
                                             final_value.push_str(&expanded);
-                                            final_value.push(if cfg!(windows) { ';' } else { ':' });
+                                            final_value.push(vx_paths::path_separator());
                                         }
                                     }
 
                                     // Current value
                                     if let Ok(current) = std::env::var(var_name) {
                                         final_value.push_str(&current);
-                                        if !final_value.ends_with(if cfg!(windows) {
-                                            ';'
-                                        } else {
-                                            ':'
-                                        }) {
-                                            final_value.push(if cfg!(windows) { ';' } else { ':' });
+                                        if !final_value.ends_with(vx_paths::path_separator()) {
+                                            final_value.push(vx_paths::path_separator());
                                         }
                                     }
 
@@ -1112,13 +1097,13 @@ impl<'a> Executor<'a> {
                                                 effective_version_ref,
                                             )?;
                                             final_value.push_str(&expanded);
-                                            final_value.push(if cfg!(windows) { ';' } else { ':' });
+                                            final_value.push(vx_paths::path_separator());
                                         }
                                     }
 
                                     // Remove trailing separator
                                     final_value = final_value
-                                        .trim_end_matches(if cfg!(windows) { ';' } else { ':' })
+                                        .trim_end_matches(vx_paths::path_separator())
                                         .to_string();
                                 }
 
@@ -1616,11 +1601,10 @@ impl<'a> Executor<'a> {
                     .or_else(|| std::env::var("PATH").ok())
                     .unwrap_or_default();
 
-                let path_sep = if cfg!(windows) { ";" } else { ":" };
                 let new_path = if current_path.is_empty() {
                     vx_path
                 } else {
-                    format!("{}{}{}", vx_path, path_sep, current_path)
+                    vx_paths::prepend_to_path(&current_path, &[vx_path])
                 };
 
                 final_env.insert("PATH".to_string(), new_path);
@@ -1665,15 +1649,14 @@ impl<'a> Executor<'a> {
     ///
     /// ### Version Selection Order
     ///
-    /// 1. If `vx.toml` specifies a version for the tool 鈫?use that version
-    /// 2. If the specified version is not installed 鈫?fall back to latest installed
-    /// 3. If no `vx.toml` exists 鈫?use latest installed version (existing behavior)
+    /// 1. If `vx.toml` specifies a version for the tool → use that version
+    /// 2. If the specified version is not installed → fall back to latest installed
+    /// 3. If no `vx.toml` exists → use latest installed version (existing behavior)
     fn build_vx_tools_path(&self) -> Option<String> {
         let context = self.context?;
         let registry = self.registry?;
 
         let mut paths: Vec<String> = Vec::new();
-        let path_sep = if cfg!(windows) { ";" } else { ":" };
 
         // Add vx bin directory first (for shims)
         let vx_bin = context.paths.bin_dir();
@@ -1725,7 +1708,7 @@ impl<'a> Executor<'a> {
         if paths.is_empty() {
             None
         } else {
-            Some(paths.join(path_sep))
+            Some(vx_paths::join_paths_simple(&paths))
         }
     }
 
@@ -2227,8 +2210,7 @@ pub async fn execute_bundle(bundle: &BundleContext, args: &[String]) -> Result<i
     let bundle_bin = bundle.executable.parent().map(|p| p.to_path_buf());
     if let Some(bin_dir) = bundle_bin {
         let current_path = std::env::var("PATH").unwrap_or_default();
-        let path_sep = if cfg!(windows) { ";" } else { ":" };
-        let new_path = format!("{}{}{}", bin_dir.display(), path_sep, current_path);
+        let new_path = vx_paths::prepend_to_path(&current_path, &[bin_dir.display().to_string()]);
         cmd.env("PATH", new_path);
     }
 
