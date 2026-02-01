@@ -1017,8 +1017,16 @@ impl<'a> Executor<'a> {
                         }
                     };
 
+                    // Split current_path and add each directory separately
+                    // This is necessary because std::env::join_paths expects individual paths,
+                    // not a single string containing the path separator
                     if !current_path.is_empty() {
-                        path_parts.push(current_path);
+                        let separator = if cfg!(windows) { ';' } else { ':' };
+                        for part in current_path.split(separator) {
+                            if !part.is_empty() {
+                                path_parts.push(part.to_string());
+                            }
+                        }
                     }
 
                     // Append entries - use effective runtime for template expansion
