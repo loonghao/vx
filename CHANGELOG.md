@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.24](https://github.com/loonghao/vx/compare/vx-v0.6.23...vx-v0.6.24) (2026-02-01)
+
+
+### Features
+
+* **env:** add default inherit_system_vars for all providers ([c4e453a](https://github.com/loonghao/vx/commit/c4e453a870449ba1e9d24eab76745cb7c7ce2e3b))
+* **providers:** add inherit_system_vars to additional providers ([de3488c](https://github.com/loonghao/vx/commit/de3488c50f2d0092cabd838887ae88cabfebe2be))
+* **resolver:** implement RFC 0026 unified runtime provider relationships ([3c3a96b](https://github.com/loonghao/vx/commit/3c3a96b7e92620a52485717a3e4fa7bb3dd53504))
+* **shim:** implement RFC 0027 implicit package execution with auto-install ([9e3fa3a](https://github.com/loonghao/vx/commit/9e3fa3a068b0582e7bd2bb84782764fbb83e07b9))
+
+
+### Bug Fixes
+
+* change default isolate to false for child process access to system tools ([0b5bba0](https://github.com/loonghao/vx/commit/0b5bba01d846500e4c82977e836b90fd5c341195))
+* filter system PATH to include only essential directories in isolated mode ([60663c0](https://github.com/loonghao/vx/commit/60663c0a2ebf48b7474341896af449a1fcfacb22))
+* inherit_system_vars now properly passes all system vars to child processes ([a144bee](https://github.com/loonghao/vx/commit/a144beee3741fbd64f6f6429e690d07f24f9e859))
+* resolve clippy warnings and improve API design ([0d9b9bf](https://github.com/loonghao/vx/commit/0d9b9bf3591117a6e8896ad5bc9c1f2bb62de77a))
+* split PATH string before passing to join_paths ([893658e](https://github.com/loonghao/vx/commit/893658ec4b4f6facbede5912034e4ed0d274db3e))
+* use string comparison instead of Path::new in filter_system_path ([3254d35](https://github.com/loonghao/vx/commit/3254d3522db503b32cdbc1aeaa79ed37f7349e3a))
+
+
+### Code Refactoring
+
+* centralize cross-platform path utilities in vx-paths::platform ([6c676a6](https://github.com/loonghao/vx/commit/6c676a6be48098fb82e2cbe1c0bcf44e471ef069))
+
+
+### Documentation
+
+* add RFC 0027 implicit package execution documentation ([44f9671](https://github.com/loonghao/vx/commit/44f967119e6f82361d71f4b0fc37466dabe03512))
+* add vx global command documentation (RFC 0025) ([c2d63f8](https://github.com/loonghao/vx/commit/c2d63f8e2832181d5a3854e703852b6585dcc838))
+* update global and implicit-package-execution documentation ([1496cee](https://github.com/loonghao/vx/commit/1496ceedc55bc3e9705473f49cd17f4c7078426a))
+
 ## [0.6.23](https://github.com/loonghao/vx/compare/vx-v0.6.22...vx-v0.6.23) (2026-01-31)
 
 
