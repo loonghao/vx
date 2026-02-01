@@ -1000,24 +1000,21 @@ impl<'a> Executor<'a> {
 
                     // Get current PATH if not isolated or if inheriting
                     let isolate_env = if inherit_env { false } else { advanced.isolate };
-                    
+
                     // Get effective inherit_system_vars (defaults + provider-specific)
                     let inherit_vars = env_config.effective_inherit_system_vars();
-                    
+
                     let current_path = if !isolate_env {
                         std::env::var("PATH").unwrap_or_default()
                     } else {
-                        // When isolated, only include inherited vars
-                        let mut inherited_path = String::new();
-                        for var in &inherit_vars {
-                            if var == "PATH" {
-                                if let Ok(p) = std::env::var("PATH") {
-                                    inherited_path = p;
-                                    break;
-                                }
-                            }
+                        // When isolated, filter PATH to only include system directories
+                        // This ensures child processes can find essential tools (sh, bash, etc.)
+                        // while excluding user-specific paths for isolation
+                        if let Ok(full_path) = std::env::var("PATH") {
+                            vx_manifest::filter_system_path(&full_path)
+                        } else {
+                            String::new()
                         }
-                        inherited_path
                     };
 
                     if !current_path.is_empty() {
