@@ -797,6 +797,9 @@ jobs:
           chmod +x ./bin/vx
           echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
 
+      - name: Install Node.js for vx
+        run: vx install node
+
       - name: Install dependencies
         working-directory: docs
         run: vx npm install
