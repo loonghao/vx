@@ -53,7 +53,9 @@ executable_extensions = []
 # Docker builds may run shell scripts and need environment access
 [runtimes.env.advanced]
 path_prepend = ["{install_dir}"]
-inherit_system_vars = ["HOME", "USER", "SHELL", "TERM", "LANG", "LC_*", "TZ", "TMPDIR", "TEMP", "TMP", "DOCKER_HOST", "DOCKER_CONFIG"]
+# Default system vars are automatically inherited
+# Extra vars for Docker: daemon connection and config
+inherit_system_vars = ["DOCKER_HOST", "DOCKER_CONFIG"]
 
 # System install strategy for platforms without binary download (Windows)
 [[runtimes.system_install.strategies]]

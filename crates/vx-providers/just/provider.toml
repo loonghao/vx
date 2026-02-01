@@ -60,7 +60,8 @@ executable_extensions = []
 # just runs shell commands and recipes that need shell access
 [runtimes.env.advanced]
 path_prepend = ["{install_dir}"]
-inherit_system_vars = ["HOME", "USER", "SHELL", "TERM", "LANG", "LC_*", "TZ", "TMPDIR", "TEMP", "TMP"]
+# Default system vars (HOME, USER, SHELL, TERM, etc.) are automatically inherited
+# No extra vars needed for just
 
 [runtimes.test]
 timeout_ms = 10000

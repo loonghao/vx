@@ -54,7 +54,9 @@ executable_extensions = []
 # Git runs hooks and external commands that need shell access
 [runtimes.env.advanced]
 path_prepend = ["{install_dir}/bin", "{install_dir}/mingw64/bin", "{install_dir}/usr/bin"]
-inherit_system_vars = ["HOME", "USER", "SHELL", "TERM", "LANG", "LC_*", "TZ", "TMPDIR", "TEMP", "TMP", "SSH_AUTH_SOCK", "GPG_TTY"]
+# Default system vars are automatically inherited
+# Extra vars for Git: SSH agent and GPG for commit signing
+inherit_system_vars = ["SSH_AUTH_SOCK", "GPG_TTY"]
 
 # RFC 0021: System-level dependencies
 [runtimes.system_deps]
