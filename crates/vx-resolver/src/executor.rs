@@ -1000,12 +1000,16 @@ impl<'a> Executor<'a> {
 
                     // Get current PATH if not isolated or if inheriting
                     let isolate_env = if inherit_env { false } else { advanced.isolate };
+                    
+                    // Get effective inherit_system_vars (defaults + provider-specific)
+                    let inherit_vars = env_config.effective_inherit_system_vars();
+                    
                     let current_path = if !isolate_env {
                         std::env::var("PATH").unwrap_or_default()
                     } else {
                         // When isolated, only include inherited vars
                         let mut inherited_path = String::new();
-                        for var in &advanced.inherit_system_vars {
+                        for var in &inherit_vars {
                             if var == "PATH" {
                                 if let Ok(p) = std::env::var("PATH") {
                                     inherited_path = p;
@@ -1120,10 +1124,11 @@ impl<'a> Executor<'a> {
                         }
                     }
 
-                    // Inherit system vars from inherit_system_vars (excluding PATH which is handled above)
+                    // Inherit system vars (excluding PATH which is handled above)
+                    // Uses effective_inherit_system_vars which combines defaults + provider-specific
                     // This ensures variables like SHELL, TERM, HOME, etc. are available to child processes
                     // which may spawn shell scripts (e.g., npm postinstall scripts)
-                    for var_pattern in &advanced.inherit_system_vars {
+                    for var_pattern in &inherit_vars {
                         if var_pattern == "PATH" {
                             continue; // PATH is handled separately above
                         }

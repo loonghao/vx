@@ -34,15 +34,51 @@
 
 ### 各语言的最佳实践
 
+#### 默认继承的系统变量
+
+vx 自动为所有 Provider 继承一组常用的系统环境变量，无需在 `inherit_system_vars` 中显式指定：
+
+```rust
+// DEFAULT_INHERIT_SYSTEM_VARS
+const DEFAULT: &[&str] = &[
+    // 用户和会话
+    "HOME", "USER", "USERNAME", "USERPROFILE", "LOGNAME",
+    // Shell 和终端
+    "SHELL", "TERM", "COLORTERM",
+    // 本地化
+    "LANG", "LANGUAGE", "LC_*",
+    // 时区
+    "TZ",
+    // 临时目录
+    "TMPDIR", "TEMP", "TMP",
+    // 显示（GUI 应用）
+    "DISPLAY", "WAYLAND_DISPLAY",
+    // XDG 目录（Linux）
+    "XDG_*",
+];
+```
+
+Provider 只需添加**额外**需要的变量，如：
+- **Git**: `SSH_AUTH_SOCK`, `GPG_TTY`（SSH agent 和 GPG 签名）
+- **CMake**: `CC`, `CXX`, `CFLAGS`, `CXXFLAGS`, `LDFLAGS`（编译器配置）
+- **Docker**: `DOCKER_HOST`, `DOCKER_CONFIG`（Docker daemon 配置）
+
 #### Python
 
 ```toml
 [env]
-# ✅ 好的做法：设置 Python 特定的配置
+# 注意：避免设置 PYTHONPATH 以避免干扰模块搜索路径
+# Python 会自动使用 site-packages
+# 用户应该使用虚拟环境（uv venv, venv, poetry 等）进行包管理
 vars = { PYTHONDONTWRITEBYTECODE = "1" }
 
-# ❌ 避免的做法：设置 PYTHONPATH
-# vars = { PYTHONPATH = "{install_dir}/lib/python{version}" }
+[env.advanced]
+# PATH 配置（按优先级排序）
+path_prepend = ["{install_dir}/bin", "{install_dir}/Scripts"]
+# 隔离模式：不从系统环境继承 PYTHON_* 变量
+isolate = true
+# 默认系统变量（HOME, USER, SHELL, TERM 等）已自动继承
+# 无需显式指定 inherit_system_vars
 ```
 
 **原因**：
@@ -54,11 +90,14 @@ vars = { PYTHONDONTWRITEBYTECODE = "1" }
 
 ```toml
 [env]
-# ✅ 好的做法：不设置 NODE_PATH
+# 注意：不设置 NODE_PATH 以避免干扰 node_modules 解析
+# Node.js 默认从当前目录向上查找 node_modules
 vars = { }
 
-# ❌ 避免的做法：设置 NODE_PATH
-# vars = { NODE_PATH = "{install_dir}/lib/node_modules" }
+[env.advanced]
+path_prepend = ["{install_dir}/bin"]
+# 隔离模式：不从系统环境继承 NODE_* 变量
+# 默认系统变量（HOME, USER, SHELL, TERM 等）已自动继承
 ```
 
 **原因**：
@@ -70,11 +109,13 @@ vars = { }
 
 ```toml
 [env]
-# ✅ 好的做法：只设置 GOROOT 和 GOBIN
+# Go 需要明确设置 GOROOT 和 GOBIN
 vars = { GOROOT = "{install_dir}", GOBIN = "{install_dir}/bin" }
 
-# ❌ 避免的做法：设置 GOPATH
-# vars = { GOPATH = "{install_dir}/go" }
+[env.advanced]
+path_prepend = ["{install_dir}/bin"]
+# 隔离模式：不从系统环境继承 GO_* 变量
+# 默认系统变量已自动继承，无需额外配置
 ```
 
 **原因**：
@@ -86,11 +127,13 @@ vars = { GOROOT = "{install_dir}", GOBIN = "{install_dir}/bin" }
 
 ```toml
 [env]
-# ✅ 好的做法：只设置 RUSTUP_HOME
+# Rust 工具链的环境变量
 vars = { RUSTUP_HOME = "$HOME/.rustup" }
 
-# ❌ 避免的做法：设置 CARGO_HOME
-# vars = { CARGO_HOME = "{install_dir}/cargo" }
+[env.advanced]
+path_prepend = ["$HOME/.cargo/bin", "{install_dir}/bin"]
+# 隔离模式：不从系统环境继承 RUST_* 变量
+# 默认系统变量已自动继承，无需额外配置
 ```
 
 **原因**：
@@ -201,7 +244,11 @@ vars = { PYTHONDONTWRITEBYTECODE = "1" }
 # PATH 配置（按优先级排序）
 path_prepend = ["{install_dir}/bin", "{install_dir}/Scripts"]
 # 隔离模式：不从系统环境继承特定变量
-inherit_system_vars = ["HOME", "USER", "LANG", "LC_*", "TZ"]
+isolate = true
+# 默认系统变量（HOME, USER, SHELL, TERM, LANG, LC_*, TZ, TMPDIR, TEMP, TMP 等）
+# 已自动继承，无需显式指定
+# 只需添加 provider 特定的额外变量：
+inherit_system_vars = ["SSH_AUTH_SOCK", "GPG_TTY"]  # 例如 Git 需要的
 ```
 
 ### 支持的占位符
@@ -237,13 +284,15 @@ vars = { PYTHONDONTWRITEBYTECODE = "1" }
 path_prepend = ["{install_dir}/bin", "{install_dir}/Scripts"]
 # 隔离模式：不从系统环境继承 PYTHON_* 变量
 isolate = true
-inherit_system_vars = ["HOME", "USER", "LANG", "LC_*", "TZ"]
+# 默认系统变量（HOME, USER, SHELL, TERM 等）已自动继承
+# 无需显式指定 inherit_system_vars
 ```
 
 **设计原则**：
 - ✅ **不设置 PYTHONPATH**：让 Python 正常查找 `site-packages` 和项目依赖
 - ✅ **使用虚拟环境**：用户应该通过 `uv venv`、`venv`、`poetry` 等创建隔离的 Python 环境
 - ✅ **环境隔离**：通过 `isolate = true` 确保不继承系统的 PYTHON_* 变量
+- ✅ **默认继承**：HOME, USER, SHELL, TERM, LANG 等系统变量自动继承
 
 #### Node.js Provider
 
@@ -269,13 +318,14 @@ vars = { }
 [env.advanced]
 path_prepend = ["{install_dir}/bin"]
 # 隔离模式：不从系统环境继承 NODE_* 变量
-inherit_system_vars = ["HOME", "USER", "LANG", "LC_*", "TZ"]
+# 默认系统变量（HOME, USER, SHELL, TERM 等）已自动继承
 ```
 
 **设计原则**：
 - ✅ **不设置 NODE_PATH**：让 Node.js 正常查找 `node_modules`（项目或全局）
 - ✅ **使用 pnpm/yarn/bun**：这些工具有更好的 workspace 和 monorepo 支持
 - ✅ **环境隔离**：不继承系统的 NODE_* 变量，避免冲突
+- ✅ **默认继承**：HOME, USER, SHELL, TERM 等系统变量自动继承
 
 #### Go Provider
 
@@ -295,7 +345,7 @@ vars = { GOROOT = "{install_dir}", GOBIN = "{install_dir}/bin" }
 [env.advanced]
 path_prepend = ["{install_dir}/bin"]
 # 隔离模式：不从系统环境继承 GO_* 变量
-inherit_system_vars = ["HOME", "USER", "LANG", "LC_*", "TZ"]
+# 默认系统变量（HOME, USER, SHELL, TERM 等）已自动继承
 ```
 
 **设计原则**：
@@ -303,6 +353,7 @@ inherit_system_vars = ["HOME", "USER", "LANG", "LC_*", "TZ"]
 - ✅ **不设置 GOPATH**：让 Go 使用默认的 `$HOME/go`，用户可以在自己的目录下安装包
 - ✅ **支持 Go modules**：Go 1.11+ 使用 Go modules，不需要 GOPATH
 - ✅ **环境隔离**：不继承系统的 GO_* 变量
+- ✅ **默认继承**：HOME, USER, SHELL, TERM 等系统变量自动继承
 
 #### Rust Provider
 
@@ -326,7 +377,7 @@ vars = { RUSTUP_HOME = "$HOME/.rustup" }
 # cargo/bin 应该在 PATH 前面，这样用户安装的工具优先
 path_prepend = ["$HOME/.cargo/bin", "{install_dir}/bin"]
 # 隔离模式：不从系统环境继承 RUST_* 变量
-inherit_system_vars = ["HOME", "USER", "LANG", "LC_*", "TZ"]
+# 默认系统变量（HOME, USER, SHELL, TERM 等）已自动继承
 ```
 
 **设计原则**：
@@ -334,6 +385,7 @@ inherit_system_vars = ["HOME", "USER", "LANG", "LC_*", "TZ"]
 - ✅ **不设置 CARGO_HOME**：让 Cargo 使用默认的 `$HOME/.cargo`，用户可以通过 `~/.cargo/config` 自定义
 - ✅ **支持 workspace**：用户可以在自己的目录下创建 Rust workspace
 - ✅ **环境隔离**：不继承系统的 RUST_* 变量
+- ✅ **默认继承**：HOME, USER, SHELL, TERM 等系统变量自动继承
 
 ## 在 env handler 中使用
 

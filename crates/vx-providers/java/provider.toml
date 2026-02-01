@@ -25,8 +25,8 @@ vars = { JAVA_HOME = "{install_dir}" }
 
 [runtimes.env.advanced]
 path_prepend = ["{install_dir}/bin"]
-# Inherit system vars for shell scripts that Java tools may spawn
-inherit_system_vars = ["HOME", "USER", "SHELL", "TERM", "LANG", "LC_*", "TZ", "TMPDIR", "TEMP", "TMP"]
+# Default system vars are automatically inherited
+# No extra vars needed (JAVA_HOME is set above)
 
 # RFC 0019: Java JDK has complex structure
 [runtimes.layout]

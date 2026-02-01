@@ -1,6 +1,47 @@
 use crate::VersionRequest;
 use serde::{Deserialize, Serialize};
 
+/// Default system environment variables to inherit when isolated.
+///
+/// These are essential for child processes (e.g., shell scripts, postinstall hooks)
+/// to function correctly. Providers can extend this list with `extra_inherit_system_vars`.
+///
+/// Categories:
+/// - User/Session: HOME, USER, USERNAME, USERPROFILE, LOGNAME
+/// - Shell: SHELL, TERM, COLORTERM
+/// - Locale: LANG, LANGUAGE, LC_*
+/// - Timezone: TZ
+/// - Temp dirs: TMPDIR, TEMP, TMP
+/// - Display: DISPLAY, WAYLAND_DISPLAY (for GUI apps)
+/// - XDG: XDG_* (Linux desktop integration)
+pub const DEFAULT_INHERIT_SYSTEM_VARS: &[&str] = &[
+    // User and session
+    "HOME",
+    "USER",
+    "USERNAME",      // Windows
+    "USERPROFILE",   // Windows
+    "LOGNAME",
+    // Shell and terminal
+    "SHELL",
+    "TERM",
+    "COLORTERM",
+    // Locale
+    "LANG",
+    "LANGUAGE",
+    "LC_*", // Glob pattern for all LC_ variables
+    // Timezone
+    "TZ",
+    // Temporary directories
+    "TMPDIR", // Unix
+    "TEMP",   // Windows
+    "TMP",    // Windows alternative
+    // Display (for GUI apps)
+    "DISPLAY",
+    "WAYLAND_DISPLAY",
+    // XDG directories (Linux)
+    "XDG_*", // Glob pattern for XDG_RUNTIME_DIR, XDG_CONFIG_HOME, etc.
+];
+
 /// Environment variable configuration
 ///
 /// Supports static, dynamic (template), and conditional environment variables.
@@ -47,9 +88,22 @@ pub struct AdvancedEnvConfig {
     #[serde(default = "default_isolate_env")]
     pub isolate: bool,
 
-    /// Which system environment variables to inherit when isolated
+    /// Which system environment variables to inherit when isolated.
+    ///
+    /// **Note**: This field is additive to `DEFAULT_INHERIT_SYSTEM_VARS`.
+    /// The default system vars are always included. Use this field to add
+    /// provider-specific variables (e.g., `SSH_AUTH_SOCK`, `GPG_TTY` for git).
+    ///
+    /// If you need to override the defaults entirely, use `inherit_system_vars_override`.
     #[serde(default)]
     pub inherit_system_vars: Vec<String>,
+
+    /// Override the default system variables completely (advanced use only).
+    ///
+    /// When set to `true`, `inherit_system_vars` replaces the defaults
+    /// instead of extending them.
+    #[serde(default)]
+    pub inherit_system_vars_override: bool,
 }
 
 /// Configuration for individual environment variables
@@ -101,11 +155,48 @@ impl EnvConfig {
         self.advanced.as_ref().map(|a| a.isolate).unwrap_or(true)
     }
 
-    /// Get system variables to inherit when isolated
+    /// Get system variables to inherit when isolated (legacy method)
+    #[deprecated(
+        since = "0.5.0",
+        note = "Use `effective_inherit_system_vars()` instead which includes defaults"
+    )]
     pub fn inherit_system_vars(&self) -> &[String] {
         self.advanced
             .as_ref()
             .map(|a| &a.inherit_system_vars[..])
             .unwrap_or(&[])
+    }
+
+    /// Get the effective list of system variables to inherit.
+    ///
+    /// This combines `DEFAULT_INHERIT_SYSTEM_VARS` with provider-specific
+    /// `inherit_system_vars`, unless `inherit_system_vars_override` is set.
+    pub fn effective_inherit_system_vars(&self) -> Vec<String> {
+        match &self.advanced {
+            Some(advanced) if advanced.inherit_system_vars_override => {
+                // Override mode: use only the explicitly specified vars
+                advanced.inherit_system_vars.clone()
+            }
+            Some(advanced) => {
+                // Additive mode: defaults + extra
+                let mut result: Vec<String> = DEFAULT_INHERIT_SYSTEM_VARS
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect();
+                for var in &advanced.inherit_system_vars {
+                    if !result.contains(var) {
+                        result.push(var.clone());
+                    }
+                }
+                result
+            }
+            None => {
+                // No advanced config: use defaults
+                DEFAULT_INHERIT_SYSTEM_VARS
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect()
+            }
+        }
     }
 }
