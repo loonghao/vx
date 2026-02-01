@@ -1,6 +1,5 @@
 use crate::VersionRequest;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 
 /// Default system environment variables to inherit when isolated.
 ///
@@ -127,32 +126,43 @@ pub fn filter_system_path(path: &str) -> String {
 
     let filtered: Vec<&str> = path
         .split(separator)
-        .filter(|entry| {
-            let entry_path = Path::new(entry);
-            is_system_path(entry_path)
-        })
+        .filter(|entry| !entry.is_empty() && is_system_path_str(entry))
         .collect();
 
     filtered.join(&separator.to_string())
 }
 
-/// Check if a path is a system path that should be inherited.
-fn is_system_path(path: &Path) -> bool {
-    let path_str = path.to_string_lossy();
+/// Check if a path string is a system path that should be inherited.
+///
+/// Uses string comparison only, avoiding `Path::new()` to prevent issues
+/// with invalid path characters on different platforms.
+fn is_system_path_str(path_str: &str) -> bool {
+    // Normalize path separators for comparison
+    let normalized = if cfg!(windows) {
+        path_str.to_lowercase()
+    } else {
+        path_str.to_string()
+    };
 
     for prefix in SYSTEM_PATH_PREFIXES {
+        // Skip Windows prefixes on Unix and vice versa
+        let is_windows_prefix = prefix.contains('\\') || prefix.starts_with("C:");
+        let is_unix_prefix = prefix.starts_with('/');
+
         if cfg!(windows) {
+            if !is_windows_prefix {
+                continue;
+            }
             // Case-insensitive comparison on Windows
-            if path_str.to_lowercase().starts_with(&prefix.to_lowercase()) {
+            if normalized.starts_with(&prefix.to_lowercase()) {
                 return true;
             }
         } else {
-            // Case-sensitive on Unix
-            if path_str.starts_with(prefix) {
-                return true;
+            if !is_unix_prefix {
+                continue;
             }
-            // Also check if it equals the prefix exactly
-            if path_str.as_ref() == *prefix {
+            // Case-sensitive on Unix
+            if path_str.starts_with(prefix) || path_str == *prefix {
                 return true;
             }
         }
