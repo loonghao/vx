@@ -66,7 +66,8 @@ jobs:
       always() &&
       (
         (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
-        github.event_name == 'workflow_dispatch'
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'push' && contains(github.event.head_commit.message, 'chore: release'))
       )
     outputs:
       tag_name: ${{ steps.get-tag.outputs.tag_name }}
@@ -82,9 +83,29 @@ jobs:
               # Get latest release tag
               TAG=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
             fi
+          elif [ "${{ github.event_name }}" == "push" ] && [ -n "${{ needs.release-please.outputs.tag_name }}" ]; then
+            # Use release-please output if available (release was just created)
+            TAG="${{ needs.release-please.outputs.tag_name }}"
+          elif [ "${{ github.event_name }}" == "push" ] && [ -n "${{ github.event.head_commit.message }}" ]; then
+            # Extract version from commit message like "chore: release v0.6.24" -> "v0.6.24"
+            # This handles the case when release-please PR is merged
+            EXTRACTED_VERSION=$(echo "${{ github.event.head_commit.message }}" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+            if [ -n "$EXTRACTED_VERSION" ]; then
+              TAG="$EXTRACTED_VERSION"
+            else
+              # Fallback to latest release from API
+              TAG=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+            fi
           else
             TAG="${{ needs.release-please.outputs.tag_name }}"
           fi
+
+          # Validate we got a tag
+          if [ -z "$TAG" ] || [ "$TAG" == "null" ]; then
+            echo "❌ Could not determine tag to build"
+            exit 1
+          fi
+
           echo "tag_name=${TAG}" >> $GITHUB_OUTPUT
           # Extract version number: vx-v0.5.0 -> 0.5.0, v0.5.0 -> 0.5.0
           VERSION=$(echo "${TAG}" | sed -E 's/^(vx-)?v//')

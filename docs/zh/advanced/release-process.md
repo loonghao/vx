@@ -47,6 +47,41 @@ vx 使用以下版本标签格式:
 VERSION=$(echo "${TAG}" | sed -E 's/^(vx-)?v//')
 ```
 
+#### 工作流触发逻辑
+
+发布工作流使用复杂的触发机制来处理不同场景:
+
+| 场景 | Release-Please 作业 | 构建作业 | 说明 |
+|------|-------------------|---------|------|
+| 常规推送 (feat, fix 等) | 运行 | 如果创建了发布则触发 | 正常开发流程 |
+| 发布 PR 合并 (`chore: release vX.Y.Z`) | **跳过** | **触发** | 从提交消息中提取版本 |
+| Dependabot PR (`chore(deps): bump...`) | 跳过 | 不触发 | 防止重复构建 |
+| 手动工作流触发 | 跳过 | 触发 | 紧急/手动发布 |
+
+**核心逻辑**:
+```yaml
+# Release-please 作业跳过发布提交以防止递归
+if: |
+  github.event_name == 'push' &&
+  github.ref == 'refs/heads/main' &&
+  !contains(github.event.head_commit.message, 'chore: release') &&
+  github.event.head_commit.author.name != 'github-actions[bot]'
+
+# 构建作业在以下情况触发:
+# 1. Release-please 创建了发布
+# 2. 发布 PR 合并 (通过提交消息检测)
+# 3. 手动工作流触发
+if: |
+  always() &&
+  (
+    (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
+    github.event_name == 'workflow_dispatch' ||
+    (github.event_name == 'push' && contains(github.event.head_commit.message, 'chore: release'))
+  )
+```
+
+这确保了当发布 PR 被合并时(例如 "chore: release v0.6.24")，即使 release-please 被跳过，构建作业仍会运行。
+
 ### 包管理器工作流 (`.github/workflows/package-managers.yml`)
 
 此工作流在发布工作流完成后运行,并发布到包管理器。
@@ -75,9 +110,25 @@ normalized_version="${normalized_version#v}"
 - **Homebrew** (`publish-homebrew`): 生成带校验和的 formula
 - **Scoop** (`publish-scoop`): 创建 JSON 清单
 
-## 测试版本提取
+## 测试发布工作流逻辑
 
-项目包含测试脚本来验证版本提取逻辑:
+项目包含测试来验证发布工作流触发逻辑:
+
+### 运行工作流测试
+
+```bash
+cargo test --test release_workflow_tests
+```
+
+这验证:
+- 从提交消息中提取版本
+- 版本规范化
+- 发布提交检测
+- 不同场景的工作流触发条件
+
+### 测试版本提取
+
+项目还包含测试脚本来验证版本提取逻辑:
 
 ### 测试版本规范化
 
@@ -112,6 +163,27 @@ bash scripts/test-winget-version.sh
 每个包管理器都可以通过运行相应的作业独立发布。
 
 ## 故障排除
+
+### 发布工作流未触发
+
+**问题**: 合并发布 PR 后(例如 "chore: release v0.6.24")，构建作业没有运行。
+
+**原因**: 原始工作流逻辑要求 `release-please` 作业成功并创建发布。但是，当发布 PR 被合并时，`release-please` 作业会被有意跳过以防止递归 PR 创建。这导致 `get-tag` 作业(及后续构建作业)也被跳过。
+
+**解决方案**: 工作流现在包含额外的条件来检测发布 PR 合并:
+
+```yaml
+# 构建作业现在在发布 PR 合并时触发
+if: |
+  always() &&
+  (
+    (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
+    github.event_name == 'workflow_dispatch' ||
+    (github.event_name == 'push' && contains(github.event.head_commit.message, 'chore: release'))  # <-- 新增
+  )
+```
+
+当提交消息包含 "chore: release" 时，工作流会从消息中提取版本并继续构建。
 
 ### WinGet 版本问题
 
