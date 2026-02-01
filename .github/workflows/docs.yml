@@ -45,20 +45,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-vx-docs-
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: docs/package-lock.json
+      - name: Install Node.js via vx
+        run: vx install node
 
       - name: Install dependencies
         working-directory: docs
-        run: npm ci
+        run: vx npm ci
 
       - name: Build documentation
         working-directory: docs
-        run: npm run build
+        run: vx npm run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
