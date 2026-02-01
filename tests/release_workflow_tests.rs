@@ -98,7 +98,7 @@ fn test_is_release_commit_with_leading_whitespace() {
     assert!(is_release_commit("\nchore: release v0.6.24"));
     assert!(is_release_commit("\tchore: release v0.6.24"));
     assert!(is_release_commit("   chore: release v1.0.0"));
-    
+
     // Non-release commits with whitespace should still return false
     assert!(!is_release_commit("  feat: add feature"));
     assert!(!is_release_commit("\nchore(deps): bump package"));
@@ -138,8 +138,7 @@ fn extract_version_from_commit(message: &str) -> Option<&str> {
     // Extract version pattern vX.Y.Z from commit message
     // This mirrors the grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' logic in the workflow
     let patterns = [
-        "v0.", "v1.", "v2.", "v3.", "v4.", "v5.",
-        "v6.", "v7.", "v8.", "v9.",
+        "v0.", "v1.", "v2.", "v3.", "v4.", "v5.", "v6.", "v7.", "v8.", "v9.",
     ];
 
     for pattern in &patterns {
@@ -178,10 +177,7 @@ fn is_release_commit(message: &str) -> bool {
 fn should_trigger_build(event_name: &str, commit_message: &str, release_created: bool) -> bool {
     match event_name {
         "workflow_dispatch" => true,
-        "push" => {
-            release_created
-                || is_release_commit(commit_message)
-        }
+        "push" => release_created || is_release_commit(commit_message),
         _ => false,
     }
 }
@@ -206,40 +202,30 @@ mod workflow_condition_tests {
         println!("✅ Dependabot PR merge: No build triggered (correct)");
 
         // Scenario 2: Feature commit (should NOT trigger build unless release-please creates release)
-        let result = should_trigger_build(
-            "push",
-            "feat: add new provider support",
-            false,
+        let result = should_trigger_build("push", "feat: add new provider support", false);
+        assert!(
+            !result,
+            "Regular commits without release should NOT trigger builds"
         );
-        assert!(!result, "Regular commits without release should NOT trigger builds");
         println!("✅ Feature commit without release: No build triggered (correct)");
 
         // Scenario 3: Release PR merge (SHOULD trigger build even without release_created)
         // This is the key fix - previously this would fail
-        let result = should_trigger_build(
-            "push",
-            "chore: release v0.6.24",
-            false,
-        );
+        let result = should_trigger_build("push", "chore: release v0.6.24", false);
         assert!(result, "Release PR merge SHOULD trigger build");
         println!("✅ Release PR merge: Build triggered (FIXED!)");
 
         // Scenario 4: Manual workflow dispatch (should always trigger)
-        let result = should_trigger_build(
-            "workflow_dispatch",
-            "any message",
-            false,
-        );
+        let result = should_trigger_build("workflow_dispatch", "any message", false);
         assert!(result, "Manual dispatch should always trigger build");
         println!("✅ Manual workflow dispatch: Build triggered (correct)");
 
         // Scenario 5: Release-please creates release on regular push
-        let result = should_trigger_build(
-            "push",
-            "feat: another feature",
-            true,
+        let result = should_trigger_build("push", "feat: another feature", true);
+        assert!(
+            result,
+            "When release-please creates release, build should trigger"
         );
-        assert!(result, "When release-please creates release, build should trigger");
         println!("✅ Release-please creates release: Build triggered (correct)");
 
         println!("\n✅ All workflow trigger scenarios passed!");
