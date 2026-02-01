@@ -45,8 +45,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-vx-docs-
 
-      - name: Install Node.js via vx
-        run: vx install node
+      # vx automatically installs Node.js when running npm commands
+      # No need for explicit "vx install node" step
 
       - name: Install dependencies
         working-directory: docs
