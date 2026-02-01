@@ -43,6 +43,12 @@ executable_extensions = [".exe"]
 [runtimes.platforms.unix]
 executable_extensions = []
 
+# RFC 0018: Environment configuration
+# Deno may spawn shell processes for tasks and scripts
+[runtimes.env.advanced]
+path_prepend = ["{install_dir}"]
+inherit_system_vars = ["HOME", "USER", "SHELL", "TERM", "LANG", "LC_*", "TZ", "TMPDIR", "TEMP", "TMP"]
+
 # Deno is self-contained, no external dependencies required
 [[runtimes.constraints]]
 when = "*"

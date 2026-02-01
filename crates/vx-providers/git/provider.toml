@@ -50,6 +50,12 @@ executable_extensions = [".exe"]
 [runtimes.platforms.unix]
 executable_extensions = []
 
+# RFC 0018: Environment configuration
+# Git runs hooks and external commands that need shell access
+[runtimes.env.advanced]
+path_prepend = ["{install_dir}/bin", "{install_dir}/mingw64/bin", "{install_dir}/usr/bin"]
+inherit_system_vars = ["HOME", "USER", "SHELL", "TERM", "LANG", "LC_*", "TZ", "TMPDIR", "TEMP", "TMP", "SSH_AUTH_SOCK", "GPG_TTY"]
+
 # RFC 0021: System-level dependencies
 [runtimes.system_deps]
 # Windows 8.1 requires KB2919355 for some Git features
