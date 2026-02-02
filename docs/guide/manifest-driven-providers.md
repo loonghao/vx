@@ -253,6 +253,18 @@ vars = { PATH = "{install_dir}/bin" }
 ">=18" = { NODE_OPTIONS = "--experimental-vm-modules" }
 ```
 
+**Template Variables:**
+
+The following template variables are supported in environment variable values:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{install_dir}` | Installation directory of the runtime | `~/.vx/store/python/3.11.0` |
+| `{version}` | Version of the runtime | `3.11.0` |
+| `{executable}` | Path to the executable | `~/.vx/store/python/3.11.0/bin/python` |
+
+These variables are automatically expanded when the runtime is executed.
+
 ### Mirror Configuration
 
 Define download mirrors for different regions:

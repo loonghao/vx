@@ -295,9 +295,14 @@ fn test_extract_version_from_url(#[case] url: &str, #[case] expected_version: &s
 // ============================================================================
 
 /// Check if version_a is newer than version_b using semver comparison
+/// Supports formats: "0.6.27", "v0.6.27", "0.6.27-beta.1"
 fn is_newer_version(version_a: &str, version_b: &str) -> bool {
     let parse_version = |v: &str| -> (u64, u64, u64) {
-        let parts: Vec<&str> = v.split('.').collect();
+        let version_part = v
+            .trim_start_matches("vx-v")
+            .trim_start_matches("x-v")
+            .trim_start_matches('v');
+        let parts: Vec<&str> = version_part.split('.').collect();
         let major = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
         let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
         let patch = parts
@@ -311,6 +316,29 @@ fn is_newer_version(version_a: &str, version_b: &str) -> bool {
     parse_version(version_a) > parse_version(version_b)
 }
 
+/// Extract semver tuple from version string (same logic as production code)
+/// Supports formats: "vx-v0.6.27", "v0.6.27", "0.6.27", "0.6.27-beta.1"
+fn extract_semver(v: &str) -> Option<(u64, u64, u64)> {
+    let version_part = v
+        .trim_start_matches("vx-v")
+        .trim_start_matches("x-v")
+        .trim_start_matches('v');
+    let parts: Vec<&str> = version_part.split('.').collect();
+    if parts.len() >= 2 {
+        let major = parts[0].parse::<u64>().ok()?;
+        let minor = parts[1].parse::<u64>().ok()?;
+        // Patch is optional, default to 0
+        let patch = parts
+            .get(2)
+            .and_then(|p| p.split('-').next())
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(0);
+        Some((major, minor, patch))
+    } else {
+        None
+    }
+}
+
 #[rstest]
 #[case("1.0.0", "0.9.9", true)]
 #[case("0.5.29", "0.5.28", true)]
@@ -321,6 +349,15 @@ fn is_newer_version(version_a: &str, version_b: &str) -> bool {
 #[case("0.5.28", "0.5.28", false)]
 #[case("0.4.0", "0.5.0", false)]
 #[case("0.5.28-beta", "0.5.28", false)] // Pre-release handling
+// Test prefixed version formats (vx-v, x-v, v)
+#[case("vx-v0.6.27", "vx-v0.6.26", true)]
+#[case("vx-v0.6.27", "v0.6.26", true)]
+#[case("vx-v0.6.27", "0.6.26", true)]
+#[case("v0.6.27", "vx-v0.6.26", true)]
+#[case("x-v0.6.27", "vx-v0.6.26", true)]
+// Test the specific bug case: 0.6.27 should NOT downgrade to 0.6.26
+#[case("0.6.26", "0.6.27", false)]
+#[case("vx-v0.6.26", "vx-v0.6.27", false)]
 fn test_is_newer_version(#[case] version_a: &str, #[case] version_b: &str, #[case] expected: bool) {
     assert_eq!(
         is_newer_version(version_a, version_b),
@@ -330,6 +367,59 @@ fn test_is_newer_version(#[case] version_a: &str, #[case] version_b: &str, #[cas
         version_b,
         expected
     );
+}
+
+// ============================================================================
+// Semver extraction tests (for CDN version parsing)
+// ============================================================================
+
+#[rstest]
+#[case("vx-v0.6.27", Some((0, 6, 27)))]
+#[case("x-v0.6.27", Some((0, 6, 27)))]
+#[case("v0.6.27", Some((0, 6, 27)))]
+#[case("0.6.27", Some((0, 6, 27)))]
+// Two-part versions (patch defaults to 0)
+#[case("0.6", Some((0, 6, 0)))]
+#[case("v0.6", Some((0, 6, 0)))]
+#[case("vx-v0.6", Some((0, 6, 0)))]
+// Pre-release versions
+#[case("0.6.27-beta.1", Some((0, 6, 27)))]
+#[case("vx-v0.6.27-beta.1", Some((0, 6, 27)))]
+// Edge cases
+#[case("1.0.0", Some((1, 0, 0)))]
+#[case("10.20.30", Some((10, 20, 30)))]
+// Invalid versions
+#[case("invalid", None)]
+#[case("", None)]
+#[case("v", None)]
+fn test_extract_semver(#[case] input: &str, #[case] expected: Option<(u64, u64, u64)>) {
+    assert_eq!(
+        extract_semver(input),
+        expected,
+        "extract_semver({}) should be {:?}",
+        input,
+        expected
+    );
+}
+
+#[rstest]
+fn test_extract_semver_for_cdn_versions() {
+    // Simulate CDN version list parsing
+    let cdn_versions = vec![
+        "vx-v0.6.25",
+        "vx-v0.6.26",
+        "vx-v0.6.27",
+        "vx-v0.5.28",
+        "vx-v0.5.29",
+    ];
+
+    let latest = cdn_versions
+        .iter()
+        .filter_map(|v| extract_semver(v).map(|ver| (*v, ver)))
+        .max_by(|a, b| a.1.cmp(&b.1))
+        .map(|(v, _)| v);
+
+    assert_eq!(latest, Some("vx-v0.6.27"), "Should correctly identify latest version from CDN list");
 }
 
 // ============================================================================
