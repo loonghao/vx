@@ -474,7 +474,7 @@ mod template_expansion_tests {
     /// Test that invalid version directories are filtered
     #[test]
     fn test_version_filtering() {
-        let candidates = vec!["20.0.0", "temp", "18.0.0", ".cache", "invalid"];
+        let candidates = ["20.0.0", "temp", "18.0.0", ".cache", "invalid"];
         let valid: Vec<&str> = candidates
             .iter()
             .filter(|v| vx_core::version_utils::parse_version(v).is_some())
@@ -627,7 +627,7 @@ mod install_dir_regression_tests {
     /// When scanning versions, we scan directories like "20.0.0" not "20.0.0-linux-x64"
     #[test]
     fn test_regression_version_directory_names() {
-        let version_dirs = vec![
+        let version_dirs = [
             "20.0.0",    // Valid version directory
             "18.0.0",    // Valid version directory
             ".tmp",      // Hidden directory (should be ignored)
