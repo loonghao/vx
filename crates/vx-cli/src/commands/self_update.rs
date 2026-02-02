@@ -139,9 +139,14 @@ pub async fn handle(
 }
 
 /// Check if version_a is newer than version_b using semver comparison
+/// Supports formats: "0.6.27", "v0.6.27", "0.6.27-beta.1"
 fn is_newer_version(version_a: &str, version_b: &str) -> bool {
     let parse_version = |v: &str| -> (u64, u64, u64) {
-        let parts: Vec<&str> = v.split('.').collect();
+        let version_part = v
+            .trim_start_matches("vx-v")
+            .trim_start_matches("x-v")
+            .trim_start_matches('v');
+        let parts: Vec<&str> = version_part.split('.').collect();
         let major = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
         let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
         let patch = parts
@@ -797,16 +802,22 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
     };
 
     // Helper function to extract semver for comparison
+    // Supports formats: "vx-v0.6.27", "v0.6.27", "0.6.27", "0.6.27-beta.1"
     let extract_semver = |v: &str| -> Option<(u64, u64, u64)> {
         let version_part = v
             .trim_start_matches("vx-v")
             .trim_start_matches("x-v")
             .trim_start_matches('v');
         let parts: Vec<&str> = version_part.split('.').collect();
-        if parts.len() >= 3 {
+        if parts.len() >= 2 {
             let major = parts[0].parse::<u64>().ok()?;
             let minor = parts[1].parse::<u64>().ok()?;
-            let patch = parts[2].split('-').next()?.parse::<u64>().ok()?;
+            // Patch is optional, default to 0
+            let patch = parts
+                .get(2)
+                .and_then(|p| p.split('-').next())
+                .and_then(|p| p.parse().ok())
+                .unwrap_or(0);
             Some((major, minor, patch))
         } else {
             None

@@ -556,15 +556,47 @@ impl<'a> Executor<'a> {
             // Replace {install_dir} using PathProvider
             // The install_dir is: ~/.vx/store/<runtime>/<version>/<platform>
             if result.contains("{install_dir}") {
-                if let (Some(ctx), Some(ver)) = (self.context, version) {
-                    // Get the version store directory and add platform subdirectory
+                // Try to determine the install directory
+                let install_dir = if let (Some(ctx), Some(ver)) = (self.context, version) {
+                    // Use provided version
                     let version_dir = ctx.paths.version_store_dir(runtime_name, ver);
                     let platform = vx_paths::manager::CurrentPlatform::current();
-                    let install_dir = version_dir.join(platform.as_str());
-                    result = result.replace("{install_dir}", &install_dir.to_string_lossy());
+                    Some(version_dir.join(platform.as_str()))
+                } else if let Some(ctx) = self.context {
+                    // No version provided, try to get installed version from filesystem
+                    let runtime_store_dir = ctx.paths.runtime_store_dir(runtime_name);
+                    if let Ok(entries) = std::fs::read_dir(&runtime_store_dir) {
+                        let versions: Vec<String> = entries
+                            .filter_map(|e| e.ok())
+                            .filter(|e| e.path().is_dir())
+                            .filter_map(|e| e.file_name().into_string().ok())
+                            .collect();
+                        if !versions.is_empty() {
+                            // Use the first (latest) installed version
+                            let latest_version = &versions[0];
+                            let version_dir = ctx.paths.version_store_dir(runtime_name, latest_version);
+                            let platform = vx_paths::manager::CurrentPlatform::current();
+                            Some(version_dir.join(platform.as_str()))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                if let Some(dir) = install_dir {
+                    result = result.replace("{install_dir}", &dir.to_string_lossy());
                     debug!(
                         "  expand_template: {{install_dir}} -> {}",
-                        install_dir.display()
+                        dir.display()
+                    );
+                } else {
+                    warn!(
+                        "Could not expand {{install_dir}} for {}: no version available",
+                        runtime_name
                     );
                 }
             }
