@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.25](https://github.com/loonghao/vx/compare/vx-v0.6.24...vx-v0.6.25) (2026-02-02)
+
+
+### Bug Fixes
+
+* **ci:** ensure system paths available for npm postinstall scripts ([91e4f51](https://github.com/loonghao/vx/commit/91e4f51a926bf42a10dd4fadcd24341ee6108bca))
+* **ci:** handle cancelled jobs and empty test_packages fallback ([c09e5ff](https://github.com/loonghao/vx/commit/c09e5ff1b342054098efd9e5ea42d649f3005bd7))
+* **ci:** resolve release workflow trigger issue ([e08dc7d](https://github.com/loonghao/vx/commit/e08dc7d77987b937e85917684f4265418d68f406))
+* **ci:** use actions/setup-node instead of vx for docs build ([a45dff3](https://github.com/loonghao/vx/commit/a45dff3aff704350ad7acc3ee5dd35ba977845d0))
+* **executor:** ensure essential system paths in build_command ([c1e7fb8](https://github.com/loonghao/vx/commit/c1e7fb8f32816c9419843593322c40c112002e7c))
+* **executor:** ensure essential system paths in isolated mode ([d1ca27c](https://github.com/loonghao/vx/commit/d1ca27cc1e402496481e57a0de4944e458c99d36))
+* **tests:** handle leading whitespace in release commit detection and use --inherit-env in CI ([83e6419](https://github.com/loonghao/vx/commit/83e641969b0cb0fa5ca1bf6f91113c70f1abd538))
+
 ## [0.6.24](https://github.com/loonghao/vx/compare/vx-v0.6.23...vx-v0.6.24) (2026-02-01)
 
 
