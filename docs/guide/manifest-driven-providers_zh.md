@@ -253,6 +253,18 @@ vars = { PATH = "{install_dir}/bin" }
 ">=18" = { NODE_OPTIONS = "--experimental-vm-modules" }
 ```
 
+**模板变量：**
+
+环境变量值支持以下模板变量：
+
+| 变量 | 描述 | 示例 |
+|------|------|------|
+| `{install_dir}` | 运行时的安装目录 | `~/.vx/store/python/3.11.0` |
+| `{version}` | 运行时版本 | `3.11.0` |
+| `{executable}` | 可执行文件路径 | `~/.vx/store/python/3.11.0/bin/python` |
+
+这些变量在运行时被自动展开。
+
 ### 镜像配置
 
 为不同地区定义下载镜像：

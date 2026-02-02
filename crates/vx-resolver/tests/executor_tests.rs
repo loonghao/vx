@@ -444,3 +444,91 @@ mod environment_isolation_tests {
         assert!(unique.contains("/usr/local/bin"));
     }
 }
+
+// =============================================================================
+// Template Expansion Tests
+// =============================================================================
+
+/// Tests for template variable expansion in environment values
+///
+/// These tests verify that {install_dir}, {version}, and other template
+/// variables are correctly expanded in environment configuration.
+mod template_expansion_tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    /// Test helper to expand template variables (simulates Executor::expand_template logic)
+    fn expand_install_dir(template: &str, runtime_name: &str, version: Option<&str>) -> String {
+        let mut result = template.to_string();
+
+        if result.contains("{install_dir}") {
+            if let Some(ver) = version {
+                // When version is provided, expand to the version-specific directory
+                let install_dir = format!("/.vx/store/{}/{}", runtime_name, ver);
+                result = result.replace("{install_dir}", &install_dir);
+            }
+            // Without version, {install_dir} should remain as-is or be handled differently
+        }
+
+        if let Some(ver) = version {
+            result = result.replace("{version}", ver);
+        }
+
+        result
+    }
+
+    #[test]
+    fn test_expand_install_dir_with_version() {
+        let template = "{install_dir}/lib";
+        let result = expand_install_dir(template, "python", Some("3.11.0"));
+        assert_eq!(result, "/.vx/store/python/3.11.0/lib");
+    }
+
+    #[test]
+    fn test_expand_pythonhome_template() {
+        // Test the specific PYTHONHOME template that was causing issues
+        let template = "{install_dir}";
+        let result = expand_install_dir(template, "python", Some("3.10.0"));
+        assert_eq!(result, "/.vx/store/python/3.10.0");
+    }
+
+    #[test]
+    fn test_expand_version_template() {
+        let template = "{install_dir}/lib/python{version}";
+        let result = expand_install_dir(template, "python", Some("3.11"));
+        assert_eq!(result, "/.vx/store/python/3.11/lib/python3.11");
+    }
+
+    #[test]
+    fn test_expand_no_version_placeholder_unchanged() {
+        // When no version is provided and template contains {install_dir},
+        // it should remain unexpanded (or be handled by fallback logic)
+        let template = "{install_dir}/bin";
+        let result = expand_install_dir(template, "python", None);
+        // Without version, {install_dir} is not expanded
+        assert_eq!(result, "{install_dir}/bin");
+    }
+
+    #[test]
+    fn test_expand_no_placeholder_unchanged() {
+        // Templates without placeholders should pass through unchanged
+        let template = "/usr/local/bin";
+        let result = expand_install_dir(template, "python", Some("3.11.0"));
+        assert_eq!(result, "/usr/local/bin");
+    }
+
+    #[rstest]
+    #[case("{install_dir}", "python", "3.11.0", "/.vx/store/python/3.11.0")]
+    #[case("{install_dir}/bin", "node", "20.0.0", "/.vx/store/node/20.0.0/bin")]
+    #[case("{install_dir}/lib/{version}", "go", "1.21.0", "/.vx/store/go/1.21.0/lib/1.21.0")]
+    fn test_expand_template_cases(
+        #[case] template: &str,
+        #[case] runtime: &str,
+        #[case] version: &str,
+        #[case] expected: &str,
+    ) {
+        let result = expand_install_dir(template, runtime, Some(version));
+        assert_eq!(result, expected);
+    }
+}

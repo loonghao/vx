@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Bug Fixes
+
+* **executor:** Fix `{install_dir}` template variable not expanded when version is not specified. The template expansion now falls back to scanning the filesystem for installed versions when no explicit version is provided. This fixes the `PYTHONHOME` environment variable issue where it was set to the literal string `{install_dir}` instead of the actual installation path.
+* **self-update:** Fix version comparison logic to correctly handle various version formats (`vx-v0.6.27`, `v0.6.27`, `0.6.27`). The improved `extract_semver` function now supports two-part versions (e.g., `0.6`) with optional patch version defaulting to 0. This prevents incorrect "downgrade available" messages when the current version is actually newer than the CDN version.
+
+### Documentation
+
+* **cli:** Update self-update documentation to mention smart version comparison feature
+* **guide:** Add template variables table to environment variables section in manifest-driven providers documentation
+
 ## [0.6.27](https://github.com/loonghao/vx/compare/vx-v0.6.26...vx-v0.6.27) (2026-02-02)
 
 
