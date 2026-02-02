@@ -1,0 +1,86 @@
+# .NET SDK Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for .NET SDK.
+
+[provider]
+name = "dotnet"
+description = ".NET SDK - Free, cross-platform, open-source developer platform for C#, F#, and VB.NET"
+homepage = "https://dotnet.microsoft.com"
+repository = "https://github.com/dotnet/sdk"
+ecosystem = "devtools"
+
+[[runtimes]]
+name = "dotnet"
+description = ".NET SDK - Build modern applications with C#, F#, or VB.NET"
+executable = "dotnet"
+aliases = ["dotnet-sdk"]
+
+# RFC 0018: Environment configuration
+[env]
+# .NET uses DOTNET_ROOT for installation location
+vars = { DOTNET_ROOT = "{install_dir}" }
+
+[env.advanced]
+path_prepend = ["{install_dir}"]
+
+[runtimes.versions]
+source = "dotnet-releases"
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "([\\d.]+)"
+system_paths = [
+    "/usr/share/dotnet/dotnet",
+    "/usr/local/share/dotnet/dotnet",
+    "C:\\Program Files\\dotnet\\dotnet.exe"
+]
+
+# RFC 0020: Test configuration
+[runtimes.test]
+timeout_ms = 60000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "\\d+\\.\\d+\\.\\d+", name = "version_check" },
+    { command = "{executable} --list-sdks", expect_success = true, name = "sdk_list" },
+]
+install_verification = [
+    { command = "{executable} --version", expect_success = true },
+]
+
+# RFC 0019: Executable Layout Configuration
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = ""
+executable_paths = [
+    "dotnet.exe",  # Windows
+    "dotnet"       # Unix
+]
+
+# RFC 0020: Download Configuration
+# .NET SDK is a large file (~200MB), needs longer timeout
+[runtimes.download]
+timeout_ms = 900000  # 15 minutes for large file
+max_retries = 5
+resume_enabled = true
+execution_timeout_ms = 60000  # 60 seconds for execution
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# .NET 9.0+ (latest STS/LTS versions)
+[[runtimes.constraints]]
+when = ">=9.0"
+recommends = [
+    { runtime = "git", version = "*", reason = "Git is recommended for NuGet package sources and dotnet tool development" }
+]
+
+# .NET 8.0 (LTS)
+[[runtimes.constraints]]
+when = ">=8.0, <9.0"
+recommends = [
+    { runtime = "git", version = "*", reason = "Git is recommended for NuGet package sources" }
+]
