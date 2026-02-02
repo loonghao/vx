@@ -243,8 +243,16 @@ jobs:
 
           # Convert to JSON for output
           if [[ ${#AFFECTED[@]} -eq 0 ]]; then
-            echo "affected_crates=[]" >> $GITHUB_OUTPUT
-            echo "test_packages=" >> $GITHUB_OUTPUT
+            # If no specific crates detected but rust files changed, fallback to workspace test
+            RUST_CHANGED="${{ steps.filter.outputs.rust }}"
+            if [[ "$RUST_CHANGED" == "true" ]]; then
+              echo "No specific crates detected but Rust changed - falling back to workspace test"
+              echo "affected_crates=[\"all\"]" >> $GITHUB_OUTPUT
+              echo "test_packages=--workspace" >> $GITHUB_OUTPUT
+            else
+              echo "affected_crates=[]" >> $GITHUB_OUTPUT
+              echo "test_packages=" >> $GITHUB_OUTPUT
+            fi
           else
             AFFECTED_JSON=$(printf '%s\n' "${AFFECTED[@]}" | jq -R . | jq -s -c .)
             echo "affected_crates=$AFFECTED_JSON" >> $GITHUB_OUTPUT
@@ -870,10 +878,13 @@ jobs:
               echo "- ✅ $job_name" >> $GITHUB_STEP_SUMMARY
             elif [[ "$result" == "skipped" ]]; then
               echo "- ⏭️ $job_name (skipped)" >> $GITHUB_STEP_SUMMARY
+            elif [[ "$result" == "cancelled" ]]; then
+              # Cancelled jobs are acceptable - usually due to concurrency group
+              echo "- ⚠️ $job_name (cancelled)" >> $GITHUB_STEP_SUMMARY
             else
               echo "- ❌ $job_name ($result)" >> $GITHUB_STEP_SUMMARY
-              # Don't fail on skipped jobs
-              if [[ "$result" != "skipped" && "$result" != "" ]]; then
+              # Don't fail on skipped or cancelled jobs
+              if [[ "$result" != "skipped" && "$result" != "cancelled" && "$result" != "" ]]; then
                 failed=1
               fi
             fi
