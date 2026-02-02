@@ -18,7 +18,7 @@ async-trait = { workspace = true }
 once_cell = { workspace = true }
 which = { workspace = true }
 tracing = { workspace = true }
-dirs = "5.0"
+dirs = "6.0"
 
 [dev-dependencies]
 rstest = { workspace = true }
