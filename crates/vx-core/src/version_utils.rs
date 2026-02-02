@@ -319,10 +319,7 @@ pub fn sort_versions_desc(versions: &mut [impl AsRef<str>]) {
 /// assert_eq!(find_latest_version(&versions, false), Some("0.6.27"));
 /// assert_eq!(find_latest_version(&versions, true), Some("0.6.27")); // excludes beta
 /// ```
-pub fn find_latest_version(
-    versions: &[impl AsRef<str>],
-    exclude_prerelease: bool,
-) -> Option<&str> {
+pub fn find_latest_version(versions: &[impl AsRef<str>], exclude_prerelease: bool) -> Option<&str> {
     versions
         .iter()
         .filter(|v| {
