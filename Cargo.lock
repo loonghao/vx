@@ -281,15 +281,6 @@ dependencies = [
 
 [[package]]
 name = "bincode"
-version = "1.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "bincode"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
@@ -1974,7 +1965,7 @@ dependencies = [
  "anyhow",
  "askama",
  "async-trait",
- "bincode 2.0.1",
+ "bincode",
  "cab",
  "chrono",
  "clap",
@@ -4049,7 +4040,7 @@ name = "vx-cache"
 version = "0.6.24"
 dependencies = [
  "anyhow",
- "bincode 1.3.3",
+ "bincode",
  "hex",
  "rstest",
  "serde",
@@ -5021,7 +5012,7 @@ version = "0.6.24"
 dependencies = [
  "anyhow",
  "async-trait",
- "bincode 1.3.3",
+ "bincode",
  "regex",
  "rstest",
  "semver",
@@ -5050,7 +5041,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "backon",
- "bincode 1.3.3",
+ "bincode",
  "chrono",
  "flate2",
  "futures-util",
