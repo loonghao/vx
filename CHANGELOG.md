@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.27](https://github.com/loonghao/vx/compare/vx-v0.6.26...vx-v0.6.27) (2026-02-02)
+
+
+### Bug Fixes
+
+* **deps:** update react monorepo to v19 ([ea68f12](https://github.com/loonghao/vx/commit/ea68f126baa83dfe710499ab5bc78f835bd0bacd))
+* **deps:** update rust crate dirs to v6 ([e9d9a0f](https://github.com/loonghao/vx/commit/e9d9a0ffce5336c2746e91702a8a853631c209f4))
+
 ## [0.6.26](https://github.com/loonghao/vx/compare/vx-v0.6.25...vx-v0.6.26) (2026-02-02)
 
 
