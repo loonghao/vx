@@ -42,6 +42,27 @@ vx javac Main.java
 vx java Main
 ```
 
+### .NET SDK
+
+.NET SDK 用于 C#、F# 和 VB.NET 开发。
+
+```bash
+vx install dotnet latest
+
+vx dotnet --version
+vx dotnet new console -n MyApp
+vx dotnet build
+vx dotnet run
+vx dotnet test
+vx dotnet publish -c Release
+```
+
+**主要特性：**
+- 跨平台开发（Windows、macOS、Linux）
+- 支持 C#、F# 和 Visual Basic
+- 内置包管理（NuGet）
+- Web、桌面、移动、云和物联网应用
+
 ## 构建工具
 
 ### Vite
@@ -269,6 +290,7 @@ vx rcedit app.exe --set-version-string "ProductName" "My App"
 ```toml
 [tools]
 deno = "latest"
+dotnet = "latest"
 terraform = "1.6"
 kubectl = "latest"
 helm = "latest"
@@ -285,4 +307,6 @@ k8s-status = "kubectl get pods -A"
 docker-build = "docker build -t myapp ."
 lint = "pre-commit run --all-files"
 build = "cmake -B build && cmake --build build"
+dotnet-build = "dotnet build"
+dotnet-test = "dotnet test"
 ```
