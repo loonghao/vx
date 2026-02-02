@@ -199,6 +199,7 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         gh,
         imagemagick,
         pwsh,
+        dotnet,
     );
 
     registry
@@ -253,6 +254,7 @@ fn create_static_registry() -> ProviderRegistry {
         gh,
         imagemagick,
         pwsh,
+        dotnet,
     );
 
     registry

@@ -73,6 +73,8 @@ members = [
   # CLI tools
   "crates/vx-providers/jq",
   "crates/vx-providers/pwsh",
+  # .NET SDK
+  "crates/vx-providers/dotnet",
 ]
 resolver = "2"
 
@@ -203,6 +205,7 @@ vx-provider-ffmpeg = { path = "crates/vx-providers/ffmpeg" }
 vx-provider-gh = { path = "crates/vx-providers/gh" }
 vx-provider-imagemagick = { path = "crates/vx-providers/imagemagick" }
 vx-provider-pwsh = { path = "crates/vx-providers/pwsh" }
+vx-provider-dotnet = { path = "crates/vx-providers/dotnet" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
 
