@@ -140,24 +140,11 @@ pub async fn handle(
 
 /// Check if version_a is newer than version_b using semver comparison
 /// Supports formats: "0.6.27", "v0.6.27", "0.6.27-beta.1"
+///
+/// This is a thin wrapper around vx_core::version_utils::is_newer_version
+/// to ensure consistent version comparison across the codebase.
 fn is_newer_version(version_a: &str, version_b: &str) -> bool {
-    let parse_version = |v: &str| -> (u64, u64, u64) {
-        let version_part = v
-            .trim_start_matches("vx-v")
-            .trim_start_matches("x-v")
-            .trim_start_matches('v');
-        let parts: Vec<&str> = version_part.split('.').collect();
-        let major = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
-        let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
-        let patch = parts
-            .get(2)
-            .and_then(|s| s.split('-').next())
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
-        (major, minor, patch)
-    };
-
-    parse_version(version_a) > parse_version(version_b)
+    vx_core::version_utils::is_newer_version(version_a, version_b)
 }
 
 /// Create an HTTP client with optional GitHub authentication
@@ -298,14 +285,10 @@ async fn try_jsdelivr_api_specific(
         .as_array()
         .ok_or_else(|| anyhow!("No versions found in jsDelivr response"))?;
 
-    // Check if the requested version exists
+    // Check if the requested version exists using normalized comparison
     let version_exists = versions.iter().any(|v| {
         if let Some(v_str) = v.as_str() {
-            let normalized = v_str
-                .trim_start_matches("vx-v")
-                .trim_start_matches("x-v")
-                .trim_start_matches('v');
-            normalized == version
+            vx_core::version_utils::normalize_version(v_str) == version
         } else {
             false
         }
@@ -789,69 +772,13 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
         .as_array()
         .ok_or_else(|| anyhow!("No versions found in jsDelivr response"))?;
 
-    // Helper function to check if a version string is a prerelease
-    let is_prerelease = |v: &str| -> bool {
-        if v.starts_with("vx-v") || v.starts_with("x-v") {
-            return false;
-        }
-        v.contains("-alpha")
-            || v.contains("-beta")
-            || v.contains("-rc")
-            || v.contains("-dev")
-            || v.contains("-pre")
-    };
+    // Find the latest version based on prerelease flag using vx_core utilities
+    let version_strings: Vec<&str> = versions.iter().filter_map(|v| v.as_str()).collect();
 
-    // Helper function to extract semver for comparison
-    // Supports formats: "vx-v0.6.27", "v0.6.27", "0.6.27", "0.6.27-beta.1"
-    let extract_semver = |v: &str| -> Option<(u64, u64, u64)> {
-        let version_part = v
-            .trim_start_matches("vx-v")
-            .trim_start_matches("x-v")
-            .trim_start_matches('v');
-        let parts: Vec<&str> = version_part.split('.').collect();
-        if parts.len() >= 2 {
-            let major = parts[0].parse::<u64>().ok()?;
-            let minor = parts[1].parse::<u64>().ok()?;
-            // Patch is optional, default to 0
-            let patch = parts
-                .get(2)
-                .and_then(|p| p.split('-').next())
-                .and_then(|p| p.parse().ok())
-                .unwrap_or(0);
-            Some((major, minor, patch))
-        } else {
-            None
-        }
-    };
+    let latest_version = vx_core::version_utils::find_latest_version(&version_strings, !prerelease)
+        .ok_or_else(|| anyhow!("No suitable version found"))?;
 
-    // Find the latest version based on prerelease flag
-    let latest_version = if prerelease {
-        versions
-            .iter()
-            .filter_map(|v| v.as_str())
-            .filter(|v| extract_semver(v).is_some())
-            .max_by(|a, b| {
-                let a_ver = extract_semver(a).unwrap_or((0, 0, 0));
-                let b_ver = extract_semver(b).unwrap_or((0, 0, 0));
-                a_ver.cmp(&b_ver)
-            })
-    } else {
-        versions
-            .iter()
-            .filter_map(|v| v.as_str())
-            .filter(|v| !is_prerelease(v) && extract_semver(v).is_some())
-            .max_by(|a, b| {
-                let a_ver = extract_semver(a).unwrap_or((0, 0, 0));
-                let b_ver = extract_semver(b).unwrap_or((0, 0, 0));
-                a_ver.cmp(&b_ver)
-            })
-    }
-    .ok_or_else(|| anyhow!("No suitable version found"))?;
-
-    let version_number = latest_version
-        .trim_start_matches("vx-v")
-        .trim_start_matches("x-v")
-        .trim_start_matches('v');
+    let version_number = vx_core::version_utils::normalize_version(latest_version);
 
     let assets = create_cdn_assets(version_number);
 
@@ -859,7 +786,7 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
         tag_name: latest_version.to_string(),
         name: format!("Release {}", version_number),
         body: "Release information retrieved from CDN".to_string(),
-        prerelease: is_prerelease(latest_version),
+        prerelease: vx_core::version_utils::is_prerelease(latest_version),
         assets,
     })
 }
@@ -868,12 +795,9 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
 /// - v0.6.0+: versioned format (vx-0.6.1-x86_64-pc-windows-msvc.zip)
 /// - v0.5.x and earlier: legacy format (vx-x86_64-pc-windows-msvc.zip)
 fn uses_versioned_artifact_naming(version: &str) -> bool {
-    let parts: Vec<&str> = version.split('.').collect();
-    if parts.len() >= 2 {
-        let major = parts[0].parse::<u64>().unwrap_or(0);
-        let minor = parts[1].parse::<u64>().unwrap_or(0);
+    if let Some(parsed) = vx_core::version_utils::parse_version(version) {
         // v0.6.0 and later use versioned naming
-        major > 0 || (major == 0 && minor >= 6)
+        parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 6)
     } else {
         false
     }

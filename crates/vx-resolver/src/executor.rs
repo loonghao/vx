@@ -543,6 +543,14 @@ impl<'a> Executor<'a> {
     }
 
     /// Expand template variables in environment values
+    ///
+    /// Supports the following template variables:
+    /// - `{install_dir}` - The installation directory for the runtime
+    /// - `{version}` - The version of the runtime
+    /// - `{executable}` - The path to the runtime executable
+    /// - `{PATH}` - The current PATH environment variable
+    /// - `$HOME` - The user's home directory
+    /// - `$CARGO_HOME`, `$RUSTUP_HOME` - Rust-specific directories
     fn expand_template(
         &self,
         template: &str,
@@ -557,45 +565,14 @@ impl<'a> Executor<'a> {
             // The install_dir is: ~/.vx/store/<runtime>/<version>/<platform>
             if result.contains("{install_dir}") {
                 // Try to determine the install directory
-                let install_dir = if let (Some(ctx), Some(ver)) = (self.context, version) {
-                    // Use provided version
-                    let version_dir = ctx.paths.version_store_dir(runtime_name, ver);
-                    let platform = vx_paths::manager::CurrentPlatform::current();
-                    Some(version_dir.join(platform.as_str()))
-                } else if let Some(ctx) = self.context {
-                    // No version provided, try to get installed version from filesystem
-                    let runtime_store_dir = ctx.paths.runtime_store_dir(runtime_name);
-                    if let Ok(entries) = std::fs::read_dir(&runtime_store_dir) {
-                        let versions: Vec<String> = entries
-                            .filter_map(|e| e.ok())
-                            .filter(|e| e.path().is_dir())
-                            .filter_map(|e| e.file_name().into_string().ok())
-                            .collect();
-                        if !versions.is_empty() {
-                            // Use the first (latest) installed version
-                            let latest_version = &versions[0];
-                            let version_dir = ctx.paths.version_store_dir(runtime_name, latest_version);
-                            let platform = vx_paths::manager::CurrentPlatform::current();
-                            Some(version_dir.join(platform.as_str()))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
+                let install_dir = self.resolve_install_dir(runtime_name, version);
 
                 if let Some(dir) = install_dir {
                     result = result.replace("{install_dir}", &dir.to_string_lossy());
-                    debug!(
-                        "  expand_template: {{install_dir}} -> {}",
-                        dir.display()
-                    );
+                    debug!("  expand_template: {{install_dir}} -> {}", dir.display());
                 } else {
                     warn!(
-                        "Could not expand {{install_dir}} for {}: no version available",
+                        "Could not expand {{install_dir}} for {}: no version available or path does not exist",
                         runtime_name
                     );
                 }
@@ -660,6 +637,118 @@ impl<'a> Executor<'a> {
         }
 
         Ok(result)
+    }
+
+    /// Resolve the installation directory for a runtime
+    ///
+    /// This method attempts to find the correct install directory by:
+    /// 1. Using the provided version if available
+    /// 2. If no version provided, scanning installed versions and selecting the latest using semver
+    /// 3. Verifying the path exists before returning
+    ///
+    /// # Arguments
+    /// * `runtime_name` - Name of the runtime (e.g., "python", "node")
+    /// * `version` - Optional version string. If None, the latest installed version is used.
+    ///
+    /// # Returns
+    /// * `Some(PathBuf)` - Path to the install directory if found and exists
+    /// * `None` - If no valid installation directory could be found
+    fn resolve_install_dir(&self, runtime_name: &str, version: Option<&str>) -> Option<PathBuf> {
+        let ctx = self.context?;
+        let platform = vx_paths::manager::CurrentPlatform::current();
+
+        // If version is provided, use it directly
+        if let Some(ver) = version {
+            let version_dir = ctx.paths.version_store_dir(runtime_name, ver);
+            let platform_dir = version_dir.join(platform.as_str());
+
+            // First try platform-specific directory
+            if platform_dir.exists() {
+                return Some(platform_dir);
+            }
+
+            // Fallback to version directory without platform (for backwards compatibility)
+            if version_dir.exists() {
+                debug!(
+                    "Using version directory without platform suffix for {}: {}",
+                    runtime_name,
+                    version_dir.display()
+                );
+                return Some(version_dir);
+            }
+
+            debug!(
+                "Version directory does not exist for {} v{}: {}",
+                runtime_name,
+                ver,
+                version_dir.display()
+            );
+            return None;
+        }
+
+        // No version provided - scan installed versions and select the latest
+        let runtime_store_dir = ctx.paths.runtime_store_dir(runtime_name);
+        let entries = match std::fs::read_dir(&runtime_store_dir) {
+            Ok(e) => e,
+            Err(_) => {
+                debug!(
+                    "Cannot read runtime store directory: {}",
+                    runtime_store_dir.display()
+                );
+                return None;
+            }
+        };
+
+        // Collect valid version directories
+        let mut versions: Vec<String> = entries
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir())
+            .filter_map(|e| e.file_name().into_string().ok())
+            // Filter out non-version directories (e.g., temp files, metadata)
+            .filter(|name| vx_core::version_utils::parse_version(name).is_some())
+            .collect();
+
+        if versions.is_empty() {
+            debug!("No installed versions found for {}", runtime_name);
+            return None;
+        }
+
+        // Sort versions in descending order (newest first) using semver
+        vx_core::version_utils::sort_versions_desc(&mut versions);
+
+        // Try each version from newest to oldest, returning the first one with a valid path
+        for ver in &versions {
+            let version_dir = ctx.paths.version_store_dir(runtime_name, ver);
+            let platform_dir = version_dir.join(platform.as_str());
+
+            if platform_dir.exists() {
+                debug!(
+                    "Selected latest installed version for {}: {} ({})",
+                    runtime_name,
+                    ver,
+                    platform_dir.display()
+                );
+                return Some(platform_dir);
+            }
+
+            // Fallback to version directory without platform
+            if version_dir.exists() {
+                debug!(
+                    "Selected latest installed version for {} (no platform): {} ({})",
+                    runtime_name,
+                    ver,
+                    version_dir.display()
+                );
+                return Some(version_dir);
+            }
+        }
+
+        debug!(
+            "No valid installation directory found for {} (checked {} versions)",
+            runtime_name,
+            versions.len()
+        );
+        None
     }
 
     /// Prepare environment variables to use a specific version of a dependency

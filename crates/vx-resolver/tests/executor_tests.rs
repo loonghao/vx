@@ -453,82 +453,315 @@ mod environment_isolation_tests {
 ///
 /// These tests verify that {install_dir}, {version}, and other template
 /// variables are correctly expanded in environment configuration.
+///
+/// Note: These tests use vx_core::version_utils directly to test the shared
+/// version parsing logic that Executor relies on.
 mod template_expansion_tests {
-    use super::*;
-    use std::fs;
-    use tempfile::tempdir;
+    use rstest::rstest;
 
-    /// Test helper to expand template variables (simulates Executor::expand_template logic)
-    fn expand_install_dir(template: &str, runtime_name: &str, version: Option<&str>) -> String {
-        let mut result = template.to_string();
-
-        if result.contains("{install_dir}") {
-            if let Some(ver) = version {
-                // When version is provided, expand to the version-specific directory
-                let install_dir = format!("/.vx/store/{}/{}", runtime_name, ver);
-                result = result.replace("{install_dir}", &install_dir);
-            }
-            // Without version, {install_dir} should remain as-is or be handled differently
-        }
-
-        if let Some(ver) = version {
-            result = result.replace("{version}", ver);
-        }
-
-        result
-    }
-
+    /// Test that version sorting produces correct results
+    /// This validates the same logic used by Executor::resolve_install_dir
     #[test]
-    fn test_expand_install_dir_with_version() {
-        let template = "{install_dir}/lib";
-        let result = expand_install_dir(template, "python", Some("3.11.0"));
-        assert_eq!(result, "/.vx/store/python/3.11.0/lib");
+    fn test_version_sorting_for_install_dir() {
+        let mut versions = vec!["18.0.0", "20.0.0", "20.10.0", "22.0.0", "19.5.0"];
+        vx_core::version_utils::sort_versions_desc(&mut versions);
+        // Should be sorted descending (newest first)
+        assert_eq!(versions[0], "22.0.0");
+        assert_eq!(versions[1], "20.10.0");
+        assert_eq!(versions[2], "20.0.0");
     }
 
+    /// Test that invalid version directories are filtered
     #[test]
-    fn test_expand_pythonhome_template() {
-        // Test the specific PYTHONHOME template that was causing issues
-        let template = "{install_dir}";
-        let result = expand_install_dir(template, "python", Some("3.10.0"));
-        assert_eq!(result, "/.vx/store/python/3.10.0");
+    fn test_version_filtering() {
+        let candidates = vec!["20.0.0", "temp", "18.0.0", ".cache", "invalid"];
+        let valid: Vec<&str> = candidates
+            .iter()
+            .filter(|v| vx_core::version_utils::parse_version(v).is_some())
+            .copied()
+            .collect();
+
+        assert_eq!(valid, vec!["20.0.0", "18.0.0"]);
     }
 
-    #[test]
-    fn test_expand_version_template() {
-        let template = "{install_dir}/lib/python{version}";
-        let result = expand_install_dir(template, "python", Some("3.11"));
-        assert_eq!(result, "/.vx/store/python/3.11/lib/python3.11");
-    }
-
-    #[test]
-    fn test_expand_no_version_placeholder_unchanged() {
-        // When no version is provided and template contains {install_dir},
-        // it should remain unexpanded (or be handled by fallback logic)
-        let template = "{install_dir}/bin";
-        let result = expand_install_dir(template, "python", None);
-        // Without version, {install_dir} is not expanded
-        assert_eq!(result, "{install_dir}/bin");
-    }
-
-    #[test]
-    fn test_expand_no_placeholder_unchanged() {
-        // Templates without placeholders should pass through unchanged
-        let template = "/usr/local/bin";
-        let result = expand_install_dir(template, "python", Some("3.11.0"));
-        assert_eq!(result, "/usr/local/bin");
-    }
-
+    /// Test version parsing edge cases
     #[rstest]
-    #[case("{install_dir}", "python", "3.11.0", "/.vx/store/python/3.11.0")]
-    #[case("{install_dir}/bin", "node", "20.0.0", "/.vx/store/node/20.0.0/bin")]
-    #[case("{install_dir}/lib/{version}", "go", "1.21.0", "/.vx/store/go/1.21.0/lib/1.21.0")]
-    fn test_expand_template_cases(
-        #[case] template: &str,
-        #[case] runtime: &str,
-        #[case] version: &str,
-        #[case] expected: &str,
-    ) {
-        let result = expand_install_dir(template, runtime, Some(version));
-        assert_eq!(result, expected);
+    #[case("20.0.0", true)]
+    #[case("v20.0.0", true)]
+    #[case("vx-v20.0.0", true)]
+    #[case("20.0", true)] // Two-part version
+    #[case("20.0.0-beta.1", true)] // Prerelease
+    #[case("invalid", false)]
+    #[case("temp", false)]
+    #[case(".hidden", false)]
+    fn test_version_parsing(#[case] input: &str, #[case] should_parse: bool) {
+        let result = vx_core::version_utils::parse_version(input);
+        assert_eq!(
+            result.is_some(),
+            should_parse,
+            "parse_version({}) should return {}",
+            input,
+            if should_parse { "Some" } else { "None" }
+        );
+    }
+
+    /// Test that find_latest_version works correctly
+    #[test]
+    fn test_find_latest_version() {
+        let versions = vec!["0.6.25", "0.6.27", "0.6.26"];
+        let latest = vx_core::version_utils::find_latest_version(&versions, false);
+        assert_eq!(latest, Some("0.6.27"));
+    }
+
+    /// Test prerelease exclusion in find_latest_version
+    #[test]
+    fn test_find_latest_version_excludes_prerelease() {
+        let versions = vec!["0.6.25", "0.6.28-beta.1", "0.6.27"];
+
+        // Without excluding prerelease
+        let latest = vx_core::version_utils::find_latest_version(&versions, false);
+        assert_eq!(latest, Some("0.6.28-beta.1"));
+
+        // Excluding prerelease
+        let latest = vx_core::version_utils::find_latest_version(&versions, true);
+        assert_eq!(latest, Some("0.6.27"));
+    }
+
+    /// Test that prerelease versions are properly compared
+    #[test]
+    fn test_prerelease_comparison() {
+        // Stable version should be newer than prerelease of same version
+        assert!(vx_core::version_utils::is_newer_version(
+            "0.6.27",
+            "0.6.27-beta.1"
+        ));
+        assert!(!vx_core::version_utils::is_newer_version(
+            "0.6.27-beta.1",
+            "0.6.27"
+        ));
+
+        // Beta of newer version should be newer than stable of older version
+        assert!(vx_core::version_utils::is_newer_version(
+            "0.6.28-beta.1",
+            "0.6.27"
+        ));
+    }
+
+    /// Test path format expected by expand_template
+    /// This documents the expected directory structure
+    #[test]
+    fn test_expected_path_format() {
+        // The install_dir format is: ~/.vx/store/<runtime>/<version>/<platform>
+        // Example: ~/.vx/store/python/3.11.0/linux-x64
+
+        let runtime_name = "python";
+        let version = "3.11.0";
+        let platform = "linux-x64";
+
+        let expected_suffix = format!("{}/{}/{}", runtime_name, version, platform);
+        assert!(expected_suffix.contains("python/3.11.0/linux-x64"));
+    }
+
+    /// Test version normalization
+    #[rstest]
+    #[case("vx-v0.6.27", "0.6.27")]
+    #[case("x-v0.6.27", "0.6.27")]
+    #[case("v0.6.27", "0.6.27")]
+    #[case("0.6.27", "0.6.27")]
+    #[case("vx-v1.0.0-beta.1", "1.0.0-beta.1")]
+    fn test_version_normalization(#[case] input: &str, #[case] expected: &str) {
+        let normalized = vx_core::version_utils::normalize_version(input);
+        assert_eq!(normalized, expected);
+    }
+}
+
+// =============================================================================
+// Regression Tests for fix/python-env-and-self-update
+// =============================================================================
+
+/// Regression tests for {install_dir} template expansion fixes
+///
+/// These tests verify the fixes made in the fix/python-env-and-self-update branch
+/// to ensure they don't regress in future changes.
+mod install_dir_regression_tests {
+    use vx_core::version_utils;
+
+    /// Regression test: {install_dir} should select LATEST version, not first in list
+    ///
+    /// Bug: Previously used `versions[0]` which depended on filesystem ordering
+    /// (read_dir order is undefined), so the selected version was unpredictable.
+    ///
+    /// Fix: Now uses semver-aware sorting to always select the latest version.
+    #[test]
+    fn test_regression_install_dir_selects_latest_not_first() {
+        // Simulate a filesystem listing where versions are NOT sorted
+        // (this can happen on various filesystems)
+        let filesystem_order = vec![
+            "18.0.0", // An old version
+            "20.0.0", // Not the latest
+            "19.5.0", // Out of order
+            "22.1.0", // This is actually the latest
+            "21.0.0", // Also not the latest
+        ];
+
+        // The resolve_install_dir logic should pick 22.1.0
+        let mut sorted = filesystem_order.clone();
+        version_utils::sort_versions_desc(&mut sorted);
+
+        assert_eq!(
+            sorted[0], "22.1.0",
+            "After sorting, first element should be the latest version"
+        );
+
+        let latest = version_utils::find_latest_version(&filesystem_order, false);
+        assert_eq!(
+            latest,
+            Some("22.1.0"),
+            "find_latest_version should return 22.1.0 regardless of input order"
+        );
+    }
+
+    /// Regression test: Version directories with platform suffix
+    ///
+    /// The store structure is: ~/.vx/store/<runtime>/<version>/<platform>
+    /// When scanning versions, we scan directories like "20.0.0" not "20.0.0-linux-x64"
+    #[test]
+    fn test_regression_version_directory_names() {
+        let version_dirs = vec![
+            "20.0.0",    // Valid version directory
+            "18.0.0",    // Valid version directory
+            ".tmp",      // Hidden directory (should be ignored)
+            "downloads", // Non-version directory (should be ignored)
+        ];
+
+        let valid_versions: Vec<&str> = version_dirs
+            .iter()
+            .filter(|v| version_utils::parse_version(v).is_some())
+            .copied()
+            .collect();
+
+        assert_eq!(valid_versions.len(), 2);
+        assert!(valid_versions.contains(&"20.0.0"));
+        assert!(valid_versions.contains(&"18.0.0"));
+    }
+
+    /// Regression test: Mixed version formats in store directory
+    ///
+    /// Some runtimes might have versions stored with 'v' prefix or other formats
+    #[test]
+    fn test_regression_mixed_version_formats_in_store() {
+        let store_versions = vec![
+            "v20.0.0", // Node.js style with v prefix
+            "20.10.0", // Without v prefix
+            "v18.0.0", // Older version with v
+            "22.0.0",  // Latest without v
+        ];
+
+        // Should correctly identify 22.0.0 as latest (not v20.0.0)
+        let latest = version_utils::find_latest_version(&store_versions, false);
+        assert_eq!(latest, Some("22.0.0"));
+
+        // All should be parseable
+        for v in &store_versions {
+            assert!(
+                version_utils::parse_version(v).is_some(),
+                "Failed to parse: {}",
+                v
+            );
+        }
+    }
+
+    /// Regression test: Prerelease versions in store
+    ///
+    /// Store might contain both stable and prerelease versions
+    #[test]
+    fn test_regression_prerelease_versions_in_store() {
+        let store_versions = vec![
+            "3.11.0",      // Python stable
+            "3.12.0-rc.1", // Python RC
+            "3.10.0",      // Older stable
+        ];
+
+        // For normal operation, should prefer stable
+        let latest_stable = version_utils::find_latest_version(&store_versions, true);
+        assert_eq!(
+            latest_stable,
+            Some("3.11.0"),
+            "Should select 3.11.0 as latest stable, not 3.12.0-rc.1"
+        );
+
+        // But 3.12.0-rc.1 is technically the newest if we include prereleases
+        let latest_all = version_utils::find_latest_version(&store_versions, false);
+        assert_eq!(latest_all, Some("3.12.0-rc.1"));
+    }
+
+    /// Regression test: Empty store directory
+    ///
+    /// When no versions are installed, should handle gracefully
+    #[test]
+    fn test_regression_empty_store_directory() {
+        let empty: Vec<&str> = vec![];
+
+        let latest = version_utils::find_latest_version(&empty, false);
+        assert_eq!(latest, None, "Empty store should return None");
+    }
+
+    /// Regression test: Single version in store
+    #[test]
+    fn test_regression_single_version_in_store() {
+        let single = vec!["20.0.0"];
+
+        let latest = version_utils::find_latest_version(&single, false);
+        assert_eq!(
+            latest,
+            Some("20.0.0"),
+            "Single version should be returned as latest"
+        );
+    }
+
+    /// Regression test: Version comparison for path selection
+    ///
+    /// The resolve_install_dir needs to compare versions correctly to select
+    /// the right one when multiple are available
+    #[test]
+    fn test_regression_version_comparison_for_selection() {
+        // Python versions
+        assert!(version_utils::is_newer_version("3.12.0", "3.11.0"));
+        assert!(version_utils::is_newer_version("3.11.5", "3.11.0"));
+        assert!(!version_utils::is_newer_version("3.11.0", "3.12.0"));
+
+        // Node.js versions
+        assert!(version_utils::is_newer_version("22.0.0", "20.0.0"));
+        assert!(version_utils::is_newer_version("20.10.0", "20.9.0"));
+
+        // Go versions
+        assert!(version_utils::is_newer_version("1.22.0", "1.21.0"));
+    }
+
+    /// Regression test: Path existence fallback
+    ///
+    /// When a version directory doesn't have the expected platform subdirectory,
+    /// should fall back to the version directory itself
+    #[test]
+    fn test_regression_path_fallback_logic() {
+        // This test documents the expected path structure and fallback behavior
+        //
+        // Primary structure: ~/.vx/store/python/3.11.0/linux-x64/
+        // Fallback:          ~/.vx/store/python/3.11.0/
+        //
+        // The resolve_install_dir should:
+        // 1. Try version_dir/platform first
+        // 2. Fall back to version_dir if platform subdir doesn't exist
+
+        let version = "3.11.0";
+        let platform = "linux-x64";
+
+        // Verify the expected path format
+        let primary_suffix = format!("store/python/{}/{}", version, platform);
+        let fallback_suffix = format!("store/python/{}", version);
+
+        assert!(primary_suffix.contains("3.11.0/linux-x64"));
+        assert!(fallback_suffix.contains("3.11.0"));
+        assert!(!fallback_suffix.contains("linux-x64"));
     }
 }

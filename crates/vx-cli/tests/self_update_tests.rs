@@ -294,50 +294,8 @@ fn test_extract_version_from_url(#[case] url: &str, #[case] expected_version: &s
 // Version comparison tests
 // ============================================================================
 
-/// Check if version_a is newer than version_b using semver comparison
-/// Supports formats: "0.6.27", "v0.6.27", "0.6.27-beta.1"
-fn is_newer_version(version_a: &str, version_b: &str) -> bool {
-    let parse_version = |v: &str| -> (u64, u64, u64) {
-        let version_part = v
-            .trim_start_matches("vx-v")
-            .trim_start_matches("x-v")
-            .trim_start_matches('v');
-        let parts: Vec<&str> = version_part.split('.').collect();
-        let major = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
-        let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
-        let patch = parts
-            .get(2)
-            .and_then(|s| s.split('-').next())
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
-        (major, minor, patch)
-    };
-
-    parse_version(version_a) > parse_version(version_b)
-}
-
-/// Extract semver tuple from version string (same logic as production code)
-/// Supports formats: "vx-v0.6.27", "v0.6.27", "0.6.27", "0.6.27-beta.1"
-fn extract_semver(v: &str) -> Option<(u64, u64, u64)> {
-    let version_part = v
-        .trim_start_matches("vx-v")
-        .trim_start_matches("x-v")
-        .trim_start_matches('v');
-    let parts: Vec<&str> = version_part.split('.').collect();
-    if parts.len() >= 2 {
-        let major = parts[0].parse::<u64>().ok()?;
-        let minor = parts[1].parse::<u64>().ok()?;
-        // Patch is optional, default to 0
-        let patch = parts
-            .get(2)
-            .and_then(|p| p.split('-').next())
-            .and_then(|p| p.parse().ok())
-            .unwrap_or(0);
-        Some((major, minor, patch))
-    } else {
-        None
-    }
-}
+// Note: These tests now use vx_core::version_utils directly to ensure
+// consistency with the production code in self_update.rs
 
 #[rstest]
 #[case("1.0.0", "0.9.9", true)]
@@ -348,7 +306,7 @@ fn extract_semver(v: &str) -> Option<(u64, u64, u64)> {
 #[case("0.5.28", "0.5.29", false)]
 #[case("0.5.28", "0.5.28", false)]
 #[case("0.4.0", "0.5.0", false)]
-#[case("0.5.28-beta", "0.5.28", false)] // Pre-release handling
+#[case("0.5.28-beta", "0.5.28", false)] // Pre-release handling: stable is newer
 // Test prefixed version formats (vx-v, x-v, v)
 #[case("vx-v0.6.27", "vx-v0.6.26", true)]
 #[case("vx-v0.6.27", "v0.6.26", true)]
@@ -360,7 +318,7 @@ fn extract_semver(v: &str) -> Option<(u64, u64, u64)> {
 #[case("vx-v0.6.26", "vx-v0.6.27", false)]
 fn test_is_newer_version(#[case] version_a: &str, #[case] version_b: &str, #[case] expected: bool) {
     assert_eq!(
-        is_newer_version(version_a, version_b),
+        vx_core::version_utils::is_newer_version(version_a, version_b),
         expected,
         "is_newer_version({}, {}) should be {}",
         version_a,
@@ -393,12 +351,12 @@ fn test_is_newer_version(#[case] version_a: &str, #[case] version_b: &str, #[cas
 #[case("", None)]
 #[case("v", None)]
 fn test_extract_semver(#[case] input: &str, #[case] expected: Option<(u64, u64, u64)>) {
+    let parsed = vx_core::version_utils::parse_version(input);
+    let result = parsed.map(|v| (v.major, v.minor, v.patch));
     assert_eq!(
-        extract_semver(input),
-        expected,
-        "extract_semver({}) should be {:?}",
-        input,
-        expected
+        result, expected,
+        "parse_version({}) should be {:?}",
+        input, expected
     );
 }
 
@@ -413,13 +371,13 @@ fn test_extract_semver_for_cdn_versions() {
         "vx-v0.5.29",
     ];
 
-    let latest = cdn_versions
-        .iter()
-        .filter_map(|v| extract_semver(v).map(|ver| (*v, ver)))
-        .max_by(|a, b| a.1.cmp(&b.1))
-        .map(|(v, _)| v);
+    let latest = vx_core::version_utils::find_latest_version(&cdn_versions, false);
 
-    assert_eq!(latest, Some("vx-v0.6.27"), "Should correctly identify latest version from CDN list");
+    assert_eq!(
+        latest,
+        Some("vx-v0.6.27"),
+        "Should correctly identify latest version from CDN list"
+    );
 }
 
 // ============================================================================
@@ -498,14 +456,6 @@ fn test_create_cdn_assets() {
 // Version normalization tests
 // ============================================================================
 
-/// Normalize version string by removing common prefixes
-fn normalize_version(version: &str) -> &str {
-    version
-        .trim_start_matches("vx-v")
-        .trim_start_matches("x-v")
-        .trim_start_matches('v')
-}
-
 #[rstest]
 #[case("vx-v0.5.28", "0.5.28")]
 #[case("x-v0.5.28", "0.5.28")]
@@ -513,26 +463,12 @@ fn normalize_version(version: &str) -> &str {
 #[case("0.5.28", "0.5.28")]
 #[case("vx-v1.0.0-beta.1", "1.0.0-beta.1")]
 fn test_normalize_version(#[case] input: &str, #[case] expected: &str) {
-    assert_eq!(normalize_version(input), expected);
+    assert_eq!(vx_core::version_utils::normalize_version(input), expected);
 }
 
 // ============================================================================
 // Prerelease detection tests
 // ============================================================================
-
-/// Check if a version string represents a prerelease
-fn is_prerelease(v: &str) -> bool {
-    // If it starts with "vx-v" or "x-v", it's a stable release (release-please format)
-    if v.starts_with("vx-v") || v.starts_with("x-v") {
-        return false;
-    }
-    // Otherwise, check for prerelease suffixes
-    v.contains("-alpha")
-        || v.contains("-beta")
-        || v.contains("-rc")
-        || v.contains("-dev")
-        || v.contains("-pre")
-}
 
 #[rstest]
 #[case("vx-v0.5.28", false)]
@@ -546,7 +482,7 @@ fn is_prerelease(v: &str) -> bool {
 #[case("0.5.28-pre.1", true)]
 fn test_is_prerelease(#[case] version: &str, #[case] expected: bool) {
     assert_eq!(
-        is_prerelease(version),
+        vx_core::version_utils::is_prerelease(version),
         expected,
         "is_prerelease({}) should be {}",
         version,
@@ -634,4 +570,120 @@ fn test_generate_checksum_urls() {
         assert!(url.ends_with(".sha256"));
         assert!(url.contains("vx-x86_64-pc-windows-msvc.zip.sha256"));
     }
+}
+
+// ============================================================================
+// Regression tests for fix/python-env-and-self-update branch
+// ============================================================================
+
+/// Regression test: The specific bug case where 0.6.27 was incorrectly
+/// considered NOT newer than 0.6.27-beta.1
+#[test]
+fn test_regression_self_update_stable_vs_prerelease() {
+    // Bug scenario: User has 0.6.27-beta.1 installed, release 0.6.27 is available
+    // The update check should show 0.6.27 as an available update
+    let current_version = "0.6.27-beta.1";
+    let available_version = "0.6.27";
+
+    assert!(
+        vx_core::version_utils::is_newer_version(available_version, current_version),
+        "Stable release 0.6.27 should be newer than prerelease 0.6.27-beta.1"
+    );
+}
+
+/// Regression test: CDN version list parsing should correctly identify latest
+#[test]
+fn test_regression_cdn_version_list_latest_selection() {
+    // Simulates the jsDelivr API response order (may not be semver sorted)
+    let cdn_versions = vec![
+        "vx-v0.6.25",
+        "vx-v0.6.27", // This is the latest stable
+        "vx-v0.6.26",
+        "vx-v0.6.28-beta.1", // This is a newer prerelease
+        "vx-v0.5.30",
+    ];
+
+    // Should find 0.6.28-beta.1 if including prereleases
+    let latest_all = vx_core::version_utils::find_latest_version(&cdn_versions, false);
+    assert_eq!(latest_all, Some("vx-v0.6.28-beta.1"));
+
+    // Should find 0.6.27 if excluding prereleases (typical for stable updates)
+    let latest_stable = vx_core::version_utils::find_latest_version(&cdn_versions, true);
+    assert_eq!(latest_stable, Some("vx-v0.6.27"));
+}
+
+/// Regression test: Version comparison should handle mixed prefix formats
+/// Bug: self_update could fail when comparing "vx-v0.6.27" with "0.6.26"
+#[test]
+fn test_regression_mixed_prefix_update_check() {
+    // GitHub API returns "vx-v" format, local version might be stored without prefix
+    assert!(vx_core::version_utils::is_newer_version(
+        "vx-v0.6.27",
+        "0.6.26"
+    ));
+    assert!(vx_core::version_utils::is_newer_version(
+        "0.6.27",
+        "vx-v0.6.26"
+    ));
+
+    // Same version with different formats should NOT trigger update
+    assert!(!vx_core::version_utils::is_newer_version(
+        "vx-v0.6.27",
+        "0.6.27"
+    ));
+    assert!(!vx_core::version_utils::is_newer_version(
+        "0.6.27",
+        "vx-v0.6.27"
+    ));
+}
+
+/// Regression test: Prerelease alphabetical ordering
+/// Bug: rc.1 should be considered later than beta.1 for same base version
+#[test]
+fn test_regression_prerelease_progression() {
+    // Typical prerelease progression: alpha -> beta -> rc -> stable
+    assert!(vx_core::version_utils::is_newer_version(
+        "0.6.27-beta.1",
+        "0.6.27-alpha.1"
+    ));
+    assert!(vx_core::version_utils::is_newer_version(
+        "0.6.27-rc.1",
+        "0.6.27-beta.1"
+    ));
+    assert!(vx_core::version_utils::is_newer_version(
+        "0.6.27",
+        "0.6.27-rc.1"
+    ));
+}
+
+/// Regression test: is_prerelease should correctly identify prerelease even with prefixes
+#[test]
+fn test_regression_vx_prefix_is_stable() {
+    // Stable versions (no prerelease suffix) should NOT be considered prerelease
+    assert!(!vx_core::version_utils::is_prerelease("vx-v0.6.27"));
+    assert!(!vx_core::version_utils::is_prerelease("vx-v1.0.0"));
+    assert!(!vx_core::version_utils::is_prerelease("x-v0.6.27"));
+    assert!(!vx_core::version_utils::is_prerelease("v0.6.27"));
+    assert!(!vx_core::version_utils::is_prerelease("0.6.27"));
+
+    // Prerelease versions SHOULD be detected even with vx-v prefix
+    assert!(vx_core::version_utils::is_prerelease("vx-v0.6.27-beta.1"));
+    assert!(vx_core::version_utils::is_prerelease("vx-v0.6.27-alpha.1"));
+    assert!(vx_core::version_utils::is_prerelease("vx-v0.6.27-rc.1"));
+}
+
+/// Regression test: Version extraction should handle edge cases
+#[test]
+fn test_regression_version_extraction_edge_cases() {
+    // Single digit versions
+    let v = vx_core::version_utils::parse_version("1.0.0").unwrap();
+    assert_eq!((v.major, v.minor, v.patch), (1, 0, 0));
+
+    // Large version numbers
+    let v = vx_core::version_utils::parse_version("20.10.15").unwrap();
+    assert_eq!((v.major, v.minor, v.patch), (20, 10, 15));
+
+    // Two-part version (Node.js style "20.10")
+    let v = vx_core::version_utils::parse_version("20.10").unwrap();
+    assert_eq!((v.major, v.minor, v.patch), (20, 10, 0));
 }
