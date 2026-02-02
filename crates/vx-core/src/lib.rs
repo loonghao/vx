@@ -31,5 +31,8 @@
 // Core abstractions - the only module we need
 pub mod core;
 
+// Version parsing and comparison utilities
+pub mod version_utils;
+
 // Re-export everything from core for convenience
 pub use core::*;
