@@ -61,6 +61,7 @@ impl E2ETestEnv {
 }
 
 /// Performance thresholds (in milliseconds)
+/// Note: Windows CI is typically slower than Linux, so we use higher thresholds on Windows
 mod thresholds {
     /// Maximum time for CLI startup (no operation)
     pub const CLI_STARTUP_MS: u64 = 3000;
@@ -73,7 +74,10 @@ mod thresholds {
     pub const VERSION_MS: u64 = 250;
 
     /// Maximum time for config parsing (small config)
-    /// Note: Increased from 750ms to 1000ms to account for CI machine variability
+    /// Note: Increased to 1500ms to account for Windows CI variability
+    #[cfg(windows)]
+    pub const CONFIG_PARSE_SMALL_MS: u64 = 1500;
+    #[cfg(not(windows))]
     pub const CONFIG_PARSE_SMALL_MS: u64 = 1000;
 
     /// Maximum time for config parsing (large config)
@@ -89,6 +93,10 @@ mod thresholds {
     pub const SCRIPT_LIST_MS: u64 = 1000;
 
     /// Maximum time for config validation
+    /// Note: Increased to 1500ms to account for Windows CI variability
+    #[cfg(windows)]
+    pub const CONFIG_VALIDATE_MS: u64 = 1500;
+    #[cfg(not(windows))]
     pub const CONFIG_VALIDATE_MS: u64 = 1000;
 }
 

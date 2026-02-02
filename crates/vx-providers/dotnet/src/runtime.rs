@@ -63,7 +63,8 @@ impl Runtime for DotnetRuntime {
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
         // Fetch from .NET releases index with caching
-        let url = "https://raw.githubusercontent.com/dotnet/core/main/release-notes/releases-index.json";
+        let url =
+            "https://raw.githubusercontent.com/dotnet/core/main/release-notes/releases-index.json";
 
         let response = ctx
             .get_cached_or_fetch("dotnet", || async { ctx.http.get_json_value(url).await })
@@ -72,9 +73,7 @@ impl Runtime for DotnetRuntime {
         let releases = response
             .get("releases-index")
             .and_then(|v| v.as_array())
-            .ok_or_else(|| {
-                anyhow::anyhow!("Invalid response format from .NET releases index")
-            })?;
+            .ok_or_else(|| anyhow::anyhow!("Invalid response format from .NET releases index"))?;
 
         let mut versions = Vec::new();
 
