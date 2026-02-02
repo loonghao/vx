@@ -170,6 +170,10 @@ jobs:
 
           echo "Creating Docker Hub manifests for version: ${VERSION_SHORT}"
 
+          # Remove existing manifests to avoid "is a manifest list" error
+          docker manifest rm ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT} 2>/dev/null || true
+          docker manifest rm ${{ env.DOCKER_HUB_REPO }}:latest 2>/dev/null || true
+
           # Create versioned manifest (e.g., 0.5.15)
           docker manifest create ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT} \
             ${{ env.DOCKER_HUB_REPO }}:${VERSION_SHORT}-linux-amd64 \
@@ -187,6 +191,10 @@ jobs:
           VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
 
           echo "Creating GHCR manifests for version: ${VERSION_SHORT}"
+
+          # Remove existing manifests to avoid "is a manifest list" error
+          docker manifest rm ${{ env.GHCR_REPO }}:${VERSION_SHORT} 2>/dev/null || true
+          docker manifest rm ${{ env.GHCR_REPO }}:latest 2>/dev/null || true
 
           # Create versioned manifest (e.g., 0.5.15)
           docker manifest create ${{ env.GHCR_REPO }}:${VERSION_SHORT} \
@@ -313,6 +321,10 @@ jobs:
 
           echo "Creating Docker Hub tools manifests for version: ${VERSION_SHORT}"
 
+          # Remove existing manifests to avoid "is a manifest list" error
+          docker manifest rm ${{ env.DOCKER_HUB_REPO }}:tools-${VERSION_SHORT} 2>/dev/null || true
+          docker manifest rm ${{ env.DOCKER_HUB_REPO }}:tools-latest 2>/dev/null || true
+
           # Create versioned tools manifest (e.g., tools-0.5.15)
           docker manifest create ${{ env.DOCKER_HUB_REPO }}:tools-${VERSION_SHORT} \
             ${{ env.DOCKER_HUB_REPO }}:tools-${VERSION_SHORT}-linux-amd64 \
@@ -330,6 +342,10 @@ jobs:
           VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
 
           echo "Creating GHCR tools manifests for version: ${VERSION_SHORT}"
+
+          # Remove existing manifests to avoid "is a manifest list" error
+          docker manifest rm ${{ env.GHCR_REPO }}:tools-${VERSION_SHORT} 2>/dev/null || true
+          docker manifest rm ${{ env.GHCR_REPO }}:tools-latest 2>/dev/null || true
 
           # Create versioned tools manifest (e.g., tools-0.5.15)
           docker manifest create ${{ env.GHCR_REPO }}:tools-${VERSION_SHORT} \
