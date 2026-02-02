@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.26](https://github.com/loonghao/vx/compare/vx-v0.6.25...vx-v0.6.26) (2026-02-02)
+
+
+### Features
+
+* **provider:** add .NET SDK provider ([68b4196](https://github.com/loonghao/vx/commit/68b4196de76992d97358a4f118160636cd2dada4))
+
+
+### Bug Fixes
+
+* **ci:** fix release workflow skipping and docker manifest creation ([4f3672d](https://github.com/loonghao/vx/commit/4f3672dd41575d8cd92d230db4e90335910d3645))
+* fix code formatting and increase Windows benchmark thresholds ([15a2807](https://github.com/loonghao/vx/commit/15a2807eb553386521faf40442061d110da12818))
+
 ## [0.6.25](https://github.com/loonghao/vx/compare/vx-v0.6.24...vx-v0.6.25) (2026-02-02)
 
 
