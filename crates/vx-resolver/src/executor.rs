@@ -1633,6 +1633,44 @@ impl<'a> Executor<'a> {
             }
         }
 
+        // CRITICAL: Ensure essential system paths are always present in PATH
+        // This fixes issues where child processes (npm postinstall, esbuild, etc.)
+        // cannot find basic system tools like 'sh', 'bash', 'env', etc.
+        // We do this at the very end to guarantee these paths are always available.
+        #[cfg(unix)]
+        {
+            let current_path = final_env
+                .get("PATH")
+                .cloned()
+                .or_else(|| std::env::var("PATH").ok())
+                .unwrap_or_default();
+
+            let mut path_parts: Vec<String> = vx_paths::split_path(&current_path)
+                .map(String::from)
+                .collect();
+
+            let essential_paths = ["/bin", "/usr/bin", "/usr/local/bin"];
+            let mut added_any = false;
+
+            for essential in &essential_paths {
+                let essential_str = essential.to_string();
+                if !path_parts.iter().any(|p| p == &essential_str)
+                    && std::path::Path::new(essential).exists()
+                {
+                    path_parts.push(essential_str);
+                    added_any = true;
+                }
+            }
+
+            if added_any {
+                let new_path = std::env::join_paths(&path_parts)
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or(current_path);
+                final_env.insert("PATH".to_string(), new_path);
+                trace!("Added essential system paths for child processes");
+            }
+        }
+
         // Inject environment variables
         if !final_env.is_empty() {
             trace!(

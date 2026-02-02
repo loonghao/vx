@@ -357,6 +357,7 @@ mod environment_isolation_tests {
 
     /// Test that filter_system_path preserves essential system directories
     #[test]
+    #[cfg(unix)]
     fn test_filter_system_path_preserves_essentials() {
         // This test documents the expected behavior of the system path filtering
         // The actual filtering is done by vx_manifest::filter_system_path
@@ -379,6 +380,29 @@ mod environment_isolation_tests {
         // Filtered path should NOT contain user directories
         assert!(
             !filtered.contains("/home/user/.local/bin"),
+            "Filtered PATH should NOT contain user paths, got: {}",
+            filtered
+        );
+    }
+
+    /// Test that filter_system_path works on Windows
+    #[test]
+    #[cfg(windows)]
+    fn test_filter_system_path_preserves_essentials() {
+        // Windows version of the test
+        let test_path = r"C:\Users\user\bin;C:\Windows\System32;C:\Windows";
+        let filtered = vx_paths::platform::filter_system_path(test_path);
+
+        // Filtered path should contain Windows system directories
+        assert!(
+            filtered.to_lowercase().contains("system32"),
+            "Filtered PATH should contain System32, got: {}",
+            filtered
+        );
+
+        // Filtered path should NOT contain user directories
+        assert!(
+            !filtered.to_lowercase().contains("users"),
             "Filtered PATH should NOT contain user paths, got: {}",
             filtered
         );
@@ -410,7 +434,7 @@ mod environment_isolation_tests {
     /// Test path deduplication logic
     #[test]
     fn test_path_deduplication() {
-        let paths = vec!["/usr/bin", "/bin", "/usr/bin", "/usr/local/bin", "/bin"];
+        let paths = ["/usr/bin", "/bin", "/usr/bin", "/usr/local/bin", "/bin"];
         let unique: HashSet<&str> = paths.iter().copied().collect();
 
         // Should have 3 unique paths
