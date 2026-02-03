@@ -138,7 +138,7 @@ impl RuntimeRoot {
 
         // Strategy 1: Check for executable directly in platform_dir
         let direct_exe = platform_dir.join(&exe_name);
-        if direct_exe.exists() {
+        if direct_exe.is_file() {
             return Ok((
                 platform_dir.to_path_buf(),
                 platform_dir.to_path_buf(),
@@ -149,7 +149,7 @@ impl RuntimeRoot {
         // Strategy 2: Check for bin/ subdirectory (Unix standard layout)
         let bin_dir = platform_dir.join("bin");
         let bin_exe = bin_dir.join(&exe_name);
-        if bin_exe.exists() {
+        if bin_exe.is_file() {
             return Ok((platform_dir.to_path_buf(), bin_dir, bin_exe));
         }
 
@@ -163,14 +163,14 @@ impl RuntimeRoot {
 
                 // Check for executable directly in subdirectory
                 let sub_exe = sub_path.join(&exe_name);
-                if sub_exe.exists() {
+                if sub_exe.is_file() {
                     return Ok((sub_path.clone(), sub_path, sub_exe));
                 }
 
                 // Check for bin/ in subdirectory
                 let sub_bin_dir = sub_path.join("bin");
                 let sub_bin_exe = sub_bin_dir.join(&exe_name);
-                if sub_bin_exe.exists() {
+                if sub_bin_exe.is_file() {
                     return Ok((sub_path, sub_bin_dir, sub_bin_exe));
                 }
 
@@ -183,13 +183,13 @@ impl RuntimeRoot {
                         }
 
                         let deep_exe = deep_path.join(&exe_name);
-                        if deep_exe.exists() {
+                        if deep_exe.is_file() {
                             return Ok((deep_path.clone(), deep_path, deep_exe));
                         }
 
                         let deep_bin_dir = deep_path.join("bin");
                         let deep_bin_exe = deep_bin_dir.join(&exe_name);
-                        if deep_bin_exe.exists() {
+                        if deep_bin_exe.is_file() {
                             return Ok((deep_path, deep_bin_dir, deep_bin_exe));
                         }
                     }
