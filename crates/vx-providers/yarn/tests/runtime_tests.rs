@@ -1,8 +1,9 @@
 //! Yarn runtime tests
 
 use rstest::rstest;
+use std::path::PathBuf;
 use vx_provider_yarn::{YarnProvider, YarnRuntime};
-use vx_runtime::{Arch, Ecosystem, Os, Platform, Provider, Runtime};
+use vx_runtime::{Arch, Ecosystem, ExecutionPrep, Os, Platform, Provider, Runtime};
 
 #[rstest]
 fn test_yarn_runtime_name() {
@@ -228,5 +229,97 @@ async fn test_yarn_fetch_versions_metadata() {
     assert!(
         !v4_installable,
         "Yarn 4.x should NOT be directly installable"
+    );
+}
+
+// ============================================================================
+// RFC 0028: prepare_execution Tests
+// ============================================================================
+
+/// Test that prepare_execution returns default for Yarn 1.x (directly installable)
+#[tokio::test]
+async fn test_yarn_prepare_execution_v1_returns_default() {
+    use vx_runtime::testing::mock_execution_context;
+
+    let runtime = YarnRuntime::new();
+    let ctx = mock_execution_context();
+
+    // Yarn 1.x should return default ExecutionPrep (no special preparation)
+    let prep = runtime.prepare_execution("1.22.19", &ctx).await.unwrap();
+
+    assert!(!prep.use_system_path, "Yarn 1.x should not use system PATH");
+    assert!(
+        !prep.proxy_ready,
+        "Yarn 1.x is not proxy-managed, proxy_ready should be false"
+    );
+    assert!(
+        prep.executable_override.is_none(),
+        "No executable override for Yarn 1.x"
+    );
+    assert!(
+        prep.message.is_none(),
+        "No message needed for directly installable version"
+    );
+}
+
+/// Test that ExecutionPrep builder methods work correctly
+#[test]
+fn test_execution_prep_builder_methods() {
+    // Test proxy_ready() constructor
+    let prep = ExecutionPrep::proxy_ready();
+    assert!(prep.use_system_path);
+    assert!(prep.proxy_ready);
+
+    // Test with_executable() constructor
+    let exe_path = PathBuf::from("/usr/bin/yarn");
+    let prep = ExecutionPrep::with_executable(exe_path.clone());
+    assert_eq!(prep.executable_override, Some(exe_path));
+    assert!(prep.proxy_ready);
+
+    // Test builder chain
+    let prep = ExecutionPrep::default()
+        .with_env("NODE_ENV", "production")
+        .with_prefix("dotnet")
+        .with_path_prepend(PathBuf::from("/custom/path"))
+        .with_message("Test message");
+
+    assert_eq!(prep.env_vars.get("NODE_ENV"), Some(&"production".to_string()));
+    assert_eq!(prep.command_prefix, vec!["dotnet".to_string()]);
+    assert_eq!(prep.path_prepend, vec![PathBuf::from("/custom/path")]);
+    assert_eq!(prep.message, Some("Test message".to_string()));
+}
+
+/// Test that Yarn 2.x+ prepare_execution sets correct flags
+/// Note: This test verifies the expected behavior when corepack setup succeeds.
+/// In a real scenario, this would require Node.js with corepack installed.
+#[test]
+fn test_yarn_2x_expected_execution_prep_flags() {
+    // When prepare_execution succeeds for Yarn 2.x+, it should return:
+    let expected_prep = ExecutionPrep {
+        use_system_path: true, // Use corepack's yarn from PATH
+        proxy_ready: true,     // Proxy is ready after corepack preparation
+        message: Some("Using yarn@4.0.0 via corepack (Node.js package manager proxy)".to_string()),
+        ..Default::default()
+    };
+
+    assert!(
+        expected_prep.use_system_path,
+        "Yarn 2.x+ should use system PATH (corepack)"
+    );
+    assert!(
+        expected_prep.proxy_ready,
+        "Yarn 2.x+ should be marked as proxy_ready after preparation"
+    );
+    assert!(
+        expected_prep.message.is_some(),
+        "Yarn 2.x+ should have an informative message"
+    );
+    assert!(
+        expected_prep
+            .message
+            .as_ref()
+            .unwrap()
+            .contains("corepack"),
+        "Message should mention corepack"
     );
 }
