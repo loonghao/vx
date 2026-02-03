@@ -44,6 +44,40 @@ vx install node@18.19.0
 vx install node@lts
 ```
 
+## Yarn 支持说明
+
+vx 支持 Yarn 1.x (Classic)。对于 Yarn 2.x+ (Berry)，请使用 Node.js 内置的 corepack。
+
+### Yarn 1.x (Classic)
+
+```bash
+# 安装 Yarn 1.x
+vx install yarn 1.22.19
+vx yarn --version
+
+# 使用 Yarn
+vx yarn install
+vx yarn build
+vx yarn add react
+```
+
+### Yarn 2.x+ (Berry)
+
+Yarn 2.x+ (Berry) 无法直接通过 vx 安装。请使用 Node.js 内置的 corepack：
+
+```bash
+# 首先安装 Node.js
+vx install node 20
+
+# 启用 corepack（提供 Yarn 2.x+）
+vx node -e "require('child_process').execSync('corepack enable', {stdio: 'inherit'})"
+
+# 或使用 npx 运行 Yarn
+vx npx yarn@2.4.3 --version
+```
+
+更多详情请参考 [Yarn 官方文档](https://yarnpkg.com/getting-started/install)。
+
 ## 项目配置
 
 ```toml
