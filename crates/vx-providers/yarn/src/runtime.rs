@@ -71,10 +71,7 @@ impl YarnRuntime {
                     corepack.clone()
                 };
                 debug!("Using corepack at: {}", corepack_exe.display());
-                Command::new(&corepack_exe)
-                    .arg("enable")
-                    .output()
-                    .await?
+                Command::new(&corepack_exe).arg("enable").output().await?
             } else {
                 // Fallback: use node to run corepack enable
                 debug!("Corepack not found, using node to enable");
@@ -385,7 +382,10 @@ async fn find_node_executable(_ctx: &ExecutionContext) -> Result<std::path::Path
         }
 
         // Log available environment variables for debugging
-        debug!("Node runtime environment variables: {:?}", node_root.env_vars());
+        debug!(
+            "Node runtime environment variables: {:?}",
+            node_root.env_vars()
+        );
     }
 
     // Fallback: check execution context's PATH (for testing scenarios)
