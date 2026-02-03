@@ -10,7 +10,7 @@ vx provides comprehensive support for the Node.js ecosystem.
 | `npm` | Node.js package manager |
 | `npx` | Node.js package runner |
 | `pnpm` | Fast, disk space efficient package manager |
-| `yarn` | JavaScript package manager |
+| `yarn` | JavaScript package manager (all versions) |
 | `bun` | All-in-one JavaScript runtime |
 
 ## Node.js
@@ -75,14 +75,28 @@ vx pnpm add react
 
 ## Yarn
 
-vx supports Yarn 1.x (Classic). For Yarn 2.x+ (Berry), please use corepack which is bundled with Node.js.
+vx provides seamless support for **all Yarn versions** - both Yarn 1.x (Classic) and Yarn 2.x+ (Berry/Modern).
+
+### Yarn Version Support
+
+| Version | Type | Installation Method |
+|---------|------|---------------------|
+| 1.x | Classic | Direct download from GitHub releases |
+| 2.x | Berry | Via corepack (auto-managed) |
+| 3.x | Berry | Via corepack (auto-managed) |
+| 4.x | Berry | Via corepack (auto-managed) |
 
 ### Yarn 1.x (Classic)
 
+Yarn 1.x is directly downloaded and installed by vx:
+
 ```bash
 # Install Yarn 1.x
-vx install yarn 1.22.19
-vx yarn --version
+vx install yarn 1.22.22
+
+# Check version
+vx yarn@1.22.22 --version
+# Output: 1.22.22
 
 # Usage
 vx yarn install
@@ -90,22 +104,64 @@ vx yarn build
 vx yarn add react
 ```
 
-### Yarn 2.x+ (Berry)
+### Yarn 2.x+ (Berry/Modern)
 
-Yarn 2.x+ (Berry) is not directly installable via vx. Instead, use corepack which is bundled with Node.js:
+Yarn 2.x and later versions are **automatically managed via corepack** - vx handles this transparently:
 
 ```bash
-# Install Node.js first
-vx install node 20
+# Use any Yarn 2.x+ version directly
+vx yarn@2.4.3 --version    # Berry 2.x
+# Output: 2.4.3
 
-# Enable corepack (provides Yarn 2.x+)
-vx node -e "require('child_process').execSync('corepack enable', {stdio: 'inherit'})"
+vx yarn@3.6.0 --version    # Berry 3.x
+# Output: 3.6.0
 
-# Or use npx to run Yarn
-vx npx yarn@2.4.3 --version
+vx yarn@4.0.0 --version    # Berry 4.x
+# Output: 4.0.0
+
+vx yarn@4.12.0 --version   # Latest Berry
+# Output: 4.12.0
 ```
 
-For more details, see the [Yarn official documentation](https://yarnpkg.com/getting-started/install).
+**How it works:**
+
+1. When you request Yarn 2.x+, vx automatically:
+   - Ensures Node.js (with corepack) is installed
+   - Enables corepack if not already enabled
+   - Prepares the specific Yarn version via `corepack prepare yarn@<version> --activate`
+   - Executes Yarn through corepack
+
+2. You don't need to manually enable corepack or run any setup commands - vx handles everything transparently.
+
+### Using Yarn in Projects
+
+```bash
+# Create a new project with Yarn Berry
+mkdir my-project && cd my-project
+vx yarn@4.0.0 init
+
+# Install dependencies
+vx yarn@4.0.0 install
+
+# Add packages
+vx yarn@4.0.0 add react
+
+# Run scripts
+vx yarn@4.0.0 build
+```
+
+### Yarn Version Pinning
+
+For projects using Yarn Berry, vx respects the `packageManager` field in `package.json`:
+
+```json
+{
+  "name": "my-project",
+  "packageManager": "yarn@4.0.0"
+}
+```
+
+When this field exists, corepack ensures the correct version is used automatically.
 
 ## Bun
 
@@ -127,11 +183,12 @@ vx bun build ./index.ts
 [tools]
 node = "20"
 pnpm = "latest"
+yarn = "4.0.0"  # Yarn Berry works seamlessly
 
 [scripts]
-dev = "pnpm run dev"
-build = "pnpm run build"
-test = "pnpm test"
+dev = "yarn run dev"
+build = "yarn run build"
+test = "yarn test"
 ```
 
 ## Common Workflows
@@ -159,4 +216,14 @@ vx npm create vite@latest my-app
 cd my-app
 vx npm install
 vx npm run dev
+```
+
+### Yarn Berry Project
+
+```bash
+# Create a new project with Yarn 4.x
+mkdir my-yarn-project && cd my-yarn-project
+vx yarn@4.0.0 init
+vx yarn@4.0.0 add react react-dom
+vx yarn@4.0.0 dev
 ```
