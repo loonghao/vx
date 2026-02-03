@@ -87,12 +87,12 @@ requires = [
 [[runtimes.constraints]]
 when = ">=2, <4"
 requires = [
-    { runtime = "node", version = ">=16.10", recommended = "20", reason = "Yarn 2.x-3.x requires Node.js 16.10+ with corepack" }
+    { runtime = "node", version = ">=16.10", recommended = "20", reason = "Yarn 2.x-3.x requires Node.js 16.10+ with corepack", provided_by = "node" }
 ]
 
 # Yarn 4.x requires Node.js 18+ with corepack
 [[runtimes.constraints]]
 when = ">=4"
 requires = [
-    { runtime = "node", version = ">=18", recommended = "22", reason = "Yarn 4.x requires Node.js 18+ with corepack" }
+    { runtime = "node", version = ">=18", recommended = "22", reason = "Yarn 4.x requires Node.js 18+ with corepack", provided_by = "node" }
 ]
