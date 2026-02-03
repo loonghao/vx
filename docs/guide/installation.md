@@ -83,19 +83,13 @@ cargo install vx
 1. Go to the [Releases page](https://github.com/loonghao/vx/releases)
 2. Download the appropriate binary for your platform:
 
-   **With version number (recommended):**
    - `vx-{version}-x86_64-unknown-linux-gnu.tar.gz` - Linux x64
    - `vx-{version}-aarch64-unknown-linux-gnu.tar.gz` - Linux ARM64
+   - `vx-{version}-x86_64-unknown-linux-musl.tar.gz` - Linux x64 (static)
+   - `vx-{version}-aarch64-unknown-linux-musl.tar.gz` - Linux ARM64 (static)
    - `vx-{version}-x86_64-apple-darwin.tar.gz` - macOS x64
    - `vx-{version}-aarch64-apple-darwin.tar.gz` - macOS ARM64 (Apple Silicon)
    - `vx-{version}-x86_64-pc-windows-msvc.zip` - Windows x64
-
-   **Legacy format (also available):**
-   - `vx-x86_64-unknown-linux-gnu.tar.gz` - Linux x64
-   - `vx-aarch64-unknown-linux-gnu.tar.gz` - Linux ARM64
-   - `vx-x86_64-apple-darwin.tar.gz` - macOS x64
-   - `vx-aarch64-apple-darwin.tar.gz` - macOS ARM64 (Apple Silicon)
-   - `vx-x86_64-pc-windows-msvc.zip` - Windows x64
 
 3. Extract and add to PATH:
 
@@ -152,7 +146,7 @@ vx --version
 You should see output like:
 
 ```
-vx 0.5.11
+vx 0.6.27
 ```
 
 
@@ -181,7 +175,6 @@ The self-update command features:
 - Download progress bar with speed and ETA
 - SHA256 checksum verification (when available)
 - Safe binary replacement on Windows
-- Backward compatible with older vx versions (supports both legacy and versioned artifact naming)
 
 ## Uninstalling
 

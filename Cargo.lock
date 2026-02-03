@@ -554,7 +554,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -865,7 +865,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -943,7 +943,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2016,7 +2016,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2412,7 +2412,7 @@ dependencies = [
  "once_cell",
  "socket2 0.6.1",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2683,13 +2683,43 @@ dependencies = [
 
 [[package]]
 name = "rstest"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03e905296805ab93e13c1ec3a03f4b6c4f35e9498a3d5fa96dc626d22c03cd89"
+dependencies = [
+ "futures-timer",
+ "futures-util",
+ "rstest_macros 0.24.0",
+ "rustc_version",
+]
+
+[[package]]
+name = "rstest"
 version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f5a3193c063baaa2a95a33f03035c8a72b83d97a54916055ba22d35ed3839d49"
 dependencies = [
  "futures-timer",
  "futures-util",
- "rstest_macros",
+ "rstest_macros 0.26.1",
+]
+
+[[package]]
+name = "rstest_macros"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef0053bbffce09062bee4bcc499b0fbe7a57b879f1efe088d6d8d4c7adcdef9b"
+dependencies = [
+ "cfg-if",
+ "glob",
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "relative-path",
+ "rustc_version",
+ "syn",
+ "unicode-ident",
 ]
 
 [[package]]
@@ -2769,7 +2799,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2827,7 +2857,7 @@ dependencies = [
  "security-framework 3.5.1",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3312,7 +3342,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3991,6 +4021,7 @@ dependencies = [
  "anyhow",
  "assert_cmd",
  "predicates",
+ "rstest 0.24.0",
  "serde_json",
  "tempfile",
  "tokio",
@@ -4005,7 +4036,7 @@ version = "0.6.27"
 dependencies = [
  "indexmap",
  "regex",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4019,7 +4050,7 @@ dependencies = [
  "anyhow",
  "bincode 1.3.3",
  "hex",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "sha2",
@@ -4044,7 +4075,7 @@ dependencies = [
  "pretty_assertions",
  "regex",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "self-replace",
  "serde",
  "serde_json",
@@ -4133,7 +4164,7 @@ dependencies = [
  "chrono",
  "dirs",
  "regex",
- "rstest",
+ "rstest 0.26.1",
  "schemars",
  "serde",
  "serde_json",
@@ -4158,7 +4189,7 @@ dependencies = [
  "libc",
  "once_cell",
  "pretty_assertions",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "terminal_size",
@@ -4175,7 +4206,7 @@ dependencies = [
  "async-trait",
  "dirs",
  "pretty_assertions",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "serial_test",
@@ -4192,7 +4223,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tempfile",
@@ -4210,7 +4241,7 @@ dependencies = [
  "anyhow",
  "dirs",
  "pretty_assertions",
- "rstest",
+ "rstest 0.26.1",
  "rust-embed",
  "shell-words",
  "tempfile",
@@ -4229,7 +4260,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "dotenvy",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "tempfile",
  "thiserror 2.0.18",
@@ -4280,7 +4311,7 @@ name = "vx-manifest"
 version = "0.6.27"
 dependencies = [
  "pretty_assertions",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tempfile",
@@ -4298,7 +4329,7 @@ dependencies = [
  "chrono",
  "hostname",
  "regex",
- "rstest",
+ "rstest 0.26.1",
  "semver",
  "serde",
  "serde_json",
@@ -4337,7 +4368,7 @@ dependencies = [
  "glob",
  "pretty_assertions",
  "regex",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tempfile",
@@ -4358,7 +4389,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4371,7 +4402,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4384,7 +4415,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4397,7 +4428,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "tokio",
  "tracing",
@@ -4411,7 +4442,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4426,7 +4457,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4439,7 +4470,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4454,7 +4485,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "regex",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4469,7 +4500,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4486,7 +4517,7 @@ dependencies = [
  "chrono",
  "regex",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4501,7 +4532,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4515,7 +4546,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4531,7 +4562,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4546,7 +4577,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4560,7 +4591,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4577,7 +4608,7 @@ dependencies = [
  "chrono",
  "regex",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4593,7 +4624,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4610,7 +4641,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4624,7 +4655,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "rstest",
+ "rstest 0.26.1",
  "tokio",
  "tracing",
  "vx-runtime",
@@ -4636,7 +4667,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4652,7 +4683,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4668,7 +4699,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4683,7 +4714,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "msvc-kit",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tempfile",
@@ -4700,7 +4731,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "regex",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4715,7 +4746,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4731,7 +4762,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4746,7 +4777,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4760,7 +4791,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "tokio",
  "tracing",
@@ -4776,7 +4807,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4792,7 +4823,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4819,7 +4850,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "tracing",
  "vx-runtime",
 ]
@@ -4832,7 +4863,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4847,7 +4878,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4862,7 +4893,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4878,7 +4909,7 @@ dependencies = [
  "async-trait",
  "dirs",
  "once_cell",
- "rstest",
+ "rstest 0.26.1",
  "tokio",
  "tracing",
  "vx-runtime",
@@ -4893,7 +4924,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4908,7 +4939,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4922,7 +4953,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4937,7 +4968,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4954,7 +4985,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4967,7 +4998,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "tracing",
  "vx-runtime",
  "vx-version-fetcher",
@@ -4979,7 +5010,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "tokio",
  "tracing",
@@ -4995,7 +5026,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tokio",
@@ -5010,7 +5041,7 @@ dependencies = [
  "async-trait",
  "bincode 1.3.3",
  "regex",
- "rstest",
+ "rstest 0.26.1",
  "semver",
  "serde",
  "serde_json",
@@ -5046,7 +5077,7 @@ dependencies = [
  "libloading",
  "regex",
  "reqwest 0.12.28",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "sevenz-rust",
@@ -5076,7 +5107,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "chrono",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "shellexpand",
@@ -5109,7 +5140,7 @@ dependencies = [
  "async-trait",
  "cfg-if",
  "libc",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "tempfile",
@@ -5129,7 +5160,7 @@ version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
- "rstest",
+ "rstest 0.26.1",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -5331,7 +5362,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

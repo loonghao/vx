@@ -318,44 +318,16 @@ function Install-FromRelease {
     Write-Info "Installing vx v$Version for $platform (region: $region)"
 
     # Determine archive name based on platform
-    # Try multiple naming conventions for Windows
-    # New format: vx-{version}-{target}.zip (e.g., vx-0.6.0-x86_64-pc-windows-msvc.zip)
-    # Legacy format: vx-{target}.zip (e.g., vx-x86_64-pc-windows-msvc.zip)
-    $possibleArchives = @(
-        "vx-$Version-x86_64-pc-windows-msvc.zip",
-        "vx-x86_64-pc-windows-msvc.zip",
-        "vx-$Version-$platform.zip",
-        "vx-$platform.zip",
-        "vx-$Version-Windows-x86_64.zip",
-        "vx-Windows-x86_64.zip",
-        "vx-windows-x86_64.zip",
-        "vx-$Version-x86_64-pc-windows-msvc.tar.gz",
-        "vx-x86_64-pc-windows-msvc.tar.gz",
-        "vx-$platform.tar.gz",
-        "vx-Windows-x86_64.tar.gz"
-    )
-
-    $archiveName = $null
+    # Format: vx-{version}-{target}.zip (e.g., vx-0.6.0-x86_64-pc-windows-msvc.zip)
+    $archiveName = "vx-$Version-x86_64-pc-windows-msvc.zip"
     $downloadSuccess = $false
 
     # Create temporary directory
     $tempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
 
     try {
-        # Try different archive names until one works
-        foreach ($tryArchive in $possibleArchives) {
-            Write-Debug "Trying archive name: $tryArchive"
-            try {
-                $archivePath = Invoke-SmartDownload -Version $Version -Platform $platform -ArchiveName $tryArchive -TempDir $tempDir -Region $region
-                $archiveName = $tryArchive
-                $downloadSuccess = $true
-                break
-            }
-            catch {
-                Write-Debug "Failed with archive name $tryArchive : $_"
-                continue
-            }
-        }
+        $archivePath = Invoke-SmartDownload -Version $Version -Platform $platform -ArchiveName $archiveName -TempDir $tempDir -Region $region
+        $downloadSuccess = $true
 
         if (-not $downloadSuccess) {
             Write-Error "Failed to download vx binary with any supported archive format"
