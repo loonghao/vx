@@ -498,6 +498,9 @@ impl<'a> Executor<'a> {
                 // RFC 0028: If prepare_execution fails for a bundled runtime,
                 // try to auto-install the parent runtime and retry
                 // Look for a required dependency with provided_by set
+                //
+                // First check static dependencies (from bundled_with, managed_by, or when="*" constraints)
+                // Then check version-specific dependencies (from when=">=2" etc. constraints)
                 let parent_runtime = self
                     .resolver
                     .get_spec(runtime_name)
@@ -508,16 +511,10 @@ impl<'a> Executor<'a> {
                             .and_then(|dep| dep.provided_by.clone())
                     })
                     .or_else(|| {
-                        // Fallback: For Yarn 2.x+, if no provided_by is set in static dependencies,
-                        // check if this is a proxy-managed runtime that likely needs Node.js
-                        // This handles the case where version-specific constraints (when != "*")
-                        // are not converted to static dependencies in runtime_map.rs
-                        if runtime_name == "yarn" && !version.starts_with('1') {
-                            // Yarn 2.x+ is managed by Node.js corepack
-                            Some("node".to_string())
-                        } else {
-                            None
-                        }
+                        // Query version-specific dependencies from provider.toml constraints
+                        // This handles cases like Yarn 2.x+ where when=">=2, <4" constraints
+                        // specify that Node.js (via corepack) provides Yarn
+                        self.resolver.get_parent_runtime_for_version(runtime_name, version)
                     });
 
                 if let Some(ref parent) = parent_runtime {

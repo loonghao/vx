@@ -19,6 +19,8 @@ pub struct RuntimeMap {
     runtimes: HashMap<String, RuntimeSpec>,
     /// Map of alias to primary runtime name
     aliases: HashMap<String, String>,
+    /// Map of runtime name to original RuntimeDef (for version-specific constraint queries)
+    runtime_defs: HashMap<String, RuntimeDef>,
 }
 
 impl RuntimeMap {
@@ -49,6 +51,8 @@ impl RuntimeMap {
 
             for runtime in &manifest.runtimes {
                 let spec = Self::runtime_def_to_spec(runtime, ecosystem);
+                // Store the original RuntimeDef for version-specific constraint queries
+                map.runtime_defs.insert(runtime.name.clone(), runtime.clone());
                 map.register(spec);
             }
         }
@@ -260,6 +264,85 @@ impl RuntimeMap {
         } else {
             self.aliases.get(name).map(|s| s.as_str())
         }
+    }
+
+    /// Get version-specific dependencies for a runtime
+    ///
+    /// This method queries the original RuntimeDef constraints to find
+    /// dependencies that apply to a specific version. This is useful for
+    /// runtimes like Yarn 2.x+ where different versions have different
+    /// dependency requirements (e.g., Yarn 2+ requires Node.js via corepack).
+    ///
+    /// Returns a list of RuntimeDependency for the given version.
+    pub fn get_dependencies_for_version(
+        &self,
+        runtime_name: &str,
+        version: &str,
+    ) -> Vec<RuntimeDependency> {
+        // First, resolve the name (in case it's an alias)
+        let resolved_name = self.resolve_name(runtime_name).unwrap_or(runtime_name);
+
+        // Get the original RuntimeDef
+        let Some(runtime_def) = self.runtime_defs.get(resolved_name) else {
+            return vec![];
+        };
+
+        // Get version-specific dependencies from constraints
+        let deps = runtime_def.get_dependencies_for_version(version);
+
+        deps.iter()
+            .map(|dep_def| {
+                let mut dep =
+                    RuntimeDependency::required(&dep_def.runtime, dep_def.reason.as_deref().unwrap_or("Required dependency"));
+
+                // Parse version constraint
+                if !dep_def.version.is_empty() && dep_def.version != "*" {
+                    if let Some(min) = Self::extract_min_version(&dep_def.version) {
+                        dep = dep.with_min_version(min);
+                    }
+                }
+
+                if let Some(ref recommended) = dep_def.recommended {
+                    dep = dep.with_recommended_version(recommended.clone());
+                }
+
+                // Set provided_by if specified
+                if let Some(ref provided_by) = dep_def.provided_by {
+                    dep = dep.provided_by(provided_by.clone());
+                }
+
+                dep
+            })
+            .collect()
+    }
+
+    /// Get the parent runtime (provided_by) for a specific version
+    ///
+    /// This is a convenience method that returns the first dependency
+    /// with `provided_by` set for the given version. Useful for determining
+    /// which runtime needs to be installed to provide the requested runtime.
+    pub fn get_parent_runtime_for_version(
+        &self,
+        runtime_name: &str,
+        version: &str,
+    ) -> Option<String> {
+        // First check static dependencies
+        if let Some(spec) = self.get(runtime_name) {
+            if let Some(parent) = spec
+                .dependencies
+                .iter()
+                .find(|dep| dep.required && dep.provided_by.is_some())
+                .and_then(|dep| dep.provided_by.clone())
+            {
+                return Some(parent);
+            }
+        }
+
+        // Then check version-specific dependencies
+        self.get_dependencies_for_version(runtime_name, version)
+            .iter()
+            .find(|dep| dep.required && dep.provided_by.is_some())
+            .and_then(|dep| dep.provided_by.clone())
     }
 
     /// Get the installation order for a runtime and its dependencies

@@ -32,7 +32,14 @@ pub fn build_command(
 
         if ext == "cmd" || ext == "bat" {
             let mut c = Command::new("cmd.exe");
-            c.arg("/c").arg(executable);
+            // Use quoted path to handle spaces in path (e.g., "C:\Program Files\...")
+            // cmd.exe /c requires the entire command to be quoted if it contains spaces
+            let exe_str = executable.to_string_lossy();
+            if exe_str.contains(' ') {
+                c.arg("/c").arg(format!("\"{}\"", exe_str));
+            } else {
+                c.arg("/c").arg(executable);
+            }
             c
         } else {
             Command::new(executable)
