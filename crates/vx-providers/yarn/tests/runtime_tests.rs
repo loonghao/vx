@@ -124,7 +124,8 @@ fn test_yarn_version_installable(#[case] version: &str, #[case] expected_install
     use vx_provider_yarn::YarnUrlBuilder;
     let is_installable = YarnUrlBuilder::is_directly_installable(version);
     assert_eq!(
-        is_installable, expected_installable,
+        is_installable,
+        expected_installable,
         "Yarn {} should {}be directly installable",
         version,
         if expected_installable { "" } else { "not " }
@@ -140,11 +141,7 @@ fn test_yarn_download_url(#[case] version: &str, #[case] should_have_url: bool) 
     use vx_provider_yarn::YarnUrlBuilder;
     let url = YarnUrlBuilder::download_url(version);
     if should_have_url {
-        assert!(
-            url.is_some(),
-            "Yarn {} should have a download URL",
-            version
-        );
+        assert!(url.is_some(), "Yarn {} should have a download URL", version);
         assert!(url.unwrap().contains("github.com"));
     } else {
         assert!(
@@ -160,10 +157,7 @@ fn test_yarn_download_url(#[case] version: &str, #[case] should_have_url: bool) 
 #[case("1.22.19", Some("yarn-v1.22.19/bin"))]
 #[case("2.4.3", None)]
 #[case("3.6.0", None)]
-fn test_yarn_executable_dir_path(
-    #[case] version: &str,
-    #[case] expected: Option<&str>,
-) {
+fn test_yarn_executable_dir_path(#[case] version: &str, #[case] expected: Option<&str>) {
     let runtime = YarnRuntime::new();
     let platform = Platform::new(Os::Linux, Arch::X86_64);
     let path = runtime.executable_dir_path(version, &platform);
@@ -218,15 +212,21 @@ fn test_yarn_uses_corepack(#[case] version: &str, #[case] expected: bool) {
 async fn test_yarn_fetch_versions_metadata() {
     // This test would require a mock RuntimeContext
     // For now, we test the static logic
-    
+
     // Yarn 1.x should have "direct" install method
     let v1_installable = YarnRuntime::new().is_version_installable("1.22.19");
     assert!(v1_installable, "Yarn 1.x should be directly installable");
-    
+
     // Yarn 2.x+ should have "corepack" install method
     let v2_installable = YarnRuntime::new().is_version_installable("2.4.3");
-    assert!(!v2_installable, "Yarn 2.x should NOT be directly installable");
-    
+    assert!(
+        !v2_installable,
+        "Yarn 2.x should NOT be directly installable"
+    );
+
     let v4_installable = YarnRuntime::new().is_version_installable("4.0.0");
-    assert!(!v4_installable, "Yarn 4.x should NOT be directly installable");
+    assert!(
+        !v4_installable,
+        "Yarn 4.x should NOT be directly installable"
+    );
 }

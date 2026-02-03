@@ -78,7 +78,6 @@
 //! When extracting the bundle, vx automatically selects the correct platform
 //! directory for the current system.
 
-
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 

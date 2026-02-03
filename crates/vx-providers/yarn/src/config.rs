@@ -18,7 +18,7 @@ pub struct YarnUrlBuilder;
 
 impl YarnUrlBuilder {
     /// Generate download URL for Yarn version
-    /// 
+    ///
     /// Note: Only Yarn 1.x (Classic) is directly downloadable.
     /// Yarn 2.x+ (Berry) should be managed via corepack which is bundled with Node.js.
     /// Users should run `corepack enable` after installing Node.js to use Yarn 2.x+.
@@ -38,7 +38,7 @@ impl YarnUrlBuilder {
     }
 
     /// Check if a Yarn version is directly installable
-    /// 
+    ///
     /// Only Yarn 1.x (Classic) can be directly downloaded and installed.
     /// Yarn 2.x+ requires corepack which is bundled with Node.js.
     pub fn is_directly_installable(version: &str) -> bool {

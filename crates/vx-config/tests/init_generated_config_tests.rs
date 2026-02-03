@@ -3,8 +3,8 @@
 //! These tests ensure that the output of `vx init` can be correctly parsed.
 
 use std::collections::HashMap;
-use vx_config::parse_config_str;
 use vx_config::config_manager::TomlWriter;
+use vx_config::parse_config_str;
 
 /// Simulate the config generation from init.rs
 fn generate_config_content(
@@ -79,13 +79,18 @@ fn test_init_generates_valid_toml() {
 
     let scripts = HashMap::new();
 
-    let config_content = generate_config_content("test-project", "Test description", &tools, &scripts, false);
+    let config_content =
+        generate_config_content("test-project", "Test description", &tools, &scripts, false);
 
     println!("Generated TOML:\n{}", config_content);
 
     // Should be valid TOML
     let parsed = parse_config_str(&config_content);
-    assert!(parsed.is_ok(), "Generated config should be valid TOML: {:?}", parsed.err());
+    assert!(
+        parsed.is_ok(),
+        "Generated config should be valid TOML: {:?}",
+        parsed.err()
+    );
 
     let config = parsed.unwrap();
     assert_eq!(config.get_tool_version("node"), Some("20".to_string()));
@@ -107,12 +112,22 @@ fn test_init_generates_valid_toml_with_extras() {
 
     // Should be valid TOML
     let parsed = parse_config_str(&config_content);
-    assert!(parsed.is_ok(), "Generated config with extras should be valid TOML: {:?}", parsed.err());
+    assert!(
+        parsed.is_ok(),
+        "Generated config with extras should be valid TOML: {:?}",
+        parsed.err()
+    );
 
     let config = parsed.unwrap();
     assert_eq!(config.get_tool_version("node"), Some("20".to_string()));
-    assert_eq!(config.get_script_command("build"), Some("npm run build".to_string()));
-    assert_eq!(config.get_script_command("test"), Some("npm test".to_string()));
+    assert_eq!(
+        config.get_script_command("build"),
+        Some("npm run build".to_string())
+    );
+    assert_eq!(
+        config.get_script_command("test"),
+        Some("npm test".to_string())
+    );
 }
 
 #[test]
@@ -126,7 +141,11 @@ fn test_init_empty_tools_generates_valid_toml() {
 
     // Should be valid TOML even with empty tools
     let parsed = parse_config_str(&config_content);
-    assert!(parsed.is_ok(), "Generated config with empty tools should be valid TOML: {:?}", parsed.err());
+    assert!(
+        parsed.is_ok(),
+        "Generated config with empty tools should be valid TOML: {:?}",
+        parsed.err()
+    );
 }
 
 #[test]
@@ -144,9 +163,19 @@ fn test_init_with_special_characters_in_scripts() {
 
     // Should be valid TOML
     let parsed = parse_config_str(&config_content);
-    assert!(parsed.is_ok(), "Generated config with special keys should be valid TOML: {:?}", parsed.err());
+    assert!(
+        parsed.is_ok(),
+        "Generated config with special keys should be valid TOML: {:?}",
+        parsed.err()
+    );
 
     let config = parsed.unwrap();
-    assert_eq!(config.get_script_command("mcp:build"), Some("npm run mcp:build".to_string()));
-    assert_eq!(config.get_script_command("dev:server"), Some("npm run dev:server".to_string()));
+    assert_eq!(
+        config.get_script_command("mcp:build"),
+        Some("npm run mcp:build".to_string())
+    );
+    assert_eq!(
+        config.get_script_command("dev:server"),
+        Some("npm run dev:server".to_string())
+    );
 }
