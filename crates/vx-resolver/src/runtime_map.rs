@@ -115,6 +115,10 @@ impl RuntimeMap {
                     if let Some(ref recommended) = req.recommended {
                         dep = dep.with_recommended_version(recommended.clone());
                     }
+                    // Set provided_by if specified (for proxy-managed runtimes like yarn 2.x+)
+                    if let Some(ref provided_by) = req.provided_by {
+                        dep = dep.provided_by(provided_by.clone());
+                    }
                     spec.dependencies.push(dep);
                 }
             }

@@ -50,6 +50,10 @@ pub struct DependencyDef {
     /// Whether this dependency is optional
     #[serde(default)]
     pub optional: bool,
+    /// The runtime that provides this dependency
+    /// e.g., "yarn" 2.x+ is provided by "node" via corepack
+    #[serde(default)]
+    pub provided_by: Option<String>,
 }
 
 impl DependencyDef {
