@@ -265,10 +265,7 @@ fn test_yarn_with_preinstalled_node() {
             stdout
         );
         // Node should have been installed
-        assert!(
-            node_store.exists(),
-            "Node should be installed in the store"
-        );
+        assert!(node_store.exists(), "Node should be installed in the store");
     } else {
         // Network errors are acceptable
         assert!(

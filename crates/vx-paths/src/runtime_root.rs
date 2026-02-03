@@ -94,8 +94,7 @@ impl RuntimeRoot {
 
         // Find the actual root directory within platform_dir
         // Some runtimes have nested directories (e.g., node-v20.0.0-win-x64)
-        let (root_dir, bin_dir, executable_path) =
-            Self::resolve_dirs(&platform_dir, name)?;
+        let (root_dir, bin_dir, executable_path) = Self::resolve_dirs(&platform_dir, name)?;
 
         // Get all installed versions
         let all_versions = manager.list_store_versions(name).unwrap_or_default();
@@ -253,10 +252,7 @@ impl RuntimeRoot {
             format!("VX_{}_BIN", name_upper),
             self.bin_dir.display().to_string(),
         );
-        vars.insert(
-            format!("VX_{}_VERSION", name_upper),
-            self.version.clone(),
-        );
+        vars.insert(format!("VX_{}_VERSION", name_upper), self.version.clone());
         vars.insert(
             format!("VX_{}_VERSIONS", name_upper),
             self.all_versions.join(sep),
@@ -287,10 +283,7 @@ impl RuntimeRoot {
             format!("VX_{}_BIN", prefix_upper),
             self.bin_dir.display().to_string(),
         );
-        vars.insert(
-            format!("VX_{}_VERSION", prefix_upper),
-            self.version.clone(),
-        );
+        vars.insert(format!("VX_{}_VERSION", prefix_upper), self.version.clone());
         vars.insert(
             format!("VX_{}_VERSIONS", prefix_upper),
             self.all_versions.join(sep),
@@ -346,7 +339,8 @@ mod tests {
         let platform_dir = manager.platform_store_dir("node", version);
 
         // Create nested Node.js-style layout
-        let nested_dir = platform_dir.join(format!("node-v{}-{}", version, manager.platform_dir_name()));
+        let nested_dir =
+            platform_dir.join(format!("node-v{}-{}", version, manager.platform_dir_name()));
         std::fs::create_dir_all(&nested_dir).unwrap();
 
         let exe_name = with_executable_extension("node");
@@ -403,7 +397,16 @@ mod tests {
         assert_eq!(root.name, "go");
         assert_eq!(root.version, "1.21.0");
         assert!(root.executable_exists());
-        assert!(root.bin_dir().ends_with("bin"));
+        // Check that bin_dir ends with "bin" component (cross-platform)
+        assert!(
+            root.bin_dir()
+                .components()
+                .last()
+                .map(|c| c.as_os_str() == "bin")
+                .unwrap_or(false),
+            "bin_dir should end with 'bin' component: {:?}",
+            root.bin_dir()
+        );
     }
 
     #[test]

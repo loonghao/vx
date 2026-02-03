@@ -23,7 +23,6 @@ use vx_runtime::{CacheMode, ProviderRegistry, RuntimeContext};
 /// This prevents duplicate warnings when building PATH
 static WARNED_TOOLS: Mutex<Option<HashSet<String>>> = Mutex::new(None);
 
-
 /// Executor for runtime command forwarding
 pub struct Executor<'a> {
     /// Configuration
@@ -395,7 +394,10 @@ impl<'a> Executor<'a> {
                     .unwrap_or("latest");
 
                 if !runtime.is_version_installable(version_to_check) {
-                    debug!("[PREPARE_PROXY] Preparing proxy execution for {}@{}", runtime_name, version_to_check);
+                    debug!(
+                        "[PREPARE_PROXY] Preparing proxy execution for {}@{}",
+                        runtime_name, version_to_check
+                    );
 
                     // Create execution context
                     let exec_ctx = vx_runtime::ExecutionContext {
@@ -407,7 +409,9 @@ impl<'a> Executor<'a> {
                     };
 
                     // Call prepare_execution to set up the proxy
-                    let prep = runtime.prepare_execution(version_to_check, &exec_ctx).await?;
+                    let prep = runtime
+                        .prepare_execution(version_to_check, &exec_ctx)
+                        .await?;
 
                     // Log any message from preparation
                     if let Some(ref msg) = prep.message {
@@ -415,7 +419,10 @@ impl<'a> Executor<'a> {
                     }
 
                     // Check if proxy is ready
-                    if !prep.proxy_ready && !prep.use_system_path && prep.executable_override.is_none() {
+                    if !prep.proxy_ready
+                        && !prep.use_system_path
+                        && prep.executable_override.is_none()
+                    {
                         return Err(anyhow::anyhow!(
                             "Proxy setup for {}@{} failed. The proxy mechanism is not ready.",
                             runtime_name,
@@ -430,7 +437,10 @@ impl<'a> Executor<'a> {
                         // Update resolution to use system executable
                         if let Ok(system_exe) = which::which(runtime_name) {
                             resolution.executable = system_exe;
-                            debug!("  Resolved system executable: {}", resolution.executable.display());
+                            debug!(
+                                "  Resolved system executable: {}",
+                                resolution.executable.display()
+                            );
                         }
                     }
 
@@ -995,8 +1005,7 @@ impl<'a> Executor<'a> {
                     // Use recommended version if available, otherwise "latest"
                     let dep_version = dep.recommended_version.as_deref().unwrap_or("latest");
                     // Use Box::pin for recursive async call
-                    Box::pin(self.ensure_version_installed(&dep.runtime_name, dep_version))
-                        .await?;
+                    Box::pin(self.ensure_version_installed(&dep.runtime_name, dep_version)).await?;
                 }
             }
         }

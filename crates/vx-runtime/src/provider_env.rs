@@ -208,18 +208,12 @@ impl ProviderEnvironment {
                     "{base_dir}",
                     &self.version_info.base_dir.display().to_string(),
                 )
-                .replace(
-                    "{base}",
-                    &self.version_info.base_dir.display().to_string(),
-                )
+                .replace("{base}", &self.version_info.base_dir.display().to_string())
                 .replace(
                     "{bin_dir}",
                     &self.version_info.bin_dir.display().to_string(),
                 )
-                .replace(
-                    "{bin}",
-                    &self.version_info.bin_dir.display().to_string(),
-                )
+                .replace("{bin}", &self.version_info.bin_dir.display().to_string())
                 .replace("{version}", &self.version_info.version)
                 .replace("{runtime}", &self.runtime_name)
                 .replace("{provider}", &self.provider_name);
