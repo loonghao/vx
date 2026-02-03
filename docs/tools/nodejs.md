@@ -75,15 +75,37 @@ vx pnpm add react
 
 ## Yarn
 
+vx supports Yarn 1.x (Classic). For Yarn 2.x+ (Berry), please use corepack which is bundled with Node.js.
+
+### Yarn 1.x (Classic)
+
 ```bash
-# Install yarn
-vx install yarn latest
+# Install Yarn 1.x
+vx install yarn 1.22.19
+vx yarn --version
 
 # Usage
 vx yarn install
 vx yarn build
 vx yarn add react
 ```
+
+### Yarn 2.x+ (Berry)
+
+Yarn 2.x+ (Berry) is not directly installable via vx. Instead, use corepack which is bundled with Node.js:
+
+```bash
+# Install Node.js first
+vx install node 20
+
+# Enable corepack (provides Yarn 2.x+)
+vx node -e "require('child_process').execSync('corepack enable', {stdio: 'inherit'})"
+
+# Or use npx to run Yarn
+vx npx yarn@2.4.3 --version
+```
+
+For more details, see the [Yarn official documentation](https://yarnpkg.com/getting-started/install).
 
 ## Bun
 

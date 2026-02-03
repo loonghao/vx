@@ -1,4 +1,8 @@
 //! Yarn runtime implementation
+//!
+//! This module provides Yarn runtime support for both:
+//! - Yarn 1.x (Classic): Direct download from GitHub releases
+//! - Yarn 2.x+ (Berry): Managed via corepack (bundled with Node.js 16.10+)
 
 use crate::config::YarnUrlBuilder;
 use anyhow::Result;
@@ -13,8 +17,8 @@ use vx_version_fetcher::VersionFetcherBuilder;
 // Note: Yarn's Node.js version constraints are now defined in vx_runtime::ConstraintsRegistry
 // This provides version-aware constraints:
 // - Yarn 1.x: Node.js 12-22 (native module compatibility)
-// - Yarn 2.x-3.x: Node.js 16+
-// - Yarn 4.x: Node.js 18+
+// - Yarn 2.x-3.x: Node.js 16+ with corepack
+// - Yarn 4.x: Node.js 18+ with corepack
 
 /// Yarn runtime
 #[derive(Debug, Clone)]
@@ -29,6 +33,41 @@ impl YarnRuntime {
     /// Get the directory name inside the archive for a given version
     fn get_archive_dir_name(version: &str) -> String {
         format!("yarn-v{}", version)
+    }
+
+    /// Check if version uses corepack (Yarn 2.x+)
+    pub fn uses_corepack(version: &str) -> bool {
+        !version.starts_with('1')
+    }
+
+    /// Enable corepack for Yarn 2.x+ support
+    ///
+    /// This runs `corepack enable` using the provided Node.js executable
+    pub async fn enable_corepack(node_executable: &Path) -> Result<()> {
+        info!("Enabling corepack for Yarn 2.x+ support...");
+
+        let output = Command::new(node_executable)
+            .args(["--eval", "require('child_process').execSync('corepack enable', {stdio: 'inherit'})"])
+            .output()
+            .await?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(anyhow::anyhow!("Failed to enable corepack: {}", stderr));
+        }
+
+        info!("Corepack enabled successfully");
+        Ok(())
+    }
+
+    /// Check if corepack is already enabled
+    pub async fn is_corepack_enabled() -> bool {
+        // Check if yarn is available and works via corepack
+        if let Ok(output) = Command::new("yarn").arg("--version").output().await {
+            output.status.success()
+        } else {
+            false
+        }
     }
 }
 
@@ -65,26 +104,48 @@ impl Runtime for YarnRuntime {
     }
 
     /// Yarn 1.x archives extract to `yarn-v{version}/bin/`
+    /// Yarn 2.x+ is not directly installable (uses corepack)
     fn executable_dir_path(&self, version: &str, _platform: &Platform) -> Option<String> {
-        let dir_name = Self::get_archive_dir_name(version);
-        Some(format!("{}/bin", dir_name))
+        // Only Yarn 1.x has a predictable archive structure
+        if version.starts_with('1') {
+            let dir_name = Self::get_archive_dir_name(version);
+            Some(format!("{}/bin", dir_name))
+        } else {
+            // Yarn 2.x+ is not directly installable via archive
+            None
+        }
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Use npm registry API instead of GitHub API to avoid rate limits
-        // Note: This is for Yarn 1.x (classic), Yarn 2+ uses different distribution
-        VersionFetcherBuilder::npm("yarn")
+        // Only Yarn 1.x (Classic) is directly installable via vx
+        // Yarn 2.x+ (Berry) should be managed via corepack (bundled with Node.js)
+        // Fetch versions from npm registry and filter to only 1.x versions
+        let versions = VersionFetcherBuilder::npm("yarn")
             .skip_prereleases()
             .lts_pattern("1.22.")
             .limit(100)
             .build()
             .fetch(ctx)
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        // Filter to only Yarn 1.x versions
+        let classic_versions: Vec<VersionInfo> = versions
+            .into_iter()
+            .filter(|v| v.version.starts_with('1'))
+            .collect();
+
+        Ok(classic_versions)
     }
 
     async fn download_url(&self, version: &str, _platform: &Platform) -> Result<Option<String>> {
-        Ok(YarnUrlBuilder::download_url(version))
+        // Only Yarn 1.x (Classic) is directly installable
+        if version.starts_with('1') {
+            Ok(YarnUrlBuilder::download_url(version))
+        } else {
+            // Yarn 2.x+ (Berry) uses corepack - no direct download URL
+            Ok(None)
+        }
     }
 
     /// Pre-run hook for yarn commands

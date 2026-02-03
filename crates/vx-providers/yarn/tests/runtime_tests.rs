@@ -108,3 +108,64 @@ fn test_yarn_executable_name() {
     let runtime = YarnRuntime::new();
     assert_eq!(runtime.executable_name(), "yarn");
 }
+
+// ============================================================================
+// Yarn 2.x+ (Berry) handling tests
+// ============================================================================
+
+/// Test that Yarn 2.x+ is not directly installable
+#[rstest]
+#[case("2.4.3", false)]
+#[case("3.6.0", false)]
+#[case("4.0.0", false)]
+#[case("1.22.19", true)]
+#[case("1.0.0", true)]
+fn test_yarn_version_installable(#[case] version: &str, #[case] expected_installable: bool) {
+    use vx_provider_yarn::YarnUrlBuilder;
+    let is_installable = YarnUrlBuilder::is_directly_installable(version);
+    assert_eq!(
+        is_installable, expected_installable,
+        "Yarn {} should {}be directly installable",
+        version,
+        if expected_installable { "" } else { "not " }
+    );
+}
+
+/// Test that Yarn 2.x+ returns None for download_url
+#[rstest]
+#[case("1.22.19", true)]
+#[case("2.4.3", false)]
+#[case("3.6.0", false)]
+fn test_yarn_download_url(#[case] version: &str, #[case] should_have_url: bool) {
+    use vx_provider_yarn::YarnUrlBuilder;
+    let url = YarnUrlBuilder::download_url(version);
+    if should_have_url {
+        assert!(
+            url.is_some(),
+            "Yarn {} should have a download URL",
+            version
+        );
+        assert!(url.unwrap().contains("github.com"));
+    } else {
+        assert!(
+            url.is_none(),
+            "Yarn {} should NOT have a direct download URL (requires corepack)",
+            version
+        );
+    }
+}
+
+/// Test executable_dir_path returns None for Yarn 2.x+
+#[rstest]
+#[case("1.22.19", Some("yarn-v1.22.19/bin"))]
+#[case("2.4.3", None)]
+#[case("3.6.0", None)]
+fn test_yarn_executable_dir_path(
+    #[case] version: &str,
+    #[case] expected: Option<&str>,
+) {
+    let runtime = YarnRuntime::new();
+    let platform = Platform::new(Os::Linux, Arch::X86_64);
+    let path = runtime.executable_dir_path(version, &platform);
+    assert_eq!(path.as_deref(), expected);
+}

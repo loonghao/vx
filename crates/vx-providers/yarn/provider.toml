@@ -1,6 +1,9 @@
 # Yarn Provider Manifest
 # This file defines the metadata, runtimes, and dependency constraints for Yarn.
 # RFC 0017/0018 compliant - includes extended schema fields
+#
+# Yarn 1.x (Classic): Direct download from GitHub releases
+# Yarn 2.x+ (Berry): Managed via corepack (bundled with Node.js 16.10+)
 
 [provider]
 name = "yarn"
@@ -35,7 +38,7 @@ download_type = "archive"
 [runtimes.layout.archive]
 strip_prefix = "yarn-v{version}"
 executable_paths = [
-    "bin/yarn.js",  # Yarn is a JS file
+    "bin/yarn.js",  # Yarn 1.x is a JS file
 ]
 
 # RFC 0018: Detection configuration
@@ -80,16 +83,16 @@ requires = [
     { runtime = "node", version = ">=12, <23", recommended = "20", reason = "Yarn 1.x requires Node.js 12-22 for native module compatibility" }
 ]
 
-# Yarn 2.x-3.x (Berry) requires Node.js 16+
+# Yarn 2.x-3.x (Berry) requires Node.js 16+ with corepack
 [[runtimes.constraints]]
 when = ">=2, <4"
 requires = [
-    { runtime = "node", version = ">=16", recommended = "20", reason = "Yarn 2.x-3.x requires Node.js 16+" }
+    { runtime = "node", version = ">=16.10", recommended = "20", reason = "Yarn 2.x-3.x requires Node.js 16.10+ with corepack" }
 ]
 
-# Yarn 4.x requires Node.js 18+
+# Yarn 4.x requires Node.js 18+ with corepack
 [[runtimes.constraints]]
 when = ">=4"
 requires = [
-    { runtime = "node", version = ">=18", recommended = "22", reason = "Yarn 4.x requires Node.js 18+" }
+    { runtime = "node", version = ">=18", recommended = "22", reason = "Yarn 4.x requires Node.js 18+ with corepack" }
 ]

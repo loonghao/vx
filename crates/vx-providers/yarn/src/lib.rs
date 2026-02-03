@@ -6,7 +6,7 @@ mod config;
 mod provider;
 mod runtime;
 
-pub use config::YarnConfig;
+pub use config::{YarnConfig, YarnUrlBuilder};
 pub use provider::YarnProvider;
 pub use runtime::YarnRuntime;
 
