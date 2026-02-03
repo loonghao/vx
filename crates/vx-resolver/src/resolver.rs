@@ -570,6 +570,30 @@ impl Resolver {
         self.runtime_map.get(runtime_name)
     }
 
+    /// Get version-specific dependencies for a runtime
+    ///
+    /// This method queries the original RuntimeDef constraints to find
+    /// dependencies that apply to a specific version.
+    pub fn get_dependencies_for_version(
+        &self,
+        runtime_name: &str,
+        version: &str,
+    ) -> Vec<RuntimeDependency> {
+        self.runtime_map.get_dependencies_for_version(runtime_name, version)
+    }
+
+    /// Get the parent runtime (provided_by) for a specific version
+    ///
+    /// Returns the runtime that provides this runtime for the given version.
+    /// For example, Yarn 2.x+ returns "node" because it's provided via corepack.
+    pub fn get_parent_runtime_for_version(
+        &self,
+        runtime_name: &str,
+        version: &str,
+    ) -> Option<String> {
+        self.runtime_map.get_parent_runtime_for_version(runtime_name, version)
+    }
+
     /// Check if a runtime is known
     pub fn is_known_runtime(&self, runtime_name: &str) -> bool {
         self.runtime_map.contains(runtime_name)
