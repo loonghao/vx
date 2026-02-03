@@ -2,7 +2,7 @@
 //!
 //! This module handles:
 //! - Building the command to execute
-//! - Handling Windows .cmd/.bat files
+//! - Handling Windows .cmd/.bat files (using raw_arg for proper quoting)
 //! - Running the command with timeout
 
 use crate::Result;
@@ -22,6 +22,12 @@ pub fn build_command(
     let executable = &resolution.executable;
 
     // On Windows, .cmd and .bat files need to be executed via cmd.exe
+    // We use raw_arg to properly handle paths with spaces, because cmd.exe
+    // doesn't follow standard CommandLineToArgvW escaping rules.
+    //
+    // The correct format for cmd /c with spaces is:
+    //   cmd /c ""path with spaces" arg1 arg2"
+    // The outer quotes are stripped by /c, leaving the inner quotes intact.
     #[cfg(windows)]
     let mut cmd = {
         let ext = executable
@@ -32,15 +38,15 @@ pub fn build_command(
 
         if ext == "cmd" || ext == "bat" {
             let mut c = Command::new("cmd.exe");
-            // Use quoted path to handle spaces in path (e.g., "C:\Program Files\...")
-            // cmd.exe /c requires the entire command to be quoted if it contains spaces
-            let exe_str = executable.to_string_lossy();
-            if exe_str.contains(' ') {
-                c.arg("/c").arg(format!("\"{}\"", exe_str));
-            } else {
-                c.arg("/c").arg(executable);
-            }
-            c
+            c.arg("/c");
+
+            // Build the complete command string with proper quoting
+            // Format: ""path" args..." where outer quotes are stripped by /c
+            let cmd_string = build_cmd_string(executable, &resolution.command_prefix, args);
+            c.raw_arg(cmd_string);
+
+            // Return early since we've already added all arguments via raw_arg
+            return finalize_command(c, runtime_env, inherit_vx_path, vx_tools_path, resolution);
         } else {
             Command::new(executable)
         }
@@ -57,6 +63,68 @@ pub fn build_command(
     // Add user arguments
     cmd.args(args);
 
+    finalize_command(cmd, runtime_env, inherit_vx_path, vx_tools_path, resolution)
+}
+
+/// Build a command string for cmd.exe /c with proper quoting
+///
+/// Format: ""path with spaces" arg1 "arg with spaces" arg2"
+/// The outer quotes are needed because /c strips the first and last quote.
+#[cfg(windows)]
+fn build_cmd_string(
+    executable: &std::path::Path,
+    command_prefix: &[String],
+    args: &[String],
+) -> String {
+    let mut parts = Vec::new();
+
+    // Add executable (quote if contains spaces)
+    let exe_str = executable.to_string_lossy();
+    parts.push(quote_if_needed(&exe_str));
+
+    // Add command prefix
+    for prefix in command_prefix {
+        parts.push(quote_if_needed(prefix));
+    }
+
+    // Add arguments
+    for arg in args {
+        parts.push(quote_if_needed(arg));
+    }
+
+    // Join with spaces
+    parts.join(" ")
+}
+
+/// Quote a string if it contains spaces or special characters
+#[cfg(windows)]
+fn quote_if_needed(s: &str) -> String {
+    // Characters that require quoting in cmd.exe
+    let needs_quoting = s.contains(' ')
+        || s.contains('"')
+        || s.contains('&')
+        || s.contains('|')
+        || s.contains('<')
+        || s.contains('>')
+        || s.contains('^');
+
+    if needs_quoting {
+        // Escape any existing quotes by doubling them
+        let escaped = s.replace('"', "\"\"");
+        format!("\"{}\"", escaped)
+    } else {
+        s.to_string()
+    }
+}
+
+/// Finalize command setup with environment variables and stdio
+fn finalize_command(
+    mut cmd: Command,
+    runtime_env: &HashMap<String, String>,
+    inherit_vx_path: bool,
+    vx_tools_path: Option<String>,
+    resolution: &crate::resolver::ResolutionResult,
+) -> Result<Command> {
     // Build the final environment
     let mut final_env = runtime_env.clone();
 
