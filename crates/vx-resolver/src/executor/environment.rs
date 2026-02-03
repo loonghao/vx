@@ -1,0 +1,665 @@
+//! Environment preparation and PATH building
+//!
+//! This module handles:
+//! - Preparing runtime environment variables
+//! - Template expansion ({install_dir}, {version}, etc.)
+//! - Building the vx tools PATH for subprocess execution
+
+use crate::{Resolver, ResolverConfig, Result};
+use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
+use std::sync::Mutex;
+use tracing::{debug, trace, warn};
+use vx_runtime::{ProviderRegistry, RuntimeContext};
+
+use super::project_config::ProjectToolsConfig;
+
+/// Track which tools have been warned about missing versions
+/// This prevents duplicate warnings when building PATH
+pub(crate) static WARNED_TOOLS: Mutex<Option<HashSet<String>>> = Mutex::new(None);
+
+/// Environment preparation manager
+pub struct EnvironmentManager<'a> {
+    #[allow(dead_code)]
+    pub(crate) config: &'a ResolverConfig,
+    pub(crate) resolver: &'a Resolver,
+    pub(crate) registry: Option<&'a ProviderRegistry>,
+    pub(crate) context: Option<&'a RuntimeContext>,
+    pub(crate) project_config: Option<&'a ProjectToolsConfig>,
+}
+
+impl<'a> EnvironmentManager<'a> {
+    /// Create a new environment manager
+    pub fn new(
+        config: &'a ResolverConfig,
+        resolver: &'a Resolver,
+        registry: Option<&'a ProviderRegistry>,
+        context: Option<&'a RuntimeContext>,
+        project_config: Option<&'a ProjectToolsConfig>,
+    ) -> Self {
+        Self {
+            config,
+            resolver,
+            registry,
+            context,
+            project_config,
+        }
+    }
+
+    /// Prepare environment variables for a runtime
+    pub async fn prepare_runtime_environment(
+        &self,
+        runtime_name: &str,
+        version: Option<&str>,
+        inherit_env: bool,
+    ) -> Result<HashMap<String, String>> {
+        let mut env = HashMap::new();
+
+        // Get the provider runtime info for bundled tools
+        let (effective_runtime_name, effective_version) =
+            self.get_provider_runtime(runtime_name, version);
+
+        let effective_runtime_name_ref = effective_runtime_name
+            .as_deref()
+            .unwrap_or(runtime_name);
+        let effective_version_ref = effective_version
+            .as_deref()
+            .or(version);
+
+        debug!(
+            "  prepare_env for {} (effective: {}@{:?})",
+            runtime_name, effective_runtime_name_ref, effective_version_ref
+        );
+
+        // Get runtime spec for base environment variables
+        if let Some(spec) = self.resolver.get_spec(effective_runtime_name_ref) {
+            // Handle env_config if present
+            if let Some(env_config) = &spec.env_config {
+                // Handle advanced environment configuration
+                if let Some(advanced) = &env_config.advanced {
+                    // Handle PATH manipulation
+                    let mut path_parts = Vec::new();
+
+                    // Prepend entries
+                    for entry in &advanced.path_prepend {
+                        let expanded = self.expand_template(
+                            entry,
+                            effective_runtime_name_ref,
+                            effective_version_ref,
+                        )?;
+                        path_parts.push(expanded);
+                    }
+
+                    // Get current PATH
+                    let isolate_env = if inherit_env { false } else { advanced.isolate };
+                    let current_path = if !isolate_env {
+                        std::env::var("PATH").unwrap_or_default()
+                    } else {
+                        // When isolated, filter PATH to only include system directories
+                        if let Ok(full_path) = std::env::var("PATH") {
+                            vx_manifest::filter_system_path(&full_path)
+                        } else {
+                            String::new()
+                        }
+                    };
+
+                    // Split current_path and add each directory
+                    if !current_path.is_empty() {
+                        for part in vx_paths::split_path(&current_path) {
+                            path_parts.push(part.to_string());
+                        }
+                    }
+
+                    // Ensure essential system paths are present (Unix only)
+                    #[cfg(unix)]
+                    {
+                        let essential_paths = ["/bin", "/usr/bin", "/usr/local/bin"];
+                        for essential in &essential_paths {
+                            let essential_str = essential.to_string();
+                            if !path_parts.iter().any(|p| p == &essential_str)
+                                && std::path::Path::new(essential).exists()
+                            {
+                                path_parts.push(essential_str);
+                                trace!("Added essential system path: {}", essential);
+                            }
+                        }
+                    }
+
+                    // Append entries
+                    for entry in &advanced.path_append {
+                        let expanded = self.expand_template(
+                            entry,
+                            effective_runtime_name_ref,
+                            effective_version_ref,
+                        )?;
+                        path_parts.push(expanded);
+                    }
+
+                    // Set PATH
+                    if !path_parts.is_empty() {
+                        if let Ok(new_path) = std::env::join_paths(&path_parts) {
+                            env.insert("PATH".to_string(), new_path.to_string_lossy().to_string());
+                        }
+                    }
+
+                    // Handle advanced env vars
+                    for (var_name, var_config) in &advanced.env_vars {
+                        match var_config {
+                            vx_manifest::EnvVarConfig::Simple(value) => {
+                                let expanded = self.expand_template(
+                                    value,
+                                    effective_runtime_name_ref,
+                                    effective_version_ref,
+                                )?;
+                                env.insert(var_name.clone(), expanded);
+                            }
+                            vx_manifest::EnvVarConfig::Advanced {
+                                value,
+                                prepend,
+                                append,
+                                ..
+                            } => {
+                                // Build the value
+                                let mut parts = Vec::new();
+                                if let Some(pre_list) = prepend {
+                                    for pre in pre_list {
+                                        parts.push(self.expand_template(
+                                            pre,
+                                            effective_runtime_name_ref,
+                                            effective_version_ref,
+                                        )?);
+                                    }
+                                }
+                                if let Some(val) = value {
+                                    parts.push(self.expand_template(
+                                        val,
+                                        effective_runtime_name_ref,
+                                        effective_version_ref,
+                                    )?);
+                                }
+                                if let Some(app_list) = append {
+                                    for app in app_list {
+                                        parts.push(self.expand_template(
+                                            app,
+                                            effective_runtime_name_ref,
+                                            effective_version_ref,
+                                        )?);
+                                    }
+                                }
+                                if !parts.is_empty() {
+                                    env.insert(var_name.clone(), parts.join(""));
+                                }
+                            }
+                        }
+                    }
+
+                    // Get effective inherit_system_vars (defaults + provider-specific)
+                    let inherit_vars = env_config.effective_inherit_system_vars();
+
+                    // Inherit system vars (excluding PATH which is handled above)
+                    for var_pattern in &inherit_vars {
+                        if var_pattern == "PATH" {
+                            continue;
+                        }
+
+                        // Handle glob patterns like "LC_*"
+                        if var_pattern.contains('*') {
+                            let prefix = var_pattern.trim_end_matches('*');
+                            for (key, value) in std::env::vars() {
+                                if key.starts_with(prefix) && !env.contains_key(&key) {
+                                    env.insert(key, value);
+                                }
+                            }
+                        } else if let Ok(value) = std::env::var(var_pattern) {
+                            if !env.contains_key(var_pattern) {
+                                env.insert(var_pattern.clone(), value);
+                            }
+                        }
+                    }
+                } else if inherit_env {
+                    // No advanced config, but inherit_env requested - inherit everything
+                    for (key, value) in std::env::vars() {
+                        if !env.contains_key(&key) {
+                            env.insert(key, value);
+                        }
+                    }
+                }
+            } else if inherit_env {
+                // No env_config, but inherit_env requested - inherit everything
+                for (key, value) in std::env::vars() {
+                    if !env.contains_key(&key) {
+                        env.insert(key, value);
+                    }
+                }
+            }
+
+            // Add basic env_vars from spec
+            for (key, value) in &spec.env_vars {
+                let expanded =
+                    self.expand_template(value, effective_runtime_name_ref, effective_version_ref)?;
+                env.insert(key.clone(), expanded);
+            }
+        }
+
+        // If we don't have registry and context, return what we have
+        let (registry, context) = match (self.registry, self.context) {
+            (Some(r), Some(c)) => (r, c),
+            _ => return Ok(env),
+        };
+
+        // Get the runtime
+        let runtime = match registry.get_runtime(runtime_name) {
+            Some(r) => r,
+            None => return Ok(env),
+        };
+
+        // Determine the version to use
+        let version = match version {
+            Some(v) => v.to_string(),
+            None => {
+                // Try to get the installed version from the store
+                match runtime.installed_versions(context).await {
+                    Ok(versions) if !versions.is_empty() => versions[0].clone(),
+                    _ => return Ok(env),
+                }
+            }
+        };
+
+        // Call prepare_environment and merge
+        match runtime.prepare_environment(&version, context).await {
+            Ok(runtime_env) => {
+                env.extend(runtime_env);
+                if !env.is_empty() {
+                    debug!(
+                        "Prepared {} environment variables for {} {}",
+                        env.len(),
+                        runtime_name,
+                        version
+                    );
+                }
+                Ok(env)
+            }
+            Err(e) => {
+                warn!(
+                    "Failed to prepare environment for {} {}: {}",
+                    runtime_name, version, e
+                );
+                Ok(env)
+            }
+        }
+    }
+
+    /// Get the provider runtime for a bundled tool
+    pub fn get_provider_runtime(
+        &self,
+        runtime_name: &str,
+        version: Option<&str>,
+    ) -> (Option<String>, Option<String>) {
+        if let Some(spec) = self.resolver.get_spec(runtime_name) {
+            for dep in &spec.dependencies {
+                if dep.required {
+                    if let Some(ref provider) = dep.provided_by {
+                        // For bundled tools (npx, npm), use the provider's version
+                        return (Some(provider.clone()), version.map(|v| v.to_string()));
+                    }
+                }
+            }
+        }
+        (None, None)
+    }
+
+    /// Expand template variables in environment values
+    pub fn expand_template(
+        &self,
+        template: &str,
+        runtime_name: &str,
+        version: Option<&str>,
+    ) -> Result<String> {
+        let mut result = template.to_string();
+
+        // Get runtime spec for template expansion
+        if let Some(_spec) = self.resolver.get_spec(runtime_name) {
+            // Replace {install_dir} using PathProvider
+            if result.contains("{install_dir}") {
+                let install_dir = self.resolve_install_dir(runtime_name, version);
+
+                if let Some(dir) = install_dir {
+                    result = result.replace("{install_dir}", &dir.to_string_lossy());
+                    debug!("  expand_template: {{install_dir}} -> {}", dir.display());
+                } else {
+                    warn!(
+                        "Could not expand {{install_dir}} for {}: no version available or path does not exist",
+                        runtime_name
+                    );
+                }
+            }
+
+            // Replace {version}
+            if let Some(ver) = version {
+                result = result.replace("{version}", ver);
+            }
+
+            // Replace {executable} using PathProvider
+            if result.contains("{executable}") {
+                if let (Some(ctx), Some(ver)) = (self.context, version) {
+                    let exe_path = ctx.paths.executable_path(runtime_name, ver);
+                    result = result.replace("{executable}", &exe_path.to_string_lossy());
+                }
+            }
+
+            // Replace {PATH} with current PATH
+            if let Ok(path) = std::env::var("PATH") {
+                result = result.replace("{PATH}", &path);
+            }
+
+            // Replace shell-style variables
+            if result.contains("$HOME") {
+                if let Ok(home) = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
+                    result = result.replace("$HOME", &home);
+                }
+            }
+
+            if result.contains("$CARGO_HOME") {
+                if let Ok(cargo_home) = std::env::var("CARGO_HOME") {
+                    result = result.replace("$CARGO_HOME", &cargo_home);
+                }
+            }
+
+            if result.contains("$RUSTUP_HOME") {
+                if let Ok(rustup_home) = std::env::var("RUSTUP_HOME") {
+                    result = result.replace("$RUSTUP_HOME", &rustup_home);
+                }
+            }
+
+            if result.contains("$USER") {
+                if let Ok(user) = std::env::var("USER").or_else(|_| std::env::var("USERNAME")) {
+                    result = result.replace("$USER", &user);
+                }
+            }
+
+            // Replace {env:VAR} with environment variable
+            while let Some(start) = result.find("{env:") {
+                if let Some(end) = result[start..].find('}') {
+                    let env_var = &result[start + 5..start + end];
+                    let env_value = std::env::var(env_var).unwrap_or_default();
+                    result.replace_range(start..=start + end, &env_value);
+                } else {
+                    break;
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Resolve the installation directory for a runtime
+    pub fn resolve_install_dir(&self, runtime_name: &str, version: Option<&str>) -> Option<PathBuf> {
+        let ctx = self.context?;
+        let platform = vx_paths::manager::CurrentPlatform::current();
+
+        // If version is provided, use it directly
+        if let Some(ver) = version {
+            let version_dir = ctx.paths.version_store_dir(runtime_name, ver);
+            let platform_dir = version_dir.join(platform.as_str());
+
+            // First try platform-specific directory
+            if platform_dir.exists() {
+                return Some(platform_dir);
+            }
+
+            // Fallback to version directory without platform
+            if version_dir.exists() {
+                debug!(
+                    "Using version directory without platform suffix for {}: {}",
+                    runtime_name,
+                    version_dir.display()
+                );
+                return Some(version_dir);
+            }
+
+            debug!(
+                "Version directory does not exist for {} v{}: {}",
+                runtime_name,
+                ver,
+                version_dir.display()
+            );
+            return None;
+        }
+
+        // No version provided - scan installed versions and select the latest
+        let runtime_store_dir = ctx.paths.runtime_store_dir(runtime_name);
+        let entries = match std::fs::read_dir(&runtime_store_dir) {
+            Ok(e) => e,
+            Err(_) => {
+                debug!(
+                    "Cannot read runtime store directory: {}",
+                    runtime_store_dir.display()
+                );
+                return None;
+            }
+        };
+
+        // Collect valid version directories
+        let mut versions: Vec<String> = entries
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir())
+            .filter_map(|e| e.file_name().into_string().ok())
+            .collect();
+
+        if versions.is_empty() {
+            return None;
+        }
+
+        // Sort by semver and get latest
+        versions.sort_by(|a, b| self.compare_versions(a, b));
+        let latest = versions.last()?;
+
+        let version_dir = ctx.paths.version_store_dir(runtime_name, latest);
+        let platform_dir = version_dir.join(platform.as_str());
+
+        if platform_dir.exists() {
+            Some(platform_dir)
+        } else if version_dir.exists() {
+            Some(version_dir)
+        } else {
+            None
+        }
+    }
+
+    /// Build PATH string containing all vx-managed tool bin directories
+    pub fn build_vx_tools_path(&self) -> Option<String> {
+        let context = self.context?;
+        let registry = self.registry?;
+
+        let mut paths: Vec<String> = Vec::new();
+
+        // Add vx bin directory first (for shims)
+        let vx_bin = context.paths.bin_dir();
+        if vx_bin.exists() {
+            paths.push(vx_bin.to_string_lossy().to_string());
+        }
+
+        // Collect all installed runtime bin directories
+        for runtime in registry.supported_runtimes() {
+            let runtime_name = runtime.store_name();
+            let runtime_store_dir = context.paths.runtime_store_dir(runtime_name);
+
+            if !runtime_store_dir.exists() {
+                continue;
+            }
+
+            if let Ok(entries) = std::fs::read_dir(&runtime_store_dir) {
+                let installed_versions: Vec<String> = entries
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.path().is_dir())
+                    .filter_map(|e| e.file_name().into_string().ok())
+                    .collect();
+
+                let version_to_use =
+                    self.select_version_for_runtime(runtime_name, &installed_versions);
+
+                if let Some(version) = version_to_use {
+                    let store_dir = context.paths.version_store_dir(runtime_name, &version);
+
+                    if let Some(bin_dir) = self.find_bin_dir(&store_dir, runtime_name) {
+                        if bin_dir.exists() {
+                            let bin_path = bin_dir.to_string_lossy().to_string();
+                            if !paths.contains(&bin_path) {
+                                paths.push(bin_path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if paths.is_empty() {
+            None
+        } else {
+            Some(vx_paths::join_paths_simple(&paths))
+        }
+    }
+
+    /// Select the version to use for a runtime, prioritizing project configuration
+    pub fn select_version_for_runtime(
+        &self,
+        runtime_name: &str,
+        installed_versions: &[String],
+    ) -> Option<String> {
+        if installed_versions.is_empty() {
+            return None;
+        }
+
+        // Check if project configuration specifies a version for this runtime
+        if let Some(project_config) = self.project_config {
+            if let Some(requested_version) = project_config.get_version_with_fallback(runtime_name)
+            {
+                let matching_version =
+                    self.find_matching_version(runtime_name, requested_version, installed_versions);
+
+                if let Some(version) = matching_version {
+                    trace!("Using {} version {} from vx.toml", runtime_name, version);
+                    return Some(version);
+                } else {
+                    // Requested version not installed, warn and fall back to latest
+                    let mut warned = WARNED_TOOLS.lock().unwrap();
+                    let warned_set = warned.get_or_insert_with(HashSet::new);
+                    if warned_set.insert(runtime_name.to_string()) {
+                        warn!(
+                            "Version {} specified in vx.toml for {} is not installed. \
+                             Using latest installed version instead. \
+                             Run 'vx install {}@{}' to install the specified version.",
+                            requested_version, runtime_name, runtime_name, requested_version
+                        );
+                    }
+                }
+            }
+        }
+
+        // Fall back to latest installed version
+        let mut versions = installed_versions.to_vec();
+        versions.sort_by(|a, b| self.compare_versions(a, b));
+
+        versions.last().cloned()
+    }
+
+    /// Find a matching version from installed versions
+    pub fn find_matching_version(
+        &self,
+        _runtime_name: &str,
+        requested: &str,
+        installed: &[String],
+    ) -> Option<String> {
+        // First try exact match
+        if installed.contains(&requested.to_string()) {
+            return Some(requested.to_string());
+        }
+
+        // Try prefix match for partial versions
+        let mut matches: Vec<&String> = installed
+            .iter()
+            .filter(|v| {
+                v.starts_with(requested)
+                    && (v.len() == requested.len() || v.chars().nth(requested.len()) == Some('.'))
+            })
+            .collect();
+
+        if matches.is_empty() {
+            return None;
+        }
+
+        // Sort and return the latest matching version
+        matches.sort_by(|a, b| self.compare_versions(a, b));
+        matches.last().map(|s| (*s).clone())
+    }
+
+    /// Compare two version strings
+    pub fn compare_versions(&self, a: &str, b: &str) -> std::cmp::Ordering {
+        let a_clean = a.trim_start_matches('v');
+        let b_clean = b.trim_start_matches('v');
+
+        let a_parts: Vec<u64> = a_clean
+            .split('.')
+            .filter_map(|s| s.split('-').next())
+            .filter_map(|s| s.parse().ok())
+            .collect();
+        let b_parts: Vec<u64> = b_clean
+            .split('.')
+            .filter_map(|s| s.split('-').next())
+            .filter_map(|s| s.parse().ok())
+            .collect();
+
+        for (ap, bp) in a_parts.iter().zip(b_parts.iter()) {
+            match ap.cmp(bp) {
+                std::cmp::Ordering::Equal => continue,
+                other => return other,
+            }
+        }
+
+        a_parts.len().cmp(&b_parts.len())
+    }
+
+    /// Find the bin directory for a runtime
+    pub fn find_bin_dir(&self, store_dir: &std::path::Path, runtime_name: &str) -> Option<PathBuf> {
+        let platform = vx_paths::manager::CurrentPlatform::current();
+
+        // Platform-specific directory
+        let platform_dir = store_dir.join(platform.as_str());
+        if platform_dir.exists() {
+            // Check for bin subdirectory
+            let bin_dir = platform_dir.join("bin");
+            if bin_dir.exists() {
+                return Some(bin_dir);
+            }
+            // Return platform dir itself if no bin subdir
+            return Some(platform_dir);
+        }
+
+        // Direct store directory
+        let bin_dir = store_dir.join("bin");
+        if bin_dir.exists() {
+            return Some(bin_dir);
+        }
+
+        // Return store dir itself for tools that don't have bin subdir
+        if store_dir.exists() {
+            // Verify there's an executable in this directory
+            if let Some(registry) = self.registry {
+                if let Some(runtime) = registry.get_runtime(runtime_name) {
+                    // Build executable name with platform extension
+                    let exe_ext = vx_paths::platform::Platform::current().executable_extension();
+                    let exe_name = if exe_ext.is_empty() {
+                        runtime.name().to_string()
+                    } else {
+                        format!("{}{}", runtime.name(), exe_ext)
+                    };
+                    if store_dir.join(&exe_name).exists() {
+                        return Some(store_dir.to_path_buf());
+                    }
+                }
+            }
+        }
+
+        None
+    }
+}

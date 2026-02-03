@@ -1,30 +1,48 @@
 # MSBuild Provider Manifest
-# This file defines the metadata, runtimes, and dependency constraints for MSBuild.
+# RFC 0028: Bundled Runtime Pattern
+#
+# MSBuild is bundled with .NET SDK (cross-platform) and Visual Studio (Windows-only).
+# It cannot be installed independently - vx delegates to `dotnet msbuild`.
+#
+# For C++ projects on Windows, MSBuild from Visual Studio Build Tools is typically used.
 
 [provider]
 name = "msbuild"
-description = "Microsoft Build Engine"
-homepage = "https://docs.microsoft.com/en-us/visualstudio/msbuild"
+description = "Microsoft Build Engine - bundled with .NET SDK"
+homepage = "https://docs.microsoft.com/visualstudio/msbuild"
 repository = "https://github.com/dotnet/msbuild"
 ecosystem = "system"
 
-# MSBuild is Windows-only
-[provider.platforms]
-os = ["windows"]
-
-# MSBuild - main build tool
+# MSBuild runtime (bundled with dotnet)
 [[runtimes]]
 name = "msbuild"
-description = "Build .NET and C++ projects"
-executable = "MSBuild"
+description = "Build .NET, C++, and other projects"
+executable = "msbuild"
 aliases = ["msbuild.exe"]
+bundled_with = "dotnet"  # RFC 0028: Bundled runtime marker
+auto_installable = false  # RFC 0028: Not directly installable
 
 [runtimes.versions]
 source = "system"  # Detect from system installation
 
+# RFC 0028: This runtime is not directly installable
+[runtimes.bundled]
+parent_runtime = "dotnet"
+command_prefix = ["dotnet", "msbuild"]
+fallback_detection = true  # Also check Visual Studio on Windows
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+# Primary: Use dotnet msbuild
+command = "dotnet msbuild --version"
+pattern = "MSBuild version ([\\d.]+)"
+# Alternative: Check standalone msbuild (Windows VS)
+alternative_command = "msbuild -version"
+alternative_pattern = "([\\d.]+)"
+
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
-# MSBuild can be found in multiple locations depending on installation
+# Visual Studio MSBuild search paths
 search_paths = [
     # Visual Studio 2022
     "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin",
@@ -35,55 +53,80 @@ search_paths = [
     "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/MSBuild/Current/Bin",
     "C:/Program Files (x86)/Microsoft Visual Studio/2019/Professional/MSBuild/Current/Bin",
     "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin",
-    "C:/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/MSBuild/Current/Bin",
-    # .NET SDK
-    "C:/Program Files/dotnet/sdk",
-    # Legacy paths
-    "C:/Program Files (x86)/MSBuild/14.0/Bin",
-    "C:/Program Files (x86)/MSBuild/15.0/Bin"
+    "C:/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/MSBuild/Current/Bin"
 ]
 
-# devenv - Visual Studio IDE
-[[runtimes]]
-name = "devenv"
-description = "Visual Studio IDE command line interface"
-executable = "devenv"
-aliases = ["devenv.exe"]
+[runtimes.platforms.unix]
+executable_extensions = []
+# On Unix, MSBuild is only available via dotnet SDK
 
-[runtimes.versions]
-source = "system"
+# RFC 0021: System-level dependencies
+[runtimes.system_deps]
 
-[runtimes.platforms.windows]
-executable_extensions = [".exe", ".com"]
-search_paths = [
-    # Visual Studio 2022
-    "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE",
-    "C:/Program Files/Microsoft Visual Studio/2022/Professional/Common7/IDE",
-    "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE",
-    # Visual Studio 2019
-    "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/Common7/IDE",
-    "C:/Program Files (x86)/Microsoft Visual Studio/2019/Professional/Common7/IDE",
-    "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/Common7/IDE"
+# Windows: Visual Studio Build Tools provides standalone MSBuild for C++ projects
+[[runtimes.system_deps.pre_depends]]
+type = "runtime"
+id = "dotnet"
+platforms = ["macos", "linux", "windows"]
+reason = ".NET SDK includes MSBuild"
+optional = false
+
+# Windows-specific: Visual Studio Build Tools for C++ MSBuild support
+[[runtimes.system_deps.pre_depends]]
+type = "runtime"
+id = "msvc"
+platforms = ["windows"]
+reason = "Visual Studio Build Tools provides MSBuild for C++ projects"
+optional = true
+
+# RFC 0021: System installation strategies
+[runtimes.system_install]
+
+# Primary: Install .NET SDK which includes MSBuild (cross-platform)
+[[runtimes.system_install.strategies]]
+type = "bundled_command"
+parent_runtime = "dotnet"
+command_prefix = ["dotnet", "msbuild"]
+platforms = ["windows", "macos", "linux"]
+priority = 100
+
+# Windows: winget installation of .NET SDK
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "winget"
+package = "Microsoft.DotNet.SDK.8"
+platforms = ["windows"]
+priority = 90
+
+# Windows: chocolatey installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "dotnet-sdk"
+platforms = ["windows"]
+priority = 80
+
+# macOS: brew installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "dotnet"
+platforms = ["macos"]
+priority = 90
+
+# RFC 0020: Test configuration
+[runtimes.test]
+timeout_ms = 30000
+functional_commands = [
+    { command = "dotnet msbuild --version", expect_success = true, expected_output = "MSBuild", name = "version_check" }
 ]
 
-# dotnet - .NET CLI (often bundled)
-[[runtimes]]
-name = "dotnet"
-description = ".NET CLI"
-executable = "dotnet"
-aliases = ["dotnet.exe"]
-
-[runtimes.versions]
-source = "system"
-
-[runtimes.platforms.windows]
-executable_extensions = [".exe"]
-search_paths = [
-    "C:/Program Files/dotnet",
-    "C:/Program Files (x86)/dotnet"
-]
-
-# No external dependencies - MSBuild tools are self-contained
+# Dependencies
 [[runtimes.constraints]]
 when = "*"
-recommends = []
+requires = [
+    { runtime = "dotnet", version = "*", reason = "MSBuild is bundled with .NET SDK" }
+]
+recommends = [
+    { runtime = "nuget", version = "*", reason = "NuGet is often needed for package management" }
+]

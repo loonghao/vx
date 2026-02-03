@@ -2,6 +2,63 @@
 
 vx 支持各种构建系统和任务运行器。
 
+## .NET SDK 和 MSBuild
+
+### .NET SDK
+
+.NET SDK 包含 dotnet CLI、MSBuild、NuGet 以及 C#、F# 和 VB.NET 编译器。
+
+```bash
+# 安装 .NET SDK
+vx install dotnet latest
+vx install dotnet 8.0        # LTS 版本
+
+# 常用命令
+vx dotnet --version
+vx dotnet new console -n MyApp
+vx dotnet build
+vx dotnet run
+vx dotnet test
+vx dotnet publish -c Release
+```
+
+### MSBuild（与 .NET SDK 捆绑）
+
+MSBuild 是 Microsoft 构建引擎，与 .NET SDK 捆绑在一起。当你运行 `vx msbuild` 时，vx 会自动使用 `dotnet msbuild`。
+
+```bash
+# MSBuild 命令（使用 dotnet msbuild）
+vx msbuild MyProject.csproj
+vx msbuild MySolution.sln /p:Configuration=Release
+vx msbuild /t:Build /p:Platform=x64
+vx msbuild /t:Clean
+vx msbuild /t:Restore
+
+# 等同于：
+vx dotnet msbuild MyProject.csproj
+```
+
+**RFC 0028：捆绑运行时**
+
+MSBuild 是"捆绑运行时"——它不能独立安装，而是随 .NET SDK 一起提供。当你运行 `vx msbuild` 时，vx 会：
+1. 查找 .NET SDK 安装（vx 管理的或系统的）
+2. 通过 `dotnet msbuild` 执行
+3. 在 Windows 上，如果没有 .NET SDK，也可以使用 Visual Studio 的独立 MSBuild
+
+**示例 .NET 构建工作流：**
+
+```bash
+# 创建新项目
+vx dotnet new webapi -n MyApi
+
+# 使用 MSBuild 构建
+cd MyApi
+vx msbuild MyApi.csproj /p:Configuration=Release
+
+# 或使用 dotnet build（更简单）
+vx dotnet build -c Release
+```
+
 ## 任务运行器
 
 ### Just
