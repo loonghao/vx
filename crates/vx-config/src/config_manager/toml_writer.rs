@@ -217,71 +217,59 @@ impl TomlWriter {
         self.doc.as_table().is_empty()
     }
 
-    // Helper: Set value in current section or root
+    // Helper: Set value in current section or root, applying pending comments to the key
     fn set_value(&mut self, key: &str, item: Item) {
+        // Build comment prefix if there are pending comments
+        let comment_prefix = if self.pending_comments.is_empty() {
+            None
+        } else {
+            let comment = self.pending_comments.join("\n") + "\n";
+            self.pending_comments.clear();
+            Some(comment)
+        };
+
         if let Some(ref section) = self.current_section {
             // Handle nested sections like "parent.child"
             let parts: Vec<&str> = section.split('.').collect();
             if parts.len() == 1 {
                 if let Some(Item::Table(table)) = self.doc.get_mut(section) {
-                    table[key] = item;
+                    table.insert(key, item);
+                    // Apply comment prefix to the key's decor if present
+                    if let Some(ref comment) = comment_prefix {
+                        // Set prefix on the key itself via decor_mut
+                        if let Some(mut key_mut) = table.key_mut(key) {
+                            key_mut.leaf_decor_mut().set_prefix(comment);
+                        }
+                    }
                 }
             } else if parts.len() == 2 {
                 if let Some(Item::Table(parent)) = self.doc.get_mut(parts[0]) {
                     if let Some(Item::Table(child)) = parent.get_mut(parts[1]) {
-                        child[key] = item;
+                        child.insert(key, item);
+                        // Apply comment prefix to the key's decor if present
+                        if let Some(ref comment) = comment_prefix {
+                            if let Some(mut key_mut) = child.key_mut(key) {
+                                key_mut.leaf_decor_mut().set_prefix(comment);
+                            }
+                        }
                     }
                 }
             }
         } else {
-            self.doc[key] = item;
+            self.doc.insert(key, item);
+            // Apply comment prefix to the key's decor if present
+            if let Some(ref comment) = comment_prefix {
+                if let Some(mut key_mut) = self.doc.key_mut(key) {
+                    key_mut.leaf_decor_mut().set_prefix(comment);
+                }
+            }
         }
     }
 
-    // Helper: Create a decorated value with pending comments
+    // Helper: Create a value (comments are now handled in set_value)
     fn create_decorated_value(&mut self, value: Value) -> Value {
-        if self.pending_comments.is_empty() {
-            return value;
-        }
-
-        // Build comment prefix
-        let comment = self.pending_comments.join("\n") + "\n";
-        self.pending_comments.clear();
-
-        // Apply decoration based on value type
-        match value {
-            Value::String(mut s) => {
-                let decor = s.decor_mut();
-                decor.set_prefix(comment);
-                Value::String(s)
-            }
-            Value::Integer(mut i) => {
-                let decor = i.decor_mut();
-                decor.set_prefix(comment);
-                Value::Integer(i)
-            }
-            Value::Float(mut f) => {
-                let decor = f.decor_mut();
-                decor.set_prefix(comment);
-                Value::Float(f)
-            }
-            Value::Boolean(mut b) => {
-                let decor = b.decor_mut();
-                decor.set_prefix(comment);
-                Value::Boolean(b)
-            }
-            Value::Array(mut a) => {
-                let decor = a.decor_mut();
-                decor.set_prefix(comment);
-                Value::Array(a)
-            }
-            Value::InlineTable(mut t) => {
-                let decor = t.decor_mut();
-                decor.set_prefix(comment);
-                Value::InlineTable(t)
-            }
-            Value::Datetime(d) => Value::Datetime(d),
-        }
+        // Comments are now applied in set_value, not here
+        value
     }
 
     // Helper: Flush pending comments to section header
