@@ -3,7 +3,7 @@
 # Basic usage:
 #   powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 #
-# With specific version (use tag format like "vx-v0.5.7" or just "0.5.7"):
+# With specific version (use tag format like "v0.6.0" or just "0.6.0"):
 #   $env:VX_VERSION="0.5.7"; powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
 #
 # With GitHub token (to avoid rate limits):
@@ -348,12 +348,8 @@ function Install-FromRelease {
     }
     else {
         # User specified version - normalize to tag format
-        # Accept: "v0.6.7", "0.6.7", "vx-v0.6.7"
-        if ($Version -match '^vx-v') {
-            # Legacy format vx-v0.6.7 -> v0.6.7
-            $tagName = $Version -replace '^vx-', ''
-        }
-        elseif ($Version -match '^v') {
+        # Accept: "v0.6.7", "0.6.7"
+        if ($Version -match '^v') {
             # Already in v0.6.7 format
             $tagName = $Version
         }
@@ -365,47 +361,19 @@ function Install-FromRelease {
 
     Write-Info "Installing vx $tagName for $platform..."
 
-    # Extract version number from tag (e.g., "vx-v0.5.7" -> "0.5.7", "v0.5.7" -> "0.5.7")
-    $versionNumber = $tagName -replace '^(vx-)?v', ''
+    # Extract version number from tag (e.g., "v0.5.7" -> "0.5.7")
+    $versionNumber = $tagName -replace '^v', ''
 
-    # Determine artifact naming format based on version
-    # v0.6.0+ uses versioned naming (vx-0.6.1-target.zip)
-    # v0.5.x and earlier use legacy naming (vx-target.zip)
-    $versionParts = $versionNumber.Split('.')
-    $major = [int]$versionParts[0]
-    $minor = if ($versionParts.Length -gt 1) { [int]$versionParts[1] } else { 0 }
-    $useVersionedFirst = ($major -gt 0) -or ($major -eq 0 -and $minor -ge 6)
-
-    # Construct archive names
-    # New format: vx-{version}-{target}.zip (e.g., vx-0.6.1-x86_64-pc-windows-msvc.zip)
-    # Legacy format: vx-{target}.zip (e.g., vx-x86_64-pc-windows-msvc.zip)
-    $archiveNameVersioned = "vx-$versionNumber-$platform.zip"
-    $archiveNameLegacy = "vx-$platform.zip"
-
-    # Order archives based on version - try the expected format first
-    if ($useVersionedFirst) {
-        $archiveNamePrimary = $archiveNameVersioned
-        $archiveNameFallback = $archiveNameLegacy
-    } else {
-        $archiveNamePrimary = $archiveNameLegacy
-        $archiveNameFallback = $archiveNameVersioned
-    }
+    # Construct archive name
+    # Format: vx-{version}-{target}.zip (e.g., vx-0.6.1-x86_64-pc-windows-msvc.zip)
+    $archiveName = "vx-$versionNumber-$platform.zip"
 
     # Create temporary directory
     Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Preparing download..." -PercentComplete 20
     $tempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
 
     try {
-        # Try primary archive first, then fallback
-        $archiveName = $archiveNamePrimary
-        try {
-            $archivePath = Download-WithFallback -TagName $tagName -Platform $platform -ArchiveName $archiveName -TempDir $tempDir
-        }
-        catch {
-            Write-Info "Primary archive not found, trying fallback format..."
-            $archiveName = $archiveNameFallback
-            $archivePath = Download-WithFallback -TagName $tagName -Platform $platform -ArchiveName $archiveName -TempDir $tempDir
-        }
+        $archivePath = Download-WithFallback -TagName $tagName -Platform $platform -ArchiveName $archiveName -TempDir $tempDir
 
         # Extract
         Write-Info "Extracting to $InstallDir..."

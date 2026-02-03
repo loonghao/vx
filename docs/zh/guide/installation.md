@@ -83,19 +83,13 @@ cargo install vx
 1. 前往 [Releases 页面](https://github.com/loonghao/vx/releases)
 2. 下载适合你平台的二进制文件：
 
-   **带版本号格式（推荐）：**
    - `vx-{version}-x86_64-unknown-linux-gnu.tar.gz` - Linux x64
    - `vx-{version}-aarch64-unknown-linux-gnu.tar.gz` - Linux ARM64
+   - `vx-{version}-x86_64-unknown-linux-musl.tar.gz` - Linux x64 (静态链接)
+   - `vx-{version}-aarch64-unknown-linux-musl.tar.gz` - Linux ARM64 (静态链接)
    - `vx-{version}-x86_64-apple-darwin.tar.gz` - macOS x64
    - `vx-{version}-aarch64-apple-darwin.tar.gz` - macOS ARM64 (Apple Silicon)
    - `vx-{version}-x86_64-pc-windows-msvc.zip` - Windows x64
-
-   **旧版格式（同样可用）：**
-   - `vx-x86_64-unknown-linux-gnu.tar.gz` - Linux x64
-   - `vx-aarch64-unknown-linux-gnu.tar.gz` - Linux ARM64
-   - `vx-x86_64-apple-darwin.tar.gz` - macOS x64
-   - `vx-aarch64-apple-darwin.tar.gz` - macOS ARM64 (Apple Silicon)
-   - `vx-x86_64-pc-windows-msvc.zip` - Windows x64
 
 3. 解压并添加到 PATH：
 
@@ -152,7 +146,7 @@ vx --version
 你应该看到类似这样的输出：
 
 ```
-vx 0.5.11
+vx 0.6.27
 ```
 
 
@@ -181,7 +175,6 @@ self-update 命令特性：
 - 下载进度条，显示速度和预计剩余时间
 - SHA256 校验和验证（如果可用）
 - Windows 上安全的二进制文件替换
-- 向后兼容旧版本 vx（支持旧版和新版 artifact 命名格式）
 
 ## 卸载
 
