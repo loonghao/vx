@@ -506,6 +506,18 @@ impl<'a> Executor<'a> {
                             .iter()
                             .find(|dep| dep.required && dep.provided_by.is_some())
                             .and_then(|dep| dep.provided_by.clone())
+                    })
+                    .or_else(|| {
+                        // Fallback: For Yarn 2.x+, if no provided_by is set in static dependencies,
+                        // check if this is a proxy-managed runtime that likely needs Node.js
+                        // This handles the case where version-specific constraints (when != "*")
+                        // are not converted to static dependencies in runtime_map.rs
+                        if runtime_name == "yarn" && !version.starts_with('1') {
+                            // Yarn 2.x+ is managed by Node.js corepack
+                            Some("node".to_string())
+                        } else {
+                            None
+                        }
                     });
 
                 if let Some(ref parent) = parent_runtime {
