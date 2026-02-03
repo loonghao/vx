@@ -4983,6 +4983,8 @@ dependencies = [
  "serde",
  "tokio",
  "tracing",
+ "vx-core",
+ "vx-paths",
  "vx-runtime",
  "vx-version-fetcher",
 ]

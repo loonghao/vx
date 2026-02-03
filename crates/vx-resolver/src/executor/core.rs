@@ -1,39 +1,28 @@
-//! Executor - the core command forwarding engine
+//! Executor Core - the main command forwarding engine
 //!
-//! This module implements the main execution logic:
-//! 1. Resolve runtime and dependencies
-//! 2. Auto-install missing components
-//! 3. Forward command to the appropriate executable
-//!
-//! ## Project Configuration Support
-//!
-//! When a `vx.toml` file is found in the current directory or parent directories,
-//! the executor will prioritize using the tool versions specified in the project
-//! configuration when building the subprocess PATH. This ensures that:
-//!
-//! - Subprocesses use the same tool versions as defined in `vx.toml`
-//! - Environment isolation is maintained per-project
-//! - No global pollution from globally installed tool versions
+//! This module contains the Executor struct and its implementation for:
+//! 1. Resolving runtime and dependencies
+//! 2. Auto-installing missing components
+//! 3. Forwarding commands to the appropriate executable
 
+use super::bundle::{execute_bundle, has_bundle, is_online, try_get_bundle_context};
+use super::project_config::ProjectToolsConfig;
 use crate::{ResolutionCache, Resolver, ResolverConfig, Result, RuntimeMap};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
 use std::sync::Mutex;
 use tokio::process::Command;
 use tracing::{debug, info, info_span, trace, warn};
-use vx_config::parse_config;
 use vx_console::ProgressSpinner;
-use vx_paths::find_config_file_upward;
-use vx_paths::project::{find_vx_config, PROJECT_VX_DIR};
+use vx_core::exit_code_from_status;
+use vx_paths::project::find_vx_config;
 use vx_runtime::{CacheMode, ProviderRegistry, RuntimeContext};
-
-// Re-export from vx_core for convenience
-pub use vx_core::{exit_code_from_status, is_ctrl_c_exit};
 
 /// Track which tools have been warned about missing versions
 /// This prevents duplicate warnings when building PATH
 static WARNED_TOOLS: Mutex<Option<HashSet<String>>> = Mutex::new(None);
+
 
 /// Executor for runtime command forwarding
 pub struct Executor<'a> {
@@ -56,110 +45,6 @@ pub struct Executor<'a> {
     /// Project configuration (loaded from vx.toml if present)
     /// This stores the tool versions specified in the project configuration.
     project_config: Option<ProjectToolsConfig>,
-}
-
-/// Project tools configuration extracted from vx.toml
-#[derive(Debug, Clone)]
-struct ProjectToolsConfig {
-    /// Tool versions from vx.toml (tool_name -> version)
-    tools: HashMap<String, String>,
-}
-
-impl ProjectToolsConfig {
-    /// Load project configuration from vx.toml in current directory or parent directories
-    fn load() -> Option<Self> {
-        let cwd = std::env::current_dir().ok()?;
-        let config_path = find_config_file_upward(&cwd)?;
-        let config = parse_config(&config_path).ok()?;
-        let tools = config.tools_as_hashmap();
-
-        if tools.is_empty() {
-            debug!("No tools defined in vx.toml at {}", config_path.display());
-            None
-        } else {
-            debug!(
-                "Loaded {} tool(s) from vx.toml at {}",
-                tools.len(),
-                config_path.display()
-            );
-            Some(Self { tools })
-        }
-    }
-
-    /// Get the version for a specific tool
-    fn get_version(&self, tool: &str) -> Option<&str> {
-        self.tools.get(tool).map(|s| s.as_str())
-    }
-
-    /// Get the version for a tool with ecosystem fallback
-    ///
-    /// First tries to find the tool directly. If not found, it checks if the tool
-    /// belongs to a known ecosystem and tries to use the primary runtime's version.
-    ///
-    /// **Important**: Only "bundled tools" (tools that are part of the primary runtime)
-    /// should fall back to the primary runtime's version. Independent tools like pnpm,
-    /// yarn, and bun have their own version schemes and should NOT inherit the Node.js
-    /// version.
-    ///
-    /// Examples of valid fallbacks:
-    /// - `cargo` -> checks `cargo` then `rust` (cargo is bundled with Rust)
-    /// - `rustc` -> checks `rustc` then `rust` (rustc is bundled with Rust)
-    /// - `npm` -> checks `npm` then `node` (npm is bundled with Node.js)
-    /// - `pip` -> checks `pip` then `python` (pip is often bundled with Python)
-    ///
-    /// Examples that should NOT fall back:
-    /// - `pnpm` -> only checks `pnpm` (pnpm has its own version scheme: 9.x, 10.x)
-    /// - `yarn` -> only checks `yarn` (yarn has its own version scheme: 1.x, 2.x, 3.x, 4.x)
-    /// - `bun` -> only checks `bun` (bun has its own version scheme)
-    fn get_version_with_fallback(&self, tool: &str) -> Option<&str> {
-        // First, try direct lookup
-        if let Some(version) = self.get_version(tool) {
-            return Some(version);
-        }
-
-        // Fallback to primary runtime for the ecosystem (only for bundled tools)
-        let primary = self.bundled_tool_runtime(tool)?;
-        self.get_version(primary)
-    }
-
-    /// Get the primary runtime name for a bundled tool
-    ///
-    /// Returns Some(runtime) only for tools that are **bundled with** their primary runtime
-    /// and share the same version. Independent package managers (pnpm, yarn, bun) are NOT
-    /// included because they have their own independent version schemes.
-    ///
-    /// # Bundled vs Independent Tools
-    ///
-    /// **Bundled tools** (should fall back):
-    /// - `cargo`, `rustc`, `rustup` -> bundled with `rust`
-    /// - `npm`, `npx` -> bundled with `node`
-    /// - `pip`, `pip3` -> often bundled with `python`
-    /// - `gofmt` -> bundled with `go`
-    ///
-    /// **Independent tools** (should NOT fall back):
-    /// - `pnpm` -> has versions like 9.0.1, 10.28.2 (NOT node versions)
-    /// - `yarn` -> has versions like 1.22.0, 2.4.3, 4.0.0 (NOT node versions)
-    /// - `bun` -> has versions like 1.0.0, 1.1.0 (NOT node versions)
-    fn bundled_tool_runtime(&self, tool: &str) -> Option<&'static str> {
-        match tool {
-            // Rust ecosystem - all are bundled with rustup/rust
-            "rustc" | "cargo" | "rustup" => Some("rust"),
-
-            // Node.js ecosystem - ONLY npm/npx are bundled with Node.js
-            // pnpm, yarn, bun are INDEPENDENT tools with their own version schemes
-            "npm" | "npx" => Some("node"),
-
-            // Python ecosystem - pip is often bundled with Python
-            // uv is independent and should not fall back
-            "pip" | "pip3" => Some("python"),
-
-            // Go ecosystem - gofmt is bundled with Go
-            "gofmt" => Some("go"),
-
-            // Everything else (including pnpm, yarn, bun, uv, etc.) should NOT fall back
-            _ => None,
-        }
-    }
 }
 
 impl<'a> Executor<'a> {
@@ -402,11 +287,27 @@ impl<'a> Executor<'a> {
         }
 
         // Install missing runtimes/dependencies (if any)
+        // RFC 0028: If the primary runtime was already handled by ensure_version_installed
+        // (either installed directly or marked as proxy-managed), we should skip it here.
+        // This prevents double-installation attempts and incorrect version selection.
         if !resolution.install_order.is_empty() {
             if self.config.auto_install {
-                info!("  auto-installing: {:?}", resolution.install_order);
+                // Filter out the primary runtime if we already processed it above
+                let runtimes_to_install: Vec<String> = if installed_version.is_some() {
+                    resolution
+                        .install_order
+                        .iter()
+                        .filter(|r| *r != runtime_name)
+                        .cloned()
+                        .collect()
+                } else {
+                    resolution.install_order.clone()
+                };
 
-                self.install_runtimes(&resolution.install_order).await?;
+                if !runtimes_to_install.is_empty() {
+                    info!("  auto-installing: {:?}", runtimes_to_install);
+                    self.install_runtimes(&runtimes_to_install).await?;
+                }
             } else {
                 // Report missing dependencies
                 let missing = if resolution.runtime_needs_install {
@@ -480,6 +381,103 @@ impl<'a> Executor<'a> {
         runtime_env.extend(dependency_env_overrides);
         debug!("  env_vars: {} variables set", runtime_env.len());
         debug!("[/PREPARE_ENV]");
+
+        // -------------------------
+        // RFC 0028: Prepare Proxy Execution
+        // -------------------------
+        // For proxy-managed versions (e.g., Yarn 2.x+ via corepack), we need to
+        // call prepare_execution() to set up the proxy mechanism.
+        if let Some(registry) = self.registry {
+            if let Some(runtime) = registry.get_runtime(runtime_name) {
+                let version_to_check = installed_version
+                    .as_deref()
+                    .or(resolved_version.as_deref())
+                    .unwrap_or("latest");
+
+                if !runtime.is_version_installable(version_to_check) {
+                    debug!("[PREPARE_PROXY] Preparing proxy execution for {}@{}", runtime_name, version_to_check);
+
+                    // Create execution context
+                    let exec_ctx = vx_runtime::ExecutionContext {
+                        working_dir: std::env::current_dir().ok(),
+                        env: runtime_env.clone(),
+                        capture_output: false,
+                        timeout: self.config.execution_timeout,
+                        executor: std::sync::Arc::new(vx_runtime::RealCommandExecutor),
+                    };
+
+                    // Call prepare_execution to set up the proxy
+                    let prep = runtime.prepare_execution(version_to_check, &exec_ctx).await?;
+
+                    // Log any message from preparation
+                    if let Some(ref msg) = prep.message {
+                        info!("{}", msg);
+                    }
+
+                    // Check if proxy is ready
+                    if !prep.proxy_ready && !prep.use_system_path && prep.executable_override.is_none() {
+                        return Err(anyhow::anyhow!(
+                            "Proxy setup for {}@{} failed. The proxy mechanism is not ready.",
+                            runtime_name,
+                            version_to_check
+                        ));
+                    }
+
+                    // Apply execution prep configuration
+                    if prep.use_system_path {
+                        debug!("  Using system PATH for {} (proxy-managed)", runtime_name);
+                        // For proxy-managed tools, we use the system PATH executable
+                        // Update resolution to use system executable
+                        if let Ok(system_exe) = which::which(runtime_name) {
+                            resolution.executable = system_exe;
+                            debug!("  Resolved system executable: {}", resolution.executable.display());
+                        }
+                    }
+
+                    if let Some(exe_override) = prep.executable_override {
+                        debug!("  Using executable override: {}", exe_override.display());
+                        resolution.executable = exe_override;
+                    }
+
+                    // Apply command prefix
+                    if !prep.command_prefix.is_empty() {
+                        debug!("  Command prefix: {:?}", prep.command_prefix);
+                        resolution.command_prefix = prep.command_prefix;
+                    }
+
+                    // Apply additional environment variables
+                    runtime_env.extend(prep.env_vars);
+
+                    // Apply PATH prepend
+                    if !prep.path_prepend.is_empty() {
+                        let current_path = runtime_env
+                            .get("PATH")
+                            .cloned()
+                            .or_else(|| std::env::var("PATH").ok())
+                            .unwrap_or_default();
+
+                        let path_sep = vx_paths::path_separator();
+                        let prepend_str: String = prep
+                            .path_prepend
+                            .iter()
+                            .map(|p| p.to_string_lossy().to_string())
+                            .collect::<Vec<_>>()
+                            .join(&path_sep.to_string());
+
+                        let new_path = if current_path.is_empty() {
+                            prepend_str
+                        } else {
+                            format!("{}{}{}", prepend_str, path_sep, current_path)
+                        };
+
+                        runtime_env.insert("PATH".to_string(), new_path);
+                        debug!("  Prepended {} paths to PATH", prep.path_prepend.len());
+                    }
+
+                    debug!("[/PREPARE_PROXY]");
+                }
+            }
+        }
 
         // -------------------------
         // Execute
@@ -841,6 +839,12 @@ impl<'a> Executor<'a> {
     /// Ensure a specific version of a runtime is installed
     ///
     /// Returns the resolved version string
+    ///
+    /// ## RFC 0028: Proxy-Managed Runtimes
+    ///
+    /// For versions that return `false` from `is_version_installable()`, this method
+    /// will not attempt to install via the normal download mechanism. Instead, it
+    /// will return success and let `prepare_execution()` handle the proxy setup.
     async fn ensure_version_installed(
         &self,
         runtime_name: &str,
@@ -899,9 +903,23 @@ impl<'a> Executor<'a> {
             }
         };
         info!(
-            "Resolved {}@{} 鈫?{}",
+            "Resolved {}@{} → {}",
             runtime_name, requested_version, resolved_version
         );
+
+        // RFC 0028: Check if this version is proxy-managed (not directly installable)
+        if !runtime.is_version_installable(&resolved_version) {
+            debug!(
+                "{} {} is proxy-managed, skipping direct installation",
+                runtime_name, resolved_version
+            );
+            // For proxy-managed versions, we don't install directly.
+            // The prepare_execution() method will handle setting up the proxy.
+            // However, we still need to ensure the proxy runtime (e.g., Node.js for corepack) is installed.
+            self.ensure_proxy_runtime_installed(runtime_name, &resolved_version)
+                .await?;
+            return Ok(Some(resolved_version));
+        }
 
         // Check if this version is already installed
         if runtime.is_installed(&resolved_version, context).await? {
@@ -953,6 +971,37 @@ impl<'a> Executor<'a> {
             runtime_name, resolved_version
         );
         Ok(Some(resolved_version))
+    }
+
+    /// RFC 0028: Ensure the proxy runtime is installed for proxy-managed tools
+    ///
+    /// For example, Yarn 2.x+ requires Node.js 16.10+ with corepack.
+    /// This method installs the required dependencies for proxy-managed runtimes.
+    async fn ensure_proxy_runtime_installed(
+        &self,
+        runtime_name: &str,
+        _version: &str,
+    ) -> Result<()> {
+        // Get runtime spec to find dependencies
+        if let Some(spec) = self.resolver.get_spec(runtime_name) {
+            // Install all required dependencies
+            for dep in &spec.dependencies {
+                if dep.required {
+                    info!(
+                        "Installing proxy runtime {} for {} ({})",
+                        dep.runtime_name, runtime_name, dep.reason
+                    );
+
+                    // Use recommended version if available, otherwise "latest"
+                    let dep_version = dep.recommended_version.as_deref().unwrap_or("latest");
+                    // Use Box::pin for recursive async call
+                    Box::pin(self.ensure_version_installed(&dep.runtime_name, dep_version))
+                        .await?;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Install dependencies for a specific version of a runtime
@@ -2035,374 +2084,4 @@ impl<'a> Executor<'a> {
     pub fn config(&self) -> &ResolverConfig {
         &self.config
     }
-}
-
-/// Execute a runtime directly using system PATH (simple fallback)
-pub async fn execute_system_runtime(runtime_name: &str, args: &[String]) -> Result<i32> {
-    debug!(
-        "Executing system runtime: {} {}",
-        runtime_name,
-        args.join(" ")
-    );
-
-    let status = Command::new(runtime_name)
-        .args(args)
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to execute '{}': {}", runtime_name, e))?;
-
-    Ok(exit_code_from_status(&status))
-}
-
-// ============================================================================
-// Offline Bundle Support
-// ============================================================================
-
-/// Bundle directory name within .vx
-pub const BUNDLE_DIR: &str = "bundle";
-
-/// Bundle manifest file name
-pub const BUNDLE_MANIFEST: &str = "manifest.json";
-
-/// Context for using a bundled tool
-#[derive(Debug, Clone)]
-pub struct BundleContext {
-    /// Project root directory
-    pub project_root: PathBuf,
-    /// Tool name
-    pub tool_name: String,
-    /// Tool version
-    pub version: String,
-    /// Full path to executable
-    pub executable: PathBuf,
-}
-
-/// Bundle manifest containing metadata about the bundled environment
-#[derive(Debug, Clone, serde::Deserialize)]
-pub struct BundleManifest {
-    /// Manifest version (1 = legacy single-platform, 2 = multi-platform)
-    #[serde(default = "default_manifest_version")]
-    pub version: u32,
-    /// All platforms included in this bundle
-    #[serde(default)]
-    pub platforms: Vec<String>,
-    /// Bundled tools with their versions
-    pub tools: HashMap<String, BundledToolInfo>,
-}
-
-fn default_manifest_version() -> u32 {
-    1
-}
-
-/// Information about a bundled tool
-#[derive(Debug, Clone, serde::Deserialize)]
-pub struct BundledToolInfo {
-    /// Resolved version
-    pub version: String,
-    /// Legacy path (for v1 manifests)
-    #[serde(default)]
-    pub path: String,
-    /// Platform-specific paths (for v2 manifests)
-    #[serde(default)]
-    pub platform_paths: HashMap<String, String>,
-}
-
-impl BundledToolInfo {
-    /// Get the path for a specific platform
-    pub fn path_for_platform(&self, platform: &str) -> Option<&str> {
-        // First try platform-specific path
-        if let Some(path) = self.platform_paths.get(platform) {
-            return Some(path.as_str());
-        }
-        // Fall back to legacy single path (for v1 manifests)
-        if !self.path.is_empty() {
-            return Some(&self.path);
-        }
-        None
-    }
-}
-
-impl BundleManifest {
-    /// Check if this bundle supports a specific platform
-    pub fn supports_platform(&self, platform: &str) -> bool {
-        if self.platforms.is_empty() {
-            // v1 manifest - assume it supports current platform
-            true
-        } else {
-            self.platforms.contains(&platform.to_string())
-        }
-    }
-}
-
-/// Quick network connectivity check
-///
-/// Uses a fast DNS lookup to determine if the system has internet access.
-/// Returns true if online, false if offline.
-pub fn is_online() -> bool {
-    use std::net::ToSocketAddrs;
-
-    // Try multiple targets for reliability
-    let targets = ["github.com:443", "nodejs.org:443", "pypi.org:443"];
-
-    for target in targets {
-        if let Ok(mut addrs) = target.to_socket_addrs() {
-            if addrs.next().is_some() {
-                return true;
-            }
-        }
-    }
-
-    false
-}
-
-/// Check if a bundle exists for the given project root
-pub fn has_bundle(project_root: &std::path::Path) -> bool {
-    let manifest_path = project_root
-        .join(PROJECT_VX_DIR)
-        .join(BUNDLE_DIR)
-        .join(BUNDLE_MANIFEST);
-    manifest_path.exists()
-}
-
-/// Load bundle manifest from the project
-fn load_bundle_manifest(project_root: &std::path::Path) -> Option<BundleManifest> {
-    let manifest_path = project_root
-        .join(PROJECT_VX_DIR)
-        .join(BUNDLE_DIR)
-        .join(BUNDLE_MANIFEST);
-
-    let content = std::fs::read_to_string(&manifest_path).ok()?;
-    serde_json::from_str(&content).ok()
-}
-
-/// Get current platform string (same format as bundle.rs)
-fn current_platform() -> String {
-    format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH)
-}
-
-/// Get bundle store path for a tool
-/// Supports both v1 (single platform) and v2 (multi-platform) bundle structures
-fn get_bundle_tool_path(
-    project_root: &std::path::Path,
-    tool_name: &str,
-    version: &str,
-) -> Option<PathBuf> {
-    let base_path = project_root
-        .join(PROJECT_VX_DIR)
-        .join(BUNDLE_DIR)
-        .join("store")
-        .join(tool_name)
-        .join(version);
-
-    // v2 structure: store/{tool}/{version}/{platform}/
-    let platform = current_platform();
-    let platform_path = base_path.join(&platform);
-    if platform_path.exists() {
-        return Some(platform_path);
-    }
-
-    // v1 structure (legacy): store/{tool}/{version}/
-    if base_path.exists() {
-        // Check if this is actually a v1 layout (no platform subdirectories)
-        // by verifying it's not just an empty directory or a different platform
-        if let Ok(entries) = std::fs::read_dir(&base_path) {
-            let subdirs: Vec<_> = entries
-                .filter_map(|e| e.ok())
-                .filter(|e| e.path().is_dir())
-                .collect();
-
-            // If subdirs look like platform names (e.g., "windows-x86_64"),
-            // this is v2 format and current platform is not available
-            let has_platform_subdirs = subdirs.iter().any(|d| {
-                let name = d.file_name().to_string_lossy().to_string();
-                name.contains('-')
-                    && (name.contains("windows")
-                        || name.contains("linux")
-                        || name.contains("macos"))
-            });
-
-            if has_platform_subdirs {
-                // v2 structure, but current platform not available
-                debug!(
-                    "Bundle has platform-specific subdirectories but not for current platform: {}",
-                    platform
-                );
-                return None;
-            }
-
-            // v1 structure
-            return Some(base_path);
-        }
-    }
-
-    None
-}
-
-/// Find executable in bundle for a tool
-///
-/// Returns the full path to the executable if found in the bundle.
-fn find_bundle_executable(
-    project_root: &std::path::Path,
-    tool_name: &str,
-    version: &str,
-) -> Option<PathBuf> {
-    let bundle_tool_path = get_bundle_tool_path(project_root, tool_name, version)?;
-
-    // Common executable search paths within a tool directory
-    let search_paths = [
-        "bin",     // Most tools
-        "Scripts", // Windows Python
-        "",        // Root directory
-    ];
-
-    #[cfg(windows)]
-    let exe_names = [
-        format!("{}.exe", tool_name),
-        format!("{}.cmd", tool_name),
-        format!("{}.bat", tool_name),
-        tool_name.to_string(),
-    ];
-
-    #[cfg(not(windows))]
-    let exe_names = [tool_name.to_string()];
-
-    for search_path in &search_paths {
-        let base = if search_path.is_empty() {
-            bundle_tool_path.clone()
-        } else {
-            bundle_tool_path.join(search_path)
-        };
-
-        for exe_name in &exe_names {
-            let exe_path = base.join(exe_name);
-            if exe_path.exists() && exe_path.is_file() {
-                return Some(exe_path);
-            }
-        }
-    }
-
-    // Also search in subdirectories (e.g., node-v20.0.0-win-x64/)
-    if let Ok(entries) = std::fs::read_dir(&bundle_tool_path) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                // Check bin subdirectory
-                let bin_path = path.join("bin");
-                for exe_name in &exe_names {
-                    let exe_path = bin_path.join(exe_name);
-                    if exe_path.exists() && exe_path.is_file() {
-                        return Some(exe_path);
-                    }
-                }
-                // Check root of subdirectory
-                for exe_name in &exe_names {
-                    let exe_path = path.join(exe_name);
-                    if exe_path.exists() && exe_path.is_file() {
-                        return Some(exe_path);
-                    }
-                }
-            }
-        }
-    }
-
-    None
-}
-
-/// Try to get bundle context for offline execution
-///
-/// Returns bundle information if:
-/// 1. Network is offline (or force_offline is true)
-/// 2. Bundle exists in the project
-/// 3. The requested tool is available in the bundle
-pub fn try_get_bundle_context(tool_name: &str, force_offline: bool) -> Option<BundleContext> {
-    // Check if we should use bundle
-    if !force_offline && is_online() {
-        return None;
-    }
-
-    // Find project root
-    let cwd = std::env::current_dir().ok()?;
-    let config_path = find_vx_config(&cwd).ok()?;
-    let project_root = config_path.parent()?;
-
-    // Load bundle manifest
-    let manifest = load_bundle_manifest(project_root)?;
-
-    // Check if tool is in bundle
-    let bundled_tool = manifest.tools.get(tool_name)?;
-
-    // Find executable
-    let executable = find_bundle_executable(project_root, tool_name, &bundled_tool.version)?;
-
-    info!(
-        "Using bundled {} {} (offline mode)",
-        tool_name, bundled_tool.version
-    );
-
-    Some(BundleContext {
-        project_root: project_root.to_path_buf(),
-        tool_name: tool_name.to_string(),
-        version: bundled_tool.version.clone(),
-        executable,
-    })
-}
-
-/// Execute a bundled tool directly
-///
-/// This bypasses the normal resolution/installation flow and runs
-/// the executable directly from the bundle.
-pub async fn execute_bundle(bundle: &BundleContext, args: &[String]) -> Result<i32> {
-    debug!(
-        "Executing bundled tool: {} {} ({})",
-        bundle.tool_name,
-        bundle.version,
-        bundle.executable.display()
-    );
-
-    // On Windows, .cmd and .bat files need to be executed via cmd.exe
-    #[cfg(windows)]
-    let mut cmd = {
-        let ext = bundle
-            .executable
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-
-        if ext == "cmd" || ext == "bat" {
-            let mut c = Command::new("cmd.exe");
-            c.arg("/c").arg(&bundle.executable);
-            c
-        } else {
-            Command::new(&bundle.executable)
-        }
-    };
-
-    #[cfg(not(windows))]
-    let mut cmd = Command::new(&bundle.executable);
-
-    cmd.args(args);
-
-    // Set up environment with bundle bin directories in PATH
-    let bundle_bin = bundle.executable.parent().map(|p| p.to_path_buf());
-    if let Some(bin_dir) = bundle_bin {
-        let current_path = std::env::var("PATH").unwrap_or_default();
-        let new_path = vx_paths::prepend_to_path(&current_path, &[bin_dir.display().to_string()]);
-        cmd.env("PATH", new_path);
-    }
-
-    // Inherit stdio
-    cmd.stdin(Stdio::inherit());
-    cmd.stdout(Stdio::inherit());
-    cmd.stderr(Stdio::inherit());
-
-    let status = cmd
-        .status()
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to execute bundled '{}': {}", bundle.tool_name, e))?;
-
-    Ok(exit_code_from_status(&status))
 }

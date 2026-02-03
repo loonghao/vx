@@ -78,6 +78,7 @@
 //! When extracting the bundle, vx automatically selects the correct platform
 //! directory for the current system.
 
+
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
@@ -89,6 +90,7 @@ pub mod package_spec;
 pub mod platform;
 pub mod project;
 pub mod resolver;
+pub mod runtime_root;
 pub mod shims;
 pub mod windows;
 
@@ -104,6 +106,7 @@ pub use project::{
     PROJECT_ENV_DIR, PROJECT_VX_DIR,
 };
 pub use resolver::{PathResolver, ToolLocation, ToolSource};
+pub use runtime_root::{get_latest_runtime_root, get_runtime_root, RuntimeRoot};
 
 // Re-export platform module utilities for convenience
 pub use platform::{

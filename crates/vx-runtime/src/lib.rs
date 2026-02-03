@@ -76,7 +76,7 @@ pub use provider::Provider;
 pub use registry::{PlatformError, ProviderRegistry};
 pub use runtime::{Runtime, VerificationResult};
 pub use traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProvider};
-pub use types::{ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec, VersionInfo};
+pub use types::{ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec, VersionInfo};
 
 // Re-export testing utilities
 pub use testing::{
