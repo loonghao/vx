@@ -21,12 +21,16 @@ pub struct ResolvedVersionInfo {
     pub version: String,
     /// Original request (e.g., "3.11")
     pub original_request: String,
-    /// Installation directory path
+    /// Installation directory path (ROOT - where the runtime files are)
     pub install_dir: PathBuf,
+    /// Base directory path (BASE - version directory without platform)
+    pub base_dir: PathBuf,
     /// Executable path
     pub executable_path: PathBuf,
-    /// Binary directory path (for PATH)
+    /// Binary directory path (BIN - for PATH)
     pub bin_dir: PathBuf,
+    /// All installed versions of this runtime
+    pub all_versions: Vec<String>,
     /// Additional environment variables specific to this runtime
     pub env_vars: HashMap<String, String>,
 }
@@ -43,11 +47,25 @@ impl ResolvedVersionInfo {
         Self {
             version,
             original_request,
+            base_dir: install_dir.clone(), // Default: same as install_dir
             install_dir,
             executable_path,
             bin_dir,
+            all_versions: Vec::new(),
             env_vars: HashMap::new(),
         }
+    }
+
+    /// Create with separate base directory
+    pub fn with_base_dir(mut self, base_dir: PathBuf) -> Self {
+        self.base_dir = base_dir;
+        self
+    }
+
+    /// Set all installed versions
+    pub fn with_all_versions(mut self, versions: Vec<String>) -> Self {
+        self.all_versions = versions;
+        self
     }
 
     /// Add an environment variable
@@ -110,49 +128,97 @@ impl ProviderEnvironment {
     /// Build all environment variables for this provider
     ///
     /// This creates REZ-like environment variables:
-    /// - VX_<PROVIDER>_ROOT
-    /// - VX_<PROVIDER>_VERSION
-    /// - VX_<PROVIDER>_ORIGINAL_REQUEST
+    /// - VX_<PROVIDER>_ROOT - Root installation directory
+    /// - VX_<PROVIDER>_BASE - Base version directory (without platform)
+    /// - VX_<PROVIDER>_BIN - Binary directory (for PATH)
+    /// - VX_<PROVIDER>_VERSION - Current version
+    /// - VX_<PROVIDER>_VERSIONS - All installed versions (separator-joined)
+    /// - VX_<PROVIDER>_ORIGINAL_REQUEST - Original version request
     /// - Plus any manifest-specific vars
     pub fn build_env_vars(&self) -> HashMap<String, String> {
         let mut env = HashMap::new();
 
-        let provider_upper = self.provider_name.to_uppercase();
-        let runtime_upper = self.runtime_name.to_uppercase();
+        let provider_upper = self.provider_name.to_uppercase().replace('-', "_");
+        let runtime_upper = self.runtime_name.to_uppercase().replace('-', "_");
+        let sep = if cfg!(windows) { ";" } else { ":" };
 
-        // REZ-like environment variables
+        // REZ-like environment variables for provider
         env.insert(
             format!("VX_{}_ROOT", provider_upper),
             self.version_info.install_dir.display().to_string(),
+        );
+        env.insert(
+            format!("VX_{}_BASE", provider_upper),
+            self.version_info.base_dir.display().to_string(),
+        );
+        env.insert(
+            format!("VX_{}_BIN", provider_upper),
+            self.version_info.bin_dir.display().to_string(),
         );
         env.insert(
             format!("VX_{}_VERSION", provider_upper),
             self.version_info.version.clone(),
         );
         env.insert(
+            format!("VX_{}_VERSIONS", provider_upper),
+            self.version_info.all_versions.join(sep),
+        );
+        env.insert(
             format!("VX_{}_ORIGINAL_REQUEST", provider_upper),
             self.version_info.original_request.clone(),
         );
 
-        // Runtime-specific variables
+        // Runtime-specific variables (when runtime name differs from provider name)
         if self.runtime_name != self.provider_name {
             env.insert(
                 format!("VX_{}_ROOT", runtime_upper),
                 self.version_info.install_dir.display().to_string(),
             );
             env.insert(
+                format!("VX_{}_BASE", runtime_upper),
+                self.version_info.base_dir.display().to_string(),
+            );
+            env.insert(
+                format!("VX_{}_BIN", runtime_upper),
+                self.version_info.bin_dir.display().to_string(),
+            );
+            env.insert(
                 format!("VX_{}_VERSION", runtime_upper),
                 self.version_info.version.clone(),
+            );
+            env.insert(
+                format!("VX_{}_VERSIONS", runtime_upper),
+                self.version_info.all_versions.join(sep),
             );
         }
 
         // Manifest environment variables
         for (key, value) in &self.manifest_env_vars {
-            // Expand {install_dir} and {version} placeholders
+            // Expand {install_dir}, {base_dir}, {bin_dir}, and {version} placeholders
             let expanded = value
                 .replace(
                     "{install_dir}",
                     &self.version_info.install_dir.display().to_string(),
+                )
+                .replace(
+                    "{root}",
+                    &self.version_info.install_dir.display().to_string(),
+                )
+                .replace(
+                    "{base_dir}",
+                    &self.version_info.base_dir.display().to_string(),
+                )
+                .replace(
+                    "{base}",
+                    &self.version_info.base_dir.display().to_string(),
+                )
+                .replace(
+                    "{bin_dir}",
+                    &self.version_info.bin_dir.display().to_string(),
+                )
+                .replace(
+                    "{bin}",
+                    &self.version_info.bin_dir.display().to_string(),
                 )
                 .replace("{version}", &self.version_info.version)
                 .replace("{runtime}", &self.runtime_name)

@@ -12,6 +12,8 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+vx-core = { workspace = true }
+vx-paths = { workspace = true }
 vx-runtime = { workspace = true }
 vx-version-fetcher = { workspace = true }
 serde = { workspace = true }

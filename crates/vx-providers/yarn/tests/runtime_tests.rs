@@ -169,3 +169,64 @@ fn test_yarn_executable_dir_path(
     let path = runtime.executable_dir_path(version, &platform);
     assert_eq!(path.as_deref(), expected);
 }
+
+// ============================================================================
+// RFC 0028: Proxy-Managed Runtimes Tests
+// ============================================================================
+
+/// Test that `is_version_installable` returns correct values for different yarn versions
+/// - Yarn 1.x: true (directly installable via GitHub releases)
+/// - Yarn 2.x+: false (requires corepack)
+#[rstest]
+#[case("1.22.19", true)]
+#[case("1.22.0", true)]
+#[case("1.0.0", true)]
+#[case("2.0.0", false)]
+#[case("2.4.3", false)]
+#[case("3.0.0", false)]
+#[case("3.6.0", false)]
+#[case("4.0.0", false)]
+#[case("4.5.1", false)]
+fn test_yarn_is_version_installable(#[case] version: &str, #[case] expected: bool) {
+    let runtime = YarnRuntime::new();
+    let result = runtime.is_version_installable(version);
+    assert_eq!(
+        result, expected,
+        "is_version_installable({}) should return {}",
+        version, expected
+    );
+}
+
+/// Test that YarnRuntime::uses_corepack correctly identifies versions
+#[rstest]
+#[case("1.22.19", false)]
+#[case("2.4.3", true)]
+#[case("3.6.0", true)]
+#[case("4.0.0", true)]
+fn test_yarn_uses_corepack(#[case] version: &str, #[case] expected: bool) {
+    assert_eq!(
+        YarnRuntime::uses_corepack(version),
+        expected,
+        "uses_corepack({}) should return {}",
+        version,
+        expected
+    );
+}
+
+/// Test that version metadata correctly identifies install method
+#[tokio::test]
+async fn test_yarn_fetch_versions_metadata() {
+    // This test would require a mock RuntimeContext
+    // For now, we test the static logic
+    
+    // Yarn 1.x should have "direct" install method
+    let v1_installable = YarnRuntime::new().is_version_installable("1.22.19");
+    assert!(v1_installable, "Yarn 1.x should be directly installable");
+    
+    // Yarn 2.x+ should have "corepack" install method
+    let v2_installable = YarnRuntime::new().is_version_installable("2.4.3");
+    assert!(!v2_installable, "Yarn 2.x should NOT be directly installable");
+    
+    let v4_installable = YarnRuntime::new().is_version_installable("4.0.0");
+    assert!(!v4_installable, "Yarn 4.x should NOT be directly installable");
+}

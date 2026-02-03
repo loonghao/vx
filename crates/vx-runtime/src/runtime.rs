@@ -19,7 +19,7 @@
 use crate::context::{ExecutionContext, RuntimeContext};
 use crate::ecosystem::Ecosystem;
 use crate::platform::Platform;
-use crate::types::{ExecutionResult, InstallResult, RuntimeDependency, VersionInfo};
+use crate::types::{ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, VersionInfo};
 use crate::version_resolver::VersionResolver;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -1163,6 +1163,69 @@ pub trait Runtime: Send + Sync {
         _ctx: &RuntimeContext,
     ) -> Result<HashMap<String, String>> {
         Ok(HashMap::new()) // Default: no extra environment variables
+    }
+
+    // ========== RFC 0028: Proxy-Managed and Bundled Runtimes ==========
+
+    /// Check if a version can be directly installed by vx
+    ///
+    /// Returns `true` (default): vx will download and install this version
+    /// Returns `false`: vx will use a proxy mechanism instead (e.g., corepack for Yarn 2.x+)
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// fn is_version_installable(&self, version: &str) -> bool {
+    ///     // Yarn 1.x is directly installable, 2.x+ uses corepack
+    ///     version.starts_with('1')
+    /// }
+    /// ```
+    fn is_version_installable(&self, _version: &str) -> bool {
+        true // Default: all versions are directly installable
+    }
+
+    /// Prepare execution for proxy-managed or bundled tool versions
+    ///
+    /// This method is called before executing a version that returns `false` from
+    /// `is_version_installable()`. It should:
+    /// 1. Ensure the proxy mechanism is ready (e.g., enable corepack)
+    /// 2. Return configuration for how to execute the tool
+    ///
+    /// # Arguments
+    ///
+    /// * `version` - The version being executed
+    /// * `ctx` - Execution context with working directory and environment
+    ///
+    /// # Returns
+    ///
+    /// `ExecutionPrep` struct containing:
+    /// - `use_system_path`: Whether to use system PATH instead of vx-managed path
+    /// - `executable_override`: Optional direct path to the executable
+    /// - `env_vars`: Additional environment variables
+    /// - `command_prefix`: Command prefix (e.g., `["dotnet"]` for msbuild)
+    /// - `proxy_ready`: Whether the proxy is ready for execution
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// async fn prepare_execution(
+    ///     &self,
+    ///     version: &str,
+    ///     ctx: &ExecutionContext,
+    /// ) -> Result<ExecutionPrep> {
+    ///     // For Yarn 2.x+, enable corepack and use system PATH
+    ///     if !Self::is_corepack_enabled().await {
+    ///         Self::enable_corepack().await?;
+    ///     }
+    ///     Ok(ExecutionPrep::proxy_ready())
+    /// }
+    /// ```
+    async fn prepare_execution(
+        &self,
+        _version: &str,
+        _ctx: &ExecutionContext,
+    ) -> Result<ExecutionPrep> {
+        Ok(ExecutionPrep::default()) // Default: no special preparation needed
     }
 
     /// Get download URL for a specific version and platform

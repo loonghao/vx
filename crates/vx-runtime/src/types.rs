@@ -323,6 +323,125 @@ impl InstallResult {
     }
 }
 
+/// Execution preparation result (RFC 0028)
+///
+/// This struct is returned by `Runtime::prepare_execution()` to configure
+/// how a proxy-managed or bundled tool should be executed.
+///
+/// # Examples
+///
+/// ## Proxy-managed tool (Yarn 2.x+ via corepack)
+/// ```rust,ignore
+/// ExecutionPrep {
+///     use_system_path: true,  // Use corepack's yarn from PATH
+///     proxy_ready: true,
+///     ..Default::default()
+/// }
+/// ```
+///
+/// ## Bundled tool (msbuild with dotnet)
+/// ```rust,ignore
+/// ExecutionPrep {
+///     executable_override: Some(PathBuf::from("/path/to/msbuild.dll")),
+///     command_prefix: vec!["dotnet".to_string()],
+///     proxy_ready: true,
+///     ..Default::default()
+/// }
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct ExecutionPrep {
+    /// Use system PATH instead of vx-managed path
+    ///
+    /// When true, the executor will look for the executable in the system PATH
+    /// rather than in vx's store directory. This is used for proxy-managed tools
+    /// like Yarn 2.x+ which are executed via corepack.
+    pub use_system_path: bool,
+
+    /// Override the executable path directly
+    ///
+    /// Used when the executable is discovered dynamically (e.g., bundled tools).
+    /// If set, this path will be used instead of the normal resolution.
+    pub executable_override: Option<PathBuf>,
+
+    /// Additional environment variables to set before execution
+    pub env_vars: HashMap<String, String>,
+
+    /// Command prefix to add before user arguments
+    ///
+    /// For example, `["dotnet", "msbuild"]` for running msbuild via dotnet.
+    /// The final command would be: `dotnet msbuild <user_args>`
+    pub command_prefix: Vec<String>,
+
+    /// Whether the proxy/bundled tool is ready for execution
+    ///
+    /// If false after `prepare_execution()`, the executor should report an error.
+    pub proxy_ready: bool,
+
+    /// Additional PATH entries to prepend
+    ///
+    /// These paths will be prepended to the PATH environment variable
+    /// before executing the command.
+    pub path_prepend: Vec<PathBuf>,
+
+    /// Message to display to the user (for setup instructions, etc.)
+    pub message: Option<String>,
+}
+
+impl ExecutionPrep {
+    /// Create a new ExecutionPrep for a ready proxy-managed tool
+    pub fn proxy_ready() -> Self {
+        Self {
+            use_system_path: true,
+            proxy_ready: true,
+            ..Default::default()
+        }
+    }
+
+    /// Create a new ExecutionPrep with an executable override
+    pub fn with_executable(path: PathBuf) -> Self {
+        Self {
+            executable_override: Some(path),
+            proxy_ready: true,
+            ..Default::default()
+        }
+    }
+
+    /// Set an environment variable
+    pub fn with_env(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.env_vars.insert(key.into(), value.into());
+        self
+    }
+
+    /// Add a command prefix
+    pub fn with_prefix(mut self, prefix: impl Into<String>) -> Self {
+        self.command_prefix.push(prefix.into());
+        self
+    }
+
+    /// Add a PATH entry to prepend
+    pub fn with_path_prepend(mut self, path: PathBuf) -> Self {
+        self.path_prepend.push(path);
+        self
+    }
+
+    /// Set a message for the user
+    pub fn with_message(mut self, message: impl Into<String>) -> Self {
+        self.message = Some(message.into());
+        self
+    }
+
+    /// Check if this is a no-op preparation (default behavior)
+    pub fn is_default(&self) -> bool {
+        !self.use_system_path
+            && self.executable_override.is_none()
+            && self.env_vars.is_empty()
+            && self.command_prefix.is_empty()
+            && !self.proxy_ready
+            && self.path_prepend.is_empty()
+            && self.message.is_none()
+    }
+}
+
 /// Result of a command execution
 #[derive(Debug, Clone)]
 pub struct ExecutionResult {
