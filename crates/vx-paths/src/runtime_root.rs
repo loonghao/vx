@@ -401,7 +401,7 @@ mod tests {
         assert!(
             root.bin_dir()
                 .components()
-                .last()
+                .next_back()
                 .map(|c| c.as_os_str() == "bin")
                 .unwrap_or(false),
             "bin_dir should end with 'bin' component: {:?}",
