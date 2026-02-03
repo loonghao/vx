@@ -75,6 +75,12 @@ members = [
   "crates/vx-providers/pwsh",
   # .NET SDK
   "crates/vx-providers/dotnet",
+  # MSBuild (bundled with .NET SDK)
+  "crates/vx-providers/msbuild",
+  # NuGet package manager
+  "crates/vx-providers/nuget",
+  # Windows Package Manager (winget)
+  "crates/vx-providers/winget",
 ]
 resolver = "2"
 
@@ -207,6 +213,9 @@ vx-provider-gh = { path = "crates/vx-providers/gh" }
 vx-provider-imagemagick = { path = "crates/vx-providers/imagemagick" }
 vx-provider-pwsh = { path = "crates/vx-providers/pwsh" }
 vx-provider-dotnet = { path = "crates/vx-providers/dotnet" }
+vx-provider-msbuild = { path = "crates/vx-providers/msbuild" }
+vx-provider-nuget = { path = "crates/vx-providers/nuget" }
+vx-provider-winget = { path = "crates/vx-providers/winget" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
 

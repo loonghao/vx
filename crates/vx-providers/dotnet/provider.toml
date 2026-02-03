@@ -71,16 +71,61 @@ executable_extensions = [".exe"]
 [runtimes.platforms.unix]
 executable_extensions = []
 
+# RFC 0021: System installation strategies
+[runtimes.system_install]
+
+# Windows: winget installation (preferred - official Microsoft package)
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "winget"
+package = "Microsoft.DotNet.SDK.8"
+platforms = ["windows"]
+priority = 100
+
+# Windows: chocolatey installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "choco"
+package = "dotnet-sdk"
+platforms = ["windows"]
+priority = 80
+
+# macOS: brew installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "dotnet"
+platforms = ["macos"]
+priority = 90
+
+# Linux: apt installation (Ubuntu/Debian)
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "apt"
+package = "dotnet-sdk-8.0"
+platforms = ["linux"]
+priority = 80
+
+# Linux: dnf installation (Fedora/RHEL)
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "dnf"
+package = "dotnet-sdk-8.0"
+platforms = ["linux"]
+priority = 80
+
 # .NET 9.0+ (latest STS/LTS versions)
 [[runtimes.constraints]]
 when = ">=9.0"
 recommends = [
-    { runtime = "git", version = "*", reason = "Git is recommended for NuGet package sources and dotnet tool development" }
+    { runtime = "git", version = "*", reason = "Git is recommended for NuGet package sources and dotnet tool development" },
+    { runtime = "nuget", version = "*", reason = "NuGet CLI for advanced package management" }
 ]
 
 # .NET 8.0 (LTS)
 [[runtimes.constraints]]
 when = ">=8.0, <9.0"
 recommends = [
-    { runtime = "git", version = "*", reason = "Git is recommended for NuGet package sources" }
+    { runtime = "git", version = "*", reason = "Git is recommended for NuGet package sources" },
+    { runtime = "nuget", version = "*", reason = "NuGet CLI for advanced package management" }
 ]

@@ -1,0 +1,26 @@
+[package]
+name = "vx-provider-msbuild"
+version.workspace = true
+edition.workspace = true
+description = "MSBuild provider for vx - Microsoft Build Engine bundled with .NET SDK"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+vx-runtime = { workspace = true }
+vx-paths = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+which = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }

@@ -4124,10 +4124,12 @@ dependencies = [
  "vx-provider-kubectl",
  "vx-provider-make",
  "vx-provider-meson",
+ "vx-provider-msbuild",
  "vx-provider-msvc",
  "vx-provider-nasm",
  "vx-provider-ninja",
  "vx-provider-node",
+ "vx-provider-nuget",
  "vx-provider-ollama",
  "vx-provider-pnpm",
  "vx-provider-pre-commit",
@@ -4144,6 +4146,7 @@ dependencies = [
  "vx-provider-uv",
  "vx-provider-vite",
  "vx-provider-vscode",
+ "vx-provider-winget",
  "vx-provider-yarn",
  "vx-provider-zig",
  "vx-resolver",
@@ -4708,6 +4711,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-msbuild"
+version = "0.6.27"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest 0.26.1",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "vx-paths",
+ "vx-runtime",
+ "which",
+]
+
+[[package]]
 name = "vx-provider-msvc"
 version = "0.6.27"
 dependencies = [
@@ -4767,6 +4786,19 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-nuget"
+version = "0.6.27"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest 0.26.1",
+ "serde",
+ "serde_json",
+ "tokio",
  "vx-runtime",
 ]
 
@@ -5002,6 +5034,19 @@ dependencies = [
  "tracing",
  "vx-runtime",
  "vx-version-fetcher",
+]
+
+[[package]]
+name = "vx-provider-winget"
+version = "0.6.27"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest 0.26.1",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
 ]
 
 [[package]]

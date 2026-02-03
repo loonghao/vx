@@ -200,6 +200,9 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         imagemagick,
         pwsh,
         dotnet,
+        msbuild,
+        nuget,
+        winget,
     );
 
     registry
@@ -255,6 +258,9 @@ fn create_static_registry() -> ProviderRegistry {
         imagemagick,
         pwsh,
         dotnet,
+        msbuild,
+        nuget,
+        winget,
     );
 
     registry

@@ -5,14 +5,22 @@
 //! 2. Auto-install missing components  
 //! 3. Forward command to the appropriate executable
 //!
-//! ## Module Structure
+//! ## Module Structure (Refactored for Single Responsibility)
 //!
-//! - `core` - The main Executor struct and execution logic
+//! - `executor` - The main Executor struct and execution flow
+//! - `installation` - Runtime installation logic
+//! - `fallback` - Fallback installation methods (system installers)
+//! - `environment` - Environment variable preparation and PATH building
+//! - `command` - Command building and execution
 //! - `project_config` - Project configuration loading from vx.toml
 //! - `bundle` - Offline bundle support for disconnected environments
 
 mod bundle;
-mod core;
+mod command;
+mod environment;
+mod executor;
+mod fallback;
+mod installation;
 mod project_config;
 
 // Re-export main types
@@ -20,7 +28,7 @@ pub use bundle::{
     execute_bundle, execute_system_runtime, has_bundle, is_online, try_get_bundle_context,
     BundleContext, BundleManifest, BundledToolInfo, BUNDLE_DIR, BUNDLE_MANIFEST,
 };
-pub use core::Executor;
+pub use executor::Executor;
 pub use project_config::ProjectToolsConfig;
 
 // Re-export from vx_core for convenience

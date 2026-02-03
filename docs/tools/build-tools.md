@@ -2,6 +2,63 @@
 
 vx supports various build systems, compilers, and task runners.
 
+## .NET SDK & MSBuild
+
+### .NET SDK
+
+The .NET SDK includes the dotnet CLI, MSBuild, NuGet, and compilers for C#, F#, and VB.NET.
+
+```bash
+# Install .NET SDK
+vx install dotnet latest
+vx install dotnet 8.0        # LTS version
+
+# Common commands
+vx dotnet --version
+vx dotnet new console -n MyApp
+vx dotnet build
+vx dotnet run
+vx dotnet test
+vx dotnet publish -c Release
+```
+
+### MSBuild (Bundled with .NET SDK)
+
+MSBuild is the Microsoft Build Engine, bundled with .NET SDK. vx automatically uses `dotnet msbuild` when you run `vx msbuild`.
+
+```bash
+# MSBuild commands (uses dotnet msbuild)
+vx msbuild MyProject.csproj
+vx msbuild MySolution.sln /p:Configuration=Release
+vx msbuild /t:Build /p:Platform=x64
+vx msbuild /t:Clean
+vx msbuild /t:Restore
+
+# Equivalent to:
+vx dotnet msbuild MyProject.csproj
+```
+
+**RFC 0028: Bundled Runtime**
+
+MSBuild is a "bundled runtime" - it's not independently installable but comes with .NET SDK. When you run `vx msbuild`, vx:
+1. Finds the .NET SDK installation (vx-managed or system)
+2. Executes via `dotnet msbuild`
+3. On Windows, can also use Visual Studio's standalone MSBuild if .NET SDK is not available
+
+**Example .NET Build Workflow:**
+
+```bash
+# Create new project
+vx dotnet new webapi -n MyApi
+
+# Build with MSBuild
+cd MyApi
+vx msbuild MyApi.csproj /p:Configuration=Release
+
+# Or use dotnet build (simpler)
+vx dotnet build -c Release
+```
+
 ## C/C++ Compilers
 
 ### MSVC Build Tools (Windows)

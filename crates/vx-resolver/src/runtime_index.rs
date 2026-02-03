@@ -420,6 +420,12 @@ impl RuntimeIndex {
         self.get(name).map(|e| e.command_prefix.clone())
     }
 
+    /// Get the parent runtime for a bundled runtime (e.g., msbuild -> dotnet)
+    /// Returns None if the runtime is not bundled with another runtime.
+    pub fn get_bundled_parent(&mut self, name: &str) -> Option<String> {
+        self.get(name).and_then(|e| e.bundled_with.clone())
+    }
+
     // ========== Build Methods ==========
 
     /// Build index from provider manifests

@@ -13,6 +13,8 @@ pub enum Ecosystem {
     Rust,
     /// Go ecosystem (go, gofmt)
     Go,
+    /// .NET ecosystem (dotnet, nuget, msbuild)
+    Dotnet,
     /// System tools
     System,
     /// Custom ecosystem with a name
@@ -30,6 +32,7 @@ impl Ecosystem {
             Ecosystem::Python => Some("uv"),
             Ecosystem::Rust => Some("rust"),
             Ecosystem::Go => Some("go"),
+            Ecosystem::Dotnet => Some("dotnet"),
             _ => None,
         }
     }
@@ -52,6 +55,9 @@ impl Ecosystem {
             Ecosystem::Go => {
                 matches!(name, "go" | "golang" | "gofmt")
             }
+            Ecosystem::Dotnet => {
+                matches!(name, "dotnet" | "dotnet-sdk" | "nuget" | "msbuild")
+            }
             _ => false,
         }
     }
@@ -64,6 +70,7 @@ impl std::fmt::Display for Ecosystem {
             Ecosystem::Python => write!(f, "python"),
             Ecosystem::Rust => write!(f, "rust"),
             Ecosystem::Go => write!(f, "go"),
+            Ecosystem::Dotnet => write!(f, "dotnet"),
             Ecosystem::System => write!(f, "system"),
             Ecosystem::Custom(name) => write!(f, "{}", name),
             Ecosystem::Unknown => write!(f, "unknown"),

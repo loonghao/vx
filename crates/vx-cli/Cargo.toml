@@ -73,6 +73,9 @@ vx-provider-imagemagick = { workspace = true }
 vx-provider-nasm = { workspace = true }
 vx-provider-pwsh = { workspace = true }
 vx-provider-dotnet = { workspace = true }
+vx-provider-msbuild = { workspace = true }
+vx-provider-nuget = { workspace = true }
+vx-provider-winget = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
