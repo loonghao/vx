@@ -4,10 +4,11 @@ use crate::config::WingetConfig;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 use vx_runtime::{
-    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
-    VersionInfo,
+    Ecosystem, ExecutionContext, ExecutionPrep, GitHubReleaseOptions, InstallResult, Platform,
+    Runtime, RuntimeContext, VerificationResult, VersionInfo,
 };
 
 /// Windows Package Manager runtime
@@ -77,14 +78,103 @@ impl Runtime for WingetRuntime {
         .await
     }
 
-    async fn download_url(&self, _version: &str, platform: &Platform) -> Result<Option<String>> {
-        // winget is distributed as msixbundle which requires special installation
-        // via Add-AppxPackage, not a simple download and extract
+    /// winget can be installed from GitHub releases
+    fn is_version_installable(&self, _version: &str) -> bool {
+        true
+    }
+
+    /// Install winget using Add-AppxPackage
+    async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
+        if !self.is_platform_supported(&Platform::current()) {
+            return Err(anyhow::anyhow!("winget is only supported on Windows"));
+        }
+
+        // Download the msixbundle from GitHub releases
+        let download_url = format!(
+            "https://github.com/microsoft/winget-cli/releases/download/v{}/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle",
+            version
+        );
+
+        let temp_dir = std::env::temp_dir().join(format!("vx-winget-{}", version));
+        let bundle_path = temp_dir.join("winget.msixbundle");
+
+        // Download the bundle
+        ctx.http
+            .download(&download_url, &bundle_path)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to download winget: {}", e))?;
+
+        // Install using Add-AppxPackage
+        let script = format!(
+            r#"Add-AppxPackage -Path "{}" -ForceApplicationShutdown"#,
+            bundle_path.display()
+        );
+
+        let output = Command::new("powershell")
+            .args(&["-Command", &script])
+            .output()
+            .map_err(|e| anyhow::anyhow!("Failed to run PowerShell: {}", e))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(anyhow::anyhow!(
+                "Failed to install winget via Add-AppxPackage: {}",
+                stderr
+            ));
+        }
+
+        // Find the installed winget path
+        let exe_path = which::which("winget").ok();
+
+        Ok(InstallResult::system_installed(
+            format!("system (v{})", version),
+            exe_path,
+        ))
+    }
+
+    /// Prepare execution for winget using system installation
+    async fn prepare_execution(
+        &self,
+        _version: &str,
+        _ctx: &ExecutionContext,
+    ) -> Result<ExecutionPrep> {
+        // Try to find winget using 'where' command (most reliable on Windows)
+        let output = Command::new("where")
+            .arg("winget")
+            .output();
+
+        if let Ok(output) = output {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                if let Some(line) = stdout.lines().next() {
+                    let path = PathBuf::from(line.trim());
+                    if path.exists() {
+                        return Ok(ExecutionPrep {
+                            executable_override: Some(path),
+                            proxy_ready: true,
+                            message: Some("Using system winget".to_string()),
+                            ..Default::default()
+                        });
+                    }
+                }
+            }
+        }
+
+        Err(anyhow::anyhow!(
+            "winget not found. Run 'vx install winget' to install from GitHub releases,\n\
+            or install 'App Installer' from Microsoft Store"
+        ))
+    }
+
+    async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
+        // Return the msixbundle download URL
         if !self.is_platform_supported(platform) {
             return Ok(None);
         }
-        // Return None to indicate this runtime uses script_install instead
-        Ok(None)
+        Ok(Some(format!(
+            "https://github.com/microsoft/winget-cli/releases/download/v{}/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle",
+            version
+        )))
     }
 
     fn verify_installation(
