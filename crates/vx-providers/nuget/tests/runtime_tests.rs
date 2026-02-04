@@ -104,3 +104,13 @@ fn test_download_url_non_windows() {
         });
     assert!(url_macos.is_none());
 }
+
+#[test]
+fn test_executable_relative_path() {
+    let runtime = NugetRuntime::new();
+    let windows = Platform::new(Os::Windows, Arch::X86_64);
+    
+    // BinaryHandler installs to bin/ subdirectory
+    let path = runtime.executable_relative_path("6.11.1", &windows);
+    assert_eq!(path, "bin/nuget.exe");
+}
