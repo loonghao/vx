@@ -103,6 +103,35 @@ impl<'a> Executor<'a> {
         args: &[String],
         inherit_env: bool,
     ) -> Result<i32> {
+        self.execute_with_with_deps(runtime_name, version, args, inherit_env, &[])
+            .await
+    }
+
+    /// Execute a runtime with additional runtime dependencies (--with flag)
+    ///
+    /// This method supports injecting additional runtimes into the PATH before execution,
+    /// similar to uvx --with or rez-env. Useful when a tool requires multiple runtimes.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// // Execute opencode with bun in PATH
+    /// executor.execute_with_with_deps(
+    ///     "npm:opencode",
+    ///     None,
+    ///     &args,
+    ///     false,
+    ///     &[WithDependency::parse("bun")],
+    /// ).await?;
+    /// ```
+    pub async fn execute_with_with_deps(
+        &self,
+        runtime_name: &str,
+        version: Option<&str>,
+        args: &[String],
+        inherit_env: bool,
+        with_deps: &[vx_core::WithDependency],
+    ) -> Result<i32> {
         let span = info_span!(
             "execute",
             tool = %runtime_name,
@@ -115,6 +144,14 @@ impl<'a> Executor<'a> {
             debug!(">>> vx {}@{} {}", runtime_name, ver, args.join(" "));
         } else {
             debug!(">>> vx {} {}", runtime_name, args.join(" "));
+        }
+
+        // Log --with dependencies if any
+        if !with_deps.is_empty() {
+            info!(
+                "Injecting additional runtimes via --with: {:?}",
+                with_deps.iter().map(|d| d.to_string()).collect::<Vec<_>>()
+            );
         }
 
         // -------------------------
@@ -224,20 +261,46 @@ impl<'a> Executor<'a> {
         debug!("[/PREPARE_ENV]");
 
         // -------------------------
+        // --with Dependencies Injection
+        // -------------------------
+        if !with_deps.is_empty() {
+            debug!("[WITH_DEPS]");
+            self.inject_with_dependencies(&mut runtime_env, with_deps)
+                .await?;
+            debug!("[/WITH_DEPS]");
+        }
+
+        // -------------------------
         // RFC 0028: Prepare Proxy Execution
         // -------------------------
         if let Some(registry) = self.registry {
             if let Some(runtime) = registry.get_runtime(runtime_name) {
-                let version_to_check = installed_version
+                // Get the actual version to check
+                // If no version is specified, try to get it from installed versions
+                let version_to_check = if let Some(ver) = installed_version
                     .as_deref()
                     .or(resolved_version.as_deref())
-                    .unwrap_or("latest");
+                {
+                    ver.to_string()
+                } else if let Some(ctx) = self.context {
+                    // No version specified - try to get from installed versions
+                    runtime
+                        .installed_versions(ctx)
+                        .await
+                        .ok()
+                        .and_then(|versions| versions.into_iter().next())
+                        .unwrap_or_else(|| "latest".to_string())
+                } else {
+                    "latest".to_string()
+                };
 
-                if !runtime.is_version_installable(version_to_check) {
+                debug!("  version_to_check for proxy: {}", version_to_check);
+
+                if !runtime.is_version_installable(&version_to_check) {
                     let prep = self
                         .prepare_proxy_execution(
                             runtime_name,
-                            version_to_check,
+                            &version_to_check,
                             &runtime_env,
                             inherit_env,
                             runtime.as_ref(),
@@ -395,8 +458,11 @@ impl<'a> Executor<'a> {
     }
 
     /// Resolve version from command line or project config
+    ///
+    /// If version is "latest", resolves it to the actual latest installed version.
+    /// This ensures consistent version handling throughout the execution flow.
     fn resolve_version(&self, runtime_name: &str, version: Option<&str>) -> Option<String> {
-        if let Some(v) = version {
+        let raw_version = if let Some(v) = version {
             Some(v.to_string())
         } else if let Some(ref project_config) = self.project_config {
             project_config
@@ -404,7 +470,76 @@ impl<'a> Executor<'a> {
                 .map(|s| s.to_string())
         } else {
             None
+        };
+
+        // Resolve "latest" to actual installed version
+        if let Some(ref v) = raw_version {
+            if v == "latest" {
+                if let Some(ctx) = self.context {
+                    // Get installed versions from store directory
+                    let runtime_dir = ctx.paths.runtime_store_dir(runtime_name);
+                    if let Ok(versions) = self.list_installed_versions(&runtime_dir) {
+                        if let Some(latest) = versions.last() {
+                            debug!(
+                                "Resolved {}@latest → {}",
+                                runtime_name, latest
+                            );
+                            return Some(latest.clone());
+                        }
+                    }
+                }
+            }
         }
+
+        raw_version
+    }
+
+    /// List installed versions from a runtime store directory
+    ///
+    /// Scans the directory for version subdirectories and returns them sorted.
+    fn list_installed_versions(&self, runtime_dir: &std::path::Path) -> std::io::Result<Vec<String>> {
+        if !runtime_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let current_platform = vx_runtime::Platform::current().as_str();
+        let mut versions = Vec::new();
+
+        for entry in std::fs::read_dir(runtime_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            // Only check directories
+            if !path.is_dir() {
+                continue;
+            }
+
+            // Check if this is a version directory (starts with a digit)
+            let version_str = entry.file_name().to_string_lossy().to_string();
+            if !version_str
+                .chars()
+                .next()
+                .map(|c| c.is_ascii_digit())
+                .unwrap_or(false)
+            {
+                continue;
+            }
+
+            // Check new structure: <version>/<platform>/
+            let platform_dir = path.join(&current_platform);
+            if platform_dir.exists() {
+                versions.push(version_str);
+            }
+        }
+
+        // Sort by semantic version (lowest first, so last is highest)
+        versions.sort_by(|a, b| {
+            semver::Version::parse(a)
+                .and_then(|va| semver::Version::parse(b).map(|vb| va.cmp(&vb)))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        Ok(versions)
     }
 
     /// Filter out bundled runtimes from install list
@@ -573,6 +708,171 @@ impl<'a> Executor<'a> {
                 }
             }
         }
+    }
+
+    /// Inject additional runtime dependencies via --with flag
+    ///
+    /// This method handles the --with dependencies similar to uvx --with or rez-env:
+    /// 1. Install missing runtimes if auto_install is enabled
+    /// 2. Prepend their bin directories to PATH
+    /// 3. Add their environment variables
+    async fn inject_with_dependencies(
+        &self,
+        runtime_env: &mut std::collections::HashMap<String, String>,
+        with_deps: &[vx_core::WithDependency],
+    ) -> Result<()> {
+        let registry = match self.registry {
+            Some(r) => r,
+            None => return Ok(()),
+        };
+        let context = match self.context {
+            Some(c) => c,
+            None => return Ok(()),
+        };
+
+        let mut path_prepend: Vec<PathBuf> = Vec::new();
+
+        for dep in with_deps {
+            let runtime_name = &dep.runtime;
+            let requested_version = dep.version.as_deref();
+
+            debug!(
+                "  Injecting --with dependency: {}@{}",
+                runtime_name,
+                requested_version.unwrap_or("latest")
+            );
+
+            // Check if runtime exists in registry
+            let runtime = match registry.get_runtime(runtime_name) {
+                Some(r) => r,
+                None => {
+                    return Err(anyhow::anyhow!(
+                        "--with dependency '{}' is not a known runtime. \
+                         Available runtimes: {}",
+                        runtime_name,
+                        registry
+                            .supported_runtimes()
+                            .iter()
+                            .map(|r| r.name())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
+            };
+
+            // Determine version to use
+            let version = if let Some(v) = requested_version {
+                v.to_string()
+            } else {
+                // Get latest installed version or install latest
+                match runtime.installed_versions(context).await {
+                    Ok(versions) if !versions.is_empty() => versions[0].clone(),
+                    _ => {
+                        // Not installed, try to auto-install
+                        if self.config.auto_install {
+                            info!(
+                                "  --with dependency '{}' is not installed. Auto-installing...",
+                                runtime_name
+                            );
+                            let install_mgr = self.installation_manager();
+                            install_mgr.install_runtimes(&[runtime_name.clone()]).await?;
+
+                            // Get the installed version
+                            runtime
+                                .installed_versions(context)
+                                .await
+                                .ok()
+                                .and_then(|v| v.into_iter().next())
+                                .unwrap_or_else(|| "latest".to_string())
+                        } else {
+                            return Err(anyhow::anyhow!(
+                                "--with dependency '{}' is not installed.\n\n\
+                                 To install it, run:\n\n  vx install {}\n\n\
+                                 Or enable auto-install.",
+                                runtime_name,
+                                runtime_name
+                            ));
+                        }
+                    }
+                }
+            };
+
+            // Ensure requested version is installed
+            if requested_version.is_some() {
+                if !runtime.is_installed(&version, context).await.unwrap_or(false) {
+                    if self.config.auto_install {
+                        info!(
+                            "  --with dependency '{}@{}' is not installed. Auto-installing...",
+                            runtime_name, version
+                        );
+                        let install_mgr = self.installation_manager();
+                        install_mgr
+                            .ensure_version_installed(runtime_name, &version)
+                            .await?;
+                    } else {
+                        return Err(anyhow::anyhow!(
+                            "--with dependency '{}@{}' is not installed.\n\n\
+                             To install it, run:\n\n  vx install {}@{}\n\n\
+                             Or enable auto-install.",
+                            runtime_name,
+                            version,
+                            runtime_name,
+                            version
+                        ));
+                    }
+                }
+            }
+
+            // Get bin directory for this runtime
+            let vx_paths = vx_paths::VxPaths::with_base_dir(context.paths.vx_home());
+            if let Ok(Some(runtime_root)) =
+                vx_paths::RuntimeRoot::find(runtime_name, &version, &vx_paths)
+            {
+                // Add bin directory to path_prepend
+                let bin_dir = runtime_root.bin_dir();
+                if bin_dir.exists() {
+                    debug!("    Adding bin dir to PATH: {}", bin_dir.display());
+                    path_prepend.push(bin_dir.to_path_buf());
+                }
+
+                // Add environment variables
+                let env_vars = runtime_root.env_vars();
+                debug!(
+                    "    Adding {} env vars for {}",
+                    env_vars.len(),
+                    runtime_name
+                );
+                runtime_env.extend(env_vars);
+            } else {
+                // Fallback: try to get executable path directly
+                let exe_path = context.paths.executable_path(runtime_name, &version);
+                if let Some(bin_dir) = exe_path.parent() {
+                    if bin_dir.exists() {
+                        debug!(
+                            "    Adding bin dir to PATH (fallback): {}",
+                            bin_dir.display()
+                        );
+                        path_prepend.push(bin_dir.to_path_buf());
+                    }
+                }
+            }
+
+            info!(
+                "  Injected --with dependency: {}@{}",
+                runtime_name, version
+            );
+        }
+
+        // Prepend all --with dependency paths to PATH
+        if !path_prepend.is_empty() {
+            self.apply_path_prepend(runtime_env, &path_prepend);
+            debug!(
+                "  Prepended {} paths from --with dependencies",
+                path_prepend.len()
+            );
+        }
+
+        Ok(())
     }
 
     /// Apply PATH prepend from execution prep

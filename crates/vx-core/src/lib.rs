@@ -31,6 +31,9 @@
 // Core abstractions - the only module we need
 pub mod core;
 
+// Cross-platform command execution utilities
+pub mod command;
+
 // Version parsing and comparison utilities
 pub mod version_utils;
 

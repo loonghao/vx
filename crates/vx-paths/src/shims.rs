@@ -3,6 +3,27 @@
 //! This module provides cross-platform shim generation for globally installed packages.
 //! Shims are wrapper scripts that delegate to the actual package executables.
 //!
+//! ## REZ-like Dynamic Environment (RFC 0032)
+//!
+//! Shims support dynamic environment setup similar to REZ. When executing a package
+//! that requires a runtime (e.g., npm packages needing Node.js), the shim automatically
+//! sets up the runtime's bin directory in PATH before executing the target.
+//!
+//! ### Example: npm package shim on Windows
+//! ```cmd
+//! @echo off
+//! setlocal
+//! set "PATH=C:\Users\user\.vx\store\node\20.0.0\windows-x64\node-v20.0.0-win-x64;%PATH%"
+//! "C:\Users\user\.vx\packages\npm\opencode-ai\latest\opencode" %*
+//! ```
+//!
+//! ### Example: npm package shim on Unix
+//! ```sh
+//! #!/bin/sh
+//! export PATH="/home/user/.vx/store/node/20.0.0/linux-x64/node-v20.0.0-linux-x64:$PATH"
+//! exec "/home/user/.vx/packages/npm/opencode-ai/latest/opencode" "$@"
+//! ```
+//!
 //! ## Future Enhancement: shimexe-core Integration
 //!
 //! This module can be enhanced to use `shimexe-core` (https://github.com/loonghao/shimexe)
@@ -16,23 +37,6 @@
 //! ```toml
 //! # Add to Cargo.toml when ready:
 //! # shimexe-core = "0.1"
-//! ```
-//!
-//! ## Current Implementation
-//!
-//! ### Unix Shims
-//! Unix shims are shell wrapper scripts with 755 permissions:
-//! ```sh
-//! #!/bin/sh
-//! exec "/path/to/executable" "$@"
-//! ```
-//!
-//! ### Windows Shims
-//! Windows shims are .cmd batch files:
-//! ```cmd
-//! @echo off
-//! setlocal
-//! "/path/to/executable" %*
 //! ```
 
 use anyhow::{Context, Result};

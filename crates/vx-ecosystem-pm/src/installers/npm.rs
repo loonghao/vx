@@ -46,6 +46,12 @@ impl NpmInstaller {
 
         bail!("npm not found in PATH. Please install Node.js first or specify npm path.")
     }
+
+    /// Get the node bin directory from the npm path
+    fn get_node_bin_dir(&self) -> Option<PathBuf> {
+        // If we have a specific npm path, the node binary should be in the same directory
+        self.npm_path.as_ref().and_then(|p| p.parent().map(|p| p.to_path_buf()))
+    }
 }
 
 #[async_trait]
@@ -115,9 +121,20 @@ impl EcosystemInstaller for NpmInstaller {
     }
 
     fn build_install_env(&self, install_dir: &Path) -> InstallEnv {
-        InstallEnv::new()
+        let mut env = InstallEnv::new()
             .var("NPM_CONFIG_PREFIX", install_dir.display().to_string())
-            .var("NO_UPDATE_NOTIFIER", "1")
+            .var("NO_UPDATE_NOTIFIER", "1");
+
+        // Add node bin directory to PATH if we have a specific npm path
+        // This ensures postinstall scripts can find node/bun
+        if let Some(node_bin_dir) = self.get_node_bin_dir() {
+            let current_path = std::env::var("PATH").unwrap_or_default();
+            let path_sep = if cfg!(windows) { ";" } else { ":" };
+            let new_path = format!("{}{}{}", node_bin_dir.display(), path_sep, current_path);
+            env = env.var("PATH", new_path);
+        }
+
+        env
     }
 
     fn get_bin_dir(&self, install_dir: &Path) -> PathBuf {

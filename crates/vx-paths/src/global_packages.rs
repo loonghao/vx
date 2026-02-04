@@ -22,8 +22,12 @@ pub struct GlobalPackage {
     /// Executables provided by this package
     pub executables: Vec<String>,
     /// Runtime dependency (e.g., node@20 for npm packages)
+    /// Deprecated: Use `runtime_dependencies` instead
     #[serde(skip_serializing_if = "Option::is_none")]
     pub runtime_dependency: Option<RuntimeDependency>,
+    /// Multiple runtime dependencies (e.g., node + bun for some packages)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub runtime_dependencies: Vec<RuntimeDependency>,
     /// Installation directory
     pub install_dir: PathBuf,
 }
@@ -43,6 +47,7 @@ impl GlobalPackage {
             installed_at: chrono::Utc::now().to_rfc3339(),
             executables: Vec::new(),
             runtime_dependency: None,
+            runtime_dependencies: Vec::new(),
             install_dir,
         }
     }
@@ -59,17 +64,48 @@ impl GlobalPackage {
         self
     }
 
-    /// Set the runtime dependency
+    /// Set the runtime dependency (legacy, single dependency)
     pub fn with_runtime_dependency(
         mut self,
         runtime: impl Into<String>,
         version: impl Into<String>,
     ) -> Self {
-        self.runtime_dependency = Some(RuntimeDependency {
+        let dep = RuntimeDependency {
             runtime: runtime.into(),
             version: version.into(),
-        });
+        };
+        self.runtime_dependency = Some(dep.clone());
+        // Also add to the new list for forward compatibility
+        if !self.runtime_dependencies.iter().any(|d| d.runtime == dep.runtime) {
+            self.runtime_dependencies.push(dep);
+        }
         self
+    }
+
+    /// Add a runtime dependency (supports multiple dependencies)
+    pub fn with_runtime_dependencies(mut self, deps: Vec<RuntimeDependency>) -> Self {
+        for dep in deps {
+            if !self.runtime_dependencies.iter().any(|d| d.runtime == dep.runtime) {
+                self.runtime_dependencies.push(dep);
+            }
+        }
+        // Set legacy field to first dependency for backward compatibility
+        if self.runtime_dependency.is_none() && !self.runtime_dependencies.is_empty() {
+            self.runtime_dependency = Some(self.runtime_dependencies[0].clone());
+        }
+        self
+    }
+
+    /// Get all runtime dependencies (unified API)
+    ///
+    /// Returns dependencies from `runtime_dependencies` if set,
+    /// falls back to `runtime_dependency` for backward compatibility.
+    pub fn get_runtime_dependencies(&self) -> Vec<RuntimeDependency> {
+        if !self.runtime_dependencies.is_empty() {
+            return self.runtime_dependencies.clone();
+        }
+        // Fallback to legacy single dependency
+        self.runtime_dependency.clone().into_iter().collect()
     }
 
     /// Get the unique key for this package (ecosystem:name)

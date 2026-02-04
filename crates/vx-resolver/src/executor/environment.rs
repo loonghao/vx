@@ -269,24 +269,96 @@ impl<'a> EnvironmentManager<'a> {
         match runtime.prepare_environment(&version, context).await {
             Ok(runtime_env) => {
                 env.extend(runtime_env);
-                if !env.is_empty() {
-                    debug!(
-                        "Prepared {} environment variables for {} {}",
-                        env.len(),
-                        runtime_name,
-                        version
-                    );
-                }
-                Ok(env)
             }
             Err(e) => {
                 warn!(
                     "Failed to prepare environment for {} {}: {}",
                     runtime_name, version, e
                 );
-                Ok(env)
             }
         }
+
+        // Add RuntimeRoot environment variables (VX_{NAME}_ROOT, VX_{NAME}_BIN, etc.)
+        // This provides REZ-like environment variables for dependency discovery
+        let vx_paths = vx_paths::VxPaths::with_base_dir(context.paths.vx_home());
+        if let Ok(Some(runtime_root)) =
+            vx_paths::RuntimeRoot::find(runtime_name, &version, &vx_paths)
+        {
+            let root_env_vars = runtime_root.env_vars();
+            debug!(
+                "Adding RuntimeRoot env vars for {}: {:?}",
+                runtime_name,
+                root_env_vars.keys().collect::<Vec<_>>()
+            );
+            env.extend(root_env_vars);
+        }
+
+        // RFC 0028: Add RuntimeRoot environment variables for dependencies
+        // This ensures dependent runtimes (like yarn depending on node) can find
+        // the correct dependency executable via VX_{DEP}_BIN environment variables
+        //
+        // We check both static dependencies (from RuntimeSpec) and version-specific
+        // dependencies (from provider.toml constraints like when=">=2, <4")
+        if let Some(spec) = self.resolver.get_spec(runtime_name) {
+            // Static dependencies
+            for dep in &spec.dependencies {
+                if dep.required {
+                    let dep_runtime_name = dep.provided_by.as_deref().unwrap_or(&dep.runtime_name);
+
+                    // Find the latest installed version of the dependency
+                    if let Ok(Some(dep_root)) =
+                        vx_paths::RuntimeRoot::find_latest(dep_runtime_name, &vx_paths)
+                    {
+                        let dep_env_vars = dep_root.env_vars();
+                        debug!(
+                            "Adding RuntimeRoot env vars for static dependency {}: {:?}",
+                            dep_runtime_name,
+                            dep_env_vars.keys().collect::<Vec<_>>()
+                        );
+                        env.extend(dep_env_vars);
+                    }
+                }
+            }
+        }
+
+        // Version-specific dependencies (from provider.toml constraints)
+        let version_deps = self.resolver.get_dependencies_for_version(runtime_name, &version);
+        for dep in version_deps {
+            if dep.required {
+                let dep_runtime_name = dep.provided_by.as_deref().unwrap_or(&dep.runtime_name);
+
+                // Skip if we already added this dependency
+                let env_key = format!("VX_{}_BIN", dep_runtime_name.to_uppercase().replace('-', "_"));
+                if env.contains_key(&env_key) {
+                    continue;
+                }
+
+                // Find the latest installed version of the dependency
+                if let Ok(Some(dep_root)) =
+                    vx_paths::RuntimeRoot::find_latest(dep_runtime_name, &vx_paths)
+                {
+                    let dep_env_vars = dep_root.env_vars();
+                    debug!(
+                        "Adding RuntimeRoot env vars for version-specific dependency {} (for {}@{}): {:?}",
+                        dep_runtime_name,
+                        runtime_name,
+                        version,
+                        dep_env_vars.keys().collect::<Vec<_>>()
+                    );
+                    env.extend(dep_env_vars);
+                }
+            }
+        }
+
+        if !env.is_empty() {
+            debug!(
+                "Prepared {} environment variables for {} {}",
+                env.len(),
+                runtime_name,
+                version
+            );
+        }
+        Ok(env)
     }
 
     /// Get the provider runtime for a bundled tool
@@ -620,44 +692,76 @@ impl<'a> EnvironmentManager<'a> {
     }
 
     /// Find the bin directory for a runtime
+    ///
+    /// This method recursively searches for the executable within the store directory
+    /// structure and returns the directory containing it. This handles various archive
+    /// structures like:
+    /// - `<version>/<platform>/bin/node.exe` (standard)
+    /// - `<version>/<platform>/node-v25.6.0-win-x64/node.exe` (Node.js style)
+    /// - `<version>/<platform>/yarn-v1.22.19/bin/yarn.cmd` (Yarn style)
     pub fn find_bin_dir(&self, store_dir: &std::path::Path, runtime_name: &str) -> Option<PathBuf> {
         let platform = vx_paths::manager::CurrentPlatform::current();
 
+        // Build the list of possible executable names
+        let exe_names: Vec<String> = if cfg!(windows) {
+            vec![
+                format!("{}.exe", runtime_name),
+                format!("{}.cmd", runtime_name),
+                runtime_name.to_string(),
+            ]
+        } else {
+            vec![runtime_name.to_string()]
+        };
+
         // Platform-specific directory
         let platform_dir = store_dir.join(platform.as_str());
-        if platform_dir.exists() {
-            // Check for bin subdirectory
-            let bin_dir = platform_dir.join("bin");
-            if bin_dir.exists() {
-                return Some(bin_dir);
+        let search_dir = if platform_dir.exists() {
+            &platform_dir
+        } else if store_dir.exists() {
+            store_dir
+        } else {
+            return None;
+        };
+
+        // Recursively search for the executable using walkdir
+        for entry in walkdir::WalkDir::new(search_dir)
+            .max_depth(5) // Limit depth to avoid very deep searches
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if exe_names.iter().any(|exe_name| name == exe_name) {
+                        // Found the executable, return its parent directory
+                        if let Some(parent) = path.parent() {
+                            trace!(
+                                "Found executable for {} at {}, using bin dir: {}",
+                                runtime_name,
+                                path.display(),
+                                parent.display()
+                            );
+                            return Some(parent.to_path_buf());
+                        }
+                    }
+                }
             }
-            // Return platform dir itself if no bin subdir
-            return Some(platform_dir);
         }
 
-        // Direct store directory
+        // Fallback: check standard locations
+        let bin_dir = platform_dir.join("bin");
+        if bin_dir.exists() {
+            return Some(bin_dir);
+        }
+
         let bin_dir = store_dir.join("bin");
         if bin_dir.exists() {
             return Some(bin_dir);
         }
 
-        // Return store dir itself for tools that don't have bin subdir
-        if store_dir.exists() {
-            // Verify there's an executable in this directory
-            if let Some(registry) = self.registry {
-                if let Some(runtime) = registry.get_runtime(runtime_name) {
-                    // Build executable name with platform extension
-                    let exe_ext = vx_paths::platform::Platform::current().executable_extension();
-                    let exe_name = if exe_ext.is_empty() {
-                        runtime.name().to_string()
-                    } else {
-                        format!("{}{}", runtime.name(), exe_ext)
-                    };
-                    if store_dir.join(&exe_name).exists() {
-                        return Some(store_dir.to_path_buf());
-                    }
-                }
-            }
+        // Last resort: return platform dir if it exists
+        if platform_dir.exists() {
+            return Some(platform_dir);
         }
 
         None

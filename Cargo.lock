@@ -4154,7 +4154,7 @@ dependencies = [
  "vx-setup",
  "vx-shim",
  "walkdir",
- "which",
+ "which 8.0.0",
  "windows-sys 0.61.2",
  "zip",
 ]
@@ -4234,7 +4234,7 @@ dependencies = [
  "tokio",
  "tokio-test",
  "tracing",
- "which",
+ "which 8.0.0",
 ]
 
 [[package]]
@@ -4253,7 +4253,7 @@ dependencies = [
  "vx-config",
  "vx-paths",
  "vx-resolver",
- "which",
+ "which 8.0.0",
 ]
 
 [[package]]
@@ -4359,7 +4359,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "walkdir",
- "which",
+ "which 8.0.0",
 ]
 
 [[package]]
@@ -4383,7 +4383,7 @@ dependencies = [
  "vx-core",
  "vx-paths",
  "walkdir",
- "which",
+ "which 8.0.0",
 ]
 
 [[package]]
@@ -4618,7 +4618,7 @@ dependencies = [
  "tracing",
  "vx-runtime",
  "vx-system-pm",
- "which",
+ "which 8.0.0",
 ]
 
 [[package]]
@@ -4723,7 +4723,7 @@ dependencies = [
  "tracing",
  "vx-paths",
  "vx-runtime",
- "which",
+ "which 8.0.0",
 ]
 
 [[package]]
@@ -4945,7 +4945,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-runtime",
- "which",
+ "which 8.0.0",
 ]
 
 [[package]]
@@ -5047,6 +5047,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "which 7.0.3",
 ]
 
 [[package]]
@@ -5103,7 +5104,8 @@ dependencies = [
  "vx-manifest",
  "vx-paths",
  "vx-runtime",
- "which",
+ "walkdir",
+ "which 8.0.0",
 ]
 
 [[package]]
@@ -5140,7 +5142,7 @@ dependencies = [
  "vx-manifest",
  "vx-paths",
  "vx-system-pm",
- "which",
+ "which 8.0.0",
  "xz2",
  "zip",
  "zstd",
@@ -5174,6 +5176,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-core",
+ "vx-env",
  "vx-paths",
 ]
 
@@ -5195,7 +5198,7 @@ dependencies = [
  "toml 0.9.11+spec-1.1.0",
  "tracing",
  "vx-ecosystem-pm",
- "which",
+ "which 8.0.0",
  "winreg 0.55.0",
 ]
 
@@ -5366,6 +5369,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12bed680863276c63889429bfd6cab3b99943659923822de1c8a39c49e4d722c"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "which"
+version = "7.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24d643ce3fd3e5b54854602a080f34fb10ab75e0b813ee32d00ca2b44fa74762"
+dependencies = [
+ "either",
+ "env_home",
+ "rustix",
+ "winsafe",
 ]
 
 [[package]]

@@ -48,9 +48,10 @@ download_type = "archive"
 
 [runtimes.layout.archive]
 strip_prefix = "node-v{version}-{platform}-{arch}"
+# Note: Windows Node.js has flat layout (node.exe), Unix has bin/ layout (bin/node)
 executable_paths = [
-    "bin/node.exe",  # Windows
-    "bin/node"       # Unix
+    "node.exe",      # Windows (flat layout)
+    "bin/node"       # Unix (bin/ layout)
 ]
 
 [runtimes.executable_config]
