@@ -22,6 +22,20 @@ use super::{
     version_source::VersionSourceDef,
 };
 
+/// Bundled runtime configuration (RFC 0028)
+///
+/// For runtimes that are bundled with another runtime (e.g., MSBuild with .NET SDK)
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BundledConfig {
+    /// Parent runtime that provides this bundled runtime
+    pub parent_runtime: String,
+    /// Command prefix to use when executing (e.g., ["dotnet", "msbuild"])
+    pub command_prefix: Vec<String>,
+    /// Whether to fallback to system detection if parent is not installed
+    #[serde(default)]
+    pub fallback_detection: bool,
+}
+
 /// Runtime definition
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RuntimeDef {
@@ -142,6 +156,11 @@ pub struct RuntimeDef {
     /// - Recommended stable version ranges
     #[serde(default)]
     pub version_ranges: Option<VersionRangeConfig>,
+
+    // === RFC 0028: Bundled Runtime Configuration ===
+    /// Bundled runtime configuration (for tools bundled with another runtime)
+    #[serde(default)]
+    pub bundled: Option<BundledConfig>,
 }
 
 impl RuntimeDef {
