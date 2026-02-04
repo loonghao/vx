@@ -22,6 +22,7 @@ use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
+use vx_core::command::{build_command, spawn_command};
 use vx_runtime::{
     Ecosystem, ExecutionContext, ExecutionPrep, Platform, Runtime, RuntimeContext, VersionInfo,
 };
@@ -55,47 +56,49 @@ impl YarnRuntime {
 
     /// Enable corepack for Yarn 2.x+ support
     ///
-    /// This runs `corepack enable` using the provided Node.js executable
+    /// This runs `corepack enable` using the corepack executable in the same directory as node.
+    /// Uses vx_core::command for proper cross-platform handling of .cmd files.
     pub async fn enable_corepack(node_executable: &Path) -> Result<()> {
         info!("Enabling corepack for Yarn 2.x+ support...");
 
-        // First, try using corepack directly from the same directory as node
-        let corepack_path = node_executable.parent().map(|p| p.join("corepack"));
-
-        let output = if let Some(ref corepack) = corepack_path {
-            if corepack.exists() || corepack.with_extension("cmd").exists() {
-                // Use corepack directly
-                let corepack_exe = if cfg!(windows) {
-                    corepack.with_extension("cmd")
-                } else {
-                    corepack.clone()
-                };
-                debug!("Using corepack at: {}", corepack_exe.display());
-                Command::new(&corepack_exe).arg("enable").output().await?
+        // Find corepack executable in the same directory as node
+        let corepack_path = node_executable.parent().map(|p| {
+            if cfg!(windows) {
+                p.join("corepack.cmd")
             } else {
-                // Fallback: use node to run corepack enable
-                debug!("Corepack not found, using node to enable");
-                Command::new(node_executable)
-                    .args([
-                        "--eval",
-                        "require('child_process').execSync('corepack enable', {stdio: 'inherit'})",
-                    ])
-                    .output()
-                    .await?
+                p.join("corepack")
             }
-        } else {
-            Command::new(node_executable)
-                .args([
-                    "--eval",
-                    "require('child_process').execSync('corepack enable', {stdio: 'inherit'})",
-                ])
-                .output()
-                .await?
-        };
+        });
+
+        let corepack = corepack_path.ok_or_else(|| {
+            anyhow::anyhow!(
+                "Cannot find corepack - Node.js at {} has no parent directory",
+                node_executable.display()
+            )
+        })?;
+
+        if !corepack.exists() {
+            return Err(anyhow::anyhow!(
+                "Corepack not found at {}. This Node.js version may not include corepack. \
+                Please use Node.js 16.10+ or 20.x+ which includes corepack.",
+                corepack.display()
+            ));
+        }
+
+        debug!("Using corepack at: {}", corepack.display());
+        let output = spawn_command(&corepack, &["enable"]).await?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(anyhow::anyhow!("Failed to enable corepack: {}", stderr));
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let combined = if stderr.is_empty() && stdout.is_empty() {
+                format!("Exit code: {:?}", output.status.code())
+            } else if stderr.is_empty() {
+                stdout.to_string()
+            } else {
+                stderr.to_string()
+            };
+            return Err(anyhow::anyhow!("Failed to enable corepack: {}", combined));
         }
 
         info!("Corepack enabled successfully");
@@ -103,9 +106,17 @@ impl YarnRuntime {
     }
 
     /// Check if corepack is already enabled
+    ///
+    /// Note: This checks if yarn is available via system PATH (corepack-managed).
+    /// We use tokio::process::Command directly here since we're looking for
+    /// yarn in the system PATH, not a specific executable path.
     pub async fn is_corepack_enabled() -> bool {
         // Check if yarn is available and works via corepack
-        if let Ok(output) = Command::new("yarn").arg("--version").output().await {
+        // For system PATH lookup, we use Command::new directly since the shell
+        // will handle finding the executable
+        let mut cmd = Command::new("yarn");
+        cmd.arg("--version");
+        if let Ok(output) = cmd.output().await {
             output.status.success()
         } else {
             false
@@ -116,45 +127,39 @@ impl YarnRuntime {
     ///
     /// This sets up corepack to use the specified yarn version by running
     /// `corepack prepare yarn@<version> --activate`
+    ///
+    /// Uses vx_core::command for proper cross-platform handling of .cmd files.
     pub async fn prepare_corepack_version(node_executable: &Path, version: &str) -> Result<()> {
         info!("Preparing corepack for yarn@{}...", version);
 
-        let corepack_path = node_executable.parent().map(|p| p.join("corepack"));
-
-        let output = if let Some(ref corepack) = corepack_path {
-            let corepack_exe = if cfg!(windows) {
-                if corepack.with_extension("cmd").exists() {
-                    corepack.with_extension("cmd")
-                } else {
-                    corepack.clone()
-                }
+        // Find corepack executable in the same directory as node
+        let corepack_path = node_executable.parent().map(|p| {
+            if cfg!(windows) {
+                p.join("corepack.cmd")
             } else {
-                corepack.clone()
-            };
-
-            if corepack_exe.exists() {
-                Command::new(&corepack_exe)
-                    .args(["prepare", &format!("yarn@{}", version), "--activate"])
-                    .output()
-                    .await?
-            } else {
-                // Fallback: use npx corepack
-                Command::new(node_executable)
-                    .args([
-                        "-e",
-                        &format!(
-                            "require('child_process').execSync('corepack prepare yarn@{} --activate', {{stdio: 'inherit'}})",
-                            version
-                        ),
-                    ])
-                    .output()
-                    .await?
+                p.join("corepack")
             }
-        } else {
+        });
+
+        let corepack = corepack_path.ok_or_else(|| {
+            anyhow::anyhow!(
+                "Cannot find corepack - Node.js at {} has no parent directory",
+                node_executable.display()
+            )
+        })?;
+
+        if !corepack.exists() {
             return Err(anyhow::anyhow!(
-                "Cannot find corepack - Node.js installation may be incomplete"
+                "Corepack not found at {}. This Node.js version may not include corepack. \
+                Please use Node.js 16.10+ or 20.x+ which includes corepack.",
+                corepack.display()
             ));
-        };
+        }
+
+        let yarn_spec = format!("yarn@{}", version);
+
+        debug!("Using corepack at: {}", corepack.display());
+        let output = spawn_command(&corepack, &["prepare", &yarn_spec, "--activate"]).await?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -319,23 +324,34 @@ impl Runtime for YarnRuntime {
         let node_exe = find_node_executable(ctx).await?;
         debug!("Found node at: {}", node_exe.display());
 
-        // Check if corepack is enabled
-        if !Self::is_corepack_enabled().await {
-            info!("Enabling corepack...");
-            Self::enable_corepack(&node_exe).await?;
-        }
-
         // Prepare the specific yarn version via corepack
+        // Note: We skip `corepack enable` because:
+        // 1. It requires writing to global bin directories (which may need admin permissions)
+        // 2. `corepack prepare --activate` is sufficient for our use case
+        // 3. We'll execute yarn via `corepack yarn`, not via a direct yarn shim
         Self::prepare_corepack_version(&node_exe, version).await?;
 
-        // Return execution prep to use system PATH (corepack's yarn)
+        // Get the corepack executable path
+        // We'll use `corepack yarn` to run yarn commands
+        let corepack_exe = node_exe.parent().map(|p| {
+            if cfg!(windows) {
+                p.join("corepack.cmd")
+            } else {
+                p.join("corepack")
+            }
+        });
+
+        // Return execution prep that uses corepack as the executable with "yarn" as command prefix
         Ok(ExecutionPrep {
-            use_system_path: true,
+            use_system_path: false,
             proxy_ready: true,
+            executable_override: corepack_exe,
+            command_prefix: vec!["yarn".to_string()],
             message: Some(format!(
                 "Using yarn@{} via corepack (Node.js package manager proxy)",
                 version
             )),
+            path_prepend: vec![node_exe.parent().unwrap().to_path_buf()],
             ..Default::default()
         })
     }
@@ -364,48 +380,177 @@ impl Runtime for YarnRuntime {
 
 /// Find the node executable from vx-managed installations
 ///
-/// This function uses vx's `RuntimeRoot` API to find the Node.js executable.
-/// Since vx ensures Node.js is installed before this point (via dependency mechanism),
-/// we should always find it in the vx store.
-async fn find_node_executable(_ctx: &ExecutionContext) -> Result<std::path::PathBuf> {
-    // Use the new RuntimeRoot API for clean access to runtime paths
-    if let Some(node_root) = vx_paths::get_latest_runtime_root("node")
-        .map_err(|e| anyhow::anyhow!("Failed to get node runtime root: {}", e))?
-    {
-        if node_root.executable_exists() {
-            debug!(
-                "Found vx-managed node {} at: {}",
-                node_root.version,
-                node_root.executable_path().display()
-            );
-            return Ok(node_root.executable_path().to_path_buf());
-        }
+/// This function prioritizes finding Node.js in the following order:
+/// 1. VX_NODE_BIN environment variable (set by vx executor for proper isolation)
+/// 2. Execution context's PATH (includes vx-managed tool directories)
+/// 3. VxPaths API with context's VX_HOME (for isolated test environments)
+/// 4. Default VxPaths API (reads system VX_HOME or ~/.vx)
+///
+/// For strategies 3 and 4, we specifically look for a Node.js version that has
+/// corepack bundled (required for Yarn 2.x+). We prefer older LTS versions over
+/// newer ones if the newer versions don't have corepack.
+///
+/// This ensures proper isolation in test environments and when vx manages
+/// the Node.js installation in a custom VX_HOME directory.
+async fn find_node_executable(ctx: &ExecutionContext) -> Result<std::path::PathBuf> {
+    let node_exe_name = vx_paths::with_executable_extension("node");
+    let corepack_exe_name = if cfg!(windows) {
+        "corepack.cmd"
+    } else {
+        "corepack"
+    };
 
-        // Log available environment variables for debugging
-        debug!(
-            "Node runtime environment variables: {:?}",
-            node_root.env_vars()
-        );
+    // Strategy 1: Check VX_NODE_BIN environment variable
+    // This is set by vx executor's prepare_runtime_environment for proper isolation
+    // However, for Yarn 2.x+, we need Node.js with corepack, so we verify it exists
+    if let Some(node_bin_dir) = ctx.env.get("VX_NODE_BIN") {
+        let node_path = std::path::Path::new(node_bin_dir).join(&node_exe_name);
+        if node_path.exists() {
+            // Check if this node has corepack
+            let corepack_path = std::path::Path::new(node_bin_dir).join(corepack_exe_name);
+            if corepack_path.exists() {
+                debug!(
+                    "Found node with corepack via VX_NODE_BIN environment variable: {}",
+                    node_path.display()
+                );
+                return Ok(node_path);
+            }
+            debug!(
+                "VX_NODE_BIN points to {} but corepack not found there, will search for alternative",
+                node_bin_dir
+            );
+        } else {
+            debug!(
+                "VX_NODE_BIN is set to {} but node executable not found there",
+                node_bin_dir
+            );
+        }
     }
 
-    // Fallback: check execution context's PATH (for testing scenarios)
-    if let Some(path_env) = _ctx.env.get("PATH") {
+    // Strategy 2: Check execution context's PATH
+    // The executor prepends vx-managed tool directories to PATH
+    // However, for Yarn 2.x+, we need Node.js with corepack, so we check for it
+    if let Some(path_env) = ctx.env.get("PATH") {
         for path_dir in std::env::split_paths(path_env) {
-            let node_path = path_dir.join(vx_paths::with_executable_extension("node"));
+            let node_path = path_dir.join(&node_exe_name);
             if node_path.exists() {
-                debug!("Found node in context PATH at: {}", node_path.display());
-                return Ok(node_path);
+                // Check if this node has corepack
+                let corepack_path = path_dir.join(corepack_exe_name);
+                if corepack_path.exists() {
+                    debug!(
+                        "Found node with corepack in context PATH at: {}",
+                        node_path.display()
+                    );
+                    return Ok(node_path);
+                }
+                debug!(
+                    "Found node in context PATH at {} but no corepack, continuing search",
+                    node_path.display()
+                );
             }
         }
     }
 
+    // Helper function to find node with corepack support
+    let find_node_with_corepack = |paths: &vx_paths::VxPaths| -> Option<std::path::PathBuf> {
+        let manager = vx_paths::PathManager::from_paths(paths.clone());
+        let mut versions = manager.list_store_versions("node").ok()?;
+
+        // Sort versions in descending order (newest first)
+        versions.sort_by(|a, b| compare_semver(b, a));
+
+        // Find the first version that has corepack
+        for version in &versions {
+            if let Ok(Some(node_root)) = vx_paths::RuntimeRoot::find("node", version, paths) {
+                if node_root.executable_exists() {
+                    // Check if corepack exists in the same directory
+                    let corepack_path = node_root.bin_dir().join(corepack_exe_name);
+                    if corepack_path.exists() {
+                        debug!(
+                            "Found node {} with corepack at: {}",
+                            version,
+                            node_root.executable_path().display()
+                        );
+                        return Some(node_root.executable_path().to_path_buf());
+                    } else {
+                        debug!(
+                            "Node {} exists but has no corepack (skipping for yarn 2.x+)",
+                            version
+                        );
+                    }
+                }
+            }
+        }
+
+        // Fallback: return any node if none has corepack
+        for version in &versions {
+            if let Ok(Some(node_root)) = vx_paths::RuntimeRoot::find("node", version, paths) {
+                if node_root.executable_exists() {
+                    warn!(
+                        "No Node.js version with corepack found. Using {} which may not work with Yarn 2.x+",
+                        version
+                    );
+                    return Some(node_root.executable_path().to_path_buf());
+                }
+            }
+        }
+
+        None
+    };
+
+    // Strategy 3: Use context's VX_HOME if set (for isolated test environments)
+    if let Some(vx_home) = ctx.env.get("VX_HOME") {
+        let paths = vx_paths::VxPaths::with_base_dir(vx_home);
+        if let Some(node_path) = find_node_with_corepack(&paths) {
+            return Ok(node_path);
+        }
+    }
+
+    // Strategy 4: Use default VxPaths (reads system VX_HOME or ~/.vx)
+    if let Ok(paths) = vx_paths::VxPaths::new() {
+        if let Some(node_path) = find_node_with_corepack(&paths) {
+            return Ok(node_path);
+        }
+    }
+
     Err(anyhow::anyhow!(
-        "Node.js is required for Yarn 2.x+ (corepack) but was not found in vx store. \
-        This is unexpected as vx should auto-install Node.js. Please run 'vx install node' first."
+        "Node.js with corepack is required for Yarn 2.x+ but was not found. \
+        Searched in:\n\
+        - VX_NODE_BIN environment variable\n\
+        - Execution context PATH\n\
+        - VX_HOME from context: {:?}\n\
+        - Default vx store (~/.vx/store/node)\n\n\
+        Please run 'vx install node@20' to install a Node.js version with corepack.",
+        ctx.env.get("VX_HOME")
     ))
 }
 
+/// Compare two semver strings
+fn compare_semver(a: &str, b: &str) -> std::cmp::Ordering {
+    let parse_version = |v: &str| -> Vec<u64> {
+        v.trim_start_matches('v')
+            .split('.')
+            .filter_map(|s| s.split('-').next())
+            .filter_map(|s| s.parse().ok())
+            .collect()
+    };
+
+    let a_parts = parse_version(a);
+    let b_parts = parse_version(b);
+
+    for (ap, bp) in a_parts.iter().zip(b_parts.iter()) {
+        match ap.cmp(bp) {
+            std::cmp::Ordering::Equal => continue,
+            other => return other,
+        }
+    }
+
+    a_parts.len().cmp(&b_parts.len())
+}
+
 /// Helper function to ensure node_modules is installed before running commands
+///
+/// Uses vx_core::command for proper cross-platform handling.
 async fn ensure_node_modules_installed(executable: &Path) -> Result<()> {
     // Check if package.json exists
     let package_json = Path::new("package.json");
@@ -423,13 +568,13 @@ async fn ensure_node_modules_installed(executable: &Path) -> Result<()> {
 
     info!("Installing dependencies with yarn...");
 
-    let status = Command::new(executable)
-        .arg("install")
-        .stdin(Stdio::inherit())
+    // Use vx_core::command for proper cross-platform handling
+    let mut cmd = build_command(executable, &["install"]);
+    cmd.stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .await?;
+        .stderr(Stdio::inherit());
+    
+    let status = cmd.status().await?;
 
     if !status.success() {
         warn!("yarn install failed, continuing anyway...");

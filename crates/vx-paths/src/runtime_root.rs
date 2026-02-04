@@ -226,6 +226,54 @@ impl RuntimeRoot {
         self.executable_path.exists()
     }
 
+    /// Get the path to a bundled tool (e.g., npm, npx for node)
+    ///
+    /// Some runtimes bundle multiple executables. For example, Node.js bundles
+    /// npm and npx. This method returns the path to a specific bundled tool.
+    ///
+    /// # Arguments
+    /// * `tool_name` - Name of the bundled tool (e.g., "npm", "npx")
+    ///
+    /// # Returns
+    /// `Some(PathBuf)` if the tool exists in the bin directory, `None` otherwise
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let root = RuntimeRoot::find("node", "20.0.0", &paths)?.unwrap();
+    /// if let Some(npm_path) = root.bundled_tool_path("npm") {
+    ///     println!("npm is at: {}", npm_path.display());
+    /// }
+    /// ```
+    pub fn bundled_tool_path(&self, tool_name: &str) -> Option<PathBuf> {
+        let exe_name = with_executable_extension(tool_name);
+        let tool_path = self.bin_dir.join(&exe_name);
+
+        if tool_path.exists() {
+            return Some(tool_path);
+        }
+
+        // On Windows, also check for .cmd variants (e.g., npm.cmd)
+        if cfg!(windows) {
+            let cmd_path = self.bin_dir.join(format!("{}.cmd", tool_name));
+            if cmd_path.exists() {
+                return Some(cmd_path);
+            }
+        }
+
+        None
+    }
+
+    /// Check if a bundled tool exists
+    ///
+    /// # Arguments
+    /// * `tool_name` - Name of the bundled tool
+    ///
+    /// # Returns
+    /// `true` if the tool exists in the bin directory
+    pub fn has_bundled_tool(&self, tool_name: &str) -> bool {
+        self.bundled_tool_path(tool_name).is_some()
+    }
+
     /// Generate REZ-like environment variables
     ///
     /// Returns a HashMap with the following keys:
@@ -323,6 +371,36 @@ pub fn get_runtime_root(name: &str, version: &str) -> anyhow::Result<Option<Runt
 pub fn get_latest_runtime_root(name: &str) -> anyhow::Result<Option<RuntimeRoot>> {
     let paths = VxPaths::new()?;
     RuntimeRoot::find_latest(name, &paths)
+}
+
+/// Convenience function to get a bundled tool path from the latest runtime version
+///
+/// This is useful for getting paths to tools that are bundled with a runtime,
+/// such as npm/npx bundled with Node.js.
+///
+/// # Arguments
+/// * `runtime_name` - Name of the runtime (e.g., "node")
+/// * `tool_name` - Name of the bundled tool (e.g., "npm", "npx")
+///
+/// # Returns
+/// `Some(PathBuf)` if the runtime and tool exist, `None` otherwise
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use vx_paths::get_bundled_tool_path;
+///
+/// // Get npm path from the latest installed Node.js
+/// if let Some(npm_path) = get_bundled_tool_path("node", "npm")? {
+///     println!("npm is at: {}", npm_path.display());
+/// }
+/// ```
+pub fn get_bundled_tool_path(runtime_name: &str, tool_name: &str) -> anyhow::Result<Option<PathBuf>> {
+    if let Some(root) = get_latest_runtime_root(runtime_name)? {
+        Ok(root.bundled_tool_path(tool_name))
+    } else {
+        Ok(None)
+    }
 }
 
 #[cfg(test)]

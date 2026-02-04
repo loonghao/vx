@@ -34,7 +34,7 @@ pub async fn handle(
 
         // Resolve version from installed versions (supports partial versions like "3.7" -> "3.7.13")
         let target_version =
-            resolve_version_from_installed(requested_version, &installed_versions)?;
+            resolve_version_from_installed(tool_name, requested_version, &installed_versions)?;
 
         if requested_version != target_version {
             UI::detail(&format!(
@@ -140,7 +140,7 @@ pub async fn handle(
 /// - Exact version: "3.7.13" -> "3.7.13"
 /// - Partial version: "3.7" -> "3.7.13" (latest matching 3.7.x)
 /// - Major version: "3" -> "3.12.0" (latest matching 3.x.x)
-fn resolve_version_from_installed(requested: &str, installed: &[String]) -> Result<String> {
+fn resolve_version_from_installed(tool_name: &str, requested: &str, installed: &[String]) -> Result<String> {
     // Parse the request to understand what kind of constraint it is
     let request = VersionRequest::parse(requested);
 
@@ -158,10 +158,19 @@ fn resolve_version_from_installed(requested: &str, installed: &[String]) -> Resu
         .collect();
 
     if matching.is_empty() {
-        return Err(anyhow::anyhow!(
-            "No installed version matches '{}'. Installed versions: {}",
-            requested,
+        let installed_str = if installed.is_empty() {
+            "none".to_string()
+        } else {
             installed.join(", ")
+        };
+        
+        return Err(anyhow::anyhow!(
+            "No installed version matches '{}'. Installed versions: {}\n\nTip: Use 'vx versions {}' to see available versions, or 'vx install {}@{}' to install it.",
+            requested,
+            installed_str,
+            tool_name,
+            tool_name,
+            requested
         ));
     }
 

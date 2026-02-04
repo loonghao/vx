@@ -471,4 +471,82 @@ mod tests {
             count
         );
     }
+
+    #[test]
+    fn test_nuget_manifest_parses() {
+        // Find nuget manifest
+        let nuget_manifest = PROVIDER_MANIFESTS
+            .iter()
+            .find(|(name, _)| *name == "nuget")
+            .map(|(_, content)| content);
+
+        assert!(nuget_manifest.is_some(), "nuget manifest not found");
+
+        // Parse as ProviderManifest
+        let result = vx_manifest::ProviderManifest::parse(nuget_manifest.unwrap());
+        assert!(result.is_ok(), "Failed to parse nuget manifest: {:?}", result.err());
+
+        let manifest = result.unwrap();
+        assert_eq!(manifest.provider.name, "nuget");
+        assert!(!manifest.runtimes.is_empty(), "nuget should have at least one runtime");
+    }
+
+    #[test]
+    fn test_msbuild_manifest_parses() {
+        // Find msbuild manifest
+        let msbuild_manifest = PROVIDER_MANIFESTS
+            .iter()
+            .find(|(name, _)| *name == "msbuild")
+            .map(|(_, content)| content);
+
+        assert!(msbuild_manifest.is_some(), "msbuild manifest not found");
+
+        // Parse as ProviderManifest
+        let result = vx_manifest::ProviderManifest::parse(msbuild_manifest.unwrap());
+        assert!(result.is_ok(), "Failed to parse msbuild manifest: {:?}", result.err());
+
+        let manifest = result.unwrap();
+        assert_eq!(manifest.provider.name, "msbuild");
+        assert!(!manifest.runtimes.is_empty(), "msbuild should have at least one runtime");
+    }
+
+    #[test]
+    fn test_winget_manifest_parses() {
+        // Find winget manifest
+        let winget_manifest = PROVIDER_MANIFESTS
+            .iter()
+            .find(|(name, _)| *name == "winget")
+            .map(|(_, content)| content);
+
+        assert!(winget_manifest.is_some(), "winget manifest not found");
+
+        // Parse as ProviderManifest
+        let result = vx_manifest::ProviderManifest::parse(winget_manifest.unwrap());
+        assert!(result.is_ok(), "Failed to parse winget manifest: {:?}", result.err());
+
+        let manifest = result.unwrap();
+        assert_eq!(manifest.provider.name, "winget");
+        assert!(!manifest.runtimes.is_empty(), "winget should have at least one runtime");
+    }
+
+    #[test]
+    fn test_nuget_provider_in_registry() {
+        let registry = create_registry();
+        let runtime = registry.get_runtime("nuget");
+        assert!(runtime.is_some(), "nuget runtime should be registered");
+    }
+
+    #[test]
+    fn test_msbuild_provider_in_registry() {
+        let registry = create_registry();
+        let runtime = registry.get_runtime("msbuild");
+        assert!(runtime.is_some(), "msbuild runtime should be registered");
+    }
+
+    #[test]
+    fn test_winget_provider_in_registry() {
+        let registry = create_registry();
+        let runtime = registry.get_runtime("winget");
+        assert!(runtime.is_some(), "winget runtime should be registered");
+    }
 }

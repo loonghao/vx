@@ -152,14 +152,42 @@ impl RuntimeIndexEntry {
     }
 
     /// Get the executable path for a specific version
+    ///
+    /// This method uses `vx_paths::RuntimeRoot` to correctly resolve the path,
+    /// handling platform directories and nested archive structures.
     pub fn get_executable_path(&self, store_base: &Path, version: &str) -> Option<PathBuf> {
-        let exe_path = self.executable_path.as_ref()?;
-        Some(
-            store_base
-                .join(&self.store_name)
-                .join(version)
-                .join(exe_path),
-        )
+        // Use RuntimeRoot to correctly resolve the path with platform directory
+        // and nested structures (e.g., node-v25.6.0-win-x64/)
+        let base_dir = store_base.parent()?;
+        let paths = vx_paths::VxPaths::with_base_dir(base_dir);
+        
+        // For bundled runtimes (like npm bundled with node), use store_name
+        // which points to the parent runtime
+        if let Ok(Some(root)) = vx_paths::RuntimeRoot::find(&self.store_name, version, &paths) {
+            // If we have a specific executable name different from store_name,
+            // look for that bundled tool
+            if self.executable != self.store_name {
+                // This is a bundled runtime (e.g., npm, npx bundled with node)
+                if let Some(bundled_path) = root.bundled_tool_path(&self.executable) {
+                    return Some(bundled_path);
+                }
+            }
+            
+            // Return the main executable path
+            if root.executable_exists() {
+                return Some(root.executable_path.clone());
+            }
+        }
+        
+        // Fallback to direct path construction (for simple layouts)
+        if let Some(exe_path) = &self.executable_path {
+            let direct_path = store_base.join(&self.store_name).join(version).join(exe_path);
+            if direct_path.exists() {
+                return Some(direct_path);
+            }
+        }
+        
+        None
     }
 
     /// Get the executable path for the latest installed version
@@ -508,6 +536,23 @@ impl RuntimeIndex {
                 }
             }
         }
+
+        Ok(())
+    }
+
+    /// Build and save a complete index from manifests and store scan
+    pub fn build_and_save(&self, manifests: &[vx_manifest::ProviderManifest]) -> anyhow::Result<()> {
+        // Build from manifests
+        let mut data = Self::build_from_manifests(manifests);
+
+        // Scan store for installed versions
+        self.scan_store(&mut data)?;
+
+        // Compute manifest hash
+        let manifest_hash = Self::compute_manifest_hash(manifests);
+
+        // Save index
+        self.save(&data, Some(manifest_hash))?;
 
         Ok(())
     }

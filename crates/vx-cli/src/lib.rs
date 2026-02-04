@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result};
 use clap::Parser;
+use vx_core::WithDependency;
 use vx_ecosystem_pm::{get_installer, InstallOptions};
 use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
 use vx_paths::shims;
@@ -63,7 +64,9 @@ pub async fn main() -> anyhow::Result<()> {
 
     // Route to appropriate handler
     match &cli.command {
-        Some(command) => command.execute(&cmd_ctx).await,
+        Some(command) => {
+            command.execute(&cmd_ctx).await
+        }
         None => {
             // No subcommand provided, try to execute as tool
             if cli.args.is_empty() {
@@ -71,8 +74,8 @@ pub async fn main() -> anyhow::Result<()> {
                 Cli::parse_from(["vx", "--help"]);
                 Ok(())
             } else {
-                // Execute tool
-                execute_tool(&cmd_ctx, &cli.args).await
+                // Execute tool with --with dependencies
+                execute_tool(&cmd_ctx, &cli.args, &cli.with_deps).await
             }
         }
     }
@@ -94,7 +97,11 @@ pub async fn main() -> anyhow::Result<()> {
 ///    - `vx npm:typescript::tsc --version`
 ///    - `vx pip:httpie::http GET example.com`
 ///    - `vx npm@20:typescript::tsc` (with runtime version)
-async fn execute_tool(ctx: &CommandContext, args: &[String]) -> Result<()> {
+///
+/// 4. With --with flag for additional runtime dependencies:
+///    - `vx --with bun npm:opencode-ai@latest::opencode`
+///    - `vx --with bun@1.1.0 node my-script.js`
+async fn execute_tool(ctx: &CommandContext, args: &[String], with_deps_specs: &[String]) -> Result<()> {
     if args.is_empty() {
         return Err(anyhow::anyhow!("No tool specified"));
     }
@@ -102,9 +109,16 @@ async fn execute_tool(ctx: &CommandContext, args: &[String]) -> Result<()> {
     let tool_spec = &args[0];
     let tool_args: Vec<String> = args[1..].to_vec();
 
+    // Parse --with dependencies
+    let with_deps = WithDependency::parse_many(with_deps_specs);
+
+    tracing::debug!("execute_tool: tool_spec={}, is_package_request={}, with_deps={:?}", 
+        tool_spec, PackageRequest::is_package_request(tool_spec), with_deps);
+
     // Check if this is an RFC 0027 package request (ecosystem:package syntax)
     if PackageRequest::is_package_request(tool_spec) {
-        return execute_package_request(ctx, tool_spec, &tool_args).await;
+        tracing::debug!("Routing to execute_package_request");
+        return execute_package_request(ctx, tool_spec, &tool_args, &with_deps).await;
     }
 
     // Parse as runtime request (supports runtime@version syntax)
@@ -115,7 +129,7 @@ async fn execute_tool(ctx: &CommandContext, args: &[String]) -> Result<()> {
 
     // If not a known runtime, try to execute as a globally installed package shim
     if !is_known_runtime {
-        if let Some(exit_code) = try_execute_global_shim(ctx, &request.name, &tool_args).await? {
+        if let Some(exit_code) = try_execute_global_shim(ctx, &request.name, &tool_args, &with_deps).await? {
             if exit_code != 0 {
                 std::process::exit(exit_code);
             }
@@ -123,8 +137,8 @@ async fn execute_tool(ctx: &CommandContext, args: &[String]) -> Result<()> {
         }
     }
 
-    // Execute as runtime
-    commands::execute::handle_with_version(
+    // Execute as runtime with --with dependencies
+    commands::execute::handle_with_deps(
         ctx.registry(),
         ctx.runtime_context(),
         &request.name,
@@ -133,6 +147,7 @@ async fn execute_tool(ctx: &CommandContext, args: &[String]) -> Result<()> {
         ctx.use_system_path(),
         ctx.inherit_env(),
         ctx.cache_mode(),
+        &with_deps,
     )
     .await
 }
@@ -144,13 +159,37 @@ async fn execute_tool(ctx: &CommandContext, args: &[String]) -> Result<()> {
 /// This function implements uvx/npx-like behavior:
 /// - If the package is already installed, execute it directly
 /// - If not installed, auto-install it first, then execute
-async fn execute_package_request(ctx: &CommandContext, spec: &str, args: &[String]) -> Result<()> {
+async fn execute_package_request(
+    ctx: &CommandContext,
+    spec: &str,
+    args: &[String],
+    with_deps: &[WithDependency],
+) -> Result<()> {
     let pkg_request = PackageRequest::parse(spec)?;
 
     let paths = ctx.runtime_context().paths.clone();
+    
+    // If --with dependencies are specified, we need to use ShimExecutor with custom env
+    // For now, we auto-install --with deps first, then execute with the enhanced environment
+    if !with_deps.is_empty() {
+        // Auto-install --with dependencies
+        for dep in with_deps {
+            if let Some(runtime) = ctx.registry().get_runtime(&dep.runtime) {
+                let version = dep.version.as_deref().unwrap_or("latest");
+                if !runtime.is_installed(version, ctx.runtime_context()).await.unwrap_or(false) {
+                    ui::UI::info(&format!(
+                        "--with dependency '{}@{}' is not installed. Installing...",
+                        dep.runtime, version
+                    ));
+                    ensure_runtime_installed_for_ecosystem(ctx, &dep.runtime).await?;
+                }
+            }
+        }
+    }
+    
     let executor = ShimExecutor::new(paths.packages_registry_file(), paths.shims_dir());
 
-    match executor.execute_request(&pkg_request, args).await {
+    match executor.execute_request_with_deps(&pkg_request, args, with_deps).await {
         Ok(exit_code) => {
             if exit_code != 0 {
                 std::process::exit(exit_code);
@@ -169,7 +208,7 @@ async fn execute_package_request(ctx: &CommandContext, spec: &str, args: &[Strin
 
             // Retry execution after installation
             let executor = ShimExecutor::new(paths.packages_registry_file(), paths.shims_dir());
-            match executor.execute_request(&pkg_request, args).await {
+            match executor.execute_request_with_deps(&pkg_request, args, with_deps).await {
                 Ok(exit_code) => {
                     if exit_code != 0 {
                         std::process::exit(exit_code);
@@ -195,9 +234,55 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
     let package = &pkg_request.package;
     let version = pkg_request.version.as_deref().unwrap_or("latest");
 
+    // Ensure ALL runtime dependencies are installed (auto-install if needed)
+    // Some npm packages may use bun internally, so we install both node and bun
+    let runtime_installed = match get_all_required_runtimes_for_ecosystem(ecosystem) {
+        runtimes if !runtimes.is_empty() => {
+            let mut any_installed = false;
+            for runtime in runtimes {
+                match ensure_runtime_installed_for_ecosystem(ctx, runtime).await {
+                    Ok(true) => any_installed = true,
+                    Ok(false) => {}
+                    Err(e) => {
+                        // For optional runtimes like bun, just log and continue
+                        if runtime != "node" && runtime != "uv" && runtime != "go" {
+                            tracing::debug!("Optional runtime {} not installed: {}", runtime, e);
+                        } else {
+                            return Err(e);
+                        }
+                    }
+                }
+            }
+            any_installed
+        }
+        _ => false,
+    };
+
     // Get the appropriate installer for this ecosystem
-    let installer = get_installer(ecosystem)
-        .with_context(|| format!("Unsupported ecosystem: {}", ecosystem))?;
+    // For npm ecosystem, we need to use the npm executable from the installed node
+    let installer: Box<dyn vx_ecosystem_pm::EcosystemInstaller> = match ecosystem.as_str() {
+        "npm" | "node" => {
+            // For npm ecosystem, try to find npm executable from the installed node
+            // Use vx-paths RuntimeRoot to get bundled tool path
+            let npm_path = if runtime_installed {
+                match vx_paths::get_bundled_tool_path("node", "npm") {
+                    Ok(Some(path)) if path.exists() => Some(path),
+                    _ => None,
+                }
+            } else {
+                None
+            };
+
+            if let Some(path) = npm_path {
+                tracing::debug!("Using npm from: {}", path.display());
+                Box::new(vx_ecosystem_pm::installers::NpmInstaller::with_npm_path(path))
+            } else {
+                Box::new(vx_ecosystem_pm::installers::NpmInstaller::new())
+            }
+        }
+        _ => get_installer(ecosystem)
+            .with_context(|| format!("Unsupported ecosystem: {}", ecosystem))?,
+    };
 
     // Build install options (non-verbose, non-force for auto-install)
     let options = InstallOptions {
@@ -262,6 +347,132 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
     Ok(())
 }
 
+/// Get the required runtime for an ecosystem (primary dependency only)
+/// 
+/// Note: This is kept for reference but the `get_all_required_runtimes_for_ecosystem`
+/// is now used for package installation to support packages that use multiple runtimes.
+#[allow(dead_code)]
+fn get_required_runtime_for_ecosystem(ecosystem: &str) -> Option<&'static str> {
+    match ecosystem.to_lowercase().as_str() {
+        // Node.js ecosystem requires node (which provides npm)
+        "npm" | "node" | "yarn" | "pnpm" | "bun" => Some("node"),
+        // Python ecosystem requires uv or python
+        "pip" | "python" | "pypi" => Some("uv"),
+        "uv" => None, // uv is self-contained
+        // Rust ecosystem
+        "cargo" | "rust" | "crates" => Some("cargo"),
+        // Go ecosystem
+        "go" | "golang" => Some("go"),
+        // Ruby ecosystem
+        "gem" | "ruby" | "rubygems" => Some("ruby"),
+        _ => None,
+    }
+}
+
+/// Get ALL required runtimes for an ecosystem (including optional ones)
+///
+/// Some npm packages may use bun internally, so we install both node and bun
+/// to ensure maximum compatibility.
+fn get_all_required_runtimes_for_ecosystem(ecosystem: &str) -> Vec<&'static str> {
+    match ecosystem.to_lowercase().as_str() {
+        // Node.js ecosystem - node is required, bun is optional but recommended
+        // Some packages like opencode use bun internally
+        "npm" | "node" | "yarn" | "pnpm" => vec!["node", "bun"],
+        // Bun ecosystem just needs bun
+        "bun" => vec!["bun"],
+        // Python ecosystem requires uv
+        "pip" | "python" | "pypi" => vec!["uv"],
+        "uv" => vec![], // uv is self-contained
+        // Rust ecosystem
+        "cargo" | "rust" | "crates" => vec!["cargo"],
+        // Go ecosystem
+        "go" | "golang" => vec!["go"],
+        // Ruby ecosystem
+        "gem" | "ruby" | "rubygems" => vec!["ruby"],
+        _ => vec![],
+    }
+}
+
+/// Ensure a runtime is installed for ecosystem package installation
+///
+/// Returns `true` if the runtime is installed (either was already installed or was just installed).
+async fn ensure_runtime_installed_for_ecosystem(
+    ctx: &CommandContext,
+    runtime_name: &str,
+) -> Result<bool> {
+    // Check if runtime is already available
+    if let Some(runtime) = ctx.registry().get_runtime(runtime_name) {
+        let context = ctx.runtime_context();
+
+        // Check if already installed
+        match runtime.is_installed("latest", context).await {
+            Ok(true) => {
+                tracing::debug!("Runtime {} is already installed", runtime_name);
+                return Ok(true);
+            }
+            Ok(false) => {
+                // Not installed, try to auto-install
+                ui::UI::info(&format!(
+                    "Runtime {} is not installed. Auto-installing...",
+                    runtime_name
+                ));
+            }
+            Err(e) => {
+                tracing::warn!("Failed to check if {} is installed: {}", runtime_name, e);
+            }
+        }
+
+        // Fetch versions to get the latest
+        ui::UI::info(&format!("Fetching versions for {}...", runtime_name));
+        let versions = match runtime.fetch_versions(context).await {
+            Ok(v) => v,
+            Err(e) => {
+                return Err(anyhow::anyhow!(
+                    "Failed to fetch versions for {}: {}. Please install it manually with 'vx install {}'.",
+                    runtime_name,
+                    e,
+                    runtime_name
+                ));
+            }
+        };
+
+        let version = versions
+            .iter()
+            .find(|v| !v.prerelease)
+            .map(|v| v.version.clone())
+            .or_else(|| versions.first().map(|v| v.version.clone()))
+            .ok_or_else(|| anyhow::anyhow!("No versions found for {}", runtime_name))?;
+
+        ui::UI::info(&format!("Installing {} {}...", runtime_name, version));
+
+        // Run pre-install hook
+        runtime.pre_install(&version, context).await?;
+
+        // Install the runtime
+        let result = runtime.install(&version, context).await?;
+
+        // Verify the installation
+        if !context.fs.exists(&result.executable_path) {
+            return Err(anyhow::anyhow!(
+                "Installation completed but executable not found at {}",
+                result.executable_path.display()
+            ));
+        }
+
+        // Run post-install hook
+        runtime.post_install(&version, context).await?;
+
+        ui::UI::success(&format!("Successfully installed {} {}", runtime_name, version));
+
+        Ok(true)
+    } else {
+        Err(anyhow::anyhow!(
+            "Runtime {} not found in registry. Cannot auto-install.",
+            runtime_name
+        ))
+    }
+}
+
 /// Try to execute a globally installed package's executable (shim)
 ///
 /// Returns:
@@ -272,11 +483,28 @@ async fn try_execute_global_shim(
     ctx: &CommandContext,
     exe_name: &str,
     args: &[String],
+    with_deps: &[WithDependency],
 ) -> Result<Option<i32>> {
     let paths = ctx.runtime_context().paths.clone();
     let executor = ShimExecutor::new(paths.packages_registry_file(), paths.shims_dir());
 
-    match executor.try_execute(exe_name, args).await {
+    // If --with dependencies are specified, auto-install them first
+    if !with_deps.is_empty() {
+        for dep in with_deps {
+            if let Some(runtime) = ctx.registry().get_runtime(&dep.runtime) {
+                let version = dep.version.as_deref().unwrap_or("latest");
+                if !runtime.is_installed(version, ctx.runtime_context()).await.unwrap_or(false) {
+                    ui::UI::info(&format!(
+                        "--with dependency '{}@{}' is not installed. Installing...",
+                        dep.runtime, version
+                    ));
+                    ensure_runtime_installed_for_ecosystem(ctx, &dep.runtime).await?;
+                }
+            }
+        }
+    }
+
+    match executor.try_execute_with_deps(exe_name, args, with_deps).await {
         Ok(result) => Ok(result),
         Err(e) => {
             ui::UI::warn(&format!("Shim execution warning: {}", e));
@@ -321,7 +549,7 @@ impl VxCli {
                     Cli::parse_from(["vx", "--help"]);
                     Ok(())
                 } else {
-                    execute_tool(&ctx, &cli.args).await
+                    execute_tool(&ctx, &cli.args, &cli.with_deps).await
                 }
             }
         }

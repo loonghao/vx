@@ -13,6 +13,93 @@ use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
 use vx_paths::package_spec::PackageSpec;
 use vx_paths::shims;
 
+/// Ensure a runtime is installed, auto-installing if necessary
+///
+/// Returns `Some(version)` if the runtime is installed (either was already installed or was just installed),
+/// `None` if the runtime is not available.
+async fn ensure_runtime_installed(
+    ctx: &CommandContext,
+    runtime_name: &str,
+    verbose: bool,
+) -> Result<Option<String>> {
+    // Check if runtime is already available
+    if let Some(runtime) = ctx.registry().get_runtime(runtime_name) {
+        let context = ctx.runtime_context();
+
+        // Check if already installed - get the installed version
+        let installed_versions = match runtime.installed_versions(context).await {
+            Ok(v) => v,
+            Err(_) => vec![],
+        };
+
+        if !installed_versions.is_empty() {
+            // Use the latest installed version
+            let version = installed_versions.last().cloned().unwrap_or_default();
+            if verbose {
+                UI::detail(&format!(
+                    "Runtime {} is already installed (version {})",
+                    runtime_name, version
+                ));
+            }
+            return Ok(Some(version));
+        }
+
+        // Not installed, try to auto-install
+        UI::info(&format!(
+            "Runtime {} is not installed. Auto-installing...",
+            runtime_name
+        ));
+
+        // Fetch versions to get the latest
+        UI::info(&format!("Fetching versions for {}...", runtime_name));
+        let versions = match runtime.fetch_versions(context).await {
+            Ok(v) => v,
+            Err(e) => {
+                return Err(anyhow::anyhow!(
+                    "Failed to fetch versions for {}: {}. Please install it manually.",
+                    runtime_name,
+                    e
+                ));
+            }
+        };
+
+        let version = versions
+            .iter()
+            .find(|v| !v.prerelease)
+            .map(|v| v.version.clone())
+            .or_else(|| versions.first().map(|v| v.version.clone()))
+            .ok_or_else(|| anyhow::anyhow!("No versions found for {}", runtime_name))?;
+
+        UI::info(&format!("Installing {} {}...", runtime_name, version));
+
+        // Run pre-install hook
+        runtime.pre_install(&version, context).await?;
+
+        // Install the runtime
+        let result = runtime.install(&version, context).await?;
+
+        // Verify the installation
+        if !context.fs.exists(&result.executable_path) {
+            return Err(anyhow::anyhow!(
+                "Installation completed but executable not found at {}",
+                result.executable_path.display()
+            ));
+        }
+
+        // Run post-install hook
+        runtime.post_install(&version, context).await?;
+
+        UI::success(&format!("Successfully installed {} {}", runtime_name, version));
+
+        Ok(Some(version))
+    } else {
+        Err(anyhow::anyhow!(
+            "Runtime {} not found in registry. Cannot auto-install.",
+            runtime_name
+        ))
+    }
+}
+
 /// Handle global package commands
 pub async fn handle(ctx: &CommandContext, command: &GlobalCommand) -> Result<()> {
     match command {
@@ -21,6 +108,24 @@ pub async fn handle(ctx: &CommandContext, command: &GlobalCommand) -> Result<()>
         GlobalCommand::Uninstall(args) => handle_uninstall(ctx, args).await,
         GlobalCommand::Info(args) => handle_info(ctx, args).await,
         GlobalCommand::ShimUpdate => handle_shim_update(ctx).await,
+    }
+}
+
+/// Get the required runtime for an ecosystem
+fn get_required_runtime_for_ecosystem(ecosystem: &str) -> Option<&'static str> {
+    match ecosystem.to_lowercase().as_str() {
+        // Node.js ecosystem requires node (which provides npm)
+        "npm" | "node" | "yarn" | "pnpm" | "bun" => Some("node"),
+        // Python ecosystem requires uv or python
+        "pip" | "python" | "pypi" => Some("uv"),
+        "uv" => None, // uv is self-contained
+        // Rust ecosystem
+        "cargo" | "rust" | "crates" => Some("cargo"),
+        // Go ecosystem
+        "go" | "golang" => Some("go"),
+        // Ruby ecosystem
+        "gem" | "ruby" | "rubygems" => Some("ruby"),
+        _ => None,
     }
 }
 
@@ -65,9 +170,57 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
         spec.ecosystem, spec.package, version
     ));
 
+    // Ensure runtime dependency is installed (auto-install if needed)
+    // Returns the installed runtime version for registry tracking
+    let (runtime_name, runtime_version) = match get_required_runtime_for_ecosystem(&spec.ecosystem)
+    {
+        Some(required_runtime) => {
+            let version = ensure_runtime_installed(ctx, required_runtime, args.verbose).await?;
+            (Some(required_runtime), version)
+        }
+        None => (None, None),
+    };
+
     // Get the appropriate installer for this ecosystem
-    let installer = get_installer(&spec.ecosystem)
-        .with_context(|| format!("Unsupported ecosystem: {}", spec.ecosystem))?;
+    // For npm ecosystem, we need to use the npm executable from the installed node
+    let installer: Box<dyn vx_ecosystem_pm::EcosystemInstaller> = match spec.ecosystem.as_str() {
+        "npm" | "node" => {
+            // For npm ecosystem, try to find npm executable from the installed node
+            // Use vx-paths RuntimeRoot to get bundled tool path
+            let npm_path = if runtime_version.is_some() {
+                // Try to get npm from the latest installed node using RuntimeRoot
+                match vx_paths::get_bundled_tool_path("node", "npm") {
+                    Ok(Some(path)) => Some(path),
+                    Ok(None) => {
+                        tracing::warn!("npm not found in installed node");
+                        None
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to get npm path from RuntimeRoot: {}", e);
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+
+            if let Some(path) = npm_path {
+                if path.exists() {
+                    if args.verbose {
+                        UI::detail(&format!("Using npm from: {}", path.display()));
+                    }
+                    Box::new(vx_ecosystem_pm::installers::NpmInstaller::with_npm_path(path))
+                } else {
+                    tracing::warn!("npm path does not exist: {}", path.display());
+                    Box::new(vx_ecosystem_pm::installers::NpmInstaller::new())
+                }
+            } else {
+                Box::new(vx_ecosystem_pm::installers::NpmInstaller::new())
+            }
+        }
+        _ => get_installer(&spec.ecosystem)
+            .with_context(|| format!("Unsupported ecosystem: {}", spec.ecosystem))?,
+    };
 
     // Build install options
     let options = InstallOptions {
@@ -92,13 +245,29 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
         })?;
 
     // Create GlobalPackage from EcosystemInstallResult for registry
-    let global_package = GlobalPackage::new(
+    let mut global_package = GlobalPackage::new(
         spec.package.clone(),
         result.version.clone(),
         spec.ecosystem.clone(),
         result.install_dir.clone(),
     )
     .with_executables(result.executables.clone());
+
+    // Add runtime dependency if present (REZ-like environment tracking)
+    if let (Some(rt_name), Some(rt_version)) = (runtime_name, runtime_version) {
+        global_package = global_package.with_runtime_dependency(rt_name, rt_version);
+        if args.verbose {
+            UI::detail(&format!(
+                "Package has runtime dependency: {}@{}",
+                rt_name,
+                global_package
+                    .runtime_dependency
+                    .as_ref()
+                    .map(|d| d.version.as_str())
+                    .unwrap_or("unknown")
+            ));
+        }
+    }
 
     // Register package
     registry.register(global_package);

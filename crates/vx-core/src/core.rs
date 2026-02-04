@@ -157,6 +157,74 @@ pub enum ArchiveFormat {
     TarXz,
 }
 
+/// Runtime dependency specification (used for --with flag)
+///
+/// This represents a runtime that should be injected into the environment
+/// when executing a tool. Similar to uvx --with or rez-env.
+///
+/// # Example
+///
+/// ```rust
+/// use vx_core::WithDependency;
+///
+/// // Parse "bun@1.1.0"
+/// let dep = WithDependency::parse("bun@1.1.0");
+/// assert_eq!(dep.runtime, "bun");
+/// assert_eq!(dep.version, Some("1.1.0".to_string()));
+///
+/// // Parse "deno" (no version)
+/// let dep = WithDependency::parse("deno");
+/// assert_eq!(dep.runtime, "deno");
+/// assert_eq!(dep.version, None);
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WithDependency {
+    /// Runtime name (e.g., "bun", "deno", "node")
+    pub runtime: String,
+    /// Optional version constraint (e.g., "1.1.0", "latest")
+    pub version: Option<String>,
+}
+
+impl WithDependency {
+    /// Create a new dependency with runtime name and optional version
+    pub fn new(runtime: impl Into<String>, version: Option<String>) -> Self {
+        Self {
+            runtime: runtime.into(),
+            version,
+        }
+    }
+
+    /// Parse a dependency spec from string (e.g., "bun@1.1.0" or "deno")
+    pub fn parse(spec: &str) -> Self {
+        if let Some((runtime, version)) = spec.split_once('@') {
+            Self {
+                runtime: runtime.to_string(),
+                version: Some(version.to_string()),
+            }
+        } else {
+            Self {
+                runtime: spec.to_string(),
+                version: None,
+            }
+        }
+    }
+
+    /// Parse multiple dependency specs
+    pub fn parse_many(specs: &[String]) -> Vec<Self> {
+        specs.iter().map(|s| Self::parse(s)).collect()
+    }
+}
+
+impl std::fmt::Display for WithDependency {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(ref version) = self.version {
+            write!(f, "{}@{}", self.runtime, version)
+        } else {
+            write!(f, "{}", self.runtime)
+        }
+    }
+}
+
 /// Execution context for tools
 #[derive(Debug, Clone)]
 pub struct ExecutionContext {
@@ -342,6 +410,49 @@ pub fn exit_code_from_status(status: &ExitStatus) -> i32 {
     }
 }
 
+// ============================================================================
+// Version Resolution Utilities
+// ============================================================================
+
+/// Check if a version string is "latest" (case insensitive)
+///
+/// # Example
+///
+/// ```rust
+/// use vx_core::is_latest_version;
+///
+/// assert!(is_latest_version("latest"));
+/// assert!(is_latest_version("LATEST"));
+/// assert!(!is_latest_version("1.0.0"));
+/// ```
+pub fn is_latest_version(version: &str) -> bool {
+    version.eq_ignore_ascii_case("latest")
+}
+
+/// Resolve "latest" version to an actual version from installed versions
+///
+/// If the version is "latest", returns the highest version from the provided list.
+/// Otherwise, returns the version as-is.
+///
+/// # Example
+///
+/// ```rust
+/// use vx_core::resolve_latest_version;
+///
+/// let versions = vec!["1.0.0".to_string(), "2.0.0".to_string(), "1.5.0".to_string()];
+/// assert_eq!(resolve_latest_version("latest", &versions), Some("2.0.0".to_string()));
+/// assert_eq!(resolve_latest_version("1.5.0", &versions), Some("1.5.0".to_string()));
+/// assert_eq!(resolve_latest_version("latest", &Vec::new()), None);
+/// ```
+pub fn resolve_latest_version(version: &str, installed_versions: &[String]) -> Option<String> {
+    if is_latest_version(version) {
+        // Return the highest version (assuming list is sorted, last is highest)
+        installed_versions.last().cloned()
+    } else {
+        Some(version.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -377,5 +488,38 @@ mod tests {
         let config = VxConfig::default();
         assert!(config.install_dir.to_string_lossy().contains(".vx"));
         assert!(!config.registries.is_empty());
+    }
+
+    #[test]
+    fn test_with_dependency_parse() {
+        // With version
+        let dep = WithDependency::parse("bun@1.1.0");
+        assert_eq!(dep.runtime, "bun");
+        assert_eq!(dep.version, Some("1.1.0".to_string()));
+
+        // Without version
+        let dep = WithDependency::parse("deno");
+        assert_eq!(dep.runtime, "deno");
+        assert_eq!(dep.version, None);
+
+        // Display format
+        let dep = WithDependency::new("node", Some("20.0.0".to_string()));
+        assert_eq!(dep.to_string(), "node@20.0.0");
+
+        let dep = WithDependency::new("bun", None);
+        assert_eq!(dep.to_string(), "bun");
+    }
+
+    #[test]
+    fn test_with_dependency_parse_many() {
+        let specs = vec!["bun@1.1".to_string(), "deno".to_string(), "node@20".to_string()];
+        let deps = WithDependency::parse_many(&specs);
+        assert_eq!(deps.len(), 3);
+        assert_eq!(deps[0].runtime, "bun");
+        assert_eq!(deps[0].version, Some("1.1".to_string()));
+        assert_eq!(deps[1].runtime, "deno");
+        assert_eq!(deps[1].version, None);
+        assert_eq!(deps[2].runtime, "node");
+        assert_eq!(deps[2].version, Some("20".to_string()));
     }
 }

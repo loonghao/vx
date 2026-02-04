@@ -28,6 +28,10 @@ pub struct GlobalOptions {
     pub verbose: bool,
     /// Debug output mode
     pub debug: bool,
+    /// Additional runtime dependencies to inject (--with flag)
+    ///
+    /// Each entry is a runtime spec like "bun" or "bun@1.1.0"
+    pub with_deps: Vec<String>,
 }
 
 impl GlobalOptions {
@@ -63,6 +67,12 @@ impl GlobalOptions {
     /// Builder method: set debug
     pub fn with_debug(mut self, value: bool) -> Self {
         self.debug = value;
+        self
+    }
+
+    /// Builder method: set with_deps
+    pub fn with_with_deps(mut self, value: Vec<String>) -> Self {
+        self.with_deps = value;
         self
     }
 }
@@ -128,6 +138,7 @@ impl CommandContext {
                 cache_mode: CacheMode::Normal,
                 verbose,
                 debug,
+                with_deps: Vec::new(),
             },
         )
     }
@@ -170,6 +181,11 @@ impl CommandContext {
     /// Check if debug mode is enabled
     pub fn debug(&self) -> bool {
         self.options.debug
+    }
+
+    /// Get additional runtime dependencies (--with flag)
+    pub fn with_deps(&self) -> &[String] {
+        &self.options.with_deps
     }
 
     /// Get the manifest registry (lazy-loaded from embedded manifests)

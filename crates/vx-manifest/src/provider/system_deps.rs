@@ -136,6 +136,20 @@ pub enum InstallStrategyDef {
         priority: i32,
     },
 
+    /// Bundled command - tool is executed via another runtime (e.g., `dotnet nuget`)
+    BundledCommand {
+        /// Parent runtime that provides this command
+        parent_runtime: String,
+        /// Command prefix to use when executing (e.g., ["dotnet", "nuget"])
+        command_prefix: Vec<String>,
+        /// Supported platforms
+        #[serde(default)]
+        platforms: Vec<String>,
+        /// Priority
+        #[serde(default = "default_priority")]
+        priority: i32,
+    },
+
     /// Manual installation required (display instructions to user)
     Manual {
         /// Human-readable installation instructions
@@ -256,5 +270,32 @@ mod tests {
         assert_eq!(config.depends.len(), 1);
         assert_eq!(config.pre_depends[0].dep_type, SystemDepTypeDef::WindowsKb);
         assert_eq!(config.depends[0].dep_type, SystemDepTypeDef::VcRedist);
+    }
+
+    #[test]
+    fn test_bundled_command_strategy_deserialize() {
+        let toml = r#"
+            type = "bundled_command"
+            parent_runtime = "dotnet"
+            command_prefix = ["dotnet", "nuget"]
+            platforms = ["macos", "linux"]
+            priority = 100
+        "#;
+
+        let strategy: InstallStrategyDef = toml::from_str(toml).unwrap();
+        match strategy {
+            InstallStrategyDef::BundledCommand {
+                parent_runtime,
+                command_prefix,
+                platforms,
+                priority,
+            } => {
+                assert_eq!(parent_runtime, "dotnet");
+                assert_eq!(command_prefix, vec!["dotnet", "nuget"]);
+                assert_eq!(platforms, vec!["macos", "linux"]);
+                assert_eq!(priority, 100);
+            }
+            _ => panic!("Expected BundledCommand strategy"),
+        }
     }
 }

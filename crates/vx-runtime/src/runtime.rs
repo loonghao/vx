@@ -1012,7 +1012,15 @@ pub trait Runtime: Send + Sync {
     }
 
     /// Check if a version is installed
+    ///
+    /// If version is "latest", checks if any version is installed.
     async fn is_installed(&self, version: &str, ctx: &RuntimeContext) -> Result<bool> {
+        // Handle "latest" by checking if any version is installed
+        if version == "latest" {
+            let versions = self.installed_versions(ctx).await?;
+            return Ok(!versions.is_empty());
+        }
+
         // Use platform-specific directory for installation check
         let platform = Platform::current();
         let base_path = ctx.paths.version_store_dir(self.store_name(), version);

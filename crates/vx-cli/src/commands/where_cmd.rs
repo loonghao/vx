@@ -1,19 +1,23 @@
 //! Which command implementation - Find vx-managed tools
 
+use crate::registry::get_embedded_manifests;
 use crate::suggestions;
 use crate::ui::UI;
 use anyhow::Result;
 use colored::Colorize;
+use vx_manifest::ManifestLoader;
 use vx_paths::{PackageRegistry, PathManager, PathResolver, VxPaths};
+use vx_resolver::RuntimeIndex;
 use vx_runtime::ProviderRegistry;
 
 pub async fn handle(
     registry: &ProviderRegistry,
     tool: &str,
+    version: Option<&str>,
     all: bool,
     use_system_path: bool,
 ) -> Result<()> {
-    UI::debug(&format!("Looking for tool: {}", tool));
+    UI::debug(&format!("Looking for tool: {}@{:?}", tool, version));
 
     // If --use-system-path is specified, only check system PATH
     if use_system_path {
@@ -30,25 +34,74 @@ pub async fn handle(
     }
 
     // Resolve canonical runtime name and executable (handles aliases like cl -> msvc)
-    let runtime = registry.get_runtime(tool);
-    let (canonical_name, exe_name) = runtime
-        .as_ref()
-        .map(|rt| (rt.name().to_string(), rt.executable_name().to_string()))
-        .unwrap_or_else(|| (tool.to_string(), tool.to_string()));
+    // For where command, we use the tool name directly as canonical name
+    let canonical_name = tool.to_string();
+    let exe_name = tool.to_string();
 
-    // Create path manager and resolver
-    let path_manager = PathManager::new()
-        .map_err(|e| anyhow::anyhow!("Failed to initialize path manager: {}", e))?;
-    let resolver = PathResolver::new(path_manager);
+    // Try RuntimeIndex first for fast lookup
+    let mut runtime_index = RuntimeIndex::new().ok();
+    
+    // Build index if it doesn't exist or is invalid
+    if let Some(ref mut index) = runtime_index {
+        if !index.is_valid() {
+            UI::debug("Runtime index missing or expired, building...");
+            // Load manifests from embedded data
+            let mut loader = ManifestLoader::new();
+            let manifests_data: Vec<(&str, &str)> = get_embedded_manifests().iter().copied().collect();
+            if let Ok(_) = loader.load_embedded(manifests_data) {
+                let manifests: Vec<_> = loader.all().cloned().collect();
+                if let Err(e) = index.build_and_save(&manifests) {
+                    UI::debug(&format!("Failed to build runtime index: {}", e));
+                } else {
+                    UI::debug(&format!("Built runtime index with {} manifests", manifests.len()));
+                }
+            }
+        }
+    }
+    
+    let index_lookup = runtime_index.as_mut().and_then(|index| {
+        if let Some(ver) = version {
+            // Specific version requested
+            index.get(&canonical_name).and_then(|entry| {
+                entry.get_executable_path(&VxPaths::new().ok()?.store_dir, ver)
+            })
+        } else if all {
+            // All versions - we'll use PathResolver for this
+            None
+        } else {
+            // Latest version
+            index.get_executable_path(&canonical_name)
+        }
+    });
 
-    let locations = if all {
-        // Find all versions
-        resolver.find_tool_executables_with_exe(&canonical_name, &exe_name)?
+    let locations = if let Some(path) = index_lookup {
+        // Fast path: found in RuntimeIndex
+        UI::debug(&format!("Found in runtime index: {}", path.display()));
+        vec![path]
     } else {
-        // Find only the latest version
-        match resolver.find_latest_executable_with_exe(&canonical_name, &exe_name)? {
-            Some(path) => vec![path],
-            None => vec![],
+        // Slow path: use PathResolver to scan file system
+        UI::debug(&format!("Not in runtime index, scanning file system..."));
+        
+        // Create path manager and resolver
+        let path_manager = PathManager::new()
+            .map_err(|e| anyhow::anyhow!("Failed to initialize path manager: {}", e))?;
+        let resolver = PathResolver::new(path_manager);
+
+        if let Some(ver) = version {
+            // Specific version requested (e.g., yarn@4)
+            match resolver.find_tool_version_with_executable(&canonical_name, ver, &exe_name) {
+                Some(location) => vec![location.path],
+                None => vec![],
+            }
+        } else if all {
+            // Find all versions
+            resolver.find_tool_executables_with_exe(&canonical_name, &exe_name)?
+        } else {
+            // Find only the latest version
+            match resolver.find_latest_executable_with_exe(&canonical_name, &exe_name)? {
+                Some(path) => vec![path],
+                None => vec![],
+            }
         }
     };
 

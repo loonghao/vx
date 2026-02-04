@@ -5,9 +5,11 @@
 //! - Auto-installation of missing runtimes
 //! - Smart routing to vx-managed or system runtimes
 //! - Support for runtime@version syntax
+//! - Support for --with flag to inject additional runtimes
 
 use crate::ui::UI;
 use anyhow::Result;
+use vx_core::WithDependency;
 use vx_resolver::{Executor, ResolverConfig};
 use vx_runtime::{CacheMode, ProviderRegistry, RuntimeContext};
 
@@ -50,7 +52,7 @@ pub async fn handle_with_version(
     inherit_env: bool,
     cache_mode: CacheMode,
 ) -> Result<()> {
-    let exit_code = execute_runtime_with_version(
+    handle_with_deps(
         registry,
         context,
         runtime_name,
@@ -59,6 +61,38 @@ pub async fn handle_with_version(
         use_system_path,
         inherit_env,
         cache_mode,
+        &[],
+    )
+    .await
+}
+
+/// Handle the execute command with --with dependencies
+///
+/// Supports injecting additional runtimes via --with flag:
+/// - `vx --with bun npm:opencode-ai@latest::opencode`
+/// - `vx --with bun@1.1.0 --with deno node my-script.js`
+#[allow(clippy::too_many_arguments)]
+pub async fn handle_with_deps(
+    registry: &ProviderRegistry,
+    context: &RuntimeContext,
+    runtime_name: &str,
+    version: Option<&str>,
+    args: &[String],
+    use_system_path: bool,
+    inherit_env: bool,
+    cache_mode: CacheMode,
+    with_deps: &[WithDependency],
+) -> Result<()> {
+    let exit_code = execute_runtime_with_deps(
+        registry,
+        context,
+        runtime_name,
+        version,
+        args,
+        use_system_path,
+        inherit_env,
+        cache_mode,
+        with_deps,
     )
     .await?;
 
@@ -116,6 +150,38 @@ pub async fn execute_runtime_with_version(
     inherit_env: bool,
     cache_mode: CacheMode,
 ) -> Result<i32> {
+    execute_runtime_with_deps(
+        registry,
+        context,
+        runtime_name,
+        version,
+        args,
+        use_system_path,
+        inherit_env,
+        cache_mode,
+        &[],
+    )
+    .await
+}
+
+/// Execute runtime with given arguments, version, and --with dependencies
+///
+/// This is the most complete execution function that supports:
+/// 1. Version specification
+/// 2. Environment inheritance control
+/// 3. --with dependencies for injecting additional runtimes
+#[allow(clippy::too_many_arguments)]
+pub async fn execute_runtime_with_deps(
+    registry: &ProviderRegistry,
+    context: &RuntimeContext,
+    runtime_name: &str,
+    version: Option<&str>,
+    args: &[String],
+    use_system_path: bool,
+    inherit_env: bool,
+    cache_mode: CacheMode,
+    with_deps: &[WithDependency],
+) -> Result<i32> {
     // Print debug information
     if let Some(ver) = version {
         UI::debug(&format!(
@@ -126,6 +192,17 @@ pub async fn execute_runtime_with_version(
         ));
     } else {
         UI::debug(&format!("Executing: {} {}", runtime_name, args.join(" ")));
+    }
+
+    if !with_deps.is_empty() {
+        UI::debug(&format!(
+            "With dependencies: {}",
+            with_deps
+                .iter()
+                .map(|d| d.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
     }
 
     // Build executor configuration
@@ -142,9 +219,9 @@ pub async fn execute_runtime_with_version(
 
     let executor = Executor::new(config, registry, context, runtime_map)?;
 
-    // Execute the runtime with optional version and environment inheritance
+    // Execute the runtime with optional version, environment inheritance, and --with deps
     executor
-        .execute_with_version_and_env(runtime_name, version, args, inherit_env)
+        .execute_with_with_deps(runtime_name, version, args, inherit_env, with_deps)
         .await
 }
 

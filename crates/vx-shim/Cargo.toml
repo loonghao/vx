@@ -15,6 +15,7 @@ readme = "README.md"
 # Internal crates
 vx-paths = { workspace = true }
 vx-core = { workspace = true }
+vx-env = { workspace = true }
 
 # External dependencies
 anyhow = { workspace = true }

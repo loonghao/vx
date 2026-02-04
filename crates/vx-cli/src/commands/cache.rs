@@ -62,8 +62,8 @@ pub async fn handle(command: CacheCommand) -> Result<()> {
 /// Show cache statistics (formerly `stats`)
 async fn handle_info() -> Result<()> {
     let paths = VxPaths::new()?;
-    let cache_dir = paths.cache_dir.join("versions");
-    let version_cache = VersionCache::new(cache_dir);
+    // VersionCache::new expects the base cache dir and appends "versions_v2" internally
+    let version_cache = VersionCache::new(paths.cache_dir.clone());
 
     UI::header("Cache Information");
 
@@ -117,7 +117,9 @@ async fn handle_info() -> Result<()> {
 /// List cached items
 async fn handle_list(verbose: bool) -> Result<()> {
     let paths = VxPaths::new()?;
-    let cache_dir = paths.cache_dir.join("versions");
+    // VersionCache::new expects the base cache dir and appends "versions_v2" internally
+    let version_cache = VersionCache::new(paths.cache_dir.clone());
+    let cache_dir = paths.cache_dir.join("versions_v2");
 
     UI::header("Cached Version Lists");
 
@@ -126,29 +128,36 @@ async fn handle_list(verbose: bool) -> Result<()> {
         return Ok(());
     }
 
-    let version_cache = VersionCache::new(cache_dir.clone());
 
     if let Ok(entries) = std::fs::read_dir(&cache_dir) {
         let mut found = false;
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
-            if path.extension().is_some_and(|ext| ext == "json") {
-                found = true;
-                let tool_name = path.file_stem().unwrap_or_default().to_string_lossy();
+            // Check for data files (.data or .jsonval) or metadata files (.meta)
+            let is_cache_file = path.extension().is_some_and(|ext| {
+                ext == "data" || ext == "jsonval" || ext == "meta"
+            });
+            
+            if is_cache_file {
+                // Only show each tool once (use .meta files)
+                if path.extension().is_some_and(|ext| ext == "meta") {
+                    found = true;
+                    let tool_name = path.file_stem().unwrap_or_default().to_string_lossy();
 
-                if verbose {
-                    // Show detailed info
-                    if let Ok(meta) = path.metadata() {
-                        let size = format_size(meta.len());
-                        // Use get_entry to check if cache is valid
-                        let is_valid = version_cache.get_entry(&tool_name).is_some();
-                        let status = if is_valid { "valid" } else { "expired" };
-                        println!("  {} ({}, {})", tool_name, size, status);
+                    if verbose {
+                        // Show detailed info
+                        if let Ok(meta) = path.metadata() {
+                            let size = format_size(meta.len());
+                            // Use get_entry to check if cache is valid
+                            let is_valid = version_cache.get_entry(&tool_name).is_some();
+                            let status = if is_valid { "valid" } else { "expired" };
+                            println!("  {} ({}, {})", tool_name, size, status);
+                        } else {
+                            println!("  {}", tool_name);
+                        }
                     } else {
                         println!("  {}", tool_name);
                     }
-                } else {
-                    println!("  {}", tool_name);
                 }
             }
         }
@@ -191,8 +200,8 @@ async fn handle_prune(
 
     // Prune version cache (expired entries only)
     if prune_versions {
-        let cache_dir = paths.cache_dir.join("versions");
-        let version_cache = VersionCache::new(cache_dir);
+        // VersionCache::new expects the base cache dir and appends "versions_v2" internally
+        let version_cache = VersionCache::new(paths.cache_dir.clone());
 
         if let Ok(stats) = version_cache.stats() {
             if verbose || dry_run {
@@ -322,19 +331,9 @@ async fn handle_purge(
 
     // If specific tool is specified, only purge that tool's cache
     if let Some(tool_name) = tool {
-        let cache_file = paths
-            .cache_dir
-            .join("versions")
-            .join(format!("{}.json", tool_name));
-        if cache_file.exists() {
-            if !yes {
-                UI::warning(&format!("This will remove all cache for '{}'", tool_name));
-                if !confirm_action()? {
-                    UI::info("Cancelled");
-                    return Ok(());
-                }
-            }
-            std::fs::remove_file(&cache_file)?;
+        // Clear both .data and .jsonval files
+        let version_cache = VersionCache::new(paths.cache_dir.clone());
+        if version_cache.clear(&tool_name).is_ok() {
             UI::success(&format!("Purged cache for '{}'", tool_name));
         } else {
             UI::info(&format!("No cache found for '{}'", tool_name));
@@ -373,8 +372,8 @@ async fn handle_purge(
 
     // Purge version cache
     if purge_versions {
-        let cache_dir = paths.cache_dir.join("versions");
-        let version_cache = VersionCache::new(cache_dir);
+        // VersionCache::new expects the base cache dir and appends "versions_v2" internally
+        let version_cache = VersionCache::new(paths.cache_dir.clone());
         version_cache.clear_all()?;
         UI::success("Version cache purged");
     }

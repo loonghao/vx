@@ -75,6 +75,17 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub debug: bool,
 
+    /// Additional runtime dependencies to inject into the environment (can be specified multiple times)
+    ///
+    /// Similar to uvx --with or rez-env, this option injects additional runtimes into the PATH
+    /// before executing the tool. Useful when a tool requires multiple runtimes.
+    ///
+    /// Examples:
+    ///   vx --with bun npm:opencode-ai@latest::opencode
+    ///   vx --with bun@1.1.0 --with deno node my-script.js
+    #[arg(long = "with", short = 'w', action = clap::ArgAction::Append, global = true)]
+    pub with_deps: Vec<String>,
+
     /// Tool and arguments to execute
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     pub args: Vec<String>,
@@ -88,6 +99,7 @@ impl From<&Cli> for GlobalOptions {
             cache_mode: cli.cache_mode.into(),
             verbose: cli.verbose,
             debug: cli.debug,
+            with_deps: cli.with_deps.clone(),
         }
     }
 }
@@ -1195,7 +1207,13 @@ impl CommandHandler for Commands {
             }
 
             Commands::Which { tool, all } => {
-                commands::where_cmd::handle(ctx.registry(), tool, *all, ctx.use_system_path()).await
+                // Support tool@version format (e.g., "yarn@4")
+                let (tool_name, version) = if let Some((t, v)) = tool.split_once('@') {
+                    (t.to_string(), Some(v.to_string()))
+                } else {
+                    (tool.clone(), None)
+                };
+                commands::where_cmd::handle(ctx.registry(), &tool_name, version.as_deref(), *all, ctx.use_system_path()).await
             }
 
             Commands::Versions {
