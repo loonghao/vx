@@ -80,7 +80,7 @@ mod tests {
     fn test_platform_support() {
         let windows = Platform::new(Os::Windows, Arch::X86_64);
         let linux = Platform::new(Os::Linux, Arch::X86_64);
-        let macos = Platform::new(Os::MacOs, Arch::Aarch64);
+        let macos = Platform::new(Os::MacOS, Arch::Aarch64);
 
         assert!(NugetUrlBuilder::is_platform_supported(&windows));
         assert!(!NugetUrlBuilder::is_platform_supported(&linux));

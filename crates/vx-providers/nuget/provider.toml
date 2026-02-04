@@ -26,7 +26,10 @@ executable = "nuget"
 aliases = ["nuget-cli"]
 
 [runtimes.versions]
-source = "nuget-releases"
+source = "github-releases"
+owner = "NuGet"
+repo = "NuGet.Client"
+strip_v_prefix = true
 
 # Detection configuration
 [runtimes.detection]
@@ -97,11 +100,4 @@ priority = 100
 timeout_ms = 30000
 functional_commands = [
     { command = "{executable} help", expect_success = true, expected_output = "NuGet Version", name = "version_check" },
-]
-
-# NuGet dependencies
-[[runtimes.constraints]]
-when = "*"
-recommends = [
-    { runtime = "dotnet", version = "*", reason = ".NET SDK is recommended for full NuGet functionality" }
 ]

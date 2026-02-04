@@ -170,10 +170,12 @@ impl<'a> InstallationManager<'a> {
             }
 
             // MSBuild (bundled with .NET SDK) - RFC 0028
+            // MSBuild is bundled with .NET SDK - need to install dotnet first
             "msbuild" => {
-                // MSBuild is bundled with .NET SDK - we need to install dotnet first
+                // Try to trigger dotnet installation through the normal provider mechanism
+                // rather than using fallback (which would cause recursion)
                 return Err(anyhow::anyhow!(
-                    "MSBuild is bundled with .NET SDK. Please install .NET SDK first:\n\n  \
+                    "MSBuild requires .NET SDK. Please install it first:\n\n  \
                      vx install dotnet\n\n\
                      On Windows, you can also install Visual Studio with C++ build tools."
                 ));

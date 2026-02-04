@@ -50,7 +50,7 @@ fn test_platform_support() {
 
     let windows = Platform::new(Os::Windows, Arch::X86_64);
     let linux = Platform::new(Os::Linux, Arch::X86_64);
-    let macos = Platform::new(Os::MacOs, Arch::Aarch64);
+    let macos = Platform::new(Os::MacOS, Arch::Aarch64);
 
     assert!(runtime.is_platform_supported(&windows));
     assert!(!runtime.is_platform_supported(&linux));
@@ -67,4 +67,40 @@ async fn test_download_url() {
     let url = url.unwrap();
     assert!(url.contains("6.11.1"));
     assert!(url.contains("nuget.exe"));
+}
+
+#[test]
+fn test_is_version_installable() {
+    let runtime = NugetRuntime::new();
+    // nuget can be installed via download
+    assert!(runtime.is_version_installable("6.11.1"));
+    assert!(runtime.is_version_installable("6.10.2"));
+}
+
+#[test]
+fn test_store_name() {
+    let runtime = NugetRuntime::new();
+    assert_eq!(runtime.store_name(), "nuget");
+}
+
+#[test]
+fn test_download_url_non_windows() {
+    let runtime = NugetRuntime::new();
+    let linux = Platform::new(Os::Linux, Arch::X86_64);
+    let macos = Platform::new(Os::MacOS, Arch::Aarch64);
+    
+    // Non-Windows platforms should return None
+    let url_linux = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(async {
+            runtime.download_url("6.11.1", &linux).await.unwrap()
+        });
+    assert!(url_linux.is_none());
+    
+    let url_macos = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(async {
+            runtime.download_url("6.11.1", &macos).await.unwrap()
+        });
+    assert!(url_macos.is_none());
 }
