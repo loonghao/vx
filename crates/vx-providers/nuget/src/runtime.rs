@@ -62,7 +62,8 @@ impl Runtime for NugetRuntime {
     }
 
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        NugetUrlBuilder::get_executable_name(platform).to_string()
+        // BinaryHandler installs to bin/ subdirectory
+        format!("bin/{}", NugetUrlBuilder::get_executable_name(platform))
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
@@ -101,7 +102,7 @@ impl Runtime for NugetRuntime {
 
     fn verify_installation(
         &self,
-        _version: &str,
+        version: &str,
         install_path: &Path,
         platform: &Platform,
     ) -> VerificationResult {
@@ -115,7 +116,7 @@ impl Runtime for NugetRuntime {
             );
         }
 
-        let exe_path = install_path.join(NugetUrlBuilder::get_executable_name(platform));
+        let exe_path = install_path.join(self.executable_relative_path(version, platform));
 
         if exe_path.exists() {
             VerificationResult::success(exe_path)
