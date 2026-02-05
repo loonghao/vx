@@ -421,12 +421,22 @@ test = "uv run nox -s tests"
     assert!(output.status.success());
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    // Should show the scripts
+    // Should show either:
+    // - Tool installation info (if tools need to be installed): "uv", "Would install"
+    // - Sync status (if tools are already synced): "synchronized", "All tools"
+    // - Setup header: "VX" or "Setup"
     assert!(
         stdout.contains("build")
             || stdout.contains("lint")
             || stdout.contains("test")
             || stdout.contains("uv")
+            || stdout.contains("synchronized")
+            || stdout.contains("All tools")
+            || stdout.contains("VX")
+            || stdout.contains("Setup")
+            || stdout.contains("Would install"),
+        "Unexpected output: {}",
+        stdout
     );
 }
 

@@ -4653,7 +4653,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-just"
-version = "0.6.19"
+version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4865,7 +4865,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-pwsh"
-version = "0.6.19"
+version = "0.6.27"
 dependencies = [
  "anyhow",
  "async-trait",

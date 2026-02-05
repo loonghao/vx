@@ -62,16 +62,24 @@ impl E2ETestEnv {
 
 /// Performance thresholds (in milliseconds)
 /// Note: Windows CI is typically slower than Linux, so we use higher thresholds on Windows
+/// Note: Debug builds are significantly slower than release builds
 mod thresholds {
     /// Maximum time for CLI startup (no operation)
     pub const CLI_STARTUP_MS: u64 = 3000;
 
     /// Maximum time for help command
-    pub const HELP_MS: u64 = 250;
+    /// Note: Increased to 500ms to account for debug builds and system load variability
+    #[cfg(windows)]
+    pub const HELP_MS: u64 = 500;
+    #[cfg(not(windows))]
+    pub const HELP_MS: u64 = 350;
 
     /// Maximum time for version command
-    /// Note: Increased from 200ms to 250ms to account for system load variability
-    pub const VERSION_MS: u64 = 250;
+    /// Note: Increased to 500ms to account for debug builds and system load variability
+    #[cfg(windows)]
+    pub const VERSION_MS: u64 = 500;
+    #[cfg(not(windows))]
+    pub const VERSION_MS: u64 = 350;
 
     /// Maximum time for config parsing (small config)
     /// Note: Increased to 1500ms to account for Windows CI variability

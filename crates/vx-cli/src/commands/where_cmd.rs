@@ -33,10 +33,22 @@ pub async fn handle(
         }
     }
 
-    // Resolve canonical runtime name and executable (handles aliases like cl -> msvc)
-    // For where command, we use the tool name directly as canonical name
-    let canonical_name = tool.to_string();
-    let exe_name = tool.to_string();
+    // Resolve canonical runtime name and executable (handles aliases like imagemagick -> magick)
+    // Try to find the runtime in the registry - this handles alias resolution
+    let (canonical_name, exe_name) = if let Some(runtime) = registry.get_runtime(tool) {
+        // Found runtime (possibly via alias), use its canonical name
+        let canonical = runtime.name().to_string();
+        // The canonical name is also the executable name
+        let exe = canonical.clone();
+        UI::debug(&format!(
+            "Resolved '{}' to canonical='{}', exe='{}'",
+            tool, canonical, exe
+        ));
+        (canonical, exe)
+    } else {
+        // Not found in registry, use the tool name directly
+        (tool.to_string(), tool.to_string())
+    };
 
     // Try RuntimeIndex first for fast lookup
     let mut runtime_index = RuntimeIndex::new().ok();
