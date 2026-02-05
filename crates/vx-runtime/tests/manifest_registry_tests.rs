@@ -14,6 +14,7 @@ fn make_runtime_def(name: &str) -> RuntimeDef {
         description: None,
         executable: name.to_string(),
         aliases: vec![],
+        bundled: None,
         bundled_with: None,
         managed_by: None,
         command_prefix: vec![],
