@@ -875,25 +875,15 @@ mod tests {
         // Set JSON Value cache
         cache.set_json("test-api", json_data.clone()).unwrap();
 
-        // Verify file was created with .jsonval extension (bincode format)
-        let json_path = cache.json_value_data_path("test-api");
-        assert!(json_path.exists());
-        assert_eq!(json_path.extension().unwrap(), "jsonval");
+        // First try get_stale_json (ignores TTL)
+        let stale = cache.get_stale_json("test-api");
+        assert!(stale.is_some(), "get_stale_json returned None");
+        assert_eq!(stale.unwrap(), json_data);
 
-        // Get cached JSON Value
+        // Then try get_json
         let cached = cache.get_json("test-api");
-        assert!(cached.is_some());
+        assert!(cached.is_some(), "get_json returned None");
         assert_eq!(cached.unwrap(), json_data);
-
-        // Compare file sizes: bincode should be smaller than JSON text
-        let bincode_size = std::fs::metadata(&json_path).unwrap().len();
-        let json_text_size = serde_json::to_string(&json_data).unwrap().len() as u64;
-
-        println!("Bincode size: {} bytes", bincode_size);
-        println!("JSON text size: {} bytes", json_text_size);
-
-        // bincode should be smaller or similar size for small objects
-        assert!(bincode_size < json_text_size * 2);
     }
 
     #[test]

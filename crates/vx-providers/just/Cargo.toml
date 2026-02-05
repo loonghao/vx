@@ -1,9 +1,9 @@
 [package]
 name = "vx-provider-just"
-version = "0.6.19"
-edition = "2021"
-authors = ["vx contributors"]
-license = "MIT OR Apache-2.0"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 
 [dependencies]
 vx-runtime = { workspace = true }
