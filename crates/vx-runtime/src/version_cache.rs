@@ -7,7 +7,7 @@
 //! - **Compact data model**: Only stores essential version info, not full API responses
 //! - **Separate metadata file**: Quick validity check without loading full data
 //! - **Stale cache support**: Returns expired data as fallback on network errors
-//! - **JSON Value caching**: Even `serde_json::Value` is stored as bincode for performance
+//! - **JSON Value caching**: `serde_json::Value` stored as JSON text (bincode cannot roundtrip it)
 //!
 //! ## Cache Directory Structure
 //!
@@ -19,17 +19,15 @@
 //!     ├── node.meta
 //!     ├── node.data
 //!     ├── go.meta
-//!     └── go.jsonval    # JSON API response (bincode, not JSON text!)
+//!     └── go.jsonval    # JSON API response (JSON text format)
 //! ```
 //!
 //! ## Performance Comparison
 //!
 //! | Format | Serialization | File Size | Deserialization |
-//! |--------|---------------|-----------|-----------------|
+//! |--------|---------------|-----------|------------------|
 //! | JSON text | 1x (baseline) | 100% | 1x |
 //! | bincode (CompactVersion) | 50-100x | 5-15% | 10-20x |
-//! | bincode (JSON Value) | 10-50x | 60-70% | 5-10x |
-
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::io::{BufReader, BufWriter};
@@ -340,7 +338,7 @@ impl VersionCache {
             return None;
         }
 
-        // Load JSON Value data (bincode format)
+        // Load JSON Value data (JSON text format)
         let json_path = self.json_value_data_path(tool_name);
         if !json_path.exists() {
             return None;
@@ -348,12 +346,10 @@ impl VersionCache {
 
         let file = std::fs::File::open(&json_path).ok()?;
         let reader = BufReader::new(file);
-        bincode::deserialize_from(reader).ok()
+        serde_json::from_reader(reader).ok()
     }
 
     /// Get stale JSON cache (for fallback on network errors)
-    ///
-    /// **Performance**: Uses bincode serialization internally for 10-50x faster speed.
     ///
     /// This ignores TTL and returns cached data if available
     pub fn get_stale_json(&self, tool_name: &str) -> Option<serde_json::Value> {
@@ -390,7 +386,7 @@ impl VersionCache {
 
         let file = std::fs::File::open(&json_path).ok()?;
         let reader = BufReader::new(file);
-        bincode::deserialize_from(reader).ok()
+        serde_json::from_reader(reader).ok()
     }
 
     /// Set cached versions
@@ -503,18 +499,20 @@ impl VersionCache {
         }
         std::fs::rename(&meta_tmp, &meta_path)?;
 
-        // Write JSON Value data using bincode (atomic)
+        // Write JSON Value data using JSON text format (atomic)
+        // Note: bincode cannot correctly roundtrip serde_json::Value because it's a
+        // self-describing enum type. We use JSON text format for correctness.
         let json_path = self.json_value_data_path(tool_name);
         let json_tmp = json_path.with_extension("jsonval.tmp");
         {
             let file = std::fs::File::create(&json_tmp)?;
             let writer = BufWriter::new(file);
-            bincode::serialize_into(writer, &data)?;
+            serde_json::to_writer(writer, &data)?;
         }
         std::fs::rename(&json_tmp, &json_path)?;
 
         tracing::debug!(
-            "Cached JSON Value for {} using bincode ({} bytes)",
+            "Cached JSON Value for {} ({} bytes)",
             tool_name,
             std::fs::metadata(&json_path).map(|m| m.len()).unwrap_or(0)
         );
@@ -856,7 +854,7 @@ mod tests {
     }
 
     #[test]
-    fn test_json_value_cache_bincode() {
+    fn test_json_value_cache() {
         let temp_dir = TempDir::new().unwrap();
         let cache = VersionCache::new(temp_dir.path().to_path_buf());
 
