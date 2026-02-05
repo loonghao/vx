@@ -59,12 +59,8 @@ impl<'a> EnvironmentManager<'a> {
         let (effective_runtime_name, effective_version) =
             self.get_provider_runtime(runtime_name, version);
 
-        let effective_runtime_name_ref = effective_runtime_name
-            .as_deref()
-            .unwrap_or(runtime_name);
-        let effective_version_ref = effective_version
-            .as_deref()
-            .or(version);
+        let effective_runtime_name_ref = effective_runtime_name.as_deref().unwrap_or(runtime_name);
+        let effective_version_ref = effective_version.as_deref().or(version);
 
         debug!(
             "  prepare_env for {} (effective: {}@{:?})",
@@ -322,13 +318,18 @@ impl<'a> EnvironmentManager<'a> {
         }
 
         // Version-specific dependencies (from provider.toml constraints)
-        let version_deps = self.resolver.get_dependencies_for_version(runtime_name, &version);
+        let version_deps = self
+            .resolver
+            .get_dependencies_for_version(runtime_name, &version);
         for dep in version_deps {
             if dep.required {
                 let dep_runtime_name = dep.provided_by.as_deref().unwrap_or(&dep.runtime_name);
 
                 // Skip if we already added this dependency
-                let env_key = format!("VX_{}_BIN", dep_runtime_name.to_uppercase().replace('-', "_"));
+                let env_key = format!(
+                    "VX_{}_BIN",
+                    dep_runtime_name.to_uppercase().replace('-', "_")
+                );
                 if env.contains_key(&env_key) {
                     continue;
                 }
@@ -465,7 +466,11 @@ impl<'a> EnvironmentManager<'a> {
     }
 
     /// Resolve the installation directory for a runtime
-    pub fn resolve_install_dir(&self, runtime_name: &str, version: Option<&str>) -> Option<PathBuf> {
+    pub fn resolve_install_dir(
+        &self,
+        runtime_name: &str,
+        version: Option<&str>,
+    ) -> Option<PathBuf> {
         let ctx = self.context?;
         let platform = vx_paths::manager::CurrentPlatform::current();
 

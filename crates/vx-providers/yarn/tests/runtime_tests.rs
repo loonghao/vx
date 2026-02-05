@@ -283,7 +283,10 @@ fn test_execution_prep_builder_methods() {
         .with_path_prepend(PathBuf::from("/custom/path"))
         .with_message("Test message");
 
-    assert_eq!(prep.env_vars.get("NODE_ENV"), Some(&"production".to_string()));
+    assert_eq!(
+        prep.env_vars.get("NODE_ENV"),
+        Some(&"production".to_string())
+    );
     assert_eq!(prep.command_prefix, vec!["dotnet".to_string()]);
     assert_eq!(prep.path_prepend, vec![PathBuf::from("/custom/path")]);
     assert_eq!(prep.message, Some("Test message".to_string()));
@@ -315,11 +318,7 @@ fn test_yarn_2x_expected_execution_prep_flags() {
         "Yarn 2.x+ should have an informative message"
     );
     assert!(
-        expected_prep
-            .message
-            .as_ref()
-            .unwrap()
-            .contains("corepack"),
+        expected_prep.message.as_ref().unwrap().contains("corepack"),
         "Message should mention corepack"
     );
 }

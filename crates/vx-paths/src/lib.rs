@@ -105,7 +105,9 @@ pub use project::{
     PROJECT_ENV_DIR, PROJECT_VX_DIR,
 };
 pub use resolver::{PathResolver, ToolLocation, ToolSource};
-pub use runtime_root::{get_bundled_tool_path, get_latest_runtime_root, get_runtime_root, RuntimeRoot};
+pub use runtime_root::{
+    get_bundled_tool_path, get_latest_runtime_root, get_runtime_root, RuntimeRoot,
+};
 
 // Re-export platform module utilities for convenience
 pub use platform::{

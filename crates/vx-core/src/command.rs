@@ -223,7 +223,10 @@ pub fn executable_extension() -> &'static str {
 
 /// Add the appropriate executable extension if needed
 pub fn with_executable_extension(name: &str) -> String {
-    if cfg!(windows) && !name.ends_with(".exe") && !name.ends_with(".cmd") && !name.ends_with(".bat")
+    if cfg!(windows)
+        && !name.ends_with(".exe")
+        && !name.ends_with(".cmd")
+        && !name.ends_with(".bat")
     {
         format!("{}.exe", name)
     } else {

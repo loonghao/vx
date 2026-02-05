@@ -784,21 +784,14 @@ mod fallback_installation_tests {
         // This test documents the expected behavior when msbuild is not found:
         // The fallback mechanism should return an error with helpful instructions
         // to install .NET SDK.
-        
+
         // Note: We test the error message content rather than calling the actual
         // fallback, since the fallback module is private.
-        let expected_keywords = [
-            ".NET SDK",
-            "dotnet",
-            "vx install",
-        ];
-        
+        let expected_keywords = [".NET SDK", "dotnet", "vx install"];
+
         // Verify that the expected keywords are documented
         for keyword in &expected_keywords {
-            assert!(
-                !keyword.is_empty(),
-                "Expected keyword should not be empty"
-            );
+            assert!(!keyword.is_empty(), "Expected keyword should not be empty");
         }
     }
 
@@ -806,16 +799,10 @@ mod fallback_installation_tests {
     #[tokio::test]
     async fn test_unknown_runtime_error_keywords() {
         // Document the expected keywords in unknown runtime errors
-        let expected_keywords = [
-            "Unknown",
-            "Cannot auto-install",
-        ];
-        
+        let expected_keywords = ["Unknown", "Cannot auto-install"];
+
         for keyword in &expected_keywords {
-            assert!(
-                !keyword.is_empty(),
-                "Expected keyword should not be empty"
-            );
+            assert!(!keyword.is_empty(), "Expected keyword should not be empty");
         }
     }
 }

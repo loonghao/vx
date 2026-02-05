@@ -76,7 +76,11 @@ impl GlobalPackage {
         };
         self.runtime_dependency = Some(dep.clone());
         // Also add to the new list for forward compatibility
-        if !self.runtime_dependencies.iter().any(|d| d.runtime == dep.runtime) {
+        if !self
+            .runtime_dependencies
+            .iter()
+            .any(|d| d.runtime == dep.runtime)
+        {
             self.runtime_dependencies.push(dep);
         }
         self
@@ -85,7 +89,11 @@ impl GlobalPackage {
     /// Add a runtime dependency (supports multiple dependencies)
     pub fn with_runtime_dependencies(mut self, deps: Vec<RuntimeDependency>) -> Self {
         for dep in deps {
-            if !self.runtime_dependencies.iter().any(|d| d.runtime == dep.runtime) {
+            if !self
+                .runtime_dependencies
+                .iter()
+                .any(|d| d.runtime == dep.runtime)
+            {
                 self.runtime_dependencies.push(dep);
             }
         }

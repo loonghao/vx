@@ -119,7 +119,12 @@ impl MsbuildRuntime {
                     }
                 }
                 // Alternative format: just the version number
-                if line.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+                if line
+                    .chars()
+                    .next()
+                    .map(|c| c.is_ascii_digit())
+                    .unwrap_or(false)
+                {
                     let version = line.split('+').next()?;
                     return Some(version.trim().to_string());
                 }
@@ -217,8 +222,7 @@ impl Runtime for MsbuildRuntime {
 
         // Try to detect from vx-managed or system dotnet
         if let Some(dotnet_exe) = Self::find_dotnet_executable().await {
-            if let Some(msbuild_version) =
-                Self::get_msbuild_version_from_dotnet(&dotnet_exe).await
+            if let Some(msbuild_version) = Self::get_msbuild_version_from_dotnet(&dotnet_exe).await
             {
                 debug!("Detected MSBuild {} from dotnet SDK", msbuild_version);
                 if detected_versions.insert(msbuild_version.clone()) {
@@ -276,10 +280,7 @@ impl Runtime for MsbuildRuntime {
             let url = "https://raw.githubusercontent.com/dotnet/core/main/release-notes/releases-index.json";
 
             if let Ok(response) = ctx.http.get_json_value(url).await {
-                if let Some(releases) = response
-                    .get("releases-index")
-                    .and_then(|v| v.as_array())
-                {
+                if let Some(releases) = response.get("releases-index").and_then(|v| v.as_array()) {
                     for release in releases {
                         let channel = release
                             .get("channel-version")
@@ -295,18 +296,22 @@ impl Runtime for MsbuildRuntime {
                         if support_phase == "active" && !channel.is_empty() {
                             // Map .NET SDK version to approximate MSBuild version
                             // .NET 8.0/9.0 → MSBuild 17.x
-                            let msbuild_version = if channel.starts_with("9.") || channel.starts_with("8.") {
-                                format!("17.{} (via .NET SDK {})", channel, channel)
-                            } else if channel.starts_with("7.") || channel.starts_with("6.") {
-                                format!("17.x (via .NET SDK {})", channel)
-                            } else {
-                                continue;
-                            };
+                            let msbuild_version =
+                                if channel.starts_with("9.") || channel.starts_with("8.") {
+                                    format!("17.{} (via .NET SDK {})", channel, channel)
+                                } else if channel.starts_with("7.") || channel.starts_with("6.") {
+                                    format!("17.x (via .NET SDK {})", channel)
+                                } else {
+                                    continue;
+                                };
 
                             let mut metadata = HashMap::new();
                             metadata.insert("source".to_string(), "dotnet_sdk".to_string());
                             metadata.insert("install_method".to_string(), "bundled".to_string());
-                            metadata.insert("hint".to_string(), format!("Install .NET SDK {} to get this MSBuild version", channel));
+                            metadata.insert(
+                                "hint".to_string(),
+                                format!("Install .NET SDK {} to get this MSBuild version", channel),
+                            );
 
                             if !detected_versions.contains(&msbuild_version) {
                                 detected_versions.insert(msbuild_version.clone());
@@ -314,7 +319,8 @@ impl Runtime for MsbuildRuntime {
                                     version: msbuild_version,
                                     released_at: None,
                                     prerelease: false,
-                                    lts: release.get("release-type").and_then(|v| v.as_str()) == Some("lts"),
+                                    lts: release.get("release-type").and_then(|v| v.as_str())
+                                        == Some("lts"),
                                     download_url: None,
                                     checksum: None,
                                     metadata,
@@ -358,10 +364,7 @@ impl Runtime for MsbuildRuntime {
         #[cfg(windows)]
         {
             if let Some(msbuild_exe) = Self::find_vs_msbuild() {
-                info!(
-                    "Using Visual Studio MSBuild at: {}",
-                    msbuild_exe.display()
-                );
+                info!("Using Visual Studio MSBuild at: {}", msbuild_exe.display());
                 return Ok(ExecutionPrep {
                     executable_override: Some(msbuild_exe.clone()),
                     proxy_ready: true,

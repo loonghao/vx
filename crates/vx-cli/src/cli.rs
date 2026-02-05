@@ -1213,7 +1213,14 @@ impl CommandHandler for Commands {
                 } else {
                     (tool.clone(), None)
                 };
-                commands::where_cmd::handle(ctx.registry(), &tool_name, version.as_deref(), *all, ctx.use_system_path()).await
+                commands::where_cmd::handle(
+                    ctx.registry(),
+                    &tool_name,
+                    version.as_deref(),
+                    *all,
+                    ctx.use_system_path(),
+                )
+                .await
             }
 
             Commands::Versions {

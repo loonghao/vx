@@ -579,7 +579,8 @@ impl Resolver {
         runtime_name: &str,
         version: &str,
     ) -> Vec<RuntimeDependency> {
-        self.runtime_map.get_dependencies_for_version(runtime_name, version)
+        self.runtime_map
+            .get_dependencies_for_version(runtime_name, version)
     }
 
     /// Get the parent runtime (provided_by) for a specific version
@@ -591,7 +592,8 @@ impl Resolver {
         runtime_name: &str,
         version: &str,
     ) -> Option<String> {
-        self.runtime_map.get_parent_runtime_for_version(runtime_name, version)
+        self.runtime_map
+            .get_parent_runtime_for_version(runtime_name, version)
     }
 
     /// Check if a runtime is known

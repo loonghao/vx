@@ -128,16 +128,15 @@ async fn handle_list(verbose: bool) -> Result<()> {
         return Ok(());
     }
 
-
     if let Ok(entries) = std::fs::read_dir(&cache_dir) {
         let mut found = false;
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
             // Check for data files (.data or .jsonval) or metadata files (.meta)
-            let is_cache_file = path.extension().is_some_and(|ext| {
-                ext == "data" || ext == "jsonval" || ext == "meta"
-            });
-            
+            let is_cache_file = path
+                .extension()
+                .is_some_and(|ext| ext == "data" || ext == "jsonval" || ext == "meta");
+
             if is_cache_file {
                 // Only show each tool once (use .meta files)
                 if path.extension().is_some_and(|ext| ext == "meta") {

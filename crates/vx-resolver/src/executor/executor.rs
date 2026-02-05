@@ -277,9 +277,8 @@ impl<'a> Executor<'a> {
             if let Some(runtime) = registry.get_runtime(runtime_name) {
                 // Get the actual version to check
                 // If no version is specified, try to get it from installed versions
-                let version_to_check = if let Some(ver) = installed_version
-                    .as_deref()
-                    .or(resolved_version.as_deref())
+                let version_to_check = if let Some(ver) =
+                    installed_version.as_deref().or(resolved_version.as_deref())
                 {
                     ver.to_string()
                 } else if let Some(ctx) = self.context {
@@ -405,11 +404,7 @@ impl<'a> Executor<'a> {
     }
 
     /// Try to use offline bundle
-    async fn try_offline_bundle(
-        &self,
-        runtime_name: &str,
-        args: &[String],
-    ) -> Result<Option<i32>> {
+    async fn try_offline_bundle(&self, runtime_name: &str, args: &[String]) -> Result<Option<i32>> {
         let force_offline = self
             .context
             .map(|ctx| ctx.config.cache_mode == CacheMode::Offline)
@@ -480,10 +475,7 @@ impl<'a> Executor<'a> {
                     let runtime_dir = ctx.paths.runtime_store_dir(runtime_name);
                     if let Ok(versions) = self.list_installed_versions(&runtime_dir) {
                         if let Some(latest) = versions.last() {
-                            debug!(
-                                "Resolved {}@latest → {}",
-                                runtime_name, latest
-                            );
+                            debug!("Resolved {}@latest → {}", runtime_name, latest);
                             return Some(latest.clone());
                         }
                     }
@@ -497,7 +489,10 @@ impl<'a> Executor<'a> {
     /// List installed versions from a runtime store directory
     ///
     /// Scans the directory for version subdirectories and returns them sorted.
-    fn list_installed_versions(&self, runtime_dir: &std::path::Path) -> std::io::Result<Vec<String>> {
+    fn list_installed_versions(
+        &self,
+        runtime_dir: &std::path::Path,
+    ) -> std::io::Result<Vec<String>> {
         if !runtime_dir.exists() {
             return Ok(Vec::new());
         }
@@ -560,10 +555,7 @@ impl<'a> Executor<'a> {
                 if let Some(registry) = self.registry {
                     if let Some(rt) = registry.get_runtime(r) {
                         if !rt.is_version_installable("latest") {
-                            debug!(
-                                "Skipping bundled runtime '{}' from install_order",
-                                r
-                            );
+                            debug!("Skipping bundled runtime '{}' from install_order", r);
                             return false;
                         }
                     }
@@ -649,7 +641,8 @@ impl<'a> Executor<'a> {
                         // Query version-specific dependencies from provider.toml constraints
                         // This handles cases like Yarn 2.x+ where when=">=2, <4" constraints
                         // specify that Node.js (via corepack) provides Yarn
-                        self.resolver.get_parent_runtime_for_version(runtime_name, version)
+                        self.resolver
+                            .get_parent_runtime_for_version(runtime_name, version)
                     });
 
                 if let Some(ref parent) = parent_runtime {
@@ -775,7 +768,9 @@ impl<'a> Executor<'a> {
                                 runtime_name
                             );
                             let install_mgr = self.installation_manager();
-                            install_mgr.install_runtimes(&[runtime_name.clone()]).await?;
+                            install_mgr
+                                .install_runtimes(&[runtime_name.clone()])
+                                .await?;
 
                             // Get the installed version
                             runtime
@@ -799,7 +794,11 @@ impl<'a> Executor<'a> {
 
             // Ensure requested version is installed
             if requested_version.is_some() {
-                if !runtime.is_installed(&version, context).await.unwrap_or(false) {
+                if !runtime
+                    .is_installed(&version, context)
+                    .await
+                    .unwrap_or(false)
+                {
                     if self.config.auto_install {
                         info!(
                             "  --with dependency '{}@{}' is not installed. Auto-installing...",
@@ -857,10 +856,7 @@ impl<'a> Executor<'a> {
                 }
             }
 
-            info!(
-                "  Injected --with dependency: {}@{}",
-                runtime_name, version
-            );
+            info!("  Injected --with dependency: {}@{}", runtime_name, version);
         }
 
         // Prepend all --with dependency paths to PATH

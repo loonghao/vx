@@ -83,7 +83,8 @@ impl ShimExecutor {
             }
         };
 
-        self.execute_package_shim_with_deps(package, exe_name, args, with_deps).await
+        self.execute_package_shim_with_deps(package, exe_name, args, with_deps)
+            .await
     }
 
     /// Execute a package request (RFC 0027 syntax)
@@ -108,7 +109,7 @@ impl ShimExecutor {
         with_deps: &[vx_core::WithDependency],
     ) -> ShimResult<i32> {
         debug!("Execute package request: {:?}", request);
-        
+
         let exe_name = request.executable_name();
         debug!("Executable name: {}", exe_name);
 
@@ -117,13 +118,19 @@ impl ShimExecutor {
             ShimError::Other(anyhow::anyhow!("Failed to load package registry: {}", e))
         })?;
 
-        debug!("Registry loaded, looking for package: {}:{}", request.ecosystem, request.package);
+        debug!(
+            "Registry loaded, looking for package: {}:{}",
+            request.ecosystem, request.package
+        );
 
         // Try to find the package
         if let Some(package) = registry.get(&request.ecosystem, &request.package) {
             debug!("Package found: {:?}", package.name);
             // Package is installed, execute it
-            if let Some(exit_code) = self.execute_package_shim_with_deps(package, exe_name, args, with_deps).await? {
+            if let Some(exit_code) = self
+                .execute_package_shim_with_deps(package, exe_name, args, with_deps)
+                .await?
+            {
                 return Ok(exit_code);
             }
             // Shim not found for this executable
@@ -161,7 +168,8 @@ impl ShimExecutor {
         exe_name: &str,
         args: &[String],
     ) -> ShimResult<Option<i32>> {
-        self.execute_package_shim_with_deps(package, exe_name, args, &[]).await
+        self.execute_package_shim_with_deps(package, exe_name, args, &[])
+            .await
     }
 
     /// Execute a shim for a package with additional --with dependencies
@@ -182,11 +190,14 @@ impl ShimExecutor {
             "Execute package shim for: {} (package: {}, with_deps: {:?})",
             exe_name, package.name, with_deps
         );
-        
+
         // Find the actual executable in the package's install directory
         let target_path = self.find_executable_in_package(package, exe_name);
 
-        debug!("Target path from find_executable_in_package: {:?}", target_path);
+        debug!(
+            "Target path from find_executable_in_package: {:?}",
+            target_path
+        );
 
         let target_path = match target_path {
             Some(p) => p,
@@ -226,7 +237,11 @@ impl ShimExecutor {
     }
 
     /// Find the executable in the package's install directory
-    fn find_executable_in_package(&self, package: &GlobalPackage, exe_name: &str) -> Option<PathBuf> {
+    fn find_executable_in_package(
+        &self,
+        package: &GlobalPackage,
+        exe_name: &str,
+    ) -> Option<PathBuf> {
         let install_dir = &package.install_dir;
 
         // Try various executable locations and extensions
@@ -303,10 +318,10 @@ impl ShimExecutor {
             "Build runtime environment for package: {} (ecosystem: {}, with_deps: {:?})",
             package.name, package.ecosystem, with_deps
         );
-        
+
         // Get runtime dependencies (explicit or inferred from ecosystem)
         let mut runtime_deps = package.get_runtime_dependencies();
-        
+
         // If no explicit dependencies, infer all applicable runtimes from ecosystem
         if runtime_deps.is_empty() {
             runtime_deps = self.infer_all_runtimes_from_ecosystem(&package.ecosystem);
@@ -317,17 +332,14 @@ impl ShimExecutor {
         // Build environment with all dependencies
         // --with dependencies are added first (higher priority in PATH)
         let mut tool_env = ToolEnvironment::new();
-        
+
         // Add --with dependencies first (they take priority in PATH)
         for dep in with_deps {
             let version = dep.version.as_deref().unwrap_or("latest");
-            info!(
-                "Injecting --with runtime: {}@{}",
-                dep.runtime, version
-            );
+            info!("Injecting --with runtime: {}@{}", dep.runtime, version);
             tool_env = tool_env.tool(&dep.runtime, version);
         }
-        
+
         // Add package's own runtime dependencies
         for dep in &runtime_deps {
             // Skip if already added via --with (avoid duplicates)
@@ -338,7 +350,7 @@ impl ShimExecutor {
                 );
                 continue;
             }
-            
+
             info!(
                 "Package '{}' requires runtime: {}@{}",
                 package.name, dep.runtime, dep.version
@@ -349,7 +361,7 @@ impl ShimExecutor {
         let env = tool_env
             .include_vx_bin(true)
             .inherit_path(true)
-            .warn_missing(false)  // Don't warn for optional runtimes like bun
+            .warn_missing(false) // Don't warn for optional runtimes like bun
             .build()
             .map_err(|e| {
                 ShimError::Other(anyhow::anyhow!(

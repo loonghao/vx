@@ -57,7 +57,11 @@ fn test_version_extraction_from_tag(#[case] tag: &str, #[case] expected: &str) {
     "vx-0.6.0-aarch64-unknown-linux-musl.tar.gz"
 )]
 #[case::macos_x86_64("0.6.0", "x86_64-apple-darwin", "vx-0.6.0-x86_64-apple-darwin.tar.gz")]
-#[case::macos_aarch64("0.6.0", "aarch64-apple-darwin", "vx-0.6.0-aarch64-apple-darwin.tar.gz")]
+#[case::macos_aarch64(
+    "0.6.0",
+    "aarch64-apple-darwin",
+    "vx-0.6.0-aarch64-apple-darwin.tar.gz"
+)]
 #[case::windows_x86_64(
     "0.6.0",
     "x86_64-pc-windows-msvc",
@@ -103,14 +107,8 @@ fn test_download_url_construction(
 /// Test fallback archive selection for Linux platforms
 /// Verifies that musl/gnu fallbacks are correctly selected
 #[rstest]
-#[case::gnu_primary_musl_fallback(
-    "x86_64-unknown-linux-gnu",
-    Some("x86_64-unknown-linux-musl")
-)]
-#[case::musl_primary_gnu_fallback(
-    "x86_64-unknown-linux-musl",
-    Some("x86_64-unknown-linux-gnu")
-)]
+#[case::gnu_primary_musl_fallback("x86_64-unknown-linux-gnu", Some("x86_64-unknown-linux-musl"))]
+#[case::musl_primary_gnu_fallback("x86_64-unknown-linux-musl", Some("x86_64-unknown-linux-gnu"))]
 #[case::macos_no_fallback("x86_64-apple-darwin", None)]
 #[case::windows_no_fallback("x86_64-pc-windows-msvc", None)]
 fn test_fallback_archive_selection(
@@ -158,7 +156,12 @@ fn test_legacy_naming_deprecated(#[case] legacy_name: &str) {
         && legacy_name
             .split('-')
             .nth(1)
-            .map(|s| s.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false))
+            .map(|s| {
+                s.chars()
+                    .next()
+                    .map(|c| c.is_ascii_digit())
+                    .unwrap_or(false)
+            })
             .unwrap_or(false);
     assert!(
         !is_versioned_format,

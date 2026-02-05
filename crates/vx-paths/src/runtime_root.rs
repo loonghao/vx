@@ -395,7 +395,10 @@ pub fn get_latest_runtime_root(name: &str) -> anyhow::Result<Option<RuntimeRoot>
 ///     println!("npm is at: {}", npm_path.display());
 /// }
 /// ```
-pub fn get_bundled_tool_path(runtime_name: &str, tool_name: &str) -> anyhow::Result<Option<PathBuf>> {
+pub fn get_bundled_tool_path(
+    runtime_name: &str,
+    tool_name: &str,
+) -> anyhow::Result<Option<PathBuf>> {
     if let Some(root) = get_latest_runtime_root(runtime_name)? {
         Ok(root.bundled_tool_path(tool_name))
     } else {

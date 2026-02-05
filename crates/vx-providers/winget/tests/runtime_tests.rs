@@ -41,9 +41,7 @@ fn test_supported_platforms() {
     let platforms = runtime.supported_platforms();
 
     // Should only support Windows
-    assert!(platforms
-        .iter()
-        .all(|p| matches!(p.os, Os::Windows)));
+    assert!(platforms.iter().all(|p| matches!(p.os, Os::Windows)));
 }
 
 #[test]
@@ -71,14 +69,12 @@ fn test_is_version_installable() {
 fn test_download_url_windows() {
     let runtime = WingetRuntime::new();
     let windows = Platform::new(Os::Windows, Arch::X86_64);
-    
+
     // Test download URL generation for Windows
     let url = tokio::runtime::Runtime::new()
         .unwrap()
-        .block_on(async {
-            runtime.download_url("1.12.460", &windows).await.unwrap()
-        });
-    
+        .block_on(async { runtime.download_url("1.12.460", &windows).await.unwrap() });
+
     assert!(url.is_some());
     let url = url.unwrap();
     assert!(url.contains("github.com/microsoft/winget-cli/releases/download"));
@@ -91,20 +87,16 @@ fn test_download_url_non_windows() {
     let runtime = WingetRuntime::new();
     let linux = Platform::new(Os::Linux, Arch::X86_64);
     let macos = Platform::new(Os::MacOS, Arch::Aarch64);
-    
+
     // Non-Windows platforms should return None
     let url_linux = tokio::runtime::Runtime::new()
         .unwrap()
-        .block_on(async {
-            runtime.download_url("1.12.460", &linux).await.unwrap()
-        });
+        .block_on(async { runtime.download_url("1.12.460", &linux).await.unwrap() });
     assert!(url_linux.is_none());
-    
+
     let url_macos = tokio::runtime::Runtime::new()
         .unwrap()
-        .block_on(async {
-            runtime.download_url("1.12.460", &macos).await.unwrap()
-        });
+        .block_on(async { runtime.download_url("1.12.460", &macos).await.unwrap() });
     assert!(url_macos.is_none());
 }
 
