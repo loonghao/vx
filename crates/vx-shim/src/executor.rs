@@ -162,6 +162,7 @@ impl ShimExecutor {
     ///
     /// Note: We execute the target executable directly (not through the shim script)
     /// to ensure our environment variables are properly inherited.
+    #[allow(dead_code)]
     async fn execute_package_shim(
         &self,
         package: &GlobalPackage,
@@ -286,6 +287,7 @@ impl ShimExecutor {
     /// For backward compatibility, if `runtime_dependencies` is empty but
     /// `runtime_dependency` is set, we use that. If neither is set but the
     /// ecosystem is known (e.g., "npm"), we infer the runtime automatically.
+    #[allow(dead_code)]
     fn build_runtime_environment(
         &self,
         package: &GlobalPackage,
