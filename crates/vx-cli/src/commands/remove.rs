@@ -140,7 +140,11 @@ pub async fn handle(
 /// - Exact version: "3.7.13" -> "3.7.13"
 /// - Partial version: "3.7" -> "3.7.13" (latest matching 3.7.x)
 /// - Major version: "3" -> "3.12.0" (latest matching 3.x.x)
-fn resolve_version_from_installed(tool_name: &str, requested: &str, installed: &[String]) -> Result<String> {
+fn resolve_version_from_installed(
+    tool_name: &str,
+    requested: &str,
+    installed: &[String],
+) -> Result<String> {
     // Parse the request to understand what kind of constraint it is
     let request = VersionRequest::parse(requested);
 
@@ -163,7 +167,7 @@ fn resolve_version_from_installed(tool_name: &str, requested: &str, installed: &
         } else {
             installed.join(", ")
         };
-        
+
         return Err(anyhow::anyhow!(
             "No installed version matches '{}'. Installed versions: {}\n\nTip: Use 'vx versions {}' to see available versions, or 'vx install {}@{}' to install it.",
             requested,

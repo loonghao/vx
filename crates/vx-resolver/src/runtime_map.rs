@@ -52,7 +52,8 @@ impl RuntimeMap {
             for runtime in &manifest.runtimes {
                 let spec = Self::runtime_def_to_spec(runtime, ecosystem);
                 // Store the original RuntimeDef for version-specific constraint queries
-                map.runtime_defs.insert(runtime.name.clone(), runtime.clone());
+                map.runtime_defs
+                    .insert(runtime.name.clone(), runtime.clone());
                 map.register(spec);
             }
         }
@@ -292,8 +293,10 @@ impl RuntimeMap {
 
         deps.iter()
             .map(|dep_def| {
-                let mut dep =
-                    RuntimeDependency::required(&dep_def.runtime, dep_def.reason.as_deref().unwrap_or("Required dependency"));
+                let mut dep = RuntimeDependency::required(
+                    &dep_def.runtime,
+                    dep_def.reason.as_deref().unwrap_or("Required dependency"),
+                );
 
                 // Parse version constraint
                 if !dep_def.version.is_empty() && dep_def.version != "*" {

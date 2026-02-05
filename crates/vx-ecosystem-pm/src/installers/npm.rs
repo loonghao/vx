@@ -50,7 +50,9 @@ impl NpmInstaller {
     /// Get the node bin directory from the npm path
     fn get_node_bin_dir(&self) -> Option<PathBuf> {
         // If we have a specific npm path, the node binary should be in the same directory
-        self.npm_path.as_ref().and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        self.npm_path
+            .as_ref()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
     }
 }
 

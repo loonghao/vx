@@ -160,7 +160,7 @@ impl RuntimeIndexEntry {
         // and nested structures (e.g., node-v25.6.0-win-x64/)
         let base_dir = store_base.parent()?;
         let paths = vx_paths::VxPaths::with_base_dir(base_dir);
-        
+
         // For bundled runtimes (like npm bundled with node), use store_name
         // which points to the parent runtime
         if let Ok(Some(root)) = vx_paths::RuntimeRoot::find(&self.store_name, version, &paths) {
@@ -172,21 +172,24 @@ impl RuntimeIndexEntry {
                     return Some(bundled_path);
                 }
             }
-            
+
             // Return the main executable path
             if root.executable_exists() {
                 return Some(root.executable_path.clone());
             }
         }
-        
+
         // Fallback to direct path construction (for simple layouts)
         if let Some(exe_path) = &self.executable_path {
-            let direct_path = store_base.join(&self.store_name).join(version).join(exe_path);
+            let direct_path = store_base
+                .join(&self.store_name)
+                .join(version)
+                .join(exe_path);
             if direct_path.exists() {
                 return Some(direct_path);
             }
         }
-        
+
         None
     }
 
@@ -541,7 +544,10 @@ impl RuntimeIndex {
     }
 
     /// Build and save a complete index from manifests and store scan
-    pub fn build_and_save(&self, manifests: &[vx_manifest::ProviderManifest]) -> anyhow::Result<()> {
+    pub fn build_and_save(
+        &self,
+        manifests: &[vx_manifest::ProviderManifest],
+    ) -> anyhow::Result<()> {
         // Build from manifests
         let mut data = Self::build_from_manifests(manifests);
 

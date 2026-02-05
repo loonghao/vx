@@ -40,31 +40,35 @@ pub async fn handle(
 
     // Try RuntimeIndex first for fast lookup
     let mut runtime_index = RuntimeIndex::new().ok();
-    
+
     // Build index if it doesn't exist or is invalid
     if let Some(ref mut index) = runtime_index {
         if !index.is_valid() {
             UI::debug("Runtime index missing or expired, building...");
             // Load manifests from embedded data
             let mut loader = ManifestLoader::new();
-            let manifests_data: Vec<(&str, &str)> = get_embedded_manifests().iter().copied().collect();
+            let manifests_data: Vec<(&str, &str)> =
+                get_embedded_manifests().iter().copied().collect();
             if let Ok(_) = loader.load_embedded(manifests_data) {
                 let manifests: Vec<_> = loader.all().cloned().collect();
                 if let Err(e) = index.build_and_save(&manifests) {
                     UI::debug(&format!("Failed to build runtime index: {}", e));
                 } else {
-                    UI::debug(&format!("Built runtime index with {} manifests", manifests.len()));
+                    UI::debug(&format!(
+                        "Built runtime index with {} manifests",
+                        manifests.len()
+                    ));
                 }
             }
         }
     }
-    
+
     let index_lookup = runtime_index.as_mut().and_then(|index| {
         if let Some(ver) = version {
             // Specific version requested
-            index.get(&canonical_name).and_then(|entry| {
-                entry.get_executable_path(&VxPaths::new().ok()?.store_dir, ver)
-            })
+            index
+                .get(&canonical_name)
+                .and_then(|entry| entry.get_executable_path(&VxPaths::new().ok()?.store_dir, ver))
         } else if all {
             // All versions - we'll use PathResolver for this
             None
@@ -81,7 +85,7 @@ pub async fn handle(
     } else {
         // Slow path: use PathResolver to scan file system
         UI::debug(&format!("Not in runtime index, scanning file system..."));
-        
+
         // Create path manager and resolver
         let path_manager = PathManager::new()
             .map_err(|e| anyhow::anyhow!("Failed to initialize path manager: {}", e))?;

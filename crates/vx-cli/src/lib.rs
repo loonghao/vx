@@ -64,9 +64,7 @@ pub async fn main() -> anyhow::Result<()> {
 
     // Route to appropriate handler
     match &cli.command {
-        Some(command) => {
-            command.execute(&cmd_ctx).await
-        }
+        Some(command) => command.execute(&cmd_ctx).await,
         None => {
             // No subcommand provided, try to execute as tool
             if cli.args.is_empty() {
@@ -101,7 +99,11 @@ pub async fn main() -> anyhow::Result<()> {
 /// 4. With --with flag for additional runtime dependencies:
 ///    - `vx --with bun npm:opencode-ai@latest::opencode`
 ///    - `vx --with bun@1.1.0 node my-script.js`
-async fn execute_tool(ctx: &CommandContext, args: &[String], with_deps_specs: &[String]) -> Result<()> {
+async fn execute_tool(
+    ctx: &CommandContext,
+    args: &[String],
+    with_deps_specs: &[String],
+) -> Result<()> {
     if args.is_empty() {
         return Err(anyhow::anyhow!("No tool specified"));
     }
@@ -112,8 +114,12 @@ async fn execute_tool(ctx: &CommandContext, args: &[String], with_deps_specs: &[
     // Parse --with dependencies
     let with_deps = WithDependency::parse_many(with_deps_specs);
 
-    tracing::debug!("execute_tool: tool_spec={}, is_package_request={}, with_deps={:?}", 
-        tool_spec, PackageRequest::is_package_request(tool_spec), with_deps);
+    tracing::debug!(
+        "execute_tool: tool_spec={}, is_package_request={}, with_deps={:?}",
+        tool_spec,
+        PackageRequest::is_package_request(tool_spec),
+        with_deps
+    );
 
     // Check if this is an RFC 0027 package request (ecosystem:package syntax)
     if PackageRequest::is_package_request(tool_spec) {
@@ -129,7 +135,9 @@ async fn execute_tool(ctx: &CommandContext, args: &[String], with_deps_specs: &[
 
     // If not a known runtime, try to execute as a globally installed package shim
     if !is_known_runtime {
-        if let Some(exit_code) = try_execute_global_shim(ctx, &request.name, &tool_args, &with_deps).await? {
+        if let Some(exit_code) =
+            try_execute_global_shim(ctx, &request.name, &tool_args, &with_deps).await?
+        {
             if exit_code != 0 {
                 std::process::exit(exit_code);
             }
@@ -168,7 +176,7 @@ async fn execute_package_request(
     let pkg_request = PackageRequest::parse(spec)?;
 
     let paths = ctx.runtime_context().paths.clone();
-    
+
     // If --with dependencies are specified, we need to use ShimExecutor with custom env
     // For now, we auto-install --with deps first, then execute with the enhanced environment
     if !with_deps.is_empty() {
@@ -176,7 +184,11 @@ async fn execute_package_request(
         for dep in with_deps {
             if let Some(runtime) = ctx.registry().get_runtime(&dep.runtime) {
                 let version = dep.version.as_deref().unwrap_or("latest");
-                if !runtime.is_installed(version, ctx.runtime_context()).await.unwrap_or(false) {
+                if !runtime
+                    .is_installed(version, ctx.runtime_context())
+                    .await
+                    .unwrap_or(false)
+                {
                     ui::UI::info(&format!(
                         "--with dependency '{}@{}' is not installed. Installing...",
                         dep.runtime, version
@@ -186,10 +198,13 @@ async fn execute_package_request(
             }
         }
     }
-    
+
     let executor = ShimExecutor::new(paths.packages_registry_file(), paths.shims_dir());
 
-    match executor.execute_request_with_deps(&pkg_request, args, with_deps).await {
+    match executor
+        .execute_request_with_deps(&pkg_request, args, with_deps)
+        .await
+    {
         Ok(exit_code) => {
             if exit_code != 0 {
                 std::process::exit(exit_code);
@@ -208,7 +223,10 @@ async fn execute_package_request(
 
             // Retry execution after installation
             let executor = ShimExecutor::new(paths.packages_registry_file(), paths.shims_dir());
-            match executor.execute_request_with_deps(&pkg_request, args, with_deps).await {
+            match executor
+                .execute_request_with_deps(&pkg_request, args, with_deps)
+                .await
+            {
                 Ok(exit_code) => {
                     if exit_code != 0 {
                         std::process::exit(exit_code);
@@ -275,7 +293,9 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
 
             if let Some(path) = npm_path {
                 tracing::debug!("Using npm from: {}", path.display());
-                Box::new(vx_ecosystem_pm::installers::NpmInstaller::with_npm_path(path))
+                Box::new(vx_ecosystem_pm::installers::NpmInstaller::with_npm_path(
+                    path,
+                ))
             } else {
                 Box::new(vx_ecosystem_pm::installers::NpmInstaller::new())
             }
@@ -348,7 +368,7 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
 }
 
 /// Get the required runtime for an ecosystem (primary dependency only)
-/// 
+///
 /// Note: This is kept for reference but the `get_all_required_runtimes_for_ecosystem`
 /// is now used for package installation to support packages that use multiple runtimes.
 #[allow(dead_code)]
@@ -462,7 +482,10 @@ async fn ensure_runtime_installed_for_ecosystem(
         // Run post-install hook
         runtime.post_install(&version, context).await?;
 
-        ui::UI::success(&format!("Successfully installed {} {}", runtime_name, version));
+        ui::UI::success(&format!(
+            "Successfully installed {} {}",
+            runtime_name, version
+        ));
 
         Ok(true)
     } else {
@@ -493,7 +516,11 @@ async fn try_execute_global_shim(
         for dep in with_deps {
             if let Some(runtime) = ctx.registry().get_runtime(&dep.runtime) {
                 let version = dep.version.as_deref().unwrap_or("latest");
-                if !runtime.is_installed(version, ctx.runtime_context()).await.unwrap_or(false) {
+                if !runtime
+                    .is_installed(version, ctx.runtime_context())
+                    .await
+                    .unwrap_or(false)
+                {
                     ui::UI::info(&format!(
                         "--with dependency '{}@{}' is not installed. Installing...",
                         dep.runtime, version
@@ -504,7 +531,10 @@ async fn try_execute_global_shim(
         }
     }
 
-    match executor.try_execute_with_deps(exe_name, args, with_deps).await {
+    match executor
+        .try_execute_with_deps(exe_name, args, with_deps)
+        .await
+    {
         Ok(result) => Ok(result),
         Err(e) => {
             ui::UI::warn(&format!("Shim execution warning: {}", e));

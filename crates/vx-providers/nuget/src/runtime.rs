@@ -5,9 +5,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use vx_runtime::{
-    Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
-};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
 
 /// NuGet runtime
 #[derive(Debug, Clone)]
@@ -46,10 +44,7 @@ impl Runtime for NugetRuntime {
 
     fn metadata(&self) -> HashMap<String, String> {
         let mut meta = HashMap::new();
-        meta.insert(
-            "homepage".to_string(),
-            "https://www.nuget.org/".to_string(),
-        );
+        meta.insert("homepage".to_string(), "https://www.nuget.org/".to_string());
         meta.insert("ecosystem".to_string(), "dotnet".to_string());
         meta.insert("category".to_string(), "package-manager".to_string());
         meta
@@ -86,10 +81,10 @@ impl Runtime for NugetRuntime {
             VersionInfo::new("5.11.0"),
             VersionInfo::new("5.10.0"),
         ];
-        
+
         // Try to fetch latest from nuget.org (if available)
         let _ = ctx; // Silence unused warning for now
-        
+
         Ok(versions)
     }
 

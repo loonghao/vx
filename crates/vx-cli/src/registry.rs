@@ -484,11 +484,18 @@ mod tests {
 
         // Parse as ProviderManifest
         let result = vx_manifest::ProviderManifest::parse(nuget_manifest.unwrap());
-        assert!(result.is_ok(), "Failed to parse nuget manifest: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse nuget manifest: {:?}",
+            result.err()
+        );
 
         let manifest = result.unwrap();
         assert_eq!(manifest.provider.name, "nuget");
-        assert!(!manifest.runtimes.is_empty(), "nuget should have at least one runtime");
+        assert!(
+            !manifest.runtimes.is_empty(),
+            "nuget should have at least one runtime"
+        );
     }
 
     #[test]
@@ -503,11 +510,18 @@ mod tests {
 
         // Parse as ProviderManifest
         let result = vx_manifest::ProviderManifest::parse(msbuild_manifest.unwrap());
-        assert!(result.is_ok(), "Failed to parse msbuild manifest: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse msbuild manifest: {:?}",
+            result.err()
+        );
 
         let manifest = result.unwrap();
         assert_eq!(manifest.provider.name, "msbuild");
-        assert!(!manifest.runtimes.is_empty(), "msbuild should have at least one runtime");
+        assert!(
+            !manifest.runtimes.is_empty(),
+            "msbuild should have at least one runtime"
+        );
     }
 
     #[test]
@@ -522,11 +536,18 @@ mod tests {
 
         // Parse as ProviderManifest
         let result = vx_manifest::ProviderManifest::parse(winget_manifest.unwrap());
-        assert!(result.is_ok(), "Failed to parse winget manifest: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse winget manifest: {:?}",
+            result.err()
+        );
 
         let manifest = result.unwrap();
         assert_eq!(manifest.provider.name, "winget");
-        assert!(!manifest.runtimes.is_empty(), "winget should have at least one runtime");
+        assert!(
+            !manifest.runtimes.is_empty(),
+            "winget should have at least one runtime"
+        );
     }
 
     #[test]

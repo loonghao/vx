@@ -111,7 +111,7 @@ impl Runtime for WingetRuntime {
         );
 
         let output = Command::new("powershell")
-            .args(&["-Command", &script])
+            .args(["-Command", &script])
             .output()
             .map_err(|e| anyhow::anyhow!("Failed to run PowerShell: {}", e))?;
 
@@ -139,9 +139,7 @@ impl Runtime for WingetRuntime {
         _ctx: &ExecutionContext,
     ) -> Result<ExecutionPrep> {
         // Try to find winget using 'where' command (most reliable on Windows)
-        let output = Command::new("where")
-            .arg("winget")
-            .output();
+        let output = Command::new("where").arg("winget").output();
 
         if let Ok(output) = output {
             if output.status.success() {

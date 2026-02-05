@@ -512,7 +512,11 @@ mod tests {
 
     #[test]
     fn test_with_dependency_parse_many() {
-        let specs = vec!["bun@1.1".to_string(), "deno".to_string(), "node@20".to_string()];
+        let specs = vec![
+            "bun@1.1".to_string(),
+            "deno".to_string(),
+            "node@20".to_string(),
+        ];
         let deps = WithDependency::parse_many(&specs);
         assert_eq!(deps.len(), 3);
         assert_eq!(deps[0].runtime, "bun");

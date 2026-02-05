@@ -88,20 +88,16 @@ fn test_download_url_non_windows() {
     let runtime = NugetRuntime::new();
     let linux = Platform::new(Os::Linux, Arch::X86_64);
     let macos = Platform::new(Os::MacOS, Arch::Aarch64);
-    
+
     // Non-Windows platforms should return None
     let url_linux = tokio::runtime::Runtime::new()
         .unwrap()
-        .block_on(async {
-            runtime.download_url("6.11.1", &linux).await.unwrap()
-        });
+        .block_on(async { runtime.download_url("6.11.1", &linux).await.unwrap() });
     assert!(url_linux.is_none());
-    
+
     let url_macos = tokio::runtime::Runtime::new()
         .unwrap()
-        .block_on(async {
-            runtime.download_url("6.11.1", &macos).await.unwrap()
-        });
+        .block_on(async { runtime.download_url("6.11.1", &macos).await.unwrap() });
     assert!(url_macos.is_none());
 }
 
@@ -109,7 +105,7 @@ fn test_download_url_non_windows() {
 fn test_executable_relative_path() {
     let runtime = NugetRuntime::new();
     let windows = Platform::new(Os::Windows, Arch::X86_64);
-    
+
     // BinaryHandler installs to bin/ subdirectory
     let path = runtime.executable_relative_path("6.11.1", &windows);
     assert_eq!(path, "bin/nuget.exe");

@@ -573,7 +573,7 @@ async fn ensure_node_modules_installed(executable: &Path) -> Result<()> {
     cmd.stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
-    
+
     let status = cmd.status().await?;
 
     if !status.success() {

@@ -42,6 +42,7 @@ impl NugetUrlBuilder {
     }
 
     /// Check if the platform is supported
+    #[allow(dead_code)]
     pub fn is_platform_supported(platform: &Platform) -> bool {
         matches!(&platform.os, Os::Windows)
     }

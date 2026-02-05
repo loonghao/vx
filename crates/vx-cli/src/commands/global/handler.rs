@@ -89,7 +89,10 @@ async fn ensure_runtime_installed(
         // Run post-install hook
         runtime.post_install(&version, context).await?;
 
-        UI::success(&format!("Successfully installed {} {}", runtime_name, version));
+        UI::success(&format!(
+            "Successfully installed {} {}",
+            runtime_name, version
+        ));
 
         Ok(Some(version))
     } else {
@@ -209,7 +212,9 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
                     if args.verbose {
                         UI::detail(&format!("Using npm from: {}", path.display()));
                     }
-                    Box::new(vx_ecosystem_pm::installers::NpmInstaller::with_npm_path(path))
+                    Box::new(vx_ecosystem_pm::installers::NpmInstaller::with_npm_path(
+                        path,
+                    ))
                 } else {
                     tracing::warn!("npm path does not exist: {}", path.display());
                     Box::new(vx_ecosystem_pm::installers::NpmInstaller::new())

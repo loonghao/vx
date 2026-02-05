@@ -214,8 +214,8 @@ impl VersionCache {
     }
 
     /// Get JSON Value data file path (stored as bincode for performance)
-    /// 
-    /// Note: Despite the "json" in the name, this stores `serde_json::Value` 
+    ///
+    /// Note: Despite the "json" in the name, this stores `serde_json::Value`
     /// using bincode serialization for 10-50x faster performance compared to JSON text.
     fn json_value_data_path(&self, tool_name: &str) -> PathBuf {
         self.cache_dir.join(format!("{}.jsonval", tool_name))
@@ -320,10 +320,10 @@ impl VersionCache {
     }
 
     /// Get cached JSON data (for generic JSON API responses)
-    /// 
+    ///
     /// **Performance**: Uses bincode serialization internally for 10-50x faster speed
     /// compared to JSON text format.
-    /// 
+    ///
     /// Returns None if cache miss or expired
     pub fn get_json(&self, tool_name: &str) -> Option<serde_json::Value> {
         if self.mode == CacheMode::NoCache || self.mode == CacheMode::Refresh {
@@ -352,9 +352,9 @@ impl VersionCache {
     }
 
     /// Get stale JSON cache (for fallback on network errors)
-    /// 
+    ///
     /// **Performance**: Uses bincode serialization internally for 10-50x faster speed.
-    /// 
+    ///
     /// This ignores TTL and returns cached data if available
     pub fn get_stale_json(&self, tool_name: &str) -> Option<serde_json::Value> {
         if self.mode == CacheMode::NoCache {
@@ -456,16 +456,16 @@ impl VersionCache {
     }
 
     /// Set cached JSON data (for generic JSON API responses)
-    /// 
-    /// **Performance**: Stores `serde_json::Value` using bincode serialization 
+    ///
+    /// **Performance**: Stores `serde_json::Value` using bincode serialization
     /// for 10-50x faster speed and 30-50% smaller file size compared to JSON text.
     pub fn set_json(&self, tool_name: &str, data: serde_json::Value) -> Result<()> {
         self.set_json_with_options(tool_name, data, None, None)
     }
 
     /// Set cached JSON data with additional options
-    /// 
-    /// **Performance**: Stores `serde_json::Value` using bincode serialization 
+    ///
+    /// **Performance**: Stores `serde_json::Value` using bincode serialization
     /// for significantly better performance than JSON text format.
     pub fn set_json_with_options(
         &self,
@@ -888,10 +888,10 @@ mod tests {
         // Compare file sizes: bincode should be smaller than JSON text
         let bincode_size = std::fs::metadata(&json_path).unwrap().len();
         let json_text_size = serde_json::to_string(&json_data).unwrap().len() as u64;
-        
+
         println!("Bincode size: {} bytes", bincode_size);
         println!("JSON text size: {} bytes", json_text_size);
-        
+
         // bincode should be smaller or similar size for small objects
         assert!(bincode_size < json_text_size * 2);
     }
