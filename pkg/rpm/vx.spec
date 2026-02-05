@@ -3,6 +3,9 @@ Version:        {{VERSION}}
 Release:        1%{?dist}
 Summary:        Universal version manager for developer tools
 
+# Disable debug packages - we ship prebuilt binaries without debug info
+%global debug_package %{nil}
+
 License:        MIT
 URL:            https://github.com/loonghao/vx
 Source0:        https://github.com/loonghao/vx/releases/download/v%{version}/vx-%{_target_cpu}-unknown-linux-gnu.tar.gz

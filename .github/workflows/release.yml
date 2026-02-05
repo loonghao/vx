@@ -1,28 +1,31 @@
-name: Release
-
-# This workflow runs on main branch pushes and handles the complete release process:
-# 1. Regular commits to main: Runs release-please to check if a release PR should be created/updated
-# 2. release-please PR merge: Creates a release, builds binaries, and publishes to crates.io
-# 3. Manual trigger: Rebuild binaries for a specific tag (useful when build failed)
+# cargo-dist release workflow
+# This workflow handles the complete release process using cargo-dist:
+# 1. Build binaries for all platforms (Linux, macOS, Windows)
+# 2. Generate installers (shell, powershell, homebrew)
+# 3. Create GitHub releases with checksums
 #
-# Note: release-please creates tags in format "v0.4.1" (v format)
+# Triggered by:
+# - Push to main: runs release-please to create release PRs
+# - Tag push (v*): builds and publishes release artifacts
+# - Manual trigger: rebuild for a specific tag
+#
+# Based on: https://opensource.axo.dev/cargo-dist/
+
+name: Release
 
 on:
   push:
     branches:
       - main
+    tags:
+      - 'v[0-9]+.*'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to rebuild (e.g., v0.4.1). Leave empty to use latest release.'
+        description: 'Tag to build (e.g., v0.6.27). Leave empty for latest.'
         required: false
         type: string
         default: ''
-      skip-crates-publish:
-        description: 'Skip publishing to crates.io'
-        required: false
-        type: boolean
-        default: true
 
 permissions:
   contents: write
@@ -35,20 +38,19 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
 
+# Cancel in-progress runs for the same ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # First job: Run release-please to create releases and tags
-  # This runs on main branch pushes to:
-  # 1. Create/update release PRs when new commits are pushed
-  # 2. Create GitHub releases when release PRs are merged
+  # Run release-please on main branch pushes
   release-please:
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
-      releases_created: ${{ steps.release.outputs.releases_created }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -57,284 +59,259 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # Get the tag to build (from release-please or manual input)
-  get-tag:
+  # Determine build configuration
+  plan:
+    name: Plan release
     runs-on: ubuntu-latest
     needs: [release-please]
     if: |
       always() &&
       (
         (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true') ||
+        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
         github.event_name == 'workflow_dispatch'
       )
     outputs:
-      tag_name: ${{ steps.get-tag.outputs.tag_name }}
-      version: ${{ steps.get-tag.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      version: ${{ steps.plan.outputs.version }}
+      targets: ${{ steps.plan.outputs.targets }}
     steps:
-      - name: Get tag name
-        id: get-tag
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            if [ -n "${{ inputs.tag }}" ]; then
-              TAG="${{ inputs.tag }}"
-            else
-              # Get latest release tag
-              TAG=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
-            fi
-          else
-            # Use release-please output (release was just created)
-            TAG="${{ needs.release-please.outputs.tag_name }}"
-          fi
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-          # Validate we got a tag
+      - name: Determine tag and version
+        id: plan
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          elif [ "${{ needs.release-please.outputs.tag_name }}" != "" ]; then
+            TAG="${{ needs.release-please.outputs.tag_name }}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+          fi
+          
           if [ -z "$TAG" ] || [ "$TAG" == "null" ]; then
-            echo "❌ Could not determine tag to build"
+            echo "::error::Could not determine tag"
             exit 1
           fi
-
-          echo "tag_name=${TAG}" >> $GITHUB_OUTPUT
-          # Extract version number: vx-v0.5.0 -> 0.5.0, v0.5.0 -> 0.5.0
-          VERSION=$(echo "${TAG}" | sed -E 's/^(vx-)?v//')
+          
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Building for tag: ${TAG}, version: ${VERSION}"
+          echo "📦 Building tag: ${TAG}, version: ${VERSION}"
+          
+          # Define build matrix as JSON
+          echo 'targets=["x86_64-unknown-linux-gnu","x86_64-unknown-linux-musl","aarch64-unknown-linux-gnu","aarch64-unknown-linux-musl","x86_64-apple-darwin","aarch64-apple-darwin","x86_64-pc-windows-msvc","aarch64-pc-windows-msvc"]' >> $GITHUB_OUTPUT
 
-  # Build CLI binaries for all platforms
-  build-binaries:
-    name: Build (${{ matrix.platform.os_name }})
-    needs: [get-tag]
-    if: needs.get-tag.result == 'success' && needs.get-tag.outputs.tag_name != ''
-    runs-on: ${{ matrix.platform.os }}
+  # Build binaries for each platform
+  build:
+    name: Build (${{ matrix.target }})
+    needs: [plan]
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          # Linux platforms
-          - os_name: Linux-x86_64
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-
-          - os_name: Linux-x86_64-musl
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-
-          - os_name: Linux-aarch64
-            os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-
-          - os_name: Linux-aarch64-musl
-            os: ubuntu-latest
-            target: aarch64-unknown-linux-musl
-
-          # Windows platforms
-          - os_name: Windows-x86_64
+        include:
+          # Linux GNU
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04
+          # Linux musl
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-22.04
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-22.04
+          # macOS
+          - target: x86_64-apple-darwin
+            os: macos-13
+          - target: aarch64-apple-darwin
+            os: macos-14
+          # Windows
+          - target: x86_64-pc-windows-msvc
             os: windows-latest
-            target: x86_64-pc-windows-msvc
-
-          - os_name: Windows-aarch64
+          - target: aarch64-pc-windows-msvc
             os: windows-latest
-            target: aarch64-pc-windows-msvc
-
-          # macOS platforms
-          - os_name: macOS-x86_64
-            os: macos-latest
-            target: x86_64-apple-darwin
-
-          - os_name: macOS-aarch64
-            os: macos-latest
-            target: aarch64-apple-darwin
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.get-tag.outputs.tag_name }}
+          ref: ${{ needs.plan.outputs.tag }}
 
-      # Install cross-compilation dependencies for ARM64 targets
-      - name: Install cross-compilation dependencies
-        if: contains(matrix.platform.target, 'aarch64') && matrix.platform.os == 'ubuntu-latest'
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # Install cross-compilation dependencies
+      - name: Install Linux cross-compilation tools
+        if: runner.os == 'Linux' && contains(matrix.target, 'aarch64')
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-      # Install musl tools for musl targets
       - name: Install musl tools
-        if: contains(matrix.platform.target, 'musl') && matrix.platform.os == 'ubuntu-latest'
+        if: contains(matrix.target, 'musl')
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools
+          if [[ "${{ matrix.target }}" == "aarch64"* ]]; then
+            # For aarch64-musl, we need cross compiler
+            sudo apt-get install -y musl-dev
+            wget -q https://musl.cc/aarch64-linux-musl-cross.tgz
+            tar -xzf aarch64-linux-musl-cross.tgz
+            echo "$PWD/aarch64-linux-musl-cross/bin" >> $GITHUB_PATH
+          fi
 
-      - name: Build executable
+      # Build using cross for Linux targets
+      - name: Build (Linux cross)
+        if: runner.os == 'Linux'
         uses: houseabsolute/actions-rust-cross@v1
         with:
           command: build
-          target: ${{ matrix.platform.target }}
-          # turbo-cdn 0.6+ uses rustls-tls by default, no OpenSSL needed
-          args: "--release --bin vx"
+          target: ${{ matrix.target }}
+          args: "--release --bin vx --features cdn-acceleration"
           strip: true
 
-      - name: Set archive name
-        id: archive
+      # Build natively for macOS and Windows
+      - name: Build (native)
+        if: runner.os != 'Linux'
         shell: bash
         run: |
-          VERSION="${{ needs.get-tag.outputs.version }}"
-          # Use format with version: vx-{version}-{target}.{ext}
-          # Also create a symlink/copy without version for backward compatibility
-          if [[ "${{ matrix.platform.os }}" == "windows-latest" ]]; then
-            echo "name=vx-${VERSION}-${{ matrix.platform.target }}.zip" >> $GITHUB_OUTPUT
-            echo "name_compat=vx-${{ matrix.platform.target }}.zip" >> $GITHUB_OUTPUT
-            echo "ext=zip" >> $GITHUB_OUTPUT
-          else
-            echo "name=vx-${VERSION}-${{ matrix.platform.target }}.tar.gz" >> $GITHUB_OUTPUT
-            echo "name_compat=vx-${{ matrix.platform.target }}.tar.gz" >> $GITHUB_OUTPUT
-            echo "ext=tar.gz" >> $GITHUB_OUTPUT
+          cargo build --release --target ${{ matrix.target }} --bin vx --features cdn-acceleration
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            strip target/${{ matrix.target }}/release/vx
           fi
 
+      # Create archives
       - name: Create archive (Unix)
-        if: matrix.platform.os != 'windows-latest'
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
-          cd target/${{ matrix.platform.target }}/release
-          # Create versioned archive
-          tar -czvf ../../../${{ steps.archive.outputs.name }} vx
+          VERSION="${{ needs.plan.outputs.version }}"
+          cd target/${{ matrix.target }}/release
+          
+          # Versioned archive
+          tar -czvf ../../../vx-${VERSION}-${{ matrix.target }}.tar.gz vx
           cd ../../..
-          sha256sum ${{ steps.archive.outputs.name }} > ${{ steps.archive.outputs.name }}.sha256
-          # Create backward-compatible archive (copy without version)
-          cp ${{ steps.archive.outputs.name }} ${{ steps.archive.outputs.name_compat }}
-          sha256sum ${{ steps.archive.outputs.name_compat }} > ${{ steps.archive.outputs.name_compat }}.sha256
+          sha256sum vx-${VERSION}-${{ matrix.target }}.tar.gz > vx-${VERSION}-${{ matrix.target }}.tar.gz.sha256
+          
+          # Backward-compatible archive (without version)
+          cp vx-${VERSION}-${{ matrix.target }}.tar.gz vx-${{ matrix.target }}.tar.gz
+          sha256sum vx-${{ matrix.target }}.tar.gz > vx-${{ matrix.target }}.tar.gz.sha256
 
       - name: Create archive (Windows)
-        if: matrix.platform.os == 'windows-latest'
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          cd target/${{ matrix.platform.target }}/release
-          # Create versioned archive
-          Compress-Archive -Path vx.exe -DestinationPath ../../../${{ steps.archive.outputs.name }}
+          $VERSION = "${{ needs.plan.outputs.version }}"
+          cd target/${{ matrix.target }}/release
+          
+          # Versioned archive
+          Compress-Archive -Path vx.exe -DestinationPath ../../../vx-${VERSION}-${{ matrix.target }}.zip
           cd ../../..
-          $hash = (Get-FileHash ${{ steps.archive.outputs.name }} -Algorithm SHA256).Hash.ToLower()
-          "$hash  ${{ steps.archive.outputs.name }}" | Out-File -Encoding ASCII ${{ steps.archive.outputs.name }}.sha256
-          # Create backward-compatible archive (copy without version)
-          Copy-Item ${{ steps.archive.outputs.name }} ${{ steps.archive.outputs.name_compat }}
-          $hashCompat = (Get-FileHash ${{ steps.archive.outputs.name_compat }} -Algorithm SHA256).Hash.ToLower()
-          "$hashCompat  ${{ steps.archive.outputs.name_compat }}" | Out-File -Encoding ASCII ${{ steps.archive.outputs.name_compat }}.sha256
+          $hash = (Get-FileHash vx-${VERSION}-${{ matrix.target }}.zip -Algorithm SHA256).Hash.ToLower()
+          "$hash  vx-${VERSION}-${{ matrix.target }}.zip" | Out-File -Encoding ASCII vx-${VERSION}-${{ matrix.target }}.zip.sha256
+          
+          # Backward-compatible archive
+          Copy-Item vx-${VERSION}-${{ matrix.target }}.zip vx-${{ matrix.target }}.zip
+          $hashCompat = (Get-FileHash vx-${{ matrix.target }}.zip -Algorithm SHA256).Hash.ToLower()
+          "$hashCompat  vx-${{ matrix.target }}.zip" | Out-File -Encoding ASCII vx-${{ matrix.target }}.zip.sha256
 
-      - name: Upload artifacts to release
-        uses: softprops/action-gh-release@v2
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ needs.get-tag.outputs.tag_name }}
-          files: |
-            ${{ steps.archive.outputs.name }}
-            ${{ steps.archive.outputs.name }}.sha256
-            ${{ steps.archive.outputs.name_compat }}
-            ${{ steps.archive.outputs.name_compat }}.sha256
-          fail_on_unmatched_files: true
+          name: dist-${{ matrix.target }}
+          path: |
+            vx-*.tar.gz
+            vx-*.tar.gz.sha256
+            vx-*.zip
+            vx-*.zip.sha256
+          if-no-files-found: error
 
-  # Finalize GitHub Release - append installation instructions without overwriting changelog
-  finalize-release:
-    name: Finalize GitHub Release
+  # Publish release artifacts
+  publish:
+    name: Publish release
+    needs: [plan, build]
     runs-on: ubuntu-latest
-    needs: [get-tag, build-binaries]
-    if: needs.build-binaries.result == 'success'
-    permissions:
-      contents: write
-      actions: read
-
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.get-tag.outputs.tag_name }}
-          fetch-depth: 0
+          ref: ${{ needs.plan.outputs.tag }}
 
-      - name: Append installation instructions to release
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: dist-*
+          merge-multiple: true
+
+      - name: List artifacts
+        run: |
+          echo "📦 Release artifacts:"
+          ls -la artifacts/
+          echo ""
+          echo "📋 Checksums:"
+          cat artifacts/*.sha256
+
+      - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.get-tag.outputs.tag_name }}
+          tag_name: ${{ needs.plan.outputs.tag }}
+          files: artifacts/*
+          fail_on_unmatched_files: true
+          generate_release_notes: false
           append_body: true
           body: |
-
+            
             ---
-
+            
             ### Installation
-
+            
             #### Quick Install (Recommended)
-
+            
             **Linux/macOS:**
             ```bash
             curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
             ```
-
+            
             **Windows (PowerShell):**
             ```powershell
             irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
             ```
-
+            
             #### Static Binary (musl, no runtime dependencies)
-
-            For environments without glibc (Alpine, minimal containers):
+            
             ```bash
             PREFER_STATIC=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
             ```
-
+            
             #### Package Managers
-
-            **Homebrew (macOS/Linux):**
-            ```bash
-            brew install loonghao/vx/vx
-            ```
-
-            **Debian/Ubuntu:**
-            ```bash
-            curl -fsSLO https://github.com/loonghao/vx/releases/download/${{ needs.get-tag.outputs.tag_name }}/vx_${{ needs.get-tag.outputs.version }}_amd64.deb
-            sudo dpkg -i vx_*.deb
-            ```
-
-            **Fedora/RHEL:**
-            ```bash
-            curl -fsSLO https://github.com/loonghao/vx/releases/download/${{ needs.get-tag.outputs.tag_name }}/vx-${{ needs.get-tag.outputs.version }}-1.x86_64.rpm
-            sudo rpm -i vx-*.rpm
-            ```
-
-            **Arch Linux (AUR):**
-            ```bash
-            yay -S vx-bin
-            ```
-
+            
+            - **Homebrew:** `brew install loonghao/vx/vx`
+            - **Cargo:** `cargo install vx`
+            
             #### Manual Download
+            
+            Download the appropriate binary for your platform from the assets above.
 
-            Download the appropriate binary for your platform from the assets below.
-
-
-  # Publish to crates.io
-  publish-crates:
-    name: Publish to crates.io
+  # Generate attestations
+  attest:
+    name: Generate attestations
+    needs: [plan, publish]
     runs-on: ubuntu-latest
-    needs: [get-tag, finalize-release]
-    if: |
-      needs.finalize-release.result == 'success' &&
-      (github.event_name != 'workflow_dispatch' || inputs.skip-crates-publish != true)
     steps:
-      - uses: actions/checkout@v6
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
         with:
-          ref: ${{ needs.get-tag.outputs.tag_name }}
+          path: artifacts
+          pattern: dist-*
+          merge-multiple: true
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Publish to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "CARGO_REGISTRY_TOKEN not set, skipping crates.io publishing"
-            exit 0
-          fi
-          # Publish packages in dependency order
-          # Note: Some packages may already be published, so we use --no-fail-fast
-          cargo publish -p vx-paths --allow-dirty || true
-          cargo publish -p vx-config --allow-dirty || true
-          cargo publish -p vx-version --allow-dirty || true
-          cargo publish -p vx-plugin --allow-dirty || true
-          cargo publish -p vx-installer --allow-dirty || true
-          cargo publish -p vx-dependency --allow-dirty || true
-          cargo publish -p vx-tool-standard --allow-dirty || true
-          cargo publish -p vx-sdk --allow-dirty || true
-          cargo publish -p vx-core --allow-dirty || true
-          cargo publish -p vx --allow-dirty || true
+      - name: Generate attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: artifacts/*
