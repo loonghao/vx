@@ -338,3 +338,46 @@ panic = "abort"
 inherits = "release"
 debug = 1
 lto = false
+
+# cargo-dist: Profile for dist builds (thin LTO for faster builds)
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+# cargo-dist: Workspace metadata for distribution
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use
+cargo-dist-version = "0.27.0"
+# CI backends to generate
+ci = "github"
+# The installers to generate for each app
+installers = ["shell", "powershell", "homebrew"]
+# Target platforms for releases
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-gnu",
+    "aarch64-unknown-linux-musl",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+    "aarch64-pc-windows-msvc",
+]
+# Homebrew tap
+tap = "loonghao/homebrew-vx"
+# Archive formats
+windows-archive = ".zip"
+unix-archive = ".tar.gz"
+# Checksums
+checksum = "sha256"
+# GitHub release settings
+github-releases = true
+github-attestations = true
+# Install updater for self-update functionality
+install-updater = false
+# Include files in archives
+include = ["LICENSE", "README.md", "CHANGELOG.md"]
+# Publish announcements
+publish-prereleases = false
+# Allow dirty builds (for release-please workflow)
+allow-dirty = ["ci"]
