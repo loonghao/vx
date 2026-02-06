@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.31](https://github.com/loonghao/vx/compare/vx-v0.6.30...vx-v0.6.31) (2026-02-06)
+
+
+### Bug Fixes
+
+* update release workflow tag trigger pattern to match v* tags ([685d72d](https://github.com/loonghao/vx/commit/685d72d8b7fcba115355b21f85487239996f8442))
+
 ## [0.6.30](https://github.com/loonghao/vx/compare/vx-v0.6.29...vx-v0.6.30) (2026-02-06)
 
 
