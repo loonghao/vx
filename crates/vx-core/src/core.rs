@@ -431,8 +431,8 @@ pub fn is_latest_version(version: &str) -> bool {
 
 /// Resolve "latest" version to an actual version from installed versions
 ///
-/// If the version is "latest", returns the highest version from the provided list.
-/// Otherwise, returns the version as-is.
+/// If the version is "latest", returns the highest version from the provided list
+/// using semantic version comparison. Otherwise, returns the version as-is.
 ///
 /// # Example
 ///
@@ -446,8 +446,7 @@ pub fn is_latest_version(version: &str) -> bool {
 /// ```
 pub fn resolve_latest_version(version: &str, installed_versions: &[String]) -> Option<String> {
     if is_latest_version(version) {
-        // Return the highest version (assuming list is sorted, last is highest)
-        installed_versions.last().cloned()
+        crate::version_utils::find_latest_version(installed_versions, false).map(|v| v.to_string())
     } else {
         Some(version.to_string())
     }

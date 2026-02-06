@@ -18,6 +18,7 @@
 mod bundle;
 mod command;
 mod environment;
+#[allow(clippy::module_inception)]
 mod executor;
 mod fallback;
 mod installation;
