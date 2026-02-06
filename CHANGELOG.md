@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.28](https://github.com/loonghao/vx/compare/vx-v0.6.27...vx-v0.6.28) (2026-02-06)
+
+
+### Features
+
+* **ci:** simplify release workflow with cargo-dist style ([5210e8b](https://github.com/loonghao/vx/commit/5210e8b0f013f23ff1aaac3f64a338c801bde473))
+* **providers:** add winget and nuget providers with system install strategies ([fd2629d](https://github.com/loonghao/vx/commit/fd2629d9ed3587ccf7b03a552e5df1e720a1953f))
+* **yarn:** use vx-managed Node.js for Yarn 2.x+ corepack ([31565df](https://github.com/loonghao/vx/commit/31565df7243d8ab152faf792afdeceff567d7303))
+
+
+### Bug Fixes
+
+* add BundledCommand variant to InstallStrategyDef and fix nuget provider registration ([26afdff](https://github.com/loonghao/vx/commit/26afdffff92f63f9428664f5b284fde4c41d33a5))
+* add BundledConfig to support RFC 0028 bundled runtime pattern ([abedc08](https://github.com/loonghao/vx/commit/abedc08b512727dba322103a694ce99ac05f8c94))
+* **ci:** resolve doctest failure and integration test timeout ([be2104d](https://github.com/loonghao/vx/commit/be2104d6f55ad21e11a679ae82196fff0e084152))
+* **executor:** add fallback for Yarn 2.x+ to auto-install Node.js ([2228e5e](https://github.com/loonghao/vx/commit/2228e5e6dd2c04f095680dc5370e79a633221dfe))
+* **msbuild:** suppress dead_code warning for non-Windows platforms ([92e6470](https://github.com/loonghao/vx/commit/92e6470061d4c7faea42a454b22b7c4512a1ca79))
+* **nuget:** fix executable path for binary installation ([d7ea8af](https://github.com/loonghao/vx/commit/d7ea8af01c077fe75c9a1ed0e56d986ddcb4871c))
+* resolve clippy needless_lifetimes warning ([b47e993](https://github.com/loonghao/vx/commit/b47e9936a623da8102479ec5317e3e8f47291ed9))
+* resolve clippy useless_vec warnings ([487ab66](https://github.com/loonghao/vx/commit/487ab66b61bd56db219c3641772f80319d32beaa))
+* resolve compilation errors in tests and warnings ([197f3d2](https://github.com/loonghao/vx/commit/197f3d28a712d2db3d1314b604df3a71a01be6ed))
+* resolve PYTHONHOME template and self-update version comparison issues ([76cf1c3](https://github.com/loonghao/vx/commit/76cf1c3152fcac8f6a56bb9afb71063afef9dbcc))
+* **resolver:** version-specific deps and Windows path spaces ([d881395](https://github.com/loonghao/vx/commit/d8813956ac7213ff2ee504c51d1f8f24ddfc08d1))
+* **runtime_root:** use is_file() instead of exists() for executable checks ([b629205](https://github.com/loonghao/vx/commit/b6292055ee66ade63509341c5e40e24a0b8a7c8e))
+* use JSON text format instead of bincode for serde_json::Value caching ([b36ed89](https://github.com/loonghao/vx/commit/b36ed893c3a7d3d874820e685ddd0665eb64d486))
+* winget, nuget, and msbuild provider issues ([4cd0eae](https://github.com/loonghao/vx/commit/4cd0eae3d6ef3dff5ebcc2749047363da77ca59e))
+* **yarn:** auto-install Node.js for Yarn 2.x+ via provided_by ([a8534e6](https://github.com/loonghao/vx/commit/a8534e6e2869a3e4c28ada7e41d9d0e696bc984c))
+
+
+### Code Refactoring
+
+* **command:** use raw_arg for proper Windows cmd.exe handling ([bd8534b](https://github.com/loonghao/vx/commit/bd8534b29dc7907103255149b8744f56b7b569e9))
+* improve yarn provider corepack support ([591e91a](https://github.com/loonghao/vx/commit/591e91aff358f589664c29e2b26278ec1b423a53))
+* **install:** remove legacy version compatibility from install scripts ([5e02441](https://github.com/loonghao/vx/commit/5e0244129ef03377e6a839b0932f876210ddd9b1))
+* optimize version handling and add comprehensive regression tests ([43db813](https://github.com/loonghao/vx/commit/43db813df1ef2ac75cc388ac81d7379f22b13e4a))
+
+
+### Documentation
+
+* complete RFC-0028 remaining tasks - Yarn 2.x+ corepack support ([7fa8f8c](https://github.com/loonghao/vx/commit/7fa8f8c5114d822d4638ec347d8f4db6edf5aeb2))
+
 ## [Unreleased]
 
 ### Bug Fixes
