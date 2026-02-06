@@ -94,6 +94,7 @@ impl MsbuildRuntime {
     }
 
     #[cfg(not(windows))]
+    #[allow(dead_code)]
     fn find_vs_msbuild() -> Option<PathBuf> {
         // Visual Studio MSBuild is Windows-only
         None
@@ -164,6 +165,7 @@ impl MsbuildRuntime {
     }
 
     #[cfg(not(windows))]
+    #[allow(dead_code)]
     async fn get_msbuild_version_from_exe(_msbuild_exe: &Path) -> Option<String> {
         None
     }
