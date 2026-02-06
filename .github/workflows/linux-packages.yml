@@ -39,8 +39,8 @@ jobs:
           fi
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          # Extract version number: v0.6.7 -> 0.6.7, vx-v0.6.7 -> 0.6.7
-          VERSION_SHORT=$(echo "${VERSION}" | sed -E 's/^(vx-)?v//')
+          # Extract version number: v0.6.7 -> 0.6.7
+          VERSION_SHORT="${VERSION#v}"
           echo "version_short=${VERSION_SHORT}" >> $GITHUB_OUTPUT
           echo "Tag: ${VERSION}, Version: ${VERSION_SHORT}"
 
@@ -73,7 +73,8 @@ jobs:
           echo "Downloading from: $DOWNLOAD_URL"
 
           curl -fsSL "$DOWNLOAD_URL" -o vx.tar.gz
-          tar -xzf vx.tar.gz
+          # cargo-dist archives contain a top-level directory
+          tar -xzf vx.tar.gz --strip-components=1
 
       - name: Build DEB package
         run: |
