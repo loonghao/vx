@@ -192,16 +192,26 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ needs.plan.outputs.version }}"
+
+          # Cross-platform sha256 function (macOS uses shasum, Linux uses sha256sum)
+          sha256() {
+            if command -v sha256sum &>/dev/null; then
+              sha256sum "$1" > "$1.sha256"
+            else
+              shasum -a 256 "$1" > "$1.sha256"
+            fi
+          }
+
           cd target/${{ matrix.target }}/release
-          
+
           # Versioned archive
           tar -czvf ../../../vx-${VERSION}-${{ matrix.target }}.tar.gz vx
           cd ../../..
-          sha256sum vx-${VERSION}-${{ matrix.target }}.tar.gz > vx-${VERSION}-${{ matrix.target }}.tar.gz.sha256
-          
+          sha256 "vx-${VERSION}-${{ matrix.target }}.tar.gz"
+
           # Backward-compatible archive (without version)
           cp vx-${VERSION}-${{ matrix.target }}.tar.gz vx-${{ matrix.target }}.tar.gz
-          sha256sum vx-${{ matrix.target }}.tar.gz > vx-${{ matrix.target }}.tar.gz.sha256
+          sha256 "vx-${{ matrix.target }}.tar.gz"
 
       - name: Create archive (Windows)
         if: runner.os == 'Windows'
