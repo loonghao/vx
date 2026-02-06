@@ -1,10 +1,10 @@
 [package]
 name = "vx-system-pm"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 description = "System package manager integration for vx"
-license = "MIT"
-repository = "https://github.com/pplmx/vx"
+license.workspace = true
+repository.workspace = true
 readme = "README.md"
 
 [dependencies]
