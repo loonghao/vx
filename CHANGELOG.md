@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.30](https://github.com/loonghao/vx/compare/vx-v0.6.29...vx-v0.6.30) (2026-02-06)
+
+
+### Features
+
+* adopt cargo-dist for release workflow and fix tag pattern ([c2d55df](https://github.com/loonghao/vx/commit/c2d55dfa50880e4873fe645349576d50a7cfe0ec))
+
 ## [0.6.29](https://github.com/loonghao/vx/compare/vx-v0.6.28...vx-v0.6.29) (2026-02-06)
 
 
