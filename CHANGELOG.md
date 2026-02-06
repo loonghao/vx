@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1](https://github.com/loonghao/vx/compare/v0.7.0...v0.7.1) (2026-02-06)
+
+
+### Bug Fixes
+
+* **ci:** trigger release workflow via workflow_dispatch after release-please creates tag ([63790c1](https://github.com/loonghao/vx/commit/63790c184c65f2a20b4760f50d748c15c446a09e))
+
 ## [0.7.0](https://github.com/loonghao/vx/compare/v0.6.31...v0.7.0) (2026-02-06)
 
 
