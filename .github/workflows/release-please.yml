@@ -1,0 +1,26 @@
+# Release Please workflow
+# Runs on push to main to create/update release PRs
+# When a release PR is merged, creates a GitHub Release and tag
+# The tag push then triggers the cargo-dist Release workflow
+
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+

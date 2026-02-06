@@ -344,40 +344,39 @@ lto = false
 inherits = "release"
 lto = "thin"
 
-# cargo-dist: Workspace metadata for distribution
+# Config for 'dist'
 [workspace.metadata.dist]
-# The preferred cargo-dist version to use
-cargo-dist-version = "0.27.0"
-# CI backends to generate
+# The preferred dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.30.3"
+# CI backends to support
 ci = "github"
 # The installers to generate for each app
 installers = ["shell", "powershell", "homebrew"]
-# Target platforms for releases
-targets = [
-    "x86_64-unknown-linux-gnu",
-    "x86_64-unknown-linux-musl",
-    "aarch64-unknown-linux-gnu",
-    "aarch64-unknown-linux-musl",
-    "x86_64-apple-darwin",
-    "aarch64-apple-darwin",
-    "x86_64-pc-windows-msvc",
-    "aarch64-pc-windows-msvc",
-]
-# Homebrew tap
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "aarch64-unknown-linux-musl", "aarch64-pc-windows-msvc", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc"]
+# A GitHub repo to push Homebrew formulas to
 tap = "loonghao/homebrew-vx"
-# Archive formats
+# The archive format to use for windows builds (defaults .zip)
 windows-archive = ".zip"
+# The archive format to use for non-windows builds (defaults .tar.xz)
 unix-archive = ".tar.gz"
-# Checksums
+# Checksums to generate for each App
 checksum = "sha256"
 # GitHub release settings
 github-releases = true
+# Whether to enable GitHub Attestations
 github-attestations = true
-# Install updater for self-update functionality
+# Whether to install an updater program
 install-updater = false
-# Include files in archives
+# Extra static files to include in each App (path relative to this Cargo.toml's dir)
 include = ["LICENSE", "README.md", "CHANGELOG.md"]
-# Publish announcements
+# Whether to publish prereleases to package managers
 publish-prereleases = false
-# Allow dirty builds (for release-please workflow)
+# Skip checking whether the specified configuration files are up to date
 allow-dirty = ["ci"]
+# Whether dist should create a Github Release or use an existing draft
+create-release = false
+# Publish jobs to run in CI
+publish-jobs = ["homebrew"]
+# Path that installers should place binaries in
+install-path = "CARGO_HOME"

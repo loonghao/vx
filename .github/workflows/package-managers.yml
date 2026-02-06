@@ -89,11 +89,9 @@ jobs:
         run: |
           version="${{ steps.version.outputs.version }}"
           echo "Original version: $version"
-          
-          # Remove 'vx-' prefix if present (vx-v0.1.0 -> v0.1.0)
-          normalized_version="${version#vx-}"
+
           # Remove 'v' prefix for WinGet (v0.1.0 -> 0.1.0)
-          normalized_version="${normalized_version#v}"
+          normalized_version="${version#v}"
           echo "Normalized version: $normalized_version"
           echo "normalized_version=$normalized_version" >> $GITHUB_OUTPUT
 
@@ -130,8 +128,7 @@ jobs:
         uses: vedantmgoyal9/winget-releaser@v2
         with:
           identifier: loonghao.vx
-          # Use the actual GitHub release tag (e.g., "vx-v0.6.13") to find the release
-          # The action needs the exact tag name to locate the release assets
+          # Use the GitHub release tag (e.g., "v0.6.13") to find the release
           release-tag: ${{ needs.check-release.outputs.version }}
           # Use normalized version for WinGet package version (without 'vx-' and 'v' prefix)
           version: ${{ needs.check-release.outputs.normalized_version }}
@@ -153,40 +150,18 @@ jobs:
 
       - name: Download Windows binary from release
         run: |
-          # Download pre-built binary from GitHub Release (built by release.yml)
+          # Download pre-built binary from GitHub Release (cargo-dist artifact naming)
           $version = "${{ needs.check-release.outputs.version }}"
-          # Extract version number: vx-v0.6.2 -> 0.6.2, v0.6.2 -> 0.6.2
-          $versionNum = $version -replace '^(vx-)?v', ''
 
-          # Try versioned format first, then fall back to non-versioned format
-          $downloadUrlVersioned = "https://github.com/loonghao/vx/releases/download/$version/vx-$versionNum-x86_64-pc-windows-msvc.zip"
-          $downloadUrlCompat = "https://github.com/loonghao/vx/releases/download/$version/vx-x86_64-pc-windows-msvc.zip"
-
-          Write-Host "Trying versioned URL: $downloadUrlVersioned"
-
-          try {
-            Invoke-WebRequest -Uri $downloadUrlVersioned -OutFile "vx-windows.zip" -ErrorAction Stop
-            Write-Host "Downloaded from versioned URL"
-          } catch {
-            Write-Host "Versioned URL failed, trying compatible URL: $downloadUrlCompat"
-            try {
-              Invoke-WebRequest -Uri $downloadUrlCompat -OutFile "vx-windows.zip" -ErrorAction Stop
-              Write-Host "Downloaded from compatible URL"
-            } catch {
-              Write-Host "Failed to download binary from both URLs"
-              Write-Host "Available releases:"
-              $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/loonghao/vx/releases"
-              $releases | ForEach-Object { Write-Host "  - $($_.tag_name)" }
-              exit 1
-            }
-          }
-
+          $downloadUrl = "https://github.com/loonghao/vx/releases/download/$version/vx-x86_64-pc-windows-msvc.zip"
+          Write-Host "Downloading from: $downloadUrl"
+          Invoke-WebRequest -Uri $downloadUrl -OutFile "vx-windows.zip" -ErrorAction Stop
           Write-Host "Downloaded zip size: $((Get-Item vx-windows.zip).Length) bytes"
 
-          # Extract the exe from zip
+          # Extract the exe from zip (cargo-dist archives contain a top-level directory)
           Expand-Archive -Path "vx-windows.zip" -DestinationPath "." -Force
 
-          # Find the vx.exe file (it might be in a subdirectory)
+          # Find the vx.exe file (it will be in a subdirectory)
           $exeFile = Get-ChildItem -Recurse -Name "vx.exe" | Select-Object -First 1
           if ($exeFile) {
             Copy-Item $exeFile "vx.exe"
@@ -229,134 +204,8 @@ jobs:
             exit 1
           }
 
-  # Publish to Homebrew (Custom implementation)
-  # Creates formula using our custom asset naming convention
-  publish-homebrew:
-    needs: check-release
-    runs-on: ubuntu-latest
-    if: needs.check-release.outputs.should-publish == 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Generate Homebrew formula
-        id: generate
-        run: |
-          VERSION="${{ needs.check-release.outputs.version }}"
-          VERSION_NUM="${VERSION#v}"
-
-          echo "Generating Homebrew formula for version: $VERSION_NUM"
-
-          BASE_URL="https://github.com/loonghao/vx/releases/download/${VERSION}"
-
-          # Get SHA256 checksums for each platform
-          DARWIN_AMD64_SHA256=$(curl -sL "${BASE_URL}/vx-x86_64-apple-darwin.tar.gz.sha256" | awk '{print $1}')
-          DARWIN_ARM64_SHA256=$(curl -sL "${BASE_URL}/vx-aarch64-apple-darwin.tar.gz.sha256" | awk '{print $1}')
-          LINUX_AMD64_SHA256=$(curl -sL "${BASE_URL}/vx-x86_64-unknown-linux-gnu.tar.gz.sha256" | awk '{print $1}')
-
-          echo "Darwin AMD64 SHA256: $DARWIN_AMD64_SHA256"
-          echo "Darwin ARM64 SHA256: $DARWIN_ARM64_SHA256"
-          echo "Linux AMD64 SHA256: $LINUX_AMD64_SHA256"
-
-          # Validate checksums
-          if [[ -z "$DARWIN_AMD64_SHA256" || "$DARWIN_AMD64_SHA256" == "null" ]]; then
-            echo "Failed to get Darwin AMD64 SHA256"
-            exit 1
-          fi
-
-          # Create Homebrew formula
-          cat > vx.rb << EOF
-          # typed: false
-          # frozen_string_literal: true
-
-          class Vx < Formula
-            desc "Universal development tool manager - run any dev tool with automatic runtime management"
-            homepage "https://github.com/loonghao/vx"
-            license "MIT"
-            version "${VERSION_NUM}"
-
-            on_macos do
-              on_intel do
-                url "${BASE_URL}/vx-x86_64-apple-darwin.tar.gz"
-                sha256 "${DARWIN_AMD64_SHA256}"
-              end
-              on_arm do
-                url "${BASE_URL}/vx-aarch64-apple-darwin.tar.gz"
-                sha256 "${DARWIN_ARM64_SHA256}"
-              end
-            end
-
-            on_linux do
-              on_intel do
-                url "${BASE_URL}/vx-x86_64-unknown-linux-gnu.tar.gz"
-                sha256 "${LINUX_AMD64_SHA256}"
-              end
-            end
-
-            def install
-              bin.install "vx"
-            end
-
-            test do
-              assert_match "vx", shell_output("#{bin}/vx --version")
-            end
-          end
-          EOF
-
-          # Remove leading whitespace from heredoc
-          sed -i 's/^          //' vx.rb
-
-          echo "Generated formula:"
-          cat vx.rb
-
-          echo "version=${VERSION_NUM}" >> $GITHUB_OUTPUT
-
-      - name: Push to Homebrew tap
-        uses: cpina/github-action-push-to-another-repository@main
-        env:
-          SSH_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
-        with:
-          source-directory: '.'
-          destination-github-username: 'loonghao'
-          destination-repository-name: 'homebrew-vx'
-          user-email: github-actions[bot]@users.noreply.github.com
-          user-name: github-actions[bot]
-          target-branch: main
-          commit-message: "Update vx to ${{ steps.generate.outputs.version }}"
-        continue-on-error: true
-
-      - name: Fallback - Push using token
-        if: failure()
-        env:
-          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-        run: |
-          VERSION_NUM="${{ steps.generate.outputs.version }}"
-
-          # Setup git
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Clone using token (ensure no newlines in URL)
-          CLEAN_TOKEN=$(echo "$GITHUB_TOKEN" | tr -d '\n\r')
-          git clone "https://x-access-token:${CLEAN_TOKEN}@github.com/loonghao/homebrew-vx.git" homebrew-tap
-
-          cd homebrew-tap
-
-          # Create Formula directory if not exists
-          mkdir -p Formula
-
-          # Copy formula
-          cp ../vx.rb Formula/vx.rb
-
-          # Commit and push
-          git add .
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Update vx to ${VERSION_NUM}"
-            git push
-            echo "Successfully updated Homebrew tap"
-          fi
+  # NOTE: Homebrew publishing is handled by cargo-dist's publish-homebrew-formula job
+  # in release.yml. No custom Homebrew job needed here.
 
   # Publish to Scoop (Custom implementation)
   publish-scoop:
@@ -453,7 +302,7 @@ jobs:
 
   # Summary job
   publish-summary:
-    needs: [check-release, publish-winget, publish-chocolatey, publish-homebrew, publish-scoop]
+    needs: [check-release, publish-winget, publish-chocolatey, publish-scoop]
     runs-on: ubuntu-latest
     if: always() && needs.check-release.outputs.should-publish == 'true'
     steps:
@@ -469,7 +318,7 @@ jobs:
           echo "|-----------------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| 🪟 WinGet | ${{ needs.publish-winget.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🍫 Chocolatey | ${{ needs.publish-chocolatey.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🍺 Homebrew | ${{ needs.publish-homebrew.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🍺 Homebrew | (handled by cargo-dist) |" >> $GITHUB_STEP_SUMMARY
           echo "| 🥄 Scoop | ${{ needs.publish-scoop.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Installation Commands" >> $GITHUB_STEP_SUMMARY
