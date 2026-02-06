@@ -273,40 +273,60 @@ jobs:
           tag_name: ${{ needs.plan.outputs.tag }}
           files: artifacts/*
           fail_on_unmatched_files: true
-          generate_release_notes: false
-          append_body: true
-          body: |
-            
-            ---
-            
-            ### Installation
-            
-            #### Quick Install (Recommended)
-            
-            **Linux/macOS:**
-            ```bash
-            curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-            ```
-            
-            **Windows (PowerShell):**
-            ```powershell
-            irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
-            ```
-            
-            #### Static Binary (musl, no runtime dependencies)
-            
-            ```bash
-            PREFER_STATIC=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-            ```
-            
-            #### Package Managers
-            
-            - **Homebrew:** `brew install loonghao/vx/vx`
-            - **Cargo:** `cargo install vx`
-            
-            #### Manual Download
-            
-            Download the appropriate binary for your platform from the assets above.
+
+      - name: Append installation instructions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.plan.outputs.tag }}"
+
+          # Fetch existing release body
+          EXISTING_BODY=$(gh release view "$TAG" --json body -q .body)
+
+          # Skip if installation instructions are already present
+          if echo "$EXISTING_BODY" | grep -q "### Installation"; then
+            echo "Installation instructions already present, skipping"
+            exit 0
+          fi
+
+          read -r -d '' INSTALL_INSTRUCTIONS << 'INSTALL_EOF' || true
+
+          ---
+
+          ### Installation
+
+          #### Quick Install (Recommended)
+
+          **Linux/macOS:**
+          ```bash
+          curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+          ```
+
+          **Windows (PowerShell):**
+          ```powershell
+          irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+          ```
+
+          #### Static Binary (musl, no runtime dependencies)
+
+          ```bash
+          PREFER_STATIC=true curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+          ```
+
+          #### Package Managers
+
+          - **Homebrew:** `brew install loonghao/vx/vx`
+          - **Cargo:** `cargo install vx`
+
+          #### Manual Download
+
+          Download the appropriate binary for your platform from the assets above.
+          INSTALL_EOF
+
+          # Append installation instructions to existing body
+          NEW_BODY="${EXISTING_BODY}${INSTALL_INSTRUCTIONS}"
+          gh release edit "$TAG" --notes "$NEW_BODY"
+          echo "Successfully appended installation instructions to release $TAG"
 
   # Generate attestations
   attest:

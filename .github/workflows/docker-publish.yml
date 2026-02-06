@@ -140,6 +140,7 @@ jobs:
           file: pkg/docker/Dockerfile.prebuilt
           platforms: ${{ matrix.platform }}
           push: true
+          provenance: false
           tags: |
             ${{ env.DOCKER_HUB_REPO }}:${{ needs.check-release.outputs.version_short }}-${{ steps.platform.outputs.suffix }}
             ${{ env.GHCR_REPO }}:${{ needs.check-release.outputs.version_short }}-${{ steps.platform.outputs.suffix }}
@@ -290,6 +291,7 @@ jobs:
           file: pkg/docker/Dockerfile.tools
           platforms: ${{ matrix.platform }}
           push: true
+          provenance: false
           tags: |
             ${{ env.DOCKER_HUB_REPO }}:tools-${{ needs.check-release.outputs.version_short }}-${{ steps.platform.outputs.suffix }}
             ${{ env.GHCR_REPO }}:tools-${{ needs.check-release.outputs.version_short }}-${{ steps.platform.outputs.suffix }}
