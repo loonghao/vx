@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.29](https://github.com/loonghao/vx/compare/vx-v0.6.28...vx-v0.6.29) (2026-02-06)
+
+
+### Bug Fixes
+
+* **ci:** resolve RPM build, Docker manifest, and release notes issues ([11169d2](https://github.com/loonghao/vx/commit/11169d27b15bcd07dae6bc117d0725a41ed1dd04))
+* **ci:** use cross-platform sha256 checksum and unify workspace versions ([31e8e5d](https://github.com/loonghao/vx/commit/31e8e5dd2daf02c0e7b0120a25e131e90c48bf17))
+
 ## [0.6.28](https://github.com/loonghao/vx/compare/vx-v0.6.27...vx-v0.6.28) (2026-02-06)
 
 
