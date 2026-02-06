@@ -215,17 +215,13 @@ impl<'a> EnvironmentManager<'a> {
                 } else if inherit_env {
                     // No advanced config, but inherit_env requested - inherit everything
                     for (key, value) in std::env::vars() {
-                        if !env.contains_key(&key) {
-                            env.insert(key, value);
-                        }
+                        env.entry(key).or_insert(value);
                     }
                 }
             } else if inherit_env {
                 // No env_config, but inherit_env requested - inherit everything
                 for (key, value) in std::env::vars() {
-                    if !env.contains_key(&key) {
-                        env.insert(key, value);
-                    }
+                    env.entry(key).or_insert(value);
                 }
             }
 

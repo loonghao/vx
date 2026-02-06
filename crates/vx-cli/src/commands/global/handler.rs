@@ -27,10 +27,10 @@ async fn ensure_runtime_installed(
         let context = ctx.runtime_context();
 
         // Check if already installed - get the installed version
-        let installed_versions = match runtime.installed_versions(context).await {
-            Ok(v) => v,
-            Err(_) => vec![],
-        };
+        let installed_versions: Vec<String> = runtime
+            .installed_versions(context)
+            .await
+            .unwrap_or_default();
 
         if !installed_versions.is_empty() {
             // Use the latest installed version
