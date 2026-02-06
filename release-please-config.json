@@ -3,12 +3,11 @@
   "release-type": "simple",
   "include-v-in-tag": true,
   "separate-pull-requests": false,
-  "pull-request-title-pattern": "chore: release ${component} v${version}",
+  "pull-request-title-pattern": "chore: release v${version}",
   "group-pull-request-title-pattern": "chore: release v${version}",
   "packages": {
     ".": {
       "package-name": "vx",
-      "component": "vx",
       "changelog-path": "CHANGELOG.md",
       "release-type": "simple",
       "bump-minor-pre-major": true,
