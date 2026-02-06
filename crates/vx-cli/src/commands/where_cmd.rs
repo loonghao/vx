@@ -59,9 +59,8 @@ pub async fn handle(
             UI::debug("Runtime index missing or expired, building...");
             // Load manifests from embedded data
             let mut loader = ManifestLoader::new();
-            let manifests_data: Vec<(&str, &str)> =
-                get_embedded_manifests().iter().copied().collect();
-            if let Ok(_) = loader.load_embedded(manifests_data) {
+            let manifests_data: Vec<(&str, &str)> = get_embedded_manifests().to_vec();
+            if loader.load_embedded(manifests_data).is_ok() {
                 let manifests: Vec<_> = loader.all().cloned().collect();
                 if let Err(e) = index.build_and_save(&manifests) {
                     UI::debug(&format!("Failed to build runtime index: {}", e));
@@ -96,7 +95,7 @@ pub async fn handle(
         vec![path]
     } else {
         // Slow path: use PathResolver to scan file system
-        UI::debug(&format!("Not in runtime index, scanning file system..."));
+        UI::debug("Not in runtime index, scanning file system...");
 
         // Create path manager and resolver
         let path_manager = PathManager::new()

@@ -654,7 +654,9 @@ impl<'a> Executor<'a> {
 
                         // Install the parent runtime
                         let install_mgr = self.installation_manager();
-                        install_mgr.install_runtimes(&[parent.clone()]).await?;
+                        install_mgr
+                            .install_runtimes(std::slice::from_ref(parent))
+                            .await?;
 
                         // Update runtime_env with parent runtime's environment
                         let env_mgr = self.environment_manager();
@@ -769,7 +771,7 @@ impl<'a> Executor<'a> {
                             );
                             let install_mgr = self.installation_manager();
                             install_mgr
-                                .install_runtimes(&[runtime_name.clone()])
+                                .install_runtimes(std::slice::from_ref(runtime_name))
                                 .await?;
 
                             // Get the installed version
@@ -793,32 +795,31 @@ impl<'a> Executor<'a> {
             };
 
             // Ensure requested version is installed
-            if requested_version.is_some() {
-                if !runtime
+            if requested_version.is_some()
+                && !runtime
                     .is_installed(&version, context)
                     .await
                     .unwrap_or(false)
-                {
-                    if self.config.auto_install {
-                        info!(
-                            "  --with dependency '{}@{}' is not installed. Auto-installing...",
-                            runtime_name, version
-                        );
-                        let install_mgr = self.installation_manager();
-                        install_mgr
-                            .ensure_version_installed(runtime_name, &version)
-                            .await?;
-                    } else {
-                        return Err(anyhow::anyhow!(
-                            "--with dependency '{}@{}' is not installed.\n\n\
-                             To install it, run:\n\n  vx install {}@{}\n\n\
-                             Or enable auto-install.",
-                            runtime_name,
-                            version,
-                            runtime_name,
-                            version
-                        ));
-                    }
+            {
+                if self.config.auto_install {
+                    info!(
+                        "  --with dependency '{}@{}' is not installed. Auto-installing...",
+                        runtime_name, version
+                    );
+                    let install_mgr = self.installation_manager();
+                    install_mgr
+                        .ensure_version_installed(runtime_name, &version)
+                        .await?;
+                } else {
+                    return Err(anyhow::anyhow!(
+                        "--with dependency '{}@{}' is not installed.\n\n\
+                         To install it, run:\n\n  vx install {}@{}\n\n\
+                         Or enable auto-install.",
+                        runtime_name,
+                        version,
+                        runtime_name,
+                        version
+                    ));
                 }
             }
 
