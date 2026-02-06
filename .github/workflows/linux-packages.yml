@@ -182,6 +182,8 @@ jobs:
           VERSION_SHORT="${{ needs.check-release.outputs.version_short }}"
 
           cat > ~/rpmbuild/SPECS/vx.spec << EOF
+          %global debug_package %{nil}
+
           Name:           vx
           Version:        ${VERSION_SHORT}
           Release:        1%{?dist}
