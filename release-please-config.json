@@ -7,7 +7,6 @@
   "group-pull-request-title-pattern": "chore: release v${version}",
   "packages": {
     ".": {
-      "package-name": "vx",
       "changelog-path": "CHANGELOG.md",
       "release-type": "simple",
       "bump-minor-pre-major": true,
