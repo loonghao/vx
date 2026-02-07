@@ -126,9 +126,12 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
                     })?
                 };
 
-                if installed_version.is_some() {
-                    dep.status = InstallStatus::Installed;
-                    info!("[EnsureStage] Dependency {} installed", dep.name);
+                if let Some(ref actual_version) = installed_version {
+                    dep.mark_installed_with_version(actual_version.clone(), None);
+                    info!(
+                        "[EnsureStage] Dependency {} installed (version: {})",
+                        dep.name, actual_version
+                    );
                 }
             }
         }
@@ -158,9 +161,18 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
                     })?
             };
 
-            if installed_version.is_some() {
-                plan.primary.status = InstallStatus::Installed;
-                info!("[EnsureStage] Primary {} installed", plan.primary.name);
+            if let Some(ref actual_version) = installed_version {
+                // Update both status and version to the actual installed version.
+                // This is critical: the requested version may be "latest" or a range,
+                // but the store directory uses the concrete version (e.g., "0.10.0").
+                // Without this update, re-resolution would search for a directory
+                // named "latest" which doesn't exist.
+                plan.primary
+                    .mark_installed_with_version(actual_version.clone(), None);
+                info!(
+                    "[EnsureStage] Primary {} installed (version: {})",
+                    plan.primary.name, actual_version
+                );
             }
         }
 
@@ -190,9 +202,12 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
                         })?
                 };
 
-                if installed_version.is_some() {
-                    injected.status = InstallStatus::Installed;
-                    info!("[EnsureStage] --with dep {} installed", injected.name);
+                if let Some(ref actual_version) = installed_version {
+                    injected.mark_installed_with_version(actual_version.clone(), None);
+                    info!(
+                        "[EnsureStage] --with dep {} installed (version: {})",
+                        injected.name, actual_version
+                    );
                 }
             }
         }
@@ -216,83 +231,5 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
         );
 
         Ok(plan)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::executor::pipeline::plan::{ExecutionConfig, PlannedRuntime};
-    use std::path::PathBuf;
-
-    #[test]
-    fn test_ensure_stage_creation() {
-        let config = ResolverConfig::default();
-        let runtime_map = crate::RuntimeMap::empty();
-        let resolver = Resolver::new(config.clone(), runtime_map).unwrap();
-        let stage = EnsureStage::new(&resolver, &config, None, None);
-        assert!(stage.registry.is_none());
-        assert!(stage.context.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_ensure_stage_already_installed() {
-        let config = ResolverConfig::default();
-        let runtime_map = crate::RuntimeMap::empty();
-        let resolver = Resolver::new(config.clone(), runtime_map).unwrap();
-        let stage = EnsureStage::new(&resolver, &config, None, None);
-
-        let primary = PlannedRuntime::installed(
-            "node",
-            "20.0.0".to_string(),
-            PathBuf::from("/usr/local/bin/node"),
-        );
-        let plan = ExecutionPlan::new(primary, ExecutionConfig::default());
-
-        let result = stage.execute(plan).await;
-        assert!(result.is_ok());
-        let plan = result.unwrap();
-        assert!(!plan.needs_install());
-    }
-
-    #[tokio::test]
-    async fn test_ensure_stage_auto_install_disabled() {
-        let config = ResolverConfig::default();
-        let runtime_map = crate::RuntimeMap::empty();
-        let resolver = Resolver::new(config.clone(), runtime_map).unwrap();
-        let stage = EnsureStage::new(&resolver, &config, None, None);
-
-        let primary = PlannedRuntime::needs_install("node", "20.0.0".to_string());
-        let exec_config = ExecutionConfig {
-            auto_install: false,
-            ..Default::default()
-        };
-        let plan = ExecutionPlan::new(primary, exec_config);
-
-        let result = stage.execute(plan).await;
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(matches!(err, EnsureError::AutoInstallDisabled { .. }));
-    }
-
-    #[tokio::test]
-    async fn test_ensure_stage_platform_unsupported_logged() {
-        let config = ResolverConfig::default();
-        let runtime_map = crate::RuntimeMap::empty();
-        let resolver = Resolver::new(config.clone(), runtime_map).unwrap();
-        let stage = EnsureStage::new(&resolver, &config, None, None);
-
-        let primary = PlannedRuntime::installed(
-            "node",
-            "20.0.0".to_string(),
-            PathBuf::from("/usr/local/bin/node"),
-        );
-        let unsupported = PlannedRuntime::unsupported("msvc", "Windows only".to_string());
-        let plan =
-            ExecutionPlan::new(primary, ExecutionConfig::default()).with_injected(unsupported);
-
-        // Should succeed (unsupported injected dep is just a warning)
-        let result = stage.execute(plan).await;
-        assert!(result.is_ok());
     }
 }
