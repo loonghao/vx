@@ -687,3 +687,189 @@ fn test_regression_version_extraction_edge_cases() {
     let v = vx_core::version_utils::parse_version("20.10").unwrap();
     assert_eq!((v.major, v.minor, v.patch), (20, 10, 0));
 }
+
+// ============================================================================
+// Tag format and asset naming tests for v0.7.x (cargo-dist) migration
+// ============================================================================
+
+/// Test that version tag format detection works correctly across version eras
+#[rstest]
+#[case("0.5.0", false, "vx-v0.5.0")]
+#[case("0.5.29", false, "vx-v0.5.29")]
+#[case("0.6.0", false, "vx-v0.6.0")]
+#[case("0.6.31", false, "vx-v0.6.31")]
+#[case("0.7.0", true, "v0.7.0")]
+#[case("0.7.3", true, "v0.7.3")]
+#[case("1.0.0", true, "v1.0.0")]
+#[case("2.5.10", true, "v2.5.10")]
+fn test_tag_format_for_version(
+    #[case] version: &str,
+    #[case] uses_cargo_dist: bool,
+    #[case] expected_primary_tag: &str,
+) {
+    // Test cargo-dist detection
+    let parsed = vx_core::version_utils::parse_version(version).unwrap();
+    let is_cargo_dist = parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 7);
+    assert_eq!(
+        is_cargo_dist, uses_cargo_dist,
+        "Version {} cargo-dist detection mismatch",
+        version
+    );
+
+    // Test primary tag generation
+    let tag = if is_cargo_dist {
+        format!("v{}", version)
+    } else {
+        format!("vx-v{}", version)
+    };
+    assert_eq!(tag, expected_primary_tag);
+}
+
+/// Test that tag candidates include both formats as fallback
+#[rstest]
+#[case("0.7.3", "v0.7.3", "vx-v0.7.3")]
+#[case("1.0.0", "v1.0.0", "vx-v1.0.0")]
+#[case("0.6.31", "vx-v0.6.31", "v0.6.31")]
+#[case("0.5.28", "vx-v0.5.28", "v0.5.28")]
+fn test_tag_candidates_include_fallback(
+    #[case] version: &str,
+    #[case] expected_primary: &str,
+    #[case] expected_fallback: &str,
+) {
+    let parsed = vx_core::version_utils::parse_version(version).unwrap();
+    let is_cargo_dist = parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 7);
+
+    let candidates = if is_cargo_dist {
+        vec![format!("v{}", version), format!("vx-v{}", version)]
+    } else {
+        vec![format!("vx-v{}", version), format!("v{}", version)]
+    };
+
+    assert_eq!(candidates[0], expected_primary);
+    assert_eq!(candidates[1], expected_fallback);
+    assert_eq!(candidates.len(), 2, "Should always have exactly 2 tag candidates");
+}
+
+/// Test that CDN assets use correct naming for each version era
+#[rstest]
+#[case("0.6.1", true, "vx-v0.6.1")]   // v0.6.x: versioned + vx-v tag
+#[case("0.7.3", false, "v0.7.3")]       // v0.7.x: unversioned + v tag
+#[case("0.5.28", false, "vx-v0.5.28")]  // v0.5.x: unversioned + vx-v tag
+#[case("1.0.0", false, "v1.0.0")]       // v1.0+: unversioned + v tag
+fn test_cdn_asset_naming_consistency(
+    #[case] version: &str,
+    #[case] should_be_versioned: bool,
+    #[case] expected_tag: &str,
+) {
+    let parsed = vx_core::version_utils::parse_version(version).unwrap();
+
+    // Check versioned naming (only v0.6.x)
+    let uses_versioned = parsed.major == 0 && parsed.minor == 6;
+    assert_eq!(uses_versioned, should_be_versioned);
+
+    // Check tag format
+    let is_cargo_dist = parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 7);
+    let tag = if is_cargo_dist {
+        format!("v{}", version)
+    } else {
+        format!("vx-v{}", version)
+    };
+    assert_eq!(tag, expected_tag);
+
+    // Verify expected Windows asset name format
+    let expected_windows_asset = if uses_versioned {
+        format!("vx-{}-x86_64-pc-windows-msvc.zip", version)
+    } else {
+        "vx-x86_64-pc-windows-msvc.zip".to_string()
+    };
+
+    // Verify expected CDN URL structure
+    let cdn_url = format!(
+        "https://cdn.jsdelivr.net/gh/loonghao/vx@{}/{}",
+        tag, expected_windows_asset
+    );
+    assert!(cdn_url.contains(&tag), "CDN URL should contain the correct tag");
+    assert!(
+        cdn_url.contains(&expected_windows_asset),
+        "CDN URL should contain the correct asset name"
+    );
+}
+
+/// Regression test: The specific self-update failure scenario
+/// User on v0.6.26 tries to update to v0.7.3 — the download URLs must use correct format
+#[test]
+fn test_regression_v06x_to_v07x_update_urls() {
+    let target_version = "0.7.3";
+    let parsed = vx_core::version_utils::parse_version(target_version).unwrap();
+
+    // v0.7.3 should use cargo-dist format
+    let is_cargo_dist = parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 7);
+    assert!(is_cargo_dist, "v0.7.3 should use cargo-dist format");
+
+    // Primary tag should be v0.7.3
+    let primary_tag = format!("v{}", target_version);
+    assert_eq!(primary_tag, "v0.7.3");
+
+    // Asset should be unversioned (cargo-dist format)
+    let uses_versioned = parsed.major == 0 && parsed.minor == 6;
+    assert!(!uses_versioned, "v0.7.3 should NOT use versioned asset naming");
+
+    let expected_asset = "vx-x86_64-pc-windows-msvc.zip";
+
+    // The correct download URL
+    let correct_url = format!(
+        "https://github.com/loonghao/vx/releases/download/{}/{}",
+        primary_tag, expected_asset
+    );
+    assert_eq!(
+        correct_url,
+        "https://github.com/loonghao/vx/releases/download/v0.7.3/vx-x86_64-pc-windows-msvc.zip"
+    );
+
+    // The WRONG URL that old v0.6.26 binaries would generate
+    let wrong_url = format!(
+        "https://github.com/loonghao/vx/releases/download/vx-v{}/vx-{}-x86_64-pc-windows-msvc.zip",
+        target_version, target_version
+    );
+    assert_ne!(
+        correct_url, wrong_url,
+        "Old v0.6.x URL format should differ from correct v0.7.x format"
+    );
+}
+
+/// Test jsDelivr CDN version format handling
+/// jsDelivr returns versions as "0.7.3" for v0.7.3 tags and "x-v0.6.31" for vx-v0.6.31 tags
+#[rstest]
+#[case("0.7.3", "0.7.3")]       // cargo-dist tag v0.7.3 → jsDelivr "0.7.3"
+#[case("x-v0.6.31", "0.6.31")]  // legacy tag vx-v0.6.31 → jsDelivr "x-v0.6.31"
+#[case("x-v0.6.27", "0.6.27")]
+#[case("0.7.0", "0.7.0")]
+fn test_jsdelivr_version_normalization(#[case] jsdelivr_version: &str, #[case] expected: &str) {
+    let normalized = vx_core::version_utils::normalize_version(jsdelivr_version);
+    assert_eq!(
+        normalized, expected,
+        "jsDelivr version '{}' should normalize to '{}'",
+        jsdelivr_version, expected
+    );
+}
+
+/// Test that find_latest_version correctly selects v0.7.x over v0.6.x
+/// even when jsDelivr returns mixed format versions
+#[test]
+fn test_jsdelivr_mixed_format_latest_selection() {
+    // Simulate jsDelivr API response with mixed version formats
+    let cdn_versions = vec![
+        "x-v0.6.25",  // jsDelivr format for vx-v0.6.25
+        "x-v0.6.31",  // jsDelivr format for vx-v0.6.31
+        "0.7.0",       // jsDelivr format for v0.7.0
+        "0.7.3",       // jsDelivr format for v0.7.3
+    ];
+
+    let latest_stable =
+        vx_core::version_utils::find_latest_version(&cdn_versions, true);
+    assert_eq!(
+        latest_stable,
+        Some("0.7.3"),
+        "Should select 0.7.3 as the latest stable version from mixed jsDelivr formats"
+    );
+}

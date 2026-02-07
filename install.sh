@@ -479,52 +479,83 @@ install_from_release() {
         fi
     else
         # User specified version - normalize to tag format
-        # Accept: "v0.6.7", "0.6.7"
-        if [[ "$VX_VERSION" =~ ^v ]]; then
-            # Already in v0.6.7 format
+        # Accept: "v0.6.7", "0.6.7", "vx-v0.6.7"
+        if [[ "$VX_VERSION" =~ ^vx-v ]]; then
+            tag_name="$VX_VERSION"
+        elif [[ "$VX_VERSION" =~ ^v ]]; then
             tag_name="$VX_VERSION"
         else
-            # Just version number 0.6.7 -> v0.6.7
             tag_name="v$VX_VERSION"
         fi
     fi
 
     info "Installing vx $tag_name for $platform..."
 
-    # Extract version number from tag (e.g., "v0.5.7" -> "0.5.7")
-    version_number=$(echo "$tag_name" | sed -E 's/^v//')
+    # Extract version number from tag (e.g., "v0.5.7" -> "0.5.7", "vx-v0.6.27" -> "0.6.27")
+    version_number=$(echo "$tag_name" | sed -E 's/^(vx-)?v//')
+
+    # Determine all possible tag formats for this version
+    # v0.7.0+ uses v{ver} (cargo-dist), v0.6.x and earlier use vx-v{ver}
+    local major minor
+    major=$(echo "$version_number" | cut -d. -f1)
+    minor=$(echo "$version_number" | cut -d. -f2)
+    local tag_candidates=()
+    if [[ "$major" -gt 0 ]] || [[ "$major" -eq 0 && "$minor" -ge 7 ]]; then
+        # v0.7.0+: try v{ver} first, then vx-v{ver} as fallback
+        tag_candidates=("v${version_number}" "vx-v${version_number}")
+    else
+        # v0.6.x and earlier: try vx-v{ver} first, then v{ver} as fallback
+        tag_candidates=("vx-v${version_number}" "v${version_number}")
+    fi
+    # Override tag_name with the primary candidate
+    tag_name="${tag_candidates[0]}"
+    info "Using tag format: $tag_name (fallback: ${tag_candidates[1]:-none})"
 
     # Construct download URL based on Rust target triple
-    # Format: vx-{version}-{target}.tar.gz (e.g., vx-0.6.1-x86_64-unknown-linux-gnu.tar.gz)
+    # Three naming eras:
+    #   v0.5.x: unversioned (vx-{triple}.tar.gz) with tag vx-v{ver}
+    #   v0.6.x: versioned (vx-{ver}-{triple}.tar.gz) with tag vx-v{ver}
+    #   v0.7.0+: unversioned (vx-{triple}.tar.gz) with tag v{ver} (cargo-dist)
     local fallback_archive=""
+    local unversioned_archive=""
     
+    # Determine the Rust target triple
+    local target_triple=""
+    local fallback_triple=""
     case "$platform" in
         x86_64-unknown-linux-gnu)
-            archive_name="vx-${version_number}-x86_64-unknown-linux-gnu.tar.gz"
-            # Fallback to musl if gnu fails
-            fallback_archive="vx-${version_number}-x86_64-unknown-linux-musl.tar.gz"
+            target_triple="x86_64-unknown-linux-gnu"
+            fallback_triple="x86_64-unknown-linux-musl"
             ;;
         x86_64-unknown-linux-musl)
-            # Prefer musl (static), fallback to gnu
-            archive_name="vx-${version_number}-x86_64-unknown-linux-musl.tar.gz"
-            fallback_archive="vx-${version_number}-x86_64-unknown-linux-gnu.tar.gz"
+            target_triple="x86_64-unknown-linux-musl"
+            fallback_triple="x86_64-unknown-linux-gnu"
             ;;
         aarch64-unknown-linux-gnu)
-            archive_name="vx-${version_number}-aarch64-unknown-linux-gnu.tar.gz"
-            fallback_archive="vx-${version_number}-aarch64-unknown-linux-musl.tar.gz"
+            target_triple="aarch64-unknown-linux-gnu"
+            fallback_triple="aarch64-unknown-linux-musl"
             ;;
         aarch64-unknown-linux-musl)
-            archive_name="vx-${version_number}-aarch64-unknown-linux-musl.tar.gz"
-            fallback_archive="vx-${version_number}-aarch64-unknown-linux-gnu.tar.gz"
+            target_triple="aarch64-unknown-linux-musl"
+            fallback_triple="aarch64-unknown-linux-gnu"
             ;;
         x86_64-apple-darwin)
-            archive_name="vx-${version_number}-x86_64-apple-darwin.tar.gz"
+            target_triple="x86_64-apple-darwin"
             ;;
         aarch64-apple-darwin)
-            archive_name="vx-${version_number}-aarch64-apple-darwin.tar.gz"
+            target_triple="aarch64-apple-darwin"
             ;;
         *) error "Unsupported platform: $platform"; exit 1 ;;
     esac
+
+    # Primary: try versioned naming (vx-{ver}-{triple}.tar.gz)
+    archive_name="vx-${version_number}-${target_triple}.tar.gz"
+    # Secondary: try unversioned naming (vx-{triple}.tar.gz) for cargo-dist and legacy
+    unversioned_archive="vx-${target_triple}.tar.gz"
+    # Tertiary: fallback triple (e.g., musl <-> gnu)
+    if [[ -n "$fallback_triple" ]]; then
+        fallback_archive="vx-${version_number}-${fallback_triple}.tar.gz"
+    fi
 
     # Create temporary directory
     temp_dir=$(mktemp -d)
@@ -541,83 +572,70 @@ install_from_release() {
         wget_auth_opts="--header=\"Authorization: Bearer $GITHUB_TOKEN\""
     fi
 
-    local download_url="$BASE_URL/download/$tag_name/$archive_name"
-
-    # Download with retry
-    for retry in $(seq 1 $max_retries); do
-        if [[ $retry -gt 1 ]]; then
-            info "Retry attempt $retry of $max_retries..."
-            sleep $retry_delay
+    # Build comprehensive list of (tag, archive) combinations to try
+    # Order: primary tag + versioned, primary tag + unversioned,
+    #        fallback tag + versioned, fallback tag + unversioned,
+    #        then same with fallback triples
+    local try_list=()
+    for try_tag in "${tag_candidates[@]}"; do
+        try_list+=("$try_tag|$archive_name")
+        if [[ "$unversioned_archive" != "$archive_name" ]]; then
+            try_list+=("$try_tag|$unversioned_archive")
         fi
-
-        info "Downloading from GitHub Releases: $download_url"
-
-        if command -v curl >/dev/null 2>&1; then
-            if eval curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-delay 2 $curl_auth_opts "\"$download_url\"" -o "\"$temp_dir/$archive_name\"" 2>/dev/null; then
-                # Verify download
-                if [[ -f "$temp_dir/$archive_name" ]] && [[ $(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0) -gt 1024 ]]; then
-                    local file_size=$(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0)
-                    success "Successfully downloaded ($(echo "scale=2; $file_size/1024/1024" | bc 2>/dev/null || echo "unknown") MB)"
-                    download_success=true
-                    break
-                fi
-            fi
-        elif command -v wget >/dev/null 2>&1; then
-            if eval wget -q --timeout=120 --tries=3 --waitretry=2 $wget_auth_opts "\"$download_url\"" -O "\"$temp_dir/$archive_name\"" 2>/dev/null; then
-                # Verify download
-                if [[ -f "$temp_dir/$archive_name" ]] && [[ $(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0) -gt 1024 ]]; then
-                    local file_size=$(stat -f%z "$temp_dir/$archive_name" 2>/dev/null || stat -c%s "$temp_dir/$archive_name" 2>/dev/null || echo 0)
-                    success "Successfully downloaded ($(echo "scale=2; $file_size/1024/1024" | bc 2>/dev/null || echo "unknown") MB)"
-                    download_success=true
-                    break
-                fi
-            fi
-        else
-            error "Neither curl nor wget is available"
-            exit 1
-        fi
-
-        warn "Download attempt $retry failed, cleaning up..."
-        rm -f "$temp_dir/$archive_name"
     done
+    # Also try fallback triple if available
+    if [[ -n "$fallback_triple" ]]; then
+        local fallback_versioned="vx-${version_number}-${fallback_triple}.tar.gz"
+        local fallback_unversioned="vx-${fallback_triple}.tar.gz"
+        for try_tag in "${tag_candidates[@]}"; do
+            try_list+=("$try_tag|$fallback_versioned")
+            try_list+=("$try_tag|$fallback_unversioned")
+        done
+    fi
 
-    # Try fallback archive if primary failed and fallback exists
-    if [[ "$download_success" != "true" ]] && [[ -n "${fallback_archive:-}" ]]; then
-        warn "Primary archive failed, trying fallback archive..."
-        local fallback_url="$BASE_URL/download/$tag_name/$fallback_archive"
+    # Try each (tag, archive) combination
+    for combo in "${try_list[@]}"; do
+        [[ "$download_success" == "true" ]] && break
+        local try_tag="${combo%%|*}"
+        local try_archive="${combo##*|}"
+        local download_url="$BASE_URL/download/$try_tag/$try_archive"
 
         for retry in $(seq 1 $max_retries); do
             if [[ $retry -gt 1 ]]; then
-                info "Retry attempt $retry of $max_retries..."
                 sleep $retry_delay
             fi
 
-            info "Downloading fallback from GitHub Releases: $fallback_url"
+            info "Trying: $download_url"
 
+            local dl_ok=false
             if command -v curl >/dev/null 2>&1; then
-                if eval curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-delay 2 $curl_auth_opts "\"$fallback_url\"" -o "\"$temp_dir/$fallback_archive\"" 2>/dev/null; then
-                    if [[ -f "$temp_dir/$fallback_archive" ]] && [[ $(stat -f%z "$temp_dir/$fallback_archive" 2>/dev/null || stat -c%s "$temp_dir/$fallback_archive" 2>/dev/null || echo 0) -gt 1024 ]]; then
-                        archive_name="$fallback_archive"
-                        success "Successfully downloaded fallback"
-                        download_success=true
-                        break
-                    fi
+                if eval curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-delay 2 $curl_auth_opts "\"$download_url\"" -o "\"$temp_dir/$try_archive\"" 2>/dev/null; then
+                    dl_ok=true
                 fi
             elif command -v wget >/dev/null 2>&1; then
-                if eval wget -q --timeout=120 --tries=3 --waitretry=2 $wget_auth_opts "\"$fallback_url\"" -O "\"$temp_dir/$fallback_archive\"" 2>/dev/null; then
-                    if [[ -f "$temp_dir/$fallback_archive" ]] && [[ $(stat -f%z "$temp_dir/$fallback_archive" 2>/dev/null || stat -c%s "$temp_dir/$fallback_archive" 2>/dev/null || echo 0) -gt 1024 ]]; then
-                        archive_name="$fallback_archive"
-                        success "Successfully downloaded fallback"
-                        download_success=true
-                        break
-                    fi
+                if eval wget -q --timeout=120 --tries=3 --waitretry=2 $wget_auth_opts "\"$download_url\"" -O "\"$temp_dir/$try_archive\"" 2>/dev/null; then
+                    dl_ok=true
+                fi
+            else
+                error "Neither curl nor wget is available"
+                exit 1
+            fi
+
+            if [[ "$dl_ok" == "true" ]] && [[ -f "$temp_dir/$try_archive" ]]; then
+                local file_size
+                file_size=$(stat -f%z "$temp_dir/$try_archive" 2>/dev/null || stat -c%s "$temp_dir/$try_archive" 2>/dev/null || echo 0)
+                if [[ "$file_size" -gt 1024 ]]; then
+                    success "Successfully downloaded ($(echo "scale=2; $file_size/1024/1024" | bc 2>/dev/null || echo "unknown") MB)"
+                    archive_name="$try_archive"
+                    tag_name="$try_tag"
+                    download_success=true
+                    break
                 fi
             fi
 
-            warn "Fallback download attempt $retry failed, cleaning up..."
-            rm -f "$temp_dir/$fallback_archive"
+            rm -f "$temp_dir/$try_archive"
         done
-    fi
+    done
 
     if [[ "$download_success" != "true" ]]; then
         error "Failed to download vx binary after $max_retries retries"

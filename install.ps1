@@ -348,34 +348,89 @@ function Install-FromRelease {
     }
     else {
         # User specified version - normalize to tag format
-        # Accept: "v0.6.7", "0.6.7"
-        if ($Version -match '^v') {
-            # Already in v0.6.7 format
+        # Accept: "v0.6.7", "0.6.7", "vx-v0.6.7"
+        if ($Version -match '^vx-v') {
+            $tagName = $Version
+        }
+        elseif ($Version -match '^v') {
             $tagName = $Version
         }
         else {
-            # Just version number 0.6.7 -> v0.6.7
             $tagName = "v$Version"
         }
     }
 
     Write-Info "Installing vx $tagName for $platform..."
 
-    # Extract version number from tag (e.g., "v0.5.7" -> "0.5.7")
-    $versionNumber = $tagName -replace '^v', ''
+    # Extract version number from tag (e.g., "v0.5.7" -> "0.5.7", "vx-v0.6.27" -> "0.6.27")
+    $versionNumber = $tagName -replace '^(vx-)?v', ''
 
-    # Construct archive name
-    # Format: vx-{version}-{target}.zip (e.g., vx-0.6.1-x86_64-pc-windows-msvc.zip)
+    # Determine all possible tag formats for this version
+    # v0.7.0+ uses v{ver} (cargo-dist), v0.6.x and earlier use vx-v{ver}
+    $vParts = $versionNumber.Split('.')
+    $major = [int]$vParts[0]
+    $minor = if ($vParts.Length -gt 1) { [int]$vParts[1] } else { 0 }
+    if ($major -gt 0 -or ($major -eq 0 -and $minor -ge 7)) {
+        # v0.7.0+: try v{ver} first, then vx-v{ver} as fallback
+        $tagCandidates = @("v$versionNumber", "vx-v$versionNumber")
+    }
+    else {
+        # v0.6.x and earlier: try vx-v{ver} first, then v{ver} as fallback
+        $tagCandidates = @("vx-v$versionNumber", "v$versionNumber")
+    }
+    $tagName = $tagCandidates[0]
+    Write-Info "Using tag format: $tagName (fallback: $($tagCandidates[1]))"
+
+    # Construct archive names - try both versioned and unversioned naming
     $archiveName = "vx-$versionNumber-$platform.zip"
+    $unversionedArchiveName = "vx-$platform.zip"
 
     # Create temporary directory
     Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Preparing download..." -PercentComplete 20
     $tempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
 
     try {
-        $archivePath = Download-WithFallback -TagName $tagName -Platform $platform -ArchiveName $archiveName -TempDir $tempDir
+        # Build list of (tag, archive) combinations to try
+        $tryCombos = @()
+        foreach ($tryTag in $tagCandidates) {
+            $tryCombos += @{ Tag = $tryTag; Archive = $archiveName }
+            if ($unversionedArchiveName -ne $archiveName) {
+                $tryCombos += @{ Tag = $tryTag; Archive = $unversionedArchiveName }
+            }
+        }
 
-        # Extract
+        $downloadSuccess = $false
+        $archivePath = $null
+        foreach ($combo in $tryCombos) {
+            if ($downloadSuccess) { break }
+            try {
+                $archivePath = Download-WithFallback -TagName $combo.Tag -Platform $platform -ArchiveName $combo.Archive -TempDir $tempDir
+                $archiveName = $combo.Archive
+                $tagName = $combo.Tag
+                $downloadSuccess = $true
+            }
+            catch {
+                Write-Warn "Failed with tag=$($combo.Tag) archive=$($combo.Archive): $_"
+            }
+        }
+
+        if (-not $downloadSuccess) {
+            Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Completed
+            Write-Warn "Failed to download pre-built binary"
+            Write-Info "Falling back to building from source..."
+            Build-FromSource
+            return
+        }
+    }
+    catch {
+        Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Completed
+        Write-Warn "Failed to download pre-built binary: $_"
+        Write-Info "Falling back to building from source..."
+        Build-FromSource
+        return
+    }
+
+    try {
         Write-Info "Extracting to $InstallDir..."
         Microsoft.PowerShell.Utility\Write-Progress -Activity "Installing vx" -Status "Extracting archive..." -PercentComplete 60
         if (-not (Test-Path $InstallDir)) {
