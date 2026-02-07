@@ -6,6 +6,8 @@
 use crate::PathManager;
 use anyhow::Result;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use vx_cache::ExecPathCache;
 
 /// Result of finding a tool in vx-managed directories
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,20 +42,82 @@ impl std::fmt::Display for ToolSource {
 }
 
 /// Resolves tool paths and finds installed tools
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PathResolver {
     manager: PathManager,
+    /// Executable path cache (bincode-serialized)
+    exec_cache: Mutex<ExecPathCache>,
+    /// Cache directory for persisting cache
+    cache_dir: Option<PathBuf>,
 }
 
 impl PathResolver {
     /// Create a new PathResolver
     pub fn new(manager: PathManager) -> Self {
-        Self { manager }
+        Self {
+            manager,
+            exec_cache: Mutex::new(ExecPathCache::new()),
+            cache_dir: None,
+        }
     }
 
     /// Create a PathResolver with default paths
     pub fn default_paths() -> Result<Self> {
-        Ok(Self::new(PathManager::new()?))
+        let manager = PathManager::new()?;
+        let cache_dir = manager.cache_dir().to_path_buf();
+        let exec_cache = ExecPathCache::load(&cache_dir);
+        Ok(Self {
+            manager,
+            exec_cache: Mutex::new(exec_cache),
+            cache_dir: Some(cache_dir),
+        })
+    }
+
+    /// Create a PathResolver with explicit cache directory
+    pub fn with_cache_dir(manager: PathManager, cache_dir: PathBuf) -> Self {
+        let exec_cache = ExecPathCache::load(&cache_dir);
+        Self {
+            manager,
+            exec_cache: Mutex::new(exec_cache),
+            cache_dir: Some(cache_dir),
+        }
+    }
+
+    /// Persist the exec path cache to disk.
+    ///
+    /// This should be called after operations that modified the cache (e.g., at the
+    /// end of a command execution, or after install/uninstall).
+    pub fn save_cache(&self) {
+        if let Some(ref cache_dir) = self.cache_dir {
+            let cache = self.exec_cache.lock().unwrap();
+            if let Err(e) = cache.save(cache_dir) {
+                tracing::debug!("Failed to save exec path cache: {}", e);
+            }
+        }
+    }
+
+    /// Invalidate cache entries for a specific runtime.
+    ///
+    /// Call this after installing or uninstalling a runtime version.
+    pub fn invalidate_runtime_cache(&self, runtime_name: &str) {
+        let runtime_store_dir = self.manager.runtime_store_dir(runtime_name);
+        let mut cache = self.exec_cache.lock().unwrap();
+        cache.invalidate_runtime(&runtime_store_dir);
+        // Persist immediately after invalidation
+        if let Some(ref cache_dir) = self.cache_dir {
+            if let Err(e) = cache.save(cache_dir) {
+                tracing::debug!("Failed to save exec path cache after invalidation: {}", e);
+            }
+        }
+    }
+
+    /// Clear the entire exec path cache.
+    pub fn clear_exec_cache(&self) {
+        let mut cache = self.exec_cache.lock().unwrap();
+        cache.clear();
+        if let Some(ref cache_dir) = self.cache_dir {
+            let _ = ExecPathCache::remove_file(cache_dir);
+        }
     }
 
     /// Get the path manager
@@ -466,6 +530,20 @@ impl PathResolver {
             return None;
         }
 
+        // Check cache first
+        {
+            let mut cache = self.exec_cache.lock().unwrap();
+            if let Some(cached) = cache.get(dir, exe_name) {
+                tracing::trace!(
+                    "find_executable_in_dir: cache hit for '{}' in {} -> {}",
+                    exe_name,
+                    dir.display(),
+                    cached.display()
+                );
+                return Some(cached);
+            }
+        }
+
         tracing::trace!(
             "find_executable_in_dir: searching for '{}' in {}",
             exe_name,
@@ -533,6 +611,9 @@ impl PathResolver {
                 "find_executable_in_dir: found executable at {}",
                 path.display()
             );
+            // Store in cache
+            let mut cache = self.exec_cache.lock().unwrap();
+            cache.put(dir, exe_name, path.clone());
         } else {
             tracing::trace!(
                 "find_executable_in_dir: no executable found for '{}' in {} (candidates: {}, platform_candidates: {})",

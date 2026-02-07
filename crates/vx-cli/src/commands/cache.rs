@@ -411,6 +411,13 @@ async fn handle_purge(
         }
     }
 
+    // Always clear exec path cache on full purge
+    if !any_selector {
+        let _ = vx_cache::ExecPathCache::remove_file(&paths.cache_dir);
+        vx_resolver::clear_bin_dir_cache();
+        UI::success("Exec path cache cleared");
+    }
+
     UI::success("Purge completed");
     Ok(())
 }

@@ -220,11 +220,14 @@ impl<'a> Executor<'a> {
         };
 
         // Stage 1: Resolve
-        debug!("[Pipeline] Resolve");
-        let plan = resolve_stage
-            .execute(request)
-            .await
-            .map_err(PipelineError::from)?;
+        let plan = {
+            let _span = tracing::info_span!("resolve", runtime = %runtime_name).entered();
+            debug!("[Pipeline] Resolve");
+            resolve_stage
+                .execute(request)
+                .await
+                .map_err(PipelineError::from)?
+        };
 
         // Check incompatible dependencies (from resolution)
         let resolved_version = plan.primary.version_string().map(|s| s.to_string());
@@ -251,18 +254,24 @@ impl<'a> Executor<'a> {
         }
 
         // Stage 2: Ensure installed
-        debug!("[Pipeline] Ensure");
-        let plan = ensure_stage
-            .execute(plan)
-            .await
-            .map_err(PipelineError::from)?;
+        let plan = {
+            let _span = tracing::info_span!("ensure", runtime = %runtime_name).entered();
+            debug!("[Pipeline] Ensure");
+            ensure_stage
+                .execute(plan)
+                .await
+                .map_err(PipelineError::from)?
+        };
 
         // Stage 3: Prepare environment
-        debug!("[Pipeline] Prepare");
-        let mut prepared = prepare_stage
-            .execute(plan)
-            .await
-            .map_err(PipelineError::from)?;
+        let mut prepared = {
+            let _span = tracing::info_span!("prepare", runtime = %runtime_name).entered();
+            debug!("[Pipeline] Prepare");
+            prepare_stage
+                .execute(plan)
+                .await
+                .map_err(PipelineError::from)?
+        };
 
         // -------------------------
         // Post-prepare: --with Dependencies Injection
@@ -284,11 +293,17 @@ impl<'a> Executor<'a> {
         self.add_executable_dir_to_prepared_path(&mut prepared);
 
         // Stage 4: Execute
-        debug!("[Pipeline] Execute");
-        let exit_code = execute_stage
-            .execute(prepared)
-            .await
-            .map_err(PipelineError::from)?;
+        let exit_code = {
+            let _span = tracing::info_span!("execute_process", runtime = %runtime_name).entered();
+            debug!("[Pipeline] Execute");
+            execute_stage
+                .execute(prepared)
+                .await
+                .map_err(PipelineError::from)?
+        };
+
+        // Persist exec path cache (new entries discovered during resolution)
+        self.resolver.save_exec_cache();
 
         Ok(exit_code)
     }
