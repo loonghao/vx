@@ -1,6 +1,9 @@
 name: Test Setup Action
 
-# Test the setup-vx action to ensure it works correctly
+# Test the setup-vx action and verify provider functionality
+# Two-layer testing:
+#   1. Test action.yml itself (downloads from Releases)
+#   2. Test with locally-built binary (covers current code changes)
 
 on:
   push:
@@ -10,6 +13,10 @@ on:
       - '.github/workflows/test-action.yml'
       - 'install.sh'
       - 'install.ps1'
+      - 'crates/vx-resolver/**'
+      - 'crates/vx-runtime/**'
+      - 'crates/vx-installer/**'
+      - 'crates/vx-providers/**'
   pull_request:
     branches: [main]
     paths:
@@ -17,14 +24,70 @@ on:
       - '.github/workflows/test-action.yml'
       - 'install.sh'
       - 'install.ps1'
+      - 'crates/vx-resolver/**'
+      - 'crates/vx-runtime/**'
+      - 'crates/vx-installer/**'
+      - 'crates/vx-providers/**'
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # ============================================================================
+  # Stage 1: Build vx from current source
+  # ============================================================================
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: vx-linux
+            binary: target/release/vx
+          - os: windows-latest
+            artifact: vx-windows
+            binary: target/release/vx.exe
+          - os: macos-latest
+            artifact: vx-macos
+            binary: target/release/vx
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
+
+      - name: Build vx
+        run: cargo build --release
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.binary }}
+          retention-days: 1
+
+  # ============================================================================
+  # Stage 2: Test action.yml (install from Releases)
+  # ============================================================================
   test-action:
-    name: Test (${{ matrix.os }})
+    name: Action (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -34,13 +97,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # Test 1: Basic installation with latest version
       - name: Setup vx (latest)
         uses: ./
         id: setup-latest
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Disable cache for testing to ensure fresh installation
           cache: 'false'
 
       - name: Verify vx installation
@@ -49,41 +110,9 @@ jobs:
           echo "Installed version: ${{ steps.setup-latest.outputs.version }}"
           vx --version
           vx --help
-          vx list
-
-      # Test 2: Use vx to run tools
-      - name: Test Node.js via vx
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          vx node --version
-          vx node -e "console.log('Hello from Node.js via vx!')"
-
-      - name: Test UV via vx
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          vx uv self version
-          vx uvx ruff --version
-
-      - name: Test Go via vx
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          vx go version
-
-      # Test 3: Show vx cache info
-      - name: Show vx cache info
-        shell: bash
-        run: |
-          vx cache info
-          vx list --status
 
   test-action-with-tools:
-    name: Test with pre-installed tools (${{ matrix.os }})
+    name: Action + tools (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -93,7 +122,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # Test: Installation with pre-installed tools
       - name: Setup vx with tools
         uses: ./
         with:
@@ -109,23 +137,105 @@ jobs:
           vx uv self version
           vx list --status
 
-  test-action-specific-version:
-    name: Test specific version
-    runs-on: ubuntu-latest
+  # ============================================================================
+  # Stage 3: Test with locally-built binary (covers current code changes)
+  # Uses the binary built from source in Stage 1
+  # ============================================================================
+  test-built-binary:
+    name: Built binary (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: build
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: vx-linux
+            binary: ./bin/vx
+          - os: windows-latest
+            artifact: vx-windows
+            binary: .\bin\vx.exe
+          - os: macos-latest
+            artifact: vx-macos
+            binary: ./bin/vx
 
     steps:
       - uses: actions/checkout@v6
 
-      # Test: Installation with specific version (if available)
-      - name: Setup vx (specific version)
-        uses: ./
-        id: setup-specific
+      - name: Download built binary
+        uses: actions/download-artifact@v6
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Use latest for now, can be changed to specific version when needed
-          version: 'latest'
+          name: ${{ matrix.artifact }}
+          path: ./bin
 
-      - name: Verify installation
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./bin/vx
+
+      - name: Verify built binary
+        shell: bash
         run: |
-          echo "Installed version: ${{ steps.setup-specific.outputs.version }}"
-          vx --version
+          ${{ matrix.binary }} --version
+          ${{ matrix.binary }} --help
+          ${{ matrix.binary }} list
+
+      # Test core runtimes: node, uv, go
+      - name: Test Node.js
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ${{ matrix.binary }} node --version
+          ${{ matrix.binary }} node -e "console.log('Hello from Node.js via vx!')"
+
+      - name: Test npm/npx (depends on node)
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ${{ matrix.binary }} npm --version
+          ${{ matrix.binary }} npx --version
+
+      - name: Test UV
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ${{ matrix.binary }} uv self version
+
+      - name: Test uvx
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ${{ matrix.binary }} uvx ruff --version
+
+      - name: Test Go
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ${{ matrix.binary }} go version
+
+      # Test additional runtimes
+      - name: Test Bun
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ${{ matrix.binary }} bun --version
+
+      - name: Test just
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ${{ matrix.binary }} just --version
+
+      # Show final state
+      - name: Show installed runtimes
+        shell: bash
+        run: |
+          ${{ matrix.binary }} list --status
+          ${{ matrix.binary }} cache info
