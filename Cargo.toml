@@ -380,3 +380,20 @@ create-release = false
 publish-jobs = ["homebrew"]
 # Path that installers should place binaries in
 install-path = "CARGO_HOME"
+
+# macOS code signing configuration
+# Requires the following GitHub Secrets to be set:
+# - APPLE_DEVELOPER_ID_APPLICATION: Base64-encoded .p12 Developer ID Application certificate
+# - APPLE_DEVELOPER_ID_APPLICATION_PASSWORD: Password for the certificate
+# - APPLE_ID: Apple ID email for notarization
+# - APPLE_TEAM_ID: Apple Developer Team ID
+# - APPLE_APP_SPECIFIC_PASSWORD: App-specific password for notarization
+# 
+# To obtain these:
+# 1. Join Apple Developer Program ($99/year)
+# 2. Create Developer ID Application certificate at https://developer.apple.com/account/resources/certificates/list
+# 3. Export as .p12 and base64 encode: base64 -i cert.p12 | pbcopy
+# 4. Generate app-specific password at https://appleid.apple.com/account/manage
+# 
+# If secrets are not set, macOS binaries will be unsigned (users may see security warnings)
+mac-signing = true

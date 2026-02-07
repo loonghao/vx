@@ -309,15 +309,29 @@ jobs:
       PLAN: ${{ needs.plan.outputs.val }}
       GITHUB_USER: "axo bot"
       GITHUB_EMAIL: "admin+bot@axo.dev"
-    if: ${{ !fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases }}
+    # Only run if HOMEBREW_TAP_TOKEN is configured
+    if: ${{ (!fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases) }}
     steps:
+      - name: Check Homebrew Tap Token
+        id: check_token
+        run: |
+          if [ -z "${{ secrets.HOMEBREW_TAP_TOKEN }}" ]; then
+            echo "HOMEBREW_TAP_TOKEN not set, skipping Homebrew formula publish"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
       - uses: actions/checkout@v6
+        if: steps.check_token.outputs.skip != 'true'
         with:
           persist-credentials: true
           repository: "loonghao/homebrew-vx"
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
       # So we have access to the formula
       - name: Fetch homebrew formulae
+        if: steps.check_token.outputs.skip != 'true'
         uses: actions/download-artifact@v7
         with:
           pattern: artifacts-*
@@ -326,6 +340,7 @@ jobs:
       # This is extra complex because you can make your Formula name not match your app name
       # so we need to find releases with a *.rb file, and publish with that filename.
       - name: Commit formula files
+        if: steps.check_token.outputs.skip != 'true'
         run: |
           git config --global user.name "${GITHUB_USER}"
           git config --global user.email "${GITHUB_EMAIL}"
