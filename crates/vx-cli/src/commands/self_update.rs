@@ -1,6 +1,9 @@
 //! Self-update command implementation
 //!
 //! This module provides self-update functionality for vx with the following features:
+//! - **axoupdater fast path** (when `self-update` feature is enabled): Uses cargo-dist
+//!   install receipts for zero-config updates — handles tag format, asset naming, and
+//!   binary replacement automatically.
 //! - Multi-channel download with automatic fallback (GitHub, jsDelivr CDN, Fastly CDN)
 //! - Download progress bar with speed and ETA display
 //! - SHA256 checksum verification for security
@@ -66,6 +69,120 @@ pub async fn handle(
 
     let current_version = env!("CARGO_PKG_VERSION");
     UI::detail(&format!("Current version: {}", current_version));
+
+    // Try axoupdater fast path first (cargo-dist receipt-based)
+    // This handles tag format, asset naming, and binary replacement automatically.
+    // Only used when: no specific version requested, no prerelease flag, and receipt exists.
+    #[cfg(feature = "self-update")]
+    if target_version.is_none() && !prerelease {
+        match try_axoupdater(token, force, check_only).await {
+            Ok(Some(updated)) => {
+                // axoupdater handled the update successfully
+                if updated {
+                    UI::success("🎉 Successfully updated vx!");
+                    UI::hint(
+                        "Restart your terminal or run 'vx --version' to verify the update",
+                    );
+                }
+                // If not updated (already up to date or check_only), axoupdater already printed info
+                return Ok(());
+            }
+            Ok(None) => {
+                // No receipt found — fall through to legacy path
+                UI::detail("No cargo-dist install receipt found, using legacy update path");
+            }
+            Err(e) => {
+                // axoupdater failed — fall through to legacy path
+                UI::warn(&format!(
+                    "⚠️ axoupdater fast path failed: {}. Falling back to legacy update...",
+                    e
+                ));
+            }
+        }
+    }
+
+    // Legacy update path (multi-channel CDN fallback)
+    legacy_update(token, prerelease, force, check_only, target_version).await
+}
+
+/// Try the axoupdater fast path for self-update.
+///
+/// Returns:
+/// - `Ok(Some(true))` — update was installed
+/// - `Ok(Some(false))` — already up to date (or check_only)
+/// - `Ok(None)` — no install receipt found (should fall through to legacy)
+/// - `Err(e)` — axoupdater encountered an error (should fall through to legacy)
+#[cfg(feature = "self-update")]
+async fn try_axoupdater(
+    token: Option<&str>,
+    force: bool,
+    check_only: bool,
+) -> Result<Option<bool>> {
+    use axoupdater::AxoUpdater;
+
+    let mut updater = AxoUpdater::new_for("vx");
+    updater.disable_installer_output();
+
+    // Set GitHub token if provided (helps with rate limits)
+    if let Some(token) = token {
+        updater.set_github_token(token);
+    } else if let Ok(token) = env::var("VX_GITHUB_TOKEN") {
+        updater.set_github_token(&token);
+    } else if let Ok(token) = env::var("GITHUB_TOKEN") {
+        updater.set_github_token(&token);
+    }
+
+    // Try to load install receipt
+    if updater.load_receipt().is_err() {
+        // No receipt — this is expected for users who installed via
+        // old install scripts or manual download. Fall through to legacy.
+        return Ok(None);
+    }
+
+    // Override receipt version with actual compiled version (defensive, like uv does)
+    let current_ver = env!("CARGO_PKG_VERSION").parse().map_err(|e| {
+        anyhow!("Failed to parse current version: {}", e)
+    })?;
+    updater.set_current_version(current_ver)?;
+
+    // Check if update is needed
+    if check_only {
+        let update_needed = updater.is_update_needed().await?;
+        if update_needed {
+            UI::info("📦 A new version of vx is available!");
+            UI::hint("Run 'vx self-update' to update to the latest version");
+        } else {
+            UI::success("✅ vx is already up to date!");
+        }
+        return Ok(Some(!update_needed));
+    }
+
+    if !force {
+        let update_needed = updater.is_update_needed().await?;
+        if !update_needed {
+            UI::success("✅ vx is already up to date!");
+            return Ok(Some(false));
+        }
+    }
+
+    // Perform the update
+    UI::info("📥 Updating vx via axoupdater...");
+    let result = updater.run().await?;
+
+    // run() returns Option<UpdateResult> — Some means update was performed
+    Ok(Some(result.is_some()))
+}
+
+/// Legacy update path with multi-channel CDN fallback.
+/// Used when axoupdater receipt is not available (old installations, manual installs).
+async fn legacy_update(
+    token: Option<&str>,
+    prerelease: bool,
+    force: bool,
+    check_only: bool,
+    target_version: Option<&str>,
+) -> Result<()> {
+    let current_version = env!("CARGO_PKG_VERSION");
 
     // Create HTTP client with optional authentication
     let client = create_authenticated_client(token)?;

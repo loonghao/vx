@@ -104,14 +104,17 @@ dotenvy = "0.15"
 self-replace = { workspace = true }
 sha2 = { workspace = true }
 futures-util = { workspace = true }
+axoupdater = { workspace = true, optional = true }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true }
 
 [features]
-default = ["cdn-acceleration"]
+default = ["cdn-acceleration", "self-update"]
 # CDN acceleration for faster downloads in China (uses rustls, no OpenSSL required)
 cdn-acceleration = ["vx-runtime/cdn-acceleration"]
+# Self-update via axoupdater (cargo-dist receipt-based fast path)
+self-update = ["axoupdater"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
