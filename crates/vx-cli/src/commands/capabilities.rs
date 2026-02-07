@@ -120,6 +120,56 @@ pub async fn handle(registry: &ProviderRegistry, json: bool) -> Result<()> {
     Ok(())
 }
 
+/// Handle the `vx info --warnings` command
+///
+/// Displays build diagnostics from the provider registry construction,
+/// including missing factories and other configuration issues.
+pub async fn handle_warnings() -> Result<()> {
+    use crate::registry::get_build_diagnostics;
+    use colored::Colorize;
+
+    let diagnostics = get_build_diagnostics();
+
+    if diagnostics.errors.is_empty() && diagnostics.warnings.is_empty() {
+        println!("{} No build warnings or errors.", "✓".green().bold());
+        return Ok(());
+    }
+
+    if !diagnostics.errors.is_empty() {
+        println!(
+            "{} Build Errors ({}):",
+            "✗".red().bold(),
+            diagnostics.errors.len()
+        );
+        for error in &diagnostics.errors {
+            println!("  {} {}", "•".red(), error);
+        }
+        println!();
+    }
+
+    if !diagnostics.warnings.is_empty() {
+        println!(
+            "{} Build Warnings ({}):",
+            "⚠".yellow().bold(),
+            diagnostics.warnings.len()
+        );
+        for warning in &diagnostics.warnings {
+            println!("  {} {}", "•".yellow(), warning);
+        }
+        println!();
+    }
+
+    let total = diagnostics.errors.len() + diagnostics.warnings.len();
+    println!(
+        "{}: {} total diagnostic(s). Use {} for verbose output.",
+        "Summary".bold(),
+        total,
+        "--debug".cyan()
+    );
+
+    Ok(())
+}
+
 /// Gather all capabilities information
 async fn gather_capabilities(registry: &ProviderRegistry) -> Result<Capabilities> {
     let current_platform = Platform::current();

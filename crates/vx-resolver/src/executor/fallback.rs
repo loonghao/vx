@@ -10,6 +10,7 @@ use tokio::process::Command;
 use tracing::info;
 
 use super::installation::InstallationManager;
+use super::pipeline::error::EnsureError;
 
 impl<'a> InstallationManager<'a> {
     /// Fallback installation using known methods (scripts, package managers)
@@ -32,9 +33,11 @@ impl<'a> InstallationManager<'a> {
                     }
                     #[cfg(windows)]
                     {
-                        return Err(anyhow::anyhow!(
-                            "Node.js is not installed. Please install it from https://nodejs.org/"
-                        ));
+                        return Err(EnsureError::NotInstalled {
+                            runtime: "Node.js".to_string(),
+                            hint: "Please install it from https://nodejs.org/".to_string(),
+                        }
+                        .into());
                     }
                 }
                 self.run_install_command("bash", &["-c", "nvm install --lts"])
@@ -50,10 +53,10 @@ impl<'a> InstallationManager<'a> {
                     self.run_install_command("uv", &["python", "install"])
                         .await?;
                 } else {
-                    return Err(anyhow::anyhow!(
-                        "Python is not installed. Please install UV first ('vx install uv') \
-                         or install Python from https://www.python.org/"
-                    ));
+                    return Err(EnsureError::NotInstalled {
+                        runtime: "Python".to_string(),
+                        hint: "Please install UV first ('vx install uv') or install Python from https://www.python.org/".to_string(),
+                    }.into());
                 }
             }
 
@@ -87,9 +90,11 @@ impl<'a> InstallationManager<'a> {
                 if !self.check_command_exists("rustup").await {
                     #[cfg(windows)]
                     {
-                        return Err(anyhow::anyhow!(
-                            "Rust is not installed. Please install rustup from https://rustup.rs/"
-                        ));
+                        return Err(EnsureError::NotInstalled {
+                            runtime: "Rust".to_string(),
+                            hint: "Please install rustup from https://rustup.rs/".to_string(),
+                        }
+                        .into());
                     }
                     #[cfg(not(windows))]
                     {
@@ -106,9 +111,12 @@ impl<'a> InstallationManager<'a> {
 
             // Go
             "go" | "golang" => {
-                return Err(anyhow::anyhow!(
-                    "Go is not installed. Please install it from https://go.dev/dl/ or run 'vx install go'"
-                ));
+                return Err(EnsureError::NotInstalled {
+                    runtime: "Go".to_string(),
+                    hint: "Please install it from https://go.dev/dl/ or run 'vx install go'"
+                        .to_string(),
+                }
+                .into());
             }
 
             // pnpm
@@ -164,9 +172,12 @@ impl<'a> InstallationManager<'a> {
 
             // .NET SDK
             "dotnet" => {
-                return Err(anyhow::anyhow!(
-                    ".NET SDK is not installed. Please install it from https://dot.net/ or run 'vx install dotnet'"
-                ));
+                return Err(EnsureError::NotInstalled {
+                    runtime: ".NET SDK".to_string(),
+                    hint: "Please install it from https://dot.net/ or run 'vx install dotnet'"
+                        .to_string(),
+                }
+                .into());
             }
 
             // MSBuild (bundled with .NET SDK) - RFC 0028
@@ -174,33 +185,38 @@ impl<'a> InstallationManager<'a> {
             "msbuild" => {
                 // Try to trigger dotnet installation through the normal provider mechanism
                 // rather than using fallback (which would cause recursion)
-                return Err(anyhow::anyhow!(
-                    "MSBuild requires .NET SDK. Please install it first:\n\n  \
-                     vx install dotnet\n\n\
-                     On Windows, you can also install Visual Studio with C++ build tools."
-                ));
+                return Err(EnsureError::NotInstalled {
+                    runtime: "MSBuild".to_string(),
+                    hint: "Requires .NET SDK. Please install it first:\n\n  vx install dotnet\n\n  On Windows, you can also install Visual Studio with C++ build tools.".to_string(),
+                }.into());
             }
 
             _ => {
                 // Check if the runtime is in the registry but needs special handling
                 if let Some(registry) = self.registry {
                     if let Some(runtime) = registry.get_runtime(runtime_name) {
-                        return Err(anyhow::anyhow!(
-                            "Cannot auto-install '{}' ({}). Please install it manually.",
-                            runtime_name,
-                            runtime.description()
-                        ));
+                        return Err(EnsureError::NotInstalled {
+                            runtime: runtime_name.to_string(),
+                            hint: format!(
+                                "Cannot auto-install '{}' ({}). Please install it manually.",
+                                runtime_name,
+                                runtime.description()
+                            ),
+                        }
+                        .into());
                     } else {
-                        return Err(anyhow::anyhow!(
-                            "Unknown runtime '{}'. Cannot auto-install.",
-                            runtime_name
-                        ));
+                        return Err(EnsureError::NotInstalled {
+                            runtime: runtime_name.to_string(),
+                            hint: "Unknown runtime. Cannot auto-install.".to_string(),
+                        }
+                        .into());
                     }
                 } else {
-                    return Err(anyhow::anyhow!(
-                        "Unknown runtime '{}'. Cannot auto-install.",
-                        runtime_name
-                    ));
+                    return Err(EnsureError::NotInstalled {
+                        runtime: runtime_name.to_string(),
+                        hint: "Unknown runtime. Cannot auto-install.".to_string(),
+                    }
+                    .into());
                 }
             }
         }
@@ -226,10 +242,10 @@ impl<'a> InstallationManager<'a> {
             .await?;
 
         if !status.success() {
-            return Err(anyhow::anyhow!(
-                "Installation command failed with exit code: {:?}",
-                status.code()
-            ));
+            return Err(EnsureError::CommandFailed {
+                exit_code: status.code(),
+            }
+            .into());
         }
 
         Ok(())
@@ -248,7 +264,10 @@ impl<'a> InstallationManager<'a> {
         if status.success() {
             Ok(())
         } else {
-            Err(anyhow::anyhow!("Command failed"))
+            Err(EnsureError::CommandFailed {
+                exit_code: status.code(),
+            }
+            .into())
         }
     }
 }

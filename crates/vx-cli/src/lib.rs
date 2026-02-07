@@ -13,6 +13,7 @@ use vx_shim::{PackageRequest, ShimExecutor};
 pub mod cli;
 pub mod commands;
 pub mod config;
+pub mod error_handler;
 pub mod registry;
 pub mod suggestions;
 pub mod system_tools;

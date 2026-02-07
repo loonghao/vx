@@ -200,7 +200,10 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
     type Error = PrepareError;
 
     async fn execute(&self, plan: ExecutionPlan) -> Result<PreparedExecution, PrepareError> {
-        debug!("[PrepareStage] Preparing execution for {}", plan.primary.name);
+        debug!(
+            "[PrepareStage] Preparing execution for {}",
+            plan.primary.name
+        );
 
         // Step 1: Prepare environment variables (needed before proxy execution)
         let version = plan.primary.version_string().map(|s| s.to_string());

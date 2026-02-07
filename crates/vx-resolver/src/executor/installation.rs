@@ -6,6 +6,7 @@
 //! - Installing dependencies
 //! - Proxy runtime installation (RFC 0028)
 
+use super::pipeline::error::EnsureError;
 use crate::{Resolver, ResolverConfig, Result};
 use tracing::{debug, info};
 use vx_console::ProgressSpinner;
@@ -57,7 +58,11 @@ impl<'a> InstallationManager<'a> {
             if let Some(runtime) = registry.get_runtime(runtime_name) {
                 // Check platform support before attempting installation
                 if let Err(e) = runtime.check_platform_support() {
-                    return Err(anyhow::anyhow!("{}", e));
+                    return Err(EnsureError::PlatformNotSupported {
+                        runtime: runtime_name.to_string(),
+                        reason: e.to_string(),
+                    }
+                    .into());
                 }
 
                 // Fetch versions to get the latest - show progress spinner
@@ -79,7 +84,9 @@ impl<'a> InstallationManager<'a> {
                     .find(|v| !v.prerelease)
                     .map(|v| v.version.clone())
                     .or_else(|| versions.first().map(|v| v.version.clone()))
-                    .ok_or_else(|| anyhow::anyhow!("No versions found for {}", runtime_name))?;
+                    .ok_or_else(|| EnsureError::NoVersionsFound {
+                        runtime: runtime_name.to_string(),
+                    })?;
 
                 info!("Installing {} {} via provider", runtime_name, version);
 
@@ -98,10 +105,11 @@ impl<'a> InstallationManager<'a> {
 
                 // Verify the installation actually succeeded
                 if !context.fs.exists(&result.executable_path) {
-                    return Err(anyhow::anyhow!(
-                        "Installation completed but executable not found at {}",
-                        result.executable_path.display()
-                    ));
+                    return Err(EnsureError::PostInstallVerificationFailed {
+                        runtime: runtime_name.to_string(),
+                        path: result.executable_path.clone(),
+                    }
+                    .into());
                 }
 
                 // Run post-install hook (for symlinks, PATH setup, etc.)
@@ -130,7 +138,11 @@ impl<'a> InstallationManager<'a> {
             if let Some(runtime) = registry.get_runtime(runtime_name) {
                 // Check platform support before attempting installation
                 if let Err(e) = runtime.check_platform_support() {
-                    return Err(anyhow::anyhow!("{}", e));
+                    return Err(EnsureError::PlatformNotSupported {
+                        runtime: runtime_name.to_string(),
+                        reason: e.to_string(),
+                    }
+                    .into());
                 }
 
                 info!(
@@ -156,10 +168,11 @@ impl<'a> InstallationManager<'a> {
 
                 // Verify the installation actually succeeded
                 if !context.fs.exists(&result.executable_path) {
-                    return Err(anyhow::anyhow!(
-                        "Installation completed but executable not found at {}",
-                        result.executable_path.display()
-                    ));
+                    return Err(EnsureError::PostInstallVerificationFailed {
+                        runtime: runtime_name.to_string(),
+                        path: result.executable_path.clone(),
+                    }
+                    .into());
                 }
 
                 // Run post-install hook
@@ -243,13 +256,11 @@ impl<'a> InstallationManager<'a> {
 
         // Install the specific version
         if !self.config.auto_install {
-            return Err(anyhow::anyhow!(
-                "{}@{} is not installed. Run 'vx install {}@{}' or enable auto-install.",
-                runtime_name,
-                resolved_version,
-                runtime_name,
-                requested_version
-            ));
+            return Err(EnsureError::AutoInstallDisabled {
+                runtime: runtime_name.to_string(),
+                version: resolved_version.clone(),
+            }
+            .into());
         }
 
         info!(
@@ -269,10 +280,11 @@ impl<'a> InstallationManager<'a> {
 
         // Verify the installation
         if !context.fs.exists(&result.executable_path) {
-            return Err(anyhow::anyhow!(
-                "Installation completed but executable not found at {}",
-                result.executable_path.display()
-            ));
+            return Err(EnsureError::PostInstallVerificationFailed {
+                runtime: runtime_name.to_string(),
+                path: result.executable_path.clone(),
+            }
+            .into());
         }
 
         // Run post-install hook

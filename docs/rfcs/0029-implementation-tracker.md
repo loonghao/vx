@@ -5,12 +5,12 @@
 | Phase | 描述 | 状态 | 完成度 | 目标版本 | 预计工期 |
 |-------|------|------|--------|----------|----------|
 | Phase 1 | 核心重构（Pipeline 架构） | 进行中 | 95% | v0.7.0 | 2 周 |
-| Phase 2 | ManifestRegistry 拆分 | 待开始 | 0% | v0.7.0 | 1 周 |
-| Phase 3 | 错误处理改进 | 进行中 | 60% | v0.7.1 | 1 周 |
+| Phase 2 | ManifestRegistry 拆分 | ✅ 完成 | 100% | v0.7.0 | 1 周 |
+| Phase 3 | 错误处理改进 | 进行中 | 95% | v0.7.1 | 1 周 |
 | Phase 4 | Fallback Chain 与传统配置支持 🆕 | 待开始 | 0% | v0.7.1 | 1.5 周 |
 | Phase 5 | Shell 集成与自动切换 🆕 | 待开始 | 0% | v0.8.0 | 1.5 周 |
 | Phase 6 | 版本管理增强 🆕 | 待开始 | 0% | v0.8.0 | 1 周 |
-| Phase 7 | 任务系统增强 🆕 | 进行中 | 60% | v0.8.0 | 1 周 |
+| Phase 7 | 任务系统增强 🆕 | ✅ 完成 | 100% | v0.8.0 | 1 周 |
 | Phase 8 | 高级特性 | 待开始 | 0% | v0.9.0 | 2 周 |
 
 ## 借鉴来源
@@ -49,8 +49,8 @@
 - [x] 实现 `resolve_version` 逻辑 (explicit → project config → latest)
 - [x] 实现 `determine_source` 逻辑
 - [x] 实现 `build_plan` 映射 (ResolutionResult → ExecutionPlan)
-- [ ] 实现 `VersionStrategy` 配置
-- [ ] 实现 `LatestBehavior` 处理
+- [x] 实现 `VersionStrategy` 配置 — 已在 `version/strategy.rs` 中实现（SemverStrategy, Pep440Strategy, GoVersionStrategy）
+- [ ] 实现 `LatestBehavior` 处理 — 推迟至 Phase 8.1 (Locked 模式)
 - [x] 单元测试 (20 tests)
 
 #### 1.3 EnsureStage 实现
@@ -101,27 +101,30 @@
 ### Phase 2: ManifestRegistry 拆分
 
 #### 2.1 ManifestLoader
-- [ ] 创建 `loader.rs`
-- [ ] 迁移清单加载逻辑
-- [ ] 单元测试
+- [x] 创建 `manifest/loader.rs`（`ManifestStore` — 封装 `vx_manifest::ManifestLoader`）
+- [x] 迁移清单加载逻辑（`load_from_directory`, `load_from_manifests`, `get`, `names`, `find_runtime`）
+- [x] 单元测试（3 tests: load_from_directory, load_from_manifests, find_runtime）
 
 #### 2.2 ManifestIndex
-- [ ] 创建 `index.rs`
-- [ ] 实现元数据索引
-- [ ] 实现别名解析
-- [ ] 实现平台约束合并（取交集）
-- [ ] 单元测试
+- [x] 创建 `manifest/index.rs`（`ManifestIndex` — HashMap 索引）
+- [x] 实现元数据索引（`from_manifests`, `get_runtime`, `get_provider`）
+- [x] 实现别名解析（`resolve_alias`, `has_runtime`）
+- [x] 实现平台约束合并（`PlatformConstraint::intersect()` 取交集替代 `or_else`）
+- [x] 单元测试（7 tests: basic_lookup, alias_resolution, platform_intersection, no_constraint, multiple_providers, supported_runtimes, provider_metadata）
 
 #### 2.3 ProviderBuilder
-- [ ] 创建 `builder.rs`
-- [ ] 实现 `BuildResult`
-- [ ] 返回 warnings 和 errors
-- [ ] 单元测试
+- [x] 创建 `manifest/builder.rs`（`ProviderBuilder`）
+- [x] 实现 `BuildResult`（含 `registry`, `warnings`, `errors`）
+- [x] 返回 warnings 和 errors（`BuildWarning`, `BuildError` 结构化类型）
+- [x] 单元测试（5 tests: build_with_factory, build_missing_factory, build_mixed, build_from_factories, factory_names）
 
 #### 2.4 CLI 集成
-- [ ] 处理 `BuildResult.errors`
-- [ ] 添加 `vx info --warnings`
-- [ ] 文档更新
+- [x] `ManifestRegistry` 重构为 `ManifestStore` + `ProviderBuilder` 组合（向后兼容）
+- [x] 添加 `build_registry_with_result()` 方法返回 `BuildResult`
+- [x] 添加 `build_index()` 方法返回 `ManifestIndex`
+- [x] `PlatformConstraint::intersect()` 添加到 vx-manifest（取代 `or_else`）
+- [x] 在 `create_registry()` 中处理 `BuildResult.errors`（`build_registry_with_result()` + `store_build_diagnostics()`）
+- [x] 添加 `vx info --warnings`（显示 `BuildDiagnostics` 错误/警告 + 彩色输出）
 
 ### Phase 3: 错误处理改进
 
@@ -135,15 +138,18 @@
 - [x] 定义 `PipelineError` (5 variants, wraps all stages)
 
 #### 3.2 错误迁移
-- [ ] 迁移 `Executor` 错误（仍使用 anyhow，待迁移到 Pipeline 错误类型）
-- [ ] 迁移 `InstallationManager` 错误
-- [ ] 迁移 `Resolver` 错误
+- [x] 迁移 `Executor` 错误（executor.rs: 5 处 anyhow::anyhow! → PrepareError/ResolveError/EnsureError）
+- [x] 迁移 `InstallationManager` 错误（installation.rs: 7 处 → EnsureError）
+- [x] 迁移 `FallbackInstaller` 错误（fallback.rs: 11 处 → EnsureError）
+- [x] 迁移 `CommandBuilder` 错误（command.rs: 1 处 → ExecuteError::Timeout）
+- [x] 迁移 `BundleExecutor` 错误（bundle.rs: 2 处 → ExecuteError）
+- [ ] 迁移 `RuntimeIndex` 错误（runtime_index.rs: 7 处 anyhow::Result，需定义 RuntimeIndexError）
 
 #### 3.3 CLI 错误输出
-- [ ] 改进错误格式化
-- [ ] 添加依赖链上下文
-- [ ] 添加建议修复步骤
-- [ ] 测试验证
+- [x] 改进错误格式化（`error_handler.rs`：PipelineError downcast + 分类输出）
+- [x] 添加依赖链上下文（`format_generic_error` 显示 anyhow error chain）
+- [x] 添加建议修复步骤（每个错误变体提供 `vx install`/`vx list` 等修复命令）
+- [x] 测试验证（20 个测试覆盖所有 PipelineError 变体 + 泛型错误）
 
 ### Phase 4: Fallback Chain 与传统配置支持 🆕
 
@@ -258,8 +264,8 @@
   - [x] 脚本级 cwd 覆盖
   - [x] 脚本级 env 覆盖
   - [x] 脚本描述显示 (`--list`, `--script-help`)
-- [ ] 添加 `vx task <name>` 别名
-- [ ] 添加 `vx tasks` 列出所有任务
+- [x] ~~添加 `vx task <name>` 别名~~ — **取消**：`task` 命名空间已被 go-task provider 占用（`vx task` 转发到 go-task 的 Taskfile.yml），与 vx.toml 脚本语义冲突
+- [x] ~~添加 `vx tasks` 列出所有任务~~ — **取消**：同上，使用 `vx run --list` 即可
 - [x] 支持任务参数传递
 
 ### Phase 8: 高级特性
@@ -410,3 +416,8 @@
 | 2026-02-07 | Phase 7 进行中：增强 vx run — ConfigView.scripts 改为 ScriptConfig，实现依赖拓扑排序执行、cwd/env 覆盖、描述显示 |
 | 2026-02-07 | Phase 1.4 补完：PrepareStage 集成 proxy execution（RFC 0028），修复 bundled runtime（如 msbuild）executable 查找失败问题 |
 | 2026-02-07 | Phase 3.1 提前完成：5 层结构化错误类型已在 Phase 1.7 全部定义（27 个 error variants），更新 tracker 反映真实进度 |
+| 2026-02-07 | Phase 7 完成（100%）：取消 `vx task`/`vx tasks` 别名 — `task` 命名空间已被 go-task provider 占用，`vx run` 已完整覆盖任务系统功能 |
+| 2026-02-07 | Phase 3.2 完成（5/6）：迁移 executor 子模块全部 26 处 `anyhow::anyhow!()` 到结构化错误类型，新增 9 个 error variants 和 9 个测试，122 个测试全部通过 |
+| 2026-02-07 | Phase 3.3 完成：CLI 错误输出改进 — `error_handler.rs` 模块实现 PipelineError downcast + 分类格式化，`main.rs` 不再使用 anyhow 默认输出，20 个测试全通过 |
+| 2026-02-07 | Phase 2 进行中（80%）：ManifestRegistry 拆分为 `ManifestStore` + `ManifestIndex` + `ProviderBuilder` 三个子模块。新增 `PlatformConstraint::intersect()` 替代 `or_else`，`BuildResult` 结构化错误取代 silent warn。20 个新测试 + 全部旧测试通过 |
+| 2026-02-07 | Phase 2 完成（100%）：`create_registry()` 使用 `build_registry_with_result()` + `store_build_diagnostics()` 结构化诊断存储；新增 `vx info --warnings` 命令显示 build 错误/警告（彩色输出） |

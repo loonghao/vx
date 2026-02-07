@@ -117,14 +117,13 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
                             reason: e.to_string(),
                         })?
                 } else {
-                    install_mgr
-                        .install_runtime(&dep.name)
-                        .await
-                        .map_err(|e| EnsureError::DependencyInstallFailed {
+                    install_mgr.install_runtime(&dep.name).await.map_err(|e| {
+                        EnsureError::DependencyInstallFailed {
                             runtime: plan.primary.name.clone(),
                             dep: dep.name.clone(),
                             reason: e.to_string(),
-                        })?
+                        }
+                    })?
                 };
 
                 if installed_version.is_some() {
@@ -200,10 +199,10 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
 
         // Re-resolve to get updated executable paths
         // (This mirrors the re-resolve logic in the current executor)
-        if let Ok(re_resolved) = self.resolver.resolve_with_version(
-            &plan.primary.name,
-            plan.primary.version_string(),
-        ) {
+        if let Ok(re_resolved) = self
+            .resolver
+            .resolve_with_version(&plan.primary.name, plan.primary.version_string())
+        {
             if re_resolved.executable.is_absolute() {
                 plan.primary.executable = Some(re_resolved.executable);
                 plan.primary.status = InstallStatus::Installed;
@@ -223,9 +222,7 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::executor::pipeline::plan::{
-        ExecutionConfig, PlannedRuntime,
-    };
+    use crate::executor::pipeline::plan::{ExecutionConfig, PlannedRuntime};
     use std::path::PathBuf;
 
     #[test]

@@ -207,6 +207,27 @@ vx config set <key> <value>
 vx config get <key>
 ```
 
+## 诊断命令
+
+### info
+
+显示系统信息、能力概览和构建诊断。
+
+```bash
+vx info
+vx info --json
+vx info --warnings
+```
+
+选项：
+
+| 选项 | 描述 |
+|------|------|
+| `--json` | 以 JSON 格式输出（推荐 AI 和脚本使用） |
+| `--warnings` | 显示构建警告和诊断信息 |
+
+详细文档请参阅 [info 命令](./info.md)。
+
 ## 维护命令
 
 ### clean

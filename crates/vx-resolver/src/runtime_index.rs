@@ -311,7 +311,8 @@ impl RuntimeIndex {
 
         let file = std::fs::File::open(&data_path).ok()?;
         let mut reader = BufReader::new(file);
-        let data: IndexData = bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()?;
+        let data: IndexData =
+            bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()?;
 
         debug!(
             "Loaded runtime index: {} runtimes, {} aliases",
@@ -342,7 +343,8 @@ impl RuntimeIndex {
 
         let file = std::fs::File::open(&data_path).ok()?;
         let mut reader = BufReader::new(file);
-        let data: IndexData = bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()?;
+        let data: IndexData =
+            bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()?;
 
         debug!(
             "Loaded stale runtime index: {} runtimes (age: {}s)",
@@ -371,7 +373,11 @@ impl RuntimeIndex {
         {
             let file = std::fs::File::create(&meta_tmp)?;
             let mut writer = BufWriter::new(file);
-            bincode::serde::encode_into_std_write(&metadata, &mut writer, bincode::config::standard())?;
+            bincode::serde::encode_into_std_write(
+                &metadata,
+                &mut writer,
+                bincode::config::standard(),
+            )?;
         }
         std::fs::rename(&meta_tmp, &meta_path)?;
 

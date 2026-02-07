@@ -1,0 +1,167 @@
+//! Provider builder
+//!
+//! Builds a `ProviderRegistry` from manifests + registered factories.
+//! Returns a `BuildResult` with structured warnings and errors instead of
+//! silently logging.
+
+use crate::{Provider, ProviderRegistry};
+use std::collections::HashMap;
+use std::sync::Arc;
+use tracing::{info, trace};
+use vx_manifest::ProviderManifest;
+
+/// Result of building a provider registry
+pub struct BuildResult {
+    /// The constructed provider registry
+    pub registry: ProviderRegistry,
+    /// Non-fatal warnings encountered during build
+    pub warnings: Vec<BuildWarning>,
+    /// Errors encountered during build (manifests without factories)
+    pub errors: Vec<BuildError>,
+}
+
+impl std::fmt::Debug for BuildResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BuildResult")
+            .field("providers", &self.registry.providers().len())
+            .field("warnings", &self.warnings)
+            .field("errors", &self.errors)
+            .finish()
+    }
+}
+
+/// A non-fatal warning during provider build
+#[derive(Debug, Clone)]
+pub struct BuildWarning {
+    /// Provider name
+    pub provider: String,
+    /// Warning message
+    pub message: String,
+}
+
+impl std::fmt::Display for BuildWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}] {}", self.provider, self.message)
+    }
+}
+
+/// An error during provider build (manifest without matching factory)
+#[derive(Debug, Clone)]
+pub struct BuildError {
+    /// Provider name
+    pub provider: String,
+    /// Optional runtime name (if error is runtime-specific)
+    pub runtime: Option<String>,
+    /// Error reason
+    pub reason: String,
+}
+
+impl std::fmt::Display for BuildError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(ref runtime) = self.runtime {
+            write!(f, "[{}/{}] {}", self.provider, runtime, self.reason)
+        } else {
+            write!(f, "[{}] {}", self.provider, self.reason)
+        }
+    }
+}
+
+/// Builder that constructs a `ProviderRegistry` from manifests + factories
+///
+/// The key improvement over the old `ManifestRegistry.build_registry()` is that
+/// this returns a `BuildResult` with structured errors and warnings, rather than
+/// silently logging warnings for missing factories.
+pub struct ProviderBuilder {
+    /// Provider factories by name
+    factories: HashMap<String, Box<dyn Fn() -> Arc<dyn Provider> + Send + Sync>>,
+}
+
+impl Default for ProviderBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ProviderBuilder {
+    /// Create a new empty builder
+    pub fn new() -> Self {
+        Self {
+            factories: HashMap::new(),
+        }
+    }
+
+    /// Register a provider factory
+    pub fn register_factory<F>(&mut self, name: &str, factory: F)
+    where
+        F: Fn() -> Arc<dyn Provider> + Send + Sync + 'static,
+    {
+        self.factories.insert(name.to_string(), Box::new(factory));
+    }
+
+    /// List all registered factory names
+    pub fn factory_names(&self) -> Vec<String> {
+        self.factories.keys().cloned().collect()
+    }
+
+    /// Build a `ProviderRegistry` from the given manifests
+    ///
+    /// Returns a `BuildResult` containing the registry along with any
+    /// warnings or errors encountered during the build.
+    pub fn build(&self, manifests: &[ProviderManifest]) -> BuildResult {
+        let registry = ProviderRegistry::new();
+        let warnings = Vec::new();
+        let mut errors = Vec::new();
+
+        for manifest in manifests {
+            let name = &manifest.provider.name;
+
+            match self.factories.get(name) {
+                Some(factory) => {
+                    let provider = factory();
+                    registry.register(provider);
+                    trace!("registered provider '{}'", name);
+                }
+                None => {
+                    errors.push(BuildError {
+                        provider: name.clone(),
+                        runtime: None,
+                        reason: "No factory registered".to_string(),
+                    });
+                }
+            }
+        }
+
+        info!(
+            "built {} providers ({} errors, {} warnings)",
+            registry.providers().len(),
+            errors.len(),
+            warnings.len(),
+        );
+
+        BuildResult {
+            registry,
+            warnings,
+            errors,
+        }
+    }
+
+    /// Build a `ProviderRegistry` using only registered factories (no manifest required)
+    ///
+    /// Useful for backward compatibility when manifests are not available.
+    pub fn build_from_factories(&self) -> ProviderRegistry {
+        let registry = ProviderRegistry::new();
+
+        for (name, factory) in &self.factories {
+            let provider = factory();
+            registry.register(provider);
+            trace!("registered provider '{}' from factory", name);
+        }
+
+        info!(
+            "loaded {} providers from factories",
+            registry.providers().len()
+        );
+
+        registry
+    }
+}
