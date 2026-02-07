@@ -57,7 +57,7 @@ runs:
           ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ inputs.version }}-
           ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
 
-    # Install vx on Linux/macOS
+    # Install vx on Linux/macOS using install.sh
     - name: Install vx (Unix)
       if: runner.os != 'Windows'
       id: install-unix
@@ -76,7 +76,6 @@ runs:
         export PATH="$INSTALL_DIR:$PATH"
 
         # Add vx managed tools bin directory to PATH
-        # This allows tools installed by vx (like uv, node, etc.) to be found
         VX_BIN_DIR="$HOME/.vx/bin"
         mkdir -p "$VX_BIN_DIR"
         echo "$VX_BIN_DIR" >> $GITHUB_PATH
@@ -86,169 +85,27 @@ runs:
         if [ -f "$INSTALL_DIR/vx" ]; then
           echo "vx already installed (from cache)"
         else
-          echo "Installing vx..."
+          echo "Installing vx via install.sh..."
 
-          # Determine version
-          if [ "$VX_VERSION" = "latest" ]; then
-            echo "Fetching latest version with available assets..."
-            # Get releases and find one with assets available (5 retries for DNS issues)
-            for i in 1 2 3 4 5; do
-              # Get list of releases (not just latest) to find one with assets
-              RELEASES_JSON=$(curl -sS --retry 5 --retry-delay 5 -H "Authorization: Bearer $GH_TOKEN" \
-                "https://api.github.com/repos/loonghao/vx/releases?per_page=10")
+          # Use the bundled install.sh script
+          # VX_INSTALL_DIR controls where the binary is placed
+          export VX_INSTALL_DIR="$INSTALL_DIR"
+          export GITHUB_TOKEN="$GH_TOKEN"
 
-              # Find the first release that has assets (assets array is not empty)
-              TAG_NAME=$(echo "$RELEASES_JSON" | jq -r '
-                [.[] | select(.assets | length > 0) | select(.prerelease == false)] |
-                first | .tag_name // empty
-              ')
-
-              if [ -n "$TAG_NAME" ] && [ "$TAG_NAME" != "null" ]; then
-                echo "Found release with assets: $TAG_NAME"
-                break
-              fi
-              echo "Retry $i: No release with assets found, waiting 5 seconds..."
-              sleep 5
-            done
-            if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" = "null" ]; then
-              echo "Failed to find a release with assets after 5 retries"
-              exit 1
-            fi
-          else
-            # Handle version format
-            if [[ "$VX_VERSION" =~ ^vx-v ]]; then
-              TAG_NAME="$VX_VERSION"
-            elif [[ "$VX_VERSION" =~ ^v ]]; then
-              TAG_NAME="vx-$VX_VERSION"
-            else
-              TAG_NAME="vx-v$VX_VERSION"
-            fi
-          fi
-
-          echo "Installing vx $TAG_NAME..."
-
-          # Detect platform
-          OS=$(uname -s)
-          ARCH=$(uname -m)
-
-          case "$OS" in
-            Linux)
-              case "$ARCH" in
-                x86_64)
-                  # Try gnu first (more commonly available), fallback to musl
-                  TARGET="x86_64-unknown-linux-gnu"
-                  TARGET_FALLBACK="x86_64-unknown-linux-musl"
-                  ;;
-                aarch64)
-                  TARGET="aarch64-unknown-linux-gnu"
-                  TARGET_FALLBACK="aarch64-unknown-linux-musl"
-                  ;;
-                *)       echo "Unsupported architecture: $ARCH"; exit 1 ;;
-              esac
-              ;;
-            Darwin)
-              case "$ARCH" in
-                x86_64)  TARGET="x86_64-apple-darwin" ;;
-                arm64)   TARGET="aarch64-apple-darwin" ;;
-                *)       echo "Unsupported architecture: $ARCH"; exit 1 ;;
-              esac
-              ;;
-            *)
-              echo "Unsupported OS: $OS"
-              exit 1
-              ;;
-          esac
-
-          # Extract version number from tag (e.g., "vx-v0.6.1" -> "0.6.1")
-          VERSION_NUM=$(echo "$TAG_NAME" | sed -E 's/^(vx-)?v//')
-
-          # Determine artifact naming format based on version
-          # v0.6.0+ uses versioned naming (vx-0.6.1-target.tar.gz)
-          # v0.5.x and earlier use legacy naming (vx-target.tar.gz)
-          MAJOR=$(echo "$VERSION_NUM" | cut -d. -f1)
-          MINOR=$(echo "$VERSION_NUM" | cut -d. -f2)
-
-          USE_VERSIONED="false"
-          if [ "$MAJOR" -gt 0 ] || { [ "$MAJOR" -eq 0 ] && [ "$MINOR" -ge 6 ]; }; then
-            USE_VERSIONED="true"
-          fi
-
-          # Build list of archives to try (in order of preference)
-          ARCHIVES_TO_TRY=""
-          if [ "$USE_VERSIONED" = "true" ]; then
-            # For v0.6.0+: try versioned naming first
-            ARCHIVES_TO_TRY="vx-${VERSION_NUM}-${TARGET}.tar.gz"
-            [ -n "${TARGET_FALLBACK:-}" ] && ARCHIVES_TO_TRY="$ARCHIVES_TO_TRY vx-${VERSION_NUM}-${TARGET_FALLBACK}.tar.gz"
-            ARCHIVES_TO_TRY="$ARCHIVES_TO_TRY vx-${TARGET}.tar.gz"
-            [ -n "${TARGET_FALLBACK:-}" ] && ARCHIVES_TO_TRY="$ARCHIVES_TO_TRY vx-${TARGET_FALLBACK}.tar.gz"
-          else
-            # For v0.5.x: try legacy naming first
-            ARCHIVES_TO_TRY="vx-${TARGET}.tar.gz"
-            [ -n "${TARGET_FALLBACK:-}" ] && ARCHIVES_TO_TRY="$ARCHIVES_TO_TRY vx-${TARGET_FALLBACK}.tar.gz"
-            ARCHIVES_TO_TRY="$ARCHIVES_TO_TRY vx-${VERSION_NUM}-${TARGET}.tar.gz"
-            [ -n "${TARGET_FALLBACK:-}" ] && ARCHIVES_TO_TRY="$ARCHIVES_TO_TRY vx-${VERSION_NUM}-${TARGET_FALLBACK}.tar.gz"
-          fi
-
-          # Download with authentication and retry (5 retries with 5 second delay for DNS issues)
-          TEMP_DIR=$(mktemp -d)
-          trap 'rm -rf "$TEMP_DIR"' EXIT
-
-          DOWNLOAD_SUCCESS=false
-          ARCHIVE_NAME=""
-
-          # Try each archive name in order
-          for TRY_ARCHIVE in $ARCHIVES_TO_TRY; do
-            DOWNLOAD_URL="https://github.com/loonghao/vx/releases/download/${TAG_NAME}/${TRY_ARCHIVE}"
-            echo "Trying: $DOWNLOAD_URL"
-
-            if curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H "Accept: application/octet-stream" \
-              "$DOWNLOAD_URL" -o "$TEMP_DIR/$TRY_ARCHIVE" 2>/dev/null; then
-              if [ -f "$TEMP_DIR/$TRY_ARCHIVE" ] && [ $(stat -f%z "$TEMP_DIR/$TRY_ARCHIVE" 2>/dev/null || stat -c%s "$TEMP_DIR/$TRY_ARCHIVE" 2>/dev/null || echo 0) -gt 1024 ]; then
-                ARCHIVE_NAME="$TRY_ARCHIVE"
-                DOWNLOAD_SUCCESS=true
-                echo "Successfully downloaded: $TRY_ARCHIVE"
-                break
-              fi
-            fi
-            rm -f "$TEMP_DIR/$TRY_ARCHIVE"
-          done
-
-          if [ "$DOWNLOAD_SUCCESS" != "true" ]; then
-            echo "Failed to download vx binary. Tried: $ARCHIVES_TO_TRY"
-            exit 1
-          fi
-
-          # Extract
-          tar -xzf "$TEMP_DIR/$ARCHIVE_NAME" -C "$TEMP_DIR"
-
-          # Find and install binary
-          BINARY_PATH=$(find "$TEMP_DIR" -name "vx" -type f | head -n1)
-          if [ -z "$BINARY_PATH" ]; then
-            echo "vx binary not found in archive"
-            exit 1
-          fi
-
-          cp "$BINARY_PATH" "$INSTALL_DIR/vx"
-          chmod +x "$INSTALL_DIR/vx"
-
-          echo "vx installed to $INSTALL_DIR/vx"
+          # install.sh is bundled with the action
+          bash "${{ github.action_path }}/install.sh"
         fi
 
-        # Verify installation using full path (PATH update via GITHUB_PATH only affects subsequent steps)
+        # Verify installation
         "$INSTALL_DIR/vx" --version
 
-        # Export install dir for subsequent steps
+        # Export for subsequent steps
         echo "VX_INSTALL_DIR=$INSTALL_DIR" >> $GITHUB_ENV
-
-        # Export GitHub token for subsequent steps (for API rate limit avoidance)
-        # This ensures vx commands in user's steps can access the token
         if [ -n "$GH_TOKEN" ]; then
           echo "GITHUB_TOKEN=$GH_TOKEN" >> $GITHUB_ENV
         fi
 
-    # Install vx on Windows
+    # Install vx on Windows using install.ps1
     - name: Install vx (Windows)
       if: runner.os == 'Windows'
       id: install-windows
@@ -267,7 +124,6 @@ runs:
         $env:PATH = "$InstallDir;$env:PATH"
 
         # Add vx managed tools bin directory to PATH
-        # This allows tools installed by vx (like uv, node, etc.) to be found
         $VxBinDir = "$env:USERPROFILE\.vx\bin"
         New-Item -ItemType Directory -Path $VxBinDir -Force | Out-Null
         $VxBinDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
@@ -279,160 +135,20 @@ runs:
         if (Test-Path $vxPath) {
           Write-Host "vx already installed (from cache)"
         } else {
-          Write-Host "Installing vx..."
+          Write-Host "Installing vx via install.ps1..."
 
-          # Determine version with retry (5 retries for transient network issues)
-          $maxRetries = 5
-          $retryDelay = 5
-          $TagName = $null
+          # Use the bundled install.ps1 script
+          $env:VX_INSTALL_DIR = $InstallDir
+          $env:GITHUB_TOKEN = $env:GH_TOKEN
 
-          if ($env:VX_VERSION -eq "latest") {
-            Write-Host "Fetching latest version with available assets..."
-            $headers = @{ "Authorization" = "Bearer $env:GH_TOKEN" }
-
-            for ($i = 1; $i -le $maxRetries; $i++) {
-              try {
-                # Get list of releases to find one with assets
-                $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/loonghao/vx/releases?per_page=10" -Headers $headers -TimeoutSec 30
-
-                # Find the first non-prerelease with assets
-                foreach ($release in $releases) {
-                  if (-not $release.prerelease -and $release.assets.Count -gt 0) {
-                    $TagName = $release.tag_name
-                    Write-Host "Found release with assets: $TagName"
-                    break
-                  }
-                }
-                if ($TagName) { break }
-              } catch {
-                Write-Host "Retry $i`: Failed to fetch releases: $_"
-                if ($i -lt $maxRetries) { Start-Sleep -Seconds $retryDelay }
-              }
-            }
-
-            if (-not $TagName) {
-              Write-Error "Failed to find a release with assets after $maxRetries retries"
-              exit 1
-            }
-          } else {
-            if ($env:VX_VERSION -match '^vx-v') {
-              $TagName = $env:VX_VERSION
-            } elseif ($env:VX_VERSION -match '^v') {
-              $TagName = "vx-$env:VX_VERSION"
-            } else {
-              $TagName = "vx-v$env:VX_VERSION"
-            }
-          }
-
-          Write-Host "Installing vx $TagName..."
-
-          # Detect architecture
-          $arch = if ([Environment]::Is64BitOperatingSystem) { "x86_64" } else { "i686" }
-          $Target = "$arch-pc-windows-msvc"
-
-          # Extract version number from tag (e.g., "vx-v0.6.1" -> "0.6.1")
-          $VersionNum = $TagName -replace '^(vx-)?v', ''
-
-          # Determine artifact naming format based on version
-          # v0.6.0+ uses versioned naming (vx-0.6.1-target.zip)
-          # v0.5.x and earlier use legacy naming (vx-target.zip)
-          $VersionParts = $VersionNum.Split('.')
-          $Major = [int]$VersionParts[0]
-          $Minor = if ($VersionParts.Length -gt 1) { [int]$VersionParts[1] } else { 0 }
-
-          if ($Major -gt 0 -or ($Major -eq 0 -and $Minor -ge 6)) {
-            # Versioned naming (v0.6.0+)
-            $ArchiveName = "vx-$VersionNum-$Target.zip"
-            $ArchiveNameFallback = "vx-$Target.zip"
-          } else {
-            # Legacy naming (v0.5.x and earlier)
-            $ArchiveName = "vx-$Target.zip"
-            $ArchiveNameFallback = "vx-$VersionNum-$Target.zip"
-          }
-
-          $DownloadUrl = "https://github.com/loonghao/vx/releases/download/$TagName/$ArchiveName"
-
-          Write-Host "Downloading from: $DownloadUrl"
-
-          # Download with authentication and retry
-          $TempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
-          $ArchivePath = Join-Path $TempDir $ArchiveName
-
-          $headers = @{
-            "Authorization" = "Bearer $env:GH_TOKEN"
-            "Accept" = "application/octet-stream"
-          }
-
-          $downloadSuccess = $false
-
-          # Try primary archive name
-          for ($i = 1; $i -le $maxRetries; $i++) {
-            try {
-              Invoke-WebRequest -Uri $DownloadUrl -OutFile $ArchivePath -Headers $headers -TimeoutSec 120
-              if ((Test-Path $ArchivePath) -and ((Get-Item $ArchivePath).Length -gt 1024)) {
-                $downloadSuccess = $true
-                break
-              }
-            } catch {
-              Write-Host "Retry $i`: Download failed: $_"
-              Remove-Item $ArchivePath -Force -ErrorAction SilentlyContinue
-              if ($i -lt $maxRetries) { Start-Sleep -Seconds $retryDelay }
-            }
-          }
-
-          # Try fallback archive name if primary failed
-          if (-not $downloadSuccess) {
-            Write-Host "Primary archive not found, trying fallback: $ArchiveNameFallback"
-            $FallbackUrl = "https://github.com/loonghao/vx/releases/download/$TagName/$ArchiveNameFallback"
-            $FallbackPath = Join-Path $TempDir $ArchiveNameFallback
-
-            for ($i = 1; $i -le $maxRetries; $i++) {
-              try {
-                Invoke-WebRequest -Uri $FallbackUrl -OutFile $FallbackPath -Headers $headers -TimeoutSec 120
-                if ((Test-Path $FallbackPath) -and ((Get-Item $FallbackPath).Length -gt 1024)) {
-                  $ArchivePath = $FallbackPath
-                  $downloadSuccess = $true
-                  break
-                }
-              } catch {
-                Write-Host "Retry $i`: Fallback download failed: $_"
-                Remove-Item $FallbackPath -Force -ErrorAction SilentlyContinue
-                if ($i -lt $maxRetries) { Start-Sleep -Seconds $retryDelay }
-              }
-            }
-          }
-
-          if (-not $downloadSuccess) {
-            Write-Error "Failed to download vx after $maxRetries retries"
-            exit 1
-          }
-
-          # Extract
-          Expand-Archive -Path $ArchivePath -DestinationPath $TempDir -Force
-
-          # Find and install binary
-          $BinaryPath = Get-ChildItem -Path $TempDir -Name "vx.exe" -Recurse | Select-Object -First 1
-          if (-not $BinaryPath) {
-            Write-Error "vx.exe not found in archive"
-            exit 1
-          }
-
-          Copy-Item -Path (Join-Path $TempDir $BinaryPath) -Destination $vxPath -Force
-
-          # Cleanup
-          Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
-
-          Write-Host "vx installed to $vxPath"
+          & "${{ github.action_path }}\install.ps1"
         }
 
-        # Verify installation using full path (PATH update via GITHUB_PATH only affects subsequent steps)
+        # Verify installation
         & $vxPath --version
 
-        # Export install dir for subsequent steps
+        # Export for subsequent steps
         "VX_INSTALL_DIR=$InstallDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-        # Export GitHub token for subsequent steps (for API rate limit avoidance)
-        # This ensures vx commands in user's steps can access the token
         if ($env:GH_TOKEN) {
           "GITHUB_TOKEN=$env:GH_TOKEN" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
         }
@@ -442,19 +158,13 @@ runs:
       id: setup
       shell: bash
       run: |
-        # Ensure PATH includes vx install directory (in case GITHUB_PATH hasn't taken effect yet)
+        # Ensure PATH includes vx install directory
         if [ -n "$VX_INSTALL_DIR" ]; then
           export PATH="$VX_INSTALL_DIR:$PATH"
         fi
-
-        # Fallback: check common install locations
-        if ! command -v vx &> /dev/null; then
-          if [ -f "$HOME/.local/bin/vx" ]; then
-            export PATH="$HOME/.local/bin:$PATH"
-          fi
+        if [ -f "$HOME/.local/bin/vx" ]; then
+          export PATH="$HOME/.local/bin:$PATH"
         fi
-
-        # Add vx managed tools to PATH
         export PATH="$HOME/.vx/bin:$PATH"
 
         VERSION=$(vx --version | head -1 | awk '{print $2}')
@@ -468,19 +178,12 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
-        # Ensure PATH includes vx install directory
         if [ -n "$VX_INSTALL_DIR" ]; then
           export PATH="$VX_INSTALL_DIR:$PATH"
         fi
-
-        # Fallback: check common install locations
-        if ! command -v vx &> /dev/null; then
-          if [ -f "$HOME/.local/bin/vx" ]; then
-            export PATH="$HOME/.local/bin:$PATH"
-          fi
+        if [ -f "$HOME/.local/bin/vx" ]; then
+          export PATH="$HOME/.local/bin:$PATH"
         fi
-
-        # Add vx managed tools to PATH
         export PATH="$HOME/.vx/bin:$PATH"
 
         echo "Pre-installing tools: ${{ inputs.tools }}"
@@ -489,49 +192,33 @@ runs:
           vx $tool --version || echo "Warning: Failed to install $tool"
         done
 
-        # Show installed tools
         echo ""
         echo "Installed tools:"
         vx list --status
 
     # Setup environment for vx.toml projects
-    # This step runs vx setup (if enabled or auto-detected) and exports tool paths to GITHUB_PATH
     - name: Setup vx environment
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         VX_SETUP: ${{ inputs.setup }}
       run: |
-        # Ensure PATH includes vx install directory
         if [ -n "$VX_INSTALL_DIR" ]; then
           export PATH="$VX_INSTALL_DIR:$PATH"
         fi
         if [ -f "$HOME/.local/bin/vx" ]; then
           export PATH="$HOME/.local/bin:$PATH"
         fi
-
-        # Add vx bin directory to PATH (for shims)
         export PATH="$HOME/.vx/bin:$PATH"
 
-        # Check if vx.toml or .vx.toml exists in the current directory
         if [ -f "vx.toml" ] || [ -f ".vx.toml" ]; then
           echo "Found vx configuration, setting up vx environment..."
-
-          # Run vx setup if enabled
-          # 'true' means run setup and export tool paths
-          # 'false' means skip setup (default)
           if [ "$VX_SETUP" = "true" ]; then
             echo "Running vx setup --ci..."
             vx setup --ci || echo "Warning: vx setup failed"
+            echo "$HOME/.vx/bin" >> $GITHUB_PATH
           else
             echo "Skipping vx setup (set setup: 'true' to enable)"
-          fi
-
-          # Export tool paths to GITHUB_PATH only if setup is enabled
-          # Note: vx setup --ci already handles GITHUB_PATH export
-          if [ "$VX_SETUP" = "true" ]; then
-            # Also add vx bin directory as fallback
-            echo "$HOME/.vx/bin" >> $GITHUB_PATH
           fi
         else
           echo "No vx.toml found, skipping vx setup"
