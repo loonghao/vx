@@ -155,7 +155,7 @@ jobs:
             binary: ./bin/vx
           - os: windows-latest
             artifact: vx-windows
-            binary: .\bin\vx.exe
+            binary: ./bin/vx.exe
           - os: macos-latest
             artifact: vx-macos
             binary: ./bin/vx
