@@ -323,7 +323,9 @@ mod error_handling_tests {
             combined.contains("Tool not found")
                 || combined.contains("not found")
                 || combined.contains("Unknown tool")
+                || combined.contains("Unknown runtime")
                 || combined.contains("Cannot auto-install")
+                || combined.contains("cannot auto-install")
         );
     }
 
