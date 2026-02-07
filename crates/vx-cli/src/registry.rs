@@ -112,8 +112,9 @@ pub fn create_registry() -> ProviderRegistry {
     let mut manifest_registry = create_manifest_registry();
     manifest_registry.load_from_manifests(manifests);
 
-    // Use structured build result (RFC 0029 Phase 2)
-    let result = manifest_registry.build_registry_with_result();
+    // Use lazy loading: factory closures are stored but NOT called yet.
+    // Providers are materialized on-demand when get_runtime() is called.
+    let result = manifest_registry.build_registry_lazy();
 
     // Report build errors as structured diagnostics
     for error in &result.errors {
@@ -132,8 +133,12 @@ pub fn create_registry() -> ProviderRegistry {
         registry.set_provider_loader(Arc::new(loader));
     }
 
-    if registry.providers().is_empty() {
-        // Safety net: if factories fail to produce providers, use static registration
+    // Check if any factories were registered (pending counts as non-empty).
+    // We avoid calling providers() here because that would materialize all
+    // pending factories, defeating the purpose of lazy loading.
+    if !registry.has_pending() {
+        // No lazy factories were registered — build result had errors for all manifests.
+        // Safety net: fall back to static registration.
         let _ = init_constraints_from_manifests(get_embedded_manifests().iter().copied());
         return create_static_registry();
     }
