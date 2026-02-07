@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VX Performance Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; padding: 24px; }
+  h1 { color: #58a6ff; margin-bottom: 8px; }
+  .subtitle { color: #8b949e; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; }
+  .card h2 { color: #58a6ff; font-size: 16px; margin-bottom: 12px; }
+  .full { grid-column: 1 / -1; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+  .stat { text-align: center; }
+  .stat .value { font-size: 28px; font-weight: bold; color: #58a6ff; }
+  .stat .label { font-size: 12px; color: #8b949e; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #21262d; }
+  th { color: #8b949e; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  td { font-family: 'JetBrains Mono', monospace; }
+  .good { color: #3fb950; }
+  .warn { color: #d29922; }
+  .bad { color: #f85149; }
+  canvas { max-height: 300px; }
+  .insight { padding: 8px 12px; margin: 4px 0; border-radius: 4px; background: #1c2128; border-left: 3px solid #58a6ff; }
+  .insight.warn { border-left-color: #d29922; }
+  .insight.good { border-left-color: #3fb950; }
+  @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<h1>VX Performance Report</h1>
+<p class="subtitle">Generated {{TIMESTAMP}} &middot; {{COUNT}} runs analyzed</p>
+
+<div class="grid">
+  <div class="card" id="stats-card">
+    <h2>Summary Statistics</h2>
+    <div class="stat-grid" id="stats"></div>
+  </div>
+
+  <div class="card">
+    <h2>Latest Run Breakdown</h2>
+    <canvas id="pieChart"></canvas>
+  </div>
+
+  <div class="card full">
+    <h2>Performance Over Time</h2>
+    <canvas id="lineChart"></canvas>
+  </div>
+
+  <div class="card full">
+    <h2>Stage Stacked Area</h2>
+    <canvas id="stackedChart"></canvas>
+  </div>
+
+  <div class="card full">
+    <h2>Performance Insights</h2>
+    <div id="insights"></div>
+  </div>
+
+  <div class="card full">
+    <h2>Run History</h2>
+    <table>
+      <thead>
+        <tr><th>Time</th><th>Command</th><th>Total</th><th>Resolve</th><th>Ensure</th><th>Prepare</th><th>Execute</th><th>Exit</th></tr>
+      </thead>
+      <tbody id="history"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const labels = {{LABELS}};
+const totals = {{TOTALS}};
+const resolve = {{RESOLVE}};
+const ensure = {{ENSURE}};
+const prepare = {{PREPARE}};
+const execute = {{EXECUTE}};
+const latestStages = [{{LATEST_STAGES}}];
+const runsData = {{RUNS_JSON}};
+
+// Stats
+const avg = totals.reduce((a,b) => a+b, 0) / totals.length;
+const min = Math.min(...totals);
+const max = Math.max(...totals);
+const sorted = [...totals].sort((a,b) => a-b);
+const p50 = sorted[Math.floor(sorted.length * 0.5)] || 0;
+const p95 = sorted[Math.floor(sorted.length * 0.95)] || 0;
+
+document.getElementById('stats').innerHTML = [
+  ['Average', avg.toFixed(0) + 'ms'],
+  ['Min', min.toFixed(0) + 'ms'],
+  ['Max', max.toFixed(0) + 'ms'],
+  ['P50', p50.toFixed(0) + 'ms'],
+  ['P95', p95.toFixed(0) + 'ms'],
+  ['Runs', totals.length],
+].map(([l, v]) => `<div class="stat"><div class="value">${v}</div><div class="label">${l}</div></div>`).join('');
+
+// Pie chart (latest run)
+new Chart(document.getElementById('pieChart'), {
+  type: 'doughnut',
+  data: {
+    labels: latestStages.map(s => s.name),
+    datasets: [{ data: latestStages.map(s => s.value), backgroundColor: ['#58a6ff','#3fb950','#d29922','#f85149','#8b949e'] }]
+  },
+  options: { responsive: true, plugins: { legend: { position: 'right', labels: { color: '#c9d1d9' } } } }
+});
+
+// Line chart (total over time)
+new Chart(document.getElementById('lineChart'), {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [{
+      label: 'Total (ms)', data: totals,
+      borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.1)',
+      fill: true, tension: 0.3
+    }]
+  },
+  options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { color: '#8b949e' } }, x: { ticks: { color: '#8b949e' } } }, plugins: { legend: { labels: { color: '#c9d1d9' } } } }
+});
+
+// Stacked area chart
+new Chart(document.getElementById('stackedChart'), {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [
+      { label: 'Resolve', data: resolve, borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.3)', fill: true, tension: 0.3 },
+      { label: 'Ensure', data: ensure, borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,0.3)', fill: true, tension: 0.3 },
+      { label: 'Prepare', data: prepare, borderColor: '#d29922', backgroundColor: 'rgba(210,153,34,0.3)', fill: true, tension: 0.3 },
+      { label: 'Execute', data: execute, borderColor: '#f85149', backgroundColor: 'rgba(248,81,73,0.3)', fill: true, tension: 0.3 },
+    ]
+  },
+  options: { responsive: true, scales: { y: { stacked: true, beginAtZero: true, ticks: { color: '#8b949e' } }, x: { ticks: { color: '#8b949e' } } }, plugins: { legend: { labels: { color: '#c9d1d9' } } } }
+});
+
+// Insights
+const insightsEl = document.getElementById('insights');
+if (runsData.length > 0) {
+  const latest = runsData[0];
+  const stages = latest.stages || {};
+  const stageArr = Object.entries(stages).sort((a,b) => b[1].duration_ms - a[1].duration_ms);
+  if (stageArr.length > 0) {
+    const [bottleneck, data] = stageArr[0];
+    const pct = (data.duration_ms / latest.total_duration_ms * 100).toFixed(1);
+    if (pct > 50) {
+      insightsEl.innerHTML += `<div class="insight warn">⚡ Bottleneck: '${bottleneck}' stage takes ${pct}% (${data.duration_ms.toFixed(0)}ms) of total</div>`;
+    }
+  }
+  if (stages.prepare && stages.prepare.duration_ms > 100) {
+    insightsEl.innerHTML += `<div class="insight warn">🔍 'prepare' is slow (${stages.prepare.duration_ms.toFixed(0)}ms) — scanning runtime directories for PATH construction</div>`;
+  }
+  if (stages.resolve && stages.resolve.duration_ms > 100) {
+    insightsEl.innerHTML += `<div class="insight warn">🔍 'resolve' is slow (${stages.resolve.duration_ms.toFixed(0)}ms) — directory traversal for executable lookup</div>`;
+  }
+  const stageTotal = Object.values(stages).reduce((sum, s) => sum + s.duration_ms, 0);
+  const overhead = latest.total_duration_ms - stageTotal;
+  if (overhead > 50) {
+    insightsEl.innerHTML += `<div class="insight">📊 CLI overhead: ${overhead.toFixed(0)}ms (${(overhead/latest.total_duration_ms*100).toFixed(1)}%) for init/provider loading</div>`;
+  }
+  if (totals.length >= 3 && avg > sorted[0] * 1.5) {
+    insightsEl.innerHTML += `<div class="insight warn">⚠️ High variance: avg (${avg.toFixed(0)}ms) is much higher than best (${sorted[0].toFixed(0)}ms)</div>`;
+  }
+  if (insightsEl.innerHTML === '') {
+    insightsEl.innerHTML = '<div class="insight good">✅ Performance looks healthy!</div>';
+  }
+}
+
+// History table
+const historyEl = document.getElementById('history');
+runsData.forEach(r => {
+  const s = r.stages || {};
+  const cls = (r.exit_code || 0) === 0 ? 'good' : 'bad';
+  historyEl.innerHTML += `<tr>
+    <td>${r.timestamp.substring(0,19)}</td>
+    <td>${r.command.length > 40 ? r.command.substring(0,37)+'...' : r.command}</td>
+    <td>${r.total_duration_ms.toFixed(0)}ms</td>
+    <td>${(s.resolve?.duration_ms || 0).toFixed(0)}ms</td>
+    <td>${(s.ensure?.duration_ms || 0).toFixed(0)}ms</td>
+    <td>${(s.prepare?.duration_ms || 0).toFixed(0)}ms</td>
+    <td>${(s.execute?.duration_ms || 0).toFixed(0)}ms</td>
+    <td class="${cls}">${r.exit_code === 0 ? 'OK' : r.exit_code}</td>
+  </tr>`;
+});
+</script>
+</body>
+</html>
