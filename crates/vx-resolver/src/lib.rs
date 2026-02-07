@@ -48,6 +48,14 @@ pub use executor::{
     is_online, try_get_bundle_context, BundleContext, BundleManifest, BundledToolInfo, Executor,
     ProjectToolsConfig, BUNDLE_DIR, BUNDLE_MANIFEST,
 };
+
+// Pipeline types (RFC 0029)
+pub use executor::pipeline::{
+    EnsureError, EnsureStage, ExecuteError, ExecuteStage, ExecutionConfig, ExecutionPipeline,
+    ExecutionPlan, InstallStatus, PipelineError, PlannedRuntime, PrepareError, PrepareStage,
+    PreparedExecution, ProxyConfig, ResolveError, ResolveRequest, ResolveStage, Stage,
+    VersionResolution, VersionSource, WithDepRequest,
+};
 pub use resolution_cache::{
     ResolutionCache, ResolutionCacheKey, RESOLUTION_CACHE_DIR_NAME, RESOLUTION_CACHE_SCHEMA_VERSION,
 };

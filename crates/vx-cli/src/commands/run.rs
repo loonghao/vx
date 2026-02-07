@@ -19,6 +19,7 @@ use crate::commands::dev::build_script_environment;
 use crate::commands::setup::ConfigView;
 use crate::ui::UI;
 use vx_args::Interpolator;
+use vx_config::ScriptConfig;
 use vx_env::execute_with_env;
 
 /// Handle the run command - execute a script from vx.toml
@@ -68,8 +69,8 @@ pub async fn handle(
     // Split args at -- separator
     let (script_args, passthrough_args) = split_args_at_separator(args);
 
-    // Get the script command
-    let script_cmd = config.scripts.get(script_name).ok_or_else(|| {
+    // Get the script config
+    let script_config = config.scripts.get(script_name).ok_or_else(|| {
         let available: Vec<_> = config.scripts.keys().collect();
         if available.is_empty() {
             anyhow::anyhow!("No scripts defined in vx.toml")
@@ -86,6 +87,21 @@ pub async fn handle(
         }
     })?;
 
+    // Extract command and details from ScriptConfig
+    let (script_cmd, details) = match script_config {
+        ScriptConfig::Simple(cmd) => (cmd.clone(), None),
+        ScriptConfig::Detailed(d) => (d.command.clone(), Some(d)),
+    };
+
+    // -------------------------
+    // Execute dependency scripts first (topological order)
+    // -------------------------
+    if let Some(details) = &details {
+        if !details.depends.is_empty() {
+            execute_dependencies(&details.depends, &config, &config_path, args).await?;
+        }
+    }
+
     // Build environment with vx-managed tools in PATH
     let mut env_vars = build_script_environment(&config)?;
 
@@ -96,6 +112,13 @@ pub async fn handle(
     // Add config env vars
     for (key, value) in &config.env {
         env_vars.insert(key.clone(), value.clone());
+    }
+
+    // Add script-level env vars (override config-level)
+    if let Some(details) = &details {
+        for (key, value) in &details.env {
+            env_vars.insert(key.clone(), value.clone());
+        }
     }
 
     // Create interpolator with built-in variables
@@ -123,7 +146,7 @@ pub async fn handle(
     var_source.insert("args".to_string(), effective_passthrough.join(" "));
 
     // Interpolate the script command
-    let interpolated_cmd = interpolator.interpolate(script_cmd, &var_source)?;
+    let interpolated_cmd = interpolator.interpolate(&script_cmd, &var_source)?;
 
     // Build the full command
     let full_cmd = if script_cmd.contains("{{args}}") {
@@ -152,6 +175,20 @@ pub async fn handle(
             && key.chars().all(|c| c.is_alphanumeric() || c == '_')
         {
             env_vars.insert(format!("VX_ARG_{}", key.to_uppercase()), value.clone());
+        }
+    }
+
+    // Handle cwd override from script details
+    if let Some(details) = &details {
+        if let Some(ref cwd) = details.cwd {
+            let target_dir = if Path::new(cwd).is_absolute() {
+                std::path::PathBuf::from(cwd)
+            } else {
+                current_dir.join(cwd)
+            };
+            std::env::set_current_dir(&target_dir).map_err(|e| {
+                anyhow::anyhow!("Failed to change to script cwd '{}': {}", cwd, e)
+            })?;
         }
     }
 
@@ -198,14 +235,22 @@ fn print_available_scripts(config: &ConfigView) -> Result<()> {
         println!("  build = \"cargo build --release\"");
     } else {
         println!("Available scripts:");
-        for (name, cmd) in &config.scripts {
+        for (name, script) in &config.scripts {
+            let (cmd, desc) = match script {
+                ScriptConfig::Simple(s) => (s.as_str(), None),
+                ScriptConfig::Detailed(d) => (d.command.as_str(), d.description.as_deref()),
+            };
             // Truncate long commands
             let display_cmd = if cmd.len() > 50 {
                 format!("{}...", &cmd[..47])
             } else {
-                cmd.clone()
+                cmd.to_string()
             };
-            println!("  {:<15} {}", name, display_cmd);
+            if let Some(desc) = desc {
+                println!("  {:<15} {} ({})", name, display_cmd, desc);
+            } else {
+                println!("  {:<15} {}", name, display_cmd);
+            }
         }
     }
     Ok(())
@@ -248,9 +293,35 @@ fn load_dotenv_files(dir: &Path, env_vars: &mut HashMap<String, String>) {
 
 /// Print help for a script
 fn print_script_help(script_name: &str, config: &ConfigView) -> Result<()> {
-    if let Some(script_cmd) = config.scripts.get(script_name) {
+    if let Some(script_config) = config.scripts.get(script_name) {
+        let (cmd, details) = match script_config {
+            ScriptConfig::Simple(s) => (s.as_str(), None),
+            ScriptConfig::Detailed(d) => (d.command.as_str(), Some(d)),
+        };
+
         println!("Script: {}", script_name);
-        println!("Command: {}", script_cmd);
+        if let Some(d) = &details {
+            if let Some(ref desc) = d.description {
+                println!("Description: {}", desc);
+            }
+        }
+        println!("Command: {}", cmd);
+
+        if let Some(d) = &details {
+            if !d.depends.is_empty() {
+                println!("Dependencies: {}", d.depends.join(", "));
+            }
+            if let Some(ref cwd) = d.cwd {
+                println!("Working directory: {}", cwd);
+            }
+            if !d.env.is_empty() {
+                println!("Environment:");
+                for (k, v) in &d.env {
+                    println!("  {} = {}", k, v);
+                }
+            }
+        }
+
         println!();
         println!(
             "Usage: vx run {} [script-args...] [-- passthrough-args...]",
@@ -287,6 +358,133 @@ fn print_script_help(script_name: &str, config: &ConfigView) -> Result<()> {
     Ok(())
 }
 
+/// Execute dependency scripts in topological order
+///
+/// Handles circular dependency detection and ensures each script runs at most once.
+async fn execute_dependencies(
+    depends: &[String],
+    config: &ConfigView,
+    config_path: &Path,
+    _parent_args: &[String],
+) -> Result<()> {
+    let mut visited = std::collections::HashSet::new();
+    let mut order = Vec::new();
+
+    // Build topological order with cycle detection
+    for dep in depends {
+        topological_sort(dep, config, &mut visited, &mut Vec::new(), &mut order)?;
+    }
+
+    if order.is_empty() {
+        return Ok(());
+    }
+
+    // Build shared environment
+    let mut env_vars = build_script_environment(config)?;
+
+    // Load .env files
+    let current_dir = config_path.parent().unwrap();
+    load_dotenv_files(current_dir, &mut env_vars);
+
+    // Add config env vars
+    for (key, value) in &config.env {
+        env_vars.insert(key.clone(), value.clone());
+    }
+
+    // Execute each dependency in order
+    for dep_name in &order {
+        let script_config = config.scripts.get(dep_name.as_str()).ok_or_else(|| {
+            anyhow::anyhow!("Dependency script '{}' not found in vx.toml", dep_name)
+        })?;
+
+        let (cmd, details) = match script_config {
+            ScriptConfig::Simple(s) => (s.clone(), None),
+            ScriptConfig::Detailed(d) => (d.command.clone(), Some(d)),
+        };
+
+        // Merge script-level env vars
+        let mut dep_env = env_vars.clone();
+        if let Some(d) = &details {
+            for (k, v) in &d.env {
+                dep_env.insert(k.clone(), v.clone());
+            }
+        }
+
+        UI::info(&format!("Running dependency '{}': {}", dep_name, cmd));
+
+        // Handle cwd for dependency
+        let saved_dir = std::env::current_dir().ok();
+        if let Some(d) = &details {
+            if let Some(ref cwd) = d.cwd {
+                let target_dir = if Path::new(cwd).is_absolute() {
+                    std::path::PathBuf::from(cwd)
+                } else {
+                    current_dir.join(cwd)
+                };
+                std::env::set_current_dir(&target_dir).map_err(|e| {
+                    anyhow::anyhow!("Failed to change to dependency cwd '{}': {}", cwd, e)
+                })?;
+            }
+        }
+
+        let status = execute_with_env(&cmd, &dep_env)?;
+
+        // Restore cwd
+        if let Some(dir) = saved_dir {
+            let _ = std::env::set_current_dir(dir);
+        }
+
+        if !status.success() {
+            return Err(anyhow::anyhow!(
+                "Dependency script '{}' failed with exit code {}",
+                dep_name,
+                vx_resolver::exit_code_from_status(&status)
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+/// Topological sort with cycle detection using DFS
+fn topological_sort(
+    name: &str,
+    config: &ConfigView,
+    visited: &mut std::collections::HashSet<String>,
+    stack: &mut Vec<String>,
+    order: &mut Vec<String>,
+) -> Result<()> {
+    if visited.contains(name) {
+        return Ok(());
+    }
+
+    // Cycle detection
+    if stack.contains(&name.to_string()) {
+        let cycle_start = stack.iter().position(|s| s == name).unwrap();
+        let cycle: Vec<_> = stack[cycle_start..].to_vec();
+        return Err(anyhow::anyhow!(
+            "Circular dependency detected: {} -> {}",
+            cycle.join(" -> "),
+            name
+        ));
+    }
+
+    stack.push(name.to_string());
+
+    // Recurse into this script's dependencies
+    if let Some(ScriptConfig::Detailed(d)) = config.scripts.get(name) {
+        for dep in &d.depends {
+            topological_sort(dep, config, visited, stack, order)?;
+        }
+    }
+
+    stack.pop();
+    visited.insert(name.to_string());
+    order.push(name.to_string());
+
+    Ok(())
+}
+
 /// List all available scripts in vx.toml
 pub async fn handle_list() -> Result<()> {
     let (_config_path, config) = load_config_view_cwd()?;
@@ -298,7 +496,11 @@ pub async fn handle_list() -> Result<()> {
     }
 
     UI::info("Available scripts:");
-    for (name, cmd) in &config.scripts {
+    for (name, script) in &config.scripts {
+        let cmd = match script {
+            ScriptConfig::Simple(s) => s.as_str(),
+            ScriptConfig::Detailed(d) => d.command.as_str(),
+        };
         println!("  {} = \"{}\"", name, cmd);
     }
 

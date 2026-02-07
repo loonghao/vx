@@ -65,6 +65,7 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
       - name: Determine tag
         id: tag
         run: |
@@ -135,6 +136,7 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+          ref: ${{ needs.plan.outputs.tag }}
       - name: Install Rust non-interactively if not already installed
         if: ${{ matrix.container }}
         run: |
@@ -198,6 +200,7 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+          ref: ${{ needs.plan.outputs.tag }}
       - name: Install cached dist
         uses: actions/download-artifact@v7
         with:
@@ -248,6 +251,7 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+          ref: ${{ needs.plan.outputs.tag }}
       - name: Install cached dist
         uses: actions/download-artifact@v7
         with:
@@ -358,3 +362,4 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+          ref: ${{ needs.plan.outputs.tag }}
