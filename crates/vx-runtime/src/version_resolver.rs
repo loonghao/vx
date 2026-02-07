@@ -13,12 +13,22 @@
 use crate::{Ecosystem, VersionInfo};
 use std::cmp::Ordering;
 
-/// Parsed semantic version
+/// Parsed semantic version with optional 4th segment (build/revision)
+///
+/// Supports version formats:
+/// - Standard semver: `1.2.3`
+/// - 4-segment versions: `18.0.7.61305` (common in .NET/Windows ecosystem)
+/// - With prerelease: `1.2.3-beta.1`
+/// - With build metadata: `17.8.5+1c7abc` (metadata is stripped)
+/// - Go-style: `go1.22.0`
+/// - v-prefixed: `v1.2.3`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Version {
     pub major: u32,
     pub minor: u32,
     pub patch: u32,
+    /// Optional 4th segment (build/revision number), used by .NET, Windows SDK, etc.
+    pub build: Option<u32>,
     pub prerelease: Option<String>,
 }
 
@@ -29,16 +39,34 @@ impl Version {
             major,
             minor,
             patch,
+            build: None,
+            prerelease: None,
+        }
+    }
+
+    /// Create a new version with build segment
+    pub fn with_build(major: u32, minor: u32, patch: u32, build: u32) -> Self {
+        Self {
+            major,
+            minor,
+            patch,
+            build: Some(build),
             prerelease: None,
         }
     }
 
     /// Parse a version string
+    ///
+    /// Supports 1-4 numeric segments, optional prerelease suffix (`-beta.1`),
+    /// and build metadata (`+hash`) which is stripped per semver spec.
     pub fn parse(s: &str) -> Option<Self> {
         // Handle Go-style versions (go1.22.0 -> 1.22.0)
         let s = s.strip_prefix("go").unwrap_or(s);
         // Handle v prefix
         let s = s.strip_prefix('v').unwrap_or(s);
+
+        // Strip build metadata (semver: `+` suffix is ignored for precedence)
+        let s = s.split('+').next().unwrap_or(s);
 
         let (version_part, prerelease) = if let Some(idx) = s.find('-') {
             (&s[..idx], Some(s[idx + 1..].to_string()))
@@ -47,18 +75,24 @@ impl Version {
         };
 
         let parts: Vec<&str> = version_part.split('.').collect();
-        if parts.is_empty() || parts.len() > 3 {
+        if parts.is_empty() || parts.len() > 4 {
             return None;
         }
 
         let major = parts[0].parse().ok()?;
         let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
         let patch = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
+        let build = if parts.len() == 4 {
+            Some(parts[3].parse().ok()?)
+        } else {
+            None
+        };
 
         Some(Self {
             major,
             minor,
             patch,
+            build,
             prerelease,
         })
     }
@@ -80,15 +114,18 @@ impl Ord for Version {
         match self.major.cmp(&other.major) {
             Ordering::Equal => match self.minor.cmp(&other.minor) {
                 Ordering::Equal => match self.patch.cmp(&other.patch) {
-                    Ordering::Equal => {
-                        // Prereleases are less than releases
-                        match (&self.prerelease, &other.prerelease) {
-                            (None, None) => Ordering::Equal,
-                            (Some(_), None) => Ordering::Less,
-                            (None, Some(_)) => Ordering::Greater,
-                            (Some(a), Some(b)) => a.cmp(b),
+                    Ordering::Equal => match self.build.cmp(&other.build) {
+                        Ordering::Equal => {
+                            // Prereleases are less than releases
+                            match (&self.prerelease, &other.prerelease) {
+                                (None, None) => Ordering::Equal,
+                                (Some(_), None) => Ordering::Less,
+                                (None, Some(_)) => Ordering::Greater,
+                                (Some(a), Some(b)) => a.cmp(b),
+                            }
                         }
-                    }
+                        other => other,
+                    },
                     other => other,
                 },
                 other => other,
@@ -101,6 +138,9 @@ impl Ord for Version {
 impl std::fmt::Display for Version {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}.{}", self.major, self.minor, self.patch)?;
+        if let Some(build) = self.build {
+            write!(f, ".{}", build)?;
+        }
         if let Some(ref pre) = self.prerelease {
             write!(f, "-{}", pre)?;
         }
@@ -247,13 +287,20 @@ impl VersionResolver {
         // Try to parse as exact version
         if let Some(v) = Version::parse(trimmed) {
             // Check if it's a partial version (only major.minor)
-            let parts: Vec<&str> = trimmed
+            // Normalize the string the same way Version::parse does:
+            // strip prefixes and build metadata before counting segments
+            let normalized = trimmed
                 .strip_prefix("go")
                 .unwrap_or(trimmed)
                 .strip_prefix('v')
                 .unwrap_or(trimmed)
-                .split('.')
-                .collect();
+                .split('+')
+                .next()
+                .unwrap_or(trimmed)
+                .split('-')
+                .next()
+                .unwrap_or(trimmed);
+            let parts: Vec<&str> = normalized.split('.').collect();
 
             if parts.len() == 2 {
                 return VersionConstraint::Partial {
@@ -464,6 +511,7 @@ mod tests {
         assert_eq!(v.major, 1);
         assert_eq!(v.minor, 2);
         assert_eq!(v.patch, 3);
+        assert_eq!(v.build, None);
 
         let v = Version::parse("v1.2.3").unwrap();
         assert_eq!(v.major, 1);
@@ -471,6 +519,60 @@ mod tests {
         let v = Version::parse("go1.22.0").unwrap();
         assert_eq!(v.major, 1);
         assert_eq!(v.minor, 22);
+    }
+
+    #[test]
+    fn test_version_parse_4_segments() {
+        // 4-segment versions (common in .NET/Windows ecosystem)
+        let v = Version::parse("18.0.7.61305").unwrap();
+        assert_eq!(v.major, 18);
+        assert_eq!(v.minor, 0);
+        assert_eq!(v.patch, 7);
+        assert_eq!(v.build, Some(61305));
+
+        let v = Version::parse("10.0.22621.0").unwrap();
+        assert_eq!(v.major, 10);
+        assert_eq!(v.minor, 0);
+        assert_eq!(v.patch, 22621);
+        assert_eq!(v.build, Some(0));
+
+        // 5+ segments still rejected
+        assert!(Version::parse("1.2.3.4.5").is_none());
+    }
+
+    #[test]
+    fn test_version_parse_build_metadata() {
+        // Build metadata (+ suffix) should be stripped
+        let v = Version::parse("17.8.5+1c7abc").unwrap();
+        assert_eq!(v.major, 17);
+        assert_eq!(v.minor, 8);
+        assert_eq!(v.patch, 5);
+        assert_eq!(v.build, None);
+        assert!(v.prerelease.is_none());
+
+        // Prerelease + build metadata
+        let v = Version::parse("1.0.0-beta.1+sha256").unwrap();
+        assert_eq!(v.prerelease, Some("beta.1".to_string()));
+    }
+
+    #[test]
+    fn test_version_ordering_4_segments() {
+        let a = Version::parse("18.0.7.61305").unwrap();
+        let b = Version::parse("18.0.7.61306").unwrap();
+        assert!(a < b);
+
+        let c = Version::parse("18.0.7").unwrap();
+        // 3-segment (build=None) < 4-segment (build=Some(61305))
+        assert!(c < a);
+    }
+
+    #[test]
+    fn test_version_display_4_segments() {
+        let v = Version::with_build(18, 0, 7, 61305);
+        assert_eq!(v.to_string(), "18.0.7.61305");
+
+        let v = Version::new(1, 2, 3);
+        assert_eq!(v.to_string(), "1.2.3");
     }
 
     #[test]
@@ -633,6 +735,36 @@ mod tests {
             resolver.resolve("1.2.3.4.5", &available, &Ecosystem::NodeJs),
             None
         );
+    }
+
+    #[test]
+    fn test_resolve_latest_with_4_segment_versions() {
+        // This is the core MSBuild bug fix: 4-segment versions should be resolvable
+        let resolver = VersionResolver::new();
+        let available = make_versions(&["18.0.7.61305"]);
+
+        let result = resolver.resolve("latest", &available, &Ecosystem::System);
+        assert_eq!(result, Some("18.0.7.61305".to_string()));
+    }
+
+    #[test]
+    fn test_resolve_latest_mixed_3_and_4_segments() {
+        let resolver = VersionResolver::new();
+        let available = make_versions(&["17.8.5", "18.0.7.61305"]);
+
+        let result = resolver.resolve("latest", &available, &Ecosystem::System);
+        assert_eq!(result, Some("18.0.7.61305".to_string()));
+    }
+
+    #[test]
+    fn test_resolve_build_metadata_stripped() {
+        // Build metadata (+suffix) should be stripped, and version still resolves
+        let resolver = VersionResolver::new();
+        let available = make_versions(&["17.8.5+1c7abc", "17.9.0"]);
+
+        // "17.8.5+1c7abc" should parse as 17.8.5 and be findable
+        let result = resolver.resolve("17.8", &available, &Ecosystem::System);
+        assert_eq!(result, Some("17.8.5+1c7abc".to_string()));
     }
 
     #[test]

@@ -39,7 +39,7 @@ use std::time::{Duration, SystemTime};
 use tracing::debug;
 
 /// Current schema version for the runtime index
-pub const RUNTIME_INDEX_SCHEMA_VERSION: u32 = 2;
+pub const RUNTIME_INDEX_SCHEMA_VERSION: u32 = 3;
 
 /// Cache directory name under ~/.vx/cache/
 pub const RUNTIME_INDEX_DIR: &str = "runtime_index";
@@ -269,8 +269,8 @@ impl RuntimeIndex {
         }
 
         let file = std::fs::File::open(&meta_path).ok()?;
-        let reader = BufReader::new(file);
-        bincode::deserialize_from(reader).ok()
+        let mut reader = BufReader::new(file);
+        bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()
     }
 
     /// Check if index is valid (without loading data)
@@ -310,8 +310,8 @@ impl RuntimeIndex {
         }
 
         let file = std::fs::File::open(&data_path).ok()?;
-        let reader = BufReader::new(file);
-        let data: IndexData = bincode::deserialize_from(reader).ok()?;
+        let mut reader = BufReader::new(file);
+        let data: IndexData = bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()?;
 
         debug!(
             "Loaded runtime index: {} runtimes, {} aliases",
@@ -341,8 +341,8 @@ impl RuntimeIndex {
         }
 
         let file = std::fs::File::open(&data_path).ok()?;
-        let reader = BufReader::new(file);
-        let data: IndexData = bincode::deserialize_from(reader).ok()?;
+        let mut reader = BufReader::new(file);
+        let data: IndexData = bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()?;
 
         debug!(
             "Loaded stale runtime index: {} runtimes (age: {}s)",
@@ -370,8 +370,8 @@ impl RuntimeIndex {
         let meta_tmp = meta_path.with_extension("meta.tmp");
         {
             let file = std::fs::File::create(&meta_tmp)?;
-            let writer = BufWriter::new(file);
-            bincode::serialize_into(writer, &metadata)?;
+            let mut writer = BufWriter::new(file);
+            bincode::serde::encode_into_std_write(&metadata, &mut writer, bincode::config::standard())?;
         }
         std::fs::rename(&meta_tmp, &meta_path)?;
 
@@ -380,8 +380,8 @@ impl RuntimeIndex {
         let data_tmp = data_path.with_extension("data.tmp");
         {
             let file = std::fs::File::create(&data_tmp)?;
-            let writer = BufWriter::new(file);
-            bincode::serialize_into(writer, data)?;
+            let mut writer = BufWriter::new(file);
+            bincode::serde::encode_into_std_write(data, &mut writer, bincode::config::standard())?;
         }
         std::fs::rename(&data_tmp, &data_path)?;
 

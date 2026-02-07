@@ -51,6 +51,11 @@ async fn test_execute_runtime_not_found() {
         error_msg.contains("Tool not found")
             || error_msg.contains("not installed")
             || error_msg.contains("Cannot auto-install")
+            || error_msg.contains("failed to install")
+            || error_msg.contains("not found")
+            || error_msg.contains("no executable found"),
+        "Unexpected error message: {}",
+        error_msg
     );
 }
 

@@ -4,14 +4,14 @@
 
 | Phase | 描述 | 状态 | 完成度 | 目标版本 | 预计工期 |
 |-------|------|------|--------|----------|----------|
-| Phase 1 | 核心重构（Pipeline 架构） | 待开始 | 0% | v0.6.0 | 2 周 |
-| Phase 2 | ManifestRegistry 拆分 | 待开始 | 0% | v0.6.0 | 1 周 |
-| Phase 3 | 错误处理改进 | 待开始 | 0% | v0.6.1 | 1 周 |
-| Phase 4 | Fallback Chain 与传统配置支持 🆕 | 待开始 | 0% | v0.6.1 | 1.5 周 |
-| Phase 5 | Shell 集成与自动切换 🆕 | 待开始 | 0% | v0.7.0 | 1.5 周 |
-| Phase 6 | 版本管理增强 🆕 | 待开始 | 0% | v0.7.0 | 1 周 |
-| Phase 7 | 任务系统增强 🆕 | 待开始 | 0% | v0.7.0 | 1 周 |
-| Phase 8 | 高级特性 | 待开始 | 0% | v0.8.0 | 2 周 |
+| Phase 1 | 核心重构（Pipeline 架构） | 进行中 | 95% | v0.7.0 | 2 周 |
+| Phase 2 | ManifestRegistry 拆分 | 待开始 | 0% | v0.7.0 | 1 周 |
+| Phase 3 | 错误处理改进 | 进行中 | 60% | v0.7.1 | 1 周 |
+| Phase 4 | Fallback Chain 与传统配置支持 🆕 | 待开始 | 0% | v0.7.1 | 1.5 周 |
+| Phase 5 | Shell 集成与自动切换 🆕 | 待开始 | 0% | v0.8.0 | 1.5 周 |
+| Phase 6 | 版本管理增强 🆕 | 待开始 | 0% | v0.8.0 | 1 周 |
+| Phase 7 | 任务系统增强 🆕 | 进行中 | 60% | v0.8.0 | 1 周 |
+| Phase 8 | 高级特性 | 待开始 | 0% | v0.9.0 | 2 周 |
 
 ## 借鉴来源
 
@@ -32,49 +32,70 @@
 ### Phase 1: 核心重构 (Pipeline 架构)
 
 #### 1.1 ExecutionPlan 定义
-- [ ] 定义 `ExecutionPlan` 结构体
-- [ ] 定义 `ResolvedRuntime` 结构体
-- [ ] 定义 `ResolvedVersion` 枚举
-- [ ] 定义 `InstallStatus` 枚举
-- [ ] 单元测试
+- [x] 定义 `ExecutionPlan` 结构体
+- [x] 定义 `PlannedRuntime` 结构体 (避免与 ResolvedVersion 冲突)
+- [x] 定义 `VersionResolution` 枚举 (避免与 ResolvedVersion 冲突)
+- [x] 定义 `InstallStatus` 枚举
+- [x] 定义 `VersionSource` 枚举
+- [x] 定义 `ExecutionConfig` 结构体
+- [x] 定义 `ProxyConfig` 结构体 (RFC 0028)
+- [x] 单元测试 (8 tests)
 
 #### 1.2 ResolveStage 实现
-- [ ] 定义 `Stage` trait
-- [ ] 实现 `ResolveStage`
-- [ ] 实现统一的 `resolve_version` 逻辑
+- [x] 定义 `Stage` trait (generic, async)
+- [x] 定义 `ResolveRequest` 输入类型
+- [x] 定义 `WithDepRequest` 类型
+- [x] 实现 `ResolveStage` (delegates to existing Resolver)
+- [x] 实现 `resolve_version` 逻辑 (explicit → project config → latest)
+- [x] 实现 `determine_source` 逻辑
+- [x] 实现 `build_plan` 映射 (ResolutionResult → ExecutionPlan)
 - [ ] 实现 `VersionStrategy` 配置
 - [ ] 实现 `LatestBehavior` 处理
-- [ ] 单元测试
+- [x] 单元测试 (20 tests)
 
 #### 1.3 EnsureStage 实现
-- [ ] 实现 `EnsureStage`
-- [ ] 拓扑排序安装依赖
-- [ ] 处理安装失败
-- [ ] 单元测试
+- [x] 实现 `EnsureStage` (wraps InstallationManager)
+- [x] 处理 auto-install 禁用
+- [x] 安装依赖 (topological order)
+- [x] 安装 primary runtime
+- [x] 安装 --with 注入 runtimes
+- [x] Re-resolve 获取 executable 路径
+- [x] 处理安装失败 (EnsureError)
+- [x] 单元测试 (4 tests)
 
 #### 1.4 PrepareStage 实现
-- [ ] 实现 `PrepareStage`
-- [ ] 实现 `PreparedContext`
-- [ ] 环境变量注入
-- [ ] Proxy runtime 处理
-- [ ] 单元测试
+- [x] 实现 `PrepareStage` (wraps EnvironmentManager)
+- [x] 定义 `PreparedExecution` 输出类型
+- [x] 环境变量注入
+- [x] Proxy runtime 处理 (RFC 0028) — `try_proxy_execution()` 集成到 PrepareStage
+- [ ] --with dependency PATH injection — deferred to Phase 2
+- [x] 单元测试 (2 tests)
 
 #### 1.5 ExecuteStage 实现
-- [ ] 实现 `ExecuteStage`
-- [ ] 命令执行
-- [ ] 退出码处理
-- [ ] 单元测试
+- [x] 实现 `ExecuteStage` (wraps build_command/run_command)
+- [x] 命令执行 (compatibility bridge via ResolutionResult)
+- [x] 退出码处理
+- [x] 超时支持
+- [x] 单元测试 (3 tests)
 
 #### 1.6 ExecutionPipeline 编排
-- [ ] 实现 `ExecutionPipeline`
-- [ ] 平台支持检查
-- [ ] 错误聚合
-- [ ] 集成测试
+- [x] 实现 `ExecutionPipeline` orchestrator
+- [x] Stage 组合: Resolve → Ensure → Prepare → Execute
+- [x] Pipeline 也实现 `Stage<ResolveRequest, i32>`
+- [x] 错误自动包装为 `PipelineError`
+- [x] 单元测试 (2 tests)
 
-#### 1.7 迁移现有代码
-- [ ] 迁移 `Executor::execute_with_with_deps`
-- [ ] 保持向后兼容
-- [ ] 添加弃用警告
+#### 1.7 错误类型 (提前自 Phase 3)
+- [x] 定义 `ResolveError` (7 variants)
+- [x] 定义 `EnsureError` (6 variants)
+- [x] 定义 `PrepareError` (5 variants)
+- [x] 定义 `ExecuteError` (4 variants)
+- [x] 定义 `PipelineError` (5 variants, wraps all stages)
+- [x] 单元测试 (8 tests)
+
+#### 1.8 迁移现有代码
+- [x] 迁移 `Executor::execute_with_with_deps` 到 Pipeline 架构
+- [x] 清理死代码（5 个废弃方法）
 - [ ] E2E 测试
 
 ### Phase 2: ManifestRegistry 拆分
@@ -105,22 +126,16 @@
 ### Phase 3: 错误处理改进
 
 #### 3.1 错误类型定义 (借鉴 Volta ErrorKind)
-- [ ] 定义 `ResolverError`
-  - [ ] `RuntimeNotFound`
-  - [ ] `VersionNotFound`
-  - [ ] `NoLockedVersion`
-  - [ ] `DependencyCycle`
-  - [ ] `PlatformNotSupported`
-- [ ] 定义 `InstallError`
-  - [ ] `InstallFailed`
-  - [ ] `DependencyFailed`
-  - [ ] `DownloadFailed`
-- [ ] 定义 `PrepareError`
-- [ ] 定义 `ExecuteError`
-- [ ] 定义 `PipelineError`
+> **Note**: 核心错误类型已在 Phase 1.7 中提前完成（`pipeline/error.rs`）
+
+- [x] 定义 `ResolveError` (7 variants: RuntimeNotFound, VersionNotFound, DependencyCycle, PlatformNotSupported 等)
+- [x] 定义 `EnsureError` (6 variants: InstallFailed, DependencyFailed, DownloadFailed 等)
+- [x] 定义 `PrepareError` (5 variants: NoExecutable, ProxyNotAvailable 等)
+- [x] 定义 `ExecuteError` (4 variants)
+- [x] 定义 `PipelineError` (5 variants, wraps all stages)
 
 #### 3.2 错误迁移
-- [ ] 迁移 `Executor` 错误
+- [ ] 迁移 `Executor` 错误（仍使用 anyhow，待迁移到 Pipeline 错误类型）
 - [ ] 迁移 `InstallationManager` 错误
 - [ ] 迁移 `Resolver` 错误
 
@@ -226,22 +241,26 @@
 *借鉴 mise 的任务系统*
 
 #### 7.1 任务定义增强
-- [ ] 支持任务依赖 `depends = ["lint", "test"]`
+- [x] 支持任务依赖 `depends = ["lint", "test"]`
 - [ ] 支持任务条件 `sources = ["src/**"]`
-- [ ] 支持任务环境变量 `env = { KEY = "value" }`
+- [x] 支持任务环境变量 `env = { KEY = "value" }`
 - [ ] 支持复杂任务语法
 
 #### 7.2 环境变量管理
-- [ ] 支持 `[env]` 配置块
-- [ ] 支持环境变量文件 `_.file = [".env"]`
-- [ ] 支持 `.env` 格式解析
-- [ ] 环境变量继承与覆盖
+- [x] 支持 `[env]` 配置块
+- [x] 支持环境变量文件 `_.file = [".env"]`
+- [x] 支持 `.env` 格式解析
+- [x] 环境变量继承与覆盖
 
 #### 7.3 CLI 命令
-- [ ] 增强 `vx run <task>` 命令
+- [x] 增强 `vx run <task>` 命令
+  - [x] 依赖脚本拓扑排序执行
+  - [x] 脚本级 cwd 覆盖
+  - [x] 脚本级 env 覆盖
+  - [x] 脚本描述显示 (`--list`, `--script-help`)
 - [ ] 添加 `vx task <name>` 别名
 - [ ] 添加 `vx tasks` 列出所有任务
-- [ ] 支持任务参数传递
+- [x] 支持任务参数传递
 
 ### Phase 8: 高级特性
 
@@ -275,11 +294,11 @@
 ### 单元测试
 
 #### ResolveStage 测试
-- [ ] 测试具体版本解析
+- [x] 测试具体版本解析
 - [ ] 测试 latest -> installed 解析
 - [ ] 测试 latest -> remote 解析
 - [ ] 测试范围版本解析
-- [ ] 测试依赖解析
+- [x] 测试依赖解析
 - [ ] 测试循环依赖检测
 
 #### Fallback Chain 测试 🆕
@@ -352,9 +371,42 @@
 | Shell 集成复杂性 | 中 | 中 | 参考 fnm 成熟实现 |
 | 传统配置文件冲突 | 低 | 低 | 明确优先级，配置项控制 |
 
+## Provider 分析结论 (2026-02-07)
+
+### 已删除
+- **Volta**: 竞品工具（只管理 Node.js 生态），与 vx 功能重叠，不应作为 provider 集成
+- **Proto (moonrepo)**: 同理，是通用版本管理器竞品，集成会形成"套娃"架构
+
+### 推荐新增 Providers（按优先级）
+
+| Provider | 类别 | 理由 | 优先级 |
+|----------|------|------|--------|
+| `ripgrep` (rg) | CLI 工具 | 最流行的代码搜索工具，GitHub 50k+ stars | P1 |
+| `fd` | CLI 工具 | 现代 find 替代，搭配 rg 使用 | P1 |
+| `bat` | CLI 工具 | 现代 cat 替代，语法高亮 | P2 |
+| `delta` | CLI 工具 | Git diff 美化工具 | P2 |
+| `lazygit` | Git 工具 | 终端 Git UI，开发者高频使用 | P2 |
+| `shellcheck` | Lint 工具 | Shell 脚本静态分析，CI 必备 | P1 |
+| `yq` | CLI 工具 | YAML/JSON/XML 处理器，搭配 jq | P1 |
+| `buf` | API 工具 | 现代 Protobuf 工具链（搭配 protoc） | P2 |
+| `trivy` | 安全工具 | 容器/代码漏洞扫描 | P2 |
+| `cosign` | 安全工具 | 容器签名工具 | P3 |
+| `act` | CI 工具 | 本地运行 GitHub Actions | P2 |
+| `mkcert` | 安全工具 | 本地 HTTPS 证书生成 | P2 |
+| `grpcurl` | API 工具 | gRPC CLI 客户端 | P3 |
+| `k9s` | K8s 工具 | 终端 Kubernetes UI | P2 |
+| `minikube` | K8s 工具 | 本地 Kubernetes 集群 | P2 |
+| `wasm-tools` | WASM 工具 | WebAssembly 工具链 | P3 |
+
 ## 更新日志
 
 | 日期 | 变更 |
 |------|------|
 | 2026-02-05 | 创建跟踪文档 |
 | 2026-02-05 | 添加 Phase 4-8: Volta/mise/fnm/proto 借鉴特性 |
+| 2026-02-07 | 删除 Volta provider；添加 Provider 分析结论；Phase 1 开始实施 |
+| 2026-02-07 | Phase 1.1-1.7 完成：Pipeline 核心类型、四个 Stage 实现、ExecutionPipeline 编排器、52 个测试全部通过 |
+| 2026-02-07 | Phase 1.8 完成：迁移 execute_with_with_deps 到 Pipeline，清理 5 个死代码方法 |
+| 2026-02-07 | Phase 7 进行中：增强 vx run — ConfigView.scripts 改为 ScriptConfig，实现依赖拓扑排序执行、cwd/env 覆盖、描述显示 |
+| 2026-02-07 | Phase 1.4 补完：PrepareStage 集成 proxy execution（RFC 0028），修复 bundled runtime（如 msbuild）executable 查找失败问题 |
+| 2026-02-07 | Phase 3.1 提前完成：5 层结构化错误类型已在 Phase 1.7 全部定义（27 个 error variants），更新 tracker 反映真实进度 |

@@ -22,6 +22,7 @@ mod environment;
 mod executor;
 mod fallback;
 mod installation;
+pub mod pipeline;
 mod project_config;
 
 // Re-export main types

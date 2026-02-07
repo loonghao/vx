@@ -35,7 +35,7 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
 /// Current cache schema version
-pub const CACHE_SCHEMA_VERSION: u32 = 1;
+pub const CACHE_SCHEMA_VERSION: u32 = 2;
 
 /// Default cache TTL (24 hours)
 pub const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
@@ -231,8 +231,8 @@ impl VersionCache {
         }
 
         let file = std::fs::File::open(&meta_path).ok()?;
-        let reader = BufReader::new(file);
-        bincode::deserialize_from(reader).ok()
+        let mut reader = BufReader::new(file);
+        bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()
     }
 
     /// Check if cache is valid (without loading data)
@@ -270,8 +270,8 @@ impl VersionCache {
         }
 
         let file = std::fs::File::open(&data_path).ok()?;
-        let reader = BufReader::new(file);
-        let data: CacheData = bincode::deserialize_from(reader).ok()?;
+        let mut reader = BufReader::new(file);
+        let data: CacheData = bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()?;
 
         Some(data.versions)
     }
@@ -295,8 +295,8 @@ impl VersionCache {
                 return None;
             }
             let file = std::fs::File::open(&meta_path).ok()?;
-            let reader = BufReader::new(file);
-            let meta: CacheMetadata = bincode::deserialize_from(reader).ok()?;
+            let mut reader = BufReader::new(file);
+            let meta: CacheMetadata = bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()?;
             if meta.schema_version != CACHE_SCHEMA_VERSION {
                 return None;
             }
@@ -311,8 +311,8 @@ impl VersionCache {
         );
 
         let file = std::fs::File::open(&data_path).ok()?;
-        let reader = BufReader::new(file);
-        let data: CacheData = bincode::deserialize_from(reader).ok()?;
+        let mut reader = BufReader::new(file);
+        let data: CacheData = bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()?;
 
         Some(data.versions)
     }
@@ -369,8 +369,8 @@ impl VersionCache {
                 return None;
             }
             let file = std::fs::File::open(&meta_path).ok()?;
-            let reader = BufReader::new(file);
-            let meta: CacheMetadata = bincode::deserialize_from(reader).ok()?;
+            let mut reader = BufReader::new(file);
+            let meta: CacheMetadata = bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()?;
             if meta.schema_version != CACHE_SCHEMA_VERSION {
                 return None;
             }
@@ -426,8 +426,8 @@ impl VersionCache {
         let meta_tmp = meta_path.with_extension("meta.tmp");
         {
             let file = std::fs::File::create(&meta_tmp)?;
-            let writer = BufWriter::new(file);
-            bincode::serialize_into(writer, &metadata)?;
+            let mut writer = BufWriter::new(file);
+            bincode::serde::encode_into_std_write(&metadata, &mut writer, bincode::config::standard())?;
         }
         std::fs::rename(&meta_tmp, &meta_path)?;
 
@@ -436,8 +436,8 @@ impl VersionCache {
         let data_tmp = data_path.with_extension("data.tmp");
         {
             let file = std::fs::File::create(&data_tmp)?;
-            let writer = BufWriter::new(file);
-            bincode::serialize_into(writer, &data)?;
+            let mut writer = BufWriter::new(file);
+            bincode::serde::encode_into_std_write(&data, &mut writer, bincode::config::standard())?;
         }
         std::fs::rename(&data_tmp, &data_path)?;
 
@@ -494,8 +494,8 @@ impl VersionCache {
         let meta_tmp = meta_path.with_extension("meta.tmp");
         {
             let file = std::fs::File::create(&meta_tmp)?;
-            let writer = BufWriter::new(file);
-            bincode::serialize_into(writer, &metadata)?;
+            let mut writer = BufWriter::new(file);
+            bincode::serde::encode_into_std_write(&metadata, &mut writer, bincode::config::standard())?;
         }
         std::fs::rename(&meta_tmp, &meta_path)?;
 
@@ -563,8 +563,8 @@ impl VersionCache {
                 stats.total_entries += 1;
 
                 if let Ok(file) = std::fs::File::open(&path) {
-                    let reader = BufReader::new(file);
-                    if let Ok(meta) = bincode::deserialize_from::<_, CacheMetadata>(reader) {
+                    let mut reader = BufReader::new(file);
+                    if let Ok(meta) = bincode::serde::decode_from_std_read::<CacheMetadata, _, _>(&mut reader, bincode::config::standard()) {
                         if meta.is_valid() {
                             stats.valid_entries += 1;
                         } else {
@@ -598,8 +598,8 @@ impl VersionCache {
 
             if path.extension().is_some_and(|e| e == "meta") {
                 let should_prune = if let Ok(file) = std::fs::File::open(&path) {
-                    let reader = BufReader::new(file);
-                    if let Ok(meta) = bincode::deserialize_from::<_, CacheMetadata>(reader) {
+                    let mut reader = BufReader::new(file);
+                    if let Ok(meta) = bincode::serde::decode_from_std_read::<CacheMetadata, _, _>(&mut reader, bincode::config::standard()) {
                         !meta.is_valid()
                     } else {
                         true // Remove corrupted metadata
@@ -632,8 +632,8 @@ impl VersionCache {
         }
 
         let file = std::fs::File::open(&meta_path).ok()?;
-        let reader = BufReader::new(file);
-        let meta: CacheMetadata = bincode::deserialize_from(reader).ok()?;
+        let mut reader = BufReader::new(file);
+        let meta: CacheMetadata = bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()?;
 
         // Check if valid based on mode
         let is_valid = match self.mode {
@@ -820,11 +820,11 @@ mod tests {
         // Modify metadata to make it expired
         let meta_path = cache.meta_path("test-tool");
         let file = std::fs::File::open(&meta_path).unwrap();
-        let mut metadata: CacheMetadata = bincode::deserialize_from(BufReader::new(file)).unwrap();
+        let mut metadata: CacheMetadata = bincode::serde::decode_from_std_read(&mut BufReader::new(file), bincode::config::standard()).unwrap();
         metadata.created_at = 0; // Make it expired
 
         let file = std::fs::File::create(&meta_path).unwrap();
-        bincode::serialize_into(BufWriter::new(file), &metadata).unwrap();
+        bincode::serde::encode_into_std_write(&metadata, &mut BufWriter::new(file), bincode::config::standard()).unwrap();
 
         // Stale get should still return data even when expired
         // Note: We test get_stale first because get() clears expired cache
@@ -914,7 +914,7 @@ mod tests {
             .iter()
             .filter_map(github_release_to_compact)
             .collect();
-        let bincode_size = bincode::serialize(&compact).unwrap().len();
+        let bincode_size = bincode::serde::encode_to_vec(&compact, bincode::config::standard()).unwrap().len();
 
         println!("JSON size: {} bytes", json_size);
         println!("Bincode size: {} bytes", bincode_size);
