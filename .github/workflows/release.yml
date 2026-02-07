@@ -314,8 +314,8 @@ jobs:
       - name: Check Homebrew Tap Token
         id: check_token
         run: |
-          if [ -z "${{ secrets.HOMEBREW_TAP_TOKEN }}" ]; then
-            echo "::warning::HOMEBREW_TAP_TOKEN not set, skipping Homebrew formula publish"
+          if [ -z "${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}" ]; then
+            echo "::warning::HOMEBREW_TAP_GITHUB_TOKEN not set, skipping Homebrew formula publish"
             echo "skip=true" >> $GITHUB_OUTPUT
           else
             echo "skip=false" >> $GITHUB_OUTPUT
@@ -327,7 +327,7 @@ jobs:
         with:
           persist-credentials: true
           repository: "loonghao/homebrew-vx"
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          token: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
       # So we have access to the formula
       - name: Fetch homebrew formulae
         if: steps.check_token.outputs.skip != 'true'
