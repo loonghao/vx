@@ -22,7 +22,7 @@ use vx_runtime::{ProviderRegistry, RuntimeContext};
 /// After installation, the plan's `PlannedRuntime` entries are updated with
 /// their executable paths and `InstallStatus::Installed`.
 pub struct EnsureStage<'a> {
-    /// Resolver for re-resolution after installation
+    /// Resolver (used by InstallationManager for dependency resolution)
     resolver: &'a Resolver,
 
     /// Resolver config
@@ -107,7 +107,7 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
                 debug!("[EnsureStage] Installing dependency: {}", dep.name);
                 let version = dep.version_string().map(|s| s.to_string());
 
-                let installed_version = if let Some(ver) = &version {
+                let install_result = if let Some(ver) = &version {
                     install_mgr
                         .install_runtime_with_version(&dep.name, ver)
                         .await
@@ -126,11 +126,16 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
                     })?
                 };
 
-                if let Some(ref actual_version) = installed_version {
-                    dep.mark_installed_with_version(actual_version.clone(), None);
+                if let Some(result) = install_result {
+                    let exe = if result.executable_path.is_absolute() {
+                        Some(result.executable_path)
+                    } else {
+                        None
+                    };
+                    dep.mark_installed_with_version(result.version.clone(), exe);
                     info!(
                         "[EnsureStage] Dependency {} installed (version: {})",
-                        dep.name, actual_version
+                        dep.name, result.version
                     );
                 }
             }
@@ -141,7 +146,7 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
             debug!("[EnsureStage] Installing primary: {}", plan.primary.name);
             let version = plan.primary.version_string().map(|s| s.to_string());
 
-            let installed_version = if let Some(ver) = &version {
+            let install_result = if let Some(ver) = &version {
                 install_mgr
                     .ensure_version_installed(&plan.primary.name, ver)
                     .await
@@ -161,17 +166,20 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
                     })?
             };
 
-            if let Some(ref actual_version) = installed_version {
-                // Update both status and version to the actual installed version.
-                // This is critical: the requested version may be "latest" or a range,
-                // but the store directory uses the concrete version (e.g., "0.10.0").
-                // Without this update, re-resolution would search for a directory
-                // named "latest" which doesn't exist.
+            if let Some(result) = install_result {
+                // Use the executable_path directly from InstallResult.
+                // This is the definitive path from the installation/verification,
+                // eliminating the need for error-prone re-resolve via filesystem scanning.
+                let exe = if result.executable_path.is_absolute() {
+                    Some(result.executable_path)
+                } else {
+                    None
+                };
                 plan.primary
-                    .mark_installed_with_version(actual_version.clone(), None);
+                    .mark_installed_with_version(result.version.clone(), exe);
                 info!(
                     "[EnsureStage] Primary {} installed (version: {})",
-                    plan.primary.name, actual_version
+                    plan.primary.name, result.version
                 );
             }
         }
@@ -182,7 +190,7 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
                 debug!("[EnsureStage] Installing --with dep: {}", injected.name);
                 let version = injected.version_string().map(|s| s.to_string());
 
-                let installed_version = if let Some(ver) = &version {
+                let install_result = if let Some(ver) = &version {
                     install_mgr
                         .install_runtime_with_version(&injected.name, ver)
                         .await
@@ -202,25 +210,18 @@ impl<'a> Stage<ExecutionPlan, ExecutionPlan> for EnsureStage<'a> {
                         })?
                 };
 
-                if let Some(ref actual_version) = installed_version {
-                    injected.mark_installed_with_version(actual_version.clone(), None);
+                if let Some(result) = install_result {
+                    let exe = if result.executable_path.is_absolute() {
+                        Some(result.executable_path)
+                    } else {
+                        None
+                    };
+                    injected.mark_installed_with_version(result.version.clone(), exe);
                     info!(
                         "[EnsureStage] --with dep {} installed (version: {})",
-                        injected.name, actual_version
+                        injected.name, result.version
                     );
                 }
-            }
-        }
-
-        // Re-resolve to get updated executable paths
-        // (This mirrors the re-resolve logic in the current executor)
-        if let Ok(re_resolved) = self
-            .resolver
-            .resolve_with_version(&plan.primary.name, plan.primary.version_string())
-        {
-            if re_resolved.executable.is_absolute() {
-                plan.primary.executable = Some(re_resolved.executable);
-                plan.primary.status = InstallStatus::Installed;
             }
         }
 
