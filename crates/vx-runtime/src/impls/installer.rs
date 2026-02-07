@@ -26,19 +26,15 @@ impl RealInstaller {
         }
     }
 
-    /// Get filename from server response headers
+    /// Extract filename from response headers and final URL.
     ///
-    /// This method sends a HEAD request to get the actual filename from:
+    /// Tries in order:
     /// 1. Content-Disposition header
-    /// 2. Final redirected URL
-    async fn get_filename_from_server(&self, url: &str) -> Option<String> {
-        // Send HEAD request following redirects
-        let response = self.http.client.head(url).send().await.ok()?;
-
+    /// 2. Final URL path (after redirects)
+    fn extract_filename_from_response(response: &reqwest::Response, original_url: &str) -> Option<String> {
         // Try Content-Disposition header first
         if let Some(content_disposition) = response.headers().get("content-disposition") {
             if let Ok(value) = content_disposition.to_str() {
-                // Parse filename from Content-Disposition: attachment; filename=xxx.zip
                 if let Some(filename) = Self::parse_content_disposition(value) {
                     tracing::debug!("Got filename from Content-Disposition: {}", filename);
                     return Some(filename);
@@ -48,7 +44,7 @@ impl RealInstaller {
 
         // Try to get filename from final URL (after redirects)
         let final_url = response.url().as_str();
-        if final_url != url {
+        if final_url != original_url {
             let filename = final_url
                 .split('/')
                 .next_back()
@@ -64,6 +60,152 @@ impl RealInstaller {
         }
 
         None
+    }
+
+    /// Download a file and return the detected filename from the server response.
+    ///
+    /// This avoids a separate HEAD request by extracting the filename from
+    /// the GET response's Content-Disposition header or final redirected URL.
+    /// For APIs like Adoptium that use redirect chains (307 → 302 → CDN),
+    /// this saves ~3-5 seconds by eliminating the redundant HEAD round-trip.
+    async fn download_and_detect_filename(
+        &self,
+        url: &str,
+        dest: &Path,
+    ) -> Result<Option<String>> {
+        use futures_util::StreamExt;
+        use indicatif::{ProgressBar, ProgressStyle};
+        use tokio::io::AsyncWriteExt;
+
+        // Check download cache first
+        if let Some(cache) = &self.http.download_cache {
+            let lookup = cache.lookup(url);
+            match lookup {
+                vx_cache::CacheLookupResult::Hit { path, metadata } => {
+                    let filename = RealHttpClient::extract_display_name_from_url(url);
+                    let size_mb = metadata.size as f64 / 1_000_000.0;
+                    let pb = ProgressBar::new_spinner();
+                    pb.set_style(
+                        ProgressStyle::with_template(&format!(
+                            "{filename} (cached) {{spinner:.green}} {size_mb:.1} MB"
+                        ))
+                        .unwrap_or_else(|_| ProgressStyle::default_spinner()),
+                    );
+                    pb.enable_steady_tick(std::time::Duration::from_millis(50));
+                    if let Some(parent) = dest.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    std::fs::copy(&path, dest)?;
+                    pb.finish_and_clear();
+                    tracing::debug!(url = url, cached_path = ?path, "Served from download cache");
+                    // Return cached filename from metadata
+                    let cached_filename = if !metadata.filename.is_empty()
+                        && metadata.filename.contains('.')
+                        && !metadata.filename.starts_with('.')
+                    {
+                        Some(metadata.filename.clone())
+                    } else {
+                        None
+                    };
+                    return Ok(cached_filename);
+                }
+                vx_cache::CacheLookupResult::NeedsRevalidation { path, metadata } => {
+                    let filename = RealHttpClient::extract_display_name_from_url(url);
+                    let size_mb = metadata.size as f64 / 1_000_000.0;
+                    let pb = ProgressBar::new_spinner();
+                    pb.set_style(
+                        ProgressStyle::with_template(&format!(
+                            "{filename} (cached) {{spinner:.green}} {size_mb:.1} MB"
+                        ))
+                        .unwrap_or_else(|_| ProgressStyle::default_spinner()),
+                    );
+                    pb.enable_steady_tick(std::time::Duration::from_millis(50));
+                    if let Some(parent) = dest.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    std::fs::copy(&path, dest)?;
+                    pb.finish_and_clear();
+                    tracing::debug!(url = url, cached_path = ?path, "Served from download cache (with ETag)");
+                    return Ok(None);
+                }
+                vx_cache::CacheLookupResult::Miss => {}
+            }
+        }
+
+        // Optimize URL with CDN if enabled
+        let download_url = self.http.optimize_url(url).await;
+        let using_cdn = download_url.as_str() != url;
+        if using_cdn {
+            tracing::info!(
+                original = url,
+                optimized = %download_url,
+                "Using CDN accelerated URL"
+            );
+        }
+
+        let response = self.http.client.get(download_url.as_str()).send().await?;
+
+        if !response.status().is_success() {
+            return Err(anyhow::anyhow!(
+                "Download failed: HTTP {} for {}",
+                response.status(),
+                if using_cdn { download_url.as_str() } else { url }
+            ));
+        }
+
+        // Extract filename from response BEFORE consuming the body
+        let detected_filename = Self::extract_filename_from_response(&response, url);
+        let total_size = response.content_length().unwrap_or(0);
+
+        if let Some(parent) = dest.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        let mut file = tokio::fs::File::create(dest).await?;
+        let mut stream = response.bytes_stream();
+
+        let filename_display = RealHttpClient::extract_display_name_from_url(url);
+        let cdn_suffix = if using_cdn { " [CDN]" } else { "" };
+
+        let progress_bar = if total_size > 0 {
+            let pb = ProgressBar::new(total_size);
+            pb.set_style(
+                ProgressStyle::with_template(&format!(
+                    "{filename_display}{cdn_suffix} (download) {{wide_bar:.cyan/blue}} {{bytes}}/{{total_bytes}}"
+                ))
+                .unwrap_or_else(|_| ProgressStyle::default_bar())
+                .progress_chars("━━╺"),
+            );
+            pb
+        } else {
+            let pb = ProgressBar::new_spinner();
+            pb.set_style(
+                ProgressStyle::with_template(&format!(
+                    "{{spinner:.green}} {filename_display}{cdn_suffix} (download) {{bytes}}"
+                ))
+                .unwrap_or_else(|_| ProgressStyle::default_spinner()),
+            );
+            pb.enable_steady_tick(std::time::Duration::from_millis(100));
+            pb
+        };
+
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk?;
+            file.write_all(&chunk).await?;
+            progress_bar.inc(chunk.len() as u64);
+        }
+
+        progress_bar.finish_and_clear();
+        file.flush().await?;
+
+        // Store in download cache if enabled
+        if let Some(cache) = &self.http.download_cache {
+            if let Err(e) = cache.store(url, dest, None, None, None) {
+                tracing::warn!(url = url, error = %e, "Failed to cache download");
+            }
+        }
+
+        Ok(detected_filename)
     }
 
     /// Parse filename from Content-Disposition header value
@@ -210,42 +352,39 @@ impl Installer for RealInstaller {
     }
 
     async fn download_and_extract(&self, url: &str, dest: &Path) -> Result<()> {
-        use crate::traits::HttpClient;
-
         // Create temp file for download
         let temp_dir = tempfile::tempdir()?;
 
         // Extract archive name from URL, handling URL fragments (e.g., #.zip hint)
         let url_without_fragment = url.split('#').next().unwrap_or(url);
 
-        // Try to get actual filename from server (handles redirects and Content-Disposition)
-        let archive_name = self
-            .get_filename_from_server(url_without_fragment)
-            .await
-            .unwrap_or_else(|| {
-                url_without_fragment
-                    .split('/')
-                    .next_back()
-                    .unwrap_or("archive")
-                    .split('?')
-                    .next()
-                    .unwrap_or("archive")
-                    .to_string()
-            });
+        // Download and detect filename in a single GET request (no separate HEAD).
+        // This saves ~3-5 seconds for APIs that use redirect chains (e.g., Adoptium:
+        // api.adoptium.net → github.com → objects.githubusercontent.com).
+        let temp_download_path = temp_dir.path().join("download_temp");
+        let detected_filename = self
+            .download_and_detect_filename(url_without_fragment, &temp_download_path)
+            .await?;
+
+        let archive_name = detected_filename.unwrap_or_else(|| {
+            url_without_fragment
+                .split('/')
+                .next_back()
+                .unwrap_or("archive")
+                .split('?')
+                .next()
+                .unwrap_or("archive")
+                .to_string()
+        });
+
+        // Rename temp file to actual filename so extraction can detect format
+        let temp_path = temp_dir.path().join(&archive_name);
+        if temp_download_path != temp_path {
+            std::fs::rename(&temp_download_path, &temp_path)?;
+        }
 
         // Check for extension hint in URL fragment
         let extension_hint = url.split('#').nth(1);
-
-        let temp_path = temp_dir.path().join(&archive_name);
-
-        // Download with caching support (if cache is enabled)
-        let from_cache = self
-            .http
-            .download_cached(url_without_fragment, &temp_path)
-            .await?;
-        if from_cache {
-            tracing::debug!(url = url_without_fragment, "Using cached download");
-        }
 
         // Check if it's an archive or a single executable
         // First check the URL/filename, then check extension hint, then check file magic bytes
