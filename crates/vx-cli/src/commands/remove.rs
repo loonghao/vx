@@ -54,6 +54,9 @@ pub async fn handle(
                 // Run post-uninstall hook
                 runtime.post_uninstall(&target_version, context).await?;
 
+                // Invalidate exec path caches
+                invalidate_caches_for_runtime(tool_name, context);
+
                 UI::success(&format!(
                     "Successfully removed {} {}",
                     tool_name, target_version
@@ -120,6 +123,9 @@ pub async fn handle(
                 }
             }
         }
+
+        // Invalidate exec path caches after all removals
+        invalidate_caches_for_runtime(tool_name, context);
 
         if errors.is_empty() {
             UI::success(&format!("Successfully removed all {} versions", tool_name));
@@ -215,5 +221,19 @@ fn matches_constraint(version: &vx_resolver::Version, constraint: &VersionConstr
             version.major == v.major && version.minor == v.minor && version >= v
         }
         VersionConstraint::Range(constraints) => constraints.iter().all(|c| c.satisfies(version)),
+    }
+}
+
+/// Invalidate exec path caches after install/uninstall.
+fn invalidate_caches_for_runtime(tool_name: &str, context: &RuntimeContext) {
+    let runtime_store_dir = context.paths.runtime_store_dir(tool_name);
+    let prefix = runtime_store_dir.to_string_lossy().to_string();
+    vx_resolver::invalidate_bin_dir_cache(&prefix);
+
+    let cache_dir = context.paths.cache_dir();
+    let mut exec_cache = vx_cache::ExecPathCache::load(&cache_dir);
+    exec_cache.invalidate_runtime(&runtime_store_dir);
+    if let Err(e) = exec_cache.save(&cache_dir) {
+        tracing::debug!("Failed to save exec path cache after invalidation: {}", e);
     }
 }

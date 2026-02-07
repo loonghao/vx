@@ -215,6 +215,9 @@ async fn install_single(
                 .post_install(&target_version, &context_with_cache)
                 .await?;
 
+            // Invalidate exec path caches so stale entries are not used
+            invalidate_caches_for_runtime(tool_name, context);
+
             // Show installation path
             UI::detail(&format!("Installed to: {}", result.install_path.display()));
 
@@ -437,4 +440,23 @@ pub async fn install_quiet(
     runtime.post_install(&target_version, context).await?;
 
     Ok(install_result)
+}
+
+/// Invalidate exec path caches after install/uninstall.
+///
+/// Clears the process-level bin-dir cache and the on-disk exec-path cache
+/// for the given runtime so that subsequent lookups re-discover executables.
+fn invalidate_caches_for_runtime(tool_name: &str, context: &RuntimeContext) {
+    // 1. Process-level BIN_DIR_CACHE (used by build_vx_tools_path)
+    let runtime_store_dir = context.paths.runtime_store_dir(tool_name);
+    let prefix = runtime_store_dir.to_string_lossy().to_string();
+    vx_resolver::invalidate_bin_dir_cache(&prefix);
+
+    // 2. On-disk exec path cache (used by PathResolver::find_executable_in_dir)
+    let cache_dir = context.paths.cache_dir();
+    let mut exec_cache = vx_cache::ExecPathCache::load(&cache_dir);
+    exec_cache.invalidate_runtime(&runtime_store_dir);
+    if let Err(e) = exec_cache.save(&cache_dir) {
+        tracing::debug!("Failed to save exec path cache after invalidation: {}", e);
+    }
 }

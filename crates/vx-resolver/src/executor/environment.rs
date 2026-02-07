@@ -18,6 +18,29 @@ use super::project_config::ProjectToolsConfig;
 /// This prevents duplicate warnings when building PATH
 pub(crate) static WARNED_TOOLS: Mutex<Option<HashSet<String>>> = Mutex::new(None);
 
+/// Process-level cache for bin directory lookups (store_dir -> bin_dir).
+///
+/// Avoids repeated walkdir traversals when `build_vx_tools_path` is called
+/// for every command execution. Cleared on install/uninstall via
+/// `invalidate_bin_dir_cache`.
+static BIN_DIR_CACHE: Mutex<Option<HashMap<String, PathBuf>>> = Mutex::new(None);
+
+/// Invalidate the bin directory cache for a specific runtime.
+///
+/// Call this after installing or uninstalling a runtime.
+pub fn invalidate_bin_dir_cache(runtime_store_prefix: &str) {
+    let mut cache = BIN_DIR_CACHE.lock().unwrap();
+    if let Some(ref mut map) = *cache {
+        map.retain(|key, _| !key.starts_with(runtime_store_prefix));
+    }
+}
+
+/// Clear the entire bin directory cache.
+pub fn clear_bin_dir_cache() {
+    let mut cache = BIN_DIR_CACHE.lock().unwrap();
+    *cache = None;
+}
+
 /// Environment preparation manager
 pub struct EnvironmentManager<'a> {
     #[allow(dead_code)]
@@ -700,7 +723,29 @@ impl<'a> EnvironmentManager<'a> {
     /// - `<version>/<platform>/bin/node.exe` (standard)
     /// - `<version>/<platform>/node-v25.6.0-win-x64/node.exe` (Node.js style)
     /// - `<version>/<platform>/yarn-v1.22.19/bin/yarn.cmd` (Yarn style)
+    ///
+    /// Results are cached in a process-level `BIN_DIR_CACHE` to avoid repeated
+    /// walkdir traversals on subsequent calls.
     pub fn find_bin_dir(&self, store_dir: &std::path::Path, runtime_name: &str) -> Option<PathBuf> {
+        let cache_key = store_dir.to_string_lossy().to_string();
+
+        // Check process-level cache first
+        {
+            let cache = BIN_DIR_CACHE.lock().unwrap();
+            if let Some(ref map) = *cache {
+                if let Some(cached) = map.get(&cache_key) {
+                    if cached.exists() {
+                        trace!(
+                            "BIN_DIR_CACHE hit for {} in {}",
+                            runtime_name,
+                            store_dir.display()
+                        );
+                        return Some(cached.clone());
+                    }
+                }
+            }
+        }
+
         let platform = vx_paths::manager::CurrentPlatform::current();
 
         // Build the list of possible executable names
@@ -742,7 +787,12 @@ impl<'a> EnvironmentManager<'a> {
                                 path.display(),
                                 parent.display()
                             );
-                            return Some(parent.to_path_buf());
+                            let result = parent.to_path_buf();
+                            // Store in cache
+                            let mut cache = BIN_DIR_CACHE.lock().unwrap();
+                            let map = cache.get_or_insert_with(HashMap::new);
+                            map.insert(cache_key, result.clone());
+                            return Some(result);
                         }
                     }
                 }
@@ -752,16 +802,25 @@ impl<'a> EnvironmentManager<'a> {
         // Fallback: check standard locations
         let bin_dir = platform_dir.join("bin");
         if bin_dir.exists() {
+            let mut cache = BIN_DIR_CACHE.lock().unwrap();
+            let map = cache.get_or_insert_with(HashMap::new);
+            map.insert(cache_key, bin_dir.clone());
             return Some(bin_dir);
         }
 
         let bin_dir = store_dir.join("bin");
         if bin_dir.exists() {
+            let mut cache = BIN_DIR_CACHE.lock().unwrap();
+            let map = cache.get_or_insert_with(HashMap::new);
+            map.insert(cache_key, bin_dir.clone());
             return Some(bin_dir);
         }
 
         // Last resort: return platform dir if it exists
         if platform_dir.exists() {
+            let mut cache = BIN_DIR_CACHE.lock().unwrap();
+            let map = cache.get_or_insert_with(HashMap::new);
+            map.insert(cache_key, platform_dir.clone());
             return Some(platform_dir);
         }
 

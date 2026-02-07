@@ -8,6 +8,8 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
+vx-cache = { workspace = true }
+
 anyhow = { workspace = true }
 chrono = { workspace = true }
 dirs = { workspace = true }

@@ -186,6 +186,14 @@ impl Resolver {
         })
     }
 
+    /// Persist the exec path cache to disk.
+    ///
+    /// Should be called after the pipeline completes to save any new
+    /// cache entries discovered during executable resolution.
+    pub fn save_exec_cache(&self) {
+        self.path_resolver.save_cache();
+    }
+
     /// Check the status of a runtime
     pub fn check_runtime_status(&self, runtime_name: &str) -> RuntimeStatus {
         // Get the runtime specification if known

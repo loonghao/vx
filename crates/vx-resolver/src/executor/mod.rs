@@ -30,6 +30,7 @@ pub use bundle::{
     execute_bundle, execute_system_runtime, has_bundle, is_online, try_get_bundle_context,
     BundleContext, BundleManifest, BundledToolInfo, BUNDLE_DIR, BUNDLE_MANIFEST,
 };
+pub use environment::{clear_bin_dir_cache, invalidate_bin_dir_cache};
 pub use executor::Executor;
 pub use project_config::ProjectToolsConfig;
 
