@@ -118,9 +118,11 @@ tokio = { workspace = true }
 anyhow = { workspace = true }
 
 [features]
-default = ["cdn-acceleration"]
+default = ["cdn-acceleration", "self-update"]
 # CDN acceleration for faster downloads in China (uses rustls-tls, no OpenSSL required)
 cdn-acceleration = ["vx-cli/cdn-acceleration"]
+# Self-update via axoupdater (cargo-dist receipt-based fast path)
+self-update = ["vx-cli/self-update"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
@@ -281,6 +283,9 @@ semver = "1.0"
 # Self-replacement for binary updates (handles Windows exe locking)
 self-replace = "1.5"
 
+# Self-updater library for cargo-dist integration
+axoupdater = { version = "0.9", default-features = false, features = ["github_releases"] }
+
 # Windows system calls for file operations
 windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
 
@@ -368,6 +373,8 @@ github-releases = true
 github-attestations = true
 # Whether to install an updater program
 install-updater = false
+# Generate install receipts for axoupdater library integration
+install-receipt = true
 # Extra static files to include in each App (path relative to this Cargo.toml's dir)
 include = ["LICENSE", "README.md", "CHANGELOG.md"]
 # Whether to publish prereleases to package managers
