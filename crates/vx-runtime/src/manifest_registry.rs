@@ -115,6 +115,18 @@ impl ManifestRegistry {
         self.builder.build(&manifests)
     }
 
+    /// Build a ProviderRegistry with lazy loading (structured result)
+    ///
+    /// Unlike `build_registry_with_result()`, this does NOT immediately call factory
+    /// functions. Instead, it registers them for on-demand materialization when
+    /// `get_runtime()` is called. This reduces startup time significantly.
+    ///
+    /// Consumes `self` because factory closures need to be moved into the registry.
+    pub fn build_registry_lazy(self) -> BuildResult {
+        let manifests: Vec<_> = self.store.iter().cloned().collect();
+        self.builder.build_lazy(&manifests)
+    }
+
     /// Build a ProviderRegistry from loaded manifests and factories
     ///
     /// **Backward-compatible**: logs warnings for missing factories.
