@@ -47,13 +47,13 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Logging functions
+# Logging functions (all write to stderr to avoid polluting stdout used for return values)
 info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} $1" >&2
 }
 
 warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "${YELLOW}[WARN]${NC} $1" >&2
 }
 
 error() {
@@ -61,7 +61,7 @@ error() {
 }
 
 success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
 }
 
 # Detect available package managers
@@ -411,21 +411,21 @@ get_latest_version() {
 
     # If all else fails, provide helpful error message
     error "Unable to determine latest version automatically due to rate limiting."
-    echo ""
-    echo "Solutions:"
-    echo "1. Set GITHUB_TOKEN environment variable:"
-    echo "   GITHUB_TOKEN='your_token_here' $0"
-    echo ""
-    echo "2. Specify version explicitly:"
-    echo "   VX_VERSION='0.6.7' $0"
-    echo ""
-    echo "3. Use package managers:"
-    echo "   brew install loonghao/vx/vx"
-    echo "   cargo install vx"
-    echo ""
-    echo "4. Download directly from:"
-    echo "   https://github.com/loonghao/vx/releases/latest"
-    echo ""
+    echo "" >&2
+    echo "Solutions:" >&2
+    echo "1. Set GITHUB_TOKEN environment variable:" >&2
+    echo "   GITHUB_TOKEN='your_token_here' $0" >&2
+    echo "" >&2
+    echo "2. Specify version explicitly:" >&2
+    echo "   VX_VERSION='0.6.7' $0" >&2
+    echo "" >&2
+    echo "3. Use package managers:" >&2
+    echo "   brew install loonghao/vx/vx" >&2
+    echo "   cargo install vx" >&2
+    echo "" >&2
+    echo "4. Download directly from:" >&2
+    echo "   https://github.com/loonghao/vx/releases/latest" >&2
+    echo "" >&2
     exit 1
 }
 
