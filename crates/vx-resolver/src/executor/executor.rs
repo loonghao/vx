@@ -9,14 +9,12 @@
 //! - `command.rs` - Command building and execution
 
 use super::bundle::{execute_bundle, has_bundle, is_online, try_get_bundle_context};
-use super::command::{build_command, run_command};
 use super::environment::EnvironmentManager;
 use super::installation::InstallationManager;
 use super::project_config::ProjectToolsConfig;
 use crate::{ResolutionCache, Resolver, ResolverConfig, Result, RuntimeMap};
 use std::path::PathBuf;
 use tracing::{debug, info, info_span};
-use vx_core::exit_code_from_status;
 use vx_paths::project::find_vx_config;
 use vx_runtime::{CacheMode, ProviderRegistry, RuntimeContext};
 
@@ -155,13 +153,15 @@ impl<'a> Executor<'a> {
         }
 
         // -------------------------
-        // Offline Bundle Check
+        // Pre-check: Offline Bundle
         // -------------------------
         if let Some(exit_code) = self.try_offline_bundle(runtime_name, args).await? {
             return Ok(exit_code);
         }
 
-        // Check platform support
+        // -------------------------
+        // Pre-check: Platform Support
+        // -------------------------
         if let Some(registry) = self.registry {
             if let Some(runtime) = registry.get_runtime(runtime_name) {
                 if let Err(e) = runtime.check_platform_support() {
@@ -171,218 +171,245 @@ impl<'a> Executor<'a> {
         }
 
         // -------------------------
-        // Resolve
+        // Pipeline: Resolve → Ensure → Prepare → Execute
         // -------------------------
-        debug!("[RESOLVE]");
-        let resolved_version = self.resolve_version(runtime_name, version);
-        debug!(
-            "  version: {:?}",
-            resolved_version.as_ref().unwrap_or(&"latest".to_string())
+        use super::pipeline::stages::resolve::{ResolveRequest, ResolveStage, WithDepRequest};
+        use super::pipeline::stages::ensure::EnsureStage;
+        use super::pipeline::stages::prepare::PrepareStage;
+        use super::pipeline::stages::execute::ExecuteStage;
+        use super::pipeline::stage::Stage;
+
+        // Build ResolveRequest from arguments
+        let with_dep_requests: Vec<WithDepRequest> = with_deps.iter().map(Into::into).collect();
+        let mut request = ResolveRequest::new(runtime_name, args.to_vec());
+        request.version = version.map(|v| v.to_string());
+        request.with_deps = with_dep_requests;
+        request.inherit_env = inherit_env;
+        request.auto_install = self.config.auto_install;
+        request.inherit_vx_path = self.config.inherit_vx_path;
+
+        // Build stages
+        let store_base = self.context.map(|ctx| ctx.paths.store_dir());
+
+        let mut resolve_stage = ResolveStage::new(&self.resolver, &self.config);
+        if let Some(ref project_config) = self.project_config {
+            resolve_stage = resolve_stage.with_project_config(project_config);
+        }
+        if let Some(ref base) = store_base {
+            resolve_stage = resolve_stage.with_store_base(base.clone());
+        }
+
+        let ensure_stage = EnsureStage::new(
+            &self.resolver,
+            &self.config,
+            self.registry,
+            self.context,
         );
 
-        let mut resolution = self
-            .resolver
-            .resolve_with_version(runtime_name, resolved_version.as_deref())?;
-        debug!("  executable: {}", resolution.executable.display());
-        debug!("  needs_install: {}", resolution.runtime_needs_install);
-        debug!("[/RESOLVE]");
-
-        // -------------------------
-        // Ensure Installed
-        // -------------------------
-        debug!("[INSTALL_CHECK]");
-        let install_mgr = self.installation_manager();
-        let mut installed_version: Option<String> = None;
-        let needs_re_resolve =
-            resolution.runtime_needs_install || !resolution.executable.is_absolute();
-
-        // If a specific version is requested, ensure it's installed first
-        if let Some(requested_version) = resolved_version.clone() {
-            installed_version = install_mgr
-                .ensure_version_installed(runtime_name, &requested_version)
-                .await?;
-            debug!("  installed_version: {:?}", installed_version);
+        let mut prepare_stage = PrepareStage::new(
+            &self.resolver,
+            &self.config,
+            self.registry,
+            self.context,
+        );
+        if let Some(ref project_config) = self.project_config {
+            prepare_stage = prepare_stage.with_project_config(project_config);
         }
 
-        // Install missing runtimes/dependencies (if any)
-        if !resolution.install_order.is_empty() && self.config.auto_install {
-            let runtimes_to_install = self.filter_installable_runtimes(
-                &resolution.install_order,
-                runtime_name,
-                installed_version.is_some(),
-            );
+        let execute_stage = if let Some(timeout) = self.config.execution_timeout {
+            ExecuteStage::new().with_timeout(timeout)
+        } else {
+            ExecuteStage::new()
+        };
 
-            if !runtimes_to_install.is_empty() {
-                info!("  auto-installing: {:?}", runtimes_to_install);
-                install_mgr.install_runtimes(&runtimes_to_install).await?;
+        // Stage 1: Resolve
+        debug!("[Pipeline] Resolve");
+        let plan = resolve_stage
+            .execute(request)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        // Check incompatible dependencies (from resolution)
+        // The ResolveStage logs them as warnings; here we enforce the error
+        // by re-checking the underlying resolution
+        let resolved_version = plan.primary.version_string().map(|s| s.to_string());
+        if let Ok(check_resolution) = self.resolver.resolve_with_version(
+            runtime_name,
+            resolved_version.as_deref(),
+        ) {
+            if !check_resolution.incompatible_dependencies.is_empty() {
+                for incompatible in &check_resolution.incompatible_dependencies {
+                    tracing::warn!(
+                        "Incompatible dependency {}: current={:?}, recommended={:?}",
+                        incompatible.runtime_name,
+                        incompatible.current_version,
+                        incompatible.recommended_version
+                    );
+                }
+                return Err(anyhow::anyhow!(
+                    "Some dependencies are incompatible. Please install compatible versions."
+                ));
             }
-        } else if !resolution.install_order.is_empty() {
-            return Err(self.missing_dependencies_error(runtime_name, &resolution));
         }
 
-        // Re-resolve after installation
-        if needs_re_resolve {
-            debug!("[RE-RESOLVE] Re-resolving after installation");
-            let re_resolve_version = installed_version.as_deref().or(resolved_version.as_deref());
-            resolution = self
-                .resolver
-                .resolve_with_version(runtime_name, re_resolve_version)?;
-            debug!(
-                "[RE-RESOLVE] Updated executable: {}",
-                resolution.executable.display()
-            );
-        }
+        // Stage 2: Ensure installed
+        debug!("[Pipeline] Ensure");
+        let plan = ensure_stage
+            .execute(plan)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-        // Check incompatible dependencies
-        if !resolution.incompatible_dependencies.is_empty() {
-            for incompatible in &resolution.incompatible_dependencies {
-                tracing::warn!(
-                    "Incompatible dependency {}: current={:?}, recommended={:?}",
-                    incompatible.runtime_name,
-                    incompatible.current_version,
-                    incompatible.recommended_version
-                );
-            }
-            return Err(anyhow::anyhow!(
-                "Some dependencies are incompatible. Please install compatible versions."
-            ));
-        }
+        // Stage 3: Prepare environment
+        debug!("[Pipeline] Prepare");
+        let mut prepared = prepare_stage
+            .execute(plan)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
 
         // -------------------------
-        // Prepare Environment
-        // -------------------------
-        debug!("[/INSTALL_CHECK]");
-        debug!("[PREPARE_ENV]");
-        let env_mgr = self.environment_manager();
-        let mut runtime_env = env_mgr
-            .prepare_runtime_environment(runtime_name, installed_version.as_deref(), inherit_env)
-            .await?;
-        debug!("  env_vars: {} variables set", runtime_env.len());
-        debug!("[/PREPARE_ENV]");
-
-        // -------------------------
-        // --with Dependencies Injection
+        // Post-prepare: --with Dependencies Injection
         // -------------------------
         if !with_deps.is_empty() {
             debug!("[WITH_DEPS]");
-            self.inject_with_dependencies(&mut runtime_env, with_deps)
+            self.inject_with_dependencies(&mut prepared.env, with_deps)
                 .await?;
             debug!("[/WITH_DEPS]");
         }
 
         // -------------------------
-        // RFC 0028: Prepare Proxy Execution
+        // Post-prepare: RFC 0028 Proxy Execution
         // -------------------------
-        if let Some(registry) = self.registry {
-            if let Some(runtime) = registry.get_runtime(runtime_name) {
-                // Get the actual version to check
-                // If no version is specified, try to get it from installed versions
-                let version_to_check = if let Some(ver) =
-                    installed_version.as_deref().or(resolved_version.as_deref())
-                {
-                    ver.to_string()
-                } else if let Some(ctx) = self.context {
-                    // No version specified - try to get from installed versions
-                    runtime
-                        .installed_versions(ctx)
-                        .await
-                        .ok()
-                        .and_then(|versions| versions.into_iter().next())
-                        .unwrap_or_else(|| "latest".to_string())
-                } else {
-                    "latest".to_string()
-                };
+        self.apply_proxy_execution(
+            runtime_name,
+            &mut prepared,
+            inherit_env,
+        )
+        .await?;
 
-                debug!("  version_to_check for proxy: {}", version_to_check);
+        // Add executable's parent directory to PATH
+        self.add_executable_dir_to_prepared_path(&mut prepared);
 
-                if !runtime.is_version_installable(&version_to_check) {
-                    let prep = self
-                        .prepare_proxy_execution(
-                            runtime_name,
-                            &version_to_check,
-                            &runtime_env,
-                            inherit_env,
-                            runtime.as_ref(),
-                        )
-                        .await?;
+        // Stage 4: Execute
+        debug!("[Pipeline] Execute");
+        let exit_code = execute_stage
+            .execute(prepared)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-                    // Apply execution prep
-                    if let Some(ref msg) = prep.message {
-                        info!("{}", msg);
-                    }
+        Ok(exit_code)
+    }
 
-                    if !prep.proxy_ready
-                        && !prep.use_system_path
-                        && prep.executable_override.is_none()
-                    {
-                        return Err(anyhow::anyhow!(
-                            "Proxy setup for {}@{} failed. The proxy mechanism is not ready.",
-                            runtime_name,
-                            version_to_check
-                        ));
-                    }
+    /// Apply RFC 0028 proxy execution overrides to a PreparedExecution
+    async fn apply_proxy_execution(
+        &self,
+        runtime_name: &str,
+        prepared: &mut super::pipeline::stages::prepare::PreparedExecution,
+        inherit_env: bool,
+    ) -> Result<()> {
+        let registry = match self.registry {
+            Some(r) => r,
+            None => return Ok(()),
+        };
 
-                    // Apply overrides
-                    if prep.use_system_path {
-                        if let Ok(system_exe) = which::which(runtime_name) {
-                            resolution.executable = system_exe;
-                        }
-                    }
-                    if let Some(exe_override) = prep.executable_override {
-                        resolution.executable = exe_override;
-                    }
-                    if !prep.command_prefix.is_empty() {
-                        resolution.command_prefix = prep.command_prefix;
-                    }
-                    runtime_env.extend(prep.env_vars);
+        let runtime = match registry.get_runtime(runtime_name) {
+            Some(r) => r,
+            None => return Ok(()),
+        };
 
-                    // Apply PATH prepend
-                    if !prep.path_prepend.is_empty() {
-                        self.apply_path_prepend(&mut runtime_env, &prep.path_prepend);
-                    }
-                }
-            }
+        // Determine version to check
+        let version_to_check = prepared.plan.primary.version_string()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| {
+                // Try to get from installed versions
+                "latest".to_string()
+            });
+
+        if runtime.is_version_installable(&version_to_check) {
+            return Ok(());
         }
 
-        // -------------------------
-        // Execute
-        // -------------------------
-        debug!("[EXECUTE]");
-        // Verify executable exists
-        if resolution.executable.is_absolute() && !resolution.executable.exists() {
+        let prep = self
+            .prepare_proxy_execution(
+                runtime_name,
+                &version_to_check,
+                &prepared.env,
+                inherit_env,
+                runtime.as_ref(),
+            )
+            .await?;
+
+        if let Some(ref msg) = prep.message {
+            info!("{}", msg);
+        }
+
+        if !prep.proxy_ready
+            && !prep.use_system_path
+            && prep.executable_override.is_none()
+        {
             return Err(anyhow::anyhow!(
-                "Executable not found at '{}'. Try running 'vx install {}'.",
-                resolution.executable.display(),
-                runtime_name
+                "Proxy setup for {}@{} failed. The proxy mechanism is not ready.",
+                runtime_name,
+                version_to_check
             ));
         }
 
-        // Add executable's parent directory to PATH
-        self.add_executable_dir_to_path(&resolution, &mut runtime_env);
+        // Apply overrides
+        if prep.use_system_path {
+            if let Ok(system_exe) = which::which(runtime_name) {
+                prepared.executable = system_exe;
+            }
+        }
+        if let Some(exe_override) = prep.executable_override {
+            prepared.executable = exe_override;
+        }
+        if !prep.command_prefix.is_empty() {
+            prepared.command_prefix = prep.command_prefix;
+        }
+        prepared.env.extend(prep.env_vars);
 
-        // Build and run command
-        let vx_tools_path = if self.config.inherit_vx_path {
-            env_mgr.build_vx_tools_path()
-        } else {
-            None
-        };
+        if !prep.path_prepend.is_empty() {
+            self.apply_path_prepend(&mut prepared.env, &prep.path_prepend);
+        }
 
-        let mut cmd = build_command(
-            &resolution,
-            args,
-            &runtime_env,
-            self.config.inherit_vx_path,
-            vx_tools_path,
-        )?;
+        Ok(())
+    }
 
-        debug!("  cmd: {} {:?}", resolution.executable.display(), args);
-        debug!("--- tool output below ---");
+    /// Add executable's parent directory to PATH in a PreparedExecution
+    fn add_executable_dir_to_prepared_path(
+        &self,
+        prepared: &mut super::pipeline::stages::prepare::PreparedExecution,
+    ) {
+        if prepared.executable.is_absolute() {
+            if let Some(exe_dir) = prepared.executable.parent() {
+                let exe_dir_str = exe_dir.to_string_lossy().to_string();
+                let path_sep = vx_paths::path_separator();
+                let grandparent_dir =
+                    exe_dir.parent().map(|p| p.to_string_lossy().to_string());
 
-        let status = run_command(&mut cmd, self.config.execution_timeout).await?;
-        debug!("--- tool output above ---");
-        debug!("[/EXECUTE] exit={}", exit_code_from_status(&status));
+                let current_path = prepared
+                    .env
+                    .get("PATH")
+                    .cloned()
+                    .or_else(|| std::env::var("PATH").ok())
+                    .unwrap_or_default();
 
-        Ok(exit_code_from_status(&status))
+                let mut new_path = exe_dir_str.clone();
+                if let Some(ref gp) = grandparent_dir {
+                    if !new_path.contains(gp) {
+                        new_path = format!("{}{}{}", new_path, path_sep, gp);
+                    }
+                }
+                if !current_path.is_empty() {
+                    new_path = format!("{}{}{}", new_path, path_sep, current_path);
+                }
+
+                prepared.env.insert("PATH".to_string(), new_path);
+                debug!(
+                    "  Added executable dir to PATH: {}",
+                    exe_dir.display()
+                );
+            }
+        }
     }
 
     // ========== Helper Methods ==========
@@ -450,145 +477,6 @@ impl<'a> Executor<'a> {
         }
 
         Ok(None)
-    }
-
-    /// Resolve version from command line or project config
-    ///
-    /// If version is "latest", resolves it to the actual latest installed version.
-    /// This ensures consistent version handling throughout the execution flow.
-    fn resolve_version(&self, runtime_name: &str, version: Option<&str>) -> Option<String> {
-        let raw_version = if let Some(v) = version {
-            Some(v.to_string())
-        } else if let Some(ref project_config) = self.project_config {
-            project_config
-                .get_version_with_fallback(runtime_name)
-                .map(|s| s.to_string())
-        } else {
-            None
-        };
-
-        // Resolve "latest" to actual installed version
-        if let Some(ref v) = raw_version {
-            if v == "latest" {
-                if let Some(ctx) = self.context {
-                    // Get installed versions from store directory
-                    let runtime_dir = ctx.paths.runtime_store_dir(runtime_name);
-                    if let Ok(versions) = self.list_installed_versions(&runtime_dir) {
-                        if let Some(latest) = versions.last() {
-                            debug!("Resolved {}@latest → {}", runtime_name, latest);
-                            return Some(latest.clone());
-                        }
-                    }
-                }
-            }
-        }
-
-        raw_version
-    }
-
-    /// List installed versions from a runtime store directory
-    ///
-    /// Scans the directory for version subdirectories and returns them sorted.
-    fn list_installed_versions(
-        &self,
-        runtime_dir: &std::path::Path,
-    ) -> std::io::Result<Vec<String>> {
-        if !runtime_dir.exists() {
-            return Ok(Vec::new());
-        }
-
-        let current_platform = vx_runtime::Platform::current().as_str();
-        let mut versions = Vec::new();
-
-        for entry in std::fs::read_dir(runtime_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-
-            // Only check directories
-            if !path.is_dir() {
-                continue;
-            }
-
-            // Check if this is a version directory (starts with a digit)
-            let version_str = entry.file_name().to_string_lossy().to_string();
-            if !version_str
-                .chars()
-                .next()
-                .map(|c| c.is_ascii_digit())
-                .unwrap_or(false)
-            {
-                continue;
-            }
-
-            // Check new structure: <version>/<platform>/
-            let platform_dir = path.join(&current_platform);
-            if platform_dir.exists() {
-                versions.push(version_str);
-            }
-        }
-
-        // Sort by semantic version (lowest first, so last is highest)
-        versions.sort_by(|a, b| {
-            semver::Version::parse(a)
-                .and_then(|va| semver::Version::parse(b).map(|vb| va.cmp(&vb)))
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-
-        Ok(versions)
-    }
-
-    /// Filter out bundled runtimes from install list
-    fn filter_installable_runtimes(
-        &self,
-        install_order: &[String],
-        primary_runtime: &str,
-        already_installed: bool,
-    ) -> Vec<String> {
-        install_order
-            .iter()
-            .filter(|r| {
-                // Skip primary runtime if already processed
-                if already_installed && *r == primary_runtime {
-                    return false;
-                }
-                // RFC 0028: Skip bundled runtimes
-                if let Some(registry) = self.registry {
-                    if let Some(rt) = registry.get_runtime(r) {
-                        if !rt.is_version_installable("latest") {
-                            debug!("Skipping bundled runtime '{}' from install_order", r);
-                            return false;
-                        }
-                    }
-                }
-                true
-            })
-            .cloned()
-            .collect()
-    }
-
-    /// Create error for missing dependencies
-    fn missing_dependencies_error(
-        &self,
-        runtime_name: &str,
-        resolution: &crate::resolver::ResolutionResult,
-    ) -> anyhow::Error {
-        let missing = if resolution.runtime_needs_install {
-            format!(
-                "Runtime '{}' is not installed. Missing dependencies: {:?}",
-                runtime_name, resolution.missing_dependencies
-            )
-        } else {
-            format!(
-                "Missing dependencies for '{}': {:?}",
-                runtime_name, resolution.missing_dependencies
-            )
-        };
-
-        anyhow::anyhow!(
-            "{}. Run 'vx install {}' or enable auto-install.",
-            missing,
-            runtime_name
-        )
     }
 
     /// Prepare proxy execution for bundled runtimes (RFC 0028)
@@ -899,40 +787,6 @@ impl<'a> Executor<'a> {
 
         runtime_env.insert("PATH".to_string(), new_path);
         debug!("  Prepended {} paths to PATH", path_prepend.len());
-    }
-
-    /// Add executable's parent directory to PATH
-    fn add_executable_dir_to_path(
-        &self,
-        resolution: &crate::resolver::ResolutionResult,
-        runtime_env: &mut std::collections::HashMap<String, String>,
-    ) {
-        if resolution.executable.is_absolute() {
-            if let Some(exe_dir) = resolution.executable.parent() {
-                let exe_dir_str = exe_dir.to_string_lossy().to_string();
-                let path_sep = vx_paths::path_separator();
-                let grandparent_dir = exe_dir.parent().map(|p| p.to_string_lossy().to_string());
-
-                let current_path = runtime_env
-                    .get("PATH")
-                    .cloned()
-                    .or_else(|| std::env::var("PATH").ok())
-                    .unwrap_or_default();
-
-                let mut new_path = exe_dir_str.clone();
-                if let Some(ref gp) = grandparent_dir {
-                    if !new_path.contains(gp) {
-                        new_path = format!("{}{}{}", new_path, path_sep, gp);
-                    }
-                }
-                if !current_path.is_empty() {
-                    new_path = format!("{}{}{}", new_path, path_sep, current_path);
-                }
-
-                runtime_env.insert("PATH".to_string(), new_path);
-                debug!("  Added executable dir to PATH: {}", exe_dir.display());
-            }
-        }
     }
 
     /// Get the resolver (for inspection)

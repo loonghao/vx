@@ -20,7 +20,7 @@ futures-util = { workspace = true }
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
-bincode = "1.3"
+bincode = { version = "2.0.1", features = ["serde"] }
 
 # HTTP client
 reqwest = { workspace = true }

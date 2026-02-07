@@ -28,7 +28,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use vx_config::config_manager::TomlWriter;
-use vx_config::{parse_config, HookExecutor, VxConfig};
+use vx_config::{parse_config, HookExecutor, ScriptConfig, VxConfig};
 use vx_paths::{find_config_file, find_vx_config as find_vx_config_path};
 use vx_runtime::ProviderRegistry;
 use vx_setup::ci::{CiProvider, PathExporter};
@@ -44,7 +44,7 @@ pub struct ConfigView {
     pub tools: HashMap<String, String>,
     pub settings: HashMap<String, String>,
     pub env: HashMap<String, String>,
-    pub scripts: HashMap<String, String>,
+    pub scripts: HashMap<String, ScriptConfig>,
     /// Project name (from [project] section or directory name)
     pub project_name: String,
     /// Whether to use isolation mode (default: true)
@@ -57,13 +57,32 @@ pub struct ConfigView {
 
 impl ConfigView {
     /// Get tools as BTreeMap for deterministic ordering
-    ///
-    /// This is useful for lock file operations where consistent ordering
-    /// is required to avoid unnecessary git diffs.
     pub fn tools_as_btreemap(&self) -> BTreeMap<String, String> {
         self.tools
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
+            .collect()
+    }
+
+    /// Get the command string for a script
+    pub fn get_script_command(&self, name: &str) -> Option<String> {
+        self.scripts.get(name).map(|s| match s {
+            ScriptConfig::Simple(cmd) => cmd.clone(),
+            ScriptConfig::Detailed(d) => d.command.clone(),
+        })
+    }
+
+    /// Get scripts as simple HashMap<String, String> (for backward-compatible operations)
+    pub fn scripts_as_simple_hashmap(&self) -> HashMap<String, String> {
+        self.scripts
+            .iter()
+            .map(|(k, v)| {
+                let cmd = match v {
+                    ScriptConfig::Simple(s) => s.clone(),
+                    ScriptConfig::Detailed(d) => d.command.clone(),
+                };
+                (k.clone(), cmd)
+            })
             .collect()
     }
 }
@@ -86,7 +105,7 @@ impl From<VxConfig> for ConfigView {
             tools: config.tools_as_hashmap(),
             settings: config.settings_as_hashmap(),
             env: config.env_as_hashmap(),
-            scripts: config.scripts_as_hashmap(),
+            scripts: config.scripts.clone(),
             project_name,
             isolation: config.is_isolation_mode(),
             passenv: config.get_passenv(),
@@ -232,7 +251,11 @@ fn show_next_steps(config: &ConfigView) {
     if !config.scripts.is_empty() {
         println!();
         println!("Available scripts:");
-        for (name, cmd) in &config.scripts {
+        for (name, script) in &config.scripts {
+            let cmd = match script {
+                ScriptConfig::Simple(s) => s.as_str(),
+                ScriptConfig::Detailed(d) => d.command.as_str(),
+            };
             println!("  vx run {} -> {}", name, cmd);
         }
     }
@@ -443,7 +466,9 @@ fn write_vx_config(path: &Path, config: &ConfigView) -> Result<()> {
 
     // Scripts section
     if !config.scripts.is_empty() {
-        writer = writer.section("scripts").kv_map_sorted(&config.scripts);
+        writer = writer
+            .section("scripts")
+            .kv_map_sorted(&config.scripts_as_simple_hashmap());
     }
 
     fs::write(path, writer.build())?;

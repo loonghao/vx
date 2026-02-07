@@ -160,8 +160,8 @@ impl DownloadCache {
     /// Read metadata from file
     fn read_metadata(&self, path: &Path) -> Option<DownloadCacheMetadata> {
         let file = std::fs::File::open(path).ok()?;
-        let reader = BufReader::new(file);
-        bincode::deserialize_from(reader).ok()
+        let mut reader = BufReader::new(file);
+        bincode::serde::decode_from_std_read(&mut reader, bincode::config::standard()).ok()
     }
 
     /// Store a downloaded file in the cache
@@ -219,8 +219,9 @@ impl DownloadCache {
     fn write_metadata(&self, path: &Path, metadata: &DownloadCacheMetadata) -> std::io::Result<()> {
         let temp_path = path.with_extension("meta.tmp");
         let file = std::fs::File::create(&temp_path)?;
-        let writer = BufWriter::new(file);
-        bincode::serialize_into(writer, metadata).map_err(std::io::Error::other)?;
+        let mut writer = BufWriter::new(file);
+        bincode::serde::encode_into_std_write(metadata, &mut writer, bincode::config::standard())
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
 
         // Atomic rename
         if path.exists() {

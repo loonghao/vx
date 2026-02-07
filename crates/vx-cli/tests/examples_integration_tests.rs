@@ -10,6 +10,7 @@ use rstest::*;
 use std::path::PathBuf;
 use vx_cli::commands::dev::build_script_environment;
 use vx_cli::commands::setup::{parse_vx_config, ConfigView};
+use vx_config::ScriptConfig;
 
 // ============================================================================
 // Helper Functions
@@ -123,13 +124,13 @@ mod taskmatrix_tests {
         // Check simple scripts
         assert_eq!(
             config.scripts.get("install"),
-            Some(&"uv pip install -r requirements.txt".to_string()),
+            Some(&ScriptConfig::Simple("uv pip install -r requirements.txt".to_string())),
             "install script should be correct"
         );
 
         assert_eq!(
             config.scripts.get("lint"),
-            Some(&"uvx ruff check .".to_string()),
+            Some(&ScriptConfig::Simple("uvx ruff check .".to_string())),
             "lint script should be correct"
         );
     }
