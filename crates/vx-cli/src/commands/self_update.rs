@@ -311,7 +311,7 @@ async fn try_jsdelivr_api_specific(
     let assets = create_cdn_assets(version);
 
     Ok(GitHubRelease {
-        tag_name: format!("vx-v{}", version),
+        tag_name: get_tag_for_version(version),
         name: format!("Release {}", version),
         body: "Release information retrieved from CDN".to_string(),
         prerelease: false,
@@ -586,8 +586,8 @@ async fn download_and_install(
                     UI::hint("  • Close ALL terminals and run update in a fresh terminal");
                     UI::hint("  • Manual update:");
                     UI::hint(&format!(
-                        "    1. Download: https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
-                        version, asset.name
+                        "    1. Download: https://github.com/loonghao/vx/releases/download/{}/{}",
+                        get_tag_for_version(version), asset.name
                     ));
                     UI::hint(&format!(
                         "    2. Extract and replace: {}",
@@ -792,21 +792,55 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
 }
 
 /// Determine artifact naming format based on version
-/// - v0.6.0+: versioned format (vx-0.6.1-x86_64-pc-windows-msvc.zip)
-/// - v0.5.x and earlier: legacy format (vx-x86_64-pc-windows-msvc.zip)
+/// - v0.6.0 to v0.6.x: versioned format (vx-0.6.1-x86_64-pc-windows-msvc.zip) with tag vx-v{ver}
+/// - v0.5.x and earlier: legacy/unversioned format (vx-x86_64-pc-windows-msvc.zip) with tag vx-v{ver}
+/// - v0.7.0+ (cargo-dist): unversioned format (vx-x86_64-pc-windows-msvc.zip) with tag v{ver}
 fn uses_versioned_artifact_naming(version: &str) -> bool {
     if let Some(parsed) = vx_core::version_utils::parse_version(version) {
-        // v0.6.0 and later use versioned naming
-        parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 6)
+        // Only v0.6.x uses versioned naming
+        // v0.7.0+ (cargo-dist) reverted to unversioned naming
+        parsed.major == 0 && parsed.minor == 6
     } else {
         false
+    }
+}
+
+/// Determine the git tag format for a given version
+/// - v0.7.0+: uses v{version} tag format (cargo-dist)
+/// - v0.6.x and earlier: uses vx-v{version} tag format (custom CI)
+fn get_tag_for_version(version: &str) -> String {
+    if uses_cargo_dist_tag_format(version) {
+        format!("v{}", version)
+    } else {
+        format!("vx-v{}", version)
+    }
+}
+
+/// Check if a version uses cargo-dist tag format (v{version} instead of vx-v{version})
+fn uses_cargo_dist_tag_format(version: &str) -> bool {
+    if let Some(parsed) = vx_core::version_utils::parse_version(version) {
+        parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 7)
+    } else {
+        false
+    }
+}
+
+/// Get all possible tag formats for a version (for fallback)
+fn get_tag_candidates(version: &str) -> Vec<String> {
+    if uses_cargo_dist_tag_format(version) {
+        // v0.7.0+: try v{ver} first, then vx-v{ver} as fallback
+        vec![format!("v{}", version), format!("vx-v{}", version)]
+    } else {
+        // v0.6.x and earlier: try vx-v{ver} first, then v{ver} as fallback
+        vec![format!("vx-v{}", version), format!("v{}", version)]
     }
 }
 
 /// Create CDN-based assets for a given version
 /// Supports both legacy naming (vx-arch-platform.ext) and versioned naming (vx-version-arch-platform.ext)
 fn create_cdn_assets(version: &str) -> Vec<GitHubAsset> {
-    let base_url = format!("https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}", version);
+    let tag = get_tag_for_version(version);
+    let base_url = format!("https://cdn.jsdelivr.net/gh/loonghao/vx@{}", tag);
     let use_versioned = uses_versioned_artifact_naming(version);
 
     // Platform configurations: (base_name, extension, os, arch)
@@ -867,65 +901,69 @@ async fn download_with_fallback(
 ) -> Result<Vec<u8>> {
     // Get both versioned and legacy asset names for fallback
     let asset_names = get_alternative_asset_names(&asset.name, version);
+    // Get all possible tag formats for this version
+    let tag_candidates = get_tag_candidates(version);
 
-    // Build download channels with all possible asset names
+    // Build download channels with all possible asset names and tag formats
     let mut channels: Vec<(&str, String)> = Vec::new();
 
     for asset_name in &asset_names {
-        if version_source == VersionSource::Cdn {
-            // CDN-first strategy
-            if channels.is_empty() {
-                channels.push(("jsDelivr CDN", asset.browser_download_url.clone()));
-            } else {
+        for tag in &tag_candidates {
+            if version_source == VersionSource::Cdn {
+                // CDN-first strategy
+                if channels.is_empty() {
+                    channels.push(("jsDelivr CDN", asset.browser_download_url.clone()));
+                } else {
+                    channels.push((
+                        "jsDelivr CDN (alt)",
+                        format!(
+                            "https://cdn.jsdelivr.net/gh/loonghao/vx@{}/{}",
+                            tag, asset_name
+                        ),
+                    ));
+                }
                 channels.push((
-                    "jsDelivr CDN (alt)",
+                    "Fastly CDN",
                     format!(
-                        "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
-                        version, asset_name
+                        "https://fastly.jsdelivr.net/gh/loonghao/vx@{}/{}",
+                        tag, asset_name
+                    ),
+                ));
+                channels.push((
+                    "GitHub Releases",
+                    format!(
+                        "https://github.com/loonghao/vx/releases/download/{}/{}",
+                        tag, asset_name
+                    ),
+                ));
+            } else {
+                // GitHub-first strategy
+                if channels.is_empty() {
+                    channels.push(("GitHub Releases", asset.browser_download_url.clone()));
+                } else {
+                    channels.push((
+                        "GitHub Releases (alt)",
+                        format!(
+                            "https://github.com/loonghao/vx/releases/download/{}/{}",
+                            tag, asset_name
+                        ),
+                    ));
+                }
+                channels.push((
+                    "jsDelivr CDN",
+                    format!(
+                        "https://cdn.jsdelivr.net/gh/loonghao/vx@{}/{}",
+                        tag, asset_name
+                    ),
+                ));
+                channels.push((
+                    "Fastly CDN",
+                    format!(
+                        "https://fastly.jsdelivr.net/gh/loonghao/vx@{}/{}",
+                        tag, asset_name
                     ),
                 ));
             }
-            channels.push((
-                "Fastly CDN",
-                format!(
-                    "https://fastly.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
-                    version, asset_name
-                ),
-            ));
-            channels.push((
-                "GitHub Releases",
-                format!(
-                    "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
-                    version, asset_name
-                ),
-            ));
-        } else {
-            // GitHub-first strategy
-            if channels.is_empty() {
-                channels.push(("GitHub Releases", asset.browser_download_url.clone()));
-            } else {
-                channels.push((
-                    "GitHub Releases (alt)",
-                    format!(
-                        "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
-                        version, asset_name
-                    ),
-                ));
-            }
-            channels.push((
-                "jsDelivr CDN",
-                format!(
-                    "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
-                    version, asset_name
-                ),
-            ));
-            channels.push((
-                "Fastly CDN",
-                format!(
-                    "https://fastly.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
-                    version, asset_name
-                ),
-            ));
         }
     }
 
@@ -961,7 +999,16 @@ async fn download_with_fallback(
         }
     }
 
-    Err(anyhow!("Failed to download from all channels"))
+    Err(anyhow!(
+        "Failed to download from all channels.\n\
+        \n\
+        This can happen when upgrading across major release format changes \
+        (e.g., v0.6.x → v0.7.x).\n\
+        If you are stuck on an older version, please re-install using the install script:\n\
+        \n\
+        • Windows:  powershell -c \"irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex\"\n\
+        • Linux/macOS: curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash"
+    ))
 }
 
 /// Download with progress bar display
@@ -1032,30 +1079,34 @@ async fn verify_checksum(
 ) -> Result<()> {
     // Get both versioned and legacy asset names for checksum lookup
     let asset_names = get_alternative_asset_names(&asset.name, version);
+    // Get all possible tag formats for this version
+    let tag_candidates = get_tag_candidates(version);
 
-    // Build checksum URLs for all possible asset names
+    // Build checksum URLs for all possible asset names and tag formats
     let mut checksum_urls = Vec::new();
     for asset_name in &asset_names {
         let checksum_filename = format!("{}.sha256", asset_name);
 
-        if version_source == VersionSource::Cdn {
-            checksum_urls.push(format!(
-                "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
-                version, checksum_filename
-            ));
-            checksum_urls.push(format!(
-                "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
-                version, checksum_filename
-            ));
-        } else {
-            checksum_urls.push(format!(
-                "https://github.com/loonghao/vx/releases/download/vx-v{}/{}",
-                version, checksum_filename
-            ));
-            checksum_urls.push(format!(
-                "https://cdn.jsdelivr.net/gh/loonghao/vx@vx-v{}/{}",
-                version, checksum_filename
-            ));
+        for tag in &tag_candidates {
+            if version_source == VersionSource::Cdn {
+                checksum_urls.push(format!(
+                    "https://cdn.jsdelivr.net/gh/loonghao/vx@{}/{}",
+                    tag, checksum_filename
+                ));
+                checksum_urls.push(format!(
+                    "https://github.com/loonghao/vx/releases/download/{}/{}",
+                    tag, checksum_filename
+                ));
+            } else {
+                checksum_urls.push(format!(
+                    "https://github.com/loonghao/vx/releases/download/{}/{}",
+                    tag, checksum_filename
+                ));
+                checksum_urls.push(format!(
+                    "https://cdn.jsdelivr.net/gh/loonghao/vx@{}/{}",
+                    tag, checksum_filename
+                ));
+            }
         }
     }
 
@@ -1126,14 +1177,18 @@ mod tests {
 
     #[test]
     fn test_uses_versioned_artifact_naming() {
-        // v0.6.0 and later use versioned naming
+        // Only v0.6.x uses versioned naming
         assert!(uses_versioned_artifact_naming("0.6.0"));
         assert!(uses_versioned_artifact_naming("0.6.1"));
-        assert!(uses_versioned_artifact_naming("0.7.0"));
-        assert!(uses_versioned_artifact_naming("1.0.0"));
-        assert!(uses_versioned_artifact_naming("2.5.10"));
+        assert!(uses_versioned_artifact_naming("0.6.31"));
 
-        // v0.5.x and earlier use legacy naming
+        // v0.7.0+ (cargo-dist) uses unversioned naming
+        assert!(!uses_versioned_artifact_naming("0.7.0"));
+        assert!(!uses_versioned_artifact_naming("0.7.2"));
+        assert!(!uses_versioned_artifact_naming("1.0.0"));
+        assert!(!uses_versioned_artifact_naming("2.5.10"));
+
+        // v0.5.x and earlier use legacy (unversioned) naming
         assert!(!uses_versioned_artifact_naming("0.5.29"));
         assert!(!uses_versioned_artifact_naming("0.5.0"));
         assert!(!uses_versioned_artifact_naming("0.4.0"));
@@ -1141,7 +1196,28 @@ mod tests {
     }
 
     #[test]
+    fn test_uses_cargo_dist_tag_format() {
+        // v0.7.0+ uses v{version} tag format
+        assert!(uses_cargo_dist_tag_format("0.7.0"));
+        assert!(uses_cargo_dist_tag_format("0.7.2"));
+        assert!(uses_cargo_dist_tag_format("1.0.0"));
+
+        // v0.6.x and earlier use vx-v{version} tag format
+        assert!(!uses_cargo_dist_tag_format("0.6.31"));
+        assert!(!uses_cargo_dist_tag_format("0.5.29"));
+    }
+
+    #[test]
+    fn test_get_tag_for_version() {
+        assert_eq!(get_tag_for_version("0.7.2"), "v0.7.2");
+        assert_eq!(get_tag_for_version("1.0.0"), "v1.0.0");
+        assert_eq!(get_tag_for_version("0.6.31"), "vx-v0.6.31");
+        assert_eq!(get_tag_for_version("0.5.28"), "vx-v0.5.28");
+    }
+
+    #[test]
     fn test_create_cdn_assets_versioned() {
+        // v0.6.x uses versioned naming with vx-v{ver} tag
         let assets = create_cdn_assets("0.6.1");
         assert_eq!(assets.len(), 6);
 
@@ -1173,6 +1249,24 @@ mod tests {
             macos_asset.unwrap().name,
             "vx-0.6.1-aarch64-apple-darwin.tar.gz"
         );
+    }
+
+    #[test]
+    fn test_create_cdn_assets_cargo_dist() {
+        // v0.7.x (cargo-dist) uses unversioned naming with v{ver} tag
+        let assets = create_cdn_assets("0.7.2");
+        assert_eq!(assets.len(), 6);
+
+        // Check Windows x64 asset uses unversioned naming
+        let windows_asset = assets
+            .iter()
+            .find(|a| a.name.contains("windows") && a.name.contains("x86_64"));
+        assert!(windows_asset.is_some());
+        let windows_asset = windows_asset.unwrap();
+        assert_eq!(windows_asset.name, "vx-x86_64-pc-windows-msvc.zip");
+        // Tag should be v0.7.2, not vx-v0.7.2
+        assert!(windows_asset.browser_download_url.contains("@v0.7.2"));
+        assert!(!windows_asset.browser_download_url.contains("@vx-v0.7.2"));
     }
 
     #[test]

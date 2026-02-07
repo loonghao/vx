@@ -145,15 +145,15 @@ function Test-ChannelSpeed {
 function Get-OptimalChannels {
     param(
         [string]$Region,
-        [string]$Version,
+        [string]$Tag,
         [string]$Platform
     )
 
     # Define all available channels
     $channels = @{
-        "github"   = "https://github.com/$RepoOwner/$RepoName/releases/download/v$Version"
-        "jsdelivr" = "https://cdn.jsdelivr.net/gh/$RepoOwner/$RepoName@v$Version"
-        "fastly"   = "https://fastly.jsdelivr.net/gh/$RepoOwner/$RepoName@v$Version"
+        "github"   = "https://github.com/$RepoOwner/$RepoName/releases/download/$Tag"
+        "jsdelivr" = "https://cdn.jsdelivr.net/gh/$RepoOwner/$RepoName@$Tag"
+        "fastly"   = "https://fastly.jsdelivr.net/gh/$RepoOwner/$RepoName@$Tag"
     }
 
     # Region-specific channel preferences
@@ -249,7 +249,7 @@ function Get-LatestVersion {
 # Download with intelligent channel selection
 function Invoke-SmartDownload {
     param(
-        [string]$Version,
+        [string]$Tag,
         [string]$Platform,
         [string]$ArchiveName,
         [string]$TempDir,
@@ -257,15 +257,15 @@ function Invoke-SmartDownload {
     )
 
     $archivePath = Join-Path $TempDir $ArchiveName
-    $channels = Get-OptimalChannels -Region $Region -Version $Version -Platform $Platform
+    $channels = Get-OptimalChannels -Region $Region -Tag $Tag -Platform $Platform
 
     Write-Info "Trying channels in optimal order for region: $Region"
 
     foreach ($channel in $channels) {
         $downloadUrl = switch ($channel) {
-            "github" { "https://github.com/$RepoOwner/$RepoName/releases/download/v$Version/$ArchiveName" }
-            "jsdelivr" { "https://cdn.jsdelivr.net/gh/$RepoOwner/$RepoName@v$Version/$ArchiveName" }
-            "fastly" { "https://fastly.jsdelivr.net/gh/$RepoOwner/$RepoName@v$Version/$ArchiveName" }
+            "github" { "https://github.com/$RepoOwner/$RepoName/releases/download/$Tag/$ArchiveName" }
+            "jsdelivr" { "https://cdn.jsdelivr.net/gh/$RepoOwner/$RepoName@$Tag/$ArchiveName" }
+            "fastly" { "https://fastly.jsdelivr.net/gh/$RepoOwner/$RepoName@$Tag/$ArchiveName" }
             default {
                 Write-Warn "Unknown channel: $channel"
                 continue
@@ -317,26 +317,62 @@ function Install-FromRelease {
 
     Write-Info "Installing vx v$Version for $platform (region: $region)"
 
+    # Determine tag candidates based on version
+    # v0.7.0+ uses v{ver} (cargo-dist), v0.6.x and earlier use vx-v{ver}
+    $vParts = $Version.Split('.')
+    $major = [int]$vParts[0]
+    $minor = if ($vParts.Length -gt 1) { [int]$vParts[1] } else { 0 }
+    if ($major -gt 0 -or ($major -eq 0 -and $minor -ge 7)) {
+        $tagCandidates = @("v$Version", "vx-v$Version")
+    }
+    else {
+        $tagCandidates = @("vx-v$Version", "v$Version")
+    }
+    Write-Info "Tag candidates: $($tagCandidates -join ', ')"
+
     # Determine archive name based on platform
-    # Format: vx-{version}-{target}.zip (e.g., vx-0.6.0-x86_64-pc-windows-msvc.zip)
+    # Three naming eras:
+    #   v0.6.x: versioned (vx-{ver}-{triple}.zip) with tag vx-v{ver}
+    #   v0.7.0+: unversioned (vx-{triple}.zip) with tag v{ver} (cargo-dist)
+    #   v0.5.x: unversioned (vx-{triple}.zip) with tag vx-v{ver}
     $archiveName = "vx-$Version-x86_64-pc-windows-msvc.zip"
+    $unversionedArchiveName = "vx-x86_64-pc-windows-msvc.zip"
     $downloadSuccess = $false
 
     # Create temporary directory
     $tempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
 
     try {
-        $archivePath = Invoke-SmartDownload -Version $Version -Platform $platform -ArchiveName $archiveName -TempDir $tempDir -Region $region
-        $downloadSuccess = $true
+        # Build list of (tag, archive) combinations to try
+        $tryCombos = @()
+        foreach ($tryTag in $tagCandidates) {
+            $tryCombos += @{ Tag = $tryTag; Archive = $archiveName }
+            if ($unversionedArchiveName -ne $archiveName) {
+                $tryCombos += @{ Tag = $tryTag; Archive = $unversionedArchiveName }
+            }
+        }
+
+        $downloadSuccess = $false
+        $archivePath = $null
+        foreach ($combo in $tryCombos) {
+            if ($downloadSuccess) { break }
+            try {
+                $archivePath = Invoke-SmartDownload -Tag $combo.Tag -Platform $platform -ArchiveName $combo.Archive -TempDir $tempDir -Region $region
+                $archiveName = $combo.Archive
+                $downloadSuccess = $true
+            }
+            catch {
+                Write-Warn "Failed with tag=$($combo.Tag) archive=$($combo.Archive): $_"
+            }
+        }
 
         if (-not $downloadSuccess) {
             Write-Error "Failed to download vx binary with any supported archive format"
             Write-Host ""
-            Write-Host "🔧 Possible solutions:" -ForegroundColor Yellow
+            Write-Host "Possible solutions:" -ForegroundColor Yellow
             Write-Host "1. Check if Windows binaries are available for version $Version" -ForegroundColor Gray
-            Write-Host "2. Try a different version: `$env:VX_VERSION='0.2.6'; .\install-smart.ps1" -ForegroundColor Gray
+            Write-Host "2. Try a different version: `$env:VX_VERSION='0.7.3'; .\install-smart.ps1" -ForegroundColor Gray
             Write-Host "3. Use package managers: winget install loonghao.vx" -ForegroundColor Gray
-            Write-Host "4. Build from source (not implemented for Windows yet)" -ForegroundColor Gray
             exit 1
         }
 
