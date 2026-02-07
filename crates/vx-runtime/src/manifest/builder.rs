@@ -164,4 +164,64 @@ impl ProviderBuilder {
 
         registry
     }
+
+    /// Build a `ProviderRegistry` with lazy loading from the given manifests.
+    ///
+    /// Instead of immediately calling all factory functions, this method
+    /// extracts runtime names and aliases from manifests and stores them
+    /// alongside the factory closures. Providers are only instantiated
+    /// when their runtimes are first accessed via `get_runtime()`.
+    ///
+    /// This significantly reduces startup time since only the provider
+    /// needed for the current command is constructed.
+    pub fn build_lazy(self, manifests: &[ProviderManifest]) -> BuildResult {
+        let registry = ProviderRegistry::new();
+        let warnings = Vec::new();
+        let mut errors = Vec::new();
+        let mut lazy_count = 0;
+
+        // Move ownership of factories out of self
+        let mut factories = self.factories;
+
+        for manifest in manifests {
+            let name = &manifest.provider.name;
+
+            match factories.remove(name) {
+                Some(factory) => {
+                    // Collect all runtime names and aliases from the manifest
+                    let mut runtime_names: Vec<String> = Vec::new();
+                    for runtime in &manifest.runtimes {
+                        runtime_names.push(runtime.name.clone());
+                        for alias in &runtime.aliases {
+                            runtime_names.push(alias.clone());
+                        }
+                    }
+
+                    registry.register_lazy(name.clone(), runtime_names, factory);
+                    lazy_count += 1;
+                    trace!("registered lazy provider '{}'", name);
+                }
+                None => {
+                    errors.push(BuildError {
+                        provider: name.clone(),
+                        runtime: None,
+                        reason: "No factory registered".to_string(),
+                    });
+                }
+            }
+        }
+
+        info!(
+            "registered {} lazy providers ({} errors, {} warnings)",
+            lazy_count,
+            errors.len(),
+            warnings.len(),
+        );
+
+        BuildResult {
+            registry,
+            warnings,
+            errors,
+        }
+    }
 }
