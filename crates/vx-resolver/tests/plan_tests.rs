@@ -11,6 +11,23 @@ use vx_resolver::{
     ExecutionConfig, ExecutionPlan, InstallStatus, PlannedRuntime, VersionResolution, VersionSource,
 };
 
+/// Helper to create a cross-platform absolute path for testing.
+fn abs_path(segments: &[&str]) -> PathBuf {
+    if cfg!(windows) {
+        let mut p = PathBuf::from("C:\\");
+        for s in segments {
+            p.push(s);
+        }
+        p
+    } else {
+        let mut p = PathBuf::from("/");
+        for s in segments {
+            p.push(s);
+        }
+        p
+    }
+}
+
 // ============================================================
 // ExecutionPlan tests
 // ============================================================
@@ -303,4 +320,224 @@ fn test_regression_injected_version_updated_after_install() {
     assert_eq!(plan.injected[0].version_string(), Some("4.5.0"));
     assert_eq!(plan.injected[0].status, InstallStatus::Installed);
     assert!(!plan.needs_install());
+}
+
+// ============================================================
+// Executable path propagation tests
+//
+// These tests verify the fix for the "executable_path discarded after
+// installation" design flaw. Previously, InstallResult.executable_path
+// was thrown away, forcing a re-resolve via filesystem scan which could
+// fail (especially on Windows CI). Now, the executable path is passed
+// directly from InstallResult to PlannedRuntime.
+// ============================================================
+
+/// Test that mark_installed_with_version with an absolute executable
+/// path makes the runtime "ready" (is_ready() == true).
+#[rstest]
+#[case::uv("/home/user/.vx/store/uv/0.6.12/uv", "uv", "0.6.12")]
+#[case::node("/home/user/.vx/store/node/20.0.0/bin/node", "node", "20.0.0")]
+#[case::go("/home/user/.vx/store/go/1.21.0/bin/go", "go", "1.21.0")]
+#[case::npm("/home/user/.vx/store/node/20.0.0/bin/npm", "npm", "10.0.0")]
+#[case::bun("/home/user/.vx/store/bun/1.0.0/bun", "bun", "1.0.0")]
+fn test_mark_installed_with_executable_makes_ready(
+    #[case] exe_path: &str,
+    #[case] runtime_name: &str,
+    #[case] version: &str,
+) {
+    let mut rt = PlannedRuntime::needs_install(runtime_name, "latest".to_string());
+    assert!(!rt.is_ready());
+    assert!(rt.executable.is_none());
+
+    rt.mark_installed_with_version(
+        version.to_string(),
+        Some(PathBuf::from(exe_path)),
+    );
+
+    assert!(rt.is_ready(), "{} should be ready after install", runtime_name);
+    assert_eq!(rt.executable, Some(PathBuf::from(exe_path)));
+    assert_eq!(rt.version_string(), Some(version));
+    assert_eq!(rt.status, InstallStatus::Installed);
+}
+
+/// Simulate the full EnsureStage flow for a primary + dependency scenario.
+/// This is the exact pattern that was broken: npm (primary) depends on node (dep),
+/// both need installation. After fix, both should have executable paths.
+#[test]
+fn test_full_ensure_flow_primary_with_dependency_executable_propagation() {
+    let primary = PlannedRuntime::needs_install("npm", "latest".to_string());
+    let dep = PlannedRuntime::needs_install("node", "latest".to_string());
+
+    let mut plan =
+        ExecutionPlan::new(primary, ExecutionConfig::default()).with_dependency(dep);
+
+    // Step 1: Install dependency (node) — EnsureStage gets InstallResult with executable_path
+    let node_exe = PathBuf::from("/home/user/.vx/store/node/20.18.0/bin/node");
+    plan.dependencies[0].mark_installed_with_version(
+        "20.18.0".to_string(),
+        Some(node_exe.clone()),
+    );
+
+    assert!(plan.dependencies[0].is_ready());
+    assert_eq!(plan.dependencies[0].executable, Some(node_exe));
+
+    // Step 2: Install primary (npm) — EnsureStage gets InstallResult with executable_path
+    let npm_exe = PathBuf::from("/home/user/.vx/store/node/20.18.0/bin/npm");
+    plan.primary.mark_installed_with_version(
+        "10.9.0".to_string(),
+        Some(npm_exe.clone()),
+    );
+
+    assert!(plan.primary.is_ready());
+    assert_eq!(plan.primary.executable, Some(npm_exe));
+
+    // Both should be ready — no re-resolve needed
+    assert!(!plan.needs_install());
+}
+
+/// Simulate EnsureStage flow for injected runtimes with executable propagation.
+#[test]
+fn test_full_ensure_flow_injected_executable_propagation() {
+    let primary = PlannedRuntime::installed(
+        "node",
+        "20.0.0".to_string(),
+        PathBuf::from("/home/user/.vx/store/node/20.0.0/bin/node"),
+    );
+    let injected = PlannedRuntime::needs_install("yarn", "latest".to_string());
+
+    let mut plan =
+        ExecutionPlan::new(primary, ExecutionConfig::default()).with_injected(injected);
+
+    // Install injected runtime — with executable path
+    let yarn_exe = PathBuf::from("/home/user/.vx/store/yarn/4.5.0/bin/yarn");
+    plan.injected[0].mark_installed_with_version(
+        "4.5.0".to_string(),
+        Some(yarn_exe.clone()),
+    );
+
+    assert!(plan.injected[0].is_ready());
+    assert_eq!(plan.injected[0].executable, Some(yarn_exe));
+    assert!(!plan.needs_install());
+}
+
+/// Simulate the exact CI failure scenario: uv needs install, after installation
+/// the executable path must be propagated to make it ready.
+#[test]
+fn test_regression_uv_executable_propagated_after_install() {
+    let mut rt = PlannedRuntime::needs_install("uv", "latest".to_string());
+
+    // Before: not ready, no executable
+    assert!(!rt.is_ready());
+    assert!(rt.executable.is_none());
+
+    // Simulate what EnsureStage now does: pass InstallResult.executable_path
+    let exe = PathBuf::from("/home/user/.vx/store/uv/0.6.12/uv");
+    rt.mark_installed_with_version("0.6.12".to_string(), Some(exe.clone()));
+
+    // After: ready with executable
+    assert!(rt.is_ready());
+    assert_eq!(rt.executable, Some(exe));
+    assert_eq!(rt.version_string(), Some("0.6.12"));
+}
+
+/// Simulate the CI failure: uv install returns a platform-specific absolute path
+#[test]
+fn test_regression_uv_executable_propagated_absolute_path() {
+    let mut rt = PlannedRuntime::needs_install("uv", "latest".to_string());
+
+    let exe = abs_path(&[".vx", "store", "uv", "0.6.12", "uv"]);
+    rt.mark_installed_with_version("0.6.12".to_string(), Some(exe.clone()));
+
+    assert!(rt.is_ready());
+    assert!(rt.executable.as_ref().unwrap().is_absolute());
+    assert_eq!(rt.executable, Some(exe));
+}
+
+/// When InstallResult has a non-absolute executable_path (e.g., proxy or fallback),
+/// EnsureStage should NOT set it — executable stays None.
+#[test]
+fn test_non_absolute_executable_not_set() {
+    let mut rt = PlannedRuntime::needs_install("vite", "latest".to_string());
+
+    // Proxy result has empty executable_path (not absolute)
+    rt.mark_installed_with_version("5.0.0".to_string(), None);
+
+    // executable stays None — not "ready" but version is updated
+    assert!(rt.executable.is_none());
+    assert!(!rt.is_ready());
+    assert_eq!(rt.status, InstallStatus::Installed);
+    assert_eq!(rt.version_string(), Some("5.0.0"));
+}
+
+/// Test that mark_installed_with_version does NOT overwrite an existing
+/// executable when called with None.
+#[test]
+fn test_mark_installed_preserves_existing_executable_when_none() {
+    let mut rt = PlannedRuntime::installed(
+        "node",
+        "20.0.0".to_string(),
+        PathBuf::from("/usr/local/bin/node"),
+    );
+
+    // Re-mark with None should NOT clear the existing executable
+    rt.mark_installed_with_version("20.0.0".to_string(), None);
+
+    assert_eq!(
+        rt.executable,
+        Some(PathBuf::from("/usr/local/bin/node")),
+        "Existing executable should be preserved when new value is None"
+    );
+}
+
+/// Simulate complete multi-runtime installation flow covering all categories:
+/// dependencies, primary, and injected — all with executable propagation.
+#[test]
+fn test_complete_multi_runtime_install_flow() {
+    // Scenario: `vx npx create-react-app my-app --with yarn`
+    // - dependency: node (needs install)
+    // - primary: npx (needs install)
+    // - injected: yarn (needs install)
+    let primary = PlannedRuntime::needs_install("npx", "latest".to_string());
+    let dep = PlannedRuntime::needs_install("node", "latest".to_string());
+    let injected = PlannedRuntime::needs_install("yarn", "latest".to_string());
+
+    let mut plan = ExecutionPlan::new(primary, ExecutionConfig::default())
+        .with_dependency(dep)
+        .with_injected(injected);
+
+    // All need installation
+    assert_eq!(plan.runtimes_needing_install().len(), 3);
+
+    // Install dependency (node)
+    let node_exe = PathBuf::from("/home/user/.vx/store/node/20.18.0/bin/node");
+    plan.dependencies[0].mark_installed_with_version(
+        "20.18.0".to_string(),
+        Some(node_exe.clone()),
+    );
+    assert!(plan.dependencies[0].is_ready());
+
+    // Install primary (npx)
+    let npx_exe = PathBuf::from("/home/user/.vx/store/node/20.18.0/bin/npx");
+    plan.primary.mark_installed_with_version(
+        "10.9.0".to_string(),
+        Some(npx_exe.clone()),
+    );
+    assert!(plan.primary.is_ready());
+
+    // Install injected (yarn)
+    let yarn_exe = PathBuf::from("/home/user/.vx/store/yarn/4.5.0/bin/yarn");
+    plan.injected[0].mark_installed_with_version(
+        "4.5.0".to_string(),
+        Some(yarn_exe.clone()),
+    );
+    assert!(plan.injected[0].is_ready());
+
+    // All installed, none need installation
+    assert!(!plan.needs_install());
+    assert_eq!(plan.runtimes_needing_install().len(), 0);
+
+    // All have correct executable paths
+    assert_eq!(plan.dependencies[0].executable, Some(node_exe));
+    assert_eq!(plan.primary.executable, Some(npx_exe));
+    assert_eq!(plan.injected[0].executable, Some(yarn_exe));
 }

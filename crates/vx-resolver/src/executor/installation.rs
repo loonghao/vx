@@ -10,7 +10,7 @@ use super::pipeline::error::EnsureError;
 use crate::{Resolver, ResolverConfig, Result};
 use tracing::{debug, info};
 use vx_console::ProgressSpinner;
-use vx_runtime::{ProviderRegistry, RuntimeContext};
+use vx_runtime::{InstallResult, ProviderRegistry, RuntimeContext};
 
 /// Installation operations for the executor
 pub struct InstallationManager<'a> {
@@ -38,19 +38,22 @@ impl<'a> InstallationManager<'a> {
 
     /// Install a list of runtimes in order
     ///
-    /// Returns the version of the last installed runtime (typically the primary runtime)
-    pub async fn install_runtimes(&self, runtimes: &[String]) -> Result<Option<String>> {
-        let mut last_version = None;
+    /// Returns the InstallResult of the last installed runtime (typically the primary runtime)
+    pub async fn install_runtimes(
+        &self,
+        runtimes: &[String],
+    ) -> Result<Option<InstallResult>> {
+        let mut last_result = None;
         for runtime in runtimes {
-            last_version = self.install_runtime(runtime).await?;
+            last_result = self.install_runtime(runtime).await?;
         }
-        Ok(last_version)
+        Ok(last_result)
     }
 
     /// Install a single runtime
     ///
-    /// Returns the installed version if successful
-    pub async fn install_runtime(&self, runtime_name: &str) -> Result<Option<String>> {
+    /// Returns the InstallResult (including executable_path) if successful
+    pub async fn install_runtime(&self, runtime_name: &str) -> Result<Option<InstallResult>> {
         info!("Installing: {}", runtime_name);
 
         // Try using the provider registry first
@@ -116,7 +119,7 @@ impl<'a> InstallationManager<'a> {
                 runtime.post_install(&version, context).await?;
 
                 info!("Successfully installed {} {}", runtime_name, version);
-                return Ok(Some(version));
+                return Ok(Some(result));
             }
         }
 
@@ -130,7 +133,7 @@ impl<'a> InstallationManager<'a> {
         &self,
         runtime_name: &str,
         version: &str,
-    ) -> Result<Option<String>> {
+    ) -> Result<Option<InstallResult>> {
         info!("Installing: {}@{}", runtime_name, version);
 
         // Try using the provider registry first
@@ -179,7 +182,7 @@ impl<'a> InstallationManager<'a> {
                 runtime.post_install(version, context).await?;
 
                 info!("Successfully installed {} {}", runtime_name, version);
-                return Ok(Some(version.to_string()));
+                return Ok(Some(result));
             }
         }
 
@@ -191,12 +194,12 @@ impl<'a> InstallationManager<'a> {
     /// Ensure a specific version is installed
     ///
     /// This method handles version resolution (e.g., "20" -> "20.18.0") and installation.
-    /// Returns the actual resolved version that was installed.
+    /// Returns the InstallResult (including executable_path) of the installed version.
     pub async fn ensure_version_installed(
         &self,
         runtime_name: &str,
         requested_version: &str,
-    ) -> Result<Option<String>> {
+    ) -> Result<Option<InstallResult>> {
         let (registry, context) = match (self.registry, self.context) {
             (Some(r), Some(c)) => (r, c),
             _ => return Ok(None),
@@ -245,13 +248,22 @@ impl<'a> InstallationManager<'a> {
             // However, we still need to ensure the proxy runtime is installed.
             self.ensure_proxy_runtime_installed(runtime_name, &resolved_version)
                 .await?;
-            return Ok(Some(resolved_version));
+            // Return a proxy result without executable_path - the prepare stage
+            // will handle proxy execution setup.
+            return Ok(Some(InstallResult::proxy(resolved_version)));
         }
 
         // Check if this version is already installed
         if runtime.is_installed(&resolved_version, context).await? {
             debug!("{} {} is already installed", runtime_name, resolved_version);
-            return Ok(Some(resolved_version));
+            // Find the existing executable path via the resolver
+            let exe_path = self
+                .resolver
+                .find_executable(runtime_name, &resolved_version);
+            return Ok(Some(InstallResult::already_installed_with(
+                resolved_version,
+                exe_path,
+            )));
         }
 
         // Install the specific version
@@ -294,7 +306,7 @@ impl<'a> InstallationManager<'a> {
             "Successfully installed {} {}",
             runtime_name, resolved_version
         );
-        Ok(Some(resolved_version))
+        Ok(Some(result))
     }
 
     /// RFC 0028: Ensure the proxy runtime is installed for proxy-managed tools
