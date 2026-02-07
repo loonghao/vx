@@ -243,7 +243,7 @@ get_file_size() {
 
 # Download with intelligent channel selection
 download_with_smart_fallback() {
-    local version="$1"
+    local tag="$1"
     local platform="$2"
     local archive_name="$3"
     local temp_dir="$4"
@@ -252,7 +252,7 @@ download_with_smart_fallback() {
     local archive_path="$temp_dir/$archive_name"
     # Use a portable method to read channels into array (bash 3.x compatible)
     local channels_str
-    channels_str=$(get_optimal_channels "$region" "$version" "$platform")
+    channels_str=$(get_optimal_channels "$region" "$tag" "$platform")
     local channels
     # Convert string to array in bash 3.x compatible way
     IFS=$'\n' read -r -d '' -a channels <<< "$channels_str" || true
@@ -263,13 +263,13 @@ download_with_smart_fallback() {
         local download_url
         case "$channel" in
             "github")
-                download_url="https://github.com/$REPO_OWNER/$REPO_NAME/releases/download/v$version/$archive_name"
+                download_url="https://github.com/$REPO_OWNER/$REPO_NAME/releases/download/$tag/$archive_name"
                 ;;
             "jsdelivr")
-                download_url="https://cdn.jsdelivr.net/gh/$REPO_OWNER/$REPO_NAME@v$version/$archive_name"
+                download_url="https://cdn.jsdelivr.net/gh/$REPO_OWNER/$REPO_NAME@$tag/$archive_name"
                 ;;
             "fastly")
-                download_url="https://fastly.jsdelivr.net/gh/$REPO_OWNER/$REPO_NAME@v$version/$archive_name"
+                download_url="https://fastly.jsdelivr.net/gh/$REPO_OWNER/$REPO_NAME@$tag/$archive_name"
                 ;;
             *)
                 warn "Unknown channel: $channel"
@@ -335,55 +335,98 @@ install_from_release() {
 
     info "Installing vx v$version for $platform (region: $region)"
 
+    # Determine tag candidates based on version
+    # v0.7.0+ uses v{ver} (cargo-dist), v0.6.x and earlier use vx-v{ver}
+    local major minor
+    major=$(echo "$version" | cut -d. -f1)
+    minor=$(echo "$version" | cut -d. -f2)
+    local tag_candidates=()
+    if [[ "$major" -gt 0 ]] || [[ "$major" -eq 0 && "$minor" -ge 7 ]]; then
+        tag_candidates=("v${version}" "vx-v${version}")
+    else
+        tag_candidates=("vx-v${version}" "v${version}")
+    fi
+
     # Determine archive name based on platform
-    # Format: vx-{version}-{target}.tar.gz (e.g., vx-0.6.0-x86_64-unknown-linux-musl.tar.gz)
+    # Three naming eras:
+    #   v0.5.x: unversioned (vx-{triple}.tar.gz) with tag vx-v{ver}
+    #   v0.6.x: versioned (vx-{ver}-{triple}.tar.gz) with tag vx-v{ver}
+    #   v0.7.0+: unversioned (vx-{triple}.tar.gz) with tag v{ver} (cargo-dist)
     local fallback_archive=""
+    local unversioned_archive=""
+    local target_triple=""
+    local fallback_triple=""
+    
     case "$platform" in
         linux-gnu-x86_64)
-            archive_name="vx-$version-x86_64-unknown-linux-gnu.tar.gz"
-            fallback_archive="vx-$version-x86_64-unknown-linux-musl.tar.gz"
+            target_triple="x86_64-unknown-linux-gnu"
+            fallback_triple="x86_64-unknown-linux-musl"
             ;;
         linux-musl-x86_64)
-            archive_name="vx-$version-x86_64-unknown-linux-musl.tar.gz"
-            fallback_archive="vx-$version-x86_64-unknown-linux-gnu.tar.gz"
+            target_triple="x86_64-unknown-linux-musl"
+            fallback_triple="x86_64-unknown-linux-gnu"
             ;;
         linux-gnu-aarch64)
-            archive_name="vx-$version-aarch64-unknown-linux-gnu.tar.gz"
-            fallback_archive="vx-$version-aarch64-unknown-linux-musl.tar.gz"
+            target_triple="aarch64-unknown-linux-gnu"
+            fallback_triple="aarch64-unknown-linux-musl"
             ;;
         linux-musl-aarch64)
-            archive_name="vx-$version-aarch64-unknown-linux-musl.tar.gz"
-            fallback_archive="vx-$version-aarch64-unknown-linux-gnu.tar.gz"
+            target_triple="aarch64-unknown-linux-musl"
+            fallback_triple="aarch64-unknown-linux-gnu"
             ;;
         darwin-x86_64)
-            archive_name="vx-$version-x86_64-apple-darwin.tar.gz"
+            target_triple="x86_64-apple-darwin"
             ;;
         darwin-aarch64)
-            archive_name="vx-$version-aarch64-apple-darwin.tar.gz"
+            target_triple="aarch64-apple-darwin"
             ;;
         *) error "Unsupported platform: $platform"; exit 1 ;;
     esac
+
+    # Primary: versioned naming
+    archive_name="vx-$version-${target_triple}.tar.gz"
+    # Secondary: unversioned naming (cargo-dist format)
+    unversioned_archive="vx-${target_triple}.tar.gz"
+    # Tertiary: fallback triple
+    if [[ -n "$fallback_triple" ]]; then
+        fallback_archive="vx-$version-${fallback_triple}.tar.gz"
+    fi
 
     # Create temporary directory
     temp_dir=$(mktemp -d)
     trap 'rm -rf "$temp_dir"' EXIT
 
-    # Download with smart fallback
+    # Download with smart fallback - try all tag + archive combinations
     local download_success=false
 
-    # Try primary archive
-    if download_with_smart_fallback "$version" "$platform" "$archive_name" "$temp_dir" "$region"; then
-        download_success=true
+    # Build list of (tag, archive) combinations to try
+    local try_combos=()
+    for try_tag in "${tag_candidates[@]}"; do
+        try_combos+=("$try_tag|$archive_name")
+        if [[ "$unversioned_archive" != "$archive_name" ]]; then
+            try_combos+=("$try_tag|$unversioned_archive")
+        fi
+    done
+    # Also try fallback triple if available
+    if [[ -n "$fallback_triple" ]]; then
+        local fallback_versioned="vx-$version-${fallback_triple}.tar.gz"
+        local fallback_unversioned="vx-${fallback_triple}.tar.gz"
+        for try_tag in "${tag_candidates[@]}"; do
+            try_combos+=("$try_tag|$fallback_versioned")
+            try_combos+=("$try_tag|$fallback_unversioned")
+        done
     fi
 
-    # Try fallback archive for Linux (musl -> gnu) if primary failed
-    if [[ "$download_success" != "true" ]] && [[ -n "${fallback_archive:-}" ]]; then
-        warn "Primary archive failed, trying fallback archive..."
-        if download_with_smart_fallback "$version" "$platform" "$fallback_archive" "$temp_dir" "$region"; then
-            archive_name="$fallback_archive"
+    for combo in "${try_combos[@]}"; do
+        [[ "$download_success" == "true" ]] && break
+        local try_tag="${combo%%|*}"
+        local try_archive="${combo##*|}"
+
+        if download_with_smart_fallback "$try_tag" "$platform" "$try_archive" "$temp_dir" "$region"; then
+            archive_name="$try_archive"
             download_success=true
         fi
-    fi
+    done
 
     if [[ "$download_success" != "true" ]]; then
         error "Failed to download from all channels and fallbacks"
