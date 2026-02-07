@@ -42,6 +42,7 @@ pub mod ecosystem;
 pub mod impls;
 pub mod integrated_resolver;
 pub mod layout;
+pub mod manifest;
 pub mod manifest_registry;
 pub mod manifest_runtime;
 pub mod normalizer;
@@ -105,6 +106,11 @@ pub use constraints::{
 
 // Manifest-driven registry
 pub use manifest_registry::{ManifestRegistry, RuntimeMetadata};
+
+// Manifest sub-modules (RFC 0029 split architecture)
+pub use manifest::builder::{BuildError, BuildResult, BuildWarning, ProviderBuilder};
+pub use manifest::index::{ManifestIndex, ProviderMetadata};
+pub use manifest::loader::ManifestStore;
 
 // Re-export platform types from vx-manifest for convenience
 pub use vx_manifest::{Arch as ManifestArch, Os as ManifestOs, Platform as ManifestPlatform};

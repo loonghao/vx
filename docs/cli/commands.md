@@ -204,6 +204,27 @@ vx shell init [SHELL]
 vx shell completions <SHELL>
 ```
 
+## Diagnostics
+
+### info
+
+Show system information, capabilities, and build diagnostics.
+
+```bash
+vx info
+vx info --json
+vx info --warnings
+```
+
+Options:
+
+| Option | Description |
+|--------|-------------|
+| `--json` | Output as JSON (recommended for AI and scripting) |
+| `--warnings` | Show build warnings and diagnostics |
+
+See [info command](./info.md) for full documentation.
+
 ## Maintenance
 
 ### clean

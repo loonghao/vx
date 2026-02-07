@@ -329,8 +329,7 @@ impl<'a> Stage<ResolveRequest, ExecutionPlan> for ResolveStage<'a> {
         );
 
         // Step 1: Resolve version (explicit → project config → latest installed)
-        let resolved_version =
-            self.resolve_version(&input.runtime_name, input.version.as_deref());
+        let resolved_version = self.resolve_version(&input.runtime_name, input.version.as_deref());
         let source = self.determine_source(&input.runtime_name, input.version.as_deref());
 
         debug!(
@@ -390,12 +389,7 @@ impl<'a> Stage<ResolveRequest, ExecutionPlan> for ResolveStage<'a> {
         }
 
         // Step 5: Build the ExecutionPlan
-        let plan = self.build_plan(
-            &input,
-            &resolution,
-            resolved_version.as_deref(),
-            source,
-        );
+        let plan = self.build_plan(&input, &resolution, resolved_version.as_deref(), source);
 
         debug!(
             "[ResolveStage] plan: primary={}, deps={}, injected={}, needs_install={}",
@@ -688,8 +682,7 @@ mod tests {
         let config = ResolverConfig::default();
         let stage = ResolveStage::new(&resolver, &config);
 
-        let request = ResolveRequest::new("node", vec!["--version".into()])
-            .with_version("20.0.0");
+        let request = ResolveRequest::new("node", vec!["--version".into()]).with_version("20.0.0");
 
         let result = stage.execute(request).await;
         assert!(result.is_ok());

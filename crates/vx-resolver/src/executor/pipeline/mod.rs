@@ -30,8 +30,8 @@ pub mod stages;
 pub use error::{EnsureError, ExecuteError, PipelineError, PrepareError, ResolveError};
 pub use orchestrator::ExecutionPipeline;
 pub use plan::{
-    ExecutionConfig, ExecutionPlan, InstallStatus, PlannedRuntime, ProxyConfig,
-    VersionResolution, VersionSource,
+    ExecutionConfig, ExecutionPlan, InstallStatus, PlannedRuntime, ProxyConfig, VersionResolution,
+    VersionSource,
 };
 pub use stage::Stage;
 pub use stages::{

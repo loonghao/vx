@@ -4,52 +4,69 @@
 //! provider metadata from `provider.toml` manifest files instead of
 //! hard-coded static registration.
 //!
-//! ## Benefits
+//! ## Architecture (RFC 0029)
 //!
-//! - **Single source of truth**: Provider metadata is defined once in TOML
-//! - **Declarative**: Easy to understand and modify without code changes
-//! - **Extensible**: External providers can be loaded from disk
+//! `ManifestRegistry` composes three sub-modules:
+//! - [`ManifestStore`](crate::manifest::loader::ManifestStore) — manifest loading
+//! - [`ManifestIndex`](crate::manifest::index::ManifestIndex) — metadata indexing
+//! - [`ProviderBuilder`](crate::manifest::builder::ProviderBuilder) — provider construction
 //!
 //! ## Usage
 //!
 //! ```rust,ignore
 //! use vx_runtime::ManifestRegistry;
 //!
-//! // Create registry and register factories
 //! let mut registry = ManifestRegistry::new();
 //! registry.register_factory("node", || Arc::new(node_provider()));
-//!
-//! // Load manifests
 //! registry.load_from_directory("providers/")?;
 //!
-//! // Build the provider registry
-//! let provider_registry = registry.build_registry();
+//! // Preferred: get structured build result
+//! let result = registry.build_registry_with_result();
+//! if !result.errors.is_empty() {
+//!     eprintln!("Build errors: {:?}", result.errors);
+//! }
+//! let provider_registry = result.registry;
 //! ```
 
-use crate::{Provider, ProviderRegistry};
-use std::collections::HashMap;
+use crate::manifest::builder::{BuildResult, ProviderBuilder};
+use crate::manifest::index::ManifestIndex;
+use crate::manifest::loader::ManifestStore;
+use crate::ProviderRegistry;
 use std::path::Path;
 use std::sync::Arc;
-use tracing::{info, trace, warn};
-use vx_manifest::{ManifestLoader, PlatformConstraint, ProviderManifest};
+use tracing::{info, warn};
+use vx_manifest::{PlatformConstraint, ProviderManifest};
+
+// Re-export the new RuntimeMetadata from manifest::index
+pub use crate::manifest::index::RuntimeMetadata;
 
 /// Manifest-driven provider registry
 ///
-/// This registry can load providers from manifest files and integrate
-/// with the existing static registration system.
-#[derive(Default)]
+/// Composes `ManifestStore` (loading), `ManifestIndex` (querying),
+/// and `ProviderBuilder` (construction) into a single facade.
 pub struct ManifestRegistry {
-    /// Loaded manifests
-    loader: ManifestLoader,
-    /// Provider factories by name
-    factories: HashMap<String, Box<dyn Fn() -> Arc<dyn Provider> + Send + Sync>>,
+    /// Manifest storage
+    store: ManifestStore,
+    /// Provider builder with registered factories
+    builder: ProviderBuilder,
+}
+
+impl Default for ManifestRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ManifestRegistry {
     /// Create a new empty manifest registry
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            store: ManifestStore::new(),
+            builder: ProviderBuilder::new(),
+        }
     }
+
+    // ======== Loading (delegated to ManifestStore) ========
 
     /// Register a provider factory
     ///
@@ -57,104 +74,103 @@ impl ManifestRegistry {
     /// the actual Provider implementation.
     pub fn register_factory<F>(&mut self, name: &str, factory: F)
     where
-        F: Fn() -> Arc<dyn Provider> + Send + Sync + 'static,
+        F: Fn() -> Arc<dyn crate::Provider> + Send + Sync + 'static,
     {
-        self.factories.insert(name.to_string(), Box::new(factory));
+        self.builder.register_factory(name, factory);
     }
 
     /// Load manifests from a directory
     pub fn load_from_directory(&mut self, dir: &Path) -> anyhow::Result<usize> {
-        let count = self.loader.load_from_dir(dir)?;
-        trace!("loaded {} manifests from {:?}", count, dir);
-        Ok(count)
+        self.store.load_from_directory(dir)
     }
 
     /// Load manifests from a list of ProviderManifest objects
     pub fn load_from_manifests(&mut self, manifests: Vec<ProviderManifest>) {
-        for manifest in manifests {
-            self.loader.insert(manifest);
-        }
+        self.store.load_from_manifests(manifests);
     }
 
     /// Get a manifest by provider name
     pub fn get_manifest(&self, name: &str) -> Option<&ProviderManifest> {
-        self.loader.get(name)
+        self.store.get(name)
     }
 
     /// List all loaded manifest names
     pub fn manifest_names(&self) -> Vec<String> {
-        self.loader.all().map(|m| m.provider.name.clone()).collect()
+        self.store.names()
     }
 
     /// List all registered factory names
     pub fn factory_names(&self) -> Vec<String> {
-        self.factories.keys().cloned().collect()
+        self.builder.factory_names()
+    }
+
+    // ======== Building (delegated to ProviderBuilder) ========
+
+    /// Build a ProviderRegistry from loaded manifests and factories (structured result)
+    ///
+    /// This is the **preferred** method. Returns a `BuildResult` with errors and
+    /// warnings instead of silently logging them.
+    pub fn build_registry_with_result(&self) -> BuildResult {
+        let manifests: Vec<_> = self.store.iter().cloned().collect();
+        self.builder.build(&manifests)
     }
 
     /// Build a ProviderRegistry from loaded manifests and factories
     ///
-    /// This creates providers for all manifests that have registered factories.
-    /// Manifests without factories are logged as warnings.
+    /// **Backward-compatible**: logs warnings for missing factories.
+    /// Prefer `build_registry_with_result()` for structured error handling.
     pub fn build_registry(&self) -> ProviderRegistry {
-        let registry = ProviderRegistry::new();
+        let result = self.build_registry_with_result();
 
-        for manifest in self.loader.all() {
-            let name = &manifest.provider.name;
-
-            if let Some(factory) = self.factories.get(name) {
-                let provider = factory();
-                registry.register(provider);
-                trace!("registered provider '{}'", name);
-            } else {
-                warn!(
-                    "No factory registered for manifest '{}' - provider will not be available",
-                    name
-                );
-            }
+        // Log errors as warnings for backward compatibility
+        for error in &result.errors {
+            warn!(
+                "No factory registered for manifest '{}' - provider will not be available",
+                error.provider
+            );
         }
 
         info!(
             "loaded {} providers from manifests",
-            registry.providers().len()
+            result.registry.providers().len()
         );
 
-        registry
+        result.registry
     }
 
     /// Build a ProviderRegistry using only registered factories (no manifest required)
     ///
     /// This is useful for backward compatibility when manifests are not available.
     pub fn build_registry_from_factories(&self) -> ProviderRegistry {
-        let registry = ProviderRegistry::new();
+        self.builder.build_from_factories()
+    }
 
-        for (name, factory) in &self.factories {
-            let provider = factory();
-            registry.register(provider);
-            trace!("registered provider '{}'", name);
-        }
+    // ======== Querying (delegated to ManifestIndex) ========
 
-        info!(
-            "loaded {} providers from factories",
-            registry.providers().len()
-        );
-
-        registry
+    /// Build a `ManifestIndex` from the currently loaded manifests
+    ///
+    /// The index provides O(1) lookups by runtime name or alias
+    /// and uses `PlatformConstraint::intersect()` for constraint merging.
+    pub fn build_index(&self) -> ManifestIndex {
+        ManifestIndex::from_manifest_iter(self.store.iter())
     }
 
     /// Check if a runtime is defined in any loaded manifest
     pub fn has_runtime(&self, name: &str) -> bool {
-        self.loader.find_runtime(name).is_some()
+        self.store.find_runtime(name).is_some()
     }
 
     /// Get runtime metadata from manifest
+    ///
+    /// Uses `PlatformConstraint::intersect()` to merge provider + runtime constraints.
     pub fn get_runtime_metadata(&self, name: &str) -> Option<RuntimeMetadata> {
-        let (manifest, runtime) = self.loader.find_runtime(name)?;
+        let (manifest, runtime) = self.store.find_runtime(name)?;
 
-        // Combine provider-level and runtime-level platform constraints
-        let platform_constraint = runtime
-            .platform_constraint
-            .clone()
-            .or_else(|| manifest.provider.platform_constraint.clone());
+        // Merge provider-level and runtime-level platform constraints via intersection
+        let platform_constraint = merge_platform_constraints(
+            &manifest.provider.platform_constraint,
+            &runtime.platform_constraint,
+        );
 
         Some(RuntimeMetadata {
             name: runtime.name.clone(),
@@ -171,17 +187,17 @@ impl ManifestRegistry {
     pub fn get_supported_runtimes(&self) -> Vec<RuntimeMetadata> {
         let mut result = Vec::new();
 
-        for manifest in self.loader.all() {
+        for manifest in self.store.iter() {
             // Skip provider if not supported on current platform
             if !manifest.is_current_platform_supported() {
                 continue;
             }
 
             for runtime in manifest.supported_runtimes() {
-                let platform_constraint = runtime
-                    .platform_constraint
-                    .clone()
-                    .or_else(|| manifest.provider.platform_constraint.clone());
+                let platform_constraint = merge_platform_constraints(
+                    &manifest.provider.platform_constraint,
+                    &runtime.platform_constraint,
+                );
 
                 result.push(RuntimeMetadata {
                     name: runtime.name.clone(),
@@ -202,12 +218,12 @@ impl ManifestRegistry {
     pub fn get_all_runtimes(&self) -> Vec<RuntimeMetadata> {
         let mut result = Vec::new();
 
-        for manifest in self.loader.all() {
+        for manifest in self.store.iter() {
             for runtime in &manifest.runtimes {
-                let platform_constraint = runtime
-                    .platform_constraint
-                    .clone()
-                    .or_else(|| manifest.provider.platform_constraint.clone());
+                let platform_constraint = merge_platform_constraints(
+                    &manifest.provider.platform_constraint,
+                    &runtime.platform_constraint,
+                );
 
                 result.push(RuntimeMetadata {
                     name: runtime.name.clone(),
@@ -223,47 +239,53 @@ impl ManifestRegistry {
 
         result
     }
-}
 
-/// Runtime metadata extracted from manifest
-#[derive(Debug, Clone)]
-pub struct RuntimeMetadata {
-    /// Runtime name
-    pub name: String,
-    /// Description
-    pub description: Option<String>,
-    /// Executable name
-    pub executable: String,
-    /// Aliases
-    pub aliases: Vec<String>,
-    /// Provider name
-    pub provider_name: String,
-    /// Ecosystem
-    pub ecosystem: Option<vx_manifest::Ecosystem>,
-    /// Platform constraint (from runtime or provider level)
-    pub platform_constraint: Option<PlatformConstraint>,
-}
+    // ======== Direct access to sub-components ========
 
-impl RuntimeMetadata {
-    /// Check if this runtime is supported on the current platform
-    pub fn is_current_platform_supported(&self) -> bool {
-        self.platform_constraint
-            .as_ref()
-            .is_none_or(|c| c.is_current_platform_supported())
+    /// Get a reference to the underlying manifest store
+    pub fn store(&self) -> &ManifestStore {
+        &self.store
     }
 
-    /// Get a human-readable platform description
-    pub fn platform_description(&self) -> Option<String> {
-        self.platform_constraint
-            .as_ref()
-            .and_then(|c| c.description())
+    /// Get a reference to the underlying provider builder
+    pub fn provider_builder(&self) -> &ProviderBuilder {
+        &self.builder
     }
+}
 
-    /// Get a short platform label for display
-    pub fn platform_label(&self) -> Option<String> {
-        self.platform_constraint
-            .as_ref()
-            .and_then(|c| c.short_label())
+/// Merge provider-level and runtime-level platform constraints via intersection
+///
+/// - Both present: intersect (most restrictive)
+/// - One present: use that one
+/// - Neither present: None (all platforms)
+fn merge_platform_constraints(
+    provider: &Option<PlatformConstraint>,
+    runtime: &Option<PlatformConstraint>,
+) -> Option<PlatformConstraint> {
+    match (provider, runtime) {
+        (Some(p), Some(r)) => {
+            let merged = p.intersect(r);
+            if merged.is_empty() {
+                None
+            } else {
+                Some(merged)
+            }
+        }
+        (Some(p), None) => {
+            if p.is_empty() {
+                None
+            } else {
+                Some(p.clone())
+            }
+        }
+        (None, Some(r)) => {
+            if r.is_empty() {
+                None
+            } else {
+                Some(r.clone())
+            }
+        }
+        (None, None) => None,
     }
 }
 
@@ -334,5 +356,55 @@ aliases = ["tr", "test"]
         // Should also find by alias
         let metadata_by_alias = registry.get_runtime_metadata("tr").unwrap();
         assert_eq!(metadata_by_alias.name, "test-runtime");
+    }
+
+    #[test]
+    fn test_build_registry_with_result() {
+        let mut registry = ManifestRegistry::new();
+
+        // Load a manifest without a factory
+        let manifest = ProviderManifest {
+            provider: vx_manifest::ProviderMeta {
+                name: "no-factory".to_string(),
+                description: Some("no factory".to_string()),
+                homepage: None,
+                repository: None,
+                ecosystem: None,
+                platform_constraint: None,
+            },
+            runtimes: vec![],
+        };
+        registry.load_from_manifests(vec![manifest]);
+
+        let result = registry.build_registry_with_result();
+        assert_eq!(result.errors.len(), 1);
+        assert_eq!(result.errors[0].provider, "no-factory");
+    }
+
+    #[test]
+    fn test_build_index() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let manifest_toml = r#"
+[provider]
+name = "test"
+
+[[runtimes]]
+name = "myrt"
+executable = "myrt"
+aliases = ["mr"]
+"#;
+
+        let provider_dir = temp_dir.path().join("test");
+        fs::create_dir_all(&provider_dir).unwrap();
+        fs::write(provider_dir.join("provider.toml"), manifest_toml).unwrap();
+
+        let mut registry = ManifestRegistry::new();
+        registry.load_from_directory(temp_dir.path()).unwrap();
+
+        let index = registry.build_index();
+        assert!(index.has_runtime("myrt"));
+        assert!(index.has_runtime("mr"));
+        assert!(!index.has_runtime("nonexistent"));
     }
 }

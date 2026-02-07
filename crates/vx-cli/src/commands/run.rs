@@ -186,9 +186,8 @@ pub async fn handle(
             } else {
                 current_dir.join(cwd)
             };
-            std::env::set_current_dir(&target_dir).map_err(|e| {
-                anyhow::anyhow!("Failed to change to script cwd '{}': {}", cwd, e)
-            })?;
+            std::env::set_current_dir(&target_dir)
+                .map_err(|e| anyhow::anyhow!("Failed to change to script cwd '{}': {}", cwd, e))?;
         }
     }
 

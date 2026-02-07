@@ -279,6 +279,51 @@ impl PlatformConstraint {
         }
     }
 
+    /// Compute the intersection of two platform constraints
+    ///
+    /// The result is a constraint that is satisfied only when *both* input
+    /// constraints are satisfied. This is used when merging provider-level
+    /// and runtime-level platform constraints.
+    ///
+    /// Rules:
+    /// - OS: intersection of the two OS lists (if either is empty, use the other)
+    /// - Arch: intersection of the two arch lists (if either is empty, use the other)
+    /// - Exclude: union of both exclusion lists
+    pub fn intersect(&self, other: &PlatformConstraint) -> PlatformConstraint {
+        let os = if self.os.is_empty() {
+            other.os.clone()
+        } else if other.os.is_empty() {
+            self.os.clone()
+        } else {
+            self.os
+                .iter()
+                .filter(|o| other.os.contains(o))
+                .copied()
+                .collect()
+        };
+
+        let arch = if self.arch.is_empty() {
+            other.arch.clone()
+        } else if other.arch.is_empty() {
+            self.arch.clone()
+        } else {
+            self.arch
+                .iter()
+                .filter(|a| other.arch.contains(a))
+                .copied()
+                .collect()
+        };
+
+        let mut exclude = self.exclude.clone();
+        for e in &other.exclude {
+            if !exclude.contains(e) {
+                exclude.push(e.clone());
+            }
+        }
+
+        PlatformConstraint { os, arch, exclude }
+    }
+
     /// Get a short label for display (e.g., "Windows", "macOS/Linux")
     pub fn short_label(&self) -> Option<String> {
         if self.is_empty() {

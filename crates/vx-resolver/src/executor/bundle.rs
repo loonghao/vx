@@ -11,6 +11,8 @@ use tokio::process::Command;
 use tracing::{debug, info};
 use vx_paths::project::{find_vx_config, PROJECT_VX_DIR};
 
+use super::pipeline::error::ExecuteError;
+
 // Re-export from vx_core for convenience
 pub use vx_core::exit_code_from_status;
 
@@ -355,7 +357,10 @@ pub async fn execute_bundle(bundle: &BundleContext, args: &[String]) -> Result<i
     let status = cmd
         .status()
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to execute bundled '{}': {}", bundle.tool_name, e))?;
+        .map_err(|e| ExecuteError::BundleExecutionFailed {
+            tool: bundle.tool_name.clone(),
+            reason: e.to_string(),
+        })?;
 
     Ok(exit_code_from_status(&status))
 }
@@ -375,7 +380,10 @@ pub async fn execute_system_runtime(runtime_name: &str, args: &[String]) -> Resu
         .stderr(Stdio::inherit())
         .status()
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to execute '{}': {}", runtime_name, e))?;
+        .map_err(|e| ExecuteError::SpawnFailed {
+            executable: PathBuf::from(runtime_name),
+            reason: e.to_string(),
+        })?;
 
     Ok(exit_code_from_status(&status))
 }

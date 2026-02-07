@@ -21,8 +21,9 @@ use tracing::trace;
 use vx_manifest::{ManifestLoader, ProviderManifest};
 use vx_paths::{find_project_root, VxPaths, PROJECT_VX_DIR};
 use vx_runtime::{
-    create_runtime_context, default_plugin_paths, init_constraints_from_manifests,
-    ManifestRegistry, PluginLoader, Provider, ProviderRegistry, Runtime, RuntimeContext,
+    create_runtime_context, default_plugin_paths, init_constraints_from_manifests, BuildError,
+    BuildWarning, ManifestRegistry, PluginLoader, Provider, ProviderRegistry, Runtime,
+    RuntimeContext,
 };
 
 // Include the compile-time generated provider manifests
@@ -110,7 +111,22 @@ pub fn create_registry() -> ProviderRegistry {
 
     let mut manifest_registry = create_manifest_registry();
     manifest_registry.load_from_manifests(manifests);
-    let registry = manifest_registry.build_registry();
+
+    // Use structured build result (RFC 0029 Phase 2)
+    let result = manifest_registry.build_registry_with_result();
+
+    // Report build errors as structured diagnostics
+    for error in &result.errors {
+        tracing::debug!("provider build: {}", error);
+    }
+    for warning in &result.warnings {
+        tracing::debug!("provider build warning: {}", warning);
+    }
+
+    // Store diagnostics for `vx info --warnings`
+    store_build_diagnostics(&result.errors, &result.warnings);
+
+    let registry = result.registry;
 
     if let Some(loader) = build_plugin_loader() {
         registry.set_provider_loader(Arc::new(loader));
@@ -429,6 +445,40 @@ impl ProviderRegistryExt for ProviderRegistry {
     fn get_providers(&self) -> Vec<Arc<dyn Provider>> {
         self.providers()
     }
+}
+
+// =============================================================================
+// Build Diagnostics Storage (RFC 0029 Phase 2)
+// =============================================================================
+
+use std::sync::OnceLock;
+
+/// Stored build diagnostics from `create_registry()`
+///
+/// Accessible via `get_build_diagnostics()` for `vx info --warnings`.
+#[derive(Debug, Clone, Default)]
+pub struct BuildDiagnostics {
+    pub errors: Vec<String>,
+    pub warnings: Vec<String>,
+}
+
+static BUILD_DIAGNOSTICS: OnceLock<BuildDiagnostics> = OnceLock::new();
+
+/// Store build diagnostics for later retrieval
+fn store_build_diagnostics(errors: &[BuildError], warnings: &[BuildWarning]) {
+    let diag = BuildDiagnostics {
+        errors: errors.iter().map(|e| e.to_string()).collect(),
+        warnings: warnings.iter().map(|w| w.to_string()).collect(),
+    };
+    let _ = BUILD_DIAGNOSTICS.set(diag);
+}
+
+/// Get build diagnostics from the last `create_registry()` call
+pub fn get_build_diagnostics() -> &'static BuildDiagnostics {
+    static EMPTY: OnceLock<BuildDiagnostics> = OnceLock::new();
+    BUILD_DIAGNOSTICS
+        .get()
+        .unwrap_or_else(|| EMPTY.get_or_init(BuildDiagnostics::default))
 }
 
 #[cfg(test)]
