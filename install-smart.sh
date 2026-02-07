@@ -27,17 +27,17 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Logging functions
+# Logging functions (all write to stderr to avoid polluting stdout used for return values)
 info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} $1" >&2
 }
 
 success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
 }
 
 warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "${YELLOW}[WARN]${NC} $1" >&2
 }
 
 error() {
@@ -221,12 +221,12 @@ get_latest_version() {
 
     # Final fallback: provide helpful error message
     error "Unable to determine latest version automatically"
-    echo ""
-    echo "🔧 Solutions:"
-    echo "1. Set GITHUB_TOKEN: GITHUB_TOKEN='token' $0"
-    echo "2. Specify version: VX_VERSION='0.1.0' $0"
-    echo "3. Use package managers: brew install loonghao/vx/vx"
-    echo "4. Build from source: VX_BUILD_FROM_SOURCE=true $0"
+    echo "" >&2
+    echo "🔧 Solutions:" >&2
+    echo "1. Set GITHUB_TOKEN: GITHUB_TOKEN='token' $0" >&2
+    echo "2. Specify version: VX_VERSION='0.1.0' $0" >&2
+    echo "3. Use package managers: brew install loonghao/vx/vx" >&2
+    echo "4. Build from source: VX_BUILD_FROM_SOURCE=true $0" >&2
     exit 1
 }
 
