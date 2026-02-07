@@ -13,7 +13,7 @@ pub struct RealHttpClient {
     /// Whether CDN acceleration is enabled (controlled by cdn-acceleration feature)
     cdn_enabled: bool,
     /// Download cache for avoiding re-downloads
-    download_cache: Option<vx_cache::DownloadCache>,
+    pub(crate) download_cache: Option<vx_cache::DownloadCache>,
 }
 
 impl RealHttpClient {
@@ -100,7 +100,7 @@ impl RealHttpClient {
     /// When CDN acceleration is enabled and the `cdn-acceleration` feature is active,
     /// this will return an optimized URL from the best available CDN mirror.
     /// Otherwise, it returns the original URL.
-    async fn optimize_url(&self, url: &str) -> String {
+    pub(crate) async fn optimize_url(&self, url: &str) -> String {
         if !self.cdn_enabled {
             return url.to_string();
         }
@@ -301,7 +301,7 @@ impl RealHttpClient {
     ///   → cpython-3.10.19-windows-x86_64
     /// - .../node-v20.10.0-win-x64.zip
     ///   → node-v20.10.0-win-x64
-    fn extract_display_name_from_url(url: &str) -> String {
+    pub(crate) fn extract_display_name_from_url(url: &str) -> String {
         // Get the filename from URL
         let filename = url.split('/').next_back().unwrap_or("download").to_string();
 

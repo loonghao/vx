@@ -61,6 +61,7 @@ pub mod fetch;
 pub mod hook;
 pub mod init;
 pub mod lock;
+pub mod metrics;
 pub mod migrate;
 pub mod plugin;
 pub mod remove;

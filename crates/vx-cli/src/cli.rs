@@ -586,6 +586,22 @@ pub enum Commands {
     /// Show version information
     Version,
 
+    /// View execution performance metrics and reports
+    Metrics {
+        /// Number of recent runs to show (default: 10)
+        #[arg(long, short = 'n', default_value = "10")]
+        last: usize,
+        /// Output as JSON (AI-friendly summary)
+        #[arg(long)]
+        json: bool,
+        /// Export interactive HTML report (optionally specify output path)
+        #[arg(long)]
+        html: Option<String>,
+        /// Remove all metrics data
+        #[arg(long)]
+        clean: bool,
+    },
+
     /// Update vx itself to the latest version
     #[command(name = "self-update")]
     SelfUpdate {
@@ -1133,6 +1149,7 @@ impl CommandHandler for Commands {
             Commands::Check { .. } => "check",
             Commands::Bundle { .. } => "bundle",
             Commands::Info { .. } => "info",
+            Commands::Metrics { .. } => "metrics",
             Commands::Auth { .. } => "auth",
         }
     }
@@ -1678,6 +1695,13 @@ impl CommandHandler for Commands {
                     commands::capabilities::handle(ctx.registry(), *json).await
                 }
             }
+
+            Commands::Metrics {
+                last,
+                json,
+                html,
+                clean,
+            } => commands::metrics::handle(*last, *json, html.clone(), *clean).await,
 
             Commands::Auth { command } => match command {
                 AuthCommand::Login { service, token } => {

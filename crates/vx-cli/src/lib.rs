@@ -35,12 +35,17 @@ pub async fn main() -> anyhow::Result<()> {
     // Parse CLI first to check for --debug flag
     let cli = Cli::parse();
 
-    // Setup tracing with debug mode if requested
-    if cli.debug {
-        tracing_setup::setup_tracing_with_debug(true);
-    } else {
-        setup_tracing();
-    }
+    // Build command string from raw args for metrics
+    let command_str = std::env::args().collect::<Vec<_>>().join(" ");
+
+    // Initialize unified tracing + OpenTelemetry metrics system.
+    // The guard writes metrics to ~/.vx/metrics/ on drop.
+    let _metrics_guard = vx_metrics::init(vx_metrics::MetricsConfig {
+        debug: cli.debug,
+        verbose: cli.verbose,
+        command: command_str,
+        ..Default::default()
+    });
 
     // Set UI verbose mode based on CLI flags
     if cli.verbose || cli.debug {
@@ -64,7 +69,7 @@ pub async fn main() -> anyhow::Result<()> {
     let cmd_ctx = CommandContext::new(registry, context, options);
 
     // Route to appropriate handler
-    match &cli.command {
+    let result = match &cli.command {
         Some(command) => command.execute(&cmd_ctx).await,
         None => {
             // No subcommand provided, try to execute as tool
@@ -77,7 +82,14 @@ pub async fn main() -> anyhow::Result<()> {
                 execute_tool(&cmd_ctx, &cli.args, &cli.with_deps).await
             }
         }
+    };
+
+    // Set exit code for metrics
+    if result.is_err() {
+        _metrics_guard.set_exit_code(1);
     }
+
+    result
 }
 
 /// Execute a tool with the given arguments
