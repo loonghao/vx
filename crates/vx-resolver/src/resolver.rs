@@ -555,6 +555,24 @@ impl Resolver {
         }
     }
 
+    /// Find the executable path for an installed runtime version.
+    ///
+    /// This is used when we know a runtime is installed but need its executable path
+    /// (e.g., after `is_installed()` returns true).
+    pub fn find_executable(&self, runtime_name: &str, version: &str) -> Option<PathBuf> {
+        let spec = self.runtime_map.get(runtime_name);
+        let resolved_name = spec.map(|s| s.name.as_str()).unwrap_or(runtime_name);
+        let executable_name = spec.map(|s| s.get_executable()).unwrap_or(runtime_name);
+        let store_dir_name = self.get_store_directory_name(spec, resolved_name);
+
+        let platform_store_dir = self
+            .path_resolver
+            .manager()
+            .platform_store_dir(store_dir_name, version);
+        self.path_resolver
+            .find_executable_in_dir(&platform_store_dir, executable_name)
+    }
+
     /// Get the installation order for a set of runtimes
     fn get_install_order(&self, runtimes: &[String]) -> Vec<String> {
         let mut order = Vec::new();

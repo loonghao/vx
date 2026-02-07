@@ -321,6 +321,32 @@ impl InstallResult {
             already_installed: false,
         }
     }
+
+    /// Create a result for proxy-managed runtimes (RFC 0028)
+    ///
+    /// Proxy-managed runtimes are not directly installed; the prepare stage
+    /// handles proxy execution setup. No executable_path is available.
+    pub fn proxy(version: String) -> Self {
+        Self {
+            success: true,
+            install_path: PathBuf::new(),
+            executable_path: PathBuf::new(),
+            version,
+            already_installed: true,
+        }
+    }
+
+    /// Create a result for a runtime that is already installed,
+    /// with an optional executable path resolved from the store.
+    pub fn already_installed_with(version: String, executable_path: Option<PathBuf>) -> Self {
+        Self {
+            success: true,
+            install_path: PathBuf::new(),
+            executable_path: executable_path.unwrap_or_default(),
+            version,
+            already_installed: true,
+        }
+    }
 }
 
 /// Execution preparation result (RFC 0028)

@@ -665,17 +665,22 @@ impl<'a> Executor<'a> {
                                 runtime_name
                             );
                             let install_mgr = self.installation_manager();
-                            install_mgr
+                            let install_result = install_mgr
                                 .install_runtimes(std::slice::from_ref(runtime_name))
                                 .await?;
 
-                            // Get the installed version
-                            runtime
-                                .installed_versions(context)
-                                .await
-                                .ok()
-                                .and_then(|v| v.into_iter().next())
-                                .unwrap_or_else(|| "latest".to_string())
+                            // Use the version from InstallResult if available,
+                            // otherwise fall back to querying installed versions
+                            if let Some(result) = install_result {
+                                result.version
+                            } else {
+                                runtime
+                                    .installed_versions(context)
+                                    .await
+                                    .ok()
+                                    .and_then(|v| v.into_iter().next())
+                                    .unwrap_or_else(|| "latest".to_string())
+                            }
                         } else {
                             return Err(super::pipeline::error::EnsureError::AutoInstallDisabled {
                                 runtime: runtime_name.to_string(),
