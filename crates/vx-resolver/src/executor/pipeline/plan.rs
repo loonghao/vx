@@ -135,11 +135,7 @@ impl PlannedRuntime {
     }
 
     /// Create an already-installed runtime
-    pub fn installed(
-        name: impl Into<String>,
-        version: String,
-        executable: PathBuf,
-    ) -> Self {
+    pub fn installed(name: impl Into<String>, version: String, executable: PathBuf) -> Self {
         Self {
             name: name.into(),
             version: VersionResolution::Installed {
@@ -369,8 +365,8 @@ mod tests {
             PathBuf::from("/usr/local/bin/node"),
         );
 
-        let plan = ExecutionPlan::new(primary, ExecutionConfig::default())
-            .with_dependency(node_dep);
+        let plan =
+            ExecutionPlan::new(primary, ExecutionConfig::default()).with_dependency(node_dep);
 
         assert_eq!(plan.dependencies.len(), 1);
         assert_eq!(plan.dependencies[0].name, "node");
@@ -450,8 +446,8 @@ mod tests {
         );
         let unsupported = PlannedRuntime::unsupported("msvc", "Windows only".to_string());
 
-        let plan = ExecutionPlan::new(primary, ExecutionConfig::default())
-            .with_injected(unsupported);
+        let plan =
+            ExecutionPlan::new(primary, ExecutionConfig::default()).with_injected(unsupported);
 
         assert_eq!(plan.unsupported_runtimes().len(), 1);
         assert_eq!(plan.unsupported_runtimes()[0].name, "msvc");

@@ -101,7 +101,7 @@ impl<'a> Stage<ResolveRequest, i32> for ExecutionPipeline<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ResolverConfig, RuntimeMap, Resolver};
+    use crate::{Resolver, ResolverConfig, RuntimeMap};
 
     fn test_resolver() -> Resolver {
         Resolver::new(ResolverConfig::default(), RuntimeMap::empty()).unwrap()
@@ -134,8 +134,7 @@ mod tests {
 
         let pipeline = ExecutionPipeline::new(resolve, ensure, prepare, execute);
 
-        let request = ResolveRequest::new("node", vec!["--version".into()])
-            .with_version("20.0.0");
+        let request = ResolveRequest::new("node", vec!["--version".into()]).with_version("20.0.0");
 
         // This will fail at the Prepare stage because no executable is available
         // without a real registry — which is expected in a unit test

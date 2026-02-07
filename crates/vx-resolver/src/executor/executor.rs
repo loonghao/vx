@@ -11,6 +11,7 @@
 use super::bundle::{execute_bundle, has_bundle, is_online, try_get_bundle_context};
 use super::environment::EnvironmentManager;
 use super::installation::InstallationManager;
+use super::pipeline::error::PipelineError;
 use super::project_config::ProjectToolsConfig;
 use crate::{ResolutionCache, Resolver, ResolverConfig, Result, RuntimeMap};
 use std::path::PathBuf;
@@ -165,7 +166,11 @@ impl<'a> Executor<'a> {
         if let Some(registry) = self.registry {
             if let Some(runtime) = registry.get_runtime(runtime_name) {
                 if let Err(e) = runtime.check_platform_support() {
-                    return Err(anyhow::anyhow!("{}", e));
+                    return Err(PipelineError::PlatformCheckFailed {
+                        runtime: runtime_name.to_string(),
+                        reason: e.to_string(),
+                    }
+                    .into());
                 }
             }
         }
@@ -173,11 +178,11 @@ impl<'a> Executor<'a> {
         // -------------------------
         // Pipeline: Resolve → Ensure → Prepare → Execute
         // -------------------------
-        use super::pipeline::stages::resolve::{ResolveRequest, ResolveStage, WithDepRequest};
-        use super::pipeline::stages::ensure::EnsureStage;
-        use super::pipeline::stages::prepare::PrepareStage;
-        use super::pipeline::stages::execute::ExecuteStage;
         use super::pipeline::stage::Stage;
+        use super::pipeline::stages::ensure::EnsureStage;
+        use super::pipeline::stages::execute::ExecuteStage;
+        use super::pipeline::stages::prepare::PrepareStage;
+        use super::pipeline::stages::resolve::{ResolveRequest, ResolveStage, WithDepRequest};
 
         // Build ResolveRequest from arguments
         let with_dep_requests: Vec<WithDepRequest> = with_deps.iter().map(Into::into).collect();
@@ -199,19 +204,11 @@ impl<'a> Executor<'a> {
             resolve_stage = resolve_stage.with_store_base(base.clone());
         }
 
-        let ensure_stage = EnsureStage::new(
-            &self.resolver,
-            &self.config,
-            self.registry,
-            self.context,
-        );
+        let ensure_stage =
+            EnsureStage::new(&self.resolver, &self.config, self.registry, self.context);
 
-        let mut prepare_stage = PrepareStage::new(
-            &self.resolver,
-            &self.config,
-            self.registry,
-            self.context,
-        );
+        let mut prepare_stage =
+            PrepareStage::new(&self.resolver, &self.config, self.registry, self.context);
         if let Some(ref project_config) = self.project_config {
             prepare_stage = prepare_stage.with_project_config(project_config);
         }
@@ -227,28 +224,29 @@ impl<'a> Executor<'a> {
         let plan = resolve_stage
             .execute(request)
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+            .map_err(PipelineError::from)?;
 
         // Check incompatible dependencies (from resolution)
-        // The ResolveStage logs them as warnings; here we enforce the error
-        // by re-checking the underlying resolution
         let resolved_version = plan.primary.version_string().map(|s| s.to_string());
-        if let Ok(check_resolution) = self.resolver.resolve_with_version(
-            runtime_name,
-            resolved_version.as_deref(),
-        ) {
+        if let Ok(check_resolution) = self
+            .resolver
+            .resolve_with_version(runtime_name, resolved_version.as_deref())
+        {
             if !check_resolution.incompatible_dependencies.is_empty() {
-                for incompatible in &check_resolution.incompatible_dependencies {
-                    tracing::warn!(
-                        "Incompatible dependency {}: current={:?}, recommended={:?}",
-                        incompatible.runtime_name,
-                        incompatible.current_version,
-                        incompatible.recommended_version
-                    );
+                let details: Vec<String> = check_resolution
+                    .incompatible_dependencies
+                    .iter()
+                    .map(|ic| {
+                        format!(
+                            "{}: current={:?}, recommended={:?}",
+                            ic.runtime_name, ic.current_version, ic.recommended_version
+                        )
+                    })
+                    .collect();
+                return Err(PipelineError::IncompatibleDependencies {
+                    details: details.join("; "),
                 }
-                return Err(anyhow::anyhow!(
-                    "Some dependencies are incompatible. Please install compatible versions."
-                ));
+                .into());
             }
         }
 
@@ -257,14 +255,14 @@ impl<'a> Executor<'a> {
         let plan = ensure_stage
             .execute(plan)
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+            .map_err(PipelineError::from)?;
 
         // Stage 3: Prepare environment
         debug!("[Pipeline] Prepare");
         let mut prepared = prepare_stage
             .execute(plan)
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+            .map_err(PipelineError::from)?;
 
         // -------------------------
         // Post-prepare: --with Dependencies Injection
@@ -279,12 +277,8 @@ impl<'a> Executor<'a> {
         // -------------------------
         // Post-prepare: RFC 0028 Proxy Execution
         // -------------------------
-        self.apply_proxy_execution(
-            runtime_name,
-            &mut prepared,
-            inherit_env,
-        )
-        .await?;
+        self.apply_proxy_execution(runtime_name, &mut prepared, inherit_env)
+            .await?;
 
         // Add executable's parent directory to PATH
         self.add_executable_dir_to_prepared_path(&mut prepared);
@@ -294,7 +288,7 @@ impl<'a> Executor<'a> {
         let exit_code = execute_stage
             .execute(prepared)
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+            .map_err(PipelineError::from)?;
 
         Ok(exit_code)
     }
@@ -317,7 +311,10 @@ impl<'a> Executor<'a> {
         };
 
         // Determine version to check
-        let version_to_check = prepared.plan.primary.version_string()
+        let version_to_check = prepared
+            .plan
+            .primary
+            .version_string()
             .map(|s| s.to_string())
             .unwrap_or_else(|| {
                 // Try to get from installed versions
@@ -342,15 +339,15 @@ impl<'a> Executor<'a> {
             info!("{}", msg);
         }
 
-        if !prep.proxy_ready
-            && !prep.use_system_path
-            && prep.executable_override.is_none()
-        {
-            return Err(anyhow::anyhow!(
-                "Proxy setup for {}@{} failed. The proxy mechanism is not ready.",
-                runtime_name,
-                version_to_check
-            ));
+        if !prep.proxy_ready && !prep.use_system_path && prep.executable_override.is_none() {
+            return Err(PipelineError::Prepare(
+                super::pipeline::error::PrepareError::ProxyNotAvailable {
+                    runtime: runtime_name.to_string(),
+                    proxy: version_to_check.clone(),
+                    reason: "proxy mechanism is not ready".to_string(),
+                },
+            )
+            .into());
         }
 
         // Apply overrides
@@ -383,8 +380,7 @@ impl<'a> Executor<'a> {
             if let Some(exe_dir) = prepared.executable.parent() {
                 let exe_dir_str = exe_dir.to_string_lossy().to_string();
                 let path_sep = vx_paths::path_separator();
-                let grandparent_dir =
-                    exe_dir.parent().map(|p| p.to_string_lossy().to_string());
+                let grandparent_dir = exe_dir.parent().map(|p| p.to_string_lossy().to_string());
 
                 let current_path = prepared
                     .env
@@ -404,10 +400,7 @@ impl<'a> Executor<'a> {
                 }
 
                 prepared.env.insert("PATH".to_string(), new_path);
-                debug!(
-                    "  Added executable dir to PATH: {}",
-                    exe_dir.display()
-                );
+                debug!("  Added executable dir to PATH: {}", exe_dir.display());
             }
         }
     }
@@ -463,16 +456,18 @@ impl<'a> Executor<'a> {
                 .unwrap_or(false);
 
             if has_project_bundle {
-                return Err(anyhow::anyhow!(
-                    "Offline mode: tool '{}' not found in bundle. \
-                     Run 'vx bundle create' while online to add it.",
+                return Err(PipelineError::Offline(format!(
+                    "tool '{}' not found in bundle. Run 'vx bundle create' while online to add it.",
                     runtime_name
-                ));
+                ))
+                .into());
             } else if network_offline {
-                return Err(anyhow::anyhow!(
-                    "Offline mode: no bundle available and network is offline. \
-                     Run 'vx bundle create' while online to create one.",
-                ));
+                return Err(PipelineError::Offline(
+                    "no bundle available and network is offline. \
+                     Run 'vx bundle create' while online to create one."
+                        .to_string(),
+                )
+                .into());
             }
         }
 
@@ -567,24 +562,20 @@ impl<'a> Executor<'a> {
                             .prepare_execution(version, &retry_exec_ctx)
                             .await
                             .map_err(|retry_err| {
-                                anyhow::anyhow!(
-                                    "Failed to prepare '{}' after installing '{}': {}",
-                                    runtime_name,
-                                    parent,
-                                    retry_err
-                                )
+                                super::pipeline::error::PrepareError::ProxyRetryFailed {
+                                    runtime: runtime_name.to_string(),
+                                    dependency: parent.clone(),
+                                    reason: retry_err.to_string(),
+                                }
+                                .into()
                             })
                     } else {
-                        Err(anyhow::anyhow!(
-                            "'{}' requires '{}' which is not installed.\n\n\
-                             To install it, run:\n\n  vx install {}\n\n\
-                             Or enable auto-install to install it automatically.\n\n\
-                             Original error: {}",
-                            runtime_name,
-                            parent,
-                            parent,
-                            e
-                        ))
+                        Err(super::pipeline::error::PrepareError::DependencyRequired {
+                            runtime: runtime_name.to_string(),
+                            dependency: parent.clone(),
+                            reason: e.to_string(),
+                        }
+                        .into())
                     }
                 } else {
                     Err(e)
@@ -629,17 +620,18 @@ impl<'a> Executor<'a> {
             let runtime = match registry.get_runtime(runtime_name) {
                 Some(r) => r,
                 None => {
-                    return Err(anyhow::anyhow!(
-                        "--with dependency '{}' is not a known runtime. \
-                         Available runtimes: {}",
-                        runtime_name,
-                        registry
-                            .supported_runtimes()
-                            .iter()
-                            .map(|r| r.name())
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    ));
+                    return Err(
+                        super::pipeline::error::ResolveError::UnknownWithDependency {
+                            runtime: runtime_name.to_string(),
+                            available: registry
+                                .supported_runtimes()
+                                .iter()
+                                .map(|r| r.name())
+                                .collect::<Vec<_>>()
+                                .join(", "),
+                        }
+                        .into(),
+                    );
                 }
             };
 
@@ -670,13 +662,11 @@ impl<'a> Executor<'a> {
                                 .and_then(|v| v.into_iter().next())
                                 .unwrap_or_else(|| "latest".to_string())
                         } else {
-                            return Err(anyhow::anyhow!(
-                                "--with dependency '{}' is not installed.\n\n\
-                                 To install it, run:\n\n  vx install {}\n\n\
-                                 Or enable auto-install.",
-                                runtime_name,
-                                runtime_name
-                            ));
+                            return Err(super::pipeline::error::EnsureError::AutoInstallDisabled {
+                                runtime: runtime_name.to_string(),
+                                version: "latest".to_string(),
+                            }
+                            .into());
                         }
                     }
                 }
@@ -699,15 +689,11 @@ impl<'a> Executor<'a> {
                         .ensure_version_installed(runtime_name, &version)
                         .await?;
                 } else {
-                    return Err(anyhow::anyhow!(
-                        "--with dependency '{}@{}' is not installed.\n\n\
-                         To install it, run:\n\n  vx install {}@{}\n\n\
-                         Or enable auto-install.",
-                        runtime_name,
-                        version,
-                        runtime_name,
-                        version
-                    ));
+                    return Err(super::pipeline::error::EnsureError::AutoInstallDisabled {
+                        runtime: runtime_name.to_string(),
+                        version: version.clone(),
+                    }
+                    .into());
                 }
             }
 

@@ -11,6 +11,8 @@ use std::process::{ExitStatus, Stdio};
 use tokio::process::Command;
 use tracing::trace;
 
+use super::pipeline::error::ExecuteError;
+
 /// Build a command for execution
 pub fn build_command(
     resolution: &crate::resolver::ResolutionResult,
@@ -211,7 +213,9 @@ pub async fn run_command(
     let status = if let Some(timeout) = timeout {
         tokio::time::timeout(timeout, cmd.status())
             .await
-            .map_err(|_| anyhow::anyhow!("Command execution timed out"))??
+            .map_err(|_| ExecuteError::Timeout {
+                seconds: timeout.as_secs(),
+            })??
     } else {
         cmd.status().await?
     };

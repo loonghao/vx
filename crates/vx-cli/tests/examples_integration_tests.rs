@@ -124,7 +124,9 @@ mod taskmatrix_tests {
         // Check simple scripts
         assert_eq!(
             config.scripts.get("install"),
-            Some(&ScriptConfig::Simple("uv pip install -r requirements.txt".to_string())),
+            Some(&ScriptConfig::Simple(
+                "uv pip install -r requirements.txt".to_string()
+            )),
             "install script should be correct"
         );
 

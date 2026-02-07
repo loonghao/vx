@@ -610,6 +610,9 @@ pub enum Commands {
         /// Output as JSON (recommended for AI)
         #[arg(long)]
         json: bool,
+        /// Show build warnings and diagnostics
+        #[arg(long)]
+        warnings: bool,
     },
 
     /// Migrate configuration and data to latest format
@@ -1668,7 +1671,13 @@ impl CommandHandler for Commands {
                 BundleCommand::Clean { force } => commands::bundle::handle_clean(*force).await,
             },
 
-            Commands::Info { json } => commands::capabilities::handle(ctx.registry(), *json).await,
+            Commands::Info { json, warnings } => {
+                if *warnings {
+                    commands::capabilities::handle_warnings().await
+                } else {
+                    commands::capabilities::handle(ctx.registry(), *json).await
+                }
+            }
 
             Commands::Auth { command } => match command {
                 AuthCommand::Login { service, token } => {
