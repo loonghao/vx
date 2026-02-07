@@ -20,9 +20,12 @@ vx is a Rust-based tool manager that automatically installs and manages developm
 - **Team Synchronization**: One-command setup with `vx setup` for team onboarding
 - **MCP Integration**: Works seamlessly with Model Context Protocol for AI assistants
 - **Shell Integration**: Native support for bash, zsh, fish, and PowerShell
-- **35+ Providers**: Built-in support for 35+ development tools and growing
+- **50+ Providers**: Built-in support for 50+ development tools and growing
 - **Cross-Platform**: Consistent experience across Windows, macOS, and Linux
 - **Scriptable**: Full CI/CD integration with headless mode support
+- **Implicit Package Execution**: Run ecosystem packages (e.g., `vx vite dev`) without global install
+- **Proxy-Managed Runtimes**: Ecosystem tools auto-delegate to host runtimes (e.g., vite → npx)
+- **Version Range Locking**: Lock resolved versions with `vx.lock` for deterministic builds
 
 ## Technical Stack
 
@@ -165,6 +168,9 @@ impl PathManager {
 - [vx config](https://github.com/loonghao/vx/blob/main/docs/cli/config.md): Configuration management
 - [vx shell](https://github.com/loonghao/vx/blob/main/docs/cli/shell.md): Shell integration
 - [vx plugin](https://github.com/loonghao/vx/blob/main/docs/cli/plugin.md): Plugin management
+- [vx global](https://github.com/loonghao/vx/blob/main/docs/cli/global.md): Global tool management
+- [vx info](https://github.com/loonghao/vx/blob/main/docs/cli/info.md): Tool information and diagnostics
+- [Implicit Package Execution](https://github.com/loonghao/vx/blob/main/docs/cli/implicit-package-execution.md): Run packages without global install
 
 ## Configuration Reference
 
@@ -212,6 +218,7 @@ impl PathManager {
 - [Plugin Development](https://github.com/loonghao/vx/blob/main/docs/advanced/plugin-development.md): Create custom providers
 - [Extension Development](https://github.com/loonghao/vx/blob/main/docs/advanced/extension-development.md): vx extension system
 - [CLI Development](https://github.com/loonghao/vx/blob/main/docs/advanced/cli-development.md): CLI internals
+- [Provider Version Resolution](https://github.com/loonghao/vx/blob/main/docs/advanced/provider-version-resolution.md): Version resolution internals
 - [Contributing](https://github.com/loonghao/vx/blob/main/docs/advanced/contributing.md): Contribution guidelines
 - [Release Process](https://github.com/loonghao/vx/blob/main/docs/advanced/release-process.md): Release workflow
 - [Security](https://github.com/loonghao/vx/blob/main/docs/advanced/security.md): Security considerations
@@ -225,6 +232,7 @@ impl PathManager {
 - [Migration](https://github.com/loonghao/vx/blob/main/docs/guide/migration.md): Migration from other tools
 - [GitHub Action](https://github.com/loonghao/vx/blob/main/docs/guides/github-action.md): CI/CD integration
 - [Runtime Lifecycle](https://github.com/loonghao/vx/blob/main/docs/guides/runtime-lifecycle.md): Runtime lifecycle management
+- [Platform Redirection](https://github.com/loonghao/vx/blob/main/docs/guides/platform-redirection.md): Platform-specific tool redirections
 - [Use Cases](https://github.com/loonghao/vx/blob/main/docs/guides/use-cases.md): Real-world examples
 
 ## Features
@@ -236,16 +244,36 @@ impl PathManager {
 - [RFC 0001: vx.toml v2 Enhancement](https://github.com/loonghao/vx/blob/main/docs/rfcs/0001-vx-toml-v2-enhancement.md)
 - [RFC 0002: Extension System](https://github.com/loonghao/vx/blob/main/docs/rfcs/0002-extension-system.md)
 - [RFC 0003: Project Analyzer](https://github.com/loonghao/vx/blob/main/docs/rfcs/0003-project-analyzer-en.md)
+- [RFC 0003: Dynamic Scripts](https://github.com/loonghao/vx/blob/main/docs/rfcs/0003-dynamic-scripts.md)
+- [RFC 0004: Migration Framework](https://github.com/loonghao/vx/blob/main/docs/rfcs/0004-migration-framework.md)
 - [RFC 0005: Test Framework](https://github.com/loonghao/vx/blob/main/docs/rfcs/0005-vx-test-framework.md)
+- [RFC 0006: vx-setup Crate](https://github.com/loonghao/vx/blob/main/docs/rfcs/0006-vx-setup-crate.md)
 - [RFC 0007: Enhanced Hooks System](https://github.com/loonghao/vx/blob/main/docs/rfcs/0007-enhanced-hooks-system.md)
 - [RFC 0008: Version Solver](https://github.com/loonghao/vx/blob/main/docs/rfcs/0008-version-solver-en.md)
 - [RFC 0009: Unified Console](https://github.com/loonghao/vx/blob/main/docs/rfcs/0009-unified-console-en.md)
 - [RFC 0009: Unified Version Fetcher](https://github.com/loonghao/vx/blob/main/docs/rfcs/0009-unified-version-fetcher-en.md)
+- [RFC 0010: Provider Subcommands](https://github.com/loonghao/vx/blob/main/docs/rfcs/0010-provider-subcommands.md)
+- [RFC 0011: Resolution Cache](https://github.com/loonghao/vx/blob/main/docs/rfcs/0011-resolution-cache.md)
 - [RFC 0012: Provider Manifest](https://github.com/loonghao/vx/blob/main/docs/rfcs/0012-provider-manifest.md)
+- [RFC 0012: Solver and Resolver Separation](https://github.com/loonghao/vx/blob/main/docs/rfcs/0012-solver-and-resolver-separation-en.md)
 - [RFC 0013: Manifest Driven Registration](https://github.com/loonghao/vx/blob/main/docs/rfcs/0013-manifest-driven-registration.md)
+- [RFC 0014: Platform Aware Providers](https://github.com/loonghao/vx/blob/main/docs/rfcs/0014-platform-aware-providers.md)
 - [RFC 0015: System Tool Discovery](https://github.com/loonghao/vx/blob/main/docs/rfcs/0015-system-tool-discovery.md)
 - [RFC 0016: Unix CLI Tool Providers](https://github.com/loonghao/vx/blob/main/docs/rfcs/0016-unix-cli-tool-providers.md)
+- [RFC 0016: Environment Management v2](https://github.com/loonghao/vx/blob/main/docs/rfcs/0016-environment-management-v2.md)
+- [RFC 0017: Declarative Runtime Map](https://github.com/loonghao/vx/blob/main/docs/rfcs/0017-declarative-runtime-map.md)
+- [RFC 0018: Extended Provider Schema](https://github.com/loonghao/vx/blob/main/docs/rfcs/0018-extended-provider-schema.md)
+- [RFC 0019: Executable Layout Configuration](https://github.com/loonghao/vx/blob/main/docs/rfcs/0019-executable-layout-configuration.md)
+- [RFC 0020: CLI and Test Refactoring](https://github.com/loonghao/vx/blob/main/docs/rfcs/0020-cli-and-test-refactoring.md)
 - [RFC 0021: System Package Manager Integration](https://github.com/loonghao/vx/blob/main/docs/rfcs/0021-system-package-manager-integration.md)
+- [RFC 0022: Install Normalize](https://github.com/loonghao/vx/blob/main/docs/rfcs/0022-install-normalize.md)
+- [RFC 0023: Version Range Locking](https://github.com/loonghao/vx/blob/main/docs/rfcs/0023-version-range-locking.md)
+- [RFC 0024: Lockfile v2 Design](https://github.com/loonghao/vx/blob/main/docs/rfcs/0024-lockfile-v2-design.md)
+- [RFC 0025: Cross Language Package Isolation](https://github.com/loonghao/vx/blob/main/docs/rfcs/0025-cross-language-package-isolation.md)
+- [RFC 0026: Unified Runtime Provider Relationships](https://github.com/loonghao/vx/blob/main/docs/rfcs/0026-unified-runtime-provider-relationships.md)
+- [RFC 0027: Implicit Package Execution](https://github.com/loonghao/vx/blob/main/docs/rfcs/0027-implicit-package-execution.md)
+- [RFC 0028: Proxy Managed Runtimes](https://github.com/loonghao/vx/blob/main/docs/rfcs/0028-proxy-managed-runtimes.md)
+- [RFC 0029: Executor Refactoring](https://github.com/loonghao/vx/blob/main/docs/rfcs/0029-executor-refactoring.md)
 
 ## Crate Documentation
 
@@ -255,6 +283,7 @@ impl PathManager {
 
 - [Extensions](https://github.com/loonghao/vx/tree/main/examples/extensions): Extension examples
 - [Providers](https://github.com/loonghao/vx/tree/main/examples/providers): Custom provider examples
+- [TaskMatrix](https://github.com/loonghao/vx/tree/main/examples/taskmatrix): Multi-tool project example
 - [Auto Install Demo](https://github.com/loonghao/vx/blob/main/examples/auto_install_demo.rs): Auto-installation example
 - [Config Management Demo](https://github.com/loonghao/vx/blob/main/examples/config_management_demo.rs): Configuration management example
 

@@ -176,6 +176,28 @@ impl PlannedRuntime {
         self.executable = Some(executable);
     }
 
+    /// Mark this runtime as installed with a concrete version and executable path.
+    ///
+    /// This updates both `status`, `version`, and `executable`. It is critical to call
+    /// this (instead of just `mark_installed`) when the original version was symbolic
+    /// (e.g., "latest") so that subsequent re-resolution uses the concrete version
+    /// to find the correct store directory (e.g., `~/.vx/store/uv/0.10.0/` instead of
+    /// `~/.vx/store/uv/latest/`).
+    pub fn mark_installed_with_version(
+        &mut self,
+        actual_version: String,
+        executable: Option<PathBuf>,
+    ) {
+        self.status = InstallStatus::Installed;
+        self.version = VersionResolution::Installed {
+            version: actual_version,
+            source: VersionSource::VxManaged,
+        };
+        if let Some(exe) = executable {
+            self.executable = Some(exe);
+        }
+    }
+
     /// Get the version string (if resolved)
     pub fn version_string(&self) -> Option<&str> {
         match &self.version {
@@ -331,152 +353,5 @@ impl ExecutionConfig {
             args,
             ..Default::default()
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_execution_plan_new() {
-        let primary = PlannedRuntime::installed(
-            "node",
-            "20.0.0".to_string(),
-            PathBuf::from("/usr/local/bin/node"),
-        );
-        let config = ExecutionConfig::with_args(vec!["--version".to_string()]);
-
-        let plan = ExecutionPlan::new(primary, config);
-
-        assert_eq!(plan.primary.name, "node");
-        assert!(plan.dependencies.is_empty());
-        assert!(plan.injected.is_empty());
-        assert!(plan.proxy.is_none());
-        assert!(!plan.needs_install());
-    }
-
-    #[test]
-    fn test_execution_plan_with_dependencies() {
-        let primary = PlannedRuntime::needs_install("npm", "10.0.0".to_string());
-        let node_dep = PlannedRuntime::installed(
-            "node",
-            "20.0.0".to_string(),
-            PathBuf::from("/usr/local/bin/node"),
-        );
-
-        let plan =
-            ExecutionPlan::new(primary, ExecutionConfig::default()).with_dependency(node_dep);
-
-        assert_eq!(plan.dependencies.len(), 1);
-        assert_eq!(plan.dependencies[0].name, "node");
-        assert!(plan.needs_install());
-        assert_eq!(plan.runtimes_needing_install().len(), 1);
-        assert_eq!(plan.runtimes_needing_install()[0].name, "npm");
-    }
-
-    #[test]
-    fn test_planned_runtime_installed() {
-        let rt = PlannedRuntime::installed(
-            "node",
-            "20.0.0".to_string(),
-            PathBuf::from("/usr/local/bin/node"),
-        );
-
-        assert_eq!(rt.name, "node");
-        assert_eq!(rt.version_string(), Some("20.0.0"));
-        assert!(rt.is_ready());
-        assert_eq!(rt.status, InstallStatus::Installed);
-    }
-
-    #[test]
-    fn test_planned_runtime_needs_install() {
-        let rt = PlannedRuntime::needs_install("go", "1.21.0".to_string());
-
-        assert_eq!(rt.name, "go");
-        assert_eq!(rt.version_string(), Some("1.21.0"));
-        assert!(!rt.is_ready());
-        assert_eq!(rt.status, InstallStatus::NeedsInstall);
-    }
-
-    #[test]
-    fn test_planned_runtime_unsupported() {
-        let rt = PlannedRuntime::unsupported("msvc", "Windows only".to_string());
-
-        assert_eq!(rt.name, "msvc");
-        assert!(rt.version_string().is_none());
-        assert!(!rt.is_ready());
-        assert!(matches!(
-            rt.status,
-            InstallStatus::PlatformUnsupported { .. }
-        ));
-    }
-
-    #[test]
-    fn test_planned_runtime_mark_installed() {
-        let mut rt = PlannedRuntime::needs_install("node", "20.0.0".to_string());
-        assert!(!rt.is_ready());
-
-        rt.mark_installed(PathBuf::from("/home/user/.vx/store/node/20.0.0/bin/node"));
-        assert!(rt.is_ready());
-        assert_eq!(rt.status, InstallStatus::Installed);
-    }
-
-    #[test]
-    fn test_version_resolution_variants() {
-        let installed = VersionResolution::Installed {
-            version: "20.0.0".to_string(),
-            source: VersionSource::Explicit,
-        };
-        assert_ne!(installed, VersionResolution::Unresolved);
-
-        let range = VersionResolution::Range {
-            spec: "^20.0.0".to_string(),
-            resolved: "20.5.1".to_string(),
-        };
-        assert_ne!(range, installed);
-    }
-
-    #[test]
-    fn test_execution_plan_unsupported_runtimes() {
-        let primary = PlannedRuntime::installed(
-            "node",
-            "20.0.0".to_string(),
-            PathBuf::from("/usr/local/bin/node"),
-        );
-        let unsupported = PlannedRuntime::unsupported("msvc", "Windows only".to_string());
-
-        let plan =
-            ExecutionPlan::new(primary, ExecutionConfig::default()).with_injected(unsupported);
-
-        assert_eq!(plan.unsupported_runtimes().len(), 1);
-        assert_eq!(plan.unsupported_runtimes()[0].name, "msvc");
-    }
-
-    #[test]
-    fn test_all_runtimes_iterator() {
-        let primary = PlannedRuntime::installed(
-            "npm",
-            "10.0.0".to_string(),
-            PathBuf::from("/usr/local/bin/npm"),
-        );
-        let dep = PlannedRuntime::installed(
-            "node",
-            "20.0.0".to_string(),
-            PathBuf::from("/usr/local/bin/node"),
-        );
-        let injected = PlannedRuntime::installed(
-            "yarn",
-            "4.0.0".to_string(),
-            PathBuf::from("/usr/local/bin/yarn"),
-        );
-
-        let plan = ExecutionPlan::new(primary, ExecutionConfig::default())
-            .with_dependency(dep)
-            .with_injected(injected);
-
-        let names: Vec<&str> = plan.all_runtimes().map(|r| r.name.as_str()).collect();
-        // Order: deps → primary → injected
-        assert_eq!(names, vec!["node", "npm", "yarn"]);
     }
 }

@@ -19,7 +19,9 @@ vx is a Rust-based tool manager that automatically installs and manages developm
 - Team environment synchronization with `vx setup`
 - MCP (Model Context Protocol) integration ready
 - Shell integration for bash, zsh, fish, PowerShell
-- 35+ built-in tool providers
+- 50+ built-in tool providers
+- Implicit package execution (e.g., `vx vite dev` without global install)
+- Proxy-managed runtimes for ecosystem tools
 
 ## Documentation
 
@@ -41,6 +43,9 @@ vx is a Rust-based tool manager that automatically installs and manages developm
 - [vx dev](https://github.com/loonghao/vx/blob/main/docs/cli/dev.md): Development shell
 - [vx install](https://github.com/loonghao/vx/blob/main/docs/cli/install.md): Install tools
 - [vx list](https://github.com/loonghao/vx/blob/main/docs/cli/list.md): List available tools
+- [vx global](https://github.com/loonghao/vx/blob/main/docs/cli/global.md): Global tool management
+- [vx info](https://github.com/loonghao/vx/blob/main/docs/cli/info.md): Tool information
+- [Implicit Package Execution](https://github.com/loonghao/vx/blob/main/docs/cli/implicit-package-execution.md): Run packages without global install
 
 ## Tools
 
@@ -59,6 +64,8 @@ vx is a Rust-based tool manager that automatically installs and manages developm
 - [Plugin Development](https://github.com/loonghao/vx/blob/main/docs/advanced/plugin-development.md): Create custom providers
 - [Extension Development](https://github.com/loonghao/vx/blob/main/docs/advanced/extension-development.md): vx extension system
 - [Manifest Driven Providers](https://github.com/loonghao/vx/blob/main/docs/guide/manifest-driven-providers.md): Declarative provider manifests
+- [Provider Version Resolution](https://github.com/loonghao/vx/blob/main/docs/advanced/provider-version-resolution.md): Provider version resolution internals
+- [Platform Redirection](https://github.com/loonghao/vx/blob/main/docs/guides/platform-redirection.md): Platform-specific redirections
 - [GitHub Action](https://github.com/loonghao/vx/blob/main/docs/guides/github-action.md): CI/CD integration
 - [Use Cases](https://github.com/loonghao/vx/blob/main/docs/guides/use-cases.md): Real-world examples
 - [FAQ](https://github.com/loonghao/vx/blob/main/docs/appendix/faq.md): Frequently asked questions
