@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3](https://github.com/loonghao/vx/compare/v0.7.2...v0.7.3) (2026-02-07)
+
+
+### Bug Fixes
+
+* gracefully skip Homebrew publish when HOMEBREW_TAP_TOKEN is not set ([003ac49](https://github.com/loonghao/vx/commit/003ac49724a303a247756e79217c105fb56041c2))
+* use HOMEBREW_TAP_GITHUB_TOKEN for Homebrew formula publishing ([56b7306](https://github.com/loonghao/vx/commit/56b730648f22564566cf870eec47b46546bc700f))
+
 ## [0.7.2](https://github.com/loonghao/vx/compare/v0.7.1...v0.7.2) (2026-02-07)
 
 
