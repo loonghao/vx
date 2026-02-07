@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2](https://github.com/loonghao/vx/compare/v0.7.1...v0.7.2) (2026-02-07)
+
+
+### Features
+
+* **resolver:** implement execution pipeline architecture (RFC 0029) ([f968f5c](https://github.com/loonghao/vx/commit/f968f5c1be3dc44b32e8d12036b8ce0710682965))
+* RFC 0029 Phase 1-3 + vx info docs (EN/ZH) ([15095a2](https://github.com/loonghao/vx/commit/15095a283462bc121b02a33065bfc83669b65365))
+
+
+### Bug Fixes
+
+* clippy lint - use struct update syntax for ExecutionConfig ([7d4a3e1](https://github.com/loonghao/vx/commit/7d4a3e1df638b0b1dc94431597edf5fb1920a32c))
+* **deps:** update rust crate which to v8 ([90450b4](https://github.com/loonghao/vx/commit/90450b498b02261712331978c557501cdda8022e))
+* update integration test to match structured error messages ([c7259bb](https://github.com/loonghao/vx/commit/c7259bb0e8e9fa42ed95bf883b2c00727feb3b32))
+
+
+### Documentation
+
+* Added docs/cli/info.md, docs/zh/cli/info.md, updated sidebar ([15095a2](https://github.com/loonghao/vx/commit/15095a283462bc121b02a33065bfc83669b65365))
+
 ## [0.7.1](https://github.com/loonghao/vx/compare/v0.7.0...v0.7.1) (2026-02-06)
 
 
