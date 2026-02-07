@@ -263,8 +263,10 @@ mod tests {
         let stage = EnsureStage::new(&resolver, &config, None, None);
 
         let primary = PlannedRuntime::needs_install("node", "20.0.0".to_string());
-        let mut exec_config = ExecutionConfig::default();
-        exec_config.auto_install = false;
+        let exec_config = ExecutionConfig {
+            auto_install: false,
+            ..Default::default()
+        };
         let plan = ExecutionPlan::new(primary, exec_config);
 
         let result = stage.execute(plan).await;
