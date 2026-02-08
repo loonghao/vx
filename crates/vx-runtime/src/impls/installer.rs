@@ -31,7 +31,10 @@ impl RealInstaller {
     /// Tries in order:
     /// 1. Content-Disposition header
     /// 2. Final URL path (after redirects)
-    fn extract_filename_from_response(response: &reqwest::Response, original_url: &str) -> Option<String> {
+    fn extract_filename_from_response(
+        response: &reqwest::Response,
+        original_url: &str,
+    ) -> Option<String> {
         // Try Content-Disposition header first
         if let Some(content_disposition) = response.headers().get("content-disposition") {
             if let Ok(value) = content_disposition.to_str() {
@@ -68,11 +71,7 @@ impl RealInstaller {
     /// the GET response's Content-Disposition header or final redirected URL.
     /// For APIs like Adoptium that use redirect chains (307 → 302 → CDN),
     /// this saves ~3-5 seconds by eliminating the redundant HEAD round-trip.
-    async fn download_and_detect_filename(
-        &self,
-        url: &str,
-        dest: &Path,
-    ) -> Result<Option<String>> {
+    async fn download_and_detect_filename(&self, url: &str, dest: &Path) -> Result<Option<String>> {
         use futures_util::StreamExt;
         use indicatif::{ProgressBar, ProgressStyle};
         use tokio::io::AsyncWriteExt;
@@ -149,7 +148,11 @@ impl RealInstaller {
             return Err(anyhow::anyhow!(
                 "Download failed: HTTP {} for {}",
                 response.status(),
-                if using_cdn { download_url.as_str() } else { url }
+                if using_cdn {
+                    download_url.as_str()
+                } else {
+                    url
+                }
             ));
         }
 

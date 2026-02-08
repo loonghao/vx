@@ -21,17 +21,11 @@ fn test_metrics_guard_exit_code() {
 
     // Default exit code is 0
     let handle = guard.exit_code_handle();
-    assert_eq!(
-        handle.load(std::sync::atomic::Ordering::Relaxed),
-        0
-    );
+    assert_eq!(handle.load(std::sync::atomic::Ordering::Relaxed), 0);
 
     // Set exit code
     guard.set_exit_code(42);
-    assert_eq!(
-        handle.load(std::sync::atomic::Ordering::Relaxed),
-        42
-    );
+    assert_eq!(handle.load(std::sync::atomic::Ordering::Relaxed), 42);
 }
 
 #[test]
@@ -48,12 +42,6 @@ fn test_metrics_guard_exit_code_handle_shared() {
 
     // Both handles should point to the same atomic
     guard.set_exit_code(7);
-    assert_eq!(
-        handle1.load(std::sync::atomic::Ordering::Relaxed),
-        7
-    );
-    assert_eq!(
-        handle2.load(std::sync::atomic::Ordering::Relaxed),
-        7
-    );
+    assert_eq!(handle1.load(std::sync::atomic::Ordering::Relaxed), 7);
+    assert_eq!(handle2.load(std::sync::atomic::Ordering::Relaxed), 7);
 }

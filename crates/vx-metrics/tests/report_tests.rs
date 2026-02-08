@@ -1,6 +1,6 @@
 use rstest::rstest;
-use vx_metrics::report::{CommandMetrics, StageMetrics};
 use vx_metrics::exporter::SpanRecord;
+use vx_metrics::report::{CommandMetrics, StageMetrics};
 
 #[test]
 fn test_command_metrics_new() {
