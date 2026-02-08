@@ -77,6 +77,7 @@ vx [OPTIONS] <TOOL> [TOOL_ARGS]
 |---------|-------------|
 | `clean` | Clean up cache and orphaned files |
 | `stats` | Show disk usage statistics |
+| [`metrics`](./metrics) | View performance metrics and diagnostics |
 | `self-update` | Update vx itself |
 
 ## Direct Tool Execution

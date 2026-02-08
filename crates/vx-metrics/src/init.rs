@@ -2,9 +2,13 @@
 //!
 //! Replaces the existing `tracing_setup.rs` with a single `init()` call
 //! that sets up:
-//! 1. `tracing-subscriber` fmt layer (stderr output, like before)
-//! 2. `tracing-opentelemetry` layer (bridges tracing spans → OTel spans)
+//! 1. `tracing-subscriber` fmt layer (stderr output, with per-layer filter)
+//! 2. `tracing-opentelemetry` layer (bridges tracing spans → OTel spans, always captures vx=trace)
 //! 3. `JsonFileExporter` (collects spans in memory)
+//!
+//! Per-layer filtering ensures that debug/trace messages are only captured by
+//! the OTel layer for metrics, while the fmt layer only shows warn/error in
+//! normal mode (or debug/trace in --verbose/--debug mode).
 //!
 //! On drop, `MetricsGuard` flushes all spans to a JSON file under `~/.vx/metrics/`.
 
@@ -16,6 +20,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::Layer;
 
 use crate::exporter::JsonFileExporter;
 use crate::report::CommandMetrics;
@@ -145,23 +150,20 @@ pub fn init(config: MetricsConfig) -> MetricsGuard {
     let start_time = Instant::now();
     let command = config.command.clone();
 
-    // Build the tracing subscriber with OpenTelemetry layer.
+    // Build the tracing subscriber with per-layer filtering.
     //
-    // All branches use stderr for the fmt layer to keep tool stdout clean.
-    // The EnvFilter controls console verbosity; the OTel layer captures
-    // all vx spans regardless (since the filter includes vx=trace).
+    // The OTel layer needs vx=trace to capture all spans for metrics,
+    // but the fmt layer should only show user-relevant messages (warn/error
+    // in normal mode). Using per-layer filters ensures debug/trace messages
+    // don't leak to stderr in normal operation.
     INIT.call_once(|| {
-        let env_filter = if std::env::var("RUST_LOG").is_ok() {
-            tracing_subscriber::EnvFilter::from_default_env()
-        } else if config.debug {
-            tracing_subscriber::EnvFilter::new("debug")
-        } else if config.verbose {
-            tracing_subscriber::EnvFilter::new("vx=debug,info")
-        } else {
-            // Normal mode: console only sees warn/error,
-            // but vx=trace allows OTel to capture all spans
-            tracing_subscriber::EnvFilter::new("vx=trace,warn,error")
-        };
+        // Fmt layer filter: controls what the user sees on stderr.
+        let fmt_filter_str = fmt_filter_directive(&config);
+        let fmt_filter = tracing_subscriber::EnvFilter::new(&fmt_filter_str);
+
+        // OTel layer filter: always capture all vx spans for metrics collection.
+        let otel_filter_str = otel_filter_directive();
+        let otel_filter = tracing_subscriber::EnvFilter::new(&otel_filter_str);
 
         // OpenTelemetry layer (captures spans and exports to our exporter)
         let otel_layer = tracing_opentelemetry::layer().with_tracer(tracer);
@@ -180,9 +182,8 @@ pub fn init(config: MetricsConfig) -> MetricsGuard {
             .with_ansi(true);
 
         tracing_subscriber::registry()
-            .with(env_filter)
-            .with(fmt_layer)
-            .with(otel_layer)
+            .with(fmt_layer.with_filter(fmt_filter))
+            .with(otel_layer.with_filter(otel_filter))
             .try_init()
             .ok();
     });
@@ -200,6 +201,40 @@ pub fn init(config: MetricsConfig) -> MetricsGuard {
 /// Get the default metrics directory (~/.vx/metrics).
 fn default_metrics_dir() -> PathBuf {
     vx_paths::VxPaths::default().base_dir.join("metrics")
+}
+
+/// Build the fmt layer filter string based on config.
+///
+/// The fmt filter controls what the user sees on stderr:
+/// - Normal mode: only warn and error
+/// - Verbose mode: vx debug messages + info from other crates
+/// - Debug mode: all debug messages
+/// - RUST_LOG env: user-specified filter
+///
+/// This is separate from the OTel filter to enable per-layer filtering.
+pub fn fmt_filter_directive(config: &MetricsConfig) -> String {
+    if std::env::var("RUST_LOG").is_ok() {
+        std::env::var("RUST_LOG").unwrap_or_default()
+    } else if config.debug {
+        "debug".to_string()
+    } else if config.verbose {
+        "vx=debug,info".to_string()
+    } else {
+        "warn,error".to_string()
+    }
+}
+
+/// Build the OTel layer filter string.
+///
+/// The OTel filter always captures all vx spans (trace level) for metrics
+/// collection, regardless of the user's verbosity preference.
+/// Only overridden if RUST_LOG is explicitly set.
+pub fn otel_filter_directive() -> String {
+    if std::env::var("RUST_LOG").is_ok() {
+        std::env::var("RUST_LOG").unwrap_or_default()
+    } else {
+        "vx=trace,warn,error".to_string()
+    }
 }
 
 /// Clean up old metrics files, keeping only the most recent `keep` files.

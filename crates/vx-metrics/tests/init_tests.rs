@@ -1,3 +1,4 @@
+use rstest::rstest;
 use tempfile::TempDir;
 use vx_metrics::MetricsConfig;
 
@@ -44,4 +45,106 @@ fn test_metrics_guard_exit_code_handle_shared() {
     guard.set_exit_code(7);
     assert_eq!(handle1.load(std::sync::atomic::Ordering::Relaxed), 7);
     assert_eq!(handle2.load(std::sync::atomic::Ordering::Relaxed), 7);
+}
+
+// ============================================================================
+// Per-layer filter directive tests
+// ============================================================================
+
+#[test]
+fn test_fmt_filter_normal_mode() {
+    // Ensure RUST_LOG is not set for this test
+    std::env::remove_var("RUST_LOG");
+
+    let config = MetricsConfig::default();
+    let filter = vx_metrics::fmt_filter_directive(&config);
+
+    // Normal mode: only warn and error should be shown on stderr
+    assert_eq!(filter, "warn,error");
+    // Must NOT contain vx=trace or vx=debug
+    assert!(!filter.contains("trace"));
+    assert!(!filter.contains("debug"));
+}
+
+#[test]
+fn test_fmt_filter_verbose_mode() {
+    std::env::remove_var("RUST_LOG");
+
+    let config = MetricsConfig {
+        verbose: true,
+        ..Default::default()
+    };
+    let filter = vx_metrics::fmt_filter_directive(&config);
+
+    assert_eq!(filter, "vx=debug,info");
+}
+
+#[test]
+fn test_fmt_filter_debug_mode() {
+    std::env::remove_var("RUST_LOG");
+
+    let config = MetricsConfig {
+        debug: true,
+        ..Default::default()
+    };
+    let filter = vx_metrics::fmt_filter_directive(&config);
+
+    assert_eq!(filter, "debug");
+}
+
+#[test]
+fn test_fmt_filter_debug_takes_precedence_over_verbose() {
+    std::env::remove_var("RUST_LOG");
+
+    let config = MetricsConfig {
+        debug: true,
+        verbose: true,
+        ..Default::default()
+    };
+    let filter = vx_metrics::fmt_filter_directive(&config);
+
+    // debug mode should take precedence
+    assert_eq!(filter, "debug");
+}
+
+#[test]
+fn test_otel_filter_always_captures_vx_trace() {
+    std::env::remove_var("RUST_LOG");
+
+    let filter = vx_metrics::otel_filter_directive();
+
+    // OTel filter must always include vx=trace for metrics collection
+    assert!(filter.contains("vx=trace"));
+    assert!(filter.contains("warn"));
+    assert!(filter.contains("error"));
+}
+
+#[rstest]
+#[case(false, false, "warn,error")]
+#[case(true, false, "vx=debug,info")]
+#[case(false, true, "debug")]
+#[case(true, true, "debug")]
+fn test_fmt_filter_matrix(
+    #[case] verbose: bool,
+    #[case] debug: bool,
+    #[case] expected: &str,
+) {
+    std::env::remove_var("RUST_LOG");
+
+    let config = MetricsConfig {
+        verbose,
+        debug,
+        ..Default::default()
+    };
+    let filter = vx_metrics::fmt_filter_directive(&config);
+    assert_eq!(filter, expected);
+}
+
+#[test]
+fn test_otel_filter_independent_of_config() {
+    std::env::remove_var("RUST_LOG");
+
+    // OTel filter should be the same regardless of verbose/debug settings
+    let filter = vx_metrics::otel_filter_directive();
+    assert_eq!(filter, "vx=trace,warn,error");
 }
