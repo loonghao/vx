@@ -190,7 +190,7 @@ get_latest_version() {
             response=$(curl -s "$api_url" 2>/dev/null || echo "")
         fi
 
-        if [[ -n "$response" ]] && ! echo "$response" | grep -q "rate limit\|429"; then
+        if [[ -n "$response" ]] && ! echo "$response" | grep "rate limit\|429" >/dev/null 2>&1; then
             local version
             version=$(echo "$response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//' || echo "")
             if [[ -n "$version" ]]; then
@@ -394,7 +394,8 @@ install_from_release() {
 
     # Create temporary directory
     temp_dir=$(mktemp -d)
-    trap 'rm -rf "$temp_dir"' EXIT
+    # shellcheck disable=SC2064
+    trap 'rm -rf "${temp_dir:-}"' EXIT
 
     # Download with smart fallback - try all tag + archive combinations
     local download_success=false
@@ -477,7 +478,8 @@ build_from_source() {
     # Clone and build
     local temp_dir
     temp_dir=$(mktemp -d)
-    trap 'rm -rf "$temp_dir"' EXIT
+    # shellcheck disable=SC2064
+    trap 'rm -rf "${temp_dir:-}"' EXIT
     cd "$temp_dir"
 
     info "Cloning repository..."
