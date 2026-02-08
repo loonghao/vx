@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6](https://github.com/loonghao/vx/compare/v0.7.5...v0.7.6) (2026-02-08)
+
+
+### Features
+
+* add dagu workflow engine provider ([8f4ad20](https://github.com/loonghao/vx/commit/8f4ad203c5e8cd78f21064850b9ed37e898cb76b))
+
 ## [0.7.5](https://github.com/loonghao/vx/compare/v0.7.4...v0.7.5) (2026-02-08)
 
 
