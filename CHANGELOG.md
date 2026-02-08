@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.7](https://github.com/loonghao/vx/compare/v0.7.6...v0.7.7) (2026-02-08)
+
+
+### Bug Fixes
+
+* skip CI/CodeQL/Benchmark workflows on release commits ([1ae348a](https://github.com/loonghao/vx/commit/1ae348a79e96d82b22bf562727239c462cf4068f))
+
 ## [0.7.6](https://github.com/loonghao/vx/compare/v0.7.5...v0.7.6) (2026-02-08)
 
 
