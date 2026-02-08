@@ -19,9 +19,17 @@ pub async fn handle(
 ) -> Result<()> {
     UI::debug(&format!("Looking for tool: {}@{:?}", tool, version));
 
+    // Parse runtime::executable syntax (e.g., msvc::cl)
+    let (runtime_part, exe_override) = if let Some((rt, exe)) = tool.split_once("::") {
+        (rt, Some(exe))
+    } else {
+        (tool, None)
+    };
+
     // If --use-system-path is specified, only check system PATH
     if use_system_path {
-        match which::which(tool) {
+        let search_name = exe_override.unwrap_or(runtime_part);
+        match which::which(search_name) {
             Ok(path) => {
                 println!("{}", path.display());
                 return Ok(());
@@ -35,7 +43,20 @@ pub async fn handle(
 
     // Resolve canonical runtime name and executable (handles aliases like imagemagick -> magick)
     // Try to find the runtime in the registry - this handles alias resolution
-    let (canonical_name, exe_name) = if let Some(runtime) = registry.get_runtime(tool) {
+    let (canonical_name, exe_name) = if let Some(exe) = exe_override {
+        // Explicit runtime::executable syntax — use runtime name for store lookup,
+        // executable name for binary search
+        let rt_name = if let Some(runtime) = registry.get_runtime(runtime_part) {
+            runtime.name().to_string()
+        } else {
+            runtime_part.to_string()
+        };
+        UI::debug(&format!(
+            "Parsed '{}' as runtime='{}', exe='{}'",
+            tool, rt_name, exe
+        ));
+        (rt_name, exe.to_string())
+    } else if let Some(runtime) = registry.get_runtime(runtime_part) {
         // Found runtime (possibly via alias), use its canonical name
         let canonical = runtime.name().to_string();
         // The canonical name is also the executable name
@@ -47,7 +68,7 @@ pub async fn handle(
         (canonical, exe)
     } else {
         // Not found in registry, use the tool name directly
-        (tool.to_string(), tool.to_string())
+        (runtime_part.to_string(), runtime_part.to_string())
     };
 
     // Try RuntimeIndex first for fast lookup
@@ -144,6 +165,14 @@ pub async fn handle(
                 return Ok(());
             }
             Err(_) => {
+                // Try detection system_paths (glob patterns from provider.toml)
+                // This handles runtimes like MSVC where cl.exe is in known system locations
+                if let Some(path) = find_via_detection_paths(&canonical_name, &exe_name, registry)?
+                {
+                    println!("{} (detected)", path.display());
+                    return Ok(());
+                }
+
                 // Not found anywhere - show friendly error with suggestions
                 let available_tools = registry.runtime_names();
                 let tool_suggestions = suggestions::get_tool_suggestions(tool, &available_tools);
@@ -281,6 +310,55 @@ fn find_in_global_packages(exe_name: &str) -> Result<Option<std::path::PathBuf>>
         }
     } else {
         UI::debug(&format!("No package found for executable '{}'", exe_name));
+    }
+
+    Ok(None)
+}
+
+/// Find an executable via detection system_paths (glob patterns from provider.toml)
+///
+/// This handles runtimes like MSVC where executables are in known system locations
+/// (e.g., Visual Studio directories) that aren't in the system PATH.
+fn find_via_detection_paths(
+    runtime_name: &str,
+    _exe_name: &str,
+    _registry: &ProviderRegistry,
+) -> Result<Option<std::path::PathBuf>> {
+    // Load manifests to get detection system_paths
+    let mut loader = ManifestLoader::new();
+    let manifests_data: Vec<(&str, &str)> = get_embedded_manifests().to_vec();
+    if loader.load_embedded(manifests_data).is_err() {
+        return Ok(None);
+    }
+
+    // Find the manifest for this runtime
+    for manifest in loader.all() {
+        for runtime_def in &manifest.runtimes {
+            let matches = runtime_def.name == runtime_name
+                || runtime_def
+                    .aliases
+                    .iter()
+                    .any(|alias| alias == runtime_name);
+
+            if matches {
+                if let Some(ref detection) = runtime_def.detection {
+                    for pattern in &detection.system_paths {
+                        if let Ok(paths) = glob::glob(pattern) {
+                            let mut matches: Vec<std::path::PathBuf> = paths
+                                .filter_map(|p| p.ok())
+                                .filter(|p| p.exists())
+                                .collect();
+                            // Sort descending so latest version comes first
+                            matches.sort_by(|a, b| b.cmp(a));
+
+                            if let Some(path) = matches.into_iter().next() {
+                                return Ok(Some(path));
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     Ok(None)

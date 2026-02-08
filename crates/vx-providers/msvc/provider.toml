@@ -25,7 +25,7 @@ name = "msvc"
 description = "MSVC Build Tools"
 executable = "cl"
 aliases = ["cl", "vs-build-tools", "msvc-tools"]
-auto_installable = false  # Requires VS Installer
+auto_installable = true  # Uses msvc-kit for automatic installation
 
 # RFC 0018: Detection configuration
 # cl.exe outputs version info without arguments but returns exit code 2
@@ -40,6 +40,10 @@ system_paths = [
     "C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\cl.exe",
     "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\cl.exe",
     "C:\\Program Files\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\cl.exe",
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\cl.exe",
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\Professional\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\cl.exe",
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\cl.exe",
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\cl.exe",
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\cl.exe",
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Professional\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\cl.exe",
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\cl.exe",
@@ -75,7 +79,7 @@ priority = 80
 
 # Fallback: Direct download of VS Build Tools installer
 [[runtimes.system_install.strategies]]
-type = "installer_download"
+type = "direct_download"
 url = "https://aka.ms/vs/17/release/vs_buildtools.exe"
 install_args = "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --passive --wait"
 platforms = ["windows"]
