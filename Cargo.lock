@@ -4306,6 +4306,7 @@ dependencies = [
  "dotenvy",
  "flate2",
  "futures-util",
+ "glob",
  "indicatif 0.17.11",
  "paste",
  "pretty_assertions",
