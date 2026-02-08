@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.4](https://github.com/loonghao/vx/compare/v0.7.3...v0.7.4) (2026-02-08)
+
+
+### Features
+
+* add vx-metrics crate with HTML report and metrics CLI command ([4b78068](https://github.com/loonghao/vx/commit/4b780687623f5c31cbc7cb8785edb684693cc647))
+* integrate axoupdater for cargo-dist receipt-based self-update ([511eed6](https://github.com/loonghao/vx/commit/511eed6194323fdc8e316317604ca4766edfeecc))
+
+
+### Bug Fixes
+
+* pass InstallResult.executable_path through pipeline, add tests ([9866965](https://github.com/loonghao/vx/commit/98669654873d6670fa458054af6ad70dd02ee00b))
+* redirect all log output to stderr in install scripts ([88a1b68](https://github.com/loonghao/vx/commit/88a1b686a815dac30b93b4a63efb15f8633ae8d4))
+* resolve broken pipe and unbound variable errors in install scripts ([0a5fbe8](https://github.com/loonghao/vx/commit/0a5fbe821729448a6b8990d9091050d38f8e6590))
+* support multi-tag format fallback for v0.6.x to v0.7.x self-update ([733ca65](https://github.com/loonghao/vx/commit/733ca65e31b49d866acf0632901b0f48cb23a191))
+* use forward slashes for Windows binary path in test-action.yml ([daa7147](https://github.com/loonghao/vx/commit/daa714740a238536fbdf883aadfe82007fd69874))
+
+
+### Performance Improvements
+
+* add executable path caching with bincode serialization ([db2cf38](https://github.com/loonghao/vx/commit/db2cf3856dd29346efb0e907edca8f35d5290cad))
+* lazy-load providers on demand instead of all at startup ([469f5ce](https://github.com/loonghao/vx/commit/469f5ceeb7a6cf0bf4b28b296cb248105f9add07))
+
+
+### Code Refactoring
+
+* migrate inline tests to tests/ directory for plan.rs and ensure.rs ([2cb1524](https://github.com/loonghao/vx/commit/2cb1524536402324d3875db1e8a158fc9bd29cf0))
+* simplify action.yml and improve test-action.yml coverage ([e441615](https://github.com/loonghao/vx/commit/e441615cb765ba89335bb76f5a395e667271a757))
+
 ## [0.7.3](https://github.com/loonghao/vx/compare/v0.7.2...v0.7.3) (2026-02-07)
 
 
