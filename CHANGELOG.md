@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.5](https://github.com/loonghao/vx/compare/v0.7.4...v0.7.5) (2026-02-08)
+
+
+### Features
+
+* support runtime::executable syntax and detection system_paths ([062e51d](https://github.com/loonghao/vx/commit/062e51d5dc49cb550dcc8dbbc37fa8a37e775b73))
+
+
+### Bug Fixes
+
+* msvc provider manifest parsing and detection paths ([e1eef54](https://github.com/loonghao/vx/commit/e1eef54ed3a35ea93a2d9bca1efe76f78dfb66f1))
+* use per-layer tracing filter to prevent debug log leaking in normal mode ([23ec8f7](https://github.com/loonghao/vx/commit/23ec8f7f6aecfdd2df583a8f67df79742975e213))
+
 ## [0.7.4](https://github.com/loonghao/vx/compare/v0.7.3...v0.7.4) (2026-02-08)
 
 
