@@ -58,7 +58,7 @@ pub mod init;
 pub mod report;
 pub mod visualize;
 
-pub use init::{init, MetricsConfig, MetricsGuard};
+pub use init::{fmt_filter_directive, init, otel_filter_directive, MetricsConfig, MetricsGuard};
 pub use report::{CommandMetrics, StageMetrics};
 pub use visualize::{
     generate_ai_summary, generate_html_report, load_metrics, render_comparison, render_insights,

@@ -1,0 +1,224 @@
+name: Performance Benchmark
+
+# Run benchmarks on every PR and main push to detect performance regressions
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/**'
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'tests/e2e_benchmark_tests.rs'
+  pull_request:
+    paths:
+      - 'crates/**'
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'tests/e2e_benchmark_tests.rs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: benchmark-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_HTTP_TIMEOUT: '600'
+  CARGO_NET_RETRY: '10'
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  benchmark:
+    name: Benchmark (${{ matrix.platform.name }})
+    runs-on: ${{ matrix.platform.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - name: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - name: macOS-ARM64
+            os: macos-latest
+            target: aarch64-apple-darwin
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: ${{ matrix.platform.target }}
+          shared-key: benchmark
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.platform.target }}
+
+      - name: Run E2E benchmark tests
+        id: bench
+        shell: bash
+        run: |
+          # Run benchmark tests with release binary and capture output
+          # Use --release to test against the optimized binary
+          cargo test --release --test e2e_benchmark_tests -- --nocapture 2>&1 | tee benchmark_output.txt
+
+          # Parse benchmark results into structured format
+          echo "## Benchmark Results - ${{ matrix.platform.name }}" >> benchmark_results.md
+          echo "" >> benchmark_results.md
+          echo "| Test | Duration (ms) | Threshold (ms) | Status |" >> benchmark_results.md
+          echo "|------|--------------|----------------|--------|" >> benchmark_results.md
+
+          # Extract timing lines from output
+          while IFS= read -r line; do
+            if [[ "$line" =~ bench_([a-z_]+):\ ([0-9]+)ms ]]; then
+              test_name="${BASH_REMATCH[1]}"
+              duration="${BASH_REMATCH[2]}"
+              # Map test names to thresholds
+              case "$test_name" in
+                cli_help) threshold=${{ matrix.platform.os == 'windows-latest' && '500' || '350' }} ;;
+                cli_version) threshold=${{ matrix.platform.os == 'windows-latest' && '500' || '350' }} ;;
+                cli_startup) threshold=3000 ;;
+                config_parse_small) threshold=${{ matrix.platform.os == 'windows-latest' && '1500' || '1000' }} ;;
+                config_parse_large) threshold=3000 ;;
+                setup_dryrun_small) threshold=1000 ;;
+                setup_dryrun_large) threshold=3000 ;;
+                script_list) threshold=1000 ;;
+                config_validate) threshold=${{ matrix.platform.os == 'windows-latest' && '1500' || '1000' }} ;;
+                many_tools_config) threshold=3000 ;;
+                many_scripts_config) threshold=2000 ;;
+                many_services_config) threshold=2000 ;;
+                *) threshold=5000 ;;
+              esac
+
+              if [ "$duration" -le "$threshold" ]; then
+                status="✅"
+              else
+                status="❌ REGRESSION"
+              fi
+              echo "| $test_name | $duration | $threshold | $status |" >> benchmark_results.md
+            fi
+          done < benchmark_output.txt
+
+          echo "" >> benchmark_results.md
+
+          # Also extract repeated benchmark averages
+          while IFS= read -r line; do
+            if [[ "$line" =~ bench_repeated_([a-z_]+):\ ([0-9]+)ms\ total,\ ([0-9]+)ms\ avg ]]; then
+              test_name="repeated_${BASH_REMATCH[1]}"
+              total="${BASH_REMATCH[2]}"
+              avg="${BASH_REMATCH[3]}"
+              echo "| $test_name | avg: $avg (total: $total) | - | ℹ️ |" >> benchmark_results.md
+            fi
+          done < benchmark_output.txt
+
+      - name: Generate benchmark JSON
+        shell: bash
+        run: |
+          # Create a machine-readable JSON benchmark result
+          echo "{" > benchmark.json
+          echo "  \"platform\": \"${{ matrix.platform.name }}\"," >> benchmark.json
+          echo "  \"os\": \"${{ matrix.platform.os }}\"," >> benchmark.json
+          echo "  \"commit\": \"${{ github.sha }}\"," >> benchmark.json
+          echo "  \"ref\": \"${{ github.ref }}\"," >> benchmark.json
+          echo "  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"," >> benchmark.json
+          echo "  \"results\": {" >> benchmark.json
+
+          first=true
+          while IFS= read -r line; do
+            if [[ "$line" =~ bench_([a-z_]+):\ ([0-9]+)ms ]]; then
+              test_name="${BASH_REMATCH[1]}"
+              duration="${BASH_REMATCH[2]}"
+              if [ "$first" = true ]; then
+                first=false
+              else
+                echo "," >> benchmark.json
+              fi
+              printf "    \"%s\": %s" "$test_name" "$duration" >> benchmark.json
+            fi
+          done < benchmark_output.txt
+
+          echo "" >> benchmark.json
+          echo "  }" >> benchmark.json
+          echo "}" >> benchmark.json
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-${{ matrix.platform.name }}
+          path: |
+            benchmark_results.md
+            benchmark.json
+            benchmark_output.txt
+          retention-days: 30
+
+      - name: Post benchmark summary
+        shell: bash
+        run: |
+          cat benchmark_results.md >> $GITHUB_STEP_SUMMARY
+
+  # Aggregate results from all platforms
+  benchmark-summary:
+    name: Benchmark Summary
+    runs-on: ubuntu-latest
+    needs: benchmark
+    if: always()
+    steps:
+      - name: Download all benchmark artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: benchmark-*
+          path: benchmarks/
+
+      - name: Generate combined summary
+        shell: bash
+        run: |
+          echo "# Performance Benchmark Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Ref:** \`${{ github.ref }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Combine all platform results
+          for dir in benchmarks/benchmark-*/; do
+            if [ -f "$dir/benchmark_results.md" ]; then
+              cat "$dir/benchmark_results.md" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          # Check for any regressions across all platforms
+          regression_found=false
+          for dir in benchmarks/benchmark-*/; do
+            if [ -f "$dir/benchmark_results.md" ]; then
+              if grep -q "REGRESSION" "$dir/benchmark_results.md"; then
+                regression_found=true
+                echo "⚠️ Performance regression detected in $(basename $dir)!" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done
+
+          if [ "$regression_found" = true ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Performance regressions detected!** Please investigate before merging." >> $GITHUB_STEP_SUMMARY
+            # Don't fail the job - just warn. Thresholds are generous enough
+            # that occasional CI variability shouldn't block PRs.
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **All benchmarks within acceptable thresholds.**" >> $GITHUB_STEP_SUMMARY
+          fi
