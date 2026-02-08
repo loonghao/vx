@@ -57,6 +57,7 @@ pub async fn handle_with_version(
         context,
         runtime_name,
         version,
+        None, // no executable override
         args,
         use_system_path,
         inherit_env,
@@ -77,6 +78,7 @@ pub async fn handle_with_deps(
     context: &RuntimeContext,
     runtime_name: &str,
     version: Option<&str>,
+    executable: Option<&str>,
     args: &[String],
     use_system_path: bool,
     inherit_env: bool,
@@ -88,6 +90,7 @@ pub async fn handle_with_deps(
         context,
         runtime_name,
         version,
+        executable,
         args,
         use_system_path,
         inherit_env,
@@ -155,6 +158,7 @@ pub async fn execute_runtime_with_version(
         context,
         runtime_name,
         version,
+        None, // no executable override
         args,
         use_system_path,
         inherit_env,
@@ -168,14 +172,16 @@ pub async fn execute_runtime_with_version(
 ///
 /// This is the most complete execution function that supports:
 /// 1. Version specification
-/// 2. Environment inheritance control
-/// 3. --with dependencies for injecting additional runtimes
+/// 2. Executable override (runtime::executable syntax)
+/// 3. Environment inheritance control
+/// 4. --with dependencies for injecting additional runtimes
 #[allow(clippy::too_many_arguments)]
 pub async fn execute_runtime_with_deps(
     registry: &ProviderRegistry,
     context: &RuntimeContext,
     runtime_name: &str,
     version: Option<&str>,
+    executable: Option<&str>,
     args: &[String],
     use_system_path: bool,
     inherit_env: bool,
@@ -192,6 +198,10 @@ pub async fn execute_runtime_with_deps(
         ));
     } else {
         UI::debug(&format!("Executing: {} {}", runtime_name, args.join(" ")));
+    }
+
+    if let Some(exe) = executable {
+        UI::debug(&format!("Executable override: {}", exe));
     }
 
     if !with_deps.is_empty() {
@@ -219,9 +229,16 @@ pub async fn execute_runtime_with_deps(
 
     let executor = Executor::new(config, registry, context, runtime_map)?;
 
-    // Execute the runtime with optional version, environment inheritance, and --with deps
+    // Execute the runtime with optional version, executable override, env inheritance, and --with deps
     executor
-        .execute_with_with_deps(runtime_name, version, args, inherit_env, with_deps)
+        .execute_with_with_deps(
+            runtime_name,
+            version,
+            executable,
+            args,
+            inherit_env,
+            with_deps,
+        )
         .await
 }
 

@@ -521,6 +521,13 @@ impl PathResolver {
     /// - Two levels: ~/.vx/store/go/1.25.5/go/bin/go
     /// - Deep: ~/.vx/store/msvc/14.42/VC/Tools/MSVC/14.42.34433/bin/Hostx64/x64/cl.exe
     /// - Platform-suffixed: ~/.vx/store/rcedit/2.0.0/rcedit-x64.exe
+    ///
+    /// ## Performance optimization
+    ///
+    /// Uses a two-phase search strategy:
+    /// 1. **Quick check** (depth 0-3): Check common locations first (root, bin/, direct subdirs)
+    /// 2. **Deep search** (depth 4-8): Full walkdir only if quick check fails, with
+    ///    directory filtering to skip known non-target dirs (node_modules, lib, share, etc.)
     pub fn find_executable_in_dir(&self, dir: &Path, exe_name: &str) -> Option<PathBuf> {
         if !dir.exists() {
             tracing::trace!(
@@ -551,10 +558,6 @@ impl PathResolver {
         );
 
         // Build list of possible executable names in priority order
-        // On Windows, .exe and .cmd should be preferred over extensionless files
-        // because extensionless files are typically shell scripts
-        //
-        // Also include platform-suffixed variants (e.g., rcedit-x64.exe for rcedit)
         let possible_names: Vec<String> = if cfg!(windows) {
             vec![
                 format!("{}.exe", exe_name),
@@ -579,15 +582,25 @@ impl PathResolver {
                 .collect()
         };
 
-        // Collect all matching files using walkdir for deep search
+        // Phase 1: Quick check common locations (depth 0-3) without full walkdir.
+        // Most runtimes have their executable in root, bin/, or one-level subdirectory.
+        // This avoids traversing deep trees like node_modules/ for the common case.
+        if let Some(result) = self.quick_find_executable(dir, &possible_names, &platform_patterns) {
+            let mut cache = self.exec_cache.lock().unwrap();
+            cache.put(dir, exe_name, result.clone());
+            return Some(result);
+        }
+
+        // Phase 2: Deep search with directory filtering (depth 4-8).
+        // Only reached for unusual layouts (e.g., MSVC deep nesting).
+        // Skip known non-target directories to reduce filesystem traversal.
         let mut all_candidates: Vec<PathBuf> = Vec::new();
         let mut platform_candidates: Vec<PathBuf> = Vec::new();
 
-        // Use walkdir for recursive search with max depth of 8
-        // This handles deep directory structures like MSVC
         for entry in walkdir::WalkDir::new(dir)
             .max_depth(8)
             .into_iter()
+            .filter_entry(|e| !Self::is_skip_directory(e))
             .filter_map(|e| e.ok())
         {
             let path = entry.path();
@@ -611,7 +624,6 @@ impl PathResolver {
                 "find_executable_in_dir: found executable at {}",
                 path.display()
             );
-            // Store in cache
             let mut cache = self.exec_cache.lock().unwrap();
             cache.put(dir, exe_name, path.clone());
         } else {
@@ -625,6 +637,105 @@ impl PathResolver {
         }
 
         result
+    }
+
+    /// Quick search for executable in common locations (avoids full walkdir).
+    ///
+    /// Checks these locations in order:
+    /// 1. Root directory (e.g., uv.exe directly in platform dir)
+    /// 2. bin/ subdirectory (e.g., go/bin/go)
+    /// 3. One-level subdirectories (e.g., node-v25.6.0-win-x64/node.exe)
+    /// 4. One-level subdirectory + bin/ (e.g., node-v25.6.0-win-x64/bin/node)
+    fn quick_find_executable(
+        &self,
+        dir: &Path,
+        possible_names: &[String],
+        platform_patterns: &[String],
+    ) -> Option<PathBuf> {
+        // Check 1: Direct files in root
+        if let Some(found) = Self::check_files_in_dir(dir, possible_names) {
+            return Some(found);
+        }
+        if let Some(found) = Self::check_files_in_dir(dir, platform_patterns) {
+            return Some(found);
+        }
+
+        // Check 2: bin/ subdirectory
+        let bin_dir = dir.join("bin");
+        if bin_dir.is_dir() {
+            if let Some(found) = Self::check_files_in_dir(&bin_dir, possible_names) {
+                return Some(found);
+            }
+        }
+
+        // Check 3 & 4: One level of subdirectories (and their bin/)
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let sub_path = entry.path();
+                if !sub_path.is_dir() {
+                    continue;
+                }
+                // Skip known non-target directories
+                if let Some(name) = sub_path.file_name().and_then(|n| n.to_str()) {
+                    if matches!(
+                        name,
+                        "node_modules" | "lib" | "share" | "include" | "man" | "doc" | "docs"
+                    ) {
+                        continue;
+                    }
+                }
+                // Check files in subdirectory
+                if let Some(found) = Self::check_files_in_dir(&sub_path, possible_names) {
+                    return Some(found);
+                }
+                if let Some(found) = Self::check_files_in_dir(&sub_path, platform_patterns) {
+                    return Some(found);
+                }
+                // Check subdirectory/bin/
+                let sub_bin = sub_path.join("bin");
+                if sub_bin.is_dir() {
+                    if let Some(found) = Self::check_files_in_dir(&sub_bin, possible_names) {
+                        return Some(found);
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Check if any of the named files exist in a directory (no recursion)
+    fn check_files_in_dir(dir: &Path, names: &[String]) -> Option<PathBuf> {
+        for name in names {
+            let candidate = dir.join(name);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+        None
+    }
+
+    /// Check if a walkdir entry is a directory we should skip during deep search.
+    ///
+    /// Skipping these directories significantly reduces filesystem traversal,
+    /// especially for Node.js installs which have deep node_modules trees.
+    fn is_skip_directory(entry: &walkdir::DirEntry) -> bool {
+        if !entry.file_type().is_dir() {
+            return false;
+        }
+        let Some(name) = entry.file_name().to_str() else {
+            return false;
+        };
+        matches!(
+            name,
+            "node_modules"
+                | ".git"
+                | ".cache"
+                | "__pycache__"
+                | "site-packages"
+                | "dist-info"
+                | "egg-info"
+        )
     }
 
     /// Helper to find the best matching executable from a list of candidates
