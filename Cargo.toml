@@ -82,6 +82,8 @@ members = [
   "crates/vx-providers/nuget",
   # Windows Package Manager (winget)
   "crates/vx-providers/winget",
+  # Workflow engine
+  "crates/vx-providers/dagu",
 ]
 resolver = "2"
 
@@ -220,6 +222,7 @@ vx-provider-dotnet = { path = "crates/vx-providers/dotnet" }
 vx-provider-msbuild = { path = "crates/vx-providers/msbuild" }
 vx-provider-nuget = { path = "crates/vx-providers/nuget" }
 vx-provider-winget = { path = "crates/vx-providers/winget" }
+vx-provider-dagu = { path = "crates/vx-providers/dagu" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
 
