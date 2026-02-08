@@ -224,6 +224,7 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         msbuild,
         nuget,
         winget,
+        dagu,
     );
 
     registry
@@ -282,6 +283,7 @@ fn create_static_registry() -> ProviderRegistry {
         msbuild,
         nuget,
         winget,
+        dagu,
     );
 
     registry
