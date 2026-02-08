@@ -16,11 +16,7 @@ pub struct JsonFileExporter {
 
 impl fmt::Debug for JsonFileExporter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let count = self
-            .spans
-            .lock()
-            .map(|s| s.len())
-            .unwrap_or(0);
+        let count = self.spans.lock().map(|s| s.len()).unwrap_or(0);
         f.debug_struct("JsonFileExporter")
             .field("span_count", &count)
             .finish()

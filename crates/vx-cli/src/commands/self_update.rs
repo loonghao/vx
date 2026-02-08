@@ -80,9 +80,7 @@ pub async fn handle(
                 // axoupdater handled the update successfully
                 if updated {
                     UI::success("🎉 Successfully updated vx!");
-                    UI::hint(
-                        "Restart your terminal or run 'vx --version' to verify the update",
-                    );
+                    UI::hint("Restart your terminal or run 'vx --version' to verify the update");
                 }
                 // If not updated (already up to date or check_only), axoupdater already printed info
                 return Ok(());
@@ -140,9 +138,9 @@ async fn try_axoupdater(
     }
 
     // Override receipt version with actual compiled version (defensive, like uv does)
-    let current_ver = env!("CARGO_PKG_VERSION").parse().map_err(|e| {
-        anyhow!("Failed to parse current version: {}", e)
-    })?;
+    let current_ver = env!("CARGO_PKG_VERSION")
+        .parse()
+        .map_err(|e| anyhow!("Failed to parse current version: {}", e))?;
     updater.set_current_version(current_ver)?;
 
     // Check if update is needed
@@ -704,7 +702,8 @@ async fn download_and_install(
                     UI::hint("  • Manual update:");
                     UI::hint(&format!(
                         "    1. Download: https://github.com/loonghao/vx/releases/download/{}/{}",
-                        get_tag_for_version(version), asset.name
+                        get_tag_for_version(version),
+                        asset.name
                     ));
                     UI::hint(&format!(
                         "    2. Extract and replace: {}",

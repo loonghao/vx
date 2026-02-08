@@ -53,15 +53,11 @@ pub async fn handle(last: usize, json: bool, html: Option<String>, clean: bool) 
         }
         #[cfg(target_os = "macos")]
         {
-            let _ = std::process::Command::new("open")
-                .arg(&path)
-                .spawn();
+            let _ = std::process::Command::new("open").arg(&path).spawn();
         }
         #[cfg(target_os = "linux")]
         {
-            let _ = std::process::Command::new("xdg-open")
-                .arg(&path)
-                .spawn();
+            let _ = std::process::Command::new("xdg-open").arg(&path).spawn();
         }
 
         return Ok(());
@@ -91,7 +87,12 @@ async fn handle_clean(metrics_dir: &std::path::Path) -> Result<()> {
     let mut count = 0;
     for entry in std::fs::read_dir(metrics_dir)? {
         let entry = entry?;
-        if entry.path().extension().map(|e| e == "json").unwrap_or(false) {
+        if entry
+            .path()
+            .extension()
+            .map(|e| e == "json")
+            .unwrap_or(false)
+        {
             std::fs::remove_file(entry.path())?;
             count += 1;
         }
@@ -100,7 +101,12 @@ async fn handle_clean(metrics_dir: &std::path::Path) -> Result<()> {
     // Also remove any HTML reports
     for entry in std::fs::read_dir(metrics_dir)? {
         let entry = entry?;
-        if entry.path().extension().map(|e| e == "html").unwrap_or(false) {
+        if entry
+            .path()
+            .extension()
+            .map(|e| e == "html")
+            .unwrap_or(false)
+        {
             std::fs::remove_file(entry.path())?;
             count += 1;
         }

@@ -132,12 +132,16 @@ pub fn render_comparison(runs: &[CommandMetrics]) -> String {
     let mut out = String::new();
 
     out.push_str("  Performance History (newest first):\n");
-    out.push_str("  ═══════════════════════════════════════════════════════════════════════════════\n");
+    out.push_str(
+        "  ═══════════════════════════════════════════════════════════════════════════════\n",
+    );
     out.push_str(&format!(
         "  {:<22} {:<30} {:>8} {:>8} {:>8} {:>8} {:>8}\n",
         "Timestamp", "Command", "Total", "Resolve", "Ensure", "Prepare", "Execute"
     ));
-    out.push_str("  ───────────────────────────────────────────────────────────────────────────────\n");
+    out.push_str(
+        "  ───────────────────────────────────────────────────────────────────────────────\n",
+    );
 
     for (i, m) in runs.iter().enumerate() {
         let ts = if m.timestamp.len() >= 19 {
@@ -156,11 +160,11 @@ pub fn render_comparison(runs: &[CommandMetrics]) -> String {
         let trend = if i + 1 < runs.len() {
             let prev = &runs[i + 1];
             if m.total_duration_ms < prev.total_duration_ms * 0.9 {
-                " ↓"  // faster
+                " ↓" // faster
             } else if m.total_duration_ms > prev.total_duration_ms * 1.1 {
-                " ↑"  // slower
+                " ↑" // slower
             } else {
-                "  "  // same
+                "  " // same
             }
         } else {
             "  "
@@ -168,18 +172,13 @@ pub fn render_comparison(runs: &[CommandMetrics]) -> String {
 
         out.push_str(&format!(
             "  {:<22} {:<30} {:>6.0}ms{} {:>6}ms {:>6}ms {:>6}ms {:>6}ms\n",
-            ts,
-            cmd,
-            m.total_duration_ms,
-            trend,
-            resolve,
-            ensure,
-            prepare,
-            execute
+            ts, cmd, m.total_duration_ms, trend, resolve, ensure, prepare, execute
         ));
     }
 
-    out.push_str("  ═══════════════════════════════════════════════════════════════════════════════\n");
+    out.push_str(
+        "  ═══════════════════════════════════════════════════════════════════════════════\n",
+    );
 
     // Summary statistics
     if runs.len() > 1 {
@@ -261,10 +260,7 @@ pub fn render_insights(runs: &[CommandMetrics]) -> String {
                 prepare.duration_ms
             ));
             // Count path resolution events
-            let prepare_span = latest
-                .spans
-                .iter()
-                .find(|s| s.name == "prepare");
+            let prepare_span = latest.spans.iter().find(|s| s.name == "prepare");
             if let Some(span) = prepare_span {
                 let path_events = span
                     .events
@@ -276,9 +272,7 @@ pub fn render_insights(runs: &[CommandMetrics]) -> String {
                         "         → Scanned {} runtime executables during PATH construction\n",
                         path_events
                     ));
-                    out.push_str(
-                        "         → Consider caching resolved executable paths\n",
-                    );
+                    out.push_str("         → Consider caching resolved executable paths\n");
                 }
             }
         }
@@ -307,12 +301,11 @@ pub fn render_insights(runs: &[CommandMetrics]) -> String {
 
     // Trend analysis (regression detection)
     if runs.len() >= 3 {
-        let recent_avg =
-            runs[..std::cmp::min(3, runs.len())]
-                .iter()
-                .map(|r| r.total_duration_ms)
-                .sum::<f64>()
-                / std::cmp::min(3, runs.len()) as f64;
+        let recent_avg = runs[..std::cmp::min(3, runs.len())]
+            .iter()
+            .map(|r| r.total_duration_ms)
+            .sum::<f64>()
+            / std::cmp::min(3, runs.len()) as f64;
 
         let older_avg = if runs.len() > 3 {
             runs[3..std::cmp::min(6, runs.len())]
@@ -378,29 +371,21 @@ pub fn generate_html_report(runs: &[CommandMetrics]) -> String {
         totals.push(m.total_duration_ms);
 
         for &stage in STAGE_ORDER {
-            let val = m
-                .stages
-                .get(stage)
-                .map(|s| s.duration_ms)
-                .unwrap_or(0.0);
+            let val = m.stages.get(stage).map(|s| s.duration_ms).unwrap_or(0.0);
             stage_series.entry(stage).or_default().push(val);
         }
     }
 
     let labels_json = serde_json::to_string(&labels).unwrap_or_else(|_| "[]".to_string());
     let totals_json = serde_json::to_string(&totals).unwrap_or_else(|_| "[]".to_string());
-    let resolve_json =
-        serde_json::to_string(stage_series.get("resolve").unwrap_or(&vec![]))
-            .unwrap_or_else(|_| "[]".to_string());
-    let ensure_json =
-        serde_json::to_string(stage_series.get("ensure").unwrap_or(&vec![]))
-            .unwrap_or_else(|_| "[]".to_string());
-    let prepare_json =
-        serde_json::to_string(stage_series.get("prepare").unwrap_or(&vec![]))
-            .unwrap_or_else(|_| "[]".to_string());
-    let execute_json =
-        serde_json::to_string(stage_series.get("execute").unwrap_or(&vec![]))
-            .unwrap_or_else(|_| "[]".to_string());
+    let resolve_json = serde_json::to_string(stage_series.get("resolve").unwrap_or(&vec![]))
+        .unwrap_or_else(|_| "[]".to_string());
+    let ensure_json = serde_json::to_string(stage_series.get("ensure").unwrap_or(&vec![]))
+        .unwrap_or_else(|_| "[]".to_string());
+    let prepare_json = serde_json::to_string(stage_series.get("prepare").unwrap_or(&vec![]))
+        .unwrap_or_else(|_| "[]".to_string());
+    let execute_json = serde_json::to_string(stage_series.get("execute").unwrap_or(&vec![]))
+        .unwrap_or_else(|_| "[]".to_string());
 
     // Latest run breakdown for pie chart
     let latest_stages = if let Some(latest) = runs.first() {

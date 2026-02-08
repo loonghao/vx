@@ -39,10 +39,7 @@ impl<'a> InstallationManager<'a> {
     /// Install a list of runtimes in order
     ///
     /// Returns the InstallResult of the last installed runtime (typically the primary runtime)
-    pub async fn install_runtimes(
-        &self,
-        runtimes: &[String],
-    ) -> Result<Option<InstallResult>> {
+    pub async fn install_runtimes(&self, runtimes: &[String]) -> Result<Option<InstallResult>> {
         let mut last_result = None;
         for runtime in runtimes {
             last_result = self.install_runtime(runtime).await?;

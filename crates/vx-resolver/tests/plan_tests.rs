@@ -232,9 +232,7 @@ fn test_mark_installed_with_version_sets_executable() {
     assert!(rt.is_ready());
     assert_eq!(
         rt.executable,
-        Some(PathBuf::from(
-            "/home/user/.vx/store/node/20.18.0/bin/node"
-        ))
+        Some(PathBuf::from("/home/user/.vx/store/node/20.18.0/bin/node"))
     );
     assert_eq!(rt.version_string(), Some("20.18.0"));
 }
@@ -279,7 +277,8 @@ fn test_regression_dependency_version_updated_after_install() {
     let primary = PlannedRuntime::needs_install("npm", "latest".to_string());
     let mut dep = PlannedRuntime::needs_install("node", "latest".to_string());
 
-    let mut plan = ExecutionPlan::new(primary, ExecutionConfig::default()).with_dependency(dep.clone());
+    let mut plan =
+        ExecutionPlan::new(primary, ExecutionConfig::default()).with_dependency(dep.clone());
 
     // Simulate EnsureStage: install dependency first
     dep.mark_installed_with_version("20.18.0".to_string(), None);
@@ -349,12 +348,13 @@ fn test_mark_installed_with_executable_makes_ready(
     assert!(!rt.is_ready());
     assert!(rt.executable.is_none());
 
-    rt.mark_installed_with_version(
-        version.to_string(),
-        Some(PathBuf::from(exe_path)),
-    );
+    rt.mark_installed_with_version(version.to_string(), Some(PathBuf::from(exe_path)));
 
-    assert!(rt.is_ready(), "{} should be ready after install", runtime_name);
+    assert!(
+        rt.is_ready(),
+        "{} should be ready after install",
+        runtime_name
+    );
     assert_eq!(rt.executable, Some(PathBuf::from(exe_path)));
     assert_eq!(rt.version_string(), Some(version));
     assert_eq!(rt.status, InstallStatus::Installed);
@@ -368,25 +368,19 @@ fn test_full_ensure_flow_primary_with_dependency_executable_propagation() {
     let primary = PlannedRuntime::needs_install("npm", "latest".to_string());
     let dep = PlannedRuntime::needs_install("node", "latest".to_string());
 
-    let mut plan =
-        ExecutionPlan::new(primary, ExecutionConfig::default()).with_dependency(dep);
+    let mut plan = ExecutionPlan::new(primary, ExecutionConfig::default()).with_dependency(dep);
 
     // Step 1: Install dependency (node) — EnsureStage gets InstallResult with executable_path
     let node_exe = PathBuf::from("/home/user/.vx/store/node/20.18.0/bin/node");
-    plan.dependencies[0].mark_installed_with_version(
-        "20.18.0".to_string(),
-        Some(node_exe.clone()),
-    );
+    plan.dependencies[0].mark_installed_with_version("20.18.0".to_string(), Some(node_exe.clone()));
 
     assert!(plan.dependencies[0].is_ready());
     assert_eq!(plan.dependencies[0].executable, Some(node_exe));
 
     // Step 2: Install primary (npm) — EnsureStage gets InstallResult with executable_path
     let npm_exe = PathBuf::from("/home/user/.vx/store/node/20.18.0/bin/npm");
-    plan.primary.mark_installed_with_version(
-        "10.9.0".to_string(),
-        Some(npm_exe.clone()),
-    );
+    plan.primary
+        .mark_installed_with_version("10.9.0".to_string(), Some(npm_exe.clone()));
 
     assert!(plan.primary.is_ready());
     assert_eq!(plan.primary.executable, Some(npm_exe));
@@ -405,15 +399,11 @@ fn test_full_ensure_flow_injected_executable_propagation() {
     );
     let injected = PlannedRuntime::needs_install("yarn", "latest".to_string());
 
-    let mut plan =
-        ExecutionPlan::new(primary, ExecutionConfig::default()).with_injected(injected);
+    let mut plan = ExecutionPlan::new(primary, ExecutionConfig::default()).with_injected(injected);
 
     // Install injected runtime — with executable path
     let yarn_exe = PathBuf::from("/home/user/.vx/store/yarn/4.5.0/bin/yarn");
-    plan.injected[0].mark_installed_with_version(
-        "4.5.0".to_string(),
-        Some(yarn_exe.clone()),
-    );
+    plan.injected[0].mark_installed_with_version("4.5.0".to_string(), Some(yarn_exe.clone()));
 
     assert!(plan.injected[0].is_ready());
     assert_eq!(plan.injected[0].executable, Some(yarn_exe));
@@ -510,26 +500,18 @@ fn test_complete_multi_runtime_install_flow() {
 
     // Install dependency (node)
     let node_exe = PathBuf::from("/home/user/.vx/store/node/20.18.0/bin/node");
-    plan.dependencies[0].mark_installed_with_version(
-        "20.18.0".to_string(),
-        Some(node_exe.clone()),
-    );
+    plan.dependencies[0].mark_installed_with_version("20.18.0".to_string(), Some(node_exe.clone()));
     assert!(plan.dependencies[0].is_ready());
 
     // Install primary (npx)
     let npx_exe = PathBuf::from("/home/user/.vx/store/node/20.18.0/bin/npx");
-    plan.primary.mark_installed_with_version(
-        "10.9.0".to_string(),
-        Some(npx_exe.clone()),
-    );
+    plan.primary
+        .mark_installed_with_version("10.9.0".to_string(), Some(npx_exe.clone()));
     assert!(plan.primary.is_ready());
 
     // Install injected (yarn)
     let yarn_exe = PathBuf::from("/home/user/.vx/store/yarn/4.5.0/bin/yarn");
-    plan.injected[0].mark_installed_with_version(
-        "4.5.0".to_string(),
-        Some(yarn_exe.clone()),
-    );
+    plan.injected[0].mark_installed_with_version("4.5.0".to_string(), Some(yarn_exe.clone()));
     assert!(plan.injected[0].is_ready());
 
     // All installed, none need installation

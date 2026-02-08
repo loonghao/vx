@@ -7,12 +7,46 @@ use vx_metrics::visualize::{
     render_summary,
 };
 
-fn sample_metrics(total: f64, resolve: f64, ensure: f64, prepare: f64, execute: f64) -> CommandMetrics {
+fn sample_metrics(
+    total: f64,
+    resolve: f64,
+    ensure: f64,
+    prepare: f64,
+    execute: f64,
+) -> CommandMetrics {
     let mut stages = HashMap::new();
-    stages.insert("resolve".to_string(), StageMetrics { duration_ms: resolve, success: true, error: None });
-    stages.insert("ensure".to_string(), StageMetrics { duration_ms: ensure, success: true, error: None });
-    stages.insert("prepare".to_string(), StageMetrics { duration_ms: prepare, success: true, error: None });
-    stages.insert("execute".to_string(), StageMetrics { duration_ms: execute, success: true, error: None });
+    stages.insert(
+        "resolve".to_string(),
+        StageMetrics {
+            duration_ms: resolve,
+            success: true,
+            error: None,
+        },
+    );
+    stages.insert(
+        "ensure".to_string(),
+        StageMetrics {
+            duration_ms: ensure,
+            success: true,
+            error: None,
+        },
+    );
+    stages.insert(
+        "prepare".to_string(),
+        StageMetrics {
+            duration_ms: prepare,
+            success: true,
+            error: None,
+        },
+    );
+    stages.insert(
+        "execute".to_string(),
+        StageMetrics {
+            duration_ms: execute,
+            success: true,
+            error: None,
+        },
+    );
 
     CommandMetrics {
         version: "1".to_string(),
@@ -162,11 +196,13 @@ fn test_load_metrics_with_files() {
     std::fs::write(
         tmp.path().join("20260207_160000_000.json"),
         serde_json::to_string(&m1).unwrap(),
-    ).unwrap();
+    )
+    .unwrap();
     std::fs::write(
         tmp.path().join("20260207_160100_000.json"),
         serde_json::to_string(&m2).unwrap(),
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = load_metrics(tmp.path(), 10).unwrap();
     assert_eq!(result.len(), 2);
@@ -184,7 +220,8 @@ fn test_load_metrics_respects_limit() {
         std::fs::write(
             tmp.path().join(format!("2026020{}_160000_000.json", i)),
             serde_json::to_string(&m).unwrap(),
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     let result = load_metrics(tmp.path(), 3).unwrap();

@@ -77,9 +77,7 @@ impl MetricsGuard {
         }
 
         let elapsed = self.start_time.elapsed();
-        let exit_code = self
-            .exit_code
-            .load(std::sync::atomic::Ordering::Relaxed);
+        let exit_code = self.exit_code.load(std::sync::atomic::Ordering::Relaxed);
 
         let mut metrics = CommandMetrics::new(self.command.clone());
         metrics.exit_code = Some(exit_code);
