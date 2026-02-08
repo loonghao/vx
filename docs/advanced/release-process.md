@@ -218,6 +218,34 @@ curl -s https://api.github.com/repos/loonghao/vx/releases/tags/vx-v0.1.0 | \
   jq -r '.assets[] | "\(.name) (\(.size) bytes)"'
 ```
 
+### Release Commits Triggering Unnecessary CI Runs
+
+**Problem**: When Release Please merges a release PR (e.g., "chore: release v0.7.6"), the resulting commit triggers CI, CodeQL, and Benchmark workflows unnecessarily, wasting significant CI resources (15+ minutes for CI, 12+ minutes for CodeQL).
+
+**Cause**: The CI, CodeQL, and Benchmark workflows had no filtering mechanism to exclude release commits on push to main. Since release commits modify `Cargo.toml` and `Cargo.lock` (version bumps), even path-filtered workflows like Benchmark were triggered.
+
+**Solution**: Added `if` conditions at the job level to skip release commits:
+
+```yaml
+# Skip for release commits (applied to CI, CodeQL, and Benchmark)
+if: >-
+  github.event_name != 'push' ||
+  !startsWith(github.event.head_commit.message, 'chore: release')
+```
+
+This condition:
+- Allows the job to run normally for PRs, scheduled runs, and manual dispatches
+- Only skips when the event is a push AND the commit message starts with `chore: release`
+- When the first job in a workflow is skipped, all downstream dependent jobs are automatically skipped too
+
+**Affected workflows**:
+- `.github/workflows/ci.yml` - `detect-changes` job (gates all downstream CI jobs)
+- `.github/workflows/codeql.yml` - `analyze` job
+- `.github/workflows/benchmark.yml` - `benchmark` job
+
+**Not affected** (intentionally):
+- `.github/workflows/release-please.yml` - Must still run on release commits to detect `releases_created` and trigger the Release workflow
+
 ## Best Practices
 
 1. **Always use semantic versioning**: `MAJOR.MINOR.PATCH`
@@ -229,6 +257,10 @@ curl -s https://api.github.com/repos/loonghao/vx/releases/tags/vx-v0.1.0 | \
 ## Related Files
 
 - `.github/workflows/release.yml` - Main release workflow
+- `.github/workflows/release-please.yml` - Release Please workflow (creates release PRs and tags)
 - `.github/workflows/package-managers.yml` - Package publishing workflow
+- `.github/workflows/ci.yml` - CI workflow (skips release commits)
+- `.github/workflows/codeql.yml` - CodeQL analysis (skips release commits)
+- `.github/workflows/benchmark.yml` - Performance benchmarks (skips release commits)
 - `scripts/test-winget-version.sh` - Version normalization tests
 - `distribution.toml` - Distribution channel configuration

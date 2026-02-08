@@ -218,6 +218,34 @@ curl -s https://api.github.com/repos/loonghao/vx/releases/tags/vx-v0.1.0 | \
   jq -r '.assets[] | "\(.name) (\(.size) bytes)"'
 ```
 
+### 发布提交触发不必要的 CI 运行
+
+**问题**: 当 Release Please 合并发布 PR（例如 "chore: release v0.7.6"）时，产生的提交会不必要地触发 CI、CodeQL 和 Benchmark 工作流，浪费大量 CI 资源（CI 超过 15 分钟，CodeQL 超过 12 分钟）。
+
+**原因**: CI、CodeQL 和 Benchmark 工作流在推送到 main 分支时没有过滤机制来排除发布提交。由于发布提交会修改 `Cargo.toml` 和 `Cargo.lock`（版本号更新），即使有路径过滤的工作流（如 Benchmark）也会被触发。
+
+**解决方案**: 在作业级别添加 `if` 条件来跳过发布提交：
+
+```yaml
+# 跳过发布提交（应用于 CI、CodeQL 和 Benchmark）
+if: >-
+  github.event_name != 'push' ||
+  !startsWith(github.event.head_commit.message, 'chore: release')
+```
+
+此条件：
+- 允许作业在 PR、定时运行和手动触发时正常运行
+- 仅当事件为推送且提交消息以 `chore: release` 开头时跳过
+- 当工作流中的第一个作业被跳过时，所有依赖的下游作业也会自动跳过
+
+**受影响的工作流**：
+- `.github/workflows/ci.yml` - `detect-changes` 作业（控制所有下游 CI 作业）
+- `.github/workflows/codeql.yml` - `analyze` 作业
+- `.github/workflows/benchmark.yml` - `benchmark` 作业
+
+**不受影响**（有意为之）：
+- `.github/workflows/release-please.yml` - 必须在发布提交时继续运行，以检测 `releases_created` 并触发 Release 工作流
+
 ## 最佳实践
 
 1. **始终使用语义化版本**: `主版本.次版本.修订版`
@@ -229,6 +257,10 @@ curl -s https://api.github.com/repos/loonghao/vx/releases/tags/vx-v0.1.0 | \
 ## 相关文件
 
 - `.github/workflows/release.yml` - 主发布工作流
+- `.github/workflows/release-please.yml` - Release Please 工作流（创建发布 PR 和标签）
 - `.github/workflows/package-managers.yml` - 包发布工作流
+- `.github/workflows/ci.yml` - CI 工作流（跳过发布提交）
+- `.github/workflows/codeql.yml` - CodeQL 分析（跳过发布提交）
+- `.github/workflows/benchmark.yml` - 性能基准测试（跳过发布提交）
 - `scripts/test-winget-version.sh` - 版本规范化测试
 - `distribution.toml` - 分发渠道配置
