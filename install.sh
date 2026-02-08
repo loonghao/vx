@@ -341,8 +341,8 @@ get_latest_version() {
             response=$(curl -s -H "Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
         fi
 
-        # Check for rate limit error
-        if [[ -n "$response" ]] && ! echo "$response" | grep -q "rate limit\|429\|API rate limit exceeded"; then
+        # Check for rate limit error (avoid grep -q to prevent broken pipe with set -o pipefail)
+        if [[ -n "$response" ]] && ! echo "$response" | grep "rate limit\|429\|API rate limit exceeded" >/dev/null 2>&1; then
             # Find the first non-prerelease with assets using jq if available
             if command -v jq >/dev/null 2>&1; then
                 local tag_name
@@ -367,7 +367,7 @@ get_latest_version() {
         fi
 
         # Rate limit hit - try fallback method via redirect
-        if echo "$response" | grep -q "rate limit\|429\|API rate limit exceeded"; then
+        if echo "$response" | grep "rate limit\|429\|API rate limit exceeded" >/dev/null 2>&1; then
             warn "GitHub API rate limit exceeded. Trying fallback method..."
             # Try to get version from releases page redirect
             local redirect_url
@@ -386,8 +386,8 @@ get_latest_version() {
             response=$(wget -qO- --header="Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
         fi
 
-        # Check for rate limit error
-        if [[ -n "$response" ]] && ! echo "$response" | grep -q "rate limit\|429\|API rate limit exceeded"; then
+        # Check for rate limit error (avoid grep -q to prevent broken pipe)
+        if [[ -n "$response" ]] && ! echo "$response" | grep "rate limit\|429\|API rate limit exceeded" >/dev/null 2>&1; then
             if command -v jq >/dev/null 2>&1; then
                 local tag_name
                 tag_name=$(echo "$response" | jq -r '
@@ -559,7 +559,8 @@ install_from_release() {
 
     # Create temporary directory
     temp_dir=$(mktemp -d)
-    trap 'rm -rf "$temp_dir"' EXIT
+    # shellcheck disable=SC2064
+    trap 'rm -rf "${temp_dir:-}"' EXIT
 
     # Download from GitHub Releases with retry
     download_success=false
