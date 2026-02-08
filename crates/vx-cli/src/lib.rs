@@ -140,7 +140,7 @@ async fn execute_tool(
         return execute_package_request(ctx, tool_spec, &tool_args, &with_deps).await;
     }
 
-    // Parse as runtime request (supports runtime@version syntax)
+    // Parse as runtime request (supports runtime@version and runtime::executable syntax)
     let request = RuntimeRequest::parse(tool_spec);
 
     // Check if it's a known runtime first
@@ -164,6 +164,7 @@ async fn execute_tool(
         ctx.runtime_context(),
         &request.name,
         request.version.as_deref(),
+        request.executable.as_deref(),
         &tool_args,
         ctx.use_system_path(),
         ctx.inherit_env(),

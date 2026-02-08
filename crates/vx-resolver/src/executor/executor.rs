@@ -57,6 +57,9 @@ impl<'a> Executor<'a> {
             })
             .ok();
 
+        // Pre-warm the bin directory cache from disk
+        super::environment::init_bin_dir_cache(&context.paths.cache_dir());
+
         // Load project configuration from vx.toml
         let project_config = ProjectToolsConfig::load();
         if project_config.is_some() {
@@ -102,7 +105,7 @@ impl<'a> Executor<'a> {
         args: &[String],
         inherit_env: bool,
     ) -> Result<i32> {
-        self.execute_with_with_deps(runtime_name, version, args, inherit_env, &[])
+        self.execute_with_with_deps(runtime_name, version, None, args, inherit_env, &[])
             .await
     }
 
@@ -111,22 +114,19 @@ impl<'a> Executor<'a> {
     /// This method supports injecting additional runtimes into the PATH before execution,
     /// similar to uvx --with or rez-env. Useful when a tool requires multiple runtimes.
     ///
-    /// # Example
+    /// # Arguments
     ///
-    /// ```rust,ignore
-    /// // Execute opencode with bun in PATH
-    /// executor.execute_with_with_deps(
-    ///     "npm:opencode",
-    ///     None,
-    ///     &args,
-    ///     false,
-    ///     &[WithDependency::parse("bun")],
-    /// ).await?;
-    /// ```
+    /// * `runtime_name` - The runtime to execute (e.g., "node", "msvc")
+    /// * `version` - Optional version constraint
+    /// * `executable` - Optional executable override (from `runtime::executable` syntax)
+    /// * `args` - Command-line arguments
+    /// * `inherit_env` - Whether to inherit parent environment
+    /// * `with_deps` - Additional runtimes to inject into PATH
     pub async fn execute_with_with_deps(
         &self,
         runtime_name: &str,
         version: Option<&str>,
+        executable: Option<&str>,
         args: &[String],
         inherit_env: bool,
         with_deps: &[vx_core::WithDependency],
@@ -188,6 +188,7 @@ impl<'a> Executor<'a> {
         let with_dep_requests: Vec<WithDepRequest> = with_deps.iter().map(Into::into).collect();
         let mut request = ResolveRequest::new(runtime_name, args.to_vec());
         request.version = version.map(|v| v.to_string());
+        request.executable_override = executable.map(|e| e.to_string());
         request.with_deps = with_dep_requests;
         request.inherit_env = inherit_env;
         request.auto_install = self.config.auto_install;
@@ -302,8 +303,11 @@ impl<'a> Executor<'a> {
                 .map_err(PipelineError::from)?
         };
 
-        // Persist exec path cache (new entries discovered during resolution)
+        // Persist caches (new entries discovered during resolution)
         self.resolver.save_exec_cache();
+        if let Some(ctx) = self.context {
+            super::environment::save_bin_dir_cache(&ctx.paths.cache_dir());
+        }
 
         Ok(exit_code)
     }

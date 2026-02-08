@@ -5346,6 +5346,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bincode",
+ "glob",
  "regex",
  "rstest",
  "semver",

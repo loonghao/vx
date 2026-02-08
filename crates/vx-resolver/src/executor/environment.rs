@@ -10,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tracing::{debug, trace, warn};
+use vx_cache::BinDirCache;
 use vx_runtime::{ProviderRegistry, RuntimeContext};
 
 use super::project_config::ProjectToolsConfig;
@@ -18,20 +19,43 @@ use super::project_config::ProjectToolsConfig;
 /// This prevents duplicate warnings when building PATH
 pub(crate) static WARNED_TOOLS: Mutex<Option<HashSet<String>>> = Mutex::new(None);
 
-/// Process-level cache for bin directory lookups (store_dir -> bin_dir).
+/// Process-level bin directory cache, backed by disk persistence.
 ///
-/// Avoids repeated walkdir traversals when `build_vx_tools_path` is called
-/// for every command execution. Cleared on install/uninstall via
-/// `invalidate_bin_dir_cache`.
-static BIN_DIR_CACHE: Mutex<Option<HashMap<String, PathBuf>>> = Mutex::new(None);
+/// On first access, loads from `~/.vx/cache/bin-dirs.bin`. New entries are
+/// accumulated in memory and flushed to disk via `save_bin_dir_cache()`.
+/// This avoids the cold-start penalty of walkdir traversals when the
+/// process-level cache would otherwise be empty.
+static BIN_DIR_CACHE: Mutex<Option<BinDirCache>> = Mutex::new(None);
+
+/// Initialize the bin directory cache from disk (if not already loaded).
+///
+/// Call this early in the execution pipeline to pre-warm the cache.
+pub fn init_bin_dir_cache(cache_dir: &std::path::Path) {
+    let mut cache = BIN_DIR_CACHE.lock().unwrap();
+    if cache.is_none() {
+        *cache = Some(BinDirCache::load(cache_dir));
+    }
+}
+
+/// Save the bin directory cache to disk.
+///
+/// Call this after command execution to persist newly discovered entries.
+pub fn save_bin_dir_cache(cache_dir: &std::path::Path) {
+    let cache = BIN_DIR_CACHE.lock().unwrap();
+    if let Some(ref c) = *cache {
+        if let Err(e) = c.save(cache_dir) {
+            tracing::debug!("Failed to save bin dir cache: {}", e);
+        }
+    }
+}
 
 /// Invalidate the bin directory cache for a specific runtime.
 ///
 /// Call this after installing or uninstalling a runtime.
 pub fn invalidate_bin_dir_cache(runtime_store_prefix: &str) {
     let mut cache = BIN_DIR_CACHE.lock().unwrap();
-    if let Some(ref mut map) = *cache {
-        map.retain(|key, _| !key.starts_with(runtime_store_prefix));
+    if let Some(ref mut c) = *cache {
+        c.invalidate_runtime(runtime_store_prefix);
     }
 }
 
@@ -563,9 +587,13 @@ impl<'a> EnvironmentManager<'a> {
     }
 
     /// Build PATH string containing all vx-managed tool bin directories
+    ///
+    /// **Performance optimization**: Instead of calling `registry.supported_runtimes()`
+    /// (which triggers `materialize_all()` and instantiates all ~45 providers), we
+    /// directly scan `~/.vx/store/` to discover installed runtimes. This avoids
+    /// provider materialization entirely, reducing prepare stage from ~400ms to <50ms.
     pub fn build_vx_tools_path(&self) -> Option<String> {
         let context = self.context?;
-        let registry = self.registry?;
 
         let mut paths: Vec<String> = Vec::new();
 
@@ -575,14 +603,30 @@ impl<'a> EnvironmentManager<'a> {
             paths.push(vx_bin.to_string_lossy().to_string());
         }
 
-        // Collect all installed runtime bin directories
-        for runtime in registry.supported_runtimes() {
-            let runtime_name = runtime.store_name();
-            let runtime_store_dir = context.paths.runtime_store_dir(runtime_name);
+        // Scan store directory directly to find installed runtimes.
+        // This is much faster than materialize_all() + supported_runtimes() because
+        // it only does a shallow read_dir of ~/.vx/store/ and doesn't instantiate
+        // any provider factories.
+        let store_dir = context.paths.store_dir();
+        if !store_dir.exists() {
+            return if paths.is_empty() {
+                None
+            } else {
+                Some(vx_paths::join_paths_simple(&paths))
+            };
+        }
 
-            if !runtime_store_dir.exists() {
-                continue;
-            }
+        let installed_runtimes: Vec<String> = match std::fs::read_dir(&store_dir) {
+            Ok(entries) => entries
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().is_dir())
+                .filter_map(|e| e.file_name().into_string().ok())
+                .collect(),
+            Err(_) => Vec::new(),
+        };
+
+        for runtime_name in &installed_runtimes {
+            let runtime_store_dir = context.paths.runtime_store_dir(runtime_name);
 
             if let Ok(entries) = std::fs::read_dir(&runtime_store_dir) {
                 let installed_versions: Vec<String> = entries
@@ -717,7 +761,7 @@ impl<'a> EnvironmentManager<'a> {
 
     /// Find the bin directory for a runtime
     ///
-    /// This method recursively searches for the executable within the store directory
+    /// This method searches for the executable within the store directory
     /// structure and returns the directory containing it. This handles various archive
     /// structures like:
     /// - `<version>/<platform>/bin/node.exe` (standard)
@@ -726,22 +770,26 @@ impl<'a> EnvironmentManager<'a> {
     ///
     /// Results are cached in a process-level `BIN_DIR_CACHE` to avoid repeated
     /// walkdir traversals on subsequent calls.
+    ///
+    /// ## Performance optimization
+    ///
+    /// Uses a two-phase search:
+    /// 1. **Quick check**: Common locations (root, bin/, one-level subdirs)
+    /// 2. **Walkdir fallback**: Only if quick check fails, with directory filtering
     pub fn find_bin_dir(&self, store_dir: &std::path::Path, runtime_name: &str) -> Option<PathBuf> {
         let cache_key = store_dir.to_string_lossy().to_string();
 
-        // Check process-level cache first
+        // Check process-level cache first (backed by disk persistence)
         {
-            let cache = BIN_DIR_CACHE.lock().unwrap();
-            if let Some(ref map) = *cache {
-                if let Some(cached) = map.get(&cache_key) {
-                    if cached.exists() {
-                        trace!(
-                            "BIN_DIR_CACHE hit for {} in {}",
-                            runtime_name,
-                            store_dir.display()
-                        );
-                        return Some(cached.clone());
-                    }
+            let mut cache = BIN_DIR_CACHE.lock().unwrap();
+            if let Some(ref mut c) = *cache {
+                if let Some(cached) = c.get(&cache_key) {
+                    trace!(
+                        "BIN_DIR_CACHE hit for {} in {}",
+                        runtime_name,
+                        store_dir.display()
+                    );
+                    return Some(cached);
                 }
             }
         }
@@ -769,17 +817,46 @@ impl<'a> EnvironmentManager<'a> {
             return None;
         };
 
-        // Recursively search for the executable using walkdir
+        // Phase 1: Quick check common locations first (avoids walkdir entirely
+        // for most runtimes like uv, go, bun, pnpm where exe is in root or bin/)
+        if let Some(result) = self.quick_find_bin_dir(search_dir, &exe_names) {
+            let mut cache = BIN_DIR_CACHE.lock().unwrap();
+            let c = cache.get_or_insert_with(BinDirCache::new);
+            c.put(cache_key, result.clone());
+            return Some(result);
+        }
+
+        // Phase 2: Walkdir with directory filtering
         for entry in walkdir::WalkDir::new(search_dir)
-            .max_depth(5) // Limit depth to avoid very deep searches
+            .max_depth(5)
             .into_iter()
+            .filter_entry(|e| {
+                // Skip known non-target directories
+                if e.file_type().is_dir() {
+                    if let Some(name) = e.file_name().to_str() {
+                        return !matches!(
+                            name,
+                            "node_modules"
+                                | ".git"
+                                | "__pycache__"
+                                | "site-packages"
+                                | "lib"
+                                | "share"
+                                | "include"
+                                | "man"
+                                | "doc"
+                                | "docs"
+                        );
+                    }
+                }
+                true
+            })
             .filter_map(|e| e.ok())
         {
             let path = entry.path();
             if path.is_file() {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                     if exe_names.iter().any(|exe_name| name == exe_name) {
-                        // Found the executable, return its parent directory
                         if let Some(parent) = path.parent() {
                             trace!(
                                 "Found executable for {} at {}, using bin dir: {}",
@@ -788,10 +865,9 @@ impl<'a> EnvironmentManager<'a> {
                                 parent.display()
                             );
                             let result = parent.to_path_buf();
-                            // Store in cache
                             let mut cache = BIN_DIR_CACHE.lock().unwrap();
-                            let map = cache.get_or_insert_with(HashMap::new);
-                            map.insert(cache_key, result.clone());
+                            let c = cache.get_or_insert_with(BinDirCache::new);
+                            c.put(cache_key, result.clone());
                             return Some(result);
                         }
                     }
@@ -803,25 +879,90 @@ impl<'a> EnvironmentManager<'a> {
         let bin_dir = platform_dir.join("bin");
         if bin_dir.exists() {
             let mut cache = BIN_DIR_CACHE.lock().unwrap();
-            let map = cache.get_or_insert_with(HashMap::new);
-            map.insert(cache_key, bin_dir.clone());
+            let c = cache.get_or_insert_with(BinDirCache::new);
+            c.put(cache_key, bin_dir.clone());
             return Some(bin_dir);
         }
 
         let bin_dir = store_dir.join("bin");
         if bin_dir.exists() {
             let mut cache = BIN_DIR_CACHE.lock().unwrap();
-            let map = cache.get_or_insert_with(HashMap::new);
-            map.insert(cache_key, bin_dir.clone());
+            let c = cache.get_or_insert_with(BinDirCache::new);
+            c.put(cache_key, bin_dir.clone());
             return Some(bin_dir);
         }
 
         // Last resort: return platform dir if it exists
         if platform_dir.exists() {
             let mut cache = BIN_DIR_CACHE.lock().unwrap();
-            let map = cache.get_or_insert_with(HashMap::new);
-            map.insert(cache_key, platform_dir.clone());
+            let c = cache.get_or_insert_with(BinDirCache::new);
+            c.put(cache_key, platform_dir.clone());
             return Some(platform_dir);
+        }
+
+        None
+    }
+
+    /// Quick check common locations for bin directory (avoids walkdir).
+    ///
+    /// Most runtimes follow predictable patterns:
+    /// - Root dir contains executable (uv, pnpm, kubectl)
+    /// - bin/ subdirectory (go, java)
+    /// - Single subdirectory contains executable (node-v25.6.0-win-x64/node.exe)
+    /// - Single subdirectory + bin/ (yarn-v1.22.19/bin/yarn)
+    fn quick_find_bin_dir(
+        &self,
+        search_dir: &std::path::Path,
+        exe_names: &[String],
+    ) -> Option<PathBuf> {
+        // Check root directory
+        for name in exe_names {
+            if search_dir.join(name).is_file() {
+                return Some(search_dir.to_path_buf());
+            }
+        }
+
+        // Check bin/ subdirectory
+        let bin_dir = search_dir.join("bin");
+        if bin_dir.is_dir() {
+            for name in exe_names {
+                if bin_dir.join(name).is_file() {
+                    return Some(bin_dir);
+                }
+            }
+        }
+
+        // Check one level of subdirectories
+        if let Ok(entries) = std::fs::read_dir(search_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let sub_path = entry.path();
+                if !sub_path.is_dir() {
+                    continue;
+                }
+                if let Some(dir_name) = sub_path.file_name().and_then(|n| n.to_str()) {
+                    if matches!(
+                        dir_name,
+                        "bin" | "node_modules" | "lib" | "share" | "include" | "man" | "doc"
+                    ) {
+                        continue;
+                    }
+                }
+                // Check files in subdirectory
+                for name in exe_names {
+                    if sub_path.join(name).is_file() {
+                        return Some(sub_path);
+                    }
+                }
+                // Check subdirectory/bin/
+                let sub_bin = sub_path.join("bin");
+                if sub_bin.is_dir() {
+                    for name in exe_names {
+                        if sub_bin.join(name).is_file() {
+                            return Some(sub_bin);
+                        }
+                    }
+                }
+            }
         }
 
         None

@@ -348,6 +348,20 @@ impl RuntimeMap {
             .and_then(|dep| dep.provided_by.clone())
     }
 
+    /// Get detection system_paths for a runtime (from provider.toml detection config)
+    ///
+    /// These are glob patterns pointing to known installation locations
+    /// (e.g., Visual Studio paths for cl.exe). Used by the Resolver to
+    /// find executables that are not in the vx store or system PATH.
+    pub fn get_detection_system_paths(&self, runtime_name: &str) -> Vec<String> {
+        let resolved_name = self.resolve_name(runtime_name).unwrap_or(runtime_name);
+        self.runtime_defs
+            .get(resolved_name)
+            .and_then(|def| def.detection.as_ref())
+            .map(|detection| detection.system_paths.clone())
+            .unwrap_or_default()
+    }
+
     /// Get the installation order for a runtime and its dependencies
     ///
     /// Returns a topologically sorted list of runtimes to install,

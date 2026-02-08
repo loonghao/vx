@@ -45,8 +45,9 @@ pub mod version;
 pub use config::{ResolverConfig, DEFAULT_RESOLUTION_CACHE_TTL};
 pub use executor::{
     clear_bin_dir_cache, execute_bundle, execute_system_runtime, exit_code_from_status, has_bundle,
-    invalidate_bin_dir_cache, is_ctrl_c_exit, is_online, try_get_bundle_context, BundleContext,
-    BundleManifest, BundledToolInfo, Executor, ProjectToolsConfig, BUNDLE_DIR, BUNDLE_MANIFEST,
+    init_bin_dir_cache, invalidate_bin_dir_cache, is_ctrl_c_exit, is_online, save_bin_dir_cache,
+    try_get_bundle_context, BundleContext, BundleManifest, BundledToolInfo, Executor,
+    ProjectToolsConfig, BUNDLE_DIR, BUNDLE_MANIFEST,
 };
 
 // Pipeline types (RFC 0029)
