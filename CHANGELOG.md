@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * add dagu workflow engine provider ([8f4ad20](https://github.com/loonghao/vx/commit/8f4ad203c5e8cd78f21064850b9ed37e898cb76b))
 
+
+### Bug Fixes
+
+* increase macOS benchmark thresholds for setup dry-run ([9bada95](https://github.com/loonghao/vx/commit/9bada954d760423d80148166f97b5f9aa86c7f47))
+
 ## [0.7.5](https://github.com/loonghao/vx/compare/v0.7.4...v0.7.5) (2026-02-08)
 
 
