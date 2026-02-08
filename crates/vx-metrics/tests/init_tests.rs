@@ -124,11 +124,7 @@ fn test_otel_filter_always_captures_vx_trace() {
 #[case(true, false, "vx=debug,info")]
 #[case(false, true, "debug")]
 #[case(true, true, "debug")]
-fn test_fmt_filter_matrix(
-    #[case] verbose: bool,
-    #[case] debug: bool,
-    #[case] expected: &str,
-) {
+fn test_fmt_filter_matrix(#[case] verbose: bool, #[case] debug: bool, #[case] expected: &str) {
     std::env::remove_var("RUST_LOG");
 
     let config = MetricsConfig {

@@ -28,11 +28,18 @@ use crate::executor::pipeline::stage::Stage;
 /// Input to the Resolve stage
 #[derive(Debug, Clone)]
 pub struct ResolveRequest {
-    /// The runtime to execute (e.g., "node", "npm", "go")
+    /// The runtime to execute (e.g., "node", "npm", "go", "msvc")
     pub runtime_name: String,
 
     /// Explicit version constraint (e.g., "20.0.0", "latest")
     pub version: Option<String>,
+
+    /// Executable override (from `runtime::executable` syntax)
+    ///
+    /// When set, the resolver will look for this executable name instead of
+    /// the runtime's default. For example, `msvc::cl` sets this to "cl",
+    /// so the resolver searches for `cl.exe` inside the `msvc` store directory.
+    pub executable_override: Option<String>,
 
     /// Command-line arguments to pass to the runtime
     pub args: Vec<String>,
@@ -77,6 +84,7 @@ impl ResolveRequest {
         Self {
             runtime_name: runtime_name.into(),
             version: None,
+            executable_override: None,
             args,
             with_deps: Vec::new(),
             inherit_env: false,
@@ -324,8 +332,8 @@ impl<'a> Stage<ResolveRequest, ExecutionPlan> for ResolveStage<'a> {
 
     async fn execute(&self, input: ResolveRequest) -> Result<ExecutionPlan, ResolveError> {
         debug!(
-            "[ResolveStage] runtime={}, version={:?}",
-            input.runtime_name, input.version
+            "[ResolveStage] runtime={}, version={:?}, executable_override={:?}",
+            input.runtime_name, input.version, input.executable_override
         );
 
         // Step 1: Resolve version (explicit → project config → latest installed)
@@ -338,13 +346,26 @@ impl<'a> Stage<ResolveRequest, ExecutionPlan> for ResolveStage<'a> {
         );
 
         // Step 2: Resolve dependencies via the Resolver
-        let resolution = self
-            .resolver
-            .resolve_with_version(&input.runtime_name, resolved_version.as_deref())
-            .map_err(|e| ResolveError::ResolutionFailed {
-                runtime: input.runtime_name.clone(),
-                reason: e.to_string(),
-            })?;
+        // If an executable override is provided (e.g., msvc::cl), use it for resolution
+        let resolution = if let Some(ref exe_override) = input.executable_override {
+            self.resolver
+                .resolve_with_executable(
+                    &input.runtime_name,
+                    resolved_version.as_deref(),
+                    exe_override,
+                )
+                .map_err(|e| ResolveError::ResolutionFailed {
+                    runtime: input.runtime_name.clone(),
+                    reason: e.to_string(),
+                })?
+        } else {
+            self.resolver
+                .resolve_with_version(&input.runtime_name, resolved_version.as_deref())
+                .map_err(|e| ResolveError::ResolutionFailed {
+                    runtime: input.runtime_name.clone(),
+                    reason: e.to_string(),
+                })?
+        };
 
         debug!(
             "[ResolveStage] executable={}, needs_install={}, missing_deps={:?}",

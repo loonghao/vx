@@ -227,6 +227,12 @@ impl Resolver {
             }
         }
 
+        // Check detection system_paths (glob patterns from provider.toml)
+        // This handles runtimes like MSVC where executables are in known system locations
+        if let Some(status) = self.check_detection_paths(runtime_name, executable_name) {
+            return status;
+        }
+
         RuntimeStatus::NotInstalled
     }
 
@@ -288,6 +294,57 @@ impl Resolver {
             }
             Err(_) => RuntimeStatus::NotInstalled,
         }
+    }
+
+    /// Check detection system_paths (glob patterns) for a runtime executable
+    ///
+    /// This handles runtimes like MSVC where the executable (cl.exe) is not in
+    /// the system PATH but can be found via known installation paths defined
+    /// in provider.toml detection config.
+    fn check_detection_paths(
+        &self,
+        runtime_name: &str,
+        executable_name: &str,
+    ) -> Option<RuntimeStatus> {
+        let system_paths = self.runtime_map.get_detection_system_paths(runtime_name);
+        if system_paths.is_empty() {
+            return None;
+        }
+
+        trace!(
+            "Checking detection system_paths for {} (exe: {}): {} patterns",
+            runtime_name,
+            executable_name,
+            system_paths.len()
+        );
+
+        for pattern in &system_paths {
+            match glob::glob(pattern) {
+                Ok(paths) => {
+                    // Collect and sort matches to get the latest version (typically last alphabetically)
+                    let mut matches: Vec<PathBuf> = paths
+                        .filter_map(|p| p.ok())
+                        .filter(|p| p.exists())
+                        .collect();
+                    // Sort descending so the latest version comes first
+                    matches.sort_by(|a, b| b.cmp(a));
+
+                    if let Some(path) = matches.into_iter().next() {
+                        trace!(
+                            "Found {} via detection system_paths: {}",
+                            runtime_name,
+                            path.display()
+                        );
+                        return Some(RuntimeStatus::SystemAvailable { path });
+                    }
+                }
+                Err(e) => {
+                    trace!("Invalid glob pattern '{}': {}", pattern, e);
+                }
+            }
+        }
+
+        None
     }
 
     /// Resolve a runtime for execution
@@ -461,6 +518,78 @@ impl Resolver {
         version: Option<&str>,
     ) -> Result<ResolvedGraph> {
         Ok(self.resolve_with_version(runtime_name, version)?.into())
+    }
+
+    /// Resolve a runtime with an executable override.
+    ///
+    /// This supports the `runtime::executable` syntax (e.g., `vx msvc::cl`).
+    /// The runtime name is used for store directory lookup, dependency resolution,
+    /// and installation, while the executable name is used for finding the actual
+    /// binary to execute.
+    pub fn resolve_with_executable(
+        &self,
+        runtime_name: &str,
+        version: Option<&str>,
+        executable_name: &str,
+    ) -> Result<ResolutionResult> {
+        // First resolve normally to get dependencies etc.
+        let mut result = self.resolve_with_version(runtime_name, version)?;
+
+        // Re-resolve the executable path using the override name.
+        // This applies both when the runtime is already available AND when it was
+        // found via detection paths (e.g., MSVC cl.exe in Visual Studio directories).
+        let spec = self.runtime_map.get(runtime_name);
+        let store_dir_name = self.get_store_directory_name(spec, runtime_name);
+
+        // Try to find the overridden executable in vx store
+        if self.config.prefer_vx_managed {
+            if let Some(status) = self.check_vx_managed(store_dir_name, executable_name) {
+                if let Some(path) = status.executable_path() {
+                    result.executable = path.clone();
+                    result.runtime_needs_install = false;
+                    return Ok(result);
+                }
+            }
+        }
+
+        // Try system PATH for the overridden executable
+        if self.config.fallback_to_system {
+            let system_status = self.check_system_path(executable_name);
+            if let Some(path) = system_status.executable_path() {
+                result.executable = path.clone();
+                result.runtime_needs_install = false;
+                return Ok(result);
+            }
+        }
+
+        // Fallback: if not preferred vx, try vx store
+        if !self.config.prefer_vx_managed {
+            if let Some(status) = self.check_vx_managed(store_dir_name, executable_name) {
+                if let Some(path) = status.executable_path() {
+                    result.executable = path.clone();
+                    result.runtime_needs_install = false;
+                    return Ok(result);
+                }
+            }
+        }
+
+        // Try detection system_paths (glob patterns from provider.toml)
+        // This handles cases like MSVC where cl.exe is in known VS directories
+        if let Some(status) = self.check_detection_paths(runtime_name, executable_name) {
+            if let Some(path) = status.executable_path() {
+                result.executable = path.clone();
+                result.runtime_needs_install = false;
+                return Ok(result);
+            }
+        }
+
+        // Executable override not found — set bare name as fallback
+        // (PrepareStage will report the appropriate error)
+        if !result.runtime_needs_install {
+            result.executable = PathBuf::from(executable_name);
+        }
+
+        Ok(result)
     }
 
     /// Get the version of a system runtime by running `<runtime> --version`
