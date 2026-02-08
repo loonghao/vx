@@ -36,6 +36,11 @@ env:
 jobs:
   benchmark:
     name: Benchmark (${{ matrix.platform.name }})
+    # Skip benchmarks for release commits (e.g., "chore: release v0.7.6") since
+    # they only bump version numbers and don't affect performance.
+    if: >-
+      github.event_name != 'push' ||
+      !startsWith(github.event.head_commit.message, 'chore: release')
     runs-on: ${{ matrix.platform.os }}
     timeout-minutes: 30
     strategy:

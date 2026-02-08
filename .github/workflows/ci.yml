@@ -38,6 +38,11 @@ jobs:
   # ============================================================================
   detect-changes:
     name: Detect Changes
+    # Skip CI for release commits (e.g., "chore: release v0.7.6") to avoid
+    # unnecessary full CI runs when Release Please merges a release PR.
+    if: >-
+      github.event_name != 'push' ||
+      !startsWith(github.event.head_commit.message, 'chore: release')
     runs-on: ubuntu-latest
     outputs:
       # High-level flags
