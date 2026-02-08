@@ -82,6 +82,7 @@ tokio = { workspace = true }
 anyhow = { workspace = true }
 colored = { workspace = true }
 dialoguer = { workspace = true }
+glob = { workspace = true }
 indicatif = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
