@@ -32,7 +32,8 @@ fn abs_path(segments: &[&str]) -> PathBuf {
 fn test_install_result_success() {
     let install_path = abs_path(&[".vx", "store", "uv", "0.6.12"]);
     let exe_path = abs_path(&[".vx", "store", "uv", "0.6.12", "uv"]);
-    let result = InstallResult::success(install_path.clone(), exe_path.clone(), "0.6.12".to_string());
+    let result =
+        InstallResult::success(install_path.clone(), exe_path.clone(), "0.6.12".to_string());
 
     assert!(result.success);
     assert!(!result.already_installed);

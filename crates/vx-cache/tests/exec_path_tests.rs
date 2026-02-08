@@ -64,16 +64,8 @@ fn test_load_missing_file() {
 #[test]
 fn test_clear() {
     let mut cache = ExecPathCache::new();
-    cache.put(
-        &PathBuf::from("/a"),
-        "x",
-        PathBuf::from("/a/x.exe"),
-    );
-    cache.put(
-        &PathBuf::from("/b"),
-        "y",
-        PathBuf::from("/b/y.exe"),
-    );
+    cache.put(&PathBuf::from("/a"), "x", PathBuf::from("/a/x.exe"));
+    cache.put(&PathBuf::from("/b"), "y", PathBuf::from("/b/y.exe"));
     assert_eq!(cache.len(), 2);
     cache.clear();
     assert!(cache.is_empty());

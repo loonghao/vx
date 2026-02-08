@@ -747,15 +747,19 @@ fn test_tag_candidates_include_fallback(
 
     assert_eq!(candidates[0], expected_primary);
     assert_eq!(candidates[1], expected_fallback);
-    assert_eq!(candidates.len(), 2, "Should always have exactly 2 tag candidates");
+    assert_eq!(
+        candidates.len(),
+        2,
+        "Should always have exactly 2 tag candidates"
+    );
 }
 
 /// Test that CDN assets use correct naming for each version era
 #[rstest]
-#[case("0.6.1", true, "vx-v0.6.1")]   // v0.6.x: versioned + vx-v tag
-#[case("0.7.3", false, "v0.7.3")]       // v0.7.x: unversioned + v tag
-#[case("0.5.28", false, "vx-v0.5.28")]  // v0.5.x: unversioned + vx-v tag
-#[case("1.0.0", false, "v1.0.0")]       // v1.0+: unversioned + v tag
+#[case("0.6.1", true, "vx-v0.6.1")] // v0.6.x: versioned + vx-v tag
+#[case("0.7.3", false, "v0.7.3")] // v0.7.x: unversioned + v tag
+#[case("0.5.28", false, "vx-v0.5.28")] // v0.5.x: unversioned + vx-v tag
+#[case("1.0.0", false, "v1.0.0")] // v1.0+: unversioned + v tag
 fn test_cdn_asset_naming_consistency(
     #[case] version: &str,
     #[case] should_be_versioned: bool,
@@ -788,7 +792,10 @@ fn test_cdn_asset_naming_consistency(
         "https://cdn.jsdelivr.net/gh/loonghao/vx@{}/{}",
         tag, expected_windows_asset
     );
-    assert!(cdn_url.contains(&tag), "CDN URL should contain the correct tag");
+    assert!(
+        cdn_url.contains(&tag),
+        "CDN URL should contain the correct tag"
+    );
     assert!(
         cdn_url.contains(&expected_windows_asset),
         "CDN URL should contain the correct asset name"
@@ -812,7 +819,10 @@ fn test_regression_v06x_to_v07x_update_urls() {
 
     // Asset should be unversioned (cargo-dist format)
     let uses_versioned = parsed.major == 0 && parsed.minor == 6;
-    assert!(!uses_versioned, "v0.7.3 should NOT use versioned asset naming");
+    assert!(
+        !uses_versioned,
+        "v0.7.3 should NOT use versioned asset naming"
+    );
 
     let expected_asset = "vx-x86_64-pc-windows-msvc.zip";
 
@@ -840,8 +850,8 @@ fn test_regression_v06x_to_v07x_update_urls() {
 /// Test jsDelivr CDN version format handling
 /// jsDelivr returns versions as "0.7.3" for v0.7.3 tags and "x-v0.6.31" for vx-v0.6.31 tags
 #[rstest]
-#[case("0.7.3", "0.7.3")]       // cargo-dist tag v0.7.3 → jsDelivr "0.7.3"
-#[case("x-v0.6.31", "0.6.31")]  // legacy tag vx-v0.6.31 → jsDelivr "x-v0.6.31"
+#[case("0.7.3", "0.7.3")] // cargo-dist tag v0.7.3 → jsDelivr "0.7.3"
+#[case("x-v0.6.31", "0.6.31")] // legacy tag vx-v0.6.31 → jsDelivr "x-v0.6.31"
 #[case("x-v0.6.27", "0.6.27")]
 #[case("0.7.0", "0.7.0")]
 fn test_jsdelivr_version_normalization(#[case] jsdelivr_version: &str, #[case] expected: &str) {
@@ -859,14 +869,13 @@ fn test_jsdelivr_version_normalization(#[case] jsdelivr_version: &str, #[case] e
 fn test_jsdelivr_mixed_format_latest_selection() {
     // Simulate jsDelivr API response with mixed version formats
     let cdn_versions = vec![
-        "x-v0.6.25",  // jsDelivr format for vx-v0.6.25
-        "x-v0.6.31",  // jsDelivr format for vx-v0.6.31
-        "0.7.0",       // jsDelivr format for v0.7.0
-        "0.7.3",       // jsDelivr format for v0.7.3
+        "x-v0.6.25", // jsDelivr format for vx-v0.6.25
+        "x-v0.6.31", // jsDelivr format for vx-v0.6.31
+        "0.7.0",     // jsDelivr format for v0.7.0
+        "0.7.3",     // jsDelivr format for v0.7.3
     ];
 
-    let latest_stable =
-        vx_core::version_utils::find_latest_version(&cdn_versions, true);
+    let latest_stable = vx_core::version_utils::find_latest_version(&cdn_versions, true);
     assert_eq!(
         latest_stable,
         Some("0.7.3"),

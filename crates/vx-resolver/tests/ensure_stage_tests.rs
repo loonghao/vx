@@ -17,10 +17,7 @@ use vx_resolver::{
     Resolver, ResolverConfig, RuntimeMap, Stage,
 };
 
-fn create_ensure_stage<'a>(
-    resolver: &'a Resolver,
-    config: &'a ResolverConfig,
-) -> EnsureStage<'a> {
+fn create_ensure_stage<'a>(resolver: &'a Resolver, config: &'a ResolverConfig) -> EnsureStage<'a> {
     EnsureStage::new(resolver, config, None, None)
 }
 
@@ -113,8 +110,7 @@ async fn test_ensure_stage_platform_unsupported_logged() {
         PathBuf::from("/usr/local/bin/node"),
     );
     let unsupported = PlannedRuntime::unsupported("msvc", "Windows only".to_string());
-    let plan =
-        ExecutionPlan::new(primary, ExecutionConfig::default()).with_injected(unsupported);
+    let plan = ExecutionPlan::new(primary, ExecutionConfig::default()).with_injected(unsupported);
 
     // Should succeed (unsupported injected dep is just a warning)
     let result: Result<ExecutionPlan, EnsureError> = stage.execute(plan).await;
