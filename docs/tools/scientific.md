@@ -7,7 +7,7 @@ vx supports tools for scientific computing and High-Performance Computing (HPC).
 A flexible package manager designed for supercomputers, Linux, and macOS.
 
 ```bash
-vx install spack latest
+vx install `spack@latest
 
 vx spack --version
 vx spack list                    # List available packages
@@ -35,7 +35,7 @@ vx spack load openmpi            # Load package into environment
 
 ```bash
 # Install Spack
-vx install spack latest
+vx install `spack@latest
 
 # Install scientific packages
 vx spack install python@3.11
@@ -64,7 +64,7 @@ spack-env = "spack env activate research"
 Cross-platform package manager for VFX/animation industry.
 
 ```bash
-vx install rez latest
+vx install `rez@latest
 
 vx rez --version
 vx rez env package            # Enter package environment

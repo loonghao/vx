@@ -9,7 +9,7 @@ vx supports various other development tools.
 Secure JavaScript/TypeScript runtime.
 
 ```bash
-vx install deno latest
+vx install `deno@latest
 
 vx deno --version
 vx deno run script.ts
@@ -22,7 +22,7 @@ vx deno task dev
 Zig programming language.
 
 ```bash
-vx install zig latest
+vx install `zig@latest
 
 vx zig version
 vx zig build
@@ -47,7 +47,7 @@ vx java Main
 .NET SDK for C#, F#, and VB.NET development.
 
 ```bash
-vx install dotnet latest
+vx install `dotnet@latest
 
 vx dotnet --version
 vx dotnet new console -n MyApp
@@ -70,7 +70,7 @@ vx dotnet publish -c Release
 Next generation frontend tooling.
 
 ```bash
-vx install vite latest
+vx install `vite@latest
 
 vx vite
 vx vite build
@@ -82,7 +82,7 @@ vx vite preview
 Command runner (like make, but simpler).
 
 ```bash
-vx install just latest
+vx install `just@latest
 
 vx just --list
 vx just build
@@ -94,7 +94,7 @@ vx just test
 Task runner / build tool alternative to Make.
 
 ```bash
-vx install task latest
+vx install `task@latest
 
 vx task --version
 vx task build
@@ -107,7 +107,7 @@ vx task --list
 Cross-platform build system generator.
 
 ```bash
-vx install cmake latest
+vx install `cmake@latest
 
 vx cmake --version
 vx cmake -B build -S .
@@ -120,7 +120,7 @@ vx cmake --install build
 Small build system with a focus on speed.
 
 ```bash
-vx install ninja latest
+vx install `ninja@latest
 
 vx ninja --version
 vx ninja -C build
@@ -132,7 +132,7 @@ vx ninja -C build clean
 Protocol Buffers compiler.
 
 ```bash
-vx install protoc latest
+vx install `protoc@latest
 
 vx protoc --version
 vx protoc --cpp_out=. message.proto
@@ -147,7 +147,7 @@ vx protoc --go_out=. message.proto
 Infrastructure as Code.
 
 ```bash
-vx install terraform latest
+vx install `terraform@latest
 
 vx terraform --version
 vx terraform init
@@ -160,7 +160,7 @@ vx terraform apply
 Kubernetes CLI.
 
 ```bash
-vx install kubectl latest
+vx install `kubectl@latest
 
 vx kubectl version
 vx kubectl get pods
@@ -172,7 +172,7 @@ vx kubectl apply -f deployment.yaml
 Kubernetes package manager.
 
 ```bash
-vx install helm latest
+vx install `helm@latest
 
 vx helm version
 vx helm install my-release chart/
@@ -184,7 +184,7 @@ vx helm upgrade my-release chart/
 Container runtime and tooling.
 
 ```bash
-vx install docker latest
+vx install `docker@latest
 
 vx docker --version
 vx docker build -t myapp .
@@ -199,7 +199,7 @@ vx docker compose up -d
 Amazon Web Services command-line interface.
 
 ```bash
-vx install awscli latest
+vx install `awscli@latest
 
 vx aws --version
 vx aws configure
@@ -212,7 +212,7 @@ vx aws ec2 describe-instances
 Microsoft Azure command-line interface.
 
 ```bash
-vx install azcli latest
+vx install `azcli@latest
 
 vx az --version
 vx az login
@@ -225,7 +225,7 @@ vx az vm list
 Google Cloud Platform command-line interface.
 
 ```bash
-vx install gcloud latest
+vx install `gcloud@latest
 
 vx gcloud --version
 vx gcloud auth login
@@ -255,7 +255,7 @@ vx pre-commit autoupdate
 Visual Studio Code (CLI).
 
 ```bash
-vx install vscode latest
+vx install `vscode@latest
 
 vx code .
 vx code --install-extension ms-python.python
@@ -268,7 +268,7 @@ vx code --install-extension ms-python.python
 Package management system for VFX/animation.
 
 ```bash
-vx install rez latest
+vx install `rez@latest
 
 vx rez --version
 vx rez env package
@@ -279,7 +279,7 @@ vx rez env package
 Windows resource editor.
 
 ```bash
-vx install rcedit latest
+vx install `rcedit@latest
 
 vx rcedit app.exe --set-icon icon.ico
 vx rcedit app.exe --set-version-string "ProductName" "My App"

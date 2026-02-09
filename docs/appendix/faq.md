@@ -1,35 +1,59 @@
-# FAQ
-
-Frequently asked questions about vx.
+# Frequently Asked Questions
 
 ## General
 
 ### What is vx?
 
-vx is a universal development tool manager that lets you run any development tool with automatic installation and version management. Just prefix your commands with `vx`.
+vx is a universal development tool manager that provides a zero learning curve experience. Simply prefix any command you already know with `vx`, and tools are auto-installed and executed.
 
-### How is vx different from nvm, pyenv, etc.?
+### How is vx different from asdf / mise / proto?
 
-vx manages **all** development tools in one place, not just one language. Instead of learning separate tools for Node.js (nvm), Python (pyenv), Go (gvm), etc., you use one tool for everything.
+| Feature | vx | asdf | mise | proto |
+|---------|-----|------|------|-------|
+| Zero learning curve | ✅ | ❌ | ❌ | ❌ |
+| Auto-install on use | ✅ | ❌ | ✅ | ✅ |
+| 48+ built-in tools | ✅ | Plugins | ✅ | Limited |
+| Declarative config | ✅ | ✅ | ✅ | ✅ |
+| Native Windows | ✅ | ❌ | ✅ | ✅ |
+| Script system | ✅ | ❌ | ✅ | ❌ |
+| Extension system | ✅ | ❌ | ❌ | ❌ |
+| Global package isolation | ✅ | ❌ | ❌ | ❌ |
+| Written in | Rust | Shell | Rust | Rust |
 
-### Is vx free?
+### Where does vx store data?
 
-Yes, vx is open source under the MIT license.
+By default in `~/.vx/`:
+
+```
+~/.vx/
+├── store/        # Installed tool versions
+├── cache/        # Download cache
+├── bin/          # Global shims
+├── envs/         # Virtual environments
+├── providers/    # Custom providers
+└── config/       # Configuration
+```
+
+Override with the `VX_HOME` environment variable.
+
+### Does vx require admin/root permissions?
+
+No. vx installs in the user directory and all operations stay within user permissions.
 
 ## Installation
 
-### How do I install vx?
+### Which platforms are supported?
 
-**Linux/macOS:**
+- **Linux**: x86_64, aarch64
+- **macOS**: x86_64 (Intel), aarch64 (Apple Silicon)
+- **Windows**: x86_64
+
+### How do I uninstall vx?
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-```
-
-**Windows:**
-
-```powershell
-powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+# Remove binary and data
+rm -rf ~/.vx
+# Remove vx-related lines from your shell config
 ```
 
 ### How do I update vx?
@@ -38,146 +62,124 @@ powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps
 vx self-update
 ```
 
-### How do I uninstall vx?
+## Tool Management
 
-Remove the vx binary and data directory:
-
-- Linux/macOS: `~/.local/share/vx`
-- Windows: `%LOCALAPPDATA%\vx`
-
-## Usage
-
-### Do I need to install tools before using them?
-
-No! Tools are automatically installed on first use:
+### How do I install a specific version?
 
 ```bash
-vx node --version  # Installs Node.js if needed
+vx install node@22.11.0     # Exact version
+vx install node@22          # Latest 22.x
+vx install node@lts         # Latest LTS
+vx install "node@^22"       # Semver range
 ```
 
-### How do I specify a tool version?
-
-Use `@` syntax:
+### Can I install multiple tools at once?
 
 ```bash
-vx node@18 --version
-vx go@1.21 build
+vx install node@22 python@3.12 go@1.23 uv@latest
 ```
 
-Or configure in `vx.toml`:
+### Are tools auto-installed on first use?
 
-```toml
-[tools]
-node = "20"
-go = "1.21"
-```
+Yes! Run `vx node --version` and if Node.js isn't installed, vx automatically downloads and installs the latest stable version.
 
-### Where are tools installed?
-
-In the vx store directory:
-
-- Linux/macOS: `~/.local/share/vx/store/`
-- Windows: `%LOCALAPPDATA%\vx\store\`
-
-### Can I use system-installed tools?
-
-Yes, use `--use-system-path`:
+### How do I see installed tools?
 
 ```bash
-vx --use-system-path node --version
+vx list --installed
 ```
 
-## Configuration
-
-### What is vx.toml?
-
-A project configuration file that defines tool versions and scripts for your project. See [Configuration](/guide/configuration).
-
-### Where is the global config?
-
-- Linux/macOS: `~/.config/vx/config.toml`
-- Windows: `%APPDATA%\vx\config.toml`
-
-### How do I disable auto-install?
+### How do I clean up old versions?
 
 ```bash
-vx config set defaults.auto_install false
+vx cache prune              # Clean expired cache
+vx uninstall node@18        # Remove specific version
 ```
 
-Or set environment variable:
+## Project Configuration
 
-```bash
-export VX_AUTO_INSTALL=false
+### What's the difference between vx.toml and vx.lock?
+
+- **vx.toml** — Declarative tool requirements (version ranges), human-readable
+- **vx.lock** — Exact pinned versions for reproducible environments
+
+### How do I ensure my team uses the same tools?
+
+1. Add `vx.toml` to your project
+2. Run `vx lock` to generate the lock file
+3. Commit both files to version control
+4. Team members run `vx setup` to get started
+
+## Shell Integration
+
+### Which shells are supported?
+
+Bash, Zsh, Fish, and PowerShell.
+
+### What does shell integration provide?
+
+- Auto-switch tool versions when entering project directories
+- Tab completion
+- Automatic PATH configuration
+
+## CI/CD
+
+### How do I use vx in GitHub Actions?
+
+```yaml
+- uses: loonghao/vx@main
+  with:
+    tools: node@22 python@3.12
 ```
 
-## Troubleshooting
+Or use `vx setup` to install all tools from `vx.toml`.
 
-### Tool not found
+### Are there Docker images?
 
-1. Check if the tool is supported: `vx list`
-2. Try installing explicitly: `vx install <tool>`
-3. Check verbose output: `vx --verbose <tool> --version`
-
-### Version not available
-
-1. Check available versions: `vx versions <tool>`
-2. Try a different version specifier
-3. Clear cache: `vx clean --cache`
-
-### Slow first run
-
-The first run downloads and installs the tool. Subsequent runs use the cached version and are fast.
-
-### Permission denied
-
-Ensure you have write access to the vx directories. On Unix, check:
-
-```bash
-ls -la ~/.local/share/vx
-```
+Yes. `vx:latest` and `vx:tools-latest` (with common tools pre-installed).
 
 ## Performance
 
-### Is vx slow?
+### What's the startup overhead?
 
-vx is written in Rust and is very fast. The first run of a tool may be slower due to download/installation, but subsequent runs add minimal overhead.
+vx is written in Rust. Startup time is typically a few milliseconds.
 
-### How much disk space does vx use?
+### Downloads are slow. How can I speed them up?
 
-Depends on installed tools. Check with:
-
-```bash
-vx cache info
-```
-
-Clean up with:
+Enable CDN acceleration:
 
 ```bash
-vx clean --all
+export VX_CDN_ENABLED=true
+vx install node@22
 ```
 
-## Compatibility
+## Extensibility
 
-### What platforms are supported?
+### How do I add support for a tool vx doesn't have?
 
-- Linux (x64, ARM64)
-- macOS (x64, ARM64/Apple Silicon)
-- Windows (x64)
+Use [Manifest-Driven Providers](/guide/manifest-driven-providers) to create a custom provider:
 
-### What shells are supported?
+```toml
+# ~/.vx/providers/mytool/provider.toml
+[provider]
+name = "mytool"
 
-- Bash
-- Zsh
-- Fish
-- PowerShell
+[[runtimes]]
+name = "mytool"
+executable = "mytool"
 
-### Can I use vx in CI/CD?
-
-Yes! vx works great in CI/CD:
-
-```yaml
-steps:
-  - run: curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
-  - run: vx setup
-  - run: vx run test
+[runtimes.version_source]
+type = "github_releases"
+owner = "org"
+repo = "mytool"
 ```
+
+### How do I create an extension?
+
+See the [Extension Development Guide](/advanced/extension-development).
+
+## More Help
+
+- [Troubleshooting](/appendix/troubleshooting)
+- [GitHub Issues](https://github.com/loonghao/vx/issues)
+- [Contributing](/advanced/contributing)

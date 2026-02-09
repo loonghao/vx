@@ -10,7 +10,7 @@ The .NET SDK includes the dotnet CLI, MSBuild, NuGet, and compilers for C#, F#, 
 
 ```bash
 # Install .NET SDK
-vx install dotnet latest
+vx install `dotnet@latest
 vx install dotnet 8.0        # LTS version
 
 # Common commands
@@ -67,7 +67,7 @@ Microsoft Visual C++ compiler and build tools for Windows development.
 
 ```bash
 # Install MSVC Build Tools
-vx install msvc latest
+vx install `msvc@latest
 vx install msvc 14.40       # Specific version
 
 # Using MSVC tools via namespace (recommended)
@@ -126,7 +126,7 @@ sdk_version = "10.0.22621"
 A handy way to save and run project-specific commands.
 
 ```bash
-vx install just latest
+vx install `just@latest
 
 vx just --version
 vx just --list
@@ -156,7 +156,7 @@ fmt:
 Task runner / simpler Make alternative written in Go.
 
 ```bash
-vx install task latest
+vx install `task@latest
 
 vx task --version
 vx task --list
@@ -186,7 +186,7 @@ tasks:
 Cross-platform build system generator.
 
 ```bash
-vx install cmake latest
+vx install `cmake@latest
 
 vx cmake --version
 vx cmake -B build -S .
@@ -213,7 +213,7 @@ vx cmake --install build --prefix /usr/local
 Small build system with a focus on speed.
 
 ```bash
-vx install ninja latest
+vx install `ninja@latest
 
 vx ninja --version
 vx ninja -C build
@@ -233,7 +233,7 @@ vx ninja -C build
 Protocol Buffers compiler.
 
 ```bash
-vx install protoc latest
+vx install `protoc@latest
 
 vx protoc --version
 vx protoc --cpp_out=. message.proto
@@ -249,7 +249,7 @@ vx protoc --rust_out=. message.proto
 Next generation frontend tooling.
 
 ```bash
-vx install vite latest
+vx install `vite@latest
 
 vx vite --version
 vx vite                    # Start dev server

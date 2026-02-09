@@ -7,7 +7,7 @@ vx 支持用于音频、视频和图像处理的媒体工具。
 完整的跨平台音视频录制、转换和流媒体解决方案。
 
 ```bash
-vx install ffmpeg latest
+vx install `ffmpeg@latest
 
 vx ffmpeg -version
 vx ffmpeg -i input.mp4 output.avi
@@ -32,7 +32,7 @@ vx ffplay video.mp4
 强大的图像处理和转换工具。
 
 ```bash
-vx install magick latest
+vx install `magick@latest
 
 vx magick --version
 vx magick input.png output.jpg
@@ -54,7 +54,7 @@ vx magick montage *.jpg -geometry +2+2 collage.png
 
 ```bash
 # vx 自动处理所有静默安装参数
-vx install magick latest
+vx install `magick@latest
 
 # 在后台，vx 使用：
 # winget: winget install --id ImageMagick.ImageMagick --silent --disable-interactivity

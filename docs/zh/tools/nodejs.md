@@ -20,7 +20,7 @@ vx 提供对 Node.js 生态系统的全面支持。
 ```bash
 vx install node 20
 vx install node lts
-vx install node latest
+vx install `node@latest
 ```
 
 ### 版本说明
@@ -78,7 +78,7 @@ vx npx prettier --write .
 
 ```bash
 # 安装 pnpm
-vx install pnpm latest
+vx install `pnpm@latest
 
 # 使用
 vx pnpm install
@@ -182,7 +182,7 @@ Bun 是一个多合一的 JavaScript 运行时和工具包。
 
 ```bash
 # 安装 bun
-vx install bun latest
+vx install `bun@latest
 
 # 使用
 vx bun run script.ts

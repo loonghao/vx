@@ -7,7 +7,7 @@ vx supports major cloud provider command-line interfaces.
 Amazon Web Services command-line interface (v2).
 
 ```bash
-vx install aws latest
+vx install `aws@latest
 
 vx aws --version
 vx aws configure
@@ -28,7 +28,7 @@ vx aws sts get-caller-identity
 Microsoft Azure command-line interface.
 
 ```bash
-vx install az latest
+vx install `az@latest
 
 vx az --version
 vx az login
@@ -49,7 +49,7 @@ vx az storage account list
 Google Cloud Platform command-line interface.
 
 ```bash
-vx install gcloud latest
+vx install `gcloud@latest
 
 vx gcloud --version
 vx gcloud auth login

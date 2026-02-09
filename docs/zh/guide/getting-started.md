@@ -1,131 +1,197 @@
 # 快速上手
 
-本指南将帮助你在几分钟内开始使用 vx。
+5 分钟内开始使用 vx。
 
-## 前提条件
+## 前置条件
 
-- 一个终端（bash、zsh、PowerShell 等）
-- 用于下载工具的网络连接
+- **Windows 10+**、**macOS 10.15+** 或 **Linux**（glibc 2.17+）
+- 首次下载工具需要网络连接
 
-## 步骤 1：安装 vx
+## 第一步：安装 vx
 
 ::: code-group
-
-```bash [Linux/macOS]
+```bash [Linux / macOS]
 curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 ```
 
-```powershell [Windows]
+```powershell [Windows (PowerShell)]
 irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
 ```
 
+```bash [Cargo]
+cargo install vx
+```
 :::
 
-## 步骤 2：立即使用任何工具
-
-只需在命令前加上 `vx`。工具在首次使用时自动安装：
+验证安装：
 
 ```bash
-# 运行 Node.js
-vx node --version
-
-# 运行 Python
-vx python --version
-
-# 运行 Go
-vx go version
-
-# 运行 npm/npx
-vx npx create-react-app my-app
-
-# 运行 uv/uvx
-vx uvx ruff check .
+vx --version
 ```
 
-**就是这样！** 无需配置，无需设置，无需学习新命令。
+## 第二步：使用你的第一个工具
 
-## 步骤 3：设置项目（可选）
-
-对于团队项目，创建 `vx.toml` 文件以确保每个人使用相同的工具版本：
+在任何命令前加上 `vx`。工具会在首次使用时自动安装：
 
 ```bash
-# 初始化新的项目配置
-vx init
+# Node.js
+vx node --version        # 下载并安装 Node.js，然后输出版本
+
+# Python
+vx python --version      # 下载并安装 Python，然后输出版本
+
+# Go
+vx go version            # 下载并安装 Go，然后输出版本
 ```
 
-或手动创建：
+::: tip 自动安装
+首次运行 `vx <tool>` 时，vx 会自动下载并安装最新稳定版本。无需手动设置！
+:::
+
+## 第三步：安装指定版本
+
+```bash
+# 安装指定版本
+vx install node@22
+vx install python@3.12
+vx install go@1.23
+
+# 同时安装多个工具
+vx install node@22 python@3.12 uv@latest
+
+# 使用语义化版本范围
+vx install "node@^22"    # 最新 22.x.x
+vx install "python@~3.12" # 最新 3.12.x
+```
+
+## 第四步：设置项目
+
+创建 `vx.toml` 来定义项目的工具链：
+
+```bash
+cd my-project
+vx config init
+```
+
+编辑生成的 `vx.toml`：
 
 ```toml
-[project]
-name = "my-project"
-
 [tools]
-node = "20"
+node = "22"
+python = "3.12"
 uv = "latest"
 
 [scripts]
-dev = "npm run dev"
-test = "npm test"
+dev = "vx node server.js"
+test = "vx uv run pytest"
+lint = "vx uvx ruff check ."
+build = "vx node scripts/build.js"
 ```
 
-然后运行：
+安装所有项目工具：
 
 ```bash
-# 安装所有项目工具
 vx setup
-
-# 运行脚本
-vx run dev
 ```
 
-## 常用命令
-
-| 命令 | 描述 |
-|------|------|
-| `vx <tool> [args]` | 运行工具（如果需要则自动安装） |
-| `vx install <tool>` | 安装特定工具 |
-| `vx list` | 列出可用工具 |
-| `vx setup` | 从 `vx.toml` 安装所有项目工具 |
-| `vx run <script>` | 运行 `vx.toml` 中定义的脚本 |
-| `vx dev` | 进入开发环境 |
-| `vx --help` | 显示帮助 |
-
-## 示例工作流
-
-### Web 开发
+## 第五步：运行项目脚本
 
 ```bash
-# 创建 React 应用
+# 运行已定义的脚本
+vx run dev               # 启动开发服务器
+vx run test              # 运行测试
+vx run lint              # 运行代码检查
+
+# 列出可用脚本
+vx run --list
+
+# 向脚本传递参数
+vx run test -- -v --coverage
+```
+
+## 第六步：进入开发环境
+
+```bash
+# 进入一个包含所有项目工具的交互式 Shell
+vx dev
+
+# 或在项目环境中运行单个命令
+vx dev -c "node --version && python --version"
+
+# 导出 CI/CD 环境
+vx dev --export --format github >> $GITHUB_PATH
+```
+
+## 第七步：设置 Shell 集成（可选）
+
+启用自动版本切换和 Tab 补全：
+
+::: code-group
+```bash [Bash]
+echo 'eval "$(vx shell init bash)"' >> ~/.bashrc
+```
+
+```bash [Zsh]
+echo 'eval "$(vx shell init zsh)"' >> ~/.zshrc
+```
+
+```bash [Fish]
+echo 'vx shell init fish | source' >> ~/.config/fish/config.fish
+```
+
+```powershell [PowerShell]
+Add-Content $PROFILE 'Invoke-Expression (vx shell init powershell | Out-String)'
+```
+:::
+
+## 常见工作流
+
+### Node.js 项目
+
+```bash
 vx npx create-react-app my-app
 cd my-app
-
-# 启动开发服务器
+vx npm install
 vx npm start
 ```
 
-### Python 开发
+### Python 项目
 
 ```bash
-# 运行 Python 脚本
-vx python script.py
-
-# 使用 uvx 运行工具
-vx uvx ruff check .
-vx uvx black .
+vx uv init my-project
+cd my-project
+vx uv add flask pytest
+vx uv run flask run
 ```
 
-### Go 开发
+### Go 项目
 
 ```bash
-# 构建 Go 项目
-vx go build -o myapp
+mkdir my-service && cd my-service
+vx go mod init github.com/user/my-service
+vx go run main.go
+```
 
-# 运行测试
-vx go test ./...
+### 多语言项目
+
+```toml
+# vx.toml
+[tools]
+node = "22"
+python = "3.12"
+go = "1.23"
+just = "latest"
+
+[scripts]
+frontend = "cd frontend && vx npm run dev"
+backend = "cd backend && vx go run ."
+api = "cd api && vx uv run flask run"
+all = "just dev"
 ```
 
 ## 下一步
 
-- [配置指南](/zh/guide/configuration) - 了解 `vx.toml` 配置
-- [CLI 参考](/zh/cli/overview) - 完整命令参考
-- [Shell 集成](/zh/guide/shell-integration) - 设置 Shell 集成
+- [核心概念](/zh/guide/concepts) — 了解 Provider、运行时和版本
+- [配置](/zh/guide/configuration) — 深入了解 `vx.toml`
+- [CLI 参考](/zh/cli/overview) — 探索所有可用命令
+- [支持的工具](/zh/tools/overview) — 查看 50+ 工具的完整列表

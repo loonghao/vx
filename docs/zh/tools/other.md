@@ -9,7 +9,7 @@ vx 还支持许多其他开发工具。
 安全的 JavaScript/TypeScript 运行时。
 
 ```bash
-vx install deno latest
+vx install `deno@latest
 
 vx deno --version
 vx deno run script.ts
@@ -22,7 +22,7 @@ vx deno task dev
 Zig 编程语言。
 
 ```bash
-vx install zig latest
+vx install `zig@latest
 
 vx zig version
 vx zig build
@@ -47,7 +47,7 @@ vx java Main
 .NET SDK 用于 C#、F# 和 VB.NET 开发。
 
 ```bash
-vx install dotnet latest
+vx install `dotnet@latest
 
 vx dotnet --version
 vx dotnet new console -n MyApp
@@ -70,7 +70,7 @@ vx dotnet publish -c Release
 下一代前端工具。
 
 ```bash
-vx install vite latest
+vx install `vite@latest
 
 vx vite
 vx vite build
@@ -82,7 +82,7 @@ vx vite preview
 命令运行器（类似 make，但更简单）。
 
 ```bash
-vx install just latest
+vx install `just@latest
 
 vx just --list
 vx just build
@@ -94,7 +94,7 @@ vx just test
 任务运行器 / Make 的替代构建工具。
 
 ```bash
-vx install task latest
+vx install `task@latest
 
 vx task --version
 vx task build
@@ -107,7 +107,7 @@ vx task --list
 跨平台构建系统生成器。
 
 ```bash
-vx install cmake latest
+vx install `cmake@latest
 
 vx cmake --version
 vx cmake -B build -S .
@@ -120,7 +120,7 @@ vx cmake --install build
 专注于速度的小型构建系统。
 
 ```bash
-vx install ninja latest
+vx install `ninja@latest
 
 vx ninja --version
 vx ninja -C build
@@ -132,7 +132,7 @@ vx ninja -C build clean
 Protocol Buffers 编译器。
 
 ```bash
-vx install protoc latest
+vx install `protoc@latest
 
 vx protoc --version
 vx protoc --cpp_out=. message.proto
@@ -147,7 +147,7 @@ vx protoc --go_out=. message.proto
 基础设施即代码。
 
 ```bash
-vx install terraform latest
+vx install `terraform@latest
 
 vx terraform --version
 vx terraform init
@@ -160,7 +160,7 @@ vx terraform apply
 Kubernetes 命令行工具。
 
 ```bash
-vx install kubectl latest
+vx install `kubectl@latest
 
 vx kubectl version
 vx kubectl get pods
@@ -172,7 +172,7 @@ vx kubectl apply -f deployment.yaml
 Kubernetes 包管理器。
 
 ```bash
-vx install helm latest
+vx install `helm@latest
 
 vx helm version
 vx helm install my-release chart/
@@ -184,7 +184,7 @@ vx helm upgrade my-release chart/
 容器运行时和工具。
 
 ```bash
-vx install docker latest
+vx install `docker@latest
 
 vx docker --version
 vx docker build -t myapp .
@@ -199,7 +199,7 @@ vx docker compose up -d
 亚马逊云服务命令行界面。
 
 ```bash
-vx install awscli latest
+vx install `awscli@latest
 
 vx aws --version
 vx aws configure
@@ -212,7 +212,7 @@ vx aws ec2 describe-instances
 微软 Azure 命令行界面。
 
 ```bash
-vx install azcli latest
+vx install `azcli@latest
 
 vx az --version
 vx az login
@@ -225,7 +225,7 @@ vx az vm list
 谷歌云平台命令行界面。
 
 ```bash
-vx install gcloud latest
+vx install `gcloud@latest
 
 vx gcloud --version
 vx gcloud auth login
@@ -255,7 +255,7 @@ vx pre-commit autoupdate
 Visual Studio Code（命令行）。
 
 ```bash
-vx install vscode latest
+vx install `vscode@latest
 
 vx code .
 vx code --install-extension ms-python.python
@@ -268,7 +268,7 @@ vx code --install-extension ms-python.python
 VFX/动画行业的包管理系统。
 
 ```bash
-vx install rez latest
+vx install `rez@latest
 
 vx rez --version
 vx rez env package
@@ -279,7 +279,7 @@ vx rez env package
 Windows 资源编辑器。
 
 ```bash
-vx install rcedit latest
+vx install `rcedit@latest
 
 vx rcedit app.exe --set-icon icon.ico
 vx rcedit app.exe --set-version-string "ProductName" "My App"
