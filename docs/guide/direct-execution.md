@@ -319,7 +319,7 @@ When running a tool via `vx`, any subprocess spawned by that tool will automatic
 
 ### Example: justfile
 
-```just
+```makefile
 # justfile — all tools available without vx prefix!
 lint:
     uvx ruff check .

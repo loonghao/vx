@@ -20,7 +20,11 @@ Executes a script defined in the `[scripts]` section of `vx.toml`. The enhanced 
 - **Script listing**: Use `--list` to see all available scripts
 - **Advanced argument handling**: Support for `-p`, `--lib`, and other tool-specific flags
 - Project environment variables (from `[env]` and `.env` files)
-- Variable interpolation support (`\{\{var\}\}` syntax)
+
+::: v-pre
+- Variable interpolation support (`{{var}}` syntax)
+:::
+
 - Python venv activated (if configured)
 - Tool paths configured
 
@@ -55,44 +59,52 @@ vx run test-pkgs -- -p vx-runtime --lib
 
 ## Variable Interpolation
 
-Scripts support variable interpolation using `\{\{var\}\}` syntax:
+::: v-pre
+Scripts support variable interpolation using `{{var}}` syntax:
+:::
 
 ```toml
 [scripts]
-build = "cargo build -p \{\{project.name\}\}"
-tag = "git tag v\{\{arg1\}\}"
-info = "echo 'Building on \{\{os.name\}\} (\{\{os.arch\}\})'"
-test-pkgs = "cargo test \{\{args\}\}"  # Use {{args}} for all arguments
+build = "cargo build -p {{project.name}}"
+tag = "git tag v{{arg1}}"
+info = "echo 'Building on {{os.name}} ({{os.arch}})'"
+test-pkgs = "cargo test {{args}}"  # Use {{args}} for all arguments
 ```
 
 ### Built-in Variables
 
+::: v-pre
 | Variable | Description |
 |----------|-------------|
-| `\{\{vx.version\}\}` | vx version |
-| `\{\{vx.home\}\}` | vx home directory (~/.vx) |
-| `\{\{vx.runtimes\}\}` | Runtimes directory |
-| `\{\{project.root\}\}` | Project root directory |
-| `\{\{project.name\}\}` | Project name (directory name) |
-| `\{\{os.name\}\}` | Operating system (linux, macos, windows) |
-| `\{\{os.arch\}\}` | CPU architecture (x86_64, aarch64) |
-| `\{\{home\}\}` | User home directory |
-| `\{\{timestamp\}\}` | Current Unix timestamp |
+| `{{vx.version}}` | vx version |
+| `{{vx.home}}` | vx home directory (~/.vx) |
+| `{{vx.runtimes}}` | Runtimes directory |
+| `{{project.root}}` | Project root directory |
+| `{{project.name}}` | Project name (directory name) |
+| `{{os.name}}` | Operating system (linux, macos, windows) |
+| `{{os.arch}}` | CPU architecture (x86_64, aarch64) |
+| `{{home}}` | User home directory |
+| `{{timestamp}}` | Current Unix timestamp |
+:::
 
 ### Argument Variables
 
+::: v-pre
 | Variable | Description |
 |----------|-------------|
-| `\{\{arg1\}\}`, `\{\{arg2\}\}`, ... | Positional arguments |
-| `\{\{@\}\}` | All arguments as a string |
-| `\{\{#\}\}` | Number of arguments |
-| `\{\{args\}\}` | **Recommended**: All arguments (supports complex flags like `-p`, `--lib`) |
+| `{{arg1}}`, `{{arg2}}`, ... | Positional arguments |
+| `{{@}}` | All arguments as a string |
+| `{{#}}` | Number of arguments |
+| `{{args}}` | **Recommended**: All arguments (supports complex flags like `-p`, `--lib`) |
+:::
 
 ### Environment Variables
 
+::: v-pre
 | Variable | Description |
 |----------|-------------|
-| `\{\{env.VAR\}\}` | Environment variable VAR |
+| `{{env.VAR}}` | Environment variable VAR |
+:::
 
 ### Command Interpolation
 
@@ -144,12 +156,12 @@ test = "pytest"
 build = "go build -o app"
 
 # With variable interpolation
-deploy = "kubectl apply -f k8s/\{\{arg1\}\}.yaml"
+deploy = "kubectl apply -f k8s/{{arg1}}.yaml"
 
 # Modern approach: use {{args}} for complex arguments
-test-pkgs = "cargo test \{\{args\}\}"
-lint = "eslint \{\{args\}\}"
-format = "prettier --write \{\{args\}\}"
+test-pkgs = "cargo test {{args}}"
+lint = "eslint {{args}}"
+format = "prettier --write {{args}}"
 
 # Detailed script with DAG dependencies
 [scripts.ci]
@@ -280,38 +292,42 @@ vx run --help
 
 ### Variable Interpolation Examples
 
+::: v-pre
 ```bash
-# Arguments are interpolated if script uses \{\{arg1\}\}, \{\{arg2\}\}, etc.
+# Arguments are interpolated if script uses {{arg1}}, {{arg2}}, etc.
 vx run deploy production
 
 # Using {{args}} (recommended for complex arguments)
 vx run test-pkgs -p vx-runtime --lib  # Passed as {{args}}
 ```
+:::
 
 ### Script Help Output
 
+::: v-pre
 When you run `vx run deploy -H`, you'll see:
 
 ```text
 Script: deploy
-Command: kubectl apply -f k8s/\{\{arg1\}\}.yaml
+Command: kubectl apply -f k8s/{{arg1}}.yaml
 
 Usage: vx run deploy [args...]
 
 Arguments are passed directly to the script.
 
 Variable Interpolation:
-  \{\{arg1\}\}          First argument
-  \{\{arg2\}\}          Second argument
-  \{\{@\}\}             All arguments
-  \{\{#\}\}             Number of arguments
-  \{\{args\}\}          All arguments (recommended)
-  \{\{env.VAR\}\}       Environment variable VAR
-  \{\{project.root\}\}  Project root directory
-  \{\{project.name\}\}  Project name
-  \{\{os.name\}\}       Operating system
-  \{\{vx.version\}\}    VX version
+  {{arg1}}          First argument
+  {{arg2}}          Second argument
+  {{@}}             All arguments
+  {{#}}             Number of arguments
+  {{args}}          All arguments (recommended)
+  {{env.VAR}}       Environment variable VAR
+  {{project.root}}  Project root directory
+  {{project.name}}  Project name
+  {{os.name}}       Operating system
+  {{vx.version}}    VX version
 ```
+:::
 
 ### List Available Scripts
 
@@ -332,16 +348,18 @@ Available scripts:
 
 ## Best Practices
 
-### Use `\{\{args\}\}` for Modern Scripts
+::: v-pre
+### Use `{{args}}` for Modern Scripts
 
-For maximum flexibility, use `\{\{args\}\}` in your script definitions:
+For maximum flexibility, use `{{args}}` in your script definitions:
+:::
 
 ```toml
 [scripts]
 # ✅ Recommended: Flexible argument handling
-test-pkgs = "cargo test \{\{args\}\}"
-lint = "eslint \{\{args\}\}"
-build = "cargo build \{\{args\}\}"
+test-pkgs = "cargo test {{args}}"
+lint = "eslint {{args}}"
+build = "cargo build {{args}}"
 
 # ❌ Old style: Limited to simple arguments
 test-old = "cargo test"
@@ -354,21 +372,23 @@ Perfect for tools that require specific flags:
 ```toml
 [scripts]
 # Cargo testing with package selection
-test-pkgs = "cargo test \{\{args\}\}"
+test-pkgs = "cargo test {{args}}"
 # Usage: vx run test-pkgs -p vx-runtime --lib
 
 # ESLint with flexible options
-lint = "eslint \{\{args\}\}"
+lint = "eslint {{args}}"
 # Usage: vx run lint --fix --ext .js,.ts src/
 
 # Docker build with platform selection
-docker-build = "docker build \{\{args\}\}"
+docker-build = "docker build {{args}}"
 # Usage: vx run docker-build --platform linux/amd64 -t myapp .
 ```
 
+::: v-pre
 ### Migration from Old Style
 
-If you have existing scripts without `\{\{args\}\}`, they still work but with limitations:
+If you have existing scripts without `{{args}}`, they still work but with limitations:
+:::
 
 ```toml
 [scripts]
@@ -376,7 +396,7 @@ If you have existing scripts without `\{\{args\}\}`, they still work but with li
 test = "cargo test"
 
 # This is better for complex arguments
-test-new = "cargo test \{\{args\}\}"
+test-new = "cargo test {{args}}"
 ```
 
 ## Troubleshooting
@@ -385,11 +405,13 @@ test-new = "cargo test \{\{args\}\}"
 
 If your script doesn't receive arguments as expected:
 
-1. **Check if your script uses `\{\{args\}\}`**:
+::: v-pre
+1. **Check if your script uses `{{args}}`**:
    ```toml
    # Add {{args}} to receive all arguments
-   test = "cargo test \{\{args\}\}"
+   test = "cargo test {{args}}"
    ```
+:::
 
 2. **Use the `--` separator for complex cases**:
    ```bash

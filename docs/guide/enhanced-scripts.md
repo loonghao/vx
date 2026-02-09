@@ -267,7 +267,9 @@ depends = ["db:backup"]
 
 ## Advanced Argument Passing
 
+::: v-pre
 ### The `{{args}}` Placeholder
+:::
 
 Pass complex arguments directly to scripts without conflicts:
 
@@ -284,7 +286,9 @@ vx run docker-build --platform linux/amd64 -t myapp .
 
 ### Script Definition
 
+::: v-pre
 Use `{{args}}` for maximum flexibility:
+:::
 
 ```toml
 [scripts]
@@ -370,7 +374,9 @@ depends = ["test"]
 
 ## Best Practices
 
+::: v-pre
 ### 1. Use `{{args}}` for Tool Integration
+:::
 
 For tools with many command-line options:
 
@@ -532,7 +538,9 @@ depends = ["build"]     # References "build" above
 
 **Problem**: Arguments aren't passed to the script.
 
+::: v-pre
 **Solution**: Ensure your script uses `{{args}}`:
+:::
 
 ```toml
 # ❌ Won't receive arguments

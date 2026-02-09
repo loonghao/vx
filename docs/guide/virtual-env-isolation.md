@@ -105,7 +105,7 @@ uv = "0.5.0"
 
 When using task runners like `just`:
 
-```just
+```makefile
 # justfile
 build:
     npm run build  # Uses node version from vx.toml
