@@ -65,7 +65,7 @@ pub async fn handle(
     check_only: bool,
     target_version: Option<&str>,
 ) -> Result<()> {
-    UI::info("🔍 Checking for vx updates...");
+    UI::section("Checking for updates");
 
     let current_version = env!("CARGO_PKG_VERSION");
     UI::detail(&format!("Current version: {}", current_version));
@@ -79,7 +79,7 @@ pub async fn handle(
             Ok(Some(updated)) => {
                 // axoupdater handled the update successfully
                 if updated {
-                    UI::success("🎉 Successfully updated vx!");
+                    UI::success("Successfully updated vx!");
                     UI::hint("Restart your terminal or run 'vx --version' to verify the update");
                 }
                 // If not updated (already up to date or check_only), axoupdater already printed info
@@ -87,12 +87,12 @@ pub async fn handle(
             }
             Ok(None) => {
                 // No receipt found — fall through to legacy path
-                UI::detail("No cargo-dist install receipt found, using legacy update path");
+                UI::detail("No cargo-dist install receipt found, using legacy path");
             }
             Err(e) => {
                 // axoupdater failed — fall through to legacy path
                 UI::warn(&format!(
-                    "⚠️ axoupdater fast path failed: {}. Falling back to legacy update...",
+                    "axoupdater failed: {}. Falling back...",
                     e
                 ));
             }
@@ -147,10 +147,10 @@ async fn try_axoupdater(
     if check_only {
         let update_needed = updater.is_update_needed().await?;
         if update_needed {
-            UI::info("📦 A new version of vx is available!");
+            UI::info("A new version of vx is available!");
             UI::hint("Run 'vx self-update' to update to the latest version");
         } else {
-            UI::success("✅ vx is already up to date!");
+            UI::success("vx is already up to date!");
         }
         return Ok(Some(!update_needed));
     }
@@ -158,13 +158,13 @@ async fn try_axoupdater(
     if !force {
         let update_needed = updater.is_update_needed().await?;
         if !update_needed {
-            UI::success("✅ vx is already up to date!");
+            UI::success("vx is already up to date!");
             return Ok(Some(false));
         }
     }
 
     // Perform the update
-    UI::info("📥 Updating vx via axoupdater...");
+    UI::info("Updating vx via axoupdater...");
     let result = updater.run().await?;
 
     // run() returns Option<UpdateResult> — Some means update was performed
@@ -187,7 +187,7 @@ async fn legacy_update(
 
     // Get release information based on whether a specific version is requested
     let (release, version_source) = if let Some(version) = target_version {
-        UI::info(&format!("📌 Looking for specific version: {}", version));
+        UI::info(&format!("Looking for version {}...", version));
         get_specific_release(&client, version, token.is_some()).await?
     } else {
         get_latest_release(&client, prerelease, token.is_some()).await?
@@ -203,30 +203,31 @@ async fn legacy_update(
 
     // Check if update is needed
     if !force && current_version == latest_version {
-        UI::success("✅ vx is already up to date!");
+        UI::success("vx is already up to date!");
         return Ok(());
     }
 
     if current_version != latest_version {
         let direction = if is_newer_version(latest_version, current_version) {
-            "upgrade"
+            "Upgrade"
         } else {
-            "downgrade"
+            "Downgrade"
         };
         UI::info(&format!(
-            "📦 {} available: {} -> {}",
+            "{} available: {} -> {}",
             direction, current_version, latest_version
         ));
 
         if !release.body.is_empty() && !release.body.contains("retrieved from CDN") {
-            UI::info("📝 Release notes:");
+            println!();
+            UI::detail("Release notes:");
             println!("{}", release.body);
         }
     }
 
     if check_only {
         if current_version != latest_version {
-            UI::info("💡 Run 'vx self-update' to update to the latest version");
+            UI::hint("Run 'vx self-update' to update to the latest version");
             if target_version.is_none() {
                 UI::hint(&format!(
                     "Or run 'vx self-update {}' to install this specific version",
@@ -239,13 +240,14 @@ async fn legacy_update(
 
     // Find appropriate asset for current platform
     let asset = find_platform_asset(&release.assets)?;
-    UI::info(&format!("📥 Downloading {}...", asset.name));
+    UI::step(&format!("Downloading {}...", asset.name));
 
     // Download and install update
     download_and_install(&client, asset, force, version_source, latest_version).await?;
 
+    println!();
     UI::success(&format!(
-        "🎉 Successfully updated vx to version {}!",
+        "Successfully updated vx to version {}!",
         latest_version
     ));
     UI::hint("Restart your terminal or run 'vx --version' to verify the update");
@@ -280,10 +282,9 @@ fn create_authenticated_client(token: Option<&str>) -> Result<reqwest::Client> {
             HeaderValue::from_str(&auth_value)
                 .map_err(|e| anyhow!("Invalid token format: {}", e))?,
         );
-        UI::detail("🔐 Using authenticated requests to GitHub API");
+        UI::detail("Using authenticated GitHub API requests");
     } else {
-        UI::detail("🌐 No GitHub token provided, will prefer CDN for downloads");
-        UI::hint("💡 Use --token <TOKEN> to use GitHub API directly and avoid CDN delays");
+        UI::detail("No GitHub token provided, preferring CDN downloads");
     }
 
     let client = reqwest::Client::builder()
@@ -310,12 +311,12 @@ async fn get_specific_release(
     if has_token {
         match try_github_api_specific(client, version).await {
             Ok(release) => {
-                UI::info("✅ Got version info from GitHub API");
+                UI::detail("Found version via GitHub API");
                 return Ok((release, VersionSource::GitHub));
             }
             Err(e) => {
-                UI::warn(&format!("⚠️ GitHub API failed: {}", e));
-                UI::info("🔄 Trying CDN fallback...");
+                UI::warn(&format!("GitHub API failed: {}", e));
+                UI::detail("Trying CDN fallback...");
             }
         }
     }
@@ -323,18 +324,18 @@ async fn get_specific_release(
     // Try CDN (create synthetic release)
     match try_jsdelivr_api_specific(client, version).await {
         Ok(release) => {
-            UI::info("✅ Got version info from jsDelivr CDN");
+            UI::detail("Found version via jsDelivr CDN");
             Ok((release, VersionSource::Cdn))
         }
         Err(e) => {
             // If CDN fails and we haven't tried GitHub, try it now
             if !has_token {
-                UI::warn(&format!("⚠️ CDN fallback failed: {}", e));
-                UI::info("🔄 Trying GitHub API...");
+                UI::warn(&format!("CDN lookup failed: {}", e));
+                UI::detail("Falling back to GitHub API...");
 
                 match try_github_api_specific(client, version).await {
                     Ok(release) => {
-                        UI::info("✅ Got version info from GitHub API");
+                        UI::detail("Found version via GitHub API");
                         return Ok((release, VersionSource::GitHub));
                     }
                     Err(github_err) => {
@@ -442,17 +443,17 @@ async fn get_latest_release(
 ) -> Result<(GitHubRelease, VersionSource)> {
     // If no token is provided, prefer CDN to avoid rate limits
     if !has_token {
-        UI::info("🌐 No GitHub token provided, using CDN for version check...");
+        UI::detail("Using CDN for version check...");
 
         // Try jsDelivr API first when no token
         match try_jsdelivr_api(client, prerelease).await {
             Ok(release) => {
-                UI::info("✅ Got version info from jsDelivr CDN");
+                UI::detail("Got version info from jsDelivr CDN");
                 return Ok((release, VersionSource::Cdn));
             }
             Err(e) => {
-                UI::warn(&format!("⚠️ CDN fallback failed: {}", e));
-                UI::info("🔄 Falling back to GitHub API...");
+                UI::warn(&format!("CDN version check failed: {}", e));
+                UI::detail("Falling back to GitHub API...");
             }
         }
     }
@@ -479,11 +480,11 @@ async fn get_latest_release(
 
             // For other errors, try CDN as last resort if we haven't already
             if has_token {
-                UI::warn(&format!("⚠️ GitHub API failed: {}", e));
-                UI::info("🔄 Trying CDN fallback...");
+                UI::warn(&format!("GitHub API failed: {}", e));
+                UI::detail("Trying CDN fallback...");
 
                 if let Ok(release) = try_jsdelivr_api(client, prerelease).await {
-                    UI::info("✅ Got version info from jsDelivr CDN");
+                    UI::detail("Got version info from jsDelivr CDN");
                     return Ok((release, VersionSource::Cdn));
                 }
             }
@@ -603,8 +604,7 @@ async fn download_and_install(
 
     // Try to verify checksum if available
     if let Err(e) = verify_checksum(client, asset, &content, version_source, version).await {
-        UI::warn(&format!("⚠️ Checksum verification skipped: {}", e));
-        UI::detail("Continuing with size validation only...");
+        UI::debug(&format!("Checksum verification skipped: {}", e));
     }
 
     // Use system temp directory for the new binary to avoid permission issues
@@ -636,7 +636,7 @@ async fn download_and_install(
         let backup = temp_dir.join(format!("vx-backup-{}.bak", std::process::id()));
         fs::copy(&current_exe, &backup)?;
         UI::detail(&format!(
-            "📦 Backed up current version to {}",
+            "Backed up current version to {}",
             backup.display()
         ));
         Some(backup)
@@ -658,7 +658,7 @@ async fn download_and_install(
                 let _ = fs::remove_file(backup);
             }
             UI::detail(&format!(
-                "✅ Installed new version to {}",
+                "Installed to {}",
                 current_exe.display()
             ));
         }
@@ -668,7 +668,7 @@ async fn download_and_install(
             {
                 let error_str = e.to_string();
                 if error_str.contains("os error 5") || error_str.contains("Access is denied") {
-                    UI::warn("⚠️ Standard replacement failed, trying alternative method...");
+                    UI::warn("Standard replacement failed, trying alternative method...");
 
                     // Try alternative: rename current exe and copy new one
                     match try_windows_alternative_replace(&current_exe, &temp_path) {
@@ -678,34 +678,34 @@ async fn download_and_install(
                                 let _ = fs::remove_file(backup);
                             }
                             UI::detail(&format!(
-                                "✅ Installed new version to {}",
+                                "Installed to {}",
                                 current_exe.display()
                             ));
                             return Ok(());
                         }
                         Err(alt_err) => {
-                            UI::warn(&format!("⚠️ Alternative method also failed: {}", alt_err));
+                            UI::warn(&format!("Alternative method failed: {}", alt_err));
                         }
                     }
 
                     // All methods failed, provide detailed guidance
-                    UI::warn("⚠️ Could not replace vx executable.");
-                    UI::hint("");
-                    UI::hint("This usually happens when:");
-                    UI::hint("  1. Antivirus software is blocking the operation");
-                    UI::hint("  2. Another terminal/process is using vx");
-                    UI::hint("  3. File system permissions issue");
-                    UI::hint("");
-                    UI::hint("Solutions:");
-                    UI::hint("  • Temporarily disable antivirus and try again");
-                    UI::hint("  • Close ALL terminals and run update in a fresh terminal");
-                    UI::hint("  • Manual update:");
-                    UI::hint(&format!(
+                    UI::error("Could not replace vx executable");
+                    println!();
+                    UI::detail("This usually happens when:");
+                    UI::detail("  1. Antivirus software is blocking the operation");
+                    UI::detail("  2. Another terminal/process is using vx");
+                    UI::detail("  3. File system permissions issue");
+                    println!();
+                    UI::detail("Solutions:");
+                    UI::detail("  - Temporarily disable antivirus and try again");
+                    UI::detail("  - Close ALL terminals and run update in a fresh terminal");
+                    UI::detail("  - Manual update:");
+                    UI::detail(&format!(
                         "    1. Download: https://github.com/loonghao/vx/releases/download/{}/{}",
                         get_tag_for_version(version),
                         asset.name
                     ));
-                    UI::hint(&format!(
+                    UI::detail(&format!(
                         "    2. Extract and replace: {}",
                         current_exe.display()
                     ));
@@ -713,13 +713,13 @@ async fn download_and_install(
                     // Save the new binary for manual installation
                     let manual_path = temp_dir.join(format!("vx-{}-new.exe", version));
                     if fs::copy(&temp_path, &manual_path).is_ok() {
-                        UI::hint("");
-                        UI::hint(&format!(
-                            "  • New version saved at: {}",
+                        println!();
+                        UI::detail(&format!(
+                            "  New version saved at: {}",
                             manual_path.display()
                         ));
-                        UI::hint(
-                            "    You can manually copy this file to replace the current vx.exe",
+                        UI::detail(
+                            "  You can manually copy this file to replace the current vx.exe",
                         );
                     }
 
@@ -735,7 +735,7 @@ async fn download_and_install(
 
             // Generic error handling for other platforms or errors
             if let Some(ref backup) = backup_path {
-                UI::warn("⚠️ Update failed. Backup is available for manual recovery.");
+                UI::warn("Update failed. Backup is available for manual recovery.");
                 UI::detail(&format!("Backup location: {}", backup.display()));
             }
             return Err(anyhow!("Failed to replace binary: {}", e));
@@ -769,7 +769,7 @@ fn try_windows_alternative_replace(current_exe: &PathBuf, new_exe: &PathBuf) -> 
     match fs::copy(new_exe, current_exe) {
         Ok(_) => {
             UI::detail(&format!(
-                "✅ Replaced executable (old version at {})",
+                "Replaced executable (old version at {})",
                 old_exe_renamed.display()
             ));
 
@@ -813,7 +813,7 @@ fn schedule_file_deletion(path: &PathBuf) -> Result<()> {
     };
 
     if result != 0 {
-        UI::detail("📋 Old version scheduled for deletion on next reboot");
+        UI::detail("Old version scheduled for deletion on next reboot");
         Ok(())
     } else {
         // Not critical if this fails
@@ -910,11 +910,12 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
 /// Determine artifact naming format based on version
 /// - v0.6.0 to v0.6.x: versioned format (vx-0.6.1-x86_64-pc-windows-msvc.zip) with tag vx-v{ver}
 /// - v0.5.x and earlier: legacy/unversioned format (vx-x86_64-pc-windows-msvc.zip) with tag vx-v{ver}
-/// - v0.7.0+ (cargo-dist): unversioned format (vx-x86_64-pc-windows-msvc.zip) with tag v{ver}
+/// - v0.7.0+ (cargo-dist): primarily unversioned format (vx-x86_64-pc-windows-msvc.zip) with tag v{ver}
+///   but also supports versioned format (vx-0.7.0-x86_64-pc-windows-msvc.zip) as fallback
 fn uses_versioned_artifact_naming(version: &str) -> bool {
     if let Some(parsed) = vx_core::version_utils::parse_version(version) {
-        // Only v0.6.x uses versioned naming
-        // v0.7.0+ (cargo-dist) reverted to unversioned naming
+        // Only v0.6.x uses versioned naming as PRIMARY format
+        // v0.7.0+ (cargo-dist) uses unversioned as primary, versioned as fallback
         parsed.major == 0 && parsed.minor == 6
     } else {
         false
@@ -989,20 +990,26 @@ fn create_cdn_assets(version: &str) -> Vec<GitHubAsset> {
 }
 
 /// Generate alternative asset names for fallback
-/// This handles the case where we might need to try both versioned and legacy naming
+/// This handles the case where we might need to try both versioned and legacy naming.
+/// For v0.7.0+ (cargo-dist), the primary is unversioned but we also try versioned format
+/// since some releases may use `vx-{version}-{platform}.{ext}` naming.
 fn get_alternative_asset_names(asset_name: &str, version: &str) -> Vec<String> {
     let mut names = vec![asset_name.to_string()];
 
-    // Check if current name is versioned format
+    // Check if current name is versioned format (vx-{version}-...)
     let versioned_prefix = format!("vx-{}-", version);
     if asset_name.starts_with(&versioned_prefix) {
-        // Current is versioned, add legacy format as alternative
+        // Current is versioned, add unversioned format as alternative
         let legacy_name = asset_name.replacen(&format!("{}-", version), "", 1);
-        names.push(legacy_name);
+        if !names.contains(&legacy_name) {
+            names.push(legacy_name);
+        }
     } else if asset_name.starts_with("vx-") {
-        // Current is legacy, add versioned format as alternative
+        // Current is unversioned, add versioned format as alternative
         let versioned_name = asset_name.replacen("vx-", &versioned_prefix, 1);
-        names.push(versioned_name);
+        if !names.contains(&versioned_name) {
+            names.push(versioned_name);
+        }
     }
 
     names
@@ -1091,26 +1098,26 @@ async fn download_with_fallback(
         .collect();
 
     for (channel_name, url) in channels {
-        UI::detail(&format!("🔄 Trying {}: {}", channel_name, url));
+        UI::detail(&format!("Trying {}: {}", channel_name, url));
 
         match download_with_progress(client, &url, asset.size, channel_name).await {
             Ok(content) => {
                 if content.len() > 1024 {
-                    UI::info(&format!(
-                        "✅ Downloaded from {} ({} bytes)",
+                    UI::detail(&format!(
+                        "Downloaded from {} ({} bytes)",
                         channel_name,
                         content.len()
                     ));
                     return Ok(content);
                 } else {
                     UI::warn(&format!(
-                        "⚠️ Downloaded file too small from {}, trying next channel...",
+                        "Downloaded file too small from {}, trying next...",
                         channel_name
                     ));
                 }
             }
             Err(e) => {
-                UI::warn(&format!("⚠️ {} failed: {}", channel_name, e));
+                UI::debug(&format!("{} failed: {}", channel_name, e));
             }
         }
     }
@@ -1274,7 +1281,7 @@ async fn verify_checksum(
         ));
     }
 
-    UI::info("✅ Checksum verified (SHA256)");
+    UI::detail("Checksum verified (SHA256)");
     Ok(())
 }
 
@@ -1436,5 +1443,23 @@ mod tests {
         assert_eq!(names.len(), 2);
         assert_eq!(names[0], "vx-0.6.1-x86_64-unknown-linux-gnu.tar.gz");
         assert_eq!(names[1], "vx-x86_64-unknown-linux-gnu.tar.gz");
+    }
+
+    #[test]
+    fn test_get_alternative_asset_names_cargo_dist() {
+        // v0.7.x: primary is unversioned, alternative is versioned
+        let names = get_alternative_asset_names("vx-x86_64-pc-windows-msvc.zip", "0.7.7");
+        assert_eq!(names.len(), 2);
+        assert_eq!(names[0], "vx-x86_64-pc-windows-msvc.zip");
+        assert_eq!(names[1], "vx-0.7.7-x86_64-pc-windows-msvc.zip");
+    }
+
+    #[test]
+    fn test_get_alternative_asset_names_cargo_dist_reverse() {
+        // If someone has the versioned name first (e.g., old binary trying to update)
+        let names = get_alternative_asset_names("vx-0.7.7-x86_64-pc-windows-msvc.zip", "0.7.7");
+        assert_eq!(names.len(), 2);
+        assert_eq!(names[0], "vx-0.7.7-x86_64-pc-windows-msvc.zip");
+        assert_eq!(names[1], "vx-x86_64-pc-windows-msvc.zip");
     }
 }

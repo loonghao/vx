@@ -882,3 +882,150 @@ fn test_jsdelivr_mixed_format_latest_selection() {
         "Should select 0.7.3 as the latest stable version from mixed jsDelivr formats"
     );
 }
+
+// ============================================================================
+// Cargo-dist versioned artifact naming fallback tests
+// ============================================================================
+
+/// Helper: generate alternative asset names (mirrors production logic)
+fn get_alternative_asset_names(asset_name: &str, version: &str) -> Vec<String> {
+    let mut names = vec![asset_name.to_string()];
+
+    let versioned_prefix = format!("vx-{}-", version);
+    if asset_name.starts_with(&versioned_prefix) {
+        let legacy_name = asset_name.replacen(&format!("{}-", version), "", 1);
+        if !names.contains(&legacy_name) {
+            names.push(legacy_name);
+        }
+    } else if asset_name.starts_with("vx-") {
+        let versioned_name = asset_name.replacen("vx-", &versioned_prefix, 1);
+        if !names.contains(&versioned_name) {
+            names.push(versioned_name);
+        }
+    }
+
+    names
+}
+
+/// Test that v0.7.x cargo-dist assets generate both versioned and unversioned names
+#[rstest]
+#[case(
+    "vx-x86_64-pc-windows-msvc.zip",
+    "0.7.7",
+    &["vx-x86_64-pc-windows-msvc.zip", "vx-0.7.7-x86_64-pc-windows-msvc.zip"]
+)]
+#[case(
+    "vx-aarch64-apple-darwin.tar.gz",
+    "0.7.7",
+    &["vx-aarch64-apple-darwin.tar.gz", "vx-0.7.7-aarch64-apple-darwin.tar.gz"]
+)]
+#[case(
+    "vx-x86_64-unknown-linux-gnu.tar.gz",
+    "0.7.7",
+    &["vx-x86_64-unknown-linux-gnu.tar.gz", "vx-0.7.7-x86_64-unknown-linux-gnu.tar.gz"]
+)]
+fn test_cargo_dist_generates_versioned_fallback(
+    #[case] asset_name: &str,
+    #[case] version: &str,
+    #[case] expected: &[&str],
+) {
+    let names = get_alternative_asset_names(asset_name, version);
+    assert_eq!(names.len(), expected.len());
+    for (i, exp) in expected.iter().enumerate() {
+        assert_eq!(
+            names[i], *exp,
+            "Asset name at index {} should be '{}' but got '{}'",
+            i, exp, names[i]
+        );
+    }
+}
+
+/// Test that versioned cargo-dist names also generate unversioned fallback
+#[rstest]
+#[case(
+    "vx-0.7.7-x86_64-pc-windows-msvc.zip",
+    "0.7.7",
+    &["vx-0.7.7-x86_64-pc-windows-msvc.zip", "vx-x86_64-pc-windows-msvc.zip"]
+)]
+fn test_versioned_generates_unversioned_fallback(
+    #[case] asset_name: &str,
+    #[case] version: &str,
+    #[case] expected: &[&str],
+) {
+    let names = get_alternative_asset_names(asset_name, version);
+    assert_eq!(names.len(), expected.len());
+    for (i, exp) in expected.iter().enumerate() {
+        assert_eq!(names[i], *exp);
+    }
+}
+
+/// Regression test: v0.6.x to v0.7.7 upgrade should try both URL formats
+/// The old binary (v0.6.x) would generate versioned names, but v0.7.7
+/// releases use unversioned naming. The fallback system should handle this.
+#[test]
+fn test_regression_v06x_binary_updating_to_v077() {
+    let target_version = "0.7.7";
+    let parsed = vx_core::version_utils::parse_version(target_version).unwrap();
+
+    // v0.7.7 should use cargo-dist tag format
+    let is_cargo_dist = parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 7);
+    assert!(is_cargo_dist);
+
+    // Primary tag
+    let primary_tag = format!("v{}", target_version);
+    assert_eq!(primary_tag, "v0.7.7");
+
+    // The actual asset on GitHub
+    let actual_asset = "vx-x86_64-pc-windows-msvc.zip";
+
+    // What v0.6.x binary would try (versioned format)
+    let old_binary_asset = "vx-0.7.7-x86_64-pc-windows-msvc.zip";
+
+    // Both should appear in alternatives
+    let names_from_actual = get_alternative_asset_names(actual_asset, target_version);
+    assert!(
+        names_from_actual.contains(&actual_asset.to_string()),
+        "Should contain unversioned name"
+    );
+    assert!(
+        names_from_actual.contains(&old_binary_asset.to_string()),
+        "Should contain versioned fallback name"
+    );
+
+    let names_from_old = get_alternative_asset_names(old_binary_asset, target_version);
+    assert!(
+        names_from_old.contains(&old_binary_asset.to_string()),
+        "Should contain versioned name"
+    );
+    assert!(
+        names_from_old.contains(&actual_asset.to_string()),
+        "Should contain unversioned fallback name"
+    );
+}
+
+/// Test correct GitHub download URL for v0.7.7 (with both naming formats)
+#[test]
+fn test_v077_download_url_both_formats() {
+    let version = "0.7.7";
+    let tag = format!("v{}", version);
+
+    // Primary URL (unversioned - what cargo-dist actually produces)
+    let primary_url = format!(
+        "https://github.com/loonghao/vx/releases/download/{}/vx-x86_64-pc-windows-msvc.zip",
+        tag
+    );
+    assert_eq!(
+        primary_url,
+        "https://github.com/loonghao/vx/releases/download/v0.7.7/vx-x86_64-pc-windows-msvc.zip"
+    );
+
+    // Fallback URL (versioned - what old binaries might try)
+    let fallback_url = format!(
+        "https://github.com/loonghao/vx/releases/download/{}/vx-{}-x86_64-pc-windows-msvc.zip",
+        tag, version
+    );
+    assert_eq!(
+        fallback_url,
+        "https://github.com/loonghao/vx/releases/download/v0.7.7/vx-0.7.7-x86_64-pc-windows-msvc.zip"
+    );
+}

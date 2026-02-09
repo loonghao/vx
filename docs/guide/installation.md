@@ -83,13 +83,15 @@ cargo install vx
 1. Go to the [Releases page](https://github.com/loonghao/vx/releases)
 2. Download the appropriate binary for your platform:
 
-   - `vx-{version}-x86_64-unknown-linux-gnu.tar.gz` - Linux x64
-   - `vx-{version}-aarch64-unknown-linux-gnu.tar.gz` - Linux ARM64
-   - `vx-{version}-x86_64-unknown-linux-musl.tar.gz` - Linux x64 (static)
-   - `vx-{version}-aarch64-unknown-linux-musl.tar.gz` - Linux ARM64 (static)
-   - `vx-{version}-x86_64-apple-darwin.tar.gz` - macOS x64
-   - `vx-{version}-aarch64-apple-darwin.tar.gz` - macOS ARM64 (Apple Silicon)
-   - `vx-{version}-x86_64-pc-windows-msvc.zip` - Windows x64
+   - `vx-x86_64-unknown-linux-gnu.tar.gz` - Linux x64
+   - `vx-aarch64-unknown-linux-gnu.tar.gz` - Linux ARM64
+   - `vx-x86_64-unknown-linux-musl.tar.gz` - Linux x64 (static)
+   - `vx-aarch64-unknown-linux-musl.tar.gz` - Linux ARM64 (static)
+   - `vx-x86_64-apple-darwin.tar.gz` - macOS x64
+   - `vx-aarch64-apple-darwin.tar.gz` - macOS ARM64 (Apple Silicon)
+   - `vx-x86_64-pc-windows-msvc.zip` - Windows x64
+
+   > **Note:** Starting from v0.7.0, vx uses [cargo-dist](https://opensource.axo.dev/cargo-dist/) for releases. Binary names no longer include the version number (e.g., `vx-x86_64-pc-windows-msvc.zip` instead of `vx-0.7.0-x86_64-pc-windows-msvc.zip`). Both naming formats are supported during download for backward compatibility.
 
 3. Extract and add to PATH:
 
@@ -167,14 +169,22 @@ vx self-update --check
 Install a specific version:
 
 ```bash
-vx self-update 0.5.28
+vx self-update 0.7.7
+```
+
+Force reinstall (useful for recovering from corrupted installations):
+
+```bash
+vx self-update --force
 ```
 
 The self-update command features:
-- Multi-channel download with automatic fallback (GitHub → jsDelivr → Fastly)
+- **Automatic update method detection**: Uses cargo-dist install receipts when available for zero-config updates, with multi-channel CDN fallback for legacy installations
+- Multi-channel download with automatic fallback (GitHub Releases → jsDelivr CDN → Fastly CDN)
 - Download progress bar with speed and ETA
 - SHA256 checksum verification (when available)
-- Safe binary replacement on Windows
+- Safe binary replacement on Windows (handles exe locking)
+- Cross-version compatibility: can update from any older version (v0.5.x, v0.6.x) to latest
 
 ## Uninstalling
 

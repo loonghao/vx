@@ -83,13 +83,15 @@ cargo install vx
 1. 前往 [Releases 页面](https://github.com/loonghao/vx/releases)
 2. 下载适合你平台的二进制文件：
 
-   - `vx-{version}-x86_64-unknown-linux-gnu.tar.gz` - Linux x64
-   - `vx-{version}-aarch64-unknown-linux-gnu.tar.gz` - Linux ARM64
-   - `vx-{version}-x86_64-unknown-linux-musl.tar.gz` - Linux x64 (静态链接)
-   - `vx-{version}-aarch64-unknown-linux-musl.tar.gz` - Linux ARM64 (静态链接)
-   - `vx-{version}-x86_64-apple-darwin.tar.gz` - macOS x64
-   - `vx-{version}-aarch64-apple-darwin.tar.gz` - macOS ARM64 (Apple Silicon)
-   - `vx-{version}-x86_64-pc-windows-msvc.zip` - Windows x64
+   - `vx-x86_64-unknown-linux-gnu.tar.gz` - Linux x64
+   - `vx-aarch64-unknown-linux-gnu.tar.gz` - Linux ARM64
+   - `vx-x86_64-unknown-linux-musl.tar.gz` - Linux x64 (静态链接)
+   - `vx-aarch64-unknown-linux-musl.tar.gz` - Linux ARM64 (静态链接)
+   - `vx-x86_64-apple-darwin.tar.gz` - macOS x64
+   - `vx-aarch64-apple-darwin.tar.gz` - macOS ARM64 (Apple Silicon)
+   - `vx-x86_64-pc-windows-msvc.zip` - Windows x64
+
+   > **注意：** 从 v0.7.0 开始，vx 使用 [cargo-dist](https://opensource.axo.dev/cargo-dist/) 发布。二进制文件名不再包含版本号（例如 `vx-x86_64-pc-windows-msvc.zip` 而不是 `vx-0.7.0-x86_64-pc-windows-msvc.zip`）。为了向后兼容，下载时两种命名格式均受支持。
 
 3. 解压并添加到 PATH：
 
@@ -167,14 +169,22 @@ vx self-update --check
 安装指定版本：
 
 ```bash
-vx self-update 0.5.28
+vx self-update 0.7.7
+```
+
+强制重新安装（适用于安装损坏的情况）：
+
+```bash
+vx self-update --force
 ```
 
 self-update 命令特性：
-- 多渠道下载，自动回退（GitHub → jsDelivr → Fastly）
+- **自动检测更新方式**：优先使用 cargo-dist 安装回执实现零配置更新，旧版安装回退到多渠道 CDN 下载
+- 多渠道下载，自动回退（GitHub Releases → jsDelivr CDN → Fastly CDN）
 - 下载进度条，显示速度和预计剩余时间
 - SHA256 校验和验证（如果可用）
-- Windows 上安全的二进制文件替换
+- Windows 上安全的二进制文件替换（处理 exe 锁定）
+- 跨版本兼容：可从任何旧版本（v0.5.x、v0.6.x）更新到最新版
 
 ## 卸载
 
