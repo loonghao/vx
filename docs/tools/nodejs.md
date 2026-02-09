@@ -20,7 +20,7 @@ vx provides comprehensive support for the Node.js ecosystem.
 ```bash
 vx install node 20
 vx install node lts
-vx install node latest
+vx install `node@latest
 ```
 
 ### Version Specifiers
@@ -65,7 +65,7 @@ vx npx prettier --write .
 
 ```bash
 # Install pnpm
-vx install pnpm latest
+vx install `pnpm@latest
 
 # Usage
 vx pnpm install
@@ -169,7 +169,7 @@ Bun is an all-in-one JavaScript runtime and toolkit.
 
 ```bash
 # Install bun
-vx install bun latest
+vx install `bun@latest
 
 # Usage
 vx bun run script.ts

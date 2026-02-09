@@ -1,113 +1,164 @@
 # 支持的工具概览
 
-vx 支持广泛的开发工具和运行时。所有工具在首次使用时自动安装。
+vx 开箱即支持 **48+ 个工具**，涵盖语言运行时、包管理器、DevOps 工具、构建系统等。所有工具通过相同的统一接口管理。
 
-## 工具分类
+## 一览
 
-### 语言运行时
+| 分类 | 工具 | 数量 |
+|------|------|------|
+| [语言运行时](#语言运行时) | Node.js, Python, Go, Rust, Deno, Zig, Java, .NET | 8 |
+| [包管理器](#包管理器) | npm, pnpm, yarn, bun, uv, pip, cargo, nuget | 8 |
+| [DevOps](#devops) | Terraform, kubectl, Helm, Docker CLI, Git | 5 |
+| [云 CLI](#云-cli) | AWS CLI, Azure CLI, Google Cloud CLI | 3 |
+| [构建工具](#构建工具) | CMake, Ninja, Just, Task, Make, Meson, protoc, MSBuild | 8 |
+| [代码质量](#代码质量) | pre-commit, Vite | 2 |
+| [AI](#ai) | Ollama | 1 |
+| [科学计算 & HPC](#科学计算--hpc) | Spack, Rez | 2 |
+| [媒体](#媒体) | FFmpeg, ImageMagick | 2 |
+| [系统工具](#系统工具) | jq, gh, curl, pwsh, Git, NASM, OpenSSL | 7+ |
+| [Windows 专属](#windows-专属) | choco, winget, rcedit, MSVC Build Tools | 4 |
 
-| 工具 | 命令 | 描述 | 自动安装 |
-|------|----------|-------------|--------------|
-| `node` | `node`, `npm`, `npx` | Node.js JavaScript 运行时 | ✅ |
-| `bun` | `bun`, `bunx` | 快速全能 JavaScript 运行时 | ✅ |
-| `deno` | `deno` | 安全的 JavaScript/TypeScript 运行时 | ✅ |
-| `go` | `go` | Go 编程语言 | ✅ |
-| `rust` | `cargo`, `rustc`, `rustup` | Rust 编程语言 | ✅ |
-| `java` | `java`, `javac` | Java 开发工具包 | ✅ |
-| `zig` | `zig` | Zig 编程语言 | ✅ |
+## 语言运行时
 
-### 包管理器
+| 工具 | 版本来源 | 平台 | 文档 |
+|------|---------|------|------|
+| **Node.js** | nodejs.org API | 全平台 | [详情 →](./nodejs) |
+| **Python** | python-build-standalone | 全平台 | [详情 →](./python) |
+| **Go** | go.dev API | 全平台 | [详情 →](./go) |
+| **Rust** | static.rust-lang.org | 全平台 | [详情 →](./rust) |
+| **Deno** | GitHub Releases | 全平台 | [详情 →](./other) |
+| **Zig** | GitHub Releases | 全平台 | [详情 →](./other) |
+| **Java** | Adoptium API | 全平台 | [详情 →](./other) |
+| **.NET SDK** | dotnet API | 全平台 | [详情 →](./build-tools) |
 
-| 工具 | 命令 | 描述 | 依赖 |
-|------|----------|-------------|----------|
-| `npm` | `npm` | Node.js 包管理器 | node |
-| `npx` | `npx` | Node.js 包运行器 | node |
-| `pnpm` | `pnpm`, `pnpx` | 快速、磁盘高效的包管理器 | - |
-| `yarn` | `yarn` | JavaScript 包管理器 | - |
-| `uv` | `uv` | 快速 Python 包管理器 | - |
-| `uvx` | `uvx` | Python 工具运行器 | uv |
-| `cargo` | `cargo` | Rust 包管理器 | rust |
+## 包管理器
 
-### 构建工具
+| 工具 | 生态系统 | 依赖 | 文档 |
+|------|---------|------|------|
+| **npm** | Node.js | node | [详情 →](./nodejs) |
+| **npx** | Node.js | node | [详情 →](./nodejs) |
+| **pnpm** | Node.js | node | [详情 →](./nodejs) |
+| **yarn** | Node.js | node | [详情 →](./nodejs) |
+| **bun** | Node.js | — | [详情 →](./nodejs) |
+| **uv** | Python | — | [详情 →](./python) |
+| **uvx** | Python | uv | [详情 →](./python) |
+| **cargo** | Rust | rust | [详情 →](./rust) |
+| **nuget** | .NET | — | [详情 →](./build-tools) |
 
-| 工具 | 命令 | 描述 | 自动安装 |
-|------|----------|-------------|--------------|
-| `vite` | `vite` | 下一代前端工具 | ✅ |
-| `just` | `just` | 项目任务命令运行器 | ✅ |
-| `task` | `task` | 任务运行器 / 构建工具 (go-task) | ✅ |
-| `cmake` | `cmake` | 跨平台构建系统生成器 | ✅ |
-| `ninja` | `ninja` | 专注于速度的小型构建系统 | ✅ |
-| `protoc` | `protoc` | Protocol Buffers 编译器 | ✅ |
+## DevOps
 
-### DevOps 工具
+| 工具 | 描述 | 文档 |
+|------|------|------|
+| **Terraform** | 基础设施即代码 | [详情 →](./devops) |
+| **kubectl** | Kubernetes CLI | [详情 →](./devops) |
+| **Helm** | Kubernetes 包管理器 | [详情 →](./devops) |
+| **Docker** | 容器 CLI（需要 Docker Engine） | [详情 →](./devops) |
+| **Git** | 版本控制（Windows 使用 MinGit） | [详情 →](./devops) |
+| **Dagu** | 基于 DAG 的工作流执行器 | — |
 
-| 工具 | 命令 | 描述 | 自动安装 |
-|------|----------|-------------|--------------|
-| `docker` | `docker` | 容器运行时和工具 | ✅ |
-| `terraform` | `terraform` | 基础设施即代码 | ✅ |
-| `kubectl` | `kubectl` | Kubernetes CLI | ✅ |
-| `helm` | `helm` | Kubernetes 包管理器 | ✅ |
+## 云 CLI
 
-### 云 CLI 工具
+| 工具 | 云提供商 | 文档 |
+|------|---------|------|
+| **AWS CLI** | Amazon Web Services | [详情 →](./cloud) |
+| **Azure CLI** | Microsoft Azure | [详情 →](./cloud) |
+| **Google Cloud CLI** | Google Cloud Platform | [详情 →](./cloud) |
 
-| 工具 | 命令 | 描述 | 自动安装 |
-|------|----------|-------------|--------------|
-| `awscli` | `aws` | 亚马逊云服务 CLI | ✅ |
-| `azcli` | `az` | 微软 Azure CLI | ✅ |
-| `gcloud` | `gcloud` | 谷歌云平台 CLI | ✅ |
+## 构建工具
 
-### 代码质量工具
+| 工具 | 描述 | 文档 |
+|------|------|------|
+| **CMake** | 跨平台构建系统生成器 | [详情 →](./build-tools) |
+| **Ninja** | 小而快的构建系统 | [详情 →](./build-tools) |
+| **Just** | 命令运行器（现代 Make） | [详情 →](./build-tools) |
+| **Task** | 任务运行器（go-task） | [详情 →](./build-tools) |
+| **Make** | GNU Make | [详情 →](./build-tools) |
+| **Meson** | 构建系统 | [详情 →](./build-tools) |
+| **protoc** | Protocol Buffers 编译器 | [详情 →](./build-tools) |
+| **MSBuild** | Microsoft 构建引擎 | [详情 →](./build-tools) |
+| **MSVC Build Tools** | Microsoft C/C++ 编译器工具链 | [详情 →](./build-tools) |
+| **Vite** | 前端构建工具 | [详情 →](./build-tools) |
 
-| 工具 | 命令 | 描述 | 自动安装 |
-|------|----------|-------------|--------------|
-| `pre-commit` | `pre-commit` | 预提交钩子框架 | ✅ |
+## 代码质量
 
-### 其他工具
+| 工具 | 描述 | 文档 |
+|------|------|------|
+| **pre-commit** | 多语言预提交钩子 | [详情 →](./quality) |
 
-| 工具 | 命令 | 描述 | 自动安装 |
-|------|----------|-------------|--------------|
-| `vscode` | `code` | Visual Studio Code | ✅ |
-| `rez` | `rez` | 包管理系统 | ✅ |
-| `rcedit` | `rcedit` | Windows 资源编辑器 | ✅ |
+## AI
 
-## 检查可用工具
+| 工具 | 描述 | 文档 |
+|------|------|------|
+| **Ollama** | 本地运行 LLM（Llama、Mistral、Gemma） | [详情 →](./ai) |
+
+## 科学计算 & HPC
+
+| 工具 | 描述 | 文档 |
+|------|------|------|
+| **Spack** | HPC 包管理器 | [详情 →](./scientific) |
+| **Rez** | VFX/动画包管理器 | [详情 →](./scientific) |
+
+## 媒体
+
+| 工具 | 描述 | 文档 |
+|------|------|------|
+| **FFmpeg** | 音视频处理 | [详情 →](./media) |
+| **ImageMagick** | 图像处理 | [详情 →](./media) |
+
+## 系统工具
+
+| 工具 | 描述 |
+|------|------|
+| **jq** | JSON 处理器 |
+| **gh** | GitHub CLI |
+| **curl** | HTTP 客户端 |
+| **pwsh** | PowerShell |
+| **NASM** | Netwide 汇编器 |
+| **OpenSSL** | 密码学工具包 |
+
+## Windows 专属
+
+| 工具 | 描述 |
+|------|------|
+| **choco** | Chocolatey 包管理器 |
+| **winget** | Windows 包管理器 |
+| **rcedit** | Windows 资源编辑器 |
+| **MSVC Build Tools** | cl、link、lib、nmake、ml64、dumpbin、editbin |
+
+## 使用模式
+
+所有工具遵循相同模式：
 
 ```bash
-# 列出所有支持的工具
-vx list
+# 直接执行（如需自动安装）
+vx <tool> [args...]
 
-# 显示安装状态
-vx list --status
+# 安装指定版本
+vx install <tool>@<version>
 
-# 显示特定工具的详情
-vx list node
+# 在 vx.toml 中指定版本
+[tools]
+<tool> = "<version>"
 ```
 
-## 工具依赖
+## 自定义工具
 
-某些工具依赖于其他工具：
+你可以通过[声明式 Provider](/zh/guide/manifest-driven-providers) 添加任何工具的支持：
 
-```
-npm, npx → node
-cargo, rustc, rustup → rust
-uvx → uv
-```
+```toml
+# ~/.vx/providers/mytool/provider.toml
+[provider]
+name = "mytool"
+description = "我的自定义工具"
 
-vx 会在需要时自动安装依赖。
+[[runtimes]]
+name = "mytool"
+executable = "mytool"
 
-## 版本支持
-
-每个工具支持不同的版本说明符：
-
-```bash
-vx install node 20          # 主版本号
-vx install node 20.10       # 次版本号
-vx install node 20.10.0     # 精确版本
-vx install node latest      # 最新稳定版
-vx install node lts         # LTS 版本 (Node.js)
-vx install rust stable      # 频道 (Rust)
+[runtimes.version_source]
+type = "github_releases"
+owner = "myorg"
+repo = "mytool"
 ```
 
-## 添加新工具
-
-vx 使用基于 provider 的插件系统来支持工具。请参阅 [Provider 开发](/zh/advanced/plugin-development) 了解如何添加新工具。
+参见 [Provider 开发](/zh/advanced/plugin-development) 了解如何构建基于 Rust 的 Provider。

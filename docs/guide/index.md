@@ -1,115 +1,136 @@
 # Introduction
 
-**vx** is a universal development tool manager that eliminates the complexity of managing multiple development runtimes. Instead of learning and configuring separate tools for Node.js, Python, Go, Rust, and more, you simply prefix your commands with `vx` and everything just works.
+## What is vx?
 
-## 🤖 Built for AI-Native Development
+**vx** is a universal development tool manager that provides a **zero learning curve** experience for managing programming language runtimes, package managers, and development tools across all platforms.
 
-> *"Claude Code is designed as a low-level, unopinionated tool... creating a flexible, customizable, scriptable, and safe power tool."*
-> — [Anthropic Engineering: Claude Code Best Practices](https://www.anthropic.com/engineering/claude-code-best-practices)
-
-vx follows the same **Unix Philosophy** and **Scriptability** principles that Anthropic recommends for AI-native development tools:
-
-| Principle | How vx Implements It |
-|-----------|---------------------|
-| **Unix Philosophy** | One tool, one job — `vx` manages all runtimes transparently |
-| **Scriptability** | Full bash integration, CI/CD ready, headless mode support |
-| **Composability** | Works with any AI coding assistant (Claude Code, Cursor, Copilot) |
-| **Zero Configuration** | AI agents can use any tool without environment setup |
-
-### Why This Matters for AI Coding Assistants
-
-When AI agents like Claude Code need to execute commands across different ecosystems, they often face environment setup challenges. vx solves this by providing a unified interface:
+Instead of learning and configuring multiple tool installers — `nvm` for Node.js, `pyenv` for Python, `rustup` for Rust, `gvm` for Go — you simply prefix any command with `vx` and everything just works.
 
 ```bash
-# AI agents can run any command without worrying about environment
-vx npx create-react-app my-app  # Works immediately
-vx uvx ruff check .             # Works immediately
-vx cargo build --release        # Works immediately
+# Just prefix any command with vx — tools are auto-installed
+vx node --version        # Auto-installs Node.js if needed
+vx python --version      # Auto-installs Python if needed
+vx go version            # Auto-installs Go if needed
+vx cargo build           # Auto-installs Rust if needed
 ```
-
-**vx enables AI to have full-stack development capabilities without worrying about environment management and dependencies.**
 
 ## Why vx?
 
-### The Traditional Way
+### The Problem
 
+Modern software development requires a complex toolkit:
+
+- **Multiple language runtimes** — Node.js, Python, Go, Rust, .NET, Java, Zig, etc.
+- **Package managers** — npm, pnpm, yarn, uv, pip, cargo, etc.
+- **DevOps tools** — Terraform, kubectl, Helm, Docker CLI, etc.
+- **Build tools** — CMake, Ninja, Just, Task, protoc, etc.
+- **Cloud CLIs** — AWS CLI, Azure CLI, Google Cloud CLI, etc.
+
+Each tool has its own installer, version manager, and configuration. Teams waste hours debugging "works on my machine" issues.
+
+### The Solution
+
+vx provides **one tool to manage them all**:
+
+| Feature | vx | Traditional Approach |
+|---------|-----|---------------------|
+| Install tools | `vx install node@22` | Download installer, configure PATH |
+| Use tools | `vx node index.js` | Hope the right version is active |
+| Switch versions | `vx switch node 20` | `nvm use 20` / `fnm use 20` / edit `.nvmrc` |
+| Team consistency | `vx.toml` in repo | READMEs, wikis, tribal knowledge |
+| CI/CD | `uses: loonghao/vx@main` | Multiple setup-* actions |
+
+## Key Features
+
+### Zero Learning Curve
+Use commands you already know — just add `vx` in front:
 ```bash
-# Install and manage multiple tools separately
-nvm install 20
-nvm use 20
-npm install -g typescript
-
-pyenv install 3.11
-pyenv local 3.11
-pip install uv
-
-# Deal with PATH conflicts, version mismatches...
+vx npm install           # Same as npm install, but version-managed
+vx uvx ruff check .      # Same as uvx ruff check, but auto-installed
+vx go build ./...        # Same as go build, but portable
 ```
 
-### The vx Way
+### 50+ Tools Supported
+From language runtimes to DevOps tools, vx manages them all with a single interface. See the [full tool list](/tools/overview).
 
-```bash
-# Just use the tools - vx handles everything
-vx node --version
-vx python --version
-vx npx create-react-app my-app
-vx uvx ruff check .
-```
-
-## Two Ways to Use vx
-
-### 1. Direct Execution (For Quick Tasks)
-
-Just prefix any command with `vx` �?tools are auto-installed on first use:
-
-```bash
-vx npx create-react-app my-app
-vx uvx ruff check .
-vx go run main.go
-```
-
-### 2. Project Development Environment (For Teams)
-
-Create a `vx.toml` file to define your project's tool requirements:
-
+### Declarative Configuration
+Define your project's toolchain in `vx.toml`:
 ```toml
-[project]
-name = "my-project"
-
 [tools]
-node = "20"
+node = "22"
+python = "3.12"
 uv = "latest"
-go = "1.21"
-
-[scripts]
-dev = "npm run dev"
-test = "pytest"
-build = "go build -o app"
+just = "latest"
 ```
 
-Then run:
+### Automatic Dependency Resolution
+vx understands tool dependencies and installs them automatically:
+```bash
+vx npm --version         # Automatically installs Node.js first
+vx cargo build           # Automatically installs Rust first
+vx uvx ruff check .      # Automatically installs uv first
+```
+
+### Enhanced Script System
+Define and run project scripts with powerful variable interpolation:
+```toml
+[scripts]
+dev = "vx node server.js --port {{PORT}}"
+test = "vx uv run pytest {{args}}"
+build = "vx cargo build --release"
+lint = "vx uvx ruff check . {{args}}"
+```
+
+### Cross-Platform
+Works on Windows, macOS, and Linux with consistent behavior.
+
+### Extensible
+Create custom providers via TOML manifests or Rust plugins, and extend functionality with the extension system.
+
+## How It Works
+
+```
+┌─────────────┐    ┌─────────────┐    ┌──────────────┐
+│  vx node    │───>│  Resolver   │───>│  Provider    │
+│  --version  │    │  (find tool │    │  (install &  │
+│             │    │   & deps)   │    │   execute)   │
+└─────────────┘    └─────────────┘    └──────────────┘
+                         │                    │
+                   ┌─────▼─────┐    ┌────────▼────────┐
+                   │ Version   │    │ Content-Addressed│
+                   │ Resolution│    │ Store (~/.vx/)   │
+                   └───────────┘    └─────────────────┘
+```
+
+1. **Parse** — vx identifies the runtime and command
+2. **Resolve** — Finds the required version and checks dependencies
+3. **Install** — Downloads and installs missing tools (if needed)
+4. **Execute** — Forwards the command transparently
+
+## Quick Example
 
 ```bash
-vx setup     # Install all project tools
-vx run dev   # Run defined scripts
+# Install vx
+curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
+
+# Use any tool immediately — no manual setup
+vx node --version        # v22.x.x
+vx python --version      # Python 3.12.x
+vx go version            # go1.23.x
+
+# Set up a project
+cd my-project
+vx config init           # Creates vx.toml
+vx setup                 # Installs all project tools
+
+# Run project scripts
+vx run dev               # Starts dev server
+vx run test              # Runs tests
 ```
-
-## Supported Tools
-
-vx supports a wide range of development tools:
-
-| Ecosystem | Tools |
-|-----------|-------|
-| **Node.js** | node, npm, npx, pnpm, yarn, bun |
-| **Python** | python, uv, uvx, pip |
-| **Go** | go |
-| **Rust** | cargo, rustc |
-| **DevOps** | kubectl, helm, terraform |
-| **Utilities** | just, jq, ripgrep, and more |
 
 ## Next Steps
 
-- [Installation](/guide/installation) - Install vx on your system
-- [Quick Start](/guide/getting-started) - Get up and running in minutes
-- [Configuration](/guide/configuration) - Learn about `vx.toml`
-- [Enhanced Scripts](/guide/enhanced-scripts) - **NEW!** Advanced script system with flexible argument passing
+- [Installation](/guide/installation) — Install vx on your system
+- [Quick Start](/guide/getting-started) — Get up and running in 5 minutes
+- [Core Concepts](/guide/concepts) — Understand how vx works
+- [CLI Reference](/cli/overview) — Complete command documentation

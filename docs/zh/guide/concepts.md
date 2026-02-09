@@ -1,170 +1,230 @@
 # 核心概念
 
-理解这些核心概念将帮助你充分利用 vx。
+理解 vx 背后的核心概念有助于你更有效地使用和扩展它。
 
-## 工具和运行时
-
-在 vx 术语中：
-
-- **工具**：开发工具，如 Node.js、Python、Go 或 Rust
-- **运行时**：工具的特定版本（例如 Node.js 20.0.0）
-- **提供者**：知道如何安装和管理特定工具的组件
-
-## 版本存储
-
-vx 维护一个**版本存储**，其中保存所有已安装的工具版本：
+## 架构概览
 
 ```
-~/.local/share/vx/
-├── store/
-│   ├── node/
-│   │   ├── 18.19.0/
-│   │   └── 20.10.0/
-│   ├── go/
-│   │   └── 1.21.5/
-│   └── uv/
-│       └── 0.1.24/
-├── envs/
-│   ├── default/
-│   └── my-project/
-└── cache/
+┌────────────────────────────────────────────────────┐
+│                    vx CLI                           │
+│  vx <runtime> [args]  │  vx run <script>           │
+└──────────┬─────────────┴───────────────┬────────────┘
+           │                             │
+     ┌─────▼──────┐              ┌───────▼────────┐
+     │   解析器    │              │   脚本引擎     │
+     │  (依赖 +   │              │  (插值 +       │
+     │   版本)    │              │   .env)        │
+     └─────┬──────┘              └───────┬────────┘
+           │                             │
+     ┌─────▼──────────────────────────────▼──────┐
+     │            Provider 注册表                  │
+     │  ┌────────┐ ┌────────┐ ┌────────┐        │
+     │  │ Node   │ │ Python │ │  Go    │  ...   │
+     │  │Provider│ │Provider│ │Provider│        │
+     │  └───┬────┘ └───┬────┘ └───┬────┘        │
+     │      │          │          │              │
+     │  ┌───▼──┐  ┌────▼───┐ ┌───▼──┐          │
+     │  │node  │  │python  │ │ go   │  ...     │
+     │  │npm   │  │uv      │ │gofmt │          │
+     │  │npx   │  │uvx     │ └──────┘          │
+     │  └──────┘  └────────┘                    │
+     └──────────────────────┬────────────────────┘
+                            │
+     ┌──────────────────────▼────────────────────┐
+     │            内容寻址存储                      │
+     │  ~/.vx/store/<runtime>/<version>/          │
+     └───────────────────────────────────────────┘
 ```
 
-多个版本可以共存而不会冲突。
+## Provider
 
-## 环境
+**Provider** 是提供一个或多个相关运行时的模块，是 vx 的组织单元。
 
-**环境**是一组协同工作的工具版本：
-
-- **默认环境**：当没有项目配置时使用
-- **项目环境**：由项目中的 `vx.toml` 定义
-- **命名环境**：你创建的自定义环境
-
-```bash
-# 创建命名环境
-vx env create my-env
-
-# 向其中添加工具
-vx env add node@20 --env my-env
-vx env add go@1.21 --env my-env
-
-# 使用它
-vx env use my-env
+```
+Provider (例如 NodeProvider)
+├── Runtime: node       (Node.js 运行时)
+├── Runtime: npm        (Node 包管理器)
+└── Runtime: npx        (Node 包执行器)
 ```
 
-## 自动安装
+每个 Provider 负责：
+- **版本发现** — 从上游获取可用版本
+- **安装** — 下载和解压二进制文件
+- **执行** — 使用正确的环境运行命令
+- **平台支持** — 处理操作系统/架构差异
 
-当你通过 vx 运行工具时，它会自动：
+### 内置 Provider
 
-1. 检查工具是否已安装
-2. 如果缺失则安装（默认需要用户同意）
-3. 运行命令
+vx 内置了 **48+ 个 Provider**，覆盖主要生态系统：
 
-```bash
-# 首次运行 - 自动安装 Node.js
-vx node --version
-# Installing node@20.10.0...
-# v20.10.0
+| 生态系统 | Provider |
+|----------|----------|
+| **Node.js** | node, npm, npx, pnpm, yarn, bun |
+| **Python** | python, uv, uvx |
+| **Go** | go, gofmt |
+| **Rust** | rust (rustc, cargo, rustup) |
+| **.NET** | dotnet, msbuild, nuget |
+| **DevOps** | terraform, kubectl, helm, docker |
+| **云** | awscli, azcli, gcloud |
+| **构建** | cmake, ninja, just, task, make, meson, protoc |
+| **媒体** | ffmpeg, imagemagick |
+| **AI** | ollama |
+| **其他** | git, jq, deno, zig, java, gh, curl, pwsh... |
 
-# 后续运行 - 使用缓存版本
-vx node --version
-# v20.10.0
+### 声明式 Provider
+
+你可以使用 TOML 清单定义自定义 Provider，无需编写 Rust 代码：
+
+```toml
+# ~/.vx/providers/mytool/provider.toml
+[provider]
+name = "mytool"
+description = "我的自定义工具"
+
+[[runtimes]]
+name = "mytool"
+executable = "mytool"
+description = "我的工具"
+
+[runtimes.version_source]
+type = "github_releases"
+owner = "myorg"
+repo = "mytool"
 ```
+
+详见[声明式 Provider](/zh/guide/manifest-driven-providers)。
+
+## Runtime
+
+**Runtime** 是由 Provider 管理的单个可执行工具。每个 Runtime 具有：
+
+- **名称** — 主要标识符（如 `node`、`python`、`go`）
+- **别名** — 替代名称（如 `nodejs` → `node`、`golang` → `go`）
+- **生态系统** — 所属生态系统（Node.js、Python、Go 等）
+- **依赖** — 需要的其他运行时（如 `npm` 依赖 `node`）
+
+### 运行时依赖
+
+vx 自动解析并安装依赖：
+
+```
+npm ──依赖──> node
+npx ──依赖──> node
+uvx ──依赖──> uv
+cargo ──依赖──> rust
+gofmt ──依赖──> go
+```
+
+当你运行 `vx npm install` 时，vx 会确保 Node.js 已安装。
 
 ## 版本解析
 
-vx 按以下顺序解析工具版本：
+vx 支持多种版本规格格式：
 
-1. **显式版本**：`vx node@18 --version`
-2. **项目配置**：当前或父目录中的 `vx.toml`
-3. **全局配置**：`~/.config/vx/config.toml`
-4. **最新稳定版**：如果未指定版本
+| 格式 | 示例 | 说明 |
+|------|------|------|
+| 精确版本 | `22.11.0` | 指定版本 |
+| 主版本 | `22` | 最新 22.x.x |
+| 次版本 | `22.11` | 最新 22.11.x |
+| 范围 | `^22.0.0` | 兼容 22.x.x |
+| 范围 | `~22.11.0` | 兼容 22.11.x |
+| 最新版 | `latest` | 最新稳定版本 |
+| LTS | `lts` | 最新 LTS 版本（Node.js） |
+| 通道 | `stable` / `beta` / `nightly` | 发布通道（Rust） |
 
-### 版本说明符
+### 版本解析顺序
 
-```toml
-[tools]
-node = "20"          # 最新 20.x.x
-node = "20.10"       # 最新 20.10.x
-node = "20.10.0"     # 精确版本
-node = "latest"      # 最新稳定版
-node = "lts"         # 最新 LTS（对于 Node.js）
-node = "stable"      # 稳定频道（对于 Rust）
+确定使用哪个版本时，vx 按以下顺序检查：
+
+1. **命令行** — `vx install node@22`
+2. **环境变量** — `VX_NODE_VERSION=22`
+3. **项目配置** — 当前或父目录中的 `vx.toml`
+4. **锁文件** — `vx.lock` 中精确锁定的版本
+5. **全局配置** — `~/.config/vx/config.toml`
+6. **自动检测** — 最新稳定版本
+
+## 内容寻址存储
+
+所有工具存储在全局**内容寻址存储**中：
+
+```
+~/.vx/
+├── store/                      # 全局工具存储
+│   ├── node/
+│   │   ├── 22.11.0/           # 完整安装
+│   │   └── 20.18.0/
+│   ├── python/
+│   │   └── 3.12.8/
+│   └── go/
+│       └── 1.23.4/
+├── cache/                      # 下载缓存
+│   └── downloads/
+├── bin/                        # 全局 shims
+└── config/                     # 配置
 ```
 
-## Shims 与直接执行
+### 优势
 
-vx 支持两种执行模式：
-
-### 直接执行（推荐）
-
-在命令前加上 `vx`：
-
-```bash
-vx node script.js
-vx npm install
-vx go build
-```
-
-### Shim 模式
-
-安装拦截工具命令的 shims：
-
-```bash
-# 安装 shims
-vx shell init bash >> ~/.bashrc
-
-# 现在可以直接运行
-node script.js  # 实际上通过 vx 运行
-```
+- **去重** — 相同版本只存储一份，跨项目共享
+- **隔离** — 每个版本独立目录，无冲突
+- **快速** — 环境通过符号链接创建，而非复制
+- **可恢复** — `vx setup` 可从 `vx.toml` 重新安装
 
 ## 项目配置
 
-`vx.toml` 文件定义项目特定的工具需求：
+`vx.toml` 文件定义项目的工具需求：
 
 ```toml
-[project]
-name = "my-project"
-
 [tools]
-node = "20"
+node = "22"
+python = "3.12"
 uv = "latest"
+just = "latest"
 
 [scripts]
-dev = "npm run dev"
-test = "npm test"
+dev = "vx node server.js"
+test = "vx uv run pytest"
+lint = "vx uvx ruff check ."
+build = "vx node scripts/build.js"
+
+[env]
+NODE_ENV = "development"
 ```
 
-当你进入包含 `vx.toml` 的目录时，vx 会自动使用这些工具版本。
+完整参考请见[配置](/zh/guide/configuration)。
 
-## 依赖解析
+## 执行模型
 
-某些工具依赖于其他工具。vx 会自动处理：
+当你运行 `vx <tool> [args...]` 时：
 
-- `npm` 需要 `node`
-- `cargo` 需要 `rust`
-- `uvx` 需要 `uv`
+1. **工具查找** — 找到管理该工具的 Provider
+2. **版本解析** — 确定使用哪个版本
+3. **依赖检查** — 确保所有依赖可用
+4. **自动安装** — 如果启用了 `auto_install`，安装缺失的工具
+5. **环境设置** — 设置 PATH 和环境变量
+6. **转发执行** — 使用原始参数运行工具
+7. **退出码透传** — 返回工具的退出码
 
-当你运行依赖工具时，vx 会确保先安装父工具。
+执行过程是**透明的** — 工具的行为与直接运行完全一致。
 
-## 缓存
+## 生态系统
 
-vx 缓存：
+**生态系统**将相关工具分组：
 
-- **下载的归档文件**：避免重复下载
-- **版本列表**：减少 API 调用
-- **解压的二进制文件**：快速启动
+| 生态系统 | 工具 |
+|----------|------|
+| `NodeJs` | node, npm, npx, yarn, pnpm, bun, vite, deno |
+| `Python` | python, uv, uvx, pip |
+| `Rust` | rust, cargo, rustc, rustup |
+| `Go` | go, gofmt |
+| `DotNet` | dotnet, msbuild, nuget |
+| `System` | git, jq, curl, pwsh |
 
-缓存位置：`~/.local/share/vx/cache/`
-
-清除缓存：
-
-```bash
-vx clean --cache
-```
+生态系统帮助 vx 理解工具之间的关系，优化依赖解析。
 
 ## 下一步
 
-- [直接执行](/zh/guide/direct-execution) - 使用 vx 完成快速任务
-- [项目环境](/zh/guide/project-environments) - 设置项目配置
-- [环境管理](/zh/guide/environment-management) - 管理多个环境
+- [直接执行](/zh/guide/direct-execution) — 命令转发的工作原理
+- [版本管理](/zh/guide/version-management) — 高级版本控制
+- [项目环境](/zh/guide/project-environments) — 团队协作
+- [CLI 参考](/zh/cli/overview) — 完整的命令文档

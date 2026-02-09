@@ -1,114 +1,164 @@
 # Supported Tools Overview
 
-vx supports a wide range of development tools across multiple ecosystems. All tools are automatically installed on first use.
+vx supports **48+ tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, and more. All tools are managed through the same unified interface.
 
-## Tool Categories
+## At a Glance
 
-### Language Runtimes
+| Category | Tools | Count |
+|----------|-------|-------|
+| [Language Runtimes](#language-runtimes) | Node.js, Python, Go, Rust, Deno, Zig, Java, .NET | 8 |
+| [Package Managers](#package-managers) | npm, pnpm, yarn, bun, uv, pip, cargo, nuget | 8 |
+| [DevOps](#devops) | Terraform, kubectl, Helm, Docker CLI, Git | 5 |
+| [Cloud CLI](#cloud-cli) | AWS CLI, Azure CLI, Google Cloud CLI | 3 |
+| [Build Tools](#build-tools) | CMake, Ninja, Just, Task, Make, Meson, protoc, MSBuild | 8 |
+| [Code Quality](#code-quality) | pre-commit, Vite | 2 |
+| [AI](#ai) | Ollama | 1 |
+| [Scientific & HPC](#scientific--hpc) | Spack, Rez | 2 |
+| [Media](#media) | FFmpeg, ImageMagick | 2 |
+| [System Tools](#system-tools) | jq, gh, curl, pwsh, Git, NASM, OpenSSL | 7+ |
+| [Windows-specific](#windows-specific) | choco, winget, rcedit, MSVC Build Tools | 4 |
 
-| Tool | Commands | Description | Auto-Install |
-|------|----------|-------------|--------------|
-| `node` | `node`, `npm`, `npx` | Node.js JavaScript runtime | ✅ |
-| `bun` | `bun`, `bunx` | Fast all-in-one JavaScript runtime | ✅ |
-| `deno` | `deno` | Secure JavaScript/TypeScript runtime | ✅ |
-| `go` | `go` | Go programming language | ✅ |
-| `rust` | `cargo`, `rustc`, `rustup` | Rust programming language | ✅ |
-| `java` | `java`, `javac` | Java Development Kit | ✅ |
-| `zig` | `zig` | Zig programming language | ✅ |
+## Language Runtimes
 
-### Package Managers
+| Tool | Version Source | Platforms | Documentation |
+|------|---------------|-----------|---------------|
+| **Node.js** | nodejs.org API | All | [Details →](./nodejs) |
+| **Python** | python-build-standalone | All | [Details →](./python) |
+| **Go** | go.dev API | All | [Details →](./go) |
+| **Rust** | static.rust-lang.org | All | [Details →](./rust) |
+| **Deno** | GitHub Releases | All | [Details →](./other) |
+| **Zig** | GitHub Releases | All | [Details →](./other) |
+| **Java** | Adoptium API | All | [Details →](./other) |
+| **.NET SDK** | dotnet API | All | [Details →](./build-tools) |
 
-| Tool | Commands | Description | Requires |
-|------|----------|-------------|----------|
-| `npm` | `npm` | Node.js package manager | node |
-| `npx` | `npx` | Node.js package runner | node |
-| `pnpm` | `pnpm`, `pnpx` | Fast, disk space efficient package manager | - |
-| `yarn` | `yarn` | JavaScript package manager | - |
-| `uv` | `uv` | Fast Python package manager | - |
-| `uvx` | `uvx` | Python tool runner | uv |
-| `cargo` | `cargo` | Rust package manager | rust |
+## Package Managers
 
-### Build Tools
+| Tool | Ecosystem | Depends On | Documentation |
+|------|-----------|------------|---------------|
+| **npm** | Node.js | node | [Details →](./nodejs) |
+| **npx** | Node.js | node | [Details →](./nodejs) |
+| **pnpm** | Node.js | node | [Details →](./nodejs) |
+| **yarn** | Node.js | node | [Details →](./nodejs) |
+| **bun** | Node.js | — | [Details →](./nodejs) |
+| **uv** | Python | — | [Details →](./python) |
+| **uvx** | Python | uv | [Details →](./python) |
+| **cargo** | Rust | rust | [Details →](./rust) |
+| **nuget** | .NET | — | [Details →](./build-tools) |
 
-| Tool | Commands | Description | Auto-Install |
-|------|----------|-------------|--------------|
-| `msvc` | `msvc cl`, `msvc link`, `cl`, `nmake` | MSVC Build Tools (Windows) | ✅ |
-| `vite` | `vite` | Next generation frontend tooling | ✅ |
-| `just` | `just` | Command runner for project tasks | ✅ |
-| `task` | `task` | Task runner / build tool (go-task) | ✅ |
-| `cmake` | `cmake` | Cross-platform build system generator | ✅ |
-| `ninja` | `ninja` | Small build system focused on speed | ✅ |
-| `protoc` | `protoc` | Protocol Buffers compiler | ✅ |
+## DevOps
 
-### DevOps Tools
+| Tool | Description | Documentation |
+|------|-------------|---------------|
+| **Terraform** | Infrastructure as Code | [Details →](./devops) |
+| **kubectl** | Kubernetes CLI | [Details →](./devops) |
+| **Helm** | Kubernetes package manager | [Details →](./devops) |
+| **Docker** | Container CLI (requires Docker Engine) | [Details →](./devops) |
+| **Git** | Version control (MinGit on Windows) | [Details →](./devops) |
+| **Dagu** | DAG-based workflow executor | — |
 
-| Tool | Commands | Description | Auto-Install |
-|------|----------|-------------|--------------|
-| `docker` | `docker` | Container runtime and tooling | ✅ |
-| `terraform` | `terraform` | Infrastructure as Code | ✅ |
-| `kubectl` | `kubectl` | Kubernetes CLI | ✅ |
-| `helm` | `helm` | Kubernetes package manager | ✅ |
+## Cloud CLI
 
-### Cloud CLI Tools
+| Tool | Cloud Provider | Documentation |
+|------|---------------|---------------|
+| **AWS CLI** | Amazon Web Services | [Details →](./cloud) |
+| **Azure CLI** | Microsoft Azure | [Details →](./cloud) |
+| **Google Cloud CLI** | Google Cloud Platform | [Details →](./cloud) |
 
-| Tool | Commands | Description | Auto-Install |
-|------|----------|-------------|--------------|
-| `awscli` | `aws` | Amazon Web Services CLI | ✅ |
-| `azcli` | `az` | Microsoft Azure CLI | ✅ |
-| `gcloud` | `gcloud` | Google Cloud Platform CLI | ✅ |
+## Build Tools
 
-### Code Quality Tools
+| Tool | Description | Documentation |
+|------|-------------|---------------|
+| **CMake** | Cross-platform build system generator | [Details →](./build-tools) |
+| **Ninja** | Small, fast build system | [Details →](./build-tools) |
+| **Just** | Command runner (modern Make) | [Details →](./build-tools) |
+| **Task** | Task runner (go-task) | [Details →](./build-tools) |
+| **Make** | GNU Make | [Details →](./build-tools) |
+| **Meson** | Build system | [Details →](./build-tools) |
+| **protoc** | Protocol Buffers compiler | [Details →](./build-tools) |
+| **MSBuild** | Microsoft Build Engine | [Details →](./build-tools) |
+| **MSVC Build Tools** | Microsoft C/C++ compiler toolchain | [Details →](./build-tools) |
+| **Vite** | Frontend build tool | [Details →](./build-tools) |
 
-| Tool | Commands | Description | Auto-Install |
-|------|----------|-------------|--------------|
-| `pre-commit` | `pre-commit` | Pre-commit hook framework | ✅ |
+## Code Quality
 
-### Other Tools
+| Tool | Description | Documentation |
+|------|-------------|---------------|
+| **pre-commit** | Multi-language pre-commit hooks | [Details →](./quality) |
 
-| Tool | Commands | Description | Auto-Install |
-|------|----------|-------------|--------------|
-| `vscode` | `code` | Visual Studio Code | ✅ |
-| `rez` | `rez` | Package management system | ✅ |
-| `rcedit` | `rcedit` | Windows resource editor | ✅ |
+## AI
 
-## Checking Available Tools
+| Tool | Description | Documentation |
+|------|-------------|---------------|
+| **Ollama** | Run LLMs locally (Llama, Mistral, Gemma) | [Details →](./ai) |
+
+## Scientific & HPC
+
+| Tool | Description | Documentation |
+|------|-------------|---------------|
+| **Spack** | HPC package manager | [Details →](./scientific) |
+| **Rez** | VFX/animation package manager | [Details →](./scientific) |
+
+## Media
+
+| Tool | Description | Documentation |
+|------|-------------|---------------|
+| **FFmpeg** | Audio/video processing | [Details →](./media) |
+| **ImageMagick** | Image processing | [Details →](./media) |
+
+## System Tools
+
+| Tool | Description |
+|------|-------------|
+| **jq** | JSON processor |
+| **gh** | GitHub CLI |
+| **curl** | HTTP client |
+| **pwsh** | PowerShell |
+| **NASM** | Netwide Assembler |
+| **OpenSSL** | Cryptography toolkit |
+
+## Windows-Specific
+
+| Tool | Description |
+|------|-------------|
+| **choco** | Chocolatey package manager |
+| **winget** | Windows Package Manager |
+| **rcedit** | Windows resource editor |
+| **MSVC Build Tools** | cl, link, lib, nmake, ml64, dumpbin, editbin |
+
+## Usage Pattern
+
+All tools follow the same pattern:
 
 ```bash
-# List all supported tools
-vx list
+# Direct execution (auto-installs if needed)
+vx <tool> [args...]
 
-# Show installation status
-vx list --status
+# Install specific version
+vx install <tool>@<version>
 
-# Show details for a specific tool
-vx list node
+# Version in vx.toml
+[tools]
+<tool> = "<version>"
 ```
 
-## Tool Dependencies
+## Custom Tools
 
-Some tools have dependencies on others:
+You can add support for any tool through [Manifest-Driven Providers](/guide/manifest-driven-providers):
 
-```
-npm, npx → node
-cargo, rustc, rustup → rust
-uvx → uv
-```
+```toml
+# ~/.vx/providers/mytool/provider.toml
+[provider]
+name = "mytool"
+description = "My custom tool"
 
-vx automatically installs dependencies when needed.
+[[runtimes]]
+name = "mytool"
+executable = "mytool"
 
-## Version Support
-
-Each tool supports different version specifiers:
-
-```bash
-vx install node 20          # Major version
-vx install node 20.10       # Minor version
-vx install node 20.10.0     # Exact version
-vx install node latest      # Latest stable
-vx install node lts         # LTS version (Node.js)
-vx install rust stable      # Channel (Rust)
+[runtimes.version_source]
+type = "github_releases"
+owner = "myorg"
+repo = "mytool"
 ```
 
-## Adding New Tools
-
-vx uses a provider-based plugin system for tool support. See [Provider Development](/advanced/plugin-development) for information on adding new tools.
+See [Provider Development](/advanced/plugin-development) for building Rust-based providers.
