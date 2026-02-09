@@ -319,7 +319,7 @@ vx --use-system-path node --version
 
 ### 示例：justfile
 
-```just
+```makefile
 # justfile — 所有工具无需 vx 前缀即可使用！
 lint:
     uvx ruff check .

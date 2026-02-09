@@ -149,7 +149,7 @@ vx just --list
 
 ### Justfile 示例
 
-```just
+```makefile
 # 构建项目
 build:
     vx cmake --build build

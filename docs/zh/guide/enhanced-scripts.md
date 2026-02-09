@@ -267,7 +267,9 @@ depends = ["db:backup"]
 
 ## 高级参数传递
 
+::: v-pre
 ### `{{args}}` 占位符
+:::
 
 直接向脚本传递复杂参数而不会产生冲突：
 
@@ -284,7 +286,9 @@ vx run docker-build --platform linux/amd64 -t myapp .
 
 ### 脚本定义
 
+::: v-pre
 使用 `{{args}}` 获得最大灵活性：
+:::
 
 ```toml
 [scripts]
@@ -370,7 +374,9 @@ depends = ["test"]
 
 ## 最佳实践
 
+::: v-pre
 ### 1. 使用 `{{args}}` 进行工具集成
+:::
 
 对于有许多命令行选项的工具：
 
@@ -532,7 +538,9 @@ depends = ["build"]     # 引用上面的 "build"
 
 **问题**：参数没有传递给脚本。
 
+::: v-pre
 **解决方案**：确保您的脚本使用 `{{args}}`：
+:::
 
 ```toml
 # ❌ 不会接收参数

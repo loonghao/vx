@@ -21,7 +21,11 @@ vx run --help
 - **高级参数处理**：支持 `-p`、`--lib` 等工具特定标志
 - **DAG 依赖执行**：脚本可声明依赖，按拓扑排序执行
 - 项目环境变量（来自 `[env]` 和 `.env` 文件）
+
+::: v-pre
 - 变量插值支持（`{{var}}` 语法）
+:::
+
 - Python venv 自动激活（如已配置）
 - 工具路径自动配置
 
@@ -110,7 +114,9 @@ vx run deploy
 
 ## 变量插值
 
+::: v-pre
 脚本支持 `{{var}}` 语法的变量插值：
+:::
 
 ```toml
 [scripts]
@@ -122,6 +128,7 @@ test-pkgs = "cargo test {{args}}"  # 使用 {{args}} 接收所有参数
 
 ### 内置变量
 
+::: v-pre
 | 变量 | 描述 |
 |------|------|
 | `{{vx.version}}` | vx 版本 |
@@ -133,21 +140,26 @@ test-pkgs = "cargo test {{args}}"  # 使用 {{args}} 接收所有参数
 | `{{os.arch}}` | CPU 架构 (x86_64, aarch64) |
 | `{{home}}` | 用户主目录 |
 | `{{timestamp}}` | 当前 Unix 时间戳 |
+:::
 
 ### 参数变量
 
+::: v-pre
 | 变量 | 描述 |
 |------|------|
 | `{{arg1}}`, `{{arg2}}`, ... | 位置参数 |
 | `{{@}}` | 所有参数（字符串形式） |
 | `{{#}}` | 参数数量 |
 | `{{args}}` | **推荐**：所有参数（支持 `-p`、`--lib` 等复杂标志） |
+:::
 
 ### 环境变量
 
+::: v-pre
 | 变量 | 描述 |
 |------|------|
 | `{{env.VAR}}` | 环境变量 VAR |
+:::
 
 ### 命令插值
 
@@ -269,6 +281,7 @@ vx run --help
 
 ### 变量插值示例
 
+::: v-pre
 ```bash
 # 参数通过 {{arg1}}, {{arg2}} 等插值
 vx run deploy production
@@ -276,6 +289,7 @@ vx run deploy production
 # 使用 {{args}}（推荐用于复杂参数）
 vx run test-pkgs -p vx-runtime --lib  # 作为 {{args}} 传递
 ```
+:::
 
 ### 列出可用脚本
 
@@ -296,7 +310,9 @@ Available scripts:
 
 ## 最佳实践
 
+::: v-pre
 ### 使用 `{{args}}` 实现灵活脚本
+:::
 
 ```toml
 [scripts]
@@ -346,11 +362,13 @@ depends = ["build", "test"]
 
 ### 参数未正确传递
 
+::: v-pre
 1. **检查脚本是否使用 `{{args}}`**：
    ```toml
    # 添加 {{args}} 以接收所有参数
    test = "cargo test {{args}}"
    ```
+:::
 
 2. **对复杂情况使用 `--` 分隔符**：
    ```bash
