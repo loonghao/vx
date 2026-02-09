@@ -349,11 +349,15 @@ vx cache dir               # 显示缓存目录路径
 
 ### self-update
 
-更新 vx 到最新版本。
+更新 vx 到最新版本。优先使用 cargo-dist 安装回执进行快速更新，旧版安装则自动回退到多渠道 CDN 下载。
 
 ```bash
 vx self-update             # 更新到最新
-vx self-update --check     # 检查更新
+vx self-update --check     # 仅检查更新
+vx self-update 0.7.7       # 安装指定版本
+vx self-update --force     # 强制重新安装
+vx self-update --token <T> # 使用 GitHub token（避免限流）
+vx self-update --prerelease # 包含预发布版本
 ```
 
 ### version

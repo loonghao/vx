@@ -349,11 +349,15 @@ vx cache dir               # Show cache directory path
 
 ### self-update
 
-Update vx to the latest version.
+Update vx to the latest version. Uses cargo-dist install receipts for fast updates when available, with multi-channel CDN fallback for legacy installations.
 
 ```bash
 vx self-update             # Update to latest
-vx self-update --check     # Check for updates
+vx self-update --check     # Check for updates only
+vx self-update 0.7.7       # Install specific version
+vx self-update --force     # Force reinstall
+vx self-update --token <T> # Use GitHub token (avoids rate limits)
+vx self-update --prerelease # Include pre-release versions
 ```
 
 ### version
