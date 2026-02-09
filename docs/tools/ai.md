@@ -170,7 +170,7 @@ llm = "ollama serve"
 dev = "just dev"  # Use just to orchestrate
 ```
 
-```just
+```makefile
 # justfile — orchestrate AI full-stack app
 dev:
     # Start Ollama in background

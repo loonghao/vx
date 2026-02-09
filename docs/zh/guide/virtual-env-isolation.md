@@ -105,7 +105,7 @@ uv = "0.5.0"
 
 使用 `just` 等任务运行器时：
 
-```just
+```makefile
 # justfile
 build:
     npm run build  # 使用 vx.toml 中的 node 版本

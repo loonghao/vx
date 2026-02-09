@@ -170,7 +170,7 @@ llm = "ollama serve"
 dev = "just dev"  # 使用 just 编排
 ```
 
-```just
+```makefile
 # justfile — 编排 AI 全栈应用
 dev:
     # 后台启动 Ollama
