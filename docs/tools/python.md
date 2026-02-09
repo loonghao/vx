@@ -32,7 +32,7 @@ vx uses [python-build-standalone](https://github.com/astral-sh/python-build-stan
 
 ```bash
 # Install latest Python
-vx install python latest
+vx install `python@latest
 
 # Install specific version
 vx install python 3.12.8
@@ -68,7 +68,7 @@ vx python -m pytest
 ### Installation
 
 ```bash
-vx install uv latest
+vx install `uv@latest
 ```
 
 ### Package Management

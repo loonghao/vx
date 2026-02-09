@@ -150,6 +150,94 @@ deploy = "kubectl apply -f k8s/\{\{arg1\}\}.yaml"
 test-pkgs = "cargo test \{\{args\}\}"
 lint = "eslint \{\{args\}\}"
 format = "prettier --write \{\{args\}\}"
+
+# Detailed script with DAG dependencies
+[scripts.ci]
+command = "echo 'All checks passed!'"
+description = "Run all CI checks"
+depends = ["lint", "test", "build"]
+
+[scripts.start]
+command = "python main.py"
+description = "Start the server"
+args = ["--host", "0.0.0.0"]
+cwd = "src"
+env = { DEBUG = "true" }
+depends = ["build"]
+```
+
+## DAG Dependency Execution
+
+Scripts can declare dependencies on other scripts using the `depends` field. vx uses **topological sorting** to determine the correct execution order.
+
+### How It Works
+
+1. **Build dependency graph** — collect all transitive dependencies
+2. **Detect cycles** — report error if circular dependencies exist
+3. **Topological sort** — determine execution order
+4. **Execute sequentially** — each script runs at most once
+5. **Fail fast** — if any dependency fails, the chain stops
+
+### Example
+
+```toml
+[scripts]
+lint = "eslint ."
+typecheck = "tsc --noEmit"
+test = "vitest run"
+build = "npm run build"
+
+[scripts.ci]
+command = "echo '✅ CI passed'"
+description = "Run full CI pipeline"
+depends = ["lint", "typecheck", "test", "build"]
+```
+
+```bash
+vx run ci
+# Execution: lint → typecheck → test → build → ci
+```
+
+### Multi-Level Dependencies
+
+```toml
+[scripts]
+generate = "protoc --go_out=. *.proto"
+
+[scripts.build]
+command = "go build -o app"
+depends = ["generate"]
+
+[scripts.test]
+command = "go test ./..."
+depends = ["generate"]
+
+[scripts.deploy]
+command = "kubectl apply -f k8s/"
+depends = ["build", "test"]
+```
+
+```bash
+vx run deploy
+# Resolved: generate → build → test → deploy
+# (generate runs only once)
+```
+
+### Circular Dependency Detection
+
+```toml
+[scripts.a]
+command = "echo a"
+depends = ["b"]
+
+[scripts.b]
+command = "echo b"
+depends = ["a"]    # Circular!
+```
+
+```bash
+vx run a
+# Error: Circular dependency detected: a -> b -> a
 ```
 
 ## Examples

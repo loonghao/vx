@@ -111,7 +111,7 @@ CACHE_DIR = "缓存目录"
 
 ### [scripts]
 
-可运行的脚本。
+可运行的脚本，支持简单命令和详细配置（含 DAG 依赖）。
 
 ```toml
 [scripts]
@@ -124,7 +124,22 @@ description = "启动服务器"
 args = ["--port", "8080"]
 env = { DEBUG = "true" }
 cwd = "src"
+depends = ["build"]
+
+[scripts.ci]
+command = "echo '所有检查通过'"
+description = "运行 CI 管道"
+depends = ["lint", "test", "build"]
 ```
+
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| `command` | string | 要执行的命令 |
+| `description` | string | 人类可读的描述 |
+| `args` | string[] | 默认参数 |
+| `cwd` | string | 工作目录（相对于项目根目录） |
+| `env` | table | 脚本特定环境变量 |
+| `depends` | string[] | 先运行的脚本（DAG 依赖，拓扑排序执行） |
 
 ### [settings]
 

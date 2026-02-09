@@ -123,7 +123,7 @@ test:
 jobs:
   build:
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: loonghao/vx-action@v1
       - run: vx setup
       - run: vx npm run build  # 使用 vx.toml 中的版本

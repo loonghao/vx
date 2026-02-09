@@ -7,7 +7,7 @@ vx supports media processing tools for audio, video, and image manipulation.
 A complete, cross-platform solution to record, convert and stream audio and video.
 
 ```bash
-vx install ffmpeg latest
+vx install `ffmpeg@latest
 
 vx ffmpeg -version
 vx ffmpeg -i input.mp4 output.avi
@@ -32,7 +32,7 @@ vx ffplay video.mp4
 A powerful image manipulation and conversion tool.
 
 ```bash
-vx install magick latest
+vx install `magick@latest
 
 vx magick --version
 vx magick input.png output.jpg
@@ -54,7 +54,7 @@ When installing ImageMagick on Windows, vx automatically uses silent installatio
 
 ```bash
 # vx handles all the silent flags automatically
-vx install magick latest
+vx install `magick@latest
 
 # Behind the scenes, vx uses:
 # winget: winget install --id ImageMagick.ImageMagick --silent --disable-interactivity

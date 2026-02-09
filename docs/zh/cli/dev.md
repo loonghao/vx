@@ -150,7 +150,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: 安装 vx
         run: curl -fsSL https://get.vx.dev | bash

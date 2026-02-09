@@ -32,7 +32,7 @@ vx 使用 Astral 的 [python-build-standalone](https://github.com/astral-sh/pyth
 
 ```bash
 # 安装最新版 Python
-vx install python latest
+vx install `python@latest
 
 # 安装特定版本
 vx install python 3.12.8
@@ -68,7 +68,7 @@ vx python -m pytest
 ### 安装
 
 ```bash
-vx install uv latest
+vx install `uv@latest
 ```
 
 ### 包管理

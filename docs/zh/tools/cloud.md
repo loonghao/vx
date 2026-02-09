@@ -7,7 +7,7 @@ vx 支持主要云服务商的命令行工具。
 Amazon Web Services 命令行界面（v2）。
 
 ```bash
-vx install aws latest
+vx install `aws@latest
 
 vx aws --version
 vx aws configure
@@ -28,7 +28,7 @@ vx aws sts get-caller-identity
 Microsoft Azure 命令行界面。
 
 ```bash
-vx install az latest
+vx install `az@latest
 
 vx az --version
 vx az login
@@ -49,7 +49,7 @@ vx az storage account list
 Google Cloud Platform 命令行界面。
 
 ```bash
-vx install gcloud latest
+vx install `gcloud@latest
 
 vx gcloud --version
 vx gcloud auth login

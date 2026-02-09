@@ -1,170 +1,230 @@
 # Core Concepts
 
-Understanding these core concepts will help you get the most out of vx.
+Understanding the core concepts behind vx helps you use it effectively and extend it for your needs.
 
-## Tools and Runtimes
-
-In vx terminology:
-
-- **Tool**: A development tool like Node.js, Python, Go, or Rust
-- **Runtime**: A specific version of a tool (e.g., Node.js 20.0.0)
-- **Provider**: The component that knows how to install and manage a specific tool
-
-## Version Store
-
-vx maintains a **version store** where all installed tool versions are kept:
+## Architecture Overview
 
 ```
-~/.local/share/vx/
-├── store/
-�?  ├── node/
-�?  �?  ├── 18.19.0/
-�?  �?  └── 20.10.0/
-�?  ├── go/
-�?  �?  └── 1.21.5/
-�?  └── uv/
-�?      └── 0.1.24/
-├── envs/
-�?  ├── default/
-�?  └── my-project/
-└── cache/
+┌────────────────────────────────────────────────────┐
+│                    vx CLI                           │
+│  vx <runtime> [args]  │  vx run <script>           │
+└──────────┬─────────────┴───────────────┬────────────┘
+           │                             │
+     ┌─────▼──────┐              ┌───────▼────────┐
+     │  Resolver   │              │ Script Engine  │
+     │  (deps +    │              │ (interpolation │
+     │   versions) │              │  + .env)       │
+     └─────┬──────┘              └───────┬────────┘
+           │                             │
+     ┌─────▼──────────────────────────────▼──────┐
+     │            Provider Registry               │
+     │  ┌────────┐ ┌────────┐ ┌────────┐        │
+     │  │ Node   │ │ Python │ │  Go    │  ...   │
+     │  │Provider│ │Provider│ │Provider│        │
+     │  └───┬────┘ └───┬────┘ └───┬────┘        │
+     │      │          │          │              │
+     │  ┌───▼──┐  ┌────▼───┐ ┌───▼──┐          │
+     │  │node  │  │python  │ │ go   │  ...     │
+     │  │npm   │  │uv      │ │gofmt │          │
+     │  │npx   │  │uvx     │ └──────┘          │
+     │  └──────┘  └────────┘                    │
+     └──────────────────────┬────────────────────┘
+                            │
+     ┌──────────────────────▼────────────────────┐
+     │          Content-Addressed Store           │
+     │  ~/.vx/store/<runtime>/<version>/          │
+     └───────────────────────────────────────────┘
 ```
 
-Multiple versions can coexist without conflicts.
+## Provider
 
-## Environments
+A **Provider** is a module that supplies one or more related runtimes. It is the organizational unit in vx.
 
-An **environment** is a collection of tool versions that work together:
-
-- **Default Environment**: Used when no project config is present
-- **Project Environment**: Defined by `vx.toml` in a project
-- **Named Environments**: Custom environments you create
-
-```bash
-# Create a named environment
-vx env create my-env
-
-# Add tools to it
-vx env add node@20 --env my-env
-vx env add go@1.21 --env my-env
-
-# Use it
-vx env use my-env
+```
+Provider (e.g., NodeProvider)
+├── Runtime: node       (Node.js runtime)
+├── Runtime: npm        (Node package manager)
+└── Runtime: npx        (Node package executor)
 ```
 
-## Auto-Installation
+Each provider handles:
+- **Version discovery** — fetching available versions from upstream
+- **Installation** — downloading and extracting binaries
+- **Execution** — running commands with the correct environment
+- **Platform support** — handling OS/architecture differences
 
-When you run a tool through vx, it automatically:
+### Built-in Providers
 
-1. Checks if the tool is installed
-2. Installs it if missing (with user consent by default)
-3. Runs the command
+vx ships with **48+ built-in providers** covering major ecosystems:
 
-```bash
-# First run - installs Node.js automatically
-vx node --version
-# Installing node@20.10.0...
-# v20.10.0
+| Ecosystem | Providers |
+|-----------|-----------|
+| **Node.js** | node, npm, npx, pnpm, yarn, bun |
+| **Python** | python, uv, uvx |
+| **Go** | go, gofmt |
+| **Rust** | rust (rustc, cargo, rustup) |
+| **.NET** | dotnet, msbuild, nuget |
+| **DevOps** | terraform, kubectl, helm, docker |
+| **Cloud** | awscli, azcli, gcloud |
+| **Build** | cmake, ninja, just, task, make, meson, protoc |
+| **Media** | ffmpeg, imagemagick |
+| **AI** | ollama |
+| **Other** | git, jq, deno, zig, java, gh, curl, pwsh... |
 
-# Subsequent runs - uses cached version
-vx node --version
-# v20.10.0
+### Manifest-Driven Providers
+
+You can define custom providers using TOML manifests without writing Rust code:
+
+```toml
+# ~/.vx/providers/mytool/provider.toml
+[provider]
+name = "mytool"
+description = "My custom tool"
+
+[[runtimes]]
+name = "mytool"
+executable = "mytool"
+description = "My awesome tool"
+
+[runtimes.version_source]
+type = "github_releases"
+owner = "myorg"
+repo = "mytool"
 ```
+
+See [Manifest-Driven Providers](/guide/manifest-driven-providers) for details.
+
+## Runtime
+
+A **Runtime** is a single executable tool managed by a provider. Each runtime has:
+
+- **Name** — primary identifier (e.g., `node`, `python`, `go`)
+- **Aliases** — alternative names (e.g., `nodejs` → `node`, `golang` → `go`)
+- **Ecosystem** — the ecosystem it belongs to (Node.js, Python, Go, etc.)
+- **Dependencies** — other runtimes it requires (e.g., `npm` depends on `node`)
+
+### Runtime Dependencies
+
+vx automatically resolves and installs dependencies:
+
+```
+npm ──depends on──> node
+npx ──depends on──> node
+uvx ──depends on──> uv
+cargo ──depends on──> rust
+gofmt ──depends on──> go
+```
+
+When you run `vx npm install`, vx ensures Node.js is installed first.
 
 ## Version Resolution
 
-vx resolves tool versions in this order:
+vx supports multiple version specification formats:
 
-1. **Explicit version**: `vx node@18 --version`
-2. **Project config**: `vx.toml` in current or parent directory
-3. **Global config**: `~/.config/vx/config.toml`
-4. **Latest stable**: If no version specified
+| Format | Example | Description |
+|--------|---------|-------------|
+| Exact | `22.11.0` | Specific version |
+| Major | `22` | Latest 22.x.x |
+| Minor | `22.11` | Latest 22.11.x |
+| Range | `^22.0.0` | Compatible with 22.x.x |
+| Range | `~22.11.0` | Compatible with 22.11.x |
+| Latest | `latest` | Latest stable release |
+| LTS | `lts` | Latest LTS release (Node.js) |
+| Channel | `stable` / `beta` / `nightly` | Release channels (Rust) |
 
-### Version Specifiers
+### Version Resolution Order
 
-```toml
-[tools]
-node = "20"          # Latest 20.x.x
-node = "20.10"       # Latest 20.10.x
-node = "20.10.0"     # Exact version
-node = "latest"      # Latest stable
-node = "lts"         # Latest LTS (for Node.js)
-node = "stable"      # Stable channel (for Rust)
+When determining which version to use, vx checks in this order:
+
+1. **Command line** — `vx install node@22`
+2. **Environment variable** — `VX_NODE_VERSION=22`
+3. **Project config** — `vx.toml` in current or parent directory
+4. **Lock file** — `vx.lock` for exact pinned versions
+5. **Global config** — `~/.config/vx/config.toml`
+6. **Auto-detect** — latest stable version
+
+## Content-Addressed Store
+
+All tools are stored in a global **content-addressed store**:
+
+```
+~/.vx/
+├── store/                      # Global tool storage
+│   ├── node/
+│   │   ├── 22.11.0/           # Complete installation
+│   │   └── 20.18.0/
+│   ├── python/
+│   │   └── 3.12.8/
+│   └── go/
+│       └── 1.23.4/
+├── cache/                      # Download cache
+│   └── downloads/
+├── bin/                        # Global shims
+└── config/                     # Configuration
 ```
 
-## Shims vs Direct Execution
+### Benefits
 
-vx supports two execution modes:
-
-### Direct Execution (Recommended)
-
-Prefix commands with `vx`:
-
-```bash
-vx node script.js
-vx npm install
-vx go build
-```
-
-### Shim Mode
-
-Install shims that intercept tool commands:
-
-```bash
-# Install shims
-vx shell init bash >> ~/.bashrc
-
-# Now you can run directly
-node script.js  # Actually runs through vx
-```
+- **Deduplicated** — same version stored only once, shared across projects
+- **Isolated** — each version in its own directory, no conflicts
+- **Fast** — environments created via symlinks, not copies
+- **Recoverable** — `vx setup` re-installs from `vx.toml`
 
 ## Project Configuration
 
-A `vx.toml` file defines project-specific tool requirements:
+A `vx.toml` file defines the project's tool requirements:
 
 ```toml
-[project]
-name = "my-project"
-
 [tools]
-node = "20"
+node = "22"
+python = "3.12"
 uv = "latest"
+just = "latest"
 
 [scripts]
-dev = "npm run dev"
-test = "npm test"
+dev = "vx node server.js"
+test = "vx uv run pytest"
+lint = "vx uvx ruff check ."
+build = "vx node scripts/build.js"
+
+[env]
+NODE_ENV = "development"
 ```
 
-When you enter a directory with `vx.toml`, vx automatically uses those tool versions.
+See [Configuration](/guide/configuration) for the complete reference.
 
-## Dependency Resolution
+## Execution Model
 
-Some tools depend on others. vx handles this automatically:
+When you run `vx <tool> [args...]`:
 
-- `npm` requires `node`
-- `cargo` requires `rust`
-- `uvx` requires `uv`
+1. **Tool lookup** — finds the provider that manages the tool
+2. **Version resolution** — determines which version to use
+3. **Dependency check** — ensures all dependencies are available
+4. **Auto-install** — installs missing tools if `auto_install` is enabled
+5. **Environment setup** — sets PATH and environment variables
+6. **Forward execution** — runs the tool with the original arguments
+7. **Exit code passthrough** — returns the tool's exit code
 
-When you run a dependent tool, vx ensures the parent tool is installed first.
+The execution is **transparent** — tools behave exactly as if run directly.
 
-## Caching
+## Ecosystem
 
-vx caches:
+An **Ecosystem** groups related tools together:
 
-- **Downloaded archives**: Avoid re-downloading
-- **Version lists**: Reduce API calls
-- **Extracted binaries**: Fast startup
+| Ecosystem | Tools |
+|-----------|-------|
+| `NodeJs` | node, npm, npx, yarn, pnpm, bun, vite, deno |
+| `Python` | python, uv, uvx, pip |
+| `Rust` | rust, cargo, rustc, rustup |
+| `Go` | go, gofmt |
+| `DotNet` | dotnet, msbuild, nuget |
+| `System` | git, jq, curl, pwsh |
 
-Cache location: `~/.local/share/vx/cache/`
-
-Clear cache with:
-
-```bash
-vx clean --cache
-```
+Ecosystems help vx understand relationships between tools and optimize dependency resolution.
 
 ## Next Steps
 
-- [Direct Execution](/guide/direct-execution) - Using vx for quick tasks
-- [Project Environments](/guide/project-environments) - Setting up project configurations
-- [Environment Management](/guide/environment-management) - Managing multiple environments
+- [Direct Execution](/guide/direct-execution) — How command forwarding works
+- [Version Management](/guide/version-management) — Advanced version control
+- [Project Environments](/guide/project-environments) — Team collaboration
+- [CLI Reference](/cli/overview) — Complete command documentation

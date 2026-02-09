@@ -6,7 +6,7 @@ vx provides full support for the Go programming language.
 
 ```bash
 vx install go 1.21
-vx install go latest
+vx install `go@latest
 ```
 
 ## Version Specifiers

@@ -41,7 +41,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # 设置 vx 并启用缓存
       - uses: loonghao/vx@main
@@ -113,7 +113,7 @@ jobs:
     container:
       image: ghcr.io/loonghao/vx:tools-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # 工具已经可用 - 无需安装！
       - name: 检查 Python 代码
@@ -226,7 +226,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: loonghao/vx@main
         with:
@@ -245,7 +245,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: loonghao/vx@main
         with:
@@ -264,7 +264,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: loonghao/vx@main
         with:
@@ -282,7 +282,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: loonghao/vx@main
         with:
@@ -311,7 +311,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: loonghao/vx@main
         with:

@@ -123,7 +123,7 @@ Run with `vx just build` - all tools use project-specified versions.
 jobs:
   build:
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: loonghao/vx-action@v1
       - run: vx setup
       - run: vx npm run build  # Uses versions from vx.toml

@@ -10,7 +10,7 @@ vx 支持各种构建系统和任务运行器。
 
 ```bash
 # 安装 .NET SDK
-vx install dotnet latest
+vx install `dotnet@latest
 vx install dotnet 8.0        # LTS 版本
 
 # 常用命令
@@ -66,7 +66,7 @@ vx dotnet build -c Release
 保存和运行项目特定命令的便捷工具。
 
 ```bash
-vx install just latest
+vx install `just@latest
 
 vx just --version
 vx just --list
@@ -96,7 +96,7 @@ fmt:
 用 Go 编写的任务运行器 / Make 替代品。
 
 ```bash
-vx install task latest
+vx install `task@latest
 
 vx task --version
 vx task --list
@@ -126,7 +126,7 @@ tasks:
 跨平台构建系统生成器。
 
 ```bash
-vx install cmake latest
+vx install `cmake@latest
 
 vx cmake --version
 vx cmake -B build -S .
@@ -153,7 +153,7 @@ vx cmake --install build --prefix /usr/local
 专注于速度的小型构建系统。
 
 ```bash
-vx install ninja latest
+vx install `ninja@latest
 
 vx ninja --version
 vx ninja -C build
@@ -173,7 +173,7 @@ vx ninja -C build
 Protocol Buffers 编译器。
 
 ```bash
-vx install protoc latest
+vx install `protoc@latest
 
 vx protoc --version
 vx protoc --cpp_out=. message.proto
@@ -189,7 +189,7 @@ vx protoc --rust_out=. message.proto
 下一代前端工具。
 
 ```bash
-vx install vite latest
+vx install `vite@latest
 
 vx vite --version
 vx vite                    # 启动开发服务器

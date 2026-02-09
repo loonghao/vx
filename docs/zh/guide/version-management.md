@@ -148,7 +148,7 @@ jobs:
         node: [18, 20, 22]
         python: ['3.10', '3.11', '3.12']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup vx
         uses: loonghao/vx@v1
       - name: Test Node.js

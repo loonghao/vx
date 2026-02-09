@@ -7,7 +7,7 @@ vx 支持科学计算和高性能计算（HPC）工具。
 专为超级计算机、Linux 和 macOS 设计的灵活包管理器。
 
 ```bash
-vx install spack latest
+vx install `spack@latest
 
 vx spack --version
 vx spack list                    # 列出可用包
@@ -35,7 +35,7 @@ vx spack load openmpi            # 加载包到环境
 
 ```bash
 # 安装 Spack
-vx install spack latest
+vx install `spack@latest
 
 # 安装科学计算包
 vx spack install python@3.11
@@ -64,7 +64,7 @@ spack-env = "spack env activate research"
 VFX/动画行业的跨平台包管理器。
 
 ```bash
-vx install rez latest
+vx install `rez@latest
 
 vx rez --version
 vx rez env package            # 进入包环境
