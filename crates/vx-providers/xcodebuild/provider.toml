@@ -7,6 +7,8 @@ description = "Apple Xcode build tools"
 homepage = "https://developer.apple.com/xcode"
 repository = "https://developer.apple.com/xcode"
 ecosystem = "system"
+license = "Proprietary"
+license_note = "Apple Xcode - free to use, proprietary license. vx only detects system installation"
 
 # Xcode tools are macOS-only
 [provider.platforms]

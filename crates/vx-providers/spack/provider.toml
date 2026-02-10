@@ -7,6 +7,8 @@ description = "Flexible package manager for supercomputers, Linux, and macOS"
 homepage = "https://spack.io"
 repository = "https://github.com/spack/spack"
 ecosystem = "python"
+license = "Apache-2.0 OR MIT"
+license_note = "Dual-licensed"
 
 # Spack only works on Unix-like systems (Linux and macOS)
 [provider.platforms]

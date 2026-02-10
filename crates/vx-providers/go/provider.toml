@@ -7,6 +7,7 @@ description = "The Go programming language"
 homepage = "https://go.dev"
 repository = "https://github.com/golang/go"
 ecosystem = "go"
+license = "BSD-3-Clause"
 
 [[runtimes]]
 name = "go"

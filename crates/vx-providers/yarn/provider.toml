@@ -11,6 +11,7 @@ description = "Fast, reliable, and secure dependency management"
 homepage = "https://yarnpkg.com"
 repository = "https://github.com/yarnpkg/yarn"
 ecosystem = "nodejs"
+license = "BSD-2-Clause"
 
 [[runtimes]]
 name = "yarn"

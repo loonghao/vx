@@ -7,6 +7,7 @@ description = "Cross-platform package manager for deterministic environments"
 homepage = "https://rez.readthedocs.io"
 repository = "https://github.com/AcademySoftwareFoundation/rez"
 ecosystem = "python"
+license = "Apache-2.0"
 
 # Rez
 [[runtimes]]

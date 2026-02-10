@@ -7,6 +7,8 @@ description = "An extremely fast Python package installer and resolver"
 homepage = "https://github.com/astral-sh/uv"
 repository = "https://github.com/astral-sh/uv"
 ecosystem = "python"
+license = "MIT OR Apache-2.0"
+license_note = "Dual-licensed"
 
 # UV - Python package installer
 [[runtimes]]

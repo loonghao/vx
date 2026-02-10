@@ -7,6 +7,7 @@ description = "Next generation frontend build tool"
 homepage = "https://vitejs.dev"
 repository = "https://github.com/vitejs/vite"
 ecosystem = "nodejs"
+license = "MIT"
 
 # Vite
 [[runtimes]]

@@ -10,6 +10,7 @@ description = "Container platform for building, sharing, and running application
 homepage = "https://www.docker.com"
 repository = "https://github.com/docker/cli"
 ecosystem = "container"
+license = "Apache-2.0"
 
 # Binary download only available for Linux and macOS
 [provider.platforms]

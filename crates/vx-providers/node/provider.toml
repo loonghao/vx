@@ -8,6 +8,7 @@ description = "JavaScript runtime built on Chrome's V8 engine"
 homepage = "https://nodejs.org"
 repository = "https://github.com/nodejs/node"
 ecosystem = "nodejs"
+license = "MIT"
 
 # Node.js runtime
 [[runtimes]]

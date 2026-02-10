@@ -7,6 +7,7 @@ description = "General-purpose programming language and toolchain"
 homepage = "https://ziglang.org"
 repository = "https://github.com/ziglang/zig"
 ecosystem = "zig"
+license = "MIT"
 
 # Zig
 [[runtimes]]

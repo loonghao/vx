@@ -8,6 +8,8 @@ description = "Complete solution for recording, converting and streaming audio a
 homepage = "https://ffmpeg.org"
 repository = "https://github.com/FFmpeg/FFmpeg"
 ecosystem = "system"
+license = "LGPL-2.1-or-later"
+license_note = "Core is LGPL; some codecs may be GPL. vx downloads pre-built binaries"
 
 # FFmpeg runtime
 [[runtimes]]

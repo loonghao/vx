@@ -7,6 +7,8 @@ description = "Java Development Kit"
 homepage = "https://adoptium.net"
 repository = "https://github.com/adoptium/temurin-build"
 ecosystem = "java"
+license = "GPL-2.0-with-classpath-exception"
+license_note = "Adoptium/Temurin uses GPLv2+CE; vx only downloads and manages the JDK"
 
 # Java runtime
 [[runtimes]]

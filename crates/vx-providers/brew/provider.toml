@@ -12,6 +12,7 @@ description = "The Missing Package Manager for macOS (or Linux)"
 homepage = "https://brew.sh"
 repository = "https://github.com/Homebrew/brew"
 ecosystem = "system"
+license = "BSD-2-Clause"
 
 # Platform constraint: brew is primarily for macOS and Linux
 [provider.platforms]

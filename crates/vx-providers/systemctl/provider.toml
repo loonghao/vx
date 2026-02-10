@@ -7,6 +7,8 @@ description = "systemd system and service manager"
 homepage = "https://systemd.io"
 repository = "https://github.com/systemd/systemd"
 ecosystem = "system"
+license = "LGPL-2.1-or-later"
+license_note = "systemd license; vx only detects system installation"
 
 # systemd is Linux-only
 [provider.platforms]

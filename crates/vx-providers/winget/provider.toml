@@ -18,6 +18,7 @@ description = "Windows Package Manager - Official package manager for Windows"
 homepage = "https://learn.microsoft.com/windows/package-manager/"
 repository = "https://github.com/microsoft/winget-cli"
 ecosystem = "system"
+license = "MIT"
 
 # winget is Windows-only
 [provider.platforms]

@@ -7,6 +7,7 @@ description = "Unified command line interface to Amazon Web Services"
 homepage = "https://aws.amazon.com/cli/"
 repository = "https://github.com/aws/aws-cli"
 ecosystem = "cloud"
+license = "Apache-2.0"
 
 # AWS CLI v2
 [[runtimes]]

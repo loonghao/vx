@@ -7,6 +7,7 @@ description = "A framework for managing and maintaining multi-language pre-commi
 homepage = "https://pre-commit.com"
 repository = "https://github.com/pre-commit/pre-commit"
 ecosystem = "python"
+license = "MIT"
 
 # pre-commit
 [[runtimes]]

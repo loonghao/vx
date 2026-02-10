@@ -17,6 +17,7 @@ description = "NuGet - The package manager for .NET"
 homepage = "https://www.nuget.org/"
 repository = "https://github.com/NuGet/NuGet.Client"
 ecosystem = "dotnet"
+license = "Apache-2.0"
 
 # nuget CLI
 [[runtimes]]

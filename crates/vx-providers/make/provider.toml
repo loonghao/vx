@@ -10,6 +10,8 @@ description = "GNU Make - A build automation tool (Unix only, use 'just' on Wind
 homepage = "https://www.gnu.org/software/make/"
 repository = "https://savannah.gnu.org/projects/make"
 ecosystem = "system"
+license = "GPL-3.0"
+license_note = "vx only detects/installs via system package manager, no linking"
 
 # Platform constraint: only Unix is supported
 [provider.platforms]

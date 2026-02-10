@@ -7,6 +7,7 @@ description = "Command-line interface for Google Cloud Platform"
 homepage = "https://cloud.google.com/sdk/gcloud"
 repository = "https://github.com/GoogleCloudPlatform/google-cloud-sdk"
 ecosystem = "cloud"
+license = "Apache-2.0"
 
 # gcloud CLI
 [[runtimes]]

@@ -7,6 +7,7 @@ description = "A secure runtime for JavaScript and TypeScript"
 homepage = "https://deno.land"
 repository = "https://github.com/denoland/deno"
 ecosystem = "nodejs"
+license = "MIT"
 
 # Deno runtime
 [[runtimes]]

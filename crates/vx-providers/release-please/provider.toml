@@ -7,6 +7,7 @@ description = "Automated releases based on conventional commits"
 homepage = "https://github.com/googleapis/release-please"
 repository = "https://github.com/googleapis/release-please"
 ecosystem = "nodejs"
+license = "Apache-2.0"
 
 # release-please CLI
 [[runtimes]]
