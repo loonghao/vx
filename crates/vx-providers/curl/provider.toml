@@ -7,6 +7,8 @@ description = "Command-line tool for transferring data with URLs"
 homepage = "https://curl.se"
 repository = "https://github.com/curl/curl"
 ecosystem = "system"
+license = "MIT"
+license_note = "curl license (MIT-style)"
 
 # cURL is a system tool - we don't manage installation, just discovery
 [[runtimes]]

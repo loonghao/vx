@@ -7,6 +7,8 @@ description = "Git - Distributed version control system (portable install on Win
 homepage = "https://git-scm.com"
 repository = "https://github.com/git/git"
 ecosystem = "devtools"
+license = "GPL-2.0"
+license_note = "vx only downloads and executes the binary, no linking"
 
 # Git portable downloads are Windows-only in vx.
 # On macOS/Linux, install via your system package manager.

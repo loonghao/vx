@@ -10,6 +10,7 @@ description = "Cross-platform command-line shell and scripting language"
 homepage = "https://docs.microsoft.com/en-us/powershell/"
 repository = "https://github.com/PowerShell/PowerShell"
 ecosystem = "system"
+license = "MIT"
 
 # PowerShell 7 (pwsh)
 [[runtimes]]

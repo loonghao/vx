@@ -7,6 +7,7 @@ description = "Command-line tool to edit resources of Windows executables"
 homepage = "https://github.com/electron/rcedit"
 repository = "https://github.com/electron/rcedit"
 ecosystem = "devtools"
+license = "MIT"
 
 # rcedit is Windows-only
 [provider.platforms]

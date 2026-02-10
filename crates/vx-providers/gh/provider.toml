@@ -4,6 +4,7 @@ description = "GitHub CLI - command line tool for GitHub"
 homepage = "https://github.com/cli/cli"
 repository = "https://github.com/cli/cli"
 ecosystem = "devtools"
+license = "MIT"
 
 [[runtimes]]
 name = "gh"

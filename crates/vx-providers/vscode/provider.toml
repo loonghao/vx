@@ -7,6 +7,8 @@ description = "Visual Studio Code - Code editing. Redefined."
 homepage = "https://code.visualstudio.com"
 repository = "https://github.com/microsoft/vscode"
 ecosystem = "devtools"
+license = "MIT"
+license_note = "Source code is MIT; binary distribution has Microsoft proprietary EULA. vx only manages installation"
 
 # VS Code
 [[runtimes]]

@@ -24,6 +24,8 @@ description = "ImageMagick - A powerful image manipulation and conversion tool"
 homepage = "https://imagemagick.org/"
 repository = "https://github.com/ImageMagick/ImageMagick"
 ecosystem = "system"
+license = "ImageMagick"
+license_note = "Apache-2.0 derivative license"
 
 # Main magick runtime (unified CLI since ImageMagick 7)
 [[runtimes]]

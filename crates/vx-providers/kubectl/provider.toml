@@ -7,6 +7,7 @@ description = "Kubernetes command-line tool"
 homepage = "https://kubernetes.io"
 repository = "https://github.com/kubernetes/kubectl"
 ecosystem = "container"
+license = "Apache-2.0"
 
 # kubectl
 [[runtimes]]

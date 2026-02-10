@@ -7,6 +7,7 @@ description = "Protocol Buffers compiler"
 homepage = "https://protobuf.dev"
 repository = "https://github.com/protocolbuffers/protobuf"
 ecosystem = "devtools"
+license = "BSD-3-Clause"
 
 # protoc
 [[runtimes]]

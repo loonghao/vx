@@ -14,6 +14,8 @@ description = "A language empowering everyone to build reliable and efficient so
 homepage = "https://www.rust-lang.org"
 repository = "https://github.com/rust-lang/rust"
 ecosystem = "rust"
+license = "MIT OR Apache-2.0"
+license_note = "Dual-licensed"
 
 # Rustup - The Rust toolchain installer (primary runtime)
 [[runtimes]]

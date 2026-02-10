@@ -7,6 +7,7 @@ description = "Command-line interface for Microsoft Azure"
 homepage = "https://docs.microsoft.com/cli/azure/"
 repository = "https://github.com/Azure/azure-cli"
 ecosystem = "cloud"
+license = "MIT"
 
 # Azure CLI
 [[runtimes]]

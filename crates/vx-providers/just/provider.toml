@@ -2,6 +2,7 @@
 name = "just"
 description = "Just is a command runner for projects, similar to make but simpler"
 homepage = "https://github.com/casey/just"
+license = "CC0-1.0"
 version = "0.1.0"
 
 [provider.platforms]
@@ -12,6 +13,7 @@ name = "just"
 executable = "just"
 description = "Command runner for projects"
 homepage = "https://github.com/casey/just"
+license = "CC0-1.0"
 
 [runtimes.versions]
 source = "github-releases"
