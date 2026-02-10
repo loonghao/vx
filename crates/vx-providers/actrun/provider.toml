@@ -1,0 +1,75 @@
+[provider]
+name = "actrun"
+description = "Actrun is the runner executable of Actionforge for executing GitHub Actions-compatible workflows locally"
+homepage = "https://github.com/actionforge/actrun-cli"
+license = "Actionforge-EULA"
+license_note = "Proprietary EULA: free for individuals and entities with <$500K revenue; commercial license required above threshold. vx only downloads and executes the binary."
+version = "0.1.0"
+
+[provider.platforms]
+os = ["windows", "linux", "macos"]
+
+[[runtimes]]
+name = "actrun"
+executable = "actrun"
+description = "Actionforge workflow runner CLI"
+homepage = "https://github.com/actionforge/actrun-cli"
+license = "Actionforge-EULA"
+
+[runtimes.versions]
+source = "github-releases"
+owner = "actionforge"
+repo = "actrun-cli"
+strip_v_prefix = true
+
+# RFC 0019: Executable Layout Configuration
+# actrun CLI releases are archives with the executable in the root directory
+# URL format: https://github.com/actionforge/actrun-cli/releases/download/v{version}/actrun-v{version}.cli-{arch}-{os}.{ext}
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = ""
+executable_paths = [
+    "actrun.exe",
+    "actrun"
+]
+
+[runtimes.platforms.windows-x86_64]
+download_url = "https://github.com/actionforge/actrun-cli/releases/download/v{version}/actrun-v{version}.cli-x64-windows.zip"
+
+[runtimes.platforms.windows-aarch64]
+download_url = "https://github.com/actionforge/actrun-cli/releases/download/v{version}/actrun-v{version}.cli-arm64-windows.zip"
+
+[runtimes.platforms.linux-x86_64]
+download_url = "https://github.com/actionforge/actrun-cli/releases/download/v{version}/actrun-v{version}.cli-x64-linux.tar.gz"
+
+[runtimes.platforms.linux-aarch64]
+download_url = "https://github.com/actionforge/actrun-cli/releases/download/v{version}/actrun-v{version}.cli-arm64-linux.tar.gz"
+
+[runtimes.platforms.macos-x86_64]
+download_url = "https://github.com/actionforge/actrun-cli/releases/download/v{version}/actrun-v{version}.cli-x64-macos.pkg"
+
+[runtimes.platforms.macos-aarch64]
+download_url = "https://github.com/actionforge/actrun-cli/releases/download/v{version}/actrun-v{version}.cli-arm64-macos.pkg"
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# No external dependencies (statically compiled binary)
+[[runtimes.constraints]]
+when = "*"
+recommends = []
+
+# RFC 0018: Environment configuration
+[runtimes.env.advanced]
+path_prepend = ["{install_dir}"]
+
+[runtimes.test]
+timeout_ms = 10000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "actrun", name = "version_check" }
+]
