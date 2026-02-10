@@ -419,15 +419,64 @@ jobs:
           done
           git push
 
+  # Publish to Windows Package Manager (WinGet)
+  # Runs after host to ensure all release assets are uploaded.
+  # Uses vedantmgoyal9/winget-releaser to create PR at microsoft/winget-pkgs.
+  publish-winget:
+    needs:
+      - plan
+      - host
+    runs-on: windows-latest
+    if: ${{ !fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases }}
+    steps:
+      - name: Check WinGet Token
+        id: check_token
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.WINGET_TOKEN }}" ]; then
+            echo "::warning::WINGET_TOKEN not set, skipping WinGet publish"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract version from tag
+        if: steps.check_token.outputs.skip != 'true'
+        id: version
+        shell: bash
+        run: |
+          TAG="${{ needs.plan.outputs.tag }}"
+          # Strip all known prefixes: vx-v0.7.8 -> 0.7.8, v0.7.8 -> 0.7.8
+          VERSION="${TAG#vx-v}"
+          VERSION="${VERSION#vx-}"
+          VERSION="${VERSION#v}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Publishing to WinGet: tag=${TAG}, version=${VERSION}"
+
+      - name: Publish to WinGet
+        if: steps.check_token.outputs.skip != 'true'
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: loonghao.vx
+          release-tag: ${{ needs.plan.outputs.tag }}
+          version: ${{ steps.version.outputs.version }}
+          # Match ONLY cargo-dist original unversioned zip files to avoid duplicate entries.
+          # Excludes versioned copies like vx-0.7.8-x86_64-pc-windows-msvc.zip
+          installers-regex: 'vx-(x86_64|aarch64)-pc-windows-msvc\.zip$'
+          max-versions-to-keep: 5
+          token: ${{ secrets.WINGET_TOKEN }}
+
   announce:
     needs:
       - plan
       - host
       - publish-homebrew-formula
+      - publish-winget
     # use "always() && ..." to allow us to wait for all publish jobs while
     # still allowing individual publish jobs to skip themselves (for prereleases).
     # "host" however must run to completion, no skipping allowed!
-    if: ${{ always() && needs.host.result == 'success' && (needs.publish-homebrew-formula.result == 'skipped' || needs.publish-homebrew-formula.result == 'success') }}
+    if: ${{ always() && needs.host.result == 'success' && (needs.publish-homebrew-formula.result == 'skipped' || needs.publish-homebrew-formula.result == 'success') && (needs.publish-winget.result == 'skipped' || needs.publish-winget.result == 'success') }}
     runs-on: "ubuntu-24.04"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
