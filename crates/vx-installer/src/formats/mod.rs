@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 pub mod binary;
 pub mod msi;
+pub mod pkg;
 pub mod sevenz;
 pub mod tar;
 pub mod zip;
@@ -152,6 +153,7 @@ impl ArchiveExtractor {
             Box::new(tar::TarHandler::new()),
             Box::new(sevenz::SevenZipHandler::new()),
             Box::new(msi::MsiHandler::new()),
+            Box::new(pkg::PkgHandler::new()),
             Box::new(binary::BinaryHandler::new()), // Keep binary as fallback
         ];
 
@@ -287,6 +289,8 @@ pub fn detect_format(file_path: &Path) -> Option<&str> {
         Some("zip")
     } else if filename.ends_with(".msi") {
         Some("msi")
+    } else if filename.ends_with(".pkg") {
+        Some("pkg")
     } else if filename.ends_with(".7z") {
         Some("7z")
     } else {
