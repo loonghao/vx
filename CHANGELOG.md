@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.9](https://github.com/loonghao/vx/compare/v0.7.8...v0.7.9) (2026-02-10)
+
+
+### Bug Fixes
+
+* restore WinGet auto-publish support for cargo-dist releases ([6a00199](https://github.com/loonghao/vx/commit/6a00199635a0f7a8f82d92fb9ec360f194d66194))
+
 ## [0.7.8](https://github.com/loonghao/vx/compare/v0.7.7...v0.7.8) (2026-02-10)
 
 
