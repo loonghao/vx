@@ -907,6 +907,24 @@ fn get_alternative_asset_names(asset_name: &str, version: &str) -> Vec<String> {
     names
 }
 
+/// Helper: check if a version uses cargo-dist tag format (mirrors production logic)
+fn uses_cargo_dist_tag_format(version: &str) -> bool {
+    if let Some(parsed) = vx_core::version_utils::parse_version(version) {
+        parsed.major > 0 || (parsed.major == 0 && parsed.minor >= 7)
+    } else {
+        false
+    }
+}
+
+/// Helper: get all possible tag formats for a version (mirrors production logic)
+fn get_tag_candidates(version: &str) -> Vec<String> {
+    if uses_cargo_dist_tag_format(version) {
+        vec![format!("v{}", version), format!("vx-v{}", version)]
+    } else {
+        vec![format!("vx-v{}", version), format!("v{}", version)]
+    }
+}
+
 /// Test that v0.7.x cargo-dist assets generate both versioned and unversioned names
 #[rstest]
 #[case(
@@ -1027,5 +1045,89 @@ fn test_v077_download_url_both_formats() {
     assert_eq!(
         fallback_url,
         "https://github.com/loonghao/vx/releases/download/v0.7.7/vx-0.7.7-x86_64-pc-windows-msvc.zip"
+    );
+}
+
+/// Test installer script URL generation for cargo-dist releases (v0.7.0+)
+/// The installer scripts are always at:
+///   - https://github.com/loonghao/vx/releases/download/v{ver}/vx-installer.sh
+///   - https://github.com/loonghao/vx/releases/download/v{ver}/vx-installer.ps1
+#[test]
+fn test_installer_script_urls_for_cargo_dist() {
+    let version = "0.7.7";
+
+    // For cargo-dist versions, primary tag is v{ver}
+    let tags = get_tag_candidates(version);
+    assert_eq!(tags[0], "v0.7.7");
+    assert_eq!(tags[1], "vx-v0.7.7");
+
+    let script_sh = format!(
+        "https://github.com/loonghao/vx/releases/download/{}/vx-installer.sh",
+        tags[0]
+    );
+    assert_eq!(
+        script_sh,
+        "https://github.com/loonghao/vx/releases/download/v0.7.7/vx-installer.sh"
+    );
+
+    let script_ps1 = format!(
+        "https://github.com/loonghao/vx/releases/download/{}/vx-installer.ps1",
+        tags[0]
+    );
+    assert_eq!(
+        script_ps1,
+        "https://github.com/loonghao/vx/releases/download/v0.7.7/vx-installer.ps1"
+    );
+}
+
+/// Test that older version tags don't have installer scripts (they use custom CI)
+/// The installer script fallback should still try the vx-v{ver} tag format
+#[test]
+fn test_installer_script_urls_for_legacy_versions() {
+    let version = "0.6.27";
+
+    // For v0.6.x, primary tag is vx-v{ver}
+    let tags = get_tag_candidates(version);
+    assert_eq!(tags[0], "vx-v0.6.27");
+    assert_eq!(tags[1], "v0.6.27");
+
+    // The fallback will try both tags, but only v0.7.0+ releases have installer scripts
+    let script_url_primary = format!(
+        "https://github.com/loonghao/vx/releases/download/{}/vx-installer.sh",
+        tags[0]
+    );
+    assert_eq!(
+        script_url_primary,
+        "https://github.com/loonghao/vx/releases/download/vx-v0.6.27/vx-installer.sh"
+    );
+}
+
+/// Test the complete fallback chain for a cross-era upgrade scenario
+/// Old v0.6.x binary trying to update to v0.7.7 should:
+/// 1. Try binary download (may fail if asset names don't match)
+/// 2. Try installer script from the target release
+#[test]
+fn test_cross_era_upgrade_fallback_chain() {
+    let target_version = "0.7.7";
+
+    // Tag candidates for the target version
+    let tags = get_tag_candidates(target_version);
+    assert_eq!(tags[0], "v0.7.7"); // cargo-dist format
+    assert_eq!(tags[1], "vx-v0.7.7"); // legacy format fallback
+
+    // Asset name alternatives
+    let primary_asset = "vx-x86_64-pc-windows-msvc.zip";
+    let alt_names = get_alternative_asset_names(primary_asset, target_version);
+    assert!(alt_names.contains(&"vx-x86_64-pc-windows-msvc.zip".to_string()));
+    assert!(alt_names.contains(&"vx-0.7.7-x86_64-pc-windows-msvc.zip".to_string()));
+
+    // Installer script URLs (the final fallback)
+    let installer_url = format!(
+        "https://github.com/loonghao/vx/releases/download/{}/vx-installer.ps1",
+        tags[0]
+    );
+    assert_eq!(
+        installer_url,
+        "https://github.com/loonghao/vx/releases/download/v0.7.7/vx-installer.ps1"
     );
 }

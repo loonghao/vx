@@ -289,6 +289,29 @@ jobs:
         run: |
           # Remove the granular manifests
           rm -f artifacts/*-dist-manifest.json
+      - name: Create versioned artifact copies
+        run: |
+          # cargo-dist intentionally omits version numbers from artifact names.
+          # For backward compatibility with older vx versions (v0.5.x, v0.6.x)
+          # that look for versioned names like vx-0.7.7-x86_64-..., we create
+          # copies with the version embedded in the filename.
+          TAG="${{ needs.plan.outputs.tag }}"
+          VERSION="${TAG#v}"  # strip leading 'v'
+          echo "Creating versioned copies for version ${VERSION}..."
+          for f in artifacts/vx-*; do
+            basename="$(basename "$f")"
+            # Skip files that already contain the version, installer scripts,
+            # checksums, manifests, and homebrew formulas
+            case "$basename" in
+              vx-"${VERSION}"-*|vx-installer.*|*.sha256|*.json|*.rb|sha256.sum)
+                continue
+                ;;
+            esac
+            # Create versioned copy: vx-x86_64-... -> vx-0.7.7-x86_64-...
+            versioned="artifacts/${basename/vx-/vx-${VERSION}-}"
+            cp "$f" "$versioned"
+            echo "  ${basename} -> $(basename "$versioned")"
+          done
       - name: Create GitHub Release
         env:
           PRERELEASE_FLAG: "${{ fromJson(steps.host.outputs.manifest).announcement_is_prerelease && '--prerelease' || '' }}"
