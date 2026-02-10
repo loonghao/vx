@@ -184,9 +184,30 @@ impl GitHubReleasesFetcher {
             .as_array()
             .ok_or_else(|| FetchError::invalid_format("GitHub", "Expected array of releases"))?;
 
-        // Parse versions
+        // Parse versions, filtering out releases with no downloadable assets
+        // (e.g., Deno v2.6.9 has a tag but no binary artifacts)
         let mut versions: Vec<VersionInfo> = releases
             .iter()
+            .filter(|release| {
+                // Skip releases that have no assets (empty releases / failed CI builds)
+                let has_assets = release
+                    .get("assets")
+                    .and_then(|a| a.as_array())
+                    .map(|a| !a.is_empty())
+                    .unwrap_or(false);
+                if !has_assets {
+                    let tag = release
+                        .get("tag_name")
+                        .and_then(|t| t.as_str())
+                        .unwrap_or("unknown");
+                    tracing::debug!(
+                        "Skipping release {} for {}: no downloadable assets",
+                        tag,
+                        self.tool_name
+                    );
+                }
+                has_assets
+            })
             .filter_map(|release| {
                 let tag_name = release.get("tag_name")?.as_str()?;
                 let is_prerelease = release
