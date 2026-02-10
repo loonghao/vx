@@ -7,6 +7,7 @@ description = "Cross-platform build system generator"
 homepage = "https://cmake.org"
 repository = "https://github.com/Kitware/CMake"
 ecosystem = "devtools"
+license = "BSD-3-Clause"
 
 # CMake
 [[runtimes]]

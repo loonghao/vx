@@ -12,6 +12,7 @@ description = "Microsoft Build Engine - bundled with .NET SDK"
 homepage = "https://docs.microsoft.com/visualstudio/msbuild"
 repository = "https://github.com/dotnet/msbuild"
 ecosystem = "system"
+license = "MIT"
 
 # MSBuild runtime (bundled with dotnet)
 [[runtimes]]

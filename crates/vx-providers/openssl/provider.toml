@@ -7,6 +7,8 @@ description = "Cryptography and SSL/TLS toolkit"
 homepage = "https://www.openssl.org"
 repository = "https://github.com/openssl/openssl"
 ecosystem = "system"
+license = "Apache-2.0"
+license_note = "OpenSSL 3.0+ uses Apache-2.0"
 
 # OpenSSL - main cryptography tool
 [[runtimes]]

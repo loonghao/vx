@@ -8,6 +8,8 @@ description = "Python programming language"
 homepage = "https://www.python.org"
 repository = "https://github.com/python/cpython"
 ecosystem = "python"
+license = "PSF-2.0"
+license_note = "Python Software Foundation License"
 
 # Python runtime
 [[runtimes]]

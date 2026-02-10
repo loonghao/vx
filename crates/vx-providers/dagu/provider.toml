@@ -14,6 +14,8 @@ description = "Self-contained workflow engine with Web UI and cron scheduling"
 homepage = "https://dagu.readthedocs.io"
 repository = "https://github.com/dagu-org/dagu"
 ecosystem = "devtools"
+license = "GPL-3.0"
+license_note = "vx only downloads and executes the binary, no linking"
 
 [[runtimes]]
 name = "dagu"
