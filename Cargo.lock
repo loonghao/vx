@@ -4386,7 +4386,6 @@ dependencies = [
  "vx-provider-vite",
  "vx-provider-vscode",
  "vx-provider-winget",
- "vx-provider-x-cmd",
  "vx-provider-yarn",
  "vx-provider-zig",
  "vx-resolver",
@@ -5324,21 +5323,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-runtime",
- "which",
-]
-
-[[package]]
-name = "vx-provider-x-cmd"
-version = "0.7.9"
-dependencies = [
- "anyhow",
- "async-trait",
- "rstest",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
  "vx-runtime",
  "which",
 ]

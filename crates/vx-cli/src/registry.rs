@@ -60,9 +60,6 @@ macro_rules! register_providers {
     (@single $registry:expr, release_please) => {
         $registry.register(vx_provider_release_please::create_provider());
     };
-    (@single $registry:expr, x_cmd) => {
-        $registry.register(vx_provider_x_cmd::create_provider());
-    };
     (@single $registry:expr, $name:ident) => {
         paste::paste! {
             $registry.register([<vx_provider_ $name>]::create_provider());
@@ -84,9 +81,6 @@ macro_rules! register_provider_factories {
     };
     (@single $registry:expr, release_please) => {
         $registry.register_factory("release-please", || vx_provider_release_please::create_provider());
-    };
-    (@single $registry:expr, x_cmd) => {
-        $registry.register_factory("x-cmd", || vx_provider_x_cmd::create_provider());
     };
     (@single $registry:expr, $name:ident) => {
         paste::paste! {
@@ -231,7 +225,6 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         nuget,
         winget,
         dagu,
-        x_cmd,
     );
 
     registry
@@ -291,7 +284,6 @@ fn create_static_registry() -> ProviderRegistry {
         nuget,
         winget,
         dagu,
-        x_cmd,
     );
 
     registry
