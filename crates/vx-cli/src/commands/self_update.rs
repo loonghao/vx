@@ -266,9 +266,7 @@ async fn legacy_update(
                         "Successfully updated vx to version {} via installer script!",
                         latest_version
                     ));
-                    UI::hint(
-                        "Restart your terminal or run 'vx --version' to verify the update",
-                    );
+                    UI::hint("Restart your terminal or run 'vx --version' to verify the update");
                     return Ok(());
                 }
                 Err(script_err) => {
@@ -339,24 +337,22 @@ async fn try_installer_script_fallback(
         UI::detail(&format!("Trying: {}", url));
 
         match client.get(&url).send().await {
-            Ok(response) if response.status().is_success() => {
-                match response.text().await {
-                    Ok(text) if text.len() > 100 => {
-                        UI::detail(&format!(
-                            "Downloaded installer script ({} bytes)",
-                            text.len()
-                        ));
-                        script_content = Some(text);
-                        break;
-                    }
-                    Ok(_) => {
-                        UI::debug("Installer script too small, trying next tag...");
-                    }
-                    Err(e) => {
-                        UI::debug(&format!("Failed to read response: {}", e));
-                    }
+            Ok(response) if response.status().is_success() => match response.text().await {
+                Ok(text) if text.len() > 100 => {
+                    UI::detail(&format!(
+                        "Downloaded installer script ({} bytes)",
+                        text.len()
+                    ));
+                    script_content = Some(text);
+                    break;
                 }
-            }
+                Ok(_) => {
+                    UI::debug("Installer script too small, trying next tag...");
+                }
+                Err(e) => {
+                    UI::debug(&format!("Failed to read response: {}", e));
+                }
+            },
             Ok(response) => {
                 UI::debug(&format!("HTTP {} for {}", response.status(), url));
             }
