@@ -285,6 +285,32 @@ vx rcedit app.exe --set-icon icon.ico
 vx rcedit app.exe --set-version-string "ProductName" "My App"
 ```
 
+### x-cmd
+
+紧凑而强大的命令行工具箱，内置 100+ 模块，管理 500+ CLI 工具，并集成 AI 功能。
+
+- **主页**：[x-cmd.com](https://x-cmd.com)
+- **仓库**：[github.com/x-cmd/x-cmd](https://github.com/x-cmd/x-cmd)
+
+```bash
+# 通过 vx 使用 x-cmd
+vx x-cmd --version
+
+# 使用 x-cmd 的内置模块
+vx x-cmd env
+vx x-cmd pkg list
+
+# 使用 x-cmd 的 AI 功能
+vx x-cmd chat
+```
+
+**主要特性：**
+- 100+ 内置模块（env、pkg、chat 等）
+- 500+ 第三方 CLI 工具的包管理器
+- AI 集成（聊天、代理、代码生成）
+- Node、Python、Java、Go 环境管理
+- 跨平台：Linux、macOS、Windows
+
 ## 项目配置示例
 
 ```toml
@@ -299,6 +325,7 @@ awscli = "latest"
 pre-commit = "latest"
 cmake = "latest"
 task = "latest"
+x-cmd = "latest"
 
 [scripts]
 dev = "deno task dev"

@@ -1,0 +1,91 @@
+# x-cmd Provider Manifest
+#
+# x-cmd is a compact and powerful command-line toolbox with 100+ built-in modules
+# and a package manager for 500+ third-party CLI tools.
+#
+# Installation:
+# - bash/zsh: eval "$(curl https://get.x-cmd.com)"
+# - PowerShell: iex (irm https://get.x-cmd.com/ps1)
+
+[provider]
+name = "x-cmd"
+description = "x-cmd - Compact and powerful command-line toolbox with AI integration"
+homepage = "https://x-cmd.com"
+repository = "https://github.com/x-cmd/x-cmd"
+ecosystem = "devtools"
+
+[[runtimes]]
+name = "x-cmd"
+description = "x-cmd command-line toolbox - 100+ modules and 500+ tool management"
+executable = "x"
+aliases = ["xcmd"]
+
+[runtimes.versions]
+source = "github-releases"
+owner = "x-cmd"
+repo = "x-cmd"
+strip_v_prefix = true
+
+# Detection configuration
+[runtimes.detection]
+command = "{executable} version"
+pattern = "([\\d.]+)"
+
+# x-cmd is installed via shell script, not a binary download
+[runtimes.script_install]
+install_command = 'eval "$(curl -fsSL https://get.x-cmd.com)"'
+install_command_windows = 'iex (irm https://get.x-cmd.com/ps1)'
+
+# RFC 0020: Test configuration
+[runtimes.test]
+timeout_ms = 60000
+functional_commands = [
+    { command = "{executable} version", expect_success = true, name = "version_check" },
+]
+install_verification = [
+    { command = "{executable} version", expect_success = true },
+]
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe", ".cmd", ".bat"]
+search_paths = [
+    "%LOCALAPPDATA%/.x-cmd",
+    "%USERPROFILE%/.x-cmd",
+]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+search_paths = [
+    "~/.x-cmd/bin",
+    "/usr/local/bin",
+]
+
+# System installation strategies
+[runtimes.system_install]
+
+# macOS/Linux: Install via curl
+[[runtimes.system_install.strategies]]
+type = "script"
+command = 'eval "$(curl -fsSL https://get.x-cmd.com)"'
+platforms = ["macos", "linux"]
+priority = 100
+
+# macOS: Install via brew
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "x-cmd"
+platforms = ["macos"]
+priority = 80
+
+# Windows: Install via PowerShell
+[[runtimes.system_install.strategies]]
+type = "script"
+command = 'iex (irm https://get.x-cmd.com/ps1)'
+platforms = ["windows"]
+priority = 100
+
+# x-cmd has no external dependencies
+[[runtimes.constraints]]
+when = "*"
+recommends = []

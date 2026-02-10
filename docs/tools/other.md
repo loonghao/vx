@@ -285,6 +285,32 @@ vx rcedit app.exe --set-icon icon.ico
 vx rcedit app.exe --set-version-string "ProductName" "My App"
 ```
 
+### x-cmd
+
+Compact and powerful command-line toolbox with 100+ built-in modules, a package manager for 500+ CLI tools, and AI integration.
+
+- **Homepage**: [x-cmd.com](https://x-cmd.com)
+- **Repository**: [github.com/x-cmd/x-cmd](https://github.com/x-cmd/x-cmd)
+
+```bash
+# Use x-cmd through vx
+vx x-cmd --version
+
+# Access x-cmd's built-in modules
+vx x-cmd env
+vx x-cmd pkg list
+
+# Use x-cmd's AI features
+vx x-cmd chat
+```
+
+**Key Features:**
+- 100+ built-in modules (env, pkg, chat, etc.)
+- Package manager for 500+ third-party CLI tools
+- AI integration (chat, agent, code generation)
+- Environment management for Node, Python, Java, Go
+- Cross-platform: Linux, macOS, Windows
+
 ## Project Configuration Example
 
 ```toml
@@ -299,6 +325,7 @@ awscli = "latest"
 pre-commit = "latest"
 cmake = "latest"
 task = "latest"
+x-cmd = "latest"
 
 [scripts]
 dev = "deno task dev"

@@ -1,6 +1,6 @@
 # 支持的工具概览
 
-vx 开箱即支持 **48+ 个工具**，涵盖语言运行时、包管理器、DevOps 工具、构建系统等。所有工具通过相同的统一接口管理。
+vx 开箱即支持 **50+ 个工具**，涵盖语言运行时、包管理器、DevOps 工具、构建系统等。所有工具通过相同的统一接口管理。
 
 ## 一览
 
@@ -15,7 +15,7 @@ vx 开箱即支持 **48+ 个工具**，涵盖语言运行时、包管理器、De
 | [AI](#ai) | Ollama | 1 |
 | [科学计算 & HPC](#科学计算--hpc) | Spack, Rez | 2 |
 | [媒体](#媒体) | FFmpeg, ImageMagick | 2 |
-| [系统工具](#系统工具) | jq, gh, curl, pwsh, Git, NASM, OpenSSL | 7+ |
+| [系统工具](#系统工具) | jq, gh, curl, pwsh, Git, NASM, OpenSSL, x-cmd | 8+ |
 | [Windows 专属](#windows-专属) | choco, winget, rcedit, MSVC Build Tools | 4 |
 
 ## 语言运行时
@@ -115,6 +115,7 @@ vx 开箱即支持 **48+ 个工具**，涵盖语言运行时、包管理器、De
 | **pwsh** | PowerShell |
 | **NASM** | Netwide 汇编器 |
 | **OpenSSL** | 密码学工具包 |
+| **x-cmd** | 命令行工具箱，100+ 模块，集成 AI |
 
 ## Windows 专属
 

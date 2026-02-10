@@ -99,6 +99,7 @@ impl ProjectAnalyzer {
                         "Rust" => Ecosystem::Rust,
                         "Go" => Ecosystem::Go,
                         "C++" => Ecosystem::Cpp,
+                        ".NET/C#" => Ecosystem::DotNet,
                         _ => Ecosystem::Unknown,
                     };
 

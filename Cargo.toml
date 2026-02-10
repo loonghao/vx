@@ -84,6 +84,8 @@ members = [
   "crates/vx-providers/winget",
   # Workflow engine
   "crates/vx-providers/dagu",
+  # x-cmd toolbox
+  "crates/vx-providers/x-cmd",
 ]
 resolver = "2"
 
@@ -223,6 +225,7 @@ vx-provider-msbuild = { path = "crates/vx-providers/msbuild" }
 vx-provider-nuget = { path = "crates/vx-providers/nuget" }
 vx-provider-winget = { path = "crates/vx-providers/winget" }
 vx-provider-dagu = { path = "crates/vx-providers/dagu" }
+vx-provider-x-cmd = { path = "crates/vx-providers/x-cmd" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
 
