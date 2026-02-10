@@ -225,6 +225,7 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         nuget,
         winget,
         dagu,
+        actrun,
     );
 
     registry
@@ -284,6 +285,7 @@ fn create_static_registry() -> ProviderRegistry {
         nuget,
         winget,
         dagu,
+        actrun,
     );
 
     registry

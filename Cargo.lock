@@ -4340,6 +4340,7 @@ dependencies = [
  "vx-migration",
  "vx-paths",
  "vx-project-analyzer",
+ "vx-provider-actrun",
  "vx-provider-awscli",
  "vx-provider-azcli",
  "vx-provider-brew",
@@ -4646,6 +4647,19 @@ dependencies = [
  "vx-paths",
  "walkdir",
  "which",
+]
+
+[[package]]
+name = "vx-provider-actrun"
+version = "0.7.9"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "rstest",
+ "tokio",
+ "tracing",
+ "vx-runtime",
 ]
 
 [[package]]

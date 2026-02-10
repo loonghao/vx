@@ -1,0 +1,21 @@
+[package]
+name = "vx-provider-actrun"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+vx-runtime = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+
+[lib]
+name = "vx_provider_actrun"
+path = "src/lib.rs"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+rstest = { workspace = true }
