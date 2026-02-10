@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8](https://github.com/loonghao/vx/compare/v0.7.7...v0.7.8) (2026-02-10)
+
+
+### Bug Fixes
+
+* add versioned artifact copies in release workflow and installer script fallback ([ae2d375](https://github.com/loonghao/vx/commit/ae2d3759614b6410a82e16aeca6f33955fb59e22))
+* apply cargo fmt formatting ([428b1af](https://github.com/loonghao/vx/commit/428b1aff4f6e1a8ef0bb6a36cf820200f755d0a8))
+* cargo fmt formatting issues ([278030d](https://github.com/loonghao/vx/commit/278030deafffe66c35a0dbdebf5d216230526c8a))
+* create legacy compatibility release (vx-v{ver}) for old binary self-update ([cadfabb](https://github.com/loonghao/vx/commit/cadfabbb072e7f86dc50b1efe82901561a40b182))
+* optimize self-update display and support cargo-dist versioned artifacts ([aad90ea](https://github.com/loonghao/vx/commit/aad90eaa424fd08692d5228ce301b006db59d228))
+
 ## [0.7.7](https://github.com/loonghao/vx/compare/v0.7.6...v0.7.7) (2026-02-08)
 
 
