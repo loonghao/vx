@@ -91,7 +91,7 @@ cargo install vx
    - `vx-aarch64-apple-darwin.tar.gz` - macOS ARM64 (Apple Silicon)
    - `vx-x86_64-pc-windows-msvc.zip` - Windows x64
 
-   > **Note:** Starting from v0.7.0, vx uses [cargo-dist](https://opensource.axo.dev/cargo-dist/) for releases. Binary names no longer include the version number (e.g., `vx-x86_64-pc-windows-msvc.zip` instead of `vx-0.7.0-x86_64-pc-windows-msvc.zip`). Both naming formats are supported during download for backward compatibility.
+   > **Note:** Starting from v0.7.0, vx uses [cargo-dist](https://opensource.axo.dev/cargo-dist/) for releases. The primary binary names no longer include the version number. For older releases (v0.5.x, v0.6.x), the versioned naming format `vx-{version}-{platform}` is used. The self-update command automatically handles both naming formats for seamless cross-version upgrades.
 
 3. Extract and add to PATH:
 

@@ -91,7 +91,7 @@ cargo install vx
    - `vx-aarch64-apple-darwin.tar.gz` - macOS ARM64 (Apple Silicon)
    - `vx-x86_64-pc-windows-msvc.zip` - Windows x64
 
-   > **注意：** 从 v0.7.0 开始，vx 使用 [cargo-dist](https://opensource.axo.dev/cargo-dist/) 发布。二进制文件名不再包含版本号（例如 `vx-x86_64-pc-windows-msvc.zip` 而不是 `vx-0.7.0-x86_64-pc-windows-msvc.zip`）。为了向后兼容，下载时两种命名格式均受支持。
+   > **注意：** 从 v0.7.0 开始，vx 使用 [cargo-dist](https://opensource.axo.dev/cargo-dist/) 发布。主要二进制文件名不再包含版本号。对于旧版本（v0.5.x、v0.6.x），使用带版本号的命名格式 `vx-{version}-{platform}`。self-update 命令会自动处理两种命名格式，确保跨版本无缝升级。
 
 3. 解压并添加到 PATH：
 
