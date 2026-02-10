@@ -11,6 +11,7 @@
 //! 4. Register the analyzer in `all_analyzers()`
 
 mod cpp;
+mod dotnet;
 mod go;
 mod nodejs;
 mod python;
@@ -18,6 +19,7 @@ pub mod rules;
 mod rust;
 
 pub use cpp::CppAnalyzer;
+pub use dotnet::DotNetAnalyzer;
 pub use go::GoAnalyzer;
 pub use nodejs::NodeJsAnalyzer;
 pub use python::PythonAnalyzer;
@@ -59,5 +61,6 @@ pub fn all_analyzers() -> Vec<Box<dyn LanguageAnalyzer>> {
         Box::new(RustAnalyzer::new()),
         Box::new(GoAnalyzer::new()),
         Box::new(CppAnalyzer::new()),
+        Box::new(DotNetAnalyzer::new()),
     ]
 }

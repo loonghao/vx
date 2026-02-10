@@ -15,6 +15,8 @@ pub enum Ecosystem {
     Go,
     /// C++ ecosystem (cmake, meson, make)
     Cpp,
+    /// .NET/C# ecosystem (dotnet, nuget, msbuild)
+    DotNet,
     /// Java ecosystem (maven, gradle)
     Java,
     /// Unknown/Other
@@ -30,6 +32,7 @@ impl Ecosystem {
             Ecosystem::Rust => "Rust",
             Ecosystem::Go => "Go",
             Ecosystem::Cpp => "C++",
+            Ecosystem::DotNet => ".NET/C#",
             Ecosystem::Java => "Java",
             Ecosystem::Unknown => "Unknown",
         }
@@ -56,6 +59,13 @@ impl Ecosystem {
             Ecosystem::Rust => &["Cargo.toml", "Cargo.lock"],
             Ecosystem::Go => &["go.mod", "go.sum"],
             Ecosystem::Cpp => &["CMakeLists.txt", "meson.build", "Makefile"],
+            Ecosystem::DotNet => &[
+                "*.csproj",
+                "*.sln",
+                "*.fsproj",
+                "global.json",
+                "Directory.Build.props",
+            ],
             Ecosystem::Java => &["pom.xml", "build.gradle", "build.gradle.kts"],
             Ecosystem::Unknown => &[],
         }
