@@ -388,10 +388,7 @@ impl Installer for RealInstaller {
 
                     if !output.status.success() {
                         let stderr = String::from_utf8_lossy(&output.stderr);
-                        return Err(anyhow::anyhow!(
-                            "pkgutil --expand-full failed: {}",
-                            stderr
-                        ));
+                        return Err(anyhow::anyhow!("pkgutil --expand-full failed: {}", stderr));
                     }
 
                     // Promote Payload contents to dest directory
@@ -399,6 +396,12 @@ impl Installer for RealInstaller {
 
                     // Clean up expand directory
                     let _ = std::fs::remove_dir_all(&expand_dir);
+
+                    // Flatten executables to the install root so vx can find them.
+                    // macOS .pkg files typically install to paths like usr/local/bin/
+                    // which are deeply nested. We copy executables to the root so
+                    // that verify_installation() can locate them at <install_dir>/<exe>.
+                    flatten_pkg_executables(dest)?;
                 }
                 #[cfg(not(target_os = "macos"))]
                 {
@@ -564,11 +567,104 @@ fn copy_dir_contents_recursive(src_dir: &Path, dst_dir: &Path) -> Result<()> {
                 if let Some(parent) = dst_path.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
-                std::fs::rename(&src_path, &dst_path).or_else(|_| {
-                    std::fs::copy(&src_path, &dst_path).map(|_| ())
-                })?;
+                std::fs::rename(&src_path, &dst_path)
+                    .or_else(|_| std::fs::copy(&src_path, &dst_path).map(|_| ()))?;
             }
         }
     }
     Ok(())
+}
+
+/// Flatten executables from nested directories to the install root.
+///
+/// macOS .pkg files typically install to system paths like `usr/local/bin/`.
+/// After promotion, the structure might be:
+///   `dest/usr/local/bin/actrun`
+///
+/// vx expects executables at `dest/actrun` (or within 3 levels of depth).
+/// This function finds all executable files in the extracted tree and
+/// copies them to the install root, making them discoverable by vx.
+#[cfg(target_os = "macos")]
+fn flatten_pkg_executables(dest: &Path) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let mut executables = Vec::new();
+    find_executables_recursive(dest, &mut executables, 0, 10);
+
+    for exe_path in &executables {
+        let file_name = match exe_path.file_name() {
+            Some(name) => name.to_owned(),
+            None => continue,
+        };
+        let dest_path = dest.join(&file_name);
+
+        // Skip if already at root level
+        if exe_path.parent() == Some(dest) {
+            continue;
+        }
+
+        // Skip if a file with the same name already exists at root
+        if dest_path.exists() {
+            continue;
+        }
+
+        tracing::debug!(
+            "Flattening pkg executable: {} -> {}",
+            exe_path.display(),
+            dest_path.display()
+        );
+
+        // Hard-link or copy the executable to root
+        std::fs::hard_link(exe_path, &dest_path)
+            .or_else(|_| std::fs::copy(exe_path, &dest_path).map(|_| ()))?;
+    }
+
+    Ok(())
+}
+
+/// Recursively find executable files in a directory.
+#[cfg(target_os = "macos")]
+fn find_executables_recursive(
+    dir: &Path,
+    results: &mut Vec<std::path::PathBuf>,
+    depth: usize,
+    max_depth: usize,
+) {
+    use std::os::unix::fs::PermissionsExt;
+
+    if depth > max_depth || !dir.exists() {
+        return;
+    }
+
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_file() {
+            // Check if file is executable
+            if let Ok(metadata) = std::fs::metadata(&path) {
+                let mode = metadata.permissions().mode();
+                if mode & 0o111 != 0 {
+                    // Skip common non-tool files
+                    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    if !name.starts_with('.')
+                        && !name.ends_with(".dylib")
+                        && !name.ends_with(".so")
+                        && !name.ends_with(".a")
+                    {
+                        results.push(path);
+                    }
+                }
+            }
+        } else if path.is_dir() {
+            // Skip hidden directories and common non-relevant dirs
+            let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if !dir_name.starts_with('.') {
+                find_executables_recursive(&path, results, depth + 1, max_depth);
+            }
+        }
+    }
 }
