@@ -82,14 +82,36 @@ if: |
 
 This ensures that when a release PR is merged (e.g., "chore: release v0.6.24"), the build job still runs even though release-please is skipped.
 
+### WinGet Publishing in Release Workflow
+
+Starting from v0.7.9, WinGet publishing is integrated directly into the release workflow
+(`release.yml`) as the `publish-winget` job. This ensures that:
+
+1. WinGet is published immediately after release assets are uploaded (no `workflow_run` delay)
+2. The release tag is known exactly (from `plan` job output), avoiding API version lookup issues
+3. Pre-release filtering is handled consistently with other publish jobs
+
+**Installer regex**:
+```yaml
+# Only match cargo-dist original unversioned zip files to avoid duplicate entries.
+# cargo-dist produces: vx-x86_64-pc-windows-msvc.zip (unversioned)
+# release.yml also creates: vx-0.7.8-x86_64-pc-windows-msvc.zip (versioned copy)
+# We must match only ONE to avoid duplicate installer entries in winget manifest.
+installers-regex: 'vx-(x86_64|aarch64)-pc-windows-msvc\.zip$'
+```
+
 ### Package Managers Workflow (`.github/workflows/package-managers.yml`)
 
 This workflow runs after the Release workflow completes and publishes to package managers.
+It serves as a **backup** for WinGet publishing (in case the `release.yml` publish-winget
+job fails) and as the **primary** publisher for Chocolatey and Scoop.
 
 **Version Normalization for WinGet**:
 ```bash
-# Remove 'vx-' prefix and 'v' prefix (vx-v0.1.0 -> 0.1.0)
-normalized_version="${version#vx-}"
+# Robustly strip all known prefixes: vx-v0.7.8 -> 0.7.8, v0.7.8 -> 0.7.8
+normalized_version="${version}"
+normalized_version="${normalized_version#vx-v}"
+normalized_version="${normalized_version#vx-}"
 normalized_version="${normalized_version#v}"
 ```
 
@@ -99,15 +121,15 @@ This ensures WinGet receives `0.1.0` instead of `vx-v0.1.0`, which resolves the 
 
 1. **Check Release**: Verifies the Release workflow succeeded
 2. **Get Version**: Retrieves the latest release version
-3. **Normalize Version**: Removes `vx-` prefix for package managers
+3. **Normalize Version**: Strips all tag prefixes for package managers
 4. **Verify Release**: Confirms the GitHub release exists
 5. **Publish**: Publishes to each package manager in parallel
 
 #### Supported Package Managers
 
-- **WinGet** (`publish-winget`): Uses `vedantmgoyal9/winget-releaser`
+- **WinGet** (`publish-winget`): Uses `vedantmgoyal9/winget-releaser` (also in `release.yml`)
 - **Chocolatey** (`publish-chocolatey`): Downloads binary and creates `.nupkg`
-- **Homebrew** (`publish-homebrew`): Generates formula with checksums
+- **Homebrew**: Handled by cargo-dist's `publish-homebrew-formula` job in `release.yml`
 - **Scoop** (`publish-scoop`): Creates JSON manifest
 
 ## Testing Release Workflow Logic
@@ -191,18 +213,34 @@ When a commit message contains "chore: release", the workflow extracts the versi
 
 **Cause**: The `release-tag` parameter was receiving the full tag name `vx-v0.1.0` without proper normalization to remove both the `vx-` and `v` prefixes.
 
-**Solution**: The workflow now includes a normalization step:
+**Solution**: The workflow now includes a robust normalization step that handles all known tag formats:
 
 ```yaml
 - name: Normalize version for WinGet
   id: normalize
   run: |
     version="${{ steps.version.outputs.version }}"
-    # Remove 'vx-' prefix if present (vx-v0.1.0 -> v0.1.0)
-    normalized_version="${version#vx-}"
-    # Remove 'v' prefix for WinGet (v0.1.0 -> 0.1.0)
+    # Robustly strip all known prefixes
+    normalized_version="${version}"
+    normalized_version="${normalized_version#vx-v}"
+    normalized_version="${normalized_version#vx-}"
     normalized_version="${normalized_version#v}"
     echo "normalized_version=$normalized_version" >> $GITHUB_OUTPUT
+```
+
+### WinGet Duplicate Installer Entries
+
+**Problem**: WinGet manifest PR contains duplicate installer entries for the same architecture.
+
+**Cause**: The release contains both versioned (`vx-0.7.8-x86_64-pc-windows-msvc.zip`) and
+unversioned (`vx-x86_64-pc-windows-msvc.zip`) copies of the same artifact. If the
+`installers-regex` matches both, komac creates two installer entries.
+
+**Solution**: Use a precise regex that only matches the cargo-dist original unversioned files:
+
+```yaml
+# Only match "vx-{arch}-pc-windows-msvc.zip" (excludes "vx-0.7.8-{arch}-...")
+installers-regex: 'vx-(x86_64|aarch64)-pc-windows-msvc\.zip$'
 ```
 
 ### Verifying Release Assets

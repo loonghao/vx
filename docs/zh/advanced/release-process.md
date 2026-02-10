@@ -82,14 +82,35 @@ if: |
 
 这确保了当发布 PR 被合并时(例如 "chore: release v0.6.24")，即使 release-please 被跳过，构建作业仍会运行。
 
+### 发布工作流中的 WinGet 发布
+
+从 v0.7.9 开始,WinGet 发布已直接集成到发布工作流 (`release.yml`) 中作为 `publish-winget` 作业。这确保了:
+
+1. WinGet 在发布资源上传后立即发布(无 `workflow_run` 延迟)
+2. 发布标签是精确已知的(来自 `plan` 作业输出),避免 API 版本查找问题
+3. 预发布过滤与其他发布作业保持一致
+
+**安装程序正则表达式**:
+```yaml
+# 仅匹配 cargo-dist 原始的不带版本号的 zip 文件,以避免重复条目。
+# cargo-dist 生成: vx-x86_64-pc-windows-msvc.zip (不带版本号)
+# release.yml 还会创建: vx-0.7.8-x86_64-pc-windows-msvc.zip (带版本号的副本)
+# 必须只匹配其中一个,以避免 winget 清单中出现重复的安装程序条目。
+installers-regex: 'vx-(x86_64|aarch64)-pc-windows-msvc\.zip$'
+```
+
 ### 包管理器工作流 (`.github/workflows/package-managers.yml`)
 
 此工作流在发布工作流完成后运行,并发布到包管理器。
+它作为 WinGet 发布的**备份**(以防 `release.yml` 中的 publish-winget 作业失败),
+同时也是 Chocolatey 和 Scoop 的**主要**发布者。
 
 **WinGet 版本规范化**:
 ```bash
-# 移除 'vx-' 前缀和 'v' 前缀 (vx-v0.1.0 -> 0.1.0)
-normalized_version="${version#vx-}"
+# 鲁棒地去除所有已知前缀: vx-v0.7.8 -> 0.7.8, v0.7.8 -> 0.7.8
+normalized_version="${version}"
+normalized_version="${normalized_version#vx-v}"
+normalized_version="${normalized_version#vx-}"
 normalized_version="${normalized_version#v}"
 ```
 
@@ -99,15 +120,15 @@ normalized_version="${normalized_version#v}"
 
 1. **检查发布**: 验证发布工作流是否成功
 2. **获取版本**: 检索最新的发布版本
-3. **规范化版本**: 为包管理器移除 `vx-` 前缀
+3. **规范化版本**: 为包管理器去除所有标签前缀
 4. **验证发布**: 确认 GitHub 发布版本存在
 5. **发布**: 并行发布到各个包管理器
 
 #### 支持的包管理器
 
-- **WinGet** (`publish-winget`): 使用 `vedantmgoyal9/winget-releaser`
+- **WinGet** (`publish-winget`): 使用 `vedantmgoyal9/winget-releaser`(同时也在 `release.yml` 中)
 - **Chocolatey** (`publish-chocolatey`): 下载二进制文件并创建 `.nupkg`
-- **Homebrew** (`publish-homebrew`): 生成带校验和的 formula
+- **Homebrew**: 由 cargo-dist 的 `publish-homebrew-formula` 作业在 `release.yml` 中处理
 - **Scoop** (`publish-scoop`): 创建 JSON 清单
 
 ## 测试发布工作流逻辑
@@ -191,18 +212,34 @@ if: |
 
 **原因**: `release-tag` 参数接收完整的标签名 `vx-v0.1.0` 而没有正确规范化,需要移除 `vx-` 和 `v` 两个前缀。
 
-**解决方案**: 工作流现在包含规范化步骤:
+**解决方案**: 工作流现在包含鲁棒的规范化步骤,可处理所有已知的标签格式:
 
 ```yaml
 - name: Normalize version for WinGet
   id: normalize
   run: |
     version="${{ steps.version.outputs.version }}"
-    # 如果存在 'vx-' 前缀则移除 (vx-v0.1.0 -> v0.1.0)
-    normalized_version="${version#vx-}"
-    # 为 WinGet 移除 'v' 前缀 (v0.1.0 -> 0.1.0)
+    # 鲁棒地去除所有已知前缀
+    normalized_version="${version}"
+    normalized_version="${normalized_version#vx-v}"
+    normalized_version="${normalized_version#vx-}"
     normalized_version="${normalized_version#v}"
     echo "normalized_version=$normalized_version" >> $GITHUB_OUTPUT
+```
+
+### WinGet 重复安装程序条目
+
+**问题**: WinGet 清单 PR 中包含同一架构的重复安装程序条目。
+
+**原因**: 发布版本中同时包含带版本号的 (`vx-0.7.8-x86_64-pc-windows-msvc.zip`) 和
+不带版本号的 (`vx-x86_64-pc-windows-msvc.zip`) 同一构件的副本。如果 `installers-regex`
+同时匹配两者,komac 会创建两个安装程序条目。
+
+**解决方案**: 使用精确的正则表达式,仅匹配 cargo-dist 原始的不带版本号的文件:
+
+```yaml
+# 仅匹配 "vx-{arch}-pc-windows-msvc.zip" (排除 "vx-0.7.8-{arch}-...")
+installers-regex: 'vx-(x86_64|aarch64)-pc-windows-msvc\.zip$'
 ```
 
 ### 验证发布资源
