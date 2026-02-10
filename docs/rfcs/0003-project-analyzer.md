@@ -65,7 +65,8 @@ vx-project-analyzer/
 │       ├── python.rs     # Python 项目分析
 │       ├── nodejs.rs     # Node.js 项目分析
 │       ├── rust.rs       # Rust 项目分析
-│       └── go.rs         # Go 项目分析
+│       ├── go.rs         # Go 项目分析
+│       └── dotnet/       # .NET/C# 项目分析
 └── tests/
 ```
 

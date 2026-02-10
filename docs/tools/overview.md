@@ -1,6 +1,6 @@
 # Supported Tools Overview
 
-vx supports **48+ tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, and more. All tools are managed through the same unified interface.
+vx supports **50+ tools** out of the box, spanning language runtimes, package managers, DevOps tools, build systems, and more. All tools are managed through the same unified interface.
 
 ## At a Glance
 
@@ -15,7 +15,7 @@ vx supports **48+ tools** out of the box, spanning language runtimes, package ma
 | [AI](#ai) | Ollama | 1 |
 | [Scientific & HPC](#scientific--hpc) | Spack, Rez | 2 |
 | [Media](#media) | FFmpeg, ImageMagick | 2 |
-| [System Tools](#system-tools) | jq, gh, curl, pwsh, Git, NASM, OpenSSL | 7+ |
+| [System Tools](#system-tools) | jq, gh, curl, pwsh, Git, NASM, OpenSSL, x-cmd | 8+ |
 | [Windows-specific](#windows-specific) | choco, winget, rcedit, MSVC Build Tools | 4 |
 
 ## Language Runtimes
@@ -115,6 +115,7 @@ vx supports **48+ tools** out of the box, spanning language runtimes, package ma
 | **pwsh** | PowerShell |
 | **NASM** | Netwide Assembler |
 | **OpenSSL** | Cryptography toolkit |
+| **x-cmd** | Command-line toolbox with 100+ modules and AI |
 
 ## Windows-Specific
 

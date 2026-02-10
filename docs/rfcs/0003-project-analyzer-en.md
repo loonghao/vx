@@ -10,7 +10,7 @@ This RFC proposes the **vx-project-analyzer** crate to:
 4. Ensure all dependencies are correctly installed
 
 ## Current Status (this iteration)
-- Implemented: multi-language detection (Python/Node.js/Rust/Go/C++), script parsing (uv run/uvx, npx, pnpm exec/run, yarn exec, bunx, python -m), dependency state detection, missing tool detection, `vx.toml` sync suggestions, justfile parsing.
+- Implemented: multi-language detection (Python/Node.js/Rust/Go/C++/.NET/C#), script parsing (uv run/uvx, npx, pnpm exec/run, yarn exec, bunx, python -m, dotnet), dependency state detection, missing tool detection, `vx.toml` sync suggestions, justfile parsing.
 - Implemented: Electron/Tauri/React Native/Flutter framework detection with extra scripts and required tools inference.
 
 - Future: watch mode, CI/CD integration, dependency auditing, and other advanced capabilities.

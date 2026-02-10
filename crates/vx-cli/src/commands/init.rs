@@ -34,6 +34,7 @@ pub enum ProjectType {
     Python,
     Rust,
     Go,
+    DotNet,
     Justfile,
     Mixed,
 }
@@ -45,6 +46,7 @@ impl std::fmt::Display for ProjectType {
             ProjectType::Python => write!(f, "Python"),
             ProjectType::Rust => write!(f, "Rust"),
             ProjectType::Go => write!(f, "Go"),
+            ProjectType::DotNet => write!(f, ".NET/C#"),
             ProjectType::Justfile => write!(f, "Justfile"),
             ProjectType::Mixed => write!(f, "Mixed"),
         }
@@ -62,6 +64,7 @@ pub enum PackageManager {
     Poetry,
     Cargo,
     GoMod,
+    NuGet,
 }
 
 impl std::fmt::Display for PackageManager {
@@ -76,6 +79,7 @@ impl std::fmt::Display for PackageManager {
             PackageManager::Poetry => write!(f, "poetry"),
             PackageManager::Cargo => write!(f, "cargo"),
             PackageManager::GoMod => write!(f, "go"),
+            PackageManager::NuGet => write!(f, "nuget"),
         }
     }
 }
@@ -504,6 +508,19 @@ pub fn detect_project(dir: &Path) -> Result<ProjectDetection> {
         detection.tools.insert("rust".to_string(), version);
     }
 
+    // Check for .NET/C# project
+    if let Some(dotnet_info) = detect_dotnet_project(dir)? {
+        detection.project_types.push(ProjectType::DotNet);
+        detection.tools.extend(dotnet_info.tools);
+        if detection.package_manager.is_none() {
+            detection.package_manager = Some(PackageManager::NuGet);
+        }
+        if detection.project_name.is_none() {
+            detection.project_name = dotnet_info.project_name;
+        }
+        detection.hints.extend(dotnet_info.hints);
+    }
+
     // Check for Justfile
     if dir.join("justfile").exists() || dir.join("Justfile").exists() {
         detection.project_types.push(ProjectType::Justfile);
@@ -757,6 +774,119 @@ fn detect_python_project(dir: &Path) -> Result<Option<PythonDetection>> {
     }
 
     Ok(Some(detection))
+}
+
+#[derive(Debug)]
+struct DotNetDetection {
+    tools: HashMap<String, String>,
+    project_name: Option<String>,
+    hints: Vec<String>,
+}
+
+fn detect_dotnet_project(dir: &Path) -> Result<Option<DotNetDetection>> {
+    // Check for .sln, .csproj, .fsproj, or global.json
+    let has_sln = has_files_with_extension(dir, "sln");
+    let has_csproj = has_files_with_extension(dir, "csproj");
+    let has_fsproj = has_files_with_extension(dir, "fsproj");
+    let has_global_json = dir.join("global.json").exists();
+    let has_dir_build_props = dir.join("Directory.Build.props").exists();
+
+    if !has_sln && !has_csproj && !has_fsproj && !has_global_json && !has_dir_build_props {
+        return Ok(None);
+    }
+
+    let mut detection = DotNetDetection {
+        tools: HashMap::new(),
+        project_name: None,
+        hints: Vec::new(),
+    };
+
+    // Default dotnet SDK version
+    detection
+        .tools
+        .insert("dotnet".to_string(), "latest".to_string());
+
+    // Try to get SDK version from global.json
+    if has_global_json {
+        if let Ok(content) = fs::read_to_string(dir.join("global.json")) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(version) = json
+                    .get("sdk")
+                    .and_then(|sdk| sdk.get("version"))
+                    .and_then(|v| v.as_str())
+                {
+                    detection
+                        .tools
+                        .insert("dotnet".to_string(), version.to_string());
+                    detection.hints.push(format!(
+                        ".NET SDK version {} pinned in global.json",
+                        version
+                    ));
+                }
+            }
+        }
+    }
+
+    // Try to get project name from .sln or .csproj
+    if has_sln {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path
+                    .extension()
+                    .map_or(false, |e| e.eq_ignore_ascii_case("sln"))
+                {
+                    if let Some(stem) = path.file_stem() {
+                        detection.project_name = Some(stem.to_string_lossy().to_string());
+                    }
+                    break;
+                }
+            }
+        }
+        detection
+            .hints
+            .push("Solution file detected - multi-project .NET solution".to_string());
+    } else if has_csproj {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path
+                    .extension()
+                    .map_or(false, |e| e.eq_ignore_ascii_case("csproj"))
+                {
+                    if let Some(stem) = path.file_stem() {
+                        detection.project_name = Some(stem.to_string_lossy().to_string());
+                    }
+                    break;
+                }
+            }
+        }
+        detection
+            .hints
+            .push("C# project detected".to_string());
+    } else if has_fsproj {
+        detection
+            .hints
+            .push("F# project detected".to_string());
+    }
+
+    Ok(Some(detection))
+}
+
+/// Check if directory has files with the given extension (non-recursive, root level only)
+fn has_files_with_extension(dir: &Path, ext: &str) -> bool {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path
+                .extension()
+                .map_or(false, |e| e.eq_ignore_ascii_case(ext))
+            {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn extract_python_version(line: &str) -> Option<String> {
