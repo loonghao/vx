@@ -327,10 +327,7 @@ async fn try_installer_script_fallback(
         ("vx-installer.sh", "sh")
     };
 
-    UI::step(&format!(
-        "Downloading {} installer script...",
-        script_name
-    ));
+    UI::step(&format!("Downloading {} installer script...", script_name));
 
     // Try downloading the installer script from GitHub releases
     let mut script_content = None;
@@ -843,10 +840,7 @@ async fn download_and_install(
             if let Some(ref backup) = backup_path {
                 let _ = fs::remove_file(backup);
             }
-            UI::detail(&format!(
-                "Installed to {}",
-                current_exe.display()
-            ));
+            UI::detail(&format!("Installed to {}", current_exe.display()));
         }
         Err(e) => {
             // On Windows, try alternative replacement methods
