@@ -347,8 +347,28 @@ impl RuntimeContext {
                     .ok_or_else(|| anyhow::anyhow!("Invalid response format from GitHub API"))?;
 
                 // Convert to compact format and cache
+                // Filter out releases with no downloadable assets (e.g., failed CI builds)
                 let compact_versions: Vec<CompactVersion> = releases
                     .iter()
+                    .filter(|release| {
+                        let has_assets = release
+                            .get("assets")
+                            .and_then(|a| a.as_array())
+                            .map(|a| !a.is_empty())
+                            .unwrap_or(false);
+                        if !has_assets {
+                            let tag = release
+                                .get("tag_name")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("unknown");
+                            tracing::debug!(
+                                "Skipping release {} for {}: no downloadable assets",
+                                tag,
+                                tool_name
+                            );
+                        }
+                        has_assets
+                    })
                     .filter_map(|release| parse_github_release_to_compact(release, &options))
                     .collect();
 

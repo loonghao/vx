@@ -272,6 +272,10 @@ impl Installer for RealInstaller {
             Some("zip")
         } else if archive_str.ends_with(".7z") {
             Some("7z")
+        } else if archive_str.ends_with(".msi") {
+            Some("msi")
+        } else if archive_str.ends_with(".pkg") {
+            Some("pkg")
         } else {
             // Try to detect by magic bytes
             let file = std::fs::File::open(archive)?;
@@ -343,6 +347,67 @@ impl Installer for RealInstaller {
                 sevenz_rust::decompress_file(archive, dest)
                     .map_err(|e| anyhow::anyhow!("Failed to extract 7z archive: {}", e))?;
             }
+            Some("msi") => {
+                // Use msiexec to extract MSI packages (Windows-only)
+                #[cfg(target_os = "windows")]
+                {
+                    let status = std::process::Command::new("msiexec")
+                        .args([
+                            "/a",
+                            &archive.to_string_lossy(),
+                            "/qn",
+                            &format!("TARGETDIR={}", dest.to_string_lossy()),
+                        ])
+                        .status()?;
+                    if !status.success() {
+                        return Err(anyhow::anyhow!(
+                            "msiexec failed to extract MSI (exit code: {:?})",
+                            status.code()
+                        ));
+                    }
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    return Err(anyhow::anyhow!(
+                        "MSI extraction is only supported on Windows: {}",
+                        archive_str
+                    ));
+                }
+            }
+            Some("pkg") => {
+                // Use pkgutil to extract macOS .pkg packages
+                #[cfg(target_os = "macos")]
+                {
+                    let expand_dir = dest.join(".pkg_expand");
+
+                    let output = std::process::Command::new("pkgutil")
+                        .arg("--expand-full")
+                        .arg(archive)
+                        .arg(&expand_dir)
+                        .output()?;
+
+                    if !output.status.success() {
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        return Err(anyhow::anyhow!(
+                            "pkgutil --expand-full failed: {}",
+                            stderr
+                        ));
+                    }
+
+                    // Promote Payload contents to dest directory
+                    promote_pkg_payload_contents(&expand_dir, dest)?;
+
+                    // Clean up expand directory
+                    let _ = std::fs::remove_dir_all(&expand_dir);
+                }
+                #[cfg(not(target_os = "macos"))]
+                {
+                    return Err(anyhow::anyhow!(
+                        "PKG extraction is only supported on macOS: {}",
+                        archive_str
+                    ));
+                }
+            }
             _ => {
                 return Err(anyhow::anyhow!(
                     "Unsupported archive format: {}",
@@ -398,7 +463,9 @@ impl Installer for RealInstaller {
             || archive_str.ends_with(".tar.zst")
             || archive_str.ends_with(".tzst")
             || archive_str.ends_with(".zip")
-            || archive_str.ends_with(".7z");
+            || archive_str.ends_with(".7z")
+            || archive_str.ends_with(".msi")
+            || archive_str.ends_with(".pkg");
 
         // Check extension hint from URL fragment
         if !is_archive {
@@ -454,4 +521,54 @@ impl Installer for RealInstaller {
 
         Ok(())
     }
+}
+
+/// Promote files from Payload directories to the target directory after pkgutil --expand-full.
+///
+/// After `pkgutil --expand-full`, files are nested like:
+///   `expand_dir/<component>.pkg/Payload/<actual files>`
+///
+/// This function moves the Payload contents up to `target_dir`.
+#[cfg(target_os = "macos")]
+fn promote_pkg_payload_contents(expand_dir: &Path, target_dir: &Path) -> Result<()> {
+    if let Ok(entries) = std::fs::read_dir(expand_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let payload_dir = path.join("Payload");
+                if payload_dir.exists() && payload_dir.is_dir() {
+                    copy_dir_contents_recursive(&payload_dir, target_dir)?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Recursively copy/move contents of src_dir into dst_dir.
+#[cfg(target_os = "macos")]
+fn copy_dir_contents_recursive(src_dir: &Path, dst_dir: &Path) -> Result<()> {
+    if let Ok(entries) = std::fs::read_dir(src_dir) {
+        for entry in entries.flatten() {
+            let src_path = entry.path();
+            let file_name = match src_path.file_name() {
+                Some(name) => name.to_owned(),
+                None => continue,
+            };
+            let dst_path = dst_dir.join(&file_name);
+
+            if src_path.is_dir() {
+                std::fs::create_dir_all(&dst_path)?;
+                copy_dir_contents_recursive(&src_path, &dst_path)?;
+            } else {
+                if let Some(parent) = dst_path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::rename(&src_path, &dst_path).or_else(|_| {
+                    std::fs::copy(&src_path, &dst_path).map(|_| ())
+                })?;
+            }
+        }
+    }
+    Ok(())
 }
