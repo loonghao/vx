@@ -90,8 +90,12 @@ jobs:
           version="${{ steps.version.outputs.version }}"
           echo "Original version: $version"
 
-          # Remove 'v' prefix for WinGet (v0.1.0 -> 0.1.0)
-          normalized_version="${version#v}"
+          # Robustly strip all known prefixes for WinGet version
+          # Handles: vx-v0.7.8 -> 0.7.8, v0.7.8 -> 0.7.8, 0.7.8 -> 0.7.8
+          normalized_version="${version}"
+          normalized_version="${normalized_version#vx-v}"
+          normalized_version="${normalized_version#vx-}"
+          normalized_version="${normalized_version#v}"
           echo "Normalized version: $normalized_version"
           echo "normalized_version=$normalized_version" >> $GITHUB_OUTPUT
 
@@ -128,13 +132,17 @@ jobs:
         uses: vedantmgoyal9/winget-releaser@v2
         with:
           identifier: loonghao.vx
-          # Use the GitHub release tag (e.g., "v0.6.13") to find the release
+          # Use the GitHub release tag (e.g., "v0.7.8") to find the release
           release-tag: ${{ needs.check-release.outputs.version }}
           # Use normalized version for WinGet package version (without 'vx-' and 'v' prefix)
           version: ${{ needs.check-release.outputs.normalized_version }}
-          # Only match Windows MSVC zip files (exclude sha256 files and non-Windows builds)
-          # Matches: vx-0.6.2-x86_64-pc-windows-msvc.zip, vx-x86_64-pc-windows-msvc.zip
-          installers-regex: 'windows-msvc\.zip$'
+          # Match ONLY the cargo-dist original unversioned zip files to avoid duplicates.
+          # cargo-dist produces: vx-x86_64-pc-windows-msvc.zip (unversioned)
+          # release.yml also creates: vx-0.7.8-x86_64-pc-windows-msvc.zip (versioned copy)
+          # We must match only ONE of them to avoid duplicate installer entries.
+          # Pattern: starts with "vx-" immediately followed by arch (x86_64 or aarch64),
+          # which excludes versioned copies like "vx-0.7.8-x86_64-..."
+          installers-regex: 'vx-(x86_64|aarch64)-pc-windows-msvc\.zip$'
           max-versions-to-keep: 5
           token: ${{ secrets.WINGET_TOKEN }}
 
