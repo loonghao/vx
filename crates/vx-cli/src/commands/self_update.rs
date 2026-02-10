@@ -1,10 +1,20 @@
 //! Self-update command implementation
 //!
-//! This module provides self-update functionality for vx with the following features:
-//! - **axoupdater fast path** (when `self-update` feature is enabled): Uses cargo-dist
-//!   install receipts for zero-config updates — handles tag format, asset naming, and
-//!   binary replacement automatically.
-//! - Multi-channel download with automatic fallback (GitHub, jsDelivr CDN, Fastly CDN)
+//! This module provides self-update functionality for vx with the following update strategies
+//! (tried in order):
+//!
+//! 1. **axoupdater fast path** (when `self-update` feature is enabled): Uses cargo-dist
+//!    install receipts for zero-config updates — handles tag format, asset naming, and
+//!    binary replacement automatically.
+//! 2. **Multi-channel binary download**: Direct binary download with automatic fallback
+//!    across GitHub Releases, jsDelivr CDN, and Fastly CDN. Tries both versioned and
+//!    unversioned asset naming formats for cross-era compatibility.
+//! 3. **Installer script fallback**: Downloads and executes the cargo-dist generated
+//!    installer script (`vx-installer.sh` / `vx-installer.ps1`) from the GitHub release.
+//!    This is the most resilient strategy as the script knows the exact asset names and
+//!    creates an install receipt for future fast-path updates.
+//!
+//! Additional features:
 //! - Download progress bar with speed and ETA display
 //! - SHA256 checksum verification for security
 //! - Specific version installation support
@@ -22,6 +32,7 @@ use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
+use std::process::Command;
 
 /// GitHub release information
 #[derive(Debug, Deserialize)]
@@ -91,10 +102,7 @@ pub async fn handle(
             }
             Err(e) => {
                 // axoupdater failed — fall through to legacy path
-                UI::warn(&format!(
-                    "axoupdater failed: {}. Falling back...",
-                    e
-                ));
+                UI::warn(&format!("axoupdater failed: {}. Falling back...", e));
             }
         }
     }
@@ -242,8 +250,48 @@ async fn legacy_update(
     let asset = find_platform_asset(&release.assets)?;
     UI::step(&format!("Downloading {}...", asset.name));
 
-    // Download and install update
-    download_and_install(&client, asset, force, version_source, latest_version).await?;
+    // Try direct binary download first, then fall back to installer script
+    match download_and_install(&client, asset, force, version_source, latest_version).await {
+        Ok(()) => {}
+        Err(binary_err) => {
+            // Binary download failed — try cargo-dist installer script as final fallback
+            UI::warn("Direct binary download failed, trying installer script fallback...");
+            UI::debug(&format!("Binary download error: {}", binary_err));
+
+            match try_installer_script_fallback(&client, latest_version, token).await {
+                Ok(()) => {
+                    // Installer script succeeded — it handles everything
+                    println!();
+                    UI::success(&format!(
+                        "Successfully updated vx to version {} via installer script!",
+                        latest_version
+                    ));
+                    UI::hint(
+                        "Restart your terminal or run 'vx --version' to verify the update",
+                    );
+                    return Ok(());
+                }
+                Err(script_err) => {
+                    UI::debug(&format!("Installer script error: {}", script_err));
+                    // Both methods failed — return the original binary error with guidance
+                    return Err(anyhow!(
+                        "Failed to update vx.\n\
+                        \n\
+                        Binary download error: {}\n\
+                        Installer script error: {}\n\
+                        \n\
+                        This can happen when upgrading across major release format changes \
+                        (e.g., v0.6.x → v0.7.x).\n\
+                        Please re-install manually using the install script:\n\
+                        \n\
+                        • Windows:  powershell -c \"irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex\"\n\
+                        • Linux/macOS: curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash",
+                        binary_err, script_err
+                    ));
+                }
+            }
+        }
+    }
 
     println!();
     UI::success(&format!(
@@ -253,6 +301,144 @@ async fn legacy_update(
     UI::hint("Restart your terminal or run 'vx --version' to verify the update");
 
     Ok(())
+}
+
+/// Try to update by downloading and executing the cargo-dist installer script.
+///
+/// For v0.7.0+ releases, cargo-dist generates `vx-installer.sh` (Unix) and
+/// `vx-installer.ps1` (Windows) in each GitHub release. These scripts handle:
+/// - Platform detection and correct asset download
+/// - Binary installation to the correct location
+/// - Creating install receipts for future axoupdater fast-path updates
+///
+/// This is the most resilient fallback strategy because the installer script
+/// is versioned alongside the release and always knows the correct asset names.
+async fn try_installer_script_fallback(
+    client: &reqwest::Client,
+    version: &str,
+    token: Option<&str>,
+) -> Result<()> {
+    let tag_candidates = get_tag_candidates(version);
+
+    // Determine the installer script name based on OS
+    let (script_name, script_ext) = if cfg!(target_os = "windows") {
+        ("vx-installer.ps1", "ps1")
+    } else {
+        ("vx-installer.sh", "sh")
+    };
+
+    UI::step(&format!(
+        "Downloading {} installer script...",
+        script_name
+    ));
+
+    // Try downloading the installer script from GitHub releases
+    let mut script_content = None;
+    for tag in &tag_candidates {
+        let url = format!(
+            "https://github.com/loonghao/vx/releases/download/{}/{}",
+            tag, script_name
+        );
+        UI::detail(&format!("Trying: {}", url));
+
+        match client.get(&url).send().await {
+            Ok(response) if response.status().is_success() => {
+                match response.text().await {
+                    Ok(text) if text.len() > 100 => {
+                        UI::detail(&format!(
+                            "Downloaded installer script ({} bytes)",
+                            text.len()
+                        ));
+                        script_content = Some(text);
+                        break;
+                    }
+                    Ok(_) => {
+                        UI::debug("Installer script too small, trying next tag...");
+                    }
+                    Err(e) => {
+                        UI::debug(&format!("Failed to read response: {}", e));
+                    }
+                }
+            }
+            Ok(response) => {
+                UI::debug(&format!("HTTP {} for {}", response.status(), url));
+            }
+            Err(e) => {
+                UI::debug(&format!("Request failed: {}", e));
+            }
+        }
+    }
+
+    let script_content =
+        script_content.ok_or_else(|| anyhow!("Installer script not found in release assets"))?;
+
+    // Save script to temp file
+    let temp_dir = env::temp_dir();
+    let script_path = temp_dir.join(format!("vx-update-installer.{}", script_ext));
+    fs::write(&script_path, &script_content)
+        .context("Failed to write installer script to temp directory")?;
+
+    // Execute the installer script
+    UI::step("Running installer script...");
+
+    let output = if cfg!(target_os = "windows") {
+        let mut cmd = Command::new("powershell");
+        cmd.args([
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            &script_path.to_string_lossy(),
+        ]);
+        // Pass GitHub token to the script if available
+        if let Some(t) = token {
+            cmd.env("GITHUB_TOKEN", t);
+        }
+        cmd.output()
+    } else {
+        // Make executable on Unix
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&script_path)?.permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&script_path, perms)?;
+        }
+
+        let mut cmd = Command::new("sh");
+        cmd.args([&script_path.to_string_lossy().to_string()]);
+        if let Some(t) = token {
+            cmd.env("GITHUB_TOKEN", t);
+        }
+        cmd.output()
+    };
+
+    // Clean up script file
+    let _ = fs::remove_file(&script_path);
+
+    match output {
+        Ok(output) => {
+            // Print script output for visibility
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if !stdout.is_empty() {
+                for line in stdout.lines() {
+                    UI::detail(line);
+                }
+            }
+
+            if output.status.success() {
+                Ok(())
+            } else {
+                let error_msg = if !stderr.is_empty() {
+                    stderr.to_string()
+                } else {
+                    format!("exit code: {}", output.status)
+                };
+                Err(anyhow!("Installer script failed: {}", error_msg))
+            }
+        }
+        Err(e) => Err(anyhow!("Failed to execute installer script: {}", e)),
+    }
 }
 
 /// Check if version_a is newer than version_b using semver comparison
@@ -677,10 +863,7 @@ async fn download_and_install(
                             if let Some(ref backup) = backup_path {
                                 let _ = fs::remove_file(backup);
                             }
-                            UI::detail(&format!(
-                                "Installed to {}",
-                                current_exe.display()
-                            ));
+                            UI::detail(&format!("Installed to {}", current_exe.display()));
                             return Ok(());
                         }
                         Err(alt_err) => {
@@ -1123,14 +1306,8 @@ async fn download_with_fallback(
     }
 
     Err(anyhow!(
-        "Failed to download from all channels.\n\
-        \n\
-        This can happen when upgrading across major release format changes \
-        (e.g., v0.6.x → v0.7.x).\n\
-        If you are stuck on an older version, please re-install using the install script:\n\
-        \n\
-        • Windows:  powershell -c \"irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex\"\n\
-        • Linux/macOS: curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash"
+        "Failed to download binary from all channels. \
+        Will try installer script fallback."
     ))
 }
 
