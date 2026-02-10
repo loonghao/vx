@@ -10,9 +10,10 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
+use tracing::{debug, info, warn};
 use vx_runtime::{
-    Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
-    VersionInfo,
+    Ecosystem, GitHubReleaseOptions, InstallResult, Platform, Runtime, RuntimeContext,
+    VerificationResult, VersionInfo,
 };
 
 /// x-cmd runtime implementation
@@ -80,6 +81,128 @@ impl Runtime for XCmdRuntime {
     async fn download_url(&self, _version: &str, _platform: &Platform) -> Result<Option<String>> {
         // x-cmd is installed via script, not a direct download
         Ok(None)
+    }
+
+    /// Override install() for script-based installation.
+    ///
+    /// x-cmd cannot be installed via binary download. Instead:
+    /// 1. Check if already installed on the system
+    /// 2. If not, run the appropriate install script (curl for Unix, PowerShell for Windows)
+    async fn install(&self, version: &str, _ctx: &RuntimeContext) -> Result<InstallResult> {
+        let platform = Platform::current();
+
+        // First check if x-cmd is already installed on the system
+        if let Ok(path) = which::which(XCmdConfig::executable_name()) {
+            debug!("x-cmd already installed at: {}", path.display());
+            return Ok(InstallResult::system_installed(
+                version.to_string(),
+                Some(path),
+            ));
+        }
+
+        // Check common search paths
+        for search_path in XCmdConfig::search_paths(&platform) {
+            let x_path = Path::new(search_path).join(XCmdConfig::executable_name());
+            if x_path.exists() {
+                debug!("x-cmd found at: {}", x_path.display());
+                return Ok(InstallResult::system_installed(
+                    version.to_string(),
+                    Some(x_path),
+                ));
+            }
+        }
+
+        // Not installed - run the install script
+        info!("Installing x-cmd via script...");
+
+        let install_result = match platform.os {
+            vx_runtime::Os::Windows => {
+                // PowerShell: iex (irm https://get.x-cmd.com/ps1)
+                let status = tokio::process::Command::new("powershell")
+                    .args([
+                        "-NoProfile",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-Command",
+                        &format!("iex (irm {})", XCmdConfig::install_script_url_windows()),
+                    ])
+                    .stdin(std::process::Stdio::inherit())
+                    .stdout(std::process::Stdio::inherit())
+                    .stderr(std::process::Stdio::inherit())
+                    .status()
+                    .await;
+
+                match status {
+                    Ok(s) if s.success() => Ok(()),
+                    Ok(s) => Err(anyhow::anyhow!(
+                        "x-cmd install script exited with code {}",
+                        s.code().unwrap_or(-1)
+                    )),
+                    Err(e) => Err(anyhow::anyhow!("Failed to run PowerShell: {}", e)),
+                }
+            }
+            _ => {
+                // Unix: eval "$(curl -fsSL https://get.x-cmd.com)"
+                let status = tokio::process::Command::new("bash")
+                    .args([
+                        "-c",
+                        &format!(
+                            "eval \"$(curl -fsSL {})\"",
+                            XCmdConfig::install_script_url()
+                        ),
+                    ])
+                    .stdin(std::process::Stdio::inherit())
+                    .stdout(std::process::Stdio::inherit())
+                    .stderr(std::process::Stdio::inherit())
+                    .status()
+                    .await;
+
+                match status {
+                    Ok(s) if s.success() => Ok(()),
+                    Ok(s) => Err(anyhow::anyhow!(
+                        "x-cmd install script exited with code {}",
+                        s.code().unwrap_or(-1)
+                    )),
+                    Err(e) => Err(anyhow::anyhow!("Failed to run bash: {}", e)),
+                }
+            }
+        };
+
+        if let Err(e) = install_result {
+            warn!("Script installation failed: {}", e);
+            return Err(anyhow::anyhow!(
+                "Failed to install x-cmd. Please install manually:\n\n  {}\n\nVisit https://x-cmd.com for more information.",
+                XCmdConfig::install_command(&platform)
+            ));
+        }
+
+        // Verify installation after script completed
+        if let Ok(path) = which::which(XCmdConfig::executable_name()) {
+            info!("x-cmd successfully installed at: {}", path.display());
+            return Ok(InstallResult::system_installed(
+                version.to_string(),
+                Some(path),
+            ));
+        }
+
+        // Check search paths again
+        for search_path in XCmdConfig::search_paths(&platform) {
+            let x_path = Path::new(search_path).join(XCmdConfig::executable_name());
+            if x_path.exists() {
+                info!("x-cmd successfully installed at: {}", x_path.display());
+                return Ok(InstallResult::system_installed(
+                    version.to_string(),
+                    Some(x_path),
+                ));
+            }
+        }
+
+        Err(anyhow::anyhow!(
+            "x-cmd install script completed but executable not found.\n\
+             Please install manually:\n\n  {}\n\n\
+             Visit https://x-cmd.com for more information.",
+            XCmdConfig::install_command(&platform)
+        ))
     }
 
     fn verify_installation(

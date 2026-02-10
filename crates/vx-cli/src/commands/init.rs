@@ -784,14 +784,34 @@ struct DotNetDetection {
 }
 
 fn detect_dotnet_project(dir: &Path) -> Result<Option<DotNetDetection>> {
-    // Check for .sln, .csproj, .fsproj, or global.json
+    // Check for .sln, .csproj, .fsproj, or global.json at root level
     let has_sln = has_files_with_extension(dir, "sln");
     let has_csproj = has_files_with_extension(dir, "csproj");
     let has_fsproj = has_files_with_extension(dir, "fsproj");
     let has_global_json = dir.join("global.json").exists();
     let has_dir_build_props = dir.join("Directory.Build.props").exists();
 
-    if !has_sln && !has_csproj && !has_fsproj && !has_global_json && !has_dir_build_props {
+    // Also check 2-3 levels deep for .csproj, .fsproj, .sln files
+    // This handles common .NET solution layouts like:
+    //   MyProject/
+    //     src/
+    //       MyApp/
+    //         MyApp.csproj
+    //       MyLib/
+    //         MyLib.csproj
+    let has_deep_dotnet = if !has_sln && !has_csproj && !has_fsproj {
+        has_dotnet_files_recursive(dir, 3)
+    } else {
+        false
+    };
+
+    if !has_sln
+        && !has_csproj
+        && !has_fsproj
+        && !has_global_json
+        && !has_dir_build_props
+        && !has_deep_dotnet
+    {
         return Ok(None);
     }
 
@@ -883,6 +903,60 @@ fn has_files_with_extension(dir: &Path, ext: &str) -> bool {
                 .map_or(false, |e| e.eq_ignore_ascii_case(ext))
             {
                 return true;
+            }
+        }
+    }
+    false
+}
+
+/// Check if directory contains .NET project files (.csproj, .fsproj, .sln) up to max_depth levels deep.
+///
+/// This handles common .NET solution layouts where project files are nested in subdirectories:
+/// ```text
+/// MyProject/
+///   src/
+///     MyApp/
+///       MyApp.csproj
+///     MyLib/
+///       MyLib.csproj
+/// ```
+fn has_dotnet_files_recursive(dir: &Path, max_depth: usize) -> bool {
+    has_dotnet_files_recursive_inner(dir, max_depth, 0)
+}
+
+fn has_dotnet_files_recursive_inner(dir: &Path, max_depth: usize, current_depth: usize) -> bool {
+    if current_depth > max_depth {
+        return false;
+    }
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    if ext.eq_ignore_ascii_case("csproj")
+                        || ext.eq_ignore_ascii_case("fsproj")
+                        || ext.eq_ignore_ascii_case("sln")
+                    {
+                        return true;
+                    }
+                }
+            } else if path.is_dir() && current_depth < max_depth {
+                // Skip common non-project directories
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name.starts_with('.')
+                        || name == "node_modules"
+                        || name == "bin"
+                        || name == "obj"
+                        || name == "target"
+                        || name == "dist"
+                        || name == "packages"
+                    {
+                        continue;
+                    }
+                }
+                if has_dotnet_files_recursive_inner(&path, max_depth, current_depth + 1) {
+                    return true;
+                }
             }
         }
     }

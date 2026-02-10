@@ -57,6 +57,11 @@ impl LanguageAnalyzer for DotNetAnalyzer {
         if root.join("Directory.Build.props").exists() {
             return true;
         }
+        // Check 2-3 levels deep for .csproj, .fsproj, .sln files
+        // Handles common .NET layouts where project files are nested
+        if has_dotnet_files_recursive(root, 3) {
+            return true;
+        }
         false
     }
 
@@ -243,6 +248,58 @@ fn has_files_with_extension(root: &Path, ext: &str) -> bool {
             let path = entry.path();
             if let Some(file_ext) = path.extension() {
                 if file_ext.to_string_lossy().eq_ignore_ascii_case(ext) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Check if directory contains .NET project files (.csproj, .fsproj, .sln) up to max_depth levels deep.
+///
+/// This supports common .NET solution layouts where project files are in subdirectories:
+/// ```text
+/// MyProject/
+///   src/
+///     MyApp/
+///       MyApp.csproj
+/// ```
+fn has_dotnet_files_recursive(root: &Path, max_depth: usize) -> bool {
+    has_dotnet_files_recursive_inner(root, max_depth, 0)
+}
+
+fn has_dotnet_files_recursive_inner(dir: &Path, max_depth: usize, current_depth: usize) -> bool {
+    if current_depth > max_depth {
+        return false;
+    }
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    if ext.eq_ignore_ascii_case("csproj")
+                        || ext.eq_ignore_ascii_case("fsproj")
+                        || ext.eq_ignore_ascii_case("sln")
+                    {
+                        return true;
+                    }
+                }
+            } else if path.is_dir() && current_depth < max_depth {
+                // Skip common non-project directories
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name.starts_with('.')
+                        || name == "node_modules"
+                        || name == "bin"
+                        || name == "obj"
+                        || name == "target"
+                        || name == "dist"
+                        || name == "packages"
+                    {
+                        continue;
+                    }
+                }
+                if has_dotnet_files_recursive_inner(&path, max_depth, current_depth + 1) {
                     return true;
                 }
             }

@@ -393,7 +393,13 @@ impl ProjectAnalyzer {
             "go.mod",
             "package.json",
             "pyproject.toml",
+            // .NET markers
+            "global.json",
+            "Directory.Build.props",
         ];
+
+        // File extensions that indicate a project subdirectory (.NET uses variable-named files)
+        let project_extensions = ["csproj", "fsproj", "sln"];
 
         // Common container directories for monorepos (packages/apps/etc.)
         let monorepo_containers = [
@@ -424,13 +430,25 @@ impl ProjectAnalyzer {
 
                 if path.is_dir() {
                     let mut pushed = false;
-                    // Check if this subdirectory contains any project markers
+                    // Check if this subdirectory contains any project markers (fixed filenames)
                     for marker in &monorepo_indicators {
                         if path.join(marker).exists() {
                             debug!("Found monorepo subdirectory: {}", path.display());
                             dirs.push(path.clone());
                             pushed = true;
                             break;
+                        }
+                    }
+
+                    // Check for project files by extension (.csproj, .fsproj, .sln)
+                    if !pushed {
+                        if has_files_with_any_extension(&path, &project_extensions) {
+                            debug!(
+                                "Found project subdirectory (by extension): {}",
+                                path.display()
+                            );
+                            dirs.push(path.clone());
+                            pushed = true;
                         }
                     }
 
@@ -442,6 +460,7 @@ impl ProjectAnalyzer {
                                 if !child_path.is_dir() {
                                     continue;
                                 }
+                                let mut child_pushed = false;
                                 for marker in &monorepo_indicators {
                                     if child_path.join(marker).exists() {
                                         debug!(
@@ -449,8 +468,22 @@ impl ProjectAnalyzer {
                                             child_path.display()
                                         );
                                         dirs.push(child_path.clone());
+                                        child_pushed = true;
                                         break;
                                     }
+                                }
+                                // Also check extensions in nested container dirs
+                                if !child_pushed
+                                    && has_files_with_any_extension(
+                                        &child_path,
+                                        &project_extensions,
+                                    )
+                                {
+                                    debug!(
+                                        "Found project subdirectory (by extension): {}",
+                                        child_path.display()
+                                    );
+                                    dirs.push(child_path.clone());
                                 }
                             }
                         }
@@ -468,8 +501,24 @@ impl ProjectAnalyzer {
     }
 }
 
+/// Check if a directory contains files with any of the given extensions (non-recursive)
+fn has_files_with_any_extension(dir: &Path, extensions: &[&str]) -> bool {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                if extensions.iter().any(|e| ext.eq_ignore_ascii_case(e)) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 /// Check if a tool is available in PATH or via vx
 async fn is_tool_available(name: &str) -> bool {
+
     // First check PATH
     if which::which(name).is_ok() {
         return true;

@@ -417,3 +417,90 @@ async fn test_dotnet_with_other_ecosystem() {
     assert!(analysis.ecosystems.contains(&Ecosystem::DotNet));
     assert!(analysis.ecosystems.contains(&Ecosystem::NodeJs));
 }
+
+#[tokio::test]
+async fn test_dotnet_deep_detection_csproj_in_subdirectory() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+
+    // Create a nested .csproj project: src/MyApp/MyApp.csproj
+    let src_dir = root.join("src").join("MyApp");
+    tokio::fs::create_dir_all(&src_dir).await.unwrap();
+
+    let csproj = r#"<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+</Project>"#;
+    tokio::fs::write(src_dir.join("MyApp.csproj"), csproj)
+        .await
+        .unwrap();
+
+    let config = AnalyzerConfig {
+        max_depth: 3,
+        ..Default::default()
+    };
+    let analyzer = ProjectAnalyzer::new(config);
+    let analysis = analyzer.analyze(root).await.unwrap();
+
+    assert!(
+        analysis.ecosystems.contains(&Ecosystem::DotNet),
+        "Should detect .NET project in nested subdirectory"
+    );
+}
+
+#[tokio::test]
+async fn test_dotnet_deep_detection_sln_level2() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+
+    // Create a solution in a subdirectory: backend/MyApp.sln
+    let backend_dir = root.join("backend");
+    tokio::fs::create_dir_all(&backend_dir).await.unwrap();
+    tokio::fs::write(backend_dir.join("MyApp.sln"), "solution content")
+        .await
+        .unwrap();
+
+    let config = AnalyzerConfig {
+        max_depth: 3,
+        ..Default::default()
+    };
+    let analyzer = ProjectAnalyzer::new(config);
+    let analysis = analyzer.analyze(root).await.unwrap();
+
+    assert!(
+        analysis.ecosystems.contains(&Ecosystem::DotNet),
+        "Should detect .NET solution file in level-2 subdirectory"
+    );
+}
+
+#[tokio::test]
+async fn test_dotnet_deep_detection_level3() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+
+    // Create a nested .csproj project: services/api/MyApi/MyApi.csproj
+    let api_dir = root.join("services").join("api").join("MyApi");
+    tokio::fs::create_dir_all(&api_dir).await.unwrap();
+
+    let csproj = r#"<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+</Project>"#;
+    tokio::fs::write(api_dir.join("MyApi.csproj"), csproj)
+        .await
+        .unwrap();
+
+    let config = AnalyzerConfig {
+        max_depth: 3,
+        ..Default::default()
+    };
+    let analyzer = ProjectAnalyzer::new(config);
+    let analysis = analyzer.analyze(root).await.unwrap();
+
+    assert!(
+        analysis.ecosystems.contains(&Ecosystem::DotNet),
+        "Should detect .NET project in level-3 subdirectory"
+    );
+}
