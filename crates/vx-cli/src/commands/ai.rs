@@ -11,8 +11,7 @@
 use crate::commands::CommandContext;
 use crate::ui::UI;
 use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
-use vx_runtime::PathProvider;
+use std::path::PathBuf;
 
 /// Supported AI agent targets: (name, project_skills_dir, global_skills_dir)
 const SUPPORTED_AGENTS: &[(&str, &str, &str)] = &[
@@ -133,10 +132,28 @@ pub async fn handle_agents() -> Result<()> {
     Ok(())
 }
 
-/// Handle `vx ai skills <args...>` - proxy to Vercel Skills CLI
-pub async fn handle_skills(ctx: &CommandContext, args: &[String]) -> Result<()> {
-    let skills_exe = find_or_install_skills(ctx).await?;
-    run_skills_command(&skills_exe, args).await
+/// Handle `vx ai skills <args...>` - proxy to Vercel Skills CLI via npx
+///
+/// Uses `vx npx skills` to run the Vercel Skills CLI. This leverages vx's
+/// existing runtime dependency resolution — node will be auto-installed if needed.
+pub async fn handle_skills(_ctx: &CommandContext, args: &[String]) -> Result<()> {
+    // Find the vx binary itself to use `vx npx`
+    let vx_exe = std::env::current_exe().context("Could not determine vx executable path")?;
+
+    let mut cmd_args = vec!["npx".to_string(), "skills".to_string()];
+    cmd_args.extend_from_slice(args);
+
+    let status = std::process::Command::new(&vx_exe)
+        .args(&cmd_args)
+        .status()
+        .context("Failed to execute 'vx npx skills'. Is node available?")?;
+
+    if !status.success() {
+        let code = status.code().unwrap_or(1);
+        std::process::exit(code);
+    }
+
+    Ok(())
 }
 
 /// Resolve agent names: if empty, use all agents; otherwise validate names
@@ -164,91 +181,4 @@ fn resolve_agents(agents: &[String]) -> Result<Vec<(&'static str, &'static str, 
         }
     }
     Ok(result)
-}
-
-/// Find the skills executable or auto-install it
-async fn find_or_install_skills(ctx: &CommandContext) -> Result<PathBuf> {
-    // Try to find skills in vx-managed installations first
-    let paths = vx_runtime::RealPathProvider::default();
-    let tool_dir = paths.npm_tool_dir("skills");
-
-    if tool_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(&tool_dir) {
-            let mut versions: Vec<String> = entries
-                .filter_map(|e| e.ok())
-                .filter(|e| e.path().is_dir())
-                .filter_map(|e| e.file_name().into_string().ok())
-                .collect();
-            versions.sort_by(|a, b| vx_runtime::compare_semver(b, a));
-
-            if let Some(version) = versions.first() {
-                let bin_name = if cfg!(windows) {
-                    "skills.cmd"
-                } else {
-                    "skills"
-                };
-                let exe = paths.npm_tool_bin_dir("skills", version).join(bin_name);
-                if exe.exists() {
-                    return Ok(exe);
-                }
-            }
-        }
-    }
-
-    // Try system PATH
-    if let Ok(exe) = which::which("skills") {
-        return Ok(exe);
-    }
-
-    // Auto-install skills via vx provider
-    UI::info("Skills CLI not found. Installing...");
-
-    let registry = ctx.registry();
-    let runtime_ctx = ctx.runtime_context();
-
-    if let Some(runtime) = registry.get_runtime("skills") {
-        let versions = runtime
-            .fetch_versions(runtime_ctx)
-            .await
-            .context("Failed to fetch skills versions")?;
-
-        if let Some(latest) = versions.first() {
-            let version = &latest.version;
-            UI::info(&format!("Installing skills v{}...", version));
-            runtime
-                .install(version, runtime_ctx)
-                .await
-                .context("Failed to install skills")?;
-
-            let bin_name = if cfg!(windows) {
-                "skills.cmd"
-            } else {
-                "skills"
-            };
-            let exe = paths.npm_tool_bin_dir("skills", version).join(bin_name);
-            if exe.exists() {
-                UI::success(&format!("Skills v{} installed successfully", version));
-                return Ok(exe);
-            }
-        }
-    }
-
-    Err(anyhow::anyhow!(
-        "Failed to install skills CLI. Try: vx install skills"
-    ))
-}
-
-/// Execute the skills CLI command
-async fn run_skills_command(exe: &Path, args: &[String]) -> Result<()> {
-    let status = std::process::Command::new(exe)
-        .args(args)
-        .status()
-        .context("Failed to execute skills CLI")?;
-
-    if !status.success() {
-        let code = status.code().unwrap_or(1);
-        std::process::exit(code);
-    }
-
-    Ok(())
 }
