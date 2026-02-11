@@ -15,6 +15,7 @@ os = ["windows", "linux", "macos"]
 name = "fd"
 description = "fd - a simple, fast and user-friendly alternative to find"
 executable = "fd"
+aliases = ["fd-find"]
 
 [runtimes.versions]
 source = "github-releases"

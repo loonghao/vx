@@ -4,7 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use vx_runtime::{
-    platform::Platform, Ecosystem, GitHubReleaseOptions, Runtime, RuntimeContext,
+    platform::Platform, Ecosystem, GitHubReleaseOptions, Os, Runtime, RuntimeContext,
     RuntimeDependency, VersionInfo,
 };
 
@@ -49,6 +49,14 @@ impl Runtime for RipgrepRuntime {
 
     fn dependencies(&self) -> &[RuntimeDependency] {
         &[]
+    }
+
+    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        // ripgrep archive structure: ripgrep-{version}-{target}/rg(.exe)
+        let target =
+            crate::config::RipgrepUrlBuilder::get_target_triple(platform).unwrap_or("unknown");
+        let exe = crate::config::RipgrepUrlBuilder::get_executable_name(platform);
+        format!("ripgrep-{version}-{target}/{exe}")
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
