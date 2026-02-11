@@ -658,6 +658,18 @@ pub enum Commands {
         #[command(subcommand)]
         command: AuthCommand,
     },
+
+    // =========================================================================
+    // AI Tools
+    // =========================================================================
+    /// AI agent skills management
+    ///
+    /// Install vx skills for AI coding agents, manage Vercel Skills CLI,
+    /// and configure AI agent integrations.
+    Ai {
+        #[command(subcommand)]
+        command: AiCommand,
+    },
 }
 
 // =============================================================================
@@ -1105,6 +1117,41 @@ pub enum AuthCommand {
     },
 }
 
+#[derive(Subcommand, Clone)]
+pub enum AiCommand {
+    /// Install vx skills to AI agent configuration directories
+    ///
+    /// Copies the built-in vx-usage skill to each agent's skills directory,
+    /// so AI coding agents can better understand and use vx.
+    Setup {
+        /// Target specific agents (default: all supported agents)
+        #[arg(short, long, action = clap::ArgAction::Append)]
+        agent: Vec<String>,
+        /// Install to global (home) directory instead of project
+        #[arg(short, long)]
+        global: bool,
+        /// Force overwrite existing skills
+        #[arg(short, long)]
+        force: bool,
+    },
+
+    /// List supported AI agents and their config paths
+    Agents,
+
+    /// Proxy to Vercel Skills CLI (auto-installs if needed)
+    ///
+    /// Pass any arguments to the skills CLI. Examples:
+    ///   vx ai skills add <repo-url>
+    ///   vx ai skills list
+    ///   vx ai skills find <query>
+    ///   vx ai skills init [name]
+    Skills {
+        /// Arguments to pass to the skills CLI
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+}
+
 // =============================================================================
 // CommandHandler Implementation
 // =============================================================================
@@ -1151,6 +1198,7 @@ impl CommandHandler for Commands {
             Commands::Info { .. } => "info",
             Commands::Metrics { .. } => "metrics",
             Commands::Auth { .. } => "auth",
+            Commands::Ai { .. } => "ai",
         }
     }
 
@@ -1709,6 +1757,16 @@ impl CommandHandler for Commands {
                 }
                 AuthCommand::Logout { service } => handle_auth_logout(service).await,
                 AuthCommand::Status { service } => handle_auth_status(service).await,
+            },
+
+            Commands::Ai { command } => match command {
+                AiCommand::Setup {
+                    agent,
+                    global,
+                    force,
+                } => commands::ai::handle_setup(agent, *global, *force).await,
+                AiCommand::Agents => commands::ai::handle_agents().await,
+                AiCommand::Skills { args } => commands::ai::handle_skills(ctx, args).await,
             },
         }
     }
