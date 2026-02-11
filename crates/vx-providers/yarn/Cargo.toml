@@ -13,6 +13,7 @@ rust-version.workspace = true
 
 [dependencies]
 vx-core = { workspace = true }
+vx-manifest = { workspace = true }
 vx-paths = { workspace = true }
 vx-runtime = { workspace = true }
 vx-version-fetcher = { workspace = true }

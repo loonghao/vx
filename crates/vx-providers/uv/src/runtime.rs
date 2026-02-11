@@ -12,6 +12,7 @@ use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
+use vx_manifest::MirrorConfig;
 use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
 use vx_version_fetcher::VersionFetcherBuilder;
 
@@ -85,6 +86,37 @@ impl Runtime for UvRuntime {
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         Ok(UvUrlBuilder::download_url(version, platform))
+    }
+
+    fn mirror_urls(&self) -> Vec<MirrorConfig> {
+        vec![MirrorConfig {
+            name: "github-mirror".to_string(),
+            region: Some("cn".to_string()),
+            url: "https://ghgo.xyz/https://github.com/astral-sh/uv/releases/download".to_string(),
+            priority: 100,
+            enabled: true,
+        }]
+    }
+
+    async fn download_url_for_mirror(
+        &self,
+        mirror_base_url: &str,
+        version: &str,
+        platform: &Platform,
+    ) -> Result<Option<String>> {
+        let filename = UvUrlBuilder::get_filename(platform);
+        match filename {
+            Some(f) => {
+                let clean_version = version.trim_start_matches('v');
+                Ok(Some(format!(
+                    "{}/{}/{}",
+                    mirror_base_url.trim_end_matches('/'),
+                    clean_version,
+                    f
+                )))
+            }
+            None => Ok(None),
+        }
     }
 
     /// Pre-run hook for uv commands

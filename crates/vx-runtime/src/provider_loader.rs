@@ -329,6 +329,21 @@ impl ProviderLoader {
                 }
             }
 
+            // RFC 0018: Mirror configuration
+            if let Some(mirrors) = runtime_value.get("mirrors").and_then(|v| v.as_array()) {
+                let mut mirror_configs = Vec::new();
+                for mirror_value in mirrors {
+                    if let Ok(mirror_config) =
+                        mirror_value.clone().try_into::<vx_manifest::MirrorConfig>()
+                    {
+                        mirror_configs.push(mirror_config);
+                    }
+                }
+                if !mirror_configs.is_empty() {
+                    runtime = runtime.with_mirrors(mirror_configs);
+                }
+            }
+
             runtimes.push(runtime);
         }
 

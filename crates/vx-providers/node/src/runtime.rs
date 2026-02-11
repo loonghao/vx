@@ -114,6 +114,40 @@ impl Runtime for NodeRuntime {
         Ok(NodeUrlBuilder::download_url(version, platform))
     }
 
+    fn mirror_urls(&self) -> Vec<vx_manifest::MirrorConfig> {
+        vec![
+            vx_manifest::MirrorConfig {
+                name: "taobao".to_string(),
+                region: Some("cn".to_string()),
+                url: "https://npmmirror.com/mirrors/node".to_string(),
+                priority: 100,
+                enabled: true,
+            },
+            vx_manifest::MirrorConfig {
+                name: "ustc".to_string(),
+                region: Some("cn".to_string()),
+                url: "https://mirrors.ustc.edu.cn/node".to_string(),
+                priority: 90,
+                enabled: true,
+            },
+        ]
+    }
+
+    async fn download_url_for_mirror(
+        &self,
+        mirror_base_url: &str,
+        version: &str,
+        platform: &Platform,
+    ) -> Result<Option<String>> {
+        let filename = NodeUrlBuilder::get_filename(version, platform);
+        Ok(Some(format!(
+            "{}/v{}/{}",
+            mirror_base_url.trim_end_matches('/'),
+            version,
+            filename
+        )))
+    }
+
     /// Ensure bundled tools (npm, npx) have correct permissions after extraction
     ///
     /// On Unix systems, npm and npx are shell scripts that need execute permissions.

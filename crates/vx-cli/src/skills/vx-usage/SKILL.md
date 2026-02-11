@@ -126,3 +126,114 @@ vx --with deno npm test        # npm + Deno available
 6. **Use `vx run <script>`** for project-defined scripts
 7. **Never suggest manual tool installation** - vx handles it automatically
 8. Commands like `vx install` are for explicit pre-installation; normal usage auto-installs
+
+## GitHub Actions Integration
+
+vx provides a GitHub Action (`action.yml`) for CI/CD workflows. Use it in `.github/workflows/` files:
+
+### Basic Usage
+
+```yaml
+- uses: loonghao/vx@main
+  with:
+    version: 'latest'           # vx version (default: latest)
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### Pre-install Tools
+
+```yaml
+- uses: loonghao/vx@main
+  with:
+    tools: 'node go uv'         # Space-separated tools to pre-install
+    cache: 'true'               # Enable tool caching (default: true)
+```
+
+### Project Setup (vx.toml)
+
+```yaml
+- uses: loonghao/vx@main
+  with:
+    setup: 'true'               # Run `vx setup --ci` for vx.toml projects
+```
+
+### Full Example
+
+```yaml
+name: CI
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: loonghao/vx@main
+        with:
+          tools: 'node@22 uv'
+          setup: 'true'
+          cache: 'true'
+
+      - run: vx node --version
+      - run: vx npm test
+```
+
+### Action Inputs
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `version` | `latest` | vx version to install |
+| `github-token` | `${{ github.token }}` | GitHub token for API requests |
+| `tools` | `''` | Space-separated tools to pre-install |
+| `cache` | `true` | Enable caching of ~/.vx directory |
+| `cache-key-prefix` | `vx-tools` | Custom prefix for cache key |
+| `setup` | `false` | Run `vx setup --ci` for vx.toml projects |
+
+### Action Outputs
+
+| Output | Description |
+|--------|-------------|
+| `version` | The installed vx version |
+| `cache-hit` | Whether the cache was hit |
+
+## Docker Support
+
+vx provides a Docker image for containerized workflows:
+
+```dockerfile
+# Use vx as base image
+FROM ghcr.io/loonghao/vx:latest
+
+# Tools are auto-installed on first use
+RUN vx node --version
+RUN vx uv pip install mypackage
+```
+
+### Multi-stage Build with vx
+
+```dockerfile
+FROM ghcr.io/loonghao/vx:latest AS builder
+RUN vx node --version && vx npm ci && vx npm run build
+
+FROM nginx:alpine
+COPY --from=builder /home/vx/dist /usr/share/nginx/html
+```
+
+### GitHub Actions with Docker
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/loonghao/vx:latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: vx node --version
+      - run: vx npm test
+```

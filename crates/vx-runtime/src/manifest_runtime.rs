@@ -72,6 +72,8 @@ pub struct ManifestDrivenRuntime {
     pub system_deps: Option<SystemDepsConfig>,
     /// Post-install normalize configuration (RFC 0022)
     pub normalize: Option<vx_manifest::NormalizeConfig>,
+    /// Mirror configurations from provider.toml (RFC 0018)
+    pub mirrors: Vec<vx_manifest::MirrorConfig>,
 }
 
 /// Installation strategy for system tools
@@ -260,12 +262,19 @@ impl ManifestDrivenRuntime {
             detection: None,
             system_deps: None,
             normalize: None,
+            mirrors: Vec::new(),
         }
     }
 
     /// Set description
     pub fn with_description(mut self, description: impl Into<String>) -> Self {
         self.description = description.into();
+        self
+    }
+
+    /// Set mirrors from provider.toml configuration
+    pub fn with_mirrors(mut self, mirrors: Vec<vx_manifest::MirrorConfig>) -> Self {
+        self.mirrors = mirrors;
         self
     }
 
@@ -422,6 +431,10 @@ impl Runtime for ManifestDrivenRuntime {
             meta.insert("bundled_with".to_string(), bundled.clone());
         }
         meta
+    }
+
+    fn mirror_urls(&self) -> Vec<vx_manifest::MirrorConfig> {
+        self.mirrors.clone()
     }
 
     /// Get the store directory name for this runtime

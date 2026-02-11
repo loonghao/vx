@@ -366,6 +366,34 @@ impl Runtime for YarnRuntime {
         }
     }
 
+    fn mirror_urls(&self) -> Vec<vx_manifest::MirrorConfig> {
+        vec![vx_manifest::MirrorConfig {
+            name: "taobao".to_string(),
+            region: Some("cn".to_string()),
+            url: "https://npmmirror.com/mirrors/yarn".to_string(),
+            priority: 100,
+            enabled: true,
+        }]
+    }
+
+    async fn download_url_for_mirror(
+        &self,
+        mirror_base_url: &str,
+        version: &str,
+        _platform: &Platform,
+    ) -> Result<Option<String>> {
+        // Only Yarn 1.x is directly downloadable
+        if !version.starts_with('1') {
+            return Ok(None);
+        }
+        Ok(Some(format!(
+            "{}/v{}/yarn-v{}.tar.gz",
+            mirror_base_url.trim_end_matches('/'),
+            version,
+            version
+        )))
+    }
+
     /// Pre-run hook for yarn commands
     ///
     /// For "yarn run" commands, ensures project dependencies are installed first.

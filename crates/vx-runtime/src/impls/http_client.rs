@@ -1,5 +1,6 @@
 //! Real HTTP client implementation
 
+use crate::region;
 use crate::traits::HttpClient;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -7,10 +8,27 @@ use backon::{ExponentialBuilder, Retryable};
 use std::path::Path;
 use std::time::Duration;
 
+/// Determine whether CDN acceleration should be enabled.
+///
+/// CDN proxies (like gh-proxy.com) are mainly useful in China where GitHub
+/// access is slow or unreliable. Outside China (e.g. GitHub CI), these proxies
+/// can be unstable and cause download failures (HTTP 404).
+///
+/// Decision logic (in order):
+/// 1. `VX_CDN=1` / `VX_CDN=true`  → force enable
+/// 2. `VX_CDN=0` / `VX_CDN=false` → force disable
+/// 3. `CI=true` or `GITHUB_ACTIONS=true` → disable (CI environments have direct GitHub access)
+/// 4. Check system locale / timezone for China indicators → enable if detected
+/// 5. Default → disable (safer default for international users)
+fn should_enable_cdn() -> bool {
+    // Use the shared region detection — CDN is enabled when in China
+    region::detect_region() == region::Region::China
+}
+
 /// Real HTTP client using reqwest with optional CDN acceleration
 pub struct RealHttpClient {
     pub(crate) client: reqwest::Client,
-    /// Whether CDN acceleration is enabled (controlled by cdn-acceleration feature)
+    /// Whether CDN acceleration is enabled (controlled by cdn-acceleration feature + region)
     cdn_enabled: bool,
     /// Download cache for avoiding re-downloads
     pub(crate) download_cache: Option<vx_cache::DownloadCache>,
@@ -19,7 +37,9 @@ pub struct RealHttpClient {
 impl RealHttpClient {
     /// Create a new real HTTP client with default timeouts
     ///
-    /// CDN acceleration is automatically enabled when the `cdn-acceleration` feature is active.
+    /// CDN acceleration is automatically enabled only when:
+    /// 1. The `cdn-acceleration` feature is compiled in, AND
+    /// 2. The system environment indicates a China-based user (or `VX_CDN=1` is set)
     ///
     /// The client is configured with:
     /// - Connection pooling (idle connections kept alive for 90 seconds)
@@ -29,16 +49,10 @@ impl RealHttpClient {
     /// - Read timeout of 60 seconds (resets after each successful read, good for large files)
     /// - No total timeout (allows large file downloads to complete)
     pub fn new() -> Self {
+        let cdn_enabled = cfg!(feature = "cdn-acceleration") && should_enable_cdn();
         Self {
-            client: reqwest::Client::builder()
-                .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
-                .connect_timeout(Duration::from_secs(30)) // 30 seconds to establish connection
-                .read_timeout(Duration::from_secs(60)) // 60 seconds per read operation (resets on data)
-                .pool_idle_timeout(Duration::from_secs(90)) // Keep idle connections for 90s
-                .pool_max_idle_per_host(10) // Max 10 idle connections per host
-                .build()
-                .expect("Failed to create HTTP client"),
-            cdn_enabled: cfg!(feature = "cdn-acceleration"),
+            client: Self::build_client(),
+            cdn_enabled,
             download_cache: None,
         }
     }
@@ -46,14 +60,7 @@ impl RealHttpClient {
     /// Create a new HTTP client with explicit CDN setting and default timeouts
     pub fn with_cdn(cdn_enabled: bool) -> Self {
         Self {
-            client: reqwest::Client::builder()
-                .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
-                .connect_timeout(Duration::from_secs(30)) // 30 seconds to establish connection
-                .read_timeout(Duration::from_secs(60)) // 60 seconds per read operation (resets on data)
-                .pool_idle_timeout(Duration::from_secs(90)) // Keep idle connections for 90s
-                .pool_max_idle_per_host(10) // Max 10 idle connections per host
-                .build()
-                .expect("Failed to create HTTP client"),
+            client: Self::build_client(),
             cdn_enabled: cdn_enabled && cfg!(feature = "cdn-acceleration"),
             download_cache: None,
         }
@@ -70,13 +77,25 @@ impl RealHttpClient {
                 .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
                 .connect_timeout(connect_timeout)
                 .read_timeout(read_timeout)
-                .pool_idle_timeout(Duration::from_secs(90)) // Keep idle connections for 90s
-                .pool_max_idle_per_host(10) // Max 10 idle connections per host
+                .pool_idle_timeout(Duration::from_secs(90))
+                .pool_max_idle_per_host(10)
                 .build()
                 .expect("Failed to create HTTP client"),
             cdn_enabled: cdn_enabled && cfg!(feature = "cdn-acceleration"),
             download_cache: None,
         }
+    }
+
+    /// Build the default reqwest client
+    fn build_client() -> reqwest::Client {
+        reqwest::Client::builder()
+            .user_agent(format!("vx/{}", env!("CARGO_PKG_VERSION")))
+            .connect_timeout(Duration::from_secs(30))
+            .read_timeout(Duration::from_secs(60))
+            .pool_idle_timeout(Duration::from_secs(90))
+            .pool_max_idle_per_host(10)
+            .build()
+            .expect("Failed to create HTTP client")
     }
 
     /// Enable download caching with the specified cache directory
@@ -505,16 +524,54 @@ impl HttpClient for RealHttpClient {
             );
         }
 
-        let response = self.client.get(&download_url).send().await?;
+        let response = self.client.get(&download_url).send().await;
 
-        // Check for successful response
-        if !response.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "Download failed: HTTP {} for {}",
-                response.status(),
-                if using_cdn { &download_url } else { url }
-            ));
-        }
+        // If CDN URL failed, fallback to original URL
+        let (response, actual_using_cdn) = match response {
+            Ok(resp) if resp.status().is_success() => (resp, using_cdn),
+            Ok(resp) if using_cdn => {
+                tracing::warn!(
+                    cdn_url = %download_url,
+                    status = %resp.status(),
+                    original_url = url,
+                    "CDN download failed, falling back to original URL"
+                );
+                let fallback_resp = self.client.get(url).send().await?;
+                if !fallback_resp.status().is_success() {
+                    return Err(anyhow::anyhow!(
+                        "Download failed: HTTP {} for {}",
+                        fallback_resp.status(),
+                        url
+                    ));
+                }
+                (fallback_resp, false)
+            }
+            Ok(resp) => {
+                return Err(anyhow::anyhow!(
+                    "Download failed: HTTP {} for {}",
+                    resp.status(),
+                    url
+                ));
+            }
+            Err(e) if using_cdn => {
+                tracing::warn!(
+                    cdn_url = %download_url,
+                    error = %e,
+                    original_url = url,
+                    "CDN download error, falling back to original URL"
+                );
+                let fallback_resp = self.client.get(url).send().await?;
+                if !fallback_resp.status().is_success() {
+                    return Err(anyhow::anyhow!(
+                        "Download failed: HTTP {} for {}",
+                        fallback_resp.status(),
+                        url
+                    ));
+                }
+                (fallback_resp, false)
+            }
+            Err(e) => return Err(e.into()),
+        };
 
         let total_size = response.content_length().unwrap_or(0);
 
@@ -527,7 +584,7 @@ impl HttpClient for RealHttpClient {
 
         // Extract filename from URL for display (uv-style)
         let filename = Self::extract_display_name_from_url(url);
-        let cdn_suffix = if using_cdn { " [CDN]" } else { "" };
+        let cdn_suffix = if actual_using_cdn { " [CDN]" } else { "" };
 
         // Create progress bar with uv-style format:
         // cpython-3.10.19-windows-x86_64-none (download) ━━━━━━━━━━━━━━ 1.47 MiB/21.49 MiB
@@ -583,17 +640,54 @@ impl HttpClient for RealHttpClient {
                 "Using CDN accelerated URL"
             );
         }
+        let using_cdn = download_url != url;
 
-        let response = self.client.get(&download_url).send().await?;
+        let response = self.client.get(&download_url).send().await;
 
-        // Check for successful response
-        if !response.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "Download failed: HTTP {} for {}",
-                response.status(),
-                &download_url
-            ));
-        }
+        // If CDN URL failed, fallback to original URL
+        let response = match response {
+            Ok(resp) if resp.status().is_success() => resp,
+            Ok(resp) if using_cdn => {
+                tracing::warn!(
+                    cdn_url = %download_url,
+                    status = %resp.status(),
+                    "CDN download failed, falling back to original URL"
+                );
+                let fallback_resp = self.client.get(url).send().await?;
+                if !fallback_resp.status().is_success() {
+                    return Err(anyhow::anyhow!(
+                        "Download failed: HTTP {} for {}",
+                        fallback_resp.status(),
+                        url
+                    ));
+                }
+                fallback_resp
+            }
+            Ok(resp) => {
+                return Err(anyhow::anyhow!(
+                    "Download failed: HTTP {} for {}",
+                    resp.status(),
+                    url
+                ));
+            }
+            Err(e) if using_cdn => {
+                tracing::warn!(
+                    cdn_url = %download_url,
+                    error = %e,
+                    "CDN download error, falling back to original URL"
+                );
+                let fallback_resp = self.client.get(url).send().await?;
+                if !fallback_resp.status().is_success() {
+                    return Err(anyhow::anyhow!(
+                        "Download failed: HTTP {} for {}",
+                        fallback_resp.status(),
+                        url
+                    ));
+                }
+                fallback_resp
+            }
+            Err(e) => return Err(e.into()),
+        };
 
         let total_size = response.content_length().unwrap_or(0);
 

@@ -142,19 +142,54 @@ impl RealInstaller {
             );
         }
 
-        let response = self.http.client.get(download_url.as_str()).send().await?;
+        let response = self.http.client.get(download_url.as_str()).send().await;
 
-        if !response.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "Download failed: HTTP {} for {}",
-                response.status(),
-                if using_cdn {
-                    download_url.as_str()
-                } else {
-                    url
+        // If CDN URL failed, fallback to original URL
+        let (response, actual_using_cdn) = match response {
+            Ok(resp) if resp.status().is_success() => (resp, using_cdn),
+            Ok(resp) if using_cdn => {
+                tracing::warn!(
+                    cdn_url = %download_url,
+                    status = %resp.status(),
+                    original_url = url,
+                    "CDN download failed, falling back to original URL"
+                );
+                let fallback_resp = self.http.client.get(url).send().await?;
+                if !fallback_resp.status().is_success() {
+                    return Err(anyhow::anyhow!(
+                        "Download failed: HTTP {} for {}",
+                        fallback_resp.status(),
+                        url
+                    ));
                 }
-            ));
-        }
+                (fallback_resp, false)
+            }
+            Ok(resp) => {
+                return Err(anyhow::anyhow!(
+                    "Download failed: HTTP {} for {}",
+                    resp.status(),
+                    url
+                ));
+            }
+            Err(e) if using_cdn => {
+                tracing::warn!(
+                    cdn_url = %download_url,
+                    error = %e,
+                    original_url = url,
+                    "CDN download error, falling back to original URL"
+                );
+                let fallback_resp = self.http.client.get(url).send().await?;
+                if !fallback_resp.status().is_success() {
+                    return Err(anyhow::anyhow!(
+                        "Download failed: HTTP {} for {}",
+                        fallback_resp.status(),
+                        url
+                    ));
+                }
+                (fallback_resp, false)
+            }
+            Err(e) => return Err(e.into()),
+        };
 
         // Extract filename from response BEFORE consuming the body
         let detected_filename = Self::extract_filename_from_response(&response, url);
@@ -168,7 +203,7 @@ impl RealInstaller {
         let mut stream = response.bytes_stream();
 
         let filename_display = RealHttpClient::extract_display_name_from_url(url);
-        let cdn_suffix = if using_cdn { " [CDN]" } else { "" };
+        let cdn_suffix = if actual_using_cdn { " [CDN]" } else { "" };
 
         let progress_bar = if total_size > 0 {
             let pb = ProgressBar::new(total_size);
