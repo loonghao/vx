@@ -4732,6 +4732,7 @@ dependencies = [
  "serde",
  "tokio",
  "tracing",
+ "vx-manifest",
  "vx-runtime",
  "vx-version-fetcher",
 ]
@@ -4927,6 +4928,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "vx-manifest",
  "vx-runtime",
 ]
 
@@ -5128,6 +5130,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "vx-manifest",
  "vx-runtime",
 ]
 
@@ -5169,6 +5172,7 @@ dependencies = [
  "serde",
  "tokio",
  "tracing",
+ "vx-manifest",
  "vx-runtime",
  "vx-version-fetcher",
 ]
@@ -5226,6 +5230,7 @@ dependencies = [
  "async-trait",
  "rstest",
  "tracing",
+ "vx-manifest",
  "vx-runtime",
 ]
 
@@ -5301,6 +5306,7 @@ dependencies = [
  "rstest",
  "tokio",
  "tracing",
+ "vx-manifest",
  "vx-runtime",
  "which",
 ]
@@ -5377,6 +5383,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "vx-manifest",
  "vx-runtime",
  "vx-version-fetcher",
 ]
@@ -5433,6 +5440,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-core",
+ "vx-manifest",
  "vx-paths",
  "vx-runtime",
  "vx-version-fetcher",

@@ -4,6 +4,7 @@
 //! - Basic client creation and configuration
 //! - URL optimization (when CDN feature is enabled)
 //! - Real E2E download tests with CDN acceleration
+//! - Region-based CDN auto-detection
 
 use vx_runtime::RealHttpClient;
 
@@ -13,11 +14,19 @@ use vx_runtime::RealHttpClient;
 
 #[test]
 fn test_http_client_creation() {
+    // CDN is now region-aware: even with cdn-acceleration feature,
+    // CDN is only auto-enabled in China environments.
+    // In test/CI environments, it should default to disabled.
     let client = RealHttpClient::new();
-    // CDN should be enabled when cdn-acceleration feature is active
-    #[cfg(feature = "cdn-acceleration")]
-    assert!(client.is_cdn_enabled());
 
+    // In CI, CDN should be disabled regardless of feature
+    if std::env::var("CI").is_ok() {
+        assert!(
+            !client.is_cdn_enabled(),
+            "CDN should be disabled in CI environments"
+        );
+    }
+    // Without cdn-acceleration feature, always disabled
     #[cfg(not(feature = "cdn-acceleration"))]
     assert!(!client.is_cdn_enabled());
 }
@@ -43,12 +52,42 @@ fn test_http_client_with_cdn_disabled() {
 #[test]
 fn test_default_http_client() {
     let client = RealHttpClient::default();
-    // Default should match new()
-    #[cfg(feature = "cdn-acceleration")]
-    assert!(client.is_cdn_enabled());
-
+    // Default should match new() - region-aware
+    if std::env::var("CI").is_ok() {
+        assert!(
+            !client.is_cdn_enabled(),
+            "CDN should be disabled in CI environments"
+        );
+    }
     #[cfg(not(feature = "cdn-acceleration"))]
     assert!(!client.is_cdn_enabled());
+}
+
+#[test]
+fn test_cdn_force_enable_via_env() {
+    // VX_CDN=1 should force-enable CDN (when feature is compiled in)
+    std::env::set_var("VX_CDN", "1");
+    let client = RealHttpClient::new();
+    #[cfg(feature = "cdn-acceleration")]
+    assert!(
+        client.is_cdn_enabled(),
+        "VX_CDN=1 should force-enable CDN"
+    );
+    #[cfg(not(feature = "cdn-acceleration"))]
+    assert!(!client.is_cdn_enabled());
+    std::env::remove_var("VX_CDN");
+}
+
+#[test]
+fn test_cdn_force_disable_via_env() {
+    // VX_CDN=0 should force-disable CDN
+    std::env::set_var("VX_CDN", "0");
+    let client = RealHttpClient::new();
+    assert!(
+        !client.is_cdn_enabled(),
+        "VX_CDN=0 should force-disable CDN"
+    );
+    std::env::remove_var("VX_CDN");
 }
 
 // ============================================================================
@@ -61,9 +100,8 @@ mod cdn_enabled_tests {
 
     #[tokio::test]
     async fn test_url_optimization_github_release() {
-        // This test verifies that CDN optimization is attempted for GitHub URLs
-        // Note: Actual optimization depends on network and turbo-cdn availability
-        let client = RealHttpClient::new();
+        // Force CDN on for this test to verify optimization is attempted
+        let client = RealHttpClient::with_cdn(true);
         assert!(client.is_cdn_enabled());
 
         // The optimize_url method is private, but we can verify behavior through download

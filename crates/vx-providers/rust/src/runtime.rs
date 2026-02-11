@@ -12,6 +12,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::{info, warn};
+use vx_manifest::MirrorConfig;
 use vx_runtime::{
     Arch, Ecosystem, GitHubReleaseOptions, Os, Platform, Runtime, RuntimeContext,
     VerificationResult, VersionInfo,
@@ -85,6 +86,44 @@ impl Runtime for RustupRuntime {
         // Note: rustup downloads are not versioned - always downloads latest from the URL
         // The version parameter is used for tracking but the URL gives latest
         Ok(RustupUrlBuilder::download_url(platform))
+    }
+
+    fn mirror_urls(&self) -> Vec<MirrorConfig> {
+        vec![
+            MirrorConfig {
+                name: "ustc".to_string(),
+                region: Some("cn".to_string()),
+                url: "https://mirrors.ustc.edu.cn/rust-static/rustup/dist".to_string(),
+                priority: 100,
+                enabled: true,
+            },
+            MirrorConfig {
+                name: "tuna".to_string(),
+                region: Some("cn".to_string()),
+                url: "https://mirrors.tuna.tsinghua.edu.cn/rustup/dist".to_string(),
+                priority: 90,
+                enabled: true,
+            },
+        ]
+    }
+
+    async fn download_url_for_mirror(
+        &self,
+        mirror_base_url: &str,
+        _version: &str,
+        platform: &Platform,
+    ) -> Result<Option<String>> {
+        let target = RustupUrlBuilder::get_target_triple(platform);
+        let filename = RustupUrlBuilder::get_executable_name(platform);
+        match target {
+            Some(t) => Ok(Some(format!(
+                "{}/{}/{}",
+                mirror_base_url.trim_end_matches('/'),
+                t,
+                filename
+            ))),
+            None => Ok(None),
+        }
     }
 
     /// Post-extract: rename rustup-init to rustup and run it to install toolchain

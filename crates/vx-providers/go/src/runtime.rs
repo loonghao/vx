@@ -11,6 +11,7 @@ use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
 use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_manifest::MirrorConfig;
 
 /// Go programming language runtime
 #[derive(Debug, Clone, Default)]
@@ -94,6 +95,42 @@ impl Runtime for GoRuntime {
     /// e.g., go1.21.0.darwin-arm64.tar.gz extracts to: go/bin/go
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         format!("go/bin/{}", platform.exe_name("go"))
+    }
+
+    fn mirror_urls(&self) -> Vec<MirrorConfig> {
+        vec![
+            MirrorConfig {
+                name: "google-cn".to_string(),
+                region: Some("cn".to_string()),
+                url: "https://golang.google.cn/dl".to_string(),
+                priority: 100,
+                enabled: true,
+            },
+            MirrorConfig {
+                name: "ustc".to_string(),
+                region: Some("cn".to_string()),
+                url: "https://mirrors.ustc.edu.cn/golang".to_string(),
+                priority: 90,
+                enabled: true,
+            },
+        ]
+    }
+
+    async fn download_url_for_mirror(
+        &self,
+        mirror_base_url: &str,
+        version: &str,
+        platform: &Platform,
+    ) -> Result<Option<String>> {
+        let filename = GoUrlBuilder::get_filename(version, platform);
+        match filename {
+            Some(f) => Ok(Some(format!(
+                "{}/{}",
+                mirror_base_url.trim_end_matches('/'),
+                f
+            ))),
+            None => Ok(None),
+        }
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
