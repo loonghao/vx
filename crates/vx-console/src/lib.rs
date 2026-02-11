@@ -417,6 +417,11 @@ impl ConsoleBuilder {
             shell_builder = shell_builder.theme(theme);
         }
 
+        // RFC 0031: Wire output_mode through to Shell
+        if let Some(output_mode) = self.output_mode {
+            shell_builder = shell_builder.output_mode(output_mode);
+        }
+
         Console {
             shell: shell_builder.build(),
             #[cfg(feature = "progress")]

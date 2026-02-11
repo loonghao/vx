@@ -14,6 +14,7 @@ pub mod cli;
 pub mod commands;
 pub mod config;
 pub mod error_handler;
+pub mod output;
 pub mod registry;
 pub mod suggestions;
 pub mod system_tools;
@@ -24,8 +25,9 @@ pub mod ui;
 pub mod test_utils;
 
 // Re-export for convenience
-pub use cli::Cli;
+pub use cli::{Cli, OutputFormat};
 pub use commands::{CommandContext, CommandHandler, GlobalOptions};
+pub use output::{CommandOutput, OutputRenderer};
 pub use registry::{create_context, create_registry, ProviderRegistryExt};
 pub use tracing_setup::setup_tracing;
 

@@ -4343,6 +4343,7 @@ dependencies = [
  "vx-provider-actrun",
  "vx-provider-awscli",
  "vx-provider-azcli",
+ "vx-provider-bat",
  "vx-provider-brew",
  "vx-provider-bun",
  "vx-provider-choco",
@@ -4351,7 +4352,9 @@ dependencies = [
  "vx-provider-deno",
  "vx-provider-docker",
  "vx-provider-dotnet",
+ "vx-provider-fd",
  "vx-provider-ffmpeg",
+ "vx-provider-fzf",
  "vx-provider-gcloud",
  "vx-provider-gh",
  "vx-provider-git",
@@ -4379,8 +4382,10 @@ dependencies = [
  "vx-provider-rcedit",
  "vx-provider-release-please",
  "vx-provider-rez",
+ "vx-provider-ripgrep",
  "vx-provider-rust",
  "vx-provider-spack",
+ "vx-provider-starship",
  "vx-provider-task",
  "vx-provider-terraform",
  "vx-provider-uv",
@@ -4388,6 +4393,7 @@ dependencies = [
  "vx-provider-vscode",
  "vx-provider-winget",
  "vx-provider-yarn",
+ "vx-provider-yq",
  "vx-provider-zig",
  "vx-resolver",
  "vx-runtime",
@@ -4689,6 +4695,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-bat"
+version = "0.7.9"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest 0.12.28",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+]
+
+[[package]]
 name = "vx-provider-brew"
 version = "0.7.9"
 dependencies = [
@@ -4803,6 +4824,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-fd"
+version = "0.7.9"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest 0.12.28",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+]
+
+[[package]]
 name = "vx-provider-ffmpeg"
 version = "0.7.9"
 dependencies = [
@@ -4816,6 +4852,21 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-fzf"
+version = "0.7.9"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest 0.12.28",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
  "vx-runtime",
 ]
 
@@ -5225,6 +5276,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-ripgrep"
+version = "0.7.9"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest 0.12.28",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+]
+
+[[package]]
 name = "vx-provider-rust"
 version = "0.7.9"
 dependencies = [
@@ -5241,6 +5307,21 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-spack"
+version = "0.7.9"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest 0.12.28",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-starship"
 version = "0.7.9"
 dependencies = [
  "anyhow",
@@ -5355,6 +5436,21 @@ dependencies = [
  "vx-paths",
  "vx-runtime",
  "vx-version-fetcher",
+]
+
+[[package]]
+name = "vx-provider-yq"
+version = "0.7.9"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest 0.12.28",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
 ]
 
 [[package]]
