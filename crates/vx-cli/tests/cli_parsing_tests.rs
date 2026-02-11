@@ -463,14 +463,12 @@ fn test_cli_search_command() {
             category,
             installed_only,
             available_only,
-            format,
             verbose,
         }) => {
             assert_eq!(query, Some("python".to_string()));
             assert_eq!(category, Some("language".to_string()));
             assert!(!installed_only);
             assert!(!available_only);
-            assert!(matches!(format, OutputFormat::Table));
             assert!(!verbose);
         }
         _ => panic!("Expected Search command"),
@@ -479,13 +477,13 @@ fn test_cli_search_command() {
 
 #[test]
 fn test_cli_search_json_format() {
-    let args = vec!["vx", "search", "--format", "json"];
+    // After RFC 0031, search uses global --json/--format instead of local --format
+    let args = vec!["vx", "--json", "search"];
     let cli = Cli::try_parse_from(args).unwrap();
 
+    assert!(cli.json);
     match cli.command {
-        Some(Commands::Search { format, .. }) => {
-            assert!(matches!(format, OutputFormat::Json));
-        }
+        Some(Commands::Search { .. }) => {}
         _ => panic!("Expected Search command"),
     }
 }
@@ -948,10 +946,10 @@ fn test_cli_invalid_command() {
 
 #[test]
 fn test_output_format_enum() {
-    // Test that OutputFormat enum works correctly
-    assert!(matches!(OutputFormat::Table, OutputFormat::Table));
+    // Test that OutputFormat enum works correctly (RFC 0031: Text/Json/Toon)
+    assert!(matches!(OutputFormat::Text, OutputFormat::Text));
     assert!(matches!(OutputFormat::Json, OutputFormat::Json));
-    assert!(matches!(OutputFormat::Yaml, OutputFormat::Yaml));
+    assert!(matches!(OutputFormat::Toon, OutputFormat::Toon));
 }
 
 // ============================================
