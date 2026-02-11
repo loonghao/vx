@@ -81,19 +81,13 @@ fn test_os_string_linux() {
 #[test]
 fn test_os_string_windows() {
     let platform = Platform::new(Os::Windows, Arch::X86_64);
-    assert_eq!(
-        ActrunUrlBuilder::get_os_string(&platform),
-        Some("windows")
-    );
+    assert_eq!(ActrunUrlBuilder::get_os_string(&platform), Some("windows"));
 }
 
 #[test]
 fn test_os_string_macos() {
     let platform = Platform::new(Os::MacOS, Arch::Aarch64);
-    assert_eq!(
-        ActrunUrlBuilder::get_os_string(&platform),
-        Some("macos"),
-    );
+    assert_eq!(ActrunUrlBuilder::get_os_string(&platform), Some("macos"),);
 }
 
 #[test]
@@ -105,10 +99,7 @@ fn test_archive_extension_windows() {
 #[test]
 fn test_archive_extension_linux() {
     let platform = Platform::new(Os::Linux, Arch::X86_64);
-    assert_eq!(
-        ActrunUrlBuilder::get_archive_extension(&platform),
-        "tar.gz"
-    );
+    assert_eq!(ActrunUrlBuilder::get_archive_extension(&platform), "tar.gz");
 }
 
 #[test]

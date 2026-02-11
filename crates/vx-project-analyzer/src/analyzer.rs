@@ -518,7 +518,6 @@ fn has_files_with_any_extension(dir: &Path, extensions: &[&str]) -> bool {
 
 /// Check if a tool is available in PATH or via vx
 async fn is_tool_available(name: &str) -> bool {
-
     // First check PATH
     if which::which(name).is_ok() {
         return true;

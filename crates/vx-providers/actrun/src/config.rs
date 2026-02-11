@@ -19,8 +19,7 @@ pub struct ActrunUrlBuilder;
 
 impl ActrunUrlBuilder {
     /// Base URL for Actrun releases
-    const BASE_URL: &'static str =
-        "https://github.com/actionforge/actrun-cli/releases/download";
+    const BASE_URL: &'static str = "https://github.com/actionforge/actrun-cli/releases/download";
 
     /// Build the download URL for a specific version and platform
     pub fn download_url(version: &str, platform: &Platform) -> Option<String> {

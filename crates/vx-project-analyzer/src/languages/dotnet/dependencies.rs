@@ -37,8 +37,7 @@ pub fn parse_csproj_dependencies(content: &str, path: &Path) -> AnalyzerResult<V
     }
 
     // Also match Include-only references (version might be managed centrally)
-    let include_only_re =
-        Regex::new(r#"<PackageReference\s+Include="([^"]+)"\s*/>"#).unwrap();
+    let include_only_re = Regex::new(r#"<PackageReference\s+Include="([^"]+)"\s*/>"#).unwrap();
 
     for cap in include_only_re.captures_iter(content) {
         let name = cap[1].to_string();
@@ -65,8 +64,7 @@ pub fn parse_directory_packages_props(
 ) -> AnalyzerResult<Vec<Dependency>> {
     let mut deps = Vec::new();
 
-    let re =
-        Regex::new(r#"<PackageVersion\s+Include="([^"]+)"\s+Version="([^"]+)""#).unwrap();
+    let re = Regex::new(r#"<PackageVersion\s+Include="([^"]+)"\s+Version="([^"]+)""#).unwrap();
 
     for cap in re.captures_iter(content) {
         let name = cap[1].to_string();
