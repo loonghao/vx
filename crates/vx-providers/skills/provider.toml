@@ -1,0 +1,44 @@
+# Skills Provider Manifest
+# Vercel Skills CLI - The open agent skills tool for managing AI coding agent skills.
+
+[provider]
+name = "skills"
+description = "The open agent skills tool - manage AI coding agent skills"
+homepage = "https://github.com/vercel-labs/skills"
+repository = "https://github.com/vercel-labs/skills"
+ecosystem = "nodejs"
+license = "Apache-2.0"
+
+# Skills CLI
+[[runtimes]]
+name = "skills"
+description = "AI agent skills management CLI (installed via npm)"
+executable = "skills"
+
+[runtimes.versions]
+source = "npm"
+package = "skills"
+
+# npm packages don't need layout configuration
+# They are installed via npm and have standard locations
+
+[runtimes.platforms.windows]
+executable_extensions = [".cmd", ".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+# Test configuration
+[runtimes.test]
+timeout_ms = 60000
+functional_commands = [
+    { command = "{executable} --help", expect_success = true, expected_output = "skills", name = "help_check" },
+]
+
+# Skills requires Node.js 18+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "node", version = ">=18", recommended = "22", reason = "Skills CLI requires Node.js 18+" }
+]
+recommends = []

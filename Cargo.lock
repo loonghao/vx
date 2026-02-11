@@ -4380,6 +4380,7 @@ dependencies = [
  "vx-provider-release-please",
  "vx-provider-rez",
  "vx-provider-rust",
+ "vx-provider-skills",
  "vx-provider-spack",
  "vx-provider-task",
  "vx-provider-terraform",
@@ -5237,6 +5238,21 @@ dependencies = [
  "tracing",
  "vx-runtime",
  "which",
+]
+
+[[package]]
+name = "vx-provider-skills"
+version = "0.7.9"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest 0.12.28",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
 ]
 
 [[package]]

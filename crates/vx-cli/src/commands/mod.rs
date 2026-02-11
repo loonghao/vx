@@ -43,6 +43,7 @@ pub mod test;
 // Core Commands
 // =============================================================================
 
+pub mod ai;
 pub mod analyze;
 pub mod auth;
 pub mod bundle;
