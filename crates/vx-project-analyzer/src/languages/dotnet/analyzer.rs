@@ -150,17 +150,13 @@ impl LanguageAnalyzer for DotNetAnalyzer {
     }
 
     fn required_tools(&self, _deps: &[Dependency], _scripts: &[Script]) -> Vec<RequiredTool> {
-        let mut tools = Vec::new();
-
         // Always need dotnet SDK for .NET projects
-        tools.push(RequiredTool::new(
+        vec![RequiredTool::new(
             "dotnet",
             Ecosystem::DotNet,
             ".NET SDK",
             InstallMethod::vx("dotnet"),
-        ));
-
-        tools
+        )]
     }
 
     fn install_command(&self, dep: &Dependency) -> Option<String> {
