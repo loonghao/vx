@@ -110,8 +110,7 @@ impl LanguageAnalyzer for DotNetAnalyzer {
         if packages_props.exists() {
             debug!("Analyzing Directory.Packages.props");
             if let Ok(content) = tokio::fs::read_to_string(&packages_props).await {
-                if let Ok(central_deps) =
-                    parse_directory_packages_props(&content, &packages_props)
+                if let Ok(central_deps) = parse_directory_packages_props(&content, &packages_props)
                 {
                     deps.extend(central_deps);
                 }

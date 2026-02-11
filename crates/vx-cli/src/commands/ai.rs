@@ -19,11 +19,7 @@ const SUPPORTED_AGENTS: &[(&str, &str, &str)] = &[
     ("claude-code", ".claude/skills", ".claude/skills"),
     ("cursor", ".cursor/skills", ".cursor/skills"),
     ("codex", ".agents/skills", ".codex/skills"),
-    (
-        "windsurf",
-        ".windsurf/skills",
-        ".codeium/windsurf/skills",
-    ),
+    ("windsurf", ".windsurf/skills", ".codeium/windsurf/skills"),
     ("copilot", ".agents/skills", ".copilot/skills"),
     ("opencode", ".opencode/skills", ".config/opencode/skills"),
     ("trae", ".trae/skills", ".trae/skills"),
@@ -47,8 +43,7 @@ pub async fn handle_setup(agents: &[String], global: bool, force: bool) -> Resul
     UI::header("Setting up vx skills for AI agents");
     println!();
 
-    let home_dir =
-        dirs::home_dir().context("Could not determine home directory")?;
+    let home_dir = dirs::home_dir().context("Could not determine home directory")?;
     let cwd = std::env::current_dir().context("Could not determine current directory")?;
 
     let mut installed_count = 0;
@@ -75,13 +70,11 @@ pub async fn handle_setup(agents: &[String], global: bool, force: bool) -> Resul
             }
 
             // Create directory and write SKILL.md
-            std::fs::create_dir_all(&skill_dir).with_context(|| {
-                format!("Failed to create directory: {}", skill_dir.display())
-            })?;
+            std::fs::create_dir_all(&skill_dir)
+                .with_context(|| format!("Failed to create directory: {}", skill_dir.display()))?;
 
-            std::fs::write(&skill_file, VX_USAGE_SKILL).with_context(|| {
-                format!("Failed to write SKILL.md to {}", skill_file.display())
-            })?;
+            std::fs::write(&skill_file, VX_USAGE_SKILL)
+                .with_context(|| format!("Failed to write SKILL.md to {}", skill_file.display()))?;
 
             UI::success(&format!(
                 "  {} - installed vx-usage to {}",
@@ -116,10 +109,7 @@ pub async fn handle_agents() -> Result<()> {
     println!("  {}", "-".repeat(68));
 
     for (name, project_path, global_path) in SUPPORTED_AGENTS {
-        println!(
-            "  {:<16} {:<24} ~/{}",
-            name, project_path, global_path
-        );
+        println!("  {:<16} {:<24} ~/{}", name, project_path, global_path);
     }
 
     println!();
@@ -170,8 +160,7 @@ fn resolve_agents(agents: &[String]) -> Result<Vec<(&'static str, &'static str, 
         match found {
             Some(agent) => result.push(*agent),
             None => {
-                let available: Vec<&str> =
-                    SUPPORTED_AGENTS.iter().map(|(n, _, _)| *n).collect();
+                let available: Vec<&str> = SUPPORTED_AGENTS.iter().map(|(n, _, _)| *n).collect();
                 anyhow::bail!(
                     "Unknown agent '{}'. Available agents: {}",
                     name,

@@ -64,8 +64,6 @@ impl Runtime for FdRuntime {
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        Ok(crate::config::FdUrlBuilder::download_url(
-            version, platform,
-        ))
+        Ok(crate::config::FdUrlBuilder::download_url(version, platform))
     }
 }

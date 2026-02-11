@@ -84,10 +84,10 @@ pub struct Cli {
     pub debug: bool,
 
     /// Output format: text, json, toon (RFC 0031)
-    #[arg(long, global = true, value_enum, default_value_t = OutputFormat::Text)]
-    pub format: OutputFormat,
+    #[arg(long = "output-format", global = true, value_enum, default_value_t = OutputFormat::Text)]
+    pub output_format: OutputFormat,
 
-    /// JSON output shortcut (equivalent to --format json)
+    /// JSON output shortcut (equivalent to --output-format json)
     #[arg(long, global = true)]
     pub json: bool,
 
@@ -122,7 +122,7 @@ impl From<&Cli> for GlobalOptions {
                     if std::env::var("VX_OUTPUT_JSON").is_ok() {
                         OutputFormat::Json
                     } else {
-                        cli.format
+                        cli.output_format
                     }
                 }
             }
