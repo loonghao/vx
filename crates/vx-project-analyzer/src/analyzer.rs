@@ -441,15 +441,13 @@ impl ProjectAnalyzer {
                     }
 
                     // Check for project files by extension (.csproj, .fsproj, .sln)
-                    if !pushed {
-                        if has_files_with_any_extension(&path, &project_extensions) {
-                            debug!(
-                                "Found project subdirectory (by extension): {}",
-                                path.display()
-                            );
-                            dirs.push(path.clone());
-                            pushed = true;
-                        }
+                    if !pushed && has_files_with_any_extension(&path, &project_extensions) {
+                        debug!(
+                            "Found project subdirectory (by extension): {}",
+                            path.display()
+                        );
+                        dirs.push(path.clone());
+                        pushed = true;
                     }
 
                     // If this is a common monorepo container (e.g., packages/), scan one level deeper
