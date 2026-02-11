@@ -86,8 +86,6 @@ members = [
   "crates/vx-providers/dagu",
   # Actionforge runner
   "crates/vx-providers/actrun",
-  # AI tools - Skills
-  "crates/vx-providers/skills",
 ]
 resolver = "2"
 
@@ -228,7 +226,6 @@ vx-provider-nuget = { path = "crates/vx-providers/nuget" }
 vx-provider-winget = { path = "crates/vx-providers/winget" }
 vx-provider-dagu = { path = "crates/vx-providers/dagu" }
 vx-provider-actrun = { path = "crates/vx-providers/actrun" }
-vx-provider-skills = { path = "crates/vx-providers/skills" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
 
