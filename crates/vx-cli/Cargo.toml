@@ -79,7 +79,6 @@ vx-provider-nuget = { workspace = true }
 vx-provider-winget = { workspace = true }
 vx-provider-dagu = { workspace = true }
 vx-provider-actrun = { workspace = true }
-vx-provider-skills = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
