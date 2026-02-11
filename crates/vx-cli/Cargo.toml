@@ -79,6 +79,13 @@ vx-provider-nuget = { workspace = true }
 vx-provider-winget = { workspace = true }
 vx-provider-dagu = { workspace = true }
 vx-provider-actrun = { workspace = true }
+# Tier 1: Unix-philosophy tools (RFC 0030)
+vx-provider-fzf = { workspace = true }
+vx-provider-ripgrep = { workspace = true }
+vx-provider-fd = { workspace = true }
+vx-provider-bat = { workspace = true }
+vx-provider-yq = { workspace = true }
+vx-provider-starship = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }

@@ -50,7 +50,15 @@ impl OutputMode {
 
     /// Detect the best output mode based on environment.
     pub fn detect() -> Self {
-        // Check for JSON mode
+        // RFC 0031: Check unified VX_OUTPUT env var first
+        match std::env::var("VX_OUTPUT").as_deref() {
+            Ok("json") => return OutputMode::Json,
+            Ok("quiet") => return OutputMode::Quiet,
+            Ok("verbose") => return OutputMode::Verbose,
+            _ => {}
+        }
+
+        // Check for JSON mode (legacy)
         if std::env::var("VX_OUTPUT_JSON").is_ok() {
             return OutputMode::Json;
         }

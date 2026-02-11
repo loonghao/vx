@@ -16,11 +16,19 @@ use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 use vx_runtime::CacheMode;
 
-#[derive(ValueEnum, Clone, Debug)]
+/// Unified output format for all commands (RFC 0031)
+///
+/// Replaces the previous fragmented OutputFormat enums.
+/// Commands use this to determine how to render their output.
+#[derive(ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum OutputFormat {
-    Table,
+    /// Human-readable colored text output (default)
+    #[default]
+    Text,
+    /// JSON structured output (for scripts/CI/AI parsing)
     Json,
-    Yaml,
+    /// TOON format output (for LLM prompts, saves tokens) — not yet supported
+    Toon,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug)]
@@ -75,6 +83,14 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub debug: bool,
 
+    /// Output format: text, json, toon (RFC 0031)
+    #[arg(long, global = true, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+
+    /// JSON output shortcut (equivalent to --format json)
+    #[arg(long, global = true)]
+    pub json: bool,
+
     /// Additional runtime dependencies to inject into the environment (can be specified multiple times)
     ///
     /// Similar to uvx --with or rez-env, this option injects additional runtimes into the PATH
@@ -93,6 +109,24 @@ pub struct Cli {
 
 impl From<&Cli> for GlobalOptions {
     fn from(cli: &Cli) -> Self {
+        // --json flag overrides --format
+        let output_format = if cli.json {
+            OutputFormat::Json
+        } else {
+            // Also check VX_OUTPUT environment variable
+            match std::env::var("VX_OUTPUT").as_deref() {
+                Ok("json") => OutputFormat::Json,
+                Ok("toon") => OutputFormat::Toon,
+                _ => {
+                    // Legacy support: VX_OUTPUT_JSON=1
+                    if std::env::var("VX_OUTPUT_JSON").is_ok() {
+                        OutputFormat::Json
+                    } else {
+                        cli.format
+                    }
+                }
+            }
+        };
         GlobalOptions {
             use_system_path: cli.use_system_path,
             inherit_env: cli.inherit_env,
@@ -100,6 +134,7 @@ impl From<&Cli> for GlobalOptions {
             verbose: cli.verbose,
             debug: cli.debug,
             with_deps: cli.with_deps.clone(),
+            output_format,
         }
     }
 }
@@ -203,9 +238,6 @@ pub enum Commands {
         /// Show only available (not installed) tools
         #[arg(long)]
         available_only: bool,
-        /// Output format
-        #[arg(long, value_enum, default_value = "table")]
-        format: OutputFormat,
         /// Show verbose information
         #[arg(short, long)]
         verbose: bool,
@@ -1377,7 +1409,6 @@ impl CommandHandler for Commands {
                 category,
                 installed_only,
                 available_only,
-                format,
                 verbose,
             } => {
                 commands::search::handle(
@@ -1386,7 +1417,7 @@ impl CommandHandler for Commands {
                     category.clone(),
                     *installed_only,
                     *available_only,
-                    format.clone(),
+                    ctx.output_format(),
                     *verbose,
                 )
                 .await

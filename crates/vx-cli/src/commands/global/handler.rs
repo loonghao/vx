@@ -1,7 +1,7 @@
 //! Global package command handlers
 
 use super::args::{
-    GlobalCommand, InfoGlobalArgs, InstallGlobalArgs, ListGlobalArgs, OutputFormat,
+    GlobalCommand, InfoGlobalArgs, InstallGlobalArgs, ListGlobalArgs, GlobalListFormat,
     UninstallGlobalArgs,
 };
 use crate::commands::CommandContext;
@@ -378,16 +378,16 @@ async fn handle_list(ctx: &CommandContext, args: &ListGlobalArgs) -> Result<()> 
     }
 
     match args.format {
-        OutputFormat::Json => {
+        GlobalListFormat::Json => {
             let json = serde_json::to_string_pretty(&packages)?;
             println!("{}", json);
         }
-        OutputFormat::Plain => {
+        GlobalListFormat::Plain => {
             for pkg in &packages {
                 println!("{}:{}@{}", pkg.ecosystem, pkg.name, pkg.version);
             }
         }
-        OutputFormat::Table => {
+        GlobalListFormat::Table => {
             println!(
                 "\n{:<12} {:<25} {:<12} EXECUTABLES",
                 "ECOSYSTEM", "PACKAGE", "VERSION"

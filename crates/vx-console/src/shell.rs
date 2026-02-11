@@ -3,6 +3,7 @@
 //! The Shell struct encapsulates stdout/stderr and provides methods for
 //! printing messages with consistent styling.
 
+use crate::format::OutputMode;
 use crate::output::{ColorChoice, ShellOut};
 use crate::style::{Color, Style, Theme};
 use crate::term::Term;
@@ -36,6 +37,8 @@ pub struct Shell {
     verbosity: Verbosity,
     theme: Theme,
     needs_clear: bool,
+    /// Output mode (RFC 0031): controls JSON/CI/Standard behavior
+    output_mode: OutputMode,
     #[cfg(feature = "progress")]
     progress_manager: Option<Arc<ProgressManager>>,
 }
@@ -54,6 +57,7 @@ impl Shell {
             verbosity: Verbosity::Normal,
             theme: Theme::default(),
             needs_clear: false,
+            output_mode: OutputMode::Standard,
             #[cfg(feature = "progress")]
             progress_manager: None,
         }
@@ -71,6 +75,7 @@ impl Shell {
             verbosity: Verbosity::Normal,
             theme: Theme::minimal(),
             needs_clear: false,
+            output_mode: OutputMode::Standard,
             #[cfg(feature = "progress")]
             progress_manager: None,
         }
@@ -99,6 +104,21 @@ impl Shell {
     /// Check if the shell supports color output.
     pub fn supports_color(&self) -> bool {
         self.output.supports_color()
+    }
+
+    /// Get the current output mode (RFC 0031).
+    pub fn output_mode(&self) -> OutputMode {
+        self.output_mode
+    }
+
+    /// Set the output mode (RFC 0031).
+    pub fn set_output_mode(&mut self, mode: OutputMode) {
+        self.output_mode = mode;
+    }
+
+    /// Check if JSON output mode is active.
+    pub fn is_json_mode(&self) -> bool {
+        self.output_mode == OutputMode::Json
     }
 
     /// Check if stderr is a TTY.
@@ -361,6 +381,7 @@ pub struct ShellBuilder {
     color_choice: Option<ColorChoice>,
     theme: Option<Theme>,
     output: Option<ShellOut>,
+    output_mode: Option<OutputMode>,
 }
 
 impl ShellBuilder {
@@ -393,6 +414,12 @@ impl ShellBuilder {
         self
     }
 
+    /// Set the output mode (RFC 0031).
+    pub fn output_mode(mut self, mode: OutputMode) -> Self {
+        self.output_mode = Some(mode);
+        self
+    }
+
     /// Build the shell.
     pub fn build(self) -> Shell {
         let mut output = self.output.unwrap_or_else(ShellOut::stream);
@@ -401,11 +428,19 @@ impl ShellBuilder {
             output.set_color_choice(color_choice);
         }
 
+        let output_mode = self.output_mode.unwrap_or_default();
+
+        // In JSON mode, force no-color
+        if output_mode == OutputMode::Json {
+            output.set_color_choice(ColorChoice::Never);
+        }
+
         Shell {
             output,
             verbosity: self.verbosity.unwrap_or_default(),
             theme: self.theme.unwrap_or_default(),
             needs_clear: false,
+            output_mode,
             #[cfg(feature = "progress")]
             progress_manager: None,
         }

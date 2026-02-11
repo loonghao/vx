@@ -56,18 +56,21 @@ pub struct ListGlobalArgs {
     #[arg(long)]
     pub ecosystem: Option<String>,
 
-    /// Output format
+    /// Output format (table, json, plain)
     #[arg(long, value_enum, default_value = "table")]
-    pub format: OutputFormat,
+    pub format: GlobalListFormat,
 
     /// Show detailed information including executables and paths
     #[arg(short, long)]
     pub verbose: bool,
 }
 
-/// Output format for list command
+/// Output format for global list command
+///
+/// Note: This is a local format enum for the global list command.
+/// The global --json/--format flags (RFC 0031) take precedence when specified.
 #[derive(Clone, Debug, Default, clap::ValueEnum)]
-pub enum OutputFormat {
+pub enum GlobalListFormat {
     #[default]
     Table,
     Json,

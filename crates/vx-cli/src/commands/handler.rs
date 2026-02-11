@@ -3,6 +3,7 @@
 //! This module provides a unified interface for all CLI commands,
 //! enabling better extensibility and maintainability.
 
+use crate::cli::OutputFormat;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -32,6 +33,8 @@ pub struct GlobalOptions {
     ///
     /// Each entry is a runtime spec like "bun" or "bun@1.1.0"
     pub with_deps: Vec<String>,
+    /// Output format (RFC 0031: unified structured output)
+    pub output_format: OutputFormat,
 }
 
 impl GlobalOptions {
@@ -74,6 +77,17 @@ impl GlobalOptions {
     pub fn with_with_deps(mut self, value: Vec<String>) -> Self {
         self.with_deps = value;
         self
+    }
+
+    /// Builder method: set output_format
+    pub fn with_output_format(mut self, value: OutputFormat) -> Self {
+        self.output_format = value;
+        self
+    }
+
+    /// Check if JSON output is requested
+    pub fn is_json(&self) -> bool {
+        self.output_format == OutputFormat::Json
     }
 }
 
@@ -139,6 +153,7 @@ impl CommandContext {
                 verbose,
                 debug,
                 with_deps: Vec::new(),
+                output_format: OutputFormat::default(),
             },
         )
     }
@@ -186,6 +201,16 @@ impl CommandContext {
     /// Get additional runtime dependencies (--with flag)
     pub fn with_deps(&self) -> &[String] {
         &self.options.with_deps
+    }
+
+    /// Get the output format (RFC 0031)
+    pub fn output_format(&self) -> OutputFormat {
+        self.options.output_format
+    }
+
+    /// Check if JSON output is requested
+    pub fn is_json(&self) -> bool {
+        self.options.is_json()
     }
 
     /// Get the manifest registry (lazy-loaded from embedded manifests)

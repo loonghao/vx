@@ -226,6 +226,13 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         winget,
         dagu,
         actrun,
+        // Tier 1: Unix-philosophy tools (RFC 0030)
+        fzf,
+        ripgrep,
+        fd,
+        bat,
+        yq,
+        starship,
     );
 
     registry
@@ -286,6 +293,13 @@ fn create_static_registry() -> ProviderRegistry {
         winget,
         dagu,
         actrun,
+        // Tier 1: Unix-philosophy tools (RFC 0030)
+        fzf,
+        ripgrep,
+        fd,
+        bat,
+        yq,
+        starship,
     );
 
     registry

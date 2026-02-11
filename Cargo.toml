@@ -73,6 +73,13 @@ members = [
   "crates/vx-providers/imagemagick",
   # CLI tools
   "crates/vx-providers/jq",
+  # Tier 1: Unix-philosophy tools (RFC 0030)
+  "crates/vx-providers/fzf",
+  "crates/vx-providers/ripgrep",
+  "crates/vx-providers/fd",
+  "crates/vx-providers/bat",
+  "crates/vx-providers/yq",
+  "crates/vx-providers/starship",
   "crates/vx-providers/pwsh",
   # .NET SDK
   "crates/vx-providers/dotnet",
@@ -226,6 +233,12 @@ vx-provider-nuget = { path = "crates/vx-providers/nuget" }
 vx-provider-winget = { path = "crates/vx-providers/winget" }
 vx-provider-dagu = { path = "crates/vx-providers/dagu" }
 vx-provider-actrun = { path = "crates/vx-providers/actrun" }
+vx-provider-fzf = { path = "crates/vx-providers/fzf" }
+vx-provider-ripgrep = { path = "crates/vx-providers/ripgrep" }
+vx-provider-fd = { path = "crates/vx-providers/fd" }
+vx-provider-bat = { path = "crates/vx-providers/bat" }
+vx-provider-yq = { path = "crates/vx-providers/yq" }
+vx-provider-starship = { path = "crates/vx-providers/starship" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
 

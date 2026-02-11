@@ -127,7 +127,7 @@ mod search_tests {
             None,
             false,
             false,
-            OutputFormat::Table,
+            OutputFormat::Text,
             false,
         )
         .await;
@@ -148,7 +148,7 @@ mod search_tests {
             None,
             false,
             false,
-            OutputFormat::Table,
+            OutputFormat::Text,
             false,
         )
         .await;
@@ -166,7 +166,7 @@ mod search_tests {
             None,
             true, // installed_only
             false,
-            OutputFormat::Table,
+            OutputFormat::Text,
             false,
         )
         .await;
