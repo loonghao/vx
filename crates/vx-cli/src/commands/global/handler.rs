@@ -1,7 +1,7 @@
 //! Global package command handlers
 
 use super::args::{
-    GlobalCommand, InfoGlobalArgs, InstallGlobalArgs, ListGlobalArgs, GlobalListFormat,
+    GlobalCommand, GlobalListFormat, InfoGlobalArgs, InstallGlobalArgs, ListGlobalArgs,
     UninstallGlobalArgs,
 };
 use crate::commands::CommandContext;

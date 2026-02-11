@@ -42,9 +42,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyApp", "src\MyApp\MyApp.cs
 EndProject
 "#;
 
-    tokio::fs::write(root.join("MyApp.sln"), sln)
-        .await
-        .unwrap();
+    tokio::fs::write(root.join("MyApp.sln"), sln).await.unwrap();
 
     // Create subdirectory with .csproj
     tokio::fs::create_dir_all(root.join("src/MyApp"))

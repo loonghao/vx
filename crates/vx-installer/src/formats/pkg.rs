@@ -313,11 +313,7 @@ mod tests {
         let handler = PkgHandler::new();
         let progress = ProgressContext::disabled();
         let result = handler
-            .extract(
-                Path::new("test.pkg"),
-                Path::new("/tmp/out"),
-                &progress,
-            )
+            .extract(Path::new("test.pkg"), Path::new("/tmp/out"), &progress)
             .await;
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -374,8 +370,15 @@ mod tests {
         PkgHandler::promote_payload_contents(&expand_dir, &target_dir).unwrap();
 
         // Verify the file was promoted correctly
-        let promoted_path = target_dir.join("usr").join("local").join("bin").join("mytool");
-        assert!(promoted_path.exists(), "File should be promoted from Payload to target_dir");
+        let promoted_path = target_dir
+            .join("usr")
+            .join("local")
+            .join("bin")
+            .join("mytool");
+        assert!(
+            promoted_path.exists(),
+            "File should be promoted from Payload to target_dir"
+        );
 
         let content = std::fs::read_to_string(&promoted_path).unwrap();
         assert_eq!(content, "binary content");

@@ -881,13 +881,9 @@ fn detect_dotnet_project(dir: &Path) -> Result<Option<DotNetDetection>> {
                 }
             }
         }
-        detection
-            .hints
-            .push("C# project detected".to_string());
+        detection.hints.push("C# project detected".to_string());
     } else if has_fsproj {
-        detection
-            .hints
-            .push("F# project detected".to_string());
+        detection.hints.push("F# project detected".to_string());
     }
 
     Ok(Some(detection))
