@@ -39,7 +39,6 @@ impl FzfUrlBuilder {
     pub fn get_archive_extension(platform: &Platform) -> &'static str {
         match platform.os {
             Os::Windows => "zip",
-            Os::MacOS => "zip",
             _ => "tar.gz",
         }
     }
@@ -82,7 +81,7 @@ mod tests {
         let url = FzfUrlBuilder::download_url("0.57.0", &platform);
         assert_eq!(
             url,
-            Some("https://github.com/junegunn/fzf/releases/download/v0.57.0/fzf-0.57.0-darwin_arm64.zip".to_string())
+            Some("https://github.com/junegunn/fzf/releases/download/v0.57.0/fzf-0.57.0-darwin_arm64.tar.gz".to_string())
         );
     }
 

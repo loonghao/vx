@@ -4,7 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use vx_runtime::{
-    platform::Platform, Ecosystem, GitHubReleaseOptions, Runtime, RuntimeContext,
+    platform::Platform, Ecosystem, GitHubReleaseOptions, Os, Runtime, RuntimeContext,
     RuntimeDependency, VersionInfo,
 };
 
@@ -49,6 +49,13 @@ impl Runtime for FdRuntime {
 
     fn dependencies(&self) -> &[RuntimeDependency] {
         &[]
+    }
+
+    fn executable_relative_path(&self, version: &str, platform: &Platform) -> String {
+        // fd archive structure: fd-v{version}-{target}/fd(.exe)
+        let target = crate::config::FdUrlBuilder::get_target_triple(platform).unwrap_or("unknown");
+        let exe = crate::config::FdUrlBuilder::get_executable_name(platform);
+        format!("fd-v{version}-{target}/{exe}")
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {

@@ -15,6 +15,7 @@ os = ["windows", "linux", "macos"]
 name = "rg"
 description = "ripgrep - recursively search directories for a regex pattern"
 executable = "rg"
+aliases = ["ripgrep"]
 
 [runtimes.versions]
 source = "github-releases"

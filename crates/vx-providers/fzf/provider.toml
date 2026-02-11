@@ -45,10 +45,10 @@ download_url = "https://github.com/junegunn/fzf/releases/download/v{version}/fzf
 download_url = "https://github.com/junegunn/fzf/releases/download/v{version}/fzf-{version}-linux_arm64.tar.gz"
 
 [runtimes.platforms.macos-x86_64]
-download_url = "https://github.com/junegunn/fzf/releases/download/v{version}/fzf-{version}-darwin_amd64.zip"
+download_url = "https://github.com/junegunn/fzf/releases/download/v{version}/fzf-{version}-darwin_amd64.tar.gz"
 
 [runtimes.platforms.macos-aarch64]
-download_url = "https://github.com/junegunn/fzf/releases/download/v{version}/fzf-{version}-darwin_arm64.zip"
+download_url = "https://github.com/junegunn/fzf/releases/download/v{version}/fzf-{version}-darwin_arm64.tar.gz"
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
