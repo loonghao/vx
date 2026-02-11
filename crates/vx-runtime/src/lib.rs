@@ -52,6 +52,7 @@ pub mod plugin;
 pub mod provider;
 pub mod provider_env;
 pub mod provider_loader;
+pub mod region;
 pub mod registry;
 pub mod runtime;
 pub mod testing;

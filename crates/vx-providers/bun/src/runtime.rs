@@ -8,6 +8,7 @@ use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
+use vx_manifest::MirrorConfig;
 use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
 use vx_version_fetcher::VersionFetcherBuilder;
 
@@ -81,6 +82,32 @@ impl Runtime for BunRuntime {
     async fn download_url(&self, version: &str, _platform: &Platform) -> Result<Option<String>> {
         let (platform, arch) = BunUrlBuilder::get_platform_string();
         Ok(BunUrlBuilder::download_url(version, platform, arch))
+    }
+
+    fn mirror_urls(&self) -> Vec<MirrorConfig> {
+        vec![MirrorConfig {
+            name: "npmmirror".to_string(),
+            region: Some("cn".to_string()),
+            url: "https://npmmirror.com/mirrors/bun".to_string(),
+            priority: 100,
+            enabled: true,
+        }]
+    }
+
+    async fn download_url_for_mirror(
+        &self,
+        mirror_base_url: &str,
+        version: &str,
+        _platform: &Platform,
+    ) -> Result<Option<String>> {
+        let (platform, arch) = BunUrlBuilder::get_platform_string();
+        let filename = BunUrlBuilder::get_filename(platform, arch);
+        Ok(Some(format!(
+            "{}/v{}/{}",
+            mirror_base_url.trim_end_matches('/'),
+            version,
+            filename
+        )))
     }
 
     /// Pre-run hook for bun commands

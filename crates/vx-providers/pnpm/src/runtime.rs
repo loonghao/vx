@@ -64,6 +64,31 @@ impl Runtime for PnpmRuntime {
         Ok(PnpmUrlBuilder::download_url(version, platform))
     }
 
+    fn mirror_urls(&self) -> Vec<vx_manifest::MirrorConfig> {
+        vec![vx_manifest::MirrorConfig {
+            name: "taobao".to_string(),
+            region: Some("cn".to_string()),
+            url: "https://npmmirror.com/mirrors/pnpm".to_string(),
+            priority: 100,
+            enabled: true,
+        }]
+    }
+
+    async fn download_url_for_mirror(
+        &self,
+        mirror_base_url: &str,
+        version: &str,
+        platform: &Platform,
+    ) -> Result<Option<String>> {
+        let filename = PnpmUrlBuilder::get_filename(platform);
+        Ok(Some(format!(
+            "{}/v{}/{}",
+            mirror_base_url.trim_end_matches('/'),
+            version,
+            filename
+        )))
+    }
+
     /// Rename the downloaded file to standard name (runs before verification)
     fn post_extract(&self, _version: &str, install_path: &PathBuf) -> Result<()> {
         let platform = Platform::current();

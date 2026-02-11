@@ -19,12 +19,23 @@
 use crate::context::{ExecutionContext, RuntimeContext};
 use crate::ecosystem::Ecosystem;
 use crate::platform::Platform;
+use crate::region;
 use crate::types::{ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, VersionInfo};
 use crate::version_resolver::VersionResolver;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
+
+/// Detect the download region for mirror selection
+///
+/// Returns the region string used in provider.toml mirror configs (e.g., "cn", "global")
+fn detect_download_region() -> &'static str {
+    match region::detect_region() {
+        region::Region::China => "cn",
+        region::Region::Global => "global",
+    }
+}
 
 /// Installation verification result
 #[derive(Debug, Clone)]
@@ -163,6 +174,20 @@ pub trait Runtime: Send + Sync {
     /// Additional metadata
     fn metadata(&self) -> HashMap<String, String> {
         HashMap::new()
+    }
+
+    /// Mirror configurations for alternative download sources
+    ///
+    /// Returns a list of mirror URLs configured in the provider manifest.
+    /// Each mirror has a region (e.g., "cn" for China) and a base URL.
+    ///
+    /// When installing, the framework will automatically select the best mirror
+    /// based on the user's detected region, falling back to the original URL
+    /// if the mirror fails.
+    ///
+    /// Override this method to provide mirrors for your runtime.
+    fn mirror_urls(&self) -> Vec<vx_manifest::MirrorConfig> {
+        vec![]
     }
 
     /// Get possible bin directory names for this runtime
@@ -895,7 +920,21 @@ pub trait Runtime: Send + Sync {
                 .ok_or_else(|| anyhow::anyhow!("No download URL for {} {}", self.name(), version))?
         };
 
-        info!("Downloading {} {} from {}", self.name(), version, url);
+        // Build mirror URL list: try region-matching mirrors first, then original URL
+        let download_urls = self
+            .build_download_url_chain(&url, version, &platform)
+            .await;
+
+        info!(
+            "Downloading {} {} ({})",
+            self.name(),
+            version,
+            if download_urls.len() > 1 {
+                format!("{} sources available", download_urls.len())
+            } else {
+                "direct".to_string()
+            }
+        );
 
         // Prepare layout metadata if available
         let mut layout_metadata = std::collections::HashMap::new();
@@ -940,15 +979,63 @@ pub trait Runtime: Send + Sync {
             }
         }
 
-        // Download and extract (with layout support if metadata is provided)
-        if !layout_metadata.is_empty() {
-            ctx.installer
-                .download_with_layout(&url, &install_path, &layout_metadata)
-                .await?;
-        } else {
-            ctx.installer
-                .download_and_extract(&url, &install_path)
-                .await?;
+        // Download with mirror fallback chain
+        let mut last_error = None;
+        for (i, download_url) in download_urls.iter().enumerate() {
+            let is_mirror = i < download_urls.len() - 1 || download_urls.len() == 1;
+            if i > 0 {
+                info!(
+                    "Mirror failed, trying {} (source {}/{})",
+                    download_url,
+                    i + 1,
+                    download_urls.len()
+                );
+                // Clean up failed partial download
+                if ctx.fs.exists(&install_path) {
+                    if let Err(e) = std::fs::remove_dir_all(&install_path) {
+                        debug!("Failed to clean up partial download: {}", e);
+                    }
+                }
+            } else {
+                info!("Downloading from {}", download_url);
+            }
+
+            let result = if !layout_metadata.is_empty() {
+                ctx.installer
+                    .download_with_layout(download_url, &install_path, &layout_metadata)
+                    .await
+            } else {
+                ctx.installer
+                    .download_and_extract(download_url, &install_path)
+                    .await
+            };
+
+            match result {
+                Ok(()) => {
+                    if i > 0 {
+                        info!(
+                            "Successfully downloaded {} {} from fallback source",
+                            self.name(),
+                            version
+                        );
+                    }
+                    last_error = None;
+                    break;
+                }
+                Err(e) => {
+                    if is_mirror && download_urls.len() > 1 {
+                        debug!(
+                            "Download from {} failed: {}, will try next source",
+                            download_url, e
+                        );
+                    }
+                    last_error = Some(e);
+                }
+            }
+        }
+
+        if let Some(err) = last_error {
+            return Err(err);
         }
 
         // Run post-extract hook
@@ -1241,6 +1328,105 @@ pub trait Runtime: Send + Sync {
         // Default implementation - subclasses should override
         let _ = (version, platform);
         Ok(None)
+    }
+
+    /// Construct a download URL using a mirror's base URL
+    ///
+    /// Given a mirror base URL (e.g., `https://npmmirror.com/mirrors/node`),
+    /// construct the full download URL for the specified version and platform.
+    ///
+    /// Default implementation returns `None` (mirror not supported).
+    /// Providers should override this to support mirror downloads.
+    ///
+    /// # Example
+    ///
+    /// For Node.js with mirror base `https://npmmirror.com/mirrors/node`:
+    /// ```text
+    /// → https://npmmirror.com/mirrors/node/v22.0.0/node-v22.0.0-linux-x64.tar.gz
+    /// ```
+    async fn download_url_for_mirror(
+        &self,
+        _mirror_base_url: &str,
+        _version: &str,
+        _platform: &Platform,
+    ) -> Result<Option<String>> {
+        Ok(None)
+    }
+
+    /// Build a download URL chain with mirror fallback support
+    ///
+    /// Returns a list of URLs to try in order:
+    /// 1. Region-matching mirror URLs (if in China and mirrors configured)
+    /// 2. Original download URL (always last as fallback)
+    ///
+    /// This enables automatic mirror selection based on the user's region,
+    /// with transparent fallback to the original source.
+    async fn build_download_url_chain(
+        &self,
+        original_url: &str,
+        version: &str,
+        platform: &Platform,
+    ) -> Vec<String> {
+        let mirrors = self.mirror_urls();
+        if mirrors.is_empty() {
+            return vec![original_url.to_string()];
+        }
+
+        // Detect current region
+        let detected_region = detect_download_region();
+
+        // Filter and sort mirrors by region match and priority
+        let mut matching_mirrors: Vec<_> = mirrors
+            .iter()
+            .filter(|m| m.enabled)
+            .filter(|m| {
+                m.region
+                    .as_deref()
+                    .map(|r| r == detected_region)
+                    .unwrap_or(false)
+            })
+            .collect();
+
+        // Sort by priority (higher = preferred)
+        matching_mirrors.sort_by(|a, b| b.priority.cmp(&a.priority));
+
+        let mut urls = Vec::new();
+
+        // Try to construct mirror URLs
+        for mirror in &matching_mirrors {
+            match self
+                .download_url_for_mirror(&mirror.url, version, platform)
+                .await
+            {
+                Ok(Some(mirror_url)) => {
+                    tracing::debug!(
+                        mirror = mirror.name,
+                        region = ?mirror.region,
+                        url = %mirror_url,
+                        "Added mirror URL to download chain"
+                    );
+                    urls.push(mirror_url);
+                }
+                Ok(None) => {
+                    tracing::debug!(
+                        mirror = mirror.name,
+                        "Mirror does not support URL construction for this runtime"
+                    );
+                }
+                Err(e) => {
+                    tracing::debug!(
+                        mirror = mirror.name,
+                        error = %e,
+                        "Failed to construct mirror URL"
+                    );
+                }
+            }
+        }
+
+        // Always include original URL as fallback
+        urls.push(original_url.to_string());
+
+        urls
     }
 
     /// Uninstall a specific version

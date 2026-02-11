@@ -12,6 +12,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 use tracing::debug;
+use vx_manifest::MirrorConfig;
 use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// Python runtime using python-build-standalone
@@ -272,6 +273,45 @@ impl Runtime for PythonRuntime {
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         Ok(Self::build_download_url(version, platform))
+    }
+
+    fn mirror_urls(&self) -> Vec<MirrorConfig> {
+        vec![
+            MirrorConfig {
+                name: "npmmirror".to_string(),
+                region: Some("cn".to_string()),
+                url: "https://cdn.npmmirror.com/binaries/python-build-standalone".to_string(),
+                priority: 100,
+                enabled: true,
+            },
+        ]
+    }
+
+    async fn download_url_for_mirror(
+        &self,
+        mirror_base_url: &str,
+        version: &str,
+        platform: &Platform,
+    ) -> Result<Option<String>> {
+        // Only python-build-standalone (3.8+) can use mirrors
+        if Self::is_python_37(version) {
+            return Ok(None);
+        }
+
+        let platform_str = Self::get_platform_string(platform);
+        let date = Self::get_release_date(version);
+
+        match (platform_str, date) {
+            (Some(ps), Some(d)) => Ok(Some(format!(
+                "{}/{}/cpython-{}+{}-{}-install_only_stripped.tar.gz",
+                mirror_base_url.trim_end_matches('/'),
+                d,
+                version,
+                d,
+                ps
+            ))),
+            _ => Ok(None),
+        }
     }
 }
 
