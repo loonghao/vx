@@ -276,15 +276,13 @@ impl Runtime for PythonRuntime {
     }
 
     fn mirror_urls(&self) -> Vec<MirrorConfig> {
-        vec![
-            MirrorConfig {
-                name: "npmmirror".to_string(),
-                region: Some("cn".to_string()),
-                url: "https://cdn.npmmirror.com/binaries/python-build-standalone".to_string(),
-                priority: 100,
-                enabled: true,
-            },
-        ]
+        vec![MirrorConfig {
+            name: "npmmirror".to_string(),
+            region: Some("cn".to_string()),
+            url: "https://cdn.npmmirror.com/binaries/python-build-standalone".to_string(),
+            priority: 100,
+            enabled: true,
+        }]
     }
 
     async fn download_url_for_mirror(

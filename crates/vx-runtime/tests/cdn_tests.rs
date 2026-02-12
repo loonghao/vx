@@ -73,10 +73,10 @@ fn test_default_http_client() {
 }
 
 /// Test VX_CDN=1 force-enable behavior
-/// 
+///
 /// NOTE: This test manipulates global environment variables and may interfere
 /// with parallel tests. Run with `--test-threads=1` or separately.
-/// 
+///
 /// The actual env var logic is tested in region module tests.
 #[test]
 #[ignore = "Modifies global env vars - run with --test-threads=1"]
@@ -102,10 +102,10 @@ fn test_cdn_force_enable_via_env() {
 }
 
 /// Test VX_CDN=0 force-disable behavior
-/// 
+///
 /// NOTE: This test manipulates global environment variables and may interfere
 /// with parallel tests. Run with `--test-threads=1` or separately.
-/// 
+///
 /// The actual env var logic is tested in region module tests.
 #[test]
 #[ignore = "Modifies global env vars - run with --test-threads=1"]
