@@ -254,14 +254,31 @@ tokio = { version = "1.0", features = [
   "fs",
   "process",
 ] }
-# HTTP client - use rustls TLS (pure Rust, no OpenSSL dependency)
-# This enables cross-compilation to musl targets without OpenSSL
-reqwest = { version = "0.12", features = [
+# HTTP client - use rustls TLS with aws-lc-rs (pure Rust, no OpenSSL dependency)
+# reqwest 0.13+ defaults to aws-lc-rs instead of ring, enabling cross-compilation to all platforms
+# including aarch64-pc-windows-msvc without assembly compilation issues
+reqwest = { version = "0.13", features = [
   "json",
   "stream",
-  "rustls-tls",
-  "rustls-tls-native-roots",
+  "rustls",
 ], default-features = false }
+
+# Force rustls to use aws-lc-rs instead of ring for cross-compilation support
+# This is required for aarch64-pc-windows-msvc target where ring's assembly code fails to compile
+# ring has platform-specific assembly that doesn't work well with cross-compilation toolchains
+rustls = { version = "0.23", default-features = false, features = [
+  "aws_lc_rs",
+  "logging",
+  "std",
+  "tls12",
+] }
+
+# Force rustls-webpki to use aws-lc-rs instead of ring
+# This must be consistent with rustls configuration above
+rustls-webpki = { version = "0.103", default-features = false, features = [
+  "aws-lc-rs",
+  "std",
+] }
 serde_json = "1.0.148"
 anyhow = "1.0"
 thiserror = "2.0"
@@ -408,3 +425,26 @@ create-release = false
 publish-jobs = ["homebrew"]
 # Path that installers should place binaries in
 install-path = "CARGO_HOME"
+
+# ============================================================================
+# Cross-compilation support notes (aarch64-pc-windows-msvc)
+# ============================================================================
+#
+# Problem: Cross-compiling to aarch64-pc-windows-msvc fails because:
+# 1. ring crate has platform-specific assembly (sha256-armv8-win64.S)
+# 2. Cross-compilation toolchains (cargo-xwin/cargo-zigbuild) cannot compile
+#    this assembly with clang targeting Windows ARM64
+#
+# Dependencies that pull in ring:
+# - turbo-cdn -> rustls (ring feature)
+# - axoupdater -> axoasset -> reqwest 0.12 -> rustls (ring feature)
+#
+# Solution attempted:
+# - Added explicit rustls dependency with aws_lc_rs feature (see above)
+# - Added explicit rustls-webpki dependency with aws-lc-rs feature (see above)
+# - Upgraded reqwest to 0.13 (defaults to aws-lc-rs)
+#
+# If this doesn't work, we may need to:
+# 1. Disable cdn-acceleration feature for aarch64-pc-windows-msvc
+# 2. Disable self-update feature for aarch64-pc-windows-msvc
+# 3. Create a fork of turbo-cdn that uses aws-lc-rs
