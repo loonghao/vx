@@ -89,7 +89,7 @@ fn test_cdn_force_enable_via_env() {
         // Note: In CI environments, CDN is still disabled even with VX_CDN=1
         // because CI detection happens before VX_CDN check in detect_region()
         // This is intentional - CI has direct GitHub access
-        if !std::env::var("CI").is_ok() && !std::env::var("GITHUB_ACTIONS").is_ok() {
+        if std::env::var("CI").is_err() && std::env::var("GITHUB_ACTIONS").is_err() {
             assert!(
                 client.is_cdn_enabled(),
                 "VX_CDN=1 should force-enable CDN (outside CI)"
