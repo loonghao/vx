@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.10](https://github.com/loonghao/vx/compare/v0.7.9...v0.7.10) (2026-02-12)
+
+
+### Features
+
+* add .NET/C# project analyzer and x-cmd provider ([dc166de](https://github.com/loonghao/vx/commit/dc166de2b7c1f8fb65567a26e81556a1303a0bc5))
+* add actrun provider and .pkg format support ([41fb59b](https://github.com/loonghao/vx/commit/41fb59b3ade2cbc911b83726ac6a9d3e075ee6b4))
+* add region-aware mirror support for all major providers ([cf5e349](https://github.com/loonghao/vx/commit/cf5e3490218d6034265523472a7fed7b31cb3265))
+* **cli:** add skills provider and ai setup command ([b044d0f](https://github.com/loonghao/vx/commit/b044d0f5c8eff1ef1c1f4662241086e4e7b93bee))
+* **installer:** add .pkg and .msi archive format support with executable flattening ([31ce917](https://github.com/loonghao/vx/commit/31ce917b9bdd1c1cc082af71ca724d4e54a2d7ff))
+* unified structured output (RFC 0031) and Tier 1 provider expansion (RFC 0030) ([f213725](https://github.com/loonghao/vx/commit/f2137255f45b181a5da7a028e0ca0d05af2f0247))
+
+
+### Bug Fixes
+
+* **ci:** remove skills provider crate entirely ([1747125](https://github.com/loonghao/vx/commit/1747125f5fb35f4ea4444c8210f8a3271f850d5f))
+* filter empty-assets GitHub releases and add aarch64-windows target ([bf042b5](https://github.com/loonghao/vx/commit/bf042b508d993c9445761f950337853c11cf4968))
+* rename global --format to --output-format to avoid conflict with Dev command, run cargo fmt ([1f45915](https://github.com/loonghao/vx/commit/1f45915ce35406d1039e26689b7aa9e6aa0343c5))
+* resolve CDN test race conditions and CI detection issues ([c280222](https://github.com/loonghao/vx/commit/c280222ca089c60b951f766bdc7a5901133cc0e9))
+* resolve region_tests race conditions and clippy warnings ([8ab846a](https://github.com/loonghao/vx/commit/8ab846a16a52af4d04ff2797e7fc3b19e36d8e9d))
+* resolve runtime test failures for bat/fd/ripgrep/fzf providers ([efed8bc](https://github.com/loonghao/vx/commit/efed8bcfcb8dfc50c306ce3eb5b3e4ffba8d83fc))
+* resolve unused import and fmt issues ([e21c2ee](https://github.com/loonghao/vx/commit/e21c2ee70cf1925fd1512656d88ea57eb990c868))
+* simplify boolean expression in cdn_tests.rs ([a052837](https://github.com/loonghao/vx/commit/a052837737f25d4977a97acd3a45a384a99cb5a7))
+* x-cmd install() override and C# deep project detection ([ca379e8](https://github.com/loonghao/vx/commit/ca379e8439d8e1dba59f2218d60c98ccbcd90b44))
+
+
+### Code Refactoring
+
+* **cli:** remove skills from runtime registry, use vx npx instead ([743e3e8](https://github.com/loonghao/vx/commit/743e3e868e08a1c8400df15c4d5e6dbab7c104a2))
+
+
+### Documentation
+
+* add RFC 0030 provider expansion plan ([5dd4866](https://github.com/loonghao/vx/commit/5dd4866e28f27930053be02903c6253e6bbad718))
+* add RFC 0031 unified structured output (--json global support + TOON) ([e6b46af](https://github.com/loonghao/vx/commit/e6b46afc281dc2b4d75499ad195596f5e62b5e49))
+
 ## [0.7.9](https://github.com/loonghao/vx/compare/v0.7.8...v0.7.9) (2026-02-10)
 
 
