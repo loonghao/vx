@@ -854,7 +854,7 @@ fn detect_dotnet_project(dir: &Path) -> Result<Option<DotNetDetection>> {
                 let path = entry.path();
                 if path
                     .extension()
-                    .map_or(false, |e| e.eq_ignore_ascii_case("sln"))
+                    .is_some_and(|e| e.eq_ignore_ascii_case("sln"))
                 {
                     if let Some(stem) = path.file_stem() {
                         detection.project_name = Some(stem.to_string_lossy().to_string());
@@ -872,7 +872,7 @@ fn detect_dotnet_project(dir: &Path) -> Result<Option<DotNetDetection>> {
                 let path = entry.path();
                 if path
                     .extension()
-                    .map_or(false, |e| e.eq_ignore_ascii_case("csproj"))
+                    .is_some_and(|e| e.eq_ignore_ascii_case("csproj"))
                 {
                     if let Some(stem) = path.file_stem() {
                         detection.project_name = Some(stem.to_string_lossy().to_string());
@@ -896,7 +896,7 @@ fn has_files_with_extension(dir: &Path, ext: &str) -> bool {
             let path = entry.path();
             if path
                 .extension()
-                .map_or(false, |e| e.eq_ignore_ascii_case(ext))
+                .is_some_and(|e| e.eq_ignore_ascii_case(ext))
             {
                 return true;
             }
