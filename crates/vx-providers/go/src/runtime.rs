@@ -10,8 +10,8 @@ use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
 use vx_manifest::MirrorConfig;
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
 
 /// Go programming language runtime
 #[derive(Debug, Clone, Default)]
