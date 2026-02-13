@@ -706,12 +706,20 @@ async fn try_github_api(client: &reqwest::Client, prerelease: bool) -> Result<Gi
 
     if prerelease {
         let releases: Vec<GitHubRelease> = response.json().await?;
+        // Find first release with assets
         releases
             .into_iter()
-            .next()
-            .ok_or_else(|| anyhow!("No releases found"))
+            .find(|r| !r.assets.is_empty())
+            .ok_or_else(|| anyhow!("No releases with assets found"))
     } else {
-        Ok(response.json().await?)
+        let release: GitHubRelease = response.json().await?;
+        // Verify the latest release has assets
+        if release.assets.is_empty() {
+            return Err(anyhow!(
+                "Latest release has no assets. This may be a draft or incomplete release."
+            ));
+        }
+        Ok(release)
     }
 }
 
@@ -1064,6 +1072,42 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
     // Find the latest version based on prerelease flag using vx_core utilities
     let version_strings: Vec<&str> = versions.iter().filter_map(|v| v.as_str()).collect();
 
+    // Try to find a version that has actual assets
+    for version_str in &version_strings {
+        let is_prerelease = vx_core::version_utils::is_prerelease(version_str);
+        
+        // Skip prerelease versions if we don't want them
+        if !prerelease && is_prerelease {
+            continue;
+        }
+
+        let version_number = vx_core::version_utils::normalize_version(version_str);
+        
+        // Create CDN assets for this version
+        let assets = create_cdn_assets(version_number);
+        
+        // Verify at least one asset exists for current platform
+        if let Ok(current_asset) = find_platform_asset(&assets) {
+            // Try to verify the asset exists (quick HEAD request)
+            if verify_asset_exists(client, &current_asset.browser_download_url).await {
+                UI::detail(&format!(
+                    "Found version {} with valid assets",
+                    version_number
+                ));
+                
+                return Ok(GitHubRelease {
+                    tag_name: version_str.to_string(),
+                    name: format!("Release {}", version_number),
+                    body: "Release information retrieved from CDN".to_string(),
+                    prerelease: is_prerelease,
+                    assets,
+                });
+            }
+        }
+    }
+
+    // If no version with valid assets found, return the latest version anyway
+    // The download will fail and provide appropriate error message
     let latest_version = vx_core::version_utils::find_latest_version(&version_strings, !prerelease)
         .ok_or_else(|| anyhow!("No suitable version found"))?;
 
@@ -1078,6 +1122,14 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
         prerelease: vx_core::version_utils::is_prerelease(latest_version),
         assets,
     })
+}
+
+/// Verify an asset exists via HEAD request
+async fn verify_asset_exists(client: &reqwest::Client, url: &str) -> bool {
+    match client.head(url).send().await {
+        Ok(response) => response.status().is_success(),
+        Err(_) => false,
+    }
 }
 
 /// Determine artifact naming format based on version
