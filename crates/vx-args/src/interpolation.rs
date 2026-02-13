@@ -349,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_env_var() {
-        std::env::set_var("TEST_VAR_123", "test_value");
+        unsafe { std::env::set_var("TEST_VAR_123", "test_value"); }
         let interpolator = Interpolator::new();
         let vars = HashMap::new();
 
@@ -358,7 +358,7 @@ mod tests {
             .unwrap();
         assert_eq!(result, "Value: test_value");
 
-        std::env::remove_var("TEST_VAR_123");
+        unsafe { std::env::remove_var("TEST_VAR_123"); }
     }
 
     #[test]

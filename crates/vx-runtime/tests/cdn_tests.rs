@@ -82,7 +82,7 @@ fn test_default_http_client() {
 #[ignore = "Modifies global env vars - run with --test-threads=1"]
 fn test_cdn_force_enable_via_env() {
     // VX_CDN=1 should force-enable CDN (when feature is compiled in)
-    std::env::set_var("VX_CDN", "1");
+    unsafe { std::env::set_var("VX_CDN", "1"); }
     let client = RealHttpClient::new();
     #[cfg(feature = "cdn-acceleration")]
     {
@@ -98,7 +98,7 @@ fn test_cdn_force_enable_via_env() {
     }
     #[cfg(not(feature = "cdn-acceleration"))]
     assert!(!client.is_cdn_enabled());
-    std::env::remove_var("VX_CDN");
+    unsafe { std::env::remove_var("VX_CDN"); }
 }
 
 /// Test VX_CDN=0 force-disable behavior
@@ -111,13 +111,13 @@ fn test_cdn_force_enable_via_env() {
 #[ignore = "Modifies global env vars - run with --test-threads=1"]
 fn test_cdn_force_disable_via_env() {
     // VX_CDN=0 should force-disable CDN
-    std::env::set_var("VX_CDN", "0");
+    unsafe { std::env::set_var("VX_CDN", "0"); }
     let client = RealHttpClient::new();
     assert!(
         !client.is_cdn_enabled(),
         "VX_CDN=0 should force-disable CDN"
     );
-    std::env::remove_var("VX_CDN");
+    unsafe { std::env::remove_var("VX_CDN"); }
 }
 
 // ============================================================================

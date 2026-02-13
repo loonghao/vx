@@ -16,7 +16,7 @@ static INIT: Once = Once::new();
 /// Initialize test environment (called once per test run)
 pub fn init_test_env() {
     INIT.call_once(|| {
-        std::env::set_var("VX_TEST_MODE", "1");
+        unsafe { std::env::set_var("VX_TEST_MODE", "1"); }
     });
 }
 
