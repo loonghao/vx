@@ -49,15 +49,14 @@ jobs:
       # No need for explicit "vx install node" step
 
       - name: Install dependencies
-        working-directory: docs
         run: |
           # Ensure system paths are available for npm postinstall scripts
           export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
-          vx npm ci
+          vx just docs-install
 
       - name: Build documentation
-        working-directory: docs
-        run: vx npm run build
+        run: vx just docs-build
+
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
