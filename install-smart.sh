@@ -274,43 +274,51 @@ find_version_with_assets_from_page_smart() {
     fi
     
     if [[ -z "$html_content" ]]; then
+        warn "Failed to fetch releases page"
         return
     fi
     
-    # Extract version tags from release links
-    local tags_with_assets
-    tags_with_assets=$(echo "$html_content" | grep -oP 'href="/[^"]+/releases/tag/[^"]+"' | sed 's/.*\/releases\/tag\/\([^\"]\+\).*/\1/' | sort -u | head -20)
+    # Extract version tags from release links using portable methods
+    local tags
+    if echo "test" | grep -oE "test" >/dev/null 2>&1; then
+        tags=$(echo "$html_content" | grep -oE 'href="/[^"]+/releases/tag/[^"]+"' | sed 's|.*/releases/tag/||g' | tr -d '"' | sort -u | head -20)
+    else
+        tags=$(echo "$html_content" | sed -n 's|.*href="/[^"]*/releases/tag/\([^"]*\)".*|\1|p' | sort -u | head -20)
+    fi
+    
+    if [[ -z "$tags" ]]; then
+        warn "No release tags found on page"
+        return
+    fi
+    
+    debug "Found release tags, checking for assets..."
     
     # For each tag, check if it has assets
-    for tag in $tags_with_assets; do
+    for tag in $tags; do
         # Skip pre-release tags
         if [[ "$tag" =~ -(alpha|beta|rc|pre|dev) ]]; then
             continue
         fi
         
-        # Check if this release has any downloadable assets
-        local release_url="https://github.com/$REPO_OWNER/$REPO_NAME/releases/tag/$tag"
-        local release_html
+        # Try direct download verification
+        local test_url="$BASE_URL/download/$tag/vx-x86_64-unknown-linux-gnu.tar.gz"
         
         if command -v curl >/dev/null 2>&1; then
-            release_html=$(curl -sL "$release_url" 2>/dev/null | grep -o '\.tar\.gz\|\.zip' | head -1 || echo "")
+            if curl -fsSL --head "$test_url" 2>/dev/null | grep -q "HTTP.*200\|HTTP.*302"; then
+                info "Found valid release with assets: $tag"
+                echo "$tag" | sed 's/^v//'
+                return
+            fi
         elif command -v wget >/dev/null 2>&1; then
-            release_html=$(wget -qO- "$release_url" 2>/dev/null | grep -o '\.tar\.gz\|\.zip' | head -1 || echo "")
-        fi
-        
-        if [[ -n "$release_html" ]]; then
-            # Return version without 'v' prefix
-            echo "$tag" | sed 's/^v//'
-            return
+            if wget -q --spider "$test_url" 2>/dev/null; then
+                info "Found valid release with assets: $tag"
+                echo "$tag" | sed 's/^v//'
+                return
+            fi
         fi
     done
     
-    # Fallback: return first tag
-    local first_tag
-    first_tag=$(echo "$tags_with_assets" | head -1 | sed 's/^v//')
-    if [[ -n "$first_tag" ]]; then
-        echo "$first_tag"
-    fi
+    warn "No releases with assets found"
 }
 
 # Helper function to get file size (portable across macOS and Linux)
