@@ -190,6 +190,7 @@ function Get-OptimalChannels {
 }
 
 # Get latest version with intelligent fallback
+# Returns version of a release that has assets
 function Get-LatestVersion {
     param([string]$Region)
 
@@ -204,6 +205,28 @@ function Get-LatestVersion {
             $jsdelivrResponse = Invoke-RestMethod -Uri $jsdelivrUrl -TimeoutSec 10
 
             if ($jsdelivrResponse.versions -and $jsdelivrResponse.versions.Count -gt 0) {
+                # Try to find a version with assets
+                foreach ($version in $jsdelivrResponse.versions) {
+                    $versionClean = $version -replace '^v', ''
+                    # Skip pre-release versions
+                    if ($versionClean -match '-(alpha|beta|rc|pre|dev)') { continue }
+                    
+                    # Verify this version has assets by checking CDN
+                    $testUrl = "https://cdn.jsdelivr.net/gh/$RepoOwner/$RepoName@$version/vx-x86_64-pc-windows-msvc.zip"
+                    try {
+                        $testResponse = Invoke-WebRequest -Uri $testUrl -Method Head -TimeoutSec 5 -ErrorAction SilentlyContinue
+                        if ($testResponse.StatusCode -eq 200) {
+                            Write-Success "Got version from jsDelivr: $versionClean"
+                            return $versionClean
+                        }
+                    }
+                    catch {
+                        # Continue to next version
+                        continue
+                    }
+                }
+                
+                # Fallback to first version if none verified
                 $latestVersion = $jsdelivrResponse.versions[0] -replace '^v', ''
                 Write-Success "Got version from jsDelivr: $latestVersion"
                 return $latestVersion
@@ -217,21 +240,45 @@ function Get-LatestVersion {
 
     # Try GitHub API
     try {
-        $apiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
-        $headers = @{}
+        $apiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases?per_page=30"
+        $headers = @{
+            "Accept" = "application/vnd.github.v3+json"
+        }
 
         if ($env:GITHUB_TOKEN) {
             $headers["Authorization"] = "Bearer $env:GITHUB_TOKEN"
             Write-Info "Using authenticated GitHub API request"
         }
 
-        $response = Invoke-RestMethod -Uri $apiUrl -Headers $headers -TimeoutSec 10
-        $version = $response.tag_name -replace '^v', ''
-        Write-Debug "Got version from GitHub API: $version"
-        return $version
+        $response = Invoke-RestMethod -Uri $apiUrl -Headers $headers -TimeoutSec 30
+        
+        # Find first non-prerelease release with assets
+        foreach ($release in $response) {
+            if (-not $release.prerelease -and $release.assets.Count -gt 0) {
+                $version = $release.tag_name -replace '^v', ''
+                Write-Debug "Got version from GitHub API: $version"
+                return $version
+            }
+        }
+        
+        throw "No releases with assets found"
     }
     catch {
         if ($_.Exception.Message -like "*rate limit*" -or $_.Exception.Message -like "*429*") {
+            Write-Warn "GitHub API rate limit exceeded. Trying fallback method..."
+            
+            # Try to find version with assets from releases page
+            try {
+                $foundVersion = Find-VersionWithAssetsFromPageSmart
+                if ($foundVersion) {
+                    Write-Success "Found version with assets: $foundVersion"
+                    return $foundVersion
+                }
+            }
+            catch {
+                Write-Warn "Fallback method failed: $($_.Exception.Message)"
+            }
+            
             Write-Error "GitHub API rate limit exceeded and CDN fallback failed."
             Write-Host ""
             Write-Host "🔧 Solutions:" -ForegroundColor Yellow
@@ -243,6 +290,63 @@ function Get-LatestVersion {
         }
 
         throw "Failed to get latest version: $_"
+    }
+}
+
+# Find a version with assets from GitHub releases page (for install-smart.ps1)
+function Find-VersionWithAssetsFromPageSmart {
+    Write-Info "Fetching releases page to find version with assets..."
+    
+    try {
+        $releasesUrl = "https://github.com/$RepoOwner/$RepoName/releases"
+        $response = Invoke-WebRequest -Uri $releasesUrl -UseBasicParsing -TimeoutSec 30
+        $html = $response.Content
+        
+        # Extract version tags from release links
+        $tagPattern = 'href="/[^"]+/releases/tag/([^"]+)"'
+        $matches = [regex]::Matches($html, $tagPattern)
+        
+        $seenTags = @{}
+        foreach ($match in $matches) {
+            $tag = $match.Groups[1].Value
+            
+            # Skip if already seen
+            if ($seenTags.ContainsKey($tag)) { continue }
+            $seenTags[$tag] = $true
+            
+            # Skip pre-release tags
+            if ($tag -match '-(alpha|beta|rc|pre|dev)') { continue }
+            
+            # Check if this release has assets
+            $releaseUrl = "https://github.com/$RepoOwner/$RepoName/releases/tag/$tag"
+            try {
+                $releaseResponse = Invoke-WebRequest -Uri $releaseUrl -UseBasicParsing -TimeoutSec 10
+                $releaseHtml = $releaseResponse.Content
+                
+                # Check for .tar.gz or .zip in the release page
+                if ($releaseHtml -match '\.(tar\.gz|zip)') {
+                    $version = $tag -replace '^v', ''
+                    Write-Info "Found version with assets: $version"
+                    return $version
+                }
+            }
+            catch {
+                # Continue to next tag if this release page fails
+                continue
+            }
+        }
+        
+        # Fallback: return the first tag found (without v prefix)
+        if ($seenTags.Keys.Count -gt 0) {
+            $firstTag = $seenTags.Keys | Select-Object -First 1
+            return ($firstTag -replace '^v', '')
+        }
+        
+        return $null
+    }
+    catch {
+        Write-Warn "Failed to fetch releases page: $($_.Exception.Message)"
+        return $null
     }
 }
 
