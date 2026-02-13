@@ -14,19 +14,20 @@ default:
 
 # Install docs dependencies
 docs-install:
-    cd docs && npm ci
+    cd docs && vx npm ci
 
 # Build documentation site
 docs-build:
-    cd docs && npx vitepress build
+    cd docs && vx npx vitepress build
 
 # Start docs dev server
 docs-dev:
-    cd docs && npx vitepress dev
+    cd docs && vx npx vitepress dev
 
 # Preview built docs
 docs-preview:
-    cd docs && npx vitepress preview
+    cd docs && vx npx vitepress preview
+
 
 # ============================================
 # Build
@@ -34,15 +35,20 @@ docs-preview:
 
 # Build debug version
 build:
-    cargo build
+    vx cargo build
 
 # Build release version
 build-release:
-    cargo build --release
+    vx cargo build --release
+
+# Build release version for target
+build-release-target TARGET:
+    vx cargo build --release --target {{TARGET}}
 
 # Build with fast profile
 build-fast:
-    cargo build --profile dev-fast
+    vx cargo build --profile dev-fast
+
 
 # ============================================
 # Test
@@ -50,17 +56,18 @@ build-fast:
 
 # Run all tests
 test:
-    cargo test
+    vx run test
 
 # Run tests with verbose output
 test-verbose:
-    cargo test -- --nocapture
+    vx run test-verbose
+
 
 # Test all providers in a clean temporary environment
 test-providers:
     @echo "Building VX first..."
     @pwsh -NoProfile -Command "Get-Process vx -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
-    @cargo build
+    @vx cargo build
     @echo ""
     ./target/debug/vx test --ci --temp-root --keep-going --detailed
 
@@ -68,30 +75,31 @@ test-providers:
 test-providers-verbose:
     @echo "Building VX first..."
     @pwsh -NoProfile -Command "Get-Process vx -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
-    @cargo build  
+    @vx cargo build
     @echo ""
     ./target/debug/vx test --ci --temp-root --keep-going --verbose
 
 # Test all providers and output JSON report
 test-providers-json:
     @echo "Building VX first..."
-    @cargo build
+    @vx cargo build
     @echo ""
     ./target/debug/vx test --ci --temp-root --keep-going --json
 
 # Test specific runtimes (comma-separated)
 test-runtimes RUNTIMES:
     @echo "Building VX first..."
-    @cargo build
+    @vx cargo build
     @echo ""
     ./target/debug/vx test --ci --ci-runtimes {{RUNTIMES}} --temp-root --verbose
 
 # Quick CI test with core runtimes only
 test-ci-quick:
     @echo "Building VX first..."
-    @cargo build
+    @vx cargo build
     @echo ""
     ./target/debug/vx test --ci --ci-runtimes node,go,uv,just,cargo --temp-root --verbose
+
 
 # ============================================
 # Code Quality
@@ -99,7 +107,7 @@ test-ci-quick:
 
 # Run linting checks
 lint:
-    cargo clippy --all-targets --all-features -- -D warnings
+    vx run clippy
 
 # Format code
 format:
@@ -107,11 +115,51 @@ format:
 
 # Check code formatting
 format-check:
-    cargo fmt -- --check
+    vx run fmt-check
+
+# CI documentation build (no deps download)
+ci-docs:
+    vx run ci-docs
+
+# Check for inline tests
+check-inline-tests:
+    ./scripts/check-inline-tests.sh
+
+# Validate release version parsing scripts
+validate-version-scripts:
+    ./scripts/test-version-extraction.sh && ./scripts/test-winget-version.sh
+
+# Run tests for selected packages (pass cargo args)
+test-pkgs PKGS:
+    vx run test-pkgs -- {{PKGS}}
+
+# Run E2E benchmark tests (local)
+benchmark-run:
+    vx cargo test --release --test e2e_benchmark_tests -- --nocapture
+
+# Run E2E benchmark tests and capture output (CI)
+benchmark-run-ci:
+    @bash -lc "vx cargo test --release --test e2e_benchmark_tests -- --nocapture 2>&1 | tee benchmark_output.txt"
+
+# Security audit (CI)
+security-audit-ci:
+    @bash -lc "vx cargo generate-lockfile || true"
+    @bash -lc "vx cargo audit --deny warnings || echo '::warning::Security audit found warnings'"
+
+# Coverage (CI)
+coverage-ci:
+    vx cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+# Cross build (CI)
+cross-build TARGET:
+    vx cross build --release --target {{TARGET}} --no-default-features
+
 
 # ============================================
 # Development
 # ============================================
+
+
 
 # Quick development cycle: format, lint, test, build
 quick: format lint test build
@@ -124,11 +172,12 @@ video-rebuild: video-clean video-build
 
 # Clean build artifacts
 clean:
-    cargo clean
+    vx cargo clean
 
 # Install vx locally
 install:
-    cargo install --path .
+    vx cargo install --path .
+
 
 # ============================================
 # Promotional Video (Remotion)

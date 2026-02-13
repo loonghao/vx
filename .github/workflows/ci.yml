@@ -436,9 +436,10 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.vx
-          key: ${{ runner.os }}-vx-tools-quality-${{ hashFiles('.vx.toml') }}
+          key: ${{ runner.os }}-vx-tools-quality-${{ hashFiles('vx.toml') }}
           restore-keys: |
             ${{ runner.os }}-vx-tools-quality-
+
 
       - name: Setup Rust (required for cargo commands)
         uses: dtolnay/rust-toolchain@stable
@@ -452,28 +453,20 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Check formatting (via vx)
-        run: vx run fmt-check
+        run: vx just format-check
 
       - name: Check for inline tests
         run: |
-          echo "🔍 Checking for inline tests in source files..."
-          # Count files with inline tests (excluding tests/ directories)
-          INLINE_COUNT=$(grep -rl '#\[cfg(test)\]' crates --include="*.rs" | grep -v '/tests/' | wc -l || echo "0")
-          if [ "$INLINE_COUNT" -gt "0" ]; then
-            echo "⚠️  Found $INLINE_COUNT files with inline tests (migration in progress)"
-            echo "Files with inline tests should be migrated to tests/ directories"
-            # List first 10 files as examples
-            grep -rl '#\[cfg(test)\]' crates --include="*.rs" | grep -v '/tests/' | head -10
-          else
-            echo "✅ No inline tests found"
-          fi
+          vx just check-inline-tests || true
           # Note: Currently a warning only, will become error after migration
 
+
       - name: Run Clippy (via vx)
-        run: vx run clippy
+        run: vx just lint
 
       - name: Check documentation (via vx)
-        run: vx run ci-docs
+        run: vx just ci-docs
+
 
   # ============================================================================
   # Stage 3: Targeted tests (only test affected crates)
@@ -529,12 +522,13 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.vx
-          key: ${{ runner.os }}-vx-tools-test-${{ hashFiles('.vx.toml') }}
+          key: ${{ runner.os }}-vx-tools-test-${{ hashFiles('vx.toml') }}
           restore-keys: |
             ${{ runner.os }}-vx-tools-test-
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
 
       - name: Add Rust to PATH (Windows)
         if: runner.os == 'Windows'
@@ -564,10 +558,11 @@ jobs:
           echo "Test packages: ${{ needs.detect-changes.outputs.test_packages }}"
 
           # Run tests for affected packages only (delegated to vx for local/CI parity)
-          vx run test-pkgs -- ${{ needs.detect-changes.outputs.test_packages }}
+          vx just test-pkgs "${{ needs.detect-changes.outputs.test_packages }}"
         env:
           CARGO_TARGET_DIR: target
           VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
+
 
   # ============================================================================
   # Stage 3b: Full workspace tests (when core changes or CI changes)
@@ -622,12 +617,13 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.vx
-          key: ${{ runner.os }}-vx-tools-test-${{ hashFiles('.vx.toml') }}
+          key: ${{ runner.os }}-vx-tools-test-${{ hashFiles('vx.toml') }}
           restore-keys: |
             ${{ runner.os }}-vx-tools-test-
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
 
       - name: Add Rust to PATH (Windows)
         if: runner.os == 'Windows'
@@ -652,10 +648,11 @@ jobs:
 
       - name: Run full workspace tests (via vx)
         shell: bash
-        run: vx run test
+        run: vx just test
         env:
           CARGO_TARGET_DIR: target
           VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
+
 
 
 
@@ -708,7 +705,8 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Build with cross
-        run: cross build --release --target ${{ matrix.target }} --no-default-features
+        run: vx just cross-build ${{ matrix.target }}
+
 
   # ============================================================================
   # Stage 6: Security audit (only if rust changed)
@@ -731,9 +729,8 @@ jobs:
           tool: cargo-audit
 
       - name: Run security audit
-        run: |
-          cargo generate-lockfile || true
-          cargo audit --deny warnings || echo "::warning::Security audit found warnings"
+        run: vx just security-audit-ci
+
 
   # ============================================================================
   # Stage 7: Code coverage (main branch only)
@@ -773,7 +770,8 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Generate coverage
-        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+        run: vx just coverage-ci
+
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -814,12 +812,11 @@ jobs:
         run: vx install node
 
       - name: Install dependencies
-        working-directory: docs
-        run: vx npm ci
+        run: vx just docs-install
 
       - name: Build documentation
-        working-directory: docs
-        run: vx npm run build
+        run: vx just docs-build
+
 
   # Docs build without vx binary (when only docs changed)
   docs-build-standalone:

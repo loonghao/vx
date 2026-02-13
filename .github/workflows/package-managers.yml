@@ -32,9 +32,9 @@ jobs:
     outputs:
       should-publish: ${{ steps.check.outputs.should-publish }}
       version: ${{ steps.version.outputs.version }}
-      normalized_version: ${{ steps.normalize.outputs.normalized_version }}
     steps:
       - name: Debug workflow event
+
         run: |
           echo "Event name: ${{ github.event_name }}"
           echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
@@ -58,46 +58,26 @@ jobs:
             echo "should-publish=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Download release tag artifact
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v7
+        with:
+          name: release-tag
+          path: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
       - name: Get version
         id: version
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           else
-            # Get the latest release tag from GitHub API
-            echo "Getting latest release version from GitHub API..."
-            latest_release=$(curl -s -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/loonghao/vx/releases/latest" | \
-              jq -r '.tag_name // empty')
-
-            if [[ -n "$latest_release" && "$latest_release" != "null" ]]; then
-              echo "Found latest release: $latest_release"
-              echo "version=$latest_release" >> $GITHUB_OUTPUT
-            else
-              echo "No release found, trying to get from workflow run..."
-              version="${{ github.event.workflow_run.head_branch }}"
-              if [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-                echo "version=$version" >> $GITHUB_OUTPUT
-              else
-                echo "version=unknown" >> $GITHUB_OUTPUT
-              fi
-            fi
+            version=$(cat release-tag.txt)
+            echo "version=$version" >> $GITHUB_OUTPUT
           fi
 
-      - name: Normalize version for WinGet
-        id: normalize
-        run: |
-          version="${{ steps.version.outputs.version }}"
-          echo "Original version: $version"
 
-          # Robustly strip all known prefixes for WinGet version
-          # Handles: vx-v0.7.8 -> 0.7.8, v0.7.8 -> 0.7.8, 0.7.8 -> 0.7.8
-          normalized_version="${version}"
-          normalized_version="${normalized_version#vx-v}"
-          normalized_version="${normalized_version#vx-}"
-          normalized_version="${normalized_version#v}"
-          echo "Normalized version: $normalized_version"
-          echo "normalized_version=$normalized_version" >> $GITHUB_OUTPUT
+
 
       - name: Verify GitHub Release exists
         run: |
@@ -119,34 +99,8 @@ jobs:
             exit 1
           fi
 
-  # Publish to Windows Package Manager (WinGet)
-  # Uses vedantmgoyal9/winget-releaser to automatically create PR at microsoft/winget-pkgs
-  # Requires: WINGET_TOKEN secret with public_repo scope
-  # Requires: Fork of microsoft/winget-pkgs under the same account
-  publish-winget:
-    needs: check-release
-    runs-on: windows-latest
-    if: needs.check-release.outputs.should-publish == 'true'
-    steps:
-      - name: Publish to WinGet
-        uses: vedantmgoyal9/winget-releaser@v2
-        with:
-          identifier: loonghao.vx
-          # Use the GitHub release tag (e.g., "v0.7.8") to find the release
-          release-tag: ${{ needs.check-release.outputs.version }}
-          # Use normalized version for WinGet package version (without 'vx-' and 'v' prefix)
-          version: ${{ needs.check-release.outputs.normalized_version }}
-          # Match ONLY the cargo-dist original unversioned zip files to avoid duplicates.
-          # cargo-dist produces: vx-x86_64-pc-windows-msvc.zip (unversioned)
-          # release.yml also creates: vx-0.7.8-x86_64-pc-windows-msvc.zip (versioned copy)
-          # We must match only ONE of them to avoid duplicate installer entries.
-          # Pattern: starts with "vx-" immediately followed by arch (x86_64 or aarch64),
-          # which excludes versioned copies like "vx-0.7.8-x86_64-..."
-          installers-regex: 'vx-(x86_64|aarch64)-pc-windows-msvc\.zip$'
-          max-versions-to-keep: 5
-          token: ${{ secrets.WINGET_TOKEN }}
-
   # Publish to Chocolatey
+
   # Downloads release assets and creates Chocolatey package
   publish-chocolatey:
     needs: check-release
@@ -310,7 +264,7 @@ jobs:
 
   # Summary job
   publish-summary:
-    needs: [check-release, publish-winget, publish-chocolatey, publish-scoop]
+    needs: [check-release, publish-chocolatey, publish-scoop]
     runs-on: ubuntu-latest
     if: always() && needs.check-release.outputs.should-publish == 'true'
     steps:
@@ -324,7 +278,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Package Manager | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 🪟 WinGet | ${{ needs.publish-winget.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🪟 WinGet | (handled by release workflow) |" >> $GITHUB_STEP_SUMMARY
           echo "| 🍫 Chocolatey | ${{ needs.publish-chocolatey.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🍺 Homebrew | (handled by cargo-dist) |" >> $GITHUB_STEP_SUMMARY
           echo "| 🥄 Scoop | ${{ needs.publish-scoop.result }} |" >> $GITHUB_STEP_SUMMARY
@@ -348,3 +302,4 @@ jobs:
           echo "# Rust (Cargo)" >> $GITHUB_STEP_SUMMARY
           echo "cargo install vx" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
