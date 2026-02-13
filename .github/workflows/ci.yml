@@ -351,6 +351,10 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.should_build == 'true'
     timeout-minutes: 20
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ~/.cache/sccache
+
     strategy:
       fail-fast: false
       matrix:
@@ -384,12 +388,27 @@ jobs:
         with:
           targets: ${{ matrix.platform.target }}
 
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+
+      - name: Cache sccache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/sccache
+          key: ${{ runner.os }}-sccache-${{ matrix.platform.target }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-sccache-${{ matrix.platform.target }}-
+            ${{ runner.os }}-sccache-
+
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
           prefix-key: ${{ matrix.platform.target }}
           shared-key: build
           save-if: ${{ github.ref == 'refs/heads/main' }}
+
 
       - name: Build vx release binary
         run: cargo build --release --target ${{ matrix.platform.target }}
@@ -416,6 +435,10 @@ jobs:
     needs: [detect-changes, build-vx]
     if: needs.detect-changes.outputs.should_build == 'true'
     timeout-minutes: 15
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ~/.cache/sccache
+
     steps:
       - uses: actions/checkout@v6
 
@@ -446,11 +469,26 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+
+      - name: Cache sccache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/sccache
+          key: ${{ runner.os }}-sccache-quality-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-sccache-quality-
+            ${{ runner.os }}-sccache-
+
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: quality
           save-if: ${{ github.ref == 'refs/heads/main' }}
+
 
       - name: Check formatting (via vx)
         run: vx just format-check
@@ -480,6 +518,10 @@ jobs:
       needs.detect-changes.outputs.test_packages != '' &&
       !contains(needs.detect-changes.outputs.test_packages, '--workspace')
     timeout-minutes: 25
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ~/.cache/sccache
+
     strategy:
       fail-fast: false
       matrix:
@@ -529,6 +571,20 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+
+      - name: Cache sccache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/sccache
+          key: ${{ runner.os }}-sccache-test-${{ matrix.platform.name }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-sccache-test-${{ matrix.platform.name }}-
+            ${{ runner.os }}-sccache-test-
+            ${{ runner.os }}-sccache-
 
       - name: Add Rust to PATH (Windows)
         if: runner.os == 'Windows'
@@ -564,6 +620,7 @@ jobs:
           VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
 
 
+
   # ============================================================================
   # Stage 3b: Full workspace tests (when core changes or CI changes)
   # ============================================================================
@@ -575,6 +632,10 @@ jobs:
       needs.detect-changes.outputs.should_test == 'true' &&
       contains(needs.detect-changes.outputs.test_packages, '--workspace')
     timeout-minutes: 25
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ~/.cache/sccache
+
     strategy:
       fail-fast: false
       matrix:
@@ -624,6 +685,20 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+
+      - name: Cache sccache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/sccache
+          key: ${{ runner.os }}-sccache-test-${{ matrix.platform.name }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-sccache-test-${{ matrix.platform.name }}-
+            ${{ runner.os }}-sccache-test-
+            ${{ runner.os }}-sccache-
 
       - name: Add Rust to PATH (Windows)
         if: runner.os == 'Windows'
@@ -652,6 +727,7 @@ jobs:
         env:
           CARGO_TARGET_DIR: target
           VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
+
 
 
 
@@ -749,6 +825,10 @@ jobs:
       needs.detect-changes.outputs.should_build == 'true' &&
       needs.detect-changes.outputs.is_main == 'true'
     timeout-minutes: 20
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ~/.cache/sccache
+
     steps:
       - uses: actions/checkout@v6
 
@@ -766,8 +846,23 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+
+      - name: Cache sccache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/sccache
+          key: ${{ runner.os }}-sccache-coverage-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-sccache-coverage-
+            ${{ runner.os }}-sccache-
+
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
+
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
