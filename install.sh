@@ -457,60 +457,64 @@ find_version_with_assets_from_page() {
     fi
     
     if [[ -z "$html_content" ]]; then
+        warn "Failed to fetch releases page"
         return
     fi
     
-    # Extract version tags from release links, looking for releases with assets
-    # Pattern: href="/loonghao/vx/releases/tag/TAG_NAME" followed by asset links
-    local tags_with_assets
-    tags_with_assets=$(echo "$html_content" | grep -oP 'href="/[^"]+/releases/tag/[^"]+"' | sed 's/.*\/releases\/tag\/\([^"]\+\).*/\1/' | sort -u | head -20)
+    # Extract version tags from release links using portable methods
+    # Pattern: href="/loonghao/vx/releases/tag/TAG_NAME"
+    local tags
+    # Use grep -oE (extended regex) which is more portable than -oP (perl regex)
+    # Fallback to sed if grep -E is not available
+    if echo "test" | grep -oE "test" >/dev/null 2>&1; then
+        tags=$(echo "$html_content" | grep -oE 'href="/[^"]+/releases/tag/[^"]+"' | sed 's|.*/releases/tag/||g' | tr -d '"' | sort -u | head -20)
+    else
+        # Fallback: use only sed
+        tags=$(echo "$html_content" | sed -n 's|.*href="/[^"]*/releases/tag/\([^"]*\)".*|\1|p' | sort -u | head -20)
+    fi
     
-    # For each tag, check if it has assets by looking for download links
-    for tag in $tags_with_assets; do
+    if [[ -z "$tags" ]]; then
+        warn "No release tags found on page"
+        return
+    fi
+    
+    info "Found release tags, checking for assets..."
+    
+    # For each tag, check if it has assets by trying direct download
+    for tag in $tags; do
         # Skip pre-release tags (usually contain -alpha, -beta, -rc, etc.)
         if [[ "$tag" =~ -(alpha|beta|rc|pre|dev) ]]; then
             continue
         fi
         
-        # Check if this release has any downloadable assets
-        # Look for .tar.gz or .zip in the release section
-        local release_url="https://github.com/$REPO_OWNER/$REPO_NAME/releases/tag/$tag"
-        local release_html
-        
-        if command -v curl >/dev/null 2>&1; then
-            release_html=$(curl -sL "$release_url" 2>/dev/null | grep -o '\.tar\.gz\|\.zip' | head -1 || echo "")
-        elif command -v wget >/dev/null 2>&1; then
-            release_html=$(wget -qO- "$release_url" 2>/dev/null | grep -o '\.tar\.gz\|\.zip' | head -1 || echo "")
-        fi
-        
-        if [[ -n "$release_html" ]]; then
-            # This release has assets
-            echo "$tag"
-            return
-        fi
-    done
-    
-    # Fallback: try the first tag that looks like a valid version
-    local first_tag
-    first_tag=$(echo "$tags_with_assets" | head -1)
-    if [[ -n "$first_tag" ]]; then
-        # Validate by checking if any binary exists for this platform
+        # Quick check: try HEAD request to verify release has assets
         local platform
         platform=$(detect_platform)
-        local test_url="$BASE_URL/download/$first_tag/vx-$platform.tar.gz"
         
-        if command -v curl >/dev/null 2>&1; then
-            if curl -fsSL --head "$test_url" 2>/dev/null | grep -q "HTTP.*200\|HTTP.*302"; then
-                echo "$first_tag"
-                return
+        # Try common asset naming patterns
+        local test_urls=(
+            "$BASE_URL/download/$tag/vx-$platform.tar.gz"
+            "$BASE_URL/download/$tag/vx-${platform}.tar.gz"
+        )
+        
+        for test_url in "${test_urls[@]}"; do
+            if command -v curl >/dev/null 2>&1; then
+                if curl -fsSL --head "$test_url" 2>/dev/null | grep -q "HTTP.*200\|HTTP.*302\|HTTP.*303"; then
+                    info "Found valid release with assets: $tag"
+                    echo "$tag"
+                    return
+                fi
+            elif command -v wget >/dev/null 2>&1; then
+                if wget -q --spider "$test_url" 2>/dev/null; then
+                    info "Found valid release with assets: $tag"
+                    echo "$tag"
+                    return
+                fi
             fi
-        elif command -v wget >/dev/null 2>&1; then
-            if wget -q --spider "$test_url" 2>/dev/null; then
-                echo "$first_tag"
-                return
-            fi
-        fi
-    fi
+        done
+    done
+    
+    warn "No releases with assets found"
 }
 
 # Build from source (fallback method)
