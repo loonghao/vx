@@ -167,9 +167,10 @@ fn create_cow_link(src: &Path, dst: &Path) -> Result<()> {
         let dst_c = CString::new(dst.as_os_str().as_bytes())?;
 
         // clonefile is available on macOS 10.12+
-        extern "C" {
+        unsafe extern "C" {
             fn clonefile(src: *const i8, dst: *const i8, flags: u32) -> i32;
         }
+
 
         let result = unsafe { clonefile(src_c.as_ptr(), dst_c.as_ptr(), 0) };
         if result == 0 {
