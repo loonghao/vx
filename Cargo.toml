@@ -170,6 +170,14 @@ vx-core = { path = "crates/vx-core" }
 vx-cache = { path = "crates/vx-cache" }
 vx-runtime = { path = "crates/vx-runtime" }
 vx-version-fetcher = { path = "crates/vx-version-fetcher" }
+
+# Pin crc to 2.0.0 to fix lzma-rust2 compatibility
+# lzma-rust2 0.15.x uses old crc API (crc::Table) which was removed in crc 2.1.0+
+
+# Patch msvc-kit to disable zip lzma feature (crc compatibility issue)
+# This will be removed once msvc-kit 0.2.6+ is released with the fix
+[patch.crates-io]
+msvc-kit = { git = "https://github.com/loonghao/msvc-kit", branch = "fix/disable-zip-lzma" }
 vx-resolver = { path = "crates/vx-resolver" }
 vx-paths = { path = "crates/vx-paths" }
 vx-installer = { path = "crates/vx-installer" }
@@ -457,3 +465,7 @@ install-path = "CARGO_HOME"
 # use ring. We need to disable these dependencies for aarch64-pc-windows-msvc.
 #
 # Solution: Use target-specific dependency cfg in vx-runtime and vx-installer
+
+# Patch lzma-rust2 to fix crc compatibility issue
+# lzma-rust2 0.15.x uses old crc API (crc::Table) which was removed in crc 2.1.0+
+# Pin crc to 2.0.0 which still has the old API
