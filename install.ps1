@@ -128,11 +128,11 @@ function Get-Platform {
 }
 
 # Get latest version from GitHub API with optional authentication and fallback
-# Returns the full tag name (e.g., "v0.5.7")
+# Returns the full tag name (e.g., "v0.5.7") of a release that has assets
 function Get-LatestVersion {
     try {
         Write-ProgressInfo -Activity "Fetching latest version" -Status "Connecting to GitHub API..."
-        $apiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
+        $apiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases?per_page=30"
 
         # Prepare headers for authentication if token is available
         $headers = @{
@@ -148,10 +148,24 @@ function Get-LatestVersion {
         }
 
         # Make API request with optional authentication
-        $response = Invoke-RestMethod -Uri $apiUrl -Method Get -Headers $headers -TimeoutSec 10
+        $response = Invoke-RestMethod -Uri $apiUrl -Method Get -Headers $headers -TimeoutSec 30
         Microsoft.PowerShell.Utility\Write-Progress -Activity "Fetching latest version" -Completed
-        # Return full tag name (e.g., "v0.5.7")
-        return $response.tag_name
+        
+        # Find first non-prerelease release with assets
+        foreach ($release in $response) {
+            if (-not $release.prerelease -and $release.assets.Count -gt 0) {
+                Write-Info "Found version with assets: $($release.tag_name)"
+                return $release.tag_name
+            }
+        }
+        
+        # If no release with assets found, return the first non-prerelease
+        $firstRelease = $response | Where-Object { -not $_.prerelease } | Select-Object -First 1
+        if ($firstRelease) {
+            return $firstRelease.tag_name
+        }
+        
+        throw "No releases found"
     }
     catch {
         Microsoft.PowerShell.Utility\Write-Progress -Activity "Fetching latest version" -Completed
@@ -165,20 +179,16 @@ function Get-LatestVersion {
         if ($isRateLimit) {
             Write-Warn "GitHub API rate limit exceeded. Trying fallback method..."
 
-            # Fallback: Try to get version from releases page HTML
+            # Fallback: Try to find version with assets from releases page
             try {
-                Write-Info "Attempting to fetch version from releases page..."
-                $releasesUrl = "https://github.com/$RepoOwner/$RepoName/releases/latest"
-                $webResponse = Invoke-WebRequest -Uri $releasesUrl -MaximumRedirection 0 -ErrorAction SilentlyContinue -UseBasicParsing
-            }
-            catch [System.Net.WebException] {
-                # Handle redirect (302) - extract version from Location header
-                $redirectUrl = $_.Exception.Response.Headers["Location"]
-                if ($redirectUrl -match "/releases/tag/(.+)$") {
-                    $tagName = $matches[1]
-                    Write-Success "Found version via redirect: $tagName"
-                    return $tagName
+                $foundVersion = Find-VersionWithAssetsFromPage
+                if ($foundVersion) {
+                    Write-Success "Found version with assets: $foundVersion"
+                    return $foundVersion
                 }
+            }
+            catch {
+                Write-Warn "Fallback method failed: $($_.Exception.Message)"
             }
 
             # If fallback also fails, provide helpful error message
@@ -203,6 +213,64 @@ function Get-LatestVersion {
 
         Write-Error "Failed to get latest version: $_"
         exit 1
+    }
+}
+
+# Find a version with assets from GitHub releases page (fallback when API is rate limited)
+# Parses the releases page HTML to find versions that have downloadable assets
+function Find-VersionWithAssetsFromPage {
+    Write-Info "Fetching releases page to find version with assets..."
+    
+    try {
+        $releasesUrl = "https://github.com/$RepoOwner/$RepoName/releases"
+        $response = Invoke-WebRequest -Uri $releasesUrl -UseBasicParsing -TimeoutSec 30
+        $html = $response.Content
+        
+        # Extract version tags from release links
+        # Pattern: href="/loonghao/vx/releases/tag/TAG_NAME"
+        $tagPattern = 'href="/[^"]+/releases/tag/([^"]+)"'
+        $matches = [regex]::Matches($html, $tagPattern)
+        
+        $seenTags = @{}
+        foreach ($match in $matches) {
+            $tag = $match.Groups[1].Value
+            
+            # Skip if already seen
+            if ($seenTags.ContainsKey($tag)) { continue }
+            $seenTags[$tag] = $true
+            
+            # Skip pre-release tags
+            if ($tag -match '-(alpha|beta|rc|pre|dev)') { continue }
+            
+            # Check if this release has assets
+            $releaseUrl = "https://github.com/$RepoOwner/$RepoName/releases/tag/$tag"
+            try {
+                $releaseResponse = Invoke-WebRequest -Uri $releaseUrl -UseBasicParsing -TimeoutSec 10
+                $releaseHtml = $releaseResponse.Content
+                
+                # Check for .tar.gz or .zip in the release page
+                if ($releaseHtml -match '\.(tar\.gz|zip)') {
+                    Write-Info "Found version with assets: $tag"
+                    return $tag
+                }
+            }
+            catch {
+                # Continue to next tag if this release page fails
+                continue
+            }
+        }
+        
+        # Fallback: return the first tag found
+        if ($seenTags.Keys.Count -gt 0) {
+            $firstTag = $seenTags.Keys | Select-Object -First 1
+            return $firstTag
+        }
+        
+        return $null
+    }
+    catch {
+        Write-Warn "Failed to fetch releases page: $($_.Exception.Message)"
+        return $null
     }
 }
 

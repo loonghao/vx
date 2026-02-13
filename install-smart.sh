@@ -170,11 +170,12 @@ get_optimal_channels() {
 }
 
 # Get latest version with intelligent fallback
+# Returns version of a release that has assets
 get_latest_version() {
     local region="$1"
 
     # Try GitHub API first (with auth if available)
-    local api_url="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
+    local api_url="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases?per_page=30"
     local auth_header=""
 
     if [[ -n "${GITHUB_TOKEN:-}" ]]; then
@@ -185,19 +186,46 @@ get_latest_version() {
     if command -v curl >/dev/null 2>&1; then
         local response
         if [[ -n "$auth_header" ]]; then
-            response=$(curl -s -H "$auth_header" "$api_url" 2>/dev/null || echo "")
+            response=$(curl -s -H "$auth_header" -H "Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
         else
-            response=$(curl -s "$api_url" 2>/dev/null || echo "")
+            response=$(curl -s -H "Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
         fi
 
-        if [[ -n "$response" ]] && ! echo "$response" | grep "rate limit\|429" >/dev/null 2>&1; then
-            local version
-            version=$(echo "$response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//' || echo "")
-            if [[ -n "$version" ]]; then
-                debug "Got version from GitHub API: $version"
-                echo "$version"
-                return
+        if [[ -n "$response" ]] && ! echo "$response" | grep "rate limit\|429\|API rate limit exceeded" >/dev/null 2>&1; then
+            # Find first non-prerelease with assets using jq if available
+            if command -v jq >/dev/null 2>&1; then
+                local version
+                version=$(echo "$response" | jq -r '
+                    [.[] | select(.assets | length > 0) | select(.prerelease == false)] |
+                    first | .tag_name // empty
+                ' | sed 's/^v//')
+                if [[ -n "$version" && "$version" != "null" ]]; then
+                    debug "Got version from GitHub API: $version"
+                    echo "$version"
+                    return
+                fi
+            else
+                # Fallback without jq - parse JSON manually
+                local version
+                version=$(echo "$response" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//' || echo "")
+                if [[ -n "$version" ]]; then
+                    debug "Got version from GitHub API: $version"
+                    echo "$version"
+                    return
+                fi
             fi
+        fi
+    fi
+
+    # Rate limit hit - try fallback method
+    if echo "$response" | grep "rate limit\|429\|API rate limit exceeded" >/dev/null 2>&1; then
+        warn "GitHub API rate limit exceeded. Trying fallback method..."
+        local found_version
+        found_version=$(find_version_with_assets_from_page_smart)
+        if [[ -n "$found_version" ]]; then
+            info "Found version with assets: $found_version"
+            echo "$found_version"
+            return
         fi
     fi
 
@@ -228,6 +256,61 @@ get_latest_version() {
     echo "3. Use package managers: brew install loonghao/vx/vx" >&2
     echo "4. Build from source: VX_BUILD_FROM_SOURCE=true $0" >&2
     exit 1
+}
+
+# Find a version with assets from GitHub releases page (for install-smart.sh)
+find_version_with_assets_from_page_smart() {
+    local releases_url="https://github.com/$REPO_OWNER/$REPO_NAME/releases"
+    local html_content
+    
+    info "Fetching releases page to find version with assets..."
+    
+    if command -v curl >/dev/null 2>&1; then
+        html_content=$(curl -sL "$releases_url" 2>/dev/null || echo "")
+    elif command -v wget >/dev/null 2>&1; then
+        html_content=$(wget -qO- "$releases_url" 2>/dev/null || echo "")
+    else
+        return
+    fi
+    
+    if [[ -z "$html_content" ]]; then
+        return
+    fi
+    
+    # Extract version tags from release links
+    local tags_with_assets
+    tags_with_assets=$(echo "$html_content" | grep -oP 'href="/[^"]+/releases/tag/[^"]+"' | sed 's/.*\/releases\/tag\/\([^\"]\+\).*/\1/' | sort -u | head -20)
+    
+    # For each tag, check if it has assets
+    for tag in $tags_with_assets; do
+        # Skip pre-release tags
+        if [[ "$tag" =~ -(alpha|beta|rc|pre|dev) ]]; then
+            continue
+        fi
+        
+        # Check if this release has any downloadable assets
+        local release_url="https://github.com/$REPO_OWNER/$REPO_NAME/releases/tag/$tag"
+        local release_html
+        
+        if command -v curl >/dev/null 2>&1; then
+            release_html=$(curl -sL "$release_url" 2>/dev/null | grep -o '\.tar\.gz\|\.zip' | head -1 || echo "")
+        elif command -v wget >/dev/null 2>&1; then
+            release_html=$(wget -qO- "$release_url" 2>/dev/null | grep -o '\.tar\.gz\|\.zip' | head -1 || echo "")
+        fi
+        
+        if [[ -n "$release_html" ]]; then
+            # Return version without 'v' prefix
+            echo "$tag" | sed 's/^v//'
+            return
+        fi
+    done
+    
+    # Fallback: return first tag
+    local first_tag
+    first_tag=$(echo "$tags_with_assets" | head -1 | sed 's/^v//')
+    if [[ -n "$first_tag" ]]; then
+        echo "$first_tag"
+    fi
 }
 
 # Helper function to get file size (portable across macOS and Linux)

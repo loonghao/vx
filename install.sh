@@ -321,7 +321,7 @@ detect_platform() {
 # Get latest version from GitHub API with optional authentication and fallback
 # Returns the full tag name (e.g., "v0.5.7") of a release that has assets
 get_latest_version() {
-    local api_url="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases?per_page=10"
+    local api_url="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases?per_page=30"
     local auth_header=""
 
     # Check for GitHub token
@@ -366,16 +366,15 @@ get_latest_version() {
             fi
         fi
 
-        # Rate limit hit - try fallback method via redirect
+        # Rate limit hit - try fallback method via redirect and validate
         if echo "$response" | grep "rate limit\|429\|API rate limit exceeded" >/dev/null 2>&1; then
             warn "GitHub API rate limit exceeded. Trying fallback method..."
-            # Try to get version from releases page redirect
-            local redirect_url
-            redirect_url=$(curl -sI "https://github.com/$REPO_OWNER/$REPO_NAME/releases/latest" 2>/dev/null | grep -i "^location:" | sed 's/location: *//i' | tr -d '\r\n')
-            if [[ "$redirect_url" =~ /releases/tag/(.+)$ ]]; then
-                local tag_name="${BASH_REMATCH[1]}"
-                info "Found version via redirect: $tag_name"
-                echo "$tag_name"
+            # Try to find a version with assets from releases page
+            local found_version
+            found_version=$(find_version_with_assets_from_page)
+            if [[ -n "$found_version" ]]; then
+                info "Found version with assets: $found_version"
+                echo "$found_version"
                 return
             fi
         fi
@@ -407,6 +406,18 @@ get_latest_version() {
                 fi
             fi
         fi
+
+        # Rate limit hit - try fallback
+        if echo "$response" | grep "rate limit\|429\|API rate limit exceeded" >/dev/null 2>&1; then
+            warn "GitHub API rate limit exceeded. Trying fallback method..."
+            local found_version
+            found_version=$(find_version_with_assets_from_page)
+            if [[ -n "$found_version" ]]; then
+                info "Found version with assets: $found_version"
+                echo "$found_version"
+                return
+            fi
+        fi
     fi
 
     # If all else fails, provide helpful error message
@@ -427,6 +438,79 @@ get_latest_version() {
     echo "   https://github.com/loonghao/vx/releases/latest" >&2
     echo "" >&2
     exit 1
+}
+
+# Find a version with assets from GitHub releases page (fallback when API is rate limited)
+# Parses the releases page HTML to find versions that have downloadable assets
+find_version_with_assets_from_page() {
+    local releases_url="https://github.com/$REPO_OWNER/$REPO_NAME/releases"
+    local html_content
+    
+    info "Fetching releases page to find version with assets..."
+    
+    if command -v curl >/dev/null 2>&1; then
+        html_content=$(curl -sL "$releases_url" 2>/dev/null || echo "")
+    elif command -v wget >/dev/null 2>&1; then
+        html_content=$(wget -qO- "$releases_url" 2>/dev/null || echo "")
+    else
+        return
+    fi
+    
+    if [[ -z "$html_content" ]]; then
+        return
+    fi
+    
+    # Extract version tags from release links, looking for releases with assets
+    # Pattern: href="/loonghao/vx/releases/tag/TAG_NAME" followed by asset links
+    local tags_with_assets
+    tags_with_assets=$(echo "$html_content" | grep -oP 'href="/[^"]+/releases/tag/[^"]+"' | sed 's/.*\/releases\/tag\/\([^"]\+\).*/\1/' | sort -u | head -20)
+    
+    # For each tag, check if it has assets by looking for download links
+    for tag in $tags_with_assets; do
+        # Skip pre-release tags (usually contain -alpha, -beta, -rc, etc.)
+        if [[ "$tag" =~ -(alpha|beta|rc|pre|dev) ]]; then
+            continue
+        fi
+        
+        # Check if this release has any downloadable assets
+        # Look for .tar.gz or .zip in the release section
+        local release_url="https://github.com/$REPO_OWNER/$REPO_NAME/releases/tag/$tag"
+        local release_html
+        
+        if command -v curl >/dev/null 2>&1; then
+            release_html=$(curl -sL "$release_url" 2>/dev/null | grep -o '\.tar\.gz\|\.zip' | head -1 || echo "")
+        elif command -v wget >/dev/null 2>&1; then
+            release_html=$(wget -qO- "$release_url" 2>/dev/null | grep -o '\.tar\.gz\|\.zip' | head -1 || echo "")
+        fi
+        
+        if [[ -n "$release_html" ]]; then
+            # This release has assets
+            echo "$tag"
+            return
+        fi
+    done
+    
+    # Fallback: try the first tag that looks like a valid version
+    local first_tag
+    first_tag=$(echo "$tags_with_assets" | head -1)
+    if [[ -n "$first_tag" ]]; then
+        # Validate by checking if any binary exists for this platform
+        local platform
+        platform=$(detect_platform)
+        local test_url="$BASE_URL/download/$first_tag/vx-$platform.tar.gz"
+        
+        if command -v curl >/dev/null 2>&1; then
+            if curl -fsSL --head "$test_url" 2>/dev/null | grep -q "HTTP.*200\|HTTP.*302"; then
+                echo "$first_tag"
+                return
+            fi
+        elif command -v wget >/dev/null 2>&1; then
+            if wget -q --spider "$test_url" 2>/dev/null; then
+                echo "$first_tag"
+                return
+            fi
+        fi
+    fi
 }
 
 # Build from source (fallback method)
