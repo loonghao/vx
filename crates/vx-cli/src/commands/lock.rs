@@ -241,7 +241,7 @@ async fn resolve_tool_with_dependencies(
             eprintln!("  ✗ Failed to resolve {}: {}", tool_name, e);
             if !update {
                 // Keep existing lock entry if not updating
-                if let Some(ref existing) = existing_lock {
+                if let Some(existing) = existing_lock {
                     if let Some(existing_tool) = existing.get_tool(tool_name) {
                         lock.lock_tool(tool_name.to_string(), existing_tool.clone());
                         return true; // Kept existing, so not a failure

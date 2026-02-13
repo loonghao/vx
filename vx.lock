@@ -4,7 +4,7 @@
 version = 1
 
 [metadata]
-generated_at = "2026-02-07T07:40:15Z"
+generated_at = "2026-02-13T10:06:31Z"
 vx_version = "0.6.19"
 platform = "x86_64-pc-windows-msvc"
 
@@ -46,13 +46,13 @@ ecosystem = "Python"
 download_url = "https://github.com/astral-sh/python-build-standalone/releases/download/20250610/cpython-3.11.13+20250610-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
 
 [tools.rust]
-version = "1.83.0"
+version = "1.85.0"
 source = "rust"
-resolved_from = "1.83.0"
+resolved_from = "1.85.0"
 ecosystem = "Rust"
 
 [tools.uv]
 version = "0.9.26"
 source = "vx install"
-resolved_from = "latest"
+resolved_from = "0.9.26"
 ecosystem = "Python"
