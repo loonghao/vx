@@ -323,6 +323,7 @@ detect_platform() {
 get_latest_version() {
     local api_url="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases?per_page=30"
     local auth_header=""
+    local is_rate_limited=false
 
     # Check for GitHub token
     if [[ -n "${GITHUB_TOKEN:-}" ]]; then
@@ -333,50 +334,12 @@ get_latest_version() {
     fi
 
     # Try GitHub API - get releases list and find one with assets
-    local response
+    local response=""
     if command -v curl >/dev/null 2>&1; then
         if [[ -n "$auth_header" ]]; then
             response=$(curl -s -H "$auth_header" -H "Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
         else
             response=$(curl -s -H "Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
-        fi
-
-        # Check for rate limit error (avoid grep -q to prevent broken pipe with set -o pipefail)
-        if [[ -n "$response" ]] && ! echo "$response" | grep "rate limit\|429\|API rate limit exceeded" >/dev/null 2>&1; then
-            # Find the first non-prerelease with assets using jq if available
-            if command -v jq >/dev/null 2>&1; then
-                local tag_name
-                tag_name=$(echo "$response" | jq -r '
-                    [.[] | select(.assets | length > 0) | select(.prerelease == false)] |
-                    first | .tag_name // empty
-                ')
-                if [[ -n "$tag_name" && "$tag_name" != "null" ]]; then
-                    echo "$tag_name"
-                    return
-                fi
-            else
-                # Fallback: use grep/sed to find first release with assets
-                # This is less reliable but works without jq
-                local tag_name
-                tag_name=$(echo "$response" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
-                if [[ -n "$tag_name" ]]; then
-                    echo "$tag_name"
-                    return
-                fi
-            fi
-        fi
-
-        # Rate limit hit - try fallback method via redirect and validate
-        if echo "$response" | grep "rate limit\|429\|API rate limit exceeded" >/dev/null 2>&1; then
-            warn "GitHub API rate limit exceeded. Trying fallback method..."
-            # Try to find a version with assets from releases page
-            local found_version
-            found_version=$(find_version_with_assets_from_page)
-            if [[ -n "$found_version" ]]; then
-                info "Found version with assets: $found_version"
-                echo "$found_version"
-                return
-            fi
         fi
     elif command -v wget >/dev/null 2>&1; then
         if [[ -n "$auth_header" ]]; then
@@ -384,44 +347,51 @@ get_latest_version() {
         else
             response=$(wget -qO- --header="Accept: application/vnd.github.v3+json" "$api_url" 2>/dev/null || echo "")
         fi
+    fi
 
-        # Check for rate limit error (avoid grep -q to prevent broken pipe)
-        if [[ -n "$response" ]] && ! echo "$response" | grep "rate limit\|429\|API rate limit exceeded" >/dev/null 2>&1; then
-            if command -v jq >/dev/null 2>&1; then
-                local tag_name
-                tag_name=$(echo "$response" | jq -r '
-                    [.[] | select(.assets | length > 0) | select(.prerelease == false)] |
-                    first | .tag_name // empty
-                ')
-                if [[ -n "$tag_name" && "$tag_name" != "null" ]]; then
-                    echo "$tag_name"
-                    return
-                fi
-            else
-                local tag_name
-                tag_name=$(echo "$response" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
-                if [[ -n "$tag_name" ]]; then
-                    echo "$tag_name"
-                    return
-                fi
-            fi
-        fi
+    # Check for rate limit error
+    if [[ -n "$response" ]] && echo "$response" | grep "rate limit\|429\|API rate limit exceeded" >/dev/null 2>&1; then
+        is_rate_limited=true
+        warn "GitHub API rate limit exceeded. Trying fallback method..."
+    fi
 
-        # Rate limit hit - try fallback
-        if echo "$response" | grep "rate limit\|429\|API rate limit exceeded" >/dev/null 2>&1; then
-            warn "GitHub API rate limit exceeded. Trying fallback method..."
-            local found_version
-            found_version=$(find_version_with_assets_from_page)
-            if [[ -n "$found_version" ]]; then
-                info "Found version with assets: $found_version"
-                echo "$found_version"
+    # If not rate limited, try to parse the API response
+    if [[ "$is_rate_limited" != "true" ]] && [[ -n "$response" ]]; then
+        if command -v jq >/dev/null 2>&1; then
+            local tag_name
+            tag_name=$(echo "$response" | jq -r '
+                [.[] | select(.assets | length > 0) | select(.prerelease == false)] |
+                first | .tag_name // empty
+            ' 2>/dev/null)
+            if [[ -n "$tag_name" && "$tag_name" != "null" ]]; then
+                echo "$tag_name"
                 return
             fi
+            # API succeeded but no release with assets found
+            warn "No releases with assets found via API. Trying fallback method..."
+        else
+            # Fallback: use grep/sed to find first release tag (without jq we can't check assets)
+            local tag_name
+            tag_name=$(echo "$response" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+            if [[ -n "$tag_name" ]]; then
+                echo "$tag_name"
+                return
+            fi
+            warn "Could not parse API response. Trying fallback method..."
         fi
     fi
 
+    # Fallback: try to find a version with assets from releases HTML page
+    local found_version
+    found_version=$(find_version_with_assets_from_page)
+    if [[ -n "$found_version" ]]; then
+        info "Found version with assets: $found_version"
+        echo "$found_version"
+        return
+    fi
+
     # If all else fails, provide helpful error message
-    error "Unable to determine latest version automatically due to rate limiting."
+    error "Unable to determine latest version automatically."
     echo "" >&2
     echo "Solutions:" >&2
     echo "1. Set GITHUB_TOKEN environment variable:" >&2
@@ -481,25 +451,37 @@ find_version_with_assets_from_page() {
     info "Found release tags, checking for assets..."
     
     # For each tag, check if it has assets by trying direct download
+    local platform
+    platform=$(detect_platform)
+
     for tag in $tags; do
         # Skip pre-release tags (usually contain -alpha, -beta, -rc, etc.)
         if [[ "$tag" =~ -(alpha|beta|rc|pre|dev) ]]; then
             continue
         fi
-        
-        # Quick check: try HEAD request to verify release has assets
-        local platform
-        platform=$(detect_platform)
-        
-        # Try common asset naming patterns
+
+        # Extract version number from tag for versioned naming
+        local ver_num
+        ver_num=$(echo "$tag" | sed -E 's/^(vx-)?v//')
+
+        # Try common asset naming patterns:
+        # 1. Versioned: vx-{ver}-{platform}.tar.gz (v0.6.x+)
+        # 2. Unversioned: vx-{platform}.tar.gz (cargo-dist / legacy)
         local test_urls=(
-            "$BASE_URL/download/$tag/vx-$platform.tar.gz"
+            "$BASE_URL/download/$tag/vx-${ver_num}-${platform}.tar.gz"
             "$BASE_URL/download/$tag/vx-${platform}.tar.gz"
         )
-        
+
+        # Prepare auth header for HEAD requests
+        local head_auth=""
+        if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+            head_auth="-H \"Authorization: Bearer $GITHUB_TOKEN\""
+        fi
+
         for test_url in "${test_urls[@]}"; do
             if command -v curl >/dev/null 2>&1; then
-                if curl -fsSL --head "$test_url" 2>/dev/null | grep -q "HTTP.*200\|HTTP.*302\|HTTP.*303"; then
+                # Use -fsSL -o /dev/null to check if URL is downloadable (follows redirects)
+                if eval curl -fsSL --connect-timeout 5 --max-time 10 -o /dev/null $head_auth "\"$test_url\"" 2>/dev/null; then
                     info "Found valid release with assets: $tag"
                     echo "$tag"
                     return
