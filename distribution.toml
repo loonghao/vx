@@ -62,8 +62,6 @@ timeout = { connect = 15, total = 60 }
 # Windows binaries
 "windows-x64" = "vx-x86_64-pc-windows-msvc.zip"
 "windows-x64-versioned" = "vx-{version}-x86_64-pc-windows-msvc.zip"
-"windows-arm64" = "vx-aarch64-pc-windows-msvc.zip"
-"windows-arm64-versioned" = "vx-{version}-aarch64-pc-windows-msvc.zip"
 
 # Linux binaries (prefer musl for static linking)
 "linux-x64" = "vx-x86_64-unknown-linux-musl.tar.gz"

@@ -257,9 +257,11 @@ tokio = { version = "1.0", features = [
 # HTTP client - use rustls TLS with aws-lc-rs (pure Rust, no OpenSSL dependency)
 # reqwest 0.13+ defaults to aws-lc-rs instead of ring, enabling cross-compilation to all platforms
 # including aarch64-pc-windows-msvc without assembly compilation issues
+# Note: reqwest 0.13 makes form/query optional features, so we need to explicitly enable them
 reqwest = { version = "0.13", features = [
   "json",
   "stream",
+  "form",
   "rustls",
 ], default-features = false }
 
@@ -288,13 +290,12 @@ figment = { version = "0.10", features = ["toml", "env"] }
 which = "8.0"
 regex = "1.10"
 tempfile = "3.8"
-# zip 7.0 with lzma-rust2 has crc version conflict
-# Disable lzma/xz features to avoid lzma-rust2 dependency
-# Other compression formats (bzip2, zstd, deflate64, ppmd) are still available
+# zip 7.0 - disable lzma feature since zip 7.4.0 still depends on lzma-rust2 ^0.15 (crc 2.x)
+# Re-enable when zip updates to lzma-rust2 ^0.16 (crc 3.x)
 zip = { version = "7.0", default-features = false, features = ["aes-crypto", "bzip2", "deflate64", "deflate", "ppmd", "time", "zstd"] }
 tar = "0.4"
 flate2 = "1.0"
-xz2 = "0.1"
+xz2 = "0.1.7"
 zstd = "0.13"
 walkdir = "2.4"
 glob = "0.3"
@@ -399,7 +400,7 @@ ci = "github"
 # The installers to generate for each app
 installers = ["shell", "powershell", "homebrew"]
 # Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "aarch64-unknown-linux-musl", "aarch64-pc-windows-msvc", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc"]
+targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc"]
 # A GitHub repo to push Homebrew formulas to
 tap = "loonghao/homebrew-vx"
 # The archive format to use for windows builds (defaults .zip)
@@ -429,31 +430,10 @@ publish-jobs = ["homebrew"]
 # Path that installers should place binaries in
 install-path = "CARGO_HOME"
 
-# ============================================================================
-# Cross-compilation support notes (aarch64-pc-windows-msvc)
-# ============================================================================
-#
-# Problem: Cross-compiling to aarch64-pc-windows-msvc fails because:
-# 1. ring crate has platform-specific assembly (sha256-armv8-win64.S)
-# 2. Cross-compilation toolchains (cargo-xwin/cargo-zigbuild) cannot compile
-#    this assembly with clang targeting Windows ARM64
-#
-# Dependencies that pull in ring:
-# - turbo-cdn -> rustls (ring feature)
-# - axoupdater -> axoasset -> reqwest 0.12 -> rustls (ring feature)
-#
-# Solution attempted:
-# - Added explicit rustls dependency with aws_lc_rs feature (see above)
-# - Added explicit rustls-webpki dependency with aws-lc-rs feature (see above)
-# - Upgraded reqwest to 0.13 (defaults to aws-lc-rs)
-#
-# If this doesn't work, we may need to:
-# 1. Disable cdn-acceleration feature for aarch64-pc-windows-msvc
-# 2. Disable self-update feature for aarch64-pc-windows-msvc
-# 3. Create a fork of turbo-cdn that uses aws-lc-rs
-#
-# UPDATE: The workspace-level rustls dependency above forces aws_lc_rs feature,
-# but transitive dependencies (turbo-cdn via reqwest 0.12, axoupdater) may still
-# use ring. We need to disable these dependencies for aarch64-pc-windows-msvc.
-#
-# Solution: Use target-specific dependency cfg in vx-runtime and vx-installer
+# Temporary: use local msvc-kit until zip lzma feature issue is fixed
+# See: https://github.com/loonghao/msvc-kit/issues/70
+[patch.crates-io]
+msvc-kit = { path = "../msvc-kit" }
+
+
+
