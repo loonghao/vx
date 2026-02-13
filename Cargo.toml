@@ -430,10 +430,6 @@ publish-jobs = ["homebrew"]
 # Path that installers should place binaries in
 install-path = "CARGO_HOME"
 
-# Temporary: use local msvc-kit until zip lzma feature issue is fixed
-# See: https://github.com/loonghao/msvc-kit/issues/70
-[patch.crates-io]
-msvc-kit = { path = "../msvc-kit" }
 
 
 
