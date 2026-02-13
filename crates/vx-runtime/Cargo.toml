@@ -28,6 +28,7 @@ reqwest = { workspace = true }
 # Archive handling
 tar = { workspace = true }
 flate2 = { workspace = true }
+# xz2 - re-enabled, lzma-rust2 0.16.1 fixed crc compatibility
 xz2 = { workspace = true }
 zstd = { workspace = true }
 zip = { workspace = true }
@@ -61,9 +62,6 @@ vx-manifest = { workspace = true }
 vx-system-pm = { workspace = true }
 
 # CDN acceleration (optional)
-# DISABLED for aarch64-pc-windows-msvc: turbo-cdn uses ring which has assembly compilation issues
-# See workspace Cargo.toml for details
-[target.'cfg(not(all(target_arch = "aarch64", target_os = "windows")))'.dependencies]
 turbo-cdn = { version = "0.8", default-features = false, features = ["rustls", "fast-hash", "high-performance"], optional = true }
 
 [features]
