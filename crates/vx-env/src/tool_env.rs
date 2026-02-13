@@ -448,7 +448,10 @@ fn default_passenv() -> Vec<&'static str> {
             "USERDOMAIN",
             // Windows path handling
             "PATHEXT",
+            // Build cache configuration
+            "SCCACHE_*",
         ]
+
     }
     #[cfg(not(windows))]
     {
@@ -456,7 +459,9 @@ fn default_passenv() -> Vec<&'static str> {
             "HOME", "USER", "SHELL", "TERM", "LANG",
             "PATH", // Include PATH for Unix systems in isolation mode
             "VX_*", // Allow vx-specific environment variables
+            "SCCACHE_*", // Allow build cache configuration
         ]
+
     }
 }
 
@@ -838,6 +843,7 @@ mod tests {
             assert!(defaults.contains(&"SYSTEMROOT"));
             assert!(defaults.contains(&"TEMP"));
             assert!(defaults.contains(&"USERPROFILE"));
+            assert!(defaults.contains(&"SCCACHE_*"));
         }
 
         #[cfg(not(windows))]
@@ -846,7 +852,9 @@ mod tests {
             assert!(defaults.contains(&"USER"));
             assert!(defaults.contains(&"SHELL"));
             assert!(defaults.contains(&"VX_*"));
+            assert!(defaults.contains(&"SCCACHE_*"));
         }
+
     }
 
     #[test]
