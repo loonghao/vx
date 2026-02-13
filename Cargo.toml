@@ -322,6 +322,9 @@ semver = "1.0"
 self-replace = "1.5"
 
 # Self-updater library for cargo-dist integration
+# Disable default features to avoid pulling in ring via reqwest 0.12
+# Note: axoupdater depends on axoasset which uses reqwest 0.12 with rustls (ring by default)
+# This may cause issues for aarch64-pc-windows-msvc cross-compilation
 axoupdater = { version = "0.9", default-features = false, features = ["github_releases"] }
 
 # Windows system calls for file operations
@@ -448,3 +451,9 @@ install-path = "CARGO_HOME"
 # 1. Disable cdn-acceleration feature for aarch64-pc-windows-msvc
 # 2. Disable self-update feature for aarch64-pc-windows-msvc
 # 3. Create a fork of turbo-cdn that uses aws-lc-rs
+#
+# UPDATE: The workspace-level rustls dependency above forces aws_lc_rs feature,
+# but transitive dependencies (turbo-cdn via reqwest 0.12, axoupdater) may still
+# use ring. We need to disable these dependencies for aarch64-pc-windows-msvc.
+#
+# Solution: Use target-specific dependency cfg in vx-runtime and vx-installer
