@@ -78,19 +78,18 @@ fn test_detect_region_with_vx_mirror_region_cn() {
     // Save and set
     let prev = std::env::var("VX_MIRROR_REGION").ok();
     let prev_cdn = std::env::var("VX_CDN").ok();
-    std::env::remove_var("VX_CDN");
-    std::env::set_var("VX_MIRROR_REGION", "cn");
-
+    unsafe { std::env::remove_var("VX_CDN"); }
+    unsafe { std::env::set_var("VX_MIRROR_REGION", "cn"); }
     let region = region::detect_region();
     assert_eq!(region, Region::China);
 
     // Restore
-    std::env::remove_var("VX_MIRROR_REGION");
+    unsafe { std::env::remove_var("VX_MIRROR_REGION"); }
     if let Some(v) = prev {
-        std::env::set_var("VX_MIRROR_REGION", v);
+        unsafe { std::env::set_var("VX_MIRROR_REGION", v); }
     }
     if let Some(v) = prev_cdn {
-        std::env::set_var("VX_CDN", v);
+        unsafe { std::env::set_var("VX_CDN", v); }
     }
 }
 
@@ -103,18 +102,17 @@ fn test_detect_region_with_vx_mirror_region_cn() {
 fn test_detect_region_with_vx_mirror_region_china() {
     let prev = std::env::var("VX_MIRROR_REGION").ok();
     let prev_cdn = std::env::var("VX_CDN").ok();
-    std::env::remove_var("VX_CDN");
-    std::env::set_var("VX_MIRROR_REGION", "china");
-
+    unsafe { std::env::remove_var("VX_CDN"); }
+    unsafe { std::env::set_var("VX_MIRROR_REGION", "china"); }
     let region = region::detect_region();
     assert_eq!(region, Region::China);
 
-    std::env::remove_var("VX_MIRROR_REGION");
+    unsafe { std::env::remove_var("VX_MIRROR_REGION"); }
     if let Some(v) = prev {
-        std::env::set_var("VX_MIRROR_REGION", v);
+        unsafe { std::env::set_var("VX_MIRROR_REGION", v); }
     }
     if let Some(v) = prev_cdn {
-        std::env::set_var("VX_CDN", v);
+        unsafe { std::env::set_var("VX_CDN", v); }
     }
 }
 
@@ -127,18 +125,17 @@ fn test_detect_region_with_vx_mirror_region_china() {
 fn test_detect_region_with_vx_mirror_region_global() {
     let prev = std::env::var("VX_MIRROR_REGION").ok();
     let prev_cdn = std::env::var("VX_CDN").ok();
-    std::env::remove_var("VX_CDN");
-    std::env::set_var("VX_MIRROR_REGION", "us");
-
+    unsafe { std::env::remove_var("VX_CDN"); }
+    unsafe { std::env::set_var("VX_MIRROR_REGION", "us"); }
     let region = region::detect_region();
     assert_eq!(region, Region::Global);
 
-    std::env::remove_var("VX_MIRROR_REGION");
+    unsafe { std::env::remove_var("VX_MIRROR_REGION"); }
     if let Some(v) = prev {
-        std::env::set_var("VX_MIRROR_REGION", v);
+        unsafe { std::env::set_var("VX_MIRROR_REGION", v); }
     }
     if let Some(v) = prev_cdn {
-        std::env::set_var("VX_CDN", v);
+        unsafe { std::env::set_var("VX_CDN", v); }
     }
 }
 
@@ -151,18 +148,17 @@ fn test_detect_region_with_vx_mirror_region_global() {
 fn test_detect_region_vx_cdn_1_implies_china() {
     let prev_region = std::env::var("VX_MIRROR_REGION").ok();
     let prev_cdn = std::env::var("VX_CDN").ok();
-    std::env::remove_var("VX_MIRROR_REGION");
-    std::env::set_var("VX_CDN", "1");
-
+    unsafe { std::env::remove_var("VX_MIRROR_REGION"); }
+    unsafe { std::env::set_var("VX_CDN", "1"); }
     let region = region::detect_region();
     assert_eq!(region, Region::China);
 
-    std::env::remove_var("VX_CDN");
+    unsafe { std::env::remove_var("VX_CDN"); }
     if let Some(v) = prev_region {
-        std::env::set_var("VX_MIRROR_REGION", v);
+        unsafe { std::env::set_var("VX_MIRROR_REGION", v); }
     }
     if let Some(v) = prev_cdn {
-        std::env::set_var("VX_CDN", v);
+        unsafe { std::env::set_var("VX_CDN", v); }
     }
 }
 
@@ -175,18 +171,17 @@ fn test_detect_region_vx_cdn_1_implies_china() {
 fn test_detect_region_vx_cdn_0_implies_global() {
     let prev_region = std::env::var("VX_MIRROR_REGION").ok();
     let prev_cdn = std::env::var("VX_CDN").ok();
-    std::env::remove_var("VX_MIRROR_REGION");
-    std::env::set_var("VX_CDN", "0");
-
+    unsafe { std::env::remove_var("VX_MIRROR_REGION"); }
+    unsafe { std::env::set_var("VX_CDN", "0"); }
     let region = region::detect_region();
     assert_eq!(region, Region::Global);
 
-    std::env::remove_var("VX_CDN");
+    unsafe { std::env::remove_var("VX_CDN"); }
     if let Some(v) = prev_region {
-        std::env::set_var("VX_MIRROR_REGION", v);
+        unsafe { std::env::set_var("VX_MIRROR_REGION", v); }
     }
     if let Some(v) = prev_cdn {
-        std::env::set_var("VX_CDN", v);
+        unsafe { std::env::set_var("VX_CDN", v); }
     }
 }
 
@@ -201,18 +196,17 @@ fn test_vx_mirror_region_takes_priority_over_vx_cdn() {
     let prev_cdn = std::env::var("VX_CDN").ok();
 
     // VX_MIRROR_REGION=cn should win even if VX_CDN=0
-    std::env::set_var("VX_MIRROR_REGION", "cn");
-    std::env::set_var("VX_CDN", "0");
-
+    unsafe { std::env::set_var("VX_MIRROR_REGION", "cn"); }
+    unsafe { std::env::set_var("VX_CDN", "0"); }
     let region = region::detect_region();
     assert_eq!(region, Region::China);
 
-    std::env::remove_var("VX_MIRROR_REGION");
-    std::env::remove_var("VX_CDN");
+    unsafe { std::env::remove_var("VX_MIRROR_REGION"); }
+    unsafe { std::env::remove_var("VX_CDN"); }
     if let Some(v) = prev_region {
-        std::env::set_var("VX_MIRROR_REGION", v);
+        unsafe { std::env::set_var("VX_MIRROR_REGION", v); }
     }
     if let Some(v) = prev_cdn {
-        std::env::set_var("VX_CDN", v);
+        unsafe { std::env::set_var("VX_CDN", v); }
     }
 }

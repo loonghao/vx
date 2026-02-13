@@ -182,8 +182,7 @@ mod path_resolution_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home_with_bin_structure();
-        std::env::set_var("VX_HOME", vx_home.path());
-
+        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
         // Create a project directory with vx.toml
         let project_dir = TempDir::new().expect("Failed to create project dir");
         create_vx_toml(
@@ -217,8 +216,7 @@ mod path_resolution_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home_with_platform_structure();
-        std::env::set_var("VX_HOME", vx_home.path());
-
+        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
         // Create a project directory with vx.toml
         let project_dir = TempDir::new().expect("Failed to create project dir");
         create_vx_toml(
@@ -284,8 +282,7 @@ mod latest_version_tests {
         // Create vx bin directory
         fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create vx bin");
 
-        std::env::set_var("VX_HOME", temp_dir.path());
-
+        unsafe { std::env::set_var("VX_HOME", temp_dir.path()); }
         let path_manager = PathManager::new().expect("Failed to create PathManager");
         let versions = path_manager
             .list_store_versions("uv")
@@ -330,8 +327,7 @@ mod latest_version_tests {
         // Create vx bin directory
         fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create vx bin");
 
-        std::env::set_var("VX_HOME", temp_dir.path());
-
+        unsafe { std::env::set_var("VX_HOME", temp_dir.path()); }
         // Create project with "latest" version
         let project_dir = TempDir::new().expect("Failed to create project dir");
         create_vx_toml(
@@ -374,8 +370,7 @@ mod missing_tool_tests {
         fs::create_dir_all(temp_dir.path().join("store")).expect("Failed to create store");
         fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin");
 
-        std::env::set_var("VX_HOME", temp_dir.path());
-
+        unsafe { std::env::set_var("VX_HOME", temp_dir.path()); }
         // Verify the version directory does NOT exist
         let version_dir = temp_dir.path().join("store").join("uv").join("0.7.12");
         assert!(
@@ -448,8 +443,7 @@ mod missing_tool_tests {
         fs::create_dir_all(&version_dir).expect("Failed to create version dir");
         fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin");
 
-        std::env::set_var("VX_HOME", temp_dir.path());
-
+        unsafe { std::env::set_var("VX_HOME", temp_dir.path()); }
         let project_dir = TempDir::new().expect("Failed to create project dir");
         create_vx_toml(
             project_dir.path(),
@@ -488,8 +482,7 @@ mod script_execution_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home_with_bin_structure();
-        std::env::set_var("VX_HOME", vx_home.path());
-
+        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
         // Create project
         let project_dir = TempDir::new().expect("Failed to create project dir");
         create_vx_toml(
@@ -541,8 +534,7 @@ mod script_execution_tests {
 
         let vx_home = create_mock_vx_home_with_bin_structure();
 
-        std::env::set_var("VX_HOME", vx_home.path());
-
+        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
         // Create project in the same temp context
         let project_dir = TempDir::new().expect("Failed to create project dir");
         create_vx_toml(
@@ -584,8 +576,7 @@ mod ci_scenario_tests {
 
         // Step 1: Simulate vx setup by creating tool installation
         let vx_home = create_mock_vx_home_with_platform_structure();
-        std::env::set_var("VX_HOME", vx_home.path());
-
+        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
         // Step 2: Create project with vx.toml (like shotgrid-mcp-server)
         let project_dir = TempDir::new().expect("Failed to create project dir");
         create_vx_toml(
@@ -620,8 +611,7 @@ mod ci_scenario_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home_with_bin_structure();
-        std::env::set_var("VX_HOME", vx_home.path());
-
+        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
         let project_dir = TempDir::new().expect("Failed to create project dir");
         create_vx_toml(
             project_dir.path(),
@@ -661,8 +651,7 @@ mod ci_scenario_tests {
 
         // Simulate the exact structure that vx creates when installing uv
         let vx_home = create_mock_vx_home_with_platform_structure();
-        std::env::set_var("VX_HOME", vx_home.path());
-
+        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
         // Create vx.toml matching shotgrid-mcp-server
         let project_dir = TempDir::new().expect("Failed to create project dir");
         let vx_toml = r#"[tools]
