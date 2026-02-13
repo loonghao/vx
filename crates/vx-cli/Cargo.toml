@@ -115,16 +115,26 @@ dotenvy = "0.15"
 self-replace = { workspace = true }
 sha2 = { workspace = true }
 futures-util = { workspace = true }
+
+# Self-updater library for cargo-dist integration
+# DISABLED for aarch64-pc-windows-msvc: depends on reqwest 0.12 which uses ring
+# See workspace Cargo.toml for details
+[target.'cfg(not(all(target_arch = "aarch64", target_os = "windows")))'.dependencies]
 axoupdater = { workspace = true, optional = true }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true }
 
 [features]
+# Default features for most platforms
+# NOTE: aarch64-pc-windows-msvc cross-compilation requires --no-default-features
+# See workspace Cargo.toml for details on ring -> aws-lc-rs migration
 default = ["cdn-acceleration", "self-update"]
 # CDN acceleration for faster downloads in China (uses rustls, no OpenSSL required)
+# DISABLED for aarch64-pc-windows-msvc: turbo-cdn uses ring which has assembly compilation issues
 cdn-acceleration = ["vx-runtime/cdn-acceleration"]
 # Self-update via axoupdater (cargo-dist receipt-based fast path)
+# DISABLED for aarch64-pc-windows-msvc: axoupdater -> axoasset -> reqwest 0.12 uses ring
 self-update = ["axoupdater"]
 
 [dev-dependencies]
