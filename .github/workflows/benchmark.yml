@@ -60,10 +60,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Setup vx
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform.target }}
+
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
@@ -73,15 +79,13 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.platform.target }}
+        run: vx just build-release-target ${{ matrix.platform.target }}
 
       - name: Run E2E benchmark tests
         id: bench
         shell: bash
         run: |
-          # Run benchmark tests with release binary and capture output
-          # Use --release to test against the optimized binary
-          cargo test --release --test e2e_benchmark_tests -- --nocapture 2>&1 | tee benchmark_output.txt
+          vx just benchmark-run-ci
 
           # Parse benchmark results into structured format
           echo "## Benchmark Results - ${{ matrix.platform.name }}" >> benchmark_results.md
@@ -131,6 +135,7 @@ jobs:
               echo "| $test_name | avg: $avg (total: $total) | - | ℹ️ |" >> benchmark_results.md
             fi
           done < benchmark_output.txt
+
 
       - name: Generate benchmark JSON
         shell: bash

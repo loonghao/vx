@@ -26,16 +26,21 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       version_short: ${{ steps.version.outputs.version_short }}
     steps:
+      - name: Download release tag artifact
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v7
+        with:
+          name: release-tag
+          path: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
       - name: Get version
         id: version
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             VERSION="${{ github.event.inputs.version }}"
           else
-            VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/repos/loonghao/vx/releases/latest" | \
-              jq -r '.tag_name // empty')
+            VERSION=$(cat release-tag.txt)
           fi
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -43,6 +48,7 @@ jobs:
           VERSION_SHORT="${VERSION#v}"
           echo "version_short=${VERSION_SHORT}" >> $GITHUB_OUTPUT
           echo "Tag: ${VERSION}, Version: ${VERSION_SHORT}"
+
 
   # Build DEB packages
   build-deb:
