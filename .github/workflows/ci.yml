@@ -720,6 +720,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Setup vx
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -730,6 +735,7 @@ jobs:
 
       - name: Run security audit
         run: vx just security-audit-ci
+
 
 
   # ============================================================================
