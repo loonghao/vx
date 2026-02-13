@@ -920,7 +920,7 @@ mod tests {
         // the behavior is documented in the function
 
         // Restore PATH (in case it was modified)
-        std::env::set_var("PATH", original_path);
+        unsafe { std::env::set_var("PATH", original_path); }
     }
 
     #[test]
