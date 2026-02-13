@@ -258,7 +258,7 @@ fn is_elevated_windows() -> bool {
         const TOKEN_QUERY: u32 = 0x0008;
 
         #[link(name = "advapi32")]
-        extern "system" {
+        unsafe extern "system" {
             fn OpenProcessToken(
                 process_handle: Handle,
                 desired_access: u32,
@@ -275,7 +275,7 @@ fn is_elevated_windows() -> bool {
         }
 
         #[link(name = "kernel32")]
-        extern "system" {
+        unsafe extern "system" {
             fn GetCurrentProcess() -> Handle;
         }
 

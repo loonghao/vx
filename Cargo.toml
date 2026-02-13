@@ -151,7 +151,7 @@ rstest = "0.26"
 
 [workspace.package]
 version = "0.7.10"                                                # x-release-please-version
-edition = "2021"
+edition = "2024"
 description = "Universal Development Tool Manager"
 license = "MIT"
 repository = "https://github.com/loonghao/vx"
@@ -161,7 +161,7 @@ authors = ["Hal <hal.long@outlook.com>"]
 keywords = ["version", "manager", "development", "tools", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 readme = "README.md"
-rust-version = "1.83.0"
+rust-version = "1.85.0"
 
 
 [workspace.dependencies]
@@ -434,6 +434,11 @@ install-path = "CARGO_HOME"
 # See: https://github.com/loonghao/msvc-kit/issues/70
 [patch.crates-io]
 msvc-kit = { path = "../msvc-kit" }
+
+
+
+
+
 
 
 
