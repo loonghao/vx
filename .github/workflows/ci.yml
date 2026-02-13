@@ -353,7 +353,10 @@ jobs:
     timeout-minutes: 20
     env:
       RUSTC_WRAPPER: sccache
-      SCCACHE_DIR: ~/.cache/sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+
+
+
 
     strategy:
       fail-fast: false
@@ -396,8 +399,11 @@ jobs:
       - name: Cache sccache
         uses: actions/cache@v5
         with:
-          path: ~/.cache/sccache
+          path: ${{ github.workspace }}/.cache/sccache
           key: ${{ runner.os }}-sccache-${{ matrix.platform.target }}-${{ hashFiles('Cargo.lock') }}
+
+
+
           restore-keys: |
             ${{ runner.os }}-sccache-${{ matrix.platform.target }}-
             ${{ runner.os }}-sccache-
@@ -437,7 +443,10 @@ jobs:
     timeout-minutes: 15
     env:
       RUSTC_WRAPPER: sccache
-      SCCACHE_DIR: ~/.cache/sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+
+
+
 
     steps:
       - uses: actions/checkout@v6
@@ -477,8 +486,11 @@ jobs:
       - name: Cache sccache
         uses: actions/cache@v5
         with:
-          path: ~/.cache/sccache
+          path: ${{ github.workspace }}/.cache/sccache
           key: ${{ runner.os }}-sccache-quality-${{ hashFiles('Cargo.lock') }}
+
+
+
           restore-keys: |
             ${{ runner.os }}-sccache-quality-
             ${{ runner.os }}-sccache-
@@ -520,7 +532,10 @@ jobs:
     timeout-minutes: 25
     env:
       RUSTC_WRAPPER: sccache
-      SCCACHE_DIR: ~/.cache/sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+
+
+
 
     strategy:
       fail-fast: false
@@ -579,7 +594,7 @@ jobs:
       - name: Cache sccache
         uses: actions/cache@v5
         with:
-          path: ~/.cache/sccache
+          path: ${{ github.workspace }}/.cache/sccache
           key: ${{ runner.os }}-sccache-test-${{ matrix.platform.name }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-sccache-test-${{ matrix.platform.name }}-
@@ -621,6 +636,9 @@ jobs:
 
 
 
+
+
+
   # ============================================================================
   # Stage 3b: Full workspace tests (when core changes or CI changes)
   # ============================================================================
@@ -634,7 +652,10 @@ jobs:
     timeout-minutes: 25
     env:
       RUSTC_WRAPPER: sccache
-      SCCACHE_DIR: ~/.cache/sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+
+
+
 
     strategy:
       fail-fast: false
@@ -693,7 +714,7 @@ jobs:
       - name: Cache sccache
         uses: actions/cache@v5
         with:
-          path: ~/.cache/sccache
+          path: ${{ github.workspace }}/.cache/sccache
           key: ${{ runner.os }}-sccache-test-${{ matrix.platform.name }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-sccache-test-${{ matrix.platform.name }}-
@@ -727,6 +748,9 @@ jobs:
         env:
           CARGO_TARGET_DIR: target
           VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
+
+
+
 
 
 
@@ -827,7 +851,10 @@ jobs:
     timeout-minutes: 20
     env:
       RUSTC_WRAPPER: sccache
-      SCCACHE_DIR: ~/.cache/sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+
+
+
 
     steps:
       - uses: actions/checkout@v6
@@ -854,8 +881,11 @@ jobs:
       - name: Cache sccache
         uses: actions/cache@v5
         with:
-          path: ~/.cache/sccache
+          path: ${{ github.workspace }}/.cache/sccache
           key: ${{ runner.os }}-sccache-coverage-${{ hashFiles('Cargo.lock') }}
+
+
+
           restore-keys: |
             ${{ runner.os }}-sccache-coverage-
             ${{ runner.os }}-sccache-
