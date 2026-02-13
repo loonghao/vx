@@ -8,8 +8,9 @@
 // - No redundant commands - each command has a single purpose
 
 use crate::commands::{
-    env::EnvCommand, global::GlobalCommand, CommandContext, CommandHandler, GlobalOptions,
+    CommandContext, CommandHandler, GlobalOptions, env::EnvCommand, global::GlobalCommand,
 };
+
 use anyhow::Result;
 use async_trait::async_trait;
 use clap::{Parser, Subcommand, ValueEnum};

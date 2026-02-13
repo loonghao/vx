@@ -1,7 +1,8 @@
 use anyhow::Result;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::path::Path;
+
 
 /// Write bytes to `dest` using a best-effort atomic replace (tmp + rename).
 ///
