@@ -23,7 +23,7 @@ walkdir = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 # MSVC installation via msvc-kit
-# 0.2.5 fixes bincode upgrade compatibility
+# Using local patch until upstream fixes zip lzma feature issue (https://github.com/loonghao/msvc-kit/issues/70)
 msvc-kit = { version = "0.2.5", default-features = false }
 
 [dev-dependencies]

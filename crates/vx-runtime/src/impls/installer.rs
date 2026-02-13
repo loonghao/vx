@@ -362,8 +362,9 @@ impl Installer for RealInstaller {
                 archive.unpack(dest)?;
             }
             Some("tar.xz") => {
+                use xz2::read::XzDecoder;
                 let file = std::fs::File::open(archive)?;
-                let decoder = xz2::read::XzDecoder::new(file);
+                let decoder = XzDecoder::new(file);
                 let mut archive = tar::Archive::new(decoder);
                 archive.unpack(dest)?;
             }
