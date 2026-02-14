@@ -905,7 +905,9 @@ fn get_installed_executable(ctx: &CommandContext, runtime_name: &str) -> Option<
             let store_name = runtime.store_name();
             let versions = path_manager.list_store_versions(store_name).ok()?;
             if let Some(version) = versions.first() {
-                let store_dir = path_manager.version_store_dir(store_name, version);
+                let base_dir = path_manager.version_store_dir(store_name, version);
+                // Actual files live under {base}/{platform}/
+                let store_dir = base_dir.join(platform.as_str());
                 let exe_relative = runtime.executable_relative_path(version, &platform);
                 let exe_path = store_dir.join(&exe_relative);
                 if exe_path.exists() {
@@ -964,7 +966,9 @@ fn get_executable_path_for_runtime(
             // 1. Aliases (e.g., "vscode" -> "code")
             // 2. Bundled runtimes (e.g., "npm" -> "node", "uvx" -> "uv")
             let store_name = runtime.store_name();
-            let store_dir = path_manager.version_store_dir(store_name, version);
+            let base_dir = path_manager.version_store_dir(store_name, version);
+            // Actual files live under {base}/{platform}/
+            let store_dir = base_dir.join(platform.as_str());
 
             // Use verify_installation to find the actual executable path
             // This handles complex layouts like VSCode's platform-specific directories
