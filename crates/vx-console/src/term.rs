@@ -312,8 +312,8 @@ impl Term {
     #[cfg(windows)]
     pub fn enable_ansi_support() -> bool {
         use windows_sys::Win32::System::Console::{
-            GetConsoleMode, GetStdHandle, SetConsoleMode, ENABLE_VIRTUAL_TERMINAL_PROCESSING,
-            STD_OUTPUT_HANDLE,
+            ENABLE_VIRTUAL_TERMINAL_PROCESSING, GetConsoleMode, GetStdHandle, STD_OUTPUT_HANDLE,
+            SetConsoleMode,
         };
 
         unsafe {

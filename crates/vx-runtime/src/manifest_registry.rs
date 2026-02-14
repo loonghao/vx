@@ -28,10 +28,10 @@
 //! let provider_registry = result.registry;
 //! ```
 
+use crate::ProviderRegistry;
 use crate::manifest::builder::{BuildResult, ProviderBuilder};
 use crate::manifest::index::ManifestIndex;
 use crate::manifest::loader::ManifestStore;
-use crate::ProviderRegistry;
 use std::path::Path;
 use std::sync::Arc;
 use tracing::{info, warn};

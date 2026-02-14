@@ -13,7 +13,7 @@
 //! - If `vx.lock` doesn't exist and `--auto-lock` is set: generate it automatically
 //! - If `vx.lock` doesn't exist: use versions from vx.toml
 
-use crate::commands::common::{check_tools_status_ordered, ToolStatus};
+use crate::commands::common::{ToolStatus, check_tools_status_ordered};
 use crate::commands::setup::{find_vx_config, parse_vx_config};
 use crate::ui::{InstallProgress, UI};
 use anyhow::{Context, Result};

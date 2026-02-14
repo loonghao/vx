@@ -3,8 +3,8 @@
 //! This module provides the `ShellOut` enum that abstracts over different
 //! output destinations (streams vs. buffers).
 
-use crate::term::Term;
 use crate::Result;
+use crate::term::Term;
 
 use std::io::{self, Write};
 use std::sync::Mutex;

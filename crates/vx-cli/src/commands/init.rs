@@ -9,7 +9,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use vx_config::config_manager::TomlWriter;
-use vx_config::{parse_config, VxConfig};
+use vx_config::{VxConfig, parse_config};
 use vx_paths::project::{CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY};
 use vx_project_analyzer::{AnalyzerConfig, ProjectAnalyzer};
 

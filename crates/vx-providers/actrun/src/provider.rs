@@ -4,7 +4,7 @@
 
 use crate::runtime::ActrunRuntime;
 use std::sync::Arc;
-use vx_runtime::{provider::Provider, Runtime};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// Actrun provider
 #[derive(Debug, Default)]

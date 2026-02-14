@@ -4,7 +4,7 @@
 //! It extracts files from the MSI to our managed directory structure.
 
 use super::FormatHandler;
-use crate::{progress::ProgressContext, Error, Result};
+use crate::{Error, Result, progress::ProgressContext};
 use std::path::{Path, PathBuf};
 #[cfg(windows)]
 use std::process::Command;

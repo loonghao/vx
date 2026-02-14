@@ -1,6 +1,6 @@
 //! Environment info display for `vx dev --info`
 
-use super::tools::{find_system_tool, get_tool_status, get_vx_tool_path, ToolStatus};
+use super::tools::{ToolStatus, find_system_tool, get_tool_status, get_vx_tool_path};
 use crate::commands::setup::ConfigView;
 use anyhow::Result;
 use colored::Colorize;

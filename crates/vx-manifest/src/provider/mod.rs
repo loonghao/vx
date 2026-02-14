@@ -25,7 +25,7 @@ pub use constraint::{ConstraintRule, DependencyDef};
 pub use detection::DetectionConfig;
 pub use download::DownloadConfig;
 pub use env::{
-    filter_system_path, EnvConfig, EnvVarConfig, DEFAULT_INHERIT_SYSTEM_VARS, SYSTEM_PATH_PREFIXES,
+    DEFAULT_INHERIT_SYSTEM_VARS, EnvConfig, EnvVarConfig, SYSTEM_PATH_PREFIXES, filter_system_path,
 };
 pub use executable::ExecutableConfig;
 pub use health::HealthConfig;

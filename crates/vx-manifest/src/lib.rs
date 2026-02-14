@@ -47,20 +47,21 @@ pub use error::ManifestError;
 pub use loader::ManifestLoader;
 pub use platform::{Arch, Os, Platform, PlatformConstraint, PlatformExclusion};
 pub use provider::{
-    filter_system_path, AliasNormalize, ArchiveLayoutConfig, BinaryLayoutConfig, CacheConfig,
-    CommandDef, ConstraintRule, DependencyDef, DetectionConfig, DirectoryNormalize, DownloadConfig,
-    DownloadType, EffectiveNormalizeConfig, EnvConfig, EnvVarConfig, ExecutableConfig,
-    ExecutableNormalize, HealthConfig, HooksConfig, HooksDef, InlineTestScripts,
-    InstallStrategyDef, LayoutConfig, MachineFlagsConfig, MirrorConfig, MirrorStrategy,
-    NormalizeAction, NormalizeConfig, OutputColorConfig, OutputConfig, PinningStrategy,
-    PlatformBinaryConfig, PlatformConfig, PlatformNormalizeConfig, PlatformTestCommands,
-    PlatformsDef, ProvidedToolDef, ProviderManifest, ProviderMeta, RuntimeDef, ScriptTypeDef,
-    ShellCompletionsConfig, ShellConfig, SystemDepTypeDef, SystemDependencyDef,
-    SystemDepsConfigDef, SystemInstallConfigDef, TestCommand, TestConfig, TestPlatformConfig,
-    VersionRangeConfig, VersionSourceDef, DEFAULT_INHERIT_SYSTEM_VARS, SYSTEM_PATH_PREFIXES,
+    AliasNormalize, ArchiveLayoutConfig, BinaryLayoutConfig, CacheConfig, CommandDef,
+    ConstraintRule, DEFAULT_INHERIT_SYSTEM_VARS, DependencyDef, DetectionConfig,
+    DirectoryNormalize, DownloadConfig, DownloadType, EffectiveNormalizeConfig, EnvConfig,
+    EnvVarConfig, ExecutableConfig, ExecutableNormalize, HealthConfig, HooksConfig, HooksDef,
+    InlineTestScripts, InstallStrategyDef, LayoutConfig, MachineFlagsConfig, MirrorConfig,
+    MirrorStrategy, NormalizeAction, NormalizeConfig, OutputColorConfig, OutputConfig,
+    PinningStrategy, PlatformBinaryConfig, PlatformConfig, PlatformNormalizeConfig,
+    PlatformTestCommands, PlatformsDef, ProvidedToolDef, ProviderManifest, ProviderMeta,
+    RuntimeDef, SYSTEM_PATH_PREFIXES, ScriptTypeDef, ShellCompletionsConfig, ShellConfig,
+    SystemDepTypeDef, SystemDependencyDef, SystemDepsConfigDef, SystemInstallConfigDef,
+    TestCommand, TestConfig, TestPlatformConfig, VersionRangeConfig, VersionSourceDef,
+    filter_system_path,
 };
 
-pub use r#override::{apply_override, extract_provider_name, ProviderOverride, RuntimeOverride};
+pub use r#override::{ProviderOverride, RuntimeOverride, apply_override, extract_provider_name};
 pub use satisfies::{
     RangeConstraint, RangeOp, Version, VersionConstraint, VersionRequest, VersionSatisfies,
 };

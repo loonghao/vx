@@ -1,6 +1,6 @@
 //! Download utilities for vx-installer
 
-use crate::{cdn::CdnOptimizer, progress::ProgressContext, Error, Result, USER_AGENT};
+use crate::{Error, Result, USER_AGENT, cdn::CdnOptimizer, progress::ProgressContext};
 use backon::{ExponentialBuilder, Retryable};
 use futures_util::StreamExt;
 use sha2::Digest;

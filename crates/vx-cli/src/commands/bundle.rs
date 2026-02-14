@@ -21,14 +21,14 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use vx_paths::project::{find_vx_config, LOCK_FILE_NAME, PROJECT_VX_DIR};
 use vx_paths::VxPaths;
+use vx_paths::project::{LOCK_FILE_NAME, PROJECT_VX_DIR, find_vx_config};
 use vx_resolver::LockFile;
 use vx_runtime::ProviderRegistry;
 
 // Re-export from vx_resolver for consistency
 pub use vx_resolver::{
-    has_bundle, is_online, try_get_bundle_context, BundleContext, BUNDLE_DIR, BUNDLE_MANIFEST,
+    BUNDLE_DIR, BUNDLE_MANIFEST, BundleContext, has_bundle, is_online, try_get_bundle_context,
 };
 
 /// Bundle manifest containing metadata about the bundled environment

@@ -101,11 +101,7 @@ impl Platform {
     /// - Unix (Linux, macOS): `:`
     #[inline]
     pub fn path_separator(&self) -> char {
-        if self.os.is_windows() {
-            ';'
-        } else {
-            ':'
-        }
+        if self.os.is_windows() { ';' } else { ':' }
     }
 
     /// Get the executable file extension
@@ -114,11 +110,7 @@ impl Platform {
     /// - Unix: `` (empty string)
     #[inline]
     pub fn executable_extension(&self) -> &'static str {
-        if self.os.is_windows() {
-            ".exe"
-        } else {
-            ""
-        }
+        if self.os.is_windows() { ".exe" } else { "" }
     }
 
     /// Get the Python venv bin directory name
@@ -167,11 +159,7 @@ impl Default for Platform {
 /// This is a convenience function for compile-time platform detection.
 #[inline]
 pub fn path_separator() -> char {
-    if cfg!(windows) {
-        ';'
-    } else {
-        ':'
-    }
+    if cfg!(windows) { ';' } else { ':' }
 }
 
 /// Split a PATH string into individual entries
@@ -364,11 +352,7 @@ pub fn with_executable_extension(name: &str) -> String {
 /// Get the venv bin directory name for the current platform
 #[inline]
 pub fn venv_bin_dir() -> &'static str {
-    if cfg!(windows) {
-        "Scripts"
-    } else {
-        "bin"
-    }
+    if cfg!(windows) { "Scripts" } else { "bin" }
 }
 
 // =============================================================================

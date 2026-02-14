@@ -48,10 +48,12 @@ fn test_render_toon_not_supported() {
     let renderer = OutputRenderer::new(OutputFormat::Toon);
     let result = renderer.render_to_string(&test_output());
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("TOON format is not yet supported"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("TOON format is not yet supported")
+    );
 }
 
 #[test]

@@ -4,7 +4,7 @@ use crate::ui::UI;
 use anyhow::Result;
 use std::env;
 use std::path::PathBuf;
-use vx_paths::{find_config_file, CONFIG_FILE_NAME};
+use vx_paths::{CONFIG_FILE_NAME, find_config_file};
 
 pub async fn handle() -> Result<()> {
     UI::warning("Config command not yet implemented in new architecture");
@@ -61,7 +61,7 @@ pub async fn handle_edit() -> Result<()> {
 
 /// Handle config validate command
 pub async fn handle_validate(path: Option<String>, verbose: bool) -> Result<()> {
-    use vx_config::{parse_config, validate_config, ConfigMigrator};
+    use vx_config::{ConfigMigrator, parse_config, validate_config};
 
     let config_path = resolve_config_path(path)?;
 
@@ -120,8 +120,8 @@ pub async fn handle_validate(path: Option<String>, verbose: bool) -> Result<()> 
 
 /// Handle config schema command
 pub async fn handle_schema(output: Option<String>) -> Result<()> {
-    use vx_config::schemars::schema_for;
     use vx_config::VxConfig;
+    use vx_config::schemars::schema_for;
 
     UI::header("📋 JSON Schema Generation");
     println!();

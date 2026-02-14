@@ -39,16 +39,20 @@ executable = "cargo"
 
 #[rstest]
 fn test_runtime_status_is_available() {
-    assert!(RuntimeStatus::VxManaged {
-        version: "1.0.0".into(),
-        path: PathBuf::from("/usr/bin/node")
-    }
-    .is_available());
+    assert!(
+        RuntimeStatus::VxManaged {
+            version: "1.0.0".into(),
+            path: PathBuf::from("/usr/bin/node")
+        }
+        .is_available()
+    );
 
-    assert!(RuntimeStatus::SystemAvailable {
-        path: PathBuf::from("/usr/bin/node")
-    }
-    .is_available());
+    assert!(
+        RuntimeStatus::SystemAvailable {
+            path: PathBuf::from("/usr/bin/node")
+        }
+        .is_available()
+    );
 
     assert!(!RuntimeStatus::NotInstalled.is_available());
     assert!(!RuntimeStatus::Unknown.is_available());

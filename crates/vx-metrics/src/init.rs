@@ -18,9 +18,9 @@ use opentelemetry_sdk::trace::SdkTracerProvider;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
+use tracing_subscriber::Layer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::Layer;
 
 use crate::exporter::JsonFileExporter;
 use crate::report::CommandMetrics;

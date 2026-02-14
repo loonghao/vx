@@ -1,7 +1,7 @@
 //! ZIP archive format handler
 
 use super::FormatHandler;
-use crate::{progress::ProgressContext, Error, Result};
+use crate::{Error, Result, progress::ProgressContext};
 use std::path::{Path, PathBuf};
 
 /// Handler for ZIP archive format
@@ -74,7 +74,7 @@ impl FormatHandler for ZipHandler {
             // On Windows, check path length and use extended-length path if needed
             #[cfg(windows)]
             let file_path = {
-                use vx_paths::windows::{check_path_length, to_long_path, PathLengthStatus};
+                use vx_paths::windows::{PathLengthStatus, check_path_length, to_long_path};
 
                 match check_path_length(&file_path) {
                     PathLengthStatus::TooLong { length, .. } => {

@@ -1,7 +1,7 @@
 //! TAR archive format handler (including compressed variants)
 
 use super::FormatHandler;
-use crate::{progress::ProgressContext, Error, Result};
+use crate::{Error, Result, progress::ProgressContext};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
@@ -137,7 +137,7 @@ impl TarHandler {
             // On Windows, check path length and use extended-length path if needed
             #[cfg(windows)]
             let target_path = {
-                use vx_paths::windows::{check_path_length, to_long_path, PathLengthStatus};
+                use vx_paths::windows::{PathLengthStatus, check_path_length, to_long_path};
 
                 match check_path_length(&target_path) {
                     PathLengthStatus::TooLong { length, .. } => {

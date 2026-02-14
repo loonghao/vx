@@ -4,8 +4,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use vx_runtime::{
-    platform::Platform, Ecosystem, GitHubReleaseOptions, Runtime, RuntimeContext,
-    RuntimeDependency, VersionInfo,
+    Ecosystem, GitHubReleaseOptions, Runtime, RuntimeContext, RuntimeDependency, VersionInfo,
+    platform::Platform,
 };
 
 /// fd runtime

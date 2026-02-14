@@ -1,7 +1,7 @@
 //! VxPaths tests
 
 use std::path::PathBuf;
-use vx_paths::{executable_extension, normalize_package_name, with_executable_extension, VxPaths};
+use vx_paths::{VxPaths, executable_extension, normalize_package_name, with_executable_extension};
 
 #[test]
 fn test_vx_paths_creation() {

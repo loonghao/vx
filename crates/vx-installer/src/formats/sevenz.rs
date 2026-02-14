@@ -2,7 +2,7 @@
 //!
 //! Provides support for extracting .7z archives using the sevenz-rust library.
 
-use crate::{progress::ProgressContext, Error, Result};
+use crate::{Error, Result, progress::ProgressContext};
 use std::path::{Path, PathBuf};
 
 /// Handler for 7z archive format

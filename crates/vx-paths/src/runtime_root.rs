@@ -35,7 +35,7 @@
 //! }
 //! ```
 
-use crate::{with_executable_extension, PathManager, VxPaths};
+use crate::{PathManager, VxPaths, with_executable_extension};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 

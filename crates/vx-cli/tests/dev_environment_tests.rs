@@ -137,7 +137,9 @@ mod path_environment_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         let path_manager = PathManager::new().expect("Failed to create PathManager");
 
         // Check that store directory is correctly set
@@ -179,7 +181,9 @@ mod path_environment_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         let path_manager = PathManager::new().expect("Failed to create PathManager");
         let vx_bin = path_manager.bin_dir();
 
@@ -309,7 +313,9 @@ mod version_resolution_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         // Create multiple versions of a tool with platform-specific directories
         let platform = get_platform_dir_name();
         let store_dir = vx_home.path().join("store").join("node");
@@ -418,7 +424,9 @@ mod script_env_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         let path_manager = PathManager::new().expect("Failed to create PathManager");
 
         // Check if version exists in store
@@ -449,7 +457,9 @@ mod venv_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         // Create a pip-tool installation
         let pip_tools = vx_home.path().join("pip-tools");
         let tool_dir = pip_tools.join("ruff").join("0.8.0");
@@ -487,7 +497,9 @@ mod venv_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         // Create an npm-tool installation
         let npm_tools = vx_home.path().join("npm-tools");
         let tool_dir = npm_tools.join("prettier").join("3.0.0");
@@ -520,7 +532,9 @@ mod venv_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         let path_manager = PathManager::new().expect("Failed to create PathManager");
         let pip_bin = path_manager.pip_tool_bin_dir("ruff", "0.8.0");
 
@@ -546,7 +560,9 @@ mod venv_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         let path_manager = PathManager::new().expect("Failed to create PathManager");
         let npm_bin = path_manager.npm_tool_bin_dir("prettier", "3.0.0");
 
@@ -600,7 +616,9 @@ mod edge_case_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         let path_manager = PathManager::new().expect("Failed to create PathManager");
 
         // Check for a tool that doesn't exist
@@ -648,7 +666,9 @@ mod edge_case_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         // Create a tool with pre-release version
         let store_dir = vx_home.path().join("store").join("test-tool");
         let version_dir = store_dir.join("1.0.0-beta.1").join("bin");
@@ -675,7 +695,9 @@ mod integration_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         let project_dir = TempDir::new().expect("Failed to create temp dir");
         create_vx_config(
             project_dir.path(),
@@ -791,7 +813,9 @@ mod tool_status_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         let path_manager = PathManager::new().expect("Failed to create PathManager");
 
         // uv@0.7.12 should be installed in mock
@@ -809,7 +833,9 @@ mod tool_status_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         let path_manager = PathManager::new().expect("Failed to create PathManager");
 
         // nonexistent-tool should not be installed
@@ -976,7 +1002,9 @@ mod tool_status_tests {
         init_test_env();
 
         let vx_home = create_mock_vx_home();
-        unsafe { std::env::set_var("VX_HOME", vx_home.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", vx_home.path());
+        }
         let path_manager = PathManager::new().expect("Failed to create PathManager");
 
         // Check various tools

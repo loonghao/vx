@@ -219,10 +219,12 @@ tauri = "2.0"
     let analyzer = ProjectAnalyzer::new(AnalyzerConfig::default());
     let analysis = analyzer.analyze(temp_dir.path()).await.unwrap();
 
-    assert!(analysis
-        .frameworks
-        .iter()
-        .any(|f| f.framework == ProjectFramework::Tauri));
+    assert!(
+        analysis
+            .frameworks
+            .iter()
+            .any(|f| f.framework == ProjectFramework::Tauri)
+    );
 
     let tauri_info = analysis
         .frameworks
@@ -282,10 +284,12 @@ tauri = "1.6"
     let analyzer = ProjectAnalyzer::new(AnalyzerConfig::default());
     let analysis = analyzer.analyze(temp_dir.path()).await.unwrap();
 
-    assert!(analysis
-        .frameworks
-        .iter()
-        .any(|f| f.framework == ProjectFramework::Tauri));
+    assert!(
+        analysis
+            .frameworks
+            .iter()
+            .any(|f| f.framework == ProjectFramework::Tauri)
+    );
 
     let tauri_info = analysis
         .frameworks
@@ -314,10 +318,12 @@ async fn test_detect_tauri_via_dependency() {
     let analyzer = ProjectAnalyzer::new(AnalyzerConfig::default());
     let analysis = analyzer.analyze(temp_dir.path()).await.unwrap();
 
-    assert!(analysis
-        .frameworks
-        .iter()
-        .any(|f| f.framework == ProjectFramework::Tauri));
+    assert!(
+        analysis
+            .frameworks
+            .iter()
+            .any(|f| f.framework == ProjectFramework::Tauri)
+    );
 }
 
 #[rstest]
@@ -358,10 +364,12 @@ tauri = "2.0"
     assert!(analysis.required_tools.iter().any(|t| t.name == "rust"));
     assert!(analysis.required_tools.iter().any(|t| t.name == "node"));
     // Should require tauri-cli
-    assert!(analysis
-        .required_tools
-        .iter()
-        .any(|t| t.name == "tauri-cli"));
+    assert!(
+        analysis
+            .required_tools
+            .iter()
+            .any(|t| t.name == "tauri-cli")
+    );
 }
 
 // =============================================================================

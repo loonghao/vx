@@ -9,9 +9,9 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use vx_runtime::{
-    layout::{BinaryLayout, DownloadType, ExecutableLayout},
     Ecosystem, GitHubReleaseOptions, Platform, Runtime, RuntimeContext, VerificationResult,
     VersionInfo,
+    layout::{BinaryLayout, DownloadType, ExecutableLayout},
 };
 
 /// yq runtime implementation

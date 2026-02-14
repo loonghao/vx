@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::Once;
-use vx_runtime::{mock_context, ProviderRegistry, RuntimeContext};
+use vx_runtime::{ProviderRegistry, RuntimeContext, mock_context};
 
 static INIT: Once = Once::new();
 
@@ -15,8 +15,8 @@ static INIT: Once = Once::new();
 
 /// Initialize test environment (called once per test run)
 pub fn init_test_env() {
-    INIT.call_once(|| {
-        unsafe { std::env::set_var("VX_TEST_MODE", "1"); }
+    INIT.call_once(|| unsafe {
+        std::env::set_var("VX_TEST_MODE", "1");
     });
 }
 
@@ -50,11 +50,7 @@ pub fn create_test_context() -> RuntimeContext {
 
 /// Get the vx binary name for current platform
 pub fn binary_name() -> &'static str {
-    if cfg!(windows) {
-        "vx.exe"
-    } else {
-        "vx"
-    }
+    if cfg!(windows) { "vx.exe" } else { "vx" }
 }
 
 /// Get the vx binary path

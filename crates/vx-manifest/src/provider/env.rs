@@ -2,7 +2,7 @@ use crate::VersionRequest;
 use serde::{Deserialize, Serialize};
 
 // Re-export platform utilities from vx-paths for backward compatibility
-pub use vx_paths::platform::{filter_system_path, SYSTEM_PATH_PREFIXES};
+pub use vx_paths::platform::{SYSTEM_PATH_PREFIXES, filter_system_path};
 
 /// Default system environment variables to inherit when isolated.
 ///

@@ -8,5 +8,5 @@ mod provider;
 mod runtime;
 
 pub use config::BatUrlBuilder;
-pub use provider::{create_provider, BatProvider};
+pub use provider::{BatProvider, create_provider};
 pub use runtime::BatRuntime;

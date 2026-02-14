@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 use vx_config::parse_config;
-use vx_paths::{find_config_file, link, project_env_dir, LinkStrategy, PathManager};
+use vx_paths::{LinkStrategy, PathManager, find_config_file, link, project_env_dir};
 
 /// Get the project environment directory if in a project with vx.toml
 pub fn get_project_env_dir() -> Option<PathBuf> {

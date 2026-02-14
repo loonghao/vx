@@ -213,7 +213,7 @@ impl RealHttpClient {
 
             if remaining == Some(0) {
                 return Err(HttpError::non_retryable(
-                    "GitHub API rate limit exceeded. Set GITHUB_TOKEN or GH_TOKEN environment variable to increase limit (5000 requests/hour with token vs 60/hour without)."
+                    "GitHub API rate limit exceeded. Set GITHUB_TOKEN or GH_TOKEN environment variable to increase limit (5000 requests/hour with token vs 60/hour without).",
                 ));
             }
         }

@@ -7,7 +7,7 @@ use anyhow::{Context as AnyhowContext, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use vx_config::parse_config;
-use vx_paths::project::{find_vx_config, LOCK_FILE_NAME};
+use vx_paths::project::{LOCK_FILE_NAME, find_vx_config};
 use vx_resolver::LockFile;
 
 /// Environment context type

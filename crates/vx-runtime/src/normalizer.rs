@@ -543,9 +543,11 @@ mod tests {
 
         let result = Normalizer::normalize(install_path, &config, &ctx).unwrap();
 
-        assert!(result
-            .executables_normalized
-            .contains(&"tool.exe".to_string()));
+        assert!(
+            result
+                .executables_normalized
+                .contains(&"tool.exe".to_string())
+        );
         assert!(install_path.join("bin/tool.exe").exists());
     }
 }

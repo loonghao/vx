@@ -451,17 +451,19 @@ fn default_passenv() -> Vec<&'static str> {
             // Build cache configuration
             "SCCACHE_*",
         ]
-
     }
     #[cfg(not(windows))]
     {
         vec![
-            "HOME", "USER", "SHELL", "TERM", "LANG",
-            "PATH", // Include PATH for Unix systems in isolation mode
-            "VX_*", // Allow vx-specific environment variables
+            "HOME",
+            "USER",
+            "SHELL",
+            "TERM",
+            "LANG",
+            "PATH",      // Include PATH for Unix systems in isolation mode
+            "VX_*",      // Allow vx-specific environment variables
             "SCCACHE_*", // Allow build cache configuration
         ]
-
     }
 }
 
@@ -854,7 +856,6 @@ mod tests {
             assert!(defaults.contains(&"VX_*"));
             assert!(defaults.contains(&"SCCACHE_*"));
         }
-
     }
 
     #[test]
@@ -920,7 +921,9 @@ mod tests {
         // the behavior is documented in the function
 
         // Restore PATH (in case it was modified)
-        unsafe { std::env::set_var("PATH", original_path); }
+        unsafe {
+            std::env::set_var("PATH", original_path);
+        }
     }
 
     #[test]

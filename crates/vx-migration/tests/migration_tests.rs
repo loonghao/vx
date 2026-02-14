@@ -2,7 +2,7 @@
 
 use rstest::rstest;
 use tempfile::TempDir;
-use vx_migration::migrations::{create_default_engine, ConfigV1ToV2Migration, FileRenameMigration};
+use vx_migration::migrations::{ConfigV1ToV2Migration, FileRenameMigration, create_default_engine};
 use vx_migration::prelude::*;
 use vx_migration::traits::VersionDetector;
 use vx_migration::version::{Version, VersionRange};

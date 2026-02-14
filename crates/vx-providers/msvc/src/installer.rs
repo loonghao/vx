@@ -5,8 +5,8 @@
 
 use anyhow::{Context, Result};
 use msvc_kit::{
-    download_msvc, download_sdk, extract_and_finalize_msvc, extract_and_finalize_sdk,
-    setup_environment, Architecture, DownloadOptions,
+    Architecture, DownloadOptions, download_msvc, download_sdk, extract_and_finalize_msvc,
+    extract_and_finalize_sdk, setup_environment,
 };
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
@@ -92,7 +92,9 @@ impl MsvcInstaller {
 
         // If we have markers but no actual installation, clean up
         if marker_dir.exists() && !has_vc_tools && !has_bin {
-            warn!("Detected incomplete MSVC installation, cleaning up markers to force re-extraction...");
+            warn!(
+                "Detected incomplete MSVC installation, cleaning up markers to force re-extraction..."
+            );
             if let Err(e) = std::fs::remove_dir_all(&marker_dir) {
                 debug!("Failed to remove marker directory: {}", e);
             }

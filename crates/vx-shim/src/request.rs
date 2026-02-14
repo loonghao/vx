@@ -195,7 +195,7 @@ impl PackageRequest {
                 return Err(ShimError::InvalidRequest(format!(
                     "Unknown ecosystem: {}",
                     ecosystem
-                )))
+                )));
             }
         };
         Ok(runtime.to_string())

@@ -15,11 +15,11 @@ use anyhow::{Context, Result};
 use tracing::{debug, info, warn};
 use vx_paths::VxPaths;
 
+use crate::Runtime;
 use crate::manifest_runtime::{
     DetectionConfig, InstallStrategy, ManifestDrivenRuntime, ProvidedTool, ProviderSource,
     ScriptType, SystemDepType, SystemDependency, SystemDepsConfig,
 };
-use crate::Runtime;
 
 /// Provider loader configuration
 #[derive(Debug, Clone)]

@@ -8,5 +8,5 @@ mod provider;
 mod runtime;
 
 pub use config::FdUrlBuilder;
-pub use provider::{create_provider, FdProvider};
+pub use provider::{FdProvider, create_provider};
 pub use runtime::FdRuntime;

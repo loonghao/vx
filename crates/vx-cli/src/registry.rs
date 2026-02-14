@@ -19,11 +19,10 @@
 use std::sync::Arc;
 use tracing::trace;
 use vx_manifest::{ManifestLoader, ProviderManifest};
-use vx_paths::{find_project_root, VxPaths, PROJECT_VX_DIR};
+use vx_paths::{PROJECT_VX_DIR, VxPaths, find_project_root};
 use vx_runtime::{
-    create_runtime_context, default_plugin_paths, init_constraints_from_manifests, BuildError,
-    BuildWarning, ManifestRegistry, PluginLoader, Provider, ProviderRegistry, Runtime,
-    RuntimeContext,
+    BuildError, BuildWarning, ManifestRegistry, PluginLoader, Provider, ProviderRegistry, Runtime,
+    RuntimeContext, create_runtime_context, default_plugin_paths, init_constraints_from_manifests,
 };
 
 // Include the compile-time generated provider manifests

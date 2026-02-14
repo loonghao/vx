@@ -3,11 +3,11 @@
 //! The Shell struct encapsulates stdout/stderr and provides methods for
 //! printing messages with consistent styling.
 
+use crate::Result;
 use crate::format::OutputMode;
 use crate::output::{ColorChoice, ShellOut};
 use crate::style::{Color, Style, Theme};
 use crate::term::Term;
-use crate::Result;
 
 #[cfg(feature = "progress")]
 use crate::progress::{ManagedSpinner, ProgressManager};

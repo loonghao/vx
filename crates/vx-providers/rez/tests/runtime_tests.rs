@@ -3,7 +3,7 @@
 //! Tests are placed in a separate tests/ directory following project conventions.
 
 use rstest::rstest;
-use vx_provider_rez::{create_provider, RezProvider, RezRuntime};
+use vx_provider_rez::{RezProvider, RezRuntime, create_provider};
 use vx_runtime::{Arch, Ecosystem, InstallMethod, Os, PackageRuntime, Platform, Provider, Runtime};
 
 // ============================================================================
@@ -99,10 +99,11 @@ fn test_runtime_metadata() {
     assert!(meta.contains_key("install_method"));
     assert_eq!(meta.get("install_method").unwrap(), "pip");
     assert_eq!(meta.get("pip_package").unwrap(), "rez");
-    assert!(meta
-        .get("repository")
-        .unwrap()
-        .contains("AcademySoftwareFoundation"));
+    assert!(
+        meta.get("repository")
+            .unwrap()
+            .contains("AcademySoftwareFoundation")
+    );
 }
 
 // ============================================================================

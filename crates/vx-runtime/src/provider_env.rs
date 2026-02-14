@@ -5,7 +5,7 @@
 //! - Environment variable building (inspired by REZ)
 //! - Path resolution for resolved versions
 
-use crate::{context::RuntimeContext, Ecosystem, VersionInfo};
+use crate::{Ecosystem, VersionInfo, context::RuntimeContext};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;

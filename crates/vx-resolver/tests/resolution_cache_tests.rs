@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use tempfile::TempDir;
 use vx_resolver::{
-    ResolutionCache, ResolutionCacheKey, ResolvedGraph, RESOLUTION_CACHE_SCHEMA_VERSION,
+    RESOLUTION_CACHE_SCHEMA_VERSION, ResolutionCache, ResolutionCacheKey, ResolvedGraph,
 };
 use vx_runtime::CacheMode;
 

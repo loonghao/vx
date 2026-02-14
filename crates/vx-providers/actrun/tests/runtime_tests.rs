@@ -26,10 +26,11 @@ fn test_runtime_metadata() {
     let runtime = ActrunRuntime::new();
     let meta = runtime.metadata();
     assert!(meta.contains_key("homepage"));
-    assert!(meta
-        .get("homepage")
-        .unwrap()
-        .contains("actionforge/actrun-cli"));
+    assert!(
+        meta.get("homepage")
+            .unwrap()
+            .contains("actionforge/actrun-cli")
+    );
 }
 
 #[test]

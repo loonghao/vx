@@ -9,8 +9,8 @@ use std::process::Output;
 use std::sync::Arc;
 use tempfile::TempDir;
 use vx_runtime::{
-    mock_context, Ecosystem, Provider, ProviderRegistry, Runtime, RuntimeContext,
-    RuntimeDependency, VersionInfo,
+    Ecosystem, Provider, ProviderRegistry, Runtime, RuntimeContext, RuntimeDependency, VersionInfo,
+    mock_context,
 };
 
 /// Mock runtime for testing

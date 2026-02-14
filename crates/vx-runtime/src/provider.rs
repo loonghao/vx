@@ -2,8 +2,8 @@
 //!
 //! A Provider is a container for related runtimes.
 
-use crate::runtime::Runtime;
 use crate::Platform;
+use crate::runtime::Runtime;
 use std::sync::Arc;
 
 /// Trait for package managers (npm, yarn, pip, etc.)

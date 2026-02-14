@@ -10,8 +10,8 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use vx_runtime::{
-    compare_semver, Ecosystem, InstallMethod, InstallResult, PackageRuntime, PathProvider,
-    Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
+    Ecosystem, InstallMethod, InstallResult, PackageRuntime, PathProvider, Platform, Runtime,
+    RuntimeContext, VerificationResult, VersionInfo, compare_semver,
 };
 
 /// release-please runtime implementation

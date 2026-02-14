@@ -5,8 +5,8 @@
 
 use anyhow::{Context, Result};
 use std::collections::{BTreeMap, HashSet};
-use vx_config::{parse_config, ToolVersion, VxConfig};
-use vx_paths::project::{find_vx_config, LOCK_FILE_NAME};
+use vx_config::{ToolVersion, VxConfig, parse_config};
+use vx_paths::project::{LOCK_FILE_NAME, find_vx_config};
 use vx_resolver::{
     Ecosystem, LockFile, LockedTool, ResolvedVersion, Version, VersionRequest, VersionSolver,
 };

@@ -42,8 +42,8 @@ mod types;
 mod validation;
 
 pub use container::{
-    generate_dockerfile, ContainerManager, DockerfileGenerator, GitInfo, GoDockerConfig,
-    NodejsDockerConfig, PythonDockerConfig, RustDockerConfig,
+    ContainerManager, DockerfileGenerator, GitInfo, GoDockerConfig, NodejsDockerConfig,
+    PythonDockerConfig, RustDockerConfig, generate_dockerfile,
 };
 pub use dependencies::{AuditResult, AutoUpdateStrategy, DependencyManager, RegistryPresets};
 pub use error::{ConfigError, ConfigResult};
@@ -51,17 +51,17 @@ pub use hooks::{EnterHookManager, GitHookInstaller, HookExecutor, HookResult};
 pub use inheritance::{InheritanceManager, LockEntry, LockFile, MergeStrategy, PresetSource};
 pub use migration::{ConfigMigrator, ConfigVersion, MigrationOptions, MigrationResult};
 pub use parser::{parse_config, parse_config_str};
-pub use remote::{generate_devcontainer_json, generate_gitpod_yml, RemoteGenerator};
+pub use remote::{RemoteGenerator, generate_devcontainer_json, generate_gitpod_yml};
 pub use security::{
-    generate_report as generate_security_report, patterns, LicenseViolation, ScanStatus,
-    SecretFinding, SecurityScanResult, SecurityScanner, Severity, Vulnerability,
+    LicenseViolation, ScanStatus, SecretFinding, SecurityScanResult, SecurityScanner, Severity,
+    Vulnerability, generate_report as generate_security_report, patterns,
 };
 pub use setup_pipeline::{SetupHookResult, SetupPipeline, SetupPipelineResult};
-pub use team::{generate_codeowners, TeamManager};
+pub use team::{TeamManager, generate_codeowners};
 pub use telemetry::{BuildTiming, BuildTracker, Metric, OtlpExporter, Span, TelemetryCollector};
 pub use testing::{CoverageReporter, TestFramework, TestResult, TestRunner};
 pub use types::*;
-pub use validation::{validate_config, ValidationResult};
+pub use validation::{ValidationResult, validate_config};
 
 /// Re-export for convenience
 pub use schemars;

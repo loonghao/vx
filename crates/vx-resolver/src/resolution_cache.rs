@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 use tracing::debug;
-use vx_paths::{find_config_file_upward, find_project_root, VxPaths, LOCK_FILE_NAMES};
+use vx_paths::{LOCK_FILE_NAMES, VxPaths, find_config_file_upward, find_project_root};
 use vx_runtime::CacheMode;
 
 /// Current schema version for resolution cache entries.

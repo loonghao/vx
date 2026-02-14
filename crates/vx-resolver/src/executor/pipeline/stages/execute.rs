@@ -9,10 +9,10 @@
 use async_trait::async_trait;
 use tracing::debug;
 
+use crate::ResolutionResult;
 use crate::executor::command::{build_command, run_command};
 use crate::executor::pipeline::error::ExecuteError;
 use crate::executor::pipeline::stage::Stage;
-use crate::ResolutionResult;
 use vx_core::exit_code_from_status;
 
 use super::prepare::PreparedExecution;

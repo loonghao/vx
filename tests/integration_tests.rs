@@ -224,7 +224,9 @@ mod environment_isolation_tests {
         let succeeded = output.status.success();
 
         if !succeeded && !has_output {
-            eprintln!("Warning: Command failed silently. This might indicate error handling needs improvement.");
+            eprintln!(
+                "Warning: Command failed silently. This might indicate error handling needs improvement."
+            );
         }
     }
 

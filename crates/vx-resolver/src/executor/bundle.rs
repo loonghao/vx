@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info};
-use vx_paths::project::{find_vx_config, PROJECT_VX_DIR};
+use vx_paths::project::{PROJECT_VX_DIR, find_vx_config};
 
 use super::pipeline::error::ExecuteError;
 

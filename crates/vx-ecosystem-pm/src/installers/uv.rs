@@ -6,7 +6,7 @@
 use crate::traits::EcosystemInstaller;
 use crate::types::{EcosystemInstallResult, InstallEnv, InstallOptions};
 use crate::utils::{detect_executables_in_dir, run_command};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 

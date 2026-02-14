@@ -3,10 +3,10 @@
 //! This module provides unified shell spawning functionality used by both
 //! `vx dev` and `vx env shell` commands.
 
+use crate::ToolEnvironment;
 #[cfg(windows)]
 use crate::assets::ShellScript;
 use crate::session::SessionContext;
-use crate::ToolEnvironment;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;

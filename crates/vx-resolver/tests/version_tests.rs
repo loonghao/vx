@@ -1,11 +1,11 @@
 //! Version solver tests
 
 use rstest::rstest;
+use vx_resolver::Ecosystem;
 use vx_resolver::version::{
     RangeConstraint, RangeOp, ResolvedVersion, SolverConfig, SolverStatus, VersionConstraint,
     VersionRequest, VersionSolver,
 };
-use vx_resolver::Ecosystem;
 use vx_runtime::VersionInfo;
 
 mod constraint_tests {

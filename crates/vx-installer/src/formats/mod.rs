@@ -4,7 +4,7 @@
 //! and installation methods. It abstracts the complexity of different compression
 //! formats and provides a consistent API for extraction and installation.
 
-use crate::{progress::ProgressContext, Error, Result};
+use crate::{Error, Result, progress::ProgressContext};
 use std::path::{Path, PathBuf};
 
 pub mod binary;

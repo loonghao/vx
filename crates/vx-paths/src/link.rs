@@ -171,7 +171,6 @@ fn create_cow_link(src: &Path, dst: &Path) -> Result<()> {
             fn clonefile(src: *const i8, dst: *const i8, flags: u32) -> i32;
         }
 
-
         let result = unsafe { clonefile(src_c.as_ptr(), dst_c.as_ptr(), 0) };
         if result == 0 {
             return Ok(());

@@ -20,7 +20,7 @@ use crate::ui::UI;
 use anyhow::Result;
 use vx_cache::DownloadCache;
 use vx_paths::VxPaths;
-use vx_resolver::{ResolutionCache, RESOLUTION_CACHE_DIR_NAME};
+use vx_resolver::{RESOLUTION_CACHE_DIR_NAME, ResolutionCache};
 use vx_runtime::VersionCache;
 
 /// Handle cache subcommands

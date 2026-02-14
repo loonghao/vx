@@ -11,8 +11,8 @@ use std::env;
 use std::path::Path;
 use std::process::Command;
 use vx_config::{
-    parse_config, ContainerManager, DockerfileGenerator, GitInfo, GoDockerConfig,
-    NodejsDockerConfig, PythonDockerConfig, RustDockerConfig,
+    ContainerManager, DockerfileGenerator, GitInfo, GoDockerConfig, NodejsDockerConfig,
+    PythonDockerConfig, RustDockerConfig, parse_config,
 };
 use vx_paths::find_config_file;
 
