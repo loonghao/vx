@@ -1,0 +1,83 @@
+---
+# Please note: Do not modify the header of this document. If modified, CodeBuddy (Internal Edition) will apply the default logic settings.
+alwaysApply: true
+---
+# 解析器和执行器 (vx-resolver) 设计规则
+
+## 核心组件
+
+### RuntimeSpec (运行时规格)
+定义 Runtime 的元数据和依赖关系：
+```rust
+pub struct RuntimeSpec {
+    pub name: String,           // 主名称
+    pub aliases: Vec<String>,   // 别名列表
+    pub ecosystem: Ecosystem,   // 所属生态系统
+    pub runtime_dependency: Option<RuntimeDependency>, // 运行时依赖
+}
+```
+
+### DependencyMap (依赖映射)
+管理 Runtime 间的依赖关系：
+- 支持别名解析（npm → node 生态）
+- 提供拓扑排序的安装顺序
+- 内置常见 Runtime 的依赖关系
+
+### Resolver (解析器)
+检测 Runtime 状态：
+- `Available`: 已安装且可用
+- `NeedsInstall`: 需要安装
+- `NeedsDependency`: 需要先安装依赖
+
+### Executor (执行器)
+核心执行逻辑：
+1. 解析 Runtime 名和别名
+2. 检测 Runtime 及其依赖状态
+3. 自动安装缺失组件
+4. 转发命令并返回退出码
+
+## 生态系统定义
+
+```rust
+pub enum Ecosystem {
+    NodeJs,   // Node.js 生态 (npm, yarn, pnpm, bun)
+    Python,   // Python 生态 (uv, pip)
+    Rust,     // Rust 生态 (cargo)
+    Go,       // Go 生态
+    System,   // 系统工具
+    Unknown,  // 未知
+}
+```
+
+## 依赖关系规则
+
+### 内置依赖映射
+- `npm`, `npx`, `yarn`, `pnpm` → 依赖 `node`
+- `uvx`, `pip` → 依赖 `uv`
+- `cargo`, `rustc` → 依赖 `rust`
+- `gofmt` → 依赖 `go`
+
+### 安装顺序
+使用拓扑排序确保依赖先于依赖者安装：
+```
+安装 npm: [node, npm]
+安装 yarn: [node, yarn]
+```
+
+## 执行配置
+
+```rust
+pub struct ExecutorConfig {
+    pub auto_install: bool,        // 自动安装缺失 Runtime
+    pub use_system_path: bool,     // 是否使用系统 PATH
+    pub install_timeout: Duration, // 安装超时
+    pub verbose: bool,             // 详细输出
+}
+```
+
+## 扩展新 Runtime
+
+1. 在对应 Provider 中实现 `Runtime` trait
+2. 在 `DependencyMap::with_defaults()` 添加 RuntimeSpec
+3. 如有运行时依赖，指定 `runtime_dependency`
+4. 添加别名到 `aliases` 列表

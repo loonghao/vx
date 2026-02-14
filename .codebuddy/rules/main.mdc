@@ -1,0 +1,17 @@
+---
+# Please note: Do not modify the header of this document. If modified, CodeBuddy (Internal Edition) will apply the default logic settings.
+alwaysApply: true
+---
+我们的开发使用vx
+下面是vx的使用
+```
+# Instead of learning and managing multiple tools:
+npx create-react-app my-app     # Requires Node.js setup
+uvx ruff check .                # Requires Python/UV setup
+go run main.go                  # Requires Go installation
+
+# Just use vx with the same commands you already know:
+vx npx create-react-app my-app  # Auto-installs Node.js if needed
+vx uvx ruff check .             # Auto-installs UV if needed
+vx go run main.go               # Auto-installs Go if needed
+```

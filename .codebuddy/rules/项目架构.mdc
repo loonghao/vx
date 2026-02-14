@@ -1,0 +1,126 @@
+---
+# Please note: Do not modify the header of this document. If modified, CodeBuddy (Internal Edition) will apply the default logic settings.
+alwaysApply: true
+---
+# VX 项目架构规则
+
+## 项目概述
+
+vx 是一个通用开发工具管理器，支持动态命令转发、依赖检测和自动安装。
+
+## 术语定义
+
+| 术语 | 说明 | 示例 |
+|------|------|------|
+| **Runtime** | 可执行的运行时/工具 | NodeRuntime, GoRuntime, UvRuntime |
+| **Provider** | 提供 Runtime 的模块 | NodeProvider, GoProvider |
+| **PackageManager** | 包管理器 | npm, yarn, pnpm |
+| **Ecosystem** | 生态系统 | NodeJs, Python, Rust, Go |
+| **Resolver** | 解析器，处理依赖和工具查找 | |
+| **Executor** | 执行器，执行命令转发 | |
+| **RuntimeSpec** | 运行时规格定义 | |
+
+## Crate 结构
+
+```
+crates/
+├── vx-core/           # 核心抽象 traits
+│   └── Runtime, Provider, PackageManager, Resolver
+│
+├── vx-runtime/        # 运行时系统
+│   ├── traits/        # 标准 trait 实现
+│   ├── registry/      # ProviderRegistry
+│   └── helpers/       # 辅助工具
+│
+├── vx-resolver/       # 解析和执行
+│   ├── resolver.rs    # 依赖解析
+│   ├── executor.rs    # 命令执行
+│   └── spec.rs        # RuntimeSpec 定义
+│
+├── vx-installer/      # 下载和安装
+├── vx-version/        # 版本获取
+├── vx-config/         # 配置管理
+├── vx-paths/          # 路径管理
+│
+├── vx-cli/            # CLI 入口
+│
+└── vx-providers/      # Provider 实现
+    ├── node/          # NodeProvider
+    ├── go/            # GoProvider
+    ├── rust/          # RustProvider
+    ├── uv/            # UvProvider
+    ├── bun/           # BunProvider
+    ├── pnpm/          # PnpmProvider
+    └── yarn/          # YarnProvider
+```
+
+## Crate 职责
+
+### 核心层
+- **vx-core**: 核心抽象接口，定义 `Runtime`、`Provider`、`PackageManager` traits
+
+### 运行时层
+- **vx-runtime**: 运行时系统，提供 `ProviderRegistry` 和标准实现
+- **vx-resolver**: 解析器和执行器，处理依赖检测和命令转发
+
+### 基础设施层
+- **vx-paths**: 跨平台路径管理，处理 `~/.vx` 目录结构
+- **vx-config**: 分层配置管理（内置 → 用户 → 项目 → 环境变量）
+- **vx-installer**: 下载和安装工具，支持多种归档格式
+- **vx-version**: 版本获取和解析，支持 GitHub/npm/PyPI 等源
+
+### Provider 层
+- **vx-providers/***: 具体 Provider 实现，每个 Provider 提供一组 Runtime
+
+### 应用层
+- **vx-cli**: CLI 入口，命令解析和路由
+
+## 依赖关系
+
+```
+vx-cli
+  ├── vx-resolver (解析和执行)
+  ├── vx-runtime (Provider 注册)
+  └── vx-providers/* (具体实现)
+
+vx-resolver
+  ├── vx-runtime (查找 Runtime)
+  ├── vx-paths
+  └── vx-config
+
+vx-runtime
+  ├── vx-core
+  └── vx-paths
+
+vx-providers/*
+  ├── vx-runtime (实现 Provider trait)
+  ├── vx-installer
+  └── vx-version
+```
+
+## 命令转发机制
+
+### 格式
+```
+vx [全局参数] <runtime名> [runtime参数]
+```
+
+### 执行流程
+1. 解析 Runtime 名（支持别名：`npm` → `node` 生态）
+2. 检测 Runtime 依赖（如 `npm` 需要 `node`）
+3. 自动安装缺失的依赖
+4. 转发命令到目标 Runtime
+
+### 生态系统映射
+- **Node.js**: node, npm, npx, yarn, pnpm, bun
+- **Python**: uv, uvx, python, pip
+- **Rust**: cargo, rustc, rustup
+- **Go**: go, gofmt
+
+## 设计原则
+
+1. **零学习成本**: 用户使用原生命令语法，vx 透明代理
+2. **自动依赖管理**: 检测并安装缺失的运行时依赖
+3. **Provider 架构**: 通过 Provider 扩展新工具支持
+4. **跨平台兼容**: 统一处理 Windows/macOS/Linux 差异
+5. **只发布二进制**: 不发布 crates，只发布编译后的二进制文件

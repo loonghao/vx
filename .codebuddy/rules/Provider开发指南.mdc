@@ -1,0 +1,1035 @@
+---
+# Please note: Do not modify the header of this document. If modified, CodeBuddy (Internal Edition) will apply the default logic settings.
+alwaysApply: true
+---
+# Provider 开发指南
+
+## 概述
+
+本指南描述如何集成一个新的 Runtime/Provider 到 vx 系统。完整的集成包括：
+
+1. **Provider/Runtime 实现** - 工具的安装、版本管理、执行
+2. **项目分析器集成**（可选）- 如果该工具有对应的语言/生态系统，需要添加项目分析规则
+
+## 核心接口设计
+
+### 1. Runtime trait（核心接口）
+
+```rust
+/// Runtime 是可执行的运行时/工具的核心抽象
+/// 设计原则：
+/// - 最小必需方法：只有 2 个必须实现
+/// - 依赖注入：通过 Context 注入外部依赖，便于测试
+/// - 异步优先：所有 I/O 操作都是异步的
+#[async_trait]
+pub trait Runtime: Send + Sync {
+    // ========== 必须实现 ==========
+
+    /// Runtime 名称（如 "node", "go", "uv"）
+    fn name(&self) -> &str;
+
+    /// 获取版本信息（从官方源获取）
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>>;
+
+    // ========== 可选实现（有默认值）==========
+
+    /// 描述
+    fn description(&self) -> &str { "A runtime" }
+
+    /// 别名（如 node 的别名是 nodejs）
+    fn aliases(&self) -> &[&str] { &[] }
+
+    /// 所属生态系统
+    fn ecosystem(&self) -> Ecosystem { Ecosystem::Unknown }
+
+    /// 依赖的其他 Runtime（如 npm 依赖 node）
+    fn dependencies(&self) -> &[RuntimeDependency] { &[] }
+
+    /// 安装指定版本
+    async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult>;
+
+    /// 执行命令
+    async fn execute(&self, args: &[String], ctx: &ExecutionContext) -> Result<ExecutionResult>;
+
+    /// 检查版本是否已安装
+    async fn is_installed(&self, version: &str, ctx: &RuntimeContext) -> Result<bool>;
+
+    /// 获取已安装版本列表
+    async fn installed_versions(&self, ctx: &RuntimeContext) -> Result<Vec<String>>;
+
+    /// 获取下载 URL
+    async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>>;
+
+    /// 卸载指定版本
+    async fn uninstall(&self, version: &str, ctx: &RuntimeContext) -> Result<()>;
+}
+```
+
+### 2. Provider trait（Runtime 容器）
+
+```rust
+/// Provider 是一组相关 Runtime 的容器
+/// 例如 NodeProvider 提供 node, npm, npx 三个 Runtime
+#[async_trait]
+pub trait Provider: Send + Sync {
+    /// Provider 名称
+    fn name(&self) -> &str;
+
+    /// 描述
+    fn description(&self) -> &str;
+
+    /// 提供的所有 Runtime
+    fn runtimes(&self) -> Vec<Arc<dyn Runtime>>;
+
+    /// 提供的包管理器（可选）
+    fn package_managers(&self) -> Vec<Arc<dyn PackageManager>> { vec![] }
+
+    /// 检查是否支持某个 Runtime 名称
+    fn supports(&self, name: &str) -> bool {
+        self.runtimes().iter().any(|r| {
+            r.name() == name || r.aliases().contains(&name)
+        })
+    }
+}
+```
+
+### 3. Context 设计（依赖注入）
+
+```rust
+/// RuntimeContext 用于依赖注入，便于测试
+pub struct RuntimeContext {
+    /// 路径管理器（可 mock）
+    pub paths: Arc<dyn PathProvider>,
+
+    /// HTTP 客户端（可 mock）
+    pub http: Arc<dyn HttpClient>,
+
+    /// 文件系统操作（可 mock）
+    pub fs: Arc<dyn FileSystem>,
+
+    /// 安装器（可 mock）
+    pub installer: Arc<dyn Installer>,
+
+    /// 配置
+    pub config: RuntimeConfig,
+}
+
+/// ExecutionContext 用于命令执行
+pub struct ExecutionContext {
+    /// 工作目录
+    pub working_dir: Option<PathBuf>,
+
+    /// 环境变量
+    pub env: HashMap<String, String>,
+
+    /// 是否捕获输出
+    pub capture_output: bool,
+
+    /// 超时时间
+    pub timeout: Option<Duration>,
+
+    /// 命令执行器（可 mock）
+    pub executor: Arc<dyn CommandExecutor>,
+}
+```
+
+## 项目分析器集成（可选）
+
+如果新增的 Runtime 对应一个语言/生态系统（如 Node.js、Python、Go），需要在 `vx-project-analyzer` 中添加语言分析器。
+
+### 语言分析器架构
+
+```
+crates/vx-project-analyzer/src/languages/
+├── mod.rs              # LanguageAnalyzer trait + all_analyzers()
+├── rules.rs            # 通用规则框架 (ScriptRule, apply_rules, merge_scripts)
+├── nodejs.rs           # Node.js 分析器（待模块化）
+├── rust.rs             # Rust 分析器（待模块化）
+└── python/             # Python 分析器（模块化示例）
+    ├── mod.rs          # 模块导出
+    ├── analyzer.rs     # PythonAnalyzer 实现
+    ├── dependencies.rs # 依赖解析
+    ├── rules.rs        # Python 特定脚本检测规则
+    └── scripts.rs      # 脚本解析
+```
+
+### LanguageAnalyzer trait
+
+```rust
+/// 语言分析器 trait
+#[async_trait]
+pub trait LanguageAnalyzer: Send + Sync {
+    /// 检测项目是否属于该语言
+    fn detect(&self, root: &Path) -> bool;
+
+    /// 分析器名称
+    fn name(&self) -> &'static str;
+
+    /// 分析项目依赖
+    async fn analyze_dependencies(&self, root: &Path) -> AnalyzerResult<Vec<Dependency>>;
+
+    /// 分析项目脚本
+    async fn analyze_scripts(&self, root: &Path) -> AnalyzerResult<Vec<Script>>;
+
+    /// 获取所需工具
+    fn required_tools(&self, deps: &[Dependency], scripts: &[Script]) -> Vec<RequiredTool>;
+
+    /// 生成依赖安装命令
+    fn install_command(&self, dep: &Dependency) -> Option<String>;
+}
+```
+
+### ScriptRule 声明式规则系统
+
+使用声明式规则来检测常见脚本，避免硬编码：
+
+```rust
+/// 脚本检测规则
+pub struct ScriptRule {
+    /// 脚本名称 (e.g., "test", "lint", "build")
+    pub name: &'static str,
+    /// 执行命令
+    pub command: &'static str,
+    /// 描述
+    pub description: &'static str,
+    /// 触发文件（任意匹配即触发）
+    pub trigger_files: &'static [&'static str],
+    /// 排除文件（存在则不触发）
+    pub exclude_if_exists: &'static [&'static str],
+    /// 优先级（高优先级规则优先匹配）
+    pub priority: u8,
+}
+
+impl ScriptRule {
+    pub const fn new(name: &'static str, command: &'static str, description: &'static str) -> Self;
+    pub const fn triggers(self, files: &'static [&'static str]) -> Self;
+    pub const fn excludes(self, files: &'static [&'static str]) -> Self;
+    pub const fn priority(self, priority: u8) -> Self;
+}
+```
+
+### 规则定义示例（Python）
+
+```rust
+// crates/vx-project-analyzer/src/languages/python/rules.rs
+
+pub const PYTHON_RULES: &[ScriptRule] = &[
+    // Nox - 任务自动化
+    ScriptRule::new("nox", "uvx nox", "Run nox sessions")
+        .triggers(&["noxfile.py"])
+        .priority(100),
+
+    // 测试运行器（按优先级排序）
+    ScriptRule::new("test", "uvx nox -s tests", "Run tests via nox")
+        .triggers(&["noxfile.py"])
+        .priority(100),
+
+    ScriptRule::new("test", "uvx tox", "Run tests via tox")
+        .triggers(&["tox.ini", "tox.toml"])
+        .excludes(&["noxfile.py"])
+        .priority(90),
+
+    ScriptRule::new("test", "uv run pytest", "Run tests with pytest")
+        .triggers(&["pytest.ini", "pyproject.toml", "tests", "test"])
+        .excludes(&["noxfile.py", "tox.ini", "tox.toml"])
+        .priority(50),
+
+    // Linting
+    ScriptRule::new("lint", "uvx nox -s lint", "Run linter via nox")
+        .triggers(&["noxfile.py"])
+        .priority(100),
+
+    ScriptRule::new("lint", "uv run ruff check .", "Run ruff linter")
+        .triggers(&["ruff.toml", "pyproject.toml"])
+        .excludes(&["noxfile.py"])
+        .priority(50),
+];
+```
+
+### 添加新语言分析器的步骤
+
+#### Step 1: 创建语言目录
+
+```
+crates/vx-project-analyzer/src/languages/{lang}/
+├── mod.rs          # 模块导出
+├── analyzer.rs     # {Lang}Analyzer 实现
+├── dependencies.rs # 依赖解析
+├── rules.rs        # 脚本检测规则
+└── scripts.rs      # 显式脚本解析
+```
+
+#### Step 2: 定义检测规则
+
+```rust
+// rules.rs
+use crate::languages::rules::ScriptRule;
+
+pub const {LANG}_RULES: &[ScriptRule] = &[
+    ScriptRule::new("build", "...", "Build the project")
+        .triggers(&["..."])
+        .priority(50),
+    ScriptRule::new("test", "...", "Run tests")
+        .triggers(&["..."])
+        .priority(50),
+    // ...
+];
+```
+
+#### Step 3: 实现 LanguageAnalyzer
+
+```rust
+// analyzer.rs
+use super::rules::{LANG}_RULES;
+use crate::languages::rules::{apply_rules, merge_scripts};
+
+pub struct {Lang}Analyzer {
+    script_parser: ScriptParser,
+}
+
+#[async_trait]
+impl LanguageAnalyzer for {Lang}Analyzer {
+    fn detect(&self, root: &Path) -> bool {
+        // 检测项目特征文件
+        root.join("config_file.ext").exists()
+    }
+
+    fn name(&self) -> &'static str {
+        "{Lang}"
+    }
+
+    async fn analyze_scripts(&self, root: &Path) -> AnalyzerResult<Vec<Script>> {
+        // 1. 解析显式脚本（配置文件中定义的）
+        let explicit = parse_config_scripts(root, &self.script_parser).await?;
+
+        // 2. 应用检测规则
+        let detected = apply_rules(root, {LANG}_RULES, &self.script_parser);
+
+        // 3. 合并（显式优先）
+        Ok(merge_scripts(explicit, detected))
+    }
+
+    // ... 其他方法
+}
+```
+
+#### Step 4: 注册分析器
+
+```rust
+// crates/vx-project-analyzer/src/languages/mod.rs
+
+mod {lang};
+pub use {lang}::{Lang}Analyzer;
+
+pub fn all_analyzers() -> Vec<Box<dyn LanguageAnalyzer>> {
+    vec![
+        Box::new(PythonAnalyzer::new()),
+        Box::new(NodeJsAnalyzer::new()),
+        Box::new(RustAnalyzer::new()),
+        Box::new({Lang}Analyzer::new()),  // 新增
+    ]
+}
+```
+
+#### Step 5: 添加测试
+
+```rust
+// crates/vx-project-analyzer/tests/analyzer_tests.rs
+
+#[tokio::test]
+async fn test_{lang}_project_detection() {
+    let temp = TempDir::new().unwrap();
+    std::fs::write(temp.path().join("config_file.ext"), "...").unwrap();
+
+    let analyzer = {Lang}Analyzer::new();
+    assert!(analyzer.detect(temp.path()));
+}
+
+#[tokio::test]
+async fn test_{lang}_scripts() {
+    let temp = TempDir::new().unwrap();
+    // 创建测试文件...
+
+    let analyzer = {Lang}Analyzer::new();
+    let scripts = analyzer.analyze_scripts(temp.path()).await.unwrap();
+
+    assert!(scripts.iter().any(|s| s.name == "test"));
+}
+```
+
+## 可测试性设计
+
+### 1. 抽象外部依赖
+
+```rust
+/// HTTP 客户端抽象
+#[async_trait]
+pub trait HttpClient: Send + Sync {
+    async fn get(&self, url: &str) -> Result<Response>;
+    async fn download(&self, url: &str, dest: &Path) -> Result<()>;
+}
+
+/// 文件系统抽象
+#[async_trait]
+pub trait FileSystem: Send + Sync {
+    fn exists(&self, path: &Path) -> bool;
+    fn create_dir_all(&self, path: &Path) -> Result<()>;
+    fn remove_dir_all(&self, path: &Path) -> Result<()>;
+    fn read_dir(&self, path: &Path) -> Result<Vec<PathBuf>>;
+    fn write(&self, path: &Path, content: &[u8]) -> Result<()>;
+}
+
+/// 命令执行器抽象
+#[async_trait]
+pub trait CommandExecutor: Send + Sync {
+    async fn execute(&self, cmd: &str, args: &[String], ctx: &ExecutionContext)
+        -> Result<ExecutionResult>;
+}
+
+/// 路径提供者抽象
+pub trait PathProvider: Send + Sync {
+    fn vx_home(&self) -> PathBuf;
+    fn tools_dir(&self) -> PathBuf;
+    fn runtime_dir(&self, name: &str) -> PathBuf;
+    fn version_dir(&self, name: &str, version: &str) -> PathBuf;
+    fn executable_path(&self, name: &str, version: &str) -> PathBuf;
+}
+```
+
+### 2. Mock 实现（用于测试）
+
+```rust
+/// 内存文件系统（用于单元测试）
+pub struct MockFileSystem {
+    files: Arc<RwLock<HashMap<PathBuf, Vec<u8>>>>,
+    dirs: Arc<RwLock<HashSet<PathBuf>>>,
+}
+
+/// Mock HTTP 客户端
+pub struct MockHttpClient {
+    responses: Arc<RwLock<HashMap<String, Response>>>,
+}
+
+/// Mock 命令执行器
+pub struct MockCommandExecutor {
+    results: Arc<RwLock<HashMap<String, ExecutionResult>>>,
+}
+```
+
+### 3. 测试示例
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    fn mock_context() -> RuntimeContext {
+        RuntimeContext {
+            paths: Arc::new(MockPathProvider::new("/tmp/vx-test")),
+            http: Arc::new(MockHttpClient::new()),
+            fs: Arc::new(MockFileSystem::new()),
+            installer: Arc::new(MockInstaller::new()),
+            config: RuntimeConfig::default(),
+        }
+    }
+
+    #[rstest]
+    #[case("node", "nodejs")]
+    #[case("go", "golang")]
+    fn test_runtime_aliases(#[case] name: &str, #[case] alias: &str) {
+        let provider = create_provider(name);
+        assert!(provider.supports(alias));
+    }
+
+    #[tokio::test]
+    async fn test_fetch_versions() {
+        let ctx = mock_context();
+        // 预设 mock 响应
+        ctx.http.set_response(
+            "https://nodejs.org/dist/index.json",
+            json!([{"version": "v20.0.0"}, {"version": "v18.0.0"}])
+        );
+
+        let runtime = NodeRuntime::new();
+        let versions = runtime.fetch_versions(&ctx).await.unwrap();
+
+        assert_eq!(versions.len(), 2);
+        assert_eq!(versions[0].version, "20.0.0");
+    }
+
+    #[tokio::test]
+    async fn test_install_creates_directory() {
+        let ctx = mock_context();
+        let runtime = NodeRuntime::new();
+
+        runtime.install("20.0.0", &ctx).await.unwrap();
+
+        assert!(ctx.fs.exists(&ctx.paths.version_dir("node", "20.0.0")));
+    }
+}
+```
+
+## 集成新 Runtime 的步骤
+
+### Step 1: 创建 Provider 目录
+
+```
+crates/vx-providers/<name>/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs          # 导出
+│   ├── provider.rs     # Provider 实现
+│   ├── runtime.rs      # Runtime 实现
+│   └── config.rs       # URL 构建等配置
+└── tests/
+    ├── provider_tests.rs
+    └── runtime_tests.rs
+```
+
+### Step 2: 实现 Runtime trait
+
+```rust
+// src/runtime.rs
+use vx_runtime::{Runtime, RuntimeContext, VersionInfo, Ecosystem};
+
+pub struct MyRuntime {
+    // 可选：版本获取器
+    version_fetcher: Box<dyn VersionFetcher>,
+}
+
+impl MyRuntime {
+    pub fn new() -> Self {
+        Self {
+            version_fetcher: Box::new(GitHubVersionFetcher::new("owner", "repo")),
+        }
+    }
+}
+
+#[async_trait]
+impl Runtime for MyRuntime {
+    fn name(&self) -> &str { "myruntime" }
+
+    fn description(&self) -> &str { "My awesome runtime" }
+
+    fn ecosystem(&self) -> Ecosystem { Ecosystem::Custom("myeco") }
+
+    fn aliases(&self) -> &[&str] { &["mr", "myrt"] }
+
+    fn dependencies(&self) -> &[RuntimeDependency] {
+        // 如果依赖其他 runtime，在这里声明
+        &[]
+    }
+
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        self.version_fetcher.fetch(ctx.http.as_ref()).await
+    }
+
+    async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
+        Ok(Some(format!(
+            "https://example.com/releases/{}/myruntime-{}-{}.tar.gz",
+            version,
+            platform.os,
+            platform.arch
+        )))
+    }
+}
+```
+
+### Step 3: 实现 Provider
+
+```rust
+// src/provider.rs
+use vx_runtime::{Provider, Runtime};
+
+pub struct MyProvider;
+
+impl Provider for MyProvider {
+    fn name(&self) -> &str { "myruntime" }
+
+    fn description(&self) -> &str { "My runtime provider" }
+
+    fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
+        vec![
+            Arc::new(MyRuntime::new()),
+            // 可以提供多个相关的 runtime
+        ]
+    }
+}
+
+/// 工厂函数（用于注册）
+pub fn create_provider() -> Box<dyn Provider> {
+    Box::new(MyProvider)
+}
+```
+
+### Step 4: 注册 Provider
+
+```rust
+// vx-cli/src/main.rs 或 vx-runtime/src/registry.rs
+fn register_providers(registry: &mut ProviderRegistry) {
+    registry.register(vx_provider_node::create_provider());
+    registry.register(vx_provider_go::create_provider());
+    registry.register(vx_provider_myruntime::create_provider()); // 新增
+}
+```
+
+### Step 5: 添加测试
+
+```rust
+// tests/runtime_tests.rs
+use vx_runtime::testing::{mock_context, MockHttpClient};
+use rstest::rstest;
+
+#[tokio::test]
+async fn test_fetch_versions() {
+    let ctx = mock_context();
+    ctx.http.mock_json(
+        "https://api.github.com/repos/owner/repo/releases",
+        json!([{"tag_name": "v1.0.0"}, {"tag_name": "v0.9.0"}])
+    );
+
+    let runtime = MyRuntime::new();
+    let versions = runtime.fetch_versions(&ctx).await.unwrap();
+
+    assert!(!versions.is_empty());
+}
+
+#[tokio::test]
+async fn test_download_url_format() {
+    let runtime = MyRuntime::new();
+    let platform = Platform::current();
+
+    let url = runtime.download_url("1.0.0", &platform).await.unwrap();
+
+    assert!(url.is_some());
+    assert!(url.unwrap().contains("1.0.0"));
+}
+
+#[tokio::test]
+async fn test_install_and_uninstall() {
+    let ctx = mock_context();
+    let runtime = MyRuntime::new();
+
+    // 安装
+    runtime.install("1.0.0", &ctx).await.unwrap();
+    assert!(runtime.is_installed("1.0.0", &ctx).await.unwrap());
+
+    // 卸载
+    runtime.uninstall("1.0.0", &ctx).await.unwrap();
+    assert!(!runtime.is_installed("1.0.0", &ctx).await.unwrap());
+}
+```
+
+## E2E 测试设计
+
+### 测试框架
+
+```rust
+// tests/e2e/mod.rs
+use vx_testing::{VxTestHarness, TestEnvironment};
+
+/// E2E 测试环境
+pub struct E2ETestEnv {
+    /// 临时 VX_HOME 目录
+    home: TempDir,
+    /// vx 二进制路径
+    vx_binary: PathBuf,
+}
+
+impl E2ETestEnv {
+    pub fn new() -> Self {
+        let home = TempDir::new().unwrap();
+        Self {
+            home,
+            vx_binary: env!("CARGO_BIN_EXE_vx").into(),
+        }
+    }
+
+    /// 运行 vx 命令
+    pub fn run(&self, args: &[&str]) -> CommandResult {
+        Command::new(&self.vx_binary)
+            .args(args)
+            .env("VX_HOME", self.home.path())
+            .output()
+            .into()
+    }
+}
+```
+
+### E2E 测试示例
+
+```rust
+// tests/e2e/install_tests.rs
+use crate::E2ETestEnv;
+
+#[test]
+fn test_install_node() {
+    let env = E2ETestEnv::new();
+
+    // 安装
+    let result = env.run(&["install", "node@20.0.0"]);
+    assert!(result.success());
+
+    // 验证
+    let result = env.run(&["list", "node"]);
+    assert!(result.stdout.contains("20.0.0"));
+}
+
+#[test]
+fn test_execute_npm() {
+    let env = E2ETestEnv::new();
+
+    // 安装 node（npm 的依赖）
+    env.run(&["install", "node@20.0.0"]);
+
+    // 执行 npm
+    let result = env.run(&["npm", "--version"]);
+    assert!(result.success());
+}
+
+#[test]
+fn test_auto_install_dependency() {
+    let env = E2ETestEnv::new();
+
+    // 直接运行 npm，应该自动安装 node
+    let result = env.run(&["npm", "--version"]);
+
+    // 验证 node 被自动安装
+    let result = env.run(&["list", "node"]);
+    assert!(!result.stdout.contains("No versions installed"));
+}
+```
+
+## 版本获取器
+
+### 内置版本获取器
+
+```rust
+/// GitHub Releases 版本获取器
+pub struct GitHubVersionFetcher {
+    owner: String,
+    repo: String,
+}
+
+/// Node.js 官方 API 版本获取器
+pub struct NodeVersionFetcher;
+
+/// PyPI 版本获取器
+pub struct PyPIVersionFetcher {
+    package: String,
+}
+
+/// 自定义 URL 版本获取器
+pub struct UrlVersionFetcher {
+    url: String,
+    parser: Box<dyn VersionParser>,
+}
+```
+
+### 使用示例
+
+```rust
+impl MyRuntime {
+    pub fn new() -> Self {
+        Self {
+            // 使用 GitHub releases
+            version_fetcher: Box::new(GitHubVersionFetcher::new("owner", "repo")),
+        }
+    }
+}
+```
+
+## 平台检测
+
+```rust
+/// 平台信息
+pub struct Platform {
+    pub os: Os,
+    pub arch: Arch,
+}
+
+pub enum Os {
+    Windows,
+    MacOS,
+    Linux,
+}
+
+pub enum Arch {
+    X86_64,
+    Aarch64,
+    Arm,
+}
+
+impl Platform {
+    pub fn current() -> Self {
+        Self {
+            os: Self::detect_os(),
+            arch: Self::detect_arch(),
+        }
+    }
+}
+```
+
+## 下载格式规范（重要）
+
+### 支持的压缩格式
+
+vx-installer 的 `ArchiveExtractor` 支持以下格式：
+
+| 格式 | 扩展名 | Handler |
+|------|--------|---------|
+| ZIP | `.zip` | `ZipHandler` |
+| TAR.GZ | `.tar.gz`, `.tgz` | `TarHandler` |
+| TAR.XZ | `.tar.xz`, `.txz` | `TarHandler` |
+| TAR.BZ2 | `.tar.bz2`, `.tbz2` | `TarHandler` |
+| 二进制 | 无扩展名或其他 | `BinaryHandler` |
+
+### 不支持的格式
+
+以下格式**不被支持**，Provider 必须避免使用：
+
+| 格式 | 说明 | 替代方案 |
+|------|------|----------|
+| `.msi` | Windows Installer | 使用 `.zip` 或 `.tar.gz` |
+| `.dmg` | macOS Disk Image | 使用 `.tar.gz` |
+| `.pkg` | macOS Package | 使用 `.tar.gz` |
+| `.deb` | Debian Package | 使用 `.tar.gz` |
+| `.rpm` | RPM Package | 使用 `.tar.gz` |
+| `.exe` (installer) | Windows 安装程序 | 使用 `.zip` 或直接二进制 |
+| `.7z` | 7-Zip（未实现） | 使用 `.zip` 或 `.tar.gz` |
+
+### download_url() 实现规范
+
+```rust
+async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
+    // ✅ 正确：所有平台都使用 tar.gz
+    let ext = "tar.gz";
+
+    // ❌ 错误：Windows 使用 msi
+    // let ext = if cfg!(windows) { "msi" } else { "tar.gz" };
+
+    let platform_str = match (platform.os, platform.arch) {
+        (Os::Windows, Arch::X86_64) => "x86_64-pc-windows-msvc",
+        (Os::MacOS, Arch::X86_64) => "x86_64-apple-darwin",
+        (Os::MacOS, Arch::Aarch64) => "aarch64-apple-darwin",
+        (Os::Linux, Arch::X86_64) => "x86_64-unknown-linux-gnu",
+        (Os::Linux, Arch::Aarch64) => "aarch64-unknown-linux-gnu",
+        _ => return Ok(None),
+    };
+
+    Ok(Some(format!(
+        "https://example.com/releases/v{}/tool-{}-{}.{}",
+        version, version, platform_str, ext
+    )))
+}
+```
+
+### 添加新格式支持
+
+如果工具只提供不支持的格式，需要实现自定义 `FormatHandler`：
+
+```rust
+// crates/vx-installer/src/formats/msi.rs（示例）
+use super::{FormatHandler, Result};
+
+pub struct MsiHandler;
+
+#[async_trait::async_trait]
+impl FormatHandler for MsiHandler {
+    fn name(&self) -> &str { "msi" }
+
+    fn can_handle(&self, file_path: &Path) -> bool {
+        file_path.extension()
+            .map(|e| e.to_str() == Some("msi"))
+            .unwrap_or(false)
+    }
+
+    async fn extract(
+        &self,
+        source_path: &Path,
+        target_dir: &Path,
+        progress: &ProgressContext,
+    ) -> Result<Vec<PathBuf>> {
+        // 使用 msiexec 或第三方库解压
+        // Windows: msiexec /a source.msi /qn TARGETDIR=target_dir
+        todo!("Implement MSI extraction")
+    }
+}
+```
+
+然后在 `ArchiveExtractor::new()` 中注册：
+
+```rust
+impl ArchiveExtractor {
+    pub fn new() -> Self {
+        let handlers: Vec<Box<dyn FormatHandler>> = vec![
+            Box::new(zip::ZipHandler::new()),
+            Box::new(tar::TarHandler::new()),
+            Box::new(binary::BinaryHandler::new()),
+            Box::new(msi::MsiHandler::new()),  // 新增
+        ];
+        Self { handlers }
+    }
+}
+```
+
+## 版本获取与 GitHub API 限流
+
+### 问题
+
+GitHub API 对未认证请求有严格限流：
+- **无 Token**: 60 次/小时
+- **有 Token**: 5000 次/小时
+
+### 解决方案优先级
+
+1. **优先使用官方 API**（不依赖 GitHub）
+2. **使用 CDN 镜像**
+3. **使用 GitHub API + Token**
+4. **使用缓存减少请求**
+
+### 官方 API 示例
+
+| 工具 | 官方版本 API | 说明 |
+|------|-------------|------|
+| Node.js | `https://nodejs.org/dist/index.json` | 完整版本列表，无限流 |
+| Go | `https://go.dev/dl/?mode=json` | 官方下载 API |
+| Rust | `https://static.rust-lang.org/dist/channel-rust-stable.toml` | 稳定版信息 |
+| Python | `https://www.python.org/api/v2/downloads/release/` | 官方 API |
+
+### 实现示例
+
+```rust
+// ✅ 推荐：使用官方 API
+impl NodeRuntime {
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // Node.js 官方 API，无 GitHub 限流
+        let url = "https://nodejs.org/dist/index.json";
+        let response = ctx.http.get_json_value(url).await?;
+        // 解析版本...
+    }
+}
+
+// ⚠️ 需要时：使用 GitHub API（带缓存）
+impl MyRuntime {
+    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // 先检查缓存
+        if let Some(cached) = self.cache.get("versions") {
+            if cached.age() < Duration::from_secs(3600) {  // 1小时缓存
+                return Ok(cached.versions);
+            }
+        }
+
+        // GitHub API 请求
+        let url = "https://api.github.com/repos/owner/repo/releases?per_page=30";
+        let response = ctx.http.get_json_value(url).await?;
+
+        // 更新缓存
+        self.cache.set("versions", versions.clone());
+        Ok(versions)
+    }
+}
+```
+
+### CDN 镜像方案
+
+对于 GitHub Releases 的下载，可以使用 CDN 加速：
+
+```rust
+/// 获取下载 URL，优先使用 CDN
+fn get_download_url(owner: &str, repo: &str, tag: &str, asset: &str) -> String {
+    // CDN 镜像（国内加速）
+    let cdn_urls = [
+        format!("https://ghproxy.com/https://github.com/{}/{}/releases/download/{}/{}",
+                owner, repo, tag, asset),
+        format!("https://mirror.ghproxy.com/https://github.com/{}/{}/releases/download/{}/{}",
+                owner, repo, tag, asset),
+    ];
+
+    // 原始 GitHub URL（备用）
+    let github_url = format!(
+        "https://github.com/{}/{}/releases/download/{}/{}",
+        owner, repo, tag, asset
+    );
+
+    // 返回主 URL，installer 会自动尝试备用
+    cdn_urls[0].clone()
+}
+```
+
+### 版本缓存策略
+
+```rust
+/// 版本信息缓存
+pub struct VersionCache {
+    /// 缓存目录
+    cache_dir: PathBuf,
+    /// 缓存 TTL（默认 24 小时）
+    ttl: Duration,
+}
+
+impl VersionCache {
+    /// 获取缓存的版本列表
+    pub fn get(&self, runtime: &str) -> Option<CachedVersions> {
+        let cache_file = self.cache_dir.join(format!("{}.json", runtime));
+        if !cache_file.exists() {
+            return None;
+        }
+
+        let metadata = std::fs::metadata(&cache_file).ok()?;
+        let age = metadata.modified().ok()?.elapsed().ok()?;
+
+        if age > self.ttl {
+            return None;  // 缓存过期
+        }
+
+        let content = std::fs::read_to_string(&cache_file).ok()?;
+        serde_json::from_str(&content).ok()
+    }
+
+    /// 更新缓存
+    pub fn set(&self, runtime: &str, versions: &[VersionInfo]) -> Result<()> {
+        let cache_file = self.cache_dir.join(format!("{}.json", runtime));
+        let content = serde_json::to_string_pretty(versions)?;
+        std::fs::write(cache_file, content)?;
+        Ok(())
+    }
+}
+```
+
+## Checklist：集成新 Runtime
+
+### Provider 实现
+- [ ] 创建 `crates/vx-providers/<name>/` 目录
+- [ ] 实现 `Runtime` trait（至少 `name()` 和 `fetch_versions()`）
+- [ ] 实现 `Provider` trait
+- [ ] 实现 `download_url()` 返回正确的平台特定 URL
+- [ ] 如有依赖，在 `dependencies()` 中声明
+- [ ] 添加单元测试（使用 mock context）
+- [ ] 添加集成测试
+- [ ] 在 registry 中注册 provider
+- [ ] 更新文档
+
+### 下载格式检查（重要）
+- [ ] **确认下载格式**：必须使用支持的格式（`.tar.gz`, `.tar.xz`, `.zip`）
+- [ ] **避免平台特定安装程序**：不要使用 `.msi`, `.dmg`, `.pkg`, `.deb`, `.rpm`
+- [ ] **Windows 兼容性**：确保 Windows 也使用 `.zip` 或 `.tar.gz`
+- [ ] **添加 URL 格式测试**：验证生成的 URL 使用正确的扩展名
+- [ ] **如需新格式**：实现对应的 `FormatHandler` 并注册到 `ArchiveExtractor`
+
+### 版本获取检查
+- [ ] **优先官方 API**：检查工具是否有官方版本 API（避免 GitHub 限流）
+- [ ] **实现缓存**：版本列表应缓存以减少 API 请求
+- [ ] **处理限流**：如使用 GitHub API，确保正确处理 403/429 错误
+- [ ] **添加备用源**：考虑添加 CDN 镜像作为备用下载源
+
+### 项目分析器集成（如适用）
+- [ ] 创建 `crates/vx-project-analyzer/src/languages/{lang}/` 目录
+- [ ] 定义 `{LANG}_RULES` 脚本检测规则
+- [ ] 实现 `{Lang}Analyzer`
+- [ ] 实现 `analyze_dependencies()` 解析依赖
+- [ ] 实现 `analyze_scripts()` 解析脚本
+- [ ] 实现 `required_tools()` 返回所需工具
+- [ ] 在 `all_analyzers()` 中注册
+- [ ] 添加分析器测试

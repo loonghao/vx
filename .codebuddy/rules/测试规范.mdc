@@ -1,0 +1,459 @@
+---
+# Please note: Do not modify the header of this document. If modified, CodeBuddy (Internal Edition) will apply the default logic settings.
+alwaysApply: true
+---
+# 测试规范
+
+## 测试分层
+
+```
+┌─────────────────────────────────────────┐
+│            E2E Tests                     │  ← 完整二进制测试
+│         (tests/e2e/)                     │
+├─────────────────────────────────────────┤
+│         Integration Tests                │  ← 多 crate 协作测试
+│       (tests/integration/)               │
+├─────────────────────────────────────────┤
+│           Unit Tests                     │  ← 单 crate 内部测试
+│    (crates/*/tests/*.rs)                 │
+└─────────────────────────────────────────┘
+```
+
+## 单元测试
+
+### 位置
+每个 crate 的单元测试放在 `tests/` 目录：
+
+```
+crates/vx-runtime/
+├── src/
+│   └── ...
+└── tests/
+    ├── context_tests.rs
+    ├── registry_tests.rs
+    └── mock_tests.rs
+```
+
+### 框架
+使用 `rstest` 进行参数化测试：
+
+```rust
+use rstest::rstest;
+
+#[rstest]
+#[case("node", Ecosystem::NodeJs)]
+#[case("npm", Ecosystem::NodeJs)]
+#[case("go", Ecosystem::Go)]
+#[case("uv", Ecosystem::Python)]
+fn test_ecosystem_detection(#[case] name: &str, #[case] expected: Ecosystem) {
+    let runtime = get_runtime(name);
+    assert_eq!(runtime.ecosystem(), expected);
+}
+```
+
+### Mock 使用
+
+```rust
+use vx_runtime::testing::{mock_context, MockHttpClient};
+
+#[tokio::test]
+async fn test_fetch_versions_with_mock() {
+    // 创建 mock context
+    let ctx = mock_context();
+
+    // 预设 HTTP 响应
+    ctx.http.mock_response(
+        "https://nodejs.org/dist/index.json",
+        json!([{"version": "v20.0.0"}, {"version": "v18.0.0"}])
+    );
+
+    // 测试
+    let runtime = NodeRuntime::new();
+    let versions = runtime.fetch_versions(&ctx).await.unwrap();
+
+    assert_eq!(versions.len(), 2);
+}
+
+#[tokio::test]
+async fn test_install_with_mock_fs() {
+    let ctx = mock_context();
+    let runtime = NodeRuntime::new();
+
+    // 安装
+    runtime.install("20.0.0", &ctx).await.unwrap();
+
+    // 验证文件系统操作
+    let expected_path = ctx.paths.version_dir("node", "20.0.0");
+    assert!(ctx.fs.exists(&expected_path));
+}
+```
+
+## 集成测试
+
+### 位置
+项目根目录的 `tests/` 目录：
+
+```
+tests/
+├── integration/
+│   ├── mod.rs
+│   ├── resolver_tests.rs
+│   └── provider_tests.rs
+├── cmd/                    # trycmd 快照测试
+│   ├── help.md
+│   ├── version.md
+│   └── errors/
+└── integration_tests.rs
+```
+
+### 示例
+
+```rust
+// tests/integration/resolver_tests.rs
+use vx_resolver::Resolver;
+use vx_runtime::ProviderRegistry;
+
+#[tokio::test]
+async fn test_resolve_with_dependency() {
+    let registry = ProviderRegistry::new();
+    registry.register(NodeProvider::new());
+
+    let resolver = Resolver::new(&registry);
+
+    // npm 依赖 node
+    let result = resolver.resolve("npm").await.unwrap();
+
+    assert!(result.dependencies.contains(&"node"));
+}
+```
+
+## E2E 测试
+
+### 位置
+
+```
+tests/
+└── e2e/
+    ├── mod.rs
+    ├── harness.rs          # 测试工具
+    ├── install_tests.rs
+    ├── execute_tests.rs
+    └── auto_install_tests.rs
+```
+
+### 测试 Harness
+
+```rust
+// tests/e2e/harness.rs
+use std::process::Command;
+use tempfile::TempDir;
+
+pub struct E2ETestEnv {
+    home: TempDir,
+    vx_binary: PathBuf,
+}
+
+impl E2ETestEnv {
+    pub fn new() -> Self {
+        Self {
+            home: TempDir::new().unwrap(),
+            vx_binary: env!("CARGO_BIN_EXE_vx").into(),
+        }
+    }
+
+    pub fn run(&self, args: &[&str]) -> CommandResult {
+        let output = Command::new(&self.vx_binary)
+            .args(args)
+            .env("VX_HOME", self.home.path())
+            .env("VX_NO_COLOR", "1")  // 禁用颜色便于断言
+            .output()
+            .expect("Failed to execute vx");
+
+        CommandResult {
+            success: output.status.success(),
+            exit_code: output.status.code().unwrap_or(-1),
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        }
+    }
+
+    /// 运行并期望成功
+    pub fn run_ok(&self, args: &[&str]) -> CommandResult {
+        let result = self.run(args);
+        assert!(result.success, "Command failed: {:?}\nstderr: {}", args, result.stderr);
+        result
+    }
+
+    /// 运行并期望失败
+    pub fn run_err(&self, args: &[&str]) -> CommandResult {
+        let result = self.run(args);
+        assert!(!result.success, "Command should have failed: {:?}", args);
+        result
+    }
+}
+
+pub struct CommandResult {
+    pub success: bool,
+    pub exit_code: i32,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+impl CommandResult {
+    pub fn stdout_contains(&self, text: &str) -> bool {
+        self.stdout.contains(text)
+    }
+
+    pub fn stderr_contains(&self, text: &str) -> bool {
+        self.stderr.contains(text)
+    }
+}
+```
+
+### E2E 测试示例
+
+```rust
+// tests/e2e/install_tests.rs
+use crate::harness::E2ETestEnv;
+
+#[test]
+fn test_install_node() {
+    let env = E2ETestEnv::new();
+
+    // 安装
+    let result = env.run_ok(&["install", "node@20.0.0"]);
+    assert!(result.stdout_contains("Installed node 20.0.0"));
+
+    // 验证
+    let result = env.run_ok(&["list", "node"]);
+    assert!(result.stdout_contains("20.0.0"));
+}
+
+#[test]
+fn test_install_already_installed() {
+    let env = E2ETestEnv::new();
+
+    // 第一次安装
+    env.run_ok(&["install", "node@20.0.0"]);
+
+    // 第二次安装（应该提示已安装）
+    let result = env.run(&["install", "node@20.0.0"]);
+    assert!(result.stderr_contains("already installed"));
+}
+
+#[test]
+fn test_install_with_force() {
+    let env = E2ETestEnv::new();
+
+    // 第一次安装
+    env.run_ok(&["install", "node@20.0.0"]);
+
+    // 强制重新安装
+    let result = env.run_ok(&["install", "node@20.0.0", "--force"]);
+    assert!(result.stdout_contains("Installed"));
+}
+```
+
+```rust
+// tests/e2e/execute_tests.rs
+use crate::harness::E2ETestEnv;
+
+#[test]
+fn test_execute_node() {
+    let env = E2ETestEnv::new();
+
+    // 安装
+    env.run_ok(&["install", "node@20.0.0"]);
+
+    // 执行
+    let result = env.run_ok(&["node", "--version"]);
+    assert!(result.stdout_contains("v20"));
+}
+
+#[test]
+fn test_execute_npm_auto_installs_node() {
+    let env = E2ETestEnv::new();
+
+    // 直接运行 npm（应该自动安装 node）
+    let result = env.run_ok(&["npm", "--version"]);
+
+    // 验证 node 被安装
+    let result = env.run_ok(&["list", "node"]);
+    assert!(!result.stdout_contains("No versions"));
+}
+
+#[test]
+fn test_execute_unknown_tool() {
+    let env = E2ETestEnv::new();
+
+    let result = env.run_err(&["unknown-tool-xyz"]);
+    assert!(result.stderr_contains("Unknown") || result.stderr_contains("not found"));
+}
+```
+
+```rust
+// tests/e2e/auto_install_tests.rs
+use crate::harness::E2ETestEnv;
+
+#[test]
+fn test_auto_install_dependency_chain() {
+    let env = E2ETestEnv::new();
+
+    // npx 依赖 npm，npm 依赖 node
+    // 运行 npx 应该自动安装整个依赖链
+    let result = env.run_ok(&["npx", "--version"]);
+
+    // 验证依赖都被安装
+    assert!(env.run_ok(&["list", "node"]).stdout_contains("v"));
+}
+
+#[test]
+fn test_auto_install_can_be_disabled() {
+    let env = E2ETestEnv::new();
+
+    // 禁用自动安装
+    let result = env.run(&["--no-auto-install", "npm", "--version"]);
+
+    // 应该失败，因为 node 未安装
+    assert!(!result.success);
+}
+```
+
+## 快照测试 (trycmd)
+
+### 位置
+
+```
+tests/cmd/
+├── help.md
+├── version.md
+├── list.md
+└── errors/
+    ├── invalid-command.md
+    └── missing-version.md
+```
+
+### 示例
+
+```markdown
+<!-- tests/cmd/help.md -->
+# Help Command
+
+```console
+$ vx --help
+vx - Universal development tool manager
+
+Usage: vx [OPTIONS] <COMMAND>
+
+Commands:
+  install   Install a runtime
+  list      List installed runtimes
+  ...
+```
+
+```markdown
+<!-- tests/cmd/errors/invalid-command.md -->
+# Invalid Command Error
+
+```console
+$ vx invalid-command-xyz
+? failed
+Unknown command: invalid-command-xyz
+```
+
+## 测试命名约定
+
+```rust
+// 单元测试
+#[test]
+fn test_<function_name>_<scenario>() { }
+
+// 示例
+#[test]
+fn test_resolve_version_with_latest() { }
+#[test]
+fn test_resolve_version_with_specific() { }
+#[test]
+fn test_resolve_version_not_found() { }
+
+// 异步测试
+#[tokio::test]
+async fn test_fetch_versions_success() { }
+#[tokio::test]
+async fn test_fetch_versions_network_error() { }
+
+// 参数化测试
+#[rstest]
+#[case::node("node", "nodejs")]
+#[case::go("go", "golang")]
+fn test_alias_resolution(#[case] name: &str, #[case] alias: &str) { }
+```
+
+## CI 测试配置
+
+```yaml
+# .github/workflows/test.yml
+test:
+  runs-on: ${{ matrix.os }}
+  strategy:
+    matrix:
+      os: [ubuntu-latest, macos-latest, windows-latest]
+  steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+
+    # 单元测试
+    - run: cargo test --lib --all
+
+    # 集成测试
+    - run: cargo test --test '*'
+
+    # E2E 测试（需要编译二进制）
+    - run: cargo build --release
+    - run: cargo test --test e2e
+```
+
+## 测试覆盖率
+
+```bash
+# 使用 cargo-llvm-cov
+cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+# 生成 HTML 报告
+cargo llvm-cov --all-features --workspace --html
+```
+
+## 禁止事项
+
+1. **不要在源代码中内联测试**
+   ```rust
+   // ✗ 禁止
+   #[cfg(test)]
+   mod tests { }
+   ```
+
+2. **不要硬编码路径**
+   ```rust
+   // ✗ 禁止
+   let path = "/home/user/.vx";
+
+   // ✓ 正确
+   let path = ctx.paths.vx_home();
+   ```
+
+3. **不要在测试中使用真实网络**
+   ```rust
+   // ✗ 禁止（单元测试）
+   let client = reqwest::Client::new();
+
+   // ✓ 正确
+   let client = ctx.http.clone();  // 使用注入的 mock
+   ```
+
+4. **不要依赖测试执行顺序**
+   ```rust
+   // ✗ 禁止
+   static mut COUNTER: i32 = 0;
+
+   // ✓ 正确：每个测试独立
+   ```
