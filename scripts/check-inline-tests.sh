@@ -1,6 +1,6 @@
 #!/bin/bash
 # Check for inline tests in source files
-# 
+#
 # This script enforces the project convention that tests should be placed
 # in separate tests/ directories, not inline in source files.
 #
@@ -32,24 +32,24 @@ is_whitelisted() {
 # Find all Rust source files with inline tests
 find_inline_tests() {
     local found_issues=0
-    
+
     # Search for #[cfg(test)] in src/ directories (not tests/)
     while IFS= read -r file; do
         # Skip files in tests/ directories
         if [[ "$file" == */tests/* ]]; then
             continue
         fi
-        
+
         # Skip whitelisted files
         if is_whitelisted "$file"; then
             echo "⚠️  WHITELISTED: $file"
             continue
         fi
-        
+
         echo "❌ INLINE TEST: $file"
         found_issues=1
     done < <(grep -rl '#\[cfg(test)\]' "$PROJECT_ROOT/crates" --include="*.rs" 2>/dev/null || true)
-    
+
     return $found_issues
 }
 
