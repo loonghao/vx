@@ -413,13 +413,29 @@ impl<'a> EnvironmentManager<'a> {
         // See: https://github.com/loonghao/vx/issues/573
         if let Some(project_config) = self.project_config {
             let companion_tools = project_config.get_companion_tools(runtime_name);
+            debug!(
+                "Companion tools for {}: {:?}",
+                runtime_name,
+                companion_tools
+                    .iter()
+                    .map(|(n, v)| format!("{}@{}", n, v))
+                    .collect::<Vec<_>>()
+            );
             for (companion_name, companion_version) in &companion_tools {
-                if let Some(companion_runtime) = registry.get_runtime(companion_name) {
-                    // Check if the companion tool is installed
-                    let companion_installed_version = match companion_runtime
-                        .installed_versions(context)
-                        .await
-                    {
+                let companion_runtime = match registry.get_runtime(companion_name) {
+                    Some(r) => r,
+                    None => {
+                        debug!(
+                            "  Companion {} not found in registry, skipping",
+                            companion_name
+                        );
+                        continue;
+                    }
+                };
+
+                // Check if the companion tool is installed
+                let companion_installed_version =
+                    match companion_runtime.installed_versions(context).await {
                         Ok(versions) if !versions.is_empty() => {
                             // Find the best matching version
                             let env_mgr_for_version = EnvironmentManager::new(
@@ -433,40 +449,52 @@ impl<'a> EnvironmentManager<'a> {
                                 .find_matching_version(companion_name, companion_version, &versions)
                                 .unwrap_or_else(|| versions[0].clone())
                         }
-                        _ => continue,
-                    };
-
-                    debug!(
-                        "Injecting companion tool environment: {}@{} (for primary {})",
-                        companion_name, companion_installed_version, runtime_name
-                    );
-
-                    // Call prepare_environment() (NOT execution_environment())
-                    // This gives us marker/discovery variables without full compilation env
-                    match companion_runtime
-                        .prepare_environment(&companion_installed_version, context)
-                        .await
-                    {
-                        Ok(companion_env) => {
-                            if !companion_env.is_empty() {
-                                debug!(
-                                    "  Companion {} injected {} environment variables",
-                                    companion_name,
-                                    companion_env.len()
-                                );
-                                // Merge companion env, but don't override existing vars
-                                // (primary runtime's vars take precedence)
-                                for (key, value) in companion_env {
-                                    env.entry(key).or_insert(value);
-                                }
-                            }
+                        Ok(_) => {
+                            debug!(
+                                "  Companion {} has no installed versions, skipping",
+                                companion_name
+                            );
+                            continue;
                         }
                         Err(e) => {
-                            warn!(
-                                "Failed to prepare companion tool environment for {}: {}",
+                            debug!(
+                                "  Companion {} failed to get installed versions: {}, skipping",
                                 companion_name, e
                             );
+                            continue;
                         }
+                    };
+
+                debug!(
+                    "Injecting companion tool environment: {}@{} (for primary {})",
+                    companion_name, companion_installed_version, runtime_name
+                );
+
+                // Call prepare_environment() (NOT execution_environment())
+                // This gives us marker/discovery variables without full compilation env
+                match companion_runtime
+                    .prepare_environment(&companion_installed_version, context)
+                    .await
+                {
+                    Ok(companion_env) => {
+                        if !companion_env.is_empty() {
+                            debug!(
+                                "  Companion {} injected {} environment variables",
+                                companion_name,
+                                companion_env.len()
+                            );
+                            // Merge companion env, but don't override existing vars
+                            // (primary runtime's vars take precedence)
+                            for (key, value) in companion_env {
+                                env.entry(key).or_insert(value);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to prepare companion tool environment for {}: {}",
+                            companion_name, e
+                        );
                     }
                 }
             }

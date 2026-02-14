@@ -214,10 +214,19 @@ impl Runtime for MsvcRuntime {
 
         // Try to load saved installation info
         if let Some(info) = self.load_install_info(ctx, version) {
-            // Validate that cached paths still exist on disk
-            if !info.validate_paths() {
+            // For prepare_environment(), we only need cl.exe to exist (is_valid()).
+            // We don't require include/lib/SDK paths to be valid because this method
+            // only sets discovery/marker variables (VCINSTALLDIR, VCToolsInstallDir, etc.),
+            // not the full compilation environment (INCLUDE/LIB/PATH).
+            //
+            // The full validate_paths() check (which also validates include/lib paths)
+            // is only enforced in execution_environment() where those paths are actually needed.
+            //
+            // This is important because Windows SDK paths may become stale (e.g., SDK
+            // uninstalled/upgraded) while the MSVC toolchain itself is still valid.
+            if !info.is_valid() {
                 warn!(
-                    "MSVC {} installation paths are stale (cached version may not match installed). \
+                    "MSVC {} cl.exe not found at cached path. \
                      Environment variables will not be set. Try reinstalling: vx install msvc@{}",
                     version, version
                 );
