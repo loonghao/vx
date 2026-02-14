@@ -81,9 +81,10 @@ impl ProjectToolsConfig {
     /// Get companion tools from vx.toml that should have their `prepare_environment()`
     /// called when executing any other tool.
     ///
-    /// When `vx.toml` specifies tools like `[tools.msvc]`, running `vx node` should
-    /// also inject MSVC's environment variables (VCINSTALLDIR, VCToolsInstallDir, etc.)
-    /// so that tools like node-gyp can discover the compiler.
+    /// When `vx.toml` specifies tools like `[tools.msvc]`, running ANY tool
+    /// (`vx node`, `vx cmake`, `vx cargo`, `vx dotnet`, etc.) will inject MSVC's
+    /// environment variables (VCINSTALLDIR, VCToolsInstallDir, etc.) so that any
+    /// tool needing a C/C++ compiler can discover the vx-managed installation.
     ///
     /// Returns a list of (tool_name, version) pairs, excluding the primary runtime
     /// and its bundled tools.
