@@ -11,7 +11,10 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
+use vx_runtime::{
+    Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
+    layout::{ArchiveLayout, DownloadType, ExecutableLayout},
+};
 use vx_version_fetcher::VersionFetcherBuilder;
 
 use crate::config::PrekUrlBuilder;
@@ -60,7 +63,25 @@ impl Runtime for PrekRuntime {
         meta
     }
 
-    /// prek archives extract directly to the binary (no subdirectory)
+    /// prek archives have a top-level directory named after the target triple
+    /// (e.g., prek-x86_64-unknown-linux-gnu/prek). Use executable_layout with
+    /// auto-strip (empty strip_prefix) to flatten it during installation.
+    fn executable_layout(&self) -> Option<ExecutableLayout> {
+        Some(ExecutableLayout {
+            download_type: DownloadType::Archive,
+            binary: None,
+            archive: Some(ArchiveLayout {
+                executable_paths: vec!["prek.exe".to_string(), "prek".to_string()],
+                strip_prefix: Some(String::new()),
+                permissions: None,
+            }),
+            msi: None,
+            windows: None,
+            macos: None,
+            linux: None,
+        })
+    }
+
     fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
         platform.exe_name("prek")
     }
