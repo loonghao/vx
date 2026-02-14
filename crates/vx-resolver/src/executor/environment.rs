@@ -398,6 +398,78 @@ impl<'a> EnvironmentManager<'a> {
             }
         }
 
+        // Inject companion tools' prepare_environment() from vx.toml
+        //
+        // When vx.toml specifies tools like [tools.msvc], running `vx node` should
+        // also inject MSVC's marker environment variables (VCINSTALLDIR, VCToolsInstallDir,
+        // VX_MSVC_*, etc.) so that tools like node-gyp can discover the compiler.
+        //
+        // This only calls prepare_environment() (not execution_environment()), so it
+        // injects discovery/marker variables without polluting LIB/INCLUDE/PATH which
+        // would break tools like node-gyp's PowerShell-based VS discovery.
+        //
+        // See: https://github.com/loonghao/vx/issues/573
+        if let Some(project_config) = self.project_config {
+            let companion_tools = project_config.get_companion_tools(runtime_name);
+            for (companion_name, companion_version) in &companion_tools {
+                if let Some(companion_runtime) = registry.get_runtime(companion_name) {
+                    // Check if the companion tool is installed
+                    let companion_installed_version = match companion_runtime
+                        .installed_versions(context)
+                        .await
+                    {
+                        Ok(versions) if !versions.is_empty() => {
+                            // Find the best matching version
+                            let env_mgr_for_version = EnvironmentManager::new(
+                                self.config,
+                                self.resolver,
+                                self.registry,
+                                self.context,
+                                self.project_config,
+                            );
+                            env_mgr_for_version
+                                .find_matching_version(companion_name, companion_version, &versions)
+                                .unwrap_or_else(|| versions[0].clone())
+                        }
+                        _ => continue,
+                    };
+
+                    debug!(
+                        "Injecting companion tool environment: {}@{} (for primary {})",
+                        companion_name, companion_installed_version, runtime_name
+                    );
+
+                    // Call prepare_environment() (NOT execution_environment())
+                    // This gives us marker/discovery variables without full compilation env
+                    match companion_runtime
+                        .prepare_environment(&companion_installed_version, context)
+                        .await
+                    {
+                        Ok(companion_env) => {
+                            if !companion_env.is_empty() {
+                                debug!(
+                                    "  Companion {} injected {} environment variables",
+                                    companion_name,
+                                    companion_env.len()
+                                );
+                                // Merge companion env, but don't override existing vars
+                                // (primary runtime's vars take precedence)
+                                for (key, value) in companion_env {
+                                    env.entry(key).or_insert(value);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            warn!(
+                                "Failed to prepare companion tool environment for {}: {}",
+                                companion_name, e
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
         if !env.is_empty() {
             debug!(
                 "Prepared {} environment variables for {} {}",
