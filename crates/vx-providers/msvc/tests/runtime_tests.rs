@@ -194,23 +194,35 @@ fn test_executable_relative_path_arm64() {
 // ============================================
 
 fn create_test_install_info(install_path: PathBuf) -> MsvcInstallInfo {
+    // Create actual directories on disk so path validation passes
+    let include_dir = install_path.join("include");
+    let ucrt_dir = install_path.join("sdk").join("include").join("ucrt");
+    let lib_x64_dir = install_path.join("lib").join("x64");
+    let sdk_lib_dir = install_path.join("sdk").join("lib").join("x64");
+    let bin_dir = install_path.join("bin").join("Hostx64").join("x64");
+    std::fs::create_dir_all(&include_dir).unwrap();
+    std::fs::create_dir_all(&ucrt_dir).unwrap();
+    std::fs::create_dir_all(&lib_x64_dir).unwrap();
+    std::fs::create_dir_all(&sdk_lib_dir).unwrap();
+    std::fs::create_dir_all(&bin_dir).unwrap();
+
+    // Create fake executables
+    std::fs::write(bin_dir.join("cl.exe"), "fake").unwrap();
+    std::fs::write(bin_dir.join("link.exe"), "fake").unwrap();
+    std::fs::write(bin_dir.join("lib.exe"), "fake").unwrap();
+    std::fs::write(bin_dir.join("nmake.exe"), "fake").unwrap();
+
     MsvcInstallInfo {
         install_path: install_path.clone(),
         msvc_version: "14.40.33807".to_string(),
         sdk_version: Some("10.0.22621.0".to_string()),
-        cl_exe_path: install_path.join("bin/Hostx64/x64/cl.exe"),
-        link_exe_path: Some(install_path.join("bin/Hostx64/x64/link.exe")),
-        lib_exe_path: Some(install_path.join("bin/Hostx64/x64/lib.exe")),
-        nmake_exe_path: Some(install_path.join("bin/Hostx64/x64/nmake.exe")),
-        include_paths: vec![
-            install_path.join("include"),
-            install_path.join("sdk/include/ucrt"),
-        ],
-        lib_paths: vec![
-            install_path.join("lib/x64"),
-            install_path.join("sdk/lib/x64"),
-        ],
-        bin_paths: vec![install_path.join("bin/Hostx64/x64")],
+        cl_exe_path: bin_dir.join("cl.exe"),
+        link_exe_path: Some(bin_dir.join("link.exe")),
+        lib_exe_path: Some(bin_dir.join("lib.exe")),
+        nmake_exe_path: Some(bin_dir.join("nmake.exe")),
+        include_paths: vec![include_dir, ucrt_dir],
+        lib_paths: vec![lib_x64_dir, sdk_lib_dir],
+        bin_paths: vec![bin_dir],
     }
 }
 
@@ -318,4 +330,211 @@ fn test_install_info_environment_empty_paths() {
     assert!(!env.contains_key("INCLUDE"));
     assert!(!env.contains_key("LIB"));
     assert!(!env.contains_key("PATH"));
+}
+
+// ============================================
+// Path Validation Tests (Issue #573)
+// ============================================
+
+#[test]
+fn test_validate_paths_valid_installation() {
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    // Create real paths on disk
+    let include_dir = install_path.join("include");
+    let lib_dir = install_path.join("lib").join("x64");
+    let bin_dir = install_path.join("bin").join("Hostx64").join("x64");
+    std::fs::create_dir_all(&include_dir).unwrap();
+    std::fs::create_dir_all(&lib_dir).unwrap();
+    std::fs::create_dir_all(&bin_dir).unwrap();
+
+    // Create cl.exe
+    let cl_path = bin_dir.join("cl.exe");
+    std::fs::write(&cl_path, "fake").unwrap();
+
+    let info = MsvcInstallInfo {
+        install_path,
+        msvc_version: "14.40.33807".to_string(),
+        sdk_version: None,
+        cl_exe_path: cl_path,
+        link_exe_path: None,
+        lib_exe_path: None,
+        nmake_exe_path: None,
+        include_paths: vec![include_dir],
+        lib_paths: vec![lib_dir],
+        bin_paths: vec![bin_dir],
+    };
+
+    assert!(info.validate_paths());
+}
+
+#[test]
+fn test_validate_paths_stale_cache() {
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    // Don't create any paths — simulates stale cache with non-existent paths
+    let info = MsvcInstallInfo {
+        install_path: install_path.clone(),
+        msvc_version: "14.44.35207".to_string(),
+        sdk_version: None,
+        cl_exe_path: install_path.join("bin/Hostx64/x64/cl.exe"),
+        link_exe_path: None,
+        lib_exe_path: None,
+        nmake_exe_path: None,
+        include_paths: vec![install_path.join("include")],
+        lib_paths: vec![install_path.join("lib/x64")],
+        bin_paths: vec![install_path.join("bin/Hostx64/x64")],
+    };
+
+    // cl.exe doesn't exist, so validation should fail
+    assert!(!info.validate_paths());
+}
+
+#[test]
+fn test_get_environment_filters_nonexistent_paths() {
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    // Create only some paths — simulates partial stale cache
+    let include_real = install_path.join("include_real");
+    let lib_real = install_path.join("lib_real");
+    let bin_real = install_path.join("bin_real");
+    std::fs::create_dir_all(&include_real).unwrap();
+    std::fs::create_dir_all(&lib_real).unwrap();
+    std::fs::create_dir_all(&bin_real).unwrap();
+
+    let info = MsvcInstallInfo {
+        install_path: install_path.clone(),
+        msvc_version: "14.40.33807".to_string(),
+        sdk_version: None,
+        cl_exe_path: install_path.join("cl.exe"),
+        link_exe_path: None,
+        lib_exe_path: None,
+        nmake_exe_path: None,
+        include_paths: vec![
+            include_real.clone(),
+            install_path.join("include_nonexistent"), // doesn't exist
+        ],
+        lib_paths: vec![
+            lib_real.clone(),
+            install_path.join("lib_nonexistent"), // doesn't exist
+        ],
+        bin_paths: vec![
+            bin_real.clone(),
+            install_path.join("bin_nonexistent"), // doesn't exist
+        ],
+    };
+
+    let env = info.get_environment();
+
+    // INCLUDE should only contain the real path
+    let include = env.get("INCLUDE").unwrap();
+    assert!(include.contains("include_real"));
+    assert!(!include.contains("include_nonexistent"));
+
+    // LIB should only contain the real path
+    let lib = env.get("LIB").unwrap();
+    assert!(lib.contains("lib_real"));
+    assert!(!lib.contains("lib_nonexistent"));
+
+    // PATH should only contain the real bin path
+    let path = env.get("PATH").unwrap();
+    assert!(path.contains("bin_real"));
+    assert!(!path.contains("bin_nonexistent"));
+}
+
+#[test]
+fn test_get_environment_sets_vcinstalldir() {
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    // Create VC directory structure (simulates vx-managed MSVC layout)
+    let vc_dir = install_path.join("VC");
+    let tools_dir = vc_dir.join("Tools").join("MSVC").join("14.40.33807");
+    std::fs::create_dir_all(&tools_dir).unwrap();
+
+    let info = MsvcInstallInfo {
+        install_path,
+        msvc_version: "14.40.33807".to_string(),
+        sdk_version: None,
+        cl_exe_path: PathBuf::from("cl.exe"),
+        link_exe_path: None,
+        lib_exe_path: None,
+        nmake_exe_path: None,
+        include_paths: vec![],
+        lib_paths: vec![],
+        bin_paths: vec![],
+    };
+
+    let env = info.get_environment();
+
+    // VCINSTALLDIR should be set with trailing backslash
+    let vcinstalldir = env.get("VCINSTALLDIR").unwrap();
+    assert!(vcinstalldir.contains("VC"));
+    assert!(vcinstalldir.ends_with('\\'));
+
+    // VCToolsInstallDir should point to the exact version directory
+    let vctoolsdir = env.get("VCToolsInstallDir").unwrap();
+    assert!(vctoolsdir.contains("14.40.33807"));
+    assert!(vctoolsdir.ends_with('\\'));
+}
+
+#[test]
+fn test_get_environment_no_vcinstalldir_without_vc_dir() {
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    // Don't create VC directory
+    let info = MsvcInstallInfo {
+        install_path,
+        msvc_version: "14.40.33807".to_string(),
+        sdk_version: None,
+        cl_exe_path: PathBuf::from("cl.exe"),
+        link_exe_path: None,
+        lib_exe_path: None,
+        nmake_exe_path: None,
+        include_paths: vec![],
+        lib_paths: vec![],
+        bin_paths: vec![],
+    };
+
+    let env = info.get_environment();
+
+    // Should not set VCINSTALLDIR when VC dir doesn't exist
+    assert!(!env.contains_key("VCINSTALLDIR"));
+    assert!(!env.contains_key("VCToolsInstallDir"));
+}
+
+#[test]
+fn test_validated_paths_methods() {
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    // Create only some paths
+    let real_include = install_path.join("real_include");
+    let real_lib = install_path.join("real_lib");
+    let real_bin = install_path.join("real_bin");
+    std::fs::create_dir_all(&real_include).unwrap();
+    std::fs::create_dir_all(&real_lib).unwrap();
+    std::fs::create_dir_all(&real_bin).unwrap();
+
+    let info = MsvcInstallInfo {
+        install_path: install_path.clone(),
+        msvc_version: "14.40".to_string(),
+        sdk_version: None,
+        cl_exe_path: PathBuf::from("cl.exe"),
+        link_exe_path: None,
+        lib_exe_path: None,
+        nmake_exe_path: None,
+        include_paths: vec![real_include.clone(), install_path.join("fake_include")],
+        lib_paths: vec![real_lib.clone(), install_path.join("fake_lib")],
+        bin_paths: vec![real_bin.clone(), install_path.join("fake_bin")],
+    };
+
+    // Only real paths should be returned
+    assert_eq!(info.validated_include_paths().len(), 1);
+    assert_eq!(info.validated_lib_paths().len(), 1);
+    assert_eq!(info.validated_bin_paths().len(), 1);
 }

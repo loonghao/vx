@@ -200,6 +200,10 @@ impl Runtime for MsvcRuntime {
     /// injected when directly invoking MSVC tools (cl, link, nmake, etc.)
     /// via the `execution_environment()` method.
     ///
+    /// Additionally, we set VCINSTALLDIR, VCToolsInstallDir, and GYP_MSVS_VERSION
+    /// for compatibility with tools like node-gyp that use these variables to
+    /// discover Visual Studio installations.
+    ///
     /// See: https://github.com/loonghao/vx/issues/573
     async fn prepare_environment(
         &self,
@@ -210,6 +214,16 @@ impl Runtime for MsvcRuntime {
 
         // Try to load saved installation info
         if let Some(info) = self.load_install_info(ctx, version) {
+            // Validate that cached paths still exist on disk
+            if !info.validate_paths() {
+                warn!(
+                    "MSVC {} installation paths are stale (cached version may not match installed). \
+                     Environment variables will not be set. Try reinstalling: vx install msvc@{}",
+                    version, version
+                );
+                return Ok(env);
+            }
+
             debug!(
                 "Loaded MSVC {} environment: {} include paths, {} lib paths, {} bin paths",
                 version,
@@ -227,13 +241,40 @@ impl Runtime for MsvcRuntime {
                 install_path.to_string_lossy().to_string(),
             );
             env.insert("VX_MSVC_VERSION".to_string(), version.to_string());
+            env.insert(
+                "VX_MSVC_FULL_VERSION".to_string(),
+                info.msvc_version.clone(),
+            );
+
+            // Set Visual Studio discovery variables that node-gyp and other tools understand
             env.insert("MSVS_VERSION".to_string(), "2022".to_string());
             env.insert("GYP_MSVS_VERSION".to_string(), "2022".to_string());
 
+            // Set VCINSTALLDIR — node-gyp's findVisualStudio2019OrNewerFromSpecifiedLocation()
+            // uses this to detect that we're running in a VS Developer Command Prompt-like
+            // environment. This allows node-gyp to find the vx-managed MSVC without
+            // needing the full LIB/INCLUDE variables that would break its C# compiler.
+            let vc_dir = install_path.join("VC");
+            if vc_dir.exists() {
+                // VCINSTALLDIR must end with trailing backslash (VS convention)
+                let vc_install_dir = format!("{}\\", vc_dir.to_string_lossy());
+                env.insert("VCINSTALLDIR".to_string(), vc_install_dir);
+
+                // VCToolsInstallDir points to the exact version's tools directory
+                let tools_dir = vc_dir.join("Tools").join("MSVC").join(&info.msvc_version);
+                if tools_dir.exists() {
+                    let vc_tools_dir = format!("{}\\", tools_dir.to_string_lossy());
+                    env.insert("VCToolsInstallDir".to_string(), vc_tools_dir);
+                }
+
+                // VSCMD_VER indicates VS Command Prompt version
+                env.insert("VSCMD_VER".to_string(), "17.0".to_string());
+            }
+
             // Set INCLUDE paths as VX_MSVC_INCLUDE (not INCLUDE)
-            if !info.include_paths.is_empty() {
-                let include = info
-                    .include_paths
+            let valid_includes = info.validated_include_paths();
+            if !valid_includes.is_empty() {
+                let include = valid_includes
                     .iter()
                     .map(|p| p.to_string_lossy().to_string())
                     .collect::<Vec<_>>()
@@ -242,9 +283,9 @@ impl Runtime for MsvcRuntime {
             }
 
             // Set LIB paths as VX_MSVC_LIB (not LIB)
-            if !info.lib_paths.is_empty() {
-                let lib = info
-                    .lib_paths
+            let valid_libs = info.validated_lib_paths();
+            if !valid_libs.is_empty() {
+                let lib = valid_libs
                     .iter()
                     .map(|p| p.to_string_lossy().to_string())
                     .collect::<Vec<_>>()
@@ -253,9 +294,9 @@ impl Runtime for MsvcRuntime {
             }
 
             // Set BIN paths as VX_MSVC_BIN (not PATH)
-            if !info.bin_paths.is_empty() {
-                let bin = info
-                    .bin_paths
+            let valid_bins = info.validated_bin_paths();
+            if !valid_bins.is_empty() {
+                let bin = valid_bins
                     .iter()
                     .map(|p| p.to_string_lossy().to_string())
                     .collect::<Vec<_>>()
@@ -279,6 +320,11 @@ impl Runtime for MsvcRuntime {
     /// When directly invoking MSVC tools (cl, link, nmake, lib, ml64),
     /// we inject the full LIB/INCLUDE/PATH environment variables needed
     /// for compilation. This is only called for the actual MSVC executable.
+    ///
+    /// Paths are validated to ensure they exist on disk, preventing stale
+    /// cached paths from breaking compilation.
+    ///
+    /// See: https://github.com/loonghao/vx/issues/573
     async fn execution_environment(
         &self,
         version: &str,
@@ -286,6 +332,16 @@ impl Runtime for MsvcRuntime {
     ) -> Result<HashMap<String, String>> {
         // For direct MSVC tool invocation, use the full environment
         if let Some(info) = self.load_install_info(ctx, version) {
+            // Validate paths before injection
+            if !info.validate_paths() {
+                warn!(
+                    "MSVC {} cached paths are stale. Some LIB/INCLUDE paths may not exist. \
+                     Consider reinstalling: vx install msvc@{}",
+                    version, version
+                );
+                // Still return the environment, but get_environment() will filter
+                // out non-existent paths automatically
+            }
             debug!("Setting full MSVC execution environment for direct tool invocation");
             return Ok(info.get_environment());
         }
