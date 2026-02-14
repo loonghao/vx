@@ -1,4 +1,4 @@
-# prek / pre-commit configuration
+# prek configuration (pre-commit replacement, re-engineered in Rust)
 # See https://prek.j178.dev/ for more info
 #
 # Usage:

@@ -5,12 +5,16 @@
 //! - Ensuring specific versions are installed
 //! - Installing dependencies
 //! - Proxy runtime installation (RFC 0028)
+//! - Version fallback on installation failure
 
 use super::pipeline::error::EnsureError;
 use crate::{Resolver, ResolverConfig, Result};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use vx_console::ProgressSpinner;
 use vx_runtime::{InstallResult, ProviderRegistry, RuntimeContext};
+
+/// Maximum number of version fallback attempts when installation fails
+const MAX_FALLBACK_ATTEMPTS: usize = 3;
 
 /// Installation operations for the executor
 pub struct InstallationManager<'a> {
@@ -49,7 +53,9 @@ impl<'a> InstallationManager<'a> {
 
     /// Install a single runtime
     ///
-    /// Returns the InstallResult (including executable_path) if successful
+    /// Returns the InstallResult (including executable_path) if successful.
+    /// If the latest version fails verification, automatically falls back to
+    /// the next available stable version (up to MAX_FALLBACK_ATTEMPTS times).
     pub async fn install_runtime(&self, runtime_name: &str) -> Result<Option<InstallResult>> {
         info!("Installing: {}", runtime_name);
 
@@ -80,44 +86,61 @@ impl<'a> InstallationManager<'a> {
                     return Err(e);
                 }
             };
-            let version = versions
+
+            // Collect stable versions for fallback
+            let stable_versions: Vec<String> = versions
                 .iter()
-                .find(|v| !v.prerelease)
+                .filter(|v| !v.prerelease)
                 .map(|v| v.version.clone())
+                .collect();
+
+            let first_version = stable_versions
+                .first()
+                .cloned()
                 .or_else(|| versions.first().map(|v| v.version.clone()))
                 .ok_or_else(|| EnsureError::NoVersionsFound {
                     runtime: runtime_name.to_string(),
                 })?;
 
-            info!("Installing {} {} via provider", runtime_name, version);
+            // Try installing with version fallback
+            let mut last_error = None;
+            let max_attempts = (MAX_FALLBACK_ATTEMPTS + 1).min(stable_versions.len().max(1));
 
-            // Run pre-install hook
-            runtime.pre_install(&version, context).await?;
+            for attempt in 0..max_attempts {
+                let version = if attempt == 0 {
+                    first_version.clone()
+                } else if attempt < stable_versions.len() {
+                    let fallback = stable_versions[attempt].clone();
+                    warn!(
+                        "Installation of {} {} failed, falling back to {} (attempt {}/{})",
+                        runtime_name,
+                        stable_versions.get(attempt - 1).unwrap_or(&first_version),
+                        fallback,
+                        attempt + 1,
+                        max_attempts
+                    );
+                    fallback
+                } else {
+                    break;
+                };
 
-            // Install the runtime
-            debug!("Calling runtime.install() for {} {}", runtime_name, version);
-            let result = runtime.install(&version, context).await?;
-            debug!(
-                "Install result: path={}, exe={}, already_installed={}",
-                result.install_path.display(),
-                result.executable_path.display(),
-                result.already_installed
-            );
+                info!("Installing {} {} via provider", runtime_name, version);
 
-            // Verify the installation actually succeeded
-            if !context.fs.exists(&result.executable_path) {
-                return Err(EnsureError::PostInstallVerificationFailed {
-                    runtime: runtime_name.to_string(),
-                    path: result.executable_path.clone(),
+                match self
+                    .try_install_version(runtime_name, &version, context)
+                    .await
+                {
+                    Ok(result) => return Ok(Some(result)),
+                    Err(e) => {
+                        debug!("Installation of {} {} failed: {}", runtime_name, version, e);
+                        last_error = Some(e);
+                    }
                 }
-                .into());
             }
 
-            // Run post-install hook (for symlinks, PATH setup, etc.)
-            runtime.post_install(&version, context).await?;
-
-            info!("Successfully installed {} {}", runtime_name, version);
-            return Ok(Some(result));
+            if let Some(err) = last_error {
+                return Err(err);
+            }
         }
 
         // Fallback: try to install using known methods
@@ -125,7 +148,49 @@ impl<'a> InstallationManager<'a> {
         Ok(None)
     }
 
-    /// Install a single runtime with a specific version
+    /// Try to install a specific version, returning an error on failure
+    async fn try_install_version(
+        &self,
+        runtime_name: &str,
+        version: &str,
+        context: &RuntimeContext,
+    ) -> Result<InstallResult> {
+        let registry = self.registry.expect("registry must be set");
+        let runtime = registry
+            .get_runtime(runtime_name)
+            .expect("runtime must exist");
+
+        // Run pre-install hook
+        runtime.pre_install(version, context).await?;
+
+        // Install the runtime
+        debug!("Calling runtime.install() for {} {}", runtime_name, version);
+        let result = runtime.install(version, context).await?;
+        debug!(
+            "Install result: path={}, exe={}, already_installed={}",
+            result.install_path.display(),
+            result.executable_path.display(),
+            result.already_installed
+        );
+
+        // Verify the installation actually succeeded
+        if !context.fs.exists(&result.executable_path) {
+            return Err(EnsureError::PostInstallVerificationFailed {
+                runtime: runtime_name.to_string(),
+                path: result.executable_path.clone(),
+            }
+            .into());
+        }
+
+        // Run post-install hook (for symlinks, PATH setup, etc.)
+        runtime.post_install(version, context).await?;
+
+        info!("Successfully installed {} {}", runtime_name, version);
+        Ok(result)
+    }
+
+    /// Install a single runtime with a specific version.
+    /// If installation fails, tries falling back to previous stable versions.
     pub async fn install_runtime_with_version(
         &self,
         runtime_name: &str,
@@ -151,36 +216,57 @@ impl<'a> InstallationManager<'a> {
                 runtime_name, version
             );
 
-            // Run pre-install hook
-            runtime.pre_install(version, context).await?;
+            // Try the requested version first
+            match self
+                .try_install_version(runtime_name, version, context)
+                .await
+            {
+                Ok(result) => return Ok(Some(result)),
+                Err(first_error) => {
+                    warn!(
+                        "Installation of {} {} failed: {}, trying fallback versions",
+                        runtime_name, version, first_error
+                    );
 
-            // Install the runtime
-            debug!(
-                "Calling runtime.install() for {} {} (explicit)",
-                runtime_name, version
-            );
-            let result = runtime.install(version, context).await?;
-            debug!(
-                "Install result: path={}, exe={}, already_installed={}",
-                result.install_path.display(),
-                result.executable_path.display(),
-                result.already_installed
-            );
+                    // Fetch available versions for fallback
+                    if let Ok(versions) = runtime.fetch_versions(context).await {
+                        let stable_versions: Vec<String> = versions
+                            .iter()
+                            .filter(|v| !v.prerelease && v.version != version)
+                            .map(|v| v.version.clone())
+                            .collect();
 
-            // Verify the installation actually succeeded
-            if !context.fs.exists(&result.executable_path) {
-                return Err(EnsureError::PostInstallVerificationFailed {
-                    runtime: runtime_name.to_string(),
-                    path: result.executable_path.clone(),
+                        for (i, fallback_version) in stable_versions
+                            .iter()
+                            .take(MAX_FALLBACK_ATTEMPTS)
+                            .enumerate()
+                        {
+                            warn!(
+                                "Falling back to {} {} (attempt {}/{})",
+                                runtime_name,
+                                fallback_version,
+                                i + 1,
+                                MAX_FALLBACK_ATTEMPTS
+                            );
+
+                            match self
+                                .try_install_version(runtime_name, fallback_version, context)
+                                .await
+                            {
+                                Ok(result) => return Ok(Some(result)),
+                                Err(e) => {
+                                    debug!(
+                                        "Fallback {} {} also failed: {}",
+                                        runtime_name, fallback_version, e
+                                    );
+                                }
+                            }
+                        }
+                    }
+
+                    return Err(first_error);
                 }
-                .into());
             }
-
-            // Run post-install hook
-            runtime.post_install(version, context).await?;
-
-            info!("Successfully installed {} {}", runtime_name, version);
-            return Ok(Some(result));
         }
 
         // Fallback: try to install using known methods
@@ -281,29 +367,78 @@ impl<'a> InstallationManager<'a> {
         self.install_dependencies_for_version(runtime_name, &resolved_version)
             .await?;
 
-        // Run pre-install hook
-        runtime.pre_install(&resolved_version, context).await?;
-
-        // Install the runtime
-        let result = runtime.install(&resolved_version, context).await?;
-
-        // Verify the installation
-        if !context.fs.exists(&result.executable_path) {
-            return Err(EnsureError::PostInstallVerificationFailed {
-                runtime: runtime_name.to_string(),
-                path: result.executable_path.clone(),
+        // Try installing the resolved version with fallback to previous versions
+        match self
+            .try_install_version(runtime_name, &resolved_version, context)
+            .await
+        {
+            Ok(result) => {
+                info!(
+                    "Successfully installed {} {}",
+                    runtime_name, resolved_version
+                );
+                Ok(Some(result))
             }
-            .into());
+            Err(first_error) => {
+                warn!(
+                    "Installation of {} {} failed: {}, trying fallback versions",
+                    runtime_name, resolved_version, first_error
+                );
+
+                // Fetch versions and try previous stable versions
+                if let Ok(versions) = runtime.fetch_versions(context).await {
+                    let stable_versions: Vec<String> = versions
+                        .iter()
+                        .filter(|v| !v.prerelease && v.version != resolved_version)
+                        .map(|v| v.version.clone())
+                        .collect();
+
+                    for (i, fallback_version) in stable_versions
+                        .iter()
+                        .take(MAX_FALLBACK_ATTEMPTS)
+                        .enumerate()
+                    {
+                        warn!(
+                            "Falling back to {} {} (attempt {}/{})",
+                            runtime_name,
+                            fallback_version,
+                            i + 1,
+                            MAX_FALLBACK_ATTEMPTS
+                        );
+
+                        // Install dependencies for fallback version too
+                        if let Err(e) = self
+                            .install_dependencies_for_version(runtime_name, fallback_version)
+                            .await
+                        {
+                            debug!("Failed to install dependencies for fallback: {}", e);
+                            continue;
+                        }
+
+                        match self
+                            .try_install_version(runtime_name, fallback_version, context)
+                            .await
+                        {
+                            Ok(result) => {
+                                info!(
+                                    "Successfully installed {} {} (fallback from {})",
+                                    runtime_name, fallback_version, resolved_version
+                                );
+                                return Ok(Some(result));
+                            }
+                            Err(e) => {
+                                debug!(
+                                    "Fallback {} {} also failed: {}",
+                                    runtime_name, fallback_version, e
+                                );
+                            }
+                        }
+                    }
+                }
+
+                Err(first_error)
+            }
         }
-
-        // Run post-install hook
-        runtime.post_install(&resolved_version, context).await?;
-
-        info!(
-            "Successfully installed {} {}",
-            runtime_name, resolved_version
-        );
-        Ok(Some(result))
     }
 
     /// RFC 0028: Ensure the proxy runtime is installed for proxy-managed tools
