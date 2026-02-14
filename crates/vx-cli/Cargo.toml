@@ -80,6 +80,8 @@ vx-provider-winget = { workspace = true }
 vx-provider-dagu = { workspace = true }
 vx-provider-prek = { workspace = true }
 vx-provider-actrun = { workspace = true }
+# Dockerfile linter
+vx-provider-hadolint = { workspace = true }
 # Tier 1: Unix-philosophy tools (RFC 0030)
 vx-provider-fzf = { workspace = true }
 vx-provider-ripgrep = { workspace = true }
