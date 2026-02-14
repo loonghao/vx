@@ -92,10 +92,10 @@ impl TomlWriter {
         }
 
         // Ensure child exists under parent
-        if let Some(Item::Table(parent_table)) = self.doc.get_mut(parent) {
-            if parent_table.get(child).is_none() {
-                parent_table[child] = Item::Table(Table::new());
-            }
+        if let Some(Item::Table(parent_table)) = self.doc.get_mut(parent)
+            && parent_table.get(child).is_none()
+        {
+            parent_table[child] = Item::Table(Table::new());
         }
 
         self
@@ -242,26 +242,25 @@ impl TomlWriter {
                         }
                     }
                 }
-            } else if parts.len() == 2 {
-                if let Some(Item::Table(parent)) = self.doc.get_mut(parts[0]) {
-                    if let Some(Item::Table(child)) = parent.get_mut(parts[1]) {
-                        child.insert(key, item);
-                        // Apply comment prefix to the key's decor if present
-                        if let Some(ref comment) = comment_prefix {
-                            if let Some(mut key_mut) = child.key_mut(key) {
-                                key_mut.leaf_decor_mut().set_prefix(comment);
-                            }
-                        }
-                    }
+            } else if parts.len() == 2
+                && let Some(Item::Table(parent)) = self.doc.get_mut(parts[0])
+                && let Some(Item::Table(child)) = parent.get_mut(parts[1])
+            {
+                child.insert(key, item);
+                // Apply comment prefix to the key's decor if present
+                if let Some(ref comment) = comment_prefix
+                    && let Some(mut key_mut) = child.key_mut(key)
+                {
+                    key_mut.leaf_decor_mut().set_prefix(comment);
                 }
             }
         } else {
             self.doc.insert(key, item);
             // Apply comment prefix to the key's decor if present
-            if let Some(ref comment) = comment_prefix {
-                if let Some(mut key_mut) = self.doc.key_mut(key) {
-                    key_mut.leaf_decor_mut().set_prefix(comment);
-                }
+            if let Some(ref comment) = comment_prefix
+                && let Some(mut key_mut) = self.doc.key_mut(key)
+            {
+                key_mut.leaf_decor_mut().set_prefix(comment);
             }
         }
     }

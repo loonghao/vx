@@ -217,10 +217,10 @@ impl LayoutConfig {
     /// Get the executable path for the current platform
     pub fn get_executable_path(&self) -> Option<&str> {
         // First try archive config
-        if let Some(archive) = &self.archive {
-            if let Some(path) = archive.get_executable_path() {
-                return Some(path);
-            }
+        if let Some(archive) = &self.archive
+            && let Some(path) = archive.get_executable_path()
+        {
+            return Some(path);
         }
 
         // Binary config returns owned String, so we can't return a reference
@@ -231,17 +231,17 @@ impl LayoutConfig {
     /// Get the executable path as an owned String (works for both archive and binary)
     pub fn get_executable_path_owned(&self) -> Option<String> {
         // First try archive config
-        if let Some(archive) = &self.archive {
-            if let Some(path) = archive.get_executable_path() {
-                return Some(path.to_string());
-            }
+        if let Some(archive) = &self.archive
+            && let Some(path) = archive.get_executable_path()
+        {
+            return Some(path.to_string());
         }
 
         // Then try binary config
-        if let Some(binary) = &self.binary {
-            if let Some(path) = binary.get_executable_path() {
-                return Some(path);
-            }
+        if let Some(binary) = &self.binary
+            && let Some(path) = binary.get_executable_path()
+        {
+            return Some(path);
         }
 
         None

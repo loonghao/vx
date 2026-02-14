@@ -78,12 +78,11 @@ impl IntegratedVersionResolver {
         let mut available_versions: Vec<VersionInfo> = Vec::new();
         for entry in std::fs::read_dir(&store_base).context("Failed to read store directory")? {
             let entry = entry?;
-            if entry.path().is_dir() {
-                if let Some(version_str) = entry.file_name().to_str() {
-                    if let Some(version) = crate::version_resolver::Version::parse(version_str) {
-                        available_versions.push(VersionInfo::new(version.to_string()));
-                    }
-                }
+            if entry.path().is_dir()
+                && let Some(version_str) = entry.file_name().to_str()
+                && let Some(version) = crate::version_resolver::Version::parse(version_str)
+            {
+                available_versions.push(VersionInfo::new(version.to_string()));
             }
         }
 

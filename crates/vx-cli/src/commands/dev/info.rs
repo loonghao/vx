@@ -57,12 +57,12 @@ pub async fn handle_info(config: &ConfigView) -> Result<()> {
         }
 
         // Show actual version if different from configured (for non-system tools)
-        if version != "system" {
-            if let Some(ver) = actual_version {
-                if ver != *version && version != "latest" {
-                    println!("    {} {}", "Actual version:".dimmed(), ver);
-                }
-            }
+        if version != "system"
+            && let Some(ver) = actual_version
+            && ver != *version
+            && version != "latest"
+        {
+            println!("    {} {}", "Actual version:".dimmed(), ver);
         }
     }
 

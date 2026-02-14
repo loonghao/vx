@@ -124,28 +124,27 @@ impl ManifestLoader {
             let entry = entry.map_err(ManifestError::Io)?;
             let path = entry.path();
 
-            if path.is_file() {
-                if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-                    if let Some(provider_name) = extract_provider_name(filename) {
-                        match ProviderOverride::load(&path) {
-                            Ok(override_config) => {
-                                if !override_config.is_empty() {
-                                    self.overrides
-                                        .entry(provider_name.to_string())
-                                        .or_default()
-                                        .push(override_config);
-                                    count += 1;
-                                    tracing::debug!(
-                                        "Loaded override for '{}' from {:?}",
-                                        provider_name,
-                                        path
-                                    );
-                                }
-                            }
-                            Err(e) => {
-                                tracing::warn!("Failed to load override from {:?}: {}", path, e);
-                            }
+            if path.is_file()
+                && let Some(filename) = path.file_name().and_then(|n| n.to_str())
+                && let Some(provider_name) = extract_provider_name(filename)
+            {
+                match ProviderOverride::load(&path) {
+                    Ok(override_config) => {
+                        if !override_config.is_empty() {
+                            self.overrides
+                                .entry(provider_name.to_string())
+                                .or_default()
+                                .push(override_config);
+                            count += 1;
+                            tracing::debug!(
+                                "Loaded override for '{}' from {:?}",
+                                provider_name,
+                                path
+                            );
                         }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to load override from {:?}: {}", path, e);
                     }
                 }
             }

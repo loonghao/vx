@@ -124,10 +124,10 @@ impl SetupPipeline {
         if self.force_ci {
             return true;
         }
-        if let Some(ci_config) = self.setup_config.as_ref().and_then(|s| s.ci.as_ref()) {
-            if let Some(enabled) = ci_config.enabled {
-                return enabled;
-            }
+        if let Some(ci_config) = self.setup_config.as_ref().and_then(|s| s.ci.as_ref())
+            && let Some(enabled) = ci_config.enabled
+        {
+            return enabled;
         }
         self.ci_provider.is_ci()
     }

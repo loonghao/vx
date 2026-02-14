@@ -363,12 +363,12 @@ impl ArgParser {
             }
 
             // Try environment variable
-            if let Some(env_var) = &arg_def.env {
-                if let Ok(value) = std::env::var(env_var) {
-                    let parsed = self.parse_value(arg_def, &value)?;
-                    result.set(&arg_def.name, parsed);
-                    continue;
-                }
+            if let Some(env_var) = &arg_def.env
+                && let Ok(value) = std::env::var(env_var)
+            {
+                let parsed = self.parse_value(arg_def, &value)?;
+                result.set(&arg_def.name, parsed);
+                continue;
             }
 
             // Apply default

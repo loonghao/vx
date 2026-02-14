@@ -54,70 +54,70 @@ impl<'a> InstallationManager<'a> {
         info!("Installing: {}", runtime_name);
 
         // Try using the provider registry first
-        if let (Some(registry), Some(context)) = (self.registry, self.context) {
-            if let Some(runtime) = registry.get_runtime(runtime_name) {
-                // Check platform support before attempting installation
-                if let Err(e) = runtime.check_platform_support() {
-                    return Err(EnsureError::PlatformNotSupported {
-                        runtime: runtime_name.to_string(),
-                        reason: e.to_string(),
-                    }
-                    .into());
+        if let (Some(registry), Some(context)) = (self.registry, self.context)
+            && let Some(runtime) = registry.get_runtime(runtime_name)
+        {
+            // Check platform support before attempting installation
+            if let Err(e) = runtime.check_platform_support() {
+                return Err(EnsureError::PlatformNotSupported {
+                    runtime: runtime_name.to_string(),
+                    reason: e.to_string(),
                 }
-
-                // Fetch versions to get the latest - show progress spinner
-                let spinner =
-                    ProgressSpinner::new(&format!("Fetching versions for {}...", runtime_name));
-                debug!("Fetching versions for {}", runtime_name);
-                let versions = match runtime.fetch_versions(context).await {
-                    Ok(v) => {
-                        spinner.finish_and_clear();
-                        v
-                    }
-                    Err(e) => {
-                        spinner.finish_with_error(&format!("Failed to fetch versions: {}", e));
-                        return Err(e);
-                    }
-                };
-                let version = versions
-                    .iter()
-                    .find(|v| !v.prerelease)
-                    .map(|v| v.version.clone())
-                    .or_else(|| versions.first().map(|v| v.version.clone()))
-                    .ok_or_else(|| EnsureError::NoVersionsFound {
-                        runtime: runtime_name.to_string(),
-                    })?;
-
-                info!("Installing {} {} via provider", runtime_name, version);
-
-                // Run pre-install hook
-                runtime.pre_install(&version, context).await?;
-
-                // Install the runtime
-                debug!("Calling runtime.install() for {} {}", runtime_name, version);
-                let result = runtime.install(&version, context).await?;
-                debug!(
-                    "Install result: path={}, exe={}, already_installed={}",
-                    result.install_path.display(),
-                    result.executable_path.display(),
-                    result.already_installed
-                );
-
-                // Verify the installation actually succeeded
-                if !context.fs.exists(&result.executable_path) {
-                    return Err(EnsureError::PostInstallVerificationFailed {
-                        runtime: runtime_name.to_string(),
-                        path: result.executable_path.clone(),
-                    }
-                    .into());
-                }
-
-                // Run post-install hook (for symlinks, PATH setup, etc.)
-                runtime.post_install(&version, context).await?;
-
-                info!("Successfully installed {} {}", runtime_name, version);
-                return Ok(Some(result));
+                .into());
             }
+
+            // Fetch versions to get the latest - show progress spinner
+            let spinner =
+                ProgressSpinner::new(&format!("Fetching versions for {}...", runtime_name));
+            debug!("Fetching versions for {}", runtime_name);
+            let versions = match runtime.fetch_versions(context).await {
+                Ok(v) => {
+                    spinner.finish_and_clear();
+                    v
+                }
+                Err(e) => {
+                    spinner.finish_with_error(&format!("Failed to fetch versions: {}", e));
+                    return Err(e);
+                }
+            };
+            let version = versions
+                .iter()
+                .find(|v| !v.prerelease)
+                .map(|v| v.version.clone())
+                .or_else(|| versions.first().map(|v| v.version.clone()))
+                .ok_or_else(|| EnsureError::NoVersionsFound {
+                    runtime: runtime_name.to_string(),
+                })?;
+
+            info!("Installing {} {} via provider", runtime_name, version);
+
+            // Run pre-install hook
+            runtime.pre_install(&version, context).await?;
+
+            // Install the runtime
+            debug!("Calling runtime.install() for {} {}", runtime_name, version);
+            let result = runtime.install(&version, context).await?;
+            debug!(
+                "Install result: path={}, exe={}, already_installed={}",
+                result.install_path.display(),
+                result.executable_path.display(),
+                result.already_installed
+            );
+
+            // Verify the installation actually succeeded
+            if !context.fs.exists(&result.executable_path) {
+                return Err(EnsureError::PostInstallVerificationFailed {
+                    runtime: runtime_name.to_string(),
+                    path: result.executable_path.clone(),
+                }
+                .into());
+            }
+
+            // Run post-install hook (for symlinks, PATH setup, etc.)
+            runtime.post_install(&version, context).await?;
+
+            info!("Successfully installed {} {}", runtime_name, version);
+            return Ok(Some(result));
         }
 
         // Fallback: try to install using known methods
@@ -134,53 +134,53 @@ impl<'a> InstallationManager<'a> {
         info!("Installing: {}@{}", runtime_name, version);
 
         // Try using the provider registry first
-        if let (Some(registry), Some(context)) = (self.registry, self.context) {
-            if let Some(runtime) = registry.get_runtime(runtime_name) {
-                // Check platform support before attempting installation
-                if let Err(e) = runtime.check_platform_support() {
-                    return Err(EnsureError::PlatformNotSupported {
-                        runtime: runtime_name.to_string(),
-                        reason: e.to_string(),
-                    }
-                    .into());
+        if let (Some(registry), Some(context)) = (self.registry, self.context)
+            && let Some(runtime) = registry.get_runtime(runtime_name)
+        {
+            // Check platform support before attempting installation
+            if let Err(e) = runtime.check_platform_support() {
+                return Err(EnsureError::PlatformNotSupported {
+                    runtime: runtime_name.to_string(),
+                    reason: e.to_string(),
                 }
-
-                info!(
-                    "Installing {} {} via provider (explicit version)",
-                    runtime_name, version
-                );
-
-                // Run pre-install hook
-                runtime.pre_install(version, context).await?;
-
-                // Install the runtime
-                debug!(
-                    "Calling runtime.install() for {} {} (explicit)",
-                    runtime_name, version
-                );
-                let result = runtime.install(version, context).await?;
-                debug!(
-                    "Install result: path={}, exe={}, already_installed={}",
-                    result.install_path.display(),
-                    result.executable_path.display(),
-                    result.already_installed
-                );
-
-                // Verify the installation actually succeeded
-                if !context.fs.exists(&result.executable_path) {
-                    return Err(EnsureError::PostInstallVerificationFailed {
-                        runtime: runtime_name.to_string(),
-                        path: result.executable_path.clone(),
-                    }
-                    .into());
-                }
-
-                // Run post-install hook
-                runtime.post_install(version, context).await?;
-
-                info!("Successfully installed {} {}", runtime_name, version);
-                return Ok(Some(result));
+                .into());
             }
+
+            info!(
+                "Installing {} {} via provider (explicit version)",
+                runtime_name, version
+            );
+
+            // Run pre-install hook
+            runtime.pre_install(version, context).await?;
+
+            // Install the runtime
+            debug!(
+                "Calling runtime.install() for {} {} (explicit)",
+                runtime_name, version
+            );
+            let result = runtime.install(version, context).await?;
+            debug!(
+                "Install result: path={}, exe={}, already_installed={}",
+                result.install_path.display(),
+                result.executable_path.display(),
+                result.already_installed
+            );
+
+            // Verify the installation actually succeeded
+            if !context.fs.exists(&result.executable_path) {
+                return Err(EnsureError::PostInstallVerificationFailed {
+                    runtime: runtime_name.to_string(),
+                    path: result.executable_path.clone(),
+                }
+                .into());
+            }
+
+            // Run post-install hook
+            runtime.post_install(version, context).await?;
+
+            info!("Successfully installed {} {}", runtime_name, version);
+            return Ok(Some(result));
         }
 
         // Fallback: try to install using known methods

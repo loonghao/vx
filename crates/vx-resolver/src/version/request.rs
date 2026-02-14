@@ -52,31 +52,31 @@ impl VersionRequest {
         }
 
         // Handle caret constraint: ^1.2.3
-        if let Some(version_str) = raw.strip_prefix('^') {
-            if let Some(version) = Version::parse(version_str) {
-                return VersionConstraint::Caret(version);
-            }
+        if let Some(version_str) = raw.strip_prefix('^')
+            && let Some(version) = Version::parse(version_str)
+        {
+            return VersionConstraint::Caret(version);
         }
 
         // Handle tilde constraint: ~1.2.3 or ~=1.2.3
-        if let Some(version_str) = raw.strip_prefix("~=") {
-            if let Some(version) = Version::parse(version_str) {
-                return VersionConstraint::Tilde(version);
-            }
+        if let Some(version_str) = raw.strip_prefix("~=")
+            && let Some(version) = Version::parse(version_str)
+        {
+            return VersionConstraint::Tilde(version);
         }
-        if let Some(version_str) = raw.strip_prefix('~') {
-            if let Some(version) = Version::parse(version_str) {
-                return VersionConstraint::Tilde(version);
-            }
+        if let Some(version_str) = raw.strip_prefix('~')
+            && let Some(version) = Version::parse(version_str)
+        {
+            return VersionConstraint::Tilde(version);
         }
 
         // Handle wildcard: 3.11.*
         if let Some(prefix) = raw.strip_suffix(".*") {
             let parts: Vec<&str> = prefix.split('.').collect();
-            if parts.len() == 2 {
-                if let (Ok(major), Ok(minor)) = (parts[0].parse(), parts[1].parse()) {
-                    return VersionConstraint::Wildcard { major, minor };
-                }
+            if parts.len() == 2
+                && let (Ok(major), Ok(minor)) = (parts[0].parse(), parts[1].parse())
+            {
+                return VersionConstraint::Wildcard { major, minor };
             }
         }
 
@@ -158,10 +158,10 @@ impl VersionRequest {
         ];
 
         for (prefix, op) in operators {
-            if let Some(version_str) = s.strip_prefix(prefix) {
-                if let Some(version) = Version::parse(version_str.trim()) {
-                    return Some(RangeConstraint::new(op, version));
-                }
+            if let Some(version_str) = s.strip_prefix(prefix)
+                && let Some(version) = Version::parse(version_str.trim())
+            {
+                return Some(RangeConstraint::new(op, version));
             }
         }
 

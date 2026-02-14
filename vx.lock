@@ -4,15 +4,9 @@
 version = 1
 
 [metadata]
-generated_at = "2026-02-13T10:06:31Z"
+generated_at = "2026-02-14T02:01:16Z"
 vx_version = "0.6.19"
 platform = "x86_64-pc-windows-msvc"
-
-[tools.bun]
-version = "1.3.8"
-source = "vx install"
-resolved_from = "latest"
-ecosystem = "Node"
 
 [tools.cmake]
 version = "4.2.2"
@@ -26,8 +20,8 @@ source = "vx install"
 resolved_from = "latest"
 ecosystem = "Generic"
 
-[tools.magick]
-version = "7.1.2-13"
+[tools.prek]
+version = "0.3.2"
 source = "vx install"
 resolved_from = "latest"
 ecosystem = "Generic"
@@ -46,13 +40,14 @@ ecosystem = "Python"
 download_url = "https://github.com/astral-sh/python-build-standalone/releases/download/20250610/cpython-3.11.13+20250610-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
 
 [tools.rust]
-version = "1.85.0"
+version = "1.93.1"
 source = "rust"
-resolved_from = "1.85.0"
+resolved_from = "1.93.1"
 ecosystem = "Rust"
 
 [tools.uv]
-version = "0.9.26"
-source = "vx install"
-resolved_from = "0.9.26"
+version = "0.10.2"
+source = "python"
+resolved_from = "latest"
 ecosystem = "Python"
+download_url = "https://github.com/astral-sh/uv/releases/download/0.10.2/uv-x86_64-pc-windows-msvc.zip"

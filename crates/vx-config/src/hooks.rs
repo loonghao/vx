@@ -359,10 +359,10 @@ exit 0
     /// Check if pre-commit hook is installed
     pub fn is_installed(&self) -> bool {
         let hook_path = self.hooks_dir().join("pre-commit");
-        if hook_path.exists() {
-            if let Ok(content) = std::fs::read_to_string(&hook_path) {
-                return content.contains("# vx-managed");
-            }
+        if hook_path.exists()
+            && let Ok(content) = std::fs::read_to_string(&hook_path)
+        {
+            return content.contains("# vx-managed");
         }
         false
     }
@@ -384,10 +384,10 @@ impl EnterHookManager {
 
     /// Get the last directory from cache
     pub fn get_last_directory(&self) -> Option<std::path::PathBuf> {
-        if let Ok(content) = std::fs::read_to_string(&self.cache_file) {
-            if let Ok(cache) = serde_json::from_str::<EnterHookCache>(&content) {
-                return Some(std::path::PathBuf::from(cache.last_directory));
-            }
+        if let Ok(content) = std::fs::read_to_string(&self.cache_file)
+            && let Ok(cache) = serde_json::from_str::<EnterHookCache>(&content)
+        {
+            return Some(std::path::PathBuf::from(cache.last_directory));
         }
         None
     }

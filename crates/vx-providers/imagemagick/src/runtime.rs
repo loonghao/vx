@@ -237,10 +237,10 @@ impl Runtime for MagickRuntime {
         if ctx.fs.exists(&runtime_dir) {
             let entries = ctx.fs.read_dir(&runtime_dir)?;
             for entry in entries {
-                if ctx.fs.is_dir(&entry) {
-                    if let Some(name) = entry.file_name().and_then(|n| n.to_str()) {
-                        versions.push(name.to_string());
-                    }
+                if ctx.fs.is_dir(&entry)
+                    && let Some(name) = entry.file_name().and_then(|n| n.to_str())
+                {
+                    versions.push(name.to_string());
                 }
             }
         }

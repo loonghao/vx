@@ -104,10 +104,10 @@ impl PathResolver {
         let mut cache = self.exec_cache.lock().unwrap();
         cache.invalidate_runtime(&runtime_store_dir);
         // Persist immediately after invalidation
-        if let Some(ref cache_dir) = self.cache_dir {
-            if let Err(e) = cache.save(cache_dir) {
-                tracing::debug!("Failed to save exec path cache after invalidation: {}", e);
-            }
+        if let Some(ref cache_dir) = self.cache_dir
+            && let Err(e) = cache.save(cache_dir)
+        {
+            tracing::debug!("Failed to save exec path cache after invalidation: {}", e);
         }
     }
 
@@ -604,13 +604,13 @@ impl PathResolver {
             .filter_map(|e| e.ok())
         {
             let path = entry.path();
-            if path.is_file() {
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if possible_names.iter().any(|n| n == name) {
-                        all_candidates.push(path.to_path_buf());
-                    } else if platform_patterns.iter().any(|p| p == name) {
-                        platform_candidates.push(path.to_path_buf());
-                    }
+            if path.is_file()
+                && let Some(name) = path.file_name().and_then(|n| n.to_str())
+            {
+                if possible_names.iter().any(|n| n == name) {
+                    all_candidates.push(path.to_path_buf());
+                } else if platform_patterns.iter().any(|p| p == name) {
+                    platform_candidates.push(path.to_path_buf());
                 }
             }
         }
@@ -662,10 +662,10 @@ impl PathResolver {
 
         // Check 2: bin/ subdirectory
         let bin_dir = dir.join("bin");
-        if bin_dir.is_dir() {
-            if let Some(found) = Self::check_files_in_dir(&bin_dir, possible_names) {
-                return Some(found);
-            }
+        if bin_dir.is_dir()
+            && let Some(found) = Self::check_files_in_dir(&bin_dir, possible_names)
+        {
+            return Some(found);
         }
 
         // Check 3 & 4: One level of subdirectories (and their bin/)
@@ -676,13 +676,13 @@ impl PathResolver {
                     continue;
                 }
                 // Skip known non-target directories
-                if let Some(name) = sub_path.file_name().and_then(|n| n.to_str()) {
-                    if matches!(
+                if let Some(name) = sub_path.file_name().and_then(|n| n.to_str())
+                    && matches!(
                         name,
                         "node_modules" | "lib" | "share" | "include" | "man" | "doc" | "docs"
-                    ) {
-                        continue;
-                    }
+                    )
+                {
+                    continue;
                 }
                 // Check files in subdirectory
                 if let Some(found) = Self::check_files_in_dir(&sub_path, possible_names) {
@@ -693,10 +693,10 @@ impl PathResolver {
                 }
                 // Check subdirectory/bin/
                 let sub_bin = sub_path.join("bin");
-                if sub_bin.is_dir() {
-                    if let Some(found) = Self::check_files_in_dir(&sub_bin, possible_names) {
-                        return Some(found);
-                    }
+                if sub_bin.is_dir()
+                    && let Some(found) = Self::check_files_in_dir(&sub_bin, possible_names)
+                {
+                    return Some(found);
                 }
             }
         }

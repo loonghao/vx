@@ -56,13 +56,12 @@ impl Default for FlutterDetector {
 impl FrameworkDetector for FlutterDetector {
     fn detect(&self, root: &Path) -> bool {
         let pubspec = Self::pubspec_path(root);
-        if pubspec.exists() {
-            if let Ok(content) = std::fs::read_to_string(&pubspec) {
-                if Self::has_flutter_sdk_marker(&content) {
-                    debug!("Detected Flutter via pubspec.yaml");
-                    return true;
-                }
-            }
+        if pubspec.exists()
+            && let Ok(content) = std::fs::read_to_string(&pubspec)
+            && Self::has_flutter_sdk_marker(&content)
+        {
+            debug!("Detected Flutter via pubspec.yaml");
+            return true;
         }
 
         false

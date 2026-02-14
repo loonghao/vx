@@ -170,17 +170,16 @@ impl<'a> ResolveStage<'a> {
         };
 
         // Resolve "latest" to actual installed version
-        if let Some(ref v) = raw_version {
-            if v == "latest" {
-                if let Some(ref store_base) = self.store_base {
-                    let runtime_dir = store_base.join(runtime_name);
-                    if let Ok(versions) = list_installed_versions(&runtime_dir) {
-                        if let Some(latest) = versions.last() {
-                            debug!("Resolved {}@latest → {}", runtime_name, latest);
-                            return Some(latest.clone());
-                        }
-                    }
-                }
+        if let Some(ref v) = raw_version
+            && v == "latest"
+            && let Some(ref store_base) = self.store_base
+        {
+            let runtime_dir = store_base.join(runtime_name);
+            if let Ok(versions) = list_installed_versions(&runtime_dir)
+                && let Some(latest) = versions.last()
+            {
+                debug!("Resolved {}@latest → {}", runtime_name, latest);
+                return Some(latest.clone());
             }
         }
 

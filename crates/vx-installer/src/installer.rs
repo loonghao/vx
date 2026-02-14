@@ -277,10 +277,10 @@ impl Installer {
 
                 #[cfg(windows)]
                 {
-                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                        if matches!(ext.to_lowercase().as_str(), "exe" | "bat" | "cmd" | "com") {
-                            return Ok(true);
-                        }
+                    if let Some(ext) = path.extension().and_then(|e| e.to_str())
+                        && matches!(ext.to_lowercase().as_str(), "exe" | "bat" | "cmd" | "com")
+                    {
+                        return Ok(true);
                     }
                 }
             }

@@ -72,14 +72,15 @@ impl BinaryHandler {
         }
 
         // Fallback: no extension on Unix might indicate a binary
-        if let Some(filename) = file_path.file_name().and_then(|n| n.to_str()) {
-            if !filename.contains('.') && !cfg!(windows) {
-                // Try to read magic bytes if we haven't already
-                if let Ok(magic) = self.read_magic_bytes(file_path, 4) {
-                    // If it has valid magic bytes for any executable format, it's a binary
-                    if !magic.is_empty() && magic[0] != 0 {
-                        return true;
-                    }
+        if let Some(filename) = file_path.file_name().and_then(|n| n.to_str())
+            && !filename.contains('.')
+            && !cfg!(windows)
+        {
+            // Try to read magic bytes if we haven't already
+            if let Ok(magic) = self.read_magic_bytes(file_path, 4) {
+                // If it has valid magic bytes for any executable format, it's a binary
+                if !magic.is_empty() && magic[0] != 0 {
+                    return true;
                 }
             }
         }

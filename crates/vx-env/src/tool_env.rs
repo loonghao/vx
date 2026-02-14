@@ -293,12 +293,12 @@ impl ToolEnvironment {
 
         // If a resolved bin directory is provided, use it directly
         // This is the preferred path - Provider/Runtime knows the exact location
-        if let Some(ref bin_dir) = tool.resolved_bin_dir {
-            if bin_dir.exists() {
-                return Ok(Some(bin_dir.clone()));
-            }
-            // Fall through to try other methods if resolved path doesn't exist
+        if let Some(ref bin_dir) = tool.resolved_bin_dir
+            && bin_dir.exists()
+        {
+            return Ok(Some(bin_dir.clone()));
         }
+        // Fall through to try other methods if resolved path doesn't exist
 
         let actual_version = if tool.version == "latest" {
             // Resolve "latest" to the actual installed version

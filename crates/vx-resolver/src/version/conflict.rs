@@ -289,10 +289,10 @@ impl ConflictDetector {
         );
 
         for req in requirements {
-            if let Some(ver_req) = parse_version_range(&req.version_range) {
-                if !ver_req.matches(&semver_v) {
-                    return false;
-                }
+            if let Some(ver_req) = parse_version_range(&req.version_range)
+                && !ver_req.matches(&semver_v)
+            {
+                return false;
             }
         }
         true

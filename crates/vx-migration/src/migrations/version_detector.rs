@@ -22,19 +22,18 @@ impl VxVersionDetector {
         let doc: toml::Table = toml::from_str(content).ok()?;
 
         // Check for explicit version field
-        if let Some(version) = doc.get("version").and_then(|v| v.as_str()) {
-            if let Ok(v) = version.parse() {
-                return Some(v);
-            }
+        if let Some(version) = doc.get("version").and_then(|v| v.as_str())
+            && let Ok(v) = version.parse()
+        {
+            return Some(v);
         }
 
         // Check for vx section with version
-        if let Some(vx) = doc.get("vx").and_then(|v| v.as_table()) {
-            if let Some(version) = vx.get("version").and_then(|v| v.as_str()) {
-                if let Ok(v) = version.parse() {
-                    return Some(v);
-                }
-            }
+        if let Some(vx) = doc.get("vx").and_then(|v| v.as_table())
+            && let Some(version) = vx.get("version").and_then(|v| v.as_str())
+            && let Ok(v) = version.parse()
+        {
+            return Some(v);
         }
 
         // Detect v1 format (has [tools] section)
@@ -66,26 +65,26 @@ impl VersionDetector for VxVersionDetector {
     async fn detect(&self, path: &Path) -> MigrationResult<Option<Version>> {
         // Check for vx.toml
         let vx_toml = path.join("vx.toml");
-        if vx_toml.exists() {
-            if let Ok(content) = tokio::fs::read_to_string(&vx_toml).await {
-                if let Some(version) = self.detect_from_content(&content) {
-                    return Ok(Some(version));
-                }
-                // If vx.toml exists but no version detected, assume v1
-                return Ok(Some(Version::new(1, 0, 0)));
+        if vx_toml.exists()
+            && let Ok(content) = tokio::fs::read_to_string(&vx_toml).await
+        {
+            if let Some(version) = self.detect_from_content(&content) {
+                return Ok(Some(version));
             }
+            // If vx.toml exists but no version detected, assume v1
+            return Ok(Some(Version::new(1, 0, 0)));
         }
 
         // Check for .vx.toml (old format)
         let dot_vx_toml = path.join(".vx.toml");
-        if dot_vx_toml.exists() {
-            if let Ok(content) = tokio::fs::read_to_string(&dot_vx_toml).await {
-                if let Some(version) = self.detect_from_content(&content) {
-                    return Ok(Some(version));
-                }
-                // If .vx.toml exists but no version detected, assume v1
-                return Ok(Some(Version::new(1, 0, 0)));
+        if dot_vx_toml.exists()
+            && let Ok(content) = tokio::fs::read_to_string(&dot_vx_toml).await
+        {
+            if let Some(version) = self.detect_from_content(&content) {
+                return Ok(Some(version));
             }
+            // If .vx.toml exists but no version detected, assume v1
+            return Ok(Some(Version::new(1, 0, 0)));
         }
 
         Ok(None)

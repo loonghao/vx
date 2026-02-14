@@ -301,10 +301,10 @@ impl PathManager {
         let mut runtimes = Vec::new();
         for entry in std::fs::read_dir(&self.paths.store_dir)? {
             let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                if let Some(name) = entry.file_name().to_str() {
-                    runtimes.push(name.to_string());
-                }
+            if entry.file_type()?.is_dir()
+                && let Some(name) = entry.file_name().to_str()
+            {
+                runtimes.push(name.to_string());
             }
         }
 
@@ -341,10 +341,10 @@ impl PathManager {
         let mut envs = Vec::new();
         for entry in std::fs::read_dir(&self.paths.envs_dir)? {
             let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                if let Some(name) = entry.file_name().to_str() {
-                    envs.push(name.to_string());
-                }
+            if entry.file_type()?.is_dir()
+                && let Some(name) = entry.file_name().to_str()
+            {
+                envs.push(name.to_string());
             }
         }
 
@@ -422,10 +422,10 @@ impl PathManager {
         let mut versions = Vec::new();
         for entry in std::fs::read_dir(&tool_dir)? {
             let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                if let Some(version) = entry.file_name().to_str() {
-                    versions.push(version.to_string());
-                }
+            if entry.file_type()?.is_dir()
+                && let Some(version) = entry.file_name().to_str()
+            {
+                versions.push(version.to_string());
             }
         }
 
@@ -480,10 +480,10 @@ impl PathManager {
         let mut versions = Vec::new();
         for entry in std::fs::read_dir(&tool_dir)? {
             let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                if let Some(version) = entry.file_name().to_str() {
-                    versions.push(version.to_string());
-                }
+            if entry.file_type()?.is_dir()
+                && let Some(version) = entry.file_name().to_str()
+            {
+                versions.push(version.to_string());
             }
         }
 

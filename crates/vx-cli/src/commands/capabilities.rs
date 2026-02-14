@@ -335,12 +335,12 @@ fn get_runtime_commands(runtime_name: &str, registry: &ProviderRegistry) -> Vec<
     let mut commands = vec![runtime_name.to_string()];
 
     for name in registry.runtime_names() {
-        if let Some(runtime) = registry.get_runtime(&name) {
-            if let Some(bundled_with) = runtime.metadata().get("bundled_with") {
-                if bundled_with == runtime_name && name != runtime_name {
-                    commands.push(name);
-                }
-            }
+        if let Some(runtime) = registry.get_runtime(&name)
+            && let Some(bundled_with) = runtime.metadata().get("bundled_with")
+            && bundled_with == runtime_name
+            && name != runtime_name
+        {
+            commands.push(name);
         }
     }
 
