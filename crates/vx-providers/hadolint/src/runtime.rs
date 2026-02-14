@@ -11,7 +11,10 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo};
+use vx_runtime::{
+    Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
+    layout::{BinaryLayout, DownloadType, ExecutableLayout},
+};
 use vx_version_fetcher::VersionFetcherBuilder;
 
 /// Hadolint runtime implementation
@@ -81,6 +84,68 @@ impl Runtime for HadolintRuntime {
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         Ok(HadolintUrlBuilder::download_url(version, platform))
+    }
+
+    fn executable_layout(&self) -> Option<ExecutableLayout> {
+        let mut binary = HashMap::new();
+
+        // Keys must match format!("{}-{}", Os::as_str(), Arch::as_str())
+        // Os: windows, darwin, linux; Arch: x64, arm64
+        binary.insert(
+            "windows-x64".to_string(),
+            BinaryLayout {
+                source_name: "hadolint-windows-x86_64.exe".to_string(),
+                target_name: "hadolint.exe".to_string(),
+                target_dir: "bin".to_string(),
+                target_permissions: None,
+            },
+        );
+        binary.insert(
+            "darwin-x64".to_string(),
+            BinaryLayout {
+                source_name: "hadolint-macos-x86_64".to_string(),
+                target_name: "hadolint".to_string(),
+                target_dir: "bin".to_string(),
+                target_permissions: Some("755".to_string()),
+            },
+        );
+        binary.insert(
+            "darwin-arm64".to_string(),
+            BinaryLayout {
+                source_name: "hadolint-macos-arm64".to_string(),
+                target_name: "hadolint".to_string(),
+                target_dir: "bin".to_string(),
+                target_permissions: Some("755".to_string()),
+            },
+        );
+        binary.insert(
+            "linux-x64".to_string(),
+            BinaryLayout {
+                source_name: "hadolint-linux-x86_64".to_string(),
+                target_name: "hadolint".to_string(),
+                target_dir: "bin".to_string(),
+                target_permissions: Some("755".to_string()),
+            },
+        );
+        binary.insert(
+            "linux-arm64".to_string(),
+            BinaryLayout {
+                source_name: "hadolint-linux-arm64".to_string(),
+                target_name: "hadolint".to_string(),
+                target_dir: "bin".to_string(),
+                target_permissions: Some("755".to_string()),
+            },
+        );
+
+        Some(ExecutableLayout {
+            download_type: DownloadType::Binary,
+            binary: Some(binary),
+            archive: None,
+            windows: None,
+            macos: None,
+            linux: None,
+            msi: None,
+        })
     }
 
     fn verify_installation(
