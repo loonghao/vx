@@ -101,8 +101,19 @@ impl From<VxConfig> for ConfigView {
                     .unwrap_or_else(|| "project".to_string())
             });
 
+        // Filter tools by current platform (tools with os constraints
+        // that don't match the current OS are excluded)
+        let (platform_tools, skipped) = config.tools_for_current_platform();
+        for (name, allowed_os) in &skipped {
+            tracing::debug!(
+                "Skipping tool '{}' (only available on: {})",
+                name,
+                allowed_os.join(", ")
+            );
+        }
+
         ConfigView {
-            tools: config.tools_as_hashmap(),
+            tools: platform_tools,
             settings: config.settings_as_hashmap(),
             env: config.env_as_hashmap(),
             scripts: config.scripts.clone(),
