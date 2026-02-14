@@ -21,7 +21,6 @@ license = "MIT"
 name = "prek"
 description = "prek - better pre-commit framework"
 executable = "prek"
-aliases = ["pre-commit"]
 
 [runtimes.versions]
 source = "github-releases"
