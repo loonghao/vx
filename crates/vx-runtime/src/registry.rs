@@ -108,6 +108,21 @@ impl ProviderRegistry {
         {
             let mut index = self.pending_index.write().unwrap();
             for name in runtime_names {
+                // Detect alias conflicts: warn if a runtime name/alias is already
+                // claimed by a different provider. The last writer wins, which can
+                // cause non-deterministic behavior depending on manifest load order.
+                if let Some(existing) = index.get(&name)
+                    && existing != &provider_name
+                {
+                    tracing::warn!(
+                        runtime = %name,
+                        existing_provider = %existing,
+                        new_provider = %provider_name,
+                        "Runtime name/alias conflict: '{}' is claimed by both '{}' and '{}'. \
+                         The last-registered provider wins, which may cause non-deterministic behavior.",
+                        name, existing, provider_name
+                    );
+                }
                 index.insert(name, provider_name.clone());
             }
         }
