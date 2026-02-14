@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use tempfile::TempDir;
 
 use vx_provider_msvc::{
-    MsvcInstallConfig, MsvcInstallInfo, MsvcProvider, MsvcRuntime, PlatformHelper,
+    MsvcInstallConfig, MsvcInstallInfo, MsvcInstaller, MsvcProvider, MsvcRuntime, PlatformHelper,
 };
 use vx_runtime::{Arch, Ecosystem, Os, Platform, Provider, Runtime};
 
@@ -537,4 +537,298 @@ fn test_validated_paths_methods() {
     assert_eq!(info.validated_include_paths().len(), 1);
     assert_eq!(info.validated_lib_paths().len(), 1);
     assert_eq!(info.validated_bin_paths().len(), 1);
+}
+
+// ============================================
+// Issue #573: MSVC env vars conflict with node-gyp
+// ============================================
+// These tests verify the fix for #573 where MSVC environment variables
+// (LIB, INCLUDE, PATH) injected globally by prepare_environment()
+// conflicted with node-gyp's Visual Studio discovery logic.
+//
+// The fix:
+// 1. prepare_environment() now uses VX_MSVC_* prefix (not LIB/INCLUDE/PATH)
+// 2. execution_environment() still uses full LIB/INCLUDE/PATH (only for direct MSVC invocation)
+// 3. validate_paths() detects stale cached paths
+// 4. VCINSTALLDIR/VCToolsInstallDir/GYP_MSVS_VERSION are set for node-gyp discovery
+
+#[test]
+fn test_issue_573_get_environment_does_not_use_vx_prefix() {
+    // get_environment() is used by execution_environment() for direct MSVC tool invocation.
+    // It SHOULD set LIB, INCLUDE, PATH (full env needed for cl.exe, link.exe, etc.)
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+    let info = create_test_install_info(install_path);
+
+    let env = info.get_environment();
+
+    // Direct invocation env uses standard names (not VX_MSVC_* prefix)
+    assert!(
+        env.contains_key("INCLUDE"),
+        "execution env should set INCLUDE"
+    );
+    assert!(env.contains_key("LIB"), "execution env should set LIB");
+    assert!(env.contains_key("PATH"), "execution env should set PATH");
+
+    // Should NOT contain VX_MSVC_* prefixed vars (those are for prepare_environment)
+    assert!(
+        !env.contains_key("VX_MSVC_INCLUDE"),
+        "execution env should not use VX_MSVC_INCLUDE"
+    );
+    assert!(
+        !env.contains_key("VX_MSVC_LIB"),
+        "execution env should not use VX_MSVC_LIB"
+    );
+}
+
+#[test]
+fn test_issue_573_validate_paths_with_version_mismatch() {
+    // Simulates the exact scenario from #573: msvc-info.json cached with version 14.44
+    // but actual installation is 14.42, so paths referencing 14.44 don't exist.
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    // Create paths for "14.42" (actual installed version)
+    let actual_version_dir = install_path
+        .join("VC")
+        .join("Tools")
+        .join("MSVC")
+        .join("14.42.34433");
+    let actual_bin = actual_version_dir.join("bin").join("Hostx64").join("x64");
+    std::fs::create_dir_all(&actual_bin).unwrap();
+    std::fs::write(actual_bin.join("cl.exe"), "fake").unwrap();
+
+    // But msvc-info.json references paths for "14.44" (stale cache)
+    let stale_version_dir = install_path
+        .join("VC")
+        .join("Tools")
+        .join("MSVC")
+        .join("14.44.35207");
+    let stale_bin = stale_version_dir.join("bin").join("Hostx64").join("x64");
+
+    let info = MsvcInstallInfo {
+        install_path,
+        msvc_version: "14.44.35207".to_string(),
+        sdk_version: None,
+        cl_exe_path: stale_bin.join("cl.exe"), // doesn't exist!
+        link_exe_path: Some(stale_bin.join("link.exe")),
+        lib_exe_path: None,
+        nmake_exe_path: None,
+        include_paths: vec![stale_version_dir.join("include")],
+        lib_paths: vec![stale_version_dir.join("lib").join("x64")],
+        bin_paths: vec![stale_bin],
+    };
+
+    // validate_paths should detect that cl.exe doesn't exist
+    assert!(
+        !info.validate_paths(),
+        "validate_paths should fail when cl.exe path is stale"
+    );
+}
+
+#[test]
+fn test_issue_573_get_environment_only_includes_existing_paths_in_include() {
+    // Verifies that get_environment() filters out non-existent paths from INCLUDE.
+    // This prevents stale MSVC version paths from being injected into node-gyp's
+    // csc.exe (C# compiler) environment, which was the root cause of #573.
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    // Create one real MSVC include path and one real SDK include path
+    let msvc_include = install_path
+        .join("VC")
+        .join("Tools")
+        .join("MSVC")
+        .join("14.42")
+        .join("include");
+    let sdk_include = install_path
+        .join("SDK")
+        .join("Include")
+        .join("10.0.22621.0")
+        .join("ucrt");
+    std::fs::create_dir_all(&msvc_include).unwrap();
+    std::fs::create_dir_all(&sdk_include).unwrap();
+
+    // Simulate stale paths from a different MSVC version
+    let stale_include = install_path
+        .join("VC")
+        .join("Tools")
+        .join("MSVC")
+        .join("14.44")
+        .join("include");
+
+    let info = MsvcInstallInfo {
+        install_path: install_path.clone(),
+        msvc_version: "14.42".to_string(),
+        sdk_version: Some("10.0.22621.0".to_string()),
+        cl_exe_path: install_path.join("cl.exe"),
+        link_exe_path: None,
+        lib_exe_path: None,
+        nmake_exe_path: None,
+        include_paths: vec![
+            msvc_include.clone(),  // exists
+            stale_include.clone(), // doesn't exist (stale from different version)
+            sdk_include.clone(),   // exists
+        ],
+        lib_paths: vec![],
+        bin_paths: vec![],
+    };
+
+    // validated_include_paths should only return 2 paths (existing ones)
+    let valid = info.validated_include_paths();
+    assert_eq!(valid.len(), 2, "should only return existing include paths");
+    assert!(
+        valid
+            .iter()
+            .any(|p| p.ends_with("14.42/include") || p.ends_with("14.42\\include"))
+    );
+    assert!(valid.iter().any(|p| p.to_string_lossy().contains("ucrt")));
+
+    // The INCLUDE env var should not contain the stale path
+    let env = info.get_environment();
+    if let Some(include) = env.get("INCLUDE") {
+        assert!(
+            !include.contains("14.44"),
+            "INCLUDE should not contain stale version 14.44 paths"
+        );
+        assert!(
+            include.contains("14.42"),
+            "INCLUDE should contain valid version 14.42 paths"
+        );
+    }
+}
+
+#[test]
+fn test_issue_573_validate_paths_empty_include_lib_is_ok() {
+    // When include_paths and lib_paths are empty, validation should still pass
+    // as long as cl.exe exists. This handles fresh installs where SDK wasn't requested.
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    let cl_path = install_path.join("cl.exe");
+    std::fs::write(&cl_path, "fake").unwrap();
+
+    let info = MsvcInstallInfo {
+        install_path,
+        msvc_version: "14.42".to_string(),
+        sdk_version: None,
+        cl_exe_path: cl_path,
+        link_exe_path: None,
+        lib_exe_path: None,
+        nmake_exe_path: None,
+        include_paths: vec![],
+        lib_paths: vec![],
+        bin_paths: vec![],
+    };
+
+    assert!(
+        info.validate_paths(),
+        "validate_paths should pass when cl.exe exists and include/lib are empty"
+    );
+}
+
+#[test]
+fn test_issue_573_validate_paths_partial_include_paths() {
+    // When at least one include path exists, validation should pass
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    let cl_path = install_path.join("cl.exe");
+    std::fs::write(&cl_path, "fake").unwrap();
+
+    let real_include = install_path.join("include_real");
+    std::fs::create_dir_all(&real_include).unwrap();
+
+    let info = MsvcInstallInfo {
+        install_path: install_path.clone(),
+        msvc_version: "14.42".to_string(),
+        sdk_version: None,
+        cl_exe_path: cl_path,
+        link_exe_path: None,
+        lib_exe_path: None,
+        nmake_exe_path: None,
+        include_paths: vec![
+            real_include,
+            install_path.join("include_stale"), // doesn't exist
+        ],
+        lib_paths: vec![],
+        bin_paths: vec![],
+    };
+
+    assert!(
+        info.validate_paths(),
+        "validate_paths should pass when at least one include path exists"
+    );
+}
+
+#[test]
+fn test_issue_573_validate_paths_all_include_paths_stale() {
+    // When ALL include paths are stale (none exist), validation should fail
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    let cl_path = install_path.join("cl.exe");
+    std::fs::write(&cl_path, "fake").unwrap();
+
+    let info = MsvcInstallInfo {
+        install_path: install_path.clone(),
+        msvc_version: "14.44".to_string(),
+        sdk_version: None,
+        cl_exe_path: cl_path,
+        link_exe_path: None,
+        lib_exe_path: None,
+        nmake_exe_path: None,
+        include_paths: vec![
+            install_path.join("stale_include_1"),
+            install_path.join("stale_include_2"),
+        ],
+        lib_paths: vec![],
+        bin_paths: vec![],
+    };
+
+    assert!(
+        !info.validate_paths(),
+        "validate_paths should fail when all include paths are stale"
+    );
+}
+
+#[test]
+fn test_issue_573_normalize_version_strips_patch() {
+    // MsvcInstaller::normalize_version should reduce "14.40.33807" to "14.40"
+    // because msvc-kit expects major.minor format
+    let installer = MsvcInstaller::new("14.40.33807");
+    assert_eq!(
+        installer.msvc_version,
+        Some("14.40".to_string()),
+        "normalize_version should strip patch from version"
+    );
+}
+
+#[test]
+fn test_issue_573_normalize_version_keeps_major_minor() {
+    let installer = MsvcInstaller::new("14.42");
+    assert_eq!(
+        installer.msvc_version,
+        Some("14.42".to_string()),
+        "normalize_version should keep major.minor as-is"
+    );
+}
+
+#[test]
+fn test_issue_573_normalize_version_single_component() {
+    let installer = MsvcInstaller::new("14");
+    assert_eq!(
+        installer.msvc_version,
+        Some("14".to_string()),
+        "normalize_version should keep single component as-is"
+    );
+}
+
+#[test]
+fn test_issue_573_installer_latest_no_version() {
+    let installer = MsvcInstaller::latest();
+    assert_eq!(
+        installer.msvc_version, None,
+        "latest() should not set msvc_version"
+    );
 }
