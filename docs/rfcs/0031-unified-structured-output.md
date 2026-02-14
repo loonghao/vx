@@ -1,10 +1,11 @@
 # RFC 0031: 统一结构化输出 — `--json` 全局支持与 TOON 格式展望
 
-> **状态**: Draft
+> **状态**: Partially Implemented (Phase 1 Complete)
 > **作者**: VX Team
 > **创建日期**: 2026-02-11
 > **目标版本**: v0.5.0
 > **关联**: RFC-0009 (统一控制台输出系统), RFC-0015 (系统工具发现)
+> **最后更新**: 2026-02-14
 
 ## 摘要
 
@@ -503,13 +504,13 @@ vx list --json           # 通用结构化输出
 
 ## 实施计划
 
-### Phase 1: 基础架构（1-2 周）
+### Phase 1: 基础架构（1-2 周）✅ 已完成
 
-1. **定义 `CommandOutput` trait** 和 `OutputRenderer`
-2. **统一 `OutputFormat` 枚举**，删除冗余定义
-3. **添加全局 `--json` / `--format` 参数** 到 `Cli` struct
-4. **接通 vx-console 的 JSON 管道**：Shell 添加 `output_mode`，进度条 JSON 模式静默
-5. **预留 `Toon` variant**（选择时报友好错误）
+1. ✅ **定义 `CommandOutput` trait** 和 `OutputRenderer` — 实现在 `crates/vx-cli/src/output.rs`
+2. ✅ **统一 `OutputFormat` 枚举** — `Text/Json/Toon` 三种格式，定义在 `crates/vx-cli/src/cli.rs`
+3. ✅ **添加全局 `--json` / `--output-format` 参数** 到 `Cli` struct
+4. ✅ **接通 vx-console 的 JSON 管道** — `OutputMode` 枚举（Standard/Quiet/Verbose/Json/Ci），`JsonOutput` 结构化日志，CI 平台支持（GitHub Actions/GitLab CI/Azure Pipelines）
+5. ✅ **预留 `Toon` variant**（选择时报友好错误）
 
 ### Phase 2: 命令迁移 — P0（1 周）
 

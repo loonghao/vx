@@ -1,10 +1,11 @@
 # RFC 0030: Provider 扩展计划 — 基于 x-cmd 生态的工具集成分析
 
-> **状态**: Draft
+> **状态**: Partially Implemented (Phase 1 Complete)
 > **作者**: VX Team
 > **创建日期**: 2026-02-10
 > **目标版本**: v0.4.0
 > **关联**: RFC-0016 (Unix CLI Tool Providers), RFC-0012 (Provider Manifest), RFC-0013 (Manifest-Driven Registration)
+> **最后更新**: 2026-02-14
 
 ## 摘要
 
@@ -16,7 +17,7 @@ x-cmd (AGPL-3.0) 的许可证不允许我们直接集成，但其覆盖的工具
 
 ---
 
-## 现有 Provider 覆盖（52 个）
+## 现有 Provider 覆盖（60 个）
 
 ### 语言运行时
 node, deno, bun, python, go, rust, zig, java, dotnet, uv
@@ -62,18 +63,18 @@ git, curl, jq, ffmpeg, imagemagick, ollama, openssl, pwsh, dagu, rcedit, pre-com
 
 ## 推荐新增 Provider
 
-### Tier 1 — Modern CLI Toolkit（最高优先级）
+### Tier 1 — Modern CLI Toolkit（最高优先级）✅ 已完成
 
 开发者日常高频使用的现代命令行工具，全部有完美的 GitHub 二进制发布。
 
-| 工具 | 说明 | License | 源 | 平台 | 理由 |
+| 工具 | 说明 | License | 源 | 平台 | 状态 |
 |------|------|---------|-----|------|------|
-| **fzf** | 通用模糊搜索 | MIT | `junegunn/fzf` | Win/Mac/Linux | 开发者必备，shell 集成 |
-| **ripgrep (rg)** | 极速文本搜索 | MIT/Unlicense | `BurntSushi/ripgrep` | Win/Mac/Linux | 替代 grep，vscode 内置使用 |
-| **fd** | 现代 find 替代 | MIT/Apache-2.0 | `sharkdp/fd` | Win/Mac/Linux | 与 fzf 搭配，直觉式语法 |
-| **bat** | 语法高亮 cat | MIT/Apache-2.0 | `sharkdp/bat` | Win/Mac/Linux | 开发者体验工具 |
-| **yq** | YAML/TOML/XML 处理器 | MIT | `mikefarah/yq` | Win/Mac/Linux | 与 jq 配对，DevOps 必备 |
-| **starship** | 跨 shell 提示符 | ISC | `starship/starship` | Win/Mac/Linux | 终端美化，Rust 编写 |
+| **fzf** | 通用模糊搜索 | MIT | `junegunn/fzf` | Win/Mac/Linux | ✅ 已实现 (`crates/vx-providers/fzf/`) |
+| **ripgrep (rg)** | 极速文本搜索 | MIT/Unlicense | `BurntSushi/ripgrep` | Win/Mac/Linux | ✅ 已实现 (`crates/vx-providers/ripgrep/`) |
+| **fd** | 现代 find 替代 | MIT/Apache-2.0 | `sharkdp/fd` | Win/Mac/Linux | ✅ 已实现 (`crates/vx-providers/fd/`) |
+| **bat** | 语法高亮 cat | MIT/Apache-2.0 | `sharkdp/bat` | Win/Mac/Linux | ✅ 已实现 (`crates/vx-providers/bat/`) |
+| **yq** | YAML/TOML/XML 处理器 | MIT | `mikefarah/yq` | Win/Mac/Linux | ✅ 已实现 (`crates/vx-providers/yq/`) |
+| **starship** | 跨 shell 提示符 | ISC | `starship/starship` | Win/Mac/Linux | ✅ 已实现 (`crates/vx-providers/starship/`) |
 
 **实施建议**: 可作为 `modern-unix` bundle 一起推出。这些工具通常一起安装。
 
@@ -164,20 +165,18 @@ git, curl, jq, ffmpeg, imagemagick, ollama, openssl, pwsh, dagu, rcedit, pre-com
 
 ## 实施路线
 
-### Phase 1: Modern CLI Toolkit（v0.4.0）
+### Phase 1: Modern CLI Toolkit（v0.4.0）✅ 已完成
 
 **目标**: 6 个工具，全部 manifest-driven provider
 
 ```
-fzf, ripgrep, fd, bat, yq, starship
+fzf, ripgrep, fd, bat, yq, starship — 全部已实现
 ```
 
-**工作量**: 每个工具约 1 个 provider.toml（利用现有 manifest 基础设施）
-
-**交付物**:
-- 6 个 `provider.toml` manifest
-- `vx install fzf`, `vx rg`, `vx fd` 等命令可用
-- 可选: `modern-unix` bundle 定义
+**已交付**:
+- ✅ 6 个完整的 Provider 实现（Provider + Runtime + Config 三层架构）
+- ✅ `vx install fzf`, `vx rg`, `vx fd`, `vx bat`, `vx yq`, `vx starship` 命令可用
+- ⬜ 可选: `modern-unix` bundle 定义（待实现）
 
 ### Phase 2: 语言运行时 + 开发工具（v0.5.0）
 
@@ -263,10 +262,10 @@ vx bundle install data-processing # 一键安装数据处理工具
 
 | 类别 | 数量 | 说明 |
 |------|------|------|
-| 现有 Provider | 52 | 已实现 |
-| Tier 1 新增 | 6 | Modern CLI, 最高优先 |
-| Tier 2 新增 | 10 | 语言 + 开发工具 |
-| Tier 3 新增 | 9 | 垂直领域 |
+| 现有 Provider | 60 | 已实现 |
+| Tier 1 新增 | 6 | ✅ Modern CLI, 全部已完成 |
+| Tier 2 新增 | 10 | 语言 + 开发工具（待实现） |
+| Tier 3 新增 | 9 | 垂直领域（待实现） |
 | Tier 4 新增 | 3 | AI 工具（待定） |
 | **规划总计** | **~80** | 覆盖主流开发场景 |
 | x-cmd 排除 | 300+ | Shell 内建/平台/API 等不适合 |

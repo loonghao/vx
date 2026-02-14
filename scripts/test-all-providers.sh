@@ -74,18 +74,18 @@ test_vx_command() {
     local provider="$1"
     local runtime="$2"
     local cmd="$3"
-    
+
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
-    
+
     local output
     local exit_code
-    
+
     if output=$("$VX_BINARY" "$runtime" "$cmd" 2>&1); then
         exit_code=0
     else
         exit_code=$?
     fi
-    
+
     if [[ $exit_code -eq 0 ]]; then
         PASSED_TESTS=$((PASSED_TESTS + 1))
         log_success "  ✓ vx $runtime $cmd"
@@ -141,40 +141,40 @@ CURRENT_RUNTIME=0
 for provider_path in "${ALL_PROVIDERS[@]}"; do
     provider_name="$(basename "$provider_path")"
     toml_path="$provider_path/provider.toml"
-    
+
     if [[ ! -f "$toml_path" ]]; then
         continue
     fi
-    
+
     log_section "Testing Provider: $provider_name"
-    
+
     # Use while loop instead of mapfile for Bash 3.x compatibility
     runtimes=()
     while IFS= read -r line; do
         [[ -n "$line" ]] && runtimes+=("$line")
     done < <(get_runtimes_from_toml "$toml_path")
-    
+
     if [[ ${#runtimes[@]} -eq 0 ]]; then
         log_warning "  ⚠ No runtimes found in provider.toml"
         SKIPPED_TESTS=$((SKIPPED_TESTS + 1))
         continue
     fi
-    
+
     log_info "  Runtimes: ${runtimes[*]}"
-    
+
     for runtime in "${runtimes[@]}"; do
         CURRENT_RUNTIME=$((CURRENT_RUNTIME + 1))
         REMAINING=$((TOTAL_RUNTIMES - CURRENT_RUNTIME))
         log_info "  [$CURRENT_RUNTIME/$TOTAL_RUNTIMES] Testing: $runtime (remaining: $REMAINING)"
-        
+
         # Test list command
         "$VX_BINARY" list "$runtime" > /dev/null 2>&1 && \
             log_success "    ✓ vx list $runtime" || \
             log_warning "    ⚠ vx list $runtime (expected, may not be installed yet)"
-        
+
         # Test --version (will trigger auto-install)
         test_vx_command "$provider_name" "$runtime" "--version" || true
-        
+
         # Small delay to avoid rate limiting
         sleep 0.1
     done

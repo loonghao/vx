@@ -68,7 +68,7 @@ success() {
 detect_package_manager() {
     local os_type
     os_type=$(uname -s)
-    
+
     case "$os_type" in
         Darwin)
             # macOS - prefer Homebrew
@@ -104,27 +104,27 @@ detect_package_manager() {
             fi
             ;;
     esac
-    
+
     echo "none"
 }
 
 # Install using Homebrew (macOS/Linux)
 install_with_brew() {
     info "Installing vx using Homebrew..."
-    
+
     # Check if tap exists, add if not
     if ! brew tap | grep -q "loonghao/vx"; then
         info "Adding loonghao/vx tap..."
         brew tap loonghao/vx
     fi
-    
+
     if [[ "$VX_VERSION" == "latest" ]]; then
         brew install loonghao/vx/vx
     else
         # Install specific version if available
         brew install "loonghao/vx/vx@$VX_VERSION" 2>/dev/null || brew install loonghao/vx/vx
     fi
-    
+
     success "vx installed via Homebrew"
     return 0
 }
@@ -132,14 +132,14 @@ install_with_brew() {
 # Install using APT (Debian/Ubuntu)
 install_with_apt() {
     info "Installing vx using APT..."
-    
+
     local temp_dir
     temp_dir=$(mktemp -d)
     trap 'rm -rf "$temp_dir"' EXIT
-    
+
     # Download the .deb package from GitHub releases
     local tag_name version_number deb_url deb_file arch
-    
+
     if [[ "$VX_VERSION" == "latest" ]]; then
         tag_name=$(get_latest_version)
     else
@@ -149,19 +149,19 @@ install_with_apt() {
             tag_name="v$VX_VERSION"
         fi
     fi
-    
+
     version_number=$(echo "$tag_name" | sed -E 's/^(vx-)?v//')
-    
+
     # Detect architecture
     case "$(uname -m)" in
         x86_64|amd64) arch="amd64" ;;
         aarch64|arm64) arch="arm64" ;;
         *) error "Unsupported architecture for APT install: $(uname -m)"; return 1 ;;
     esac
-    
+
     deb_file="vx_${version_number}_${arch}.deb"
     deb_url="$BASE_URL/download/$tag_name/$deb_file"
-    
+
     info "Downloading $deb_file..."
     if curl -fsSL "$deb_url" -o "$temp_dir/$deb_file"; then
         info "Installing package..."
@@ -178,14 +178,14 @@ install_with_apt() {
 install_with_dnf() {
     local pkg_manager="$1"
     info "Installing vx using $pkg_manager..."
-    
+
     local temp_dir
     temp_dir=$(mktemp -d)
     trap 'rm -rf "$temp_dir"' EXIT
-    
+
     # Download the .rpm package from GitHub releases
     local tag_name version_number rpm_url rpm_file arch
-    
+
     if [[ "$VX_VERSION" == "latest" ]]; then
         tag_name=$(get_latest_version)
     else
@@ -195,19 +195,19 @@ install_with_dnf() {
             tag_name="v$VX_VERSION"
         fi
     fi
-    
+
     version_number=$(echo "$tag_name" | sed -E 's/^(vx-)?v//')
-    
+
     # Detect architecture
     case "$(uname -m)" in
         x86_64|amd64) arch="x86_64" ;;
         aarch64|arm64) arch="aarch64" ;;
         *) error "Unsupported architecture for RPM install: $(uname -m)"; return 1 ;;
     esac
-    
+
     rpm_file="vx-${version_number}-1.${arch}.rpm"
     rpm_url="$BASE_URL/download/$tag_name/$rpm_file"
-    
+
     info "Downloading $rpm_file..."
     if curl -fsSL "$rpm_url" -o "$temp_dir/$rpm_file"; then
         info "Installing package..."
@@ -223,7 +223,7 @@ install_with_dnf() {
 # Install using Pacman (Arch Linux)
 install_with_pacman() {
     info "Installing vx using Pacman..."
-    
+
     # Check if yay or paru is available for AUR
     if command -v yay >/dev/null 2>&1; then
         yay -S --noconfirm vx-bin 2>/dev/null || yay -S --noconfirm vx
@@ -242,7 +242,7 @@ install_with_pacman() {
 # Install using APK (Alpine Linux)
 install_with_apk() {
     info "Installing vx using APK..."
-    
+
     # Alpine uses musl, so we'll download the static binary
     warn "APK package not available, will install static musl binary"
     PREFER_STATIC=true
@@ -252,7 +252,7 @@ install_with_apk() {
 # Try to install using package manager
 try_package_manager_install() {
     local pm="$1"
-    
+
     case "$pm" in
         brew)
             install_with_brew && return 0
@@ -280,7 +280,7 @@ try_package_manager_install() {
             return 1
             ;;
     esac
-    
+
     return 1
 }
 
@@ -415,9 +415,9 @@ get_latest_version() {
 find_version_with_assets_from_page() {
     local releases_url="https://github.com/$REPO_OWNER/$REPO_NAME/releases"
     local html_content
-    
+
     info "Fetching releases page to find version with assets..."
-    
+
     if command -v curl >/dev/null 2>&1; then
         html_content=$(curl -sL "$releases_url" 2>/dev/null || echo "")
     elif command -v wget >/dev/null 2>&1; then
@@ -425,12 +425,12 @@ find_version_with_assets_from_page() {
     else
         return
     fi
-    
+
     if [[ -z "$html_content" ]]; then
         warn "Failed to fetch releases page"
         return
     fi
-    
+
     # Extract version tags from release links using portable methods
     # Pattern: href="/loonghao/vx/releases/tag/TAG_NAME"
     local tags
@@ -442,14 +442,14 @@ find_version_with_assets_from_page() {
         # Fallback: use only sed
         tags=$(echo "$html_content" | sed -n 's|.*href="/[^"]*/releases/tag/\([^"]*\)".*|\1|p' | sort -u | head -20)
     fi
-    
+
     if [[ -z "$tags" ]]; then
         warn "No release tags found on page"
         return
     fi
-    
+
     info "Found release tags, checking for assets..."
-    
+
     # For each tag, check if it has assets by trying direct download
     local platform
     platform=$(detect_platform)
@@ -495,7 +495,7 @@ find_version_with_assets_from_page() {
             fi
         done
     done
-    
+
     warn "No releases with assets found"
 }
 
@@ -588,7 +588,7 @@ install_from_release() {
     #   v0.7.0+: unversioned (vx-{triple}.tar.gz) with tag v{ver} (cargo-dist)
     local fallback_archive=""
     local unversioned_archive=""
-    
+
     # Determine the Rust target triple
     local target_triple=""
     local fallback_triple=""
@@ -821,7 +821,7 @@ main() {
     # Try package manager install if requested
     if [[ -n "$USE_PACKAGE_MANAGER" ]]; then
         local pm="$USE_PACKAGE_MANAGER"
-        
+
         # Auto-detect package manager if "auto" is specified
         if [[ "$pm" == "auto" ]]; then
             pm=$(detect_package_manager)
@@ -831,7 +831,7 @@ main() {
                 info "Detected package manager: $pm"
             fi
         fi
-        
+
         if [[ "$pm" != "none" ]]; then
             if try_package_manager_install "$pm"; then
                 # Package manager install succeeded
