@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.11](https://github.com/loonghao/vx/compare/v0.7.10...v0.7.11) (2026-02-14)
+
+
+### Features
+
+* add prek provider and fix clippy for Rust 1.93 ([5d56ed5](https://github.com/loonghao/vx/commit/5d56ed5ea3d300e4baac139dd8c57d2e6e9b5ce9))
+* add version fallback on installation verification failure ([866cf58](https://github.com/loonghao/vx/commit/866cf58e0327cf8c8273448021a3ef4f21f9b2dc))
+* platform-aware tool filtering in vx.toml ([ed0afce](https://github.com/loonghao/vx/commit/ed0afce5f1b302c099eb22380dd86ddf56b05ec5))
+
+
+### Bug Fixes
+
+* add download retry, fix clippy lint, enhance pre-commit hooks ([e1b67fd](https://github.com/loonghao/vx/commit/e1b67fde0824487ce4d373bc9ff26b05aa0d37c0))
+* add missing platform subdirectory in executable path resolution ([2810fa7](https://github.com/loonghao/vx/commit/2810fa7309ef4c38e2e39c4b999f782987e460bb))
+* **ci:** ensure vx for security audit ([ed1a3fc](https://github.com/loonghao/vx/commit/ed1a3fc1fe7d360dce4c4b7a26ced88ac39eb5b3))
+* **ci:** preserve sccache env in isolation ([e46fa69](https://github.com/loonghao/vx/commit/e46fa696bb509a8528471301bfa280086848bcc5))
+* cross-platform lock file URL mismatch & enhance pre-commit hooks ([3e10939](https://github.com/loonghao/vx/commit/3e10939a36ee2bbd7ce23caff49a8d98f5eee5c3))
+* disable axoupdater and turbo-cdn for aarch64-pc-windows-msvc ([3a442b6](https://github.com/loonghao/vx/commit/3a442b65de233827e10641985b1652ce81e49ac8))
+* improve install.sh version detection and fallback logic ([f738047](https://github.com/loonghao/vx/commit/f7380473f79ef64b90e83d77ba4a0f8db340dd7e))
+* **msvc:** selective env injection to avoid node-gyp conflicts ([#573](https://github.com/loonghao/vx/issues/573)) ([852f811](https://github.com/loonghao/vx/commit/852f8113df92324d571d68f23cb330a581c9d58d))
+* prek archive strip and imagemagick platform directory issues ([e13b5dc](https://github.com/loonghao/vx/commit/e13b5dc9abf4bcbaf16c2f6879aec6a201d58cf6))
+* **prek:** add executable_layout to trigger strip_prefix during install ([f22c4ca](https://github.com/loonghao/vx/commit/f22c4ca202f618aa008f7a861873b99b256bd504))
+* **prek:** remove pre-commit alias causing non-deterministic registry conflict ([f2d4349](https://github.com/loonghao/vx/commit/f2d43492ee899b52ffc0e430e8c69982ba8c39b2))
+* remove rustup from bundled tool fallback and run cargo fmt ([f97004b](https://github.com/loonghao/vx/commit/f97004b1f92de207244b591af3463cfadadafc96))
+* skip releases without assets when rate limited ([e6f4e15](https://github.com/loonghao/vx/commit/e6f4e1571d131fa8fe0c84a8219edeeaac5c0cb6))
+* upgrade deps for aarch64-windows cross-compile and add msvc-kit lzma workaround ([a516acd](https://github.com/loonghao/vx/commit/a516acd204f0038e6b3f2caf1f76ed4a030f3f79))
+* upgrade msvc-kit to 0.2.9 and remove local patch ([4f550c7](https://github.com/loonghao/vx/commit/4f550c7f81f4da9ff0e498189a373b27af5981f1))
+* use aws-lc-rs instead of ring for aarch64-pc-windows-msvc cross-compilation ([84b5050](https://github.com/loonghao/vx/commit/84b5050ed559aec889c459dc7170a933685e7572))
+* use portable grep/sed for release tag extraction ([9bc9adf](https://github.com/loonghao/vx/commit/9bc9adf5df3669a3797cd8c3a9348823f7d91dc0))
+* **vx-paths:** mark extern clonefile as unsafe ([81bfb90](https://github.com/loonghao/vx/commit/81bfb9034f4bb9cde193d296d949aa4c663a0853))
+* wrap env::set_var/remove_var in unsafe blocks for Rust 1.83+ compatibility ([b948b5f](https://github.com/loonghao/vx/commit/b948b5f9fab880c121cd0974d0bdc29ebc71cd00))
+
+
+### Performance Improvements
+
+* **ci:** add sccache and fix fmt ordering ([e0bd6e0](https://github.com/loonghao/vx/commit/e0bd6e0d16c8a61cd7749a3463e5549c151cf197))
+
 ## [0.7.10](https://github.com/loonghao/vx/compare/v0.7.9...v0.7.10) (2026-02-12)
 
 
