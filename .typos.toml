@@ -11,7 +11,24 @@ extend-ignore-identifiers-re = [
 [default.extend-words]
 # Allow specific words that are false positives
 nd = "nd"
-Hashi = "Hashi" # HashiCorp
+Hashi = "Hashi"   # HashiCorp
+prek = "prek"      # pre-commit replacement tool
+dagu = "dagu"      # workflow engine
+rez = "rez"        # VFX package manager
+rcedit = "rcedit"  # resource editor
 
 [files]
-extend-exclude = ["Cargo.lock", "target/", "*.snap", "*.min.js", "*.min.css"]
+extend-exclude = [
+  "Cargo.lock",
+  "target/",
+  "*.snap",
+  "*.min.js",
+  "*.min.css",
+  "package-lock.json",
+  "vx.lock",
+  "CHANGELOG.md",
+  "docs/.vitepress/dist/",
+  "docs/.vitepress/cache/",
+  "vx-promo-video/",
+  "node_modules/",
+]
