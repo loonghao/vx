@@ -320,6 +320,11 @@ fn update_lockfile_if_exists(
 /// Returns (locked_version, download_url) if found, None otherwise.
 /// This allows install commands to use pre-resolved URLs from vx.lock
 /// instead of re-fetching them from providers.
+///
+/// NOTE: The lock file's `download_url` field is platform-specific (recorded
+/// when the lock file was generated). If the current platform differs from
+/// the lock file's platform, we skip the cached URL so the runtime can
+/// generate the correct platform-specific URL at install time.
 fn get_download_url_from_lock(
     tool_name: &str,
     _requested_version: &str,
@@ -336,19 +341,48 @@ fn get_download_url_from_lock(
     // Get locked tool
     let locked_tool = lockfile.get_tool(tool_name)?;
 
-    // Get download URL
-    let download_url = locked_tool.download_url.clone()?;
-
     // Use locked version
     let locked_version = locked_tool.version.clone();
 
-    // Check if requested version matches locked version or uses version constraint
-    // For "latest", always use locked version
-    // For specific versions, check if they match
-    // Version constraint or partial version - use locked version anyway
-    // since lock file already resolved to a specific version
-    // Always use locked version when lock file exists
-    Some((locked_version, download_url))
+    // Get the current platform string (same format as lock file metadata)
+    let current_plat = current_platform_triple();
+    let lock_plat = &lockfile.metadata.platform;
+
+    // Try platform-specific URLs first (works cross-platform)
+    if let Some(url) = locked_tool.platform_urls.get(&current_plat) {
+        return Some((locked_version, url.clone()));
+    }
+
+    // Only use the generic download_url if it was recorded on the same platform.
+    // The download_url is platform-specific (e.g., a Windows .zip URL recorded on
+    // Windows), so using it on Linux would download the wrong archive.
+    if let Some(download_url) = &locked_tool.download_url {
+        if current_plat == *lock_plat {
+            return Some((locked_version, download_url.clone()));
+        }
+        tracing::debug!(
+            "Skipping lock file download URL for {} (lock platform: {}, current: {})",
+            tool_name,
+            lock_plat,
+            current_plat,
+        );
+    }
+
+    // No matching URL — return version only so the runtime generates the correct URL
+    None
+}
+
+/// Get current platform triple (same format as lockfile metadata)
+fn current_platform_triple() -> String {
+    let arch = std::env::consts::ARCH;
+    let os = std::env::consts::OS;
+    let os_str = match os {
+        "windows" => "pc-windows-msvc",
+        "macos" => "apple-darwin",
+        "linux" => "unknown-linux-gnu",
+        _ => os,
+    };
+    format!("{}-{}", arch, os_str)
 }
 
 /// Install a runtime quietly (for CI testing)

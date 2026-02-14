@@ -18,7 +18,7 @@
 
 use crate::context::{ExecutionContext, RuntimeContext};
 use crate::ecosystem::Ecosystem;
-use crate::platform::Platform;
+use crate::platform::{Os, Platform};
 use crate::region;
 use crate::types::{ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, VersionInfo};
 use crate::version_resolver::VersionResolver;
@@ -894,14 +894,23 @@ pub trait Runtime: Send + Sync {
 
         // Try to use cached URL from lock file first
         // Try tool_name first, then store_name (for bundled tools like npm -> node)
-        let url = if let Some(cached_url) = ctx.get_cached_download_url(self.name()) {
+        // NOTE: Cached URLs may be platform-specific (e.g., from vx.lock generated on
+        // a different OS). We validate that the cached URL is plausible for the current
+        // platform before using it.
+        let url = if let Some(cached_url) = ctx
+            .get_cached_download_url(self.name())
+            .filter(|u| is_url_plausible_for_platform(u, &platform))
+        {
             debug!(
                 "Using cached download URL from lock file for {}: {}",
                 self.name(),
                 cached_url
             );
             cached_url
-        } else if let Some(cached_url) = ctx.get_cached_download_url(self.store_name()) {
+        } else if let Some(cached_url) = ctx
+            .get_cached_download_url(self.store_name())
+            .filter(|u| is_url_plausible_for_platform(u, &platform))
+        {
             debug!(
                 "Using cached download URL from lock file for {}: {}",
                 self.store_name(),
@@ -1499,5 +1508,36 @@ pub trait Runtime: Send + Sync {
                     hint
                 )
             })
+    }
+}
+
+/// Check if a download URL is plausible for the given platform.
+///
+/// This is a defensive check to avoid using a cached URL that was recorded for
+/// a different platform (e.g., a Windows `.zip` URL on Linux). We look for
+/// platform-specific markers in the URL.
+fn is_url_plausible_for_platform(url: &str, platform: &Platform) -> bool {
+    let url_lower = url.to_lowercase();
+
+    // Platform markers that indicate a URL is for a specific OS
+    let windows_markers = ["windows", "win32", "win64", "-msvc", ".msi"];
+    let macos_markers = ["darwin", "macos", "osx", ".dmg"];
+    let linux_markers = ["linux", "gnu", "musl"];
+
+    let url_is_windows = windows_markers.iter().any(|m| url_lower.contains(m));
+    let url_is_macos = macos_markers.iter().any(|m| url_lower.contains(m));
+    let url_is_linux = linux_markers.iter().any(|m| url_lower.contains(m));
+
+    // If we can't detect any platform markers, assume the URL is universal
+    if !url_is_windows && !url_is_macos && !url_is_linux {
+        return true;
+    }
+
+    // Check that the URL's platform matches the current platform
+    match platform.os {
+        Os::Windows => url_is_windows,
+        Os::MacOS => url_is_macos,
+        Os::Linux => url_is_linux,
+        _ => true, // Unknown platform — allow any URL
     }
 }
