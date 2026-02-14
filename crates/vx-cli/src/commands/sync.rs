@@ -14,7 +14,7 @@
 //! - If `vx.lock` doesn't exist: use versions from vx.toml
 
 use crate::commands::common::{ToolStatus, check_tools_status_ordered};
-use crate::commands::setup::{find_vx_config, parse_vx_config};
+use crate::commands::setup::{find_vx_config, parse_vx_config, parse_vx_config_full};
 use crate::ui::{InstallProgress, UI};
 use anyhow::{Context, Result};
 use std::collections::BTreeMap;
@@ -122,8 +122,10 @@ pub async fn handle_with_options(_registry: &ProviderRegistry, options: SyncOpti
         return Ok(());
     }
 
-    // Get tools as BTreeMap for deterministic ordering
-    let config_tools = config.tools_as_btreemap();
+    // Load full config (unfiltered) for lock file consistency check
+    // The lock file should cover ALL platforms, not just the current one
+    let full_config = parse_vx_config_full(&config_path)?;
+    let config_tools = full_config.tools_as_btreemap();
 
     // Check lock file status
     let project_root = config_path.parent().unwrap_or(&current_dir);
@@ -199,6 +201,11 @@ pub async fn handle_with_options(_registry: &ProviderRegistry, options: SyncOpti
 
     // Resolve effective versions (lock file takes precedence)
     let mut effective_tools = resolve_effective_versions(&config_tools, &lockfile);
+
+    // Filter out tools not applicable to the current platform
+    // ConfigView.tools already has platform-filtered tools from VxConfig conversion
+    let platform_tool_names: std::collections::HashSet<_> = config.tools.keys().collect();
+    effective_tools.retain(|name, _| platform_tool_names.contains(name));
 
     // Analyze project files for additional required tools if enabled
     if options.analyze {
