@@ -51,3 +51,25 @@ repos:
         entry: vx npx prettier --write --ignore-unknown
         language: system
         types_or: [yaml, json]
+
+  # Common safety checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: end-of-file-fixer
+        exclude: |
+          (?x)^(
+            .*\.lock|
+            .*\.txt
+          )$
+      - id: check-toml
+      - id: trailing-whitespace
+        exclude: |
+          (?x)^(
+            .*\.lock|
+            .*\.txt|
+            .*\.md
+          )$

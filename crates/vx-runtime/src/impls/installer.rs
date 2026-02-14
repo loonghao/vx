@@ -4,7 +4,9 @@ use super::http_client::RealHttpClient;
 use crate::traits::Installer;
 use anyhow::Result;
 use async_trait::async_trait;
+use backon::{ExponentialBuilder, Retryable};
 use std::path::Path;
+use std::time::Duration;
 
 /// Real installer for downloading and extracting archives
 pub struct RealInstaller {
@@ -141,54 +143,83 @@ impl RealInstaller {
             );
         }
 
-        let response = self.http.client.get(download_url.as_str()).send().await;
+        // Retry the initial HTTP GET request with exponential backoff.
+        // This handles transient errors like 502 Bad Gateway from GitHub CDN.
+        let url_owned = url.to_string();
+        let download_url_owned = download_url.to_string();
+        let client = self.http.client.clone();
 
-        // If CDN URL failed, fallback to original URL
-        let (response, actual_using_cdn) = match response {
-            Ok(resp) if resp.status().is_success() => (resp, using_cdn),
-            Ok(resp) if using_cdn => {
-                tracing::warn!(
-                    cdn_url = %download_url,
-                    status = %resp.status(),
-                    original_url = url,
-                    "CDN download failed, falling back to original URL"
-                );
-                let fallback_resp = self.http.client.get(url).send().await?;
-                if !fallback_resp.status().is_success() {
-                    return Err(anyhow::anyhow!(
-                        "Download failed: HTTP {} for {}",
-                        fallback_resp.status(),
-                        url
-                    ));
+        let fetch_response = {
+            let url_ref = &url_owned;
+            let download_url_ref = &download_url_owned;
+            let client_ref = &client;
+
+            (|| async {
+                let response = client_ref.get(download_url_ref.as_str()).send().await;
+
+                match response {
+                    Ok(resp) if resp.status().is_success() => Ok((resp, using_cdn)),
+                    Ok(resp) if using_cdn => {
+                        let status = resp.status();
+                        tracing::warn!(
+                            cdn_url = %download_url_ref,
+                            status = %status,
+                            original_url = url_ref,
+                            "CDN download failed, falling back to original URL"
+                        );
+                        let fallback_resp = client_ref.get(url_ref).send().await.map_err(|e| {
+                            DownloadError::retryable(format!("Download failed: {}", e))
+                        })?;
+                        if !fallback_resp.status().is_success() {
+                            let status = fallback_resp.status();
+                            return Err(DownloadError::from_status(status, url_ref));
+                        }
+                        Ok((fallback_resp, false))
+                    }
+                    Ok(resp) => {
+                        let status = resp.status();
+                        Err(DownloadError::from_status(status, url_ref))
+                    }
+                    Err(e) if using_cdn => {
+                        tracing::warn!(
+                            cdn_url = %download_url_ref,
+                            error = %e,
+                            original_url = url_ref,
+                            "CDN download error, falling back to original URL"
+                        );
+                        let fallback_resp = client_ref.get(url_ref).send().await.map_err(|e| {
+                            DownloadError::retryable(format!("Download failed: {}", e))
+                        })?;
+                        if !fallback_resp.status().is_success() {
+                            let status = fallback_resp.status();
+                            return Err(DownloadError::from_status(status, url_ref));
+                        }
+                        Ok((fallback_resp, false))
+                    }
+                    Err(e) => Err(DownloadError::retryable(format!("Download failed: {}", e))),
                 }
-                (fallback_resp, false)
-            }
-            Ok(resp) => {
-                return Err(anyhow::anyhow!(
-                    "Download failed: HTTP {} for {}",
-                    resp.status(),
-                    url
-                ));
-            }
-            Err(e) if using_cdn => {
+            })
+            .retry(
+                ExponentialBuilder::default()
+                    .with_min_delay(Duration::from_secs(2))
+                    .with_max_delay(Duration::from_secs(30))
+                    .with_max_times(3)
+                    .with_jitter(),
+            )
+            .notify(|err: &DownloadError, dur: Duration| {
                 tracing::warn!(
-                    cdn_url = %download_url,
-                    error = %e,
-                    original_url = url,
-                    "CDN download error, falling back to original URL"
+                    error = %err,
+                    retry_in = ?dur,
+                    url = %url_owned,
+                    "Retrying download after transient error"
                 );
-                let fallback_resp = self.http.client.get(url).send().await?;
-                if !fallback_resp.status().is_success() {
-                    return Err(anyhow::anyhow!(
-                        "Download failed: HTTP {} for {}",
-                        fallback_resp.status(),
-                        url
-                    ));
-                }
-                (fallback_resp, false)
-            }
-            Err(e) => return Err(e.into()),
+            })
+            .when(|e: &DownloadError| e.is_retryable)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?
         };
+
+        let (response, actual_using_cdn) = fetch_response;
 
         // Extract filename from response BEFORE consuming the body
         let detected_filename = Self::extract_filename_from_response(&response, url);
@@ -554,6 +585,59 @@ impl Installer for RealInstaller {
         }
 
         Ok(())
+    }
+}
+
+/// Download error type that supports retry classification
+#[derive(Debug)]
+struct DownloadError {
+    message: String,
+    is_retryable: bool,
+}
+
+impl std::fmt::Display for DownloadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for DownloadError {}
+
+impl DownloadError {
+    fn retryable(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            is_retryable: true,
+        }
+    }
+
+    #[allow(dead_code)]
+    fn non_retryable(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            is_retryable: false,
+        }
+    }
+
+    /// Classify HTTP status code as retryable or not
+    fn from_status(status: reqwest::StatusCode, url: &str) -> Self {
+        let is_retryable = matches!(
+            status.as_u16(),
+            // Server errors that are often transient
+            500..=504 |
+            // Rate limiting
+            429
+        );
+        let message = format!(
+            "Download failed: HTTP {} {} for {}",
+            status.as_u16(),
+            status.canonical_reason().unwrap_or(""),
+            url
+        );
+        Self {
+            message,
+            is_retryable,
+        }
     }
 }
 

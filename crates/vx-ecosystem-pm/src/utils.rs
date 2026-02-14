@@ -100,10 +100,10 @@ pub fn detect_executables_in_dir(bin_dir: &Path) -> Result<Vec<String>> {
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                if let Ok(meta) = std::fs::metadata(&path) {
-                    if meta.permissions().mode() & 0o111 != 0 {
-                        executables.push(name.to_string());
-                    }
+                if let Ok(meta) = std::fs::metadata(&path)
+                    && meta.permissions().mode() & 0o111 != 0
+                {
+                    executables.push(name.to_string());
                 }
             }
         }
