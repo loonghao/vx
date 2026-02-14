@@ -722,10 +722,10 @@ impl InstallProgress {
 
 impl Drop for InstallProgress {
     fn drop(&mut self) {
-        if let Some(bar) = self.current_bar.take() {
-            if !bar.is_finished() {
-                bar.finish_and_clear();
-            }
+        if let Some(bar) = self.current_bar.take()
+            && !bar.is_finished()
+        {
+            bar.finish_and_clear();
         }
         if !self.main_bar.is_finished() {
             self.main_bar.finish_and_clear();

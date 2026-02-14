@@ -934,13 +934,13 @@ mod cross_tool_tests {
         fs::create_dir_all(&backend_dir).expect("Failed to create backend dir");
 
         let output = run_vx_in_dir(&backend_dir, &["uv", "init", "--name", "backend"]);
-        if let Ok(o) = &output {
-            if is_success(o) {
-                assert!(
-                    backend_dir.join("pyproject.toml").exists(),
-                    "Python project should be initialized"
-                );
-            }
+        if let Ok(o) = &output
+            && is_success(o)
+        {
+            assert!(
+                backend_dir.join("pyproject.toml").exists(),
+                "Python project should be initialized"
+            );
         }
 
         // Create Node.js frontend
@@ -1085,13 +1085,13 @@ mod version_management_tests {
         // Install a specific version of Node.js
         let output = run_vx(&["install", "node@20"]);
 
-        if let Ok(o) = &output {
-            if is_success(o) {
-                // Verify version
-                let version_output = run_vx(&["node", "--version"]).expect("Failed to get version");
-                let stdout = stdout_str(&version_output);
-                assert!(stdout.contains("20"), "Should install Node.js 20.x");
-            }
+        if let Ok(o) = &output
+            && is_success(o)
+        {
+            // Verify version
+            let version_output = run_vx(&["node", "--version"]).expect("Failed to get version");
+            let stdout = stdout_str(&version_output);
+            assert!(stdout.contains("20"), "Should install Node.js 20.x");
         }
     }
 

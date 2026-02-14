@@ -248,17 +248,17 @@ impl VersionResolver {
         }
 
         // Handle caret constraint: ^1.0.0
-        if let Some(rest) = trimmed.strip_prefix('^') {
-            if let Some(v) = Version::parse(rest) {
-                return VersionConstraint::Caret(v);
-            }
+        if let Some(rest) = trimmed.strip_prefix('^')
+            && let Some(v) = Version::parse(rest)
+        {
+            return VersionConstraint::Caret(v);
         }
 
         // Handle tilde constraint: ~1.0.0
-        if let Some(rest) = trimmed.strip_prefix('~') {
-            if let Some(v) = Version::parse(rest) {
-                return VersionConstraint::Tilde(v);
-            }
+        if let Some(rest) = trimmed.strip_prefix('~')
+            && let Some(v) = Version::parse(rest)
+        {
+            return VersionConstraint::Tilde(v);
         }
 
         // Handle range constraints: >=3.9,<3.12
@@ -277,10 +277,10 @@ impl VersionResolver {
         // Handle wildcard: 3.11.*
         if let Some(prefix) = trimmed.strip_suffix(".*") {
             let parts: Vec<&str> = prefix.split('.').collect();
-            if parts.len() == 2 {
-                if let (Ok(major), Ok(minor)) = (parts[0].parse(), parts[1].parse()) {
-                    return VersionConstraint::Wildcard { major, minor };
-                }
+            if parts.len() == 2
+                && let (Ok(major), Ok(minor)) = (parts[0].parse(), parts[1].parse())
+            {
+                return VersionConstraint::Wildcard { major, minor };
             }
         }
 

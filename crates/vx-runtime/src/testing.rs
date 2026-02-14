@@ -770,10 +770,10 @@ impl RuntimeTester {
 
     /// Get the executable to use for testing
     fn get_executable(&self) -> Option<String> {
-        if let Some(ref path) = self.executable_path {
-            if path.exists() {
-                return Some(path.to_string_lossy().to_string());
-            }
+        if let Some(ref path) = self.executable_path
+            && path.exists()
+        {
+            return Some(path.to_string_lossy().to_string());
         }
 
         // Fall back to system PATH
@@ -876,22 +876,20 @@ impl RuntimeTester {
         }
 
         // Check output pattern
-        if passed {
-            if let Some(ref pattern) = cmd.expected_output {
-                match Regex::new(pattern) {
-                    Ok(re) => {
-                        if !re.is_match(&stdout) && !re.is_match(&stderr) {
-                            passed = false;
-                            error_msg = Some(format!(
-                                "Output did not match pattern '{}'\nstdout: {}\nstderr: {}",
-                                pattern, stdout, stderr
-                            ));
-                        }
-                    }
-                    Err(e) => {
+        if passed && let Some(ref pattern) = cmd.expected_output {
+            match Regex::new(pattern) {
+                Ok(re) => {
+                    if !re.is_match(&stdout) && !re.is_match(&stderr) {
                         passed = false;
-                        error_msg = Some(format!("Invalid regex pattern '{}': {}", pattern, e));
+                        error_msg = Some(format!(
+                            "Output did not match pattern '{}'\nstdout: {}\nstderr: {}",
+                            pattern, stdout, stderr
+                        ));
                     }
+                }
+                Err(e) => {
+                    passed = false;
+                    error_msg = Some(format!("Invalid regex pattern '{}': {}", pattern, e));
                 }
             }
         }

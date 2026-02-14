@@ -11,6 +11,11 @@ use super::{
     VersioningConfig,
 };
 
+/// Tools included/skipped for a platform, with skip reasons.
+///
+/// `(included_tools, skipped_tools_with_allowed_os)`
+type PlatformToolsResult<M> = (M, Vec<(String, Vec<String>)>);
+
 /// Root configuration structure for `vx.toml`
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(default)]
@@ -188,20 +193,15 @@ impl VxConfig {
     /// version strings) are included on all platforms.
     ///
     /// Returns a tuple of (included tools, skipped tools with reason)
-    pub fn tools_for_current_platform(
-        &self,
-    ) -> (HashMap<String, String>, Vec<(String, Vec<String>)>) {
+    pub fn tools_for_current_platform(&self) -> PlatformToolsResult<HashMap<String, String>> {
         let current_os = Self::current_os_name();
-        self.tools_for_platform(&current_os)
+        self.tools_for_platform(current_os)
     }
 
     /// Get tools filtered for a specific platform (for testing).
     ///
     /// Returns (included_tools, skipped_tools_with_allowed_os)
-    pub fn tools_for_platform(
-        &self,
-        os: &str,
-    ) -> (HashMap<String, String>, Vec<(String, Vec<String>)>) {
+    pub fn tools_for_platform(&self, os: &str) -> PlatformToolsResult<HashMap<String, String>> {
         let mut included = HashMap::new();
         let mut skipped = Vec::new();
 
@@ -239,7 +239,7 @@ impl VxConfig {
     /// Returns a tuple of (included tools, skipped tools with reason)
     pub fn tools_for_current_platform_btree(
         &self,
-    ) -> (BTreeMap<String, String>, Vec<(String, Vec<String>)>) {
+    ) -> PlatformToolsResult<BTreeMap<String, String>> {
         let (included, skipped) = self.tools_for_current_platform();
         (included.into_iter().collect(), skipped)
     }
@@ -253,10 +253,11 @@ impl VxConfig {
         match tool {
             ToolVersion::Simple(s) => Some((s.clone(), None)),
             ToolVersion::Detailed(d) => {
-                if let Some(os_list) = &d.os {
-                    if !os_list.is_empty() && !os_list.iter().any(|o| o.eq_ignore_ascii_case(os)) {
-                        return Some((d.version.clone(), Some(os_list.clone())));
-                    }
+                if let Some(os_list) = &d.os
+                    && !os_list.is_empty()
+                    && !os_list.iter().any(|o| o.eq_ignore_ascii_case(os))
+                {
+                    return Some((d.version.clone(), Some(os_list.clone())));
                 }
                 Some((d.version.clone(), None))
             }

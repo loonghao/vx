@@ -75,11 +75,11 @@ impl Default for CapacitorDetector {
 impl FrameworkDetector for CapacitorDetector {
     fn detect(&self, root: &Path) -> bool {
         // Package dependency or config
-        if let Some(pkg) = Self::read_package_json(root) {
-            if Self::has_capacitor_dependency(&pkg) {
-                debug!("Detected Capacitor via package.json dependency");
-                return true;
-            }
+        if let Some(pkg) = Self::read_package_json(root)
+            && Self::has_capacitor_dependency(&pkg)
+        {
+            debug!("Detected Capacitor via package.json dependency");
+            return true;
         }
 
         if Self::config_path(root).is_some() {
@@ -97,10 +97,10 @@ impl FrameworkDetector for CapacitorDetector {
     async fn get_info(&self, root: &Path) -> AnalyzerResult<FrameworkInfo> {
         let mut info = FrameworkInfo::new(ProjectFramework::Capacitor);
 
-        if let Some(pkg) = Self::read_package_json(root) {
-            if let Some(v) = Self::capacitor_cli_version(&pkg) {
-                info = info.with_version(v);
-            }
+        if let Some(pkg) = Self::read_package_json(root)
+            && let Some(v) = Self::capacitor_cli_version(&pkg)
+        {
+            info = info.with_version(v);
         }
 
         if let Some(config) = Self::config_path(root) {
@@ -136,20 +136,20 @@ impl FrameworkDetector for CapacitorDetector {
 
     async fn additional_scripts(&self, root: &Path) -> AnalyzerResult<Vec<Script>> {
         let mut scripts = Vec::new();
-        if let Some(pkg) = Self::read_package_json(root) {
-            if let Some(pkg_scripts) = pkg.get("scripts").and_then(|s| s.as_object()) {
-                let cap_scripts = [
-                    ("cap", "Run Capacitor CLI"),
-                    ("cap:sync", "Sync Capacitor platforms"),
-                    ("cap:android", "Run Capacitor Android"),
-                    ("cap:ios", "Run Capacitor iOS"),
-                ];
-                for (name, description) in cap_scripts {
-                    if let Some(cmd) = pkg_scripts.get(name).and_then(|v| v.as_str()) {
-                        let mut script = Script::new(name, cmd, ScriptSource::PackageJson);
-                        script.description = Some(description.to_string());
-                        scripts.push(script);
-                    }
+        if let Some(pkg) = Self::read_package_json(root)
+            && let Some(pkg_scripts) = pkg.get("scripts").and_then(|s| s.as_object())
+        {
+            let cap_scripts = [
+                ("cap", "Run Capacitor CLI"),
+                ("cap:sync", "Sync Capacitor platforms"),
+                ("cap:android", "Run Capacitor Android"),
+                ("cap:ios", "Run Capacitor iOS"),
+            ];
+            for (name, description) in cap_scripts {
+                if let Some(cmd) = pkg_scripts.get(name).and_then(|v| v.as_str()) {
+                    let mut script = Script::new(name, cmd, ScriptSource::PackageJson);
+                    script.description = Some(description.to_string());
+                    scripts.push(script);
                 }
             }
         }

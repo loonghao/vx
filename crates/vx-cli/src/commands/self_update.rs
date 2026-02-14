@@ -1039,12 +1039,12 @@ fn extract_from_tar_gz(content: &[u8], output_path: &PathBuf) -> Result<()> {
         let mut entry = entry?;
         let path = entry.path()?;
 
-        if let Some(name) = path.file_name() {
-            if name == "vx" || name == "vx.exe" {
-                let mut output = fs::File::create(output_path)?;
-                std::io::copy(&mut entry, &mut output)?;
-                return Ok(());
-            }
+        if let Some(name) = path.file_name()
+            && (name == "vx" || name == "vx.exe")
+        {
+            let mut output = fs::File::create(output_path)?;
+            std::io::copy(&mut entry, &mut output)?;
+            return Ok(());
         }
     }
 
@@ -1463,13 +1463,12 @@ async fn verify_checksum(
     // Try to download checksum file
     let mut checksum_content = None;
     for url in &checksum_urls {
-        if let Ok(response) = client.get(url).send().await {
-            if response.status().is_success() {
-                if let Ok(text) = response.text().await {
-                    checksum_content = Some(text);
-                    break;
-                }
-            }
+        if let Ok(response) = client.get(url).send().await
+            && response.status().is_success()
+            && let Ok(text) = response.text().await
+        {
+            checksum_content = Some(text);
+            break;
         }
     }
 

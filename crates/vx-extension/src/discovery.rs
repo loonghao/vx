@@ -64,20 +64,20 @@ impl ExtensionDiscovery {
         }
 
         // 2. Project extensions
-        if let Some(ref project_dir) = self.project_dir {
-            if project_dir.exists() {
-                debug!("Scanning project extensions: {:?}", project_dir);
-                let project_extensions = self
-                    .scan_directory(project_dir, ExtensionSource::Project)
-                    .await?;
+        if let Some(ref project_dir) = self.project_dir
+            && project_dir.exists()
+        {
+            debug!("Scanning project extensions: {:?}", project_dir);
+            let project_extensions = self
+                .scan_directory(project_dir, ExtensionSource::Project)
+                .await?;
 
-                // Warn about project-level extensions (potential security risk)
-                for ext in &project_extensions {
-                    ext.warn_if_untrusted();
-                }
-
-                extensions.extend(project_extensions);
+            // Warn about project-level extensions (potential security risk)
+            for ext in &project_extensions {
+                ext.warn_if_untrusted();
             }
+
+            extensions.extend(project_extensions);
         }
 
         // 3. User extensions
@@ -121,13 +121,12 @@ impl ExtensionDiscovery {
         }
 
         // 2. Project extensions
-        if let Some(ref project_dir) = self.project_dir {
-            if let Some(ext) = self
+        if let Some(ref project_dir) = self.project_dir
+            && let Some(ext) = self
                 .find_in_directory(project_dir, name, ExtensionSource::Project)
                 .await?
-            {
-                return Ok(Some(ext));
-            }
+        {
+            return Ok(Some(ext));
         }
 
         // 3. User extensions
@@ -198,10 +197,10 @@ impl ExtensionDiscovery {
                 path
             };
 
-            if path.is_dir() {
-                if let Some(ext) = self.load_extension(&path, source).await? {
-                    extensions.push(ext);
-                }
+            if path.is_dir()
+                && let Some(ext) = self.load_extension(&path, source).await?
+            {
+                extensions.push(ext);
             }
         }
 

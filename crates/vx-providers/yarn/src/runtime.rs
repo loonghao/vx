@@ -489,37 +489,37 @@ async fn find_node_executable(ctx: &ExecutionContext) -> Result<std::path::PathB
 
         // Find the first version that has corepack
         for version in &versions {
-            if let Ok(Some(node_root)) = vx_paths::RuntimeRoot::find("node", version, paths) {
-                if node_root.executable_exists() {
-                    // Check if corepack exists in the same directory
-                    let corepack_path = node_root.bin_dir().join(corepack_exe_name);
-                    if corepack_path.exists() {
-                        debug!(
-                            "Found node {} with corepack at: {}",
-                            version,
-                            node_root.executable_path().display()
-                        );
-                        return Some(node_root.executable_path().to_path_buf());
-                    } else {
-                        debug!(
-                            "Node {} exists but has no corepack (skipping for yarn 2.x+)",
-                            version
-                        );
-                    }
+            if let Ok(Some(node_root)) = vx_paths::RuntimeRoot::find("node", version, paths)
+                && node_root.executable_exists()
+            {
+                // Check if corepack exists in the same directory
+                let corepack_path = node_root.bin_dir().join(corepack_exe_name);
+                if corepack_path.exists() {
+                    debug!(
+                        "Found node {} with corepack at: {}",
+                        version,
+                        node_root.executable_path().display()
+                    );
+                    return Some(node_root.executable_path().to_path_buf());
+                } else {
+                    debug!(
+                        "Node {} exists but has no corepack (skipping for yarn 2.x+)",
+                        version
+                    );
                 }
             }
         }
 
         // Fallback: return any node if none has corepack
         for version in &versions {
-            if let Ok(Some(node_root)) = vx_paths::RuntimeRoot::find("node", version, paths) {
-                if node_root.executable_exists() {
-                    warn!(
-                        "No Node.js version with corepack found. Using {} which may not work with Yarn 2.x+",
-                        version
-                    );
-                    return Some(node_root.executable_path().to_path_buf());
-                }
+            if let Ok(Some(node_root)) = vx_paths::RuntimeRoot::find("node", version, paths)
+                && node_root.executable_exists()
+            {
+                warn!(
+                    "No Node.js version with corepack found. Using {} which may not work with Yarn 2.x+",
+                    version
+                );
+                return Some(node_root.executable_path().to_path_buf());
             }
         }
 
@@ -535,10 +535,10 @@ async fn find_node_executable(ctx: &ExecutionContext) -> Result<std::path::PathB
     }
 
     // Strategy 4: Use default VxPaths (reads system VX_HOME or ~/.vx)
-    if let Ok(paths) = vx_paths::VxPaths::new() {
-        if let Some(node_path) = find_node_with_corepack(&paths) {
-            return Ok(node_path);
-        }
+    if let Ok(paths) = vx_paths::VxPaths::new()
+        && let Some(node_path) = find_node_with_corepack(&paths)
+    {
+        return Ok(node_path);
     }
 
     Err(anyhow::anyhow!(

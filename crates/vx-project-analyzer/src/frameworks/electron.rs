@@ -228,11 +228,11 @@ impl FrameworkDetector for ElectronDetector {
         let package_json_path2 = root.join("package.json");
         if package_json_path2.exists() {
             let content = tokio::fs::read_to_string(&package_json_path2).await?;
-            if let Ok(pkg) = serde_json::from_str::<Value>(&content) {
-                if Self::has_native_modules(&pkg) {
-                    info = info.with_metadata("has_native_modules", "true");
-                    debug!("Detected native modules in Electron project - build tools recommended");
-                }
+            if let Ok(pkg) = serde_json::from_str::<Value>(&content)
+                && Self::has_native_modules(&pkg)
+            {
+                info = info.with_metadata("has_native_modules", "true");
+                debug!("Detected native modules in Electron project - build tools recommended");
             }
         }
 
@@ -331,25 +331,25 @@ impl FrameworkDetector for ElectronDetector {
         let package_json_path = root.join("package.json");
         if package_json_path.exists() {
             let content = tokio::fs::read_to_string(&package_json_path).await?;
-            if let Ok(package_json) = serde_json::from_str::<Value>(&content) {
-                if let Some(pkg_scripts) = package_json.get("scripts").and_then(|s| s.as_object()) {
-                    // Common Electron script patterns
-                    let electron_patterns = [
-                        ("electron:dev", "Start Electron in development mode"),
-                        ("electron:build", "Build Electron application"),
-                        ("electron:pack", "Package Electron application"),
-                        ("electron:dist", "Distribute Electron application"),
-                        ("make", "Build distributable packages"),
-                        ("package", "Package the application"),
-                        ("publish", "Publish the application"),
-                    ];
+            if let Ok(package_json) = serde_json::from_str::<Value>(&content)
+                && let Some(pkg_scripts) = package_json.get("scripts").and_then(|s| s.as_object())
+            {
+                // Common Electron script patterns
+                let electron_patterns = [
+                    ("electron:dev", "Start Electron in development mode"),
+                    ("electron:build", "Build Electron application"),
+                    ("electron:pack", "Package Electron application"),
+                    ("electron:dist", "Distribute Electron application"),
+                    ("make", "Build distributable packages"),
+                    ("package", "Package the application"),
+                    ("publish", "Publish the application"),
+                ];
 
-                    for (name, description) in electron_patterns {
-                        if let Some(command) = pkg_scripts.get(name).and_then(|v| v.as_str()) {
-                            let mut script = Script::new(name, command, ScriptSource::PackageJson);
-                            script.description = Some(description.to_string());
-                            scripts.push(script);
-                        }
+                for (name, description) in electron_patterns {
+                    if let Some(command) = pkg_scripts.get(name).and_then(|v| v.as_str()) {
+                        let mut script = Script::new(name, command, ScriptSource::PackageJson);
+                        script.description = Some(description.to_string());
+                        scripts.push(script);
                     }
                 }
             }

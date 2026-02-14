@@ -375,13 +375,13 @@ impl Downloader {
         let response = self.client.head(url).send().await.ok()?;
 
         // Try Content-Disposition header first
-        if let Some(content_disposition) = response.headers().get("content-disposition") {
-            if let Ok(value) = content_disposition.to_str() {
-                // Parse filename from Content-Disposition: attachment; filename=xxx.zip
-                if let Some(filename) = Self::parse_content_disposition(value) {
-                    debug!("Got filename from Content-Disposition: {}", filename);
-                    return Some(filename);
-                }
+        if let Some(content_disposition) = response.headers().get("content-disposition")
+            && let Ok(value) = content_disposition.to_str()
+        {
+            // Parse filename from Content-Disposition: attachment; filename=xxx.zip
+            if let Some(filename) = Self::parse_content_disposition(value) {
+                debug!("Got filename from Content-Disposition: {}", filename);
+                return Some(filename);
             }
         }
 
@@ -423,10 +423,10 @@ impl Downloader {
                 if let Some(pos) = encoded.rfind("''") {
                     let filename = &encoded[pos + 2..];
                     // URL decode the filename
-                    if let Ok(decoded) = urlencoding::decode(filename) {
-                        if !decoded.is_empty() {
-                            return Some(decoded.into_owned());
-                        }
+                    if let Ok(decoded) = urlencoding::decode(filename)
+                        && !decoded.is_empty()
+                    {
+                        return Some(decoded.into_owned());
                     }
                 }
             }

@@ -202,23 +202,23 @@ async fn handle_prune(
         // VersionCache::new expects the base cache dir and appends "versions_v2" internally
         let version_cache = VersionCache::new(paths.cache_dir.clone());
 
-        if let Ok(stats) = version_cache.stats() {
-            if verbose || dry_run {
-                UI::info(&format!(
-                    "Version cache: {} expired of {} entries",
-                    stats.expired_entries, stats.total_entries
-                ));
-            }
+        if let Ok(stats) = version_cache.stats()
+            && (verbose || dry_run)
+        {
+            UI::info(&format!(
+                "Version cache: {} expired of {} entries",
+                stats.expired_entries, stats.total_entries
+            ));
         }
 
         if dry_run {
-            if let Ok(stats) = version_cache.stats() {
-                if stats.expired_entries > 0 {
-                    UI::hint(&format!(
-                        "  Would prune {} expired entries",
-                        stats.expired_entries
-                    ));
-                }
+            if let Ok(stats) = version_cache.stats()
+                && stats.expired_entries > 0
+            {
+                UI::hint(&format!(
+                    "  Would prune {} expired entries",
+                    stats.expired_entries
+                ));
             }
         } else {
             let pruned = version_cache.prune()?;
@@ -437,15 +437,14 @@ fn prune_old_downloads(cache_dir: &std::path::Path, days: u32) -> Result<usize> 
     if let Ok(entries) = std::fs::read_dir(cache_dir) {
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
-            if path.is_file() {
-                if let Ok(meta) = path.metadata() {
-                    if let Ok(modified) = meta.modified() {
-                        let age = modified.elapsed().unwrap_or_default();
-                        if age > threshold {
-                            std::fs::remove_file(&path)?;
-                            count += 1;
-                        }
-                    }
+            if path.is_file()
+                && let Ok(meta) = path.metadata()
+                && let Ok(modified) = meta.modified()
+            {
+                let age = modified.elapsed().unwrap_or_default();
+                if age > threshold {
+                    std::fs::remove_file(&path)?;
+                    count += 1;
                 }
             }
         }

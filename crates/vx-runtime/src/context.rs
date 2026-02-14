@@ -373,15 +373,15 @@ impl RuntimeContext {
                     .collect();
 
                 // Store in cache
-                if let Some(cache) = &self.version_cache {
-                    if let Err(e) = cache.set_with_options(
+                if let Some(cache) = &self.version_cache
+                    && let Err(e) = cache.set_with_options(
                         tool_name,
                         compact_versions.clone(),
                         Some(&url),
                         None,
-                    ) {
-                        tracing::warn!("Failed to cache versions for {}: {}", tool_name, e);
-                    }
+                    )
+                {
+                    tracing::warn!("Failed to cache versions for {}: {}", tool_name, e);
                 }
 
                 Ok(compact_to_version_info(compact_versions))
@@ -563,12 +563,11 @@ impl RuntimeContext {
             })
             .collect();
 
-        if let Some(cache) = &self.version_cache {
-            if let Err(e) =
+        if let Some(cache) = &self.version_cache
+            && let Err(e) =
                 cache.set_with_options(tool_name, compact_versions, Some(&jsdelivr_url), None)
-            {
-                tracing::warn!("Failed to cache versions for {}: {}", tool_name, e);
-            }
+        {
+            tracing::warn!("Failed to cache versions for {}: {}", tool_name, e);
         }
 
         Ok(versions)
@@ -619,12 +618,11 @@ impl RuntimeContext {
         match fetch_result {
             Ok(response) => {
                 // Store in cache
-                if let Some(cache) = &self.version_cache {
-                    if let Err(e) =
+                if let Some(cache) = &self.version_cache
+                    && let Err(e) =
                         cache.set_json_with_options(tool_name, response.clone(), Some(url), None)
-                    {
-                        tracing::warn!("Failed to cache versions for {}: {}", tool_name, e);
-                    }
+                {
+                    tracing::warn!("Failed to cache versions for {}: {}", tool_name, e);
                 }
                 parser(response)
             }
@@ -743,15 +741,15 @@ impl RuntimeContext {
                     .collect();
 
                 // Store in cache
-                if let Some(cache) = &self.version_cache {
-                    if let Err(e) = cache.set_with_options(
+                if let Some(cache) = &self.version_cache
+                    && let Err(e) = cache.set_with_options(
                         tool_name,
                         compact_versions.clone(),
                         Some(&url),
                         None,
-                    ) {
-                        tracing::warn!("Failed to cache versions for {}: {}", tool_name, e);
-                    }
+                    )
+                {
+                    tracing::warn!("Failed to cache versions for {}: {}", tool_name, e);
                 }
 
                 Ok(compact_to_version_info(compact_versions))

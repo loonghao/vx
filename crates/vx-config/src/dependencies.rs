@@ -491,13 +491,13 @@ impl DependencyManager {
         cmd.args(["install", ".", "--build=missing"]);
 
         // Add remote if configured
-        if let Some(cpp_config) = self.cpp_config() {
-            if let Some(remote) = &cpp_config.conan_remote {
-                // First add the remote
-                let _ = Command::new("conan")
-                    .args(["remote", "add", "custom", remote, "--force"])
-                    .status();
-            }
+        if let Some(cpp_config) = self.cpp_config()
+            && let Some(remote) = &cpp_config.conan_remote
+        {
+            // First add the remote
+            let _ = Command::new("conan")
+                .args(["remote", "add", "custom", remote, "--force"])
+                .status();
         }
 
         // Add environment variables

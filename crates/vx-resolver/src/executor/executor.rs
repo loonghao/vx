@@ -163,16 +163,15 @@ impl<'a> Executor<'a> {
         // -------------------------
         // Pre-check: Platform Support
         // -------------------------
-        if let Some(registry) = self.registry {
-            if let Some(runtime) = registry.get_runtime(runtime_name) {
-                if let Err(e) = runtime.check_platform_support() {
-                    return Err(PipelineError::PlatformCheckFailed {
-                        runtime: runtime_name.to_string(),
-                        reason: e.to_string(),
-                    }
-                    .into());
-                }
+        if let Some(registry) = self.registry
+            && let Some(runtime) = registry.get_runtime(runtime_name)
+            && let Err(e) = runtime.check_platform_support()
+        {
+            return Err(PipelineError::PlatformCheckFailed {
+                runtime: runtime_name.to_string(),
+                reason: e.to_string(),
             }
+            .into());
         }
 
         // -------------------------
@@ -235,23 +234,22 @@ impl<'a> Executor<'a> {
         if let Ok(check_resolution) = self
             .resolver
             .resolve_with_version(runtime_name, resolved_version.as_deref())
+            && !check_resolution.incompatible_dependencies.is_empty()
         {
-            if !check_resolution.incompatible_dependencies.is_empty() {
-                let details: Vec<String> = check_resolution
-                    .incompatible_dependencies
-                    .iter()
-                    .map(|ic| {
-                        format!(
-                            "{}: current={:?}, recommended={:?}",
-                            ic.runtime_name, ic.current_version, ic.recommended_version
-                        )
-                    })
-                    .collect();
-                return Err(PipelineError::IncompatibleDependencies {
-                    details: details.join("; "),
-                }
-                .into());
+            let details: Vec<String> = check_resolution
+                .incompatible_dependencies
+                .iter()
+                .map(|ic| {
+                    format!(
+                        "{}: current={:?}, recommended={:?}",
+                        ic.runtime_name, ic.current_version, ic.recommended_version
+                    )
+                })
+                .collect();
+            return Err(PipelineError::IncompatibleDependencies {
+                details: details.join("; "),
             }
+            .into());
         }
 
         // Stage 2: Ensure installed
@@ -370,10 +368,10 @@ impl<'a> Executor<'a> {
         }
 
         // Apply overrides
-        if prep.use_system_path {
-            if let Ok(system_exe) = which::which(runtime_name) {
-                prepared.executable = system_exe;
-            }
+        if prep.use_system_path
+            && let Ok(system_exe) = which::which(runtime_name)
+        {
+            prepared.executable = system_exe;
         }
         if let Some(exe_override) = prep.executable_override {
             prepared.executable = exe_override;
@@ -395,32 +393,32 @@ impl<'a> Executor<'a> {
         &self,
         prepared: &mut super::pipeline::stages::prepare::PreparedExecution,
     ) {
-        if prepared.executable.is_absolute() {
-            if let Some(exe_dir) = prepared.executable.parent() {
-                let exe_dir_str = exe_dir.to_string_lossy().to_string();
-                let path_sep = vx_paths::path_separator();
-                let grandparent_dir = exe_dir.parent().map(|p| p.to_string_lossy().to_string());
+        if prepared.executable.is_absolute()
+            && let Some(exe_dir) = prepared.executable.parent()
+        {
+            let exe_dir_str = exe_dir.to_string_lossy().to_string();
+            let path_sep = vx_paths::path_separator();
+            let grandparent_dir = exe_dir.parent().map(|p| p.to_string_lossy().to_string());
 
-                let current_path = prepared
-                    .env
-                    .get("PATH")
-                    .cloned()
-                    .or_else(|| std::env::var("PATH").ok())
-                    .unwrap_or_default();
+            let current_path = prepared
+                .env
+                .get("PATH")
+                .cloned()
+                .or_else(|| std::env::var("PATH").ok())
+                .unwrap_or_default();
 
-                let mut new_path = exe_dir_str.clone();
-                if let Some(ref gp) = grandparent_dir {
-                    if !new_path.contains(gp) {
-                        new_path = format!("{}{}{}", new_path, path_sep, gp);
-                    }
-                }
-                if !current_path.is_empty() {
-                    new_path = format!("{}{}{}", new_path, path_sep, current_path);
-                }
-
-                prepared.env.insert("PATH".to_string(), new_path);
-                debug!("  Added executable dir to PATH: {}", exe_dir.display());
+            let mut new_path = exe_dir_str.clone();
+            if let Some(ref gp) = grandparent_dir
+                && !new_path.contains(gp)
+            {
+                new_path = format!("{}{}{}", new_path, path_sep, gp);
             }
+            if !current_path.is_empty() {
+                new_path = format!("{}{}{}", new_path, path_sep, current_path);
+            }
+
+            prepared.env.insert("PATH".to_string(), new_path);
+            debug!("  Added executable dir to PATH: {}", exe_dir.display());
         }
     }
 
@@ -744,14 +742,14 @@ impl<'a> Executor<'a> {
             } else {
                 // Fallback: try to get executable path directly
                 let exe_path = context.paths.executable_path(runtime_name, &version);
-                if let Some(bin_dir) = exe_path.parent() {
-                    if bin_dir.exists() {
-                        debug!(
-                            "    Adding bin dir to PATH (fallback): {}",
-                            bin_dir.display()
-                        );
-                        path_prepend.push(bin_dir.to_path_buf());
-                    }
+                if let Some(bin_dir) = exe_path.parent()
+                    && bin_dir.exists()
+                {
+                    debug!(
+                        "    Adding bin dir to PATH (fallback): {}",
+                        bin_dir.display()
+                    );
+                    path_prepend.push(bin_dir.to_path_buf());
                 }
             }
 

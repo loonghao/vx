@@ -54,10 +54,10 @@ impl ExecPathCache {
     pub fn get(&mut self, dir: &Path, exe_name: &str) -> Option<PathBuf> {
         let key = Self::make_key(dir, exe_name);
         // Check if entry exists and validate on disk
-        if let Some(path) = self.entries.get(&key) {
-            if path.exists() {
-                return Some(path.clone());
-            }
+        if let Some(path) = self.entries.get(&key)
+            && path.exists()
+        {
+            return Some(path.clone());
         }
         // Stale or missing — remove if present
         self.entries.remove(&key);

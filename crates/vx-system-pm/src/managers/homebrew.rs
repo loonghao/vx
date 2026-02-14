@@ -139,16 +139,13 @@ impl SystemPackageManager for HomebrewManager {
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
             // Parse JSON to get version
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                if let Some(formulae) = json.get("formulae").and_then(|f| f.as_array()) {
-                    if let Some(first) = formulae.first() {
-                        if let Some(versions) = first.get("versions") {
-                            if let Some(stable) = versions.get("stable").and_then(|v| v.as_str()) {
-                                return Ok(Some(stable.to_string()));
-                            }
-                        }
-                    }
-                }
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout)
+                && let Some(formulae) = json.get("formulae").and_then(|f| f.as_array())
+                && let Some(first) = formulae.first()
+                && let Some(versions) = first.get("versions")
+                && let Some(stable) = versions.get("stable").and_then(|v| v.as_str())
+            {
+                return Ok(Some(stable.to_string()));
             }
         }
 

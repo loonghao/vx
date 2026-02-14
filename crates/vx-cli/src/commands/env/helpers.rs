@@ -155,12 +155,12 @@ pub fn resolve_env_for_shell(
         }
     } else {
         // Use project environment if available
-        if let Some(project_env) = get_project_env_dir() {
-            if project_env.exists() {
-                // Try to get the actual project name from vx.toml
-                let project_name = get_project_name().unwrap_or_else(|_| "project".to_string());
-                return Ok((project_env, project_name));
-            }
+        if let Some(project_env) = get_project_env_dir()
+            && project_env.exists()
+        {
+            // Try to get the actual project name from vx.toml
+            let project_name = get_project_name().unwrap_or_else(|_| "project".to_string());
+            return Ok((project_env, project_name));
         }
 
         // Fall back to default global environment

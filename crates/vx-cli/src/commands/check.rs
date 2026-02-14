@@ -190,14 +190,14 @@ pub async fn handle(
         .map(|(name, version)| (name.clone(), VersionRequest::parse(version)))
         .collect();
 
-    if let Ok(conflicts) = conflict_detector.detect_conflicts(&tools_with_requests) {
-        if !conflicts.is_empty() {
-            all_ok = false;
-            for conflict in &conflicts {
-                errors.push(format!("Version conflict for {}", conflict.runtime));
-                if detailed && !quiet {
-                    println!("\n{}", conflict);
-                }
+    if let Ok(conflicts) = conflict_detector.detect_conflicts(&tools_with_requests)
+        && !conflicts.is_empty()
+    {
+        all_ok = false;
+        for conflict in &conflicts {
+            errors.push(format!("Version conflict for {}", conflict.runtime));
+            if detailed && !quiet {
+                println!("\n{}", conflict);
             }
         }
     }

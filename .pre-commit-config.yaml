@@ -1,0 +1,16 @@
+# prek / pre-commit configuration
+# See https://prek.j178.dev/ for more info
+#
+# Usage:
+#   vx prek install          # Install git hooks
+#   vx prek run --all-files  # Run all hooks manually
+
+repos:
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: vx cargo fmt --all --
+        language: system
+        types: [rust]
+        pass_filenames: false

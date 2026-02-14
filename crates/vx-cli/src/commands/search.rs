@@ -51,15 +51,15 @@ pub async fn handle(
     // Collect results
     let mut results = Vec::new();
     for name in registry.runtime_names() {
-        if query.is_empty() || name.to_lowercase().contains(&query_lower) {
-            if let Some(runtime) = registry.get_runtime(&name) {
-                let description = runtime.description().to_string();
-                if query.is_empty()
-                    || description.to_lowercase().contains(&query_lower)
-                    || name.to_lowercase().contains(&query_lower)
-                {
-                    results.push(SearchResult { name, description });
-                }
+        if (query.is_empty() || name.to_lowercase().contains(&query_lower))
+            && let Some(runtime) = registry.get_runtime(&name)
+        {
+            let description = runtime.description().to_string();
+            if query.is_empty()
+                || description.to_lowercase().contains(&query_lower)
+                || name.to_lowercase().contains(&query_lower)
+            {
+                results.push(SearchResult { name, description });
             }
         }
     }

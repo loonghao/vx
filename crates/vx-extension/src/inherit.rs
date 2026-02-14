@@ -203,10 +203,10 @@ impl ConfigInheritance {
         let cache_path = self.cache_dir.join("configs").join(&url_hash);
 
         // Try to load from cache first
-        if cache_path.exists() {
-            if let Ok(config) = ExtensionConfig::from_file(&cache_path) {
-                return Ok((config, cache_path));
-            }
+        if cache_path.exists()
+            && let Ok(config) = ExtensionConfig::from_file(&cache_path)
+        {
+            return Ok((config, cache_path));
         }
 
         // Download the config

@@ -388,10 +388,10 @@ impl ManifestDrivenRuntime {
 
         // Extract version using regex
         let re = regex::Regex::new(&detection.pattern)?;
-        if let Some(captures) = re.captures(&combined) {
-            if let Some(version) = captures.get(1) {
-                return Ok(Some(version.as_str().to_string()));
-            }
+        if let Some(captures) = re.captures(&combined)
+            && let Some(version) = captures.get(1)
+        {
+            return Ok(Some(version.as_str().to_string()));
         }
 
         Ok(None)
@@ -480,16 +480,15 @@ impl Runtime for ManifestDrivenRuntime {
     /// Get download URL (if direct download is available)
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         for strategy in &self.install_strategies {
-            if let InstallStrategy::DirectDownload { url, platforms, .. } = strategy {
-                if platforms.is_empty()
+            if let InstallStrategy::DirectDownload { url, platforms, .. } = strategy
+                && (platforms.is_empty()
                     || platforms
                         .iter()
-                        .any(|p| p.eq_ignore_ascii_case(platform.os_name()))
-                {
-                    // Substitute version in URL
-                    let url = url.replace("{version}", version);
-                    return Ok(Some(url));
-                }
+                        .any(|p| p.eq_ignore_ascii_case(platform.os_name())))
+            {
+                // Substitute version in URL
+                let url = url.replace("{version}", version);
+                return Ok(Some(url));
             }
         }
         Ok(None)

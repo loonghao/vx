@@ -692,12 +692,11 @@ pub trait Runtime: Send + Sync {
                         return Some(path);
                     }
                 }
-            } else if path.is_dir() {
-                if let Some(found) =
+            } else if path.is_dir()
+                && let Some(found) =
                     self.search_for_executable(&path, exe_name, current_depth + 1, max_depth)
-                {
-                    return Some(found);
-                }
+            {
+                return Some(found);
             }
         }
 
@@ -987,10 +986,10 @@ pub trait Runtime: Send + Sync {
                     download_urls.len()
                 );
                 // Clean up failed partial download
-                if ctx.fs.exists(&install_path) {
-                    if let Err(e) = std::fs::remove_dir_all(&install_path) {
-                        debug!("Failed to clean up partial download: {}", e);
-                    }
+                if ctx.fs.exists(&install_path)
+                    && let Err(e) = std::fs::remove_dir_all(&install_path)
+                {
+                    debug!("Failed to clean up partial download: {}", e);
                 }
             } else {
                 info!("Downloading from {}", download_url);

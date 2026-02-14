@@ -253,39 +253,39 @@ pub fn render_insights(runs: &[CommandMetrics]) -> String {
     }
 
     // Check prepare stage overhead (common issue: scanning all installed runtimes)
-    if let Some(prepare) = latest.stages.get("prepare") {
-        if prepare.duration_ms > 100.0 {
-            out.push_str(&format!(
+    if let Some(prepare) = latest.stages.get("prepare")
+        && prepare.duration_ms > 100.0
+    {
+        out.push_str(&format!(
                 "  🔍 'prepare' stage is slow ({:.0}ms) — likely scanning installed runtime directories\n",
                 prepare.duration_ms
             ));
-            // Count path resolution events
-            let prepare_span = latest.spans.iter().find(|s| s.name == "prepare");
-            if let Some(span) = prepare_span {
-                let path_events = span
-                    .events
-                    .iter()
-                    .filter(|e| e.name.contains("Found executable"))
-                    .count();
-                if path_events > 5 {
-                    out.push_str(&format!(
-                        "         → Scanned {} runtime executables during PATH construction\n",
-                        path_events
-                    ));
-                    out.push_str("         → Consider caching resolved executable paths\n");
-                }
+        // Count path resolution events
+        let prepare_span = latest.spans.iter().find(|s| s.name == "prepare");
+        if let Some(span) = prepare_span {
+            let path_events = span
+                .events
+                .iter()
+                .filter(|e| e.name.contains("Found executable"))
+                .count();
+            if path_events > 5 {
+                out.push_str(&format!(
+                    "         → Scanned {} runtime executables during PATH construction\n",
+                    path_events
+                ));
+                out.push_str("         → Consider caching resolved executable paths\n");
             }
         }
     }
 
     // Check resolve stage
-    if let Some(resolve) = latest.stages.get("resolve") {
-        if resolve.duration_ms > 100.0 {
-            out.push_str(&format!(
-                "  🔍 'resolve' stage is slow ({:.0}ms) — directory traversal for executable\n",
-                resolve.duration_ms
-            ));
-        }
+    if let Some(resolve) = latest.stages.get("resolve")
+        && resolve.duration_ms > 100.0
+    {
+        out.push_str(&format!(
+            "  🔍 'resolve' stage is slow ({:.0}ms) — directory traversal for executable\n",
+            resolve.duration_ms
+        ));
     }
 
     // Overhead analysis
@@ -468,25 +468,25 @@ pub fn generate_ai_summary(runs: &[CommandMetrics]) -> serde_json::Value {
 
     let mut bottlenecks = Vec::new();
     if let Some(latest) = runs.first() {
-        if let Some(prepare) = latest.stages.get("prepare") {
-            if prepare.duration_ms > 100.0 {
-                bottlenecks.push(serde_json::json!({
+        if let Some(prepare) = latest.stages.get("prepare")
+            && prepare.duration_ms > 100.0
+        {
+            bottlenecks.push(serde_json::json!({
                     "stage": "prepare",
                     "issue": "Slow runtime directory scanning for PATH construction",
                     "duration_ms": prepare.duration_ms,
                     "suggestion": "Cache resolved executable paths to avoid repeated filesystem traversal"
                 }));
-            }
         }
-        if let Some(resolve) = latest.stages.get("resolve") {
-            if resolve.duration_ms > 100.0 {
-                bottlenecks.push(serde_json::json!({
-                    "stage": "resolve",
-                    "issue": "Slow executable directory traversal",
-                    "duration_ms": resolve.duration_ms,
-                    "suggestion": "Cache the executable path after first resolution"
-                }));
-            }
+        if let Some(resolve) = latest.stages.get("resolve")
+            && resolve.duration_ms > 100.0
+        {
+            bottlenecks.push(serde_json::json!({
+                "stage": "resolve",
+                "issue": "Slow executable directory traversal",
+                "duration_ms": resolve.duration_ms,
+                "suggestion": "Cache the executable path after first resolution"
+            }));
         }
     }
 

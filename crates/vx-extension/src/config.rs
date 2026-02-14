@@ -188,10 +188,10 @@ impl ArgumentDef {
             arg = arg.env(env);
         }
 
-        if let Some(ref short) = self.short {
-            if let Some(c) = short.chars().next() {
-                arg = arg.short(c);
-            }
+        if let Some(ref short) = self.short
+            && let Some(c) = short.chars().next()
+        {
+            arg = arg.short(c);
         }
 
         if let Some(ref help) = self.help {

@@ -159,22 +159,22 @@ pub async fn handle(
     println!();
 
     // Execute pre_setup hook
-    if !no_hooks && !dry_run {
-        if let Some(hooks) = &config.hooks {
-            if let Some(pre_setup) = &hooks.pre_setup {
-                UI::info("Running pre_setup hook...");
-                let executor = HookExecutor::new(&current_dir).verbose(verbose);
-                let result = executor.execute_pre_setup(pre_setup)?;
-                if !result.success {
-                    if let Some(err) = result.error {
-                        return Err(anyhow::anyhow!("pre_setup hook failed: {}", err));
-                    }
-                    return Err(anyhow::anyhow!("pre_setup hook failed"));
-                }
-                UI::success("pre_setup hook completed");
-                println!();
+    if !no_hooks
+        && !dry_run
+        && let Some(hooks) = &config.hooks
+        && let Some(pre_setup) = &hooks.pre_setup
+    {
+        UI::info("Running pre_setup hook...");
+        let executor = HookExecutor::new(&current_dir).verbose(verbose);
+        let result = executor.execute_pre_setup(pre_setup)?;
+        if !result.success {
+            if let Some(err) = result.error {
+                return Err(anyhow::anyhow!("pre_setup hook failed: {}", err));
             }
+            return Err(anyhow::anyhow!("pre_setup hook failed"));
         }
+        UI::success("pre_setup hook completed");
+        println!();
     }
 
     // Delegate to sync command for tool installation
@@ -191,23 +191,23 @@ pub async fn handle(
     .await?;
 
     // Execute post_setup hook
-    if !no_hooks && !dry_run {
-        if let Some(hooks) = &config.hooks {
-            if let Some(post_setup) = &hooks.post_setup {
-                println!();
-                UI::info("Running post_setup hook...");
-                let executor = HookExecutor::new(&current_dir).verbose(verbose);
-                let result = executor.execute_post_setup(post_setup)?;
-                if !result.success {
-                    if let Some(err) = result.error {
-                        UI::warn(&format!("post_setup hook failed: {}", err));
-                    } else {
-                        UI::warn("post_setup hook failed");
-                    }
-                } else {
-                    UI::success("post_setup hook completed");
-                }
+    if !no_hooks
+        && !dry_run
+        && let Some(hooks) = &config.hooks
+        && let Some(post_setup) = &hooks.post_setup
+    {
+        println!();
+        UI::info("Running post_setup hook...");
+        let executor = HookExecutor::new(&current_dir).verbose(verbose);
+        let result = executor.execute_post_setup(post_setup)?;
+        if !result.success {
+            if let Some(err) = result.error {
+                UI::warn(&format!("post_setup hook failed: {}", err));
+            } else {
+                UI::warn("post_setup hook failed");
             }
+        } else {
+            UI::success("post_setup hook completed");
         }
     }
 

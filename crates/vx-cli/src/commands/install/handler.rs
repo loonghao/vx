@@ -98,23 +98,23 @@ async fn install_single(
 
     // Check if this runtime is bundled with another
     // If so, redirect installation to the parent runtime
-    if let Some(bundled_with) = runtime.metadata().get("bundled_with") {
-        if bundled_with != tool_name {
-            UI::info(&format!(
-                "'{}' is bundled with '{}'. Installing '{}' instead...",
-                tool_name, bundled_with, bundled_with
-            ));
-            // Recursively install the parent runtime
-            return Box::pin(install_single(
-                registry,
-                context,
-                bundled_with,
-                version,
-                force,
-                is_multi,
-            ))
-            .await;
-        }
+    if let Some(bundled_with) = runtime.metadata().get("bundled_with")
+        && bundled_with != tool_name
+    {
+        UI::info(&format!(
+            "'{}' is bundled with '{}'. Installing '{}' instead...",
+            tool_name, bundled_with, bundled_with
+        ));
+        // Recursively install the parent runtime
+        return Box::pin(install_single(
+            registry,
+            context,
+            bundled_with,
+            version,
+            force,
+            is_multi,
+        ))
+        .await;
     }
 
     // Determine version to install
@@ -367,10 +367,10 @@ pub async fn install_quiet(
     };
 
     // Check if this runtime is bundled with another
-    if let Some(bundled_with) = runtime.metadata().get("bundled_with") {
-        if bundled_with != tool_name {
-            return Box::pin(install_quiet(registry, context, bundled_with)).await;
-        }
+    if let Some(bundled_with) = runtime.metadata().get("bundled_with")
+        && bundled_with != tool_name
+    {
+        return Box::pin(install_quiet(registry, context, bundled_with)).await;
     }
 
     // Resolve latest version

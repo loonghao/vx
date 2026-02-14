@@ -69,14 +69,14 @@ pub trait FormatHandler: Send + Sync {
             if let Ok(entries) = std::fs::read_dir(&search_path) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if path.is_file() {
-                        if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-                            // Exact match or partial match (for tools with version suffixes)
-                            if filename == exe_name
-                                || (filename.starts_with(tool_name) && self.is_executable(&path))
-                            {
-                                executables.push(path);
-                            }
+                    if path.is_file()
+                        && let Some(filename) = path.file_name().and_then(|n| n.to_str())
+                    {
+                        // Exact match or partial match (for tools with version suffixes)
+                        if filename == exe_name
+                            || (filename.starts_with(tool_name) && self.is_executable(&path))
+                        {
+                            executables.push(path);
                         }
                     }
                 }
@@ -202,30 +202,31 @@ impl ArchiveExtractor {
 
         // First, look for exact matches
         for file in extracted_files {
-            if let Some(filename) = file.file_name().and_then(|n| n.to_str()) {
-                if filename == exe_name {
-                    return Ok(file.clone());
-                }
+            if let Some(filename) = file.file_name().and_then(|n| n.to_str())
+                && filename == exe_name
+            {
+                return Ok(file.clone());
             }
         }
 
         // Then, look for partial matches
         for file in extracted_files {
-            if let Some(filename) = file.file_name().and_then(|n| n.to_str()) {
-                if filename.starts_with(tool_name) && self.is_executable_file(file) {
-                    return Ok(file.clone());
-                }
+            if let Some(filename) = file.file_name().and_then(|n| n.to_str())
+                && filename.starts_with(tool_name)
+                && self.is_executable_file(file)
+            {
+                return Ok(file.clone());
             }
         }
 
         // Finally, look for any executable in bin directories
         for file in extracted_files {
-            if let Some(parent) = file.parent() {
-                if let Some(dir_name) = parent.file_name().and_then(|n| n.to_str()) {
-                    if dir_name == "bin" && self.is_executable_file(file) {
-                        return Ok(file.clone());
-                    }
-                }
+            if let Some(parent) = file.parent()
+                && let Some(dir_name) = parent.file_name().and_then(|n| n.to_str())
+                && dir_name == "bin"
+                && self.is_executable_file(file)
+            {
+                return Ok(file.clone());
             }
         }
 

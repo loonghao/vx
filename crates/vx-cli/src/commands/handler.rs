@@ -229,10 +229,10 @@ impl CommandContext {
 
         // Search through all manifests for the runtime
         for manifest in registry.manifest_names() {
-            if let Some(provider_manifest) = registry.get_manifest(&manifest) {
-                if let Some(runtime) = provider_manifest.get_runtime(runtime_name) {
-                    return Some(runtime.clone());
-                }
+            if let Some(provider_manifest) = registry.get_manifest(&manifest)
+                && let Some(runtime) = provider_manifest.get_runtime(runtime_name)
+            {
+                return Some(runtime.clone());
             }
         }
         None

@@ -112,11 +112,11 @@ impl MigrationEngine {
             }
 
             // Check if only specific migrations should run
-            if let Some(only) = &options.only_migrations {
-                if !only.contains(&metadata.id) {
-                    report.skipped_count += 1;
-                    continue;
-                }
+            if let Some(only) = &options.only_migrations
+                && !only.contains(&metadata.id)
+            {
+                report.skipped_count += 1;
+                continue;
             }
 
             // Check if migration needs to run
@@ -163,10 +163,10 @@ impl MigrationEngine {
                     report.successful_count += 1;
 
                     // Validate if not dry-run
-                    if !options.dry_run {
-                        if let Err(e) = migration.validate(&ctx).await {
-                            result.warnings.push(format!("Validation warning: {}", e));
-                        }
+                    if !options.dry_run
+                        && let Err(e) = migration.validate(&ctx).await
+                    {
+                        result.warnings.push(format!("Validation warning: {}", e));
                     }
 
                     result
@@ -248,16 +248,16 @@ impl MigrationEngine {
                 continue;
             }
 
-            if let Some(migration) = self.registry.get(&step.migration_id) {
-                if migration.metadata().reversible {
-                    // Call rollback hooks
-                    for hook in hooks {
-                        let _ = hook.on_rollback(ctx, migration.as_ref()).await;
-                    }
+            if let Some(migration) = self.registry.get(&step.migration_id)
+                && migration.metadata().reversible
+            {
+                // Call rollback hooks
+                for hook in hooks {
+                    let _ = hook.on_rollback(ctx, migration.as_ref()).await;
+                }
 
-                    if let Err(e) = migration.rollback(ctx).await {
-                        tracing::error!("Rollback failed for {}: {}", step.migration_id, e);
-                    }
+                if let Err(e) = migration.rollback(ctx).await {
+                    tracing::error!("Rollback failed for {}: {}", step.migration_id, e);
                 }
             }
         }

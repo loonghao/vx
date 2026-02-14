@@ -177,10 +177,10 @@ impl RealHttpClient {
         }
 
         // Add GitHub token for GitHub API requests
-        if url.contains("api.github.com") || url.contains("github.com") {
-            if let Some(token) = get_github_token() {
-                request = request.header("Authorization", format!("Bearer {}", token));
-            }
+        if (url.contains("api.github.com") || url.contains("github.com"))
+            && let Some(token) = get_github_token()
+        {
+            request = request.header("Authorization", format!("Bearer {}", token));
         }
 
         let response = request.send().await.map_err(|e| {
@@ -326,19 +326,18 @@ impl RealHttpClient {
 
         // Try to extract a cleaner name for python-build-standalone
         // Pattern: cpython-{version}+{date}-{platform}-install_only.tar.gz
-        if filename.starts_with("cpython-") {
-            if let Some(caps) = regex::Regex::new(
+        if filename.starts_with("cpython-")
+            && let Some(caps) = regex::Regex::new(
                 r"cpython-(\d+\.\d+\.\d+)\+\d+-(.+?)-install_only\.(tar\.gz|tar\.zst)",
             )
             .ok()
             .and_then(|re| re.captures(&filename))
-            {
-                let version = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-                let platform = caps.get(2).map(|m| m.as_str()).unwrap_or("");
-                // Simplify platform string
-                let simplified_platform = Self::simplify_platform_string(platform);
-                return format!("cpython-{}-{}", version, simplified_platform);
-            }
+        {
+            let version = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+            let platform = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+            // Simplify platform string
+            let simplified_platform = Self::simplify_platform_string(platform);
+            return format!("cpython-{}-{}", version, simplified_platform);
         }
 
         // For other files, remove common extensions and simplify
@@ -397,12 +396,12 @@ fn get_github_token() -> Option<String> {
     // Then check stored token file
     if let Ok(paths) = vx_paths::VxPaths::new() {
         let token_file = paths.config_dir.join("github_token");
-        if token_file.exists() {
-            if let Ok(token) = std::fs::read_to_string(&token_file) {
-                let token = token.trim();
-                if !token.is_empty() {
-                    return Some(token.to_string());
-                }
+        if token_file.exists()
+            && let Ok(token) = std::fs::read_to_string(&token_file)
+        {
+            let token = token.trim();
+            if !token.is_empty() {
+                return Some(token.to_string());
             }
         }
     }
@@ -462,10 +461,10 @@ impl HttpClient for RealHttpClient {
             let mut request = client.get(&url);
 
             // Add GitHub token for GitHub API requests
-            if url.contains("api.github.com") || url.contains("github.com") {
-                if let Some(token) = get_github_token() {
-                    request = request.header("Authorization", format!("Bearer {}", token));
-                }
+            if (url.contains("api.github.com") || url.contains("github.com"))
+                && let Some(token) = get_github_token()
+            {
+                request = request.header("Authorization", format!("Bearer {}", token));
             }
 
             let response = request.send().await.map_err(|e| {

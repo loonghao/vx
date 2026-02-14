@@ -206,10 +206,10 @@ impl Resolver {
         let store_dir_name = self.get_store_directory_name(spec, resolved_name);
 
         // Check vx-managed installation first if preferred
-        if self.config.prefer_vx_managed {
-            if let Some(status) = self.check_vx_managed(store_dir_name, executable_name) {
-                return status;
-            }
+        if self.config.prefer_vx_managed
+            && let Some(status) = self.check_vx_managed(store_dir_name, executable_name)
+        {
+            return status;
         }
 
         // Check system PATH
@@ -221,10 +221,10 @@ impl Resolver {
         }
 
         // Check vx-managed if not preferred but fallback enabled
-        if !self.config.prefer_vx_managed {
-            if let Some(status) = self.check_vx_managed(store_dir_name, executable_name) {
-                return status;
-            }
+        if !self.config.prefer_vx_managed
+            && let Some(status) = self.check_vx_managed(store_dir_name, executable_name)
+        {
+            return status;
         }
 
         // Check detection system_paths (glob patterns from provider.toml)
@@ -442,23 +442,22 @@ impl Resolver {
                         // Try to get version from system runtime
                         if let Some(system_version) =
                             self.get_system_runtime_version(dep_name, path)
+                            && !dep.is_version_compatible(&system_version)
                         {
-                            if !dep.is_version_compatible(&system_version) {
-                                warn!(
-                                    "System {} version {} does not meet constraints for {} (min: {:?}, max: {:?})",
-                                    dep_name,
-                                    system_version,
-                                    runtime_name,
-                                    dep.min_version,
-                                    dep.max_version
-                                );
-                                incompatible_deps.push(IncompatibleDependency {
-                                    runtime_name: dep_name.to_string(),
-                                    current_version: Some(system_version),
-                                    constraint: dep.clone(),
-                                    recommended_version: dep.recommended_version.clone(),
-                                });
-                            }
+                            warn!(
+                                "System {} version {} does not meet constraints for {} (min: {:?}, max: {:?})",
+                                dep_name,
+                                system_version,
+                                runtime_name,
+                                dep.min_version,
+                                dep.max_version
+                            );
+                            incompatible_deps.push(IncompatibleDependency {
+                                runtime_name: dep_name.to_string(),
+                                current_version: Some(system_version),
+                                constraint: dep.clone(),
+                                recommended_version: dep.recommended_version.clone(),
+                            });
                         }
                     }
                     RuntimeStatus::NotInstalled | RuntimeStatus::Unknown => {
@@ -544,14 +543,13 @@ impl Resolver {
         let store_dir_name = self.get_store_directory_name(spec, runtime_name);
 
         // Try to find the overridden executable in vx store
-        if self.config.prefer_vx_managed {
-            if let Some(status) = self.check_vx_managed(store_dir_name, executable_name) {
-                if let Some(path) = status.executable_path() {
-                    result.executable = path.clone();
-                    result.runtime_needs_install = false;
-                    return Ok(result);
-                }
-            }
+        if self.config.prefer_vx_managed
+            && let Some(status) = self.check_vx_managed(store_dir_name, executable_name)
+            && let Some(path) = status.executable_path()
+        {
+            result.executable = path.clone();
+            result.runtime_needs_install = false;
+            return Ok(result);
         }
 
         // Try system PATH for the overridden executable
@@ -565,24 +563,23 @@ impl Resolver {
         }
 
         // Fallback: if not preferred vx, try vx store
-        if !self.config.prefer_vx_managed {
-            if let Some(status) = self.check_vx_managed(store_dir_name, executable_name) {
-                if let Some(path) = status.executable_path() {
-                    result.executable = path.clone();
-                    result.runtime_needs_install = false;
-                    return Ok(result);
-                }
-            }
+        if !self.config.prefer_vx_managed
+            && let Some(status) = self.check_vx_managed(store_dir_name, executable_name)
+            && let Some(path) = status.executable_path()
+        {
+            result.executable = path.clone();
+            result.runtime_needs_install = false;
+            return Ok(result);
         }
 
         // Try detection system_paths (glob patterns from provider.toml)
         // This handles cases like MSVC where cl.exe is in known VS directories
-        if let Some(status) = self.check_detection_paths(runtime_name, executable_name) {
-            if let Some(path) = status.executable_path() {
-                result.executable = path.clone();
-                result.runtime_needs_install = false;
-                return Ok(result);
-            }
+        if let Some(status) = self.check_detection_paths(runtime_name, executable_name)
+            && let Some(path) = status.executable_path()
+        {
+            result.executable = path.clone();
+            result.runtime_needs_install = false;
+            return Ok(result);
         }
 
         // Executable override not found — set bare name as fallback

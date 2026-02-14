@@ -595,11 +595,11 @@ impl RuntimeIndex {
         let mut data = self.load().cloned().unwrap_or_default();
 
         // Update the runtime entry
-        if let Some(entry) = data.runtimes.get_mut(runtime_name) {
-            if !entry.installed_versions.contains(&version.to_string()) {
-                entry.installed_versions.push(version.to_string());
-                entry.installed_versions.sort_by(|a, b| version_cmp(b, a));
-            }
+        if let Some(entry) = data.runtimes.get_mut(runtime_name)
+            && !entry.installed_versions.contains(&version.to_string())
+        {
+            entry.installed_versions.push(version.to_string());
+            entry.installed_versions.sort_by(|a, b| version_cmp(b, a));
         }
 
         // Also update bundled runtimes that share this store
@@ -611,11 +611,11 @@ impl RuntimeIndex {
             .collect();
 
         for bundled_name in bundled_runtimes {
-            if let Some(entry) = data.runtimes.get_mut(&bundled_name) {
-                if !entry.installed_versions.contains(&version.to_string()) {
-                    entry.installed_versions.push(version.to_string());
-                    entry.installed_versions.sort_by(|a, b| version_cmp(b, a));
-                }
+            if let Some(entry) = data.runtimes.get_mut(&bundled_name)
+                && !entry.installed_versions.contains(&version.to_string())
+            {
+                entry.installed_versions.push(version.to_string());
+                entry.installed_versions.sort_by(|a, b| version_cmp(b, a));
             }
         }
 

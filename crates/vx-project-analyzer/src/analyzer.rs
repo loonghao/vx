@@ -451,38 +451,33 @@ impl ProjectAnalyzer {
                     }
 
                     // If this is a common monorepo container (e.g., packages/), scan one level deeper
-                    if !pushed && monorepo_containers.contains(&name) {
-                        if let Ok(mut subentries) = tokio::fs::read_dir(&path).await {
-                            while let Ok(Some(child)) = subentries.next_entry().await {
-                                let child_path = child.path();
-                                if !child_path.is_dir() {
-                                    continue;
-                                }
-                                let mut child_pushed = false;
-                                for marker in &monorepo_indicators {
-                                    if child_path.join(marker).exists() {
-                                        debug!(
-                                            "Found monorepo subdirectory: {}",
-                                            child_path.display()
-                                        );
-                                        dirs.push(child_path.clone());
-                                        child_pushed = true;
-                                        break;
-                                    }
-                                }
-                                // Also check extensions in nested container dirs
-                                if !child_pushed
-                                    && has_files_with_any_extension(
-                                        &child_path,
-                                        &project_extensions,
-                                    )
-                                {
-                                    debug!(
-                                        "Found project subdirectory (by extension): {}",
-                                        child_path.display()
-                                    );
+                    if !pushed
+                        && monorepo_containers.contains(&name)
+                        && let Ok(mut subentries) = tokio::fs::read_dir(&path).await
+                    {
+                        while let Ok(Some(child)) = subentries.next_entry().await {
+                            let child_path = child.path();
+                            if !child_path.is_dir() {
+                                continue;
+                            }
+                            let mut child_pushed = false;
+                            for marker in &monorepo_indicators {
+                                if child_path.join(marker).exists() {
+                                    debug!("Found monorepo subdirectory: {}", child_path.display());
                                     dirs.push(child_path.clone());
+                                    child_pushed = true;
+                                    break;
                                 }
+                            }
+                            // Also check extensions in nested container dirs
+                            if !child_pushed
+                                && has_files_with_any_extension(&child_path, &project_extensions)
+                            {
+                                debug!(
+                                    "Found project subdirectory (by extension): {}",
+                                    child_path.display()
+                                );
+                                dirs.push(child_path.clone());
                             }
                         }
                     }
@@ -504,10 +499,10 @@ fn has_files_with_any_extension(dir: &Path, extensions: &[&str]) -> bool {
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                if extensions.iter().any(|e| ext.eq_ignore_ascii_case(e)) {
-                    return true;
-                }
+            if let Some(ext) = path.extension().and_then(|e| e.to_str())
+                && extensions.iter().any(|e| ext.eq_ignore_ascii_case(e))
+            {
+                return true;
             }
         }
     }

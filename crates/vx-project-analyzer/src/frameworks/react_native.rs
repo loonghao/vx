@@ -72,11 +72,11 @@ impl Default for ReactNativeDetector {
 impl FrameworkDetector for ReactNativeDetector {
     fn detect(&self, root: &Path) -> bool {
         // package.json with react-native or expo
-        if let Some(pkg) = Self::read_package_json(root) {
-            if Self::has_react_native_dependency(&pkg) {
-                debug!("Detected React Native via package.json dependency");
-                return true;
-            }
+        if let Some(pkg) = Self::read_package_json(root)
+            && Self::has_react_native_dependency(&pkg)
+        {
+            debug!("Detected React Native via package.json dependency");
+            return true;
         }
 
         // app.json presence (metro apps) or platform folders
@@ -167,21 +167,21 @@ impl FrameworkDetector for ReactNativeDetector {
         let mut scripts = Vec::new();
         let pkg = Self::read_package_json(root);
 
-        if let Some(pkg) = pkg {
-            if let Some(pkg_scripts) = pkg.get("scripts").and_then(|s| s.as_object()) {
-                let rn_scripts = [
-                    ("android", "Run Android build"),
-                    ("ios", "Run iOS build"),
-                    ("start", "Start Metro bundler"),
-                    ("bundle", "Bundle React Native assets"),
-                ];
+        if let Some(pkg) = pkg
+            && let Some(pkg_scripts) = pkg.get("scripts").and_then(|s| s.as_object())
+        {
+            let rn_scripts = [
+                ("android", "Run Android build"),
+                ("ios", "Run iOS build"),
+                ("start", "Start Metro bundler"),
+                ("bundle", "Bundle React Native assets"),
+            ];
 
-                for (name, description) in rn_scripts {
-                    if let Some(cmd) = pkg_scripts.get(name).and_then(|v| v.as_str()) {
-                        let mut script = Script::new(name, cmd, ScriptSource::PackageJson);
-                        script.description = Some(description.to_string());
-                        scripts.push(script);
-                    }
+            for (name, description) in rn_scripts {
+                if let Some(cmd) = pkg_scripts.get(name).and_then(|v| v.as_str()) {
+                    let mut script = Script::new(name, cmd, ScriptSource::PackageJson);
+                    script.description = Some(description.to_string());
+                    scripts.push(script);
                 }
             }
         }

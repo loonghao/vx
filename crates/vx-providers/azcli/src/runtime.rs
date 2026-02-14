@@ -38,10 +38,10 @@ impl AzCliRuntime {
 
             if path.is_file() && predicate(&path) {
                 return Some(path);
-            } else if path.is_dir() {
-                if let Some(found) = Self::find_file_recursive(&path, predicate) {
-                    return Some(found);
-                }
+            } else if path.is_dir()
+                && let Some(found) = Self::find_file_recursive(&path, predicate)
+            {
+                return Some(found);
             }
         }
 

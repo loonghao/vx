@@ -184,15 +184,15 @@ pub fn store_github_token(token: &str) -> Result<()> {
 /// Load a stored GitHub token
 pub fn load_github_token() -> Option<String> {
     // First check environment variables (highest priority)
-    if let Ok(token) = std::env::var("GITHUB_TOKEN") {
-        if !token.is_empty() {
-            return Some(token);
-        }
+    if let Ok(token) = std::env::var("GITHUB_TOKEN")
+        && !token.is_empty()
+    {
+        return Some(token);
     }
-    if let Ok(token) = std::env::var("GH_TOKEN") {
-        if !token.is_empty() {
-            return Some(token);
-        }
+    if let Ok(token) = std::env::var("GH_TOKEN")
+        && !token.is_empty()
+    {
+        return Some(token);
     }
 
     // Then check stored token file
@@ -200,12 +200,12 @@ pub fn load_github_token() -> Option<String> {
         .ok()?
         .config_dir
         .join("github_token");
-    if token_file.exists() {
-        if let Ok(token) = std::fs::read_to_string(&token_file) {
-            let token = token.trim();
-            if !token.is_empty() {
-                return Some(token.to_string());
-            }
+    if token_file.exists()
+        && let Ok(token) = std::fs::read_to_string(&token_file)
+    {
+        let token = token.trim();
+        if !token.is_empty() {
+            return Some(token.to_string());
         }
     }
 

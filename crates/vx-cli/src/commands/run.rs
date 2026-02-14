@@ -96,10 +96,10 @@ pub async fn handle(
     // -------------------------
     // Execute dependency scripts first (topological order)
     // -------------------------
-    if let Some(details) = &details {
-        if !details.depends.is_empty() {
-            execute_dependencies(&details.depends, &config, &config_path, args).await?;
-        }
+    if let Some(details) = &details
+        && !details.depends.is_empty()
+    {
+        execute_dependencies(&details.depends, &config, &config_path, args).await?;
     }
 
     // Build environment with vx-managed tools in PATH
@@ -179,16 +179,16 @@ pub async fn handle(
     }
 
     // Handle cwd override from script details
-    if let Some(details) = &details {
-        if let Some(ref cwd) = details.cwd {
-            let target_dir = if Path::new(cwd).is_absolute() {
-                std::path::PathBuf::from(cwd)
-            } else {
-                current_dir.join(cwd)
-            };
-            std::env::set_current_dir(&target_dir)
-                .map_err(|e| anyhow::anyhow!("Failed to change to script cwd '{}': {}", cwd, e))?;
-        }
+    if let Some(details) = &details
+        && let Some(ref cwd) = details.cwd
+    {
+        let target_dir = if Path::new(cwd).is_absolute() {
+            std::path::PathBuf::from(cwd)
+        } else {
+            current_dir.join(cwd)
+        };
+        std::env::set_current_dir(&target_dir)
+            .map_err(|e| anyhow::anyhow!("Failed to change to script cwd '{}': {}", cwd, e))?;
     }
 
     // Execute the script with the proper environment
@@ -271,21 +271,21 @@ fn split_args_at_separator(args: &[String]) -> (Vec<String>, Vec<String>) {
 fn load_dotenv_files(dir: &Path, env_vars: &mut HashMap<String, String>) {
     // Load .env file
     let dotenv_path = dir.join(".env");
-    if dotenv_path.exists() {
-        if let Ok(iter) = dotenvy::from_path_iter(&dotenv_path) {
-            for item in iter.flatten() {
-                env_vars.insert(item.0, item.1);
-            }
+    if dotenv_path.exists()
+        && let Ok(iter) = dotenvy::from_path_iter(&dotenv_path)
+    {
+        for item in iter.flatten() {
+            env_vars.insert(item.0, item.1);
         }
     }
 
     // Load .env.local file (higher priority)
     let dotenv_local = dir.join(".env.local");
-    if dotenv_local.exists() {
-        if let Ok(iter) = dotenvy::from_path_iter(&dotenv_local) {
-            for item in iter.flatten() {
-                env_vars.insert(item.0, item.1);
-            }
+    if dotenv_local.exists()
+        && let Ok(iter) = dotenvy::from_path_iter(&dotenv_local)
+    {
+        for item in iter.flatten() {
+            env_vars.insert(item.0, item.1);
         }
     }
 }
@@ -299,10 +299,10 @@ fn print_script_help(script_name: &str, config: &ConfigView) -> Result<()> {
         };
 
         println!("Script: {}", script_name);
-        if let Some(d) = &details {
-            if let Some(ref desc) = d.description {
-                println!("Description: {}", desc);
-            }
+        if let Some(d) = &details
+            && let Some(ref desc) = d.description
+        {
+            println!("Description: {}", desc);
         }
         println!("Command: {}", cmd);
 
@@ -413,17 +413,17 @@ async fn execute_dependencies(
 
         // Handle cwd for dependency
         let saved_dir = std::env::current_dir().ok();
-        if let Some(d) = &details {
-            if let Some(ref cwd) = d.cwd {
-                let target_dir = if Path::new(cwd).is_absolute() {
-                    std::path::PathBuf::from(cwd)
-                } else {
-                    current_dir.join(cwd)
-                };
-                std::env::set_current_dir(&target_dir).map_err(|e| {
-                    anyhow::anyhow!("Failed to change to dependency cwd '{}': {}", cwd, e)
-                })?;
-            }
+        if let Some(d) = &details
+            && let Some(ref cwd) = d.cwd
+        {
+            let target_dir = if Path::new(cwd).is_absolute() {
+                std::path::PathBuf::from(cwd)
+            } else {
+                current_dir.join(cwd)
+            };
+            std::env::set_current_dir(&target_dir).map_err(|e| {
+                anyhow::anyhow!("Failed to change to dependency cwd '{}': {}", cwd, e)
+            })?;
         }
 
         let status = execute_with_env(&cmd, &dep_env)?;

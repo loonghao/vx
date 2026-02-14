@@ -241,12 +241,12 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
                 .await?
                 .ok_or_else(|| {
                     // Distinguish between unknown runtime and known-but-no-executable
-                    if let Some(registry) = self.registry {
-                        if registry.get_runtime(&plan.primary.name).is_none() {
-                            return PrepareError::UnknownRuntime {
-                                runtime: plan.primary.name.clone(),
-                            };
-                        }
+                    if let Some(registry) = self.registry
+                        && registry.get_runtime(&plan.primary.name).is_none()
+                    {
+                        return PrepareError::UnknownRuntime {
+                            runtime: plan.primary.name.clone(),
+                        };
                     }
                     PrepareError::NoExecutable {
                         runtime: plan.primary.name.clone(),

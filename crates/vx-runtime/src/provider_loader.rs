@@ -222,10 +222,10 @@ impl ProviderLoader {
     /// Determine the source type based on path
     fn determine_source(&self, path: &Path) -> ProviderSource {
         // Check if it's in vx providers directory
-        if let Ok(vx_paths) = VxPaths::new() {
-            if path.starts_with(&vx_paths.providers_dir) {
-                return ProviderSource::UserLocal(path.to_path_buf());
-            }
+        if let Ok(vx_paths) = VxPaths::new()
+            && path.starts_with(&vx_paths.providers_dir)
+        {
+            return ProviderSource::UserLocal(path.to_path_buf());
         }
 
         // Check if it's from VX_PROVIDERS_PATH

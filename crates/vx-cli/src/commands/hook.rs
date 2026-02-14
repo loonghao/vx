@@ -21,23 +21,23 @@ pub async fn handle_pre_commit() -> Result<()> {
 
     let config = vx_config::parse_config(&config_path)?;
 
-    if let Some(hooks) = &config.hooks {
-        if let Some(pre_commit) = &hooks.pre_commit {
-            UI::info("Running pre-commit hook...");
+    if let Some(hooks) = &config.hooks
+        && let Some(pre_commit) = &hooks.pre_commit
+    {
+        UI::info("Running pre-commit hook...");
 
-            let executor = HookExecutor::new(&current_dir).verbose(true);
-            let result = executor.execute_pre_commit(pre_commit)?;
+        let executor = HookExecutor::new(&current_dir).verbose(true);
+        let result = executor.execute_pre_commit(pre_commit)?;
 
-            if !result.success {
-                UI::error(&format!(
-                    "Pre-commit hook failed: {}",
-                    result.error.unwrap_or_default()
-                ));
-                std::process::exit(1);
-            }
-
-            UI::success("Pre-commit hook passed");
+        if !result.success {
+            UI::error(&format!(
+                "Pre-commit hook failed: {}",
+                result.error.unwrap_or_default()
+            ));
+            std::process::exit(1);
         }
+
+        UI::success("Pre-commit hook passed");
     }
 
     Ok(())
@@ -61,17 +61,17 @@ pub async fn handle_enter() -> Result<()> {
 
     let config = vx_config::parse_config(&config_path)?;
 
-    if let Some(hooks) = &config.hooks {
-        if let Some(enter) = &hooks.enter {
-            let executor = HookExecutor::new(&current_dir);
-            let result = executor.execute_enter(enter)?;
+    if let Some(hooks) = &config.hooks
+        && let Some(enter) = &hooks.enter
+    {
+        let executor = HookExecutor::new(&current_dir);
+        let result = executor.execute_enter(enter)?;
 
-            if !result.success {
-                UI::warn(&format!(
-                    "Enter hook failed: {}",
-                    result.error.unwrap_or_default()
-                ));
-            }
+        if !result.success {
+            UI::warn(&format!(
+                "Enter hook failed: {}",
+                result.error.unwrap_or_default()
+            ));
         }
     }
 

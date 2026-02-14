@@ -95,39 +95,36 @@ impl TauriDetector {
         }
 
         // Check package.json for @tauri-apps/cli version
-        if let Some(pkg) = package_json {
-            if let Some(version) = Self::get_tauri_cli_version(pkg) {
-                // Parse major version
-                if version.starts_with("2") {
-                    return Some("2.x".to_string());
-                } else if version.starts_with("1") {
-                    return Some("1.x".to_string());
-                }
+        if let Some(pkg) = package_json
+            && let Some(version) = Self::get_tauri_cli_version(pkg)
+        {
+            // Parse major version
+            if version.starts_with("2") {
+                return Some("2.x".to_string());
+            } else if version.starts_with("1") {
+                return Some("1.x".to_string());
             }
         }
 
         // Check Cargo.toml in src-tauri for tauri dependency version
         let cargo_toml = tauri_dir.join("Cargo.toml");
-        if cargo_toml.exists() {
-            if let Ok(content) = std::fs::read_to_string(&cargo_toml) {
-                if let Ok(toml) = content.parse::<toml::Value>() {
-                    if let Some(deps) = toml.get("dependencies") {
-                        if let Some(tauri_dep) = deps.get("tauri") {
-                            let version_str = match tauri_dep {
-                                toml::Value::String(v) => Some(v.as_str()),
-                                toml::Value::Table(t) => t.get("version").and_then(|v| v.as_str()),
-                                _ => None,
-                            };
+        if cargo_toml.exists()
+            && let Ok(content) = std::fs::read_to_string(&cargo_toml)
+            && let Ok(toml) = content.parse::<toml::Value>()
+            && let Some(deps) = toml.get("dependencies")
+            && let Some(tauri_dep) = deps.get("tauri")
+        {
+            let version_str = match tauri_dep {
+                toml::Value::String(v) => Some(v.as_str()),
+                toml::Value::Table(t) => t.get("version").and_then(|v| v.as_str()),
+                _ => None,
+            };
 
-                            if let Some(v) = version_str {
-                                if v.starts_with("2") {
-                                    return Some("2.x".to_string());
-                                } else if v.starts_with("1") {
-                                    return Some("1.x".to_string());
-                                }
-                            }
-                        }
-                    }
+            if let Some(v) = version_str {
+                if v.starts_with("2") {
+                    return Some("2.x".to_string());
+                } else if v.starts_with("1") {
+                    return Some("1.x".to_string());
                 }
             }
         }
@@ -167,15 +164,13 @@ impl FrameworkDetector for TauriDetector {
 
         // Check package.json for Tauri dependencies
         let package_json_path = root.join("package.json");
-        if package_json_path.exists() {
-            if let Ok(content) = std::fs::read_to_string(&package_json_path) {
-                if let Ok(package_json) = serde_json::from_str::<Value>(&content) {
-                    if Self::has_tauri_dependency(&package_json) {
-                        debug!("Detected Tauri project via package.json dependency");
-                        return true;
-                    }
-                }
-            }
+        if package_json_path.exists()
+            && let Ok(content) = std::fs::read_to_string(&package_json_path)
+            && let Ok(package_json) = serde_json::from_str::<Value>(&content)
+            && Self::has_tauri_dependency(&package_json)
+        {
+            debug!("Detected Tauri project via package.json dependency");
+            return true;
         }
 
         false
@@ -200,10 +195,10 @@ impl FrameworkDetector for TauriDetector {
         };
 
         // Detect Tauri version
-        if let Some(ref tauri_dir) = tauri_dir {
-            if let Some(version) = Self::detect_tauri_version(tauri_dir, package_json.as_ref()) {
-                info = info.with_version(version);
-            }
+        if let Some(ref tauri_dir) = tauri_dir
+            && let Some(version) = Self::detect_tauri_version(tauri_dir, package_json.as_ref())
+        {
+            info = info.with_version(version);
         }
 
         // Find and parse tauri config
@@ -223,42 +218,41 @@ impl FrameworkDetector for TauriDetector {
                 if config_path
                     .extension()
                     .is_some_and(|ext| ext == "json" || ext == "json5")
+                    && let Some(config) = Self::parse_tauri_config(config_path).await
                 {
-                    if let Some(config) = Self::parse_tauri_config(config_path).await {
-                        // Get product name
-                        if let Some(name) = config
-                            .get("productName")
-                            .or_else(|| config.get("package").and_then(|p| p.get("productName")))
-                            .and_then(|v| v.as_str())
-                        {
-                            info = info.with_metadata("productName", name);
-                        }
+                    // Get product name
+                    if let Some(name) = config
+                        .get("productName")
+                        .or_else(|| config.get("package").and_then(|p| p.get("productName")))
+                        .and_then(|v| v.as_str())
+                    {
+                        info = info.with_metadata("productName", name);
+                    }
 
-                        // Get identifier
-                        if let Some(identifier) = config
-                            .get("identifier")
-                            .or_else(|| {
-                                config
-                                    .get("tauri")
-                                    .and_then(|t| t.get("bundle"))
-                                    .and_then(|b| b.get("identifier"))
-                            })
-                            .and_then(|v| v.as_str())
-                        {
-                            info = info.with_metadata("identifier", identifier);
-                        }
+                    // Get identifier
+                    if let Some(identifier) = config
+                        .get("identifier")
+                        .or_else(|| {
+                            config
+                                .get("tauri")
+                                .and_then(|t| t.get("bundle"))
+                                .and_then(|b| b.get("identifier"))
+                        })
+                        .and_then(|v| v.as_str())
+                    {
+                        info = info.with_metadata("identifier", identifier);
+                    }
 
-                        // Get target platforms from bundle config
-                        if let Some(targets) = config
-                            .get("tauri")
-                            .and_then(|t| t.get("bundle"))
-                            .and_then(|b| b.get("targets"))
-                            .and_then(|t| t.as_array())
-                        {
-                            for target in targets {
-                                if let Some(t) = target.as_str() {
-                                    info = info.with_platform(t);
-                                }
+                    // Get target platforms from bundle config
+                    if let Some(targets) = config
+                        .get("tauri")
+                        .and_then(|t| t.get("bundle"))
+                        .and_then(|b| b.get("targets"))
+                        .and_then(|t| t.as_array())
+                    {
+                        for target in targets {
+                            if let Some(t) = target.as_str() {
+                                info = info.with_platform(t);
                             }
                         }
                     }
@@ -330,22 +324,22 @@ impl FrameworkDetector for TauriDetector {
         let package_json_path = root.join("package.json");
         if package_json_path.exists() {
             let content = tokio::fs::read_to_string(&package_json_path).await?;
-            if let Ok(package_json) = serde_json::from_str::<Value>(&content) {
-                if let Some(pkg_scripts) = package_json.get("scripts").and_then(|s| s.as_object()) {
-                    // Common Tauri script patterns
-                    let tauri_patterns = [
-                        ("tauri", "Run Tauri CLI"),
-                        ("tauri:dev", "Start Tauri in development mode"),
-                        ("tauri:build", "Build Tauri application"),
-                        ("tauri:debug", "Build Tauri in debug mode"),
-                    ];
+            if let Ok(package_json) = serde_json::from_str::<Value>(&content)
+                && let Some(pkg_scripts) = package_json.get("scripts").and_then(|s| s.as_object())
+            {
+                // Common Tauri script patterns
+                let tauri_patterns = [
+                    ("tauri", "Run Tauri CLI"),
+                    ("tauri:dev", "Start Tauri in development mode"),
+                    ("tauri:build", "Build Tauri application"),
+                    ("tauri:debug", "Build Tauri in debug mode"),
+                ];
 
-                    for (name, description) in tauri_patterns {
-                        if let Some(command) = pkg_scripts.get(name).and_then(|v| v.as_str()) {
-                            let mut script = Script::new(name, command, ScriptSource::PackageJson);
-                            script.description = Some(description.to_string());
-                            scripts.push(script);
-                        }
+                for (name, description) in tauri_patterns {
+                    if let Some(command) = pkg_scripts.get(name).and_then(|v| v.as_str()) {
+                        let mut script = Script::new(name, command, ScriptSource::PackageJson);
+                        script.description = Some(description.to_string());
+                        scripts.push(script);
                     }
                 }
             }

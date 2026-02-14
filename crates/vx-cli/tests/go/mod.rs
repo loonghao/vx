@@ -394,11 +394,11 @@ fn test_go_vet() {
 
     // Init module and wait for it to complete
     let init_output = run_vx_in_dir(temp_dir.path(), &["go", "mod", "init", "example.com/test"]);
-    if let Ok(ref output) = init_output {
-        if !is_success(output) {
-            // Skip test if go mod init fails (go not installed properly)
-            return;
-        }
+    if let Ok(ref output) = init_output
+        && !is_success(output)
+    {
+        // Skip test if go mod init fails (go not installed properly)
+        return;
     }
 
     // Write valid Go code

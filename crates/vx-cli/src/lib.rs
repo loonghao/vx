@@ -149,15 +149,14 @@ async fn execute_tool(
     let is_known_runtime = ctx.registry().get_runtime(&request.name).is_some();
 
     // If not a known runtime, try to execute as a globally installed package shim
-    if !is_known_runtime {
-        if let Some(exit_code) =
+    if !is_known_runtime
+        && let Some(exit_code) =
             try_execute_global_shim(ctx, &request.name, &tool_args, &with_deps).await?
-        {
-            if exit_code != 0 {
-                std::process::exit(exit_code);
-            }
-            return Ok(());
+    {
+        if exit_code != 0 {
+            std::process::exit(exit_code);
         }
+        return Ok(());
     }
 
     // Execute as runtime with --with dependencies
@@ -373,10 +372,10 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
             bin_dir.join(exe)
         };
 
-        if target_path.exists() {
-            if let Err(e) = shims::create_shim(&shims_dir, exe, &target_path) {
-                ui::UI::warn(&format!("Failed to create shim for {}: {}", exe, e));
-            }
+        if target_path.exists()
+            && let Err(e) = shims::create_shim(&shims_dir, exe, &target_path)
+        {
+            ui::UI::warn(&format!("Failed to create shim for {}: {}", exe, e));
         }
     }
 

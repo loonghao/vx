@@ -249,13 +249,13 @@ impl CoverageReporter {
 
     /// Check coverage against threshold
     pub fn check_threshold(&self, coverage: f64) -> Result<(), String> {
-        if let Some(threshold) = self.config.threshold {
-            if coverage < threshold as f64 {
-                return Err(format!(
-                    "Coverage {:.1}% is below threshold {}%",
-                    coverage, threshold
-                ));
-            }
+        if let Some(threshold) = self.config.threshold
+            && coverage < threshold as f64
+        {
+            return Err(format!(
+                "Coverage {:.1}% is below threshold {}%",
+                coverage, threshold
+            ));
         }
         Ok(())
     }

@@ -103,15 +103,15 @@ pub async fn handle(
     // Prefer vx.toml but respect existing vx.toml
     let (config_path, existing_config) = find_or_create_config_path(&current_dir);
 
-    if let Some(ref existing) = existing_config {
-        if !force {
-            UI::warn(&format!(
-                "Configuration file {} already exists",
-                existing.file_name().unwrap().to_string_lossy()
-            ));
-            UI::info("Use --force to overwrite or edit the existing file");
-            return Ok(());
-        }
+    if let Some(ref existing) = existing_config
+        && !force
+    {
+        UI::warn(&format!(
+            "Configuration file {} already exists",
+            existing.file_name().unwrap().to_string_lossy()
+        ));
+        UI::info("Use --force to overwrite or edit the existing file");
+        return Ok(());
     }
 
     // When force is used with existing config, merge with existing configuration
@@ -453,14 +453,12 @@ pub fn detect_project(dir: &Path) -> Result<ProjectDetection> {
         }
 
         // Try to get module name
-        if let Ok(content) = fs::read_to_string(dir.join("go.mod")) {
-            if let Some(line) = content.lines().next() {
-                if let Some(module_name) = line.strip_prefix("module ") {
-                    if detection.project_name.is_none() {
-                        detection.project_name = Some(module_name.trim().to_string());
-                    }
-                }
-            }
+        if let Ok(content) = fs::read_to_string(dir.join("go.mod"))
+            && let Some(line) = content.lines().next()
+            && let Some(module_name) = line.strip_prefix("module ")
+            && detection.project_name.is_none()
+        {
+            detection.project_name = Some(module_name.trim().to_string());
         }
     }
 
@@ -476,21 +474,21 @@ pub fn detect_project(dir: &Path) -> Result<ProjectDetection> {
 
         // Check rust-toolchain.toml
         let toolchain_path = dir.join("rust-toolchain.toml");
-        if toolchain_path.exists() {
-            if let Ok(content) = fs::read_to_string(&toolchain_path) {
-                rust_version = extract_rust_toolchain_version(&content);
-            }
+        if toolchain_path.exists()
+            && let Ok(content) = fs::read_to_string(&toolchain_path)
+        {
+            rust_version = extract_rust_toolchain_version(&content);
         }
 
         // Check rust-toolchain (legacy format)
         if rust_version.is_none() {
             let toolchain_legacy_path = dir.join("rust-toolchain");
-            if toolchain_legacy_path.exists() {
-                if let Ok(content) = fs::read_to_string(&toolchain_legacy_path) {
-                    let trimmed = content.trim();
-                    if !trimmed.is_empty() {
-                        rust_version = Some(trimmed.to_string());
-                    }
+            if toolchain_legacy_path.exists()
+                && let Ok(content) = fs::read_to_string(&toolchain_legacy_path)
+            {
+                let trimmed = content.trim();
+                if !trimmed.is_empty() {
+                    rust_version = Some(trimmed.to_string());
                 }
             }
         }
@@ -573,46 +571,46 @@ fn detect_nodejs_project(dir: &Path) -> Result<Option<NodeJsDetection>> {
     };
 
     // Parse package.json
-    if let Ok(content) = fs::read_to_string(&package_json_path) {
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-            // Get project name
-            if let Some(name) = json.get("name").and_then(|v| v.as_str()) {
-                detection.project_name = Some(name.to_string());
-            }
+    if let Ok(content) = fs::read_to_string(&package_json_path)
+        && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
+    {
+        // Get project name
+        if let Some(name) = json.get("name").and_then(|v| v.as_str()) {
+            detection.project_name = Some(name.to_string());
+        }
 
-            // Check for packageManager field (corepack)
-            if let Some(pm) = json.get("packageManager").and_then(|v| v.as_str()) {
-                if pm.starts_with("pnpm") {
-                    detection.package_manager = Some(PackageManager::Pnpm);
-                    detection
-                        .tools
-                        .insert("pnpm".to_string(), "latest".to_string());
-                } else if pm.starts_with("yarn") {
-                    detection.package_manager = Some(PackageManager::Yarn);
-                    detection
-                        .tools
-                        .insert("yarn".to_string(), "latest".to_string());
-                } else if pm.starts_with("npm") {
-                    detection.package_manager = Some(PackageManager::Npm);
-                    detection
-                        .tools
-                        .insert("npm".to_string(), "latest".to_string());
-                } else if pm.starts_with("bun") {
-                    detection.package_manager = Some(PackageManager::Bun);
-                    detection
-                        .tools
-                        .insert("bun".to_string(), "latest".to_string());
-                }
+        // Check for packageManager field (corepack)
+        if let Some(pm) = json.get("packageManager").and_then(|v| v.as_str()) {
+            if pm.starts_with("pnpm") {
+                detection.package_manager = Some(PackageManager::Pnpm);
+                detection
+                    .tools
+                    .insert("pnpm".to_string(), "latest".to_string());
+            } else if pm.starts_with("yarn") {
+                detection.package_manager = Some(PackageManager::Yarn);
+                detection
+                    .tools
+                    .insert("yarn".to_string(), "latest".to_string());
+            } else if pm.starts_with("npm") {
+                detection.package_manager = Some(PackageManager::Npm);
+                detection
+                    .tools
+                    .insert("npm".to_string(), "latest".to_string());
+            } else if pm.starts_with("bun") {
+                detection.package_manager = Some(PackageManager::Bun);
+                detection
+                    .tools
+                    .insert("bun".to_string(), "latest".to_string());
             }
+        }
 
-            // Check engines field for Node.js version
-            if let Some(engines) = json.get("engines") {
-                if let Some(node_version) = engines.get("node").and_then(|v| v.as_str()) {
-                    // Parse version constraint (e.g., ">=18.0.0", "^20.0.0", "20.x")
-                    let version = parse_node_version_constraint(node_version);
-                    detection.tools.insert("node".to_string(), version);
-                }
-            }
+        // Check engines field for Node.js version
+        if let Some(engines) = json.get("engines")
+            && let Some(node_version) = engines.get("node").and_then(|v| v.as_str())
+        {
+            // Parse version constraint (e.g., ">=18.0.0", "^20.0.0", "20.x")
+            let version = parse_node_version_constraint(node_version);
+            detection.tools.insert("node".to_string(), version);
         }
     }
 
@@ -683,10 +681,10 @@ fn parse_node_version_constraint(constraint: &str) -> String {
         .trim();
 
     // Handle .x notation (e.g., "20.x" -> "20")
-    if let Some(base) = version.split('.').next() {
-        if let Ok(major) = base.parse::<u32>() {
-            return major.to_string();
-        }
+    if let Some(base) = version.split('.').next()
+        && let Ok(major) = base.parse::<u32>()
+    {
+        return major.to_string();
     }
 
     // Return as-is if we can't parse
@@ -723,43 +721,43 @@ fn detect_python_project(dir: &Path) -> Result<Option<PythonDetection>> {
         .insert("python".to_string(), "3.12".to_string());
 
     // Parse pyproject.toml
-    if pyproject_path.exists() {
-        if let Ok(content) = fs::read_to_string(&pyproject_path) {
-            // Check for uv
-            if content.contains("[tool.uv]") || dir.join("uv.lock").exists() {
-                detection.package_manager = Some(PackageManager::Uv);
-                detection
-                    .tools
-                    .insert("uv".to_string(), "latest".to_string());
-                detection
-                    .hints
-                    .push("Detected uv from pyproject.toml or uv.lock".to_string());
-            }
-            // Check for poetry
-            else if content.contains("[tool.poetry]") || dir.join("poetry.lock").exists() {
-                detection.package_manager = Some(PackageManager::Poetry);
-                detection
-                    .hints
-                    .push("Detected poetry from pyproject.toml".to_string());
-            }
+    if pyproject_path.exists()
+        && let Ok(content) = fs::read_to_string(&pyproject_path)
+    {
+        // Check for uv
+        if content.contains("[tool.uv]") || dir.join("uv.lock").exists() {
+            detection.package_manager = Some(PackageManager::Uv);
+            detection
+                .tools
+                .insert("uv".to_string(), "latest".to_string());
+            detection
+                .hints
+                .push("Detected uv from pyproject.toml or uv.lock".to_string());
+        }
+        // Check for poetry
+        else if content.contains("[tool.poetry]") || dir.join("poetry.lock").exists() {
+            detection.package_manager = Some(PackageManager::Poetry);
+            detection
+                .hints
+                .push("Detected poetry from pyproject.toml".to_string());
+        }
 
-            // Try to get project name
-            for line in content.lines() {
-                if let Some(name) = line.strip_prefix("name = ") {
-                    let name = name.trim().trim_matches('"');
-                    detection.project_name = Some(name.to_string());
-                    break;
-                }
+        // Try to get project name
+        for line in content.lines() {
+            if let Some(name) = line.strip_prefix("name = ") {
+                let name = name.trim().trim_matches('"');
+                detection.project_name = Some(name.to_string());
+                break;
             }
+        }
 
-            // Try to get Python version requirement
-            for line in content.lines() {
-                if line.contains("requires-python") || line.contains("python_requires") {
-                    if let Some(version) = extract_python_version(line) {
-                        detection.tools.insert("python".to_string(), version);
-                        break;
-                    }
-                }
+        // Try to get Python version requirement
+        for line in content.lines() {
+            if (line.contains("requires-python") || line.contains("python_requires"))
+                && let Some(version) = extract_python_version(line)
+            {
+                detection.tools.insert("python".to_string(), version);
+                break;
             }
         }
     }
@@ -838,24 +836,21 @@ fn detect_dotnet_project(dir: &Path) -> Result<Option<DotNetDetection>> {
         .insert("dotnet".to_string(), "latest".to_string());
 
     // Try to get SDK version from global.json
-    if has_global_json {
-        if let Ok(content) = fs::read_to_string(dir.join("global.json")) {
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(version) = json
-                    .get("sdk")
-                    .and_then(|sdk| sdk.get("version"))
-                    .and_then(|v| v.as_str())
-                {
-                    detection
-                        .tools
-                        .insert("dotnet".to_string(), version.to_string());
-                    detection.hints.push(format!(
-                        ".NET SDK version {} pinned in global.json",
-                        version
-                    ));
-                }
-            }
-        }
+    if has_global_json
+        && let Ok(content) = fs::read_to_string(dir.join("global.json"))
+        && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
+        && let Some(version) = json
+            .get("sdk")
+            .and_then(|sdk| sdk.get("version"))
+            .and_then(|v| v.as_str())
+    {
+        detection
+            .tools
+            .insert("dotnet".to_string(), version.to_string());
+        detection.hints.push(format!(
+            ".NET SDK version {} pinned in global.json",
+            version
+        ));
     }
 
     // Try to get project name from .sln or .csproj
@@ -939,27 +934,25 @@ fn has_dotnet_files_recursive_inner(dir: &Path, max_depth: usize, current_depth:
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_file() {
-                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                    if ext.eq_ignore_ascii_case("csproj")
+                if let Some(ext) = path.extension().and_then(|e| e.to_str())
+                    && (ext.eq_ignore_ascii_case("csproj")
                         || ext.eq_ignore_ascii_case("fsproj")
-                        || ext.eq_ignore_ascii_case("sln")
-                    {
-                        return true;
-                    }
+                        || ext.eq_ignore_ascii_case("sln"))
+                {
+                    return true;
                 }
             } else if path.is_dir() && current_depth < max_depth {
                 // Skip common non-project directories
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if name.starts_with('.')
+                if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                    && (name.starts_with('.')
                         || name == "node_modules"
                         || name == "bin"
                         || name == "obj"
                         || name == "target"
                         || name == "dist"
-                        || name == "packages"
-                    {
-                        continue;
-                    }
+                        || name == "packages")
+                {
+                    continue;
                 }
                 if has_dotnet_files_recursive_inner(&path, max_depth, current_depth + 1) {
                     return true;
@@ -972,26 +965,25 @@ fn has_dotnet_files_recursive_inner(dir: &Path, max_depth: usize, current_depth:
 
 fn extract_python_version(line: &str) -> Option<String> {
     // Handle formats like: requires-python = ">=3.10"
-    if let Some(start) = line.find('"') {
-        if let Some(end) = line.rfind('"') {
-            if start < end {
-                let version_str = &line[start + 1..end];
-                // Parse version constraint
-                let version = version_str
-                    .trim_start_matches(">=")
-                    .trim_start_matches("<=")
-                    .trim_start_matches('>')
-                    .trim_start_matches('<')
-                    .trim_start_matches('^')
-                    .trim_start_matches('~')
-                    .trim_start_matches('=')
-                    .split(',')
-                    .next()
-                    .unwrap_or("3.12")
-                    .trim();
-                return Some(version.to_string());
-            }
-        }
+    if let Some(start) = line.find('"')
+        && let Some(end) = line.rfind('"')
+        && start < end
+    {
+        let version_str = &line[start + 1..end];
+        // Parse version constraint
+        let version = version_str
+            .trim_start_matches(">=")
+            .trim_start_matches("<=")
+            .trim_start_matches('>')
+            .trim_start_matches('<')
+            .trim_start_matches('^')
+            .trim_start_matches('~')
+            .trim_start_matches('=')
+            .split(',')
+            .next()
+            .unwrap_or("3.12")
+            .trim();
+        return Some(version.to_string());
     }
     None
 }
@@ -1297,13 +1289,14 @@ const PLATFORM_SPECIFIC_TOOLS: &[(&str, &[&str])] = &[
     ("brew", &["darwin", "linux"]),
 ];
 
+/// (cross_platform_tools, platform_specific_tools) where each platform-specific entry is (name, version, os_list).
+type SeparatedTools = (HashMap<String, String>, Vec<(String, String, Vec<String>)>);
+
 /// Separate tools into cross-platform and platform-specific groups.
 ///
 /// Returns (cross_platform_tools, platform_specific_tools)
 /// where platform_specific_tools is Vec<(name, version, os_list)>
-fn separate_platform_tools(
-    tools: &HashMap<String, String>,
-) -> (HashMap<String, String>, Vec<(String, String, Vec<String>)>) {
+fn separate_platform_tools(tools: &HashMap<String, String>) -> SeparatedTools {
     let mut cross_platform = HashMap::new();
     let mut platform_specific = Vec::new();
 

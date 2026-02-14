@@ -381,17 +381,17 @@ impl Term {
         }
 
         // Check LANG environment variable
-        if let Ok(lang) = env::var("LANG") {
-            if lang.to_lowercase().contains("utf") {
-                return true;
-            }
+        if let Ok(lang) = env::var("LANG")
+            && lang.to_lowercase().contains("utf")
+        {
+            return true;
         }
 
         // Check LC_ALL
-        if let Ok(lc_all) = env::var("LC_ALL") {
-            if lc_all.to_lowercase().contains("utf") {
-                return true;
-            }
+        if let Ok(lc_all) = env::var("LC_ALL")
+            && lc_all.to_lowercase().contains("utf")
+        {
+            return true;
         }
 
         // Default to true on modern systems

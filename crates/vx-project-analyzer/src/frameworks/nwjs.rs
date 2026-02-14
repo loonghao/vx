@@ -98,16 +98,16 @@ impl FrameworkDetector for NwJsDetector {
 
     async fn additional_scripts(&self, root: &Path) -> AnalyzerResult<Vec<Script>> {
         let mut scripts = Vec::new();
-        if let Some(pkg) = Self::read_package_json(root) {
-            if let Some(pkg_scripts) = pkg.get("scripts").and_then(|s| s.as_object()) {
-                for name in ["start", "dev"] {
-                    if let Some(cmd) = pkg_scripts.get(name).and_then(|v| v.as_str()) {
-                        if cmd.contains("nw") {
-                            let mut script = Script::new(name, cmd, ScriptSource::PackageJson);
-                            script.description = Some("Run NW.js app".to_string());
-                            scripts.push(script);
-                        }
-                    }
+        if let Some(pkg) = Self::read_package_json(root)
+            && let Some(pkg_scripts) = pkg.get("scripts").and_then(|s| s.as_object())
+        {
+            for name in ["start", "dev"] {
+                if let Some(cmd) = pkg_scripts.get(name).and_then(|v| v.as_str())
+                    && cmd.contains("nw")
+                {
+                    let mut script = Script::new(name, cmd, ScriptSource::PackageJson);
+                    script.description = Some("Run NW.js app".to_string());
+                    scripts.push(script);
                 }
             }
         }

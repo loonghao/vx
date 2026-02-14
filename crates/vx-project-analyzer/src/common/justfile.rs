@@ -70,23 +70,24 @@ pub fn parse_justfile_scripts(content: &str, parser: &ScriptParser) -> AnalyzerR
 
         // Recipe lines must start at column 0 (no leading whitespace)
         // and contain a colon that's not inside quotes or brackets
-        if !line.starts_with(' ') && !line.starts_with('\t') {
-            if let Some(recipe_name) = parse_recipe_name(line) {
-                // Skip special justfile directives
-                if is_justfile_directive(&recipe_name) {
-                    continue;
-                }
-
-                // Skip invalid recipe names
-                if !is_valid_recipe_name(&recipe_name) {
-                    continue;
-                }
-
-                let cmd = format!("just {}", recipe_name);
-                let mut script = Script::new(&recipe_name, &cmd, ScriptSource::Justfile);
-                script.tools = parser.parse(&cmd);
-                scripts.push(script);
+        if !line.starts_with(' ')
+            && !line.starts_with('\t')
+            && let Some(recipe_name) = parse_recipe_name(line)
+        {
+            // Skip special justfile directives
+            if is_justfile_directive(&recipe_name) {
+                continue;
             }
+
+            // Skip invalid recipe names
+            if !is_valid_recipe_name(&recipe_name) {
+                continue;
+            }
+
+            let cmd = format!("just {}", recipe_name);
+            let mut script = Script::new(&recipe_name, &cmd, ScriptSource::Justfile);
+            script.tools = parser.parse(&cmd);
+            scripts.push(script);
         }
     }
 

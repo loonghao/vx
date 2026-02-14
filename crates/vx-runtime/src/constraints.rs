@@ -72,10 +72,10 @@ impl VersionPattern {
         }
 
         // Check major version match
-        if let Some(major) = self.major {
-            if parts[0] != major {
-                return false;
-            }
+        if let Some(major) = self.major
+            && parts[0] != major
+        {
+            return false;
         }
 
         // Check min version

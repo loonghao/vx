@@ -373,18 +373,18 @@ mod uninstall_tests {
         // Uninstall (need to specify version)
         // First try to get the version from 'current' command
         let current_output = ctx.run(&["current", "uv"]);
-        if let Ok(o) = current_output {
-            if is_success(&o) {
-                let version = stdout_str(&o).trim().to_string();
-                if !version.is_empty() {
-                    let uninstall_output = ctx
-                        .run(&["uninstall", "uv", &version])
-                        .expect("Failed to uninstall");
-                    assert_success(&uninstall_output, "uninstall uv");
+        if let Ok(o) = current_output
+            && is_success(&o)
+        {
+            let version = stdout_str(&o).trim().to_string();
+            if !version.is_empty() {
+                let uninstall_output = ctx
+                    .run(&["uninstall", "uv", &version])
+                    .expect("Failed to uninstall");
+                assert_success(&uninstall_output, "uninstall uv");
 
-                    // Verify uninstalled
-                    assert!(!ctx.is_installed("uv"), "UV should be uninstalled");
-                }
+                // Verify uninstalled
+                assert!(!ctx.is_installed("uv"), "UV should be uninstalled");
             }
         }
     }

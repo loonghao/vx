@@ -20,10 +20,10 @@ impl RemoteGenerator {
         // Name
         if let Some(name) = &devcontainer.name {
             result["name"] = json!(name);
-        } else if let Some(project) = &config.project {
-            if let Some(name) = &project.name {
-                result["name"] = json!(format!("{} Dev Container", name));
-            }
+        } else if let Some(project) = &config.project
+            && let Some(name) = &project.name
+        {
+            result["name"] = json!(format!("{} Dev Container", name));
         }
 
         // Image or Dockerfile
@@ -321,40 +321,40 @@ impl RemoteGenerator {
     pub fn generate_all(config: &VxConfig) -> HashMap<String, String> {
         let mut files = HashMap::new();
 
-        if let Some(remote) = &config.remote {
-            if remote.enabled != Some(false) {
-                // DevContainer
-                if let Some(devcontainer) = &remote.devcontainer {
-                    if devcontainer.enabled != Some(false) {
-                        let content = Self::generate_devcontainer(config, devcontainer);
-                        files.insert(
-                            ".devcontainer/devcontainer.json".to_string(),
-                            serde_json::to_string_pretty(&content).unwrap(),
-                        );
-                    }
-                }
+        if let Some(remote) = &config.remote
+            && remote.enabled != Some(false)
+        {
+            // DevContainer
+            if let Some(devcontainer) = &remote.devcontainer
+                && devcontainer.enabled != Some(false)
+            {
+                let content = Self::generate_devcontainer(config, devcontainer);
+                files.insert(
+                    ".devcontainer/devcontainer.json".to_string(),
+                    serde_json::to_string_pretty(&content).unwrap(),
+                );
+            }
 
-                // Codespaces
-                if let Some(codespaces) = &remote.codespaces {
-                    if codespaces.enabled != Some(false) {
-                        let content = Self::generate_codespaces(config, codespaces);
-                        files.insert(
-                            ".devcontainer/devcontainer.json".to_string(),
-                            serde_json::to_string_pretty(&content).unwrap(),
-                        );
-                    }
-                }
+            // Codespaces
+            if let Some(codespaces) = &remote.codespaces
+                && codespaces.enabled != Some(false)
+            {
+                let content = Self::generate_codespaces(config, codespaces);
+                files.insert(
+                    ".devcontainer/devcontainer.json".to_string(),
+                    serde_json::to_string_pretty(&content).unwrap(),
+                );
+            }
 
-                // GitPod
-                if let Some(gitpod) = &remote.gitpod {
-                    if gitpod.enabled != Some(false) {
-                        let content = Self::generate_gitpod(config, gitpod);
-                        files.insert(
-                            ".gitpod.yml".to_string(),
-                            serde_yaml::to_string(&content).unwrap_or_default(),
-                        );
-                    }
-                }
+            // GitPod
+            if let Some(gitpod) = &remote.gitpod
+                && gitpod.enabled != Some(false)
+            {
+                let content = Self::generate_gitpod(config, gitpod);
+                files.insert(
+                    ".gitpod.yml".to_string(),
+                    serde_yaml::to_string(&content).unwrap_or_default(),
+                );
             }
         }
 

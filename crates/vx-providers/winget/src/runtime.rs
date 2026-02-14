@@ -141,19 +141,19 @@ impl Runtime for WingetRuntime {
         // Try to find winget using 'where' command (most reliable on Windows)
         let output = Command::new("where").arg("winget").output();
 
-        if let Ok(output) = output {
-            if output.status.success() {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                if let Some(line) = stdout.lines().next() {
-                    let path = PathBuf::from(line.trim());
-                    if path.exists() {
-                        return Ok(ExecutionPrep {
-                            executable_override: Some(path),
-                            proxy_ready: true,
-                            message: Some("Using system winget".to_string()),
-                            ..Default::default()
-                        });
-                    }
+        if let Ok(output) = output
+            && output.status.success()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if let Some(line) = stdout.lines().next() {
+                let path = PathBuf::from(line.trim());
+                if path.exists() {
+                    return Ok(ExecutionPrep {
+                        executable_override: Some(path),
+                        proxy_ready: true,
+                        message: Some("Using system winget".to_string()),
+                        ..Default::default()
+                    });
                 }
             }
         }

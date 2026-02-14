@@ -91,25 +91,25 @@ async fn list_system_tools(registry: &ProviderRegistry, show_all: bool) -> Resul
     ];
 
     for category in category_order {
-        if let Some(tools) = grouped.get(category) {
-            if !tools.is_empty() {
-                println!("  {}:", capitalize_category(category));
-                for tool in tools {
-                    let path_str = tool
-                        .path
-                        .as_ref()
-                        .map(|p| format!(" @ {}", p.display()))
-                        .unwrap_or_default();
-                    let version_str = tool
-                        .version
-                        .as_ref()
-                        .map(|v| format!(" ({})", v))
-                        .unwrap_or_default();
-                    println!(
-                        "    ✅ {}{} - {}{}",
-                        tool.name, version_str, tool.description, path_str
-                    );
-                }
+        if let Some(tools) = grouped.get(category)
+            && !tools.is_empty()
+        {
+            println!("  {}:", capitalize_category(category));
+            for tool in tools {
+                let path_str = tool
+                    .path
+                    .as_ref()
+                    .map(|p| format!(" @ {}", p.display()))
+                    .unwrap_or_default();
+                let version_str = tool
+                    .version
+                    .as_ref()
+                    .map(|v| format!(" ({})", v))
+                    .unwrap_or_default();
+                println!(
+                    "    ✅ {}{} - {}{}",
+                    tool.name, version_str, tool.description, path_str
+                );
             }
         }
     }
@@ -219,30 +219,30 @@ async fn list_tool_versions(
 
     // If this tool is bundled with another and has no direct installations,
     // check the parent tool's installations
-    if installed_executables.is_empty() {
-        if let Some(parent_tool) = &bundled_with {
-            let parent_executables = resolver.find_tool_executables(parent_tool)?;
-            if !parent_executables.is_empty() {
-                // Tool is available via parent - show parent's versions
-                for exe_path in &parent_executables {
-                    let version = extract_version_from_path(exe_path);
-                    installed_executables.push(exe_path.clone());
-                    let status_icon = if show_status { "✅" } else { "  " };
-                    println!(
-                        "  {} {} (bundled with {})",
-                        status_icon, version, parent_tool
-                    );
-                }
-
-                if show_status {
-                    UI::success(&format!(
-                        "Total: {} version(s) available (bundled with {})",
-                        parent_executables.len(),
-                        parent_tool
-                    ));
-                }
-                return Ok(());
+    if installed_executables.is_empty()
+        && let Some(parent_tool) = &bundled_with
+    {
+        let parent_executables = resolver.find_tool_executables(parent_tool)?;
+        if !parent_executables.is_empty() {
+            // Tool is available via parent - show parent's versions
+            for exe_path in &parent_executables {
+                let version = extract_version_from_path(exe_path);
+                installed_executables.push(exe_path.clone());
+                let status_icon = if show_status { "✅" } else { "  " };
+                println!(
+                    "  {} {} (bundled with {})",
+                    status_icon, version, parent_tool
+                );
             }
+
+            if show_status {
+                UI::success(&format!(
+                    "Total: {} version(s) available (bundled with {})",
+                    parent_executables.len(),
+                    parent_tool
+                ));
+            }
+            return Ok(());
         }
     }
 
@@ -334,12 +334,11 @@ async fn list_all_tools(
 
     // Check for bundled tools - if a parent tool is installed, its bundled tools are also available
     for tool_name in &supported_tools {
-        if let Some(runtime) = registry.get_runtime(tool_name) {
-            if let Some(parent_tool) = runtime.metadata().get("bundled_with") {
-                if directly_installed.contains(parent_tool.as_str()) {
-                    available_tools.insert(tool_name.clone());
-                }
-            }
+        if let Some(runtime) = registry.get_runtime(tool_name)
+            && let Some(parent_tool) = runtime.metadata().get("bundled_with")
+            && directly_installed.contains(parent_tool.as_str())
+        {
+            available_tools.insert(tool_name.clone());
         }
     }
 
@@ -437,26 +436,23 @@ async fn list_all_tools(
                     if let Some((_, versions)) = installed_tools_with_versions
                         .iter()
                         .find(|(name, _)| name == tool_name)
+                        && !versions.is_empty()
                     {
-                        if !versions.is_empty() {
-                            println!("     Versions: {}", versions.join(", "));
-                        }
+                        println!("     Versions: {}", versions.join(", "));
                     }
                 } else {
                     // Bundled tool - show parent's versions
-                    if let Some(parent_tool) = runtime.metadata().get("bundled_with") {
-                        if let Some((_, versions)) = installed_tools_with_versions
+                    if let Some(parent_tool) = runtime.metadata().get("bundled_with")
+                        && let Some((_, versions)) = installed_tools_with_versions
                             .iter()
                             .find(|(name, _)| name == parent_tool)
-                        {
-                            if !versions.is_empty() {
-                                println!(
-                                    "     Versions: {} (via {})",
-                                    versions.join(", "),
-                                    parent_tool
-                                );
-                            }
-                        }
+                        && !versions.is_empty()
+                    {
+                        println!(
+                            "     Versions: {} (via {})",
+                            versions.join(", "),
+                            parent_tool
+                        );
                     }
                 }
             }

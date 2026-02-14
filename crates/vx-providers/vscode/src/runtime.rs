@@ -212,10 +212,10 @@ impl Runtime for VscodeRuntime {
                     if path.file_name().and_then(|n| n.to_str()) == Some(file_name) {
                         return Some(path);
                     }
-                } else if path.is_dir() {
-                    if let Some(found) = search_executable(&path, file_name, depth + 1, max_depth) {
-                        return Some(found);
-                    }
+                } else if path.is_dir()
+                    && let Some(found) = search_executable(&path, file_name, depth + 1, max_depth)
+                {
+                    return Some(found);
                 }
             }
             None

@@ -219,12 +219,12 @@ impl NormalizeConfig {
         }
 
         // Also check "unix" for linux/macos
-        if !cfg!(windows) {
-            if let Some(unix_config) = self.platforms.get("unix") {
-                executables.extend(unix_config.executables.clone());
-                directories.extend(unix_config.directories.clone());
-                aliases.extend(unix_config.aliases.clone());
-            }
+        if !cfg!(windows)
+            && let Some(unix_config) = self.platforms.get("unix")
+        {
+            executables.extend(unix_config.executables.clone());
+            directories.extend(unix_config.directories.clone());
+            aliases.extend(unix_config.aliases.clone());
         }
 
         EffectiveNormalizeConfig {

@@ -258,22 +258,22 @@ impl ExtensionExecutor {
         if self.load_dotenv {
             // Load from extension directory
             let dotenv_path = extension.path.join(".env");
-            if dotenv_path.exists() {
-                if let Ok(iter) = dotenvy::from_path_iter(&dotenv_path) {
-                    for item in iter.flatten() {
-                        env_map.insert(item.0, item.1);
-                    }
+            if dotenv_path.exists()
+                && let Ok(iter) = dotenvy::from_path_iter(&dotenv_path)
+            {
+                for item in iter.flatten() {
+                    env_map.insert(item.0, item.1);
                 }
             }
 
             // Load from current directory
             if let Ok(cwd) = std::env::current_dir() {
                 let project_dotenv = cwd.join(".env");
-                if project_dotenv.exists() {
-                    if let Ok(iter) = dotenvy::from_path_iter(&project_dotenv) {
-                        for item in iter.flatten() {
-                            env_map.insert(item.0, item.1);
-                        }
+                if project_dotenv.exists()
+                    && let Ok(iter) = dotenvy::from_path_iter(&project_dotenv)
+                {
+                    for item in iter.flatten() {
+                        env_map.insert(item.0, item.1);
                     }
                 }
             }
