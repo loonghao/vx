@@ -218,12 +218,31 @@ pub trait Installer: Send + Sync {
         self.download_and_extract(url, dest).await?;
 
         // Handle strip_prefix for archive extraction
-        // This moves contents from a nested directory to the root of dest
-        if let Some(strip_prefix) = metadata.get("strip_prefix")
-            && !strip_prefix.is_empty()
-        {
-            let prefix_dir = dest.join(strip_prefix);
-            if prefix_dir.exists() && prefix_dir.is_dir() {
+        // This moves contents from a nested directory to the root of dest.
+        //
+        // When strip_prefix is a non-empty string, strip that exact prefix.
+        // When strip_prefix is an empty string "", auto-detect: if there is exactly
+        // one top-level directory in dest, strip it (this is the common case for
+        // GitHub release archives like `tool-x86_64-linux-gnu/tool`).
+        if let Some(strip_prefix) = metadata.get("strip_prefix") {
+            let prefix_dir = if strip_prefix.is_empty() {
+                // Auto-detect: check if dest contains exactly one directory and nothing else
+                let entries: Vec<_> = std::fs::read_dir(dest)?.filter_map(|e| e.ok()).collect();
+                if entries.len() == 1 && entries[0].path().is_dir() {
+                    Some(entries[0].path())
+                } else {
+                    None
+                }
+            } else {
+                let p = dest.join(strip_prefix);
+                if p.exists() && p.is_dir() {
+                    Some(p)
+                } else {
+                    None
+                }
+            };
+
+            if let Some(prefix_dir) = prefix_dir {
                 // Move all contents from prefix_dir to dest
                 for entry in std::fs::read_dir(&prefix_dir)? {
                     let entry = entry?;
