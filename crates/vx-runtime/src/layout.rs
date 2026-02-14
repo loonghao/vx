@@ -306,12 +306,28 @@ impl ResolvedLayout {
             ResolvedLayout::Archive {
                 executable_paths, ..
             } => {
-                // Return the first path that exists, or the first path if none exist
-                executable_paths
+                // Return the first path that exists
+                if let Some(found) = executable_paths
                     .iter()
                     .map(|p| install_root.join(p))
                     .find(|p| p.exists())
-                    .unwrap_or_else(|| install_root.join(&executable_paths[0]))
+                {
+                    return found;
+                }
+
+                // No path exists (e.g., called before installation or with empty root).
+                // Use platform-aware fallback: on non-Windows, prefer paths without .exe
+                let platform = Platform::current();
+                if platform.os != Os::Windows
+                    && let Some(non_exe) = executable_paths
+                        .iter()
+                        .find(|p| !p.ends_with(".exe") && !p.ends_with(".cmd"))
+                {
+                    return install_root.join(non_exe);
+                }
+
+                // Final fallback: first path
+                install_root.join(&executable_paths[0])
             }
         }
     }
