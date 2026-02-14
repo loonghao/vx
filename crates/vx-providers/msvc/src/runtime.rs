@@ -194,13 +194,20 @@ impl Runtime for MsvcRuntime {
 
     /// Prepare environment variables for MSVC compilation
     ///
-    /// MSVC requires INCLUDE, LIB, and PATH environment variables to be set
-    /// for the compiler to find headers and libraries.
+    /// Instead of setting LIB/INCLUDE/PATH globally (which conflicts with tools
+    /// like node-gyp that have their own Visual Studio discovery logic), we only
+    /// set VX_MSVC_* marker variables. The actual LIB/INCLUDE/PATH are only
+    /// injected when directly invoking MSVC tools (cl, link, nmake, etc.)
+    /// via the `execution_environment()` method.
+    ///
+    /// See: https://github.com/loonghao/vx/issues/573
     async fn prepare_environment(
         &self,
         version: &str,
         ctx: &RuntimeContext,
     ) -> Result<HashMap<String, String>> {
+        let mut env = HashMap::new();
+
         // Try to load saved installation info
         if let Some(info) = self.load_install_info(ctx, version) {
             debug!(
@@ -210,15 +217,78 @@ impl Runtime for MsvcRuntime {
                 info.lib_paths.len(),
                 info.bin_paths.len()
             );
-            return Ok(info.get_environment());
+
+            // Only set VX_MSVC_* marker variables for discovery by other tools
+            // This avoids polluting the global environment with LIB/INCLUDE which
+            // breaks node-gyp's PowerShell-based Visual Studio discovery
+            let install_path = ctx.paths.version_store_dir(self.name(), version);
+            env.insert(
+                "VX_MSVC_ROOT".to_string(),
+                install_path.to_string_lossy().to_string(),
+            );
+            env.insert("VX_MSVC_VERSION".to_string(), version.to_string());
+            env.insert("MSVS_VERSION".to_string(), "2022".to_string());
+            env.insert("GYP_MSVS_VERSION".to_string(), "2022".to_string());
+
+            // Set INCLUDE paths as VX_MSVC_INCLUDE (not INCLUDE)
+            if !info.include_paths.is_empty() {
+                let include = info
+                    .include_paths
+                    .iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect::<Vec<_>>()
+                    .join(";");
+                env.insert("VX_MSVC_INCLUDE".to_string(), include);
+            }
+
+            // Set LIB paths as VX_MSVC_LIB (not LIB)
+            if !info.lib_paths.is_empty() {
+                let lib = info
+                    .lib_paths
+                    .iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect::<Vec<_>>()
+                    .join(";");
+                env.insert("VX_MSVC_LIB".to_string(), lib);
+            }
+
+            // Set BIN paths as VX_MSVC_BIN (not PATH)
+            if !info.bin_paths.is_empty() {
+                let bin = info
+                    .bin_paths
+                    .iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect::<Vec<_>>()
+                    .join(";");
+                env.insert("VX_MSVC_BIN".to_string(), bin);
+            }
+
+            return Ok(env);
         }
 
         // If no saved info, return empty environment
-        // The user may need to reinstall to get proper environment setup
         debug!(
             "No MSVC installation info found for {}, environment variables not set",
             version
         );
+        Ok(env)
+    }
+
+    /// Prepare execution-specific environment for MSVC tools
+    ///
+    /// When directly invoking MSVC tools (cl, link, nmake, lib, ml64),
+    /// we inject the full LIB/INCLUDE/PATH environment variables needed
+    /// for compilation. This is only called for the actual MSVC executable.
+    async fn execution_environment(
+        &self,
+        version: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<HashMap<String, String>> {
+        // For direct MSVC tool invocation, use the full environment
+        if let Some(info) = self.load_install_info(ctx, version) {
+            debug!("Setting full MSVC execution environment for direct tool invocation");
+            return Ok(info.get_environment());
+        }
         Ok(HashMap::new())
     }
 
