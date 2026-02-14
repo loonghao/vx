@@ -450,11 +450,14 @@ pub async fn install_quiet(
         }
 
         // Last resort: return a reasonable default (may not exist)
+        // NOTE: install_path from version_store_dir is the base path without the
+        // platform subdirectory. The actual files live under {base}/{platform}/.
         let platform = vx_runtime::Platform::current();
+        let platform_install_path = install_path.join(platform.as_str());
         let exe_relative = runtime.executable_relative_path(&target_version, &platform);
-        let exe_path = install_path.join(&exe_relative);
+        let exe_path = platform_install_path.join(&exe_relative);
         return Ok(InstallResult::already_installed(
-            install_path,
+            platform_install_path,
             exe_path,
             target_version,
         ));
