@@ -9,5 +9,5 @@ mod provider;
 mod runtime;
 
 pub use config::PwshUrlBuilder;
-pub use provider::{create_provider, PwshProvider};
+pub use provider::{PwshProvider, create_provider};
 pub use runtime::PwshRuntime;

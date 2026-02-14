@@ -14,8 +14,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use vx_config::{parse_config, VxConfig};
-use vx_paths::{find_vx_config as find_vx_config_path, PathManager};
+use vx_config::{VxConfig, parse_config};
+use vx_paths::{PathManager, find_vx_config as find_vx_config_path};
 
 // =============================================================================
 // Configuration Loading

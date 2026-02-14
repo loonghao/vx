@@ -45,7 +45,7 @@ impl VersionRequest {
         match raw.to_lowercase().as_str() {
             "latest" | "stable" => return VersionConstraint::Latest,
             "latest-prerelease" | "prerelease" | "pre" => {
-                return VersionConstraint::LatestPrerelease
+                return VersionConstraint::LatestPrerelease;
             }
             "*" | "any" => return VersionConstraint::Any,
             _ => {}

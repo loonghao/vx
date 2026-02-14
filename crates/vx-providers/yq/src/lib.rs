@@ -8,5 +8,5 @@ mod provider;
 mod runtime;
 
 pub use config::YqUrlBuilder;
-pub use provider::{create_provider, YqProvider};
+pub use provider::{YqProvider, create_provider};
 pub use runtime::YqRuntime;

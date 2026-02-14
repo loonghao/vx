@@ -7,5 +7,5 @@ mod provider;
 mod runtime;
 
 pub use config::JustUrlBuilder;
-pub use provider::{create_provider, JustProvider};
+pub use provider::{JustProvider, create_provider};
 pub use runtime::JustRuntime;

@@ -67,7 +67,7 @@ pub use dependencies::{
 pub use discovery::ExtensionDiscovery;
 pub use error::{ExtensionError, ExtensionResult};
 pub use executor::ExtensionExecutor;
-pub use hooks::{execute_hooks, HookContext, HookEvent, HookExecutor, HookResult};
+pub use hooks::{HookContext, HookEvent, HookExecutor, HookResult, execute_hooks};
 pub use inherit::ConfigInheritance;
 pub use manager::ExtensionManager;
 pub use remote::{InstalledExtension, RemoteInstaller, RemoteSource, UpdateInfo};

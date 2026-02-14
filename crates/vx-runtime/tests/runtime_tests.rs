@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 use rstest::rstest;
 use vx_runtime::{
-    mock_context, Arch, Ecosystem, Os, Platform, Runtime, RuntimeContext, VersionInfo,
+    Arch, Ecosystem, Os, Platform, Runtime, RuntimeContext, VersionInfo, mock_context,
 };
 
 /// Test runtime implementation

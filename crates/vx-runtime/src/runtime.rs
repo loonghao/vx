@@ -581,11 +581,7 @@ pub trait Runtime: Send + Sync {
             }
         } else {
             let path = install_path.join(&exe_relative);
-            if path.exists() {
-                Some(path)
-            } else {
-                None
-            }
+            if path.exists() { Some(path) } else { None }
         };
 
         // Check if executable exists

@@ -8,5 +8,5 @@ mod provider;
 mod runtime;
 
 pub use config::RipgrepUrlBuilder;
-pub use provider::{create_provider, RipgrepProvider};
+pub use provider::{RipgrepProvider, create_provider};
 pub use runtime::RipgrepRuntime;

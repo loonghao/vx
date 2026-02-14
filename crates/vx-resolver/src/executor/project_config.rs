@@ -58,6 +58,7 @@ impl ProjectToolsConfig {
     /// - `pip` -> checks `pip` then `python` (pip is often bundled with Python)
     ///
     /// Examples that should NOT fall back:
+    /// - `rustup` -> only checks `rustup` (rustup has its own version scheme: 1.27.x, 1.28.x)
     /// - `pnpm` -> only checks `pnpm` (pnpm has its own version scheme: 9.x, 10.x)
     /// - `yarn` -> only checks `yarn` (yarn has its own version scheme: 1.x, 2.x, 3.x, 4.x)
     /// - `bun` -> only checks `bun` (bun has its own version scheme)
@@ -81,19 +82,21 @@ impl ProjectToolsConfig {
     /// # Bundled vs Independent Tools
     ///
     /// **Bundled tools** (should fall back):
-    /// - `cargo`, `rustc`, `rustup` -> bundled with `rust`
+    /// - `cargo`, `rustc` -> bundled with `rust`
     /// - `npm`, `npx` -> bundled with `node`
     /// - `pip`, `pip3` -> often bundled with `python`
     /// - `gofmt` -> bundled with `go`
     ///
     /// **Independent tools** (should NOT fall back):
+    /// - `rustup` -> has its own version scheme (1.27.x, 1.28.x), NOT Rust compiler versions
     /// - `pnpm` -> has versions like 9.0.1, 10.28.2 (NOT node versions)
     /// - `yarn` -> has versions like 1.22.0, 2.4.3, 4.0.0 (NOT node versions)
     /// - `bun` -> has versions like 1.0.0, 1.1.0 (NOT node versions)
     fn bundled_tool_runtime(&self, tool: &str) -> Option<&'static str> {
         match tool {
-            // Rust ecosystem - all are bundled with rustup/rust
-            "rustc" | "cargo" | "rustup" => Some("rust"),
+            // Rust ecosystem - only rustc and cargo are bundled with rust toolchain
+            // rustup is the installer/manager itself with its own independent version scheme
+            "rustc" | "cargo" => Some("rust"),
 
             // Node.js ecosystem - ONLY npm/npx are bundled with Node.js
             // pnpm, yarn, bun are INDEPENDENT tools with their own version schemes

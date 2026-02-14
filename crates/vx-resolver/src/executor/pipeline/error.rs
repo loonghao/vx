@@ -63,7 +63,9 @@ pub enum EnsureError {
         reason: String,
     },
 
-    #[error("auto-install is disabled, {runtime}@{version} is not installed.\n\nTo install it, run:\n\n  vx install {runtime}@{version}\n\nOr enable auto-install.")]
+    #[error(
+        "auto-install is disabled, {runtime}@{version} is not installed.\n\nTo install it, run:\n\n  vx install {runtime}@{version}\n\nOr enable auto-install."
+    )]
     AutoInstallDisabled { runtime: String, version: String },
 
     #[error("installation timeout for {runtime}@{version} after {seconds}s")]
@@ -114,7 +116,9 @@ pub enum PrepareError {
         reason: String,
     },
 
-    #[error("'{runtime}' requires '{dependency}' which is not installed.\n\nTo install it, run:\n\n  vx install {dependency}\n\nOr enable auto-install to install it automatically.\n\nOriginal error: {reason}")]
+    #[error(
+        "'{runtime}' requires '{dependency}' which is not installed.\n\nTo install it, run:\n\n  vx install {dependency}\n\nOr enable auto-install to install it automatically.\n\nOriginal error: {reason}"
+    )]
     DependencyRequired {
         runtime: String,
         dependency: String,

@@ -2,8 +2,8 @@
 //!
 //! This module handles installing extensions from remote sources like GitHub.
 
-use crate::error::{ExtensionError, ExtensionResult};
 use crate::ExtensionConfig;
+use crate::error::{ExtensionError, ExtensionResult};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tracing::{debug, info, warn};

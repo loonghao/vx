@@ -6,7 +6,7 @@
 mod common;
 
 use common::{
-    cleanup_test_env, create_full_registry, create_test_context, init_test_env, SUPPORTED_TOOLS,
+    SUPPORTED_TOOLS, cleanup_test_env, create_full_registry, create_test_context, init_test_env,
 };
 use rstest::*;
 use vx_runtime::ProviderRegistry;

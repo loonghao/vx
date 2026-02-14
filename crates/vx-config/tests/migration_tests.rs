@@ -447,10 +447,12 @@ node = "20"
     let result = migrator.migrate_file(&config_path, &options).unwrap();
 
     assert!(!result.migrated);
-    assert!(result
-        .warnings
-        .iter()
-        .any(|w: &String| w.contains("already v2")));
+    assert!(
+        result
+            .warnings
+            .iter()
+            .any(|w: &String| w.contains("already v2"))
+    );
 }
 
 #[test]

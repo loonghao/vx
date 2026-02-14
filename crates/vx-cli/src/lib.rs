@@ -3,11 +3,11 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use vx_core::WithDependency;
-use vx_ecosystem_pm::{get_installer, InstallOptions};
+use vx_ecosystem_pm::{InstallOptions, get_installer};
 use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
 use vx_paths::shims;
 use vx_resolver::RuntimeRequest;
-use vx_runtime::{init_constraints_from_manifests, ProviderRegistry};
+use vx_runtime::{ProviderRegistry, init_constraints_from_manifests};
 use vx_shim::{PackageRequest, ShimExecutor};
 
 pub mod cli;
@@ -28,7 +28,7 @@ pub mod test_utils;
 pub use cli::{Cli, OutputFormat};
 pub use commands::{CommandContext, CommandHandler, GlobalOptions};
 pub use output::{CommandOutput, OutputRenderer};
-pub use registry::{create_context, create_registry, ProviderRegistryExt};
+pub use registry::{ProviderRegistryExt, create_context, create_registry};
 pub use tracing_setup::setup_tracing;
 
 /// Main entry point for the VX CLI application

@@ -3,8 +3,8 @@
 //! These tests verify that CLI arguments are correctly parsed into commands.
 
 use clap::Parser;
-use vx_cli::cli::*;
 use vx_cli::GlobalOptions;
+use vx_cli::cli::*;
 use vx_runtime::CacheMode;
 
 // ============================================

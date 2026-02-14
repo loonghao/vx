@@ -54,7 +54,9 @@ fn test_metrics_guard_exit_code_handle_shared() {
 #[test]
 fn test_fmt_filter_normal_mode() {
     // Ensure RUST_LOG is not set for this test
-    unsafe { std::env::remove_var("RUST_LOG"); }
+    unsafe {
+        std::env::remove_var("RUST_LOG");
+    }
     let config = MetricsConfig::default();
     let filter = vx_metrics::fmt_filter_directive(&config);
 
@@ -67,7 +69,9 @@ fn test_fmt_filter_normal_mode() {
 
 #[test]
 fn test_fmt_filter_verbose_mode() {
-    unsafe { std::env::remove_var("RUST_LOG"); }
+    unsafe {
+        std::env::remove_var("RUST_LOG");
+    }
     let config = MetricsConfig {
         verbose: true,
         ..Default::default()
@@ -79,7 +83,9 @@ fn test_fmt_filter_verbose_mode() {
 
 #[test]
 fn test_fmt_filter_debug_mode() {
-    unsafe { std::env::remove_var("RUST_LOG"); }
+    unsafe {
+        std::env::remove_var("RUST_LOG");
+    }
     let config = MetricsConfig {
         debug: true,
         ..Default::default()
@@ -91,7 +97,9 @@ fn test_fmt_filter_debug_mode() {
 
 #[test]
 fn test_fmt_filter_debug_takes_precedence_over_verbose() {
-    unsafe { std::env::remove_var("RUST_LOG"); }
+    unsafe {
+        std::env::remove_var("RUST_LOG");
+    }
     let config = MetricsConfig {
         debug: true,
         verbose: true,
@@ -105,7 +113,9 @@ fn test_fmt_filter_debug_takes_precedence_over_verbose() {
 
 #[test]
 fn test_otel_filter_always_captures_vx_trace() {
-    unsafe { std::env::remove_var("RUST_LOG"); }
+    unsafe {
+        std::env::remove_var("RUST_LOG");
+    }
     let filter = vx_metrics::otel_filter_directive();
 
     // OTel filter must always include vx=trace for metrics collection
@@ -120,7 +130,9 @@ fn test_otel_filter_always_captures_vx_trace() {
 #[case(false, true, "debug")]
 #[case(true, true, "debug")]
 fn test_fmt_filter_matrix(#[case] verbose: bool, #[case] debug: bool, #[case] expected: &str) {
-    unsafe { std::env::remove_var("RUST_LOG"); }
+    unsafe {
+        std::env::remove_var("RUST_LOG");
+    }
     let config = MetricsConfig {
         verbose,
         debug,
@@ -132,7 +144,9 @@ fn test_fmt_filter_matrix(#[case] verbose: bool, #[case] debug: bool, #[case] ex
 
 #[test]
 fn test_otel_filter_independent_of_config() {
-    unsafe { std::env::remove_var("RUST_LOG"); }
+    unsafe {
+        std::env::remove_var("RUST_LOG");
+    }
     // OTel filter should be the same regardless of verbose/debug settings
     let filter = vx_metrics::otel_filter_directive();
     assert_eq!(filter, "vx=trace,warn,error");

@@ -1,10 +1,10 @@
 //! System dependency resolver
 
+use crate::Result;
 use crate::dependency::{SystemDepType, SystemDependency};
 use crate::detector::PackageManagerDetector;
 use crate::registry::PackageManagerRegistry;
 use crate::strategy::InstallStrategy;
-use crate::Result;
 use tracing::{debug, warn};
 
 /// Dependency resolution result
@@ -222,8 +222,8 @@ impl SystemDependencyResolver {
         _id: &str,
         version: &Option<String>,
     ) -> Result<InstallStatus> {
-        use winreg::enums::*;
         use winreg::RegKey;
+        use winreg::enums::*;
 
         let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
 

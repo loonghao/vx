@@ -188,9 +188,11 @@ image = "mcr.microsoft.com/devcontainers/rust:1"
     let remote = config.remote.unwrap();
     let devcontainer = remote.devcontainer.unwrap();
 
-    assert!(devcontainer
-        .features
-        .contains_key("ghcr.io/devcontainers/features/node:1"));
+    assert!(
+        devcontainer
+            .features
+            .contains_key("ghcr.io/devcontainers/features/node:1")
+    );
 }
 
 #[test]

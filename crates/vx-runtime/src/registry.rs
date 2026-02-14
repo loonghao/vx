@@ -13,10 +13,10 @@
 //! Methods that need all providers (e.g., `providers()`, `runtime_names()`,
 //! `supported_runtimes()`) will materialize all pending factories first.
 
+use crate::Platform;
 use crate::plugin::ProviderLoader;
 use crate::provider::Provider;
 use crate::runtime::Runtime;
-use crate::Platform;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use thiserror::Error;

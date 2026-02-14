@@ -2,7 +2,7 @@
 
 use rstest::rstest;
 use std::time::Duration;
-use vx_console::{format_bytes, format_duration, format_speed, TaskResult, TimedTask};
+use vx_console::{TaskResult, TimedTask, format_bytes, format_duration, format_speed};
 
 #[rstest]
 #[case(Duration::from_micros(500), "500µs")]

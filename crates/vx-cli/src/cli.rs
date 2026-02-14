@@ -1810,7 +1810,7 @@ impl CommandHandler for Commands {
 
 async fn handle_auth_login(service: &str, token: Option<&str>) -> Result<()> {
     use crate::commands::auth::{
-        get_token_status, store_github_token, GitHubDeviceFlow, TokenSource,
+        GitHubDeviceFlow, TokenSource, get_token_status, store_github_token,
     };
 
     match service {
@@ -1907,7 +1907,7 @@ async fn handle_auth_logout(service: &str) -> Result<()> {
 }
 
 async fn handle_auth_status(service: &str) -> Result<()> {
-    use crate::commands::auth::{get_token_status, TokenSource};
+    use crate::commands::auth::{TokenSource, get_token_status};
 
     match service {
         "github" | "gh" | "all" => {

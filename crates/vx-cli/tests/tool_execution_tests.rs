@@ -303,7 +303,9 @@ mod env_tests {
 
         // Set custom VX_HOME
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
-        unsafe { std::env::set_var("VX_HOME", temp_dir.path()); }
+        unsafe {
+            std::env::set_var("VX_HOME", temp_dir.path());
+        }
         // Note: VxPaths::new() uses dirs::home_dir(), not VX_HOME directly
         // This test verifies VxPaths can be created successfully
         let paths = vx_paths::VxPaths::new();
@@ -311,9 +313,13 @@ mod env_tests {
 
         // Restore original
         if let Some(orig) = original {
-            unsafe { std::env::set_var("VX_HOME", orig); }
+            unsafe {
+                std::env::set_var("VX_HOME", orig);
+            }
         } else {
-            unsafe { std::env::remove_var("VX_HOME"); }
+            unsafe {
+                std::env::remove_var("VX_HOME");
+            }
         }
 
         cleanup_test_env();

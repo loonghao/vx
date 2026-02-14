@@ -223,7 +223,7 @@ impl HookExecutor {
                     success: false,
                     exit_code: None,
                     error: Some("Hook script not found".to_string()),
-                }
+                };
             }
         };
 

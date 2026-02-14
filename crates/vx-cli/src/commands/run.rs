@@ -490,7 +490,9 @@ pub async fn handle_list() -> Result<()> {
 
     if config.scripts.is_empty() {
         UI::info("No scripts defined in vx.toml");
-        UI::hint("Add scripts to your vx.toml:\n\n[scripts]\nbuild = \"cargo build\"\ntest = \"cargo test\"");
+        UI::hint(
+            "Add scripts to your vx.toml:\n\n[scripts]\nbuild = \"cargo build\"\ntest = \"cargo test\"",
+        );
         return Ok(());
     }
 

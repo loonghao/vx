@@ -8,7 +8,7 @@ use crate::commands::CommandContext;
 use crate::ui::UI;
 use anyhow::{Context, Result};
 use std::io::Write;
-use vx_ecosystem_pm::{get_installer, InstallOptions};
+use vx_ecosystem_pm::{InstallOptions, get_installer};
 use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
 use vx_paths::package_spec::PackageSpec;
 use vx_paths::shims;

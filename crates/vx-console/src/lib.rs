@@ -83,7 +83,7 @@ pub use format::{CiOutput, JsonOutput, OutputMode};
 pub use output::{ColorChoice, ShellOut};
 pub use shell::{Shell, ShellBuilder, Verbosity};
 pub use style::{Color, Style, Theme, ThemeBuilder};
-pub use task::{format_bytes, format_duration, format_speed, TaskResult, TimedTask};
+pub use task::{TaskResult, TimedTask, format_bytes, format_duration, format_speed};
 pub use term::{CiEnvironment, Term, TermCapabilities, TerminalType};
 pub use test_support::{TestOutput, TestWriter};
 

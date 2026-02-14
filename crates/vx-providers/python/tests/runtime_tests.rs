@@ -13,9 +13,11 @@ fn test_provider_name() {
 #[test]
 fn test_provider_description() {
     let provider = PythonProvider::new();
-    assert!(provider
-        .description()
-        .contains("Python programming language"));
+    assert!(
+        provider
+            .description()
+            .contains("Python programming language")
+    );
 }
 
 #[test]
@@ -66,10 +68,11 @@ fn test_runtime_metadata() {
     assert!(meta.contains_key("repository"));
     assert!(meta.contains_key("license"));
     assert!(meta.contains_key("supported_versions"));
-    assert!(meta
-        .get("source")
-        .unwrap()
-        .contains("python-build-standalone"));
+    assert!(
+        meta.get("source")
+            .unwrap()
+            .contains("python-build-standalone")
+    );
     // Check supported versions includes 3.7 to 3.13
     let supported = meta.get("supported_versions").unwrap();
     assert!(supported.contains("3.7"));

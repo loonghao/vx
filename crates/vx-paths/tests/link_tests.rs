@@ -1,7 +1,7 @@
 //! Link strategy tests
 
 use tempfile::TempDir;
-use vx_paths::{link, LinkStrategy};
+use vx_paths::{LinkStrategy, link};
 
 #[test]
 fn test_link_strategy_auto() {

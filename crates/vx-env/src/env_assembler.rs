@@ -384,9 +384,15 @@ mod tests {
     #[test]
     fn test_inherit_pattern() {
         // Set some test env vars
-        unsafe { std::env::set_var("TEST_VX_VAR1", "value1"); }
-        unsafe { std::env::set_var("TEST_VX_VAR2", "value2"); }
-        unsafe { std::env::set_var("TEST_OTHER", "other"); }
+        unsafe {
+            std::env::set_var("TEST_VX_VAR1", "value1");
+        }
+        unsafe {
+            std::env::set_var("TEST_VX_VAR2", "value2");
+        }
+        unsafe {
+            std::env::set_var("TEST_OTHER", "other");
+        }
         let assembler = EnvAssembler::new().inherit_pattern(&["TEST_VX_*"]);
         let env = assembler.build();
 
@@ -395,8 +401,14 @@ mod tests {
         assert_eq!(env.get("TEST_OTHER"), None);
 
         // Cleanup
-        unsafe { std::env::remove_var("TEST_VX_VAR1"); }
-        unsafe { std::env::remove_var("TEST_VX_VAR2"); }
-        unsafe { std::env::remove_var("TEST_OTHER"); }
+        unsafe {
+            std::env::remove_var("TEST_VX_VAR1");
+        }
+        unsafe {
+            std::env::remove_var("TEST_VX_VAR2");
+        }
+        unsafe {
+            std::env::remove_var("TEST_OTHER");
+        }
     }
 }

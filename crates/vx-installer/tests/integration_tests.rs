@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 use tempfile::TempDir;
 use vx_installer::{
-    progress::{ProgressContext, ProgressStyle},
     ArchiveFormat, InstallConfig, InstallMethod, Installer,
+    progress::{ProgressContext, ProgressStyle},
 };
 
 /// Test basic installer creation
@@ -197,8 +197,8 @@ fn test_version_info() {
 #[test]
 fn test_format_handlers() {
     use std::path::Path;
-    use vx_installer::formats::{binary::BinaryHandler, tar::TarHandler, zip::ZipHandler};
     use vx_installer::formats::{ArchiveExtractor, FormatHandler};
+    use vx_installer::formats::{binary::BinaryHandler, tar::TarHandler, zip::ZipHandler};
 
     let zip_handler = ZipHandler::new();
     assert_eq!(zip_handler.name(), "zip");
