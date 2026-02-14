@@ -124,7 +124,10 @@ impl VxConfig {
     }
 
     /// Get all tools as simple HashMap (for backward compatibility)
-    /// Merges both `tools` and `runtimes` sections, with `tools` taking priority
+    /// Merges both `tools` and `runtimes` sections, with `tools` taking priority.
+    ///
+    /// **Note**: This does NOT filter by platform. Use `tools_for_current_platform()`
+    /// to get only tools applicable to the current OS.
     pub fn tools_as_hashmap(&self) -> HashMap<String, String> {
         let mut result = HashMap::new();
 
@@ -150,7 +153,10 @@ impl VxConfig {
     }
 
     /// Get all tools as BTreeMap (for deterministic ordering in lock files)
-    /// Merges both `tools` and `runtimes` sections, with `tools` taking priority
+    /// Merges both `tools` and `runtimes` sections, with `tools` taking priority.
+    ///
+    /// **Note**: This does NOT filter by platform. Use `tools_for_current_platform_btree()`
+    /// to get only tools applicable to the current OS.
     pub fn tools_as_btreemap(&self) -> BTreeMap<String, String> {
         let mut result = BTreeMap::new();
 
@@ -173,6 +179,101 @@ impl VxConfig {
         }
 
         result
+    }
+
+    /// Get tools filtered for the current platform.
+    ///
+    /// Tools with an `os` constraint that doesn't include the current OS
+    /// are skipped. Tools without an `os` constraint (including simple
+    /// version strings) are included on all platforms.
+    ///
+    /// Returns a tuple of (included tools, skipped tools with reason)
+    pub fn tools_for_current_platform(
+        &self,
+    ) -> (HashMap<String, String>, Vec<(String, Vec<String>)>) {
+        let current_os = Self::current_os_name();
+        self.tools_for_platform(&current_os)
+    }
+
+    /// Get tools filtered for a specific platform (for testing).
+    ///
+    /// Returns (included_tools, skipped_tools_with_allowed_os)
+    pub fn tools_for_platform(
+        &self,
+        os: &str,
+    ) -> (HashMap<String, String>, Vec<(String, Vec<String>)>) {
+        let mut included = HashMap::new();
+        let mut skipped = Vec::new();
+
+        // Process runtimes first (lower priority)
+        for (k, v) in &self.runtimes {
+            if let Some((version, skip_reason)) = Self::check_tool_platform(v, os) {
+                if let Some(reason) = skip_reason {
+                    skipped.push((k.clone(), reason));
+                } else {
+                    included.insert(k.clone(), version);
+                }
+            }
+        }
+
+        // Process tools (higher priority, overwrites runtimes)
+        for (k, v) in &self.tools {
+            if let Some((version, skip_reason)) = Self::check_tool_platform(v, os) {
+                if let Some(reason) = skip_reason {
+                    // Remove from included if it was added from runtimes
+                    included.remove(k);
+                    skipped.push((k.clone(), reason));
+                } else {
+                    // Remove from skipped if it was skipped from runtimes
+                    skipped.retain(|(name, _)| name != k);
+                    included.insert(k.clone(), version);
+                }
+            }
+        }
+
+        (included, skipped)
+    }
+
+    /// Get tools filtered for the current platform as BTreeMap.
+    ///
+    /// Returns a tuple of (included tools, skipped tools with reason)
+    pub fn tools_for_current_platform_btree(
+        &self,
+    ) -> (BTreeMap<String, String>, Vec<(String, Vec<String>)>) {
+        let (included, skipped) = self.tools_for_current_platform();
+        (included.into_iter().collect(), skipped)
+    }
+
+    /// Check if a tool version entry is applicable to the given OS.
+    ///
+    /// Returns Some((version, None)) if the tool should be included,
+    /// Some((version, Some(allowed_os_list))) if the tool should be skipped,
+    /// None should never happen (always returns Some).
+    fn check_tool_platform(tool: &ToolVersion, os: &str) -> Option<(String, Option<Vec<String>>)> {
+        match tool {
+            ToolVersion::Simple(s) => Some((s.clone(), None)),
+            ToolVersion::Detailed(d) => {
+                if let Some(os_list) = &d.os {
+                    if !os_list.is_empty() && !os_list.iter().any(|o| o.eq_ignore_ascii_case(os)) {
+                        return Some((d.version.clone(), Some(os_list.clone())));
+                    }
+                }
+                Some((d.version.clone(), None))
+            }
+        }
+    }
+
+    /// Get the current OS name as used in vx.toml `os` field
+    pub fn current_os_name() -> &'static str {
+        if cfg!(target_os = "windows") {
+            "windows"
+        } else if cfg!(target_os = "macos") {
+            "darwin"
+        } else if cfg!(target_os = "linux") {
+            "linux"
+        } else {
+            "unknown"
+        }
     }
 
     /// Get script command
