@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.13](https://github.com/loonghao/vx/compare/v0.7.12...v0.7.13) (2026-02-14)
+
+
+### Features
+
+* add hadolint (Dockerfile linter) provider ([c9036c6](https://github.com/loonghao/vx/commit/c9036c6b4d521c7de00fa7113f7b937f889a1b9f))
+
+
+### Bug Fixes
+
+* add fzf to manifest registry and use source-built vx in docker CI ([d35c0a5](https://github.com/loonghao/vx/commit/d35c0a5d24e547a961dc2d36c30e4255b1f69588))
+* hadolint provider executable layout and static registry ([70ff5d6](https://github.com/loonghao/vx/commit/70ff5d605d1590bbe4acc40684058409e5170410))
+* lower rust-version to 1.93.0 for CI compatibility ([5c71b09](https://github.com/loonghao/vx/commit/5c71b094f5eb1d3570fa00230b4ddbf5eb495d88))
+* MSVC env vars conflict with node-gyp ([#573](https://github.com/loonghao/vx/issues/573)) ([ba511fb](https://github.com/loonghao/vx/commit/ba511fbae4b3a28cf90783fbc03a80e27bfab94c))
+* platform-aware executable fallback in ResolvedLayout ([3a79a16](https://github.com/loonghao/vx/commit/3a79a161af6a0dfb1d4b90ade1a9be261d22a8c7))
+* reinstall runtime when executable missing from cached install ([9f894aa](https://github.com/loonghao/vx/commit/9f894aaca1969fff6870bc2098e037be19faf693))
+
 ## [0.7.12](https://github.com/loonghao/vx/compare/v0.7.11...v0.7.12) (2026-02-14)
 
 
