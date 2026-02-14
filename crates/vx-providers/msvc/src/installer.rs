@@ -264,6 +264,62 @@ impl MsvcInstallInfo {
         self.cl_exe_path.exists()
     }
 
+    /// Validate that all cached paths still exist on disk
+    ///
+    /// Returns true if all critical paths are valid, false if the cached info
+    /// is stale (e.g., version mismatch between cached msvc-info.json and
+    /// actual installation).
+    ///
+    /// See: https://github.com/loonghao/vx/issues/573
+    pub fn validate_paths(&self) -> bool {
+        // Critical: cl.exe must exist
+        if !self.cl_exe_path.exists() {
+            return false;
+        }
+
+        // At least some include paths should exist
+        if !self.include_paths.is_empty() && !self.include_paths.iter().any(|p| p.exists()) {
+            return false;
+        }
+
+        // At least some lib paths should exist
+        if !self.lib_paths.is_empty() && !self.lib_paths.iter().any(|p| p.exists()) {
+            return false;
+        }
+
+        true
+    }
+
+    /// Get only the paths that actually exist on disk
+    ///
+    /// Filters out stale/invalid paths from cached msvc-info.json to prevent
+    /// injecting non-existent paths into environment variables.
+    pub fn validated_include_paths(&self) -> Vec<&Path> {
+        self.include_paths
+            .iter()
+            .filter(|p| p.exists())
+            .map(|p| p.as_path())
+            .collect()
+    }
+
+    /// Get only the lib paths that actually exist on disk
+    pub fn validated_lib_paths(&self) -> Vec<&Path> {
+        self.lib_paths
+            .iter()
+            .filter(|p| p.exists())
+            .map(|p| p.as_path())
+            .collect()
+    }
+
+    /// Get only the bin paths that actually exist on disk
+    pub fn validated_bin_paths(&self) -> Vec<&Path> {
+        self.bin_paths
+            .iter()
+            .filter(|p| p.exists())
+            .map(|p| p.as_path())
+            .collect()
+    }
+
     /// Get all tool executables
     pub fn get_tool_path(&self, tool: &str) -> Option<PathBuf> {
         match tool.to_lowercase().as_str() {
@@ -326,15 +382,22 @@ impl MsvcInstallInfo {
     ///
     /// Returns a HashMap with INCLUDE, LIB, and PATH environment variables
     /// configured for MSVC compilation.
+    ///
+    /// **Important**: Only paths that actually exist on disk are included.
+    /// This prevents stale cached paths (e.g., from a version mismatch between
+    /// msvc-info.json and the actual installation) from being injected into
+    /// the environment, which could break tools like node-gyp's C# compiler.
+    ///
+    /// See: https://github.com/loonghao/vx/issues/573
     pub fn get_environment(&self) -> std::collections::HashMap<String, String> {
         use std::collections::HashMap;
 
         let mut env = HashMap::new();
 
-        // Set INCLUDE path
-        if !self.include_paths.is_empty() {
-            let include = self
-                .include_paths
+        // Set INCLUDE path (only existing paths)
+        let valid_includes = self.validated_include_paths();
+        if !valid_includes.is_empty() {
+            let include = valid_includes
                 .iter()
                 .map(|p| p.to_string_lossy().to_string())
                 .collect::<Vec<_>>()
@@ -342,10 +405,10 @@ impl MsvcInstallInfo {
             env.insert("INCLUDE".to_string(), include);
         }
 
-        // Set LIB path
-        if !self.lib_paths.is_empty() {
-            let lib = self
-                .lib_paths
+        // Set LIB path (only existing paths)
+        let valid_libs = self.validated_lib_paths();
+        if !valid_libs.is_empty() {
+            let lib = valid_libs
                 .iter()
                 .map(|p| p.to_string_lossy().to_string())
                 .collect::<Vec<_>>()
@@ -353,17 +416,34 @@ impl MsvcInstallInfo {
             env.insert("LIB".to_string(), lib);
         }
 
-        // Prepend to PATH
-        if !self.bin_paths.is_empty() {
+        // Prepend to PATH (only existing paths)
+        let valid_bins = self.validated_bin_paths();
+        if !valid_bins.is_empty() {
             let current_path = std::env::var("PATH").unwrap_or_default();
-            let new_path = self
-                .bin_paths
+            let new_path = valid_bins
                 .iter()
                 .map(|p| p.to_string_lossy().to_string())
                 .chain(std::iter::once(current_path))
                 .collect::<Vec<_>>()
                 .join(";");
             env.insert("PATH".to_string(), new_path);
+        }
+
+        // Set VCINSTALLDIR and VCToolsInstallDir for compatibility with tools
+        // that use these variables to discover Visual Studio (e.g., node-gyp's
+        // Find-VisualStudio.cs uses VCINSTALLDIR to detect VS Command Prompt)
+        let vc_dir = self.install_path.join("VC");
+        if vc_dir.exists() {
+            // VCINSTALLDIR should end with a trailing backslash (VS convention)
+            let vc_install_dir = format!("{}\\", vc_dir.to_string_lossy());
+            env.insert("VCINSTALLDIR".to_string(), vc_install_dir);
+
+            // VCToolsInstallDir points to the specific MSVC tools version directory
+            let tools_dir = vc_dir.join("Tools").join("MSVC").join(&self.msvc_version);
+            if tools_dir.exists() {
+                let vc_tools_dir = format!("{}\\", tools_dir.to_string_lossy());
+                env.insert("VCToolsInstallDir".to_string(), vc_tools_dir);
+            }
         }
 
         env
