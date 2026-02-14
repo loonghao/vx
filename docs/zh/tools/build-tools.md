@@ -59,6 +59,112 @@ vx msbuild MyApi.csproj /p:Configuration=Release
 vx dotnet build -c Release
 ```
 
+## C/C++ 编译器
+
+### MSVC 构建工具（Windows）
+
+用于 Windows 开发的 Microsoft Visual C++ 编译器和构建工具。
+
+```bash
+# 安装 MSVC 构建工具
+vx install `msvc@latest
+vx install msvc 14.40       # 指定版本
+
+# 通过命名空间使用 MSVC 工具（推荐）
+vx msvc cl main.cpp -o main.exe
+vx msvc link main.obj
+vx msvc nmake
+vx msvc lib /OUT:mylib.lib *.obj
+
+# 直接别名（用于常用工具）
+vx cl main.cpp              # 等同于：vx msvc cl
+vx nmake                    # 等同于：vx msvc nmake
+
+# 指定版本使用
+vx msvc@14.40 cl main.cpp   # 使用 MSVC 14.40
+vx msvc@14.29 cl legacy.cpp # 使用 MSVC 14.29 (VS2019)
+```
+
+**可用的 MSVC 工具：**
+
+| 工具 | 命令 | 描述 |
+|------|------|------|
+| cl | `vx msvc cl` | C/C++ 编译器 |
+| link | `vx msvc link` | 链接器 |
+| lib | `vx msvc lib` | 库管理器 |
+| nmake | `vx msvc nmake` / `vx nmake` | Make 工具 |
+| ml64 | `vx msvc ml64` | MASM x64 汇编器 |
+| dumpbin | `vx msvc dumpbin` | 二进制文件转储工具 |
+| editbin | `vx msvc editbin` | 二进制文件编辑工具 |
+
+**CMake + MSVC 工作流示例：**
+
+```bash
+# 使用 MSVC 配置
+vx cmake -B build -G "NMake Makefiles"
+
+# 构建
+vx nmake -C build
+```
+
+**vx.toml 配置：**
+
+```toml
+[tools]
+msvc = "14.40"
+
+# 或使用详细配置
+[tools.msvc]
+version = "14.40"
+sdk_version = "10.0.22621"
+```
+
+**配合 Node.js 原生模块（node-gyp）使用 MSVC：**
+
+当 `vx.toml` 同时指定 Node.js 和 MSVC 时，vx 会自动将 MSVC 发现环境变量
+（`VCINSTALLDIR`、`VCToolsInstallDir`、`GYP_MSVS_VERSION` 等）注入到所有子进程环境中。
+这使得 node-gyp 等工具可以找到 vx 管理的 MSVC 编译器，无需完整安装 Visual Studio。
+
+```toml
+# vx.toml
+[tools]
+node = "22"
+
+[tools.msvc]
+version = "14.42"
+os = ["windows"]
+```
+
+```bash
+# node-gyp 会通过 VCINSTALLDIR 自动找到 MSVC
+vx npx node-gyp rebuild
+
+# Electron 原生模块也能正常工作
+vx npx electron-builder install-app-deps
+
+# 验证环境变量已设置
+vx node -e "console.log('VCINSTALLDIR:', process.env.VCINSTALLDIR)"
+# 输出：VCINSTALLDIR: C:\Users\you\.vx\store\msvc\14.42\VC\
+```
+
+**伴随工具注入机制：**
+
+vx 使用"伴随工具"机制：当执行任何工具（如 `vx node`）时，
+vx 还会为 `vx.toml` 中定义的所有其他工具调用 `prepare_environment()`。
+这会注入发现/标记环境变量，而不会污染完整的编译环境（LIB/INCLUDE/PATH），
+从而避免破坏 node-gyp 自身的 Visual Studio 发现逻辑。
+
+MSVC 伴随工具注入的环境变量：
+
+| 变量 | 示例 | 用途 |
+|------|------|------|
+| `VCINSTALLDIR` | `C:\...\VC\` | VS 安装路径（node-gyp 发现） |
+| `VCToolsInstallDir` | `C:\...\VC\Tools\MSVC\14.42.34433\` | 精确工具链路径 |
+| `VSCMD_VER` | `17.0` | VS 命令提示符版本 |
+| `GYP_MSVS_VERSION` | `2022` | node-gyp VS 版本提示 |
+| `VX_MSVC_ROOT` | `C:\...\store\msvc\14.42` | vx MSVC 根路径 |
+| `VX_MSVC_FULL_VERSION` | `14.42.34433` | 完整 MSVC 版本号 |
+
 ## 任务运行器
 
 ### Just

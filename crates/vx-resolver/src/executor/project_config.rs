@@ -16,6 +16,11 @@ pub struct ProjectToolsConfig {
 }
 
 impl ProjectToolsConfig {
+    /// Create a ProjectToolsConfig from a tools map (for testing)
+    pub fn from_tools(tools: HashMap<String, String>) -> Self {
+        Self { tools }
+    }
+
     /// Load project configuration from vx.toml in current directory or parent directories
     pub fn load() -> Option<Self> {
         let cwd = std::env::current_dir().ok()?;
@@ -71,6 +76,45 @@ impl ProjectToolsConfig {
         // Fallback to primary runtime for the ecosystem (only for bundled tools)
         let primary = self.bundled_tool_runtime(tool)?;
         self.get_version(primary)
+    }
+
+    /// Get companion tools from vx.toml that should have their `prepare_environment()`
+    /// called when executing any other tool.
+    ///
+    /// When `vx.toml` specifies tools like `[tools.msvc]`, running `vx node` should
+    /// also inject MSVC's environment variables (VCINSTALLDIR, VCToolsInstallDir, etc.)
+    /// so that tools like node-gyp can discover the compiler.
+    ///
+    /// Returns a list of (tool_name, version) pairs, excluding the primary runtime
+    /// and its bundled tools.
+    pub fn get_companion_tools(&self, primary_runtime: &str) -> Vec<(&str, &str)> {
+        let primary_ecosystem = self.bundled_tool_runtime(primary_runtime);
+
+        self.tools
+            .iter()
+            .filter(|(tool_name, _)| {
+                let name = tool_name.as_str();
+                // Skip the primary runtime itself
+                if name == primary_runtime {
+                    return false;
+                }
+                // Skip bundled tools of the primary runtime
+                // e.g., if running node, skip npm/npx since they share the same ecosystem
+                if let Some(runtime) = self.bundled_tool_runtime(name)
+                    && runtime == primary_runtime
+                {
+                    return false;
+                }
+                // Skip if the primary runtime is a bundled tool and this is its parent
+                if let Some(ecosystem) = primary_ecosystem
+                    && name == ecosystem
+                {
+                    return false;
+                }
+                true
+            })
+            .map(|(name, version)| (name.as_str(), version.as_str()))
+            .collect()
     }
 
     /// Get the primary runtime name for a bundled tool
