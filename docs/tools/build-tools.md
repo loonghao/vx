@@ -119,17 +119,26 @@ version = "14.40"
 sdk_version = "10.0.22621"
 ```
 
-**Using MSVC with Node.js native modules (node-gyp):**
+**Using MSVC with other tools (companion tool injection):**
 
-When `vx.toml` specifies both Node.js and MSVC, vx automatically injects MSVC discovery
-environment variables (`VCINSTALLDIR`, `VCToolsInstallDir`, `GYP_MSVS_VERSION`, etc.) into
-all subprocess environments. This allows tools like node-gyp to find the vx-managed MSVC
-compiler without a full Visual Studio installation.
+When `vx.toml` includes MSVC, vx automatically injects MSVC discovery environment variables
+(`VCINSTALLDIR`, `VCToolsInstallDir`, `GYP_MSVS_VERSION`, etc.) into **all** subprocess
+environments — not just MSVC tools. This allows any tool that needs a C/C++ compiler to
+discover the vx-managed MSVC installation without a full Visual Studio installation.
+
+Supported scenarios include:
+- **node-gyp** / **Electron**: `vx npx node-gyp rebuild`
+- **CMake**: `vx cmake -B build` (auto-detects MSVC via `VCINSTALLDIR`)
+- **Cargo** (cc crate): `vx cargo build` for crates with C dependencies
+- **.NET Native AOT**: `vx dotnet publish -c Release`
+- **Meson**: `vx meson setup build`
 
 ```toml
-# vx.toml
+# vx.toml — MSVC env vars are injected for ALL tools listed here
 [tools]
 node = "22"
+cmake = "3.28"
+rust = "1.82"
 
 [tools.msvc]
 version = "14.42"
@@ -140,27 +149,29 @@ os = ["windows"]
 # node-gyp will automatically find MSVC via VCINSTALLDIR
 vx npx node-gyp rebuild
 
-# Electron native modules also work
-vx npx electron-builder install-app-deps
+# CMake also discovers the compiler
+vx cmake -B build -G "Ninja"
 
-# Verify environment variables are set
+# Cargo cc crate finds MSVC for C dependencies
+vx cargo build
+
+# Verify environment variables are set from any tool
 vx node -e "console.log('VCINSTALLDIR:', process.env.VCINSTALLDIR)"
 # Output: VCINSTALLDIR: C:\Users\you\.vx\store\msvc\14.42\VC\
 ```
 
 **How companion tool injection works:**
 
-vx uses a "companion tools" mechanism: when executing any tool (e.g., `vx node`),
+vx uses a "companion tools" mechanism: when executing any tool (e.g., `vx node`, `vx cmake`),
 vx also calls `prepare_environment()` for all other tools defined in `vx.toml`.
 This injects discovery/marker environment variables without polluting the full
-compilation environment (LIB/INCLUDE/PATH), which would break node-gyp's own
-Visual Studio discovery logic.
+compilation environment (LIB/INCLUDE/PATH).
 
 Environment variables injected by MSVC companion:
 
 | Variable | Example | Purpose |
 |----------|---------|---------|
-| `VCINSTALLDIR` | `C:\...\VC\` | VS install path (node-gyp discovery) |
+| `VCINSTALLDIR` | `C:\...\VC\` | VS install path (used by node-gyp, CMake, etc.) |
 | `VCToolsInstallDir` | `C:\...\VC\Tools\MSVC\14.42.34433\` | Exact toolchain path |
 | `VSCMD_VER` | `17.0` | VS Command Prompt version |
 | `GYP_MSVS_VERSION` | `2022` | node-gyp VS version hint |

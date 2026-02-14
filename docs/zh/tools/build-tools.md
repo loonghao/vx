@@ -119,16 +119,26 @@ version = "14.40"
 sdk_version = "10.0.22621"
 ```
 
-**配合 Node.js 原生模块（node-gyp）使用 MSVC：**
+**配合其他工具使用 MSVC（伴随工具注入）：**
 
-当 `vx.toml` 同时指定 Node.js 和 MSVC 时，vx 会自动将 MSVC 发现环境变量
-（`VCINSTALLDIR`、`VCToolsInstallDir`、`GYP_MSVS_VERSION` 等）注入到所有子进程环境中。
-这使得 node-gyp 等工具可以找到 vx 管理的 MSVC 编译器，无需完整安装 Visual Studio。
+当 `vx.toml` 包含 MSVC 时，vx 会自动将 MSVC 发现环境变量
+（`VCINSTALLDIR`、`VCToolsInstallDir`、`GYP_MSVS_VERSION` 等）注入到**所有**子进程环境中——
+不仅限于 MSVC 工具本身。这使得任何需要 C/C++ 编译器的工具都能发现 vx 管理的 MSVC 安装，
+无需完整安装 Visual Studio。
+
+支持的场景包括：
+- **node-gyp** / **Electron**：`vx npx node-gyp rebuild`
+- **CMake**：`vx cmake -B build`（通过 `VCINSTALLDIR` 自动检测 MSVC）
+- **Cargo**（cc crate）：`vx cargo build` 编译包含 C 依赖的 crate
+- **.NET Native AOT**：`vx dotnet publish -c Release`
+- **Meson**：`vx meson setup build`
 
 ```toml
-# vx.toml
+# vx.toml — MSVC 环境变量会注入到这里列出的所有工具
 [tools]
 node = "22"
+cmake = "3.28"
+rust = "1.82"
 
 [tools.msvc]
 version = "14.42"
@@ -139,26 +149,28 @@ os = ["windows"]
 # node-gyp 会通过 VCINSTALLDIR 自动找到 MSVC
 vx npx node-gyp rebuild
 
-# Electron 原生模块也能正常工作
-vx npx electron-builder install-app-deps
+# CMake 也能发现编译器
+vx cmake -B build -G "Ninja"
 
-# 验证环境变量已设置
+# Cargo cc crate 找到 MSVC 编译 C 依赖
+vx cargo build
+
+# 从任何工具都能验证环境变量已设置
 vx node -e "console.log('VCINSTALLDIR:', process.env.VCINSTALLDIR)"
 # 输出：VCINSTALLDIR: C:\Users\you\.vx\store\msvc\14.42\VC\
 ```
 
 **伴随工具注入机制：**
 
-vx 使用"伴随工具"机制：当执行任何工具（如 `vx node`）时，
+vx 使用"伴随工具"机制：当执行任何工具（如 `vx node`、`vx cmake`）时，
 vx 还会为 `vx.toml` 中定义的所有其他工具调用 `prepare_environment()`。
-这会注入发现/标记环境变量，而不会污染完整的编译环境（LIB/INCLUDE/PATH），
-从而避免破坏 node-gyp 自身的 Visual Studio 发现逻辑。
+这会注入发现/标记环境变量，而不会污染完整的编译环境（LIB/INCLUDE/PATH）。
 
 MSVC 伴随工具注入的环境变量：
 
 | 变量 | 示例 | 用途 |
 |------|------|------|
-| `VCINSTALLDIR` | `C:\...\VC\` | VS 安装路径（node-gyp 发现） |
+| `VCINSTALLDIR` | `C:\...\VC\` | VS 安装路径（node-gyp、CMake 等使用） |
 | `VCToolsInstallDir` | `C:\...\VC\Tools\MSVC\14.42.34433\` | 精确工具链路径 |
 | `VSCMD_VER` | `17.0` | VS 命令提示符版本 |
 | `GYP_MSVS_VERSION` | `2022` | node-gyp VS 版本提示 |

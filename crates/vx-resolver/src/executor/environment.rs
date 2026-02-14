@@ -400,13 +400,15 @@ impl<'a> EnvironmentManager<'a> {
 
         // Inject companion tools' prepare_environment() from vx.toml
         //
-        // When vx.toml specifies tools like [tools.msvc], running `vx node` should
-        // also inject MSVC's marker environment variables (VCINSTALLDIR, VCToolsInstallDir,
-        // VX_MSVC_*, etc.) so that tools like node-gyp can discover the compiler.
+        // When vx.toml specifies tools like [tools.msvc], ALL other tool executions
+        // (vx node, vx cmake, vx cargo, vx dotnet, etc.) will have MSVC's marker
+        // environment variables (VCINSTALLDIR, VCToolsInstallDir, VX_MSVC_*, etc.)
+        // injected. This enables any tool that needs a C/C++ compiler to discover
+        // the vx-managed MSVC installation — including node-gyp, cmake, meson,
+        // cargo (for C dependencies via cc crate), dotnet native AOT, etc.
         //
         // This only calls prepare_environment() (not execution_environment()), so it
-        // injects discovery/marker variables without polluting LIB/INCLUDE/PATH which
-        // would break tools like node-gyp's PowerShell-based VS discovery.
+        // injects discovery/marker variables without polluting LIB/INCLUDE/PATH.
         //
         // See: https://github.com/loonghao/vx/issues/573
         if let Some(project_config) = self.project_config {
