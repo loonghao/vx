@@ -163,7 +163,7 @@ authors = ["Hal <hal.long@outlook.com>"]
 keywords = ["version", "manager", "development", "tools", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 readme = "README.md"
-rust-version = "1.93.1"
+rust-version = "1.93.0"
 
 
 [workspace.dependencies]
@@ -432,12 +432,3 @@ create-release = false
 publish-jobs = ["homebrew"]
 # Path that installers should place binaries in
 install-path = "CARGO_HOME"
-
-
-
-
-
-
-
-
-
