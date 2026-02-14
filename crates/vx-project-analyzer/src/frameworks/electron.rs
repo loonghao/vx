@@ -4,6 +4,7 @@
 //! - `electron` dependency in package.json
 //! - Electron-specific configuration files (electron-builder, electron-forge)
 //! - Electron Vite configuration
+//! - Native module dependencies that require build tools (Python, MSVC)
 
 use super::{FrameworkDetector, FrameworkInfo, ProjectFramework};
 use crate::dependency::{Dependency, InstallMethod};
@@ -97,6 +98,49 @@ impl ElectronDetector {
     fn has_todesktop(root: &Path) -> bool {
         root.join("todesktop.json").exists() || root.join("todesktop.staging.json").exists()
     }
+
+    /// Known npm packages that contain native C/C++ addons requiring node-gyp compilation.
+    /// When these are present in an Electron project, Python and a C++ compiler (MSVC on Windows)
+    /// are needed for building.
+    const NATIVE_MODULE_PACKAGES: &'static [&'static str] = &[
+        "better-sqlite3",
+        "node-pty",
+        "node-pty-prebuilt-multiarch",
+        "sqlite3",
+        "sharp",
+        "canvas",
+        "node-sass",
+        "bcrypt",
+        "leveldown",
+        "zeromq",
+        "grpc",
+        "@grpc/grpc-js",
+        "fsevents",
+        "keytar",
+        "serialport",
+        "usb",
+        "robotjs",
+        "node-hid",
+        "cpu-features",
+        "bufferutil",
+        "utf-8-validate",
+    ];
+
+    /// Check if the project has native module dependencies that require build tools
+    fn has_native_modules(package_json: &Value) -> bool {
+        let check_deps = |deps: Option<&Value>| -> bool {
+            if let Some(obj) = deps.and_then(|d| d.as_object()) {
+                return obj
+                    .keys()
+                    .any(|k| Self::NATIVE_MODULE_PACKAGES.contains(&k.as_str()));
+            }
+            false
+        };
+
+        check_deps(package_json.get("dependencies"))
+            || check_deps(package_json.get("devDependencies"))
+            || check_deps(package_json.get("optionalDependencies"))
+    }
 }
 
 impl Default for ElectronDetector {
@@ -180,6 +224,18 @@ impl FrameworkDetector for ElectronDetector {
             info = info.with_metadata("distribution", "todesktop");
         }
 
+        // Check for native modules that need build tools
+        let package_json_path2 = root.join("package.json");
+        if package_json_path2.exists() {
+            let content = tokio::fs::read_to_string(&package_json_path2).await?;
+            if let Ok(pkg) = serde_json::from_str::<Value>(&content) {
+                if Self::has_native_modules(&pkg) {
+                    info = info.with_metadata("has_native_modules", "true");
+                    debug!("Detected native modules in Electron project - build tools recommended");
+                }
+            }
+        }
+
         // Detect config file path
         for config_file in &[
             "electron-builder.json",
@@ -199,7 +255,7 @@ impl FrameworkDetector for ElectronDetector {
         Ok(info)
     }
 
-    fn required_tools(&self, _deps: &[Dependency], scripts: &[Script]) -> Vec<RequiredTool> {
+    fn required_tools(&self, deps: &[Dependency], scripts: &[Script]) -> Vec<RequiredTool> {
         let mut tools = Vec::new();
 
         // Electron projects always need Node.js
@@ -209,6 +265,31 @@ impl FrameworkDetector for ElectronDetector {
             "Node.js runtime for Electron",
             InstallMethod::vx("node"),
         ));
+
+        // Check if the project has native modules that need compilation
+        // Native modules require Python (for node-gyp) and MSVC (on Windows) / Xcode CLT (on macOS)
+        let has_native = deps
+            .iter()
+            .any(|d| Self::NATIVE_MODULE_PACKAGES.contains(&d.name.as_str()));
+
+        if has_native {
+            // Python is required by node-gyp for building native modules
+            tools.push(RequiredTool::new(
+                "python",
+                Ecosystem::Python,
+                "Required by node-gyp for building native Electron modules",
+                InstallMethod::vx("python"),
+            ));
+
+            // MSVC is required on Windows for native module compilation
+            #[cfg(target_os = "windows")]
+            tools.push(RequiredTool::new(
+                "msvc",
+                Ecosystem::Cpp,
+                "MSVC Build Tools required for compiling native Electron modules on Windows",
+                InstallMethod::vx("msvc"),
+            ));
+        }
 
         // Check for electron-builder in scripts
         let needs_builder = scripts
