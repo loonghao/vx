@@ -228,7 +228,8 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         prek,
         actrun,
         hadolint,
-        // Tier 1: Unix-philosophy tools (RFC 0030)        fzf,
+        // Tier 1: Unix-philosophy tools (RFC 0030)
+        fzf,
         ripgrep,
         fd,
         bat,

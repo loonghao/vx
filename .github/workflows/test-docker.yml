@@ -38,11 +38,26 @@ jobs:
   test-dockerfile-syntax:
     name: Validate Dockerfile syntax
     runs-on: ubuntu-latest
+    needs: [build]
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup vx
-        uses: ./
+      - name: Download built binary
+        uses: actions/download-artifact@v6
+        with:
+          name: vx-linux
+          path: ${{ runner.temp }}
+
+      - name: Setup vx from source build
+        run: |
+          chmod +x "$RUNNER_TEMP/vx"
+          mkdir -p "$HOME/.local/bin"
+          cp "$RUNNER_TEMP/vx" "$HOME/.local/bin/vx"
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          echo "$HOME/.vx/bin" >> $GITHUB_PATH
+          "$HOME/.local/bin/vx" --version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lint Dockerfile.prebuilt
         run: vx hadolint pkg/docker/Dockerfile.prebuilt --ignore DL3008
