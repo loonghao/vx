@@ -343,10 +343,20 @@ impl<'a> InstallationManager<'a> {
             let exe_path = self
                 .resolver
                 .find_executable(runtime_name, &resolved_version);
-            return Ok(Some(InstallResult::already_installed_with(
-                resolved_version,
-                exe_path,
-            )));
+
+            if exe_path.is_some() {
+                return Ok(Some(InstallResult::already_installed_with(
+                    resolved_version,
+                    exe_path,
+                )));
+            }
+
+            // Directory exists but executable not found — stale/corrupt installation.
+            // Fall through to reinstall instead of returning a broken result.
+            warn!(
+                "{} {} directory exists but executable not found, reinstalling",
+                runtime_name, resolved_version
+            );
         }
 
         // Install the specific version

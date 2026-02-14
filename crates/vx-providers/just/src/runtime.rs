@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use vx_runtime::{
     Ecosystem, GitHubReleaseOptions, Runtime, RuntimeContext, RuntimeDependency, VersionInfo,
+    layout::{ArchiveLayout, DownloadType, ExecutableLayout},
     platform::Platform,
 };
 
@@ -71,5 +72,21 @@ impl Runtime for JustRuntime {
         Ok(crate::config::JustUrlBuilder::download_url(
             version, platform,
         ))
+    }
+
+    fn executable_layout(&self) -> Option<ExecutableLayout> {
+        Some(ExecutableLayout {
+            download_type: DownloadType::Archive,
+            binary: None,
+            archive: Some(ArchiveLayout {
+                executable_paths: vec!["just.exe".to_string(), "just".to_string()],
+                strip_prefix: Some(String::new()),
+                permissions: None,
+            }),
+            windows: None,
+            macos: None,
+            linux: None,
+            msi: None,
+        })
     }
 }
