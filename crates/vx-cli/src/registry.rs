@@ -295,6 +295,7 @@ fn create_static_registry() -> ProviderRegistry {
         dagu,
         actrun,
         prek,
+        hadolint,
         // Tier 1: Unix-philosophy tools (RFC 0030)
         fzf,
         ripgrep,
