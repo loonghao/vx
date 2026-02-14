@@ -304,8 +304,12 @@ impl<'a> EnvironmentManager<'a> {
             }
         };
 
-        // Call prepare_environment and merge
-        match runtime.prepare_environment(&version, context).await {
+        // Call execution_environment for the primary runtime being invoked
+        // This uses execution_environment() which may provide additional env vars
+        // needed only when the tool is directly invoked (e.g., MSVC's LIB/INCLUDE/PATH
+        // are only needed when directly running cl/link/nmake, not when running npm)
+        // See: https://github.com/loonghao/vx/issues/573
+        match runtime.execution_environment(&version, context).await {
             Ok(runtime_env) => {
                 env.extend(runtime_env);
             }

@@ -151,6 +151,14 @@ pub async fn handle(
         target_filename
     ));
 
+    // Generate vx.lock for reproducible environments
+    if !config_content.contains("[tools]") || config_content.contains("# Add your tools here") {
+        // No tools defined, skip lock file generation
+        debug_lock_skip("No tools defined in configuration");
+    } else {
+        generate_lock_file();
+    }
+
     // Show next steps
     println!();
     println!("Next steps:");
@@ -159,7 +167,10 @@ pub async fn handle(
     println!("  3. Or enter dev shell: vx dev");
     println!();
     println!("Optional:");
-    println!("  - Add to version control: git add {}", target_filename);
+    println!(
+        "  - Add to version control: git add {} vx.lock",
+        target_filename
+    );
     println!("  - Customize configuration: vx config edit --local");
 
     Ok(())
@@ -1216,4 +1227,44 @@ fn extract_cargo_rust_version(content: &str) -> Option<String> {
         }
     }
     None
+}
+
+/// Generate vx.lock after creating vx.toml
+fn generate_lock_file() {
+    use std::process::Command;
+
+    UI::info("Generating vx.lock for reproducible environments...");
+
+    let exe = match std::env::current_exe() {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::debug!("Failed to get current exe for lock generation: {}", e);
+            UI::hint("Run 'vx lock' manually to generate the lock file");
+            return;
+        }
+    };
+
+    match Command::new(exe)
+        .args(["lock"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .output()
+    {
+        Ok(output) if output.status.success() => {
+            UI::success("✅ Generated vx.lock");
+        }
+        Ok(output) => {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            tracing::debug!("vx lock failed: {}", stderr);
+            UI::hint("Run 'vx lock' manually to generate the lock file");
+        }
+        Err(e) => {
+            tracing::debug!("Failed to run vx lock: {}", e);
+            UI::hint("Run 'vx lock' manually to generate the lock file");
+        }
+    }
+}
+
+fn debug_lock_skip(reason: &str) {
+    tracing::debug!("Skipping lock file generation: {}", reason);
 }

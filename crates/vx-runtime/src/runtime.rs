@@ -1256,6 +1256,27 @@ pub trait Runtime: Send + Sync {
         Ok(HashMap::new()) // Default: no extra environment variables
     }
 
+    /// Prepare execution-specific environment variables for this runtime
+    ///
+    /// Unlike `prepare_environment()` which is used for general env setup
+    /// (e.g., in `vx dev`), this method is called only when the runtime itself
+    /// is being directly invoked as the primary command.
+    ///
+    /// This allows runtimes like MSVC to inject LIB/INCLUDE/PATH only when
+    /// their tools (cl, link, nmake) are directly used, without polluting
+    /// the environment of other tools like node-gyp.
+    ///
+    /// Default: delegates to `prepare_environment()`.
+    ///
+    /// See: https://github.com/loonghao/vx/issues/573
+    async fn execution_environment(
+        &self,
+        version: &str,
+        ctx: &RuntimeContext,
+    ) -> Result<HashMap<String, String>> {
+        self.prepare_environment(version, ctx).await
+    }
+
     // ========== RFC 0028: Proxy-Managed and Bundled Runtimes ==========
 
     /// Check if a version can be directly installed by vx
