@@ -396,8 +396,10 @@ impl MagickRuntime {
         ctx: &RuntimeContext,
     ) -> Result<InstallResult> {
         let store_name = Runtime::store_name(self);
-        let install_path = ctx.paths.version_store_dir(store_name, version);
         let platform = Platform::current();
+        // Use platform-specific subdirectory: <store>/<version>/<platform>/
+        let base_path = ctx.paths.version_store_dir(store_name, version);
+        let install_path = base_path.join(platform.as_str());
 
         // Check if already installed
         if ctx.fs.exists(&install_path) {
