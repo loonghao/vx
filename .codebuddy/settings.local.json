@@ -1,0 +1,36 @@
+{
+  "sandbox": {
+    "enabled": false,
+    "autoAllowBashIfSandboxed": true,
+    "network": {
+      "allowedDomains": [],
+      "deniedDomains": [],
+      "allowLocalBinding": false,
+      "allowUnixSockets": [],
+      "allowAllUnixSockets": false
+    },
+    "filesystem": {
+      "denyRead": ["~/.ssh", "~/.aws", "~/.gcp"],
+      "allowWrite": [
+        ".",
+        "/dev/stdout",
+        "/dev/stderr",
+        "/dev/null",
+        "/dev/tty",
+        "/dev/dtracehelper",
+        "/dev/autofs_nowait",
+        "/tmp/codebuddy",
+        "/private/tmp/codebuddy",
+        "~/.npm/_logs",
+        "~/.opencode/debug",
+        "~/.opencode/statsig"
+      ],
+      "denyWrite": []
+    },
+    "excludedCommands": [],
+    "allowUnsandboxedCommands": true,
+    "enableWeakerNestedSandbox": false
+  },
+  "enableAllProjectMcpServers": true,
+  "disabledMcpjsonServers": []
+}

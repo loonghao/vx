@@ -1,0 +1,54 @@
+---
+# Please note: Do not modify the header of this document. If modified, CodeBuddy (Internal Edition) will apply the default logic settings.
+alwaysApply: true
+---
+# 单元测试规范
+
+## 测试文件位置
+
+每个 crate 的单元测试都放到对应 crate 下面的 `tests/` 目录，避免在代码中内联。
+
+```
+crates/vx-resolver/tests/
+├── resolver_tests.rs
+├── executor_tests.rs
+└── spec_tests.rs
+
+crates/vx-runtime/tests/
+├── registry_tests.rs
+└── provider_tests.rs
+```
+
+## 测试框架
+
+使用 `rstest` 作为测试框架：
+
+```rust
+use rstest::rstest;
+
+#[rstest]
+#[case("node", Ecosystem::NodeJs)]
+#[case("npm", Ecosystem::NodeJs)]
+#[case("go", Ecosystem::Go)]
+fn test_ecosystem_detection(#[case] name: &str, #[case] expected: Ecosystem) {
+    let spec = RuntimeSpec::new(name);
+    assert_eq!(spec.ecosystem, expected);
+}
+```
+
+## 禁止内联测试
+
+不要在源代码中使用 `#[cfg(test)]` 模块：
+
+```rust
+// ✗ 禁止
+pub fn my_function() { ... }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    // ...
+}
+
+// ✓ 正确：测试放在 tests/ 目录
+```
