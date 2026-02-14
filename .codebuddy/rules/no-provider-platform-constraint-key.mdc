@@ -1,0 +1,21 @@
+---
+# Please note: Do not modify the header of this document. If modified, CodeBuddy (Internal Edition) will apply the default logic settings.
+alwaysApply: true
+---
+### Provider manifest 平台约束字段规范
+- **不要使用**：`[provider.platform_constraint]`（manifest schema 不支持该字段，会导致平台标签/过滤失效）
+- **应使用**：
+  - Provider 级别：`[provider.platforms]`（对应 `ProviderMeta.platform_constraint`，serde rename 为 `platforms`）
+  - Runtime 级别：`platform_constraint` 字段（对应 `RuntimeDef.platform_constraint`）
+
+#### 示例
+```toml
+[provider.platforms]
+os = ["windows"]
+
+[[runtimes]]
+name = "foo"
+executable = "foo"
+# runtime 级别（可选）
+platform_constraint = { os = ["windows"] }
+```

@@ -1,0 +1,431 @@
+---
+# Please note: Do not modify the header of this document. If modified, CodeBuddy (Internal Edition) will apply the default logic settings.
+alwaysApply: true
+---
+# 存储架构设计
+
+## 设计目标
+
+1. **避免重复存储**：相同版本的 runtime 只存储一份
+2. **快速创建环境**：使用链接而非复制
+3. **跨项目共享**：多个项目可共享同一 runtime 版本
+4. **隔离性**：项目间互不影响
+
+## 参考技术
+
+### pnpm 的 Content-Addressable Storage
+- 所有包存储在全局 store（`~/.pnpm-store`）
+- 项目的 `node_modules` 通过硬链接指向 store
+- 相同内容只存储一次，按内容 hash 寻址
+
+### uv 的虚拟环境
+- Python 解释器通过符号链接共享
+- 包通过硬链接或 copy-on-write 共享
+- 虚拟环境只包含链接，几乎不占空间
+
+### 叠片技术 (Overlay FS)
+- 多层文件系统叠加
+- 上层可写，下层只读
+- Docker 使用此技术实现镜像层
+
+## VX 存储架构
+
+### 目录结构
+
+```
+~/.vx/
+├── store/                      # 全局存储（Content-Addressable）
+│   ├── node/
+│   │   ├── 20.0.0/            # 完整安装
+│   │   │   ├── bin/
+│   │   │   │   ├── node
+│   │   │   │   ├── npm
+│   │   │   │   └── npx
+│   │   │   └── lib/
+│   │   └── 18.0.0/
+│   ├── go/
+│   │   └── 1.21.0/
+│   └── uv/
+│       └── 0.5.0/
+│
+├── envs/                       # 虚拟环境（链接到 store）
+│   ├── default/               # 默认环境
+│   │   ├── node -> ../../store/node/20.0.0
+│   │   ├── go -> ../../store/go/1.21.0
+│   │   └── uv -> ../../store/uv/0.5.0
+│   └── project-abc/           # 项目专用环境
+│       ├── node -> ../../store/node/18.0.0
+│       └── go -> ../../store/go/1.20.0
+│
+├── providers/                  # 用户自定义 Manifest-Driven Providers
+│   ├── unix-tools/            # Unix 哲学工具
+│   │   └── provider.toml      # 定义 jq, rg, fd, bat 等
+│   └── my-custom-tools/       # 用户自定义工具
+│       └── provider.toml
+│
+├── bin/                        # 全局 shims（用于 PATH）
+│   ├── node                   # shim 脚本，转发到当前环境
+│   ├── npm
+│   ├── go
+│   └── uv
+│
+├── cache/                      # 下载缓存
+│   └── downloads/
+│       ├── node-v20.0.0-linux-x64.tar.gz
+│       └── go1.21.0.linux-amd64.tar.gz
+│
+└── config/                     # 配置
+    └── config.toml
+```
+
+### Providers 目录说明
+
+`~/.vx/providers/` 目录用于存放用户自定义的 Manifest-Driven Providers。
+
+**加载优先级**：
+1. `~/.vx/providers/*/provider.toml` (用户本地，最高优先级)
+2. `$VX_PROVIDERS_PATH/*/provider.toml` (环境变量指定)
+3. Built-in providers (内置，最低优先级)
+
+**示例**：创建自定义工具
+
+```bash
+# 创建 provider 目录
+mkdir -p ~/.vx/providers/mytools
+
+# 创建 provider.toml
+cat > ~/.vx/providers/mytools/provider.toml << 'EOF'
+[provider]
+name = "mytools"
+description = "My custom tools"
+
+[[runtimes]]
+name = "mytool"
+executable = "mytool"
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "mytool"
+priority = 90
+EOF
+
+# 使用
+vx mytool --version
+```
+
+### 链接策略
+
+```rust
+/// 链接类型选择策略
+pub enum LinkStrategy {
+    /// 硬链接（同一文件系统，最快，不占额外空间）
+    HardLink,
+    /// 符号链接（跨文件系统，Windows 需要权限）
+    SymLink,
+    /// Copy-on-Write（macOS APFS, Linux Btrfs/XFS）
+    CopyOnWrite,
+    /// 复制（fallback，最慢）
+    Copy,
+}
+
+impl LinkStrategy {
+    /// 自动选择最佳策略
+    pub fn auto() -> Self {
+        if cfg!(target_os = "macos") {
+            // macOS APFS 支持 CoW
+            Self::CopyOnWrite
+        } else if cfg!(target_os = "linux") {
+            // Linux 优先硬链接
+            Self::HardLink
+        } else if cfg!(target_os = "windows") {
+            // Windows 符号链接需要权限，优先硬链接
+            Self::HardLink
+        } else {
+            Self::Copy
+        }
+    }
+
+    /// 检测文件系统并选择
+    pub fn detect(path: &Path) -> Self {
+        // 检测是否支持硬链接
+        if can_hardlink(path) {
+            return Self::HardLink;
+        }
+        // 检测是否支持 CoW
+        if can_copy_on_write(path) {
+            return Self::CopyOnWrite;
+        }
+        // 检测是否支持符号链接
+        if can_symlink(path) {
+            return Self::SymLink;
+        }
+        Self::Copy
+    }
+}
+```
+
+### 虚拟环境管理
+
+```rust
+/// 虚拟环境
+pub struct Environment {
+    /// 环境名称
+    pub name: String,
+    /// 环境路径
+    pub path: PathBuf,
+    /// 运行时版本映射
+    pub runtimes: HashMap<String, String>,  // runtime_name -> version
+}
+
+impl Environment {
+    /// 创建新环境
+    pub fn create(name: &str, runtimes: &[(&str, &str)]) -> Result<Self> {
+        let env_path = vx_paths().envs_dir().join(name);
+        fs::create_dir_all(&env_path)?;
+
+        for (runtime, version) in runtimes {
+            let store_path = vx_paths().store_dir().join(runtime).join(version);
+            let link_path = env_path.join(runtime);
+
+            // 使用最佳链接策略
+            let strategy = LinkStrategy::detect(&store_path);
+            create_link(&store_path, &link_path, strategy)?;
+        }
+
+        Ok(Self { /* ... */ })
+    }
+
+    /// 激活环境（修改 PATH）
+    pub fn activate(&self) -> Result<()> {
+        // 将环境的 bin 目录添加到 PATH 前面
+        let bin_path = self.path.join("bin");
+        prepend_to_path(&bin_path)?;
+        Ok(())
+    }
+}
+```
+
+### Store 管理
+
+```rust
+/// 全局存储管理
+pub struct Store {
+    path: PathBuf,
+}
+
+impl Store {
+    /// 安装 runtime 到 store
+    pub async fn install(&self, runtime: &str, version: &str) -> Result<PathBuf> {
+        let install_path = self.path.join(runtime).join(version);
+
+        if install_path.exists() {
+            // 已安装，直接返回
+            return Ok(install_path);
+        }
+
+        // 下载并解压到 store
+        let archive = download_runtime(runtime, version).await?;
+        extract_to(&archive, &install_path)?;
+
+        Ok(install_path)
+    }
+
+    /// 检查版本是否已安装
+    pub fn is_installed(&self, runtime: &str, version: &str) -> bool {
+        self.path.join(runtime).join(version).exists()
+    }
+
+    /// 获取已安装版本
+    pub fn installed_versions(&self, runtime: &str) -> Vec<String> {
+        let runtime_dir = self.path.join(runtime);
+        if !runtime_dir.exists() {
+            return vec![];
+        }
+
+        fs::read_dir(runtime_dir)
+            .ok()
+            .map(|entries| {
+                entries
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.path().is_dir())
+                    .filter_map(|e| e.file_name().into_string().ok())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// 垃圾回收：删除未被任何环境引用的版本
+    pub fn gc(&self) -> Result<GcResult> {
+        let used_versions = self.collect_used_versions()?;
+        let mut removed = vec![];
+
+        for runtime in self.list_runtimes()? {
+            for version in self.installed_versions(&runtime) {
+                if !used_versions.contains(&(runtime.clone(), version.clone())) {
+                    self.remove(&runtime, &version)?;
+                    removed.push((runtime.clone(), version));
+                }
+            }
+        }
+
+        Ok(GcResult { removed })
+    }
+}
+```
+
+### 项目环境配置
+
+```toml
+# .vx.toml（项目根目录）
+[environment]
+name = "my-project"  # 可选，默认使用目录名
+
+[runtimes]
+node = "20.0.0"
+go = "1.21.0"
+uv = "0.5.0"
+
+# 或使用范围版本
+[runtimes]
+node = "^20.0.0"     # 20.x.x
+go = "~1.21.0"       # 1.21.x
+```
+
+### 命令示例
+
+```bash
+# 安装到全局 store
+vx install node@20.0.0
+
+# 创建项目环境
+vx env create my-project --node=20.0.0 --go=1.21.0
+
+# 激活环境
+vx env use my-project
+# 或
+eval $(vx env activate my-project)
+
+# 在项目目录自动检测 .vx.toml 并使用对应环境
+cd /path/to/project
+vx node --version  # 自动使用项目配置的版本
+
+# 查看环境
+vx env list
+vx env show my-project
+
+# 删除环境（不删除 store 中的文件）
+vx env delete my-project
+
+# 垃圾回收（删除未使用的版本）
+vx store gc
+```
+
+## 跨平台链接实现
+
+### Windows
+
+```rust
+#[cfg(windows)]
+fn create_link(src: &Path, dst: &Path, strategy: LinkStrategy) -> Result<()> {
+    match strategy {
+        LinkStrategy::HardLink => {
+            // Windows 硬链接（文件）
+            std::fs::hard_link(src, dst)?;
+        }
+        LinkStrategy::SymLink => {
+            // Windows 符号链接（需要开发者模式或管理员权限）
+            if src.is_dir() {
+                std::os::windows::fs::symlink_dir(src, dst)?;
+            } else {
+                std::os::windows::fs::symlink_file(src, dst)?;
+            }
+        }
+        LinkStrategy::Copy => {
+            copy_recursive(src, dst)?;
+        }
+        _ => {
+            // Windows 不支持 CoW，fallback 到复制
+            copy_recursive(src, dst)?;
+        }
+    }
+    Ok(())
+}
+```
+
+### Unix (Linux/macOS)
+
+```rust
+#[cfg(unix)]
+fn create_link(src: &Path, dst: &Path, strategy: LinkStrategy) -> Result<()> {
+    match strategy {
+        LinkStrategy::HardLink => {
+            // 目录不能硬链接，需要递归处理文件
+            if src.is_dir() {
+                hardlink_dir_recursive(src, dst)?;
+            } else {
+                std::fs::hard_link(src, dst)?;
+            }
+        }
+        LinkStrategy::SymLink => {
+            std::os::unix::fs::symlink(src, dst)?;
+        }
+        LinkStrategy::CopyOnWrite => {
+            // macOS: clonefile
+            #[cfg(target_os = "macos")]
+            {
+                use std::ffi::CString;
+                let src_c = CString::new(src.to_str().unwrap())?;
+                let dst_c = CString::new(dst.to_str().unwrap())?;
+                unsafe {
+                    libc::clonefile(src_c.as_ptr(), dst_c.as_ptr(), 0);
+                }
+            }
+            // Linux: ioctl FICLONE
+            #[cfg(target_os = "linux")]
+            {
+                reflink_copy::reflink_or_copy(src, dst)?;
+            }
+        }
+        LinkStrategy::Copy => {
+            copy_recursive(src, dst)?;
+        }
+    }
+    Ok(())
+}
+```
+
+## 优势
+
+1. **节省磁盘空间**：相同版本只存储一份
+2. **快速环境创建**：创建链接 < 1秒，无需复制 GB 级文件
+3. **项目隔离**：每个项目可使用不同版本
+4. **全局共享**：多项目共享同一版本，节省空间
+5. **原子更新**：更新环境只需修改链接指向
+6. **简单回滚**：保留旧版本，随时切换
+
+## 与现有设计的整合
+
+```
+vx-paths/
+├── src/
+│   ├── lib.rs
+│   ├── store.rs        # Store 管理
+│   ├── environment.rs  # 虚拟环境管理
+│   ├── link.rs         # 链接策略实现
+│   └── config.rs       # 路径配置
+```
+
+### VxPaths 更新
+
+```rust
+pub struct VxPaths {
+    pub base_dir: PathBuf,      // ~/.vx
+    pub store_dir: PathBuf,     // ~/.vx/store（全局存储）
+    pub envs_dir: PathBuf,      // ~/.vx/envs（虚拟环境）
+    pub bin_dir: PathBuf,       // ~/.vx/bin（全局 shims）
+    pub cache_dir: PathBuf,     // ~/.vx/cache
+    pub config_dir: PathBuf,    // ~/.vx/config
+    pub tmp_dir: PathBuf,       // ~/.vx/tmp
+}
+```
