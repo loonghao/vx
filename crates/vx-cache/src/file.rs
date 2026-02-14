@@ -3,7 +3,6 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::path::Path;
 
-
 /// Write bytes to `dest` using a best-effort atomic replace (tmp + rename).
 ///
 /// On Windows, replacing an existing file with `rename` may fail; we remove the destination first.

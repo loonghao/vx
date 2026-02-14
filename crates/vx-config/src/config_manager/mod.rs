@@ -29,14 +29,14 @@ mod toml_writer;
 mod traits;
 
 pub use toml_writer::{
-    escape_toml_key, escape_toml_string, format_toml_kv, TomlDocument, TomlWriter,
+    TomlDocument, TomlWriter, escape_toml_key, escape_toml_string, format_toml_kv,
 };
 pub use traits::{
     ConfigVersion, TomlConfig, ValidationIssue, ValidationResult, ValidationSeverity,
 };
 
 use crate::error::{ConfigError, ConfigResult};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use std::fs;
 use std::path::{Path, PathBuf};
 use toml_edit::DocumentMut;
@@ -314,10 +314,12 @@ version = "1.0.0"
         assert_eq!(manager.config().name, "test-project");
         assert_eq!(manager.config().version, "1.0.0");
         assert!(manager.has_document());
-        assert!(manager
-            .original_content()
-            .unwrap()
-            .contains("# Test configuration"));
+        assert!(
+            manager
+                .original_content()
+                .unwrap()
+                .contains("# Test configuration")
+        );
     }
 
     #[test]

@@ -650,7 +650,7 @@ async fn install_with_uv(
             return Err(anyhow::anyhow!(
                 "uv venv creation timed out after {} seconds",
                 pip_timeout.as_secs()
-            ))
+            ));
         }
     };
 
@@ -687,7 +687,7 @@ async fn install_with_uv(
                 pip_timeout.as_secs(),
                 package_name,
                 version
-            ))
+            ));
         }
     };
 
@@ -755,13 +755,13 @@ async fn install_with_system_python(
                 "Failed to create venv at {}: {}",
                 venv_dir.display(),
                 e
-            ))
+            ));
         }
         Err(_) => {
             return Err(anyhow::anyhow!(
                 "venv creation timed out after {} seconds",
                 pip_timeout.as_secs()
-            ))
+            ));
         }
     };
 
@@ -798,7 +798,7 @@ async fn install_with_system_python(
                 package_name,
                 version,
                 e
-            ))
+            ));
         }
         Err(_) => {
             return Err(anyhow::anyhow!(
@@ -806,7 +806,7 @@ async fn install_with_system_python(
                 pip_timeout.as_secs(),
                 package_name,
                 version
-            ))
+            ));
         }
     };
 

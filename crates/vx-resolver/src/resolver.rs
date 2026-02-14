@@ -412,9 +412,7 @@ impl Resolver {
 
                 trace!(
                     "checking dep {} (min: {:?}, max: {:?})",
-                    dep_name,
-                    dep.min_version,
-                    dep.max_version
+                    dep_name, dep.min_version, dep.max_version
                 );
 
                 match &dep_status {
@@ -448,7 +446,11 @@ impl Resolver {
                             if !dep.is_version_compatible(&system_version) {
                                 warn!(
                                     "System {} version {} does not meet constraints for {} (min: {:?}, max: {:?})",
-                                    dep_name, system_version, runtime_name, dep.min_version, dep.max_version
+                                    dep_name,
+                                    system_version,
+                                    runtime_name,
+                                    dep.min_version,
+                                    dep.max_version
                                 );
                                 incompatible_deps.push(IncompatibleDependency {
                                     runtime_name: dep_name.to_string(),

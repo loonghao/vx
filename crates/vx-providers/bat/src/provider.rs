@@ -2,7 +2,7 @@
 
 use crate::runtime::BatRuntime;
 use std::sync::Arc;
-use vx_runtime::{provider::Provider, Runtime};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// bat provider
 #[derive(Debug, Default)]

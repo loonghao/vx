@@ -4,7 +4,7 @@
 //! On Windows, vx does not support make installation - use 'just' as a modern alternative.
 //! On macOS/Linux, make is typically pre-installed or available via system package manager.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;

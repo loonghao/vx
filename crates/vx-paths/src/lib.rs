@@ -99,21 +99,21 @@ pub use link::{LinkResult, LinkStrategy};
 pub use manager::PathManager;
 pub use package_spec::PackageSpec;
 pub use project::{
-    find_config_file, find_config_file_upward, find_project_root, find_vx_config, is_in_vx_project,
-    project_env_dir, ConfigNotFoundError, CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY, CONFIG_NAMES,
-    LOCK_FILE_NAME, LOCK_FILE_NAMES, LOCK_FILE_NAME_LEGACY, PROJECT_BIN_DIR, PROJECT_CACHE_DIR,
-    PROJECT_ENV_DIR, PROJECT_VX_DIR,
+    CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY, CONFIG_NAMES, ConfigNotFoundError, LOCK_FILE_NAME,
+    LOCK_FILE_NAME_LEGACY, LOCK_FILE_NAMES, PROJECT_BIN_DIR, PROJECT_CACHE_DIR, PROJECT_ENV_DIR,
+    PROJECT_VX_DIR, find_config_file, find_config_file_upward, find_project_root, find_vx_config,
+    is_in_vx_project, project_env_dir,
 };
 pub use resolver::{PathResolver, ToolLocation, ToolSource};
 pub use runtime_root::{
-    get_bundled_tool_path, get_latest_runtime_root, get_runtime_root, RuntimeRoot,
+    RuntimeRoot, get_bundled_tool_path, get_latest_runtime_root, get_runtime_root,
 };
 
 // Re-export platform module utilities for convenience
 pub use platform::{
-    append_to_path, executable_extension, filter_system_path, is_system_path, is_unix_path,
-    is_windows_path, join_paths_env, join_paths_simple, path_separator, prepend_to_path,
-    split_path, split_path_owned, venv_bin_dir, with_executable_extension, Arch, Os, Platform,
+    Arch, Os, Platform, append_to_path, executable_extension, filter_system_path, is_system_path,
+    is_unix_path, is_windows_path, join_paths_env, join_paths_simple, path_separator,
+    prepend_to_path, split_path, split_path_owned, venv_bin_dir, with_executable_extension,
 };
 
 /// Standard vx directory structure

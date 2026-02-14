@@ -19,8 +19,8 @@
 //! - CircleCI: Exports to `$BASH_ENV`
 //! - Generic CI: Outputs paths for manual export
 
-use crate::types::{CiProvider, HookCommand, HooksConfig, SetupConfig, VxConfig};
 use crate::HookExecutor;
+use crate::types::{CiProvider, HookCommand, HooksConfig, SetupConfig, VxConfig};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs;

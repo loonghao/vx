@@ -28,7 +28,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use vx_config::config_manager::TomlWriter;
-use vx_config::{parse_config, HookExecutor, ScriptConfig, VxConfig};
+use vx_config::{HookExecutor, ScriptConfig, VxConfig, parse_config};
 use vx_paths::{find_config_file, find_vx_config as find_vx_config_path};
 use vx_runtime::ProviderRegistry;
 use vx_setup::ci::{CiProvider, PathExporter};

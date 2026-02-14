@@ -8,5 +8,5 @@ mod provider;
 mod runtime;
 
 pub use config::FzfUrlBuilder;
-pub use provider::{create_provider, FzfProvider};
+pub use provider::{FzfProvider, create_provider};
 pub use runtime::FzfRuntime;

@@ -9,8 +9,8 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use vx_runtime::{
-    layout::{ArchiveLayout, DownloadType, ExecutableLayout, PlatformLayout},
     Ecosystem, Platform, Runtime, RuntimeContext, VerificationResult, VersionInfo,
+    layout::{ArchiveLayout, DownloadType, ExecutableLayout, PlatformLayout},
 };
 use vx_version_fetcher::VersionFetcherBuilder;
 
@@ -102,7 +102,7 @@ impl Runtime for VscodeRuntime {
             }),
             macos: Some(PlatformLayout {
                 executable_paths: vec![
-                    "Visual Studio Code.app/Contents/Resources/app/bin/code".to_string()
+                    "Visual Studio Code.app/Contents/Resources/app/bin/code".to_string(),
                 ],
                 strip_prefix: None, // macOS archive extracts directly
                 permissions: Some("755".to_string()),

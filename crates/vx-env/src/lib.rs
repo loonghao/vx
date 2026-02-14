@@ -81,11 +81,11 @@ mod words;
 pub use assets::ShellScript;
 pub use builder::EnvBuilder;
 pub use context::{ContextOverride, EnvContext};
-pub use env_assembler::{priority, EnvAssembler, EnvOperation, EnvVar};
+pub use env_assembler::{EnvAssembler, EnvOperation, EnvVar, priority};
 pub use error::EnvError;
 pub use executor::{execute_with_env, generate_wrapper_script};
 pub use session::{IsolationConfig, SessionContext, SessionSource};
-pub use spawner::{detect_shell, print_exit, print_welcome, ExportFormat, ShellSpawner};
+pub use spawner::{ExportFormat, ShellSpawner, detect_shell, print_exit, print_welcome};
 pub use tool_env::{ToolEnvironment, ToolSpec};
 pub use words::{join_args, parse_command, quote_arg};
 

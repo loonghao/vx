@@ -65,15 +65,15 @@ pub mod version_resolver;
 pub use context::{ExecutionContext, GitHubReleaseOptions, RuntimeContext};
 pub use ecosystem::Ecosystem;
 pub use impls::{
-    create_runtime_context, create_runtime_context_with_base, RealCommandExecutor, RealFileSystem,
-    RealHttpClient, RealInstaller, RealPathProvider,
+    RealCommandExecutor, RealFileSystem, RealHttpClient, RealInstaller, RealPathProvider,
+    create_runtime_context, create_runtime_context_with_base,
 };
 pub use layout::{
     ArchiveLayout, BinaryLayout, DownloadType, ExecutableLayout, LayoutContext, PlatformLayout,
     ResolvedLayout,
 };
 pub use package_runtime::{InstallMethod, PackageRuntime};
-pub use platform::{compare_semver, Arch, Libc, Os, Platform};
+pub use platform::{Arch, Libc, Os, Platform, compare_semver};
 pub use provider::Provider;
 pub use registry::{PlatformError, ProviderRegistry};
 pub use runtime::{Runtime, VerificationResult};
@@ -84,10 +84,10 @@ pub use types::{
 
 // Re-export testing utilities
 pub use testing::{
-    mock_context, mock_execution_context, MockCommandExecutor, MockFileSystem, MockHttpClient,
-    MockInstaller, MockPathProvider, RuntimeTestResult, RuntimeTester, TestCaseResult,
+    MockCommandExecutor, MockFileSystem, MockHttpClient, MockInstaller, MockPathProvider,
+    RuntimeTestResult, RuntimeTester, TestCaseResult, mock_context, mock_execution_context,
 };
-pub use version_cache::{CacheEntry, CacheMode, CacheStats, VersionCache, DEFAULT_CACHE_TTL};
+pub use version_cache::{CacheEntry, CacheMode, CacheStats, DEFAULT_CACHE_TTL, VersionCache};
 pub use version_resolver::VersionResolver;
 
 // Provider environment and version resolution (REZ-like environment)
@@ -100,9 +100,9 @@ pub use integrated_resolver::{IntegratedVersionResolver, ProviderEnvBuilder};
 
 // Constraints system
 pub use constraints::{
-    get_default_constraints, init_constraints_from_manifests,
-    load_constraints_from_manifest_content, ConstraintRule, ConstraintsRegistry,
-    DependencyConstraint, ManifestVersionPattern, VersionPattern, DEFAULT_CONSTRAINTS,
+    ConstraintRule, ConstraintsRegistry, DEFAULT_CONSTRAINTS, DependencyConstraint,
+    ManifestVersionPattern, VersionPattern, get_default_constraints,
+    init_constraints_from_manifests, load_constraints_from_manifest_content,
 };
 
 // Manifest-driven registry
@@ -118,7 +118,7 @@ pub use vx_manifest::{Arch as ManifestArch, Os as ManifestOs, Platform as Manife
 pub use vx_manifest::{PlatformConstraint, PlatformExclusion};
 
 // Plugin system
-pub use plugin::{default_plugin_paths, PluginLoader, ProviderLoader, ProviderPlugin};
+pub use plugin::{PluginLoader, ProviderLoader, ProviderPlugin, default_plugin_paths};
 
 // Manifest-driven runtimes (RFC 0021)
 pub use manifest_runtime::{

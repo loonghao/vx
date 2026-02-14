@@ -26,7 +26,7 @@
 //! vx check --quiet
 //! ```
 
-use crate::commands::common::{check_tools_status, ToolStatus};
+use crate::commands::common::{ToolStatus, check_tools_status};
 use crate::commands::setup::{find_vx_config, parse_vx_config};
 use crate::ui::UI;
 use anyhow::{Context, Result};

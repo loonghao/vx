@@ -1,6 +1,6 @@
 //! Path manager for vx tool installations
 
-use crate::{with_executable_extension, VxPaths};
+use crate::{VxPaths, with_executable_extension};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 

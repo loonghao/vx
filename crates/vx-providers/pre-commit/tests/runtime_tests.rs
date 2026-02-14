@@ -3,7 +3,7 @@
 //! Tests are placed in a separate tests/ directory following project conventions.
 
 use rstest::rstest;
-use vx_provider_pre_commit::{create_provider, PreCommitProvider, PreCommitRuntime};
+use vx_provider_pre_commit::{PreCommitProvider, PreCommitRuntime, create_provider};
 use vx_runtime::{Arch, Ecosystem, InstallMethod, Os, PackageRuntime, Platform, Provider, Runtime};
 
 // ============================================================================

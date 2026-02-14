@@ -8,7 +8,7 @@
 //! - `gem:bundler@2.5`
 //! - `typescript@5.3` (auto-detect ecosystem)
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::fmt;
 
 /// Parsed package specification
@@ -319,7 +319,9 @@ impl PackageSpec {
         // In practice, user should specify ecosystem explicitly
         Err(anyhow!(
             "Cannot auto-detect ecosystem for '{}'. Please specify explicitly (e.g., npm:{} or pip:{})",
-            package, package, package
+            package,
+            package,
+            package
         ))
     }
 

@@ -8,5 +8,5 @@ mod provider;
 mod runtime;
 
 pub use config::StarshipUrlBuilder;
-pub use provider::{create_provider, StarshipProvider};
+pub use provider::{StarshipProvider, create_provider};
 pub use runtime::StarshipRuntime;

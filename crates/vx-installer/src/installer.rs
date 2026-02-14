@@ -1,10 +1,10 @@
 //! Installation utilities and configuration
 
 use crate::{
+    Error, Result,
     downloader::Downloader,
     formats::ArchiveExtractor,
     progress::{ProgressContext, ProgressStyle},
-    Error, Result,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

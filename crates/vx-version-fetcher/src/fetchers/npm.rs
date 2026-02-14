@@ -4,7 +4,7 @@
 
 use crate::error::{FetchError, FetchResult};
 use crate::fetcher::VersionFetcher;
-use crate::utils::{version_utils, VersionInfoExt};
+use crate::utils::{VersionInfoExt, version_utils};
 use async_trait::async_trait;
 use vx_runtime::{RuntimeContext, VersionInfo};
 

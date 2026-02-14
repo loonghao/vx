@@ -214,11 +214,7 @@ pub fn is_batch_file(path: &Path) -> bool {
 
 /// Get the appropriate executable extension for the current platform
 pub fn executable_extension() -> &'static str {
-    if cfg!(windows) {
-        ".exe"
-    } else {
-        ""
-    }
+    if cfg!(windows) { ".exe" } else { "" }
 }
 
 /// Add the appropriate executable extension if needed

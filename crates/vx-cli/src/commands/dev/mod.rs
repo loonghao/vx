@@ -31,7 +31,7 @@ mod shell;
 mod tools;
 
 pub use args::Args;
-pub use export::{generate_env_export, ExportFormat};
+pub use export::{ExportFormat, generate_env_export};
 pub use handler::build_script_environment;
 pub use handler::handle;
 pub use tools::get_registry;

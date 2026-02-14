@@ -13,7 +13,7 @@
 //! returns `can_handle() == false`.
 
 use super::FormatHandler;
-use crate::{progress::ProgressContext, Error, Result};
+use crate::{Error, Result, progress::ProgressContext};
 use std::path::{Path, PathBuf};
 
 // ============================================================================

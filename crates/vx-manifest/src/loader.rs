@@ -1,8 +1,8 @@
 //! Manifest loader for discovering and loading provider.toml files
 
 use crate::{
-    apply_override, extract_provider_name, ManifestError, ProviderManifest, ProviderOverride,
-    Result,
+    ManifestError, ProviderManifest, ProviderOverride, Result, apply_override,
+    extract_provider_name,
 };
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

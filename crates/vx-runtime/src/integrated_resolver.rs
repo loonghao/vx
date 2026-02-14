@@ -6,9 +6,9 @@
 //! - Environment variable building (REZ-like)
 
 use crate::{
+    Ecosystem, VersionInfo,
     provider_env::{ProviderEnvironment, ResolvedVersionInfo},
     version_resolver::VersionResolver,
-    Ecosystem, VersionInfo,
 };
 use anyhow::{Context, Result};
 use std::collections::HashMap;

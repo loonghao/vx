@@ -6,7 +6,7 @@
 //! - DevContainer (devcontainer.json)
 
 use crate::{CodespacesConfig, DevContainerConfig, GitpodConfig, RemoteConfig, VxConfig};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 
 /// Remote development configuration generator

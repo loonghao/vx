@@ -1,7 +1,7 @@
 //! Binary file handler for direct executable installation
 
 use super::FormatHandler;
-use crate::{progress::ProgressContext, Result};
+use crate::{Result, progress::ProgressContext};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 

@@ -1,11 +1,11 @@
 //! Environment command handler
 
+use super::Args;
 use super::args::EnvCommand;
 use super::helpers::{
     build_tools_from_env_dir, clone_env_contents, get_default_env, get_project_env_dir,
     list_env_runtimes, parse_runtime_version, resolve_env_for_shell, set_default_env,
 };
-use super::Args;
 use crate::commands::common::load_config_view_cwd;
 use crate::commands::setup::find_vx_config as find_config_file;
 use crate::ui::UI;
@@ -13,7 +13,7 @@ use anyhow::{Context, Result};
 use std::env;
 use std::io::Write;
 use vx_env::{ExportFormat, SessionContext, SessionSource, ShellSpawner};
-use vx_paths::{link, LinkStrategy, PathManager, PROJECT_ENV_DIR};
+use vx_paths::{LinkStrategy, PROJECT_ENV_DIR, PathManager, link};
 
 /// Handle env command with Args
 pub async fn handle(args: &Args) -> Result<()> {
@@ -138,7 +138,9 @@ async fn create_env(
             UI::info(&format!("Cloned from global environment '{}'", source));
         }
 
-        UI::hint("Run 'vx env sync' to populate from vx.toml, or 'vx env add <tool>@<version>' to add tools");
+        UI::hint(
+            "Run 'vx env sync' to populate from vx.toml, or 'vx env add <tool>@<version>' to add tools",
+        );
     }
 
     Ok(())

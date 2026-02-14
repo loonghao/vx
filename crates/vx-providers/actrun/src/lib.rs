@@ -8,5 +8,5 @@ mod provider;
 mod runtime;
 
 pub use config::ActrunUrlBuilder;
-pub use provider::{create_provider, ActrunProvider};
+pub use provider::{ActrunProvider, create_provider};
 pub use runtime::ActrunRuntime;

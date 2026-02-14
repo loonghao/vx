@@ -5,7 +5,7 @@ use crate::commands::CommandContext;
 use crate::ui::{ProgressSpinner, UI};
 use anyhow::Result;
 use std::env;
-use vx_paths::project::{find_vx_config, LOCK_FILE_NAME};
+use vx_paths::project::{LOCK_FILE_NAME, find_vx_config};
 use vx_resolver::{LockFile, LockedTool};
 use vx_runtime::{InstallResult, ProviderRegistry, RuntimeContext};
 

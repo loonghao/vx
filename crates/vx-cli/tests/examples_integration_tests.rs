@@ -9,7 +9,7 @@ use common::{cleanup_test_env, init_test_env};
 use rstest::*;
 use std::path::PathBuf;
 use vx_cli::commands::dev::build_script_environment;
-use vx_cli::commands::setup::{parse_vx_config, ConfigView};
+use vx_cli::commands::setup::{ConfigView, parse_vx_config};
 use vx_config::ScriptConfig;
 
 // ============================================================================

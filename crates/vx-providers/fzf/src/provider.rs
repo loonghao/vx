@@ -2,7 +2,7 @@
 
 use crate::runtime::FzfRuntime;
 use std::sync::Arc;
-use vx_runtime::{provider::Provider, Runtime};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// fzf provider
 #[derive(Debug, Default)]

@@ -22,10 +22,10 @@
 //! - Automatic backup and rollback on failure
 
 use crate::ui::UI;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, USER_AGENT};
+use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue, USER_AGENT};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::env;
@@ -284,7 +284,8 @@ async fn legacy_update(
                         \n\
                         • Windows:  powershell -c \"irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex\"\n\
                         • Linux/macOS: curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash",
-                        binary_err, script_err
+                        binary_err,
+                        script_err
                     ));
                 }
             }
@@ -743,7 +744,7 @@ fn find_platform_asset(assets: &[GitHubAsset]) -> Result<&GitHubAsset> {
                     "Unsupported platform: {}-{}",
                     target_os,
                     target_arch
-                ))
+                ));
             }
         };
 
@@ -1075,17 +1076,17 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
     // Try to find a version that has actual assets
     for version_str in &version_strings {
         let is_prerelease = vx_core::version_utils::is_prerelease(version_str);
-        
+
         // Skip prerelease versions if we don't want them
         if !prerelease && is_prerelease {
             continue;
         }
 
         let version_number = vx_core::version_utils::normalize_version(version_str);
-        
+
         // Create CDN assets for this version
         let assets = create_cdn_assets(version_number);
-        
+
         // Verify at least one asset exists for current platform
         if let Ok(current_asset) = find_platform_asset(&assets) {
             // Try to verify the asset exists (quick HEAD request)
@@ -1094,7 +1095,7 @@ async fn try_jsdelivr_api(client: &reqwest::Client, prerelease: bool) -> Result<
                     "Found version {} with valid assets",
                     version_number
                 ));
-                
+
                 return Ok(GitHubRelease {
                     tag_name: version_str.to_string(),
                     name: format!("Release {}", version_number),

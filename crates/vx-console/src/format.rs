@@ -349,6 +349,8 @@ mod tests {
     fn test_ci_output_github() {
         assert_eq!(CiOutput::github_group_start("test"), "::group::test");
         assert_eq!(CiOutput::github_group_end(), "::endgroup::");
-        assert!(CiOutput::github_error("error", Some("file.rs"), Some(10)).contains("file=file.rs"));
+        assert!(
+            CiOutput::github_error("error", Some("file.rs"), Some(10)).contains("file=file.rs")
+        );
     }
 }
