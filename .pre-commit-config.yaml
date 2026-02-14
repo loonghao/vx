@@ -5,7 +5,25 @@
 #   vx prek install          # Install git hooks
 #   vx prek run --all-files  # Run all hooks manually
 
+fail_fast: true
+
+exclude: |
+  (?x)^(
+    target/.*|
+    node_modules/.*|
+    vx-promo-video/.*|
+    docs/node_modules/.*|
+    .*\.lock
+  )$
+
 repos:
+  # Spell checking
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.43.4
+    hooks:
+      - id: typos
+
+  # Rust formatting
   - repo: local
     hooks:
       - id: cargo-fmt
@@ -14,3 +32,22 @@ repos:
         language: system
         types: [rust]
         pass_filenames: false
+
+  # Rust linting
+  - repo: local
+    hooks:
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: vx cargo clippy --workspace -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+  # YAML/JSON formatting
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: vx npx prettier --write --ignore-unknown
+        language: system
+        types_or: [yaml, json]
