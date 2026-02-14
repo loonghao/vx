@@ -10,21 +10,21 @@ on:
   push:
     branches: [main]
     paths:
-      - 'pkg/docker/**'
-      - 'Dockerfile'
-      - '.github/workflows/test-docker.yml'
-      - 'crates/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
+      - "pkg/docker/**"
+      - "Dockerfile"
+      - ".github/workflows/test-docker.yml"
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
   pull_request:
     branches: [main]
     paths:
-      - 'pkg/docker/**'
-      - 'Dockerfile'
-      - '.github/workflows/test-docker.yml'
-      - 'crates/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
+      - "pkg/docker/**"
+      - "Dockerfile"
+      - ".github/workflows/test-docker.yml"
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
   workflow_dispatch:
 
 permissions:
@@ -41,17 +41,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install hadolint
-        run: |
-          wget -q -O hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
-          chmod +x hadolint
-          sudo mv hadolint /usr/local/bin/
+      - name: Setup vx
+        uses: ./
 
       - name: Lint Dockerfile.prebuilt
-        run: hadolint pkg/docker/Dockerfile.prebuilt --ignore DL3008
+        run: vx hadolint pkg/docker/Dockerfile.prebuilt --ignore DL3008
 
       - name: Lint Dockerfile.tools
-        run: hadolint pkg/docker/Dockerfile.tools --ignore DL3008
+        run: vx hadolint pkg/docker/Dockerfile.tools --ignore DL3008
 
   # ============================================================================
   # Build vx from current source code
