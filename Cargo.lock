@@ -4415,6 +4415,7 @@ dependencies = [
  "vx-provider-gh",
  "vx-provider-git",
  "vx-provider-go",
+ "vx-provider-hadolint",
  "vx-provider-helm",
  "vx-provider-imagemagick",
  "vx-provider-java",
@@ -4987,6 +4988,20 @@ dependencies = [
  "tracing",
  "vx-manifest",
  "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-hadolint"
+version = "0.7.11"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]
