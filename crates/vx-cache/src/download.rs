@@ -317,19 +317,19 @@ impl DownloadCache {
 
         if let Ok(entries) = std::fs::read_dir(&self.cache_dir) {
             for entry in entries.flatten() {
-                if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
-                    if let Ok(files) = std::fs::read_dir(entry.path()) {
-                        for file in files.flatten() {
-                            let path = file.path();
-                            if path.extension().is_some_and(|e| e == "meta") {
-                                continue; // Skip metadata files in count
-                            }
-                            if let Ok(meta) = file.metadata() {
-                                if meta.is_file() {
-                                    stats.file_count += 1;
-                                    stats.total_size += meta.len();
-                                }
-                            }
+                if entry.file_type().map(|t| t.is_dir()).unwrap_or(false)
+                    && let Ok(files) = std::fs::read_dir(entry.path())
+                {
+                    for file in files.flatten() {
+                        let path = file.path();
+                        if path.extension().is_some_and(|e| e == "meta") {
+                            continue; // Skip metadata files in count
+                        }
+                        if let Ok(meta) = file.metadata()
+                            && meta.is_file()
+                        {
+                            stats.file_count += 1;
+                            stats.total_size += meta.len();
                         }
                     }
                 }

@@ -44,10 +44,10 @@ impl BinDirCache {
     /// Returns `Some(path)` if found and the path still exists on disk.
     /// Returns `None` if not cached or the cached path is stale.
     pub fn get(&mut self, store_dir: &str) -> Option<PathBuf> {
-        if let Some(path) = self.entries.get(store_dir) {
-            if path.exists() {
-                return Some(path.clone());
-            }
+        if let Some(path) = self.entries.get(store_dir)
+            && path.exists()
+        {
+            return Some(path.clone());
         }
         // Stale or missing — remove if present
         self.entries.remove(store_dir);

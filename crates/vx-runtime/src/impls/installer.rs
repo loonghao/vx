@@ -36,13 +36,12 @@ impl RealInstaller {
         original_url: &str,
     ) -> Option<String> {
         // Try Content-Disposition header first
-        if let Some(content_disposition) = response.headers().get("content-disposition") {
-            if let Ok(value) = content_disposition.to_str() {
-                if let Some(filename) = Self::parse_content_disposition(value) {
-                    tracing::debug!("Got filename from Content-Disposition: {}", filename);
-                    return Some(filename);
-                }
-            }
+        if let Some(content_disposition) = response.headers().get("content-disposition")
+            && let Ok(value) = content_disposition.to_str()
+            && let Some(filename) = Self::parse_content_disposition(value)
+        {
+            tracing::debug!("Got filename from Content-Disposition: {}", filename);
+            return Some(filename);
         }
 
         // Try to get filename from final URL (after redirects)
@@ -237,10 +236,10 @@ impl RealInstaller {
         file.flush().await?;
 
         // Store in download cache if enabled
-        if let Some(cache) = &self.http.download_cache {
-            if let Err(e) = cache.store(url, dest, None, None, None) {
-                tracing::warn!(url = url, error = %e, "Failed to cache download");
-            }
+        if let Some(cache) = &self.http.download_cache
+            && let Err(e) = cache.store(url, dest, None, None, None)
+        {
+            tracing::warn!(url = url, error = %e, "Failed to cache download");
         }
 
         Ok(detected_filename)
@@ -270,10 +269,10 @@ impl RealInstaller {
                 if let Some(pos) = encoded.rfind("''") {
                     let filename = &encoded[pos + 2..];
                     // URL decode the filename
-                    if let Ok(decoded) = urlencoding::decode(filename) {
-                        if !decoded.is_empty() {
-                            return Some(decoded.into_owned());
-                        }
+                    if let Ok(decoded) = urlencoding::decode(filename)
+                        && !decoded.is_empty()
+                    {
+                        return Some(decoded.into_owned());
                     }
                 }
             }
@@ -507,31 +506,27 @@ impl Installer for RealInstaller {
             || archive_str.ends_with(".pkg");
 
         // Check extension hint from URL fragment
-        if !is_archive {
-            if let Some(hint) = extension_hint {
-                is_archive = hint.ends_with(".tar.gz")
-                    || hint.ends_with(".tgz")
-                    || hint.ends_with(".tar.xz")
-                    || hint.ends_with(".zip")
-                    || hint.ends_with(".7z");
-            }
+        if !is_archive && let Some(hint) = extension_hint {
+            is_archive = hint.ends_with(".tar.gz")
+                || hint.ends_with(".tgz")
+                || hint.ends_with(".tar.xz")
+                || hint.ends_with(".zip")
+                || hint.ends_with(".7z");
         }
 
         // Check file magic bytes if still uncertain
-        if !is_archive {
-            if let Ok(mut file) = std::fs::File::open(&temp_path) {
-                use std::io::Read;
-                let mut magic = [0u8; 6];
-                if file.read_exact(&mut magic).is_ok() {
-                    // ZIP magic: PK\x03\x04
-                    // GZIP magic: \x1f\x8b
-                    // 7z magic: 7z\xBC\xAF\x27\x1C (first 6 bytes: 37 7A BC AF 27 1C)
-                    is_archive = (magic[0] == 0x50 && magic[1] == 0x4B)  // ZIP
+        if !is_archive && let Ok(mut file) = std::fs::File::open(&temp_path) {
+            use std::io::Read;
+            let mut magic = [0u8; 6];
+            if file.read_exact(&mut magic).is_ok() {
+                // ZIP magic: PK\x03\x04
+                // GZIP magic: \x1f\x8b
+                // 7z magic: 7z\xBC\xAF\x27\x1C (first 6 bytes: 37 7A BC AF 27 1C)
+                is_archive = (magic[0] == 0x50 && magic[1] == 0x4B)  // ZIP
                         || (magic[0] == 0x1f && magic[1] == 0x8b) // GZIP (tar.gz)
                         || (magic[0] == 0x37 && magic[1] == 0x7A && magic[2] == 0xBC
                             && magic[3] == 0xAF && magic[4] == 0x27 && magic[5] == 0x1C);
-                    // 7z
-                }
+                // 7z
             }
         }
 

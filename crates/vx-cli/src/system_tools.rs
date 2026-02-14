@@ -141,16 +141,16 @@ fn find_system_tool(runtime: &std::sync::Arc<dyn Runtime>) -> (Option<PathBuf>, 
 fn get_tool_version(path: &PathBuf) -> Option<String> {
     // Try common version flags
     for flag in &["--version", "-V", "-v", "version"] {
-        if let Ok(output) = std::process::Command::new(path).arg(flag).output() {
-            if output.status.success() {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let combined = format!("{}{}", stdout, stderr);
+        if let Ok(output) = std::process::Command::new(path).arg(flag).output()
+            && output.status.success()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let combined = format!("{}{}", stdout, stderr);
 
-                // Try to extract version number
-                if let Some(version) = extract_version(&combined) {
-                    return Some(version);
-                }
+            // Try to extract version number
+            if let Some(version) = extract_version(&combined) {
+                return Some(version);
             }
         }
     }
@@ -168,12 +168,11 @@ fn extract_version(output: &str) -> Option<String> {
     ];
 
     for pattern in patterns {
-        if let Ok(re) = regex::Regex::new(pattern) {
-            if let Some(caps) = re.captures(output) {
-                if let Some(m) = caps.get(1) {
-                    return Some(m.as_str().to_string());
-                }
-            }
+        if let Ok(re) = regex::Regex::new(pattern)
+            && let Some(caps) = re.captures(output)
+            && let Some(m) = caps.get(1)
+        {
+            return Some(m.as_str().to_string());
         }
     }
     None

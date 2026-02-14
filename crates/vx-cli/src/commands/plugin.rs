@@ -79,11 +79,11 @@ pub async fn handle(registry: &ProviderRegistry, command: PluginCommand) -> Resu
             let mut found = false;
 
             for name in registry.runtime_names() {
-                if name.to_lowercase().contains(&query_lower) {
-                    if let Some(runtime) = registry.get_runtime(&name) {
-                        UI::item(&format!("{} - {}", name, runtime.description()));
-                        found = true;
-                    }
+                if name.to_lowercase().contains(&query_lower)
+                    && let Some(runtime) = registry.get_runtime(&name)
+                {
+                    UI::item(&format!("{} - {}", name, runtime.description()));
+                    found = true;
                 }
             }
 

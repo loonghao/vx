@@ -72,10 +72,10 @@ impl LanguageAnalyzer for CppAnalyzer {
         for entry in cmake_files {
             let cmake_path = entry.path();
             debug!("Analyzing {}", cmake_path.display());
-            if let Ok(content) = tokio::fs::read_to_string(cmake_path).await {
-                if let Ok(file_deps) = parse_cmake_dependencies(&content, cmake_path) {
-                    deps.extend(file_deps);
-                }
+            if let Ok(content) = tokio::fs::read_to_string(cmake_path).await
+                && let Ok(file_deps) = parse_cmake_dependencies(&content, cmake_path)
+            {
+                deps.extend(file_deps);
             }
         }
 

@@ -214,40 +214,39 @@ async fn list_envs(detailed: bool, global_only: bool) -> Result<()> {
     let current_env = get_default_env().unwrap_or_else(|_| "default".to_string());
 
     // Show project environment first (unless global_only)
-    if !global_only {
-        if let Some(project_env) = get_project_env_dir() {
-            if project_env.exists() {
-                println!("Project Environment:");
-                println!();
+    if !global_only
+        && let Some(project_env) = get_project_env_dir()
+        && project_env.exists()
+    {
+        println!("Project Environment:");
+        println!();
 
-                if detailed {
-                    let runtimes = list_env_runtimes(&project_env)?;
-                    println!("  project (active)");
-                    println!("    Path: {}", project_env.display());
+        if detailed {
+            let runtimes = list_env_runtimes(&project_env)?;
+            println!("  project (active)");
+            println!("    Path: {}", project_env.display());
 
-                    if runtimes.is_empty() {
-                        println!("    Tools: (none)");
-                    } else {
-                        println!("    Tools:");
-                        for runtime in runtimes {
-                            let runtime_path = project_env.join(&runtime);
-                            if runtime_path.is_symlink() {
-                                if let Ok(target) = std::fs::read_link(&runtime_path) {
-                                    println!("      - {} -> {}", runtime, target.display());
-                                } else {
-                                    println!("      - {}", runtime);
-                                }
-                            } else {
-                                println!("      - {}", runtime);
-                            }
+            if runtimes.is_empty() {
+                println!("    Tools: (none)");
+            } else {
+                println!("    Tools:");
+                for runtime in runtimes {
+                    let runtime_path = project_env.join(&runtime);
+                    if runtime_path.is_symlink() {
+                        if let Ok(target) = std::fs::read_link(&runtime_path) {
+                            println!("      - {} -> {}", runtime, target.display());
+                        } else {
+                            println!("      - {}", runtime);
                         }
+                    } else {
+                        println!("      - {}", runtime);
                     }
-                } else {
-                    println!("* project (active)");
                 }
-                println!();
             }
+        } else {
+            println!("* project (active)");
         }
+        println!();
     }
 
     // Show global environments

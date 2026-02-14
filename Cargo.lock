@@ -4432,6 +4432,7 @@ dependencies = [
  "vx-provider-ollama",
  "vx-provider-pnpm",
  "vx-provider-pre-commit",
+ "vx-provider-prek",
  "vx-provider-protoc",
  "vx-provider-pwsh",
  "vx-provider-python",
@@ -5247,6 +5248,21 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-runtime",
+]
+
+[[package]]
+name = "vx-provider-prek"
+version = "0.7.10"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest 0.13.2",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+ "vx-version-fetcher",
 ]
 
 [[package]]

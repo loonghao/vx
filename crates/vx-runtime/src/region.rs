@@ -95,15 +95,14 @@ pub fn is_china_environment() -> bool {
     }
 
     // Check timezone
-    if let Ok(tz) = std::env::var("TZ") {
-        if tz == "Asia/Shanghai"
+    if let Ok(tz) = std::env::var("TZ")
+        && (tz == "Asia/Shanghai"
             || tz == "Asia/Chongqing"
             || tz == "Asia/Chungking"
             || tz == "PRC"
-            || tz == "CST-8"
-        {
-            return true;
-        }
+            || tz == "CST-8")
+    {
+        return true;
     }
 
     // Check common China-specific proxy environment hints

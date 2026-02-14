@@ -847,36 +847,36 @@ async fn find_runtime_executable(
 ) -> Result<std::path::PathBuf> {
     // First, check if we have a vx-managed version
     let runtime_dir = ctx.paths.runtime_store_dir(runtime_name);
-    if runtime_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(&runtime_dir) {
-            // Find the first installed version
-            for entry in entries.filter_map(|e| e.ok()) {
-                let version_dir = entry.path();
-                if version_dir.is_dir() {
-                    // Try common executable locations
-                    let _platform = Platform::current();
-                    let exe_name = if cfg!(windows) {
-                        format!("{}.exe", runtime_name)
-                    } else {
-                        runtime_name.to_string()
-                    };
+    if runtime_dir.exists()
+        && let Ok(entries) = std::fs::read_dir(&runtime_dir)
+    {
+        // Find the first installed version
+        for entry in entries.filter_map(|e| e.ok()) {
+            let version_dir = entry.path();
+            if version_dir.is_dir() {
+                // Try common executable locations
+                let _platform = Platform::current();
+                let exe_name = if cfg!(windows) {
+                    format!("{}.exe", runtime_name)
+                } else {
+                    runtime_name.to_string()
+                };
 
-                    // Try bin/{name}
-                    let exe_path = version_dir.join("bin").join(&exe_name);
-                    if exe_path.exists() {
-                        return Ok(exe_path);
-                    }
+                // Try bin/{name}
+                let exe_path = version_dir.join("bin").join(&exe_name);
+                if exe_path.exists() {
+                    return Ok(exe_path);
+                }
 
-                    // Try {name} directly (for some tools)
-                    let exe_path = version_dir.join(&exe_name);
-                    if exe_path.exists() {
-                        return Ok(exe_path);
-                    }
+                // Try {name} directly (for some tools)
+                let exe_path = version_dir.join(&exe_name);
+                if exe_path.exists() {
+                    return Ok(exe_path);
+                }
 
-                    // Search recursively
-                    if let Some(found) = search_executable(&version_dir, &exe_name, 0, 3) {
-                        return Ok(found);
-                    }
+                // Search recursively
+                if let Some(found) = search_executable(&version_dir, &exe_name, 0, 3) {
+                    return Ok(found);
                 }
             }
         }
@@ -912,15 +912,15 @@ fn search_executable(
         let path = entry.path();
 
         if path.is_file() {
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                if name == exe_name {
-                    return Some(path);
-                }
+            if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                && name == exe_name
+            {
+                return Some(path);
             }
-        } else if path.is_dir() {
-            if let Some(found) = search_executable(&path, exe_name, current_depth + 1, max_depth) {
-                return Some(found);
-            }
+        } else if path.is_dir()
+            && let Some(found) = search_executable(&path, exe_name, current_depth + 1, max_depth)
+        {
+            return Some(found);
         }
     }
 

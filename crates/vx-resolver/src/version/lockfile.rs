@@ -488,6 +488,45 @@ impl LockFile {
         }
         lockfile
     }
+
+    /// Remove tools that should no longer be in the lock file
+    ///
+    /// A tool is kept if it's in `keep_tools` (explicitly configured or resolved
+    /// as a dependency). All other tools are removed from both `tools` and
+    /// `dependencies` maps.
+    ///
+    /// Returns the list of removed tool names.
+    pub fn prune(&mut self, keep_tools: &std::collections::HashSet<String>) -> Vec<String> {
+        // Remove tools not in the keep set
+        let tools_to_remove: Vec<String> = self
+            .tools
+            .keys()
+            .filter(|name| !keep_tools.contains(name.as_str()))
+            .cloned()
+            .collect();
+
+        for name in &tools_to_remove {
+            self.tools.remove(name);
+        }
+
+        // Clean up dependency entries for removed tools
+        let remaining_tools: std::collections::HashSet<String> =
+            self.tools.keys().cloned().collect();
+
+        // Remove dependency entries where the tool itself was removed
+        self.dependencies
+            .retain(|name, _| remaining_tools.contains(name));
+
+        // Remove references to removed tools in dependency values
+        for deps in self.dependencies.values_mut() {
+            deps.retain(|dep| remaining_tools.contains(dep));
+        }
+
+        // Remove empty dependency entries
+        self.dependencies.retain(|_, deps| !deps.is_empty());
+
+        tools_to_remove
+    }
 }
 
 /// Lock file errors

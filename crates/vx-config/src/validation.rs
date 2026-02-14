@@ -38,10 +38,10 @@ pub fn validate_config(config: &VxConfig) -> ValidationResult {
     let mut result = ValidationResult::default();
 
     // Validate min_version if specified
-    if let Some(min_version) = &config.min_version {
-        if let Err(e) = validate_version_requirement(min_version) {
-            result.error(e);
-        }
+    if let Some(min_version) = &config.min_version
+        && let Err(e) = validate_version_requirement(min_version)
+    {
+        result.error(e);
     }
 
     // Validate tool versions

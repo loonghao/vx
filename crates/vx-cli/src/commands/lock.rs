@@ -33,7 +33,7 @@ pub async fn handle(
         .with_context(|| format!("Failed to load {}", config_path.display()))?;
 
     // Load existing lock file if present
-    let existing_lock = if lock_path.exists() {
+    let mut existing_lock = if lock_path.exists() {
         Some(LockFile::load(&lock_path).with_context(|| {
             format!("Failed to load existing lock file: {}", lock_path.display())
         })?)
@@ -45,8 +45,38 @@ pub async fn handle(
     let tools_to_resolve = get_tools_to_resolve(&config, &existing_lock, update, update_tool);
 
     if tools_to_resolve.is_empty() {
-        if existing_lock.is_some() {
-            println!("✓ Lock file is up to date");
+        if let Some(ref mut existing) = existing_lock {
+            // Even when no tools need resolving, we may need to prune
+            // stale entries (tools removed from vx.toml but still in lock)
+            let keep_tools: HashSet<String> = config.tools.keys().cloned().collect();
+            let removed = existing.prune(&keep_tools);
+
+            if removed.is_empty() {
+                println!("✓ Lock file is up to date");
+                return Ok(());
+            }
+
+            // Save the pruned lock file
+            if dry_run {
+                println!("\n--- vx.lock (dry run) ---\n");
+                println!("Would remove {} stale tool(s):", removed.len());
+                for name in &removed {
+                    println!("  - {}", name);
+                }
+                return Ok(());
+            }
+
+            existing.save(&lock_path)?;
+            println!(
+                "✓ Pruned {} stale tool(s) from {}",
+                removed.len(),
+                LOCK_FILE_NAME
+            );
+            if verbose {
+                for name in &removed {
+                    println!("  - removed {}", name);
+                }
+            }
             return Ok(());
         } else {
             println!("No tools configured in vx.toml");
@@ -84,6 +114,18 @@ pub async fn handle(
             failed_tools.push((tool_name.clone(), version_str.clone()));
         }
     }
+
+    // Prune tools from lock file that were not resolved in this run
+    // and are not in vx.toml. This removes stale entries (e.g., tools
+    // removed from vx.toml) while preserving auto-resolved dependencies.
+    //
+    // Build the set of tools to keep: config tools + resolved dependencies
+    let keep_tools: HashSet<String> = {
+        let mut keep: HashSet<String> = config.tools.keys().cloned().collect();
+        keep.extend(resolved_tools.iter().cloned());
+        keep
+    };
+    new_lock.prune(&keep_tools);
 
     // Add dependency relationships to lock file
     add_dependencies(&mut new_lock, registry);
@@ -194,44 +236,44 @@ async fn resolve_tool_with_dependencies(
             lock.lock_tool(tool_name.to_string(), locked);
 
             // Get and resolve dependencies
-            if let Some(provider) = registry.get_provider(tool_name) {
-                if let Some(runtime) = provider.get_runtime(tool_name) {
-                    let deps = runtime.dependencies();
-                    if verbose && !deps.is_empty() {
-                        println!("    Found {} dependencies for {}", deps.len(), tool_name);
-                    }
-                    for dep in deps {
-                        if !resolved.contains(&dep.name) {
-                            // Use the dependency's version constraint, or "latest" if not specified
-                            let dep_version = dep
-                                .min_version
-                                .as_ref()
-                                .map(|v| format!(">={}", v))
-                                .unwrap_or_else(|| "latest".to_string());
+            if let Some(provider) = registry.get_provider(tool_name)
+                && let Some(runtime) = provider.get_runtime(tool_name)
+            {
+                let deps = runtime.dependencies();
+                if verbose && !deps.is_empty() {
+                    println!("    Found {} dependencies for {}", deps.len(), tool_name);
+                }
+                for dep in deps {
+                    if !resolved.contains(&dep.name) {
+                        // Use the dependency's version constraint, or "latest" if not specified
+                        let dep_version = dep
+                            .min_version
+                            .as_ref()
+                            .map(|v| format!(">={}", v))
+                            .unwrap_or_else(|| "latest".to_string());
 
-                            if verbose {
-                                println!(
-                                    "    └─ Dependency: {} (required by {})",
-                                    dep.name, tool_name
-                                );
-                            }
-
-                            // Recursively resolve the dependency
-                            // Note: Dependency resolution failures don't fail the parent tool
-                            Box::pin(resolve_tool_with_dependencies(
-                                registry,
-                                ctx,
-                                solver,
-                                &dep.name,
-                                &dep_version,
-                                lock,
-                                resolved,
-                                existing_lock,
-                                update,
-                                verbose,
-                            ))
-                            .await;
+                        if verbose {
+                            println!(
+                                "    └─ Dependency: {} (required by {})",
+                                dep.name, tool_name
+                            );
                         }
+
+                        // Recursively resolve the dependency
+                        // Note: Dependency resolution failures don't fail the parent tool
+                        Box::pin(resolve_tool_with_dependencies(
+                            registry,
+                            ctx,
+                            solver,
+                            &dep.name,
+                            &dep_version,
+                            lock,
+                            resolved,
+                            existing_lock,
+                            update,
+                            verbose,
+                        ))
+                        .await;
                     }
                 }
             }
@@ -241,11 +283,11 @@ async fn resolve_tool_with_dependencies(
             eprintln!("  ✗ Failed to resolve {}: {}", tool_name, e);
             if !update {
                 // Keep existing lock entry if not updating
-                if let Some(existing) = existing_lock {
-                    if let Some(existing_tool) = existing.get_tool(tool_name) {
-                        lock.lock_tool(tool_name.to_string(), existing_tool.clone());
-                        return true; // Kept existing, so not a failure
-                    }
+                if let Some(existing) = existing_lock
+                    && let Some(existing_tool) = existing.get_tool(tool_name)
+                {
+                    lock.lock_tool(tool_name.to_string(), existing_tool.clone());
+                    return true; // Kept existing, so not a failure
                 }
             }
             false
@@ -426,23 +468,23 @@ fn add_dependencies(lock: &mut LockFile, registry: &ProviderRegistry) {
 
     for tool_name in &locked_tools {
         // Get the runtime from registry to access its dependencies
-        if let Some(provider) = registry.get_provider(tool_name) {
-            if let Some(runtime) = provider.get_runtime(tool_name) {
-                // Get dependencies from the runtime
-                let deps: Vec<String> = runtime
-                    .dependencies()
-                    .iter()
-                    .map(|d| d.name.clone())
-                    .filter(|dep_name| {
-                        // Only include dependencies that are also locked
-                        // or that we need to auto-lock
-                        lock.is_locked(dep_name)
-                    })
-                    .collect();
+        if let Some(provider) = registry.get_provider(tool_name)
+            && let Some(runtime) = provider.get_runtime(tool_name)
+        {
+            // Get dependencies from the runtime
+            let deps: Vec<String> = runtime
+                .dependencies()
+                .iter()
+                .map(|d| d.name.clone())
+                .filter(|dep_name| {
+                    // Only include dependencies that are also locked
+                    // or that we need to auto-lock
+                    lock.is_locked(dep_name)
+                })
+                .collect();
 
-                if !deps.is_empty() {
-                    lock.add_dependency(tool_name.clone(), deps);
-                }
+            if !deps.is_empty() {
+                lock.add_dependency(tool_name.clone(), deps);
             }
         }
     }

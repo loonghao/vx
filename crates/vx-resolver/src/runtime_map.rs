@@ -160,10 +160,10 @@ impl RuntimeMap {
                     RuntimeDependency::required(&dep.id, reason)
                 };
 
-                if let Some(ref version) = dep.version {
-                    if let Some(min) = Self::extract_min_version(version) {
-                        runtime_dep = runtime_dep.with_min_version(min);
-                    }
+                if let Some(ref version) = dep.version
+                    && let Some(min) = Self::extract_min_version(version)
+                {
+                    runtime_dep = runtime_dep.with_min_version(min);
                 }
 
                 spec.dependencies.push(runtime_dep);
@@ -299,10 +299,11 @@ impl RuntimeMap {
                 );
 
                 // Parse version constraint
-                if !dep_def.version.is_empty() && dep_def.version != "*" {
-                    if let Some(min) = Self::extract_min_version(&dep_def.version) {
-                        dep = dep.with_min_version(min);
-                    }
+                if !dep_def.version.is_empty()
+                    && dep_def.version != "*"
+                    && let Some(min) = Self::extract_min_version(&dep_def.version)
+                {
+                    dep = dep.with_min_version(min);
                 }
 
                 if let Some(ref recommended) = dep_def.recommended {
@@ -330,15 +331,14 @@ impl RuntimeMap {
         version: &str,
     ) -> Option<String> {
         // First check static dependencies
-        if let Some(spec) = self.get(runtime_name) {
-            if let Some(parent) = spec
+        if let Some(spec) = self.get(runtime_name)
+            && let Some(parent) = spec
                 .dependencies
                 .iter()
                 .find(|dep| dep.required && dep.provided_by.is_some())
                 .and_then(|dep| dep.provided_by.clone())
-            {
-                return Some(parent);
-            }
+        {
+            return Some(parent);
         }
 
         // Then check version-specific dependencies

@@ -98,10 +98,10 @@ impl LanguageAnalyzer for DotNetAnalyzer {
         for entry in project_files {
             let project_path = entry.path();
             debug!("Analyzing {}", project_path.display());
-            if let Ok(content) = tokio::fs::read_to_string(project_path).await {
-                if let Ok(file_deps) = parse_csproj_dependencies(&content, project_path) {
-                    deps.extend(file_deps);
-                }
+            if let Ok(content) = tokio::fs::read_to_string(project_path).await
+                && let Ok(file_deps) = parse_csproj_dependencies(&content, project_path)
+            {
+                deps.extend(file_deps);
             }
         }
 
@@ -109,11 +109,10 @@ impl LanguageAnalyzer for DotNetAnalyzer {
         let packages_props = root.join("Directory.Packages.props");
         if packages_props.exists() {
             debug!("Analyzing Directory.Packages.props");
-            if let Ok(content) = tokio::fs::read_to_string(&packages_props).await {
-                if let Ok(central_deps) = parse_directory_packages_props(&content, &packages_props)
-                {
-                    deps.extend(central_deps);
-                }
+            if let Ok(content) = tokio::fs::read_to_string(&packages_props).await
+                && let Ok(central_deps) = parse_directory_packages_props(&content, &packages_props)
+            {
+                deps.extend(central_deps);
             }
         }
 
@@ -241,10 +240,10 @@ fn has_files_with_extension(root: &Path, ext: &str) -> bool {
     if let Ok(entries) = std::fs::read_dir(root) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if let Some(file_ext) = path.extension() {
-                if file_ext.to_string_lossy().eq_ignore_ascii_case(ext) {
-                    return true;
-                }
+            if let Some(file_ext) = path.extension()
+                && file_ext.to_string_lossy().eq_ignore_ascii_case(ext)
+            {
+                return true;
             }
         }
     }
@@ -272,27 +271,25 @@ fn has_dotnet_files_recursive_inner(dir: &Path, max_depth: usize, current_depth:
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_file() {
-                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                    if ext.eq_ignore_ascii_case("csproj")
+                if let Some(ext) = path.extension().and_then(|e| e.to_str())
+                    && (ext.eq_ignore_ascii_case("csproj")
                         || ext.eq_ignore_ascii_case("fsproj")
-                        || ext.eq_ignore_ascii_case("sln")
-                    {
-                        return true;
-                    }
+                        || ext.eq_ignore_ascii_case("sln"))
+                {
+                    return true;
                 }
             } else if path.is_dir() && current_depth < max_depth {
                 // Skip common non-project directories
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if name.starts_with('.')
+                if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                    && (name.starts_with('.')
                         || name == "node_modules"
                         || name == "bin"
                         || name == "obj"
                         || name == "target"
                         || name == "dist"
-                        || name == "packages"
-                    {
-                        continue;
-                    }
+                        || name == "packages")
+                {
+                    continue;
                 }
                 if has_dotnet_files_recursive_inner(&path, max_depth, current_depth + 1) {
                     return true;

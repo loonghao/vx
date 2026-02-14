@@ -74,35 +74,35 @@ pub fn detect_executables_in_dir(bin_dir: &Path) -> Result<Vec<String>> {
         let entry = entry?;
         let path = entry.path();
 
-        if path.is_file() {
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                // Skip common non-executable files
-                if name.ends_with(".ps1") || name.ends_with(".md") || name.ends_with(".txt") {
-                    continue;
-                }
+        if path.is_file()
+            && let Some(name) = path.file_name().and_then(|n| n.to_str())
+        {
+            // Skip common non-executable files
+            if name.ends_with(".ps1") || name.ends_with(".md") || name.ends_with(".txt") {
+                continue;
+            }
 
-                // On Windows, check for executable extensions
-                #[cfg(windows)]
+            // On Windows, check for executable extensions
+            #[cfg(windows)]
+            {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str())
+                    && matches!(ext.to_lowercase().as_str(), "exe" | "cmd" | "bat")
                 {
-                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                        if matches!(ext.to_lowercase().as_str(), "exe" | "cmd" | "bat") {
-                            // Remove extension for the executable name
-                            let exe_name = name.strip_suffix(&format!(".{}", ext)).unwrap_or(name);
-                            if !executables.contains(&exe_name.to_string()) {
-                                executables.push(exe_name.to_string());
-                            }
-                        }
+                    // Remove extension for the executable name
+                    let exe_name = name.strip_suffix(&format!(".{}", ext)).unwrap_or(name);
+                    if !executables.contains(&exe_name.to_string()) {
+                        executables.push(exe_name.to_string());
                     }
                 }
+            }
 
-                // On Unix, check for executable permission
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    if let Ok(meta) = std::fs::metadata(&path) {
-                        if meta.permissions().mode() & 0o111 != 0 {
-                            executables.push(name.to_string());
-                        }
+            // On Unix, check for executable permission
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Ok(meta) = std::fs::metadata(&path) {
+                    if meta.permissions().mode() & 0o111 != 0 {
+                        executables.push(name.to_string());
                     }
                 }
             }

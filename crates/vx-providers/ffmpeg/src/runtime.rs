@@ -36,14 +36,13 @@ impl FfmpegRuntime {
 
         if let Some(regex) = re {
             for asset in assets {
-                if let Some(name) = asset.get("name").and_then(|n| n.as_str()) {
-                    if let Some(cap) = regex.captures(name) {
-                        if let Some(version) = cap.get(1) {
-                            let v = version.as_str().to_string();
-                            if !versions.contains(&v) {
-                                versions.push(v);
-                            }
-                        }
+                if let Some(name) = asset.get("name").and_then(|n| n.as_str())
+                    && let Some(cap) = regex.captures(name)
+                    && let Some(version) = cap.get(1)
+                {
+                    let v = version.as_str().to_string();
+                    if !versions.contains(&v) {
+                        versions.push(v);
                     }
                 }
             }

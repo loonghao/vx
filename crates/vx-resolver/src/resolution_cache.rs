@@ -250,13 +250,13 @@ impl ResolutionCache {
                 if let Ok(metadata) = path.metadata() {
                     stats.total_size_bytes += metadata.len();
                 }
-                if let Ok(content) = std::fs::read_to_string(&path) {
-                    if let Ok(cache_entry) = serde_json::from_str::<CacheEntry>(&content) {
-                        if cache_entry.is_valid() {
-                            stats.valid_entries += 1;
-                        } else {
-                            stats.expired_entries += 1;
-                        }
+                if let Ok(content) = std::fs::read_to_string(&path)
+                    && let Ok(cache_entry) = serde_json::from_str::<CacheEntry>(&content)
+                {
+                    if cache_entry.is_valid() {
+                        stats.valid_entries += 1;
+                    } else {
+                        stats.expired_entries += 1;
                     }
                 }
             }

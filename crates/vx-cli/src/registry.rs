@@ -225,6 +225,7 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         winget,
         dagu,
         actrun,
+        prek,
         // Tier 1: Unix-philosophy tools (RFC 0030)
         fzf,
         ripgrep,
@@ -292,6 +293,7 @@ fn create_static_registry() -> ProviderRegistry {
         winget,
         dagu,
         actrun,
+        prek,
         // Tier 1: Unix-philosophy tools (RFC 0030)
         fzf,
         ripgrep,
@@ -324,16 +326,16 @@ pub fn load_manifests_with_overrides() -> Vec<ProviderManifest> {
     }
 
     // 3) Project-level overrides: <project>/.vx/providers
-    if let Ok(cwd) = std::env::current_dir() {
-        if let Some(project_root) = find_project_root(&cwd) {
-            let project_dir = project_root.join(PROJECT_VX_DIR).join("providers");
-            if project_dir.exists() {
-                // Load full provider.toml files (for project-specific providers)
-                let _ = loader.load_from_dir(&project_dir);
-                // Load .override.toml files (for constraint overrides)
-                let _ = loader.load_overrides_from_dir(&project_dir);
-                trace!("Loaded project provider overrides from {:?}", project_dir);
-            }
+    if let Ok(cwd) = std::env::current_dir()
+        && let Some(project_root) = find_project_root(&cwd)
+    {
+        let project_dir = project_root.join(PROJECT_VX_DIR).join("providers");
+        if project_dir.exists() {
+            // Load full provider.toml files (for project-specific providers)
+            let _ = loader.load_from_dir(&project_dir);
+            // Load .override.toml files (for constraint overrides)
+            let _ = loader.load_overrides_from_dir(&project_dir);
+            trace!("Loaded project provider overrides from {:?}", project_dir);
         }
     }
 
@@ -349,10 +351,10 @@ fn build_plugin_loader() -> Option<PluginLoader> {
         )));
     }
 
-    if let Ok(cwd) = std::env::current_dir() {
-        if let Some(project_root) = find_project_root(&cwd) {
-            paths.push(project_root.join(PROJECT_VX_DIR).join("plugins"));
-        }
+    if let Ok(cwd) = std::env::current_dir()
+        && let Some(project_root) = find_project_root(&cwd)
+    {
+        paths.push(project_root.join(PROJECT_VX_DIR).join("plugins"));
     }
 
     paths.retain(|p| p.exists());
@@ -418,12 +420,11 @@ pub fn get_runtime_platform_label(runtime_name: &str) -> Option<String> {
             }
             // Check runtime-level platform constraint
             for runtime in &manifest.runtimes {
-                if runtime.name == runtime_name
-                    || runtime.aliases.contains(&runtime_name.to_string())
+                if (runtime.name == runtime_name
+                    || runtime.aliases.contains(&runtime_name.to_string()))
+                    && let Some(ref constraint) = runtime.platform_constraint
                 {
-                    if let Some(ref constraint) = runtime.platform_constraint {
-                        return constraint.short_label();
-                    }
+                    return constraint.short_label();
                 }
             }
         }

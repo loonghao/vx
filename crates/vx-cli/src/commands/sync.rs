@@ -389,12 +389,13 @@ async fn install_sequential_with_progress(
 
         progress.complete_tool(success, name, version);
 
-        if verbose && !success {
-            if let Some(err) = &error {
-                // Show first line of error for brief context
-                if let Some(first_line) = err.lines().next() {
-                    UI::detail(&format!("    {}", first_line));
-                }
+        if verbose
+            && !success
+            && let Some(err) = &error
+        {
+            // Show first line of error for brief context
+            if let Some(first_line) = err.lines().next() {
+                UI::detail(&format!("    {}", first_line));
             }
         }
     }

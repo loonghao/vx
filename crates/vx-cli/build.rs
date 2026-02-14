@@ -27,15 +27,15 @@ fn main() {
                 let provider_dir = entry.path();
                 if provider_dir.is_dir() {
                     let manifest_path = provider_dir.join("provider.toml");
-                    if manifest_path.exists() {
-                        if let Ok(content) = fs::read_to_string(&manifest_path) {
-                            let name = provider_dir
-                                .file_name()
-                                .and_then(|n| n.to_str())
-                                .unwrap_or("unknown")
-                                .to_string();
-                            manifests.push((name, content));
-                        }
+                    if manifest_path.exists()
+                        && let Ok(content) = fs::read_to_string(&manifest_path)
+                    {
+                        let name = provider_dir
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("unknown")
+                            .to_string();
+                        manifests.push((name, content));
                     }
                 }
             }

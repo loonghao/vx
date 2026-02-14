@@ -293,10 +293,10 @@ fn test_yarn_version_type_detection() {
     }
 
     fn is_yarn_modern(version: &str) -> bool {
-        if let Some(major) = version.split('.').next() {
-            if let Ok(major_num) = major.parse::<u32>() {
-                return major_num >= 2;
-            }
+        if let Some(major) = version.split('.').next()
+            && let Ok(major_num) = major.parse::<u32>()
+        {
+            return major_num >= 2;
         }
         false
     }

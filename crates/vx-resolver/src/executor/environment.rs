@@ -42,10 +42,10 @@ pub fn init_bin_dir_cache(cache_dir: &std::path::Path) {
 /// Call this after command execution to persist newly discovered entries.
 pub fn save_bin_dir_cache(cache_dir: &std::path::Path) {
     let cache = BIN_DIR_CACHE.lock().unwrap();
-    if let Some(ref c) = *cache {
-        if let Err(e) = c.save(cache_dir) {
-            tracing::debug!("Failed to save bin dir cache: {}", e);
-        }
+    if let Some(ref c) = *cache
+        && let Err(e) = c.save(cache_dir)
+    {
+        tracing::debug!("Failed to save bin dir cache: {}", e);
     }
 }
 
@@ -179,10 +179,10 @@ impl<'a> EnvironmentManager<'a> {
                     }
 
                     // Set PATH
-                    if !path_parts.is_empty() {
-                        if let Ok(new_path) = std::env::join_paths(&path_parts) {
-                            env.insert("PATH".to_string(), new_path.to_string_lossy().to_string());
-                        }
+                    if !path_parts.is_empty()
+                        && let Ok(new_path) = std::env::join_paths(&path_parts)
+                    {
+                        env.insert("PATH".to_string(), new_path.to_string_lossy().to_string());
                     }
 
                     // Handle advanced env vars
@@ -253,10 +253,10 @@ impl<'a> EnvironmentManager<'a> {
                                     env.insert(key, value);
                                 }
                             }
-                        } else if let Ok(value) = std::env::var(var_pattern) {
-                            if !env.contains_key(var_pattern) {
-                                env.insert(var_pattern.clone(), value);
-                            }
+                        } else if let Ok(value) = std::env::var(var_pattern)
+                            && !env.contains_key(var_pattern)
+                        {
+                            env.insert(var_pattern.clone(), value);
                         }
                     }
                 } else if inherit_env {
@@ -417,11 +417,11 @@ impl<'a> EnvironmentManager<'a> {
     ) -> (Option<String>, Option<String>) {
         if let Some(spec) = self.resolver.get_spec(runtime_name) {
             for dep in &spec.dependencies {
-                if dep.required {
-                    if let Some(ref provider) = dep.provided_by {
-                        // For bundled tools (npx, npm), use the provider's version
-                        return (Some(provider.clone()), version.map(|v| v.to_string()));
-                    }
+                if dep.required
+                    && let Some(ref provider) = dep.provided_by
+                {
+                    // For bundled tools (npx, npm), use the provider's version
+                    return (Some(provider.clone()), version.map(|v| v.to_string()));
                 }
             }
         }
@@ -460,11 +460,11 @@ impl<'a> EnvironmentManager<'a> {
             }
 
             // Replace {executable} using PathProvider
-            if result.contains("{executable}") {
-                if let (Some(ctx), Some(ver)) = (self.context, version) {
-                    let exe_path = ctx.paths.executable_path(runtime_name, ver);
-                    result = result.replace("{executable}", &exe_path.to_string_lossy());
-                }
+            if result.contains("{executable}")
+                && let (Some(ctx), Some(ver)) = (self.context, version)
+            {
+                let exe_path = ctx.paths.executable_path(runtime_name, ver);
+                result = result.replace("{executable}", &exe_path.to_string_lossy());
             }
 
             // Replace {PATH} with current PATH
@@ -473,28 +473,28 @@ impl<'a> EnvironmentManager<'a> {
             }
 
             // Replace shell-style variables
-            if result.contains("$HOME") {
-                if let Ok(home) = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
-                    result = result.replace("$HOME", &home);
-                }
+            if result.contains("$HOME")
+                && let Ok(home) = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE"))
+            {
+                result = result.replace("$HOME", &home);
             }
 
-            if result.contains("$CARGO_HOME") {
-                if let Ok(cargo_home) = std::env::var("CARGO_HOME") {
-                    result = result.replace("$CARGO_HOME", &cargo_home);
-                }
+            if result.contains("$CARGO_HOME")
+                && let Ok(cargo_home) = std::env::var("CARGO_HOME")
+            {
+                result = result.replace("$CARGO_HOME", &cargo_home);
             }
 
-            if result.contains("$RUSTUP_HOME") {
-                if let Ok(rustup_home) = std::env::var("RUSTUP_HOME") {
-                    result = result.replace("$RUSTUP_HOME", &rustup_home);
-                }
+            if result.contains("$RUSTUP_HOME")
+                && let Ok(rustup_home) = std::env::var("RUSTUP_HOME")
+            {
+                result = result.replace("$RUSTUP_HOME", &rustup_home);
             }
 
-            if result.contains("$USER") {
-                if let Ok(user) = std::env::var("USER").or_else(|_| std::env::var("USERNAME")) {
-                    result = result.replace("$USER", &user);
-                }
+            if result.contains("$USER")
+                && let Ok(user) = std::env::var("USER").or_else(|_| std::env::var("USERNAME"))
+            {
+                result = result.replace("$USER", &user);
             }
 
             // Replace {env:VAR} with environment variable
@@ -645,12 +645,12 @@ impl<'a> EnvironmentManager<'a> {
                 if let Some(version) = version_to_use {
                     let store_dir = context.paths.version_store_dir(runtime_name, &version);
 
-                    if let Some(bin_dir) = self.find_bin_dir(&store_dir, runtime_name) {
-                        if bin_dir.exists() {
-                            let bin_path = bin_dir.to_string_lossy().to_string();
-                            if !paths.contains(&bin_path) {
-                                paths.push(bin_path);
-                            }
+                    if let Some(bin_dir) = self.find_bin_dir(&store_dir, runtime_name)
+                        && bin_dir.exists()
+                    {
+                        let bin_path = bin_dir.to_string_lossy().to_string();
+                        if !paths.contains(&bin_path) {
+                            paths.push(bin_path);
                         }
                     }
                 }
@@ -675,27 +675,26 @@ impl<'a> EnvironmentManager<'a> {
         }
 
         // Check if project configuration specifies a version for this runtime
-        if let Some(project_config) = self.project_config {
-            if let Some(requested_version) = project_config.get_version_with_fallback(runtime_name)
-            {
-                let matching_version =
-                    self.find_matching_version(runtime_name, requested_version, installed_versions);
+        if let Some(project_config) = self.project_config
+            && let Some(requested_version) = project_config.get_version_with_fallback(runtime_name)
+        {
+            let matching_version =
+                self.find_matching_version(runtime_name, requested_version, installed_versions);
 
-                if let Some(version) = matching_version {
-                    trace!("Using {} version {} from vx.toml", runtime_name, version);
-                    return Some(version);
-                } else {
-                    // Requested version not installed, warn and fall back to latest
-                    let mut warned = WARNED_TOOLS.lock().unwrap();
-                    let warned_set = warned.get_or_insert_with(HashSet::new);
-                    if warned_set.insert(runtime_name.to_string()) {
-                        warn!(
-                            "Version {} specified in vx.toml for {} is not installed. \
+            if let Some(version) = matching_version {
+                trace!("Using {} version {} from vx.toml", runtime_name, version);
+                return Some(version);
+            } else {
+                // Requested version not installed, warn and fall back to latest
+                let mut warned = WARNED_TOOLS.lock().unwrap();
+                let warned_set = warned.get_or_insert_with(HashSet::new);
+                if warned_set.insert(runtime_name.to_string()) {
+                    warn!(
+                        "Version {} specified in vx.toml for {} is not installed. \
                              Using latest installed version instead. \
                              Run 'vx install {}@{}' to install the specified version.",
-                            requested_version, runtime_name, runtime_name, requested_version
-                        );
-                    }
+                        requested_version, runtime_name, runtime_name, requested_version
+                    );
                 }
             }
         }
@@ -786,15 +785,15 @@ impl<'a> EnvironmentManager<'a> {
         // Check process-level cache first (backed by disk persistence)
         {
             let mut cache = BIN_DIR_CACHE.lock().unwrap();
-            if let Some(ref mut c) = *cache {
-                if let Some(cached) = c.get(&cache_key) {
-                    trace!(
-                        "BIN_DIR_CACHE hit for {} in {}",
-                        runtime_name,
-                        store_dir.display()
-                    );
-                    return Some(cached);
-                }
+            if let Some(ref mut c) = *cache
+                && let Some(cached) = c.get(&cache_key)
+            {
+                trace!(
+                    "BIN_DIR_CACHE hit for {} in {}",
+                    runtime_name,
+                    store_dir.display()
+                );
+                return Some(cached);
             }
         }
 
@@ -836,46 +835,44 @@ impl<'a> EnvironmentManager<'a> {
             .into_iter()
             .filter_entry(|e| {
                 // Skip known non-target directories
-                if e.file_type().is_dir() {
-                    if let Some(name) = e.file_name().to_str() {
-                        return !matches!(
-                            name,
-                            "node_modules"
-                                | ".git"
-                                | "__pycache__"
-                                | "site-packages"
-                                | "lib"
-                                | "share"
-                                | "include"
-                                | "man"
-                                | "doc"
-                                | "docs"
-                        );
-                    }
+                if e.file_type().is_dir()
+                    && let Some(name) = e.file_name().to_str()
+                {
+                    return !matches!(
+                        name,
+                        "node_modules"
+                            | ".git"
+                            | "__pycache__"
+                            | "site-packages"
+                            | "lib"
+                            | "share"
+                            | "include"
+                            | "man"
+                            | "doc"
+                            | "docs"
+                    );
                 }
                 true
             })
             .filter_map(|e| e.ok())
         {
             let path = entry.path();
-            if path.is_file() {
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if exe_names.iter().any(|exe_name| name == exe_name) {
-                        if let Some(parent) = path.parent() {
-                            trace!(
-                                "Found executable for {} at {}, using bin dir: {}",
-                                runtime_name,
-                                path.display(),
-                                parent.display()
-                            );
-                            let result = parent.to_path_buf();
-                            let mut cache = BIN_DIR_CACHE.lock().unwrap();
-                            let c = cache.get_or_insert_with(BinDirCache::new);
-                            c.put(cache_key, result.clone());
-                            return Some(result);
-                        }
-                    }
-                }
+            if path.is_file()
+                && let Some(name) = path.file_name().and_then(|n| n.to_str())
+                && exe_names.iter().any(|exe_name| name == exe_name)
+                && let Some(parent) = path.parent()
+            {
+                trace!(
+                    "Found executable for {} at {}, using bin dir: {}",
+                    runtime_name,
+                    path.display(),
+                    parent.display()
+                );
+                let result = parent.to_path_buf();
+                let mut cache = BIN_DIR_CACHE.lock().unwrap();
+                let c = cache.get_or_insert_with(BinDirCache::new);
+                c.put(cache_key, result.clone());
+                return Some(result);
             }
         }
 
@@ -943,13 +940,13 @@ impl<'a> EnvironmentManager<'a> {
                 if !sub_path.is_dir() {
                     continue;
                 }
-                if let Some(dir_name) = sub_path.file_name().and_then(|n| n.to_str()) {
-                    if matches!(
+                if let Some(dir_name) = sub_path.file_name().and_then(|n| n.to_str())
+                    && matches!(
                         dir_name,
                         "bin" | "node_modules" | "lib" | "share" | "include" | "man" | "doc"
-                    ) {
-                        continue;
-                    }
+                    )
+                {
+                    continue;
                 }
                 // Check files in subdirectory
                 for name in exe_names {

@@ -248,10 +248,8 @@ pub async fn handle_status(verbose: bool) -> Result<()> {
             if let Some(health) = &status.health {
                 println!("     Health: {}", health);
             }
-            if verbose {
-                if let Some(id) = &status.container_id {
-                    println!("     Container: {}", id);
-                }
+            if verbose && let Some(id) = &status.container_id {
+                println!("     Container: {}", id);
             }
         } else {
             println!("  {} {} ({})", status_icon, name, image);

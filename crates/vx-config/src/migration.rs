@@ -221,181 +221,179 @@ impl ConfigMigrator {
         let mut v2_config = VxConfig::default();
 
         // Migrate tools
-        if let Some(tools) = table.get("tools") {
-            if let Some(tools_table) = tools.as_table() {
-                for (name, value) in tools_table {
-                    let tool_version = if let Some(s) = value.as_str() {
-                        // Simple string version - convert to detailed if needed
-                        changes.push(format!("tools.{}: kept as simple version", name));
-                        ToolVersion::Simple(s.to_string())
-                    } else if let Some(t) = value.as_table() {
-                        // Already detailed
-                        let version = t
-                            .get("version")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("latest")
-                            .to_string();
-                        let postinstall = t
-                            .get("postinstall")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-                        let os = t.get("os").and_then(|v| {
-                            v.as_array().map(|arr| {
-                                arr.iter()
-                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                                    .collect()
-                            })
-                        });
-
-                        changes.push(format!("tools.{}: migrated detailed config", name));
-                        ToolVersion::Detailed(ToolConfig {
-                            version,
-                            postinstall,
-                            os,
-                            install_env: None,
+        if let Some(tools) = table.get("tools")
+            && let Some(tools_table) = tools.as_table()
+        {
+            for (name, value) in tools_table {
+                let tool_version = if let Some(s) = value.as_str() {
+                    // Simple string version - convert to detailed if needed
+                    changes.push(format!("tools.{}: kept as simple version", name));
+                    ToolVersion::Simple(s.to_string())
+                } else if let Some(t) = value.as_table() {
+                    // Already detailed
+                    let version = t
+                        .get("version")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("latest")
+                        .to_string();
+                    let postinstall = t
+                        .get("postinstall")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
+                    let os = t.get("os").and_then(|v| {
+                        v.as_array().map(|arr| {
+                            arr.iter()
+                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                .collect()
                         })
-                    } else {
-                        warnings.push(format!("tools.{}: invalid value, skipped", name));
-                        continue;
-                    };
-                    v2_config.tools.insert(name.clone(), tool_version);
-                }
+                    });
+
+                    changes.push(format!("tools.{}: migrated detailed config", name));
+                    ToolVersion::Detailed(ToolConfig {
+                        version,
+                        postinstall,
+                        os,
+                        install_env: None,
+                    })
+                } else {
+                    warnings.push(format!("tools.{}: invalid value, skipped", name));
+                    continue;
+                };
+                v2_config.tools.insert(name.clone(), tool_version);
             }
         }
 
         // Migrate settings
-        if let Some(settings) = table.get("settings") {
-            if let Some(settings_table) = settings.as_table() {
-                let mut settings_config = SettingsConfig::default();
+        if let Some(settings) = table.get("settings")
+            && let Some(settings_table) = settings.as_table()
+        {
+            let mut settings_config = SettingsConfig::default();
 
-                if let Some(v) = settings_table.get("auto_install") {
-                    if let Some(b) = v.as_bool() {
-                        settings_config.auto_install = Some(b);
-                    } else if let Some(s) = v.as_str() {
-                        settings_config.auto_install = Some(s == "true");
-                    }
+            if let Some(v) = settings_table.get("auto_install") {
+                if let Some(b) = v.as_bool() {
+                    settings_config.auto_install = Some(b);
+                } else if let Some(s) = v.as_str() {
+                    settings_config.auto_install = Some(s == "true");
                 }
-
-                if let Some(v) = settings_table.get("parallel_install") {
-                    if let Some(b) = v.as_bool() {
-                        settings_config.parallel_install = Some(b);
-                    }
-                }
-
-                if let Some(v) = settings_table.get("cache_duration") {
-                    if let Some(s) = v.as_str() {
-                        settings_config.cache_duration = Some(s.to_string());
-                    }
-                }
-
-                if let Some(v) = settings_table.get("shell") {
-                    if let Some(s) = v.as_str() {
-                        settings_config.shell = Some(s.to_string());
-                    }
-                }
-
-                if let Some(v) = settings_table.get("log_level") {
-                    if let Some(s) = v.as_str() {
-                        settings_config.log_level = Some(s.to_string());
-                    }
-                }
-
-                v2_config.settings = Some(settings_config);
-                changes.push("settings: migrated to structured format".to_string());
             }
+
+            if let Some(v) = settings_table.get("parallel_install")
+                && let Some(b) = v.as_bool()
+            {
+                settings_config.parallel_install = Some(b);
+            }
+
+            if let Some(v) = settings_table.get("cache_duration")
+                && let Some(s) = v.as_str()
+            {
+                settings_config.cache_duration = Some(s.to_string());
+            }
+
+            if let Some(v) = settings_table.get("shell")
+                && let Some(s) = v.as_str()
+            {
+                settings_config.shell = Some(s.to_string());
+            }
+
+            if let Some(v) = settings_table.get("log_level")
+                && let Some(s) = v.as_str()
+            {
+                settings_config.log_level = Some(s.to_string());
+            }
+
+            v2_config.settings = Some(settings_config);
+            changes.push("settings: migrated to structured format".to_string());
         }
 
         // Migrate env
-        if let Some(env) = table.get("env") {
-            if let Some(env_table) = env.as_table() {
-                let mut vars = HashMap::new();
-                for (key, value) in env_table {
-                    if let Some(s) = value.as_str() {
-                        vars.insert(key.clone(), s.to_string());
-                    }
+        if let Some(env) = table.get("env")
+            && let Some(env_table) = env.as_table()
+        {
+            let mut vars = HashMap::new();
+            for (key, value) in env_table {
+                if let Some(s) = value.as_str() {
+                    vars.insert(key.clone(), s.to_string());
                 }
-                if !vars.is_empty() {
-                    v2_config.env = Some(EnvConfig {
-                        vars,
-                        required: None,
-                        optional: None,
-                        secrets: None,
-                    });
-                    changes.push("env: migrated environment variables".to_string());
-                }
+            }
+            if !vars.is_empty() {
+                v2_config.env = Some(EnvConfig {
+                    vars,
+                    required: None,
+                    optional: None,
+                    secrets: None,
+                });
+                changes.push("env: migrated environment variables".to_string());
             }
         }
 
         // Migrate scripts
-        if let Some(scripts) = table.get("scripts") {
-            if let Some(scripts_table) = scripts.as_table() {
-                for (name, value) in scripts_table {
-                    let script_config = if let Some(s) = value.as_str() {
-                        changes.push(format!("scripts.{}: kept as simple command", name));
-                        ScriptConfig::Simple(s.to_string())
-                    } else if let Some(t) = value.as_table() {
-                        let command = t
-                            .get("command")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
-                        let description = t
-                            .get("description")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-                        let cwd = t.get("cwd").and_then(|v| v.as_str()).map(|s| s.to_string());
+        if let Some(scripts) = table.get("scripts")
+            && let Some(scripts_table) = scripts.as_table()
+        {
+            for (name, value) in scripts_table {
+                let script_config = if let Some(s) = value.as_str() {
+                    changes.push(format!("scripts.{}: kept as simple command", name));
+                    ScriptConfig::Simple(s.to_string())
+                } else if let Some(t) = value.as_table() {
+                    let command = t
+                        .get("command")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let description = t
+                        .get("description")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
+                    let cwd = t.get("cwd").and_then(|v| v.as_str()).map(|s| s.to_string());
 
-                        changes.push(format!("scripts.{}: migrated detailed config", name));
-                        ScriptConfig::Detailed(ScriptDetails {
-                            command,
-                            description,
-                            cwd,
-                            args: vec![],
-                            env: HashMap::new(),
-                            depends: vec![],
-                        })
-                    } else {
-                        warnings.push(format!("scripts.{}: invalid value, skipped", name));
-                        continue;
-                    };
-                    v2_config.scripts.insert(name.clone(), script_config);
-                }
+                    changes.push(format!("scripts.{}: migrated detailed config", name));
+                    ScriptConfig::Detailed(ScriptDetails {
+                        command,
+                        description,
+                        cwd,
+                        args: vec![],
+                        env: HashMap::new(),
+                        depends: vec![],
+                    })
+                } else {
+                    warnings.push(format!("scripts.{}: invalid value, skipped", name));
+                    continue;
+                };
+                v2_config.scripts.insert(name.clone(), script_config);
             }
         }
 
         // Preserve existing v2 fields if present
-        if let Some(hooks) = table.get("hooks") {
-            if let Ok(h) =
+        if let Some(hooks) = table.get("hooks")
+            && let Ok(h) =
                 toml::from_str::<HooksConfig>(&toml::to_string(hooks).unwrap_or_default())
-            {
-                v2_config.hooks = Some(h);
-            }
+        {
+            v2_config.hooks = Some(h);
         }
 
-        if let Some(services) = table.get("services") {
-            if let Some(services_table) = services.as_table() {
-                for (name, value) in services_table {
-                    if let Ok(s) =
-                        toml::from_str::<ServiceConfig>(&toml::to_string(value).unwrap_or_default())
-                    {
-                        v2_config.services.insert(name.clone(), s);
-                    }
+        if let Some(services) = table.get("services")
+            && let Some(services_table) = services.as_table()
+        {
+            for (name, value) in services_table {
+                if let Ok(s) =
+                    toml::from_str::<ServiceConfig>(&toml::to_string(value).unwrap_or_default())
+                {
+                    v2_config.services.insert(name.clone(), s);
                 }
             }
         }
 
-        if let Some(project) = table.get("project") {
-            if let Ok(p) =
+        if let Some(project) = table.get("project")
+            && let Ok(p) =
                 toml::from_str::<ProjectConfig>(&toml::to_string(project).unwrap_or_default())
-            {
-                v2_config.project = Some(p);
-            }
+        {
+            v2_config.project = Some(p);
         }
 
-        if let Some(min_version) = table.get("min_version") {
-            if let Some(s) = min_version.as_str() {
-                v2_config.min_version = Some(s.to_string());
-            }
+        if let Some(min_version) = table.get("min_version")
+            && let Some(s) = min_version.as_str()
+        {
+            v2_config.min_version = Some(s.to_string());
         }
 
         // Validate the migrated config
@@ -509,17 +507,17 @@ impl ConfigMigrator {
         }
 
         // env
-        if let Some(env) = &config.env {
-            if !env.vars.is_empty() {
-                if options.add_comments {
-                    output.push_str("# Environment variables\n");
-                }
-                output.push_str("[env]\n");
-                for (key, value) in &env.vars {
-                    output.push_str(&format!("{} = \"{}\"\n", key, value));
-                }
-                output.push('\n');
+        if let Some(env) = &config.env
+            && !env.vars.is_empty()
+        {
+            if options.add_comments {
+                output.push_str("# Environment variables\n");
             }
+            output.push_str("[env]\n");
+            for (key, value) in &env.vars {
+                output.push_str(&format!("{} = \"{}\"\n", key, value));
+            }
+            output.push('\n');
         }
 
         // scripts

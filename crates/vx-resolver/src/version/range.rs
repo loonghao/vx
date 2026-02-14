@@ -103,14 +103,14 @@ impl VersionRangeResolver {
         config: &VersionRangeConfig,
     ) -> ApplyConfigResult {
         // If request is "latest" and provider has a default, use the default
-        if request.is_latest() {
-            if let Some(default) = &config.default {
-                return ApplyConfigResult {
-                    request: VersionRequest::parse(default),
-                    applied_default: Some(default.clone()),
-                    original_was_latest: true,
-                };
-            }
+        if request.is_latest()
+            && let Some(default) = &config.default
+        {
+            return ApplyConfigResult {
+                request: VersionRequest::parse(default),
+                applied_default: Some(default.clone()),
+                original_was_latest: true,
+            };
         }
 
         ApplyConfigResult {
@@ -125,50 +125,48 @@ impl VersionRangeResolver {
         let mut result = BoundsCheckResult::new();
 
         // Check maximum version constraint
-        if let Some(max) = &config.maximum {
-            if let Some(constraint) = Self::parse_single_constraint(max) {
-                if !constraint.matches(version) {
-                    result.add_error(format!(
-                        "Version {} exceeds maximum allowed {}",
-                        version, max
-                    ));
-                }
-            }
+        if let Some(max) = &config.maximum
+            && let Some(constraint) = Self::parse_single_constraint(max)
+            && !constraint.matches(version)
+        {
+            result.add_error(format!(
+                "Version {} exceeds maximum allowed {}",
+                version, max
+            ));
         }
 
         // Check minimum version constraint
-        if let Some(min) = &config.minimum {
-            if let Some(constraint) = Self::parse_single_constraint(min) {
-                if !constraint.matches(version) {
-                    result.add_error(format!(
-                        "Version {} is below minimum required {}",
-                        version, min
-                    ));
-                }
-            }
+        if let Some(min) = &config.minimum
+            && let Some(constraint) = Self::parse_single_constraint(min)
+            && !constraint.matches(version)
+        {
+            result.add_error(format!(
+                "Version {} is below minimum required {}",
+                version, min
+            ));
         }
 
         // Check deprecated versions
         for dep in &config.deprecated {
-            if let Some(constraint) = Self::parse_single_constraint(dep) {
-                if constraint.matches(version) {
-                    result.add_warning(format!(
-                        "Version {} is deprecated (matches {})",
-                        version, dep
-                    ));
-                }
+            if let Some(constraint) = Self::parse_single_constraint(dep)
+                && constraint.matches(version)
+            {
+                result.add_warning(format!(
+                    "Version {} is deprecated (matches {})",
+                    version, dep
+                ));
             }
         }
 
         // Check warning versions
         for warn in &config.warning {
-            if let Some(constraint) = Self::parse_single_constraint(warn) {
-                if constraint.matches(version) {
-                    result.add_warning(format!(
-                        "Version {} has known issues (matches {})",
-                        version, warn
-                    ));
-                }
+            if let Some(constraint) = Self::parse_single_constraint(warn)
+                && constraint.matches(version)
+            {
+                result.add_warning(format!(
+                    "Version {} has known issues (matches {})",
+                    version, warn
+                ));
             }
         }
 
@@ -190,10 +188,10 @@ impl VersionRangeResolver {
         ];
 
         for (prefix, op) in operators {
-            if let Some(version_str) = s.strip_prefix(prefix) {
-                if let Some(version) = Version::parse(version_str.trim()) {
-                    return Some(SimpleConstraint { op, version });
-                }
+            if let Some(version_str) = s.strip_prefix(prefix)
+                && let Some(version) = Version::parse(version_str.trim())
+            {
+                return Some(SimpleConstraint { op, version });
             }
         }
 

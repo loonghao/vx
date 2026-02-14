@@ -75,22 +75,22 @@ pub async fn handle(
     let mut runtime_index = RuntimeIndex::new().ok();
 
     // Build index if it doesn't exist or is invalid
-    if let Some(ref mut index) = runtime_index {
-        if !index.is_valid() {
-            UI::debug("Runtime index missing or expired, building...");
-            // Load manifests from embedded data
-            let mut loader = ManifestLoader::new();
-            let manifests_data: Vec<(&str, &str)> = get_embedded_manifests().to_vec();
-            if loader.load_embedded(manifests_data).is_ok() {
-                let manifests: Vec<_> = loader.all().cloned().collect();
-                if let Err(e) = index.build_and_save(&manifests) {
-                    UI::debug(&format!("Failed to build runtime index: {}", e));
-                } else {
-                    UI::debug(&format!(
-                        "Built runtime index with {} manifests",
-                        manifests.len()
-                    ));
-                }
+    if let Some(ref mut index) = runtime_index
+        && !index.is_valid()
+    {
+        UI::debug("Runtime index missing or expired, building...");
+        // Load manifests from embedded data
+        let mut loader = ManifestLoader::new();
+        let manifests_data: Vec<(&str, &str)> = get_embedded_manifests().to_vec();
+        if loader.load_embedded(manifests_data).is_ok() {
+            let manifests: Vec<_> = loader.all().cloned().collect();
+            if let Err(e) = index.build_and_save(&manifests) {
+                UI::debug(&format!("Failed to build runtime index: {}", e));
+            } else {
+                UI::debug(&format!(
+                    "Built runtime index with {} manifests",
+                    manifests.len()
+                ));
             }
         }
     }
@@ -149,11 +149,11 @@ pub async fn handle(
         }
 
         // Also try with canonical executable name for aliases
-        if exe_name != tool {
-            if let Some(exe_path) = find_in_global_packages(&exe_name)? {
-                println!("{} (global package)", exe_path.display());
-                return Ok(());
-            }
+        if exe_name != tool
+            && let Some(exe_path) = find_in_global_packages(&exe_name)?
+        {
+            println!("{} (global package)", exe_path.display());
+            return Ok(());
         }
 
         // Not found in global packages, check system PATH as fallback
@@ -340,20 +340,18 @@ fn find_via_detection_paths(
                     .iter()
                     .any(|alias| alias == runtime_name);
 
-            if matches {
-                if let Some(ref detection) = runtime_def.detection {
-                    for pattern in &detection.system_paths {
-                        if let Ok(paths) = glob::glob(pattern) {
-                            let mut matches: Vec<std::path::PathBuf> = paths
-                                .filter_map(|p| p.ok())
-                                .filter(|p| p.exists())
-                                .collect();
-                            // Sort descending so latest version comes first
-                            matches.sort_by(|a, b| b.cmp(a));
+            if matches && let Some(ref detection) = runtime_def.detection {
+                for pattern in &detection.system_paths {
+                    if let Ok(paths) = glob::glob(pattern) {
+                        let mut matches: Vec<std::path::PathBuf> = paths
+                            .filter_map(|p| p.ok())
+                            .filter(|p| p.exists())
+                            .collect();
+                        // Sort descending so latest version comes first
+                        matches.sort_by(|a, b| b.cmp(a));
 
-                            if let Some(path) = matches.into_iter().next() {
-                                return Ok(Some(path));
-                            }
+                        if let Some(path) = matches.into_iter().next() {
+                            return Ok(Some(path));
                         }
                     }
                 }

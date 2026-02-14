@@ -103,10 +103,10 @@ pub fn is_online() -> bool {
     let targets = ["github.com:443", "nodejs.org:443", "pypi.org:443"];
 
     for target in targets {
-        if let Ok(mut addrs) = target.to_socket_addrs() {
-            if addrs.next().is_some() {
-                return true;
-            }
+        if let Ok(mut addrs) = target.to_socket_addrs()
+            && addrs.next().is_some()
+        {
+            return true;
         }
     }
 

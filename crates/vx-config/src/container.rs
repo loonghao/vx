@@ -381,12 +381,12 @@ impl ContainerManager {
         ];
 
         // Add custom ignore patterns
-        if let Some(dockerfile_config) = &self.config.dockerfile {
-            if !dockerfile_config.ignore.is_empty() {
-                lines.push("# Custom ignores".to_string());
-                for pattern in &dockerfile_config.ignore {
-                    lines.push(pattern.clone());
-                }
+        if let Some(dockerfile_config) = &self.config.dockerfile
+            && !dockerfile_config.ignore.is_empty()
+        {
+            lines.push("# Custom ignores".to_string());
+            for pattern in &dockerfile_config.ignore {
+                lines.push(pattern.clone());
             }
         }
 
@@ -424,26 +424,26 @@ impl ContainerManager {
         }
 
         // Git SHA tag
-        if tags_config.and_then(|t| t.git_sha).unwrap_or(true) {
-            if let Some(sha) = &git_info.sha {
-                let sha_len = tags_config.and_then(|t| t.sha_length).unwrap_or(7) as usize;
-                let short_sha = &sha[..sha_len.min(sha.len())];
-                tags.push(format!(
-                    "{}:{}{}{}",
-                    full_image_name, prefix, short_sha, suffix
-                ));
-            }
+        if tags_config.and_then(|t| t.git_sha).unwrap_or(true)
+            && let Some(sha) = &git_info.sha
+        {
+            let sha_len = tags_config.and_then(|t| t.sha_length).unwrap_or(7) as usize;
+            let short_sha = &sha[..sha_len.min(sha.len())];
+            tags.push(format!(
+                "{}:{}{}{}",
+                full_image_name, prefix, short_sha, suffix
+            ));
         }
 
         // Branch tag
-        if tags_config.and_then(|t| t.branch).unwrap_or(false) {
-            if let Some(branch) = &git_info.branch {
-                let sanitized = sanitize_tag(branch);
-                tags.push(format!(
-                    "{}:{}{}{}",
-                    full_image_name, prefix, sanitized, suffix
-                ));
-            }
+        if tags_config.and_then(|t| t.branch).unwrap_or(false)
+            && let Some(branch) = &git_info.branch
+        {
+            let sanitized = sanitize_tag(branch);
+            tags.push(format!(
+                "{}:{}{}{}",
+                full_image_name, prefix, sanitized, suffix
+            ));
         }
 
         // Timestamp tag
@@ -507,16 +507,16 @@ impl ContainerManager {
             }
 
             // Add cache configuration
-            if let Some(cache) = &build_config.cache {
-                if cache.enabled.unwrap_or(false) {
-                    for cache_from in &cache.cache_from {
-                        cmd.push("--cache-from".to_string());
-                        cmd.push(cache_from.clone());
-                    }
-                    if let Some(cache_to) = &cache.cache_to {
-                        cmd.push("--cache-to".to_string());
-                        cmd.push(cache_to.clone());
-                    }
+            if let Some(cache) = &build_config.cache
+                && cache.enabled.unwrap_or(false)
+            {
+                for cache_from in &cache.cache_from {
+                    cmd.push("--cache-from".to_string());
+                    cmd.push(cache_from.clone());
+                }
+                if let Some(cache_to) = &cache.cache_to {
+                    cmd.push("--cache-to".to_string());
+                    cmd.push(cache_to.clone());
                 }
             }
 
@@ -531,11 +531,11 @@ impl ContainerManager {
         }
 
         // Add dockerfile path
-        if let Some(dockerfile_config) = &self.config.dockerfile {
-            if let Some(output) = &dockerfile_config.output {
-                cmd.insert(2, "-f".to_string());
-                cmd.insert(3, output.clone());
-            }
+        if let Some(dockerfile_config) = &self.config.dockerfile
+            && let Some(output) = &dockerfile_config.output
+        {
+            cmd.insert(2, "-f".to_string());
+            cmd.insert(3, output.clone());
         }
 
         cmd
@@ -904,10 +904,10 @@ impl Default for GoDockerConfig {
 
 /// Generate Dockerfile content from VxConfig
 pub fn generate_dockerfile(config: &VxConfig) -> String {
-    if let Some(manager) = ContainerManager::from_vx_config(config) {
-        if let Ok(dockerfile) = manager.generate_dockerfile() {
-            return dockerfile;
-        }
+    if let Some(manager) = ContainerManager::from_vx_config(config)
+        && let Ok(dockerfile) = manager.generate_dockerfile()
+    {
+        return dockerfile;
     }
 
     // Fallback: detect project type and generate appropriate Dockerfile

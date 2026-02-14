@@ -91,6 +91,8 @@ members = [
   "crates/vx-providers/winget",
   # Workflow engine
   "crates/vx-providers/dagu",
+  # Pre-commit hooks
+  "crates/vx-providers/prek",
   # Actionforge runner
   "crates/vx-providers/actrun",
 ]
@@ -232,6 +234,7 @@ vx-provider-msbuild = { path = "crates/vx-providers/msbuild" }
 vx-provider-nuget = { path = "crates/vx-providers/nuget" }
 vx-provider-winget = { path = "crates/vx-providers/winget" }
 vx-provider-dagu = { path = "crates/vx-providers/dagu" }
+vx-provider-prek = { path = "crates/vx-providers/prek" }
 vx-provider-actrun = { path = "crates/vx-providers/actrun" }
 vx-provider-fzf = { path = "crates/vx-providers/fzf" }
 vx-provider-ripgrep = { path = "crates/vx-providers/ripgrep" }

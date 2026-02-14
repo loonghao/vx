@@ -16,66 +16,66 @@ pub fn parse_cargo_dependencies(
     let doc: toml::Value = toml::from_str(content)?;
 
     // Parse [dependencies]
-    if let Some(dependencies) = doc.get("dependencies") {
-        if let Some(deps_table) = dependencies.as_table() {
-            for (name, value) in deps_table {
-                let version = extract_version(value);
-                let mut dep = Dependency::new(
-                    name.clone(),
-                    Ecosystem::Rust,
-                    DependencySource::ConfigFile {
-                        path: cargo_toml_path.to_path_buf(),
-                        section: "dependencies".to_string(),
-                    },
-                );
-                if let Some(v) = version {
-                    dep = dep.with_version(v);
-                }
-                deps.push(dep);
+    if let Some(dependencies) = doc.get("dependencies")
+        && let Some(deps_table) = dependencies.as_table()
+    {
+        for (name, value) in deps_table {
+            let version = extract_version(value);
+            let mut dep = Dependency::new(
+                name.clone(),
+                Ecosystem::Rust,
+                DependencySource::ConfigFile {
+                    path: cargo_toml_path.to_path_buf(),
+                    section: "dependencies".to_string(),
+                },
+            );
+            if let Some(v) = version {
+                dep = dep.with_version(v);
             }
+            deps.push(dep);
         }
     }
 
     // Parse [dev-dependencies]
-    if let Some(dev_deps) = doc.get("dev-dependencies") {
-        if let Some(deps_table) = dev_deps.as_table() {
-            for (name, value) in deps_table {
-                let version = extract_version(value);
-                let mut dep = Dependency::new(
-                    name.clone(),
-                    Ecosystem::Rust,
-                    DependencySource::ConfigFile {
-                        path: cargo_toml_path.to_path_buf(),
-                        section: "dev-dependencies".to_string(),
-                    },
-                );
-                if let Some(v) = version {
-                    dep = dep.with_version(v);
-                }
-                dep = dep.as_dev();
-                deps.push(dep);
+    if let Some(dev_deps) = doc.get("dev-dependencies")
+        && let Some(deps_table) = dev_deps.as_table()
+    {
+        for (name, value) in deps_table {
+            let version = extract_version(value);
+            let mut dep = Dependency::new(
+                name.clone(),
+                Ecosystem::Rust,
+                DependencySource::ConfigFile {
+                    path: cargo_toml_path.to_path_buf(),
+                    section: "dev-dependencies".to_string(),
+                },
+            );
+            if let Some(v) = version {
+                dep = dep.with_version(v);
             }
+            dep = dep.as_dev();
+            deps.push(dep);
         }
     }
 
     // Parse [build-dependencies]
-    if let Some(build_deps) = doc.get("build-dependencies") {
-        if let Some(deps_table) = build_deps.as_table() {
-            for (name, value) in deps_table {
-                let version = extract_version(value);
-                let mut dep = Dependency::new(
-                    name.clone(),
-                    Ecosystem::Rust,
-                    DependencySource::ConfigFile {
-                        path: cargo_toml_path.to_path_buf(),
-                        section: "build-dependencies".to_string(),
-                    },
-                );
-                if let Some(v) = version {
-                    dep = dep.with_version(v);
-                }
-                deps.push(dep);
+    if let Some(build_deps) = doc.get("build-dependencies")
+        && let Some(deps_table) = build_deps.as_table()
+    {
+        for (name, value) in deps_table {
+            let version = extract_version(value);
+            let mut dep = Dependency::new(
+                name.clone(),
+                Ecosystem::Rust,
+                DependencySource::ConfigFile {
+                    path: cargo_toml_path.to_path_buf(),
+                    section: "build-dependencies".to_string(),
+                },
+            );
+            if let Some(v) = version {
+                dep = dep.with_version(v);
             }
+            deps.push(dep);
         }
     }
 

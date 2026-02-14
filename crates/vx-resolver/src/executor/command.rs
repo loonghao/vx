@@ -131,23 +131,21 @@ fn finalize_command(
     let mut final_env = runtime_env.clone();
 
     // If inherit_vx_path is enabled, prepend all vx-managed tool bin directories to PATH
-    if inherit_vx_path {
-        if let Some(vx_path) = vx_tools_path {
-            let current_path = final_env
-                .get("PATH")
-                .cloned()
-                .or_else(|| std::env::var("PATH").ok())
-                .unwrap_or_default();
+    if inherit_vx_path && let Some(vx_path) = vx_tools_path {
+        let current_path = final_env
+            .get("PATH")
+            .cloned()
+            .or_else(|| std::env::var("PATH").ok())
+            .unwrap_or_default();
 
-            let new_path = if current_path.is_empty() {
-                vx_path
-            } else {
-                vx_paths::prepend_to_path(&current_path, &[vx_path])
-            };
+        let new_path = if current_path.is_empty() {
+            vx_path
+        } else {
+            vx_paths::prepend_to_path(&current_path, &[vx_path])
+        };
 
-            final_env.insert("PATH".to_string(), new_path);
-            trace!("PATH includes vx-managed tools for {}", resolution.runtime);
-        }
+        final_env.insert("PATH".to_string(), new_path);
+        trace!("PATH includes vx-managed tools for {}", resolution.runtime);
     }
 
     // CRITICAL: Ensure essential system paths are always present in PATH

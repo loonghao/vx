@@ -39,10 +39,8 @@ pub fn parse_go_mod_dependencies(content: &str, _path: &Path) -> AnalyzerResult<
         }
 
         // Parse require block entries
-        if in_require_block {
-            if let Some(dep) = parse_require_line(line) {
-                deps.push(dep);
-            }
+        if in_require_block && let Some(dep) = parse_require_line(line) {
+            deps.push(dep);
         }
     }
 

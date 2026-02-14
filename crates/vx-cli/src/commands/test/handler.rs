@@ -512,10 +512,12 @@ async fn run_ci_test_for_runtime(
         let uninstall_result = runtime.uninstall(&version, runtime_context).await;
         result.uninstall_success = Some(uninstall_result.is_ok());
 
-        if let Err(ref e) = uninstall_result {
-            if opts.verbose && !opts.quiet && !opts.json {
-                println!("    ⚠ Uninstall warning: {}", e);
-            }
+        if let Err(ref e) = uninstall_result
+            && opts.verbose
+            && !opts.quiet
+            && !opts.json
+        {
+            println!("    ⚠ Uninstall warning: {}", e);
         }
 
         // Verify uninstall with "where" check - should NOT find the executable
@@ -558,10 +560,10 @@ fn check_where_after_uninstall(
     }
 
     // Also check installed versions in store
-    if let Ok(versions) = path_manager.list_store_versions(runtime_name) {
-        if !versions.is_empty() {
-            return true;
-        }
+    if let Ok(versions) = path_manager.list_store_versions(runtime_name)
+        && !versions.is_empty()
+    {
+        return true;
     }
 
     false
@@ -637,10 +639,10 @@ fn print_ci_result_line(result: &CITestResult, opts: &Args) {
                 tc.name,
                 tc.duration.as_secs_f64() * 1000.0
             );
-            if !tc.passed {
-                if let Some(ref error) = tc.error {
-                    println!("        Error: {}", error);
-                }
+            if !tc.passed
+                && let Some(ref error) = tc.error
+            {
+                println!("        Error: {}", error);
             }
         }
     }
@@ -967,10 +969,10 @@ fn get_executable_path_for_runtime(
             // Use verify_installation to find the actual executable path
             // This handles complex layouts like VSCode's platform-specific directories
             let verification = runtime.verify_installation(version, &store_dir, platform);
-            if verification.valid {
-                if let Some(exe_path) = verification.executable_path {
-                    return exe_path;
-                }
+            if verification.valid
+                && let Some(exe_path) = verification.executable_path
+            {
+                return exe_path;
             }
 
             // Fallback to the expected path from executable_relative_path
@@ -1181,13 +1183,13 @@ fn output_single_result(result: &TestResult, opts: &Args) {
                         println!("    {} {} ({})", status, tc.name, duration);
 
                         if opts.verbose {
-                            if let Some(ref stdout) = tc.stdout {
-                                if !stdout.trim().is_empty() {
-                                    println!(
-                                        "      stdout: {}",
-                                        stdout.trim().lines().next().unwrap_or("")
-                                    );
-                                }
+                            if let Some(ref stdout) = tc.stdout
+                                && !stdout.trim().is_empty()
+                            {
+                                println!(
+                                    "      stdout: {}",
+                                    stdout.trim().lines().next().unwrap_or("")
+                                );
                             }
                             if let Some(ref error) = tc.error {
                                 println!("      error: {}", error);

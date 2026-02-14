@@ -45,15 +45,15 @@ impl MsbuildRuntime {
     /// Find the dotnet executable from vx store or system PATH
     async fn find_dotnet_executable() -> Option<PathBuf> {
         // First, try vx-managed dotnet
-        if let Ok(Some(dotnet_root)) = vx_paths::get_latest_runtime_root("dotnet") {
-            if dotnet_root.executable_exists() {
-                debug!(
-                    "Found vx-managed dotnet {} at: {}",
-                    dotnet_root.version,
-                    dotnet_root.executable_path().display()
-                );
-                return Some(dotnet_root.executable_path().to_path_buf());
-            }
+        if let Ok(Some(dotnet_root)) = vx_paths::get_latest_runtime_root("dotnet")
+            && dotnet_root.executable_exists()
+        {
+            debug!(
+                "Found vx-managed dotnet {} at: {}",
+                dotnet_root.version,
+                dotnet_root.executable_path().display()
+            );
+            return Some(dotnet_root.executable_path().to_path_buf());
         }
 
         // Fallback to system PATH
@@ -112,12 +112,12 @@ impl MsbuildRuntime {
             let stdout = String::from_utf8_lossy(&output.stdout);
             // Parse version from output like "MSBuild version 17.8.5+1c7..."
             for line in stdout.lines() {
-                if line.contains("MSBuild version") {
-                    if let Some(version_part) = line.split_whitespace().nth(2) {
-                        // Extract major.minor.patch before any suffix
-                        let version = version_part.split('+').next()?;
-                        return Some(version.to_string());
-                    }
+                if line.contains("MSBuild version")
+                    && let Some(version_part) = line.split_whitespace().nth(2)
+                {
+                    // Extract major.minor.patch before any suffix
+                    let version = version_part.split('+').next()?;
+                    return Some(version.to_string());
                 }
                 // Alternative format: just the version number
                 if line
@@ -223,14 +223,43 @@ impl Runtime for MsbuildRuntime {
         let mut detected_versions = std::collections::HashSet::new();
 
         // Try to detect from vx-managed or system dotnet
-        if let Some(dotnet_exe) = Self::find_dotnet_executable().await {
-            if let Some(msbuild_version) = Self::get_msbuild_version_from_dotnet(&dotnet_exe).await
+        if let Some(dotnet_exe) = Self::find_dotnet_executable().await
+            && let Some(msbuild_version) = Self::get_msbuild_version_from_dotnet(&dotnet_exe).await
+        {
+            debug!("Detected MSBuild {} from dotnet SDK", msbuild_version);
+            if detected_versions.insert(msbuild_version.clone()) {
+                let mut metadata = HashMap::new();
+                metadata.insert("source".to_string(), "dotnet_sdk".to_string());
+                metadata.insert("install_method".to_string(), "bundled".to_string());
+
+                versions.push(VersionInfo {
+                    version: msbuild_version,
+                    released_at: None,
+                    prerelease: false,
+                    lts: false,
+                    download_url: None,
+                    checksum: None,
+                    metadata,
+                });
+            }
+        }
+
+        // On Windows, also check Visual Studio MSBuild
+        #[cfg(windows)]
+        {
+            if let Some(msbuild_exe) = Self::find_vs_msbuild()
+                && let Some(msbuild_version) =
+                    Self::get_msbuild_version_from_exe(&msbuild_exe).await
             {
-                debug!("Detected MSBuild {} from dotnet SDK", msbuild_version);
+                debug!("Detected MSBuild {} from Visual Studio", msbuild_version);
                 if detected_versions.insert(msbuild_version.clone()) {
                     let mut metadata = HashMap::new();
-                    metadata.insert("source".to_string(), "dotnet_sdk".to_string());
+                    metadata.insert("source".to_string(), "visual_studio".to_string());
                     metadata.insert("install_method".to_string(), "bundled".to_string());
+                    metadata.insert(
+                        "executable_path".to_string(),
+                        msbuild_exe.display().to_string(),
+                    );
 
                     versions.push(VersionInfo {
                         version: msbuild_version,
@@ -245,89 +274,58 @@ impl Runtime for MsbuildRuntime {
             }
         }
 
-        // On Windows, also check Visual Studio MSBuild
-        #[cfg(windows)]
-        {
-            if let Some(msbuild_exe) = Self::find_vs_msbuild() {
-                if let Some(msbuild_version) =
-                    Self::get_msbuild_version_from_exe(&msbuild_exe).await
-                {
-                    debug!("Detected MSBuild {} from Visual Studio", msbuild_version);
-                    if detected_versions.insert(msbuild_version.clone()) {
-                        let mut metadata = HashMap::new();
-                        metadata.insert("source".to_string(), "visual_studio".to_string());
-                        metadata.insert("install_method".to_string(), "bundled".to_string());
-                        metadata.insert(
-                            "executable_path".to_string(),
-                            msbuild_exe.display().to_string(),
-                        );
-
-                        versions.push(VersionInfo {
-                            version: msbuild_version,
-                            released_at: None,
-                            prerelease: false,
-                            lts: false,
-                            download_url: None,
-                            checksum: None,
-                            metadata,
-                        });
-                    }
-                }
-            }
-        }
-
         // If no versions detected, provide available .NET SDK versions as a hint
         if versions.is_empty() {
             // Use the dotnet releases API to show what's available
             let url = "https://raw.githubusercontent.com/dotnet/core/main/release-notes/releases-index.json";
 
-            if let Ok(response) = ctx.http.get_json_value(url).await {
-                if let Some(releases) = response.get("releases-index").and_then(|v| v.as_array()) {
-                    for release in releases {
-                        let channel = release
-                            .get("channel-version")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or_default();
+            if let Ok(response) = ctx.http.get_json_value(url).await
+                && let Some(releases) = response.get("releases-index").and_then(|v| v.as_array())
+            {
+                for release in releases {
+                    let channel = release
+                        .get("channel-version")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default();
 
-                        let support_phase = release
-                            .get("support-phase")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("unknown");
+                    let support_phase = release
+                        .get("support-phase")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
 
-                        // Only include active versions
-                        if support_phase == "active" && !channel.is_empty() {
-                            // Map .NET SDK version to approximate MSBuild version
-                            // .NET 8.0/9.0 → MSBuild 17.x
-                            let msbuild_version =
-                                if channel.starts_with("9.") || channel.starts_with("8.") {
-                                    format!("17.{} (via .NET SDK {})", channel, channel)
-                                } else if channel.starts_with("7.") || channel.starts_with("6.") {
-                                    format!("17.x (via .NET SDK {})", channel)
-                                } else {
-                                    continue;
-                                };
+                    // Only include active versions
+                    if support_phase == "active" && !channel.is_empty() {
+                        // Map .NET SDK version to approximate MSBuild version
+                        // .NET 8.0/9.0 → MSBuild 17.x
+                        let msbuild_version =
+                            if channel.starts_with("9.") || channel.starts_with("8.") {
+                                format!("17.{} (via .NET SDK {})", channel, channel)
+                            } else if channel.starts_with("7.") || channel.starts_with("6.") {
+                                format!("17.x (via .NET SDK {})", channel)
+                            } else {
+                                continue;
+                            };
 
-                            let mut metadata = HashMap::new();
-                            metadata.insert("source".to_string(), "dotnet_sdk".to_string());
-                            metadata.insert("install_method".to_string(), "bundled".to_string());
-                            metadata.insert(
-                                "hint".to_string(),
-                                format!("Install .NET SDK {} to get this MSBuild version", channel),
-                            );
+                        let mut metadata = HashMap::new();
+                        metadata.insert("source".to_string(), "dotnet_sdk".to_string());
+                        metadata.insert("install_method".to_string(), "bundled".to_string());
+                        metadata.insert(
+                            "hint".to_string(),
+                            format!("Install .NET SDK {} to get this MSBuild version", channel),
+                        );
 
-                            if !detected_versions.contains(&msbuild_version) {
-                                detected_versions.insert(msbuild_version.clone());
-                                versions.push(VersionInfo {
-                                    version: msbuild_version,
-                                    released_at: None,
-                                    prerelease: false,
-                                    lts: release.get("release-type").and_then(|v| v.as_str())
-                                        == Some("lts"),
-                                    download_url: None,
-                                    checksum: None,
-                                    metadata,
-                                });
-                            }
+                        if !detected_versions.contains(&msbuild_version) {
+                            detected_versions.insert(msbuild_version.clone());
+                            versions.push(VersionInfo {
+                                version: msbuild_version,
+                                released_at: None,
+                                prerelease: false,
+                                lts: release.get("release-type").and_then(|v| v.as_str())
+                                    == Some("lts"),
+                                download_url: None,
+                                checksum: None,
+                                metadata,
+                            });
                         }
                     }
                 }

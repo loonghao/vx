@@ -92,14 +92,13 @@ impl ProviderOverride {
 /// Override constraints replace existing constraints for the same `when` pattern.
 pub fn apply_override(manifest: &mut ProviderManifest, override_config: &ProviderOverride) {
     // Apply default constraints to the main runtime (same name as provider)
-    if !override_config.constraints.is_empty() {
-        if let Some(runtime) = manifest
+    if !override_config.constraints.is_empty()
+        && let Some(runtime) = manifest
             .runtimes
             .iter_mut()
             .find(|r| r.name == manifest.provider.name)
-        {
-            merge_constraints(&mut runtime.constraints, &override_config.constraints);
-        }
+    {
+        merge_constraints(&mut runtime.constraints, &override_config.constraints);
     }
 
     // Apply runtime-specific overrides

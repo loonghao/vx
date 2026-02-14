@@ -239,20 +239,21 @@ impl SystemDependencyResolver {
                     if let Ok(subkey) = uninstall_key.open_subkey(&key_name) {
                         let display_name: std::result::Result<String, _> =
                             subkey.get_value("DisplayName");
-                        if let Ok(name) = display_name {
-                            if name.contains("Visual C++") && name.contains("Redistributable") {
-                                // Check version if specified
-                                if let Some(required) = version {
-                                    let installed_version: std::result::Result<String, _> =
-                                        subkey.get_value("DisplayVersion");
-                                    if let Ok(ver) = installed_version {
-                                        if self.version_satisfies(&ver, required) {
-                                            return Ok(InstallStatus::Installed(ver));
-                                        }
-                                    }
-                                } else {
-                                    return Ok(InstallStatus::Installed("installed".to_string()));
+                        if let Ok(name) = display_name
+                            && name.contains("Visual C++")
+                            && name.contains("Redistributable")
+                        {
+                            // Check version if specified
+                            if let Some(required) = version {
+                                let installed_version: std::result::Result<String, _> =
+                                    subkey.get_value("DisplayVersion");
+                                if let Ok(ver) = installed_version
+                                    && self.version_satisfies(&ver, required)
+                                {
+                                    return Ok(InstallStatus::Installed(ver));
                                 }
+                            } else {
+                                return Ok(InstallStatus::Installed("installed".to_string()));
                             }
                         }
                     }
@@ -284,23 +285,23 @@ impl SystemDependencyResolver {
         // Try dotnet --list-runtimes
         let output = Command::new("dotnet").args(["--list-runtimes"]).output();
 
-        if let Ok(output) = output {
-            if output.status.success() {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                // Parse runtime list
-                for line in stdout.lines() {
-                    if line.contains(id) {
-                        // Extract version from line like "Microsoft.NETCore.App 8.0.0 [path]"
-                        let parts: Vec<&str> = line.split_whitespace().collect();
-                        if parts.len() >= 2 {
-                            let ver = parts[1];
-                            if let Some(required) = version {
-                                if self.version_satisfies(ver, required) {
-                                    return Ok(InstallStatus::Installed(ver.to_string()));
-                                }
-                            } else {
+        if let Ok(output) = output
+            && output.status.success()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            // Parse runtime list
+            for line in stdout.lines() {
+                if line.contains(id) {
+                    // Extract version from line like "Microsoft.NETCore.App 8.0.0 [path]"
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    if parts.len() >= 2 {
+                        let ver = parts[1];
+                        if let Some(required) = version {
+                            if self.version_satisfies(ver, required) {
                                 return Ok(InstallStatus::Installed(ver.to_string()));
                             }
+                        } else {
+                            return Ok(InstallStatus::Installed(ver.to_string()));
                         }
                     }
                 }

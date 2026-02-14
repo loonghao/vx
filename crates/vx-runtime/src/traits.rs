@@ -219,32 +219,32 @@ pub trait Installer: Send + Sync {
 
         // Handle strip_prefix for archive extraction
         // This moves contents from a nested directory to the root of dest
-        if let Some(strip_prefix) = metadata.get("strip_prefix") {
-            if !strip_prefix.is_empty() {
-                let prefix_dir = dest.join(strip_prefix);
-                if prefix_dir.exists() && prefix_dir.is_dir() {
-                    // Move all contents from prefix_dir to dest
-                    for entry in std::fs::read_dir(&prefix_dir)? {
-                        let entry = entry?;
-                        let source = entry.path();
-                        let target = dest.join(entry.file_name());
+        if let Some(strip_prefix) = metadata.get("strip_prefix")
+            && !strip_prefix.is_empty()
+        {
+            let prefix_dir = dest.join(strip_prefix);
+            if prefix_dir.exists() && prefix_dir.is_dir() {
+                // Move all contents from prefix_dir to dest
+                for entry in std::fs::read_dir(&prefix_dir)? {
+                    let entry = entry?;
+                    let source = entry.path();
+                    let target = dest.join(entry.file_name());
 
-                        // Remove target if it exists (shouldn't normally happen)
-                        if target.exists() {
-                            if target.is_dir() {
-                                let _ = std::fs::remove_dir_all(&target);
-                            } else {
-                                let _ = std::fs::remove_file(&target);
-                            }
+                    // Remove target if it exists (shouldn't normally happen)
+                    if target.exists() {
+                        if target.is_dir() {
+                            let _ = std::fs::remove_dir_all(&target);
+                        } else {
+                            let _ = std::fs::remove_file(&target);
                         }
-
-                        // Move (rename) the entry
-                        std::fs::rename(&source, &target)?;
                     }
 
-                    // Remove the now-empty prefix directory
-                    let _ = std::fs::remove_dir(&prefix_dir);
+                    // Move (rename) the entry
+                    std::fs::rename(&source, &target)?;
                 }
+
+                // Remove the now-empty prefix directory
+                let _ = std::fs::remove_dir(&prefix_dir);
             }
         }
 

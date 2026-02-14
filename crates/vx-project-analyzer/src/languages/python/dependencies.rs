@@ -16,31 +16,30 @@ pub fn parse_pyproject_dependencies(content: &str, path: &Path) -> AnalyzerResul
 
     // Parse [project.dependencies]
     if let Some(project) = doc.get("project") {
-        if let Some(dependencies) = project.get("dependencies") {
-            if let Some(deps_array) = dependencies.as_array() {
-                for dep_str in deps_array {
-                    if let Some(s) = dep_str.as_str() {
-                        if let Some(dep) = parse_dependency_string(s, path, "project.dependencies")
-                        {
-                            deps.push(dep);
-                        }
-                    }
+        if let Some(dependencies) = project.get("dependencies")
+            && let Some(deps_array) = dependencies.as_array()
+        {
+            for dep_str in deps_array {
+                if let Some(s) = dep_str.as_str()
+                    && let Some(dep) = parse_dependency_string(s, path, "project.dependencies")
+                {
+                    deps.push(dep);
                 }
             }
         }
 
         // Parse [project.optional-dependencies]
-        if let Some(optional) = project.get("optional-dependencies") {
-            if let Some(optional_table) = optional.as_table() {
-                for (group, group_deps) in optional_table {
-                    if let Some(deps_array) = group_deps.as_array() {
-                        for dep_str in deps_array {
-                            if let Some(s) = dep_str.as_str() {
-                                let section = format!("project.optional-dependencies.{}", group);
-                                if let Some(mut dep) = parse_dependency_string(s, path, &section) {
-                                    dep.is_dev = group == "dev" || group == "test";
-                                    deps.push(dep);
-                                }
+        if let Some(optional) = project.get("optional-dependencies")
+            && let Some(optional_table) = optional.as_table()
+        {
+            for (group, group_deps) in optional_table {
+                if let Some(deps_array) = group_deps.as_array() {
+                    for dep_str in deps_array {
+                        if let Some(s) = dep_str.as_str() {
+                            let section = format!("project.optional-dependencies.{}", group);
+                            if let Some(mut dep) = parse_dependency_string(s, path, &section) {
+                                dep.is_dev = group == "dev" || group == "test";
+                                deps.push(dep);
                             }
                         }
                     }
@@ -50,17 +49,17 @@ pub fn parse_pyproject_dependencies(content: &str, path: &Path) -> AnalyzerResul
     }
 
     // Parse [dependency-groups] (PEP 735)
-    if let Some(groups) = doc.get("dependency-groups") {
-        if let Some(groups_table) = groups.as_table() {
-            for (group, group_deps) in groups_table {
-                if let Some(deps_array) = group_deps.as_array() {
-                    for dep_str in deps_array {
-                        if let Some(s) = dep_str.as_str() {
-                            let section = format!("dependency-groups.{}", group);
-                            if let Some(mut dep) = parse_dependency_string(s, path, &section) {
-                                dep.is_dev = group == "dev" || group == "test";
-                                deps.push(dep);
-                            }
+    if let Some(groups) = doc.get("dependency-groups")
+        && let Some(groups_table) = groups.as_table()
+    {
+        for (group, group_deps) in groups_table {
+            if let Some(deps_array) = group_deps.as_array() {
+                for dep_str in deps_array {
+                    if let Some(s) = dep_str.as_str() {
+                        let section = format!("dependency-groups.{}", group);
+                        if let Some(mut dep) = parse_dependency_string(s, path, &section) {
+                            dep.is_dev = group == "dev" || group == "test";
+                            deps.push(dep);
                         }
                     }
                 }

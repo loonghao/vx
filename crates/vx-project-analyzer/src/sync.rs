@@ -464,10 +464,10 @@ impl VxConfigSnapshot {
 
 /// Helper to ensure a table exists in the TOML document
 fn ensure_table(doc: &mut toml::Value, key: &str) {
-    if let Some(table) = doc.as_table_mut() {
-        if !table.contains_key(key) {
-            table.insert(key.to_string(), toml::Value::Table(toml::map::Map::new()));
-        }
+    if let Some(table) = doc.as_table_mut()
+        && !table.contains_key(key)
+    {
+        table.insert(key.to_string(), toml::Value::Table(toml::map::Map::new()));
     }
 }
 
