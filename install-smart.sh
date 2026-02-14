@@ -262,9 +262,9 @@ get_latest_version() {
 find_version_with_assets_from_page_smart() {
     local releases_url="https://github.com/$REPO_OWNER/$REPO_NAME/releases"
     local html_content
-    
+
     info "Fetching releases page to find version with assets..."
-    
+
     if command -v curl >/dev/null 2>&1; then
         html_content=$(curl -sL "$releases_url" 2>/dev/null || echo "")
     elif command -v wget >/dev/null 2>&1; then
@@ -272,12 +272,12 @@ find_version_with_assets_from_page_smart() {
     else
         return
     fi
-    
+
     if [[ -z "$html_content" ]]; then
         warn "Failed to fetch releases page"
         return
     fi
-    
+
     # Extract version tags from release links using portable methods
     local tags
     if echo "test" | grep -oE "test" >/dev/null 2>&1; then
@@ -285,24 +285,24 @@ find_version_with_assets_from_page_smart() {
     else
         tags=$(echo "$html_content" | sed -n 's|.*href="/[^"]*/releases/tag/\([^"]*\)".*|\1|p' | sort -u | head -20)
     fi
-    
+
     if [[ -z "$tags" ]]; then
         warn "No release tags found on page"
         return
     fi
-    
+
     debug "Found release tags, checking for assets..."
-    
+
     # For each tag, check if it has assets
     for tag in $tags; do
         # Skip pre-release tags
         if [[ "$tag" =~ -(alpha|beta|rc|pre|dev) ]]; then
             continue
         fi
-        
+
         # Try direct download verification
         local test_url="$BASE_URL/download/$tag/vx-x86_64-unknown-linux-gnu.tar.gz"
-        
+
         if command -v curl >/dev/null 2>&1; then
             if curl -fsSL --head "$test_url" 2>/dev/null | grep -q "HTTP.*200\|HTTP.*302"; then
                 info "Found valid release with assets: $tag"
@@ -317,7 +317,7 @@ find_version_with_assets_from_page_smart() {
             fi
         fi
     done
-    
+
     warn "No releases with assets found"
 }
 
@@ -447,7 +447,7 @@ install_from_release() {
     local unversioned_archive=""
     local target_triple=""
     local fallback_triple=""
-    
+
     case "$platform" in
         linux-gnu-x86_64)
             target_triple="x86_64-unknown-linux-gnu"
