@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download built binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: vx-linux
           path: ${{ runner.temp }}
@@ -110,7 +110,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download built binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: vx-linux
           path: .
@@ -148,7 +148,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download built binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: vx-linux
           path: .
@@ -214,7 +214,7 @@ jobs:
         run: apt-get update && apt-get install -y --no-install-recommends ca-certificates
 
       - name: Download built binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: vx-linux
           path: /usr/local/bin
