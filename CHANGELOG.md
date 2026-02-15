@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0](https://github.com/loonghao/vx/compare/v0.7.13...v0.8.0) (2026-02-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* migrate providers, add bridge system, fix Windows env injection
+* migrate providers, add bridge system, fix Windows env injection
+
+### Bug Fixes
+
+* **docs:** escape angle brackets in RFC 0033 headings ([2c76f06](https://github.com/loonghao/vx/commit/2c76f06b3104ea316a01d25f829f90ee0c118f30))
+* inject companion tools environment variables for vx.toml co-configured tools ([7fe198d](https://github.com/loonghao/vx/commit/7fe198d4b8e7e07008caf631b0b77df8abfaa422)), closes [#582](https://github.com/loonghao/vx/issues/582)
+* relax MSVC prepare_environment validation to only check cl.exe existence ([9ca374d](https://github.com/loonghao/vx/commit/9ca374d119a05a14bdff9cc199584dee7bb6c866))
+* remove unstable as_str() usage in environment.rs ([18d34e2](https://github.com/loonghao/vx/commit/18d34e26c2ee48072d06af8efc4ffcc20a90dc80))
+* **test:** add missing package_alias field in manifest_registry_tests ([df2bbec](https://github.com/loonghao/vx/commit/df2bbeca7c89d36ecb01afe9d4618124ae409495))
+* **test:** add missing package_alias field in ProviderMeta test ([10b7d1e](https://github.com/loonghao/vx/commit/10b7d1e7b58c7a66fc7959e904ec0967e4153f72))
+* **test:** skip package_alias providers in CI tests ([46b9676](https://github.com/loonghao/vx/commit/46b967622af540ba62f13b0f1f7189bebf167181))
+
+
+### Code Refactoring
+
+* migrate providers, add bridge system, fix Windows env injection ([b3decdb](https://github.com/loonghao/vx/commit/b3decdbc93649e5214dc434e341e073a6c445e13))
+* migrate providers, add bridge system, fix Windows env injection ([a2b9c0c](https://github.com/loonghao/vx/commit/a2b9c0c732f5910eb9aea148eb2b660ab7d7bf8b))
+
+
+### Documentation
+
+* add Package Alias documentation (EN + ZH) ([2d2be12](https://github.com/loonghao/vx/commit/2d2be1233d741f93d54081b713ca0870f3d87771))
+* add RFC 0032 and RFC 0033, add opencode skills ([370eb15](https://github.com/loonghao/vx/commit/370eb158d41858328ca5c5ce77b91f037eef1a1f))
+* clarify companion tool injection applies to all tools, not just Node.js ([9ec51f1](https://github.com/loonghao/vx/commit/9ec51f135b5fc526b07930ffe6744986bab9f012))
+* **skill:** add new vx capabilities to SKILL.md ([5d4df51](https://github.com/loonghao/vx/commit/5d4df51474f1fcbfff100df7c63e0ab7194f2c18))
+
 ## [0.7.13](https://github.com/loonghao/vx/compare/v0.7.12...v0.7.13) (2026-02-14)
 
 

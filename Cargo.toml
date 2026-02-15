@@ -152,7 +152,7 @@ rstest = "0.26"
 
 
 [workspace.package]
-version = "0.7.13"                                                # x-release-please-version
+version = "0.8.0"                                                # x-release-please-version
 edition = "2024"
 description = "Universal Development Tool Manager"
 license = "MIT"
