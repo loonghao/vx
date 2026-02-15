@@ -29,3 +29,4 @@ msvc-kit = { version = "0.2.9", default-features = false, features = ["native-tl
 [dev-dependencies]
 rstest = { workspace = true }
 tempfile = { workspace = true }
+vx-bridge = { workspace = true }
