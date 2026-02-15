@@ -85,6 +85,22 @@ impl ProviderManifest {
     }
 }
 
+/// Package alias configuration (RFC 0033)
+///
+/// When set on a provider, `vx <name>` is automatically routed to
+/// `vx <ecosystem>:<package>`, unifying the execution path with
+/// the RFC 0027 package request mechanism.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PackageAlias {
+    /// Target ecosystem (e.g., "npm", "pip", "cargo")
+    pub ecosystem: String,
+    /// Package name in that ecosystem
+    pub package: String,
+    /// Executable name override (defaults to package name)
+    #[serde(default)]
+    pub executable: Option<String>,
+}
+
 /// Provider metadata
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ProviderMeta {
@@ -105,6 +121,9 @@ pub struct ProviderMeta {
     /// Platform constraints for the entire provider
     #[serde(default, rename = "platforms")]
     pub platform_constraint: Option<PlatformConstraint>,
+    /// Package alias: routes `vx <name>` to `vx <ecosystem>:<package>` (RFC 0033)
+    #[serde(default)]
+    pub package_alias: Option<PackageAlias>,
 }
 
 impl ProviderMeta {

@@ -128,6 +128,7 @@ pub struct ResolveStage<'a> {
     project_config: Option<&'a ProjectToolsConfig>,
 
     /// Optional runtime store base path for scanning installed versions
+    #[allow(dead_code)]
     store_base: Option<PathBuf>,
 }
 
@@ -159,7 +160,11 @@ impl<'a> ResolveStage<'a> {
     /// Priority: explicit > project config > None (let resolver decide)
     /// If the result is "latest", try to resolve to the actual latest installed version.
     fn resolve_version(&self, runtime_name: &str, explicit: Option<&str>) -> Option<String> {
-        let raw_version = if let Some(v) = explicit {
+        // Pass "latest" through to EnsureStage so that
+        // `ensure_version_installed("latest")` → `runtime.resolve_version("latest", ctx)`
+        // can resolve it against the cached remote version list (not just local installs).
+        // This ensures that if a newer version is available remotely, it will be installed.
+        if let Some(v) = explicit {
             Some(v.to_string())
         } else if let Some(project_config) = self.project_config {
             project_config
@@ -167,23 +172,7 @@ impl<'a> ResolveStage<'a> {
                 .map(|s| s.to_string())
         } else {
             None
-        };
-
-        // Resolve "latest" to actual installed version
-        if let Some(ref v) = raw_version
-            && v == "latest"
-            && let Some(ref store_base) = self.store_base
-        {
-            let runtime_dir = store_base.join(runtime_name);
-            if let Ok(versions) = list_installed_versions(&runtime_dir)
-                && let Some(latest) = versions.last()
-            {
-                debug!("Resolved {}@latest → {}", runtime_name, latest);
-                return Some(latest.clone());
-            }
         }
-
-        raw_version
     }
 
     /// Determine the `VersionSource` based on how the version was obtained
@@ -424,6 +413,7 @@ impl<'a> Stage<ResolveRequest, ExecutionPlan> for ResolveStage<'a> {
 }
 
 /// List installed versions from a runtime store directory (sorted)
+#[cfg(test)]
 fn list_installed_versions(runtime_dir: &std::path::Path) -> std::io::Result<Vec<String>> {
     if !runtime_dir.exists() {
         return Ok(Vec::new());

@@ -19,6 +19,7 @@
 
 mod bun;
 mod cargo;
+mod choco;
 mod gem;
 mod go;
 mod npm;
@@ -29,6 +30,7 @@ mod yarn;
 
 pub use bun::BunInstaller;
 pub use cargo::CargoInstaller;
+pub use choco::ChocoInstaller;
 pub use gem::GemInstaller;
 pub use go::GoInstaller;
 pub use npm::NpmInstaller;

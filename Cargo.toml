@@ -31,8 +31,6 @@ members = [
   "crates/vx-providers/rust",
   "crates/vx-providers/vscode",
   "crates/vx-providers/just",
-  "crates/vx-providers/vite",
-  "crates/vx-providers/rez",
   "crates/vx-providers/deno",
   "crates/vx-providers/zig",
   "crates/vx-providers/java",
@@ -51,18 +49,14 @@ members = [
   # Build tools & Task runners (P1)
     "crates/vx-providers/ninja",
     "crates/vx-providers/cmake",
-    "crates/vx-providers/meson",
     "crates/vx-providers/make",
     "crates/vx-providers/nasm",
     "crates/vx-providers/protoc",
     "crates/vx-providers/task",
-    "crates/vx-providers/pre-commit",
   # AI tools (P2)
   "crates/vx-providers/ollama",
   # HPC/Scientific computing
   "crates/vx-providers/spack",
-  # DevOps tools
-  "crates/vx-providers/release-please",
   # Python runtime
   "crates/vx-providers/python",
   # MSVC Build Tools (Windows-only)
@@ -97,6 +91,10 @@ members = [
   "crates/vx-providers/actrun",
   # Dockerfile linter
   "crates/vx-providers/hadolint",
+  # Generic command bridge framework
+  "crates/vx-bridge",
+  # MSBuild bridge (used by MSVC provider for node-gyp compatibility)
+  "crates/vx-msbuild-bridge",
 ]
 resolver = "2"
 
@@ -198,8 +196,6 @@ vx-provider-rust = { path = "crates/vx-providers/rust" }
 vx-provider-vscode = { path = "crates/vx-providers/vscode" }
 vx-provider-just = { path = "crates/vx-providers/just" }
 vx-provider-jq = { path = "crates/vx-providers/jq" }
-vx-provider-vite = { path = "crates/vx-providers/vite" }
-vx-provider-rez = { path = "crates/vx-providers/rez" }
 vx-provider-deno = { path = "crates/vx-providers/deno" }
 vx-provider-zig = { path = "crates/vx-providers/zig" }
 vx-provider-java = { path = "crates/vx-providers/java" }
@@ -216,15 +212,12 @@ vx-provider-azcli = { path = "crates/vx-providers/azcli" }
 vx-provider-gcloud = { path = "crates/vx-providers/gcloud" }
 vx-provider-ninja = { path = "crates/vx-providers/ninja" }
 vx-provider-cmake = { path = "crates/vx-providers/cmake" }
-vx-provider-meson = { path = "crates/vx-providers/meson" }
 vx-provider-make = { path = "crates/vx-providers/make" }
 vx-provider-nasm = { path = "crates/vx-providers/nasm" }
 vx-provider-protoc = { path = "crates/vx-providers/protoc" }
 vx-provider-task = { path = "crates/vx-providers/task" }
-vx-provider-pre-commit = { path = "crates/vx-providers/pre-commit" }
 vx-provider-ollama = { path = "crates/vx-providers/ollama" }
 vx-provider-spack = { path = "crates/vx-providers/spack" }
-vx-provider-release-please = { path = "crates/vx-providers/release-please" }
 vx-provider-python = { path = "crates/vx-providers/python" }
 vx-provider-msvc = { path = "crates/vx-providers/msvc" }
 vx-provider-ffmpeg = { path = "crates/vx-providers/ffmpeg" }
@@ -247,6 +240,7 @@ vx-provider-yq = { path = "crates/vx-providers/yq" }
 vx-provider-starship = { path = "crates/vx-providers/starship" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
+vx-bridge = { path = "crates/vx-bridge" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }

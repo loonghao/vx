@@ -1,7 +1,7 @@
 //! Command building and execution
 //!
 //! This module handles:
-//! - Building the command to execute
+//! - Building the command to execute (with PATH debugging)
 //! - Handling Windows .cmd/.bat files (using raw_arg for proper quoting)
 //! - Running the command with timeout
 
@@ -149,7 +149,9 @@ fn finalize_command(
     }
 
     // CRITICAL: Ensure essential system paths are always present in PATH
-    #[cfg(unix)]
+    // This is a safety net — even if upstream PATH construction has bugs,
+    // child processes must always be able to find fundamental system executables
+    // like cmd.exe (Windows) or sh/bash (Unix).
     {
         let current_path = final_env
             .get("PATH")
@@ -161,15 +163,17 @@ fn finalize_command(
             .map(String::from)
             .collect();
 
-        let essential_paths = ["/bin", "/usr/bin", "/usr/local/bin"];
+        let essential_paths = essential_system_paths();
         let mut added_any = false;
 
         for essential in &essential_paths {
-            let essential_str = essential.to_string();
-            if !path_parts.iter().any(|p| p == &essential_str)
+            let essential_lower = essential.to_lowercase();
+            if !path_parts
+                .iter()
+                .any(|p| p.to_lowercase() == essential_lower)
                 && std::path::Path::new(essential).exists()
             {
-                path_parts.push(essential_str);
+                path_parts.push(essential.clone());
                 added_any = true;
             }
         }
@@ -180,6 +184,45 @@ fn finalize_command(
                 .unwrap_or(current_path);
             final_env.insert("PATH".to_string(), new_path);
             trace!("Added essential system paths for child processes");
+        }
+    }
+
+    // CRITICAL: Ensure essential Windows system environment variables are present.
+    // When runtime_env contains explicit env vars, cmd.env() overwrites only those keys
+    // while inheriting the rest from the parent process. However, some tools (e.g.,
+    // node-gyp, python subprocess) rely on variables like SYSTEMROOT, COMSPEC, PATHEXT
+    // to locate system executables (cmd.exe, powershell.exe). If any upstream code
+    // accidentally clears or filters these, child processes break with errors like
+    // "'cmd' is not recognized as an internal or external command".
+    #[cfg(windows)]
+    {
+        for var_name in WINDOWS_ESSENTIAL_ENV_VARS {
+            if !final_env.keys().any(|k| k.eq_ignore_ascii_case(var_name))
+                && let Ok(value) = std::env::var(var_name)
+            {
+                final_env.insert(var_name.to_string(), value);
+            }
+        }
+    }
+
+    // Ensure vx executable's own directory is in PATH
+    // This allows sub-processes (e.g., just recipes calling `vx npm ci`) to find vx
+    if let Ok(current_exe) = std::env::current_exe()
+        && let Some(exe_dir) = current_exe.parent()
+    {
+        let exe_dir_str = exe_dir.to_string_lossy().to_string();
+        let current_path = final_env.get("PATH").cloned().unwrap_or_default();
+        if !current_path
+            .to_lowercase()
+            .contains(&exe_dir_str.to_lowercase())
+        {
+            let sep = if cfg!(windows) { ";" } else { ":" };
+            let new_path = if current_path.is_empty() {
+                exe_dir_str
+            } else {
+                format!("{}{}{}", current_path, sep, exe_dir_str)
+            };
+            final_env.insert("PATH".to_string(), new_path);
         }
     }
 
@@ -201,6 +244,69 @@ fn finalize_command(
     cmd.stderr(Stdio::inherit());
 
     Ok(cmd)
+}
+
+/// Essential Windows environment variables that must always be present
+/// for child processes to function correctly.
+///
+/// Without these, fundamental operations like `cmd /c "..."` or PowerShell
+/// script execution will fail because the system cannot locate executables.
+#[cfg(windows)]
+const WINDOWS_ESSENTIAL_ENV_VARS: &[&str] = &[
+    "SYSTEMROOT",             // C:\Windows — needed for cmd.exe, system DLLs
+    "SYSTEMDRIVE",            // C: — base drive letter
+    "WINDIR",                 // C:\Windows — legacy alias for SYSTEMROOT
+    "COMSPEC",                // C:\Windows\System32\cmd.exe — default command processor
+    "PATHEXT",                // .COM;.EXE;.BAT;.CMD;... — executable extensions
+    "OS",                     // Windows_NT — OS identification
+    "PROCESSOR_ARCHITECTURE", // AMD64/ARM64 — needed by build tools
+    "NUMBER_OF_PROCESSORS",   // CPU count — used by parallel builds
+];
+
+/// Get essential system paths that must always be present in PATH.
+///
+/// These paths contain fundamental system executables (cmd.exe, powershell, sh, etc.)
+/// that child processes expect to find.
+fn essential_system_paths() -> Vec<String> {
+    let mut paths = Vec::new();
+
+    #[cfg(windows)]
+    {
+        // Try SYSTEMROOT env var first, fall back to hardcoded paths
+        let system_root = std::env::var("SYSTEMROOT").unwrap_or_else(|_| r"C:\Windows".to_string());
+
+        // System32 — contains cmd.exe, powershell.exe, and most system utilities
+        let system32 = format!(r"{}\System32", system_root);
+        paths.push(system32.clone());
+
+        // Wbem — Windows Management Instrumentation tools
+        paths.push(format!(r"{}\Wbem", system32));
+
+        // Windows PowerShell 5.x
+        paths.push(format!(r"{}\WindowsPowerShell\v1.0", system32));
+
+        // SYSTEMROOT itself (contains some executables)
+        paths.push(system_root);
+
+        // PowerShell 7+ (if installed)
+        if let Ok(pf) = std::env::var("ProgramFiles") {
+            let ps7 = format!(r"{}\PowerShell\7", pf);
+            if std::path::Path::new(&ps7).exists() {
+                paths.push(ps7);
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    {
+        paths.extend([
+            "/bin".to_string(),
+            "/usr/bin".to_string(),
+            "/usr/local/bin".to_string(),
+        ]);
+    }
+
+    paths
 }
 
 /// Run the command and return its status

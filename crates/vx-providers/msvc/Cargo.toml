@@ -13,6 +13,7 @@ rust-version.workspace = true
 
 [dependencies]
 vx-runtime = { workspace = true }
+vx-bridge = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
@@ -28,4 +29,3 @@ msvc-kit = { version = "0.2.9", default-features = false, features = ["native-tl
 [dev-dependencies]
 rstest = { workspace = true }
 tempfile = { workspace = true }
-

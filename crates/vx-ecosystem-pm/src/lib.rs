@@ -26,6 +26,9 @@
 //! - `yarn` - Fast, reliable, and secure dependency management
 //! - `pnpm` - Fast, disk space efficient package manager
 //!
+//! ### Windows
+//! - `choco` - Chocolatey package manager
+//!
 //! ### Other
 //! - `cargo` - Rust package manager
 //! - `go` - Go package manager
@@ -102,8 +105,11 @@ pub fn get_installer(ecosystem: &str) -> anyhow::Result<Box<dyn EcosystemInstall
         // Ruby ecosystem
         "gem" | "ruby" | "rubygems" => Ok(Box::new(GemInstaller::new())),
 
+        // Windows ecosystem
+        "choco" | "chocolatey" => Ok(Box::new(ChocoInstaller::new())),
+
         _ => bail!(
-            "Unsupported ecosystem: {}. Supported: pip, uv, npm, bun, yarn, pnpm, cargo, go, gem",
+            "Unsupported ecosystem: {}. Supported: pip, uv, npm, bun, yarn, pnpm, cargo, go, gem, choco",
             ecosystem
         ),
     }

@@ -1,0 +1,17 @@
+[package]
+name = "vx-msbuild-bridge"
+version.workspace = true
+edition.workspace = true
+description = "Minimal MSBuild.exe bridge that delegates to dotnet msbuild - used by vx MSVC provider"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "MSBuild"
+path = "src/main.rs"
+
+[dependencies]
+# No external dependencies - self-contained bridge binary

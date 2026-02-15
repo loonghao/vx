@@ -1,5 +1,8 @@
 # Rez Provider Manifest
 # This file defines the metadata, runtimes, and dependency constraints for Rez.
+#
+# RFC 0033: Package Alias Provider
+# `vx rez` is automatically routed to `vx uv:rez`
 
 [provider]
 name = "rez"
@@ -8,6 +11,10 @@ homepage = "https://rez.readthedocs.io"
 repository = "https://github.com/AcademySoftwareFoundation/rez"
 ecosystem = "python"
 license = "Apache-2.0"
+
+[provider.package_alias]
+ecosystem = "uv"
+package = "rez"
 
 # Rez
 [[runtimes]]
@@ -20,9 +27,6 @@ source = "github-releases"
 owner = "AcademySoftwareFoundation"
 repo = "rez"
 strip_v_prefix = false
-
-# Note: Rez is typically installed via pip/uv as a Python package
-# Binary releases layout to be added if needed
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]

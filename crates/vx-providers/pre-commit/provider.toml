@@ -1,5 +1,8 @@
 # pre-commit Provider Manifest
 # This file defines the metadata, runtimes, and dependency constraints for pre-commit.
+#
+# RFC 0033: Package Alias Provider
+# `vx pre-commit` is automatically routed to `vx uv:pre-commit`
 
 [provider]
 name = "pre-commit"
@@ -8,6 +11,10 @@ homepage = "https://pre-commit.com"
 repository = "https://github.com/pre-commit/pre-commit"
 ecosystem = "python"
 license = "MIT"
+
+[provider.package_alias]
+ecosystem = "uv"
+package = "pre-commit"
 
 # pre-commit
 [[runtimes]]
@@ -20,9 +27,6 @@ source = "github-releases"
 owner = "pre-commit"
 repo = "pre-commit"
 strip_v_prefix = true
-
-# Note: pre-commit is typically installed via pip/uv
-# Binary releases may need layout configuration if we support direct install
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]

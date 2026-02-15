@@ -9,7 +9,7 @@ use crate::{Resolver, ResolverConfig, Result};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tracing::{debug, trace, warn};
+use tracing::{debug, info, trace, warn};
 use vx_cache::BinDirCache;
 use vx_runtime::{ProviderRegistry, RuntimeContext};
 
@@ -153,14 +153,34 @@ impl<'a> EnvironmentManager<'a> {
                         }
                     }
 
-                    // Ensure essential system paths are present (Unix only)
-                    #[cfg(unix)]
+                    // Ensure essential system paths are present
+                    // This covers both Unix (sh, bash, etc.) and Windows (cmd.exe, PowerShell)
                     {
+                        #[cfg(unix)]
                         let essential_paths = ["/bin", "/usr/bin", "/usr/local/bin"];
+
+                        #[cfg(windows)]
+                        let essential_paths = {
+                            let system_root = std::env::var("SYSTEMROOT")
+                                .unwrap_or_else(|_| r"C:\Windows".to_string());
+                            let system32 = format!(r"{}\System32", system_root);
+                            [
+                                system32.clone(),
+                                format!(r"{}\Wbem", system32),
+                                format!(r"{}\WindowsPowerShell\v1.0", system32),
+                            ]
+                        };
+
                         for essential in &essential_paths {
                             let essential_str = essential.to_string();
-                            if !path_parts.iter().any(|p| p == &essential_str)
-                                && std::path::Path::new(essential).exists()
+                            #[cfg(unix)]
+                            let already_present = path_parts.iter().any(|p| p == &essential_str);
+                            #[cfg(windows)]
+                            let already_present = path_parts
+                                .iter()
+                                .any(|p| p.eq_ignore_ascii_case(&essential_str));
+
+                            if !already_present && std::path::Path::new(essential.as_str()).exists()
                             {
                                 path_parts.push(essential_str);
                                 trace!("Added essential system path: {}", essential);
@@ -178,11 +198,23 @@ impl<'a> EnvironmentManager<'a> {
                         path_parts.push(expanded);
                     }
 
+                    // Ensure vx executable's own directory is in PATH
+                    // so sub-processes (e.g., just recipes) can call `vx`
+                    if let Ok(current_exe) = std::env::current_exe()
+                        && let Some(exe_dir) = current_exe.parent()
+                    {
+                        let exe_dir_str = exe_dir.to_string_lossy().to_string();
+                        if !path_parts.iter().any(|p| p == &exe_dir_str) {
+                            path_parts.push(exe_dir_str);
+                        }
+                    }
+
                     // Set PATH
                     if !path_parts.is_empty()
                         && let Ok(new_path) = std::env::join_paths(&path_parts)
                     {
-                        env.insert("PATH".to_string(), new_path.to_string_lossy().to_string());
+                        let path_str = new_path.to_string_lossy().to_string();
+                        env.insert("PATH".to_string(), path_str);
                     }
 
                     // Handle advanced env vars
@@ -278,6 +310,8 @@ impl<'a> EnvironmentManager<'a> {
                     self.expand_template(value, effective_runtime_name_ref, effective_version_ref)?;
                 env.insert(key.clone(), expanded);
             }
+        } else {
+            trace!("No spec found for {}", effective_runtime_name_ref);
         }
 
         // If we don't have registry and context, return what we have
@@ -434,36 +468,67 @@ impl<'a> EnvironmentManager<'a> {
                 };
 
                 // Check if the companion tool is installed
-                let companion_installed_version =
-                    match companion_runtime.installed_versions(context).await {
-                        Ok(versions) if !versions.is_empty() => {
-                            // Find the best matching version
-                            let env_mgr_for_version = EnvironmentManager::new(
-                                self.config,
-                                self.resolver,
-                                self.registry,
-                                self.context,
-                                self.project_config,
-                            );
-                            env_mgr_for_version
-                                .find_matching_version(companion_name, companion_version, &versions)
-                                .unwrap_or_else(|| versions[0].clone())
+                let companion_installed_version = match companion_runtime
+                    .installed_versions(context)
+                    .await
+                {
+                    Ok(versions) if !versions.is_empty() => {
+                        // Find the best matching version
+                        let env_mgr_for_version = EnvironmentManager::new(
+                            self.config,
+                            self.resolver,
+                            self.registry,
+                            self.context,
+                            self.project_config,
+                        );
+                        env_mgr_for_version
+                            .find_matching_version(companion_name, companion_version, &versions)
+                            .unwrap_or_else(|| versions[0].clone())
+                    }
+                    Ok(_) | Err(_) => {
+                        // Companion not installed — try auto-install
+                        info!(
+                            "Companion {} is not installed. Auto-installing {}@{} ...",
+                            companion_name, companion_name, companion_version
+                        );
+                        let install_mgr = super::installation::InstallationManager::new(
+                            self.config,
+                            self.resolver,
+                            self.registry,
+                            self.context,
+                        );
+                        match install_mgr
+                            .install_runtime_with_version(companion_name, companion_version)
+                            .await
+                        {
+                            Ok(Some(result)) => {
+                                info!(
+                                    "Auto-installed companion {}@{}",
+                                    companion_name, result.version
+                                );
+                                result.version
+                            }
+                            Ok(None) => {
+                                // install_runtime_with_version returned None (already installed or no-op)
+                                // Re-check installed versions
+                                match companion_runtime.installed_versions(context).await {
+                                    Ok(versions) if !versions.is_empty() => versions[0].clone(),
+                                    _ => {
+                                        debug!(
+                                            "  Companion {} still has no installed versions after install attempt, skipping",
+                                            companion_name
+                                        );
+                                        continue;
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                warn!("Failed to auto-install companion {}: {}", companion_name, e);
+                                continue;
+                            }
                         }
-                        Ok(_) => {
-                            debug!(
-                                "  Companion {} has no installed versions, skipping",
-                                companion_name
-                            );
-                            continue;
-                        }
-                        Err(e) => {
-                            debug!(
-                                "  Companion {} failed to get installed versions: {}, skipping",
-                                companion_name, e
-                            );
-                            continue;
-                        }
-                    };
+                    }
+                };
 
                 debug!(
                     "Injecting companion tool environment: {}@{} (for primary {})",
@@ -508,6 +573,7 @@ impl<'a> EnvironmentManager<'a> {
                 version
             );
         }
+
         Ok(env)
     }
 
@@ -780,6 +846,19 @@ impl<'a> EnvironmentManager<'a> {
         if let Some(project_config) = self.project_config
             && let Some(requested_version) = project_config.get_version_with_fallback(runtime_name)
         {
+            // "latest" means "use the latest installed version" — skip matching
+            if requested_version == "latest" {
+                let mut versions = installed_versions.to_vec();
+                versions.sort_by(|a, b| self.compare_versions(a, b));
+                if let Some(latest) = versions.last() {
+                    trace!(
+                        "Using {} version {} (latest installed) from vx.toml",
+                        runtime_name, latest
+                    );
+                    return Some(latest.clone());
+                }
+            }
+
             let matching_version =
                 self.find_matching_version(runtime_name, requested_version, installed_versions);
 

@@ -54,6 +54,10 @@ pub async fn main() -> anyhow::Result<()> {
         ui::UI::set_verbose(true);
     }
 
+    // Register embedded bridge binaries (e.g., MSBuild.exe on Windows)
+    // This must happen before any provider tries to deploy bridges.
+    registry::register_embedded_bridges();
+
     // Initialize constraints registry from embedded provider manifests
     // This makes manifest-defined dependency constraints available globally.
     let _ = init_constraints_from_manifests(registry::get_embedded_manifests().iter().copied());
@@ -147,6 +151,31 @@ async fn execute_tool(
 
     // Check if it's a known runtime first
     let is_known_runtime = ctx.registry().get_runtime(&request.name).is_some();
+
+    // RFC 0033: If the runtime has a package_alias, route to package execution path
+    // This makes `vx vite@5.0` equivalent to `vx npm:vite@5.0`
+    if is_known_runtime && let Some(alias) = ctx.get_package_alias(&request.name) {
+        let version_suffix = request
+            .version
+            .as_ref()
+            .map(|v| format!("@{}", v))
+            .unwrap_or_default();
+        let executable_suffix = alias
+            .executable
+            .as_ref()
+            .map(|e| format!("::{}", e))
+            .unwrap_or_default();
+        let pkg_spec = format!(
+            "{}:{}{}{}",
+            alias.ecosystem, alias.package, version_suffix, executable_suffix
+        );
+        tracing::debug!(
+            "RFC 0033: Routing {} -> {} via package_alias",
+            tool_spec,
+            pkg_spec
+        );
+        return execute_package_request(ctx, &pkg_spec, &tool_args, &with_deps).await;
+    }
 
     // If not a known runtime, try to execute as a globally installed package shim
     if !is_known_runtime
@@ -400,11 +429,13 @@ fn get_required_runtime_for_ecosystem(ecosystem: &str) -> Option<&'static str> {
         "go" | "golang" => Some("go"),
         // Ruby ecosystem
         "gem" | "ruby" | "rubygems" => Some("ruby"),
+        // Windows ecosystem (choco is self-contained when managed by vx)
+        "choco" | "chocolatey" => Some("choco"),
         _ => None,
     }
 }
 
-/// Get ALL required runtimes for an ecosystem (including optional ones)
+/// Get all required runtimes for an ecosystem (including optional ones)
 ///
 /// Some npm packages may use bun internally, so we install both node and bun
 /// to ensure maximum compatibility.
@@ -424,6 +455,8 @@ fn get_all_required_runtimes_for_ecosystem(ecosystem: &str) -> Vec<&'static str>
         "go" | "golang" => vec!["go"],
         // Ruby ecosystem
         "gem" | "ruby" | "rubygems" => vec!["ruby"],
+        // Windows ecosystem (choco is self-contained)
+        "choco" | "chocolatey" => vec!["choco"],
         _ => vec![],
     }
 }

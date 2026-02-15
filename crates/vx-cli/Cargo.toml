@@ -40,8 +40,6 @@ vx-provider-yarn = { workspace = true }
 vx-provider-vscode = { workspace = true }
 vx-provider-just = { workspace = true }
 vx-provider-jq = { workspace = true }
-vx-provider-vite = { workspace = true }
-vx-provider-rez = { workspace = true }
 vx-provider-deno = { workspace = true }
 vx-provider-zig = { workspace = true }
 vx-provider-java = { workspace = true }
@@ -58,14 +56,12 @@ vx-provider-azcli = { workspace = true }
 vx-provider-gcloud = { workspace = true }
 vx-provider-ninja = { workspace = true }
 vx-provider-cmake = { workspace = true }
-vx-provider-meson = { workspace = true }
 vx-provider-make = { workspace = true }
 vx-provider-protoc = { workspace = true }
 vx-provider-task = { workspace = true }
-vx-provider-pre-commit = { workspace = true }
 vx-provider-ollama = { workspace = true }
 vx-provider-spack = { workspace = true }
-vx-provider-release-please = { workspace = true }
+
 vx-provider-python = { workspace = true }
 vx-provider-msvc = { workspace = true }
 vx-provider-ffmpeg = { workspace = true }
@@ -89,6 +85,8 @@ vx-provider-fd = { workspace = true }
 vx-provider-bat = { workspace = true }
 vx-provider-yq = { workspace = true }
 vx-provider-starship = { workspace = true }
+# Bridge framework for embedded bridge binaries (MSBuild.exe etc.)
+vx-bridge = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
