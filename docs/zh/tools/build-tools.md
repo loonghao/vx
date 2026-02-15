@@ -177,6 +177,90 @@ MSVC 伴随工具注入的环境变量：
 | `VX_MSVC_ROOT` | `C:\...\store\msvc\14.42` | vx MSVC 根路径 |
 | `VX_MSVC_FULL_VERSION` | `14.42.34433` | 完整 MSVC 版本号 |
 
+## vcpkg - C++ 包管理器
+
+vcpkg 是一个 C++ 库管理器，简化了 C++ 库及其依赖项的安装。对于需要 C++ 依赖的原生 Node.js 模块特别有用。
+
+### 安装
+
+```bash
+# 安装 vcpkg
+vx install vcpkg
+
+# 这会从 GitHub 克隆 vcpkg 并进行引导
+```
+
+### 安装 C++ 包
+
+```bash
+# 安装 C++ 库
+vx vcpkg install openssl
+
+# 为特定 triplet 安装
+vx vcpkg install openssl:x64-windows
+vx vcpkg install openssl:x64-windows-static
+
+# 搜索包
+vx vcpkg search sqlite
+```
+
+### 原生 Node.js 模块常用包
+
+| 包名 | 描述 |
+|------|------|
+| `winpty` | 终端仿真库（node-pty 必需） |
+| `openssl` | OpenSSL 库 |
+| `sqlite3` | SQLite 数据库 |
+| `libpng` | PNG 库 |
+| `zstd` | Zstandard 压缩库 |
+
+### 与 MSVC 集成
+
+当同时安装 vcpkg 和 MSVC 时，vx 会自动将 vcpkg 路径集成到 MSVC 环境中。这使得原生 Node.js 模块无需额外配置即可找到 C++ 库。
+
+```bash
+# 安装 vcpkg 和 MSVC
+vx install vcpkg
+vx install msvc
+
+# 安装 winpty（用于 node-pty）
+vx vcpkg install winpty
+
+# 在 Electron 项目中构建 node-pty
+vx npm install node-pty
+```
+
+### 环境变量
+
+vcpkg 设置以下环境变量：
+
+| 变量 | 描述 |
+|------|------|
+| `VCPKG_ROOT` | vcpkg 安装路径 |
+| `CMAKE_TOOLCHAIN_FILE` | CMake 集成用的 vcpkg.cmake 路径 |
+| `VCPKG_DEFAULT_TRIPLET` | 默认 triplet（如 x64-windows） |
+
+### 与 CMake 配合使用
+
+```bash
+# CMake 通过 CMAKE_TOOLCHAIN_FILE 自动检测 vcpkg
+vx cmake -B build -S .
+vx cmake --build build
+```
+
+### vx.toml 配置
+
+```toml
+[tools]
+vcpkg = "latest"
+msvc = "14.42"
+cmake = "3.28"
+
+# 项目特定的 C++ 依赖
+[dependencies.cpp]
+vcpkg_packages = ["winpty", "openssl"]
+```
+
 ## 任务运行器
 
 ### Just
