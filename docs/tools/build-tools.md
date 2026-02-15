@@ -178,6 +178,90 @@ Environment variables injected by MSVC companion:
 | `VX_MSVC_ROOT` | `C:\...\store\msvc\14.42` | vx MSVC root path |
 | `VX_MSVC_FULL_VERSION` | `14.42.34433` | Full MSVC version |
 
+## vcpkg - C++ Package Manager
+
+vcpkg is a C++ library manager that simplifies the installation of C++ libraries and their dependencies. It is particularly useful for native Node.js modules that require C++ dependencies.
+
+### Installation
+
+```bash
+# Install vcpkg
+vx install vcpkg
+
+# This clones vcpkg from GitHub and bootstraps it
+```
+
+### Installing C++ Packages
+
+```bash
+# Install a C++ library
+vx vcpkg install openssl
+
+# Install for a specific triplet
+vx vcpkg install openssl:x64-windows
+vx vcpkg install openssl:x64-windows-static
+
+# Search for packages
+vx vcpkg search sqlite
+```
+
+### Common Packages for Native Node.js Modules
+
+| Package | Description |
+|---------|-------------|
+| `winpty` | Terminal emulation library (required by node-pty) |
+| `openssl` | OpenSSL library |
+| `sqlite3` | SQLite database |
+| `libpng` | PNG library |
+| `zstd` | Zstandard compression |
+
+### Integration with MSVC
+
+When both vcpkg and MSVC are installed, vx automatically integrates vcpkg paths into the MSVC environment. This allows native Node.js modules to find C++ libraries without additional configuration.
+
+```bash
+# Install vcpkg and MSVC
+vx install vcpkg
+vx install msvc
+
+# Install winpty (for node-pty)
+vx vcpkg install winpty
+
+# Build node-pty in your Electron project
+vx npm install node-pty
+```
+
+### Environment Variables
+
+vcpkg sets the following environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `VCPKG_ROOT` | Path to vcpkg installation |
+| `CMAKE_TOOLCHAIN_FILE` | Path to vcpkg.cmake for CMake integration |
+| `VCPKG_DEFAULT_TRIPLET` | Default triplet (e.g., x64-windows) |
+
+### Using with CMake
+
+```bash
+# CMake automatically detects vcpkg via CMAKE_TOOLCHAIN_FILE
+vx cmake -B build -S .
+vx cmake --build build
+```
+
+### vx.toml Configuration
+
+```toml
+[tools]
+vcpkg = "latest"
+msvc = "14.42"
+cmake = "3.28"
+
+# Project-specific C++ dependencies
+[dependencies.cpp]
+vcpkg_packages = ["winpty", "openssl"]
+```
+
 ## Task Runners
 
 ### Just

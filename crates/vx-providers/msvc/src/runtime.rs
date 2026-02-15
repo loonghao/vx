@@ -190,6 +190,119 @@ impl MsvcRuntime {
             }
         }
     }
+
+    /// Integrate vcpkg environment for native module builds
+    ///
+    /// This method detects if vcpkg is installed and adds its paths to the
+    /// MSVC environment. This enables native Node.js modules (like node-pty)
+    /// to find C++ libraries installed via vcpkg.
+    ///
+    /// # Environment Variables Added
+    ///
+    /// - `VCPKG_ROOT`: Path to vcpkg installation
+    /// - `CMAKE_TOOLCHAIN_FILE`: Path to vcpkg.cmake (for CMake builds)
+    /// - `VCPKG_DEFAULT_TRIPLET`: Default triplet (e.g., x64-windows)
+    /// - Updated `INCLUDE`: Adds vcpkg include paths
+    /// - Updated `LIB`: Adds vcpkg lib paths
+    /// - Updated `PATH`: Adds vcpkg bin paths
+    ///
+    /// # Usage
+    ///
+    /// 1. Install vcpkg: `vx install vcpkg`
+    /// 2. Install winpty: `vx vcpkg install winpty`
+    /// 3. Build node-pty: `vx npm install node-pty`
+    fn integrate_vcpkg_environment(env: &mut HashMap<String, String>, vx_home: &Path, arch: &str) {
+        // Check for vcpkg in vx store
+        let vcpkg_path = vx_home.join("store").join("vcpkg").join("latest");
+
+        if !vcpkg_path.exists() {
+            debug!("vcpkg not installed, skipping vcpkg integration");
+            return;
+        }
+
+        let vcpkg_exe = if cfg!(windows) {
+            vcpkg_path.join("vcpkg.exe")
+        } else {
+            vcpkg_path.join("vcpkg")
+        };
+
+        if !vcpkg_exe.exists() {
+            debug!("vcpkg executable not found, skipping integration");
+            return;
+        }
+
+        info!("Integrating vcpkg environment for native module builds");
+
+        // Determine triplet based on architecture
+        let triplet = format!("{}-windows", arch);
+
+        // Set VCPKG environment variables
+        env.insert(
+            "VCPKG_ROOT".to_string(),
+            vcpkg_path.to_string_lossy().to_string(),
+        );
+        env.insert("VCPKG_DEFAULT_TRIPLET".to_string(), triplet.clone());
+
+        // Set CMAKE_TOOLCHAIN_FILE
+        let toolchain_file = vcpkg_path
+            .join("scripts")
+            .join("buildsystems")
+            .join("vcpkg.cmake");
+        if toolchain_file.exists() {
+            env.insert(
+                "CMAKE_TOOLCHAIN_FILE".to_string(),
+                toolchain_file.to_string_lossy().to_string(),
+            );
+        }
+
+        // Add vcpkg installed paths to INCLUDE/LIB/PATH
+        let installed_dir = vcpkg_path.join("installed").join(&triplet);
+        if installed_dir.exists() {
+            // Add include path
+            let include_dir = installed_dir.join("include");
+            if include_dir.exists() {
+                if let Some(existing) = env.get("INCLUDE") {
+                    env.insert(
+                        "INCLUDE".to_string(),
+                        format!("{};{}", include_dir.to_string_lossy(), existing),
+                    );
+                } else {
+                    env.insert(
+                        "INCLUDE".to_string(),
+                        include_dir.to_string_lossy().to_string(),
+                    );
+                }
+            }
+
+            // Add lib path
+            let lib_dir = installed_dir.join("lib");
+            if lib_dir.exists() {
+                if let Some(existing) = env.get("LIB") {
+                    env.insert(
+                        "LIB".to_string(),
+                        format!("{};{}", lib_dir.to_string_lossy(), existing),
+                    );
+                } else {
+                    env.insert("LIB".to_string(), lib_dir.to_string_lossy().to_string());
+                }
+            }
+
+            // Add bin path to PATH
+            let bin_dir = installed_dir.join("bin");
+            if bin_dir.exists() {
+                if let Some(existing) = env.get("PATH") {
+                    env.insert(
+                        "PATH".to_string(),
+                        format!("{};{}", bin_dir.to_string_lossy(), existing),
+                    );
+                } else {
+                    env.insert("PATH".to_string(), bin_dir.to_string_lossy().to_string());
+                }
+            }
+        }
+
+        debug!("vcpkg environment integrated successfully");
+    }
 }
 
 #[async_trait]
@@ -555,6 +668,10 @@ impl Runtime for MsvcRuntime {
                 let bin = bin_paths.join(";");
                 env.insert("VX_MSVC_BIN".to_string(), bin);
             }
+
+            // Integrate vcpkg environment if available
+            // This allows native Node.js modules (like node-pty) to find C++ libraries
+            Self::integrate_vcpkg_environment(&mut env, &ctx.paths.vx_home(), arch);
 
             return Ok(env);
         }
