@@ -53,7 +53,7 @@ pub use provider::{
     EnvVarConfig, ExecutableConfig, ExecutableNormalize, HealthConfig, HooksConfig, HooksDef,
     InlineTestScripts, InstallStrategyDef, LayoutConfig, MachineFlagsConfig, MirrorConfig,
     MirrorStrategy, NormalizeAction, NormalizeConfig, OutputColorConfig, OutputConfig,
-    PinningStrategy, PlatformBinaryConfig, PlatformConfig, PlatformNormalizeConfig,
+    PackageAlias, PinningStrategy, PlatformBinaryConfig, PlatformConfig, PlatformNormalizeConfig,
     PlatformTestCommands, PlatformsDef, ProvidedToolDef, ProviderManifest, ProviderMeta,
     RuntimeDef, SYSTEM_PATH_PREFIXES, ScriptTypeDef, ShellCompletionsConfig, ShellConfig,
     SystemDepTypeDef, SystemDependencyDef, SystemDepsConfigDef, SystemInstallConfigDef,

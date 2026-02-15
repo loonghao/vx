@@ -1,5 +1,8 @@
 # Meson Provider Manifest
 # This file defines the metadata, runtimes, and dependency constraints for Meson.
+#
+# RFC 0033: Package Alias Provider
+# `vx meson` is automatically routed to `vx uv:meson`
 
 [provider]
 name = "meson"
@@ -8,6 +11,10 @@ homepage = "https://mesonbuild.com"
 repository = "https://github.com/mesonbuild/meson"
 ecosystem = "python"
 license = "Apache-2.0"
+
+[provider.package_alias]
+ecosystem = "uv"
+package = "meson"
 
 # Meson
 [[runtimes]]
@@ -19,8 +26,6 @@ executable = "meson"
 [runtimes.versions]
 source = "pypi"
 package = "meson"
-
-# Note: Meson is installed via pip/uv as a Python package
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]

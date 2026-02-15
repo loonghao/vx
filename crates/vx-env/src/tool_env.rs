@@ -227,6 +227,18 @@ impl ToolEnvironment {
             }
         }
 
+        // Add vx executable's own directory to PATH
+        // This ensures `vx` itself is available in dev shells and sub-processes
+        // (e.g., when just recipes call `vx npm ci`)
+        if let Ok(current_exe) = std::env::current_exe()
+            && let Some(exe_dir) = current_exe.parent()
+        {
+            let exe_dir = exe_dir.to_path_buf();
+            if exe_dir.exists() && !path_entries.contains(&exe_dir) {
+                path_entries.push(exe_dir);
+            }
+        }
+
         // In isolation mode, add essential system paths at the end
         // This ensures system commands like 'where', 'cmd' are available
         if self.isolation {
@@ -437,6 +449,7 @@ fn default_passenv() -> Vec<&'static str> {
             "SYSTEMROOT",
             "SYSTEMDRIVE",
             "WINDIR",
+            "COMSPEC",
             "TEMP",
             "TMP",
             "USERPROFILE",
@@ -448,6 +461,16 @@ fn default_passenv() -> Vec<&'static str> {
             "USERDOMAIN",
             // Windows path handling
             "PATHEXT",
+            // Windows system identification
+            "OS",
+            "PROCESSOR_ARCHITECTURE",
+            "NUMBER_OF_PROCESSORS",
+            // Program Files (needed for SDK/tool discovery)
+            "ProgramFiles",
+            "ProgramFiles(x86)",
+            "ProgramW6432",
+            "CommonProgramFiles",
+            "CommonProgramFiles(x86)",
             // Build cache configuration
             "SCCACHE_*",
         ]

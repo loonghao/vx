@@ -28,6 +28,17 @@ use vx_runtime::{
 // Include the compile-time generated provider manifests
 include!(concat!(env!("OUT_DIR"), "/provider_manifests.rs"));
 
+// Include the compile-time generated embedded bridge binaries
+mod embedded_bridges {
+    include!(concat!(env!("OUT_DIR"), "/embedded_bridges.rs"));
+}
+
+/// Register embedded bridge binaries into the global bridge registry.
+/// This must be called early in startup, before any provider attempts to deploy bridges.
+pub fn register_embedded_bridges() {
+    vx_bridge::register_embedded_bridge("MSBuild", embedded_bridges::MSBUILD_BRIDGE_BYTES);
+}
+
 /// Macro to register all builtin providers
 ///
 /// This macro generates the provider factory registration code,
@@ -53,12 +64,6 @@ macro_rules! register_providers {
     };
 
     // Single provider registration with name mapping
-    (@single $registry:expr, pre_commit) => {
-        $registry.register(vx_provider_pre_commit::create_provider());
-    };
-    (@single $registry:expr, release_please) => {
-        $registry.register(vx_provider_release_please::create_provider());
-    };
     (@single $registry:expr, $name:ident) => {
         paste::paste! {
             $registry.register([<vx_provider_ $name>]::create_provider());
@@ -75,12 +80,6 @@ macro_rules! register_provider_factories {
     };
 
     // Single factory registration with name mapping
-    (@single $registry:expr, pre_commit) => {
-        $registry.register_factory("pre-commit", || vx_provider_pre_commit::create_provider());
-    };
-    (@single $registry:expr, release_please) => {
-        $registry.register_factory("release-please", || vx_provider_release_please::create_provider());
-    };
     (@single $registry:expr, $name:ident) => {
         paste::paste! {
             $registry.register_factory(stringify!($name), || [<vx_provider_ $name>]::create_provider());
@@ -186,8 +185,6 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         vscode,
         just,
         jq,
-        vite,
-        rez,
         deno,
         zig,
         java,
@@ -204,14 +201,11 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         gcloud,
         ninja,
         cmake,
-        meson,
         make,
         protoc,
         task,
-        pre_commit,
         ollama,
         spack,
-        release_please,
         python,
         msvc,
         ffmpeg,
@@ -256,8 +250,6 @@ fn create_static_registry() -> ProviderRegistry {
         vscode,
         just,
         jq,
-        vite,
-        rez,
         deno,
         zig,
         java,
@@ -274,14 +266,11 @@ fn create_static_registry() -> ProviderRegistry {
         gcloud,
         ninja,
         cmake,
-        meson,
         make,
         protoc,
         task,
-        pre_commit,
         ollama,
         spack,
-        release_please,
         python,
         msvc,
         ffmpeg,

@@ -1297,6 +1297,28 @@ impl CommandHandler for Commands {
                     (tool.as_str(), None)
                 };
                 let final_version = version.clone().or(parsed_version);
+
+                // RFC 0033: If the tool has a package_alias, route to global uninstall
+                // This makes `vx uninstall rez` equivalent to `vx global uninstall uv:rez`
+                if let Some(alias) = ctx.get_package_alias(tool_name) {
+                    let pkg_spec = format!("{}:{}", alias.ecosystem, alias.package);
+                    tracing::debug!(
+                        "RFC 0033: Routing uninstall {} -> global uninstall {} via package_alias",
+                        tool_name,
+                        pkg_spec
+                    );
+                    let uninstall_args = commands::global::UninstallGlobalArgs {
+                        package: pkg_spec,
+                        force: *force,
+                        verbose: false,
+                    };
+                    return commands::global::handle(
+                        ctx,
+                        &commands::global::GlobalCommand::Uninstall(uninstall_args),
+                    )
+                    .await;
+                }
+
                 commands::remove::handle(
                     ctx.registry(),
                     ctx.runtime_context(),

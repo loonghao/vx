@@ -20,6 +20,7 @@ pub use vx_paths::platform::{SYSTEM_PATH_PREFIXES, filter_system_path};
 /// - Temp dirs: TMPDIR, TEMP, TMP
 /// - Display: DISPLAY, WAYLAND_DISPLAY (for GUI apps)
 /// - XDG: XDG_* (Linux desktop integration)
+/// - Windows System: SYSTEMROOT, SYSTEMDRIVE, WINDIR, COMSPEC, PATHEXT, OS, etc.
 pub const DEFAULT_INHERIT_SYSTEM_VARS: &[&str] = &[
     // User and session
     "HOME",
@@ -46,6 +47,27 @@ pub const DEFAULT_INHERIT_SYSTEM_VARS: &[&str] = &[
     "WAYLAND_DISPLAY",
     // XDG directories (Linux)
     "XDG_*", // Glob pattern for XDG_RUNTIME_DIR, XDG_CONFIG_HOME, etc.
+    // Windows system (CRITICAL for cmd.exe, PowerShell, build tools)
+    "SYSTEMROOT",             // C:\Windows — needed for system DLLs and cmd.exe
+    "SYSTEMDRIVE",            // C: — base drive letter
+    "WINDIR",                 // C:\Windows — legacy alias for SYSTEMROOT
+    "COMSPEC",                // C:\Windows\System32\cmd.exe — default command processor
+    "PATHEXT",                // .COM;.EXE;.BAT;.CMD;... — executable extension search order
+    "OS",                     // Windows_NT — OS identification
+    "PROCESSOR_ARCHITECTURE", // AMD64/ARM64 — needed by build tools (node-gyp, cmake)
+    "NUMBER_OF_PROCESSORS",   // CPU count — used by parallel builds (msbuild, cmake -j)
+    // Windows user directories (needed by many tools for config/cache discovery)
+    "APPDATA",
+    "LOCALAPPDATA",
+    "HOMEDRIVE",
+    "HOMEPATH",
+    "USERDOMAIN",
+    // Windows Program Files (needed by tools that search for SDKs, etc.)
+    "ProgramFiles",
+    "ProgramFiles(x86)",
+    "ProgramW6432",
+    "CommonProgramFiles",
+    "CommonProgramFiles(x86)",
 ];
 
 /// Environment variable configuration

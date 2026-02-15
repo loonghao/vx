@@ -127,6 +127,8 @@ pub struct VxPaths {
     pub npm_tools_dir: PathBuf,
     /// pip package tools directory (~/.vx/pip-tools)
     pub pip_tools_dir: PathBuf,
+    /// choco package tools directory (~/.vx/choco-tools)
+    pub choco_tools_dir: PathBuf,
     /// Virtual environments directory (~/.vx/envs)
     pub envs_dir: PathBuf,
     /// Global shims directory (~/.vx/bin)
@@ -164,6 +166,7 @@ impl VxPaths {
             store_dir: base_dir.join("store"),
             npm_tools_dir: base_dir.join("npm-tools"),
             pip_tools_dir: base_dir.join("pip-tools"),
+            choco_tools_dir: base_dir.join("choco-tools"),
             envs_dir: base_dir.join("envs"),
             bin_dir: base_dir.join("bin"),
             cache_dir: base_dir.join("cache"),
@@ -184,6 +187,7 @@ impl VxPaths {
             store_dir: base_dir.join("store"),
             npm_tools_dir: base_dir.join("npm-tools"),
             pip_tools_dir: base_dir.join("pip-tools"),
+            choco_tools_dir: base_dir.join("choco-tools"),
             envs_dir: base_dir.join("envs"),
             bin_dir: base_dir.join("bin"),
             cache_dir: base_dir.join("cache"),
@@ -202,6 +206,7 @@ impl VxPaths {
         std::fs::create_dir_all(&self.store_dir)?;
         std::fs::create_dir_all(&self.npm_tools_dir)?;
         std::fs::create_dir_all(&self.pip_tools_dir)?;
+        std::fs::create_dir_all(&self.choco_tools_dir)?;
         std::fs::create_dir_all(&self.envs_dir)?;
         std::fs::create_dir_all(&self.bin_dir)?;
         std::fs::create_dir_all(&self.cache_dir)?;
@@ -272,6 +277,18 @@ impl VxPaths {
     pub fn pip_tool_bin_dir(&self, package_name: &str, version: &str) -> PathBuf {
         let venv_dir = self.pip_tool_venv_dir(package_name, version);
         venv_dir.join(venv_bin_dir())
+    }
+
+    // ========== choco-tools paths ==========
+
+    /// Get the choco-tools directory for a specific package
+    pub fn choco_tool_dir(&self, package_name: &str) -> PathBuf {
+        self.choco_tools_dir.join(package_name)
+    }
+
+    /// Get the choco-tools directory for a specific package version
+    pub fn choco_tool_version_dir(&self, package_name: &str, version: &str) -> PathBuf {
+        self.choco_tool_dir(package_name).join(version)
     }
 
     // ========== RFC 0025: Global Packages CAS ==========

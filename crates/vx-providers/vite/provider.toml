@@ -1,5 +1,8 @@
 # Vite Provider Manifest
 # This file defines the metadata, runtimes, and dependency constraints for Vite.
+#
+# RFC 0033: Package Alias Provider
+# `vx vite` is automatically routed to `vx npm:vite`
 
 [provider]
 name = "vite"
@@ -8,6 +11,10 @@ homepage = "https://vitejs.dev"
 repository = "https://github.com/vitejs/vite"
 ecosystem = "nodejs"
 license = "MIT"
+
+[provider.package_alias]
+ecosystem = "npm"
+package = "vite"
 
 # Vite
 [[runtimes]]
@@ -18,9 +25,6 @@ executable = "vite"
 [runtimes.versions]
 source = "npm"
 package = "vite"
-
-# Note: npm packages don't need layout configuration
-# They are installed via npm and have standard locations
 
 [runtimes.platforms.windows]
 executable_extensions = [".cmd", ".exe"]

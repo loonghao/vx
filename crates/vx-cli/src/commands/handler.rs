@@ -7,7 +7,7 @@ use crate::cli::OutputFormat;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
-use vx_manifest::RuntimeDef;
+use vx_manifest::{PackageAlias, RuntimeDef};
 use vx_runtime::{CacheMode, ManifestRegistry, ProviderRegistry, RuntimeContext};
 
 /// Global CLI options
@@ -233,6 +233,24 @@ impl CommandContext {
                 && let Some(runtime) = provider_manifest.get_runtime(runtime_name)
             {
                 return Some(runtime.clone());
+            }
+        }
+        None
+    }
+
+    /// Get the package alias for a runtime, if the provider declares one (RFC 0033)
+    ///
+    /// When a provider has `[provider.package_alias]`, executing `vx <name>` should
+    /// be routed to `vx <ecosystem>:<package>` via the package execution path.
+    pub fn get_package_alias(&self, runtime_name: &str) -> Option<PackageAlias> {
+        let registry = self.manifest_registry()?;
+
+        for manifest_name in registry.manifest_names() {
+            if let Some(provider_manifest) = registry.get_manifest(&manifest_name)
+                && provider_manifest.get_runtime(runtime_name).is_some()
+                && provider_manifest.provider.package_alias.is_some()
+            {
+                return provider_manifest.provider.package_alias.clone();
             }
         }
         None
