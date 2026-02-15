@@ -4335,6 +4335,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-bridge"
+version = "0.7.13"
+dependencies = [
+ "vx-paths",
+]
+
+[[package]]
 name = "vx-cache"
 version = "0.7.13"
 dependencies = [
@@ -4385,6 +4392,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "vx-args",
+ "vx-bridge",
  "vx-cache",
  "vx-config",
  "vx-core",
@@ -4423,7 +4431,6 @@ dependencies = [
  "vx-provider-just",
  "vx-provider-kubectl",
  "vx-provider-make",
- "vx-provider-meson",
  "vx-provider-msbuild",
  "vx-provider-msvc",
  "vx-provider-nasm",
@@ -4432,14 +4439,11 @@ dependencies = [
  "vx-provider-nuget",
  "vx-provider-ollama",
  "vx-provider-pnpm",
- "vx-provider-pre-commit",
  "vx-provider-prek",
  "vx-provider-protoc",
  "vx-provider-pwsh",
  "vx-provider-python",
  "vx-provider-rcedit",
- "vx-provider-release-please",
- "vx-provider-rez",
  "vx-provider-ripgrep",
  "vx-provider-rust",
  "vx-provider-spack",
@@ -4447,7 +4451,6 @@ dependencies = [
  "vx-provider-task",
  "vx-provider-terraform",
  "vx-provider-uv",
- "vx-provider-vite",
  "vx-provider-vscode",
  "vx-provider-winget",
  "vx-provider-yarn",
@@ -4670,6 +4673,10 @@ dependencies = [
  "uuid",
  "vx-paths",
 ]
+
+[[package]]
+name = "vx-msbuild-bridge"
+version = "0.7.13"
 
 [[package]]
 name = "vx-paths"
@@ -5111,22 +5118,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vx-provider-meson"
-version = "0.7.13"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "reqwest 0.13.2",
- "rstest",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "vx-runtime",
-]
-
-[[package]]
 name = "vx-provider-msbuild"
 version = "0.7.13"
 dependencies = [
@@ -5155,6 +5146,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "vx-bridge",
  "vx-runtime",
  "walkdir",
 ]
@@ -5250,22 +5242,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vx-provider-pre-commit"
-version = "0.7.13"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "reqwest 0.13.2",
- "rstest",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "vx-runtime",
-]
-
-[[package]]
 name = "vx-provider-prek"
 version = "0.7.13"
 dependencies = [
@@ -5333,37 +5309,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vx-runtime",
-]
-
-[[package]]
-name = "vx-provider-release-please"
-version = "0.7.13"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "reqwest 0.13.2",
- "rstest",
- "serde",
- "serde_json",
- "tokio",
- "vx-runtime",
-]
-
-[[package]]
-name = "vx-provider-rez"
-version = "0.7.13"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "reqwest 0.13.2",
- "rstest",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
  "vx-runtime",
 ]
 
@@ -5473,21 +5418,6 @@ dependencies = [
  "vx-manifest",
  "vx-runtime",
  "vx-version-fetcher",
-]
-
-[[package]]
-name = "vx-provider-vite"
-version = "0.7.13"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "reqwest 0.13.2",
- "rstest",
- "serde",
- "serde_json",
- "tokio",
- "vx-runtime",
 ]
 
 [[package]]

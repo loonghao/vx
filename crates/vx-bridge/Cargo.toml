@@ -1,0 +1,13 @@
+[package]
+name = "vx-bridge"
+version.workspace = true
+edition.workspace = true
+description = "Generic command bridge/forwarder for vx-managed tools - enables creating stub executables that delegate to real tools"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+vx-paths = { workspace = true }

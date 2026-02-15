@@ -5,8 +5,9 @@ use super::args::{
     UninstallGlobalArgs,
 };
 use crate::commands::CommandContext;
-use crate::ui::UI;
+use crate::ui::{ProgressSpinner, UI, progress_manager};
 use anyhow::{Context, Result};
+use colored::Colorize;
 use std::io::Write;
 use vx_ecosystem_pm::{InstallOptions, get_installer};
 use vx_paths::global_packages::{GlobalPackage, PackageRegistry};
@@ -20,41 +21,42 @@ use vx_paths::shims;
 async fn ensure_runtime_installed(
     ctx: &CommandContext,
     runtime_name: &str,
-    verbose: bool,
+    _verbose: bool,
 ) -> Result<Option<String>> {
     // Check if runtime is already available
     if let Some(runtime) = ctx.registry().get_runtime(runtime_name) {
         let context = ctx.runtime_context();
 
         // Check if already installed - get the installed version
+        let spinner = ProgressSpinner::new(&format!("Checking {} installation...", runtime_name));
         let installed_versions: Vec<String> = runtime
             .installed_versions(context)
             .await
             .unwrap_or_default();
 
         if !installed_versions.is_empty() {
-            // Use the latest installed version
             let version = installed_versions.last().cloned().unwrap_or_default();
-            if verbose {
-                UI::detail(&format!(
-                    "Runtime {} is already installed (version {})",
-                    runtime_name, version
-                ));
-            }
+            spinner.finish_with_message(&format!(
+                "{} {} v{} already installed",
+                "✓".green(),
+                runtime_name,
+                version
+            ));
             return Ok(Some(version));
         }
+        spinner.finish_and_clear();
 
-        // Not installed, try to auto-install
-        UI::info(&format!(
-            "Runtime {} is not installed. Auto-installing...",
-            runtime_name
-        ));
+        // Not installed, auto-install with progress
+        let pm = progress_manager();
+        let install_spinner = pm.add_spinner(&format!("Auto-installing {}...", runtime_name));
 
-        // Fetch versions to get the latest
-        UI::info(&format!("Fetching versions for {}...", runtime_name));
+        // Fetch versions
+        install_spinner.set_message(&format!("Fetching versions for {}...", runtime_name));
         let versions = match runtime.fetch_versions(context).await {
             Ok(v) => v,
             Err(e) => {
+                install_spinner
+                    .finish_error(&format!("Failed to fetch versions for {}", runtime_name));
                 return Err(anyhow::anyhow!(
                     "Failed to fetch versions for {}: {}. Please install it manually.",
                     runtime_name,
@@ -70,7 +72,7 @@ async fn ensure_runtime_installed(
             .or_else(|| versions.first().map(|v| v.version.clone()))
             .ok_or_else(|| anyhow::anyhow!("No versions found for {}", runtime_name))?;
 
-        UI::info(&format!("Installing {} {}...", runtime_name, version));
+        install_spinner.set_message(&format!("Installing {} v{}...", runtime_name, version));
 
         // Run pre-install hook
         runtime.pre_install(&version, context).await?;
@@ -80,6 +82,7 @@ async fn ensure_runtime_installed(
 
         // Verify the installation
         if !context.fs.exists(&result.executable_path) {
+            install_spinner.finish_error(&format!("Installation of {} failed", runtime_name));
             return Err(anyhow::anyhow!(
                 "Installation completed but executable not found at {}",
                 result.executable_path.display()
@@ -89,10 +92,7 @@ async fn ensure_runtime_installed(
         // Run post-install hook
         runtime.post_install(&version, context).await?;
 
-        UI::success(&format!(
-            "Successfully installed {} {}",
-            runtime_name, version
-        ));
+        install_spinner.finish_success(&format!("Installed {} v{}", runtime_name, version));
 
         Ok(Some(version))
     } else {
@@ -128,6 +128,8 @@ fn get_required_runtime_for_ecosystem(ecosystem: &str) -> Option<&'static str> {
         "go" | "golang" => Some("go"),
         // Ruby ecosystem
         "gem" | "ruby" | "rubygems" => Some("ruby"),
+        // Windows ecosystem (choco is self-contained when managed by vx)
+        "choco" | "chocolatey" => Some("choco"),
         _ => None,
     }
 }
@@ -168,13 +170,17 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
 
     // Get version to install
     let version = spec.version.as_deref().unwrap_or("latest");
-    UI::info(&format!(
-        "Installing {}:{}@{}...",
-        spec.ecosystem, spec.package, version
-    ));
 
-    // Ensure runtime dependency is installed (auto-install if needed)
-    // Returns the installed runtime version for registry tracking
+    // Create multi-step progress
+    let pm = progress_manager();
+    let steps = vec![
+        format!("Preparing {}:{}", spec.ecosystem, spec.package),
+        format!("Installing {}@{}", spec.package, version),
+        "Creating shims".to_string(),
+    ];
+    let mut progress = crate::ui::MultiProgress::new(steps);
+
+    // Step 1: Ensure runtime dependency
     let (runtime_name, runtime_version) = match get_required_runtime_for_ecosystem(&spec.ecosystem)
     {
         Some(required_runtime) => {
@@ -185,13 +191,9 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
     };
 
     // Get the appropriate installer for this ecosystem
-    // For npm ecosystem, we need to use the npm executable from the installed node
     let installer: Box<dyn vx_ecosystem_pm::EcosystemInstaller> = match spec.ecosystem.as_str() {
         "npm" | "node" => {
-            // For npm ecosystem, try to find npm executable from the installed node
-            // Use vx-paths RuntimeRoot to get bundled tool path
             let npm_path = if runtime_version.is_some() {
-                // Try to get npm from the latest installed node using RuntimeRoot
                 match vx_paths::get_bundled_tool_path("node", "npm") {
                     Ok(Some(path)) => Some(path),
                     Ok(None) => {
@@ -227,18 +229,23 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
             .with_context(|| format!("Unsupported ecosystem: {}", spec.ecosystem))?,
     };
 
-    // Build install options
+    // Step 2: Perform installation
+    progress.next_step();
+
     let options = InstallOptions {
         force: args.force,
         verbose: args.verbose,
-        runtime_version: None, // TODO: Support runtime version selection
+        runtime_version: None,
         extra_args: args.extra_args.clone(),
     };
 
-    // Get the installation directory
     let install_dir = paths.global_package_dir(&spec.ecosystem, &spec.package, version);
 
-    // Perform the actual installation (async)
+    let install_spinner = pm.add_spinner(&format!(
+        "Installing {}:{}@{}...",
+        spec.ecosystem, spec.package, version
+    ));
+
     let result = installer
         .install(&install_dir, &spec.package, version, &options)
         .await
@@ -247,9 +254,26 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
                 "Failed to install {}:{}@{}",
                 spec.ecosystem, spec.package, version
             )
-        })?;
+        });
 
-    // Create GlobalPackage from EcosystemInstallResult for registry
+    let result = match result {
+        Ok(r) => {
+            install_spinner.finish_success(&format!(
+                "Installed {}:{}@{}",
+                spec.ecosystem, spec.package, version
+            ));
+            r
+        }
+        Err(e) => {
+            install_spinner.finish_error(&format!(
+                "Failed to install {}:{}",
+                spec.ecosystem, spec.package
+            ));
+            return Err(e);
+        }
+    };
+
+    // Register package
     let mut global_package = GlobalPackage::new(
         spec.package.clone(),
         result.version.clone(),
@@ -258,7 +282,6 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
     )
     .with_executables(result.executables.clone());
 
-    // Add runtime dependency if present (REZ-like environment tracking)
     if let (Some(rt_name), Some(rt_version)) = (runtime_name, runtime_version) {
         global_package = global_package.with_runtime_dependency(rt_name, rt_version);
         if args.verbose {
@@ -274,27 +297,19 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
         }
     }
 
-    // Register package
     registry.register(global_package);
     registry.save(&registry_path)?;
 
-    UI::success(&format!(
-        "Installed {}:{} {} to {}",
-        spec.ecosystem,
-        spec.package,
-        version,
-        result.install_dir.display()
-    ));
+    // Step 3: Create shims
+    progress.next_step();
 
-    // Report detected executables
-    if !result.executables.is_empty() {
+    if !result.executables.is_empty() && args.verbose {
         UI::detail(&format!(
             "Detected executables: {}",
             result.executables.join(", ")
         ));
     }
 
-    // Create shims for package executables
     let shims_dir = paths.shims_dir();
     let bin_dir = result.bin_dir.clone();
 
@@ -306,7 +321,6 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
             exe.to_string()
         });
 
-        // Try with the extension first, then without on Windows
         let target_path = if exe_path.exists() {
             exe_path
         } else {
@@ -332,6 +346,15 @@ async fn handle_install(ctx: &CommandContext, args: &InstallGlobalArgs) -> Resul
             ));
         }
     }
+
+    // Final summary
+    progress.finish(&format!(
+        "{} Installed {}:{} {}",
+        "✓".green(),
+        spec.ecosystem,
+        spec.package,
+        result.version
+    ));
 
     if shim_count > 0 {
         UI::success(&format!("Created {} shim(s)", shim_count));
@@ -460,24 +483,34 @@ async fn handle_uninstall(ctx: &CommandContext, args: &UninstallGlobalArgs) -> R
         }
     }
 
-    if args.verbose {
-        UI::detail(&format!(
-            "Removing directory: {}",
-            package.install_dir.display()
-        ));
-    }
+    // Multi-step uninstall with progress
+    let pm = progress_manager();
+    let uninstall_spinner = pm.add_spinner(&format!(
+        "Removing {}:{} {}...",
+        package.ecosystem, package.name, package.version
+    ));
 
     // Remove package directory
     if package.install_dir.exists() {
+        uninstall_spinner.set_message(&format!(
+            "Removing package files for {}:{}...",
+            package.ecosystem, package.name
+        ));
         std::fs::remove_dir_all(&package.install_dir)
             .with_context(|| format!("Failed to remove {}", package.install_dir.display()))?;
     }
 
     // Remove shims
+    uninstall_spinner.set_message(&format!(
+        "Removing shims for {}:{}...",
+        package.ecosystem, package.name
+    ));
     let shims_dir = paths.shims_dir();
+    let mut shim_count = 0;
     for exe in &package.executables {
         if shims::shim_exists(&shims_dir, exe) {
             shims::remove_shim(&shims_dir, exe)?;
+            shim_count += 1;
             if args.verbose {
                 UI::detail(&format!("Removed shim: {}", exe));
             }
@@ -488,9 +521,16 @@ async fn handle_uninstall(ctx: &CommandContext, args: &UninstallGlobalArgs) -> R
     registry.unregister(&spec.ecosystem, &spec.package);
     registry.save(&registry_path)?;
 
-    UI::success(&format!(
-        "Uninstalled {}:{} {}",
-        spec.ecosystem, spec.package, package.version
+    uninstall_spinner.finish_success(&format!(
+        "Uninstalled {}:{} {}{}",
+        spec.ecosystem,
+        spec.package,
+        package.version,
+        if shim_count > 0 {
+            format!(" ({} shims removed)", shim_count)
+        } else {
+            String::new()
+        }
     ));
 
     Ok(())
@@ -527,7 +567,7 @@ async fn handle_info(ctx: &CommandContext, args: &InfoGlobalArgs) -> Result<()> 
             },
             Err(_) => {
                 // Try all ecosystems
-                let ecosystems = ["npm", "pip", "cargo", "go", "gem"];
+                let ecosystems = ["npm", "pip", "cargo", "go", "gem", "choco"];
                 let mut found = None;
                 for eco in ecosystems {
                     if let Some(p) = registry.get(eco, &args.package) {

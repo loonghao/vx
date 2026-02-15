@@ -33,7 +33,7 @@ pub use hooks::{HooksConfig, HooksDef};
 pub use layout::{
     ArchiveLayoutConfig, BinaryLayoutConfig, DownloadType, LayoutConfig, PlatformBinaryConfig,
 };
-pub use manifest::{ProviderManifest, ProviderMeta};
+pub use manifest::{PackageAlias, ProviderManifest, ProviderMeta};
 pub use mirror::{CacheConfig, MirrorConfig, MirrorStrategy};
 pub use normalize::{
     AliasNormalize, DirectoryNormalize, EffectiveNormalizeConfig, ExecutableNormalize,

@@ -58,6 +58,138 @@ impl MsvcRuntime {
             }
         }
     }
+
+    /// Detect Windows SDK version from MSVC installation info.
+    ///
+    /// Looks at include/lib paths to find the SDK version pattern like "10.0.22621.0".
+    /// This is needed for node-gyp's `findVSFromSpecifiedLocation()` which reads
+    /// `WindowsSDKVersion` to populate SDK package info.
+    fn detect_windows_sdk_version(info: &MsvcInstallInfo) -> Option<String> {
+        // First check if sdk_version is directly available
+        if let Some(ref sdk_ver) = info.sdk_version {
+            return Some(sdk_ver.clone());
+        }
+
+        // Try to extract from include/lib paths (even if paths don't exist on disk,
+        // the version number embedded in the path is still valid)
+        // Paths look like: C:\...\Windows Kits\10\Include\10.0.22621.0\ucrt
+        for path in info.include_paths.iter().chain(info.lib_paths.iter()) {
+            let path_str = path.to_string_lossy();
+            if let Some(ver) = Self::extract_sdk_version_from_path(&path_str) {
+                return Some(ver);
+            }
+        }
+
+        // Fallback: scan standard Windows SDK locations
+        for sdk_root in &[
+            r"C:\Program Files (x86)\Windows Kits\10\Include",
+            r"C:\Program Files\Windows Kits\10\Include",
+        ] {
+            let sdk_path = std::path::Path::new(sdk_root);
+            if sdk_path.exists()
+                && let Ok(entries) = std::fs::read_dir(sdk_path)
+            {
+                let mut versions: Vec<String> = entries
+                    .filter_map(|e| e.ok())
+                    .filter_map(|e| {
+                        let name = e.file_name().to_string_lossy().to_string();
+                        if name.starts_with("10.0.") {
+                            Some(name)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                // Use the latest SDK version
+                versions.sort();
+                if let Some(ver) = versions.last() {
+                    return Some(ver.clone());
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Extract SDK version (e.g., "10.0.22621.0") from a path string
+    fn extract_sdk_version_from_path(path_str: &str) -> Option<String> {
+        if let Some(pos) = path_str.find("Windows Kits") {
+            let after = &path_str[pos..];
+            for segment in after.split(['\\', '/']) {
+                if segment.starts_with("10.0.")
+                    && segment.chars().filter(|c| *c == '.').count() == 3
+                {
+                    return Some(segment.to_string());
+                }
+            }
+        }
+        None
+    }
+
+    /// Build the correct Windows SDK paths based on the detected version.
+    ///
+    /// msvc-kit may record incorrect SDK paths (e.g., pointing to user directory
+    /// instead of Program Files). This method builds correct paths from the
+    /// standard Windows SDK installation location.
+    fn build_sdk_paths(sdk_version: &str, arch: &str) -> (Vec<String>, Vec<String>) {
+        let mut include_paths = Vec::new();
+        let mut lib_paths = Vec::new();
+
+        for sdk_root in &[
+            r"C:\Program Files (x86)\Windows Kits\10",
+            r"C:\Program Files\Windows Kits\10",
+        ] {
+            let root = std::path::Path::new(sdk_root);
+            let inc_base = root.join("Include").join(sdk_version);
+            if inc_base.exists() {
+                for subdir in &["ucrt", "shared", "um", "winrt", "cppwinrt"] {
+                    let p = inc_base.join(subdir);
+                    if p.exists() {
+                        include_paths.push(p.to_string_lossy().to_string());
+                    }
+                }
+
+                let lib_base = root.join("Lib").join(sdk_version);
+                for subdir in &["ucrt", "um"] {
+                    let p = lib_base.join(subdir).join(arch);
+                    if p.exists() {
+                        lib_paths.push(p.to_string_lossy().to_string());
+                    }
+                }
+                break; // Found the SDK, no need to check other roots
+            }
+        }
+
+        (include_paths, lib_paths)
+    }
+
+    /// Deploy MSBuild.exe bridge to the MSVC installation directory.
+    ///
+    /// node-gyp and other build tools expect `MSBuild.exe` at:
+    /// `{install_path}/MSBuild/Current/Bin/MSBuild.exe`
+    ///
+    /// This bridge delegates to `dotnet msbuild`, enabling native Node.js
+    /// addon compilation without a full Visual Studio installation.
+    fn deploy_msbuild_bridge(&self, install_path: &Path) {
+        let target = install_path
+            .join("MSBuild")
+            .join("Current")
+            .join("Bin")
+            .join("MSBuild.exe");
+
+        match vx_bridge::deploy_bridge("MSBuild", &target) {
+            Ok(path) => {
+                info!("Deployed MSBuild bridge to {}", path.display());
+            }
+            Err(e) => {
+                // Non-fatal: MSVC tools still work, just node-gyp won't find MSBuild
+                warn!(
+                    "Failed to deploy MSBuild bridge (node-gyp may not work): {}",
+                    e
+                );
+            }
+        }
+    }
 }
 
 #[async_trait]
@@ -185,6 +317,10 @@ impl Runtime for MsvcRuntime {
             install_info.msvc_version
         );
 
+        // Deploy MSBuild.exe bridge for node-gyp compatibility
+        // node-gyp expects MSBuild.exe at {VCINSTALLDIR}/MSBuild/Current/Bin/MSBuild.exe
+        self.deploy_msbuild_bridge(&install_path);
+
         Ok(InstallResult::success(
             install_path,
             install_info.cl_exe_path,
@@ -194,15 +330,22 @@ impl Runtime for MsvcRuntime {
 
     /// Prepare environment variables for MSVC compilation
     ///
-    /// Instead of setting LIB/INCLUDE/PATH globally (which conflicts with tools
-    /// like node-gyp that have their own Visual Studio discovery logic), we only
-    /// set VX_MSVC_* marker variables. The actual LIB/INCLUDE/PATH are only
-    /// injected when directly invoking MSVC tools (cl, link, nmake, etc.)
-    /// via the `execution_environment()` method.
+    /// Sets both discovery variables (VCINSTALLDIR, GYP_MSVS_VERSION, etc.)
+    /// and compilation variables (INCLUDE, LIB) so that:
     ///
-    /// Additionally, we set VCINSTALLDIR, VCToolsInstallDir, and GYP_MSVS_VERSION
-    /// for compatibility with tools like node-gyp that use these variables to
-    /// discover Visual Studio installations.
+    /// 1. **Detection tools** (node-gyp's find-visualstudio.js) can discover
+    ///    our vx-managed MSVC via VCINSTALLDIR + VSCMD_VER + WindowsSDKVersion
+    /// 2. **Compilers** (cl.exe invoked by node-gyp, cmake, etc.) can find
+    ///    headers and libraries via INCLUDE/LIB environment variables
+    ///
+    /// node-gyp detection flow (find-visualstudio.js):
+    /// - VCINSTALLDIR → envVcInstallDir = resolve(VCINSTALLDIR, '..')
+    /// - VSCMD_VER → getVersionInfo() → versionYear (17.x = 2022)
+    /// - WindowsSDKVersion → getSDK() → SDK package info
+    /// - Checks MSBuild.exe at {envVcInstallDir}/MSBuild/Current/Bin/MSBuild.exe
+    ///
+    /// With all these variables properly set, findVSFromSpecifiedLocation()
+    /// succeeds first, bypassing the PowerShell/C# detection methods entirely.
     ///
     /// See: https://github.com/loonghao/vx/issues/573
     async fn prepare_environment(
@@ -245,6 +388,17 @@ impl Runtime for MsvcRuntime {
             // This avoids polluting the global environment with LIB/INCLUDE which
             // breaks node-gyp's PowerShell-based Visual Studio discovery
             let install_path = ctx.paths.version_store_dir(self.name(), version);
+
+            // Ensure MSBuild.exe bridge is deployed (handles upgrades where
+            // MSVC was installed before the bridge mechanism existed)
+            let msbuild_path = install_path
+                .join("MSBuild")
+                .join("Current")
+                .join("Bin")
+                .join("MSBuild.exe");
+            if !msbuild_path.exists() {
+                self.deploy_msbuild_bridge(&install_path);
+            }
             env.insert(
                 "VX_MSVC_ROOT".to_string(),
                 install_path.to_string_lossy().to_string(),
@@ -263,6 +417,13 @@ impl Runtime for MsvcRuntime {
             // uses this to detect that we're running in a VS Developer Command Prompt-like
             // environment. This allows node-gyp to find the vx-managed MSVC without
             // needing the full LIB/INCLUDE variables that would break its C# compiler.
+            //
+            // node-gyp detection flow (find-visualstudio.js):
+            // 1. envVcInstallDir = path.resolve(VCINSTALLDIR, '..') → VS install root
+            // 2. Uses VSCMD_VER to determine VS version year (17.x → 2022)
+            // 3. Checks MSBuild.exe exists at {root}/MSBuild/Current/Bin/MSBuild.exe
+            // 4. Uses WindowsSDKVersion to determine SDK packages
+            // 5. checkConfigVersion verifies envVcInstallDir matches info.path
             let vc_dir = install_path.join("VC");
             if vc_dir.exists() {
                 // VCINSTALLDIR must end with trailing backslash (VS convention)
@@ -277,39 +438,121 @@ impl Runtime for MsvcRuntime {
                 }
 
                 // VSCMD_VER indicates VS Command Prompt version
+                // Must be parseable as major.minor where major 17 → VS 2022
                 env.insert("VSCMD_VER".to_string(), "17.0".to_string());
             }
 
-            // Set INCLUDE paths as VX_MSVC_INCLUDE (not INCLUDE)
-            let valid_includes = info.validated_include_paths();
-            if !valid_includes.is_empty() {
-                let include = valid_includes
-                    .iter()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .collect::<Vec<_>>()
-                    .join(";");
-                env.insert("VX_MSVC_INCLUDE".to_string(), include);
+            // WindowsSDKVersion — node-gyp's findVSFromSpecifiedLocation() uses this
+            // to populate SDK package info. Without it, getSDK() returns null and
+            // the entire VS detection fails with "missing any Windows SDK".
+            //
+            // Format: "10.0.XXXXX.0\" (with trailing backslash, as set by vcvarsall.bat)
+            let sdk_version = Self::detect_windows_sdk_version(&info);
+            if let Some(ref sdk_ver) = sdk_version {
+                env.insert("WindowsSDKVersion".to_string(), format!("{}\\", sdk_ver));
             }
 
-            // Set LIB paths as VX_MSVC_LIB (not LIB)
-            let valid_libs = info.validated_lib_paths();
-            if !valid_libs.is_empty() {
-                let lib = valid_libs
-                    .iter()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .collect::<Vec<_>>()
-                    .join(";");
-                env.insert("VX_MSVC_LIB".to_string(), lib);
+            // Build INCLUDE/LIB/BIN paths for compilation.
+            //
+            // We dynamically construct paths from the actual installation rather than
+            // relying solely on msvc-info.json, because:
+            // 1. msvc-kit may record incorrect SDK paths (e.g., user dir instead of Program Files)
+            // 2. Cached paths may become stale after SDK updates
+            //
+            // Path construction:
+            // - MSVC headers: {install_path}/VC/Tools/MSVC/{version}/include
+            // - MSVC libs: {install_path}/VC/Tools/MSVC/{version}/lib/{arch}
+            // - MSVC bins: {install_path}/VC/Tools/MSVC/{version}/bin/Host{arch}/{arch}
+            // - SDK headers: C:\Program Files (x86)\Windows Kits\10\Include\{sdk_ver}\{ucrt,shared,um,...}
+            // - SDK libs: C:\Program Files (x86)\Windows Kits\10\Lib\{sdk_ver}\{ucrt,um}\{arch}
+            // - SDK bins: C:\Program Files (x86)\Windows Kits\10\bin\{sdk_ver}\{arch}
+            let arch = if cfg!(target_arch = "aarch64") {
+                "arm64"
+            } else {
+                "x64"
+            };
+
+            let mut include_paths = Vec::new();
+            let mut lib_paths = Vec::new();
+            let mut bin_paths = Vec::new();
+
+            // MSVC toolchain paths
+            let tools_dir = install_path
+                .join("VC")
+                .join("Tools")
+                .join("MSVC")
+                .join(&info.msvc_version);
+            if tools_dir.exists() {
+                let inc = tools_dir.join("include");
+                if inc.exists() {
+                    include_paths.push(inc.to_string_lossy().to_string());
+                }
+                let lib = tools_dir.join("lib").join(arch);
+                if lib.exists() {
+                    lib_paths.push(lib.to_string_lossy().to_string());
+                }
+                let bin = tools_dir
+                    .join("bin")
+                    .join(format!("Host{}", arch))
+                    .join(arch);
+                if bin.exists() {
+                    bin_paths.push(bin.to_string_lossy().to_string());
+                }
             }
 
-            // Set BIN paths as VX_MSVC_BIN (not PATH)
-            let valid_bins = info.validated_bin_paths();
-            if !valid_bins.is_empty() {
-                let bin = valid_bins
-                    .iter()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .collect::<Vec<_>>()
-                    .join(";");
+            // Windows SDK paths (dynamically detected from standard locations)
+            if let Some(ref sdk_ver) = sdk_version {
+                let (sdk_incs, sdk_libs) = Self::build_sdk_paths(sdk_ver, arch);
+                include_paths.extend(sdk_incs);
+                lib_paths.extend(sdk_libs);
+
+                // SDK bin path
+                for sdk_root in &[
+                    r"C:\Program Files (x86)\Windows Kits\10",
+                    r"C:\Program Files\Windows Kits\10",
+                ] {
+                    let bin = std::path::Path::new(sdk_root)
+                        .join("bin")
+                        .join(sdk_ver)
+                        .join(arch);
+                    if bin.exists() {
+                        bin_paths.push(bin.to_string_lossy().to_string());
+                        break;
+                    }
+                }
+            }
+
+            // Fallback: if we didn't find any paths dynamically, try validated cached paths
+            if include_paths.is_empty() {
+                for p in info.validated_include_paths() {
+                    include_paths.push(p.to_string_lossy().to_string());
+                }
+            }
+            if lib_paths.is_empty() {
+                for p in info.validated_lib_paths() {
+                    lib_paths.push(p.to_string_lossy().to_string());
+                }
+            }
+            if bin_paths.is_empty() {
+                for p in info.validated_bin_paths() {
+                    bin_paths.push(p.to_string_lossy().to_string());
+                }
+            }
+
+            if !include_paths.is_empty() {
+                let include = include_paths.join(";");
+                env.insert("VX_MSVC_INCLUDE".to_string(), include.clone());
+                env.insert("INCLUDE".to_string(), include);
+            }
+
+            if !lib_paths.is_empty() {
+                let lib = lib_paths.join(";");
+                env.insert("VX_MSVC_LIB".to_string(), lib.clone());
+                env.insert("LIB".to_string(), lib);
+            }
+
+            if !bin_paths.is_empty() {
+                let bin = bin_paths.join(";");
                 env.insert("VX_MSVC_BIN".to_string(), bin);
             }
 
