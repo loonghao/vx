@@ -41,11 +41,11 @@
 mod config;
 mod deployer;
 mod embedded;
-mod finder;
+pub mod finder;
 mod runner;
 
 pub use config::BridgeConfig;
 pub use deployer::{DeployError, deploy_bridge};
 pub use embedded::{deploy_embedded_bridge, register_embedded_bridge};
-pub use finder::ExecutableFinder;
+pub use finder::{ExecutableFinder, SearchStrategy};
 pub use runner::run_bridge;
