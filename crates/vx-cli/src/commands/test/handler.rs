@@ -39,6 +39,19 @@ pub async fn handle(ctx: &CommandContext, args: &Args) -> Result<()> {
 
 /// Test a single runtime using manifest-based configuration (RFC 0020)
 async fn handle_test_runtime(ctx: &CommandContext, runtime_name: &str, opts: &Args) -> Result<()> {
+    // Check if this is a package_alias provider (RFC 0033)
+    // These providers route `vx <name>` to `vx <ecosystem>:<package>` and should be skipped
+    if let Some(alias) = ctx.get_package_alias(runtime_name) {
+        if !opts.quiet && !opts.json {
+            println!(
+                "⊘ {} - skipped (package_alias -> {}:{})",
+                runtime_name, alias.ecosystem, alias.package
+            );
+        }
+        // Exit successfully since this is expected behavior
+        std::process::exit(0);
+    }
+
     // Find runtime in registry
     let runtime = ctx
         .registry()
@@ -377,6 +390,26 @@ async fn run_ci_test_for_runtime(
         error: None,
         version_installed: None,
     };
+
+    // Check if this is a package_alias provider (RFC 0033)
+    // These providers route `vx <name>` to `vx <ecosystem>:<package>` and should be skipped
+    // in regular CI testing as they are tested via the ecosystem package managers
+    if let Some(alias) = ctx.get_package_alias(runtime_name) {
+        if opts.verbose && !opts.quiet && !opts.json {
+            println!(
+                "  ⊘ {} - skipped (package_alias -> {}:{})",
+                runtime_name, alias.ecosystem, alias.package
+            );
+        }
+        result.error = Some(format!(
+            "Package alias provider (routes to {}:{})",
+            alias.ecosystem, alias.package
+        ));
+        // Mark as passed since this is expected behavior
+        result.overall_passed = true;
+        result.platform_supported = true;
+        return result;
+    }
 
     // Check platform support
     let runtime = match ctx.registry().get_runtime(runtime_name) {
