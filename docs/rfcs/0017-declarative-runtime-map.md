@@ -425,4 +425,3 @@ fn test_backward_compatibility() {
 | 2026-01-09 | Partially Implemented | 实现 Phase 1-3: RuntimeDef 扩展字段、RuntimeMap::from_manifests()、更新 node/yarn/pnpm/python provider.toml |
 | 2026-01-09 | v0.10.0 Implementation Complete | 标记 RuntimeMap::new()/new_with_manifests()/register_builtin_runtimes() 为 deprecated；vx-cli 切换到 from_manifests() |
 | 2026-01-09 | v0.11.0 Cleanup Complete | 移除所有 deprecated 代码，RuntimeMap 现在是纯声明式实现，无硬编码 |
-

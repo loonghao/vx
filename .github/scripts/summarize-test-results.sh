@@ -64,22 +64,22 @@ for dir in "$REPORTS_DIR"/report-*/; do
     if [ -d "$dir" ] && [ -f "${dir}test-report.json" ]; then
         REPORT="${dir}test-report.json"
         DIR_NAME=$(basename "$dir")
-        
+
         # Extract platform from directory name (e.g., report-linux-0 -> linux)
         PLATFORM=$(echo "$DIR_NAME" | sed 's/report-//' | sed 's/-[0-9]*$//')
         CHUNK_INDEX=$(echo "$DIR_NAME" | grep -oE '[0-9]+$' || echo "0")
-        
+
         # Parse test results
         PASSED=$(jq '.passed // 0' "$REPORT" 2>/dev/null || echo "0")
         FAILED=$(jq '.failed // 0' "$REPORT" 2>/dev/null || echo "0")
         SKIPPED=$(jq '.skipped // 0' "$REPORT" 2>/dev/null || echo "0")
-        
+
         TOTAL_PASSED=$((TOTAL_PASSED + PASSED))
         TOTAL_FAILED=$((TOTAL_FAILED + FAILED))
         TOTAL_SKIPPED=$((TOTAL_SKIPPED + SKIPPED))
-        
+
         echo "  $DIR_NAME: ✅ $PASSED passed, ❌ $FAILED failed, ⏭️ $SKIPPED skipped"
-        
+
         # Collect failed provider details
         if [ "$FAILED" -gt 0 ]; then
             FAILURES=$(jq -r '.results[] | select(.overall_passed == false and .platform_supported == true) | "\(.runtime): \(.error // "unknown error")"' "$REPORT" 2>/dev/null || echo "")
@@ -115,36 +115,36 @@ if [ -n "$SUMMARY_FILE" ]; then
         echo "| ⏭️ Skipped | $TOTAL_SKIPPED |"
         echo "| **Total** | $TOTAL |"
         echo ""
-        
+
         # Show failed providers if any
         if [ "$TOTAL_FAILED" -gt 0 ]; then
             echo "### ❌ Failed Providers"
             echo ""
             echo -e "$FAILED_DETAILS"
         fi
-        
+
         # Per-platform breakdown
         echo "### Platform Breakdown"
         echo ""
         echo "| Platform | Chunk | Passed | Failed | Skipped |"
         echo "|----------|-------|--------|--------|---------|"
-        
+
         for dir in "$REPORTS_DIR"/report-*/; do
             if [ -d "$dir" ] && [ -f "${dir}test-report.json" ]; then
                 REPORT="${dir}test-report.json"
                 DIR_NAME=$(basename "$dir")
                 PLATFORM=$(echo "$DIR_NAME" | sed 's/report-//' | sed 's/-[0-9]*$//')
                 CHUNK_INDEX=$(echo "$DIR_NAME" | grep -oE '[0-9]+$' || echo "0")
-                
+
                 PASSED=$(jq '.passed // 0' "$REPORT" 2>/dev/null || echo "0")
                 FAILED=$(jq '.failed // 0' "$REPORT" 2>/dev/null || echo "0")
                 SKIPPED=$(jq '.skipped // 0' "$REPORT" 2>/dev/null || echo "0")
-                
+
                 echo "| $PLATFORM | $CHUNK_INDEX | $PASSED | $FAILED | $SKIPPED |"
             fi
         done
     } >> "$SUMMARY_FILE"
-    
+
     echo "Summary written to $SUMMARY_FILE"
 fi
 

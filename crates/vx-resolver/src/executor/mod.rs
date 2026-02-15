@@ -2,7 +2,7 @@
 //!
 //! This module implements the main execution logic for runtime command forwarding:
 //! 1. Resolve runtime and dependencies
-//! 2. Auto-install missing components  
+//! 2. Auto-install missing components
 //! 3. Forward command to the appropriate executable
 //!
 //! ## Module Structure (Refactored for Single Responsibility)

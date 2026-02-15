@@ -346,4 +346,3 @@ This is purely additive. Existing commands continue to work:
 - [uvx documentation](https://docs.astral.sh/uv/guides/tools/)
 - [npx documentation](https://docs.npmjs.com/cli/v10/commands/npx)
 - RFC 0025: Cross-Language Package Isolation
-

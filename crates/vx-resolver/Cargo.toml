@@ -35,4 +35,3 @@ vx-manifest = { workspace = true }
 rstest = { workspace = true }
 tokio-test = { workspace = true }
 tempfile = { workspace = true }
-

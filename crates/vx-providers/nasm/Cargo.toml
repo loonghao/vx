@@ -22,4 +22,3 @@ regex = { workspace = true }
 [dev-dependencies]
 rstest = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-

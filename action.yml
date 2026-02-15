@@ -1,46 +1,46 @@
-name: 'Setup vx'
-description: 'Setup vx - Universal Development Tool Manager for your CI/CD workflows'
-author: 'loonghao'
+name: "Setup vx"
+description: "Setup vx - Universal Development Tool Manager for your CI/CD workflows"
+author: "loonghao"
 branding:
-  icon: 'package'
-  color: 'blue'
+  icon: "package"
+  color: "blue"
 
 inputs:
   version:
     description: 'vx version to install (e.g., "0.5.7", "latest")'
     required: false
-    default: 'latest'
+    default: "latest"
   github-token:
-    description: 'GitHub token for API requests (avoids rate limiting)'
+    description: "GitHub token for API requests (avoids rate limiting)"
     required: false
     default: ${{ github.token }}
   tools:
     description: 'Space-separated list of tools to pre-install (e.g., "node go uv")'
     required: false
-    default: ''
+    default: ""
   cache:
-    description: 'Enable caching of vx tools directory'
+    description: "Enable caching of vx tools directory"
     required: false
-    default: 'true'
+    default: "true"
   cache-key-prefix:
-    description: 'Custom prefix for cache key'
+    description: "Custom prefix for cache key"
     required: false
-    default: 'vx-tools'
+    default: "vx-tools"
   setup:
     description: 'Run vx setup --ci to install tools from vx.toml and export tool paths to GITHUB_PATH. Set to "true" to enable, "false" to disable (default)'
     required: false
-    default: 'false'
+    default: "false"
 
 outputs:
   version:
-    description: 'The installed vx version'
+    description: "The installed vx version"
     value: ${{ steps.setup.outputs.version }}
   cache-hit:
-    description: 'Whether the cache was hit'
+    description: "Whether the cache was hit"
     value: ${{ steps.cache.outputs.cache-hit }}
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     # Cache vx tools directory
     - name: Cache vx tools

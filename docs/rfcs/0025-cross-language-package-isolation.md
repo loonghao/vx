@@ -1486,4 +1486,3 @@ pub async fn install_with_fallback(
     install_with_copy(package, paths).await
 }
 ```
-
