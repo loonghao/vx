@@ -666,4 +666,3 @@ These extensions would **complement** the existing `bundled_with`, `runtime_depe
 - [devcontainer specification](https://containers.dev/)
 - [WebAssembly Component Model](https://component-model.bytecodealliance.org/)
 - [pixi documentation](https://pixi.sh/)
-

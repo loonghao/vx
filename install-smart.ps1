@@ -210,7 +210,7 @@ function Get-LatestVersion {
                     $versionClean = $version -replace '^v', ''
                     # Skip pre-release versions
                     if ($versionClean -match '-(alpha|beta|rc|pre|dev)') { continue }
-                    
+
                     # Verify this version has assets by checking CDN
                     $testUrl = "https://cdn.jsdelivr.net/gh/$RepoOwner/$RepoName@$version/vx-x86_64-pc-windows-msvc.zip"
                     try {
@@ -225,7 +225,7 @@ function Get-LatestVersion {
                         continue
                     }
                 }
-                
+
                 # Fallback to first version if none verified
                 $latestVersion = $jsdelivrResponse.versions[0] -replace '^v', ''
                 Write-Success "Got version from jsDelivr: $latestVersion"
@@ -251,7 +251,7 @@ function Get-LatestVersion {
         }
 
         $response = Invoke-RestMethod -Uri $apiUrl -Headers $headers -TimeoutSec 30
-        
+
         # Find first non-prerelease release with assets
         foreach ($release in $response) {
             if (-not $release.prerelease -and $release.assets.Count -gt 0) {
@@ -260,13 +260,13 @@ function Get-LatestVersion {
                 return $version
             }
         }
-        
+
         throw "No releases with assets found"
     }
     catch {
         if ($_.Exception.Message -like "*rate limit*" -or $_.Exception.Message -like "*429*") {
             Write-Warn "GitHub API rate limit exceeded. Trying fallback method..."
-            
+
             # Try to find version with assets from releases page
             try {
                 $foundVersion = Find-VersionWithAssetsFromPageSmart
@@ -278,7 +278,7 @@ function Get-LatestVersion {
             catch {
                 Write-Warn "Fallback method failed: $($_.Exception.Message)"
             }
-            
+
             Write-Error "GitHub API rate limit exceeded and CDN fallback failed."
             Write-Host ""
             Write-Host "🔧 Solutions:" -ForegroundColor Yellow
@@ -296,33 +296,33 @@ function Get-LatestVersion {
 # Find a version with assets from GitHub releases page (for install-smart.ps1)
 function Find-VersionWithAssetsFromPageSmart {
     Write-Info "Fetching releases page to find version with assets..."
-    
+
     try {
         $releasesUrl = "https://github.com/$RepoOwner/$RepoName/releases"
         $response = Invoke-WebRequest -Uri $releasesUrl -UseBasicParsing -TimeoutSec 30
         $html = $response.Content
-        
+
         # Extract version tags from release links
         $tagPattern = 'href="/[^"]+/releases/tag/([^"]+)"'
         $matches = [regex]::Matches($html, $tagPattern)
-        
+
         $seenTags = @{}
         foreach ($match in $matches) {
             $tag = $match.Groups[1].Value
-            
+
             # Skip if already seen
             if ($seenTags.ContainsKey($tag)) { continue }
             $seenTags[$tag] = $true
-            
+
             # Skip pre-release tags
             if ($tag -match '-(alpha|beta|rc|pre|dev)') { continue }
-            
+
             # Check if this release has assets
             $releaseUrl = "https://github.com/$RepoOwner/$RepoName/releases/tag/$tag"
             try {
                 $releaseResponse = Invoke-WebRequest -Uri $releaseUrl -UseBasicParsing -TimeoutSec 10
                 $releaseHtml = $releaseResponse.Content
-                
+
                 # Check for .tar.gz or .zip in the release page
                 if ($releaseHtml -match '\.(tar\.gz|zip)') {
                     $version = $tag -replace '^v', ''
@@ -335,13 +335,13 @@ function Find-VersionWithAssetsFromPageSmart {
                 continue
             }
         }
-        
+
         # Fallback: return the first tag found (without v prefix)
         if ($seenTags.Keys.Count -gt 0) {
             $firstTag = $seenTags.Keys | Select-Object -First 1
             return ($firstTag -replace '^v', '')
         }
-        
+
         return $null
     }
     catch {

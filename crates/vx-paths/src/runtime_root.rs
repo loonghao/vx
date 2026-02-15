@@ -27,7 +27,7 @@
 //! if let Some(root) = RuntimeRoot::find("node", "20.0.0", &paths)? {
 //!     println!("Node.js root: {}", root.root_dir().display());
 //!     println!("Node.js bin: {}", root.bin_dir().display());
-//!     
+//!
 //!     // Generate environment variables
 //!     for (key, value) in root.env_vars() {
 //!         std::env::set_var(key, value);

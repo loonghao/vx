@@ -9,25 +9,25 @@ on:
   push:
     branches: [main]
     paths:
-      - 'action.yml'
-      - '.github/workflows/test-action.yml'
-      - 'install.sh'
-      - 'install.ps1'
-      - 'crates/vx-resolver/**'
-      - 'crates/vx-runtime/**'
-      - 'crates/vx-installer/**'
-      - 'crates/vx-providers/**'
+      - "action.yml"
+      - ".github/workflows/test-action.yml"
+      - "install.sh"
+      - "install.ps1"
+      - "crates/vx-resolver/**"
+      - "crates/vx-runtime/**"
+      - "crates/vx-installer/**"
+      - "crates/vx-providers/**"
   pull_request:
     branches: [main]
     paths:
-      - 'action.yml'
-      - '.github/workflows/test-action.yml'
-      - 'install.sh'
-      - 'install.ps1'
-      - 'crates/vx-resolver/**'
-      - 'crates/vx-runtime/**'
-      - 'crates/vx-installer/**'
-      - 'crates/vx-providers/**'
+      - "action.yml"
+      - ".github/workflows/test-action.yml"
+      - "install.sh"
+      - "install.ps1"
+      - "crates/vx-resolver/**"
+      - "crates/vx-runtime/**"
+      - "crates/vx-installer/**"
+      - "crates/vx-providers/**"
   workflow_dispatch:
 
 permissions:
@@ -102,7 +102,7 @@ jobs:
         id: setup-latest
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache: 'false'
+          cache: "false"
 
       - name: Verify vx installation
         shell: bash
@@ -126,8 +126,8 @@ jobs:
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          tools: 'node uv'
-          cache: 'true'
+          tools: "node uv"
+          cache: "true"
 
       - name: Verify pre-installed tools
         shell: bash

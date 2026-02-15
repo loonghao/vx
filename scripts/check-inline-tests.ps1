@@ -1,5 +1,5 @@
 # Check for inline tests in source files
-# 
+#
 # This script enforces the project convention that tests should be placed
 # in separate tests/ directories, not inline in source files.
 #
@@ -34,7 +34,7 @@ $foundIssues = $false
 $cratesDir = Join-Path $ProjectRoot "crates"
 
 # Find all .rs files with #[cfg(test)]
-$files = Get-ChildItem -Path $cratesDir -Recurse -Filter "*.rs" | 
+$files = Get-ChildItem -Path $cratesDir -Recurse -Filter "*.rs" |
     Where-Object { $_.FullName -notmatch "\\tests\\" } |
     ForEach-Object {
         $content = Get-Content $_.FullName -Raw -ErrorAction SilentlyContinue
@@ -45,7 +45,7 @@ $files = Get-ChildItem -Path $cratesDir -Recurse -Filter "*.rs" |
 
 foreach ($file in $files) {
     $relativePath = $file.FullName.Replace($ProjectRoot, "").TrimStart("\", "/")
-    
+
     if (Test-Whitelisted $relativePath) {
         Write-Host "⚠️  WHITELISTED: $relativePath" -ForegroundColor Yellow
     } else {

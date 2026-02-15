@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       force_full_ci:
-        description: 'Force full CI run (ignore path filters)'
+        description: "Force full CI run (ignore path filters)"
         type: boolean
         default: false
 
@@ -28,8 +28,8 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  CARGO_HTTP_TIMEOUT: '600'
-  CARGO_NET_RETRY: '10'
+  CARGO_HTTP_TIMEOUT: "600"
+  CARGO_NET_RETRY: "10"
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 jobs:
@@ -355,9 +355,6 @@ jobs:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
-
-
-
     strategy:
       fail-fast: false
       matrix:
@@ -402,8 +399,6 @@ jobs:
           path: ${{ github.workspace }}/.cache/sccache
           key: ${{ runner.os }}-sccache-${{ matrix.platform.target }}-${{ hashFiles('Cargo.lock') }}
 
-
-
           restore-keys: |
             ${{ runner.os }}-sccache-${{ matrix.platform.target }}-
             ${{ runner.os }}-sccache-
@@ -414,7 +409,6 @@ jobs:
           prefix-key: ${{ matrix.platform.target }}
           shared-key: build
           save-if: ${{ github.ref == 'refs/heads/main' }}
-
 
       - name: Build vx release binary
         run: cargo build --release --target ${{ matrix.platform.target }}
@@ -445,9 +439,6 @@ jobs:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
 
-
-
-
     steps:
       - uses: actions/checkout@v6
 
@@ -472,7 +463,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-vx-tools-quality-
 
-
       - name: Setup Rust (required for cargo commands)
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -489,8 +479,6 @@ jobs:
           path: ${{ github.workspace }}/.cache/sccache
           key: ${{ runner.os }}-sccache-quality-${{ hashFiles('Cargo.lock') }}
 
-
-
           restore-keys: |
             ${{ runner.os }}-sccache-quality-
             ${{ runner.os }}-sccache-
@@ -501,7 +489,6 @@ jobs:
           shared-key: quality
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-
       - name: Check formatting (via vx)
         run: vx just format-check
 
@@ -510,13 +497,11 @@ jobs:
           vx just check-inline-tests || true
           # Note: Currently a warning only, will become error after migration
 
-
       - name: Run Clippy (via vx)
         run: vx just lint
 
       - name: Check documentation (via vx)
         run: vx just ci-docs
-
 
   # ============================================================================
   # Stage 3: Targeted tests (only test affected crates)
@@ -533,9 +518,6 @@ jobs:
     env:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-
-
-
 
     strategy:
       fail-fast: false
@@ -634,11 +616,6 @@ jobs:
           CARGO_TARGET_DIR: target
           VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
 
-
-
-
-
-
   # ============================================================================
   # Stage 3b: Full workspace tests (when core changes or CI changes)
   # ============================================================================
@@ -653,9 +630,6 @@ jobs:
     env:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-
-
-
 
     strategy:
       fail-fast: false
@@ -749,13 +723,6 @@ jobs:
           CARGO_TARGET_DIR: target
           VX_BINARY: ${{ github.workspace }}/bin/${{ matrix.platform.binary }}
 
-
-
-
-
-
-
-
   # ============================================================================
   # Stage 5: Cross-compilation (main branch only, if rust changed)
   # ============================================================================
@@ -807,7 +774,6 @@ jobs:
       - name: Build with cross
         run: vx just cross-build ${{ matrix.target }}
 
-
   # ============================================================================
   # Stage 6: Security audit (only if rust changed)
   # ============================================================================
@@ -836,8 +802,6 @@ jobs:
       - name: Run security audit
         run: vx just security-audit-ci
 
-
-
   # ============================================================================
   # Stage 7: Code coverage (main branch only)
   # ============================================================================
@@ -852,9 +816,6 @@ jobs:
     env:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
-
-
-
 
     steps:
       - uses: actions/checkout@v6
@@ -884,15 +845,12 @@ jobs:
           path: ${{ github.workspace }}/.cache/sccache
           key: ${{ runner.os }}-sccache-coverage-${{ hashFiles('Cargo.lock') }}
 
-
-
           restore-keys: |
             ${{ runner.os }}-sccache-coverage-
             ${{ runner.os }}-sccache-
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
@@ -902,7 +860,6 @@ jobs:
 
       - name: Generate coverage
         run: vx just coverage-ci
-
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -948,7 +905,6 @@ jobs:
       - name: Build documentation
         run: vx just docs-build
 
-
   # Docs build without vx binary (when only docs changed)
   docs-build-standalone:
     name: Documentation Build (standalone)
@@ -964,8 +920,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '24'
-          cache: 'npm'
+          node-version: "24"
+          cache: "npm"
           cache-dependency-path: docs/package-lock.json
 
       - name: Install dependencies

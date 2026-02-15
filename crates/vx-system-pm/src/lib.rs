@@ -20,17 +20,17 @@
 //!
 //! async fn install_git() -> anyhow::Result<()> {
 //!     let registry = PackageManagerRegistry::new();
-//!     
+//!
 //!     // Get the best available package manager
 //!     let pm = registry.get_preferred()?;
-//!     
+//!
 //!     // Install git with custom parameters
 //!     let spec = PackageInstallSpec {
 //!         package: "git".to_string(),
 //!         params: Some("/GitAndUnixToolsOnPath".to_string()),
 //!         ..Default::default()
 //!     };
-//!     
+//!
 //!     pm.install_package(&spec).await?;
 //!     Ok(())
 //! }
