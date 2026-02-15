@@ -150,7 +150,7 @@ function Get-LatestVersion {
         # Make API request with optional authentication
         $response = Invoke-RestMethod -Uri $apiUrl -Method Get -Headers $headers -TimeoutSec 30
         Microsoft.PowerShell.Utility\Write-Progress -Activity "Fetching latest version" -Completed
-        
+
         # Find first non-prerelease release with assets
         foreach ($release in $response) {
             if (-not $release.prerelease -and $release.assets.Count -gt 0) {
@@ -158,13 +158,13 @@ function Get-LatestVersion {
                 return $release.tag_name
             }
         }
-        
+
         # If no release with assets found, return the first non-prerelease
         $firstRelease = $response | Where-Object { -not $_.prerelease } | Select-Object -First 1
         if ($firstRelease) {
             return $firstRelease.tag_name
         }
-        
+
         throw "No releases found"
     }
     catch {
@@ -220,34 +220,34 @@ function Get-LatestVersion {
 # Parses the releases page HTML to find versions that have downloadable assets
 function Find-VersionWithAssetsFromPage {
     Write-Info "Fetching releases page to find version with assets..."
-    
+
     try {
         $releasesUrl = "https://github.com/$RepoOwner/$RepoName/releases"
         $response = Invoke-WebRequest -Uri $releasesUrl -UseBasicParsing -TimeoutSec 30
         $html = $response.Content
-        
+
         # Extract version tags from release links
         # Pattern: href="/loonghao/vx/releases/tag/TAG_NAME"
         $tagPattern = 'href="/[^"]+/releases/tag/([^"]+)"'
         $matches = [regex]::Matches($html, $tagPattern)
-        
+
         $seenTags = @{}
         foreach ($match in $matches) {
             $tag = $match.Groups[1].Value
-            
+
             # Skip if already seen
             if ($seenTags.ContainsKey($tag)) { continue }
             $seenTags[$tag] = $true
-            
+
             # Skip pre-release tags
             if ($tag -match '-(alpha|beta|rc|pre|dev)') { continue }
-            
+
             # Check if this release has assets
             $releaseUrl = "https://github.com/$RepoOwner/$RepoName/releases/tag/$tag"
             try {
                 $releaseResponse = Invoke-WebRequest -Uri $releaseUrl -UseBasicParsing -TimeoutSec 10
                 $releaseHtml = $releaseResponse.Content
-                
+
                 # Check for .tar.gz or .zip in the release page
                 if ($releaseHtml -match '\.(tar\.gz|zip)') {
                     Write-Info "Found version with assets: $tag"
@@ -259,13 +259,13 @@ function Find-VersionWithAssetsFromPage {
                 continue
             }
         }
-        
+
         # Fallback: return the first tag found
         if ($seenTags.Keys.Count -gt 0) {
             $firstTag = $seenTags.Keys | Select-Object -First 1
             return $firstTag
         }
-        
+
         return $null
     }
     catch {

@@ -883,4 +883,3 @@ recommends = [
 | 2026-01-09 | Partially Implemented | Phase 1 核心功能已实现：EnvConfig, DetectionConfig, HealthConfig, HooksConfig, MirrorConfig, CacheConfig, priority, auto_installable |
 | 2026-01-09 | RFC 0017 Integration | RuntimeMap 现在通过 from_manifests() 加载，deprecated 方法已标记，vx-cli 使用新的单一数据源方式 |
 | 2026-01-09 | Phase 2 Complete | 用户体验功能已实现：CommandDef, OutputConfig, ShellConfig, ShellCompletionsConfig |
-

@@ -5,18 +5,18 @@ on:
   push:
     branches: [main]
     paths:
-      - 'crates/**'
-      - 'src/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'tests/e2e_benchmark_tests.rs'
+      - "crates/**"
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "tests/e2e_benchmark_tests.rs"
   pull_request:
     paths:
-      - 'crates/**'
-      - 'src/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'tests/e2e_benchmark_tests.rs'
+      - "crates/**"
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "tests/e2e_benchmark_tests.rs"
   workflow_dispatch:
 
 permissions:
@@ -29,8 +29,8 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  CARGO_HTTP_TIMEOUT: '600'
-  CARGO_NET_RETRY: '10'
+  CARGO_HTTP_TIMEOUT: "600"
+  CARGO_NET_RETRY: "10"
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 jobs:
@@ -69,7 +69,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform.target }}
-
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
@@ -135,7 +134,6 @@ jobs:
               echo "| $test_name | avg: $avg (total: $total) | - | ℹ️ |" >> benchmark_results.md
             fi
           done < benchmark_output.txt
-
 
       - name: Generate benchmark JSON
         shell: bash

@@ -67,32 +67,32 @@ $Results = @{
 
 foreach ($test in $TestCases) {
     Write-Info "Testing: $($test.Name)"
-    
+
     # Check platform requirement
     if ($test.OnlyOn) {
-        $currentOS = if ($IsWindows -or $env:OS -eq "Windows_NT") { "Windows" } 
-                     elseif ($IsMacOS) { "macOS" } 
+        $currentOS = if ($IsWindows -or $env:OS -eq "Windows_NT") { "Windows" }
+                     elseif ($IsMacOS) { "macOS" }
                      else { "Linux" }
-        
+
         if ($currentOS -ne $test.OnlyOn) {
             Write-Host "  ⚠ Skipped (only for $($test.OnlyOn))" -ForegroundColor Yellow
             $Results.Skipped++
             continue
         }
     }
-    
+
     try {
         $output = & $VxBinary $test.Command 2>&1
         $exitCode = $LASTEXITCODE
-        
+
         if ($Verbose) {
             Write-Host "  Exit code: $exitCode" -ForegroundColor DarkGray
             Write-Host "  Output: $($output -join '; ')" -ForegroundColor DarkGray
         }
-        
+
         # Check expectation
         $success = $exitCode -eq 0
-        
+
         if ($null -eq $test.ExpectSuccess) {
             # No expectation, just report
             if ($success) {
@@ -115,7 +115,7 @@ foreach ($test in $TestCases) {
         Write-Fail "  ✗ Exception: $_"
         $Results.Failed++
     }
-    
+
     Write-Host ""
 }
 

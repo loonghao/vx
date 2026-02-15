@@ -1,5 +1,5 @@
 # Rust Provider Manifest
-# 
+#
 # Rust is installed via rustup, the official Rust toolchain installer.
 # rustup manages rustc, cargo, and other Rust tools automatically.
 #

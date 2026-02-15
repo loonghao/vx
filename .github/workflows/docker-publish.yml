@@ -15,11 +15,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish (e.g., v1.0.0)'
+        description: "Version to publish (e.g., v1.0.0)"
         required: true
         type: string
       build_tools_image:
-        description: 'Also build the tools image (with pre-installed uv, ruff, node)'
+        description: "Also build the tools image (with pre-installed uv, ruff, node)"
         required: false
         type: boolean
         default: true
@@ -66,7 +66,6 @@ jobs:
           VERSION_SHORT="${VERSION#v}"
           echo "version_short=${VERSION_SHORT}" >> $GITHUB_OUTPUT
           echo "Detected version: $VERSION, short version: $VERSION_SHORT"
-
 
   build-and-push:
     needs: check-release

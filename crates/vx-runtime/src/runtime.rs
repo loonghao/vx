@@ -1246,13 +1246,13 @@ pub trait Runtime: Send + Sync {
     ///     ctx: &RuntimeContext,
     /// ) -> Result<HashMap<String, String>> {
     ///     let mut env = HashMap::new();
-    ///     
+    ///
     ///     // Set INCLUDE path for MSVC
     ///     env.insert("INCLUDE".to_string(), "/path/to/includes".to_string());
-    ///     
+    ///
     ///     // Set LIB path for MSVC
     ///     env.insert("LIB".to_string(), "/path/to/libs".to_string());
-    ///     
+    ///
     ///     Ok(env)
     /// }
     /// ```

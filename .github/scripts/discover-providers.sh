@@ -95,14 +95,14 @@ for dir in "$PROVIDERS_DIR"/*/; do
     MANIFEST="${dir}provider.toml"
     if [ -f "$MANIFEST" ]; then
         PROVIDER_NAME=$(basename "$dir")
-        
+
         # Extract provider-level platform constraint
         # Look for: [provider.platforms] followed by os = ["windows"] etc.
         PROVIDER_PLATFORMS=$(grep -A1 '^\[provider\.platforms\]' "$MANIFEST" 2>/dev/null | \
             grep 'os = ' | \
             sed 's/.*\[\([^]]*\)\].*/\1/' | \
             tr -d '"' | tr -d ' ' || echo "")
-        
+
         # Get all runtime names using Python for reliable TOML parsing
         RUNTIME_NAMES=$(python3 << 'PYTHON_EOF'
 import re
@@ -121,12 +121,12 @@ except Exception as e:
     pass
 PYTHON_EOF
         "$MANIFEST" 2>/dev/null) || RUNTIME_NAMES=""
-        
+
         # Fallback: use provider directory name if no runtimes found
         if [ -z "$RUNTIME_NAMES" ]; then
             RUNTIME_NAMES="$PROVIDER_NAME"
         fi
-        
+
         # Store each runtime with its platform constraint
         for runtime in $RUNTIME_NAMES; do
             ALL_RUNTIMES="$ALL_RUNTIMES $runtime"
@@ -149,32 +149,32 @@ echo "Found $RUNTIME_COUNT runtimes"
 filter_for_platform() {
     local platform=$1
     local result=()
-    
+
     for runtime in $ALL_RUNTIMES; do
         local constraints="${RUNTIME_PLATFORMS[$runtime]:-}"
-        
+
         # Skip if platform constraints exist and don't include this platform
         if [ -n "$constraints" ]; then
             if ! echo "$constraints" | grep -qi "$platform"; then
                 continue
             fi
         fi
-        
+
         # Skip always-excluded runtimes
         if echo ",$SKIP_ALWAYS," | grep -qi ",$runtime,"; then
             continue
         fi
-        
+
         # Apply user runtimes filter (if specified)
         if [ -n "$RUNTIME_FILTER" ]; then
             if ! echo ",$RUNTIME_FILTER," | grep -qi ",$runtime,"; then
                 continue
             fi
         fi
-        
+
         result+=("$runtime")
     done
-    
+
     echo "${result[@]}"
 }
 
@@ -186,7 +186,7 @@ chunk_runtimes() {
     local chunks=()
     local current_chunk=""
     local count=0
-    
+
     for runtime in "${runtimes[@]}"; do
         if [ $count -ge $chunk_size ]; then
             chunks+=("$current_chunk")
@@ -201,11 +201,11 @@ chunk_runtimes() {
             ((count++)) || true
         fi
     done
-    
+
     if [ -n "$current_chunk" ]; then
         chunks+=("$current_chunk")
     fi
-    
+
     # Output as JSON array
     if [ ${#chunks[@]} -eq 0 ]; then
         echo "[]"

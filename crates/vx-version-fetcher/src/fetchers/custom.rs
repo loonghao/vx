@@ -24,14 +24,14 @@ pub type ParserFn =
 ///     |response| {
 ///         let array = response.as_array()
 ///             .ok_or_else(|| anyhow::anyhow!("Expected array"))?;
-///         
+///
 ///         let versions = array.iter()
 ///             .filter_map(|item| {
 ///                 let version = item.get("version")?.as_str()?;
 ///                 Some(VersionInfo::new(version.trim_start_matches('v')))
 ///             })
 ///             .collect();
-///         
+///
 ///         Ok(versions)
 ///     }
 /// );

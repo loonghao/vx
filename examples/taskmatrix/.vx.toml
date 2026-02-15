@@ -84,7 +84,7 @@ command = "python visual_chatgpt.py"
 description = "Start with 4x V100 32GB"
 args = [
   "--load",
-  "Text2Box_cuda:0,Segmenting_cuda:0,Inpainting_cuda:0,ImageCaptioning_cuda:0,Text2Image_cuda:1,Image2Canny_cpu,CannyText2Image_cuda:1,Image2Depth_cpu,DepthText2Image_cuda:1,VisualQuestionAnswering_cuda:2,InstructPix2Pix_cuda:2,Image2Scribble_cpu,ScribbleText2Image_cuda:2,SegText2Image_cuda:2,Image2Pose_cpu,PoseText2Image_cuda:2,Image2Hed_cpu,HedText2Image_cuda:3,Image2Normal_cpu,NormalText2Image_cuda:3,Image2Line_cpu,LineText2Image_cuda:3",
+  "Text2Box_cuda:0,Segmenting_cuda:0,Inpainting_cuda:0,ImageCaptioning_cuda:0,Text2Image_cuda:1,Image2Canny_cpu,CannyText2Image_cuda:1,Image2Depth_cpu,DepthText2Image_cuda:1,VisualQuestionAnswering_cuda:2,InstructPix2Pix_cuda:2,Image2Scribble_cpu,ScribbleText2Image_cuda:2,SegText2Image_cuda:2,Image2Pose_cpu,PoseText2Image_cuda:2,Image2Head_cpu,HeadText2Image_cuda:3,Image2Normal_cpu,NormalText2Image_cuda:3,Image2Line_cpu,LineText2Image_cuda:3",
 ]
 
 # ============================================

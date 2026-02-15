@@ -20,12 +20,12 @@ function Write-Section { Write-Host "`n=== $args ===" -ForegroundColor Magenta }
 
 # Configuration
 # Find project root by looking for Cargo.toml
-$ScriptPath = if ($PSScriptRoot) { 
-    $PSScriptRoot 
-} elseif ($MyInvocation.MyCommand.Path) { 
-    Split-Path -Parent $MyInvocation.MyCommand.Path 
-} else { 
-    Get-Location 
+$ScriptPath = if ($PSScriptRoot) {
+    $PSScriptRoot
+} elseif ($MyInvocation.MyCommand.Path) {
+    Split-Path -Parent $MyInvocation.MyCommand.Path
+} else {
+    Get-Location
 }
 
 # Navigate up to find project root (where Cargo.toml exists)
@@ -73,18 +73,18 @@ $TestResults = @{
 # NOTE: Function must be defined before it's called
 function Get-RuntimesFromToml {
     param([string]$TomlPath)
-    
+
     $runtimes = @()
     $content = Get-Content $TomlPath -Raw
-    
+
     # Simple TOML parsing for [[runtimes]] sections
     $pattern = '\[\[runtimes\]\]\s+name\s*=\s*"([^"]+)"'
     $matches = [regex]::Matches($content, $pattern)
-    
+
     foreach ($match in $matches) {
         $runtimes += $match.Groups[1].Value
     }
-    
+
     return $runtimes
 }
 
@@ -95,9 +95,9 @@ function Test-VxCommand {
         [string]$Runtime,
         [string]$Command
     )
-    
+
     $TestResults.Total++
-    
+
     if ($Command -eq "list") {
         $cmdArgs = @($Command)
     } elseif ($Command -eq "install") {
@@ -108,11 +108,11 @@ function Test-VxCommand {
         # Use 'vx test' command with --functional flag for other tests
         $cmdArgs = @("test", $Runtime, "--functional")
     }
-    
+
     try {
         $output = & $VxBinary $cmdArgs 2>&1
         $exitCode = $LASTEXITCODE
-        
+
         if ($exitCode -eq 0) {
             $TestResults.Passed++
             Write-Success "  ✓ vx $($cmdArgs -join ' ')"
@@ -141,12 +141,12 @@ function Test-VxCommand {
 # Returns: $true if platform is supported, $false if not supported
 function Test-RuntimePlatformSupported {
     param([string]$Runtime)
-    
+
     try {
         # Use 'vx test' command with --platform-only flag
         $output = & $VxBinary test $Runtime --platform-only 2>&1 | Out-String
         $exitCode = $LASTEXITCODE
-        
+
         # Exit code 0 means platform is supported
         return $exitCode -eq 0
     } catch {
@@ -181,30 +181,30 @@ $CurrentRuntime = 0
 # Test each provider
 foreach ($provider in $AllProviders) {
     Write-Section "Testing Provider: $($provider.Name)"
-    
+
     $tomlPath = Join-Path $provider.FullName "provider.toml"
     $runtimes = Get-RuntimesFromToml -TomlPath $tomlPath
-    
+
     if ($runtimes.Count -eq 0) {
         Write-Warning "  ⚠ No runtimes found in provider.toml"
         $TestResults.Skipped++
         continue
     }
-    
+
     Write-Info "  Runtimes: $($runtimes -join ', ')"
-    
+
     $providerResult = @{
         Name = $provider.Name
         Runtimes = $runtimes
         Tests = @()
     }
-    
+
     # Test: vx list <runtime>
     foreach ($runtime in $runtimes) {
         $CurrentRuntime++
         $Remaining = $TotalRuntimes - $CurrentRuntime
         Write-Info "  [$CurrentRuntime/$TotalRuntimes] Testing: $runtime (remaining: $Remaining)"
-        
+
         # Check if runtime supports the current platform
         $platformSupported = Test-RuntimePlatformSupported -Runtime $runtime
         if (-not $platformSupported) {
@@ -216,14 +216,14 @@ foreach ($provider in $AllProviders) {
             }
             continue
         }
-        
+
         # Test list command (ensures runtime is recognized)
         $listResult = Test-VxCommand -Provider $provider.Name -Runtime $runtime -Command "list"
         $providerResult.Tests += @{
             Command = "list $runtime"
             Result = $listResult
         }
-        
+
         # Test installation with vx test --install (installs and verifies executable exists)
         # This is more reliable than --version which may have non-standard behavior
         $installResult = Test-VxCommand -Provider $provider.Name -Runtime $runtime -Command "install"
@@ -231,11 +231,11 @@ foreach ($provider in $AllProviders) {
             Command = "$runtime install test"
             Result = $installResult
         }
-        
+
         # Small delay to avoid rate limiting
         Start-Sleep -Milliseconds 100
     }
-    
+
     $TestResults.Providers += $providerResult
 }
 
@@ -246,10 +246,10 @@ Write-Success "Passed: $($TestResults.Passed)"
 Write-Error "Failed: $($TestResults.Failed)"
 Write-Warning "Skipped: $($TestResults.Skipped)"
 
-$successRate = if ($TestResults.Total -gt 0) { 
-    [math]::Round(($TestResults.Passed / $TestResults.Total) * 100, 2) 
-} else { 
-    0 
+$successRate = if ($TestResults.Total -gt 0) {
+    [math]::Round(($TestResults.Passed / $TestResults.Total) * 100, 2)
+} else {
+    0
 }
 Write-Info "Success Rate: $successRate%"
 
@@ -259,7 +259,7 @@ foreach ($provider in $TestResults.Providers) {
     $passed = ($provider.Tests | Where-Object { $_.Result.Success }).Count
     $total = $provider.Tests.Count
     $status = if ($passed -eq $total) { "✓" } else { "✗" }
-    
+
     $statusColor = if ($passed -eq $total) { "Green" } else { "Red" }
     Write-Host "  $status " -ForegroundColor $statusColor -NoNewline
     Write-Host "$($provider.Name): $passed/$total tests passed"
@@ -279,7 +279,7 @@ Write-Info "Cache path: $TempVxHome"
 
 if ($Verbose) {
     Write-Info "`nInstalled versions:"
-    Get-ChildItem -Path $TempVxHome -Recurse -Directory -Depth 2 | 
+    Get-ChildItem -Path $TempVxHome -Recurse -Directory -Depth 2 |
         Where-Object { $_.Parent.Name -eq "versions" } |
         ForEach-Object { Write-Host "  - $($_.Parent.Parent.Name)/$($_.Name)" -ForegroundColor DarkGray }
 }

@@ -12,11 +12,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish (e.g., v1.0.0)'
+        description: "Version to publish (e.g., v1.0.0)"
         required: true
         type: string
       force_run:
-        description: 'Force run even if Release workflow failed'
+        description: "Force run even if Release workflow failed"
         required: false
         default: false
         type: boolean
@@ -75,9 +75,6 @@ jobs:
             version=$(cat release-tag.txt)
             echo "version=$version" >> $GITHUB_OUTPUT
           fi
-
-
-
 
       - name: Verify GitHub Release exists
         run: |
@@ -302,4 +299,3 @@ jobs:
           echo "# Rust (Cargo)" >> $GITHUB_STEP_SUMMARY
           echo "cargo install vx" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-

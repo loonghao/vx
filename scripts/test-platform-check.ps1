@@ -22,14 +22,14 @@ function Test-PlatformCheck {
         [string]$Runtime,
         [string]$ExpectedResult  # "supported" or "unsupported"
     )
-    
+
     Write-Host "Testing: $Runtime" -ForegroundColor Yellow
-    
+
     $output = & $VxBinary check $Runtime 2>&1 | Out-String
     $exitCode = $LASTEXITCODE
-    
+
     $isUnsupported = $output -match "does not support the current platform"
-    
+
     if ($ExpectedResult -eq "unsupported") {
         if ($isUnsupported) {
             Write-Host "  ✓ Correctly detected as unsupported" -ForegroundColor Green

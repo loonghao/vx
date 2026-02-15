@@ -141,7 +141,7 @@ impl SystemPackageManager for ChocolateyManager {
         // Silent, non-interactive installation
         let script = r#"
             Set-ExecutionPolicy Bypass -Scope Process -Force;
-            [System.Net.ServicePointManager]::SecurityProtocol = 
+            [System.Net.ServicePointManager]::SecurityProtocol =
                 [System.Net.ServicePointManager]::SecurityProtocol -bor 3072;
             $ProgressPreference = 'SilentlyContinue';
             iex ((New-Object System.Net.WebClient).DownloadString(
