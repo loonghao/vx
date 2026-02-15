@@ -54,6 +54,7 @@ fn make_manifest(name: &str, description: &str) -> ProviderManifest {
             repository: None,
             ecosystem: None,
             platform_constraint: None,
+            package_alias: None,
         },
         runtimes: vec![make_runtime_def(name)],
     }
@@ -153,6 +154,7 @@ fn directory_override_replaces_embedded() {
             repository: None,
             ecosystem: None,
             platform_constraint: None,
+            package_alias: None,
         },
         runtimes: vec![make_runtime_def("tool")],
     };
@@ -215,6 +217,7 @@ fn runtime_metadata_resolves_aliases() {
             repository: None,
             ecosystem: Some(Ecosystem::NodeJs),
             platform_constraint: None,
+            package_alias: None,
         },
         runtimes: vec![runtime_def],
     };
