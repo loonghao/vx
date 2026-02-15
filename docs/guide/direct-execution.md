@@ -170,6 +170,71 @@ vx uvx cookiecutter gh:user/repo # Project scaffolding
 vx uvx pre-commit run --all-files
 ```
 
+## Package Aliases
+
+vx supports **package aliases** — short commands that automatically route to ecosystem packages.
+
+### What are Package Aliases?
+
+Instead of remembering ecosystem prefixes like `npm:` or `uv:`, you can use familiar tool names directly:
+
+```bash
+# These are equivalent:
+vx vite              # Same as: vx npm:vite
+vx vite@5.0          # Same as: vx npm:vite@5.0
+vx rez               # Same as: vx uv:rez
+vx pre-commit        # Same as: vx uv:pre-commit
+vx meson             # Same as: vx uv:meson
+vx release-please    # Same as: vx npm:release-please
+```
+
+### Benefits
+
+1. **Simpler Commands**: No need to remember ecosystem prefixes
+2. **Automatic Dependency Management**: vx automatically installs the required runtime (node/python) based on your `vx.toml` configuration
+3. **Unified Experience**: Works seamlessly with both runtime tools and ecosystem packages
+
+### How It Works
+
+When you run `vx vite`, vx:
+
+1. Checks if `vite` has a `package_alias` definition in its provider
+2. Routes the request to `npm:vite` package execution
+3. Auto-installs Node.js if needed (respecting your `vx.toml` version)
+4. Runs the package with your specified arguments
+
+### Uninstalling Aliased Packages
+
+```bash
+# Uninstall works the same way:
+vx uninstall vite          # Same as: vx global uninstall npm:vite
+vx uninstall rez@3.0       # Same as: vx global uninstall uv:rez
+```
+
+### Available Aliases
+
+| Short Command | Equivalent | Ecosystem |
+|--------------|------------|-----------|
+| `vx vite` | `vx npm:vite` | npm |
+| `vx release-please` | `vx npm:release-please` | npm |
+| `vx rez` | `vx uv:rez` | uv |
+| `vx pre-commit` | `vx uv:pre-commit` | uv |
+| `vx meson` | `vx uv:meson` | uv |
+
+### Defining Custom Aliases
+
+You can define package aliases in your provider's `provider.toml`:
+
+```toml
+[provider]
+name = "vite"
+description = "Next generation frontend build tool"
+
+[provider.package_alias]
+ecosystem = "npm"    # Target ecosystem
+package = "vite"     # Package name
+```
+
 ## Running DevOps Tools
 
 ### Terraform

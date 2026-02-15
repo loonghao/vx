@@ -170,6 +170,71 @@ vx uvx cookiecutter gh:user/repo # 项目脚手架
 vx uvx pre-commit run --all-files
 ```
 
+## 包别名
+
+vx 支持**包别名** —— 自动路由到生态系统包的短命令。
+
+### 什么是包别名？
+
+无需记住 `npm:` 或 `uv:` 等生态系统前缀，直接使用熟悉的工具名称：
+
+```bash
+# 这些命令是等价的：
+vx vite              # 等同于：vx npm:vite
+vx vite@5.0          # 等同于：vx npm:vite@5.0
+vx rez               # 等同于：vx uv:rez
+vx pre-commit        # 等同于：vx uv:pre-commit
+vx meson             # 等同于：vx uv:meson
+vx release-please    # 等同于：vx npm:release-please
+```
+
+### 优势
+
+1. **命令更简洁**：无需记住生态系统前缀
+2. **自动依赖管理**：vx 根据 `vx.toml` 配置自动安装所需的运行时（node/python）
+3. **统一体验**：运行时工具和生态系统包无缝协作
+
+### 工作原理
+
+当你运行 `vx vite` 时，vx 会：
+
+1. 检查 `vite` 是否在其 provider 中定义了 `package_alias`
+2. 将请求路由到 `npm:vite` 包执行路径
+3. 如有需要，自动安装 Node.js（遵循 `vx.toml` 中的版本配置）
+4. 使用你指定的参数运行该包
+
+### 卸载别名的包
+
+```bash
+# 卸载操作同样支持别名：
+vx uninstall vite          # 等同于：vx global uninstall npm:vite
+vx uninstall rez@3.0       # 等同于：vx global uninstall uv:rez
+```
+
+### 可用的别名
+
+| 短命令 | 等价命令 | 生态系统 |
+|-------|---------|---------|
+| `vx vite` | `vx npm:vite` | npm |
+| `vx release-please` | `vx npm:release-please` | npm |
+| `vx rez` | `vx uv:rez` | uv |
+| `vx pre-commit` | `vx uv:pre-commit` | uv |
+| `vx meson` | `vx uv:meson` | uv |
+
+### 定义自定义别名
+
+你可以在 provider 的 `provider.toml` 中定义包别名：
+
+```toml
+[provider]
+name = "vite"
+description = "Next generation frontend build tool"
+
+[provider.package_alias]
+ecosystem = "npm"    # 目标生态系统
+package = "vite"     # 包名
+```
+
 ## 运行 DevOps 工具
 
 ### Terraform
