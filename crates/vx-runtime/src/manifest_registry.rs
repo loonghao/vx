@@ -383,6 +383,7 @@ aliases = ["tr", "test"]
                 repository: None,
                 ecosystem: None,
                 platform_constraint: None,
+                package_alias: None,
             },
             runtimes: vec![],
         };
