@@ -123,7 +123,7 @@ Step 3: 检查 runtime 对应的 manifest 是否有 package_alias?
 
 ### 4. 版本映射规则
 
-#### 执行 (vx <tool>)
+#### 执行 `(vx <tool>)`
 
 | 用户输入 | 等价转换 | 说明 |
 |----------|----------|------|
@@ -134,7 +134,7 @@ Step 3: 检查 runtime 对应的 manifest 是否有 package_alias?
 | `vx meson` | `vx uv:meson` | uv 生态 |
 | `vx release-please` | `vx npm:release-please` | npm 生态 |
 
-#### 卸载 (vx uninstall <tool>)
+#### 卸载 `(vx uninstall <tool>)`
 
 | 用户输入 | 等价转换 | 说明 |
 |----------|----------|------|
