@@ -180,8 +180,7 @@ impl<'a> EnvironmentManager<'a> {
                                 .iter()
                                 .any(|p| p.eq_ignore_ascii_case(&essential_str));
 
-                            if !already_present && std::path::Path::new(essential.as_str()).exists()
-                            {
+                            if !already_present && std::path::Path::new(essential).exists() {
                                 path_parts.push(essential_str);
                                 trace!("Added essential system path: {}", essential);
                             }
