@@ -11,3 +11,6 @@ rust-version.workspace = true
 
 [dependencies]
 vx-paths = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

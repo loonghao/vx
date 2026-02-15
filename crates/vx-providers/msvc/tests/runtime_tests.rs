@@ -832,3 +832,180 @@ fn test_issue_573_installer_latest_no_version() {
         "latest() should not set msvc_version"
     );
 }
+
+// ============================================
+// MSBuild Bridge Deployment Tests
+// ============================================
+// These tests verify that the MSBuild bridge is properly deployed
+// to the MSVC installation directory after installation, enabling
+// node-gyp and other build tools to discover MSBuild.exe.
+
+#[test]
+fn test_deploy_msbuild_bridge_creates_expected_path() {
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    // Use a unique bridge name to avoid global registry conflicts with other tests
+    let bridge_name = "MSBuild_deploy_path_test";
+    let data = Vec::from(b"MZ-fake-msbuild-bridge-for-test" as &[u8]);
+    let fake_msbuild: &'static [u8] = Box::leak(data.into_boxed_slice());
+    vx_bridge::register_embedded_bridge(bridge_name, fake_msbuild);
+
+    // Call deploy_bridge to the expected path (same as MsvcRuntime::deploy_msbuild_bridge)
+    let target = install_path
+        .join("MSBuild")
+        .join("Current")
+        .join("Bin")
+        .join("MSBuild.exe");
+
+    let result = vx_bridge::deploy_bridge(bridge_name, &target);
+    assert!(
+        result.is_ok(),
+        "MSBuild bridge deployment should succeed: {:?}",
+        result.err()
+    );
+
+    // Verify the bridge was deployed to the expected location
+    assert!(
+        target.exists(),
+        "MSBuild.exe should exist at MSBuild/Current/Bin/MSBuild.exe"
+    );
+
+    // Verify the content matches what was registered
+    let content = std::fs::read(&target).unwrap();
+    assert_eq!(content, b"MZ-fake-msbuild-bridge-for-test");
+}
+
+#[test]
+fn test_msbuild_bridge_path_matches_node_gyp_expectation() {
+    // node-gyp expects MSBuild.exe at:
+    // {VCINSTALLDIR}/../MSBuild/Current/Bin/MSBuild.exe
+    // Since VCINSTALLDIR points to {install_path}/VC/,
+    // resolving VCINSTALLDIR/.. gives {install_path}/
+    // So MSBuild.exe should be at {install_path}/MSBuild/Current/Bin/MSBuild.exe
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    // Create the VC directory structure
+    let vc_dir = install_path.join("VC");
+    std::fs::create_dir_all(&vc_dir).unwrap();
+
+    // Use a unique bridge name to avoid global registry conflicts
+    let bridge_name = "MSBuild_node_gyp_test";
+    let data = Vec::from(b"msbuild-content" as &[u8]);
+    let bridge_data: &'static [u8] = Box::leak(data.into_boxed_slice());
+    vx_bridge::register_embedded_bridge(bridge_name, bridge_data);
+
+    let target = install_path
+        .join("MSBuild")
+        .join("Current")
+        .join("Bin")
+        .join("MSBuild.exe");
+    vx_bridge::deploy_bridge(bridge_name, &target).unwrap();
+
+    // Verify the path relative to VCINSTALLDIR
+    // VCINSTALLDIR = {install_path}/VC/ → parent = {install_path}
+    let vc_install_dir = vc_dir.to_path_buf();
+    let vs_root = vc_install_dir.parent().unwrap();
+    let expected_msbuild = vs_root
+        .join("MSBuild")
+        .join("Current")
+        .join("Bin")
+        .join("MSBuild.exe");
+
+    assert!(
+        expected_msbuild.exists(),
+        "MSBuild.exe should be discoverable via VCINSTALLDIR parent: {}",
+        expected_msbuild.display()
+    );
+}
+
+#[test]
+fn test_msbuild_bridge_directory_structure() {
+    // Verify that deployment creates the full directory tree
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    // Use a unique bridge name to avoid global registry conflicts
+    let bridge_name = "MSBuild_dir_structure_test";
+    let data = Vec::from(b"bridge-exe" as &[u8]);
+    let bridge_data: &'static [u8] = Box::leak(data.into_boxed_slice());
+    vx_bridge::register_embedded_bridge(bridge_name, bridge_data);
+
+    let target = install_path
+        .join("MSBuild")
+        .join("Current")
+        .join("Bin")
+        .join("MSBuild.exe");
+    vx_bridge::deploy_bridge(bridge_name, &target).unwrap();
+
+    // Verify directory structure
+    assert!(install_path.join("MSBuild").is_dir());
+    assert!(install_path.join("MSBuild").join("Current").is_dir());
+    assert!(
+        install_path
+            .join("MSBuild")
+            .join("Current")
+            .join("Bin")
+            .is_dir()
+    );
+    assert!(target.is_file());
+}
+
+#[test]
+fn test_get_environment_includes_msbuild_discoverable_path() {
+    // After MSVC installation with bridge deployed, the environment
+    // should make MSBuild.exe discoverable via VCINSTALLDIR
+    let temp_dir = TempDir::new().unwrap();
+    let install_path = temp_dir.path().to_path_buf();
+
+    // Create VC directory structure
+    let vc_dir = install_path.join("VC");
+    let tools_dir = vc_dir.join("Tools").join("MSVC").join("14.42.34433");
+    std::fs::create_dir_all(&tools_dir).unwrap();
+
+    // Deploy MSBuild bridge (unique name to avoid global registry conflicts)
+    let bridge_name = "MSBuild_env_test";
+    let data = Vec::from(b"msbuild" as &[u8]);
+    let bridge_data: &'static [u8] = Box::leak(data.into_boxed_slice());
+    vx_bridge::register_embedded_bridge(bridge_name, bridge_data);
+    let msbuild_path = install_path
+        .join("MSBuild")
+        .join("Current")
+        .join("Bin")
+        .join("MSBuild.exe");
+    vx_bridge::deploy_bridge(bridge_name, &msbuild_path).unwrap();
+
+    let info = MsvcInstallInfo {
+        install_path: install_path.clone(),
+        msvc_version: "14.42.34433".to_string(),
+        sdk_version: None,
+        cl_exe_path: PathBuf::from("cl.exe"),
+        link_exe_path: None,
+        lib_exe_path: None,
+        nmake_exe_path: None,
+        include_paths: vec![],
+        lib_paths: vec![],
+        bin_paths: vec![],
+    };
+
+    let env = info.get_environment();
+
+    // VCINSTALLDIR should be set
+    let vcinstalldir = env.get("VCINSTALLDIR").unwrap();
+    assert!(vcinstalldir.contains("VC"));
+
+    // Verify that MSBuild.exe is discoverable relative to VCINSTALLDIR
+    let vc_path = PathBuf::from(vcinstalldir.trim_end_matches('\\'));
+    let vs_root = vc_path.parent().unwrap();
+    let msbuild = vs_root
+        .join("MSBuild")
+        .join("Current")
+        .join("Bin")
+        .join("MSBuild.exe");
+    assert!(
+        msbuild.exists(),
+        "MSBuild.exe should be discoverable via VCINSTALLDIR: {}",
+        msbuild.display()
+    );
+}
