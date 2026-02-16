@@ -480,9 +480,58 @@ impl<'a> EnvironmentManager<'a> {
                             self.context,
                             self.project_config,
                         );
-                        env_mgr_for_version
+                        let matched_version = env_mgr_for_version
                             .find_matching_version(companion_name, companion_version, &versions)
-                            .unwrap_or_else(|| versions[0].clone())
+                            .unwrap_or_else(|| versions[0].clone());
+
+                        // Check if the companion tool has component requirements (e.g., MSVC Spectre)
+                        // that might be missing from the existing installation.
+                        // If so, go through ensure_version_installed to trigger component installation.
+                        let has_components = self
+                            .project_config
+                            .and_then(|pc| {
+                                pc.get_install_options(companion_name)
+                                    .map(|opts| opts.contains_key("VX_MSVC_COMPONENTS"))
+                            })
+                            .unwrap_or(false);
+
+                        if has_components {
+                            debug!(
+                                "Companion {} has component requirements, verifying installation integrity...",
+                                companion_name
+                            );
+                            let mut install_mgr = super::installation::InstallationManager::new(
+                                self.config,
+                                self.resolver,
+                                self.registry,
+                                self.context,
+                            );
+                            if let Some(project_config) = self.project_config {
+                                install_mgr = install_mgr.with_project_config(project_config);
+                            }
+                            match install_mgr
+                                .ensure_version_installed(companion_name, &matched_version)
+                                .await
+                            {
+                                Ok(Some(result)) => {
+                                    debug!(
+                                        "Companion {} component check complete (version: {})",
+                                        companion_name, result.version
+                                    );
+                                    result.version
+                                }
+                                Ok(None) => matched_version,
+                                Err(e) => {
+                                    warn!(
+                                        "Failed to verify companion {} components: {}",
+                                        companion_name, e
+                                    );
+                                    matched_version
+                                }
+                            }
+                        } else {
+                            matched_version
+                        }
                     }
                     Ok(_) | Err(_) => {
                         // Companion not installed — try auto-install
@@ -490,14 +539,22 @@ impl<'a> EnvironmentManager<'a> {
                             "Companion {} is not installed. Auto-installing {}@{} ...",
                             companion_name, companion_name, companion_version
                         );
-                        let install_mgr = super::installation::InstallationManager::new(
+                        let mut install_mgr = super::installation::InstallationManager::new(
                             self.config,
                             self.resolver,
                             self.registry,
                             self.context,
                         );
+                        // Pass project_config so install_options (e.g., MSVC components)
+                        // from vx.toml are injected into RuntimeContext during installation
+                        if let Some(project_config) = self.project_config {
+                            install_mgr = install_mgr.with_project_config(project_config);
+                        }
+                        // Use ensure_version_installed which goes through the unified
+                        // version resolution path (runtime.resolve_version()), checks
+                        // if already installed, and returns a consistent version string.
                         match install_mgr
-                            .install_runtime_with_version(companion_name, companion_version)
+                            .ensure_version_installed(companion_name, companion_version)
                             .await
                         {
                             Ok(Some(result)) => {
@@ -508,18 +565,11 @@ impl<'a> EnvironmentManager<'a> {
                                 result.version
                             }
                             Ok(None) => {
-                                // install_runtime_with_version returned None (already installed or no-op)
-                                // Re-check installed versions
-                                match companion_runtime.installed_versions(context).await {
-                                    Ok(versions) if !versions.is_empty() => versions[0].clone(),
-                                    _ => {
-                                        debug!(
-                                            "  Companion {} still has no installed versions after install attempt, skipping",
-                                            companion_name
-                                        );
-                                        continue;
-                                    }
-                                }
+                                debug!(
+                                    "  Companion {} could not be installed (no registry/context), skipping",
+                                    companion_name
+                                );
+                                continue;
                             }
                             Err(e) => {
                                 warn!("Failed to auto-install companion {}: {}", companion_name, e);

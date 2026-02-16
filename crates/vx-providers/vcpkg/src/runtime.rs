@@ -115,11 +115,7 @@ impl VcpkgRuntime {
 
     /// Get the expected executable name for the current platform
     fn executable_name_for_platform() -> &'static str {
-        if cfg!(windows) {
-            "vcpkg.exe"
-        } else {
-            "vcpkg"
-        }
+        if cfg!(windows) { "vcpkg.exe" } else { "vcpkg" }
     }
 
     /// Get the vcpkg downloads cache directory within vx cache
@@ -218,16 +214,28 @@ impl VcpkgRuntime {
                 let sparse_content = format!("/*\n{}\n", sparse_exclude);
 
                 // Write sparse-checkout file directly (more reliable than `git sparse-checkout set`)
-                let sparse_file = install_path.join(".git").join("info").join("sparse-checkout");
+                let sparse_file = install_path
+                    .join(".git")
+                    .join("info")
+                    .join("sparse-checkout");
                 if let Some(parent) = sparse_file.parent() {
                     std::fs::create_dir_all(parent).ok();
                 }
                 if let Err(e) = std::fs::write(&sparse_file, &sparse_content) {
-                    warn!("Failed to write sparse-checkout file: {}, continuing with full checkout", e);
+                    warn!(
+                        "Failed to write sparse-checkout file: {}, continuing with full checkout",
+                        e
+                    );
                 } else {
                     // Enable sparse-checkout in git config
                     let _ = std::process::Command::new("git")
-                        .args(["-C", &install_path.to_string_lossy(), "config", "core.sparseCheckout", "true"])
+                        .args([
+                            "-C",
+                            &install_path.to_string_lossy(),
+                            "config",
+                            "core.sparseCheckout",
+                            "true",
+                        ])
                         .stdout(std::process::Stdio::null())
                         .stderr(std::process::Stdio::null())
                         .status();
@@ -241,7 +249,10 @@ impl VcpkgRuntime {
 
                     if let Ok(output) = checkout_result {
                         if output.status.success() {
-                            debug!("Sparse checkout applied, excluded: {:?}", SPARSE_CHECKOUT_EXCLUDES);
+                            debug!(
+                                "Sparse checkout applied, excluded: {:?}",
+                                SPARSE_CHECKOUT_EXCLUDES
+                            );
                         } else {
                             warn!("Sparse checkout failed, keeping full clone");
                         }
@@ -251,7 +262,10 @@ impl VcpkgRuntime {
             Ok(output) => {
                 // Sparse clone failed — fall back to simple shallow clone
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                warn!("Sparse clone failed ({}), trying full shallow clone", stderr.trim());
+                warn!(
+                    "Sparse clone failed ({}), trying full shallow clone",
+                    stderr.trim()
+                );
 
                 let fallback = std::process::Command::new("git")
                     .args([
@@ -394,8 +408,14 @@ impl Runtime for VcpkgRuntime {
 
         if let Some(releases) = response.as_array() {
             for release in releases {
-                let is_draft = release.get("draft").and_then(|v| v.as_bool()).unwrap_or(false);
-                let is_prerelease = release.get("prerelease").and_then(|v| v.as_bool()).unwrap_or(false);
+                let is_draft = release
+                    .get("draft")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                let is_prerelease = release
+                    .get("prerelease")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
 
                 if is_draft {
                     continue;
@@ -411,7 +431,11 @@ impl Runtime for VcpkgRuntime {
                     }
 
                     // The latest non-prerelease is considered "LTS" (stable)
-                    if !is_prerelease && versions.iter().all(|v: &VersionInfo| v.prerelease || !v.lts) {
+                    if !is_prerelease
+                        && versions
+                            .iter()
+                            .all(|v: &VersionInfo| v.prerelease || !v.lts)
+                    {
                         version_info.lts = true;
                     }
 
@@ -452,7 +476,10 @@ impl Runtime for VcpkgRuntime {
             tag, asset_name
         );
 
-        debug!("vcpkg download URL: {} (version={}, tag={})", url, version, tag);
+        debug!(
+            "vcpkg download URL: {} (version={}, tag={})",
+            url, version, tag
+        );
         Ok(Some(url))
     }
 
@@ -524,9 +551,15 @@ impl Runtime for VcpkgRuntime {
         // Without these, vcpkg commands like `install` will fail with "Invalid triplet"
         Self::bootstrap_vcpkg_root(&install_path, exe_name)?;
 
-        info!("vcpkg-tool installed successfully at {}", install_path.display());
+        info!(
+            "vcpkg-tool installed successfully at {}",
+            install_path.display()
+        );
         info!("Using vx cache directories:");
-        info!("  Downloads: {}", Self::get_downloads_cache_dir(ctx).display());
+        info!(
+            "  Downloads: {}",
+            Self::get_downloads_cache_dir(ctx).display()
+        );
         info!("  Archives: {}", Self::get_binary_cache_dir(ctx).display());
 
         Ok(InstallResult::success(
@@ -607,9 +640,15 @@ impl Runtime for VcpkgRuntime {
                 let current = std::env::var("INCLUDE").unwrap_or_default();
                 let sep = if cfg!(windows) { ";" } else { ":" };
                 if current.is_empty() {
-                    env.insert("INCLUDE".to_string(), include_dir.to_string_lossy().to_string());
+                    env.insert(
+                        "INCLUDE".to_string(),
+                        include_dir.to_string_lossy().to_string(),
+                    );
                 } else {
-                    env.insert("INCLUDE".to_string(), format!("{}{}{}", include_dir.to_string_lossy(), sep, current));
+                    env.insert(
+                        "INCLUDE".to_string(),
+                        format!("{}{}{}", include_dir.to_string_lossy(), sep, current),
+                    );
                 }
             }
 
@@ -620,7 +659,10 @@ impl Runtime for VcpkgRuntime {
                 if current.is_empty() {
                     env.insert("LIB".to_string(), lib_dir.to_string_lossy().to_string());
                 } else {
-                    env.insert("LIB".to_string(), format!("{}{}{}", lib_dir.to_string_lossy(), sep, current));
+                    env.insert(
+                        "LIB".to_string(),
+                        format!("{}{}{}", lib_dir.to_string_lossy(), sep, current),
+                    );
                 }
             }
         }

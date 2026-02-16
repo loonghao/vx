@@ -209,7 +209,11 @@ impl ProviderBuilder {
         for manifest in manifests {
             let name = &manifest.provider.name;
 
-            trace!("build_lazy: processing manifest '{}' ({} runtimes)", name, manifest.runtimes.len());
+            trace!(
+                "build_lazy: processing manifest '{}' ({} runtimes)",
+                name,
+                manifest.runtimes.len()
+            );
 
             match factories.remove(name) {
                 Some(factory) => {
@@ -224,15 +228,16 @@ impl ProviderBuilder {
 
                     registry.register_lazy(name.clone(), runtime_names.clone(), factory);
                     lazy_count += 1;
-                    tracing::debug!("registered lazy provider '{}' with runtimes: {:?}", name, runtime_names);
+                    tracing::debug!(
+                        "registered lazy provider '{}' with runtimes: {:?}",
+                        name,
+                        runtime_names
+                    );
                 }
                 None => {
                     // Collect runtime names from manifest for better error message
-                    let runtime_names: Vec<&str> = manifest
-                        .runtimes
-                        .iter()
-                        .map(|r| r.name.as_str())
-                        .collect();
+                    let runtime_names: Vec<&str> =
+                        manifest.runtimes.iter().map(|r| r.name.as_str()).collect();
 
                     errors.push(BuildError {
                         provider: name.clone(),

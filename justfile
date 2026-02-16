@@ -138,13 +138,15 @@ benchmark-run:
     vx cargo test --release --test e2e_benchmark_tests -- --nocapture
 
 # Run E2E benchmark tests and capture output (CI)
+# Note: output redirection is handled by the CI workflow shell, not here,
+# because justfile on Windows uses pwsh which doesn't support bash syntax.
 benchmark-run-ci:
-    @bash -lc "vx cargo test --release --test e2e_benchmark_tests -- --nocapture 2>&1 | tee benchmark_output.txt"
+    vx cargo test --release --test e2e_benchmark_tests -- --nocapture
 
 # Security audit (CI)
 security-audit-ci:
-    @bash -lc "vx cargo generate-lockfile || true"
-    @bash -lc "vx cargo audit --deny warnings || echo '::warning::Security audit found warnings'"
+    -vx cargo generate-lockfile
+    -vx cargo audit --deny warnings
 
 # Coverage (CI)
 coverage-ci:

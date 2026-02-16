@@ -230,5 +230,9 @@ test = "npm test"
     assert_eq!(snapshot.tools.get("python"), Some(&"3.12".to_string()));
 
     // Detailed table tool should also be loaded
-    assert_eq!(snapshot.tools.get("msvc"), Some(&"14.42".to_string()), "msvc tool from [tools.msvc] table should be detected");
+    assert_eq!(
+        snapshot.tools.get("msvc"),
+        Some(&"14.42".to_string()),
+        "msvc tool from [tools.msvc] table should be detected"
+    );
 }

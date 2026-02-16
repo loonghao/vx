@@ -63,7 +63,7 @@ impl std::fmt::Display for SyncAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SyncAction::AddTool { name, version } => {
-                write!(f, "Add tool: {} = \"{}\""  , name, version)
+                write!(f, "Add tool: {} = \"{}\"", name, version)
             }
             SyncAction::AddToolDetailed {
                 name,
@@ -78,9 +78,10 @@ impl std::fmt::Display for SyncAction {
                         name, version, comps
                     )
                 } else {
-                    write!(f, "Add tool: {} = \"{}\""  , name, version)
+                    write!(f, "Add tool: {} = \"{}\"", name, version)
                 }
-            }            SyncAction::UpdateTool {
+            }
+            SyncAction::UpdateTool {
                 name,
                 old_version,
                 new_version,
@@ -427,10 +428,8 @@ impl SyncManager {
                     ensure_table(&mut doc, "tools");
                     if let Some(tools) = doc.get_mut("tools").and_then(|t| t.as_table_mut()) {
                         let mut tool_table = toml::map::Map::new();
-                        tool_table.insert(
-                            "version".to_string(),
-                            toml::Value::String(version.clone()),
-                        );
+                        tool_table
+                            .insert("version".to_string(), toml::Value::String(version.clone()));
                         if let Some(comps) = components {
                             tool_table.insert(
                                 "components".to_string(),
