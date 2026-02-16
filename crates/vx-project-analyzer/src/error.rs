@@ -45,6 +45,10 @@ pub enum AnalyzerError {
     #[error("Installation failed for '{tool}': {reason}")]
     InstallFailed { tool: String, reason: String },
 
+    /// Configuration error from vx-config crate
+    #[error("Config error: {0}")]
+    Config(#[from] vx_config::ConfigError),
+
     /// Other error
     #[error("{0}")]
     Other(#[from] anyhow::Error),

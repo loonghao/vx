@@ -240,6 +240,7 @@ vx-provider-fd = { path = "crates/vx-providers/fd" }
 vx-provider-bat = { path = "crates/vx-providers/bat" }
 vx-provider-yq = { path = "crates/vx-providers/yq" }
 vx-provider-starship = { path = "crates/vx-providers/starship" }
+vx-provider-vcpkg = { path = "crates/vx-providers/vcpkg" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
 vx-bridge = { path = "crates/vx-bridge" }

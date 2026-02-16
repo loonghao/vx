@@ -47,6 +47,7 @@ See the vx-provider-creator skill for the full license compatibility guide.
 | Standard Archive (bin/) | `archive` + strip | node, go, cmake |
 | Root Directory | `archive` (no strip) | terraform, just, deno |
 | Platform Directory | `archive` + platform strip | helm, bun |
+| Binary + Registry Clone | `binary` + git clone | vcpkg (downloads binary, clones registry) |
 | **Hybrid (Download + PM)** | `binary/archive` + `system_install` | **imagemagick, ffmpeg, docker** |
 | npm/pip Packages | No layout needed | vite, pre-commit |
 | System Tools | Detection only | git, docker, openssl |
@@ -392,7 +393,8 @@ Does the tool provide portable binaries for ALL platforms?
 ### Step 4: Verify Format
 
 Checklist:
-- [ ] `download_type` is "binary" or "archive"
+- [ ] `download_type` is `"binary"`, `"archive"`, or `"git_clone"`
+- [ ] **Important**: Use `snake_case` for values (e.g., `git_clone` NOT `git-clone`)
 - [ ] For binary: All platforms have configuration
 - [ ] For binary: Unix platforms have `target_permissions = "755"`
 - [ ] For archive: `strip_prefix` matches actual structure
@@ -900,6 +902,35 @@ After successful update:
 - winget: `winget search {tool}` (uses Publisher.Package format)
 - choco: `choco search {tool}`
 - scoop: `scoop search {tool}`
+
+### Issue: TOML parse error "unknown variant" for download_type
+
+**Cause**: Using kebab-case (`git-clone`) instead of snake_case (`git_clone`)
+
+**Solution**: Use `snake_case` for all enum values in provider.toml:
+- `download_type = "git_clone"` ✅
+- `download_type = "git-clone"` ❌
+- `ecosystem = "cpp"` ✅ (new in recent update)
+
+The error diagnostic system will suggest the correct format.
+
+### Issue: TOML parse error "unknown variant" for ecosystem
+
+**Cause**: Using an unsupported ecosystem value
+
+**Solution**: Use one of the supported values:
+`nodejs`, `python`, `rust`, `go`, `ruby`, `java`, `dotnet`, `devtools`, `container`, `cloud`, `ai`, `cpp`, `zig`, `system`
+
+### Issue: "No factory registered" appears in debug output
+
+**Cause**: Provider has `provider.toml` but no Rust factory implementation
+
+**Solution**: This is expected for manifest-only providers (in development). The build summary now shows:
+```
+registered 53 lazy providers (0 errors, 9 manifest-only, 0 warnings)
+```
+- **errors**: Real configuration problems
+- **manifest-only**: Expected for providers without Rust implementation yet
 
 ## Reference
 

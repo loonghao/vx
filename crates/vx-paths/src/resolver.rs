@@ -279,6 +279,7 @@ impl PathResolver {
     ///
     /// This method uses the new directory structure:
     /// - New (post-platform-redirection): <provider>/<version>/<platform>/
+    /// - Fallback: <provider>/<version>/ (for cross-platform tools like vcpkg)
     ///
     /// # Arguments
     /// * `tool_name` - The runtime/tool name (used for directory lookup)
@@ -300,6 +301,20 @@ impl PathResolver {
                     source: ToolSource::Store,
                 }));
             }
+
+            // Fallback: Try version directory directly (for cross-platform tools like vcpkg)
+            // Some tools don't use platform-specific subdirectories because they manage
+            // multiple platforms/triplets within a single installation
+            let version_dir = self.manager.version_store_dir(tool_name, version);
+            if version_dir != platform_dir {
+                if let Some(path) = self.find_executable_in_dir(&version_dir, exe_name) {
+                    return Ok(Some(ToolLocation {
+                        path,
+                        version: version.clone(),
+                        source: ToolSource::Store,
+                    }));
+                }
+            }
         }
         Ok(None)
     }
@@ -313,6 +328,7 @@ impl PathResolver {
     ///
     /// This method uses the new directory structure:
     /// - New (post-platform-redirection): <provider>/<version>/<platform>/
+    /// - Fallback: <provider>/<version>/ (for cross-platform tools like vcpkg)
     pub fn find_all_in_store_with_exe(
         &self,
         tool_name: &str,
@@ -330,6 +346,19 @@ impl PathResolver {
                     version: version.clone(),
                     source: ToolSource::Store,
                 });
+                continue;
+            }
+
+            // Fallback: Try version directory directly (for cross-platform tools like vcpkg)
+            let version_dir = self.manager.version_store_dir(tool_name, version);
+            if version_dir != platform_dir {
+                if let Some(path) = self.find_executable_in_dir(&version_dir, exe_name) {
+                    locations.push(ToolLocation {
+                        path,
+                        version: version.clone(),
+                        source: ToolSource::Store,
+                    });
+                }
             }
         }
 

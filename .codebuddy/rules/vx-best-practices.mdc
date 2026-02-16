@@ -1,0 +1,382 @@
+---
+description: 
+alwaysApply: true
+enabled: true
+updatedAt: 2026-02-16T08:37:31.547Z
+provider: 
+---
+
+# VX 开发最佳实践规范
+
+## 日志规范
+
+### 使用 tracing 而非 print/eprintln
+
+vx 使用 `tracing` 进行结构化日志记录，支持 OTLP 导出和指标收集。
+
+```rust
+// ✗ 不推荐：临时的调试
+eprintln!("DEBUG: loaded {} manifests", manifests.len());
+
+// ✓ 推荐：使用 tracing 宏
+tracing::debug!("loaded {} manifests", manifests.len());
+tracing::trace!("manifest names: {:?}", manifest_names);
+```
+
+### 日志级别使用指南
+
+| 级别 | 用途 | 示例 |
+|------|------|------|
+| `trace!` | 详细调试信息，通常只在开发时启用 | `trace!("processing item: {:?}", item)` |
+| `debug!` | 调试信息，有助于问题排查 | `debug!("install path: {}", path.display())` |
+| `info!` | 重要的操作信息 | `info!("Installing {}@{}", name, version)` |
+| `warn!` | 警告，非致命问题 | `warn!("version {} not found, using fallback", version)` |
+| `error!` | 错误，需要关注 | `error!("failed to download: {}", err)` |
+
+### 使用 span 进行性能追踪
+
+```rust
+use tracing::{info_span, debug_span, instrument};
+
+// 使用 span 包裹代码块
+let span = info_span!("install_runtime", name = %name, version = %version);
+span.in_scope(|| {
+    // 安装逻辑...
+});
+
+// 使用 instrument 宏自动追踪函数
+#[instrument(skip(ctx), fields(name = %self.name()))]
+async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
+    // ...
+}
+```
+
+## 遥测规范
+
+### 架构概览
+
+vx 的遥测系统基于 OpenTelemetry，与 `tracing` 无缝集成：
+
+```text
+┌─────────────┐     ┌──────────────────────┐     ┌─────────────────────┐
+│  tracing     │────▶│ tracing-opentelemetry │────▶│  OTel SpanExporter  │
+│  info_span!  │     │ (bridge layer)        │     │  (JSON file writer) │
+└─────────────┘     └──────────────────────┘     └─────────────────────┘
+```
+
+### 启用遥测
+
+```rust
+// CLI 启动时初始化
+let _guard = vx_metrics::init(vx_metrics::MetricsConfig {
+    debug: false,
+    verbose: false,
+    command: "vx node --version".to_string(),
+});
+```
+
+### 指标文件输出
+
+每次 `vx` 命令执行会在 `~/.vx/metrics/` 生成 JSON 文件：
+
+```json
+{
+  "version": "1",
+  "timestamp": "2026-02-07T10:30:00Z",
+  "command": "vx node --version",
+  "exit_code": 0,
+  "total_duration_ms": 1234,
+  "stages": {
+    "resolve": { "duration_ms": 50 },
+    "ensure": { "duration_ms": 800 },
+    "prepare": { "duration_ms": 10 },
+    "execute": { "duration_ms": 374 }
+  }
+}
+```
+
+### 查看指标
+
+```bash
+# 查看最近的执行指标
+vx metrics
+
+# JSON 格式（AI 友好）
+vx metrics --json
+
+# 生成 HTML 报告
+vx metrics --html report.html
+
+# 清理指标数据
+vx metrics --clean
+```
+
+## provider.toml 最新规范
+
+### 基本结构
+
+```toml
+[provider]
+name = "mytool"
+description = "My awesome tool"
+homepage = "https://example.com"
+repository = "https://github.com/example/mytool"
+ecosystem = "custom"  # nodejs, python, rust, go, system, custom
+license = "MIT"
+
+# 平台约束（Provider 级别）
+[provider.platforms]
+os = ["windows", "linux", "macos"]
+```
+
+### Runtime 定义
+
+```toml
+[[runtimes]]
+name = "mytool"
+description = "My tool runtime"
+executable = "mytool"
+aliases = ["mt", "my-tool"]
+priority = 100
+auto_installable = true
+
+# 版本源配置
+[runtimes.versions]
+source = "github-releases"  # 或 "nodejs-org", "pypi", "custom"
+owner = "example"           # GitHub owner (for github-releases)
+repo = "mytool"            # GitHub repo
+strip_v_prefix = true      # 移除版本前缀 v
+
+# 平台检测
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "mytool version ([\\d.]+)"
+system_paths = ["/usr/bin/mytool", "C:\\Program Files\\mytool\\mytool.exe"]
+env_hints = ["MYTOOL_HOME"]
+
+# 环境变量
+[runtimes.env]
+vars = { MYTOOL_ROOT = "{install_dir}" }
+
+[runtimes.env.advanced]
+path_prepend = ["{install_dir}/bin"]
+isolate = false
+inherit_system_vars = ["MYTOOL_CONFIG"]
+
+# 可执行文件布局
+[runtimes.layout]
+download_type = "archive"  # 或 "binary", "git-clone"
+
+[runtimes.layout.archive]
+strip_prefix = "mytool-{version}-{platform}"
+executable_paths = ["bin/mytool", "mytool.exe"]
+
+# 测试配置
+[runtimes.test]
+timeout_ms = 30000
+functional_commands = [
+    { command = "{executable} --version", expect_success = true, expected_output = "\\d+\\.\\d+", name = "version_check" },
+]
+
+# 系统安装策略
+[runtimes.system_install]
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "mytool"
+priority = 90
+
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "winget"
+package = "Example.MyTool"
+priority = 80
+
+# 依赖约束
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "node", version = ">=18", reason = "Requires Node.js runtime" }
+]
+
+[[runtimes.constraints]]
+when = "*"
+recommends = [
+    { runtime = "npm", version = "*", reason = "Recommended for package management" }
+]
+```
+
+### 关键字段说明
+
+| 字段 | 必需 | 说明 |
+|------|------|------|
+| `provider.name` | ✓ | Provider 名称 |
+| `runtimes[].name` | ✓ | Runtime 名称 |
+| `runtimes[].executable` | ✓ | 可执行文件名 |
+| `runtimes[].aliases` | | 别名列表 |
+| `runtimes[].priority` | | 安装优先级（越高越先） |
+| `runtimes.versions.source` | ✓ | 版本源 |
+| `runtimes.detection` | | 系统检测配置 |
+| `runtimes.system_install` | | 系统包管理器安装策略 |
+
+## Tools 用法 (vx npm:vite -> vx vite)
+
+### 直接执行模式
+
+vx 支持直接执行 npm 包中的工具，无需全局安装：
+
+```bash
+# 传统方式：需要全局安装
+npm install -g vite
+vite --version
+
+# vx 方式：自动下载并执行
+vx vite --version
+vx create-react-app my-app
+```
+
+### 工具代理机制
+
+vx 使用 `npx` 或 `bunx` 作为代理来执行未安装的工具：
+
+```bash
+# 这些命令等效：
+vx vite              # 使用 npx vite
+vx npx vite          # 显式使用 npx
+vx bunx vite         # 使用 bunx (如果 bun 可用)
+```
+
+### 在 provider.toml 中配置
+
+```toml
+# vite 作为独立 runtime
+[[runtimes]]
+name = "vite"
+description = "Next generation frontend tooling"
+executable = "vite"
+
+# 通过 npm 执行
+[runtimes.versions]
+source = "npm"
+package = "vite"
+
+# 代理配置
+[runtimes.proxy]
+type = "npx"  # 或 "bunx"
+auto_install = true
+```
+
+## System 用法 (vx winget)
+
+### 系统工具 Provider
+
+系统工具是指通过系统包管理器安装的工具，如 `winget`、`brew`、`apt` 等：
+
+```toml
+[provider]
+name = "winget"
+ecosystem = "system"  # 标记为系统工具
+
+[provider.platforms]
+os = ["windows"]  # 仅支持 Windows
+
+[[runtimes]]
+name = "winget"
+executable = "winget"
+
+# 系统安装策略
+[runtimes.system_install]
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "winget"
+package = "Microsoft.Winget"
+priority = 100
+
+# 提供 `prepare_execution` 来查找系统路径
+```
+
+### 系统工具 Runtime 实现
+
+```rust
+#[async_trait]
+impl Runtime for WingetRuntime {
+    fn ecosystem(&self) -> Ecosystem {
+        Ecosystem::System  // 标记为系统工具
+    }
+
+    /// 使用 `prepare_execution` 查找系统路径
+    async fn prepare_execution(
+        &self,
+        _version: &str,
+        _ctx: &ExecutionContext,
+    ) -> Result<ExecutionPrep> {
+        // 查找系统安装的 winget
+        let output = Command::new("where").arg("winget").output();
+
+        if let Ok(output) = output
+            && output.status.success()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if let Some(line) = stdout.lines().next() {
+                let path = PathBuf::from(line.trim());
+                if path.exists() {
+                    return Ok(ExecutionPrep {
+                        executable_override: Some(path),
+                        proxy_ready: true,
+                        message: Some("Using system winget".to_string()),
+                        ..Default::default()
+                    });
+                }
+            }
+        }
+
+        Err(anyhow::anyhow!(
+            "winget not found. Install 'App Installer' from Microsoft Store"
+        ))
+    }
+}
+```
+
+### 常见系统工具
+
+| 工具 | 平台 | Provider |
+|------|------|----------|
+| `winget` | Windows | Windows Package Manager |
+| `brew` | macOS | Homebrew |
+| `apt` | Linux | APT |
+| `choco` | Windows | Chocolatey |
+| `scoop` | Windows | Scoop |
+
+## 平台约束规范
+
+### Provider 级别约束
+
+```toml
+# 使用 [provider.platforms] 而非 [provider.platform_constraint]
+[provider.platforms]
+os = ["windows"]
+```
+
+### Runtime 级别约束
+
+```toml
+[[runtimes]]
+name = "msvc"
+
+# Runtime 级别使用 platform_constraint
+platform_constraint = { os = ["windows"] }
+```
+
+### 约束条件语法
+
+```toml
+# OS 约束
+platform_constraint = { os = ["windows", "linux"] }
+
+# 组合约束
+[[runtimes.constraints]]
+when = { os = "windows" }
+recommends = [
+    { runtime = "msvc", version = "*", reason = "MSVC for Windows C++ development" }
+]
+```

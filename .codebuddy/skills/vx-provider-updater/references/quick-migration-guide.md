@@ -4,9 +4,9 @@ Fast-track guide for updating providers to RFC 0019 layout configuration.
 
 ## 5-Minute Checklist
 
-- [ ] Identify download type (binary or archive)
+- [ ] Identify download type (binary, archive, or git clone)
 - [ ] Choose appropriate template
-- [ ] Add layout configuration to provider.toml
+- [ ] Add layout configuration to provider.toml (use `snake_case` for values!)
 - [ ] Test installation
 - [ ] Update migration status
 
@@ -49,6 +49,7 @@ ls ~/.vx/store/{name}/latest/
 | Archive with `bin/` directory | Standard Archive |
 | Archive, executable in root | Root Directory Archive |
 | Archive with `{os}-{arch}/` | Platform Directory Archive |
+| Git repository clone | Git Clone (`git_clone`) |
 
 ### 4. Add Configuration
 
@@ -256,7 +257,8 @@ done
 
 After updating, verify:
 
-- [ ] `download_type` is "binary" or "archive"
+- [ ] `download_type` is `"binary"`, `"archive"`, or `"git_clone"`
+- [ ] **Values use snake_case** (e.g., `git_clone` not `git-clone`)
 - [ ] Binary: All platforms covered (windows, macos, linux)
 - [ ] Binary: Unix platforms have `target_permissions = "755"`
 - [ ] Archive: `strip_prefix` matches actual archive structure

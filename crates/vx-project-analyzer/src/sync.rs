@@ -6,13 +6,27 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::info;
+use vx_config::{ScriptConfig, parse_config};
 use vx_paths::project::{CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY};
 
 /// Sync action to apply
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SyncAction {
-    /// Add a tool to vx.toml
+    /// Add a tool to vx.toml (simple version string)
     AddTool { name: String, version: String },
+
+    /// Add a tool with detailed configuration to vx.toml
+    /// Generates a `[tools.<name>]` table with version, components, os, etc.
+    AddToolDetailed {
+        name: String,
+        version: String,
+        /// Optional MSVC components (e.g., ["spectre", "mfc"])
+        components: Option<Vec<String>>,
+        /// Optional package exclude patterns
+        exclude_patterns: Option<Vec<String>>,
+        /// Optional OS restrictions
+        os: Option<Vec<String>>,
+    },
 
     /// Update tool version in vx.toml
     UpdateTool {
@@ -49,9 +63,24 @@ impl std::fmt::Display for SyncAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SyncAction::AddTool { name, version } => {
-                write!(f, "Add tool: {} = \"{}\"", name, version)
+                write!(f, "Add tool: {} = \"{}\""  , name, version)
             }
-            SyncAction::UpdateTool {
+            SyncAction::AddToolDetailed {
+                name,
+                version,
+                components,
+                ..
+            } => {
+                if let Some(comps) = components {
+                    write!(
+                        f,
+                        "Add tool: {} = {{version = \"{}\", components = {:?}}}",
+                        name, version, comps
+                    )
+                } else {
+                    write!(f, "Add tool: {} = \"{}\""  , name, version)
+                }
+            }            SyncAction::UpdateTool {
                 name,
                 old_version,
                 new_version,
@@ -247,6 +276,7 @@ impl SyncManager {
         if self.config.tools.auto_detect {
             for tool in &analysis.required_tools {
                 let version = tool.version.clone().unwrap_or_else(|| "latest".to_string());
+                let has_metadata = !tool.metadata.is_empty();
 
                 if let Some(existing) = existing_config {
                     if let Some(existing_version) = existing.tools.get(&tool.name) {
@@ -257,12 +287,28 @@ impl SyncManager {
                                 new_version: version,
                             });
                         }
+                    } else if has_metadata {
+                        actions.push(SyncAction::AddToolDetailed {
+                            name: tool.name.clone(),
+                            version,
+                            components: tool.metadata.get("components").cloned(),
+                            exclude_patterns: tool.metadata.get("exclude_patterns").cloned(),
+                            os: tool.metadata.get("os").cloned(),
+                        });
                     } else {
                         actions.push(SyncAction::AddTool {
                             name: tool.name.clone(),
                             version,
                         });
                     }
+                } else if has_metadata {
+                    actions.push(SyncAction::AddToolDetailed {
+                        name: tool.name.clone(),
+                        version,
+                        components: tool.metadata.get("components").cloned(),
+                        exclude_patterns: tool.metadata.get("exclude_patterns").cloned(),
+                        os: tool.metadata.get("os").cloned(),
+                    });
                 } else {
                     actions.push(SyncAction::AddTool {
                         name: tool.name.clone(),
@@ -371,6 +417,57 @@ impl SyncManager {
                         result.applied.push(action.clone());
                     }
                 }
+                SyncAction::AddToolDetailed {
+                    name,
+                    version,
+                    components,
+                    exclude_patterns,
+                    os,
+                } => {
+                    ensure_table(&mut doc, "tools");
+                    if let Some(tools) = doc.get_mut("tools").and_then(|t| t.as_table_mut()) {
+                        let mut tool_table = toml::map::Map::new();
+                        tool_table.insert(
+                            "version".to_string(),
+                            toml::Value::String(version.clone()),
+                        );
+                        if let Some(comps) = components {
+                            tool_table.insert(
+                                "components".to_string(),
+                                toml::Value::Array(
+                                    comps
+                                        .iter()
+                                        .map(|c| toml::Value::String(c.clone()))
+                                        .collect(),
+                                ),
+                            );
+                        }
+                        if let Some(patterns) = exclude_patterns {
+                            tool_table.insert(
+                                "exclude_patterns".to_string(),
+                                toml::Value::Array(
+                                    patterns
+                                        .iter()
+                                        .map(|p| toml::Value::String(p.clone()))
+                                        .collect(),
+                                ),
+                            );
+                        }
+                        if let Some(os_list) = os {
+                            tool_table.insert(
+                                "os".to_string(),
+                                toml::Value::Array(
+                                    os_list
+                                        .iter()
+                                        .map(|o| toml::Value::String(o.clone()))
+                                        .collect(),
+                                ),
+                            );
+                        }
+                        tools.insert(name.clone(), toml::Value::Table(tool_table));
+                        result.applied.push(action.clone());
+                    }
+                }
                 SyncAction::AddScript { name, command }
                 | SyncAction::UpdateScript {
                     name,
@@ -429,33 +526,33 @@ pub struct VxConfigSnapshot {
 }
 
 impl VxConfigSnapshot {
-    /// Load from vx.toml file
+    /// Load from vx.toml file using the unified `vx-config` parser.
+    ///
+    /// This delegates to `vx_config::parse_config` to ensure consistent
+    /// handling of all config formats (simple strings, detailed tables,
+    /// [runtimes] alias, platform filtering, etc.).
     pub async fn load(path: &Path) -> AnalyzerResult<Option<Self>> {
         if !path.exists() {
             return Ok(None);
         }
 
-        let content = tokio::fs::read_to_string(path).await?;
-        let doc: toml::Value = toml::from_str(&content)?;
+        let config = parse_config(path)?;
 
         let mut snapshot = Self::default();
 
-        // Extract tools
-        if let Some(tools) = doc.get("tools").and_then(|t| t.as_table()) {
-            for (name, value) in tools {
-                if let Some(version) = value.as_str() {
-                    snapshot.tools.insert(name.clone(), version.to_string());
-                }
-            }
-        }
+        // Use VxConfig's tools_as_hashmap() which correctly handles:
+        // - Simple format: tool = "version"
+        // - Detailed format: [tools.name] with version field
+        // - [runtimes] alias (merged with tools taking priority)
+        snapshot.tools = config.tools_as_hashmap();
 
-        // Extract scripts
-        if let Some(scripts) = doc.get("scripts").and_then(|t| t.as_table()) {
-            for (name, value) in scripts {
-                if let Some(cmd) = value.as_str() {
-                    snapshot.scripts.insert(name.clone(), cmd.to_string());
-                }
-            }
+        // Extract scripts using VxConfig's typed ScriptConfig
+        for (name, script) in &config.scripts {
+            let cmd = match script {
+                ScriptConfig::Simple(s) => s.clone(),
+                ScriptConfig::Detailed(d) => d.command.clone(),
+            };
+            snapshot.scripts.insert(name.clone(), cmd);
         }
 
         Ok(Some(snapshot))

@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 use super::{
     AiConfig, ContainerConfig, DependenciesConfig, DocsConfig, EnvConfig, HooksConfig,
     ProjectConfig, PythonConfig, RemoteConfig, ScriptConfig, SecurityConfig, ServiceConfig,
-    SettingsConfig, SetupConfig, TeamConfig, TelemetryConfig, TestConfig, ToolVersion,
+    SettingsConfig, SetupConfig, TeamConfig, TelemetryConfig, TestConfig, ToolConfig, ToolVersion,
     VersioningConfig,
 };
 
@@ -242,6 +242,22 @@ impl VxConfig {
     ) -> PlatformToolsResult<BTreeMap<String, String>> {
         let (included, skipped) = self.tools_for_current_platform();
         (included.into_iter().collect(), skipped)
+    }
+
+    /// Get the detailed ToolConfig for a specific tool (if available).
+    ///
+    /// Returns `Some(ToolConfig)` if the tool has detailed configuration,
+    /// `None` if the tool uses simple version string or doesn't exist.
+    pub fn get_tool_config(&self, name: &str) -> Option<&ToolConfig> {
+        // Check tools first (higher priority)
+        if let Some(ToolVersion::Detailed(config)) = self.tools.get(name) {
+            return Some(config);
+        }
+        // Then check runtimes
+        if let Some(ToolVersion::Detailed(config)) = self.runtimes.get(name) {
+            return Some(config);
+        }
+        None
     }
 
     /// Check if a tool version entry is applicable to the given OS.

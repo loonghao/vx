@@ -429,6 +429,12 @@ impl Runtime for CargoRuntime {
 
     /// Resolve version - accept any version (passthrough to rustup)
     async fn resolve_version(&self, version: &str, ctx: &RuntimeContext) -> Result<String> {
+        // Map "latest" to "stable" for Rust's channel-based versioning
+        // rustup doesn't understand "latest", but "stable" is the equivalent
+        if version == "latest" {
+            return Ok("stable".to_string());
+        }
+
         let versions = self.fetch_versions(ctx).await?;
 
         // Check if it's a known channel
@@ -452,6 +458,9 @@ impl Runtime for CargoRuntime {
         ctx: &RuntimeContext,
     ) -> Result<vx_runtime::InstallResult> {
         use vx_runtime::InstallResult;
+
+        // Map "latest" to "stable" as a safety net (should be handled by resolve_version)
+        let version = if version == "latest" { "stable" } else { version };
 
         // Find rustup executable
         let rustup_exe = Self::find_rustup_executable(ctx)?;
@@ -969,6 +978,12 @@ impl Runtime for RustcRuntime {
 
     /// Resolve version - accept any version (passthrough to rustup)
     async fn resolve_version(&self, version: &str, ctx: &RuntimeContext) -> Result<String> {
+        // Map "latest" to "stable" for Rust's channel-based versioning
+        // rustup doesn't understand "latest", but "stable" is the equivalent
+        if version == "latest" {
+            return Ok("stable".to_string());
+        }
+
         let versions = self.fetch_versions(ctx).await?;
 
         // Check if it's a known channel
@@ -993,6 +1008,9 @@ impl Runtime for RustcRuntime {
         ctx: &RuntimeContext,
     ) -> Result<vx_runtime::InstallResult> {
         use vx_runtime::InstallResult;
+
+        // Map "latest" to "stable" as a safety net (should be handled by resolve_version)
+        let version = if version == "latest" { "stable" } else { version };
 
         // Find rustup executable
         let rustup_exe = CargoRuntime::find_rustup_executable(ctx)?;

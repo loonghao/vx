@@ -1,0 +1,142 @@
+# vcpkg Provider Manifest
+# This file defines the metadata, runtimes, and dependency constraints for vcpkg.
+#
+# vcpkg-tool is the standalone C++ package manager binary from Microsoft.
+# It downloads pre-built binaries from https://github.com/microsoft/vcpkg-tool/releases
+#
+# Key Features:
+# - Install C++ libraries from source or binary cache
+# - Cross-platform support (Windows, Linux, macOS)
+# - CMake integration via CMAKE_TOOLCHAIN_FILE
+# - Native Node.js module dependencies (e.g., node-pty, sqlite3)
+#
+# Note: vcpkg-tool uses date-based version tags (e.g., "2025-12-16").
+# The runtime converts these to dot-separated format (e.g., "2025.12.16")
+# for semver compatibility.
+
+[provider]
+name = "vcpkg"
+description = "C++ library manager for Windows, Linux, and macOS"
+homepage = "https://vcpkg.io/"
+repository = "https://github.com/microsoft/vcpkg-tool"
+ecosystem = "cpp"
+license = "MIT"
+
+# vcpkg main runtime
+[[runtimes]]
+name = "vcpkg"
+description = "vcpkg - C++ library manager (standalone binary from vcpkg-tool)"
+executable = "vcpkg"
+aliases = ["vcpkg-cli"]
+priority = 100
+auto_installable = true
+
+# RFC 0018: Detection configuration
+[runtimes.detection]
+command = "{executable} version"
+pattern = "vcpkg package management program version ([\\d-]+)"
+system_paths = [
+    "C:\\vcpkg\\vcpkg.exe",
+    "/usr/local/bin/vcpkg",
+    "/usr/bin/vcpkg"
+]
+env_hints = ["VCPKG_ROOT"]
+
+# vcpkg-tool releases from GitHub (date-based versions like "2025-12-16")
+[runtimes.versions]
+source = "github-releases"
+owner = "microsoft"
+repo = "vcpkg-tool"
+strip_v_prefix = false
+
+# RFC 0019: Executable Layout Configuration
+# vcpkg-tool provides standalone binary downloads per platform
+[runtimes.layout]
+download_type = "binary"
+
+# Environment variables set by vcpkg provider
+# These are configured in prepare_environment() method:
+# - VCPKG_ROOT: Path to vcpkg installation directory
+# - VCPKG_DOWNLOADS: Downloads cache directory (vx managed: ~/.vx/cache/vcpkg/downloads/)
+# - VCPKG_DEFAULT_BINARY_CACHE: Binary cache directory (vx managed: ~/.vx/cache/vcpkg/archives/)
+# - VCPKG_DEFAULT_TRIPLET: Default triplet (e.g., x64-windows, x64-osx, x64-linux)
+
+# RFC 0018: Environment configuration
+[runtimes.env]
+vars = { VCPKG_ROOT = "{install_dir}" }
+
+[runtimes.env.advanced]
+# PATH configuration
+path_prepend = ["{install_dir}"]
+# Don't isolate - vcpkg needs access to system compilers
+isolate = false
+# Inherit vcpkg cache variables
+inherit_system_vars = ["VCPKG_DEFAULT_TRIPLET", "VCPKG_DEFAULT_HOST_TRIPLET"]
+
+[runtimes.platforms.windows]
+executable_extensions = [".exe"]
+
+[runtimes.platforms.unix]
+executable_extensions = []
+
+[runtimes.platforms.linux]
+executable_extensions = []
+
+[runtimes.platforms.macos]
+executable_extensions = []
+
+# RFC 0020: Test configuration
+[runtimes.test]
+timeout_ms = 60000
+functional_commands = [
+    { command = "{executable} version", expect_success = true, expected_output = "vcpkg package management program", name = "version_check" },
+]
+
+# RFC 0021: System installation strategies
+[runtimes.system_install]
+# Homebrew installation
+[[runtimes.system_install.strategies]]
+type = "package_manager"
+manager = "brew"
+package = "vcpkg"
+priority = 90
+
+# Recommended tools for C++ development with vcpkg
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "git", version = "*", reason = "Git is required to clone the vcpkg package registry during installation" }
+]
+recommends = [
+    { runtime = "cmake", version = "*", reason = "CMake is commonly used with vcpkg for C++ projects" },
+    { runtime = "ninja", version = "*", reason = "Ninja build system provides faster builds" }
+]
+
+# Integration with MSVC on Windows
+[[runtimes.constraints]]
+when = "*"
+platform = "windows"
+recommends = [
+    { runtime = "msvc", version = "*", reason = "MSVC compiler is recommended for Windows C++ development" }
+]
+
+# Custom commands for vcpkg
+[[runtimes.commands]]
+name = "install"
+description = "Install a C++ package"
+category = "package-management"
+
+[[runtimes.commands]]
+name = "search"
+description = "Search for C++ packages"
+category = "package-management"
+
+[[runtimes.commands]]
+name = "list"
+description = "List installed packages"
+category = "package-management"
+
+[[runtimes.commands]]
+name = "upgrade"
+description = "Upgrade installed packages"
+category = "package-management"

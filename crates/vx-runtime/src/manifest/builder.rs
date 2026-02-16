@@ -45,6 +45,17 @@ impl std::fmt::Display for BuildWarning {
     }
 }
 
+/// Error category for provider build failures
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BuildErrorKind {
+    /// Provider has a manifest but no Rust factory implementation yet
+    NoFactory,
+    /// Provider factory failed during construction
+    FactoryFailed,
+    /// Other error
+    Other,
+}
+
 /// An error during provider build (manifest without matching factory)
 #[derive(Debug, Clone)]
 pub struct BuildError {
@@ -54,6 +65,8 @@ pub struct BuildError {
     pub runtime: Option<String>,
     /// Error reason
     pub reason: String,
+    /// Error category
+    pub kind: BuildErrorKind,
 }
 
 impl std::fmt::Display for BuildError {
@@ -63,6 +76,13 @@ impl std::fmt::Display for BuildError {
         } else {
             write!(f, "[{}] {}", self.provider, self.reason)
         }
+    }
+}
+
+impl BuildError {
+    /// Check if this is a "no factory" error (manifest-only provider)
+    pub fn is_no_factory(&self) -> bool {
+        self.kind == BuildErrorKind::NoFactory
     }
 }
 
@@ -125,7 +145,8 @@ impl ProviderBuilder {
                     errors.push(BuildError {
                         provider: name.clone(),
                         runtime: None,
-                        reason: "No factory registered".to_string(),
+                        reason: "No Rust factory registered (manifest-only provider)".to_string(),
+                        kind: BuildErrorKind::NoFactory,
                     });
                 }
             }
@@ -183,8 +204,12 @@ impl ProviderBuilder {
         // Move ownership of factories out of self
         let mut factories = self.factories;
 
+        trace!("build_lazy: {} factories available", factories.len());
+
         for manifest in manifests {
             let name = &manifest.provider.name;
+
+            trace!("build_lazy: processing manifest '{}' ({} runtimes)", name, manifest.runtimes.len());
 
             match factories.remove(name) {
                 Some(factory) => {
@@ -197,24 +222,47 @@ impl ProviderBuilder {
                         }
                     }
 
-                    registry.register_lazy(name.clone(), runtime_names, factory);
+                    registry.register_lazy(name.clone(), runtime_names.clone(), factory);
                     lazy_count += 1;
-                    trace!("registered lazy provider '{}'", name);
+                    tracing::debug!("registered lazy provider '{}' with runtimes: {:?}", name, runtime_names);
                 }
                 None => {
+                    // Collect runtime names from manifest for better error message
+                    let runtime_names: Vec<&str> = manifest
+                        .runtimes
+                        .iter()
+                        .map(|r| r.name.as_str())
+                        .collect();
+
                     errors.push(BuildError {
                         provider: name.clone(),
                         runtime: None,
-                        reason: "No factory registered".to_string(),
+                        reason: format!(
+                            "No Rust factory registered (manifest-only provider, runtimes: [{}]). \
+                             To enable this provider, add a Rust implementation and register it in registry.rs",
+                            runtime_names.join(", ")
+                        ),
+                        kind: BuildErrorKind::NoFactory,
                     });
                 }
             }
         }
 
+        let no_factory_count = errors.iter().filter(|e| e.is_no_factory()).count();
+        let real_error_count = errors.len() - no_factory_count;
+
+        if no_factory_count > 0 {
+            tracing::debug!(
+                "{} provider(s) have manifests but no Rust factory (manifest-only)",
+                no_factory_count
+            );
+        }
+
         info!(
-            "registered {} lazy providers ({} errors, {} warnings)",
+            "registered {} lazy providers ({} errors, {} manifest-only, {} warnings)",
             lazy_count,
-            errors.len(),
+            real_error_count,
+            no_factory_count,
             warnings.len(),
         );
 

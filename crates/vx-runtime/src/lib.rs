@@ -109,7 +109,9 @@ pub use constraints::{
 pub use manifest_registry::{ManifestRegistry, RuntimeMetadata};
 
 // Manifest sub-modules (RFC 0029 split architecture)
-pub use manifest::builder::{BuildError, BuildResult, BuildWarning, ProviderBuilder};
+pub use manifest::builder::{
+    BuildError, BuildErrorKind, BuildResult, BuildWarning, ProviderBuilder,
+};
 pub use manifest::index::{ManifestIndex, ProviderMetadata};
 pub use manifest::loader::ManifestStore;
 

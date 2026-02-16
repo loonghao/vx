@@ -9,8 +9,8 @@
 use crate::installer::{MsvcInstallInfo, MsvcInstaller};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use msvc_kit::Architecture;
-use std::collections::HashMap;
+use msvc_kit::{Architecture, MsvcComponent};
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use tracing::{debug, info, warn};
 use vx_runtime::{
@@ -212,8 +212,30 @@ impl MsvcRuntime {
     /// 2. Install winpty: `vx vcpkg install winpty`
     /// 3. Build node-pty: `vx npm install node-pty`
     fn integrate_vcpkg_environment(env: &mut HashMap<String, String>, vx_home: &Path, arch: &str) {
-        // Check for vcpkg in vx store
-        let vcpkg_path = vx_home.join("store").join("vcpkg").join("latest");
+        // Check for vcpkg in vx store — find the latest installed version dynamically
+        let vcpkg_store_dir = vx_home.join("store").join("vcpkg");
+
+        if !vcpkg_store_dir.exists() {
+            debug!("vcpkg store directory not found, skipping vcpkg integration");
+            return;
+        }
+
+        // Find the most recent vcpkg version directory
+        let vcpkg_path = match std::fs::read_dir(&vcpkg_store_dir)
+            .ok()
+            .and_then(|entries| {
+                entries
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.path().is_dir())
+                    .max_by_key(|e| e.file_name().to_string_lossy().to_string())
+                    .map(|e| e.path())
+            }) {
+            Some(path) => path,
+            None => {
+                debug!("No vcpkg version installed, skipping vcpkg integration");
+                return;
+            }
+        };
 
         if !vcpkg_path.exists() {
             debug!("vcpkg not installed, skipping vcpkg integration");
@@ -303,6 +325,191 @@ impl MsvcRuntime {
 
         debug!("vcpkg environment integrated successfully");
     }
+
+    /// Check which requested components are missing from the existing installation.
+    ///
+    /// For example, Spectre-mitigated libraries are installed under:
+    /// `VC/Tools/MSVC/{version}/lib/{arch}/spectre/`
+    ///
+    /// Returns a list of component names that are requested but not found.
+    fn check_missing_components(
+        install_path: &Path,
+        requested: &HashSet<MsvcComponent>,
+        platform: &Platform,
+    ) -> Vec<String> {
+        if requested.is_empty() {
+            return Vec::new();
+        }
+
+        let arch = platform.arch.as_str();
+        let mut missing = Vec::new();
+
+        // Find the actual MSVC version directory
+        let tools_dir = install_path.join("VC").join("Tools").join("MSVC");
+        let version_dir = if tools_dir.exists() {
+            // Find the first (usually only) version subdirectory
+            std::fs::read_dir(&tools_dir).ok().and_then(|entries| {
+                entries
+                    .filter_map(|e| e.ok())
+                    .find(|e| e.path().is_dir())
+                    .map(|e| e.path())
+            })
+        } else {
+            None
+        };
+
+        for component in requested {
+            let is_present = match component {
+                MsvcComponent::Spectre => {
+                    // Spectre libs: VC/Tools/MSVC/{ver}/lib/{arch}/spectre/
+                    if let Some(ref ver_dir) = version_dir {
+                        let spectre_dir = ver_dir.join("lib").join(arch).join("spectre");
+                        spectre_dir.exists()
+                            && std::fs::read_dir(&spectre_dir)
+                                .map(|mut entries| entries.next().is_some())
+                                .unwrap_or(false)
+                    } else {
+                        false
+                    }
+                }
+                MsvcComponent::Mfc => {
+                    // MFC: VC/Tools/MSVC/{ver}/atlmfc/
+                    version_dir
+                        .as_ref()
+                        .is_some_and(|d| d.join("atlmfc").join("include").exists())
+                }
+                MsvcComponent::Atl => {
+                    // ATL: same location as MFC (atlmfc/)
+                    version_dir
+                        .as_ref()
+                        .is_some_and(|d| d.join("atlmfc").join("include").exists())
+                }
+                MsvcComponent::Asan => {
+                    // ASAN: VC/Tools/MSVC/{ver}/lib/{arch}/clang_rt.asan*.lib
+                    if let Some(ref ver_dir) = version_dir {
+                        let lib_dir = ver_dir.join("lib").join(arch);
+                        lib_dir.exists()
+                            && std::fs::read_dir(&lib_dir)
+                                .map(|entries| {
+                                    entries.filter_map(|e| e.ok()).any(|e| {
+                                        e.file_name().to_string_lossy().contains("clang_rt.asan")
+                                    })
+                                })
+                                .unwrap_or(false)
+                    } else {
+                        false
+                    }
+                }
+                // For other components, assume present (we can't easily check)
+                _ => true,
+            };
+
+            if !is_present {
+                missing.push(format!("{:?}", component));
+            }
+        }
+
+        missing
+    }
+
+    /// Parse MSVC component names from `RuntimeContext.install_options` with env var fallback.
+    ///
+    /// Priority order:
+    /// 1. `ctx.install_options["VX_MSVC_COMPONENTS"]` — set by Executor from vx.toml
+    /// 2. `std::env::var("VX_MSVC_COMPONENTS")` — set by `vx sync` subprocess or user
+    /// 3. `std::env::var("MSVC_KIT_INCLUDE_COMPONENTS")` — direct msvc-kit compat
+    ///
+    /// Valid values: spectre, mfc, atl, asan, uwp, cli, modules, redist, custom:<pattern>
+    ///
+    /// This can be set via vx.toml:
+    /// ```toml
+    /// [tools.msvc]
+    /// version = "14.42"
+    /// components = ["spectre"]
+    /// ```
+    ///
+    /// Or via environment variable:
+    /// ```bash
+    /// VX_MSVC_COMPONENTS=spectre,asan vx install msvc
+    /// ```
+    fn parse_components(ctx: &RuntimeContext) -> HashSet<MsvcComponent> {
+        let mut components = HashSet::new();
+
+        // Priority 1: Read from RuntimeContext.install_options (set by Executor/sync)
+        let components_str = ctx
+            .get_install_option("VX_MSVC_COMPONENTS")
+            .map(|s| s.to_string())
+            // Priority 2: Fallback to environment variable
+            .or_else(|| std::env::var("VX_MSVC_COMPONENTS").ok());
+
+        if let Some(val) = components_str {
+            for name in val.split(',') {
+                let name = name.trim();
+                if !name.is_empty() {
+                    match name.parse::<MsvcComponent>() {
+                        Ok(component) => {
+                            components.insert(component);
+                        }
+                        Err(e) => {
+                            warn!("Unknown MSVC component '{}': {}", name, e);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Priority 3: Also check MSVC_KIT_INCLUDE_COMPONENTS for direct msvc-kit compatibility
+        if let Ok(val) = std::env::var("MSVC_KIT_INCLUDE_COMPONENTS") {
+            for name in val.split(',') {
+                let name = name.trim();
+                if !name.is_empty() {
+                    if let Ok(component) = name.parse::<MsvcComponent>() {
+                        components.insert(component);
+                    }
+                }
+            }
+        }
+
+        components
+    }
+
+    /// Parse exclude patterns from `RuntimeContext.install_options` with env var fallback.
+    ///
+    /// Priority order:
+    /// 1. `ctx.install_options["VX_MSVC_EXCLUDE_PATTERNS"]`
+    /// 2. `std::env::var("VX_MSVC_EXCLUDE_PATTERNS")`
+    /// 3. `std::env::var("MSVC_KIT_EXCLUDE_PATTERNS")`
+    fn parse_exclude_patterns(ctx: &RuntimeContext) -> Vec<String> {
+        let mut patterns = Vec::new();
+
+        // Priority 1: Read from RuntimeContext.install_options
+        let patterns_str = ctx
+            .get_install_option("VX_MSVC_EXCLUDE_PATTERNS")
+            .map(|s| s.to_string())
+            // Priority 2: Fallback to environment variable
+            .or_else(|| std::env::var("VX_MSVC_EXCLUDE_PATTERNS").ok());
+
+        if let Some(val) = patterns_str {
+            for pattern in val.split(',') {
+                let pattern = pattern.trim().to_string();
+                if !pattern.is_empty() {
+                    patterns.push(pattern);
+                }
+            }
+        }
+
+        // Priority 3: Also check MSVC_KIT_EXCLUDE_PATTERNS for direct msvc-kit compatibility
+        if let Ok(val) = std::env::var("MSVC_KIT_EXCLUDE_PATTERNS") {
+            for pattern in val.split(',') {
+                let pattern = pattern.trim().to_string();
+                if !pattern.is_empty() {
+                    patterns.push(pattern);
+                }
+            }
+        }
+
+        patterns
+    }
 }
 
 #[async_trait]
@@ -383,22 +590,41 @@ impl Runtime for MsvcRuntime {
             ));
         }
 
+        // Read component configuration from RuntimeContext or environment variables
+        // Priority: ctx.install_options > env vars (set by vx sync or user)
+        let include_components = Self::parse_components(ctx);
+
         // Check if already installed
         if install_path.exists() {
             let verification = self.verify_installation(version, &install_path, &platform);
             if verification.valid {
-                let exe_path = verification
-                    .executable_path
-                    .unwrap_or_else(|| install_path.join("cl.exe"));
-                debug!("MSVC {} already installed: {}", version, exe_path.display());
-                return Ok(InstallResult::already_installed(
-                    install_path,
-                    exe_path,
-                    version.to_string(),
-                ));
+                // Check if requested components are actually present
+                // e.g., Spectre libraries live in lib/{arch}/spectre/
+                let missing_components =
+                    Self::check_missing_components(&install_path, &include_components, &platform);
+
+                if missing_components.is_empty() {
+                    let exe_path = verification
+                        .executable_path
+                        .unwrap_or_else(|| install_path.join("cl.exe"));
+                    debug!("MSVC {} already installed: {}", version, exe_path.display());
+                    return Ok(InstallResult::already_installed(
+                        install_path,
+                        exe_path,
+                        version.to_string(),
+                    ));
+                }
+
+                // Components are missing — proceed with re-installation
+                // msvc-kit supports incremental downloads and will skip existing packages
+                info!(
+                    "MSVC {} installed but missing components: {:?}. Re-installing to add them.",
+                    version, missing_components
+                );
+            } else {
+                // Don't clean up - msvc-kit will resume from cached downloads
+                debug!("MSVC installation incomplete, will resume download");
             }
-            // Don't clean up - msvc-kit will resume from cached downloads
-            debug!("MSVC installation incomplete, will resume download");
         }
 
         info!("Installing MSVC Build Tools version {}", version);
@@ -411,9 +637,25 @@ impl Runtime for MsvcRuntime {
         };
 
         // Use msvc-kit installer with correct architecture
-        let installer = MsvcInstaller::new(version)
+        let mut installer = MsvcInstaller::new(version)
             .with_arch(arch)
             .with_host_arch(arch);
+
+        // Apply component configuration (already parsed above)
+        if !include_components.is_empty() {
+            info!(
+                "Including optional MSVC components: {:?}",
+                include_components
+            );
+            installer = installer.with_components(include_components);
+        }
+
+        let exclude_patterns = Self::parse_exclude_patterns(ctx);
+        if !exclude_patterns.is_empty() {
+            info!("Excluding MSVC packages matching: {:?}", exclude_patterns);
+            installer = installer.with_exclude_patterns(exclude_patterns);
+        }
+
         let install_info = installer
             .install(&install_path)
             .await

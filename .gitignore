@@ -42,3 +42,4 @@ $null
 
 *.txt
 .vite/
+test_toml.rs

@@ -28,6 +28,6 @@ pub mod builder;
 pub mod index;
 pub mod loader;
 
-pub use builder::{BuildError, BuildResult, BuildWarning, ProviderBuilder};
+pub use builder::{BuildError, BuildErrorKind, BuildResult, BuildWarning, ProviderBuilder};
 pub use index::{ManifestIndex, ProviderMetadata, RuntimeMetadata};
 pub use loader::ManifestStore;

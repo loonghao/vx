@@ -8,17 +8,26 @@ use tracing::debug;
 use vx_config::parse_config;
 use vx_paths::find_config_file_upward;
 
+/// Install options for a specific tool (key-value env-style pairs)
+type InstallEnvVars = HashMap<String, String>;
+
 /// Project tools configuration extracted from vx.toml
 #[derive(Debug, Clone)]
 pub struct ProjectToolsConfig {
     /// Tool versions from vx.toml (tool_name -> version)
     tools: HashMap<String, String>,
+    /// Per-tool install options extracted from detailed ToolConfig
+    /// (e.g., msvc -> {"VX_MSVC_COMPONENTS": "spectre", "VX_MSVC_EXCLUDE_PATTERNS": "..."})
+    tool_install_options: HashMap<String, InstallEnvVars>,
 }
 
 impl ProjectToolsConfig {
     /// Create a ProjectToolsConfig from a tools map (for testing)
     pub fn from_tools(tools: HashMap<String, String>) -> Self {
-        Self { tools }
+        Self {
+            tools,
+            tool_install_options: HashMap::new(),
+        }
     }
 
     /// Load project configuration from vx.toml in current directory or parent directories
@@ -37,7 +46,14 @@ impl ProjectToolsConfig {
                 tools.len(),
                 config_path.display()
             );
-            Some(Self { tools })
+
+            // Extract install options from detailed tool configs
+            let tool_install_options = Self::extract_install_options(&config);
+
+            Some(Self {
+                tools,
+                tool_install_options,
+            })
         }
     }
 
@@ -116,6 +132,83 @@ impl ProjectToolsConfig {
             })
             .map(|(name, version)| (name.as_str(), version.as_str()))
             .collect()
+    }
+
+    /// Get install options for a specific tool.
+    ///
+    /// Returns `None` if the tool has no detailed configuration (i.e., it uses `Simple` version).
+    /// The returned HashMap contains env-style key-value pairs that should be passed to
+    /// `RuntimeContext.install_options` before calling `runtime.install()`.
+    pub fn get_install_options(&self, tool: &str) -> Option<&InstallEnvVars> {
+        self.tool_install_options.get(tool)
+    }
+
+    /// Extract install options from all detailed ToolConfig entries in VxConfig.
+    ///
+    /// This mirrors the logic in `sync.rs::build_install_env_vars()` but stores
+    /// the result in `ProjectToolsConfig` for use by the Executor path.
+    fn extract_install_options(config: &vx_config::VxConfig) -> HashMap<String, InstallEnvVars> {
+        let mut result = HashMap::new();
+
+        // Check tools section
+        for (name, _) in &config.tools {
+            if let Some(tool_config) = config.get_tool_config(name) {
+                if let Some(env_vars) = Self::build_env_vars_from_tool_config(name, tool_config) {
+                    result.insert(name.to_string(), env_vars);
+                }
+            }
+        }
+
+        // Check runtimes section (tools takes precedence)
+        for (name, _) in &config.runtimes {
+            if result.contains_key(name) {
+                continue;
+            }
+            if let Some(tool_config) = config.get_tool_config(name) {
+                if let Some(env_vars) = Self::build_env_vars_from_tool_config(name, tool_config) {
+                    result.insert(name.to_string(), env_vars);
+                }
+            }
+        }
+
+        result
+    }
+
+    /// Build environment variable map from a single ToolConfig.
+    ///
+    /// Returns `None` if the tool config has no install-relevant options.
+    fn build_env_vars_from_tool_config(
+        name: &str,
+        tool_config: &vx_config::ToolConfig,
+    ) -> Option<InstallEnvVars> {
+        let mut env_vars = HashMap::new();
+
+        if let Some(components) = &tool_config.components {
+            if !components.is_empty() {
+                env_vars.insert("VX_MSVC_COMPONENTS".to_string(), components.join(","));
+            }
+        }
+
+        if let Some(patterns) = &tool_config.exclude_patterns {
+            if !patterns.is_empty() {
+                env_vars.insert("VX_MSVC_EXCLUDE_PATTERNS".to_string(), patterns.join(","));
+            }
+        }
+
+        if let Some(install_env) = &tool_config.install_env {
+            env_vars.extend(install_env.clone());
+        }
+
+        if !env_vars.is_empty() {
+            debug!(
+                "Extracted {} install option(s) for tool '{}'",
+                env_vars.len(),
+                name
+            );
+            Some(env_vars)
+        } else {
+            None
+        }
     }
 
     /// Get the primary runtime name for a bundled tool

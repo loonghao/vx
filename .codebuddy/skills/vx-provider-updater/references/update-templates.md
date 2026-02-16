@@ -14,6 +14,7 @@ Complete templates for updating provider.toml files to RFC 0018 + RFC 0019 stand
 | npm package | npm install | None | Template 6 |
 | pip package | pip install | None | Template 7 |
 | System tool | OS package | None | Template 8 |
+| Git repository | Git clone | `git_clone` | Template 9 |
 
 ## Template 1: Single Binary Download
 
@@ -532,3 +533,38 @@ What's the download format?
 └─ System installation?
    └─ Use Template 8 (System Tool)
 ```
+
+## Template 9: Git Clone
+
+**Use for**: vcpkg, tools that require full repository clone
+
+**Characteristics**:
+- Tool is installed by cloning a Git repository
+- Uses `git_clone` download type (NOT `git-clone`!)
+- Typically requires Git as a dependency
+
+```toml
+[[runtimes]]
+name = "tool-name"
+description = "Tool description"
+executable = "tool-name"
+
+[runtimes.versions]
+source = "github-releases"  # or "github-tags"
+owner = "owner-name"
+repo = "repo-name"
+strip_v_prefix = true
+
+# RFC 0019: Git Clone Layout
+[runtimes.layout]
+download_type = "git_clone"   # NOTE: snake_case, NOT "git-clone"!
+
+[[runtimes.constraints]]
+when = "*"
+requires = [
+    { runtime = "git", version = "*", reason = "Git clone installation requires git" }
+]
+```
+
+**⚠️ Important**: Use `git_clone` (snake_case), NOT `git-clone` (kebab-case).
+The manifest parser uses `#[serde(rename_all = "snake_case")]` and will reject kebab-case values.

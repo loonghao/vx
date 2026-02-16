@@ -13,6 +13,7 @@ use crate::executor::installation::InstallationManager;
 use crate::executor::pipeline::error::EnsureError;
 use crate::executor::pipeline::plan::{ExecutionPlan, InstallStatus};
 use crate::executor::pipeline::stage::Stage;
+use crate::executor::project_config::ProjectToolsConfig;
 use crate::{Resolver, ResolverConfig};
 use vx_runtime::{ProviderRegistry, RuntimeContext};
 
@@ -33,6 +34,9 @@ pub struct EnsureStage<'a> {
 
     /// Runtime context for installation
     context: Option<&'a RuntimeContext>,
+
+    /// Project configuration (for install_options injection)
+    project_config: Option<&'a ProjectToolsConfig>,
 }
 
 impl<'a> EnsureStage<'a> {
@@ -48,12 +52,24 @@ impl<'a> EnsureStage<'a> {
             config,
             registry,
             context,
+            project_config: None,
         }
+    }
+
+    /// Set the project configuration for install options injection
+    pub fn with_project_config(mut self, project_config: &'a ProjectToolsConfig) -> Self {
+        self.project_config = Some(project_config);
+        self
     }
 
     /// Create an InstallationManager (delegates to existing logic)
     fn installation_manager(&self) -> InstallationManager<'_> {
-        InstallationManager::new(self.config, self.resolver, self.registry, self.context)
+        let mut mgr =
+            InstallationManager::new(self.config, self.resolver, self.registry, self.context);
+        if let Some(project_config) = self.project_config {
+            mgr = mgr.with_project_config(project_config);
+        }
+        mgr
     }
 }
 

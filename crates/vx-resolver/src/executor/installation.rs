@@ -8,6 +8,7 @@
 //! - Version fallback on installation failure
 
 use super::pipeline::error::EnsureError;
+use super::project_config::ProjectToolsConfig;
 use crate::{Resolver, ResolverConfig, Result};
 use tracing::{debug, info, warn};
 use vx_console::ProgressSpinner;
@@ -22,6 +23,7 @@ pub struct InstallationManager<'a> {
     pub(crate) resolver: &'a Resolver,
     pub(crate) registry: Option<&'a ProviderRegistry>,
     pub(crate) context: Option<&'a RuntimeContext>,
+    pub(crate) project_config: Option<&'a ProjectToolsConfig>,
 }
 
 impl<'a> InstallationManager<'a> {
@@ -37,7 +39,14 @@ impl<'a> InstallationManager<'a> {
             resolver,
             registry,
             context,
+            project_config: None,
         }
+    }
+
+    /// Set the project configuration for install options injection
+    pub fn with_project_config(mut self, project_config: &'a ProjectToolsConfig) -> Self {
+        self.project_config = Some(project_config);
+        self
     }
 
     /// Install a list of runtimes in order
@@ -148,7 +157,10 @@ impl<'a> InstallationManager<'a> {
         Ok(None)
     }
 
-    /// Try to install a specific version, returning an error on failure
+    /// Try to install a specific version, returning an error on failure.
+    ///
+    /// If the project config has install_options for this runtime, they are injected
+    /// into a cloned RuntimeContext before calling `runtime.install()`.
     async fn try_install_version(
         &self,
         runtime_name: &str,
@@ -160,12 +172,28 @@ impl<'a> InstallationManager<'a> {
             .get_runtime(runtime_name)
             .expect("runtime must exist");
 
+        // Build context with install_options from project config if available
+        let ctx_with_options;
+        let effective_ctx = if let Some(project_config) = self.project_config
+            && let Some(options) = project_config.get_install_options(runtime_name)
+        {
+            debug!(
+                "Injecting {} install option(s) for '{}' from vx.toml",
+                options.len(),
+                runtime_name
+            );
+            ctx_with_options = context.clone().with_install_options(options.clone());
+            &ctx_with_options
+        } else {
+            context
+        };
+
         // Run pre-install hook
-        runtime.pre_install(version, context).await?;
+        runtime.pre_install(version, effective_ctx).await?;
 
         // Install the runtime
         debug!("Calling runtime.install() for {} {}", runtime_name, version);
-        let result = runtime.install(version, context).await?;
+        let result = runtime.install(version, effective_ctx).await?;
         debug!(
             "Install result: path={}, exe={}, already_installed={}",
             result.install_path.display(),
@@ -174,7 +202,7 @@ impl<'a> InstallationManager<'a> {
         );
 
         // Verify the installation actually succeeded
-        if !context.fs.exists(&result.executable_path) {
+        if !effective_ctx.fs.exists(&result.executable_path) {
             return Err(EnsureError::PostInstallVerificationFailed {
                 runtime: runtime_name.to_string(),
                 path: result.executable_path.clone(),
@@ -183,7 +211,7 @@ impl<'a> InstallationManager<'a> {
         }
 
         // Run post-install hook (for symlinks, PATH setup, etc.)
-        runtime.post_install(version, context).await?;
+        runtime.post_install(version, effective_ctx).await?;
 
         info!("Successfully installed {} {}", runtime_name, version);
         Ok(result)

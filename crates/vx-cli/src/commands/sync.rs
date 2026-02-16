@@ -17,7 +17,7 @@ use crate::commands::common::{ToolStatus, check_tools_status_ordered};
 use crate::commands::setup::{find_vx_config, parse_vx_config, parse_vx_config_full};
 use crate::ui::{InstallProgress, UI};
 use anyhow::{Context, Result};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -31,6 +31,9 @@ type ToolInfoRef<'a> = &'a (String, String, ToolStatus, Option<PathBuf>, Option<
 
 /// Install result with optional error message
 type InstallResult = (String, bool, Option<String>);
+
+/// Install environment variables to pass to the tool install subprocess
+type InstallEnvVars = HashMap<String, String>;
 
 /// Lock file status check result
 enum LockStatus {
@@ -270,6 +273,9 @@ pub async fn handle_with_options(_registry: &ProviderRegistry, options: SyncOpti
         return Ok(());
     }
 
+    // Build install-time env vars from ToolConfig metadata (e.g., MSVC components)
+    let install_env_vars = build_install_env_vars(&full_config);
+
     // Install missing tools using InstallProgress for unified progress display
     let mut progress = InstallProgress::new(
         missing.len(),
@@ -277,9 +283,9 @@ pub async fn handle_with_options(_registry: &ProviderRegistry, options: SyncOpti
     );
 
     let results = if options.no_parallel {
-        install_sequential_with_progress(&missing, options.verbose, &mut progress).await?
+        install_sequential_with_progress(&missing, options.verbose, &mut progress, &install_env_vars).await?
     } else {
-        install_parallel_with_progress(&missing, options.verbose, &mut progress).await?
+        install_parallel_with_progress(&missing, options.verbose, &mut progress, &install_env_vars).await?
     };
 
     // Finish progress
@@ -346,6 +352,88 @@ fn run_lock_command() -> Result<()> {
     Ok(())
 }
 
+/// Build environment variables from ToolConfig metadata for install subprocesses.
+///
+/// For tools with detailed configuration (e.g., [tools.msvc] with components),
+/// this generates the appropriate env vars that the runtime's install() method reads.
+fn build_install_env_vars(config: &vx_config::VxConfig) -> HashMap<String, InstallEnvVars> {
+    let mut tool_envs = HashMap::new();
+
+    // Check all tools for detailed config
+    for (name, _) in &config.tools {
+        if let Some(tool_config) = config.get_tool_config(name) {
+            let mut env_vars = HashMap::new();
+
+            // Pass components as VX_MSVC_COMPONENTS
+            if let Some(components) = &tool_config.components {
+                if !components.is_empty() {
+                    env_vars.insert(
+                        "VX_MSVC_COMPONENTS".to_string(),
+                        components.join(","),
+                    );
+                }
+            }
+
+            // Pass exclude patterns as VX_MSVC_EXCLUDE_PATTERNS
+            if let Some(patterns) = &tool_config.exclude_patterns {
+                if !patterns.is_empty() {
+                    env_vars.insert(
+                        "VX_MSVC_EXCLUDE_PATTERNS".to_string(),
+                        patterns.join(","),
+                    );
+                }
+            }
+
+            // Pass install_env vars directly
+            if let Some(install_env) = &tool_config.install_env {
+                env_vars.extend(install_env.clone());
+            }
+
+            if !env_vars.is_empty() {
+                tool_envs.insert(name.clone(), env_vars);
+            }
+        }
+    }
+
+    // Also check runtimes section
+    for (name, _) in &config.runtimes {
+        if tool_envs.contains_key(name) {
+            continue; // tools section takes precedence
+        }
+        if let Some(tool_config) = config.get_tool_config(name) {
+            let mut env_vars = HashMap::new();
+
+            if let Some(components) = &tool_config.components {
+                if !components.is_empty() {
+                    env_vars.insert(
+                        "VX_MSVC_COMPONENTS".to_string(),
+                        components.join(","),
+                    );
+                }
+            }
+
+            if let Some(patterns) = &tool_config.exclude_patterns {
+                if !patterns.is_empty() {
+                    env_vars.insert(
+                        "VX_MSVC_EXCLUDE_PATTERNS".to_string(),
+                        patterns.join(","),
+                    );
+                }
+            }
+
+            if let Some(install_env) = &tool_config.install_env {
+                env_vars.extend(install_env.clone());
+            }
+
+            if !env_vars.is_empty() {
+                tool_envs.insert(name.clone(), env_vars);
+            }
+        }
+    }
+
+    tool_envs
+}
+
 /// Resolve effective versions by preferring lock file versions over config versions
 fn resolve_effective_versions(
     config_tools: &BTreeMap<String, String>,
@@ -378,13 +466,15 @@ async fn install_sequential_with_progress(
     tools: &[ToolInfoRef<'_>],
     verbose: bool,
     progress: &mut InstallProgress,
+    install_env_vars: &HashMap<String, InstallEnvVars>,
 ) -> Result<Vec<InstallResult>> {
     let mut results = Vec::new();
 
     for (name, version, _, _, _) in tools {
         progress.start_tool(name, version);
 
-        let (success, error) = install_tool(name, version).await;
+        let env_vars = install_env_vars.get(name.as_str()).cloned();
+        let (success, error) = install_tool(name, version, env_vars.as_ref()).await;
         results.push((name.clone(), success, error.clone()));
 
         progress.complete_tool(success, name, version);
@@ -408,6 +498,7 @@ async fn install_parallel_with_progress(
     tools: &[ToolInfoRef<'_>],
     _verbose: bool,
     progress: &mut InstallProgress,
+    install_env_vars: &HashMap<String, InstallEnvVars>,
 ) -> Result<Vec<InstallResult>> {
     use tokio::task::JoinSet;
 
@@ -417,11 +508,12 @@ async fn install_parallel_with_progress(
     for (name, version, _, _, _) in tools {
         let name = name.clone();
         let version = version.clone();
+        let env_vars = install_env_vars.get(name.as_str()).cloned();
 
         progress.start_tool(&name, &version);
 
         join_set.spawn(async move {
-            let (success, error) = install_tool(&name, &version).await;
+            let (success, error) = install_tool(&name, &version, env_vars.as_ref()).await;
             (name, version, success, error)
         });
     }
@@ -438,7 +530,14 @@ async fn install_parallel_with_progress(
 }
 
 /// Install a single tool, returns (success, error_message)
-async fn install_tool(name: &str, version: &str) -> (bool, Option<String>) {
+///
+/// Optional env_vars are injected into the install subprocess.
+/// This is used to pass ToolConfig metadata like VX_MSVC_COMPONENTS.
+async fn install_tool(
+    name: &str,
+    version: &str,
+    env_vars: Option<&InstallEnvVars>,
+) -> (bool, Option<String>) {
     let exe = match env::current_exe() {
         Ok(e) => e,
         Err(e) => return (false, Some(format!("Failed to get current exe: {}", e))),
@@ -447,6 +546,13 @@ async fn install_tool(name: &str, version: &str) -> (bool, Option<String>) {
     let mut cmd = Command::new(exe);
     // Use tool@version format instead of separate arguments
     cmd.args(["install", &format!("{}@{}", name, version)]);
+
+    // Inject tool-specific env vars (e.g., VX_MSVC_COMPONENTS for MSVC)
+    if let Some(vars) = env_vars {
+        for (key, value) in vars {
+            cmd.env(key, value);
+        }
+    }
 
     // Capture output instead of suppressing it
     cmd.stdout(std::process::Stdio::piped());

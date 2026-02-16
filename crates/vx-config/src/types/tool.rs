@@ -38,4 +38,15 @@ pub struct ToolConfig {
     /// Install environment variables
     #[serde(skip_serializing_if = "Option::is_none")]
     pub install_env: Option<HashMap<String, String>>,
+
+    /// Optional components to include (e.g., ["spectre", "mfc", "atl", "asan", "cli"])
+    /// Used by MSVC provider to select additional msvc-kit components.
+    /// See msvc-kit MsvcComponent for valid values.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub components: Option<Vec<String>>,
+
+    /// Package ID patterns to exclude from installation (case-insensitive substring match)
+    /// Used by MSVC provider for fine-grained control over package selection.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exclude_patterns: Option<Vec<String>>,
 }

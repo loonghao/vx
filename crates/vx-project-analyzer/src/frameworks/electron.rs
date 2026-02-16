@@ -126,6 +126,13 @@ impl ElectronDetector {
         "utf-8-validate",
     ];
 
+    /// Native modules that require Spectre-mitigated libraries for MSVC compilation.
+    /// These modules have vcxproj files that enable the `/Qspectre` flag.
+    const SPECTRE_REQUIRED_MODULES: &'static [&'static str] = &[
+        "node-pty",
+        "node-pty-prebuilt-multiarch",
+    ];
+
     /// Check if the project has native module dependencies that require build tools
     fn has_native_modules(package_json: &Value) -> bool {
         let check_deps = |deps: Option<&Value>| -> bool {
@@ -281,14 +288,47 @@ impl FrameworkDetector for ElectronDetector {
                 InstallMethod::vx("python"),
             ));
 
+            // Detect which MSVC components are needed
+            let needs_spectre = deps
+                .iter()
+                .any(|d| Self::SPECTRE_REQUIRED_MODULES.contains(&d.name.as_str()));
+
             // MSVC is required on Windows for native module compilation
             #[cfg(target_os = "windows")]
-            tools.push(RequiredTool::new(
-                "msvc",
-                Ecosystem::Cpp,
-                "MSVC Build Tools required for compiling native Electron modules on Windows",
-                InstallMethod::vx("msvc"),
-            ));
+            {
+                let mut msvc_tool = RequiredTool::new(
+                    "msvc",
+                    Ecosystem::Cpp,
+                    "MSVC Build Tools required for compiling native Electron modules on Windows",
+                    InstallMethod::vx("msvc"),
+                )
+                .with_os(vec!["windows".to_string()]);
+
+                // Add Spectre component if node-pty or similar modules are present
+                if needs_spectre {
+                    msvc_tool = msvc_tool.with_components(vec!["spectre".to_string()]);
+                }
+
+                tools.push(msvc_tool);
+            }
+
+            // For non-Windows, still record the MSVC tool as a cross-platform hint
+            #[cfg(not(target_os = "windows"))]
+            {
+                let mut msvc_tool = RequiredTool::new(
+                    "msvc",
+                    Ecosystem::Cpp,
+                    "MSVC Build Tools required for compiling native Electron modules on Windows",
+                    InstallMethod::vx("msvc"),
+                )
+                .with_os(vec!["windows".to_string()]);
+
+                if needs_spectre {
+                    msvc_tool = msvc_tool.with_components(vec!["spectre".to_string()]);
+                }
+
+                tools.push(msvc_tool);
+            }
         }
 
         // Check for electron-builder in scripts

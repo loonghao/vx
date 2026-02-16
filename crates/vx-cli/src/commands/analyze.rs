@@ -143,6 +143,26 @@ pub async fn analyze_project(root: &Path, json: bool, verbose: bool) -> Result<(
                 SyncAction::AddTool { name, version } => {
                     format!("Add [tools] {} = \"{}\" to vx.toml", name, version)
                 }
+                SyncAction::AddToolDetailed {
+                    name,
+                    version,
+                    components,
+                    os,
+                    ..
+                } => {
+                    let mut parts = vec![format!("version = \"{}\"", version)];
+                    if let Some(comps) = components {
+                        parts.push(format!("components = {:?}", comps));
+                    }
+                    if let Some(os_list) = os {
+                        parts.push(format!("os = {:?}", os_list));
+                    }
+                    format!(
+                        "Add [tools.{}] {{ {} }} to vx.toml",
+                        name,
+                        parts.join(", ")
+                    )
+                }
                 SyncAction::UpdateTool {
                     name,
                     old_version,

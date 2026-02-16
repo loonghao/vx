@@ -49,6 +49,8 @@ pub enum DownloadType {
     Binary,
     /// Installer (msi, pkg, etc.) - not recommended
     Installer,
+    /// Git clone (e.g., vcpkg)
+    GitClone,
 }
 
 /// Archive-specific layout configuration

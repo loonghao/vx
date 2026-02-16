@@ -254,6 +254,8 @@ impl ConfigMigrator {
                         postinstall,
                         os,
                         install_env: None,
+                        components: None,
+                        exclude_patterns: None,
                     })
                 } else {
                     warnings.push(format!("tools.{}: invalid value, skipped", name));

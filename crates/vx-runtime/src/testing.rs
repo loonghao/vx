@@ -521,6 +521,7 @@ pub fn mock_context() -> RuntimeContext {
         config: RuntimeConfig::default(),
         version_cache: None,
         download_url_cache: None,
+        install_options: HashMap::new(),
     }
 }
 
