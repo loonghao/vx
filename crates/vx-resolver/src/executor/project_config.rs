@@ -151,24 +151,22 @@ impl ProjectToolsConfig {
         let mut result = HashMap::new();
 
         // Check tools section
-        for (name, _) in &config.tools {
-            if let Some(tool_config) = config.get_tool_config(name) {
-                if let Some(env_vars) = Self::build_env_vars_from_tool_config(name, tool_config) {
+        for name in config.tools.keys() {
+            if let Some(tool_config) = config.get_tool_config(name)
+                && let Some(env_vars) = Self::build_env_vars_from_tool_config(name, tool_config) {
                     result.insert(name.to_string(), env_vars);
                 }
-            }
         }
 
         // Check runtimes section (tools takes precedence)
-        for (name, _) in &config.runtimes {
+        for name in config.runtimes.keys() {
             if result.contains_key(name) {
                 continue;
             }
-            if let Some(tool_config) = config.get_tool_config(name) {
-                if let Some(env_vars) = Self::build_env_vars_from_tool_config(name, tool_config) {
+            if let Some(tool_config) = config.get_tool_config(name)
+                && let Some(env_vars) = Self::build_env_vars_from_tool_config(name, tool_config) {
                     result.insert(name.to_string(), env_vars);
                 }
-            }
         }
 
         result
@@ -183,17 +181,15 @@ impl ProjectToolsConfig {
     ) -> Option<InstallEnvVars> {
         let mut env_vars = HashMap::new();
 
-        if let Some(components) = &tool_config.components {
-            if !components.is_empty() {
+        if let Some(components) = &tool_config.components
+            && !components.is_empty() {
                 env_vars.insert("VX_MSVC_COMPONENTS".to_string(), components.join(","));
             }
-        }
 
-        if let Some(patterns) = &tool_config.exclude_patterns {
-            if !patterns.is_empty() {
+        if let Some(patterns) = &tool_config.exclude_patterns
+            && !patterns.is_empty() {
                 env_vars.insert("VX_MSVC_EXCLUDE_PATTERNS".to_string(), patterns.join(","));
             }
-        }
 
         if let Some(install_env) = &tool_config.install_env {
             env_vars.extend(install_env.clone());

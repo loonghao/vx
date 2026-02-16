@@ -462,11 +462,10 @@ impl MsvcRuntime {
         if let Ok(val) = std::env::var("MSVC_KIT_INCLUDE_COMPONENTS") {
             for name in val.split(',') {
                 let name = name.trim();
-                if !name.is_empty() {
-                    if let Ok(component) = name.parse::<MsvcComponent>() {
+                if !name.is_empty()
+                    && let Ok(component) = name.parse::<MsvcComponent>() {
                         components.insert(component);
                     }
-                }
             }
         }
 
