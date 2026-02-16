@@ -460,7 +460,11 @@ impl Runtime for CargoRuntime {
         use vx_runtime::InstallResult;
 
         // Map "latest" to "stable" as a safety net (should be handled by resolve_version)
-        let version = if version == "latest" { "stable" } else { version };
+        let version = if version == "latest" {
+            "stable"
+        } else {
+            version
+        };
 
         // Find rustup executable
         let rustup_exe = Self::find_rustup_executable(ctx)?;
@@ -1010,7 +1014,11 @@ impl Runtime for RustcRuntime {
         use vx_runtime::InstallResult;
 
         // Map "latest" to "stable" as a safety net (should be handled by resolve_version)
-        let version = if version == "latest" { "stable" } else { version };
+        let version = if version == "latest" {
+            "stable"
+        } else {
+            version
+        };
 
         // Find rustup executable
         let rustup_exe = CargoRuntime::find_rustup_executable(ctx)?;

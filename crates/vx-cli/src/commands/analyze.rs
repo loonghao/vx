@@ -157,11 +157,7 @@ pub async fn analyze_project(root: &Path, json: bool, verbose: bool) -> Result<(
                     if let Some(os_list) = os {
                         parts.push(format!("os = {:?}", os_list));
                     }
-                    format!(
-                        "Add [tools.{}] {{ {} }} to vx.toml",
-                        name,
-                        parts.join(", ")
-                    )
+                    format!("Add [tools.{}] {{ {} }} to vx.toml", name, parts.join(", "))
                 }
                 SyncAction::UpdateTool {
                     name,

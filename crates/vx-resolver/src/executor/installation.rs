@@ -367,24 +367,44 @@ impl<'a> InstallationManager<'a> {
         // Check if this version is already installed
         if runtime.is_installed(&resolved_version, context).await? {
             debug!("{} {} is already installed", runtime_name, resolved_version);
-            // Find the existing executable path via the resolver
-            let exe_path = self
-                .resolver
-                .find_executable(runtime_name, &resolved_version);
 
-            if exe_path.is_some() {
-                return Ok(Some(InstallResult::already_installed_with(
-                    resolved_version,
-                    exe_path,
-                )));
+            // Check if the project config has install_options for this runtime
+            // (e.g., MSVC components like Spectre). If so, we must call install()
+            // to let the runtime verify component integrity and do incremental
+            // installation if needed, rather than taking the already_installed shortcut.
+            let has_install_options = self
+                .project_config
+                .and_then(|pc| pc.get_install_options(runtime_name))
+                .is_some_and(|opts| !opts.is_empty());
+
+            if has_install_options {
+                debug!(
+                    "{} {} has install_options from project config, delegating to install() for component integrity check",
+                    runtime_name, resolved_version
+                );
+                // Fall through to try_install_version which calls runtime.install()
+                // The runtime's install() method handles component checking internally
+                // (e.g., MSVC checks for missing Spectre libs and re-installs if needed)
+            } else {
+                // Find the existing executable path via the resolver
+                let exe_path = self
+                    .resolver
+                    .find_executable(runtime_name, &resolved_version);
+
+                if exe_path.is_some() {
+                    return Ok(Some(InstallResult::already_installed_with(
+                        resolved_version,
+                        exe_path,
+                    )));
+                }
+
+                // Directory exists but executable not found — stale/corrupt installation.
+                // Fall through to reinstall instead of returning a broken result.
+                warn!(
+                    "{} {} directory exists but executable not found, reinstalling",
+                    runtime_name, resolved_version
+                );
             }
-
-            // Directory exists but executable not found — stale/corrupt installation.
-            // Fall through to reinstall instead of returning a broken result.
-            warn!(
-                "{} {} directory exists but executable not found, reinstalling",
-                runtime_name, resolved_version
-            );
         }
 
         // Install the specific version

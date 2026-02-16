@@ -128,10 +128,8 @@ impl ElectronDetector {
 
     /// Native modules that require Spectre-mitigated libraries for MSVC compilation.
     /// These modules have vcxproj files that enable the `/Qspectre` flag.
-    const SPECTRE_REQUIRED_MODULES: &'static [&'static str] = &[
-        "node-pty",
-        "node-pty-prebuilt-multiarch",
-    ];
+    const SPECTRE_REQUIRED_MODULES: &'static [&'static str] =
+        &["node-pty", "node-pty-prebuilt-multiarch"];
 
     /// Check if the project has native module dependencies that require build tools
     fn has_native_modules(package_json: &Value) -> bool {
