@@ -283,9 +283,16 @@ pub async fn handle_with_options(_registry: &ProviderRegistry, options: SyncOpti
     );
 
     let results = if options.no_parallel {
-        install_sequential_with_progress(&missing, options.verbose, &mut progress, &install_env_vars).await?
+        install_sequential_with_progress(
+            &missing,
+            options.verbose,
+            &mut progress,
+            &install_env_vars,
+        )
+        .await?
     } else {
-        install_parallel_with_progress(&missing, options.verbose, &mut progress, &install_env_vars).await?
+        install_parallel_with_progress(&missing, options.verbose, &mut progress, &install_env_vars)
+            .await?
     };
 
     // Finish progress
@@ -367,20 +374,14 @@ fn build_install_env_vars(config: &vx_config::VxConfig) -> HashMap<String, Insta
             // Pass components as VX_MSVC_COMPONENTS
             if let Some(components) = &tool_config.components {
                 if !components.is_empty() {
-                    env_vars.insert(
-                        "VX_MSVC_COMPONENTS".to_string(),
-                        components.join(","),
-                    );
+                    env_vars.insert("VX_MSVC_COMPONENTS".to_string(), components.join(","));
                 }
             }
 
             // Pass exclude patterns as VX_MSVC_EXCLUDE_PATTERNS
             if let Some(patterns) = &tool_config.exclude_patterns {
                 if !patterns.is_empty() {
-                    env_vars.insert(
-                        "VX_MSVC_EXCLUDE_PATTERNS".to_string(),
-                        patterns.join(","),
-                    );
+                    env_vars.insert("VX_MSVC_EXCLUDE_PATTERNS".to_string(), patterns.join(","));
                 }
             }
 
@@ -405,19 +406,13 @@ fn build_install_env_vars(config: &vx_config::VxConfig) -> HashMap<String, Insta
 
             if let Some(components) = &tool_config.components {
                 if !components.is_empty() {
-                    env_vars.insert(
-                        "VX_MSVC_COMPONENTS".to_string(),
-                        components.join(","),
-                    );
+                    env_vars.insert("VX_MSVC_COMPONENTS".to_string(), components.join(","));
                 }
             }
 
             if let Some(patterns) = &tool_config.exclude_patterns {
                 if !patterns.is_empty() {
-                    env_vars.insert(
-                        "VX_MSVC_EXCLUDE_PATTERNS".to_string(),
-                        patterns.join(","),
-                    );
+                    env_vars.insert("VX_MSVC_EXCLUDE_PATTERNS".to_string(), patterns.join(","));
                 }
             }
 

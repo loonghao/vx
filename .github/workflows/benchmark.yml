@@ -84,7 +84,7 @@ jobs:
         id: bench
         shell: bash
         run: |
-          vx just benchmark-run-ci
+          vx just benchmark-run-ci 2>&1 | tee benchmark_output.txt
 
           # Parse benchmark results into structured format
           echo "## Benchmark Results - ${{ matrix.platform.name }}" >> benchmark_results.md

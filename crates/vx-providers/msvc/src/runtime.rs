@@ -676,10 +676,15 @@ impl Runtime for MsvcRuntime {
         // node-gyp expects MSBuild.exe at {VCINSTALLDIR}/MSBuild/Current/Bin/MSBuild.exe
         self.deploy_msbuild_bridge(&install_path);
 
+        // Return the *requested* version (e.g., "14.42"), not the internal MSVC
+        // version (e.g., "14.42.34433"). The requested version is what the unified
+        // version resolver produced and what version_store_dir() uses for the
+        // directory name. Returning the internal version would cause callers
+        // (e.g., prepare_environment) to look up a non-existent directory.
         Ok(InstallResult::success(
             install_path,
             install_info.cl_exe_path,
-            install_info.msvc_version,
+            version.to_string(),
         ))
     }
 

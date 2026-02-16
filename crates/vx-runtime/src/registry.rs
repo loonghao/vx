@@ -105,7 +105,10 @@ impl ProviderRegistry {
         runtime_names: Vec<String>,
         factory: ProviderFactory,
     ) {
-        trace!("register_lazy: provider='{}', runtimes={:?}", provider_name, runtime_names);
+        trace!(
+            "register_lazy: provider='{}', runtimes={:?}",
+            provider_name, runtime_names
+        );
 
         // Build the pending index: runtime name/alias → provider name
         {
@@ -225,14 +228,20 @@ impl ProviderRegistry {
         let provider_name = {
             let index = self.pending_index.read().unwrap();
             let result = index.get(name).cloned();
-            trace!("get_runtime('{}'): pending_index lookup = {:?}", name, result);
+            trace!(
+                "get_runtime('{}'): pending_index lookup = {:?}",
+                name, result
+            );
             result
         };
 
         if let Some(provider_name) = provider_name {
             // Materialize the provider on demand
             let materialized = self.materialize_provider(&provider_name);
-            trace!("get_runtime('{}'): materialize_provider('{}') = {}", name, provider_name, materialized);
+            trace!(
+                "get_runtime('{}'): materialize_provider('{}') = {}",
+                name, provider_name, materialized
+            );
 
             // Now look up in the freshly populated cache
             let cache = self.runtime_cache.read().unwrap();

@@ -68,10 +68,7 @@ impl ManifestError {
         match self {
             Self::ParseWithContext { provider, source } => {
                 let raw = source.to_string();
-                let mut parts = vec![format!(
-                    "  Provider: {}\n  Error: {}",
-                    provider, raw
-                )];
+                let mut parts = vec![format!("  Provider: {}\n  Error: {}", provider, raw)];
 
                 // Detect common error patterns and provide hints
                 if let Some(hint) = detect_parse_hint(&raw) {
@@ -154,7 +151,10 @@ impl DiagnosticBuilder {
 fn detect_parse_hint(error_message: &str) -> Option<String> {
     // Unknown variant for ecosystem field
     if error_message.contains("unknown variant") && error_message.contains("expected one of") {
-        if error_message.contains("ecosystem") || error_message.contains("cpp") || error_message.contains("node") {
+        if error_message.contains("ecosystem")
+            || error_message.contains("cpp")
+            || error_message.contains("node")
+        {
             return Some(
                 "Check the 'ecosystem' field value. Supported values: nodejs, python, rust, go, ruby, java, dotnet, devtools, container, cloud, ai, cpp, zig, system"
                     .to_string(),
@@ -187,7 +187,9 @@ fn detect_parse_hint(error_message: &str) -> Option<String> {
     }
 
     // download_type errors
-    if error_message.contains("download_type") || (error_message.contains("unknown variant") && error_message.contains("archive")) {
+    if error_message.contains("download_type")
+        || (error_message.contains("unknown variant") && error_message.contains("archive"))
+    {
         return Some(
             "Check the 'download_type' field. Supported values: archive, binary, installer, git_clone (note: use snake_case, not kebab-case)"
                 .to_string(),

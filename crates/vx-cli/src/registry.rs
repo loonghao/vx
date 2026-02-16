@@ -118,7 +118,11 @@ pub fn create_registry() -> ProviderRegistry {
 
     // Report build errors as structured diagnostics
     let no_factory_errors: Vec<_> = result.errors.iter().filter(|e| e.is_no_factory()).collect();
-    let real_errors: Vec<_> = result.errors.iter().filter(|e| !e.is_no_factory()).collect();
+    let real_errors: Vec<_> = result
+        .errors
+        .iter()
+        .filter(|e| !e.is_no_factory())
+        .collect();
 
     // Manifest-only providers (no factory) are expected and logged at debug level
     for error in &no_factory_errors {
@@ -157,7 +161,10 @@ pub fn create_registry() -> ProviderRegistry {
         return create_static_registry();
     }
 
-    tracing::debug!("returning lazy registry with {} pending factories", registry.pending_factories_count());
+    tracing::debug!(
+        "returning lazy registry with {} pending factories",
+        registry.pending_factories_count()
+    );
     registry
 }
 
