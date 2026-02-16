@@ -367,22 +367,22 @@ fn build_install_env_vars(config: &vx_config::VxConfig) -> HashMap<String, Insta
     let mut tool_envs = HashMap::new();
 
     // Check all tools for detailed config
-    for (name, _) in &config.tools {
+    for name in config.tools.keys() {
         if let Some(tool_config) = config.get_tool_config(name) {
             let mut env_vars = HashMap::new();
 
             // Pass components as VX_MSVC_COMPONENTS
-            if let Some(components) = &tool_config.components {
-                if !components.is_empty() {
-                    env_vars.insert("VX_MSVC_COMPONENTS".to_string(), components.join(","));
-                }
+            if let Some(components) = &tool_config.components
+                && !components.is_empty()
+            {
+                env_vars.insert("VX_MSVC_COMPONENTS".to_string(), components.join(","));
             }
 
             // Pass exclude patterns as VX_MSVC_EXCLUDE_PATTERNS
-            if let Some(patterns) = &tool_config.exclude_patterns {
-                if !patterns.is_empty() {
-                    env_vars.insert("VX_MSVC_EXCLUDE_PATTERNS".to_string(), patterns.join(","));
-                }
+            if let Some(patterns) = &tool_config.exclude_patterns
+                && !patterns.is_empty()
+            {
+                env_vars.insert("VX_MSVC_EXCLUDE_PATTERNS".to_string(), patterns.join(","));
             }
 
             // Pass install_env vars directly
@@ -397,23 +397,23 @@ fn build_install_env_vars(config: &vx_config::VxConfig) -> HashMap<String, Insta
     }
 
     // Also check runtimes section
-    for (name, _) in &config.runtimes {
+    for name in config.runtimes.keys() {
         if tool_envs.contains_key(name) {
             continue; // tools section takes precedence
         }
         if let Some(tool_config) = config.get_tool_config(name) {
             let mut env_vars = HashMap::new();
 
-            if let Some(components) = &tool_config.components {
-                if !components.is_empty() {
-                    env_vars.insert("VX_MSVC_COMPONENTS".to_string(), components.join(","));
-                }
+            if let Some(components) = &tool_config.components
+                && !components.is_empty()
+            {
+                env_vars.insert("VX_MSVC_COMPONENTS".to_string(), components.join(","));
             }
 
-            if let Some(patterns) = &tool_config.exclude_patterns {
-                if !patterns.is_empty() {
-                    env_vars.insert("VX_MSVC_EXCLUDE_PATTERNS".to_string(), patterns.join(","));
-                }
+            if let Some(patterns) = &tool_config.exclude_patterns
+                && !patterns.is_empty()
+            {
+                env_vars.insert("VX_MSVC_EXCLUDE_PATTERNS".to_string(), patterns.join(","));
             }
 
             if let Some(install_env) = &tool_config.install_env {
