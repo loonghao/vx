@@ -364,7 +364,7 @@ executable = "no-factory"
 
     assert_eq!(result.errors.len(), 1);
     assert_eq!(result.errors[0].provider, "no-factory");
-    assert!(result.errors[0].reason.contains("No factory"));
+    assert!(result.errors[0].reason.contains("No Rust factory"));
 }
 
 #[test]

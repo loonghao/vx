@@ -463,9 +463,10 @@ impl MsvcRuntime {
             for name in val.split(',') {
                 let name = name.trim();
                 if !name.is_empty()
-                    && let Ok(component) = name.parse::<MsvcComponent>() {
-                        components.insert(component);
-                    }
+                    && let Ok(component) = name.parse::<MsvcComponent>()
+                {
+                    components.insert(component);
+                }
             }
         }
 

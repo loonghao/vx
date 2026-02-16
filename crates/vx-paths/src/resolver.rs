@@ -307,13 +307,14 @@ impl PathResolver {
             // multiple platforms/triplets within a single installation
             let version_dir = self.manager.version_store_dir(tool_name, version);
             if version_dir != platform_dir
-                && let Some(path) = self.find_executable_in_dir(&version_dir, exe_name) {
-                    return Ok(Some(ToolLocation {
-                        path,
-                        version: version.clone(),
-                        source: ToolSource::Store,
-                    }));
-                }
+                && let Some(path) = self.find_executable_in_dir(&version_dir, exe_name)
+            {
+                return Ok(Some(ToolLocation {
+                    path,
+                    version: version.clone(),
+                    source: ToolSource::Store,
+                }));
+            }
         }
         Ok(None)
     }
@@ -351,13 +352,14 @@ impl PathResolver {
             // Fallback: Try version directory directly (for cross-platform tools like vcpkg)
             let version_dir = self.manager.version_store_dir(tool_name, version);
             if version_dir != platform_dir
-                && let Some(path) = self.find_executable_in_dir(&version_dir, exe_name) {
-                    locations.push(ToolLocation {
-                        path,
-                        version: version.clone(),
-                        source: ToolSource::Store,
-                    });
-                }
+                && let Some(path) = self.find_executable_in_dir(&version_dir, exe_name)
+            {
+                locations.push(ToolLocation {
+                    path,
+                    version: version.clone(),
+                    source: ToolSource::Store,
+                });
+            }
         }
 
         Ok(locations)

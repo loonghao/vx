@@ -200,13 +200,14 @@ fn detect_parse_hint(error_message: &str) -> Option<String> {
     if error_message.contains("unknown variant") {
         let value = extract_quoted_value(error_message, "unknown variant");
         if let Some(v) = &value
-            && v.contains('-') {
-                return Some(format!(
-                    "Value '{}' uses kebab-case but snake_case is expected. Try '{}' instead.",
-                    v,
-                    v.replace('-', "_")
-                ));
-            }
+            && v.contains('-')
+        {
+            return Some(format!(
+                "Value '{}' uses kebab-case but snake_case is expected. Try '{}' instead.",
+                v,
+                v.replace('-', "_")
+            ));
+        }
     }
 
     // Invalid type: integer expected string (common when version numbers are unquoted)

@@ -537,13 +537,14 @@ impl VxConfigSnapshot {
 
         let config = parse_config(path)?;
 
-        let mut snapshot = Self::default();
-
         // Use VxConfig's tools_as_hashmap() which correctly handles:
         // - Simple format: tool = "version"
         // - Detailed format: [tools.name] with version field
         // - [runtimes] alias (merged with tools taking priority)
-        snapshot.tools = config.tools_as_hashmap();
+        let mut snapshot = Self {
+            tools: config.tools_as_hashmap(),
+            ..Default::default()
+        };
 
         // Extract scripts using VxConfig's typed ScriptConfig
         for (name, script) in &config.scripts {
