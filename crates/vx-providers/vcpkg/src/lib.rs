@@ -2,16 +2,15 @@
 //!
 //! This crate provides the vcpkg C++ package manager provider for vx.
 //!
-//! vcpkg is a C++ library manager that simplifies the installation of
-//! C++ libraries and their dependencies. It is particularly useful for
-//! native Node.js modules that require C++ dependencies.
+//! vcpkg-tool is the standalone binary for the vcpkg package manager,
+//! downloaded from https://github.com/microsoft/vcpkg-tool/releases.
 //!
 //! # Features
 //!
-//! - Install vcpkg via git clone
-//! - Bootstrap vcpkg automatically
+//! - Download pre-built vcpkg binary for each platform
 //! - Install C++ packages (e.g., winpty for node-pty)
 //! - Set up environment variables for native builds
+//! - Date-based versioning (e.g., 2025-12-16 → 2025.12.16)
 //!
 //! # Usage
 //!
@@ -29,13 +28,14 @@
 //! # Environment Variables
 //!
 //! - `VCPKG_ROOT`: Path to vcpkg installation
-//! - `CMAKE_TOOLCHAIN_FILE`: Path to vcpkg.cmake
+//! - `VCPKG_DOWNLOADS`: Downloads cache directory (vx managed)
+//! - `VCPKG_DEFAULT_BINARY_CACHE`: Binary cache directory (vx managed)
 //! - `VCPKG_DEFAULT_TRIPLET`: Default triplet (e.g., x64-windows)
 //!
 //! # References
 //!
 //! - [vcpkg Documentation](https://vcpkg.io/)
-//! - [vcpkg GitHub](https://github.com/microsoft/vcpkg)
+//! - [vcpkg-tool GitHub](https://github.com/microsoft/vcpkg-tool)
 
 mod provider;
 mod runtime;

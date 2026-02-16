@@ -354,7 +354,8 @@ system_paths = ["/usr/bin/git", "C:\\Program Files\\Git\\bin\\git.exe"]
 
 When adding layout configuration, verify:
 
-- [ ] `download_type` is either "binary" or "archive"
+- [ ] `download_type` is `"binary"`, `"archive"`, or `"git_clone"`
+- [ ] **Important**: Use `snake_case` for values (e.g., `git_clone` NOT `git-clone`)
 - [ ] For binary: All target platforms have configuration
 - [ ] For binary: `target_permissions` set for Unix platforms
 - [ ] For archive: `strip_prefix` matches actual archive structure
@@ -422,6 +423,24 @@ strip_prefix = "tool-{version}"  # Dynamic version
 3. **Maintainable**: Easy to update when download format changes
 4. **Testable**: Configuration can be validated without running code
 5. **Cross-platform**: Handles platform differences cleanly
+
+## Download Type: Git Clone
+
+For tools that are installed by cloning a Git repository (e.g., vcpkg):
+
+```toml
+[runtimes.layout]
+download_type = "git_clone"   # NOTE: snake_case, NOT "git-clone"
+```
+
+**Use cases:**
+- vcpkg (C++ package manager, installed via `git clone`)
+- Tools that require the full repository for operation
+
+**Important notes:**
+- Use `snake_case`: `git_clone`, not ~~`git-clone`~~
+- The manifest parser uses `#[serde(rename_all = "snake_case")]`, so kebab-case values will cause parse errors
+- The error system will auto-detect this mistake and suggest the correct format
 
 ## Migration Strategy
 

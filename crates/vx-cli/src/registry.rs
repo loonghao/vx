@@ -98,9 +98,11 @@ macro_rules! register_provider_factories {
 /// build any providers (backward compatibility).
 pub fn create_registry() -> ProviderRegistry {
     let manifests = load_manifests_with_overrides();
+    tracing::debug!("loaded {} manifests", manifests.len());
 
     if manifests.is_empty() {
         // No manifests found; fall back to static registration and init constraints
+        tracing::debug!("no manifests, using static registry");
         let _ = init_constraints_from_manifests(get_embedded_manifests().iter().copied());
         return create_static_registry();
     }
@@ -115,9 +117,19 @@ pub fn create_registry() -> ProviderRegistry {
     let result = manifest_registry.build_registry_lazy();
 
     // Report build errors as structured diagnostics
-    for error in &result.errors {
+    let no_factory_errors: Vec<_> = result.errors.iter().filter(|e| e.is_no_factory()).collect();
+    let real_errors: Vec<_> = result.errors.iter().filter(|e| !e.is_no_factory()).collect();
+
+    // Manifest-only providers (no factory) are expected and logged at debug level
+    for error in &no_factory_errors {
         tracing::debug!("provider build: {}", error);
     }
+
+    // Real errors are more serious
+    for error in &real_errors {
+        tracing::warn!("provider build error: {}", error);
+    }
+
     for warning in &result.warnings {
         tracing::debug!("provider build warning: {}", warning);
     }
@@ -134,13 +146,18 @@ pub fn create_registry() -> ProviderRegistry {
     // Check if any factories were registered (pending counts as non-empty).
     // We avoid calling providers() here because that would materialize all
     // pending factories, defeating the purpose of lazy loading.
-    if !registry.has_pending() {
+    let has_pending = registry.has_pending();
+    tracing::debug!("has_pending = {}", has_pending);
+
+    if !has_pending {
         // No lazy factories were registered — build result had errors for all manifests.
         // Safety net: fall back to static registration.
+        tracing::debug!("no pending factories, falling back to static registry");
         let _ = init_constraints_from_manifests(get_embedded_manifests().iter().copied());
         return create_static_registry();
     }
 
+    tracing::debug!("returning lazy registry with {} pending factories", registry.pending_factories_count());
     registry
 }
 
@@ -229,6 +246,8 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         bat,
         yq,
         starship,
+        // vcpkg - C++ package manager
+        vcpkg,
     );
 
     registry
@@ -293,6 +312,8 @@ fn create_static_registry() -> ProviderRegistry {
         bat,
         yq,
         starship,
+        // vcpkg - C++ package manager
+        vcpkg,
     );
 
     registry
@@ -303,7 +324,10 @@ pub fn load_manifests_with_overrides() -> Vec<ProviderManifest> {
     let mut loader = ManifestLoader::new();
 
     // 1) Embedded manifests (build.rs generated)
-    let _ = loader.load_embedded(get_embedded_manifests().iter().copied());
+    match loader.load_embedded(get_embedded_manifests().iter().copied()) {
+        Ok(count) => trace!("Loaded {} embedded manifests", count),
+        Err(e) => tracing::error!("Failed to load embedded manifests: {}", e),
+    }
 
     // 2) User-level overrides: ~/.vx/providers
     if let Ok(paths) = VxPaths::new() {
@@ -634,5 +658,17 @@ mod tests {
         let registry = create_registry();
         let runtime = registry.get_runtime("winget");
         assert!(runtime.is_some(), "winget runtime should be registered");
+    }
+
+    #[test]
+    fn test_vcpkg_provider_in_registry() {
+        let registry = create_registry();
+
+        // Verify vcpkg is supported
+        assert!(registry.supports("vcpkg"), "vcpkg should be supported");
+
+        // Get the runtime
+        let runtime = registry.get_runtime("vcpkg");
+        assert!(runtime.is_some(), "vcpkg runtime should be registered");
     }
 }

@@ -20,6 +20,7 @@ use crate::runtime::Runtime;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use thiserror::Error;
+use tracing::trace;
 
 /// Type alias for a provider factory closure
 type ProviderFactory = Box<dyn Fn() -> Arc<dyn Provider> + Send + Sync>;
@@ -104,6 +105,8 @@ impl ProviderRegistry {
         runtime_names: Vec<String>,
         factory: ProviderFactory,
     ) {
+        trace!("register_lazy: provider='{}', runtimes={:?}", provider_name, runtime_names);
+
         // Build the pending index: runtime name/alias → provider name
         {
             let mut index = self.pending_index.write().unwrap();
@@ -199,6 +202,12 @@ impl ProviderRegistry {
         !factories.is_empty()
     }
 
+    /// Get the count of pending (not yet materialized) factories
+    pub fn pending_factories_count(&self) -> usize {
+        let factories = self.pending_factories.lock().unwrap();
+        factories.len()
+    }
+
     /// Get a runtime by name or alias
     pub fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
         // Fast path: check runtime_cache for already-materialized providers
@@ -215,12 +224,15 @@ impl ProviderRegistry {
         // Check if there's a pending factory for this runtime name
         let provider_name = {
             let index = self.pending_index.read().unwrap();
-            index.get(name).cloned()
+            let result = index.get(name).cloned();
+            trace!("get_runtime('{}'): pending_index lookup = {:?}", name, result);
+            result
         };
 
         if let Some(provider_name) = provider_name {
             // Materialize the provider on demand
-            self.materialize_provider(&provider_name);
+            let materialized = self.materialize_provider(&provider_name);
+            trace!("get_runtime('{}'): materialize_provider('{}') = {}", name, provider_name, materialized);
 
             // Now look up in the freshly populated cache
             let cache = self.runtime_cache.read().unwrap();

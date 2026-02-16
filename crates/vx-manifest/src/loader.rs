@@ -71,6 +71,8 @@ impl ManifestLoader {
         I: IntoIterator<Item = (&'a str, &'a str)>,
     {
         let mut count = 0;
+        let mut parse_errors: Vec<String> = Vec::new();
+
         for (name, content) in manifests {
             match ProviderManifest::parse(content) {
                 Ok(manifest) => {
@@ -86,10 +88,33 @@ impl ManifestLoader {
                     count += 1;
                 }
                 Err(e) => {
-                    tracing::warn!("Failed to parse embedded manifest '{}': {}", name, e);
+                    // Create enhanced error with provider context
+                    let context_error = match e {
+                        ManifestError::Parse(toml_err) => {
+                            ManifestError::parse_with_context(name, toml_err)
+                        }
+                        other => other,
+                    };
+
+                    let diagnostic = context_error.diagnostic_message();
+                    tracing::warn!(
+                        "Failed to parse manifest for provider '{}':\n{}",
+                        name,
+                        diagnostic
+                    );
+                    parse_errors.push(format!("  - {}: {}", name, context_error));
                 }
             }
         }
+
+        if !parse_errors.is_empty() {
+            tracing::info!(
+                "{} manifest(s) failed to parse. Run with --debug for details. Affected providers:\n{}",
+                parse_errors.len(),
+                parse_errors.join("\n")
+            );
+        }
+
         Ok(count)
     }
 

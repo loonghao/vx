@@ -15,7 +15,7 @@ Use this checklist to ensure all steps are completed when creating a new provide
 - [ ] Identify the tool's GitHub repository (owner/repo)
 - [ ] Check the release asset naming pattern
 - [ ] Identify supported platforms (Windows, macOS, Linux, ARM64, x86_64)
-- [ ] Determine archive format (zip, tar.gz, etc.)
+- [ ] Determine archive format (zip, tar.gz, git clone, etc.)
 - [ ] Check if archive extracts to subdirectory or directly
 - [ ] Identify the executable name and extension pattern:
   - Standard `.exe` on Windows? (default)
@@ -145,6 +145,31 @@ cargo clippy -p vx-provider-{name}
 1. **Detection fails**: Check config file patterns in `detect()`
 2. **Scripts not detected**: Verify rule triggers and excludes
 3. **Priority conflicts**: Ensure higher priority rules are listed first
+
+## Manifest Error Troubleshooting
+
+### Common provider.toml Parse Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `unknown variant "cpp"` for ecosystem | Unsupported ecosystem value | Use one of: `nodejs`, `python`, `rust`, `go`, `ruby`, `java`, `dotnet`, `devtools`, `container`, `cloud`, `ai`, `cpp`, `zig`, `system` |
+| `unknown variant "git-clone"` for download_type | kebab-case not supported | Use `git_clone` (snake_case) |
+| `invalid type: map, expected a string` for `when` | Wrong constraint syntax | Use `when = "*"` with separate `platform` field, not `when = { os = "windows" }` |
+| `missing field "name"` | Required field missing | Add the required `name` field to provider or runtime section |
+| `invalid type: integer, expected a string` | Unquoted number | Quote version numbers: `version = "1.0"` not `version = 1.0` |
+
+### Build Error Categories
+
+- **`NoFactory` (manifest-only)**: Provider has `provider.toml` but no Rust implementation. Expected during early development.
+- **`FactoryFailed`**: Rust factory function failed. Check the provider's `create_provider()` function.
+- **Real errors (0 expected)**: Configuration issues that need immediate attention.
+
+### Debug Command
+
+```bash
+# See detailed manifest parse errors and build diagnostics
+cargo run -- --debug list 2>&1 | grep -E "registered|errors|manifest-only|Failed"
+```
 
 ## Release Asset Patterns
 

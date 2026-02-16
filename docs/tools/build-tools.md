@@ -188,7 +188,36 @@ vcpkg is a C++ library manager that simplifies the installation of C++ libraries
 # Install vcpkg
 vx install vcpkg
 
-# This clones vcpkg from GitHub and bootstraps it
+# This downloads vcpkg-tool binary and shallow-clones the vcpkg registry from GitHub
+# Requires git to be available on PATH
+```
+
+### vx-Managed Cache Directories
+
+vcpkg uses vx-managed cache directories to store downloads and binary caches:
+
+| Directory | Purpose | Location |
+|-----------|---------|----------|
+| Downloads | Source archives and assets | `~/.vx/cache/vcpkg/downloads/` |
+| Archives | Binary cache for compiled packages | `~/.vx/cache/vcpkg/archives/` |
+
+This ensures:
+- **Consistent storage**: All vcpkg artifacts are in the vx cache directory
+- **Easy cleanup**: Remove `~/.vx/cache/vcpkg/` to clear all vcpkg caches
+- **Shared across versions**: Multiple vcpkg versions share the same cache
+
+vcpkg itself is installed at `~/.vx/store/vcpkg/<version>/` (e.g., `~/.vx/store/vcpkg/2025.12.16/`). The installation includes a shallow clone of the vcpkg registry (triplets, scripts, ports, versions) with documentation excluded to save disk space.
+
+### Uninstalling
+
+```bash
+# Uninstall vcpkg
+vx uninstall vcpkg
+
+# This removes the installation directory (including the registry clone).
+# Shared caches at ~/.vx/cache/vcpkg/ are preserved.
+# To clean caches manually:
+# rm -rf ~/.vx/cache/vcpkg/
 ```
 
 ### Installing C++ Packages
@@ -240,6 +269,10 @@ vcpkg sets the following environment variables:
 | `VCPKG_ROOT` | Path to vcpkg installation |
 | `CMAKE_TOOLCHAIN_FILE` | Path to vcpkg.cmake for CMake integration |
 | `VCPKG_DEFAULT_TRIPLET` | Default triplet (e.g., x64-windows) |
+| `VCPKG_DOWNLOADS` | vx-managed downloads cache directory |
+| `VCPKG_DEFAULT_BINARY_CACHE` | vx-managed binary cache directory |
+| `INCLUDE` | Prepended with vcpkg installed headers path |
+| `LIB` | Prepended with vcpkg installed library path |
 
 ### Using with CMake
 
