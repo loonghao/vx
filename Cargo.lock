@@ -2140,9 +2140,9 @@ dependencies = [
 
 [[package]]
 name = "msvc-kit"
-version = "0.2.9"
+version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ba813be3cbdd53cd7e2fc86a4a7871fdf7370d780c592c0201b4aa18b645c09"
+checksum = "b2eddbe17ce0a73cee2d8318a08eed767be7317f8025ce4c88160f6ba2b6d1a8"
 dependencies = [
  "anyhow",
  "askama",
@@ -2168,7 +2168,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "winreg 0.55.0",
- "zip",
+ "zip 8.0.0",
 ]
 
 [[package]]
@@ -4452,6 +4452,7 @@ dependencies = [
  "vx-provider-task",
  "vx-provider-terraform",
  "vx-provider-uv",
+ "vx-provider-vcpkg",
  "vx-provider-vscode",
  "vx-provider-winget",
  "vx-provider-yarn",
@@ -4464,7 +4465,7 @@ dependencies = [
  "walkdir",
  "which",
  "windows-sys 0.61.2",
- "zip",
+ "zip 7.4.0",
 ]
 
 [[package]]
@@ -4613,7 +4614,7 @@ dependencies = [
  "urlencoding",
  "vx-paths",
  "walkdir",
- "zip",
+ "zip 7.4.0",
  "zstd",
 ]
 
@@ -5434,8 +5435,6 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-runtime",
- "walkdir",
- "which",
 ]
 
 [[package]]
@@ -5576,7 +5575,7 @@ dependencies = [
  "vx-system-pm",
  "which",
  "xz2",
- "zip",
+ "zip 7.4.0",
  "zstd",
 ]
 
@@ -6634,6 +6633,20 @@ dependencies = [
  "zeroize",
  "zopfli",
  "zstd",
+]
+
+[[package]]
+name = "zip"
+version = "8.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79b32dd4ad3aca14ae109f8cce0495ac1c57f6f4f00ad459a40e582f89440d97"
+dependencies = [
+ "crc32fast",
+ "flate2",
+ "indexmap",
+ "memchr",
+ "typed-path",
+ "zopfli",
 ]
 
 [[package]]

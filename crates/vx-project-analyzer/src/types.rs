@@ -5,6 +5,7 @@ use crate::ecosystem::Ecosystem;
 use crate::script_parser::ScriptTool;
 use crate::sync::SyncAction;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 // Re-export framework types
@@ -177,6 +178,12 @@ pub struct RequiredTool {
 
     /// Whether the tool is currently available
     pub is_available: bool,
+
+    /// Additional metadata for detailed tool configuration.
+    /// Used to pass extra info like MSVC components, OS restrictions, etc.
+    /// to the sync system for generating rich vx.toml entries.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub metadata: HashMap<String, Vec<String>>,
 }
 
 impl RequiredTool {
@@ -194,6 +201,7 @@ impl RequiredTool {
             reason: reason.into(),
             install_method,
             is_available: false,
+            metadata: HashMap::new(),
         }
     }
 
@@ -207,6 +215,22 @@ impl RequiredTool {
     pub fn available(mut self) -> Self {
         self.is_available = true;
         self
+    }
+
+    /// Add metadata key-value pair (for detailed tool config generation)
+    pub fn with_metadata(mut self, key: impl Into<String>, values: Vec<String>) -> Self {
+        self.metadata.insert(key.into(), values);
+        self
+    }
+
+    /// Add OS restrictions
+    pub fn with_os(self, os_list: Vec<String>) -> Self {
+        self.with_metadata("os", os_list)
+    }
+
+    /// Add MSVC components requirement
+    pub fn with_components(self, components: Vec<String>) -> Self {
+        self.with_metadata("components", components)
     }
 }
 

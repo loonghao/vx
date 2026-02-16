@@ -187,7 +187,36 @@ vcpkg 是一个 C++ 库管理器，简化了 C++ 库及其依赖项的安装。�
 # 安装 vcpkg
 vx install vcpkg
 
-# 这会从 GitHub 克隆 vcpkg 并进行引导
+# 这会下载 vcpkg-tool 二进制文件，并浅克隆 vcpkg registry
+# 需要 git 在 PATH 中可用
+```
+
+### vx 管理的缓存目录
+
+vcpkg 使用 vx 管理的缓存目录来存储下载文件和二进制缓存：
+
+| 目录 | 用途 | 位置 |
+|------|------|------|
+| 下载 | 源码包和资源文件 | `~/.vx/cache/vcpkg/downloads/` |
+| 归档 | 编译后包的二进制缓存 | `~/.vx/cache/vcpkg/archives/` |
+
+这确保了：
+- **统一的存储**：所有 vcpkg 产物都在 vx 缓存目录中
+- **易于清理**：删除 `~/.vx/cache/vcpkg/` 即可清除所有 vcpkg 缓存
+- **跨版本共享**：多个 vcpkg 版本共享同一缓存
+
+vcpkg 本身安装在 `~/.vx/store/vcpkg/<version>/`（例如 `~/.vx/store/vcpkg/2025.12.16/`）。安装包含 vcpkg registry 的浅克隆（triplets、scripts、ports、versions），其中文档文件已被排除以节省磁盘空间。
+
+### 卸载
+
+```bash
+# 卸载 vcpkg
+vx uninstall vcpkg
+
+# 这会删除安装目录（包括 registry 克隆）。
+# ~/.vx/cache/vcpkg/ 中的共享缓存会保留。
+# 手动清理缓存：
+# rm -rf ~/.vx/cache/vcpkg/
 ```
 
 ### 安装 C++ 包

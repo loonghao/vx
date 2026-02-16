@@ -30,6 +30,8 @@ pub enum Ecosystem {
     Cloud,
     /// AI ecosystem (ollama)
     Ai,
+    /// C++ ecosystem (vcpkg, cmake, meson)
+    Cpp,
     /// Zig ecosystem (zig toolchain)
     Zig,
     /// System tools (not tied to a specific language)
@@ -51,6 +53,7 @@ impl fmt::Display for Ecosystem {
             Self::Container => write!(f, "container"),
             Self::Cloud => write!(f, "cloud"),
             Self::Ai => write!(f, "ai"),
+            Self::Cpp => write!(f, "cpp"),
             Self::Zig => write!(f, "zig"),
             Self::System => write!(f, "system"),
         }
@@ -73,6 +76,7 @@ impl std::str::FromStr for Ecosystem {
             "container" => Ok(Self::Container),
             "cloud" => Ok(Self::Cloud),
             "ai" => Ok(Self::Ai),
+            "cpp" | "c++" => Ok(Self::Cpp),
             "zig" => Ok(Self::Zig),
             "system" => Ok(Self::System),
             _ => Err(format!("Unknown ecosystem: {}", s)),

@@ -5,9 +5,10 @@
 
 use anyhow::{Context, Result};
 use msvc_kit::{
-    Architecture, DownloadOptions, download_msvc, download_sdk, extract_and_finalize_msvc,
-    extract_and_finalize_sdk, setup_environment,
+    Architecture, DownloadOptions, MsvcComponent, download_msvc, download_sdk,
+    extract_and_finalize_msvc, extract_and_finalize_sdk, setup_environment,
 };
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
 
@@ -21,6 +22,10 @@ pub struct MsvcInstaller {
     pub arch: Architecture,
     /// Host architecture
     pub host_arch: Architecture,
+    /// Optional MSVC components to include (e.g., Spectre, MFC, ATL)
+    pub include_components: HashSet<MsvcComponent>,
+    /// Package ID patterns to exclude from installation
+    pub exclude_patterns: Vec<String>,
 }
 
 impl MsvcInstaller {
@@ -34,6 +39,8 @@ impl MsvcInstaller {
             sdk_version: None,
             arch: Architecture::X64,
             host_arch: Architecture::X64,
+            include_components: HashSet::new(),
+            exclude_patterns: Vec::new(),
         }
     }
 
@@ -44,6 +51,8 @@ impl MsvcInstaller {
             sdk_version: None,
             arch: Architecture::X64,
             host_arch: Architecture::X64,
+            include_components: HashSet::new(),
+            exclude_patterns: Vec::new(),
         }
     }
 
@@ -62,6 +71,18 @@ impl MsvcInstaller {
     /// Set the host architecture
     pub fn with_host_arch(mut self, host_arch: Architecture) -> Self {
         self.host_arch = host_arch;
+        self
+    }
+
+    /// Set the optional MSVC components to include
+    pub fn with_components(mut self, components: HashSet<MsvcComponent>) -> Self {
+        self.include_components = components;
+        self
+    }
+
+    /// Set the package ID patterns to exclude
+    pub fn with_exclude_patterns(mut self, patterns: Vec<String>) -> Self {
+        self.exclude_patterns = patterns;
         self
     }
 
@@ -124,6 +145,16 @@ impl MsvcInstaller {
 
         if let Some(ref sdk_version) = self.sdk_version {
             options_builder = options_builder.sdk_version(sdk_version);
+        }
+
+        // Add optional components
+        for component in &self.include_components {
+            options_builder = options_builder.include_component(component.clone());
+        }
+
+        // Add exclude patterns
+        for pattern in &self.exclude_patterns {
+            options_builder = options_builder.exclude_pattern(pattern);
         }
 
         let options = options_builder.build();

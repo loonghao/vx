@@ -66,6 +66,18 @@ pub struct RuntimeContext {
     /// from vx.lock, this cache can be used to avoid re-fetching the URL.
     /// This improves performance and ensures reproducibility.
     pub download_url_cache: Option<HashMap<String, String>>,
+
+    /// Tool-specific installation options from vx.toml.
+    ///
+    /// These are key-value pairs extracted from a tool's detailed configuration
+    /// in vx.toml. For example, MSVC's `components = ["spectre"]` is passed as
+    /// `{"VX_MSVC_COMPONENTS": "spectre"}`.
+    ///
+    /// This provides an explicit, testable way to pass tool configuration through
+    /// the `RuntimeContext` (instead of relying on process-level environment variables).
+    /// The environment variable fallback is still supported for backward compatibility
+    /// (e.g., `VX_MSVC_COMPONENTS=spectre vx install msvc`).
+    pub install_options: HashMap<String, String>,
 }
 
 impl RuntimeContext {
@@ -84,6 +96,7 @@ impl RuntimeContext {
             config: RuntimeConfig::default(),
             version_cache: None,
             download_url_cache: None,
+            install_options: HashMap::new(),
         }
     }
 
@@ -122,6 +135,29 @@ impl RuntimeContext {
     pub fn with_download_url_cache(mut self, cache: HashMap<String, String>) -> Self {
         self.download_url_cache = Some(cache);
         self
+    }
+
+    /// Set tool-specific installation options.
+    ///
+    /// These are key-value pairs that runtimes can read during installation.
+    /// For example, MSVC reads `VX_MSVC_COMPONENTS` to install Spectre libraries.
+    pub fn with_install_options(mut self, options: HashMap<String, String>) -> Self {
+        self.install_options = options;
+        self
+    }
+
+    /// Set tool-specific installation options (mutating version).
+    pub fn set_install_options(&mut self, options: HashMap<String, String>) {
+        self.install_options = options;
+    }
+
+    /// Get an installation option by key.
+    ///
+    /// Returns the value from `install_options` if present.
+    /// This does NOT fall back to environment variables — callers should
+    /// handle that fallback themselves if needed.
+    pub fn get_install_option(&self, key: &str) -> Option<&str> {
+        self.install_options.get(key).map(|s| s.as_str())
     }
 
     /// Set download URL cache from lock file (mutating version)

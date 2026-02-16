@@ -204,8 +204,11 @@ impl<'a> Executor<'a> {
             resolve_stage = resolve_stage.with_store_base(base.clone());
         }
 
-        let ensure_stage =
+        let mut ensure_stage =
             EnsureStage::new(&self.resolver, &self.config, self.registry, self.context);
+        if let Some(ref project_config) = self.project_config {
+            ensure_stage = ensure_stage.with_project_config(project_config);
+        }
 
         let mut prepare_stage =
             PrepareStage::new(&self.resolver, &self.config, self.registry, self.context);
@@ -426,7 +429,12 @@ impl<'a> Executor<'a> {
 
     /// Create an installation manager
     fn installation_manager(&self) -> InstallationManager<'_> {
-        InstallationManager::new(&self.config, &self.resolver, self.registry, self.context)
+        let mut mgr =
+            InstallationManager::new(&self.config, &self.resolver, self.registry, self.context);
+        if let Some(ref project_config) = self.project_config {
+            mgr = mgr.with_project_config(project_config);
+        }
+        mgr
     }
 
     /// Create an environment manager

@@ -154,7 +154,7 @@ The `provider.toml` file is the declarative manifest for the provider. It define
 - Platform-specific settings
 - Dependency constraints
 
-**Ecosystems available:** `nodejs`, `python`, `rust`, `go`, `devtools`, `system`, `zig`
+**Ecosystems available:** `nodejs`, `python`, `rust`, `go`, `ruby`, `java`, `dotnet`, `devtools`, `container`, `cloud`, `ai`, `cpp`, `zig`, `system`
 
 **Version sources:**
 - `github-releases` - GitHub Release API (most common)
@@ -167,6 +167,9 @@ The `provider.toml` file is the declarative manifest for the provider. It define
 **RFC 0019 Layout Types:**
 - `binary` - Single file download (needs renaming/placement)
 - `archive` - Compressed archive (tar.gz, zip, tar.xz)
+- `git_clone` - Git repository clone (for tools like vcpkg that install via git clone)
+
+**Note on download_type values:** Use `snake_case` (e.g., `git_clone`), NOT `kebab-case` (e.g., ~~`git-clone`~~). The manifest parser uses `#[serde(rename_all = "snake_case")]`.
 
 See `references/templates.md` for complete provider.toml template.
 See `references/rfc-0019-layout.md` for RFC 0019 layout configuration guide.
@@ -884,7 +887,7 @@ priority = 80
 | | `description` | Human-readable description |
 | | `homepage` | Project homepage URL |
 | | `repository` | Source repository URL |
-| | `ecosystem` | `nodejs`, `python`, `rust`, `go`, `devtools`, `system`, `zig` |
+| | `ecosystem` | `nodejs`, `python`, `rust`, `go`, `ruby`, `java`, `dotnet`, `devtools`, `container`, `cloud`, `ai`, `cpp`, `zig`, `system` |
 | `[provider.platforms]` | `os` | Restrict to platforms: `["windows"]`, `["macos"]`, `["linux"]` |
 | `[[runtimes]]` | `name` | Runtime name (required) |
 | | `description` | Runtime description |
@@ -895,7 +898,7 @@ priority = 80
 | | `owner` | GitHub owner (for github-releases/tags) |
 | | `repo` | GitHub repo name |
 | | `strip_v_prefix` | Remove 'v' from version tags |
-| **`[runtimes.layout]`** | **`download_type`** | **`"binary"` or `"archive"` (RFC 0019)** |
+| **`[runtimes.layout]`** | **`download_type`** | **`"binary"`, `"archive"`, or `"git_clone"` (RFC 0019)** |
 | `[runtimes.layout.binary."{platform}"]` | `source_name` | Downloaded file name (supports `{version}`) |
 | | `target_name` | Final executable name |
 | | `target_dir` | Target directory (e.g., `"bin"`) |
@@ -917,6 +920,43 @@ priority = 80
 | `[[runtimes.constraints]]` | `when` | Version condition (e.g., `*`, `^1`, `>=2`) |
 | | `requires` | Required dependencies list |
 | | `recommends` | Recommended dependencies list |
+
+## Manifest Error Diagnostics
+
+When developing a new provider, if your `provider.toml` has issues, the vx error system provides structured diagnostics:
+
+### Error Categories
+
+1. **Parse Errors (with context)** - TOML parsing failures with provider name and hints:
+   - Unknown enum variants (e.g., wrong `ecosystem` or `download_type` value)
+   - Type mismatches (e.g., using `when = { os = "windows" }` instead of `when = "*"`)
+   - Missing required fields
+   - kebab-case vs snake_case confusion
+
+2. **Build Errors** - Provider registration failures:
+   - **`NoFactory` (manifest-only)**: Provider has a `provider.toml` but no Rust implementation yet. This is expected for new providers that only have manifests.
+   - **`FactoryFailed`**: The Rust factory function failed to create the provider.
+
+### Common Mistakes and Auto-Hints
+
+| Error Pattern | Auto-Hint |
+|---------------|----------|
+| `unknown variant "cpp"` for ecosystem | Lists all valid ecosystem values |
+| `invalid type: map, expected a string` for `when` | Suggests using `when = "*"` with separate `platform` field |
+| `unknown variant "git-clone"` for download_type | Suggests using `git_clone` (snake_case) |
+| `missing field "name"` | Points to the required field |
+| `invalid type: integer, expected a string` | Suggests quoting version numbers |
+
+### Debug Output
+
+The build summary shows:
+```
+INFO: registered 53 lazy providers (0 errors, 9 manifest-only, 0 warnings)
+```
+
+- **errors**: Real configuration errors that need fixing
+- **manifest-only**: Providers with manifests but no Rust factory (expected during development)
+- **warnings**: Non-fatal issues
 
 ## Reference Files
 

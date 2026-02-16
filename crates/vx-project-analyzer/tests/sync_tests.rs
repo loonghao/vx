@@ -194,3 +194,41 @@ test = "pytest"
     assert!(root.join("vx.toml").exists());
     assert!(!result.applied.is_empty());
 }
+
+#[rstest]
+#[tokio::test]
+async fn test_vx_config_snapshot_load_mixed_format() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+
+    // Mixed format: simple strings + detailed table (like AionUi's vx.toml)
+    let vx_toml = r#"
+[tools]
+bun = "latest"
+node = "22"
+python = "3.12"
+
+[tools.msvc]
+version = "14.42"
+os = ["windows"]
+
+[scripts]
+test = "npm test"
+"#;
+    tokio::fs::write(root.join("vx.toml"), vx_toml)
+        .await
+        .unwrap();
+
+    let snapshot = VxConfigSnapshot::load(&root.join("vx.toml"))
+        .await
+        .unwrap()
+        .unwrap();
+
+    // Simple tools should be loaded
+    assert_eq!(snapshot.tools.get("bun"), Some(&"latest".to_string()));
+    assert_eq!(snapshot.tools.get("node"), Some(&"22".to_string()));
+    assert_eq!(snapshot.tools.get("python"), Some(&"3.12".to_string()));
+
+    // Detailed table tool should also be loaded
+    assert_eq!(snapshot.tools.get("msvc"), Some(&"14.42".to_string()), "msvc tool from [tools.msvc] table should be detected");
+}
