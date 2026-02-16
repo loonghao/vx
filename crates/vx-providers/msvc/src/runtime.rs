@@ -614,8 +614,25 @@ impl Runtime for MsvcRuntime {
                     ));
                 }
 
-                // Components are missing — proceed with re-installation
-                // msvc-kit supports incremental downloads and will skip existing packages
+                // Components are missing — proceed with re-installation.
+                // msvc-kit uses `.done` marker files in `.msvc-kit-extracted/` to track
+                // which VSIX packages have been extracted. If a previous installation was
+                // interrupted after downloading but before extraction completed, these
+                // markers may exist despite the actual files being absent.
+                // We must remove ALL `.done` markers so msvc-kit re-extracts everything,
+                // because the component files (e.g., spectre libs) are packed inside the
+                // same VSIX archives as the base libraries.
+                let marker_dir = install_path.join(".msvc-kit-extracted");
+                if marker_dir.exists() {
+                    info!(
+                        "Cleaning extraction markers to force re-extraction of missing components: {:?}",
+                        missing_components
+                    );
+                    if let Err(e) = std::fs::remove_dir_all(&marker_dir) {
+                        warn!("Failed to remove extraction markers: {}", e);
+                    }
+                }
+
                 info!(
                     "MSVC {} installed but missing components: {:?}. Re-installing to add them.",
                     version, missing_components
