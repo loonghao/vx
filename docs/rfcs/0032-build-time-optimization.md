@@ -362,9 +362,11 @@ Phase 1 + Phase 2 完成后，修改单个 provider 的增量构建预计 **5-15
 
 - [x] 创建 `vx-runtime-core` crate，迁移 trait + 类型定义
 - [x] 创建 `vx-runtime-archive` crate，迁移归档处理逻辑
-- [ ] 将所有 provider 的 `vx-runtime` 依赖改为 `vx-runtime-core`
-- [ ] `vx-runtime` 变为门面 crate，re-export core + archive
-- [ ] 更新 `vx-resolver` 依赖为 `vx-runtime-core`
+- [x] vx-runtime 添加对 vx-runtime-core 和 vx-runtime-archive 的依赖
+- [x] vx-runtime re-export 核心类型，作为门面 crate
+- [ ] 将所有 provider 的 `vx-runtime` 依赖改为 `vx-runtime-core`（后续 PR）
+- [ ] `vx-runtime` 变为完整门面 crate，re-export core + archive（后续 PR）
+- [ ] 更新 `vx-resolver` 依赖为 `vx-runtime-core`（后续 PR）
 - [ ] 运行全量测试，确保无回归
 - [ ] 基准测试对比
 
@@ -435,3 +437,4 @@ Rust nightly 支持 cranelift 后端，编译速度比 LLVM 快但生成代码�
 | 2026-02-15 | Draft | 初始草案，基于 `cargo build --timings` 数据分析 |
 | 2026-02-17 | Phase 1 Completed | 完成 Phase 1：添加 lld linker 配置到所有平台 |
 | 2026-02-17 | Phase 2 Started | 创建 vx-runtime-core 和 vx-runtime-archive crate |
+| 2026-02-17 | Phase 2 Progress | vx-runtime 集成 vx-runtime-core 和 vx-runtime-archive，作为门面 crate |
