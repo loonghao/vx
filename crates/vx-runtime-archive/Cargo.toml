@@ -1,0 +1,29 @@
+[package]
+name = "vx-runtime-archive"
+version.workspace = true
+edition.workspace = true
+description = "Archive extraction utilities for vx - supports tar, tar.gz, tar.xz, tar.zst, zip, 7z"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Core
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true, features = ["rt", "fs", "io-util"] }
+
+# Archive handling (heavy dependencies)
+tar = { workspace = true }
+flate2 = { workspace = true }
+xz2 = { workspace = true }
+zstd = { workspace = true }
+zip = { workspace = true }
+sevenz-rust = "0.6"
+tempfile = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tokio = { workspace = true, features = ["full"] }

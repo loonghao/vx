@@ -2,6 +2,8 @@
 members = [
   "crates/vx-core",
   "crates/vx-cache",
+  "crates/vx-runtime-core",
+  "crates/vx-runtime-archive",
   "crates/vx-runtime",
   "crates/vx-version-fetcher",
   "crates/vx-resolver",
