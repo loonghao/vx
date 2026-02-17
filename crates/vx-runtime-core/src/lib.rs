@@ -48,7 +48,7 @@ pub use ecosystem::Ecosystem;
 pub use platform::{Arch, Libc, Os, Platform, compare_semver};
 pub use provider::{PackageManager, Provider};
 pub use registry::{PlatformError, ProviderRegistry};
-pub use runtime::{Runtime, VerificationResult};
+pub use runtime::{ExecutionContext, Runtime, RuntimeContext, VerificationResult};
 pub use traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProvider};
 pub use types::{
     ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec, VersionInfo,
