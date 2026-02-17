@@ -295,7 +295,7 @@ regex = "1.10"
 tempfile = "3.8"
 # zip 7.0 - disable lzma feature since zip 7.4.0 still depends on lzma-rust2 ^0.15 (crc 2.x)
 # Re-enable when zip updates to lzma-rust2 ^0.16 (crc 3.x)
-zip = { version = "7.0", default-features = false, features = ["aes-crypto", "bzip2", "deflate64", "deflate", "ppmd", "time", "zstd"] }
+zip = { version = "8.0", default-features = false, features = ["aes-crypto", "bzip2", "deflate64", "deflate", "ppmd", "time", "zstd"] }
 tar = "0.4"
 flate2 = "1.0"
 xz2 = "0.1.7"
