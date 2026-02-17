@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1](https://github.com/loonghao/vx/compare/v0.8.0...v0.8.1) (2026-02-17)
+
+
+### Features
+
+* add vcpkg provider for C++ dependency management ([fc6f317](https://github.com/loonghao/vx/commit/fc6f31739bee912800ec7e73ebb2c336dc786b9b))
+* use RuntimeContext for install_options instead of env vars (Phase 1) ([96c98a2](https://github.com/loonghao/vx/commit/96c98a2958412defb173f393e0143e206ba96bec))
+
+
+### Bug Fixes
+
+* auto-disable Spectre mitigation in MSBuild bridge when libs are missing ([a4e1623](https://github.com/loonghao/vx/commit/a4e16232dba6c32e4b6a0f230bb34156a9bd8007))
+* clean extraction markers before re-installing missing MSVC components ([96cc05a](https://github.com/loonghao/vx/commit/96cc05a830f56677df52af39b4c5969bee30a138))
+* collapse nested if statements to satisfy clippy ([0338d30](https://github.com/loonghao/vx/commit/0338d3059bb232ecbe2f333ab2a3833774ab7493))
+* ensure MSVC Spectre component integrity check for already-installed companion tools ([3da828c](https://github.com/loonghao/vx/commit/3da828cdaf68862b2f413a16f097fdefd6875233))
+* prevent repeated MSVC component re-installation when Spectre libs unavailable ([9c93a0c](https://github.com/loonghao/vx/commit/9c93a0c2d8b6d25cee51fe588974147bdef67c0a))
+* resolve clippy warnings and test assertion ([484f35c](https://github.com/loonghao/vx/commit/484f35c19d946bf1931bd64b6999b3921980f6df))
+* switch macOS FFmpeg download source from evermeet.cx to osxexperts.net ([1fbd926](https://github.com/loonghao/vx/commit/1fbd926e8dfbd6316c742d1778def3ccdcec0e2a))
+
 ## [0.8.0](https://github.com/loonghao/vx/compare/v0.7.13...v0.8.0) (2026-02-15)
 
 
