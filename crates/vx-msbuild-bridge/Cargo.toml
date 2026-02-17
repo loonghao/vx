@@ -2,7 +2,7 @@
 name = "vx-msbuild-bridge"
 version.workspace = true
 edition.workspace = true
-description = "Minimal MSBuild.exe bridge that delegates to dotnet msbuild - used by vx MSVC provider"
+description = "MSBuild.exe bridge that delegates to system VS MSBuild with Spectre auto-detection - used by vx MSVC provider"
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
