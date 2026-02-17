@@ -1,13 +1,38 @@
-# Statically link the C runtime so the executable does not depend on
-# that shared/dynamic library.
-#
+# ============================================
+# Build Time Optimization (RFC 0032)
+# ============================================
+# Use rust-lld for faster linking on all platforms
+# Rust 1.93+ includes rust-lld by default
+# Benefits: ~10-13s faster linking on Windows MSVC
+
+# Windows MSVC - Use lld linker for faster builds
+# Also statically link the C runtime for standalone executables
 # See: https://github.com/astral-sh/ruff/issues/11503
 [target.'cfg(all(target_env = "msvc", target_os = "windows"))']
-rustflags = ["-C", "target-feature=+crt-static"]
+rustflags = [
+    "-C", "target-feature=+crt-static",
+    "-C", "link-arg=-fuse-ld=lld",
+]
 
-# Linux musl - Fully static binary
+# Linux gnu - Use lld linker for faster builds
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))']
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+# macOS - Use lld linker (xcode's lld or rust-lld)
+[target.'cfg(target_os = "macos")']
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+# Linux musl - Fully static binary (keep self-contained)
 [target.x86_64-unknown-linux-musl]
-rustflags = ["-C", "target-feature=+crt-static", "-C", "link-self-contained=yes"]
+rustflags = [
+    "-C", "target-feature=+crt-static",
+    "-C", "link-self-contained=yes",
+    "-C", "link-arg=-fuse-ld=lld",
+]
 
 [target.aarch64-unknown-linux-musl]
-rustflags = ["-C", "target-feature=+crt-static", "-C", "link-self-contained=yes"]
+rustflags = [
+    "-C", "target-feature=+crt-static",
+    "-C", "link-self-contained=yes",
+    "-C", "link-arg=-fuse-ld=lld",
+]
