@@ -5580,6 +5580,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-runtime-archive"
+version = "0.8.1"
+dependencies = [
+ "anyhow",
+ "flate2",
+ "rstest",
+ "sevenz-rust",
+ "tar",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "xz2",
+ "zip 7.4.0",
+ "zstd",
+]
+
+[[package]]
+name = "vx-runtime-core"
+version = "0.8.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "rstest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "vx-manifest",
+]
+
+[[package]]
 name = "vx-setup"
 version = "0.8.1"
 dependencies = [

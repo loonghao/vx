@@ -1,6 +1,6 @@
 # RFC 0032: 构建时间优化
 
-> **状态**: Phase 1 Completed
+> **状态**: Phase 2 In Progress
 > **作者**: vx team
 > **创建日期**: 2026-02-15
 > **更新日期**: 2026-02-17
@@ -360,8 +360,8 @@ Phase 1 + Phase 2 完成后，修改单个 provider 的增量构建预计 **5-15
 
 ### Phase 2: 拆分 vx-runtime（v0.8.0）
 
-- [ ] 创建 `vx-runtime-core` crate，迁移 trait + 类型定义
-- [ ] 创建 `vx-runtime-archive` crate，迁移归档处理逻辑
+- [x] 创建 `vx-runtime-core` crate，迁移 trait + 类型定义
+- [x] 创建 `vx-runtime-archive` crate，迁移归档处理逻辑
 - [ ] 将所有 provider 的 `vx-runtime` 依赖改为 `vx-runtime-core`
 - [ ] `vx-runtime` 变为门面 crate，re-export core + archive
 - [ ] 更新 `vx-resolver` 依赖为 `vx-runtime-core`
@@ -434,3 +434,4 @@ Rust nightly 支持 cranelift 后端，编译速度比 LLVM 快但生成代码�
 |------|------|------|
 | 2026-02-15 | Draft | 初始草案，基于 `cargo build --timings` 数据分析 |
 | 2026-02-17 | Phase 1 Completed | 完成 Phase 1：添加 lld linker 配置到所有平台 |
+| 2026-02-17 | Phase 2 Started | 创建 vx-runtime-core 和 vx-runtime-archive crate |
