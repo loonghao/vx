@@ -5572,6 +5572,8 @@ dependencies = [
  "vx-core",
  "vx-manifest",
  "vx-paths",
+ "vx-runtime-archive",
+ "vx-runtime-core",
  "vx-system-pm",
  "which",
  "xz2",

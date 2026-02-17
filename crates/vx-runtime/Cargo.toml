@@ -25,10 +25,9 @@ bincode = { version = "2.0.1", features = ["serde"] }
 # HTTP client
 reqwest = { workspace = true }
 
-# Archive handling
+# Archive handling (used by installer implementation)
 tar = { workspace = true }
 flate2 = { workspace = true }
-# xz2 - re-enabled, lzma-rust2 0.16.1 fixed crc compatibility
 xz2 = { workspace = true }
 zstd = { workspace = true }
 zip = { workspace = true }
@@ -60,6 +59,10 @@ vx-cache = { workspace = true }
 vx-paths = { path = "../vx-paths" }
 vx-manifest = { workspace = true }
 vx-system-pm = { workspace = true }
+
+# RFC 0032: Split crates for faster compilation
+vx-runtime-core = { path = "../vx-runtime-core" }
+vx-runtime-archive = { path = "../vx-runtime-archive" }
 
 # CDN acceleration (optional)
 turbo-cdn = { version = "0.8", default-features = false, features = ["rustls", "fast-hash", "high-performance"], optional = true }
