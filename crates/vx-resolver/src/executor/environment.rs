@@ -496,37 +496,59 @@ impl<'a> EnvironmentManager<'a> {
                             .unwrap_or(false);
 
                         if has_components {
-                            debug!(
-                                "Companion {} has component requirements, verifying installation integrity...",
-                                companion_name
-                            );
-                            let mut install_mgr = super::installation::InstallationManager::new(
-                                self.config,
-                                self.resolver,
-                                self.registry,
-                                self.context,
-                            );
-                            if let Some(project_config) = self.project_config {
-                                install_mgr = install_mgr.with_project_config(project_config);
-                            }
-                            match install_mgr
-                                .ensure_version_installed(companion_name, &matched_version)
-                                .await
-                            {
-                                Ok(Some(result)) => {
-                                    debug!(
-                                        "Companion {} component check complete (version: {})",
-                                        companion_name, result.version
-                                    );
-                                    result.version
+                            // Fast-path: check if component installation was already attempted.
+                            // If so, skip the expensive ensure_version_installed call entirely.
+                            // The marker file is written by MsvcRuntime::install() after the
+                            // first installation attempt, preventing repeated downloads/extractions.
+                            let component_already_attempted = self
+                                .context
+                                .map(|ctx| {
+                                    let store_dir = ctx
+                                        .paths
+                                        .version_store_dir(companion_name, &matched_version);
+                                    store_dir.join(".component-install-attempted").exists()
+                                })
+                                .unwrap_or(false);
+
+                            if component_already_attempted {
+                                debug!(
+                                    "Companion {} component installation already attempted, skipping integrity check",
+                                    companion_name
+                                );
+                                matched_version
+                            } else {
+                                debug!(
+                                    "Companion {} has component requirements, verifying installation integrity...",
+                                    companion_name
+                                );
+                                let mut install_mgr = super::installation::InstallationManager::new(
+                                    self.config,
+                                    self.resolver,
+                                    self.registry,
+                                    self.context,
+                                );
+                                if let Some(project_config) = self.project_config {
+                                    install_mgr = install_mgr.with_project_config(project_config);
                                 }
-                                Ok(None) => matched_version,
-                                Err(e) => {
-                                    warn!(
-                                        "Failed to verify companion {} components: {}",
-                                        companion_name, e
-                                    );
-                                    matched_version
+                                match install_mgr
+                                    .ensure_version_installed(companion_name, &matched_version)
+                                    .await
+                                {
+                                    Ok(Some(result)) => {
+                                        debug!(
+                                            "Companion {} component check complete (version: {})",
+                                            companion_name, result.version
+                                        );
+                                        result.version
+                                    }
+                                    Ok(None) => matched_version,
+                                    Err(e) => {
+                                        warn!(
+                                            "Failed to verify companion {} components: {}",
+                                            companion_name, e
+                                        );
+                                        matched_version
+                                    }
                                 }
                             }
                         } else {

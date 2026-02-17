@@ -615,7 +615,35 @@ impl Runtime for MsvcRuntime {
                     ));
                 }
 
-                // Components are missing — proceed with re-installation.
+                // Components are missing — but have we already tried to install them?
+                // Use a marker file to prevent infinite re-installation loops.
+                // This happens when components like Spectre are requested in vx.toml
+                // but msvc-kit cannot provide them (e.g., the VSIX packages don't
+                // include Spectre libs for this version). Without this check, every
+                // `vx npm ...` invocation would re-download and re-extract all 107+
+                // MSVC packages only to find the components still missing.
+                let component_attempt_marker = install_path.join(".component-install-attempted");
+                if component_attempt_marker.exists() {
+                    // We already tried installing these components — don't retry.
+                    // The MSBuild bridge handles missing Spectre libs at build time
+                    // by injecting /p:SpectreMitigation=false automatically.
+                    let exe_path = verification
+                        .executable_path
+                        .unwrap_or_else(|| install_path.join("cl.exe"));
+                    warn!(
+                        "MSVC {} missing components {:?} but installation was already attempted. \
+                         Skipping re-installation. The MSBuild bridge will handle missing Spectre \
+                         libs at build time.",
+                        version, missing_components
+                    );
+                    return Ok(InstallResult::already_installed(
+                        install_path,
+                        exe_path,
+                        version.to_string(),
+                    ));
+                }
+
+                // First attempt to install missing components.
                 // msvc-kit uses `.done` marker files in `.msvc-kit-extracted/` to track
                 // which VSIX packages have been extracted. If a previous installation was
                 // interrupted after downloading but before extraction completed, these
@@ -682,6 +710,14 @@ impl Runtime for MsvcRuntime {
         if let Err(e) = install_info.save() {
             warn!("Failed to save MSVC installation info: {}", e);
             // Don't fail the installation, just warn
+        }
+
+        // Write a marker indicating that we've attempted component installation.
+        // This prevents infinite re-installation loops when requested components
+        // (e.g., Spectre) are genuinely unavailable in the VSIX packages.
+        let component_attempt_marker = install_path.join(".component-install-attempted");
+        if let Err(e) = std::fs::write(&component_attempt_marker, version) {
+            debug!("Failed to write component attempt marker: {}", e);
         }
 
         info!(
