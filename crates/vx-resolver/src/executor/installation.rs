@@ -378,6 +378,32 @@ impl<'a> InstallationManager<'a> {
                 .is_some_and(|opts| !opts.is_empty());
 
             if has_install_options {
+                // Check if a previous component installation attempt was already made.
+                // If so, the runtime's install() would just return already_installed anyway,
+                // so skip the expensive resolve_version + pre_install overhead.
+                let component_attempted = {
+                    let store_dir = context
+                        .paths
+                        .version_store_dir(runtime_name, &resolved_version);
+                    store_dir.join(".component-install-attempted").exists()
+                };
+
+                if component_attempted {
+                    debug!(
+                        "{} {} has install_options but component installation was already attempted, using fast path",
+                        runtime_name, resolved_version
+                    );
+                    let exe_path = self
+                        .resolver
+                        .find_executable(runtime_name, &resolved_version);
+                    if exe_path.is_some() {
+                        return Ok(Some(InstallResult::already_installed_with(
+                            resolved_version,
+                            exe_path,
+                        )));
+                    }
+                }
+
                 debug!(
                     "{} {} has install_options from project config, delegating to install() for component integrity check",
                     runtime_name, resolved_version
