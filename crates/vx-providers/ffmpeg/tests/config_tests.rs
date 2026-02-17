@@ -51,7 +51,7 @@ mod url_builder {
         let url = FfmpegUrlBuilder::download_url("7.0", &platform, FfmpegBuild::Gpl);
         assert_eq!(
             url,
-            Some("https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip".to_string())
+            Some("https://www.osxexperts.net/ffmpeg70intel.zip".to_string())
         );
     }
 
@@ -61,8 +61,35 @@ mod url_builder {
         let url = FfmpegUrlBuilder::download_url("7.0", &platform, FfmpegBuild::Gpl);
         assert_eq!(
             url,
-            Some("https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip".to_string())
+            Some("https://www.osxexperts.net/ffmpeg70arm.zip".to_string())
         );
+    }
+
+    #[test]
+    fn test_macos_x64_version_80() {
+        let platform = Platform::new(Os::MacOS, Arch::X86_64);
+        let url = FfmpegUrlBuilder::download_url("8.0", &platform, FfmpegBuild::Gpl);
+        assert_eq!(
+            url,
+            Some("https://www.osxexperts.net/ffmpeg80intel.zip".to_string())
+        );
+    }
+
+    #[test]
+    fn test_macos_arm64_latest() {
+        let platform = Platform::new(Os::MacOS, Arch::Aarch64);
+        let url = FfmpegUrlBuilder::download_url("latest", &platform, FfmpegBuild::Gpl);
+        assert_eq!(
+            url,
+            Some("https://www.osxexperts.net/ffmpeg80arm.zip".to_string())
+        );
+    }
+
+    #[test]
+    fn test_macos_arm_not_supported() {
+        let platform = Platform::new(Os::MacOS, Arch::Arm);
+        let url = FfmpegUrlBuilder::download_url("7.0", &platform, FfmpegBuild::Gpl);
+        assert!(url.is_none());
     }
 
     #[test]
@@ -171,7 +198,7 @@ mod executable_path {
     #[test]
     fn test_macos_relative_path() {
         let platform = Platform::new(Os::MacOS, Arch::Aarch64);
-        // macOS uses evermeet.cx which puts ffmpeg at root
+        // macOS uses osxexperts.net which puts ffmpeg at root
         assert_eq!(
             FfmpegUrlBuilder::get_executable_relative_path("ffmpeg", &platform),
             "ffmpeg"
