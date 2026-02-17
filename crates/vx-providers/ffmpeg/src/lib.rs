@@ -14,7 +14,7 @@
 //! trusted third-party sources:
 //!
 //! - **Windows**: [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) - GPL/LGPL builds
-//! - **macOS**: [evermeet.cx](https://evermeet.cx/ffmpeg/) - Static builds
+//! - **macOS**: [osxexperts.net](https://www.osxexperts.net/) - Static builds (Intel and Apple Silicon)
 //! - **Linux**: [johnvansickle.com](https://johnvansickle.com/ffmpeg/) - Static builds
 //!
 //! # Example

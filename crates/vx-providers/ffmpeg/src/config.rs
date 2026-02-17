@@ -3,7 +3,7 @@
 //! FFmpeg official doesn't provide prebuilt binaries, so we use BtbN/FFmpeg-Builds:
 //! - Source: https://github.com/BtbN/FFmpeg-Builds/releases
 //! - Supports: Windows (x64, arm64), Linux (x64, arm64)
-//! - macOS fallback: https://evermeet.cx/ffmpeg/
+//! - macOS: https://www.osxexperts.net/ (Intel and Apple Silicon static builds)
 //!
 //! # Build Types
 //!
@@ -29,12 +29,12 @@ impl FfmpegUrlBuilder {
     /// Build the download URL for a specific version and platform
     ///
     /// Uses BtbN/FFmpeg-Builds for Windows and Linux
-    /// Falls back to evermeet.cx for macOS
+    /// Uses osxexperts.net for macOS (Intel and Apple Silicon)
     pub fn download_url(version: &str, platform: &Platform, build: FfmpegBuild) -> Option<String> {
         match &platform.os {
             Os::Windows => Self::btbn_url(version, platform, build),
             Os::Linux => Self::btbn_url(version, platform, build),
-            Os::MacOS => Self::macos_url(platform),
+            Os::MacOS => Self::macos_url(version, platform),
             _ => None,
         }
     }
@@ -86,16 +86,34 @@ impl FfmpegUrlBuilder {
         ))
     }
 
-    /// Get download URL for macOS (from evermeet.cx)
-    fn macos_url(platform: &Platform) -> Option<String> {
-        // evermeet.cx supports both x86_64 and arm64
-        match &platform.arch {
-            Arch::X86_64 | Arch::Aarch64 => {
-                // evermeet.cx provides universal binaries
-                Some("https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip".to_string())
-            }
-            _ => None,
-        }
+    /// Get download URL for macOS (from osxexperts.net)
+    ///
+    /// URL pattern: `https://www.osxexperts.net/ffmpeg{major}{minor}{arch}.zip`
+    /// - Intel (x86_64): `ffmpeg80intel.zip`
+    /// - Apple Silicon (arm64): `ffmpeg80arm.zip`
+    ///
+    /// For "latest" or "master" versions, defaults to the latest known major version.
+    fn macos_url(version: &str, platform: &Platform) -> Option<String> {
+        let arch_suffix = match &platform.arch {
+            Arch::X86_64 => "intel",
+            Arch::Aarch64 => "arm",
+            _ => return None,
+        };
+
+        // osxexperts.net uses concatenated major+minor version numbers in the URL
+        // e.g., version "8.0" -> "80", "7.1" -> "71"
+        let version_slug = if version == "latest" || version == "master" {
+            // Default to latest known version
+            "80".to_string()
+        } else {
+            // "8.0" -> "80", "7.1" -> "71", "7" -> "7"
+            version.replace('.', "")
+        };
+
+        Some(format!(
+            "https://www.osxexperts.net/ffmpeg{}{}.zip",
+            version_slug, arch_suffix
+        ))
     }
 
     /// Get the archive extension for the platform
