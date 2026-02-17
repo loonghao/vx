@@ -133,18 +133,29 @@ vx-core, vx-cache, vx-paths, vx-manifest, vx-system-pm
 在 `.cargo/config.toml` 中添加 lld 配置。Rust 1.93+ 已内置 `rust-lld`：
 
 ```toml
-# 现有配置保持不变
+# Windows MSVC - Use lld linker for faster builds
 [target.'cfg(all(target_env = "msvc", target_os = "windows"))']
-rustflags = ["-C", "target-feature=+crt-static", "-C", "link-arg=-fuse-ld=lld"]
+rustflags = [
+    "-C", "target-feature=+crt-static",
+    "-C", "link-arg=-fuse-ld=lld",
+]
 
-# Linux - 使用 mold（如已安装）或 lld
-# [target.x86_64-unknown-linux-gnu]
-# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+# Linux gnu - Use lld linker for faster builds
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))']
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+# Note: macOS uses default linker (ld64) which is already fast
+# lld on macOS has compatibility issues with some system libraries
 ```
 
-**预估收益**: 链接阶段从 ~16s 降至 ~3-5s，**节省 10-13s**
+**预估收益**: 
+- Windows: 链接阶段从 ~16s 降至 ~3-5s，**节省 10-13s**
+- Linux: 类似收益
+- macOS: 保持默认链接器（ld64 已经足够快）
 
-**注意**: 此配置同时影响 release 构建。若 release 遇到兼容性问题，可通过环境变量条件控制，或仅在 dev profile 下使用。
+**注意**: 
+- macOS 不使用 lld，因为 clang 的 `-fuse-ld=lld` 参数有兼容性问题
+- CI release 构建可能需要验证平台兼容性
 
 #### 1.2 使用 `dev-fast` profile 进行日常开发
 
@@ -439,7 +450,8 @@ Rust nightly 支持 cranelift 后端，编译速度比 LLVM 快但生成代码�
 | 日期 | 版本 | 变更 |
 |------|------|------|
 | 2026-02-15 | Draft | 初始草案，基于 `cargo build --timings` 数据分析 |
-| 2026-02-17 | Phase 1 Completed | 完成 Phase 1：添加 lld linker 配置到所有平台 |
+| 2026-02-17 | Phase 1 Completed | 完成 Phase 1：添加 lld linker 配置到 Windows 和 Linux |
+| 2026-02-17 | Phase 1 Fix | 移除 macOS lld 配置（兼容性问题，使用默认 ld64） |
 | 2026-02-17 | Phase 2 Started | 创建 vx-runtime-core 和 vx-runtime-archive crate |
 | 2026-02-17 | Phase 2 Progress | vx-runtime 集成 vx-runtime-core 和 vx-runtime-archive，作为门面 crate |
 | 2026-02-17 | Phase 2 Progress | 添加 workspace dependencies，导出 RuntimeContext/ExecutionContext |

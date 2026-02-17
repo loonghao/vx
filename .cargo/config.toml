@@ -18,9 +18,10 @@ rustflags = [
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))']
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
-# macOS - Use lld linker (xcode's lld or rust-lld)
-[target.'cfg(target_os = "macos")']
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+# macOS - Keep default linker (ld64 is already fast on macOS)
+# Note: lld on macOS has compatibility issues, using default linker instead
+# [target.'cfg(target_os = "macos")']
+# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
 # Linux musl - Fully static binary (keep self-contained)
 [target.x86_64-unknown-linux-musl]
