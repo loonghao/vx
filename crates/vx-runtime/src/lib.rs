@@ -8,7 +8,14 @@
 //! - Dependency injection via `RuntimeContext` and `ExecutionContext`
 //! - Mock implementations for testing
 //!
-//! # Architecture
+//! # Architecture (RFC 0032)
+//!
+//! This crate integrates with split crates for better compilation performance:
+//! - `vx-runtime-core`: Lightweight trait definitions (~5-8s compile time)
+//! - `vx-runtime-archive`: Archive extraction utilities (~30-40s compile time)
+//!
+//! Providers can choose to depend on `vx-runtime-core` directly for faster compilation,
+//! or use this crate for the complete implementation.
 //!
 //! ```text
 //! Provider (e.g., NodeProvider)
@@ -133,3 +140,13 @@ pub use provider_loader::{
 
 // RFC 0022: Post-install normalization
 pub use normalizer::{NormalizeContext, NormalizeResult, Normalizer};
+
+// RFC 0032: Re-export from vx-runtime-core for provider convenience
+// Note: These are the same types but from the lightweight crate
+pub use vx_runtime_core::{
+    Ecosystem as CoreEcosystem, Platform as CorePlatform,
+    types::{InstallResult as CoreInstallResult, VersionInfo as CoreVersionInfo},
+};
+
+// RFC 0032: Re-export from vx-runtime-archive
+pub use vx_runtime_archive::{ArchiveExtractor, ArchiveFormat};
