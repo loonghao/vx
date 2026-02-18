@@ -1,11 +1,13 @@
 //! Test pipeline configuration
 
+#[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Test configuration (Phase 4)
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct TestConfig {
     /// Test framework (auto, jest, pytest, cargo-test, go-test)
@@ -42,7 +44,8 @@ pub struct TestConfig {
 }
 
 /// Coverage configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct CoverageConfig {
     /// Enable coverage
@@ -75,7 +78,8 @@ pub struct CoverageConfig {
 }
 
 /// Test hooks configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct TestHooksConfig {
     /// Before all tests
@@ -96,7 +100,8 @@ pub struct TestHooksConfig {
 }
 
 /// Test environment
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct TestEnvironment {
     /// Environment variables

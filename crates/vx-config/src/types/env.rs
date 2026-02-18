@@ -1,11 +1,13 @@
 //! Environment variable configuration
 
+#[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Environment variable configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct EnvConfig {
     /// Static environment variables
@@ -26,7 +28,8 @@ pub struct EnvConfig {
 }
 
 /// Secrets configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct SecretsConfig {
     /// Provider (auto, 1password, vault, aws-secrets)

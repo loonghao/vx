@@ -6,7 +6,7 @@
 //! - Real E2E download tests with CDN acceleration
 //! - Region-based CDN auto-detection
 
-use vx_runtime::RealHttpClient;
+use vx_runtime_http::RealHttpClient;
 
 // ============================================================================
 // Unit Tests - Client Configuration

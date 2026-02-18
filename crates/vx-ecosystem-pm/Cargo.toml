@@ -25,6 +25,7 @@ tracing = { workspace = true }
 
 # Path utilities
 which = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]
 rstest = { workspace = true }

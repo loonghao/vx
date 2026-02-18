@@ -21,6 +21,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 shellexpand = "3.1"
 chrono = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]
 rstest = { workspace = true }

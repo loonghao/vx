@@ -13,6 +13,7 @@ serde_json = { workspace = true }
 regex = { workspace = true }
 indexmap = { version = "2.0", features = ["serde"] }
 vx-paths = { path = "../vx-paths" }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]
 rstest = { workspace = true }

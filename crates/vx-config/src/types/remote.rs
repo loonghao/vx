@@ -1,11 +1,13 @@
 //! Remote development configuration
 
+#[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Remote development configuration (Phase 3)
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct RemoteConfig {
     /// Enable remote development config generation
@@ -26,7 +28,8 @@ pub struct RemoteConfig {
 }
 
 /// GitHub Codespaces configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct CodespacesConfig {
     /// Enable Codespaces config generation
@@ -51,7 +54,8 @@ pub struct CodespacesConfig {
 }
 
 /// Prebuild configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct PrebuildConfig {
     /// Enable prebuilds
@@ -64,7 +68,8 @@ pub struct PrebuildConfig {
 }
 
 /// Port forwarding configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct PortForward {
     /// Port number
@@ -84,7 +89,8 @@ pub struct PortForward {
 }
 
 /// GitPod configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct GitpodConfig {
     /// Enable GitPod config generation
@@ -113,7 +119,8 @@ pub struct GitpodConfig {
 }
 
 /// GitPod task
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct GitpodTask {
     /// Task name
@@ -134,7 +141,8 @@ pub struct GitpodTask {
 }
 
 /// GitPod port configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct GitpodPort {
     /// Port number
@@ -150,7 +158,8 @@ pub struct GitpodPort {
 }
 
 /// GitPod prebuilds configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct GitpodPrebuilds {
     /// Enable prebuilds for default branch
@@ -171,7 +180,8 @@ pub struct GitpodPrebuilds {
 }
 
 /// DevContainer configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct DevContainerConfig {
     /// Enable devcontainer.json generation
@@ -228,7 +238,8 @@ pub struct DevContainerConfig {
 }
 
 /// DevContainer customizations
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct DevContainerCustomizations {
     /// VS Code customizations
@@ -237,7 +248,8 @@ pub struct DevContainerCustomizations {
 }
 
 /// VS Code customizations
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct VsCodeCustomizations {
     /// Extensions to install

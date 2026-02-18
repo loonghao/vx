@@ -1,11 +1,13 @@
 //! Team collaboration configuration
 
+#[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Team configuration (Phase 3)
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct TeamConfig {
     /// Extends from URL (remote preset)
@@ -26,7 +28,8 @@ pub struct TeamConfig {
 }
 
 /// Code owners configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct CodeOwnersConfig {
     /// Enable CODEOWNERS generation
@@ -47,7 +50,8 @@ pub struct CodeOwnersConfig {
 }
 
 /// Review configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct ReviewConfig {
     /// Minimum required approvals
@@ -72,7 +76,8 @@ pub struct ReviewConfig {
 }
 
 /// Auto-assign reviewers configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct AutoAssignConfig {
     /// Enable auto-assign
@@ -89,7 +94,8 @@ pub struct AutoAssignConfig {
 }
 
 /// Conventions configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct ConventionsConfig {
     /// Commit message format (conventional, angular, custom)

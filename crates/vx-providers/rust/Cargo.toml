@@ -20,6 +20,7 @@ once_cell = { workspace = true }
 which = { workspace = true }
 tracing = { workspace = true }
 dirs = "6.0"
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 rstest = { workspace = true }
