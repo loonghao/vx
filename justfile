@@ -113,6 +113,16 @@ lint:
 format:
     cargo fmt
 
+# Verify workspace-hack is up-to-date (CI check)
+hakari-verify:
+    cargo hakari generate --diff
+    cargo hakari manage-deps --dry-run
+
+# Regenerate workspace-hack after dependency changes
+hakari-generate:
+    cargo hakari generate
+    cargo hakari manage-deps
+
 # Check code formatting
 format-check:
     vx run fmt-check
