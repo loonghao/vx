@@ -21,10 +21,14 @@ flate2 = { workspace = true }
 xz2 = { workspace = true }
 zstd = { workspace = true }
 zip = { workspace = true }
-sevenz-rust = "0.6"
+sevenz-rust = { version = "0.6", optional = true }
 tempfile = { workspace = true }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]
 rstest = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+
+[features]
+default = []
+extended-formats = ["sevenz-rust"]

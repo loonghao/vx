@@ -410,8 +410,17 @@ impl Installer for RealInstaller {
                 archive.extract(dest)?;
             }
             Some("7z") => {
-                sevenz_rust::decompress_file(archive, dest)
-                    .map_err(|e| anyhow::anyhow!("Failed to extract 7z archive: {}", e))?;
+                #[cfg(feature = "extended-formats")]
+                {
+                    sevenz_rust::decompress_file(archive, dest)
+                        .map_err(|e| anyhow::anyhow!("Failed to extract 7z archive: {}", e))?;
+                }
+                #[cfg(not(feature = "extended-formats"))]
+                {
+                    return Err(anyhow::anyhow!(
+                        "7z extraction is not supported in this build. Please use a build with extended-formats feature enabled."
+                    ));
+                }
             }
             Some("msi") => {
                 // Use msiexec to extract MSI packages (Windows-only)

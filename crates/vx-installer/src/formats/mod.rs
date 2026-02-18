@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 pub mod binary;
 pub mod msi;
 pub mod pkg;
+#[cfg(feature = "extended-formats")]
 pub mod sevenz;
 pub mod tar;
 pub mod zip;
@@ -148,10 +149,23 @@ pub struct ArchiveExtractor {
 impl ArchiveExtractor {
     /// Create a new archive extractor with default handlers
     pub fn new() -> Self {
+        #[cfg(feature = "extended-formats")]
+        let handlers: Vec<Box<dyn FormatHandler>> = {
+            let mut handlers = vec![
+                Box::new(zip::ZipHandler::new()),
+                Box::new(tar::TarHandler::new()),
+                Box::new(msi::MsiHandler::new()),
+                Box::new(pkg::PkgHandler::new()),
+                Box::new(binary::BinaryHandler::new()), // Keep binary as fallback
+            ];
+            handlers.insert(2, Box::new(sevenz::SevenZipHandler::new()));
+            handlers
+        };
+
+        #[cfg(not(feature = "extended-formats"))]
         let handlers: Vec<Box<dyn FormatHandler>> = vec![
             Box::new(zip::ZipHandler::new()),
             Box::new(tar::TarHandler::new()),
-            Box::new(sevenz::SevenZipHandler::new()),
             Box::new(msi::MsiHandler::new()),
             Box::new(pkg::PkgHandler::new()),
             Box::new(binary::BinaryHandler::new()), // Keep binary as fallback
