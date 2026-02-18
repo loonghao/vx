@@ -1,11 +1,13 @@
 //! Container deployment configuration
 
+#[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Container configuration (Phase 5)
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct ContainerConfig {
     /// Enable container support
@@ -38,7 +40,8 @@ pub struct ContainerConfig {
 }
 
 /// Dockerfile generation configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct DockerfileConfig {
     /// Output path (default: Dockerfile)
@@ -99,7 +102,8 @@ pub struct DockerfileConfig {
 }
 
 /// Copy instruction for Dockerfile
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct CopyInstruction {
     /// Source path
@@ -118,7 +122,8 @@ pub struct CopyInstruction {
 }
 
 /// Container healthcheck configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct ContainerHealthcheck {
     /// Command to run
@@ -142,7 +147,8 @@ pub struct ContainerHealthcheck {
 }
 
 /// Multi-stage build configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct ContainerBuildConfig {
     /// Enable multi-stage build
@@ -175,7 +181,8 @@ pub struct ContainerBuildConfig {
 }
 
 /// Build stage configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct BuildStage {
     /// Stage name
@@ -206,7 +213,8 @@ pub struct BuildStage {
 }
 
 /// Build cache configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct BuildCacheConfig {
     /// Enable BuildKit cache
@@ -227,7 +235,8 @@ pub struct BuildCacheConfig {
 }
 
 /// Registry configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct RegistryConfig {
     /// Registry URL (e.g., docker.io, ghcr.io, gcr.io)
@@ -256,7 +265,8 @@ pub struct RegistryConfig {
 }
 
 /// Registry mirror configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct RegistryMirror {
     /// Mirror registry URL
@@ -268,7 +278,8 @@ pub struct RegistryMirror {
 }
 
 /// Image tags configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct ImageTagsConfig {
     /// Tag strategy (semver, git-sha, branch, custom)
@@ -313,7 +324,8 @@ pub struct ImageTagsConfig {
 }
 
 /// Container target (for multi-image projects)
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct ContainerTarget {
     /// Dockerfile path (relative to project root)

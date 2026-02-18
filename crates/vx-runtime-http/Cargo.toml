@@ -1,0 +1,65 @@
+[package]
+name = "vx-runtime-http"
+version.workspace = true
+edition.workspace = true
+description = "HTTP client, download manager and installer for vx - provides real implementations of runtime traits"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Core
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true, features = ["rt", "fs", "io-util", "process"] }
+futures-util = { workspace = true }
+
+# Serialization (for JSON responses)
+serde_json = { workspace = true }
+
+# HTTP client (heavy dependency)
+reqwest = { workspace = true }
+
+# Progress indicator (heavy dependency)
+indicatif = { workspace = true }
+
+# Retry with backoff (heavy dependency)
+backon = { workspace = true }
+
+# URL encoding/decoding
+urlencoding = "2.1"
+
+# Regex for URL parsing
+regex = { workspace = true }
+
+# Temp files for downloads
+tempfile = { workspace = true }
+
+# Archive handling (used by installer)
+tar = { workspace = true }
+flate2 = { workspace = true }
+xz2 = { workspace = true }
+zstd = { workspace = true }
+zip = { workspace = true }
+sevenz-rust = "0.6"
+
+# Internal dependencies
+vx-runtime = { path = "../vx-runtime" }
+vx-cache = { workspace = true }
+vx-paths = { path = "../vx-paths" }
+
+# CDN acceleration (optional)
+turbo-cdn = { version = "0.8", default-features = false, features = ["rustls", "fast-hash", "high-performance"], optional = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+
+[features]
+default = []
+# Feature for CDN acceleration - enables turbo-cdn for faster downloads in China
+cdn-acceleration = ["turbo-cdn"]
+
+[dev-dependencies]
+rstest = { workspace = true }
+tokio-test = { workspace = true }
+tempfile = { workspace = true }

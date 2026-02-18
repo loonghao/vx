@@ -6,7 +6,8 @@
 use anyhow::Result;
 use std::path::PathBuf;
 use vx_paths::PathManager;
-use vx_runtime::{ProviderRegistry, create_runtime_context};
+use vx_runtime::ProviderRegistry;
+use vx_runtime_http::create_runtime_context;
 
 // Re-export types and functions from common.rs
 pub use crate::commands::common::{ToolStatus, find_system_tool, get_vx_tool_path};

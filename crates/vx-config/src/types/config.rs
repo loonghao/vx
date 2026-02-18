@@ -1,5 +1,6 @@
 //! Root VxConfig structure
 
+#[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
@@ -17,7 +18,8 @@ use super::{
 type PlatformToolsResult<M> = (M, Vec<(String, Vec<String>)>);
 
 /// Root configuration structure for `vx.toml`
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct VxConfig {
     /// Minimum vx version required

@@ -63,5 +63,6 @@ pub use testing::{CoverageReporter, TestFramework, TestResult, TestRunner};
 pub use types::*;
 pub use validation::{ValidationResult, validate_config};
 
-/// Re-export for convenience
+/// Re-export for convenience (only available with "schema" feature)
+#[cfg(feature = "schema")]
 pub use schemars;

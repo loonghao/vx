@@ -15,7 +15,7 @@ rust-version.workspace = true
 [dependencies]
 vx-cache = { workspace = true }
 vx-core = { workspace = true }
-vx-config = { workspace = true }
+vx-config = { workspace = true, features = ["schema"] }
 vx-ecosystem-pm = { workspace = true }
 vx-env = { workspace = true }
 vx-extension = { workspace = true }
@@ -27,6 +27,7 @@ vx-metrics = { workspace = true }
 vx-project-analyzer = { workspace = true }
 vx-resolver = { workspace = true }
 vx-runtime = { workspace = true }
+vx-runtime-http = { workspace = true }
 vx-setup = { workspace = true }
 vx-args = { path = "../vx-args" }
 # Providers
@@ -102,7 +103,6 @@ walkdir = { workspace = true }
 toml = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = "0.9"
 reqwest = { workspace = true }
 tempfile = { workspace = true }
 zip = { workspace = true }
@@ -121,6 +121,7 @@ futures-util = { workspace = true }
 
 # Self-updater library for cargo-dist integration
 axoupdater = { workspace = true, optional = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true }
@@ -129,7 +130,7 @@ windows-sys = { workspace = true }
 # Default features for most platforms
 default = ["cdn-acceleration", "self-update"]
 # CDN acceleration for faster downloads in China (uses rustls, no OpenSSL required)
-cdn-acceleration = ["vx-runtime/cdn-acceleration"]
+cdn-acceleration = ["vx-runtime-http/cdn-acceleration"]
 # Self-update via axoupdater (cargo-dist receipt-based fast path)
 self-update = ["axoupdater"]
 

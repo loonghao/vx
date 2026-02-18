@@ -33,7 +33,7 @@ zstd = { workspace = true }
 sevenz-rust = "0.6"
 
 # Progress and UI
-indicatif = { version = "0.17", optional = true }
+indicatif = { workspace = true, optional = true }
 futures-util = "0.3"
 
 # Async trait support
@@ -56,6 +56,7 @@ urlencoding = "2.1"
 
 # CDN acceleration (optional)
 turbo-cdn = { version = "0.8", default-features = false, features = ["rustls", "fast-hash", "high-performance"], optional = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 # Platform-specific dependencies
 [target.'cfg(unix)'.dependencies]

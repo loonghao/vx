@@ -1,0 +1,34 @@
+# Configuration for cargo-hakari (workspace-hack crate management)
+# See: https://docs.rs/cargo-hakari/latest/cargo_hakari/config/
+
+# The name of the workspace-hack crate
+hakari-package = "workspace-hack"
+
+# Dependency format version (latest)
+dep-format-version = "4"
+
+# Resolver version (match workspace resolver)
+resolver = "2"
+
+# Platforms to optimize for
+# These are the platforms where developers build locally
+platforms = [
+    # Windows (primary development platform)
+    "x86_64-pc-windows-msvc",
+    # Linux
+    "x86_64-unknown-linux-gnu",
+    # macOS Intel
+    "x86_64-apple-darwin",
+    # macOS Apple Silicon
+    "aarch64-apple-darwin",
+]
+
+# Output configuration
+[traversal-excludes]
+# Exclude dev-only crates from the workspace-hack
+# (they don't affect production builds)
+# workspace-members = []
+
+[final-excludes]
+# Exclude specific third-party crates from unification if they cause issues
+# third-party = []

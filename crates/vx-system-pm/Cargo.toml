@@ -32,6 +32,7 @@ which = { workspace = true }
 
 # Platform detection
 cfg-if = "1.0"
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 # Unix-specific
 [target.'cfg(unix)'.dependencies]

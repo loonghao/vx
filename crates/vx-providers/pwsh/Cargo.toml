@@ -12,6 +12,7 @@ async-trait = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [lib]
 name = "vx_provider_pwsh"
