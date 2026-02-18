@@ -13,6 +13,7 @@ serde_json = { workspace = true }
 bincode = { version = "2.0.1", features = ["serde"] }
 sha2 = "0.10"
 hex = "0.4"
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]
 rstest = { workspace = true }

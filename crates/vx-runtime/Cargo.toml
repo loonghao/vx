@@ -13,26 +13,14 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 
-# Async runtime
-tokio = { workspace = true }
+# Async runtime (needs 'time' for tokio::time::timeout used in package_runtime)
+tokio = { workspace = true, features = ["time"] }
 futures-util = { workspace = true }
 
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
 bincode = { version = "2.0.1", features = ["serde"] }
-
-# HTTP client
-reqwest = { workspace = true }
-
-# Archive handling (used by installer implementation)
-tar = { workspace = true }
-flate2 = { workspace = true }
-xz2 = { workspace = true }
-zstd = { workspace = true }
-zip = { workspace = true }
-sevenz-rust = "0.6"
-tempfile = { workspace = true }
 
 # Utilities
 chrono = { workspace = true }
@@ -41,18 +29,6 @@ glob = { workspace = true }
 regex = { workspace = true }
 toml = { workspace = true }
 
-# Retry with backoff
-backon = { workspace = true }
-
-# URL encoding/decoding
-urlencoding = "2.1"
-
-# Progress indicator
-indicatif = { workspace = true }
-
-# Dynamic library loading
-libloading = "0.9"
-
 # Internal dependencies
 vx-core = { path = "../vx-core" }
 vx-cache = { workspace = true }
@@ -60,17 +36,17 @@ vx-paths = { path = "../vx-paths" }
 vx-manifest = { workspace = true }
 vx-system-pm = { workspace = true }
 
-# RFC 0032: Split crates for faster compilation
-vx-runtime-core = { path = "../vx-runtime-core" }
-vx-runtime-archive = { path = "../vx-runtime-archive" }
 
-# CDN acceleration (optional)
-turbo-cdn = { version = "0.8", default-features = false, features = ["rustls", "fast-hash", "high-performance"], optional = true }
+
+
+# Dynamic library loading (optional - only needed for plugin system)
+libloading = { version = "0.9", optional = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [features]
-default = []
-# Feature for CDN acceleration - enables turbo-cdn for faster downloads in China
-cdn-acceleration = ["turbo-cdn"]
+default = ["plugin"]
+# Plugin system for dynamic provider loading
+plugin = ["libloading"]
 
 [dev-dependencies]
 rstest = { workspace = true }

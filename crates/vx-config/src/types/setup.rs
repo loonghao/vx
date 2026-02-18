@@ -15,12 +15,14 @@
 //! - GitLab CI: Uses `GITLAB_CI` environment
 //! - Generic CI: Detects via `CI=true`
 
+#[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Setup pipeline configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct SetupConfig {
     /// Pipeline hooks to execute (in order)
@@ -38,7 +40,8 @@ pub struct SetupConfig {
 }
 
 /// Setup hooks configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct SetupHooksConfig {
     /// Install tools hook configuration
@@ -55,7 +58,8 @@ pub struct SetupHooksConfig {
 }
 
 /// Install tools hook configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct InstallToolsHook {
     /// Whether this hook is enabled
@@ -72,7 +76,8 @@ pub struct InstallToolsHook {
 }
 
 /// Export paths hook configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct ExportPathsHook {
     /// Whether this hook is enabled
@@ -89,7 +94,8 @@ pub struct ExportPathsHook {
 }
 
 /// CI environment configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct CiConfig {
     /// Enable CI mode (auto-detected if not specified)
@@ -112,7 +118,8 @@ pub struct CiConfig {
 }
 
 /// Setup hook command configuration
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
 pub enum SetupHookCommand {
     /// Simple command string
@@ -124,7 +131,8 @@ pub enum SetupHookCommand {
 }
 
 /// Detailed setup hook configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct SetupHookDetail {
     /// Command(s) to execute
@@ -156,7 +164,8 @@ pub struct SetupHookDetail {
 }
 
 /// Command type for setup hooks
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
 pub enum SetupHookCommandType {
     /// Single command

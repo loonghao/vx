@@ -1,12 +1,17 @@
 //! Context factory functions
+//!
+//! Creates production RuntimeContext instances with real HTTP client,
+//! installer, filesystem, and path provider implementations.
 
-use super::{RealFileSystem, RealHttpClient, RealInstaller, RealPathProvider};
-use crate::context::RuntimeContext;
-use crate::traits::PathProvider;
-use crate::version_cache::VersionCache;
+use crate::http_client::RealHttpClient;
+use crate::installer::RealInstaller;
 use anyhow::Result;
 use std::path::Path;
 use std::sync::Arc;
+use vx_runtime::PathProvider;
+use vx_runtime::RuntimeContext;
+use vx_runtime::VersionCache;
+use vx_runtime::impls::{RealFileSystem, RealPathProvider};
 
 /// Create a real runtime context for production use
 ///

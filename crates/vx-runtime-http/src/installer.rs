@@ -1,12 +1,12 @@
 //! Real installer implementation
 
-use super::http_client::RealHttpClient;
-use crate::traits::Installer;
+use crate::http_client::RealHttpClient;
 use anyhow::Result;
 use async_trait::async_trait;
 use backon::{ExponentialBuilder, Retryable};
 use std::path::Path;
 use std::time::Duration;
+use vx_runtime::Installer;
 
 /// Real installer for downloading and extracting archives
 pub struct RealInstaller {
@@ -464,9 +464,6 @@ impl Installer for RealInstaller {
                     let _ = std::fs::remove_dir_all(&expand_dir);
 
                     // Flatten executables to the install root so vx can find them.
-                    // macOS .pkg files typically install to paths like usr/local/bin/
-                    // which are deeply nested. We copy executables to the root so
-                    // that verify_installation() can locate them at <install_dir>/<exe>.
                     flatten_pkg_executables(dest)?;
                 }
                 #[cfg(not(target_os = "macos"))]
@@ -496,8 +493,6 @@ impl Installer for RealInstaller {
         let url_without_fragment = url.split('#').next().unwrap_or(url);
 
         // Download and detect filename in a single GET request (no separate HEAD).
-        // This saves ~3-5 seconds for APIs that use redirect chains (e.g., Adoptium:
-        // api.adoptium.net → github.com → objects.githubusercontent.com).
         let temp_download_path = temp_dir.path().join("download_temp");
         let detected_filename = self
             .download_and_detect_filename(url_without_fragment, &temp_download_path)
@@ -524,7 +519,6 @@ impl Installer for RealInstaller {
         let extension_hint = url.split('#').nth(1);
 
         // Check if it's an archive or a single executable
-        // First check the URL/filename, then check extension hint, then check file magic bytes
         let archive_str = archive_name.to_lowercase();
         let mut is_archive = archive_str.ends_with(".tar.gz")
             || archive_str.ends_with(".tgz")
@@ -550,9 +544,6 @@ impl Installer for RealInstaller {
             use std::io::Read;
             let mut magic = [0u8; 6];
             if file.read_exact(&mut magic).is_ok() {
-                // ZIP magic: PK\x03\x04
-                // GZIP magic: \x1f\x8b
-                // 7z magic: 7z\xBC\xAF\x27\x1C (first 6 bytes: 37 7A BC AF 27 1C)
                 is_archive = (magic[0] == 0x50 && magic[1] == 0x4B)  // ZIP
                         || (magic[0] == 0x1f && magic[1] == 0x8b) // GZIP (tar.gz)
                         || (magic[0] == 0x37 && magic[1] == 0x7A && magic[2] == 0xBC
@@ -642,11 +633,6 @@ impl DownloadError {
 }
 
 /// Promote files from Payload directories to the target directory after pkgutil --expand-full.
-///
-/// After `pkgutil --expand-full`, files are nested like:
-///   `expand_dir/<component>.pkg/Payload/<actual files>`
-///
-/// This function moves the Payload contents up to `target_dir`.
 #[cfg(target_os = "macos")]
 fn promote_pkg_payload_contents(expand_dir: &Path, target_dir: &Path) -> Result<()> {
     if let Ok(entries) = std::fs::read_dir(expand_dir) {
@@ -691,14 +677,6 @@ fn copy_dir_contents_recursive(src_dir: &Path, dst_dir: &Path) -> Result<()> {
 }
 
 /// Flatten executables from nested directories to the install root.
-///
-/// macOS .pkg files typically install to system paths like `usr/local/bin/`.
-/// After promotion, the structure might be:
-///   `dest/usr/local/bin/actrun`
-///
-/// vx expects executables at `dest/actrun` (or within 3 levels of depth).
-/// This function finds all executable files in the extracted tree and
-/// copies them to the install root, making them discoverable by vx.
 #[cfg(target_os = "macos")]
 fn flatten_pkg_executables(dest: &Path) -> Result<()> {
     use std::os::unix::fs::PermissionsExt;

@@ -1,12 +1,12 @@
 //! Real HTTP client implementation
 
-use crate::region;
-use crate::traits::HttpClient;
 use anyhow::Result;
 use async_trait::async_trait;
 use backon::{ExponentialBuilder, Retryable};
 use std::path::Path;
 use std::time::Duration;
+use vx_runtime::HttpClient;
+use vx_runtime::region;
 
 /// Determine whether CDN acceleration should be enabled.
 ///

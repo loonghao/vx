@@ -8,14 +8,14 @@
 //! - Dependency injection via `RuntimeContext` and `ExecutionContext`
 //! - Mock implementations for testing
 //!
-//! # Architecture (RFC 0032)
+//! # Architecture (RFC 0032 - Functional Domain Split)
 //!
-//! This crate integrates with split crates for better compilation performance:
-//! - `vx-runtime-core`: Lightweight trait definitions (~5-8s compile time)
+//! This crate is the **lightweight interface layer** (~8-12s compile time).
+//! Heavy implementations are in separate functional-domain crates:
+//! - `vx-runtime-http`: HTTP client, download manager, installer (~25-35s compile time)
 //! - `vx-runtime-archive`: Archive extraction utilities (~30-40s compile time)
 //!
-//! Providers can choose to depend on `vx-runtime-core` directly for faster compilation,
-//! or use this crate for the complete implementation.
+//! Providers only need this crate. Only `vx-cli` needs `vx-runtime-http`.
 //!
 //! ```text
 //! Provider (e.g., NodeProvider)
@@ -55,6 +55,7 @@ pub mod manifest_runtime;
 pub mod normalizer;
 pub mod package_runtime;
 pub mod platform;
+#[cfg(feature = "plugin")]
 pub mod plugin;
 pub mod provider;
 pub mod provider_env;
@@ -71,10 +72,8 @@ pub mod version_resolver;
 // Re-exports
 pub use context::{ExecutionContext, GitHubReleaseOptions, RuntimeContext};
 pub use ecosystem::Ecosystem;
-pub use impls::{
-    RealCommandExecutor, RealFileSystem, RealHttpClient, RealInstaller, RealPathProvider,
-    create_runtime_context, create_runtime_context_with_base,
-};
+pub use impls::{RealCommandExecutor, RealFileSystem, RealPathProvider};
+// Note: RealHttpClient, RealInstaller, create_runtime_context* have moved to vx-runtime-http
 pub use layout::{
     ArchiveLayout, BinaryLayout, DownloadType, ExecutableLayout, LayoutContext, PlatformLayout,
     ResolvedLayout,
@@ -126,7 +125,8 @@ pub use manifest::loader::ManifestStore;
 pub use vx_manifest::{Arch as ManifestArch, Os as ManifestOs, Platform as ManifestPlatform};
 pub use vx_manifest::{PlatformConstraint, PlatformExclusion};
 
-// Plugin system
+// Plugin system (requires "plugin" feature for dynamic loading)
+#[cfg(feature = "plugin")]
 pub use plugin::{PluginLoader, ProviderLoader, ProviderPlugin, default_plugin_paths};
 
 // Manifest-driven runtimes (RFC 0021)
@@ -141,12 +141,6 @@ pub use provider_loader::{
 // RFC 0022: Post-install normalization
 pub use normalizer::{NormalizeContext, NormalizeResult, Normalizer};
 
-// RFC 0032: Re-export from vx-runtime-core for provider convenience
-// Note: These are the same types but from the lightweight crate
-pub use vx_runtime_core::{
-    Ecosystem as CoreEcosystem, Platform as CorePlatform,
-    types::{InstallResult as CoreInstallResult, VersionInfo as CoreVersionInfo},
-};
-
-// RFC 0032: Re-export from vx-runtime-archive
-pub use vx_runtime_archive::{ArchiveExtractor, ArchiveFormat};
+// Note: vx-runtime-core and vx-runtime-archive are no longer dependencies.
+// Consumers should depend on them directly if needed.
+// This keeps vx-runtime lightweight (~10s) so providers can start compiling early.

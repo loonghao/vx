@@ -4,6 +4,7 @@ members = [
   "crates/vx-cache",
   "crates/vx-runtime-core",
   "crates/vx-runtime-archive",
+  "crates/vx-runtime-http",
   "crates/vx-runtime",
   "crates/vx-version-fetcher",
   "crates/vx-resolver",
@@ -97,6 +98,8 @@ members = [
   "crates/vx-providers/hadolint",
   # Generic command bridge framework
   "crates/vx-bridge",
+  # Workspace-hack crate (managed by cargo-hakari, reduces duplicate dependency compilations)
+  "crates/workspace-hack",
   # MSBuild bridge (used by MSVC provider for node-gyp compatibility)
   "crates/vx-msbuild-bridge",
 ]
@@ -134,6 +137,7 @@ path = "examples/config_management_demo.rs"
 vx-cli = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
+workspace-hack = { version = "0.1", path = "crates/workspace-hack" }
 
 [features]
 default = ["cdn-acceleration", "self-update"]
@@ -177,6 +181,7 @@ vx-cache = { path = "crates/vx-cache" }
 vx-runtime = { path = "crates/vx-runtime" }
 vx-runtime-core = { path = "crates/vx-runtime-core" }
 vx-runtime-archive = { path = "crates/vx-runtime-archive" }
+vx-runtime-http = { path = "crates/vx-runtime-http" }
 vx-version-fetcher = { path = "crates/vx-version-fetcher" }
 vx-resolver = { path = "crates/vx-resolver" }
 vx-paths = { path = "crates/vx-paths" }
@@ -248,11 +253,12 @@ vx-provider-vcpkg = { path = "crates/vx-providers/vcpkg" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
 vx-bridge = { path = "crates/vx-bridge" }
+workspace-hack = { path = "crates/workspace-hack" }
 
 # External dependencies
 clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.9.10"
+toml = "1.0"
 toml_edit = "0.24"
 # Optimize tokio - only include needed features for better compile times
 tokio = { version = "1.0", features = [
@@ -297,9 +303,10 @@ figment = { version = "0.10", features = ["toml", "env"] }
 which = "8.0"
 regex = "1.10"
 tempfile = "3.8"
-# zip 7.0 - disable lzma feature since zip 7.4.0 still depends on lzma-rust2 ^0.15 (crc 2.x)
-# Re-enable when zip updates to lzma-rust2 ^0.16 (crc 3.x)
-zip = { version = "7.0", default-features = false, features = ["aes-crypto", "bzip2", "deflate64", "deflate", "ppmd", "time", "zstd"] }
+# zip 8.1 - unified version to eliminate duplicate compilation with msvc-kit
+# deflate: most common zip compression; zstd: modern fast compression; time: preserve file timestamps
+# Disabled: aes-crypto, bzip2, deflate64, ppmd, lzma (rarely used in tool distribution archives)
+zip = { version = "8.1", default-features = false, features = ["deflate", "zstd", "time"] }
 tar = "0.4"
 flate2 = "1.0"
 xz2 = "0.1.7"
@@ -309,7 +316,7 @@ glob = "0.3"
 # Optimize chrono - remove serde feature if not needed everywhere
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"
-indicatif = "0.17"
+indicatif = "0.18"
 console = "0.16"
 colored = "3.0"
 dialoguer = "0.12"
@@ -317,8 +324,8 @@ futures-util = "0.3"
 # Tracing ecosystem - standard for structured logging and spans
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
-# Pin to 0.3.9 - versions 0.3.10+ require Rust 2024 Edition (incompatible with MSRV 1.80)
-tracing-indicatif = "0.3.9"
+# Requires Rust 2024 Edition (workspace edition = "2024", rust-version = "1.93.0")
+tracing-indicatif = "0.3.14"
 
 # Lazy static initialization
 once_cell = "1.19"

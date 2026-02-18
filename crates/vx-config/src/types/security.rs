@@ -1,10 +1,12 @@
 //! Security scanning configuration
 
+#[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Security configuration (Phase 4)
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct SecurityConfig {
     /// Enable security scanning
@@ -37,7 +39,8 @@ pub struct SecurityConfig {
 }
 
 /// Security audit configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct SecurityAuditConfig {
     /// Enable dependency audit
@@ -58,7 +61,8 @@ pub struct SecurityAuditConfig {
 }
 
 /// Secret detection configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct SecretDetectionConfig {
     /// Enable secret detection
@@ -83,7 +87,8 @@ pub struct SecretDetectionConfig {
 }
 
 /// SAST configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct SastConfig {
     /// Enable SAST

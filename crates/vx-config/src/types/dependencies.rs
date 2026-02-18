@@ -1,11 +1,13 @@
 //! Dependencies configuration
 
+#[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Dependencies configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct DependenciesConfig {
     /// Generate lockfile
@@ -42,7 +44,8 @@ pub struct DependenciesConfig {
 }
 
 /// Node.js dependencies configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct NodeDependenciesConfig {
     /// Package manager (npm, yarn, pnpm, bun)
@@ -55,7 +58,8 @@ pub struct NodeDependenciesConfig {
 }
 
 /// Python dependencies configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct PythonDependenciesConfig {
     /// Index URL
@@ -68,7 +72,8 @@ pub struct PythonDependenciesConfig {
 }
 
 /// Go dependencies configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct GoDependenciesConfig {
     /// Go proxy URL (e.g., https://goproxy.cn, https://proxy.golang.org)
@@ -97,7 +102,8 @@ pub struct GoDependenciesConfig {
 }
 
 /// C++ dependencies configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct CppDependenciesConfig {
     /// Package manager (conan, vcpkg, cmake)
@@ -138,7 +144,8 @@ pub struct CppDependenciesConfig {
 }
 
 /// Constraint value
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
 pub enum ConstraintValue {
     /// Version constraint
@@ -148,7 +155,8 @@ pub enum ConstraintValue {
 }
 
 /// Detailed constraint
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct ConstraintDetails {
     /// Allowed licenses

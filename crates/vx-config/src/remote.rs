@@ -9,6 +9,106 @@ use crate::{CodespacesConfig, DevContainerConfig, GitpodConfig, RemoteConfig, Vx
 use serde_json::{Value, json};
 use std::collections::HashMap;
 
+/// Convert a serde_json::Value to a YAML string.
+/// This is a lightweight replacement for serde_yaml::to_string to avoid
+/// the deprecated serde_yaml dependency (~55s compile time savings).
+fn json_value_to_yaml(value: &Value) -> String {
+    let mut output = String::new();
+    write_yaml_value(&mut output, value, 0, false);
+    output
+}
+
+fn write_yaml_value(out: &mut String, value: &Value, indent: usize, inline: bool) {
+    match value {
+        Value::Null => out.push_str("null"),
+        Value::Bool(b) => out.push_str(&b.to_string()),
+        Value::Number(n) => out.push_str(&n.to_string()),
+        Value::String(s) => {
+            // Quote strings that contain special YAML characters
+            if s.is_empty()
+                || s.contains(':')
+                || s.contains('#')
+                || s.contains('\n')
+                || s.contains('"')
+                || s.contains('\'')
+                || s.starts_with(' ')
+                || s.ends_with(' ')
+                || s == "true"
+                || s == "false"
+                || s == "null"
+                || s.parse::<f64>().is_ok()
+            {
+                // Use double-quoted style with escaping
+                out.push('"');
+                for c in s.chars() {
+                    match c {
+                        '"' => out.push_str("\\\""),
+                        '\\' => out.push_str("\\\\"),
+                        '\n' => out.push_str("\\n"),
+                        '\t' => out.push_str("\\t"),
+                        _ => out.push(c),
+                    }
+                }
+                out.push('"');
+            } else {
+                out.push_str(s);
+            }
+        }
+        Value::Array(arr) => {
+            if arr.is_empty() {
+                out.push_str("[]");
+                return;
+            }
+            for (i, item) in arr.iter().enumerate() {
+                if i > 0 || !inline {
+                    if i > 0 {
+                        out.push('\n');
+                    }
+                    for _ in 0..indent {
+                        out.push(' ');
+                    }
+                }
+                out.push_str("- ");
+                match item {
+                    Value::Object(_) | Value::Array(_) => {
+                        // For complex items, write inline first key then indent rest
+                        write_yaml_value(out, item, indent + 2, true);
+                    }
+                    _ => write_yaml_value(out, item, indent + 2, false),
+                }
+            }
+        }
+        Value::Object(map) => {
+            if map.is_empty() {
+                out.push_str("{}");
+                return;
+            }
+            for (i, (key, val)) in map.iter().enumerate() {
+                if i > 0 || !inline {
+                    if i > 0 {
+                        out.push('\n');
+                    }
+                    for _ in 0..indent {
+                        out.push(' ');
+                    }
+                }
+                out.push_str(key);
+                out.push(':');
+                match val {
+                    Value::Object(_) | Value::Array(_) => {
+                        out.push('\n');
+                        write_yaml_value(out, val, indent + 2, false);
+                    }
+                    _ => {
+                        out.push(' ');
+                        write_yaml_value(out, val, indent, false);
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Remote development configuration generator
 pub struct RemoteGenerator;
 
@@ -351,10 +451,7 @@ impl RemoteGenerator {
                 && gitpod.enabled != Some(false)
             {
                 let content = Self::generate_gitpod(config, gitpod);
-                files.insert(
-                    ".gitpod.yml".to_string(),
-                    serde_yaml::to_string(&content).unwrap_or_default(),
-                );
+                files.insert(".gitpod.yml".to_string(), json_value_to_yaml(&content));
             }
         }
 
@@ -375,7 +472,7 @@ pub fn generate_gitpod_yml(config: &VxConfig, remote_config: &RemoteConfig) -> S
     let gitpod = remote_config.gitpod.clone().unwrap_or_default();
 
     let content = RemoteGenerator::generate_gitpod(config, &gitpod);
-    serde_yaml::to_string(&content).unwrap_or_default()
+    json_value_to_yaml(&content)
 }
 
 #[cfg(test)]

@@ -245,7 +245,7 @@ async fn handle_ci_test(ctx: &CommandContext, opts: &Args) -> Result<()> {
     // Create a custom runtime context if using custom root
     let custom_context = test_root
         .as_ref()
-        .map(vx_runtime::create_runtime_context_with_base);
+        .map(vx_runtime_http::create_runtime_context_with_base);
 
     let runtime_context = custom_context
         .as_ref()

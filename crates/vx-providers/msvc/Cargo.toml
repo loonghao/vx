@@ -21,6 +21,7 @@ async-trait = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 walkdir = { workspace = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [target.'cfg(windows)'.dependencies]
 # MSVC installation via msvc-kit (0.2.10 adds MsvcComponent for extensible component selection, see loonghao/msvc-kit#88)

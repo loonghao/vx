@@ -9,17 +9,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
-name = "aes"
-version = "0.8.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b169f7a6d4742236a0a00c541b845991d0ac43e546831af1249753ab4c3aa3a0"
-dependencies = [
- "cfg-if",
- "cipher",
- "cpufeatures",
-]
-
-[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -474,15 +463,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 
 [[package]]
-name = "bzip2"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3a53fac24f34a81bc9954b5d6cfce0c21e18ec6959f44f56e8e90e4bb7c346c"
-dependencies = [
- "libbz2-rs-sys",
-]
-
-[[package]]
 name = "cab"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -581,16 +561,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cipher"
-version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "773f3b9af64447d2ce9850330c473515014aa235e6a783b02db81ff39e4a3dad"
-dependencies = [
- "crypto-common",
- "inout",
-]
-
-[[package]]
 name = "clap"
 version = "4.5.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -684,19 +654,6 @@ checksum = "75984efb6ed102a0d42db99afb6c1948f0380d1d91808d5529916e6c08b49d8d"
 
 [[package]]
 name = "console"
-version = "0.15.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "054ccb5b10f9f2cbf51eb355ca1d05c2d279ce1804688d0db74b4733a5aeafd8"
-dependencies = [
- "encode_unicode",
- "libc",
- "once_cell",
- "unicode-width 0.2.2",
- "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "console"
 version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03e45a4a8926227e4197636ba97a9fc9b00477e9f4bd711395687c5f0734bec4"
@@ -707,12 +664,6 @@ dependencies = [
  "unicode-width 0.2.2",
  "windows-sys 0.61.2",
 ]
-
-[[package]]
-name = "constant_time_eq"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "core-foundation"
@@ -886,12 +837,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7a1e2f27636f116493b8b860f5546edb47c8d8f8ea73e1d2a20be88e28d1fea"
 
 [[package]]
-name = "deflate64"
-version = "0.1.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26bf8fc351c5ed29b5c2f0cbbac1b209b74f60ecd62e675a998df72c49af5204"
-
-[[package]]
 name = "deranged"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -906,7 +851,7 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25f104b501bf2364e78d0d3974cbc774f738f5865306ed128e1e0d7499c0ad96"
 dependencies = [
- "console 0.16.2",
+ "console",
  "shell-words",
  "tempfile",
  "zeroize",
@@ -932,7 +877,6 @@ checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
  "block-buffer",
  "crypto-common",
- "subtle",
 ]
 
 [[package]]
@@ -1304,12 +1248,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "139ef39800118c7683f2fd3c98c1b23c09ae076556b435f8e9064ae108aaeeec"
 dependencies = [
  "cfg-if",
- "js-sys",
  "libc",
  "r-efi",
  "wasip2",
  "wasip3",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -1452,15 +1394,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "hmac"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
-dependencies = [
- "digest",
 ]
 
 [[package]]
@@ -1770,24 +1703,11 @@ dependencies = [
 
 [[package]]
 name = "indicatif"
-version = "0.17.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "183b3088984b400f4cfac3620d5e076c84da5364016b4f49473de574b2586235"
-dependencies = [
- "console 0.15.11",
- "number_prefix",
- "portable-atomic",
- "unicode-width 0.2.2",
- "web-time",
-]
-
-[[package]]
-name = "indicatif"
 version = "0.18.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9375e112e4b463ec1b1c6c011953545c65a30164fbab5b581df32b3abf0dcb88"
 dependencies = [
- "console 0.16.2",
+ "console",
  "portable-atomic",
  "unicode-width 0.2.2",
  "unit-prefix",
@@ -1799,15 +1719,6 @@ name = "inlinable_string"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8fae54786f62fb2918dcfae3d568594e50eb9b5c25bf04371af6fe7516452fb"
-
-[[package]]
-name = "inout"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "879f10e63c20629ecabbb64a8010319738c66a5cd0c29b02d63d272b03751d01"
-dependencies = [
- "generic-array",
-]
 
 [[package]]
 name = "ipconfig"
@@ -1911,12 +1822,6 @@ name = "leb128fmt"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
-
-[[package]]
-name = "libbz2-rs-sys"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c4a545a15244c7d945065b5d392b2d2d7f21526fba56ce51467b06ed445e8f7"
 
 [[package]]
 name = "libc"
@@ -2155,7 +2060,7 @@ dependencies = [
  "futures",
  "hex",
  "humansize",
- "indicatif 0.18.3",
+ "indicatif",
  "redb",
  "reqwest 0.13.2",
  "serde",
@@ -2168,7 +2073,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "winreg 0.55.0",
- "zip 8.0.0",
+ "zip",
 ]
 
 [[package]]
@@ -2239,12 +2144,6 @@ checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
 ]
-
-[[package]]
-name = "number_prefix"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "once_cell"
@@ -2406,16 +2305,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
-name = "pbkdf2"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
-dependencies = [
- "digest",
- "hmac",
-]
-
-[[package]]
 name = "pear"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2521,12 +2410,6 @@ name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
-
-[[package]]
-name = "ppmd-rust"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efca4c95a19a79d1c98f791f10aebd5c1363b473244630bb7dbde1dc98455a24"
 
 [[package]]
 name = "ppv-lite86"
@@ -3329,19 +3212,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_yaml"
-version = "0.9.34+deprecated"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
-dependencies = [
- "indexmap",
- "itoa",
- "ryu",
- "serde",
- "unsafe-libyaml",
-]
-
-[[package]]
 name = "serial_test"
 version = "3.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3382,17 +3252,6 @@ dependencies = [
  "nt-time",
  "sha2",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "sha1"
-version = "0.10.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3bf829a2d51ab4a5ddf1352d8470c140cadc8301b2ae1789db023f01cedd6ba"
-dependencies = [
- "cfg-if",
- "cpufeatures",
- "digest",
 ]
 
 [[package]]
@@ -3845,21 +3704,6 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.9.12+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf92845e79fc2e2def6a5d828f0801e29a2f8acc037becc5ab08595c7d5e9863"
-dependencies = [
- "indexmap",
- "serde_core",
- "serde_spanned 1.0.4",
- "toml_datetime 0.7.5+spec-1.1.0",
- "toml_parser",
- "toml_writer",
- "winnow",
-]
-
-[[package]]
-name = "toml"
 version = "1.0.1+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbe30f93627849fa362d4a602212d41bb237dc2bd0f8ba0b2ce785012e124220"
@@ -4137,7 +3981,7 @@ dependencies = [
  "futures",
  "futures-util",
  "hickory-resolver",
- "indicatif 0.18.3",
+ "indicatif",
  "lru",
  "memmap2",
  "mimalloc",
@@ -4209,12 +4053,6 @@ name = "unit-prefix"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81e544489bf3d8ef66c953931f56617f423cd4b5494be343d9b9d3dda037b9a3"
-
-[[package]]
-name = "unsafe-libyaml"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "untrusted"
@@ -4319,6 +4157,7 @@ dependencies = [
  "vx-cli",
  "vx-core",
  "walkdir",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4332,6 +4171,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "vx-paths",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4340,6 +4180,7 @@ version = "0.8.1"
 dependencies = [
  "tempfile",
  "vx-paths",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4354,6 +4195,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4371,7 +4213,7 @@ dependencies = [
  "flate2",
  "futures-util",
  "glob",
- "indicatif 0.17.11",
+ "indicatif",
  "paste",
  "pretty_assertions",
  "regex",
@@ -4380,7 +4222,6 @@ dependencies = [
  "self-replace",
  "serde",
  "serde_json",
- "serde_yaml",
  "serial_test",
  "sha2",
  "strsim",
@@ -4389,7 +4230,7 @@ dependencies = [
  "test-case",
  "tokio",
  "tokio-test",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.0.1+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
  "vx-args",
@@ -4460,12 +4301,14 @@ dependencies = [
  "vx-provider-zig",
  "vx-resolver",
  "vx-runtime",
+ "vx-runtime-http",
  "vx-setup",
  "vx-shim",
  "walkdir",
  "which",
  "windows-sys 0.61.2",
- "zip 7.4.0",
+ "workspace-hack",
+ "zip",
 ]
 
 [[package]]
@@ -4480,14 +4323,14 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "serde_yaml",
  "sha2",
  "shellexpand",
  "tempfile",
  "thiserror 2.0.18",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.0.1+spec-1.1.0",
  "toml_edit 0.24.1+spec-1.1.0",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4496,8 +4339,8 @@ version = "0.8.1"
 dependencies = [
  "anstream",
  "anstyle",
- "console 0.16.2",
- "indicatif 0.17.11",
+ "console",
+ "indicatif",
  "libc",
  "once_cell",
  "pretty_assertions",
@@ -4508,6 +4351,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "windows-sys 0.61.2",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4527,6 +4371,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-test",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4544,6 +4389,7 @@ dependencies = [
  "tokio-test",
  "tracing",
  "which",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4563,6 +4409,7 @@ dependencies = [
  "vx-paths",
  "vx-resolver",
  "which",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4577,14 +4424,14 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.0.1+spec-1.1.0",
  "tracing",
  "vx-args",
  "vx-core",
  "vx-manifest",
  "vx-paths",
- "vx-runtime",
  "walkdir",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4598,7 +4445,7 @@ dependencies = [
  "dirs",
  "flate2",
  "futures-util",
- "indicatif 0.17.11",
+ "indicatif",
  "reqwest 0.13.2",
  "serde",
  "serde_json",
@@ -4614,7 +4461,8 @@ dependencies = [
  "urlencoding",
  "vx-paths",
  "walkdir",
- "zip 7.4.0",
+ "workspace-hack",
+ "zip",
  "zstd",
 ]
 
@@ -4628,9 +4476,10 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.18",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.0.1+spec-1.1.0",
  "tracing",
  "vx-paths",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4653,6 +4502,7 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-subscriber",
  "vx-paths",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4670,15 +4520,19 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.0.1+spec-1.1.0",
  "tracing",
  "uuid",
  "vx-paths",
+ "workspace-hack",
 ]
 
 [[package]]
 name = "vx-msbuild-bridge"
 version = "0.8.1"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "vx-paths"
@@ -4696,6 +4550,7 @@ dependencies = [
  "vx-cache",
  "walkdir",
  "which",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4713,13 +4568,14 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.0.1+spec-1.1.0",
  "tracing",
  "vx-config",
  "vx-core",
  "vx-paths",
  "walkdir",
  "which",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4733,6 +4589,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4746,6 +4603,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4759,6 +4617,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4768,12 +4627,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4787,6 +4646,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4802,6 +4662,7 @@ dependencies = [
  "vx-manifest",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4815,6 +4676,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4824,12 +4686,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4838,13 +4700,13 @@ version = "0.8.1"
 dependencies = [
  "anyhow",
  "async-trait",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4859,6 +4721,7 @@ dependencies = [
  "tokio",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4873,6 +4736,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4882,13 +4746,13 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4898,12 +4762,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4914,13 +4778,13 @@ dependencies = [
  "async-trait",
  "chrono",
  "regex",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4930,12 +4794,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4944,12 +4808,12 @@ version = "0.8.1"
 dependencies = [
  "anyhow",
  "async-trait",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4958,13 +4822,13 @@ version = "0.8.1"
 dependencies = [
  "anyhow",
  "async-trait",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4974,12 +4838,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4989,7 +4853,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
@@ -4997,6 +4860,7 @@ dependencies = [
  "tracing",
  "vx-manifest",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5011,6 +4875,7 @@ dependencies = [
  "tokio",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5025,6 +4890,7 @@ dependencies = [
  "tokio",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5035,7 +4901,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "regex",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
@@ -5044,6 +4909,7 @@ dependencies = [
  "vx-runtime",
  "vx-system-pm",
  "which",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5059,6 +4925,7 @@ dependencies = [
  "tracing",
  "vx-runtime",
  "walkdir",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5068,12 +4935,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5087,6 +4954,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5101,6 +4969,7 @@ dependencies = [
  "tokio",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5110,13 +4979,13 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5133,6 +5002,7 @@ dependencies = [
  "vx-paths",
  "vx-runtime",
  "which",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5151,6 +5021,7 @@ dependencies = [
  "vx-bridge",
  "vx-runtime",
  "walkdir",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5165,6 +5036,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5174,13 +5046,13 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5190,7 +5062,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
@@ -5198,6 +5069,7 @@ dependencies = [
  "tracing",
  "vx-manifest",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5211,6 +5083,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5219,13 +5092,13 @@ version = "0.8.1"
 dependencies = [
  "anyhow",
  "async-trait",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5241,6 +5114,7 @@ dependencies = [
  "vx-manifest",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5249,13 +5123,13 @@ version = "0.8.1"
 dependencies = [
  "anyhow",
  "async-trait",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5265,13 +5139,13 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5285,6 +5159,7 @@ dependencies = [
  "tracing",
  "vx-manifest",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5297,6 +5172,7 @@ dependencies = [
  "tracing",
  "vx-manifest",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5306,12 +5182,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5321,12 +5197,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5343,6 +5219,7 @@ dependencies = [
  "vx-manifest",
  "vx-runtime",
  "which",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5352,12 +5229,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5367,12 +5244,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5382,13 +5259,13 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5402,6 +5279,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5411,7 +5289,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
@@ -5420,6 +5297,7 @@ dependencies = [
  "vx-manifest",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5435,6 +5313,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5447,6 +5326,7 @@ dependencies = [
  "tracing",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5461,6 +5341,7 @@ dependencies = [
  "tokio",
  "vx-runtime",
  "which",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5478,6 +5359,7 @@ dependencies = [
  "vx-paths",
  "vx-runtime",
  "vx-version-fetcher",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5487,12 +5369,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5506,6 +5388,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5526,7 +5409,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-test",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.0.1+spec-1.1.0",
  "tracing",
  "vx-cache",
  "vx-config",
@@ -5537,6 +5420,7 @@ dependencies = [
  "vx-runtime",
  "walkdir",
  "which",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5545,40 +5429,28 @@ version = "0.8.1"
 dependencies = [
  "anyhow",
  "async-trait",
- "backon",
  "bincode",
  "chrono",
- "flate2",
  "futures-util",
  "glob",
- "indicatif 0.17.11",
  "libloading",
  "regex",
- "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",
- "sevenz-rust",
- "tar",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tokio-test",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.0.1+spec-1.1.0",
  "tracing",
- "turbo-cdn",
- "urlencoding",
  "vx-cache",
  "vx-core",
  "vx-manifest",
  "vx-paths",
- "vx-runtime-archive",
- "vx-runtime-core",
  "vx-system-pm",
  "which",
- "xz2",
- "zip 7.4.0",
- "zstd",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5594,8 +5466,9 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "workspace-hack",
  "xz2",
- "zip 7.4.0",
+ "zip",
  "zstd",
 ]
 
@@ -5613,6 +5486,38 @@ dependencies = [
  "tokio",
  "tracing",
  "vx-manifest",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-runtime-http"
+version = "0.8.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "backon",
+ "flate2",
+ "futures-util",
+ "indicatif",
+ "regex",
+ "reqwest 0.13.2",
+ "rstest",
+ "serde_json",
+ "sevenz-rust",
+ "tar",
+ "tempfile",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "turbo-cdn",
+ "urlencoding",
+ "vx-cache",
+ "vx-paths",
+ "vx-runtime",
+ "workspace-hack",
+ "xz2",
+ "zip",
+ "zstd",
 ]
 
 [[package]]
@@ -5629,6 +5534,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "vx-paths",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5645,6 +5551,7 @@ dependencies = [
  "vx-core",
  "vx-env",
  "vx-paths",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5662,11 +5569,12 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-test",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.0.1+spec-1.1.0",
  "tracing",
  "vx-ecosystem-pm",
  "which",
  "winreg 0.55.0",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5683,6 +5591,7 @@ dependencies = [
  "tokio-test",
  "tracing",
  "vx-runtime",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -6498,6 +6407,77 @@ dependencies = [
 ]
 
 [[package]]
+name = "workspace-hack"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "clap_builder",
+ "console",
+ "crossbeam-epoch",
+ "crossbeam-utils",
+ "errno",
+ "flate2",
+ "form_urlencoded",
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-sink",
+ "futures-util",
+ "getrandom 0.3.4",
+ "hashbrown 0.16.1",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "indexmap",
+ "libc",
+ "log",
+ "memchr",
+ "num-traits",
+ "once_cell",
+ "parking_lot",
+ "percent-encoding",
+ "portable-atomic",
+ "proc-macro2",
+ "quote",
+ "rand",
+ "regex",
+ "regex-automata",
+ "regex-syntax",
+ "reqwest 0.13.2",
+ "rustix",
+ "rustls",
+ "rustls-webpki",
+ "serde",
+ "serde_core",
+ "serde_json",
+ "simd-adler32",
+ "smallvec",
+ "syn",
+ "thiserror 2.0.18",
+ "time",
+ "time-macros",
+ "tokio",
+ "tokio-rustls",
+ "tokio-util",
+ "toml_parser",
+ "toml_writer",
+ "tower-http",
+ "tracing",
+ "tracing-core",
+ "tracing-log",
+ "tracing-subscriber",
+ "windows-sys 0.52.0",
+ "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
+ "winnow",
+ "zerocopy",
+ "zip",
+ "zstd",
+ "zstd-safe",
+ "zstd-sys",
+]
+
+[[package]]
 name = "writeable"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6597,20 +6577,6 @@ name = "zeroize"
 version = "1.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b97154e67e32c85465826e8bcc1c59429aaaf107c1e4a9e53c8d8ccd5eff88d0"
-dependencies = [
- "zeroize_derive",
-]
-
-[[package]]
-name = "zeroize_derive"
-version = "1.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85a5b4158499876c763cb03bc4e49185d3cccbabb15b33c627f7884f43db852e"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "zerotrie"
@@ -6647,42 +6613,18 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "7.4.0"
+version = "8.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc12baa6db2b15a140161ce53d72209dacea594230798c24774139b54ecaa980"
+checksum = "6e499faf5c6b97a0d086f4a8733de6d47aee2252b8127962439d8d4311a73f72"
 dependencies = [
- "aes",
- "bzip2",
- "constant_time_eq",
  "crc32fast",
- "deflate64",
  "flate2",
- "getrandom 0.4.1",
- "hmac",
  "indexmap",
  "memchr",
- "pbkdf2",
- "ppmd-rust",
- "sha1",
  "time",
  "typed-path",
- "zeroize",
  "zopfli",
  "zstd",
-]
-
-[[package]]
-name = "zip"
-version = "8.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79b32dd4ad3aca14ae109f8cce0495ac1c57f6f4f00ad459a40e582f89440d97"
-dependencies = [
- "crc32fast",
- "flate2",
- "indexmap",
- "memchr",
- "typed-path",
- "zopfli",
 ]
 
 [[package]]

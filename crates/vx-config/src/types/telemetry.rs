@@ -1,11 +1,13 @@
 //! Telemetry configuration
 
+#[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Telemetry configuration (Phase 4)
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct TelemetryConfig {
     /// Enable telemetry (default: false)
@@ -30,7 +32,8 @@ pub struct TelemetryConfig {
 }
 
 /// Build time tracking configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct BuildTrackingConfig {
     /// Enable build tracking
@@ -55,7 +58,8 @@ pub struct BuildTrackingConfig {
 }
 
 /// OTLP export configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(default)]
 pub struct OtlpConfig {
     /// Enable OTLP export

@@ -22,8 +22,9 @@ use vx_manifest::{ManifestLoader, ProviderManifest};
 use vx_paths::{PROJECT_VX_DIR, VxPaths, find_project_root};
 use vx_runtime::{
     BuildError, BuildWarning, ManifestRegistry, PluginLoader, Provider, ProviderRegistry, Runtime,
-    RuntimeContext, create_runtime_context, default_plugin_paths, init_constraints_from_manifests,
+    RuntimeContext, default_plugin_paths, init_constraints_from_manifests,
 };
+use vx_runtime_http::create_runtime_context;
 
 // Include the compile-time generated provider manifests
 include!(concat!(env!("OUT_DIR"), "/provider_manifests.rs"));
@@ -242,7 +243,6 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         nuget,
         winget,
         dagu,
-        actrun,
         prek,
         actrun,
         hadolint,
@@ -309,8 +309,8 @@ fn create_static_registry() -> ProviderRegistry {
         nuget,
         winget,
         dagu,
-        actrun,
         prek,
+        actrun,
         hadolint,
         // Tier 1: Unix-philosophy tools (RFC 0030)
         fzf,
