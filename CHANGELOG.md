@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2](https://github.com/loonghao/vx/compare/v0.8.1...v0.8.2) (2026-02-18)
+
+
+### Features
+
+* **build:** add rust-lld linker for faster builds (RFC 0032 Phase 1) ([60d7a17](https://github.com/loonghao/vx/commit/60d7a171600a9b22bc455c63fcf7e7b87e79b198))
+* **build:** add vx-runtime-core and vx-runtime-archive to workspace dependencies ([c0e13bd](https://github.com/loonghao/vx/commit/c0e13bdddb0d38e2d83bd3ef4f6c1b6971ae1844))
+* **build:** create vx-runtime-core and vx-runtime-archive (RFC 0032 Phase 2) ([5c2a118](https://github.com/loonghao/vx/commit/5c2a118f06c8471994f7012ff8423ba74d9c9589))
+* **build:** integrate vx-runtime-core and vx-runtime-archive (RFC 0032 Phase 2) ([cb49cb2](https://github.com/loonghao/vx/commit/cb49cb2d2fb0f609dcaddcc8230862cbed5a9788))
+
+
+### Bug Fixes
+
+* **ci:** remove lld linker on macOS due to compatibility issues ([1f283d7](https://github.com/loonghao/vx/commit/1f283d76140a64b910a94f0196a5b897462934fd))
+* **macos:** make sevenz-rust optional to fix macOS build ([5042c58](https://github.com/loonghao/vx/commit/5042c582152491d3c8ac2844de7ed9edc56db988))
+
+
+### Performance Improvements
+
+* implement cargo-hakari workspace-hack + runtime/config refactoring ([aa28ce3](https://github.com/loonghao/vx/commit/aa28ce330be7605cc107a3159654327ddc5c6415))
+
+
+### Documentation
+
+* **rfc-0032:** update Plan D (hakari implemented), Plan E/F tracking status ([ad96225](https://github.com/loonghao/vx/commit/ad96225c7aaba5ac07f6979458468239dbf928a7))
+* **rfc:** update Phase 2 progress in RFC 0032 ([c70a461](https://github.com/loonghao/vx/commit/c70a46127563370e3373f783144548c56458e89e))
+* **rfc:** update Phase 2 status in RFC 0032 ([29e25c7](https://github.com/loonghao/vx/commit/29e25c76522013523eeda1a409de702cf1d31d3a))
+
 ## [0.8.1](https://github.com/loonghao/vx/compare/v0.8.0...v0.8.1) (2026-02-17)
 
 
