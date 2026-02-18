@@ -95,6 +95,7 @@ jobs:
               - 'examples/**'
               - 'clippy.toml'
               - 'rust-toolchain.toml'
+              - '.config/hakari.toml'
             docs:
               - 'docs/**'
             ci:
@@ -488,6 +489,12 @@ jobs:
         with:
           shared-key: quality
           save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Verify workspace-hack (cargo-hakari)
+        run: |
+          cargo install cargo-hakari --locked
+          cargo hakari generate --diff
+          cargo hakari manage-deps --dry-run
 
       - name: Check formatting (via vx)
         run: vx just format-check
