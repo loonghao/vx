@@ -243,6 +243,26 @@ unversioned (`vx-x86_64-pc-windows-msvc.zip`) copies of the same artifact. If th
 installers-regex: 'vx-(x86_64|aarch64)-pc-windows-msvc\.zip$'
 ```
 
+### WinGet Automatic Version Deletion
+
+**Problem**: When publishing a new version to WinGet, an automated PR is created to delete an older version, but it incorrectly identifies the highest version as "old" and attempts to delete it.
+
+**Example**: See [microsoft/winget-pkgs#340410](https://github.com/microsoft/winget-pkgs/pull/340410) where version 0.8.1 (the highest version at that time) was incorrectly marked for deletion.
+
+**Cause**: The `max-versions-to-keep` parameter in `vedantmgoyal9/winget-releaser` action triggers automatic deletion of old versions when the version count exceeds the threshold. However, this feature has a bug that can incorrectly identify the current highest version as "old" based on timestamp comparison.
+
+**Solution**: Removed the `max-versions-to-keep` parameter from the WinGet publishing configuration:
+
+```yaml
+# REMOVED: max-versions-to-keep: 5
+# This parameter causes winget-releaser to delete old versions automatically.
+# However, it has a bug that can incorrectly identify the highest version
+# as "old" and attempt to delete it.
+# Let WinGet maintain version history naturally without automatic deletions.
+```
+
+**Best Practice**: Let WinGet maintain its own version history. Package managers typically have their own policies for version management, and automatic deletion can lead to user disruption and incorrect version removal.
+
 ### Verifying Release Assets
 
 To verify release assets are available:

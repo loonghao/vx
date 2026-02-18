@@ -478,7 +478,11 @@ jobs:
           # Match ONLY cargo-dist original unversioned zip files to avoid duplicate entries.
           # Excludes versioned copies like vx-0.7.8-x86_64-pc-windows-msvc.zip
           installers-regex: 'vx-(x86_64|aarch64)-pc-windows-msvc\.zip$'
-          max-versions-to-keep: 5
+          # REMOVED: max-versions-to-keep parameter
+          # This parameter causes winget-releaser to delete old versions automatically.
+          # However, it has a bug that can incorrectly identify the highest version
+          # as "old" and attempt to delete it (see: https://github.com/microsoft/winget-pkgs/pull/340410).
+          # Let WinGet maintain version history naturally without automatic deletions.
           token: ${{ secrets.WINGET_TOKEN }}
 
   announce:

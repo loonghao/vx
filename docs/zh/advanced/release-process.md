@@ -242,6 +242,25 @@ if: |
 installers-regex: 'vx-(x86_64|aarch64)-pc-windows-msvc\.zip$'
 ```
 
+### WinGet 自动版本删除
+
+**问题**: 当发布新版本到 WinGet 时，会创建一个自动化 PR 来删除旧版本，但它错误地将最高版本识别为"旧版本"并尝试删除它。
+
+**示例**: 参见 [microsoft/winget-pkgs#340410](https://github.com/microsoft/winget-pkgs/pull/340410)，其中版本 0.8.1（当时的最高版本）被错误标记为删除。
+
+**原因**: `vedantmgoyal9/winget-releaser` 操作中的 `max-versions-to-keep` 参数会在版本数量超过阈值时触发自动删除旧版本。然而，此功能存在 bug，可能根据时间戳比较错误地将当前最高版本识别为"旧版本"。
+
+**解决方案**: 从 WinGet 发布配置中移除 `max-versions-to-keep` 参数：
+
+```yaml
+# 已移除: max-versions-to-keep: 5
+# 此参数会导致 winget-releaser 自动删除旧版本。
+# 然而，它存在 bug，可能会错误地将最高版本识别为"旧版本"并尝试删除。
+# 让 WinGet 自然维护版本历史，不进行自动删除。
+```
+
+**最佳实践**: 让 WinGet 维护自己的版本历史。包管理器通常有自己的版本管理策略，自动删除可能会导致用户中断和错误的版本删除。
+
 ### 验证发布资源
 
 要验证发布资源是否可用:
