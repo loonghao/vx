@@ -35,6 +35,7 @@ pub enum ArchiveFormat {
     /// ZIP archive (.zip)
     Zip,
     /// 7-Zip archive (.7z)
+    #[cfg(feature = "extended-formats")]
     SevenZ,
 }
 
@@ -52,7 +53,14 @@ impl ArchiveFormat {
         } else if path_str.ends_with(".zip") {
             Some(Self::Zip)
         } else if path_str.ends_with(".7z") {
-            Some(Self::SevenZ)
+            #[cfg(feature = "extended-formats")]
+            {
+                Some(Self::SevenZ)
+            }
+            #[cfg(not(feature = "extended-formats"))]
+            {
+                None
+            }
         } else {
             None
         }
@@ -85,6 +93,7 @@ impl ArchiveFormat {
         }
 
         // 7z magic: 7z\xBC\xAF\x27\x1C
+        #[cfg(feature = "extended-formats")]
         if magic[0] == 0x37
             && magic[1] == 0x7A
             && magic[2] == 0xBC
@@ -130,6 +139,7 @@ impl ArchiveExtractor {
             ArchiveFormat::TarXz => self.extract_tar_xz(archive, dest)?,
             ArchiveFormat::TarZst => self.extract_tar_zst(archive, dest)?,
             ArchiveFormat::Zip => self.extract_zip(archive, dest)?,
+            #[cfg(feature = "extended-formats")]
             ArchiveFormat::SevenZ => self.extract_7z(archive, dest)?,
         }
 
@@ -178,6 +188,7 @@ impl ArchiveExtractor {
         Ok(())
     }
 
+    #[cfg(feature = "extended-formats")]
     fn extract_7z(&self, archive: &Path, dest: &Path) -> Result<()> {
         sevenz_rust::decompress_file(archive, dest)
             .map_err(|e| anyhow!("Failed to extract 7z archive: {}", e))?;
@@ -218,6 +229,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(feature = "extended-formats")]
     fn test_format_detection() {
         assert_eq!(
             ArchiveFormat::from_path(Path::new("test.tar.gz")),

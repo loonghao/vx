@@ -43,7 +43,7 @@ flate2 = { workspace = true }
 xz2 = { workspace = true }
 zstd = { workspace = true }
 zip = { workspace = true }
-sevenz-rust = "0.6"
+sevenz-rust = { version = "0.6", optional = true }
 
 # Internal dependencies
 vx-runtime = { path = "../vx-runtime" }
@@ -58,6 +58,8 @@ workspace-hack = { version = "0.1", path = "../workspace-hack" }
 default = []
 # Feature for CDN acceleration - enables turbo-cdn for faster downloads in China
 cdn-acceleration = ["turbo-cdn"]
+# Feature for extended archive formats (includes 7z support)
+extended-formats = ["sevenz-rust"]
 
 [dev-dependencies]
 rstest = { workspace = true }

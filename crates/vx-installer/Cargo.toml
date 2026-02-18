@@ -30,7 +30,7 @@ zip = { workspace = true }
 tar = { workspace = true }
 flate2 = { workspace = true }
 zstd = { workspace = true }
-sevenz-rust = "0.6"
+sevenz-rust = { version = "0.6", optional = true }
 
 # Progress and UI
 indicatif = { workspace = true, optional = true }
@@ -76,8 +76,8 @@ harness = false
 
 [features]
 default = []
-# Feature for additional archive formats
-extended-formats = []
+# Feature for additional archive formats (includes 7z support)
+extended-formats = ["sevenz-rust"]
 # Feature for progress bars
 progress = ["indicatif"]
 # Feature for CDN acceleration
