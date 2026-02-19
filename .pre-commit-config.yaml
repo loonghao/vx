@@ -62,6 +62,26 @@ repos:
         language: system
         types_or: [yaml, json]
 
+  # Verify workspace-hack is up-to-date (prevents hakari drift)
+  - repo: local
+    hooks:
+      - id: cargo-hakari
+        name: cargo hakari check
+        entry: vx cargo hakari generate --diff
+        language: system
+        files: Cargo\.(toml|lock)$
+        pass_filenames: false
+
+  # Check justfile for duplicate recipe definitions
+  - repo: local
+    hooks:
+      - id: justfile-no-duplicate-recipes
+        name: justfile no duplicate recipes
+        entry: vx just --list
+        language: system
+        files: ^justfile$
+        pass_filenames: false
+
   # Common safety checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
