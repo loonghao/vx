@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3](https://github.com/loonghao/vx/compare/v0.8.2...v0.8.3) (2026-02-19)
+
+
+### Features
+
+* **ai:** implement RFC 0035 AI integration optimization ([7ab320c](https://github.com/loonghao/vx/commit/7ab320c0898678806829dcdc81673abab0453ce7))
+
+
+### Bug Fixes
+
+* change internal rustup/toolchain debug logs to trace level ([bdbbe93](https://github.com/loonghao/vx/commit/bdbbe938cdc463e7f6ef15f9f321077625a8305c))
+* **ci:** remove max-versions-to-keep from winget-releaser ([21fa5f7](https://github.com/loonghao/vx/commit/21fa5f768cedcc332238c90fc8db5633abc798c4))
+* **cli:** add --toon shortcut flag for TOON output format ([0a5cc91](https://github.com/loonghao/vx/commit/0a5cc9118fde4cc06dc6cd8cc428138cc49f0f8b))
+* **tests:** add missing OutputFormat argument to handle_list calls ([0756270](https://github.com/loonghao/vx/commit/07562706ae789b2483a2f8a4023f34f3b6e3e824))
+
+
+### Performance Improvements
+
+* optimize test and build configuration ([7228164](https://github.com/loonghao/vx/commit/7228164be85faaac1bc9585ab9e0a5b1d7c73544))
+
+
+### Documentation
+
+* add llms.txt and llms-full.txt following llmstxt.org protocol ([6499b09](https://github.com/loonghao/vx/commit/6499b096a8eb0ad733ebe4b9af352ef32edd5c60))
+* add pre-commit hooks documentation (EN/ZH) and update contributing guides ([770a4f5](https://github.com/loonghao/vx/commit/770a4f535d89f905cd17a3913db349be98d506dc))
+* **cargo:** add fast build optimizations inspired by Bevy ([09c2311](https://github.com/loonghao/vx/commit/09c2311e8c06e26146c4b8d261a85e34fa196488))
+* sync zh contributing.md and add zh fixes docs ([ef91ea0](https://github.com/loonghao/vx/commit/ef91ea050d611b1f3ce6a58f413182e6b4367e38))
+
 ## [0.8.2](https://github.com/loonghao/vx/compare/v0.8.1...v0.8.2) (2026-02-18)
 
 
