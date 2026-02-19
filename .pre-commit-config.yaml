@@ -43,6 +43,16 @@ repos:
         types: [rust]
         pass_filenames: false
 
+  # Check test compilation (catches E0061 and other test-only errors)
+  - repo: local
+    hooks:
+      - id: cargo-check-tests
+        name: cargo check --tests
+        entry: vx cargo check --workspace --tests
+        language: system
+        types: [rust]
+        pass_filenames: false
+
   # YAML/JSON formatting
   - repo: local
     hooks:
