@@ -361,6 +361,8 @@ pub enum ArchiveFormat {
     TarXz,
     TarBz2,
     SevenZip,
+    /// Windows Installer package (.msi)
+    Msi,
 }
 
 /// Builder for InstallConfig

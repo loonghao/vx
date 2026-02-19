@@ -74,7 +74,9 @@ pub async fn handle(
         (rt_name, exe.to_string())
     } else if let Some(runtime) = registry.get_runtime(runtime_part) {
         let canonical = runtime.name().to_string();
-        let exe = canonical.clone();
+        // Use executable_name() which may differ from the runtime name
+        // e.g. runtime name "7zip" has executable "7z"
+        let exe = runtime.executable_name().to_string();
         UI::debug(&format!(
             "Resolved '{}' to canonical='{}', exe='{}'",
             tool, canonical, exe

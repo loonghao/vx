@@ -193,22 +193,29 @@ async fn test_7zip_download_url_version_format() {
 }
 
 #[tokio::test]
-async fn test_7zip_download_url_windows_no_installer() {
-    // Windows should NOT use .msi installer (not supported by vx-installer)
+async fn test_7zip_download_url_windows_uses_msi() {
+    // Windows uses .msi installer (extracted via msiexec /a, no registry changes)
     let runtime = SevenZipRuntime::new();
     let platform = Platform::new(Os::Windows, Arch::X86_64);
     let url = runtime.download_url("24.09", &platform).await.unwrap();
 
-    if let Some(url) = url {
-        // If there's a URL, it should be a portable/zip format, not an installer
-        // Note: .exe can be a self-extracting archive (SFX), which is acceptable
-        // but .msi is not supported
-        assert!(
-            !url.ends_with(".msi"),
-            "Windows URL should not use .msi installer, got: {}",
-            url
-        );
-    }
+    assert!(url.is_some(), "Windows x64 should have a download URL");
+    let url = url.unwrap();
+    assert!(
+        url.ends_with(".msi"),
+        "Windows x64 URL should use .msi installer, got: {}",
+        url
+    );
+    assert!(
+        url.contains("x64"),
+        "Windows x64 URL should contain 'x64', got: {}",
+        url
+    );
+    assert!(
+        url.contains("2409"),
+        "Windows URL should contain compact version '2409', got: {}",
+        url
+    );
 }
 
 // ============================================================================
@@ -225,17 +232,18 @@ fn test_7zip_provider_name() {
 fn test_7zip_provider_description() {
     let provider = SevenZipProvider::new();
     let desc = provider.description();
-    assert!(
-        !desc.is_empty(),
-        "provider description should not be empty"
-    );
+    assert!(!desc.is_empty(), "provider description should not be empty");
 }
 
 #[rstest]
 fn test_7zip_provider_runtimes() {
     let provider = SevenZipProvider::new();
     let runtimes = provider.runtimes();
-    assert_eq!(runtimes.len(), 1, "7zip provider should have exactly 1 runtime");
+    assert_eq!(
+        runtimes.len(),
+        1,
+        "7zip provider should have exactly 1 runtime"
+    );
 
     let runtime = &runtimes[0];
     assert_eq!(runtime.name(), "7zip");
@@ -255,10 +263,7 @@ fn test_7zip_provider_supports_aliases() {
     let runtimes = provider.runtimes();
     let runtime = &runtimes[0];
     let aliases = runtime.aliases();
-    assert!(
-        aliases.contains(&"7z"),
-        "runtime should expose '7z' alias"
-    );
+    assert!(aliases.contains(&"7z"), "runtime should expose '7z' alias");
 }
 
 #[rstest]

@@ -18,6 +18,44 @@ use std::time::SystemTime;
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
+/// Resolved install layout from a Starlark `install_layout()` descriptor
+///
+/// The Starlark script returns a descriptor dict (e.g. from `msi_install()`,
+/// `archive_install()`, or `binary_install()` in install.star). The Rust layer
+/// resolves the descriptor into this typed struct and performs the actual I/O.
+#[derive(Debug, Clone)]
+pub enum InstallLayout {
+    /// MSI package installation (Windows only)
+    Msi {
+        /// Download URL for the .msi file
+        url: String,
+        /// Relative paths to executables within the extracted MSI
+        executable_paths: Vec<String>,
+        /// Directory prefix to strip from extracted paths
+        strip_prefix: Option<String>,
+        /// Extra msiexec command-line properties
+        extra_args: Vec<String>,
+    },
+    /// Archive installation (ZIP, TAR.GZ, TAR.XZ, etc.)
+    Archive {
+        /// Download URL for the archive
+        url: String,
+        /// Directory prefix to strip from extracted paths
+        strip_prefix: Option<String>,
+        /// Relative paths to executables within the extracted archive
+        executable_paths: Vec<String>,
+    },
+    /// Single binary installation
+    Binary {
+        /// Download URL for the binary
+        url: String,
+        /// Target filename for the downloaded binary
+        executable_name: Option<String>,
+        /// Unix file permissions (e.g. "755")
+        permissions: String,
+    },
+}
+
 /// Provider metadata parsed from the script
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProviderMeta {
@@ -399,6 +437,31 @@ impl StarlarkProvider {
         self.execute_prepare_environment(&ctx, version).await
     }
 
+    /// Call the `download_url` function
+    ///
+    /// Returns the download URL for a specific version, or `None` if the
+    /// platform is not supported.
+    pub async fn download_url(&self, version: &str) -> Result<Option<String>> {
+        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+            .with_sandbox(self.sandbox.clone())
+            .with_version(version);
+
+        self.execute_download_url(&ctx, version).await
+    }
+
+    /// Call the `install_layout` function and resolve the returned descriptor
+    ///
+    /// Returns the resolved [`InstallLayout`] that describes how to install
+    /// the tool, or `None` if the script returns `None` (e.g. unsupported
+    /// platform) or the function is not defined.
+    pub async fn install_layout(&self, version: &str) -> Result<Option<InstallLayout>> {
+        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+            .with_sandbox(self.sandbox.clone())
+            .with_version(version);
+
+        self.execute_install_layout(&ctx, version).await
+    }
+
     // === Internal Execution Methods ===
 
     /// Execute fetch_versions function using the Starlark engine
@@ -661,6 +724,231 @@ impl StarlarkProvider {
                 }
             }
             Err(Error::FunctionNotFound { .. }) => Ok(HashMap::new()),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Execute download_url function using the Starlark engine
+    ///
+    /// Returns the download URL string, or `None` if the script returns `None`
+    /// (e.g. unsupported platform) or the function is not defined.
+    async fn execute_download_url(
+        &self,
+        ctx: &ProviderContext,
+        version: &str,
+    ) -> Result<Option<String>> {
+        let engine = self.engine();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "download_url",
+            ctx,
+            &[serde_json::Value::String(version.to_string())],
+        );
+
+        match result {
+            Ok(json) => {
+                if json.is_null() {
+                    Ok(None)
+                } else if let Some(url) = json.as_str() {
+                    Ok(Some(url.to_string()))
+                } else {
+                    Ok(None)
+                }
+            }
+            Err(Error::FunctionNotFound { .. }) => {
+                debug!(
+                    provider = %self.meta.name,
+                    "download_url() not found in provider script"
+                );
+                Ok(None)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Execute install_layout function using the Starlark engine
+    ///
+    /// Handles three descriptor shapes returned by install.star helpers:
+    ///
+    /// 1. **`msi_install`** descriptor — Windows MSI package:
+    ///    ```json
+    ///    { "__type": "msi_install", "url": "...", "executable_paths": [...],
+    ///      "strip_prefix": "...", "extra_args": [...] }
+    ///    ```
+    ///
+    /// 2. **`archive_install`** descriptor — ZIP / TAR archive:
+    ///    ```json
+    ///    { "__type": "archive_install", "url": "...", "strip_prefix": "...",
+    ///      "executable_paths": [...] }
+    ///    ```
+    ///
+    /// 3. **`binary_install`** descriptor — single executable file:
+    ///    ```json
+    ///    { "__type": "binary_install", "url": "...", "executable_name": "...",
+    ///      "permissions": "755" }
+    ///    ```
+    ///
+    /// Returns `None` if the script returns `None` (unsupported platform) or
+    /// the function is not defined.
+    async fn execute_install_layout(
+        &self,
+        ctx: &ProviderContext,
+        version: &str,
+    ) -> Result<Option<InstallLayout>> {
+        let engine = self.engine();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "install_layout",
+            ctx,
+            &[serde_json::Value::String(version.to_string())],
+        );
+
+        match result {
+            Ok(json) => {
+                if json.is_null() {
+                    return Ok(None);
+                }
+
+                let type_str = json.get("__type").and_then(|t| t.as_str()).unwrap_or("");
+
+                match type_str {
+                    "msi_install" => {
+                        let url = json
+                            .get("url")
+                            .and_then(|u| u.as_str())
+                            .ok_or_else(|| {
+                                Error::EvalError("msi_install descriptor missing 'url'".into())
+                            })?
+                            .to_string();
+
+                        let executable_paths = json
+                            .get("executable_paths")
+                            .and_then(|p| p.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+
+                        let strip_prefix = json
+                            .get("strip_prefix")
+                            .and_then(|s| s.as_str())
+                            .map(|s| s.to_string());
+
+                        let extra_args = json
+                            .get("extra_args")
+                            .and_then(|a| a.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+
+                        debug!(
+                            provider = %self.meta.name,
+                            url = %url,
+                            "Resolved msi_install descriptor"
+                        );
+
+                        Ok(Some(InstallLayout::Msi {
+                            url,
+                            executable_paths,
+                            strip_prefix,
+                            extra_args,
+                        }))
+                    }
+
+                    "archive_install" => {
+                        let url = json
+                            .get("url")
+                            .and_then(|u| u.as_str())
+                            .ok_or_else(|| {
+                                Error::EvalError("archive_install descriptor missing 'url'".into())
+                            })?
+                            .to_string();
+
+                        let strip_prefix = json
+                            .get("strip_prefix")
+                            .and_then(|s| s.as_str())
+                            .map(|s| s.to_string());
+
+                        let executable_paths = json
+                            .get("executable_paths")
+                            .and_then(|p| p.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+
+                        debug!(
+                            provider = %self.meta.name,
+                            url = %url,
+                            "Resolved archive_install descriptor"
+                        );
+
+                        Ok(Some(InstallLayout::Archive {
+                            url,
+                            strip_prefix,
+                            executable_paths,
+                        }))
+                    }
+
+                    "binary_install" => {
+                        let url = json
+                            .get("url")
+                            .and_then(|u| u.as_str())
+                            .ok_or_else(|| {
+                                Error::EvalError("binary_install descriptor missing 'url'".into())
+                            })?
+                            .to_string();
+
+                        let executable_name = json
+                            .get("executable_name")
+                            .and_then(|n| n.as_str())
+                            .map(|s| s.to_string());
+
+                        let permissions = json
+                            .get("permissions")
+                            .and_then(|p| p.as_str())
+                            .unwrap_or("755")
+                            .to_string();
+
+                        debug!(
+                            provider = %self.meta.name,
+                            url = %url,
+                            "Resolved binary_install descriptor"
+                        );
+
+                        Ok(Some(InstallLayout::Binary {
+                            url,
+                            executable_name,
+                            permissions,
+                        }))
+                    }
+
+                    other => {
+                        warn!(
+                            provider = %self.meta.name,
+                            type_ = %other,
+                            "Unknown install_layout descriptor type, ignoring"
+                        );
+                        Ok(None)
+                    }
+                }
+            }
+            Err(Error::FunctionNotFound { .. }) => {
+                debug!(
+                    provider = %self.meta.name,
+                    "install_layout() not found in provider script"
+                );
+                Ok(None)
+            }
             Err(e) => Err(e),
         }
     }
