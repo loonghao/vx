@@ -4,38 +4,18 @@
 
 ## 开始之前
 
-1. Fork 仓库
-2. 克隆你的 fork
-3. 创建功能分支
-
-```bash
-git clone https://github.com/YOUR_USERNAME/vx.git
-cd vx
-git checkout -b feature/my-feature
-```
-
-## 开发环境
-
 ### 前提条件
 
 - Rust 1.80+
 - Git
 
-### 构建
+### 克隆与构建
 
 ```bash
+git clone https://github.com/loonghao/vx.git
+cd vx
 cargo build
 ```
-
-### 安装 Pre-commit Hooks
-
-vx 使用 [prek](https://prek.j178.dev/) 进行 pre-commit 检查。克隆仓库后执行一次安装：
-
-```bash
-vx prek install
-```
-
-这会安装在每次提交前自动检查代码的 hooks。详情请参阅 [Pre-commit Hooks](pre-commit-hooks)。
 
 ### 跨平台构建说明
 
@@ -59,23 +39,78 @@ cross build --release --target x86_64-unknown-linux-musl
 cross build --release --target aarch64-unknown-linux-musl
 ```
 
-### 测试
+### 运行测试
 
 ```bash
 cargo test
 ```
 
-### 代码检查
+### 运行 Clippy
 
 ```bash
 cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo fmt --check
+```
+
+### 格式化代码
+
+```bash
+cargo fmt
+```
+
+## 开发工作流
+
+### 1. 创建分支
+
+```bash
+git checkout -b feature/my-feature
+```
+
+### 2. 安装 Pre-commit Hooks
+
+vx 使用 [prek](https://prek.j178.dev/) 进行 pre-commit 检查。克隆仓库后执行一次安装：
+
+```bash
+vx prek install
+```
+
+这会安装在每次提交前自动检查代码的 hooks。详情请参阅 [Pre-commit Hooks](pre-commit-hooks)。
+
+### 3. 进行修改
+
+- 编写代码
+- 添加测试
+- 更新文档
+
+### 4. 本地测试
+
+```bash
+# 运行所有测试
+cargo test
+
+# 运行特定测试
+cargo test test_name
+
+# 带输出运行
+cargo test -- --nocapture
+```
+
+### 5. 检查代码质量
+
+```bash
+# 格式化
+cargo fmt
+
+# 代码检查
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+# 检查文档
+cargo doc --all-features --no-deps
 
 # 手动运行所有 pre-commit hooks
 vx prek run --all-files
 ```
 
-### 保持 workspace-hack 同步
+### 6. 保持 workspace-hack 同步
 
 在任何 `Cargo.toml` 中添加或更新依赖后，需要重新生成 workspace-hack：
 
@@ -87,6 +122,33 @@ cargo hakari manage-deps
 ```
 
 pre-commit hook 会在你忘记时自动捕获这个问题。
+
+### 7. 提交 PR
+
+- 推送你的分支
+- 创建 Pull Request
+- 填写 PR 模板
+
+## 代码规范
+
+### Rust 风格
+
+- 遵循 Rust 标准约定
+- 使用 `rustfmt` 格式化
+- 解决所有 Clippy 警告
+- 为公开 API 添加文档
+
+### 测试
+
+- 将测试放在 `tests/` 目录中
+- 使用 `rstest` 进行参数化测试
+- 追求良好的测试覆盖率
+
+### 文档
+
+- 为公开函数和类型添加文档
+- 在文档注释中包含示例
+- 根据需要更新用户文档
 
 ## 项目结构
 
@@ -104,6 +166,16 @@ vx/
 └── examples/           # 示例配置
 ```
 
+## 添加新 Provider
+
+1. 在 `crates/vx-providers/` 中创建 crate
+2. 实现 `Provider` trait
+3. 添加测试
+4. 在 `vx-cli/src/registry.rs` 中注册
+5. 更新文档
+
+详情请参阅 [Plugin Development](plugin-development)。
+
 ## 提交规范
 
 使用 [Conventional Commits](https://www.conventionalcommits.org/)：
@@ -112,23 +184,17 @@ vx/
 feat: 添加新功能
 fix: 修复问题
 docs: 更新文档
-refactor: 代码重构
 test: 添加测试
-chore: 杂项更改
+refactor: 代码重构
 ```
 
-## Pull Request
+## Pull Request 流程
 
-1. 确保所有测试通过
-2. 更新相关文档
-3. 描述你的更改
-4. 链接相关 issue
-
-## 代码风格
-
-- 遵循 Rust 标准风格
-- 使用 `cargo fmt` 格式化
-- 使用 `cargo clippy` 检查
+1. 确保 CI 通过
+2. 更新文档
+3. 为新功能添加测试
+4. 请求代码审查
+5. 处理反馈意见
 
 ## CI 流水线
 
@@ -204,9 +270,27 @@ CI 流水线采用 **crate 级别的变更检测** 优化，以最小化构建�
 2. 移除 Renovate 中关于 `bincode` 的规则
 3. 将代码迁移到 `bincode v3` API
 
-## 获取帮助
+## 报告问题
 
-- 提交 Issue
-- 加入讨论
+报告 Bug 时请提供：
 
-感谢你的贡献！
+1. 检查现有 Issues
+2. 包含 vx 版本（`vx --version`）
+3. 包含操作系统和 Shell 信息
+4. 提供复现步骤
+5. 包含错误信息
+
+## 功能请求
+
+1. 检查现有 Issues/Discussions
+2. 描述使用场景
+3. 如有可能，提出解决方案
+
+## 社区
+
+- [GitHub Issues](https://github.com/loonghao/vx/issues)
+- [GitHub Discussions](https://github.com/loonghao/vx/discussions)
+
+## 许可证
+
+通过贡献，你同意你的贡献将以 MIT 许可证授权。
