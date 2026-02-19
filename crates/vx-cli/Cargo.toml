@@ -88,6 +88,8 @@ vx-provider-yq = { workspace = true }
 vx-provider-starship = { workspace = true }
 # vcpkg - C++ package manager
 vx-provider-vcpkg = { workspace = true }
+# Jujutsu - Git-compatible DVCS
+vx-provider-jj = { workspace = true }
 # Bridge framework for embedded bridge binaries (MSBuild.exe etc.)
 vx-bridge = { workspace = true }
 clap = { workspace = true }

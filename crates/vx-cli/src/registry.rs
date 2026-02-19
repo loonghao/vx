@@ -255,6 +255,8 @@ pub fn create_manifest_registry() -> ManifestRegistry {
         starship,
         // vcpkg - C++ package manager
         vcpkg,
+        // Jujutsu - Git-compatible DVCS
+        jj,
     );
 
     registry
@@ -321,6 +323,8 @@ fn create_static_registry() -> ProviderRegistry {
         starship,
         // vcpkg - C++ package manager
         vcpkg,
+        // Jujutsu - Git-compatible DVCS
+        jj,
     );
 
     registry

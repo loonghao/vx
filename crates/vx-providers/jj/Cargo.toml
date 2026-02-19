@@ -1,0 +1,22 @@
+[package]
+name = "vx-provider-jj"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+vx-runtime = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[lib]
+name = "vx_provider_jj"
+path = "src/lib.rs"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+rstest = { workspace = true }
