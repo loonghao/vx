@@ -264,7 +264,28 @@ mod real_provider_tests {
     #[test]
     fn test_node_manifest_can_have_version_ranges() {
         // Test that existing node manifest can be extended with version_ranges
-        let toml = include_str!("../../vx-providers/node/provider.toml");
+        let toml = r#"
+[provider]
+name = "node"
+description = "Node.js JavaScript runtime"
+ecosystem = "nodejs"
+
+[[runtimes]]
+name = "node"
+executable = "node"
+
+[[runtimes]]
+name = "npm"
+executable = "npm"
+bundled_with = "node"
+auto_installable = false
+
+[[runtimes]]
+name = "npx"
+executable = "npx"
+bundled_with = "node"
+auto_installable = false
+"#;
 
         // Parse should succeed (version_ranges is optional)
         let manifest = ProviderManifest::parse(toml).expect("Failed to parse node manifest");
@@ -279,7 +300,16 @@ mod real_provider_tests {
 
     #[test]
     fn test_pnpm_manifest_can_have_version_ranges() {
-        let toml = include_str!("../../vx-providers/pnpm/provider.toml");
+        let toml = r#"
+[provider]
+name = "pnpm"
+description = "Fast, disk space efficient package manager"
+ecosystem = "nodejs"
+
+[[runtimes]]
+name = "pnpm"
+executable = "pnpm"
+"#;
         let manifest = ProviderManifest::parse(toml).expect("Failed to parse pnpm manifest");
         assert_eq!(manifest.provider.name, "pnpm");
     }

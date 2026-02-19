@@ -73,6 +73,7 @@ vx-provider-pwsh = { workspace = true }
 vx-provider-dotnet = { workspace = true }
 vx-provider-msbuild = { workspace = true }
 vx-provider-nuget = { workspace = true }
+vx-provider-7zip = { workspace = true }
 vx-provider-winget = { workspace = true }
 vx-provider-dagu = { workspace = true }
 vx-provider-prek = { workspace = true }

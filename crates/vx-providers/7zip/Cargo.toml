@@ -1,0 +1,27 @@
+[package]
+name = "vx-provider-7zip"
+version.workspace = true
+edition.workspace = true
+description = "7-Zip file archiver provider for vx"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "vx_provider_7zip"
+
+[dependencies]
+vx-runtime = { workspace = true }
+serde = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+which = "8.0"
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
