@@ -398,11 +398,11 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.cache/sccache
-          key: ${{ runner.os }}-sccache-${{ matrix.platform.target }}-${{ hashFiles('Cargo.lock') }}
-
+          key: sccache-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-sccache-${{ matrix.platform.target }}-
-            ${{ runner.os }}-sccache-
+            sccache-v2-${{ runner.os }}-
+            sccache-v2-
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
@@ -478,11 +478,11 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.cache/sccache
-          key: ${{ runner.os }}-sccache-quality-${{ hashFiles('Cargo.lock') }}
-
+          key: sccache-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-sccache-quality-
-            ${{ runner.os }}-sccache-
+            sccache-v2-${{ runner.os }}-
+            sccache-v2-
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
@@ -584,11 +584,11 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.cache/sccache
-          key: ${{ runner.os }}-sccache-test-${{ matrix.platform.name }}-${{ hashFiles('Cargo.lock') }}
+          key: sccache-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-sccache-test-${{ matrix.platform.name }}-
-            ${{ runner.os }}-sccache-test-
-            ${{ runner.os }}-sccache-
+            sccache-v2-${{ runner.os }}-
+            sccache-v2-
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Add Rust to PATH (Windows)
         if: runner.os == 'Windows'
@@ -696,11 +696,11 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.cache/sccache
-          key: ${{ runner.os }}-sccache-test-${{ matrix.platform.name }}-${{ hashFiles('Cargo.lock') }}
+          key: sccache-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-sccache-test-${{ matrix.platform.name }}-
-            ${{ runner.os }}-sccache-test-
-            ${{ runner.os }}-sccache-
+            sccache-v2-${{ runner.os }}-
+            sccache-v2-
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Add Rust to PATH (Windows)
         if: runner.os == 'Windows'
@@ -850,11 +850,11 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.cache/sccache
-          key: ${{ runner.os }}-sccache-coverage-${{ hashFiles('Cargo.lock') }}
-
+          key: sccache-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-sccache-coverage-
-            ${{ runner.os }}-sccache-
+            sccache-v2-${{ runner.os }}-
+            sccache-v2-
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
