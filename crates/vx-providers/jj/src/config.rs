@@ -1,7 +1,8 @@
 //! URL builder and platform configuration for Jujutsu (jj)
 //!
 //! jj releases are available at: https://github.com/jj-vcs/jj/releases
-//! Download URL format: https://github.com/jj-vcs/jj/releases/download/v{version}/jj-v{version}-{target}.{ext}
+//! Download URL format: https://github.com/jj-vcs/jj/releases/download/{version}/jj-{version}-{target}.{ext}
+//! Note: version includes 'v' prefix (e.g., v0.38.0)
 
 use vx_runtime::{Arch, Os, Platform};
 
@@ -13,11 +14,12 @@ impl JjUrlBuilder {
     const BASE_URL: &'static str = "https://github.com/jj-vcs/jj/releases/download";
 
     /// Build the download URL for a specific version and platform
+    /// Note: version includes 'v' prefix (e.g., "v0.38.0")
     pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
         let target = Self::get_target_triple(platform)?;
         let ext = Self::get_archive_extension(platform);
         Some(format!(
-            "{}/v{}/jj-v{}-{}.{}",
+            "{}/{}/jj-{}-{}.{}",
             Self::BASE_URL,
             version,
             version,
@@ -75,7 +77,7 @@ mod tests {
     #[test]
     fn test_download_url_linux_x64() {
         let platform = Platform::new(Os::Linux, Arch::X86_64);
-        let url = JjUrlBuilder::download_url("0.38.0", &platform);
+        let url = JjUrlBuilder::download_url("v0.38.0", &platform);
         assert_eq!(
             url,
             Some("https://github.com/jj-vcs/jj/releases/download/v0.38.0/jj-v0.38.0-x86_64-unknown-linux-musl.tar.gz".to_string())
@@ -85,7 +87,7 @@ mod tests {
     #[test]
     fn test_download_url_windows_x64() {
         let platform = Platform::new(Os::Windows, Arch::X86_64);
-        let url = JjUrlBuilder::download_url("0.38.0", &platform);
+        let url = JjUrlBuilder::download_url("v0.38.0", &platform);
         assert_eq!(
             url,
             Some("https://github.com/jj-vcs/jj/releases/download/v0.38.0/jj-v0.38.0-x86_64-pc-windows-msvc.zip".to_string())
@@ -95,7 +97,7 @@ mod tests {
     #[test]
     fn test_download_url_macos_arm64() {
         let platform = Platform::new(Os::MacOS, Arch::Aarch64);
-        let url = JjUrlBuilder::download_url("0.38.0", &platform);
+        let url = JjUrlBuilder::download_url("v0.38.0", &platform);
         assert_eq!(
             url,
             Some("https://github.com/jj-vcs/jj/releases/download/v0.38.0/jj-v0.38.0-aarch64-apple-darwin.tar.gz".to_string())
@@ -105,7 +107,7 @@ mod tests {
     #[test]
     fn test_download_url_macos_x64() {
         let platform = Platform::new(Os::MacOS, Arch::X86_64);
-        let url = JjUrlBuilder::download_url("0.38.0", &platform);
+        let url = JjUrlBuilder::download_url("v0.38.0", &platform);
         assert_eq!(
             url,
             Some("https://github.com/jj-vcs/jj/releases/download/v0.38.0/jj-v0.38.0-x86_64-apple-darwin.tar.gz".to_string())

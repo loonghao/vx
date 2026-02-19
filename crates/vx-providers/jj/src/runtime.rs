@@ -70,9 +70,7 @@ impl Runtime for JjRuntime {
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
         // Use the JjUrlBuilder for correct URL construction
-        Ok(crate::config::JjUrlBuilder::download_url(
-            version, platform,
-        ))
+        Ok(crate::config::JjUrlBuilder::download_url(version, platform))
     }
 
     fn executable_layout(&self) -> Option<ExecutableLayout> {

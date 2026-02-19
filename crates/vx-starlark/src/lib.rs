@@ -7,6 +7,9 @@
 //! - **Sandbox security model** for safe script execution
 //! - **ProviderContext API** for Starlark scripts to interact with vx
 //! - **Hybrid format support** for both TOML and Starlark providers
+//! - **@vx//stdlib module system** for shared utilities (Buck2-inspired load())
+//! - **Two-phase execution** (Analysis → Execution, Buck2-inspired)
+//! - **Incremental analysis cache** (content-hash based, Buck2-inspired)
 //!
 //! ## Overview
 //!
@@ -14,21 +17,25 @@
 //! use vx_starlark::{StarlarkProvider, SandboxConfig};
 //!
 //! // Load a Starlark provider
-//! let provider = StarlarkProvider::load("path/to/provider.star")?;
+//! let provider = StarlarkProvider::load("path/to/provider.star").await?;
 //!
 //! // Call provider functions
-//! let versions = provider.call("fetch_versions", &ctx)?;
+//! let versions = provider.fetch_versions().await?;
 //! ```
 
 pub mod context;
+pub mod engine;
 pub mod error;
+pub mod loader;
 pub mod provider;
 pub mod sandbox;
 pub mod stdlib;
 
 // Re-exports
 pub use context::ProviderContext;
+pub use engine::StarlarkEngine;
 pub use error::{Error, Result};
+pub use loader::VxModuleLoader;
 pub use provider::StarlarkProvider;
 pub use sandbox::SandboxConfig;
 
