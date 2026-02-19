@@ -227,6 +227,7 @@ mod search_tests {
 
 mod versions_tests {
     use super::*;
+    use vx_cli::cli::OutputFormat;
     use vx_cli::commands::fetch;
 
     #[rstest]
@@ -243,9 +244,10 @@ mod versions_tests {
             &ctx,
             tool_name,
             Some(5), // latest
+            false,   // include_prerelease
             false,   // detailed
             false,   // interactive
-            false,   // prerelease
+            vx_cli::cli::OutputFormat::Text,
         )
         .await;
         // This may fail due to network issues, but should not panic
@@ -263,9 +265,10 @@ mod versions_tests {
             &ctx,
             "node",
             Some(3),
-            false,
-            false,
-            true, // include prerelease
+            true,  // include prerelease
+            false, // detailed
+            false, // interactive
+            vx_cli::cli::OutputFormat::Text,
         )
         .await;
         let _ = result;
@@ -282,9 +285,10 @@ mod versions_tests {
             &ctx,
             "nonexistent-tool-xyz",
             Some(5),
-            false,
-            false,
-            false,
+            false, // include_prerelease
+            false, // detailed
+            false, // interactive
+            vx_cli::cli::OutputFormat::Text,
         )
         .await;
         // Should return an error for unknown tool
@@ -989,9 +993,10 @@ mod error_handling_tests {
             &ctx,
             "invalid-tool-xyz",
             Some(5),
-            false,
-            false,
-            false,
+            false, // include_prerelease
+            false, // detailed
+            false, // interactive
+            vx_cli::OutputFormat::Text,
         )
         .await;
         let _ = install::handle_install(&registry, &ctx, &["invalid-tool-xyz".to_string()], false)
