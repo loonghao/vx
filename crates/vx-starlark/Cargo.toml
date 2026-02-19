@@ -21,6 +21,9 @@ starlark_derive = { version = "0.13" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
+# HTTP client (for resolving github_versions descriptors)
+reqwest = { workspace = true }
+
 # Utilities
 tokio = { workspace = true }
 once_cell = { workspace = true }

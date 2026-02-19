@@ -40,31 +40,86 @@ pub fn register_embedded_bridges() {
     vx_bridge::register_embedded_bridge("MSBuild", embedded_bridges::MSBUILD_BRIDGE_BYTES);
 }
 
-/// Macro to register all builtin providers
+/// Master list of all builtin providers.
 ///
-/// This macro generates the provider factory registration code,
-/// reducing boilerplate and ensuring consistency.
+/// This single source of truth drives both `register_providers!` (static
+/// registration) and `register_provider_factories!` (manifest-driven lazy
+/// registration), eliminating the need to maintain two identical lists.
 ///
-/// # Usage
-///
-/// ```rust,ignore
-/// register_providers!(
-///     node, go, rust, uv, bun, pnpm, yarn, vscode, just, vite,
-///     rez, deno, zig, java, terraform, kubectl, helm, rcedit,
-///     git, choco, docker, awscli, azcli, gcloud, ninja, cmake,
-///     protoc, task, pre_commit, ollama, spack,
-///     release_please, python, msvc,
-/// );
-/// ```
+/// To add a new provider: add its name here **once** and nowhere else in this file.
+macro_rules! for_each_provider {
+    ($macro:ident, $registry:expr) => {
+        $macro!(
+            $registry,
+            node,
+            go,
+            rust,
+            uv,
+            bun,
+            pnpm,
+            yarn,
+            vscode,
+            just,
+            jq,
+            deno,
+            zig,
+            java,
+            terraform,
+            kubectl,
+            helm,
+            rcedit,
+            git,
+            choco,
+            brew,
+            docker,
+            awscli,
+            azcli,
+            gcloud,
+            ninja,
+            cmake,
+            make,
+            protoc,
+            task,
+            ollama,
+            spack,
+            python,
+            msvc,
+            ffmpeg,
+            nasm,
+            gh,
+            imagemagick,
+            pwsh,
+            dotnet,
+            msbuild,
+            nuget,
+            winget,
+            dagu,
+            prek,
+            actrun,
+            hadolint,
+            // Tier 1: Unix-philosophy tools (RFC 0030)
+            fzf,
+            ripgrep,
+            fd,
+            bat,
+            yq,
+            starship,
+            // vcpkg - C++ package manager
+            vcpkg,
+            // Jujutsu - Git-compatible DVCS
+            jj,
+        );
+    };
+}
+
+/// Register all builtin providers into a static `ProviderRegistry`.
 macro_rules! register_providers {
-    // Match provider names, handling both underscore and hyphen variants
     ($registry:expr, $($name:ident),* $(,)?) => {
         $(
             register_providers!(@single $registry, $name);
         )*
     };
 
-    // Single provider registration with name mapping
     (@single $registry:expr, $name:ident) => {
         paste::paste! {
             $registry.register([<vx_provider_ $name>]::create_provider());
@@ -72,7 +127,7 @@ macro_rules! register_providers {
     };
 }
 
-/// Macro to register provider factories for manifest-driven registration
+/// Register provider factories into a `ManifestRegistry` for lazy loading.
 macro_rules! register_provider_factories {
     ($registry:expr, $($name:ident),* $(,)?) => {
         $(
@@ -80,7 +135,6 @@ macro_rules! register_provider_factories {
         )*
     };
 
-    // Single factory registration with name mapping
     (@single $registry:expr, $name:ident) => {
         paste::paste! {
             $registry.register_factory(stringify!($name), || [<vx_provider_ $name>]::create_provider());
@@ -197,67 +251,8 @@ pub fn create_registry() -> ProviderRegistry {
 pub fn create_manifest_registry() -> ManifestRegistry {
     let mut registry = ManifestRegistry::new();
 
-    // Register all builtin provider factories using the macro
-    register_provider_factories!(
-        registry,
-        node,
-        go,
-        rust,
-        uv,
-        bun,
-        pnpm,
-        yarn,
-        vscode,
-        just,
-        jq,
-        deno,
-        zig,
-        java,
-        terraform,
-        kubectl,
-        helm,
-        rcedit,
-        git,
-        choco,
-        brew,
-        docker,
-        awscli,
-        azcli,
-        gcloud,
-        ninja,
-        cmake,
-        make,
-        protoc,
-        task,
-        ollama,
-        spack,
-        python,
-        msvc,
-        ffmpeg,
-        nasm,
-        gh,
-        imagemagick,
-        pwsh,
-        dotnet,
-        msbuild,
-        nuget,
-        winget,
-        dagu,
-        prek,
-        actrun,
-        hadolint,
-        // Tier 1: Unix-philosophy tools (RFC 0030)
-        fzf,
-        ripgrep,
-        fd,
-        bat,
-        yq,
-        starship,
-        // vcpkg - C++ package manager
-        vcpkg,
-        // Jujutsu - Git-compatible DVCS
-        jj,
-    );
+    // Register all builtin provider factories via the unified master list
+    for_each_provider!(register_provider_factories, registry);
 
     registry
 }
@@ -266,66 +261,8 @@ pub fn create_manifest_registry() -> ManifestRegistry {
 fn create_static_registry() -> ProviderRegistry {
     let registry = ProviderRegistry::new();
 
-    register_providers!(
-        registry,
-        node,
-        go,
-        rust,
-        uv,
-        bun,
-        pnpm,
-        yarn,
-        vscode,
-        just,
-        jq,
-        deno,
-        zig,
-        java,
-        terraform,
-        kubectl,
-        helm,
-        rcedit,
-        git,
-        choco,
-        brew,
-        docker,
-        awscli,
-        azcli,
-        gcloud,
-        ninja,
-        cmake,
-        make,
-        protoc,
-        task,
-        ollama,
-        spack,
-        python,
-        msvc,
-        ffmpeg,
-        nasm,
-        gh,
-        imagemagick,
-        pwsh,
-        dotnet,
-        msbuild,
-        nuget,
-        winget,
-        dagu,
-        prek,
-        actrun,
-        hadolint,
-        // Tier 1: Unix-philosophy tools (RFC 0030)
-        fzf,
-        ripgrep,
-        fd,
-        bat,
-        yq,
-        starship,
-        // vcpkg - C++ package manager
-        vcpkg,
-        // Jujutsu - Git-compatible DVCS
-        jj,
-    );
+    // Register all builtin providers via the unified master list
+    for_each_provider!(register_providers, registry);
 
     registry
 }

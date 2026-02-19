@@ -3,26 +3,31 @@
 #
 # Usage:
 #   load("@vx//stdlib:platform.star", "is_windows", "platform_triple", "arch_to_gnu")
+#
+# Note: ctx is a dict injected by the vx runtime:
+#   ctx["platform"]["os"]     -> "windows" | "macos" | "linux"
+#   ctx["platform"]["arch"]   -> "x64" | "arm64" | "x86"
+#   ctx["platform"]["target"] -> "x86_64-pc-windows-msvc" | ...
 
 def is_windows(ctx):
     """Return True if running on Windows."""
-    return ctx.platform.os == "windows"
+    return ctx["platform"]["os"] == "windows"
 
 def is_macos(ctx):
     """Return True if running on macOS."""
-    return ctx.platform.os == "macos"
+    return ctx["platform"]["os"] == "macos"
 
 def is_linux(ctx):
     """Return True if running on Linux."""
-    return ctx.platform.os == "linux"
+    return ctx["platform"]["os"] == "linux"
 
 def is_x64(ctx):
     """Return True if running on x86_64 architecture."""
-    return ctx.platform.arch == "x64"
+    return ctx["platform"]["arch"] == "x64"
 
 def is_arm64(ctx):
     """Return True if running on ARM64 architecture."""
-    return ctx.platform.arch == "arm64"
+    return ctx["platform"]["arch"] == "arm64"
 
 def platform_triple(ctx):
     """Get the Rust-style target triple for the current platform.
@@ -34,7 +39,7 @@ def platform_triple(ctx):
     - "x86_64-unknown-linux-gnu"
     - "aarch64-unknown-linux-gnu"
     """
-    return ctx.platform.target
+    return ctx["platform"]["target"]
 
 def arch_to_gnu(arch):
     """Convert vx arch name to GNU arch name.

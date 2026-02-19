@@ -16,7 +16,7 @@
 #
 #   def download_url(ctx, version):
 #       triple = _jj_triple(ctx)
-#       ext    = "zip" if ctx.platform.os == "windows" else "tar.gz"
+#       ext    = "zip" if ctx["platform"]["os"] == "windows" else "tar.gz"
 #       asset  = "jj-v{}-{}.{}".format(version, triple, ext)
 #       return github_asset_url("jj-vcs", "jj", "v" + version, asset)
 
@@ -108,8 +108,8 @@ def make_download_url(owner, repo, asset_template):
             return None
         ext  = platform_ext(ctx).lstrip(".")   # "zip" or "tar.gz"
         exe  = exe_ext(ctx)                     # ".exe" or ""
-        os   = ctx.platform.os
-        arch = ctx.platform.arch
+        os   = ctx["platform"]["os"]
+        arch = ctx["platform"]["arch"]
 
         asset = asset_template
         asset = asset.replace("{version}",  version)

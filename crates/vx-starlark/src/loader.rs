@@ -9,6 +9,7 @@
 //! ```
 
 use starlark::environment::FrozenModule;
+use starlark::eval::FileLoader;
 use starlark::syntax::{AstModule, Dialect};
 use std::collections::HashMap;
 
@@ -16,6 +17,7 @@ use std::collections::HashMap;
 const SEMVER_STAR: &str = include_str!("../stdlib/semver.star");
 const PLATFORM_STAR: &str = include_str!("../stdlib/platform.star");
 const HTTP_STAR: &str = include_str!("../stdlib/http.star");
+const GITHUB_STAR: &str = include_str!("../stdlib/github.star");
 
 /// Module loader for `@vx//stdlib:*.star` virtual modules
 ///
@@ -33,6 +35,7 @@ impl VxModuleLoader {
         modules.insert("@vx//stdlib:semver.star".to_string(), SEMVER_STAR);
         modules.insert("@vx//stdlib:platform.star".to_string(), PLATFORM_STAR);
         modules.insert("@vx//stdlib:http.star".to_string(), HTTP_STAR);
+        modules.insert("@vx//stdlib:github.star".to_string(), GITHUB_STAR);
         Self { modules }
     }
 
@@ -47,13 +50,16 @@ impl VxModuleLoader {
     }
 
     /// Load and evaluate a stdlib module, returning a FrozenModule
-    pub fn load_module(
-        &self,
-        path: &str,
-        dialect: &Dialect,
-    ) -> anyhow::Result<FrozenModule> {
+    ///
+    /// Supports recursive loading: `github.star` can `load("@vx//stdlib:http.star", ...)`
+    /// because the evaluator is given a self-referential loader.
+    pub fn load_module(&self, path: &str, dialect: &Dialect) -> anyhow::Result<FrozenModule> {
         let source = self.get_source(path).ok_or_else(|| {
-            anyhow::anyhow!("Unknown vx stdlib module: '{}'. Available modules: {}", path, self.available_modules().join(", "))
+            anyhow::anyhow!(
+                "Unknown vx stdlib module: '{}'. Available modules: {}",
+                path,
+                self.available_modules().join(", ")
+            )
         })?;
 
         let ast = AstModule::parse(path, source.to_string(), dialect)
@@ -62,12 +68,23 @@ impl VxModuleLoader {
         let globals = starlark::environment::GlobalsBuilder::standard().build();
         let module = starlark::environment::Module::new();
         {
+            // Use a recursive loader so that github.star can load http.star / platform.star
+            let recursive_loader = VxModuleLoader::new();
+            let dialect_clone = dialect.clone();
+            let file_loader = RecursiveVxLoader {
+                loader: recursive_loader,
+                dialect: dialect_clone,
+            };
             let mut eval = starlark::eval::Evaluator::new(&module);
-            eval.eval_module(ast, &globals)
-                .map_err(|e| anyhow::anyhow!("Failed to evaluate stdlib module '{}': {}", path, e))?;
+            eval.set_loader(&file_loader);
+            eval.eval_module(ast, &globals).map_err(|e| {
+                anyhow::anyhow!("Failed to evaluate stdlib module '{}': {}", path, e)
+            })?;
         }
 
-        module.freeze().map_err(|e| anyhow::anyhow!("Failed to freeze stdlib module '{}': {:?}", path, e))
+        module
+            .freeze()
+            .map_err(|e| anyhow::anyhow!("Failed to freeze stdlib module '{}': {:?}", path, e))
     }
 
     /// List all available stdlib modules
@@ -79,5 +96,27 @@ impl VxModuleLoader {
 impl Default for VxModuleLoader {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Internal recursive loader used when evaluating stdlib modules that themselves
+/// contain `load()` statements (e.g. `github.star` loads `http.star`).
+struct RecursiveVxLoader {
+    loader: VxModuleLoader,
+    dialect: Dialect,
+}
+
+impl FileLoader for RecursiveVxLoader {
+    fn load(&self, path: &str) -> std::result::Result<FrozenModule, starlark::Error> {
+        if VxModuleLoader::is_vx_module(path) {
+            self.loader
+                .load_module(path, &self.dialect)
+                .map_err(starlark::Error::new_other)
+        } else {
+            Err(starlark::Error::new_other(anyhow::anyhow!(
+                "External module loading is not supported in stdlib: '{}'",
+                path
+            )))
+        }
     }
 }

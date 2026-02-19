@@ -309,17 +309,17 @@ impl StarlarkProvider {
             let line = line.trim();
 
             // Parse name()
-            if line.starts_with("def name()") {
-                if let Some(value) = Self::extract_string_return(line, content) {
-                    meta.name = value;
-                }
+            if line.starts_with("def name()")
+                && let Some(value) = Self::extract_string_return(line, content)
+            {
+                meta.name = value;
             }
 
             // Parse description()
-            if line.starts_with("def description()") {
-                if let Some(value) = Self::extract_string_return(line, content) {
-                    meta.description = value;
-                }
+            if line.starts_with("def description()")
+                && let Some(value) = Self::extract_string_return(line, content)
+            {
+                meta.description = value;
             }
         }
 
@@ -402,6 +402,17 @@ impl StarlarkProvider {
     // === Internal Execution Methods ===
 
     /// Execute fetch_versions function using the Starlark engine
+    ///
+    /// Handles two return shapes from Starlark:
+    ///
+    /// 1. **Descriptor dict** (`__type == "github_versions"`): returned by
+    ///    `releases_to_versions(github_releases(...))` in http.star.
+    ///    The Rust layer resolves this by calling the GitHub API directly,
+    ///    keeping Starlark pure (no real HTTP in scripts).
+    ///
+    /// 2. **Plain list** of `{version, lts, prerelease, date}` dicts:
+    ///    returned by custom `fetch_versions` implementations that build
+    ///    the list themselves.
     async fn execute_fetch_versions(&self, ctx: &ProviderContext) -> Result<Vec<VersionInfo>> {
         let engine = self.engine();
         let result = engine.call_function(
@@ -414,7 +425,14 @@ impl StarlarkProvider {
 
         match result {
             Ok(json) => {
-                // Parse JSON array of version dicts
+                // Shape 1: github_versions descriptor from http.star
+                if let Some(type_str) = json.get("__type").and_then(|t| t.as_str())
+                    && type_str == "github_versions"
+                {
+                    return self.resolve_github_versions_descriptor(&json).await;
+                }
+
+                // Shape 2: plain list of version dicts
                 if let Some(arr) = json.as_array() {
                     let versions = arr
                         .iter()
@@ -445,6 +463,129 @@ impl StarlarkProvider {
             }
             Err(e) => Err(e),
         }
+    }
+
+    /// Resolve a `github_versions` descriptor by calling the GitHub API via reqwest.
+    ///
+    /// The descriptor shape (produced by `releases_to_versions(github_releases(...))` in http.star):
+    /// ```json
+    /// {
+    ///   "__type":           "github_versions",
+    ///   "source": {
+    ///     "__type":             "github_releases",
+    ///     "owner":              "jj-vcs",
+    ///     "repo":               "jj",
+    ///     "include_prereleases": false,
+    ///     "url":                "https://api.github.com/repos/jj-vcs/jj/releases?per_page=50"
+    ///   },
+    ///   "strip_v_prefix":   true,
+    ///   "skip_prereleases": true
+    /// }
+    /// ```
+    async fn resolve_github_versions_descriptor(
+        &self,
+        descriptor: &serde_json::Value,
+    ) -> Result<Vec<VersionInfo>> {
+        let source = descriptor.get("source").ok_or_else(|| {
+            Error::EvalError("github_versions descriptor missing 'source'".into())
+        })?;
+
+        let url = source
+            .get("url")
+            .and_then(|u| u.as_str())
+            .ok_or_else(|| Error::EvalError("github_versions source missing 'url'".into()))?;
+
+        let skip_prereleases = descriptor
+            .get("skip_prereleases")
+            .and_then(|s| s.as_bool())
+            .unwrap_or(true);
+
+        let strip_v = descriptor
+            .get("strip_v_prefix")
+            .and_then(|s| s.as_bool())
+            .unwrap_or(true);
+
+        debug!(
+            provider = %self.meta.name,
+            url = %url,
+            "Resolving github_versions descriptor via HTTP"
+        );
+
+        // Fetch releases from GitHub API
+        let client = reqwest::Client::builder()
+            .user_agent("vx/0.1 (https://github.com/vx-dev/vx)")
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .map_err(|e| Error::EvalError(format!("Failed to build HTTP client: {}", e)))?;
+
+        let response = client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| Error::EvalError(format!("HTTP request failed for {}: {}", url, e)))?;
+
+        if !response.status().is_success() {
+            return Err(Error::EvalError(format!(
+                "GitHub API returned {} for {}",
+                response.status(),
+                url
+            )));
+        }
+
+        let releases: Vec<serde_json::Value> = response
+            .json()
+            .await
+            .map_err(|e| Error::EvalError(format!("Failed to parse GitHub API response: {}", e)))?;
+
+        // Convert releases to VersionInfo
+        let versions: Vec<VersionInfo> = releases
+            .iter()
+            .filter(|r| {
+                if skip_prereleases {
+                    !r.get("prerelease")
+                        .and_then(|p| p.as_bool())
+                        .unwrap_or(false)
+                        && !r.get("draft").and_then(|d| d.as_bool()).unwrap_or(false)
+                } else {
+                    true
+                }
+            })
+            .filter_map(|r| {
+                let tag = r.get("tag_name")?.as_str()?;
+                let version = if strip_v {
+                    tag.strip_prefix('v').unwrap_or(tag).to_string()
+                } else {
+                    tag.to_string()
+                };
+                if version.is_empty() {
+                    return None;
+                }
+                Some(VersionInfo {
+                    version,
+                    lts: !r
+                        .get("prerelease")
+                        .and_then(|p| p.as_bool())
+                        .unwrap_or(false),
+                    stable: !r
+                        .get("prerelease")
+                        .and_then(|p| p.as_bool())
+                        .unwrap_or(false),
+                    date: r
+                        .get("published_at")
+                        .and_then(|d| d.as_str())
+                        .map(|s| s.to_string()),
+                })
+            })
+            .collect();
+
+        debug!(
+            provider = %self.meta.name,
+            count = versions.len(),
+            "Resolved {} versions from GitHub API",
+            versions.len()
+        );
+
+        Ok(versions)
     }
 
     /// Execute install function using the Starlark engine

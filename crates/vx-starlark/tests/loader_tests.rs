@@ -32,8 +32,14 @@ fn test_get_source_semver() {
     assert!(source.is_some(), "semver.star should be available");
     let src = source.unwrap();
     // Should contain key functions
-    assert!(src.contains("semver_compare"), "Should contain semver_compare");
-    assert!(src.contains("semver_strip_v"), "Should contain semver_strip_v");
+    assert!(
+        src.contains("semver_compare"),
+        "Should contain semver_compare"
+    );
+    assert!(
+        src.contains("semver_strip_v"),
+        "Should contain semver_strip_v"
+    );
     assert!(src.contains("semver_sort"), "Should contain semver_sort");
 }
 
@@ -44,7 +50,10 @@ fn test_get_source_platform() {
     assert!(source.is_some(), "platform.star should be available");
     let src = source.unwrap();
     assert!(src.contains("is_windows"), "Should contain is_windows");
-    assert!(src.contains("platform_triple"), "Should contain platform_triple");
+    assert!(
+        src.contains("platform_triple"),
+        "Should contain platform_triple"
+    );
     assert!(src.contains("arch_to_gnu"), "Should contain arch_to_gnu");
 }
 
@@ -54,9 +63,18 @@ fn test_get_source_http() {
     let source = loader.get_source("@vx//stdlib:http.star");
     assert!(source.is_some(), "http.star should be available");
     let src = source.unwrap();
-    assert!(src.contains("github_releases"), "Should contain github_releases");
-    assert!(src.contains("github_download_url"), "Should contain github_download_url");
-    assert!(src.contains("parse_github_tag"), "Should contain parse_github_tag");
+    assert!(
+        src.contains("github_releases"),
+        "Should contain github_releases"
+    );
+    assert!(
+        src.contains("github_download_url"),
+        "Should contain github_download_url"
+    );
+    assert!(
+        src.contains("parse_github_tag"),
+        "Should contain parse_github_tag"
+    );
 }
 
 #[test]
@@ -126,8 +144,14 @@ fn test_semver_star_is_valid_starlark() {
     // Basic syntax checks
     assert!(!source.is_empty(), "Source should not be empty");
     // Should not contain Python-specific import syntax (at line start)
-    assert!(!source.contains("\nimport "), "Should not use Python import");
-    assert!(!source.contains("\nfrom "), "Should not use Python from-import");
+    assert!(
+        !source.contains("\nimport "),
+        "Should not use Python import"
+    );
+    assert!(
+        !source.contains("\nfrom "),
+        "Should not use Python from-import"
+    );
     // Should use def for functions
     assert!(source.contains("def "), "Should define functions with def");
 }
@@ -138,7 +162,10 @@ fn test_platform_star_is_valid_starlark() {
     let source = loader.get_source("@vx//stdlib:platform.star").unwrap();
 
     assert!(!source.is_empty());
-    assert!(!source.contains("\nimport "), "Should not use Python import");
+    assert!(
+        !source.contains("\nimport "),
+        "Should not use Python import"
+    );
     assert!(source.contains("def "), "Should define functions with def");
 }
 
@@ -148,6 +175,9 @@ fn test_http_star_is_valid_starlark() {
     let source = loader.get_source("@vx//stdlib:http.star").unwrap();
 
     assert!(!source.is_empty());
-    assert!(!source.contains("\nimport "), "Should not use Python import");
+    assert!(
+        !source.contains("\nimport "),
+        "Should not use Python import"
+    );
     assert!(source.contains("def "), "Should define functions with def");
 }

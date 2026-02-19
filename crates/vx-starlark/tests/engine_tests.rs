@@ -24,13 +24,7 @@ def greet(ctx):
     return "hello world"
 "#;
 
-    let result = engine.call_function(
-        Path::new("test.star"),
-        script,
-        "greet",
-        &ctx,
-        &[],
-    );
+    let result = engine.call_function(Path::new("test.star"), script, "greet", &ctx, &[]);
 
     assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
     assert_eq!(result.unwrap(), serde_json::json!("hello world"));
@@ -46,13 +40,7 @@ def answer(ctx):
     return 42
 "#;
 
-    let result = engine.call_function(
-        Path::new("test.star"),
-        script,
-        "answer",
-        &ctx,
-        &[],
-    );
+    let result = engine.call_function(Path::new("test.star"), script, "answer", &ctx, &[]);
 
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), serde_json::json!(42));
@@ -68,13 +56,7 @@ def is_ready(ctx):
     return True
 "#;
 
-    let result = engine.call_function(
-        Path::new("test.star"),
-        script,
-        "is_ready",
-        &ctx,
-        &[],
-    );
+    let result = engine.call_function(Path::new("test.star"), script, "is_ready", &ctx, &[]);
 
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), serde_json::json!(true));
@@ -90,13 +72,7 @@ def nothing(ctx):
     return None
 "#;
 
-    let result = engine.call_function(
-        Path::new("test.star"),
-        script,
-        "nothing",
-        &ctx,
-        &[],
-    );
+    let result = engine.call_function(Path::new("test.star"), script, "nothing", &ctx, &[]);
 
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), serde_json::json!(null));
@@ -115,13 +91,7 @@ def get_versions(ctx):
     ]
 "#;
 
-    let result = engine.call_function(
-        Path::new("test.star"),
-        script,
-        "get_versions",
-        &ctx,
-        &[],
-    );
+    let result = engine.call_function(Path::new("test.star"), script, "get_versions", &ctx, &[]);
 
     assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
     let json = result.unwrap();
@@ -147,13 +117,7 @@ def get_os(ctx):
     return ctx["platform"]["os"]
 "#;
 
-    let result = engine.call_function(
-        Path::new("test.star"),
-        script,
-        "get_os",
-        &ctx,
-        &[],
-    );
+    let result = engine.call_function(Path::new("test.star"), script, "get_os", &ctx, &[]);
 
     assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
     let os = result.unwrap();
@@ -176,13 +140,7 @@ def get_arch(ctx):
     return ctx["platform"]["arch"]
 "#;
 
-    let result = engine.call_function(
-        Path::new("test.star"),
-        script,
-        "get_arch",
-        &ctx,
-        &[],
-    );
+    let result = engine.call_function(Path::new("test.star"), script, "get_arch", &ctx, &[]);
 
     assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
     let arch = result.unwrap();
@@ -265,13 +223,7 @@ def broken(ctx)
     return "missing colon"
 "#;
 
-    let result = engine.call_function(
-        Path::new("test.star"),
-        script,
-        "broken",
-        &ctx,
-        &[],
-    );
+    let result = engine.call_function(Path::new("test.star"), script, "broken", &ctx, &[]);
 
     assert!(result.is_err());
 }
@@ -288,13 +240,7 @@ def bad_func(ctx):
     return x
 "#;
 
-    let result = engine.call_function(
-        Path::new("test.star"),
-        script,
-        "bad_func",
-        &ctx,
-        &[],
-    );
+    let result = engine.call_function(Path::new("test.star"), script, "bad_func", &ctx, &[]);
 
     assert!(result.is_err());
 }
@@ -323,7 +269,9 @@ def get_even_numbers(ctx):
 
     assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
     let arr = result.unwrap();
-    let nums: Vec<i64> = arr.as_array().unwrap()
+    let nums: Vec<i64> = arr
+        .as_array()
+        .unwrap()
         .iter()
         .map(|v| v.as_i64().unwrap())
         .collect();

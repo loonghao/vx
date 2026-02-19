@@ -1377,16 +1377,40 @@ def download_url(ctx, version):
 - [x] 实现 `@vx//stdlib` 模块加载器（`VxModuleLoader`，`loader.rs`）
 - [x] 编写 `tests/provider_tests.rs`
 
-### Phase 3: Provider 迁移（🚧 进行中）
+### Phase 3: Provider 迁移（✅ 已完成）
 
 - [x] 创建 `@vx//stdlib:github.star` — GitHub provider 通用基类（`make_fetch_versions`、`make_download_url`、`make_github_provider`）
 - [x] 创建 `@vx//stdlib:platform.star` — 平台检测工具函数
 - [x] 创建 `@vx//stdlib:http.star` — HTTP 工具函数（`github_releases`、`releases_to_versions`）
 - [x] 创建 `@vx//stdlib:semver.star` — 语义版本工具函数
+- [x] **engine.rs 实现 `load()` 支持** — `VxFileLoader` 实现 `FileLoader` trait，支持 `@vx//stdlib` 模块递归加载
+- [x] **loader.rs 注册 `github.star`** — 所有 4 个 stdlib 模块均已注册
 - [x] **jj provider 迁移** — `crates/vx-providers/jj/provider.star`（首个 Starlark provider 示例）
-  - `fetch_versions` 完全继承自 `github.star`（零自定义代码）
-  - `download_url` 重写（Linux 使用 musl，特殊命名格式）
-  - 展示了「继承基类、只重写需要定制的部分」模式
+- [x] **批量迁移 20 个 GitHub provider** — 全部完成，覆盖三种继承模式：
+
+  | Provider | 模式 | 特点 |
+  |----------|------|------|
+  | `fzf` | Level 2 | Go 风格平台后缀 |
+  | `ripgrep` | Level 2 | Rust triple，Linux musl |
+  | `fd` | Level 2 | Rust triple，asset 带 v 前缀 |
+  | `bat` | Level 2 | sharkdp 出品，v-prefix asset |
+  | `yq` | Level 3 | 直接二进制，无归档 |
+  | `starship` | Level 2 | asset 名不含版本号 |
+  | `just` | Level 2 | tag 无 v 前缀 |
+  | `deno` | Level 2 | 全平台 zip |
+  | `zig` | Level 3 | ziglang.org 自定义域名 |
+  | `hadolint` | Level 3 | 直接二进制，os-arch 命名 |
+  | `kubectl` | Level 3 | dl.k8s.io 自定义域名 |
+  | `helm` | Level 2 | get.helm.sh，tar.gz |
+  | `terraform` | Level 3 | releases.hashicorp.com |
+  | `dagu` | Level 2 | Rust triple，tar.gz |
+  | `ollama` | Level 3 | 直接二进制 |
+  | `task` | Level 2 | Go 风格平台 |
+  | `ninja` | Level 2 | zip，平台简称 |
+  | `protoc` | Level 2 | zip，os-arch |
+  | `gh` | Level 2 | Linux tar.gz / Windows zip |
+  | `rcedit` | Level 3 | Windows-only，直接二进制 |
+
 - [ ] 迁移 MSVC provider 到 Starlark（最复杂，1077 行 → 预计 ~200 行 Starlark）
 - [ ] 迁移 vcpkg provider 到 Starlark（git clone 多步骤安装）
 - [ ] 添加混合格式支持（`provider.star` 优先于 `provider.toml`，`ProviderFormat::detect()` 已实现）
@@ -1396,9 +1420,8 @@ def download_url(ctx, version):
 
 ### Phase 4: 生态完善（Week 7-8）
 
-- [ ] 迁移 winget provider
-- [ ] 迁移 brew provider
-- [ ] 迁移更多简单 GitHub provider（fzf、ripgrep、fd、bat、yq 等）
+- [ ] 迁移 MSVC provider（最复杂，需要 Windows SDK 检测）
+- [ ] 迁移 vcpkg provider（git clone 多步骤安装）
 - [ ] 更新用户文档
 - [ ] 发布 v0.14.0
 
@@ -1545,3 +1568,4 @@ def download_url(ctx, version):
 | 2026-02-19 | v0.2 | 加入 Buck2 借鉴内容：两阶段执行模型、Frozen Provider、声明式权限；修复 Starlark 示例中的非法 `import re` 语法；修正 Cargo.toml 和模块结构以匹配实际实现；修正 `SandboxConfig::restrictive()`（原 `secure()`）和内存限制（64MB）；修正 `_extract_version_from_path` 返回类型为 `str`；补充主流方案调研、替代方案章节 |
 | 2026-02-19 | v0.3 | 深化 Buck2 借鉴：补充 Typed Provider Fields（`record` 类型替代无类型 dict）、`load()` 模块系统（`@vx//stdlib` 虚拟文件系统）、增量分析缓存（内容哈希）、声明式动作 API（`ctx.actions`）、BXL 调试工具对应设计；更新 Bazel 对比表格；更新实现计划（Phase 1 已完成项打勾，Phase 2-3 补充新任务） |
 | 2026-02-19 | v0.4 | 实现进展更新：Phase 1/2 全部完成；新增 `@vx//stdlib:github.star`（`make_fetch_versions`、`make_download_url`、`make_github_provider` 工厂函数，实现「继承复用」模式）；完成首个 Starlark provider 迁移示例（`jj/provider.star`）；修复 jj `strip_v_prefix(false)` 导致的 `vv0.38.0` 双重前缀 bug；优化 `registry.rs` 合并重复的 provider 列表宏调用 |
+| 2026-02-19 | v0.5 | Phase 3 全部完成：批量迁移 20 个 GitHub provider（fzf/ripgrep/fd/bat/yq/starship/just/deno/zig/hadolint/kubectl/helm/terraform/dagu/ollama/task/ninja/protoc/gh/rcedit）；`engine.rs` 实现 `VxFileLoader`（`FileLoader` trait）支持 `load()` 语句；`loader.rs` 注册 `github.star` 并实现 `RecursiveVxLoader` 支持 stdlib 模块间递归加载；三种继承模式（Level 1/2/3）均有实际案例 |

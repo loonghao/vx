@@ -6913,6 +6913,7 @@ dependencies = [
  "async-trait",
  "dirs",
  "once_cell",
+ "reqwest 0.13.2",
  "rstest",
  "serde",
  "serde_json",

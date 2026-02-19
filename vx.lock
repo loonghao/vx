@@ -4,7 +4,7 @@
 version = 1
 
 [metadata]
-generated_at = "2026-02-14T02:01:16Z"
+generated_at = "2026-02-19T13:53:25Z"
 vx_version = "0.6.19"
 platform = "x86_64-pc-windows-msvc"
 
@@ -12,6 +12,12 @@ platform = "x86_64-pc-windows-msvc"
 version = "4.2.2"
 source = "vx install"
 resolved_from = "latest"
+ecosystem = "Generic"
+
+[tools.jj]
+version = "v0.38.0"
+source = "vx install"
+resolved_from = "0.38.0"
 ecosystem = "Generic"
 
 [tools.just]
