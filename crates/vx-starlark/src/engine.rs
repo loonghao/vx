@@ -89,24 +89,15 @@ impl StarlarkEngine {
                 .map_err(|e| Error::EvalError(e.to_string()))?;
         }
 
-        // Look up the function by name
-        let func_value = module.get(func_name).ok_or_else(|| {
-            Error::function_not_found(func_name)
-        })?;
-
-        // Build ctx dict as a JSON string, then parse it in Starlark
-        // This is the simplest approach that avoids complex Value construction
+        // Build ctx JSON for injection
         let ctx_json = self.context_to_json(ctx);
 
-        // Call the function in a new evaluation context
-        let call_module = Module::new();
-        let mut call_eval = Evaluator::new(&call_module);
-
-        // Build positional args: [ctx_dict, ...extra_args]
-        let heap = call_module.heap();
+        // Build positional args using the SAME module's heap
+        // (func_value lives in `module`, so we must use `module`'s heap for args)
+        let heap = module.heap();
         let mut pos_args: Vec<Value> = Vec::new();
 
-        // Inject ctx as a Starlark struct-like dict
+        // Inject ctx as a Starlark dict
         let ctx_value = self.json_to_starlark_value(heap, &ctx_json);
         pos_args.push(ctx_value);
 
@@ -115,7 +106,15 @@ impl StarlarkEngine {
             pos_args.push(self.json_to_starlark_value(heap, arg));
         }
 
-        let result = call_eval
+        // Look up the function by name (must happen after args are built,
+        // since get() returns a Value tied to the module's heap)
+        let func_value = module.get(func_name).ok_or_else(|| {
+            Error::function_not_found(func_name)
+        })?;
+
+        // Call the function using the same module's evaluator
+        let mut eval = Evaluator::new(&module);
+        let result = eval
             .eval_function(func_value, &pos_args, &[])
             .map_err(|e| Error::EvalError(format!("Error calling '{}': {}", func_name, e)))?;
 
