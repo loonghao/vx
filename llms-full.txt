@@ -1,39 +1,41 @@
 # vx
 
-> Universal Development Tool Manager — One command to rule them all with zero setup and zero learning curve.
+> vx is a universal development tool manager that lets you run any tool with zero setup — just prefix your commands with `vx` and it auto-installs the required runtime on first use.
 
-vx is a Rust-based tool manager that automatically installs and manages development tools. Built for the AI-native era following Unix Philosophy and Scriptability principles, it enables developers and AI agents to use any tool without environment setup.
+vx eliminates the complexity of managing multiple language runtimes (Node.js, Python, Go, Rust, etc.) while maintaining zero learning curve. Built with Rust for performance, it supports direct execution, project environments via `vx.toml`, MCP integration, and AI-native development workflows.
 
-- **Install**: `curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash` (Linux/macOS) or `irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex` (Windows)
-- **Platforms**: Windows, macOS, Linux
-- **Rust**: 1.83+
+- **Install (Linux/macOS)**: `curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash`
+- **Install (Windows)**: `powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"`
+- **Platforms**: Windows, macOS, Linux (x86_64, aarch64)
+- **Language**: Rust 1.80+
 - **License**: MIT
 - **Repository**: https://github.com/loonghao/vx
 - **Releases**: https://github.com/loonghao/vx/releases
+- **GitHub Action**: `loonghao/vx@vx-v0.5.15`
 
 ## Key Features
 
-- **Zero Learning Curve**: Use existing commands with `vx` prefix — no new syntax to learn
-- **Auto-Install on First Use**: Tools are automatically downloaded and installed when first invoked
-- **Multi-Language Support**: Node.js, Python, Go, Rust, Java, Zig, Deno, Bun, and more
-- **Project Configuration**: Define tool versions in `vx.toml` for reproducible environments
-- **Team Synchronization**: One-command setup with `vx setup` for team onboarding
-- **MCP Integration**: Works seamlessly with Model Context Protocol for AI assistants
-- **Shell Integration**: Native support for bash, zsh, fish, and PowerShell
-- **50+ Providers**: Built-in support for 50+ development tools and growing
-- **Cross-Platform**: Consistent experience across Windows, macOS, and Linux
-- **Scriptable**: Full CI/CD integration with headless mode support
-- **Implicit Package Execution**: Run ecosystem packages (e.g., `vx vite dev`) without global install
-- **Proxy-Managed Runtimes**: Ecosystem tools auto-delegate to host runtimes (e.g., vite → npx)
-- **Version Range Locking**: Lock resolved versions with `vx.lock` for deterministic builds
+- **Zero Learning Curve**: Use the same commands you already know — just prefix with `vx`. No new syntax to learn.
+- **Auto-Install on First Use**: Runtimes are downloaded and installed automatically when first needed.
+- **Multi-Language Support**: Node.js, Python/UV, Go, Rust, Bun, Deno, Java, Zig, and 30+ more tools.
+- **Project Environments**: Define tool requirements in `vx.toml`, then `vx setup` installs everything.
+- **Enhanced Script System**: `{{args}}` passthrough lets you pass complex flags directly to scripts.
+- **MCP Ready**: Replace `npx`/`uvx` with `vx` in MCP server configs — zero additional setup.
+- **Manifest-Driven Providers**: Define custom tools via `provider.toml` without writing Rust code.
+- **Shell Integration**: Auto-completion for bash, zsh, and fish shells.
+- **GitHub Actions**: First-class CI/CD support via `loonghao/vx` action.
+- **Metrics & Telemetry**: Execution timing and stage breakdown via `vx metrics`.
+- **Pre-commit Hooks**: Code quality enforcement via prek (cargo-hakari, justfile checks, etc.).
+- **Cross-Platform**: Unified behavior across Windows, macOS, and Linux.
 
 ## Technical Stack
 
-- **Core**: Rust 1.83+ with async/await (tokio)
-- **HTTP**: reqwest with rustls-tls (pure Rust, no OpenSSL)
-- **Configuration**: figment with TOML support
-- **CLI**: clap for argument parsing
-- **Logging**: tracing ecosystem for structured logging
+- **Core**: Rust 1.80+, async/await with Tokio
+- **Architecture**: Provider/Runtime trait system, manifest-driven registration
+- **Installer**: Supports .tar.gz, .tar.xz, .tar.bz2, .zip, binary formats
+- **Version Resolution**: Semantic versioning with range support (^, ~, >=)
+- **Telemetry**: OpenTelemetry + tracing, JSON metrics output
+- **Build**: cargo-hakari for workspace optimization, prek for pre-commit hooks
 
 ## Quick Start
 
@@ -44,250 +46,499 @@ vx is a Rust-based tool manager that automatically installs and manages developm
 curl -fsSL https://raw.githubusercontent.com/loonghao/vx/main/install.sh | bash
 
 # Windows (PowerShell)
-irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex
+powershell -c "irm https://raw.githubusercontent.com/loonghao/vx/main/install.ps1 | iex"
+
+# Package managers
+winget install loonghao.vx          # Windows
+brew tap loonghao/vx && brew install vx  # macOS
+cargo install --git https://github.com/loonghao/vx  # From source
 ```
 
-### Basic Usage
+### Direct Execution (Zero Setup)
 
 ```bash
-# Run any tool - auto-installs if needed
-vx node --version
-vx npm install
-vx npx create-react-app my-app
-vx go version
-vx cargo build
-vx uvx ruff check .
+# Just prefix any command with 'vx' — runtimes auto-install on first use
+vx node --version               # Auto-installs Node.js
+vx npm install                  # Uses the installed Node.js
+vx npx create-react-app my-app  # Runs npx with auto-installed Node.js
+vx python --version             # Auto-installs Python via UV
+vx uvx ruff check .             # Auto-installs UV and runs ruff
+vx go version                   # Auto-installs Go
+vx cargo --version              # Auto-installs Rust toolchain
+vx bun --version                # Auto-installs Bun
 ```
 
-### Project Setup
+### Project Environment Setup
 
 ```bash
-# Initialize project configuration
+# Initialize a project
 vx init
 
-# Install all project tools
-vx setup
-
-# Enter development shell
-vx dev
-
-# Run project scripts
-vx run dev
-vx run test
-```
-
-### vx.toml Configuration
-
-```toml
-[project]
-name = "my-project"
-
+# Or create vx.toml manually
+cat > vx.toml << 'EOF'
 [tools]
 node = "20"
 python = "3.12"
 uv = "latest"
 go = "1.21"
 
+[scripts]
+dev = "npm run dev"
+test = "npm test"
+lint = "uvx ruff check ."
+build = "npm run build"
+test-pkgs = "cargo test {{args}}"
+EOF
+
+# Install all tools defined in vx.toml
+vx setup
+
+# Enter development shell with all tools on PATH
+vx dev
+
+# Run project scripts
+vx run dev
+vx run test
+vx run lint
+
+# Pass arguments to scripts using {{args}}
+vx run test-pkgs -p vx-runtime --lib
+```
+
+### MCP Integration
+
+Replace `npx`/`uvx` with `vx` in your MCP server configuration:
+
+```json
+{
+  "mcpServers": {
+    "browsermcp": {
+      "command": "vx",
+      "args": ["npx", "-y", "@browsermcp/mcp@latest"]
+    },
+    "python-tool": {
+      "command": "vx",
+      "args": ["uvx", "some-python-tool@latest"]
+    }
+  }
+}
+```
+
+### GitHub Actions
+
+```yaml
+- uses: loonghao/vx@vx-v0.5.15
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+
+- run: vx node --version
+- run: vx npm ci
+- run: vx npm test
+- run: vx go build ./...
+```
+
+## Project Configuration (vx.toml)
+
+```toml
+# VX Project Configuration
+[tools]
+node = "20"                     # Major version (resolves to latest 20.x.x)
+python = "3.12"                 # Minor version (resolves to latest 3.12.x)
+uv = "latest"                   # Always latest
+go = "1.21.6"                   # Exact version
+rust = ">=1.70"                 # Version range
+
 [settings]
-auto_install = true
-parallel_install = true
+auto_install = true             # Auto-install missing tools in dev shell
+parallel_install = true         # Install tools in parallel
 
 [env]
 NODE_ENV = "development"
+DEBUG = "true"
 
 [scripts]
 dev = "npm run dev"
 test = "npm test && cargo test"
-lint = "uvx ruff check ."
+build = "npm run build"
+lint = "uvx ruff check . && npm run lint"
+format = "uvx black . && npm run format"
+# Use {{args}} for complex argument passthrough
+test-pkgs = "cargo test {{args}}"
+lint-fix = "eslint {{args}}"
 ```
 
-## Core API
+## CLI Commands
 
-### Provider Trait
+### Tool Execution
 
-```rust
-#[async_trait]
-pub trait Provider: Send + Sync {
-    fn info(&self) -> ProviderInfo;
-    async fn list_versions(&self) -> Result<Vec<String>>;
-    async fn install(&self, version: &str) -> Result<()>;
-    fn get_runtime(&self, version: &str) -> Result<RuntimeInfo>;
-}
-```
+| Command | Description |
+|---------|-------------|
+| `vx <tool> [args...]` | Execute a tool (auto-installs if needed) |
+| `vx install <tool>[@version]` | Install a specific tool version |
+| `vx uninstall <tool> [version]` | Uninstall tool versions |
+| `vx switch <tool>@<version>` | Switch to a different version |
+| `vx which <tool>` | Show which version is being used |
+| `vx versions <tool>` | Show available versions |
+| `vx list` | List all supported tools |
+| `vx search <query>` | Search available tools |
 
-### RuntimeSpec
+### Project Environment
 
-```rust
-pub struct RuntimeSpec {
-    pub name: String,
-    pub description: String,
-    pub aliases: Vec<String>,
-    pub dependencies: Vec<RuntimeDependency>,
-    pub executable: Option<String>,
-    pub command_prefix: Vec<String>,
-    pub ecosystem: Ecosystem,
-}
-```
+| Command | Description |
+|---------|-------------|
+| `vx init` | Initialize project configuration (`vx.toml`) |
+| `vx setup` | Install all tools defined in `vx.toml` |
+| `vx dev` | Enter development shell with project tools |
+| `vx dev -c <cmd>` | Run a command in the dev environment |
+| `vx sync` | Sync installed tools with `vx.toml` |
+| `vx add <tool>` | Add a tool to project configuration |
+| `vx remove <tool>` | Remove a tool from project configuration |
+| `vx run <script>` | Run a script defined in `vx.toml` |
+| `vx run --list` | List all available scripts |
+| `vx run <script> -H` | Show script-specific help |
 
-### PathManager
+### System Management
 
-```rust
-impl PathManager {
-    pub fn version_store_dir(&self, tool: &str, version: &str) -> PathBuf;
-    pub fn env_dir(&self, name: &str) -> PathBuf;
-    pub fn cache_dir(&self) -> PathBuf;
-    pub fn list_store_versions(&self, tool: &str) -> Result<Vec<String>>;
-}
-```
-
-## Documentation
-
-- [Getting Started](https://github.com/loonghao/vx/blob/main/docs/guide/getting-started.md): Quick start guide
-- [Installation](https://github.com/loonghao/vx/blob/main/docs/guide/installation.md): Installation instructions for all platforms
-- [Core Concepts](https://github.com/loonghao/vx/blob/main/docs/guide/concepts.md): Core concepts and terminology
-- [Configuration](https://github.com/loonghao/vx/blob/main/docs/guide/configuration.md): Complete vx.toml configuration guide
-- [Direct Execution](https://github.com/loonghao/vx/blob/main/docs/guide/direct-execution.md): Run tools directly with vx prefix
-- [Project Environments](https://github.com/loonghao/vx/blob/main/docs/guide/project-environments.md): Team development environments
-- [Version Management](https://github.com/loonghao/vx/blob/main/docs/guide/version-management.md): Version selection and switching
-- [Shell Integration](https://github.com/loonghao/vx/blob/main/docs/guide/shell-integration.md): Shell setup and auto-completions
-- [Environment Management](https://github.com/loonghao/vx/blob/main/docs/guide/environment-management.md): Virtual environments
-- [Best Practices](https://github.com/loonghao/vx/blob/main/docs/guide/best-practices.md): Recommended practices
-
-## CLI Reference
-
-- [CLI Overview](https://github.com/loonghao/vx/blob/main/docs/cli/overview.md): Command overview
-- [Commands Reference](https://github.com/loonghao/vx/blob/main/docs/cli/commands.md): Full command reference
-- [vx run](https://github.com/loonghao/vx/blob/main/docs/cli/run.md): Run scripts defined in vx.toml
-- [vx setup](https://github.com/loonghao/vx/blob/main/docs/cli/setup.md): Setup project environment
-- [vx dev](https://github.com/loonghao/vx/blob/main/docs/cli/dev.md): Development shell
-- [vx install](https://github.com/loonghao/vx/blob/main/docs/cli/install.md): Install tools
-- [vx list](https://github.com/loonghao/vx/blob/main/docs/cli/list.md): List available tools
-- [vx test](https://github.com/loonghao/vx/blob/main/docs/cli/test.md): Test framework
-- [vx ext](https://github.com/loonghao/vx/blob/main/docs/cli/ext.md): Extension management
-- [vx env](https://github.com/loonghao/vx/blob/main/docs/cli/env.md): Environment management
-- [vx config](https://github.com/loonghao/vx/blob/main/docs/cli/config.md): Configuration management
-- [vx shell](https://github.com/loonghao/vx/blob/main/docs/cli/shell.md): Shell integration
-- [vx plugin](https://github.com/loonghao/vx/blob/main/docs/cli/plugin.md): Plugin management
-- [vx global](https://github.com/loonghao/vx/blob/main/docs/cli/global.md): Global tool management
-- [vx info](https://github.com/loonghao/vx/blob/main/docs/cli/info.md): Tool information and diagnostics
-- [Implicit Package Execution](https://github.com/loonghao/vx/blob/main/docs/cli/implicit-package-execution.md): Run packages without global install
-
-## Configuration Reference
-
-- [vx.toml](https://github.com/loonghao/vx/blob/main/docs/config/vx-toml.md): Project configuration format
-- [Global Config](https://github.com/loonghao/vx/blob/main/docs/config/global.md): Global configuration
-- [Environment Variables](https://github.com/loonghao/vx/blob/main/docs/config/env-vars.md): Environment variable reference
-- [Provider Overrides](https://github.com/loonghao/vx/blob/main/docs/config/provider-overrides.md): Provider customization
+| Command | Description |
+|---------|-------------|
+| `vx cache info` | Show disk usage and cache statistics |
+| `vx clean` | Clean up cache and orphaned packages |
+| `vx config` | Manage global configuration |
+| `vx self-update` | Update vx itself |
+| `vx metrics` | Show execution telemetry |
+| `vx metrics --json` | JSON output for AI/scripting |
+| `vx metrics --html report.html` | Generate HTML report |
 
 ## Supported Tools
 
 ### Language Runtimes
 
-- [Node.js](https://github.com/loonghao/vx/blob/main/docs/tools/nodejs.md): node, npm, npx
-- [Python](https://github.com/loonghao/vx/blob/main/docs/tools/python.md): uv, uvx, python
-- [Go](https://github.com/loonghao/vx/blob/main/docs/tools/go.md): go toolchain
-- [Rust](https://github.com/loonghao/vx/blob/main/docs/tools/rust.md): cargo, rustc, rustup
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **Node.js** | `node`, `npm`, `npx` | JavaScript runtime and package manager |
+| **Bun** | `bun`, `bunx` | Fast all-in-one JavaScript runtime |
+| **Deno** | `deno` | Secure JavaScript/TypeScript runtime |
+| **Go** | `go`, `gofmt` | Go programming language |
+| **Rust** | `cargo`, `rustc`, `rustup` | Rust toolchain |
+| **Java** | `java`, `javac` | Java Development Kit |
+| **Zig** | `zig` | Zig programming language |
 
 ### Package Managers
 
-- Bun (bun, bunx)
-- Deno
-- pnpm (pnpm, pnpx)
-- Yarn
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **UV** | `uv`, `uvx` | Fast Python package manager |
+| **pnpm** | `pnpm`, `pnpx` | Fast, disk-efficient Node.js package manager |
+| **Yarn** | `yarn` | JavaScript package manager |
 
 ### Build Tools
 
-- [Build Tools](https://github.com/loonghao/vx/blob/main/docs/tools/build-tools.md): cmake, ninja, just, task, make, meson, protoc, nasm
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **Vite** | `vite` | Next generation frontend tooling |
+| **Just** | `just` | Command runner for project tasks |
+| **Task** | `task` | Task runner / build tool (go-task) |
+| **CMake** | `cmake` | Cross-platform build system generator |
+| **Ninja** | `ninja` | Small build system focused on speed |
+| **protoc** | `protoc` | Protocol Buffers compiler |
 
-### DevOps & Cloud
+### DevOps Tools
 
-- [DevOps](https://github.com/loonghao/vx/blob/main/docs/tools/devops.md): terraform, kubectl, helm, docker
-- [Cloud CLI](https://github.com/loonghao/vx/blob/main/docs/tools/cloud.md): aws, az, gcloud
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **Docker** | `docker` | Container runtime and tooling |
+| **Terraform** | `terraform` | Infrastructure as Code |
+| **kubectl** | `kubectl` | Kubernetes CLI |
+| **Helm** | `helm` | Kubernetes package manager |
 
-### Other Tools
+### Cloud CLI Tools
 
-- [AI Tools](https://github.com/loonghao/vx/blob/main/docs/tools/ai.md): ollama
-- [Media Tools](https://github.com/loonghao/vx/blob/main/docs/tools/media.md): ffmpeg, imagemagick
-- [Code Quality](https://github.com/loonghao/vx/blob/main/docs/tools/quality.md): pre-commit
-- [Scientific](https://github.com/loonghao/vx/blob/main/docs/tools/scientific.md): spack
-- [Other](https://github.com/loonghao/vx/blob/main/docs/tools/other.md): jq, gh, vscode, rez, rcedit
+| Tool | Commands | Description |
+|------|----------|-------------|
+| **AWS CLI** | `aws` | Amazon Web Services CLI |
+| **Azure CLI** | `az` | Microsoft Azure CLI |
+| **gcloud** | `gcloud` | Google Cloud Platform CLI |
 
-## Advanced Topics
+## Architecture
 
-- [Architecture](https://github.com/loonghao/vx/blob/main/docs/advanced/architecture.md): Internal architecture and crate structure
-- [Plugin Development](https://github.com/loonghao/vx/blob/main/docs/advanced/plugin-development.md): Create custom providers
-- [Extension Development](https://github.com/loonghao/vx/blob/main/docs/advanced/extension-development.md): vx extension system
-- [CLI Development](https://github.com/loonghao/vx/blob/main/docs/advanced/cli-development.md): CLI internals
-- [Provider Version Resolution](https://github.com/loonghao/vx/blob/main/docs/advanced/provider-version-resolution.md): Version resolution internals
-- [Contributing](https://github.com/loonghao/vx/blob/main/docs/advanced/contributing.md): Contribution guidelines
-- [Release Process](https://github.com/loonghao/vx/blob/main/docs/advanced/release-process.md): Release workflow
-- [Security](https://github.com/loonghao/vx/blob/main/docs/advanced/security.md): Security considerations
+vx uses a Provider/Runtime architecture:
+
+```
+vx-cli
+  └── Executor (resolves and runs commands)
+        ├── ProviderRegistry (finds the right Provider)
+        │     └── Provider (e.g., NodeProvider)
+        │           └── Runtime (e.g., NodeRuntime, NpmRuntime)
+        ├── Resolver (checks install status, resolves dependencies)
+        └── Installer (downloads and extracts archives)
+```
+
+### Key Concepts
+
+- **Runtime**: A single executable tool (e.g., `node`, `npm`, `go`)
+- **Provider**: A group of related runtimes (e.g., `NodeProvider` provides `node`, `npm`, `npx`)
+- **Ecosystem**: Language ecosystem grouping (NodeJs, Python, Rust, Go, System)
+- **Manifest-Driven Provider**: A `provider.toml` file that defines a provider without Rust code
+
+### Manifest-Driven Provider Example
+
+```toml
+# ~/.vx/providers/mytools/provider.toml
+[provider]
+name = "mytools"
+description = "My custom tools"
+ecosystem = "custom"
+
+[provider.platforms]
+os = ["windows", "linux", "macos"]
+
+[[runtimes]]
+name = "mytool"
+description = "My awesome tool"
+executable = "mytool"
+aliases = ["mt"]
+
+[runtimes.versions]
+source = "github-releases"
+owner = "example"
+repo = "mytool"
+strip_v_prefix = true
+
+[runtimes.layout]
+download_type = "archive"
+
+[runtimes.layout.archive]
+strip_prefix = "mytool-{version}-{platform}"
+executable_paths = ["bin/mytool"]
+```
+
+## Pre-commit Hooks
+
+vx uses [prek](https://prek.j178.dev/) for pre-commit hooks. Install once after cloning:
+
+```bash
+vx prek install
+
+# Run all hooks manually
+vx prek run --all-files
+```
+
+### Configured Hooks
+
+| Hook | Trigger | Purpose |
+|------|---------|---------|
+| `typos` | Any file | Spell checking |
+| `cargo-fmt` | Rust files | Code formatting |
+| `cargo-clippy` | Rust files | Linting (warnings as errors) |
+| `cargo-check-tests` | Rust files | Test compilation check |
+| `prettier` | YAML/JSON | File formatting |
+| `cargo-hakari` | Cargo.toml/lock | workspace-hack sync verification |
+| `justfile-no-duplicate-recipes` | justfile | Duplicate recipe detection |
+| `check-merge-conflict` | Any file | Merge conflict markers |
+
+### Fixing cargo-hakari failures
+
+```bash
+# After adding/updating dependencies
+vx cargo hakari generate
+vx cargo hakari manage-deps
+```
+
+## Global Configuration
+
+`~/.config/vx/config.toml`:
+
+```toml
+[defaults]
+auto_install = true
+check_updates = true
+update_interval = "24h"
+
+[tools.node]
+version = "20"
+
+[tools.uv]
+version = "latest"
+```
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `VX_HOME` | Override default `~/.vx` directory |
+| `VX_NO_AUTO_INSTALL` | Disable automatic tool installation |
+| `VX_VERBOSE` | Enable verbose output |
+| `VX_NO_COLOR` | Disable colored output |
+| `GITHUB_TOKEN` | GitHub token for API rate limit avoidance |
+| `VX_PROVIDERS_PATH` | Additional provider search paths |
+
+## Real-World Examples
+
+### Team Onboarding
+
+```bash
+git clone https://github.com/your-org/your-project
+cd your-project
+vx setup    # Installs all tools from vx.toml
+vx dev      # Enters development shell
+```
+
+### Multi-Language Project
+
+```toml
+# vx.toml
+[tools]
+node = "20"
+go = "1.21"
+uv = "latest"
+
+[scripts]
+frontend = "npm run dev"
+backend = "go run cmd/server/main.go"
+migrate = "uvx alembic upgrade head"
+```
+
+### Python Development
+
+```bash
+vx uv init my-python-app
+cd my-python-app
+vx uv add fastapi uvicorn
+vx uv add --dev pytest black ruff
+vx uv run uvicorn main:app --reload
+vx uvx ruff check .
+```
+
+### Node.js Development
+
+```bash
+vx npx create-react-app my-app
+cd my-app
+vx npm install
+vx npm run dev
+```
+
+### Go Development
+
+```bash
+vx go mod init my-go-app
+vx go run main.go
+vx go build -o app
+```
+
+### Rust Development
+
+```bash
+vx cargo new my-rust-app
+cd my-rust-app
+vx cargo add serde tokio
+vx cargo run
+```
+
+### CI/CD with GitHub Actions
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: loonghao/vx@vx-v0.5.15
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: vx node --version
+      - run: vx npm ci
+      - run: vx npm test
+      - run: vx go test ./...
+```
+
+## Documentation
+
+- [Getting Started](https://github.com/loonghao/vx/blob/main/docs/guide/getting-started.md): Quick start guide for new users
+- [Installation](https://github.com/loonghao/vx/blob/main/docs/guide/installation.md): All installation methods
+- [Core Concepts](https://github.com/loonghao/vx/blob/main/docs/guide/concepts.md): Runtimes, Providers, Ecosystems
+- [Project Configuration (vx.toml)](https://github.com/loonghao/vx/blob/main/docs/config/vx-toml.md): Full vx.toml reference
+- [Direct Execution](https://github.com/loonghao/vx/blob/main/docs/guide/direct-execution.md): How `vx <tool>` works
+- [Enhanced Scripts](https://github.com/loonghao/vx/blob/main/docs/guide/enhanced-scripts.md): Advanced script system with `{{args}}`
+- [Version Management](https://github.com/loonghao/vx/blob/main/docs/guide/version-management.md): Pinning, ranges, switching
+- [Shell Integration](https://github.com/loonghao/vx/blob/main/docs/guide/shell-integration.md): Auto-completion setup
+- [Environment Variables](https://github.com/loonghao/vx/blob/main/docs/config/env-vars.md): All supported env vars
+- [Global Configuration](https://github.com/loonghao/vx/blob/main/docs/config/global.md): ~/.config/vx/config.toml reference
+- [Provider Overrides](https://github.com/loonghao/vx/blob/main/docs/config/provider-overrides.md): Customizing provider behavior
+- [Project Environments](https://github.com/loonghao/vx/blob/main/docs/guide/project-environments.md): Per-project tool isolation
+- [Virtual Environment Isolation](https://github.com/loonghao/vx/blob/main/docs/guide/virtual-env-isolation.md): How isolation works
+- [Environment Management](https://github.com/loonghao/vx/blob/main/docs/guide/environment-management.md): Managing multiple environments
+- [Best Practices](https://github.com/loonghao/vx/blob/main/docs/guide/best-practices.md): Recommended patterns for teams
+- [Migration Guide](https://github.com/loonghao/vx/blob/main/docs/guide/migration.md): Migrating from nvm, pyenv, asdf
+- [CDN Fallback](https://github.com/loonghao/vx/blob/main/docs/guide/cdn-fallback.md): Download acceleration
+- [Windows Long Path](https://github.com/loonghao/vx/blob/main/docs/guide/windows-long-path.md): Windows path length fix
+- [Manifest-Driven Providers](https://github.com/loonghao/vx/blob/main/docs/guide/manifest-driven-providers.md): Custom tool definitions
+
+## CLI Reference
+
+- [CLI Overview](https://github.com/loonghao/vx/blob/main/docs/cli/overview.md): All commands at a glance
+- [Global Commands](https://github.com/loonghao/vx/blob/main/docs/cli/global.md): install, uninstall, list, versions, which, search
+- [Dev Environment](https://github.com/loonghao/vx/blob/main/docs/cli/dev.md): `vx dev` command reference
+- [Setup Command](https://github.com/loonghao/vx/blob/main/docs/cli/setup.md): `vx setup` command reference
+- [Run Command](https://github.com/loonghao/vx/blob/main/docs/cli/run.md): `vx run <script>` reference
+- [Implicit Package Execution](https://github.com/loonghao/vx/blob/main/docs/cli/implicit-package-execution.md): `vx vite` → `vx npx vite`
+- [Metrics](https://github.com/loonghao/vx/blob/main/docs/cli/metrics.md): Execution telemetry
+- [Env Command](https://github.com/loonghao/vx/blob/main/docs/cli/env.md): Environment management
+- [Extension Command](https://github.com/loonghao/vx/blob/main/docs/cli/ext.md): Extension management
+- [Info Command](https://github.com/loonghao/vx/blob/main/docs/cli/info.md): Tool information
+- [Shell Command](https://github.com/loonghao/vx/blob/main/docs/cli/shell.md): Shell integration setup
+- [Test Command](https://github.com/loonghao/vx/blob/main/docs/cli/test.md): Provider testing
+
+## Tools Reference
+
+- [Tools Overview](https://github.com/loonghao/vx/blob/main/docs/tools/overview.md): All supported tools
+- [Node.js Tools](https://github.com/loonghao/vx/blob/main/docs/tools/nodejs.md): node, npm, npx, bun, deno
+- [Python Tools](https://github.com/loonghao/vx/blob/main/docs/tools/python.md): uv, uvx, python, pip
+- [Rust Tools](https://github.com/loonghao/vx/blob/main/docs/tools/rust.md): cargo, rustc, rustup
+- [Go Tools](https://github.com/loonghao/vx/blob/main/docs/tools/go.md): go, gofmt
+- [Build Tools](https://github.com/loonghao/vx/blob/main/docs/tools/build-tools.md): just, task, cmake, ninja, vite, protoc
+- [DevOps Tools](https://github.com/loonghao/vx/blob/main/docs/tools/devops.md): docker, terraform, kubectl, helm
+- [Cloud Tools](https://github.com/loonghao/vx/blob/main/docs/tools/cloud.md): aws, az, gcloud
+- [AI Tools](https://github.com/loonghao/vx/blob/main/docs/tools/ai.md): AI/ML development tools
+- [Media Tools](https://github.com/loonghao/vx/blob/main/docs/tools/media.md): ffmpeg and media processing
+- [Scientific Tools](https://github.com/loonghao/vx/blob/main/docs/tools/scientific.md): Scientific computing tools
+- [Other Tools](https://github.com/loonghao/vx/blob/main/docs/tools/other.md): Miscellaneous tools
+
+## Advanced Guides
+
+- [Architecture](https://github.com/loonghao/vx/blob/main/docs/advanced/architecture.md): Internal design — Providers, Runtimes, Resolver, Executor
+- [Extension Development](https://github.com/loonghao/vx/blob/main/docs/advanced/extension-development.md): Building custom providers
+- [Plugin Development](https://github.com/loonghao/vx/blob/main/docs/advanced/plugin-development.md): Plugin system internals
+- [CLI Development](https://github.com/loonghao/vx/blob/main/docs/advanced/cli-development.md): Contributing to the CLI
+- [Pre-commit Hooks](https://github.com/loonghao/vx/blob/main/docs/advanced/pre-commit-hooks.md): cargo-hakari and justfile checks
+- [Provider Version Resolution](https://github.com/loonghao/vx/blob/main/docs/advanced/provider-version-resolution.md): How versions are resolved
+- [Release Process](https://github.com/loonghao/vx/blob/main/docs/advanced/release-process.md): How releases are made
+- [Security](https://github.com/loonghao/vx/blob/main/docs/advanced/security.md): Security model and best practices
+- [Contributing](https://github.com/loonghao/vx/blob/main/docs/advanced/contributing.md): Development setup and contribution guide
 
 ## Guides
 
-- [Manifest Driven Providers](https://github.com/loonghao/vx/blob/main/docs/guide/manifest-driven-providers.md): Declarative provider manifests
-- [Enhanced Scripts](https://github.com/loonghao/vx/blob/main/docs/guide/enhanced-scripts.md): Advanced script features
-- [Virtual Environment Isolation](https://github.com/loonghao/vx/blob/main/docs/guide/virtual-env-isolation.md): Environment isolation
-- [Windows Long Path](https://github.com/loonghao/vx/blob/main/docs/guide/windows-long-path.md): Windows path handling
-- [Migration](https://github.com/loonghao/vx/blob/main/docs/guide/migration.md): Migration from other tools
-- [GitHub Action](https://github.com/loonghao/vx/blob/main/docs/guides/github-action.md): CI/CD integration
-- [Runtime Lifecycle](https://github.com/loonghao/vx/blob/main/docs/guides/runtime-lifecycle.md): Runtime lifecycle management
-- [Platform Redirection](https://github.com/loonghao/vx/blob/main/docs/guides/platform-redirection.md): Platform-specific tool redirections
-- [Use Cases](https://github.com/loonghao/vx/blob/main/docs/guides/use-cases.md): Real-world examples
+- [GitHub Actions](https://github.com/loonghao/vx/blob/main/docs/guides/github-action.md): Using vx in CI/CD pipelines
+- [Platform Redirection](https://github.com/loonghao/vx/blob/main/docs/guides/platform-redirection.md): Platform-specific tool routing
+- [Runtime Lifecycle](https://github.com/loonghao/vx/blob/main/docs/guides/runtime-lifecycle.md): Install, execute, uninstall lifecycle
+- [Use Cases](https://github.com/loonghao/vx/blob/main/docs/guides/use-cases.md): Real-world usage scenarios
 
-## Features
+## RFCs (Design Documents)
 
-- [CDN Fallback](https://github.com/loonghao/vx/blob/main/docs/features/cdn-fallback.md): Multi-source download fallback
+- [RFC 0001: vx.toml v2 Enhancement](https://github.com/loonghao/vx/blob/main/docs/rfcs/0001-vx-toml-v2-enhancement.md): Project configuration design
+- [RFC 0002: Extension System](https://github.com/loonghao/vx/blob/main/docs/rfcs/0002-extension-system.md): Plugin/extension architecture
+- [RFC 0003: Dynamic Scripts](https://github.com/loonghao/vx/blob/main/docs/rfcs/0003-dynamic-scripts.md): Enhanced script system design
+- [RFC 0012: Provider Manifest](https://github.com/loonghao/vx/blob/main/docs/rfcs/0012-provider-manifest.md): Manifest-driven provider design
+- [RFC 0013: Manifest-Driven Registration](https://github.com/loonghao/vx/blob/main/docs/rfcs/0013-manifest-driven-registration.md): Provider registration system
+- [RFC 0027: Implicit Package Execution](https://github.com/loonghao/vx/blob/main/docs/rfcs/0027-implicit-package-execution.md): `vx vite` → `vx npx vite` design
+- [RFC 0035: AI Integration Optimization](https://github.com/loonghao/vx/blob/main/docs/rfcs/0035-ai-integration-optimization.md): AI-native development optimization
 
-## RFCs (Technical Design Documents)
-
-- [RFC 0001: vx.toml v2 Enhancement](https://github.com/loonghao/vx/blob/main/docs/rfcs/0001-vx-toml-v2-enhancement.md)
-- [RFC 0002: Extension System](https://github.com/loonghao/vx/blob/main/docs/rfcs/0002-extension-system.md)
-- [RFC 0003: Project Analyzer](https://github.com/loonghao/vx/blob/main/docs/rfcs/0003-project-analyzer-en.md)
-- [RFC 0003: Dynamic Scripts](https://github.com/loonghao/vx/blob/main/docs/rfcs/0003-dynamic-scripts.md)
-- [RFC 0004: Migration Framework](https://github.com/loonghao/vx/blob/main/docs/rfcs/0004-migration-framework.md)
-- [RFC 0005: Test Framework](https://github.com/loonghao/vx/blob/main/docs/rfcs/0005-vx-test-framework.md)
-- [RFC 0006: vx-setup Crate](https://github.com/loonghao/vx/blob/main/docs/rfcs/0006-vx-setup-crate.md)
-- [RFC 0007: Enhanced Hooks System](https://github.com/loonghao/vx/blob/main/docs/rfcs/0007-enhanced-hooks-system.md)
-- [RFC 0008: Version Solver](https://github.com/loonghao/vx/blob/main/docs/rfcs/0008-version-solver-en.md)
-- [RFC 0009: Unified Console](https://github.com/loonghao/vx/blob/main/docs/rfcs/0009-unified-console-en.md)
-- [RFC 0009: Unified Version Fetcher](https://github.com/loonghao/vx/blob/main/docs/rfcs/0009-unified-version-fetcher-en.md)
-- [RFC 0010: Provider Subcommands](https://github.com/loonghao/vx/blob/main/docs/rfcs/0010-provider-subcommands.md)
-- [RFC 0011: Resolution Cache](https://github.com/loonghao/vx/blob/main/docs/rfcs/0011-resolution-cache.md)
-- [RFC 0012: Provider Manifest](https://github.com/loonghao/vx/blob/main/docs/rfcs/0012-provider-manifest.md)
-- [RFC 0012: Solver and Resolver Separation](https://github.com/loonghao/vx/blob/main/docs/rfcs/0012-solver-and-resolver-separation-en.md)
-- [RFC 0013: Manifest Driven Registration](https://github.com/loonghao/vx/blob/main/docs/rfcs/0013-manifest-driven-registration.md)
-- [RFC 0014: Platform Aware Providers](https://github.com/loonghao/vx/blob/main/docs/rfcs/0014-platform-aware-providers.md)
-- [RFC 0015: System Tool Discovery](https://github.com/loonghao/vx/blob/main/docs/rfcs/0015-system-tool-discovery.md)
-- [RFC 0016: Unix CLI Tool Providers](https://github.com/loonghao/vx/blob/main/docs/rfcs/0016-unix-cli-tool-providers.md)
-- [RFC 0016: Environment Management v2](https://github.com/loonghao/vx/blob/main/docs/rfcs/0016-environment-management-v2.md)
-- [RFC 0017: Declarative Runtime Map](https://github.com/loonghao/vx/blob/main/docs/rfcs/0017-declarative-runtime-map.md)
-- [RFC 0018: Extended Provider Schema](https://github.com/loonghao/vx/blob/main/docs/rfcs/0018-extended-provider-schema.md)
-- [RFC 0019: Executable Layout Configuration](https://github.com/loonghao/vx/blob/main/docs/rfcs/0019-executable-layout-configuration.md)
-- [RFC 0020: CLI and Test Refactoring](https://github.com/loonghao/vx/blob/main/docs/rfcs/0020-cli-and-test-refactoring.md)
-- [RFC 0021: System Package Manager Integration](https://github.com/loonghao/vx/blob/main/docs/rfcs/0021-system-package-manager-integration.md)
-- [RFC 0022: Install Normalize](https://github.com/loonghao/vx/blob/main/docs/rfcs/0022-install-normalize.md)
-- [RFC 0023: Version Range Locking](https://github.com/loonghao/vx/blob/main/docs/rfcs/0023-version-range-locking.md)
-- [RFC 0024: Lockfile v2 Design](https://github.com/loonghao/vx/blob/main/docs/rfcs/0024-lockfile-v2-design.md)
-- [RFC 0025: Cross Language Package Isolation](https://github.com/loonghao/vx/blob/main/docs/rfcs/0025-cross-language-package-isolation.md)
-- [RFC 0026: Unified Runtime Provider Relationships](https://github.com/loonghao/vx/blob/main/docs/rfcs/0026-unified-runtime-provider-relationships.md)
-- [RFC 0027: Implicit Package Execution](https://github.com/loonghao/vx/blob/main/docs/rfcs/0027-implicit-package-execution.md)
-- [RFC 0028: Proxy Managed Runtimes](https://github.com/loonghao/vx/blob/main/docs/rfcs/0028-proxy-managed-runtimes.md)
-- [RFC 0029: Executor Refactoring](https://github.com/loonghao/vx/blob/main/docs/rfcs/0029-executor-refactoring.md)
-
-## Crate Documentation
-
-- [vx-console](https://github.com/loonghao/vx/blob/main/docs/crates/vx-console.md): Console output utilities
-
-## Examples
-
-- [Extensions](https://github.com/loonghao/vx/tree/main/examples/extensions): Extension examples
-- [Providers](https://github.com/loonghao/vx/tree/main/examples/providers): Custom provider examples
-- [TaskMatrix](https://github.com/loonghao/vx/tree/main/examples/taskmatrix): Multi-tool project example
-- [Auto Install Demo](https://github.com/loonghao/vx/blob/main/examples/auto_install_demo.rs): Auto-installation example
-- [Config Management Demo](https://github.com/loonghao/vx/blob/main/examples/config_management_demo.rs): Configuration management example
-
-## Appendix
+## Optional
 
 - [FAQ](https://github.com/loonghao/vx/blob/main/docs/appendix/faq.md): Frequently asked questions
 - [Troubleshooting](https://github.com/loonghao/vx/blob/main/docs/appendix/troubleshooting.md): Common issues and solutions
+- [macOS 7z Build Fix](https://github.com/loonghao/vx/blob/main/docs/fixes/macos-sevenz-build-fix.md): macOS build issue fix
+- [Chinese Documentation (README)](https://github.com/loonghao/vx/blob/main/README_zh.md): 中文文档
+- [Chinese Guide](https://github.com/loonghao/vx/blob/main/docs/zh/guide/getting-started.md): 中文入门指南
