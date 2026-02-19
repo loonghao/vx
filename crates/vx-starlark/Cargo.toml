@@ -1,0 +1,37 @@
+[package]
+name = "vx-starlark"
+version.workspace = true
+edition.workspace = true
+description = "Starlark scripting support for vx providers"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Core
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# Starlark runtime (Facebook's Rust implementation)
+starlark = { version = "0.13" }
+starlark_derive = { version = "0.13" }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Utilities
+tokio = { workspace = true }
+once_cell = { workspace = true }
+
+# Internal dependencies
+vx-core = { path = "../vx-core" }
+vx-paths = { path = "../vx-paths" }
+vx-runtime = { path = "../vx-runtime" }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tempfile = { workspace = true }
+tokio-test = { workspace = true }

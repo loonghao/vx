@@ -2,6 +2,7 @@
 members = [
   "crates/vx-core",
   "crates/vx-cache",
+  "crates/vx-starlark",
   "crates/vx-runtime-core",
   "crates/vx-runtime-archive",
   "crates/vx-runtime-http",
@@ -96,6 +97,8 @@ members = [
   "crates/vx-providers/actrun",
   # Dockerfile linter
   "crates/vx-providers/hadolint",
+  # Jujutsu - Git-compatible DVCS
+  "crates/vx-providers/jj",
   # Generic command bridge framework
   "crates/vx-bridge",
   # Workspace-hack crate (managed by cargo-hakari, reduces duplicate dependency compilations)
@@ -178,6 +181,7 @@ rust-version = "1.93.0"
 # Internal crates
 vx-core = { path = "crates/vx-core" }
 vx-cache = { path = "crates/vx-cache" }
+vx-starlark = { path = "crates/vx-starlark" }
 vx-runtime = { path = "crates/vx-runtime" }
 vx-runtime-core = { path = "crates/vx-runtime-core" }
 vx-runtime-archive = { path = "crates/vx-runtime-archive" }
@@ -250,6 +254,7 @@ vx-provider-bat = { path = "crates/vx-providers/bat" }
 vx-provider-yq = { path = "crates/vx-providers/yq" }
 vx-provider-starship = { path = "crates/vx-providers/starship" }
 vx-provider-vcpkg = { path = "crates/vx-providers/vcpkg" }
+vx-provider-jj = { path = "crates/vx-providers/jj" }
 vx-console = { path = "crates/vx-console" }
 vx-manifest = { path = "crates/vx-manifest" }
 vx-bridge = { path = "crates/vx-bridge" }

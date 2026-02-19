@@ -1,6 +1,6 @@
 # RFC 0036: Starlark Provider Support
 
-> **状态**: Draft
+> **状态**: Draft (v0.3)
 > **作者**: vx team
 > **创建日期**: 2026-02-19
 > **目标版本**: v0.14.0
@@ -13,7 +13,8 @@
 1. **混合格式支持** - 同时支持 `provider.toml` 和 `provider.star`
 2. **Starlark API 设计** - 为 Provider 开发提供安全的脚本 API
 3. **沙箱安全模型** - 限制文件系统、网络访问，确保安全性
-4. **MSVC Provider 迁移示例** - 展示复杂 Provider 的 Starlark 实现
+4. **Buck2 借鉴** - 引入 Frozen Provider、两阶段执行、Provider 组合等设计
+5. **MSVC Provider 迁移示例** - 展示复杂 Provider 的 Starlark 实现
 
 ## 动机
 
@@ -52,6 +53,292 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## 主流方案调研
+
+### Buck2 插件设计
+
+Meta 的 Buck2 构建系统是目前最成熟的 Starlark 嵌入实践，其设计对 vx 有重要参考价值。
+
+#### Buck2 Provider 核心概念
+
+Buck2 的 Provider 是**不可变（Frozen）的数据结构**，在分析阶段创建后即被冻结，在执行阶段只读消费：
+
+```python
+# Buck2 中的 Provider 定义
+def my_rule_impl(ctx: "context") -> ["provider"]:
+    binary = ctx.actions.declare_output(ctx.attrs.out)
+    ctx.actions.run(["compiler", "-o", binary.as_output()])
+    # 返回 Frozen Provider 列表
+    return [
+        DefaultInfo(default_output = binary),
+        RunInfo(args = cmd_args(binary)),
+    ]
+```
+
+**关键设计原则：**
+1. **两阶段分离**：分析阶段（Analysis）声明意图，执行阶段（Execution）实施操作
+2. **Frozen Values**：Provider 创建后不可变，保证线程安全和确定性
+3. **Provider 组合**：规则通过返回 Provider 列表向上游传递信息
+4. **显式依赖**：所有依赖必须在 `deps` 中声明，无隐式依赖
+
+#### Buck2 Context 设计
+
+Buck2 的 `ctx` 对象是扁平化的，而非嵌套对象：
+
+```python
+# Buck2 风格：扁平化 ctx
+ctx.attrs.deps          # 依赖列表
+ctx.actions.run(...)    # 声明执行动作
+ctx.label               # 目标标识符
+```
+
+这与 vx 当前 RFC 设计的嵌套 `ctx.fs.exists()` 风格不同。Buck2 的扁平化设计更易于 IDE 自动补全和类型检查。
+
+#### Buck2 Toolchain Provider 模式
+
+Buck2 通过 Toolchain Provider 解耦工具链配置与规则实现：
+
+```python
+# 工具链 Provider（类似 vx 的 RuntimeInfo）
+RuntimeInfo = provider(fields = {
+    "executable": provider_field(Artifact),
+    "version": provider_field(str),
+    "env": provider_field(dict[str, str]),
+})
+
+# 规则通过 toolchain 获取工具链信息
+def compile_impl(ctx):
+    runtime = ctx.attrs.toolchain[RuntimeInfo]
+    ctx.actions.run([runtime.executable, ctx.attrs.src])
+```
+
+**vx 可借鉴的点：**
+- 将 `RuntimeInfo` 作为 Starlark Provider 类型，而非仅仅是 Rust struct
+- 允许 Starlark Provider 声明自己提供的 `RuntimeInfo`，供其他 Provider 消费
+
+#### Buck2 动态依赖（Dynamic Output）
+
+Buck2 支持在运行时动态解析依赖，这对 vx 的版本解析很有参考价值：
+
+```python
+# Buck2 动态依赖模式
+ctx.actions.dynamic_output(
+    dynamic = [dep_file],
+    inputs = [src],
+    outputs = [out],
+    f = lambda ctx, artifacts, outputs: resolve_deps(artifacts[dep_file])
+)
+```
+
+**vx 对应场景**：MSVC 安装时需要先下载 manifest，再根据 manifest 动态决定下载哪些包。
+
+#### Buck2 Typed Provider Fields（强类型 Provider）
+
+Buck2 使用 `provider(fields = {...})` 定义强类型 Provider，而非无类型 dict：
+
+```python
+# Buck2 强类型 Provider 定义
+RuntimeInfo = provider(
+    doc = "Information about an installed runtime",
+    fields = {
+        "executable": provider_field(Artifact, doc = "Path to the executable"),
+        "version":    provider_field(str,      doc = "Installed version string"),
+        "env":        provider_field(dict[str, str], default = {}, doc = "Environment variables"),
+    },
+)
+
+# 消费方通过类型安全的字段访问
+def compile_impl(ctx):
+    runtime = ctx.attrs.toolchain[RuntimeInfo]
+    # runtime.executable, runtime.version 都有类型检查
+    ctx.actions.run([runtime.executable, ctx.attrs.src])
+```
+
+**vx 借鉴**：将 `ProviderInfo` 从无类型 dict 升级为强类型 Starlark record，在分析阶段即可捕获字段错误：
+
+```python
+# vx provider.star 中的强类型 ProviderInfo（借鉴 Buck2 typed provider_field）
+ProviderInfo = record(
+    versions_url    = field(str),
+    download_url_fn = field(typing.Callable),   # 函数引用
+    env_template    = field(dict[str, str], default = {}),
+    metadata        = field(dict[str, typing.Any], default = {}),
+)
+
+def analyze(ctx) -> ProviderInfo:
+    return ProviderInfo(
+        versions_url = "https://api.github.com/repos/...",
+        download_url_fn = download_url,
+        env_template = {"VCPKG_ROOT": "{install_dir}"},
+    )
+```
+
+#### Buck2 `load()` 模块系统（跨 Provider 代码共享）
+
+Buck2 通过 `load()` 语句实现跨文件代码共享，这是 Starlark 的标准模块机制（注意：`load()` 是 Starlark 的合法语句，与 Python 的 `import` 不同）：
+
+```python
+# Buck2 中的 load() 用法
+load("@prelude//toolchains:cxx.bzl", "cxx_toolchain")
+load("@prelude//utils:utils.bzl", "flatten", "dedupe")
+```
+
+**vx 借鉴**：提供 `@vx//stdlib` 标准库，允许 Provider 通过 `load()` 共享工具函数：
+
+```python
+# provider.star 中使用 vx 标准库（借鉴 Buck2 load() 模块系统）
+load("@vx//stdlib:semver.star", "semver_compare", "semver_strip_v")
+load("@vx//stdlib:platform.star", "platform_triple", "is_windows")
+load("@vx//stdlib:http.star", "github_releases", "parse_github_tag")
+
+def fetch_versions(ctx):
+    releases = github_releases(ctx, "microsoft", "vcpkg-tool")
+    return [
+        {"version": semver_strip_v(r["tag_name"]), "lts": not r["prerelease"]}
+        for r in releases
+        if not r["draft"]
+    ]
+```
+
+Rust 侧实现 `@vx//stdlib` 虚拟文件系统，将内置工具函数以 `.star` 文件形式暴露：
+
+```rust
+// crates/vx-starlark/src/loader.rs
+pub struct VxModuleLoader {
+    /// 内置模块映射：模块路径 -> Starlark 源码
+    builtins: HashMap<String, &'static str>,
+}
+
+impl VxModuleLoader {
+    pub fn new() -> Self {
+        let mut builtins = HashMap::new();
+        builtins.insert("@vx//stdlib:semver.star",   include_str!("../stdlib/semver.star"));
+        builtins.insert("@vx//stdlib:platform.star", include_str!("../stdlib/platform.star"));
+        builtins.insert("@vx//stdlib:http.star",     include_str!("../stdlib/http.star"));
+        Self { builtins }
+    }
+}
+```
+
+#### Buck2 增量分析缓存（Incremental Analysis）
+
+Buck2 的核心优化之一是**增量分析**：对未变更的目标复用上次分析结果，避免重复执行 Starlark。
+
+**vx 借鉴**：对 `provider.star` 的分析结果（`ProviderInfo`）进行内容哈希缓存：
+
+```rust
+// crates/vx-starlark/src/provider.rs
+/// 分析结果缓存条目
+struct AnalysisCacheEntry {
+    /// provider.star 文件内容的 SHA256 哈希
+    script_hash: [u8; 32],
+    /// 冻结的 ProviderInfo（分析阶段输出）
+    frozen_info: FrozenProviderInfo,
+    /// 缓存时间
+    cached_at: std::time::SystemTime,
+}
+
+impl StarlarkProvider {
+    /// 获取分析结果（带缓存）
+    async fn get_analysis(&self, ctx: &ProviderContext) -> Result<FrozenProviderInfo> {
+        let script_hash = sha256_file(&self.script_path)?;
+
+        // 检查缓存
+        if let Some(entry) = self.analysis_cache.get(&script_hash) {
+            tracing::debug!(provider = %self.name, "Using cached analysis result");
+            return Ok(entry.frozen_info.clone());
+        }
+
+        // 重新分析
+        let info = self.run_analysis_phase(ctx).await?;
+        self.analysis_cache.insert(script_hash, AnalysisCacheEntry {
+            script_hash,
+            frozen_info: info.clone(),
+            cached_at: std::time::SystemTime::now(),
+        });
+
+        Ok(info)
+    }
+}
+```
+
+#### Buck2 `ctx.actions` 声明式动作模式
+
+Buck2 的分析阶段只**声明**动作（`ctx.actions.run()`），不立即执行。执行引擎在分析完成后统一调度。
+
+**vx 借鉴**：在 `install()` 函数中引入声明式动作 API，让 Starlark 脚本描述"做什么"而非"怎么做"：
+
+```python
+# provider.star 中的声明式安装动作（借鉴 Buck2 ctx.actions 模式）
+def install(ctx, version) -> list:
+    """
+    返回安装动作列表（声明式），由 Rust 核心执行
+    """
+    install_dir = ctx.paths.install_dir("msvc", version)
+    url = download_url(ctx, version)
+
+    return [
+        # 动作 1：下载归档
+        ctx.actions.download(
+            url = url,
+            dest = ctx.paths.cache_dir("msvc-{}.zip".format(version)),
+            checksum = None,  # 可选 SHA256
+        ),
+        # 动作 2：解压
+        ctx.actions.extract(
+            src = ctx.paths.cache_dir("msvc-{}.zip".format(version)),
+            dest = install_dir,
+            strip_prefix = "msvc-{}".format(version),
+        ),
+        # 动作 3：自定义脚本（可选）
+        ctx.actions.run_hook(
+            name = "post_install",
+            args = [install_dir],
+        ),
+    ]
+```
+
+这种声明式模式的优势：
+- Rust 核心可以**并行执行**无依赖的动作（如同时下载多个包）
+- 动作列表可以被**序列化和缓存**，避免重复分析
+- 与 Buck2 的执行模型保持一致，降低概念负担
+
+### Bazel 方案对比
+
+Bazel 与 Buck2 类似，但有以下差异：
+
+| 特性 | Bazel | Buck2 | vx 选择 |
+|------|-------|-------|---------|
+| Starlark 实现 | Java | Rust (starlark-rust) | Rust ✓ |
+| Provider 不可变性 | 强制 | 强制 | 强制 ✓ |
+| 两阶段执行 | 有 | 有 | 简化版 ✓ |
+| 工具链抽象 | 复杂 | 中等 | 轻量 ✓ |
+| 沙箱模型 | 文件系统级 | 文件系统级 | API 级 ✓ |
+| Typed Provider Fields | 弱 | 强（`provider_field`） | `record` 类型 ✓ |
+| 模块系统 | `load()` | `load()` | `@vx//stdlib` ✓ |
+| 增量分析缓存 | 有 | 有（内容哈希） | 内容哈希 ✓ |
+| 声明式动作 | `ctx.actions` | `ctx.actions` | 简化版 ✓ |
+| 扩展语言（BXL） | Starlark | BXL（Starlark 超集） | `vx provider debug` |
+
+### Deno 插件方案
+
+Deno 使用 JavaScript/TypeScript 作为插件语言，其沙箱模型值得参考：
+
+- **权限声明式**：`--allow-read=/tmp --allow-net=api.github.com`
+- **细粒度控制**：每个权限独立授予，而非全有全无
+- **运行时检查**：权限在运行时动态检查，而非编译时
+
+**vx 借鉴**：在 `provider.star` 头部声明所需权限：
+
+```python
+# 声明式权限（借鉴 Deno）
+permissions = {
+    "fs": ["~/.vx/store", "C:\\Program Files\\Microsoft Visual Studio"],
+    "http": ["api.github.com", "aka.ms"],
+    "exec": ["where", "powershell"],
+}
+```
+
 ### 为什么选择 Starlark
 
 | 特性 | Starlark | Lua | JavaScript | Python |
@@ -68,6 +355,37 @@
 2. **Python 语法** - 对开发者友好，学习成本低
 3. **内置沙箱** - 无 I/O、无全局状态、无副作用，天然安全
 4. **Rust 原生支持** - `starlark-rust` crate 提供完整的 Rust 实现
+5. **无 `import` 语句** - 语言层面杜绝了模块系统滥用
+
+## 替代方案
+
+### 方案 A：Lua 脚本
+
+**优点**：轻量、嵌入简单、有 `mlua` Rust crate
+**缺点**：语法与 Python 差异大，团队学习成本高；沙箱需要手动实现；生态不如 Starlark 成熟
+
+**放弃原因**：Starlark 的 Python 语法更符合目标用户习惯，且 Buck2 的生产验证更有说服力。
+
+### 方案 B：JavaScript/TypeScript (Deno)
+
+**优点**：生态最丰富、TypeScript 类型安全、开发者熟悉
+**缺点**：运行时体积大（Deno ~100MB）；沙箱模型复杂；与 vx 的 Rust 集成成本高
+
+**放弃原因**：引入 JS 运行时会显著增加 vx 的二进制体积，与"零依赖"目标冲突。
+
+### 方案 C：WASM 插件
+
+**优点**：语言无关、强沙箱、可移植
+**缺点**：开发复杂度极高；调试困难；Provider 开发者需要了解 WASM
+
+**放弃原因**：Provider 开发者门槛过高，不符合"易于扩展"的设计目标。
+
+### 方案 D：扩展 TOML（模板语言）
+
+**优点**：无需引入新语言；向后兼容性最好
+**缺点**：模板语言（如 Tera）表达能力有限；复杂逻辑仍然难以表达；调试困难
+
+**放弃原因**：TOML + 模板语言的组合会产生一种"四不像"的 DSL，不如直接使用成熟的脚本语言。
 
 ## 设计
 
@@ -92,7 +410,7 @@ impl ProviderLoader {
 
         if star_path.exists() {
             // 优先使用 Starlark
-            self.load_starlark_provider(&star_path)
+            StarlarkProvider::load(&star_path)
         } else if toml_path.exists() {
             // 回退到 TOML
             self.load_toml_provider(&toml_path)
@@ -113,9 +431,81 @@ impl ProviderLoader {
 | 安全性 | 无风险 | 需要沙箱 |
 | 调试支持 | 无需调试 | 需要 debug 工具 |
 
-### 2. Starlark Provider API
+### 2. Buck2 借鉴：两阶段执行模型
 
-#### 2.1 核心 API 设计
+受 Buck2 启发，vx 的 Starlark Provider 采用**两阶段执行**：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    两阶段执行模型                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Phase 1: Analysis（分析阶段）                                   │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  Starlark 脚本执行                                       │   │
+│  │  • 调用 fetch_versions() → 返回版本列表                  │   │
+│  │  │  调用 download_url() → 返回 URL 字符串               │   │
+│  │  • 调用 prepare_environment() → 返回环境变量字典         │   │
+│  │  • 所有返回值被"冻结"（Frozen），不可变                  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                          │                                      │
+│                          ▼ Frozen ProviderInfo                  │
+│  Phase 2: Execution（执行阶段）                                  │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  Rust 核心执行                                           │   │
+│  │  • 使用冻结的 URL 下载文件                               │   │
+│  │  • 使用冻结的环境变量配置执行环境                        │   │
+│  │  • 调用 install() 钩子（可选，复杂安装逻辑）             │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**好处：**
+- 分析阶段可以并行执行（Starlark 无副作用）
+- 执行阶段由 Rust 控制，保证安全性
+- 与 TOML Provider 的执行路径统一
+
+### 3. Buck2 借鉴：ProviderInfo 数据结构
+
+受 Buck2 的 `DefaultInfo`/`RunInfo` 启发，vx 引入 `ProviderInfo` 作为 Starlark Provider 的标准输出格式：
+
+```python
+# provider.star 中返回 ProviderInfo（借鉴 Buck2 的 Provider 列表模式）
+
+def analyze(ctx) -> dict:
+    """
+    分析阶段：返回 ProviderInfo（不可变）
+
+    这是 Buck2 风格的两阶段设计：
+    - analyze() 在分析阶段调用，返回值被冻结
+    - install() 在执行阶段调用，可以有副作用
+
+    Returns:
+        ProviderInfo 字典，包含：
+        - versions_url: 版本列表 API URL
+        - download_template: 下载 URL 模板
+        - env_template: 环境变量模板
+        - metadata: 额外元数据
+    """
+    arch = ctx.platform.arch
+
+    return {
+        "versions_url": "https://api.github.com/repos/microsoft/vcpkg-tool/releases",
+        "download_template": f"https://github.com/microsoft/vcpkg-tool/releases/download/v{{version}}/vcpkg-{arch}.zip",
+        "env_template": {
+            "VCPKG_ROOT": "{install_dir}",
+        },
+        "metadata": {
+            "ecosystem": "system",
+            "aliases": ["cl", "nmake"],
+        },
+    }
+```
+
+### 4. Starlark Provider API
+
+#### 4.1 核心 API 设计
 
 ```python
 # provider.star - Starlark Provider API
@@ -138,11 +528,11 @@ def ecosystem() -> str:
     """生态系统: nodejs, python, rust, go, system, custom"""
     return "system"
 
-def aliases() -> list[str]:
+def aliases() -> list:
     """Runtime 别名"""
     return ["cl", "nmake"]
 
-def supported_platforms() -> list[dict]:
+def supported_platforms() -> list:
     """支持的平台列表"""
     return [
         {"os": "windows", "arch": "x64"},
@@ -151,7 +541,7 @@ def supported_platforms() -> list[dict]:
 
 # ============== 版本管理 ==============
 
-def fetch_versions(ctx: Context) -> list[dict]:
+def fetch_versions(ctx) -> list:
     """
     获取可用版本列表
 
@@ -162,7 +552,6 @@ def fetch_versions(ctx: Context) -> list[dict]:
         版本信息列表，每个版本是一个字典：
         {"version": "14.42", "lts": True, "prerelease": False}
     """
-    # 可以从 GitHub API 获取
     releases = ctx.http.get_json(
         "https://api.github.com/repos/microsoft/vcpkg-tool/releases"
     )
@@ -170,8 +559,11 @@ def fetch_versions(ctx: Context) -> list[dict]:
     versions = []
     for release in releases:
         if not release.get("draft"):
+            tag = release["tag_name"]
+            # 使用字符串操作而非正则（Starlark 无 re 模块）
+            v = tag[1:] if tag.startswith("v") else tag
             versions.append({
-                "version": release["tag_name"].lstrip("v"),
+                "version": v,
                 "lts": not release.get("prerelease"),
                 "prerelease": release.get("prerelease", False),
             })
@@ -180,7 +572,7 @@ def fetch_versions(ctx: Context) -> list[dict]:
 
 # ============== 下载 URL ==============
 
-def download_url(ctx: Context, version: str) -> str | None:
+def download_url(ctx, version) -> str:
     """
     构建下载 URL
 
@@ -194,16 +586,14 @@ def download_url(ctx: Context, version: str) -> str | None:
     if ctx.platform.os != "windows":
         return None
 
-    # 根据 CPU 架构选择不同的包
     arch = ctx.platform.arch  # "x64" or "arm64"
-
-    return f"https://github.com/microsoft/vcpkg-tool/releases/download/v{version}/vcpkg-{arch}.zip"
+    return "https://github.com/microsoft/vcpkg-tool/releases/download/v{}/vcpkg-{}.zip".format(version, arch)
 
 # ============== 安装流程 ==============
 
-def install(ctx: Context, version: str) -> dict:
+def install(ctx, version) -> dict:
     """
-    安装指定版本
+    安装指定版本（执行阶段钩子）
 
     Args:
         ctx: 执行上下文
@@ -217,32 +607,25 @@ def install(ctx: Context, version: str) -> dict:
     """
     install_path = ctx.paths.install_dir("msvc", version)
 
-    # 检查是否已安装
-    if ctx.fs.exists(install_path) and ctx.fs.exists(install_path + "/cl.exe"):
+    if ctx.fs.exists(ctx.fs.join(install_path, "cl.exe")):
         return {"success": True, "path": install_path, "already_installed": True}
 
-    # 创建安装目录
     ctx.fs.mkdir(install_path)
 
-    # 多步骤安装
-    steps = [
-        lambda: download_msvc(ctx, version, install_path),
-        lambda: extract_packages(ctx, install_path),
-        lambda: deploy_msbuild_bridge(ctx, install_path),
-        lambda: save_install_info(ctx, version, install_path),
-    ]
+    ctx.progress("Downloading MSVC packages...")
+    result = _install_with_msvc_kit(ctx, version, install_path)
 
-    for i, step in enumerate(steps):
-        ctx.progress(f"Step {i+1}/{len(steps)}...")
-        result = step()
-        if not result.get("success"):
-            return result
+    if not result.get("success"):
+        return result
+
+    ctx.progress("Deploying MSBuild bridge...")
+    _deploy_msbuild_bridge(ctx, install_path)
 
     return {"success": True, "path": install_path}
 
 # ============== 系统检测 ==============
 
-def detect_system_installation(ctx: Context) -> list[dict]:
+def detect_system_installation(ctx) -> list:
     """
     检测系统已安装的版本
 
@@ -251,56 +634,61 @@ def detect_system_installation(ctx: Context) -> list[dict]:
     """
     results = []
 
-    # 方式 1: 使用 where 命令 (Windows)
-    if ctx.platform.os == "windows":
-        where_result = ctx.execute("where", ["cl.exe"])
-        if where_result.success:
-            for path in where_result.stdout.strip().split("\n"):
-                if ctx.fs.exists(path):
-                    version = detect_cl_version(ctx, path)
-                    results.append({
-                        "type": "system",
-                        "path": path,
-                        "version": version,
-                        "priority": 100,
-                    })
+    if ctx.platform.os != "windows":
+        return results
 
-    # 方式 2: 检查 Visual Studio 安装
-    vs_paths = [
-        "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community",
-        "C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional",
-        "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise",
-    ]
+    # 方式 1: 检查 Visual Studio 安装
+    vs_editions = ["Community", "Professional", "Enterprise"]
+    vs_root = "C:\\Program Files\\Microsoft Visual Studio\\2022"
 
-    for vs_path in vs_paths:
+    for edition in vs_editions:
+        vs_path = ctx.fs.join(vs_root, edition)
         if ctx.fs.exists(vs_path):
-            cl_exes = ctx.fs.glob(f"{vs_path}/VC/Tools/MSVC/*/bin/Host*/cl.exe")
+            cl_exes = ctx.fs.glob(ctx.fs.join(vs_path, "VC", "Tools", "MSVC", "*", "bin", "Host*", "cl.exe"))
             if cl_exes:
+                version = _extract_version_from_path(cl_exes[0])
                 results.append({
-                    "type": "visual_studio",
+                    "type": "visual_studio_2022",
                     "path": cl_exes[0],
-                    "version": extract_version_from_path(cl_exes[0]),
+                    "version": version,
+                    "edition": edition,
+                    "priority": 100,
+                })
+
+    # 方式 2: 使用 where 命令
+    where_result = ctx.execute("where", ["cl.exe"])
+    if where_result["success"]:
+        existing_paths = [r["path"] for r in results]
+        for path in where_result["stdout"].strip().split("\n"):
+            path = path.strip()
+            if path and ctx.fs.exists(path) and path not in existing_paths:
+                version = _detect_cl_version(ctx, path)
+                results.append({
+                    "type": "path",
+                    "path": path,
+                    "version": version,
                     "priority": 90,
                 })
 
     # 方式 3: 检查环境变量
-    if ctx.env.get("VCINSTALLDIR"):
-        vc_dir = ctx.env["VCINSTALLDIR"]
-        cl_exe = f"{vc_dir}/Tools/MSVC/*/bin/Host*/cl.exe"
-        matches = ctx.fs.glob(cl_exe)
-        if matches:
-            results.append({
-                "type": "env",
-                "path": matches[0],
-                "version": extract_version_from_path(matches[0]),
-                "priority": 80,
-            })
+    vc_dir = ctx.env.get("VCINSTALLDIR", "")
+    if vc_dir:
+        cl_exes = ctx.fs.glob(ctx.fs.join(vc_dir, "Tools", "MSVC", "*", "bin", "Host*", "cl.exe"))
+        if cl_exes:
+            existing_paths = [r["path"] for r in results]
+            if cl_exes[0] not in existing_paths:
+                results.append({
+                    "type": "env",
+                    "path": cl_exes[0],
+                    "version": _extract_version_from_path(cl_exes[0]),
+                    "priority": 80,
+                })
 
     return sorted(results, key=lambda x: x["priority"], reverse=True)
 
 # ============== 环境变量 ==============
 
-def prepare_environment(ctx: Context, version: str) -> dict[str, str]:
+def prepare_environment(ctx, version) -> dict:
     """
     准备执行环境变量
 
@@ -314,56 +702,37 @@ def prepare_environment(ctx: Context, version: str) -> dict[str, str]:
     env = {}
     install_path = ctx.paths.install_dir("msvc", version)
 
-    # 查找 MSVC 版本目录
-    tools_dirs = ctx.fs.glob(f"{install_path}/VC/Tools/MSVC/*")
+    tools_dirs = ctx.fs.glob(ctx.fs.join(install_path, "VC", "Tools", "MSVC", "*"))
     if not tools_dirs:
         return env
 
     msvc_version = ctx.fs.basename(tools_dirs[0])
     arch = ctx.platform.arch
 
-    # 构建 INCLUDE
-    include_paths = [
-        f"{install_path}/VC/Tools/MSVC/{msvc_version}/include",
-    ]
+    include_paths = _build_include_paths(ctx, install_path, msvc_version, arch)
+    if include_paths:
+        env["INCLUDE"] = ";".join(include_paths)
 
-    # 添加 Windows SDK 头文件
-    sdk_version = detect_windows_sdk_version(ctx)
+    lib_paths = _build_lib_paths(ctx, install_path, msvc_version, arch)
+    if lib_paths:
+        env["LIB"] = ";".join(lib_paths)
+
+    vc_dir = ctx.fs.join(install_path, "VC")
+    if ctx.fs.exists(vc_dir):
+        env["VCINSTALLDIR"] = vc_dir + "\\"
+        env["VCToolsInstallDir"] = ctx.fs.join(vc_dir, "Tools", "MSVC", msvc_version) + "\\"
+        env["VSCMD_VER"] = "17.0"
+        env["GYP_MSVS_VERSION"] = "2022"
+
+    sdk_version = _detect_windows_sdk_version(ctx)
     if sdk_version:
-        for sdk_root in ["C:\\Program Files (x86)\\Windows Kits\\10", "C:\\Program Files\\Windows Kits\\10"]:
-            inc_base = f"{sdk_root}/Include/{sdk_version}"
-            for subdir in ["ucrt", "shared", "um", "winrt"]:
-                path = f"{inc_base}/{subdir}"
-                if ctx.fs.exists(path):
-                    include_paths.append(path)
-
-    env["INCLUDE"] = ";".join(include_paths)
-
-    # 构建 LIB
-    lib_paths = [
-        f"{install_path}/VC/Tools/MSVC/{msvc_version}/lib/{arch}",
-    ]
-
-    if sdk_version:
-        for sdk_root in ["C:\\Program Files (x86)\\Windows Kits\\10", "C:\\Program Files\\Windows Kits\\10"]:
-            lib_base = f"{sdk_root}/Lib/{sdk_version}"
-            for subdir in ["ucrt", "um"]:
-                path = f"{lib_base}/{subdir}/{arch}"
-                if ctx.fs.exists(path):
-                    lib_paths.append(path)
-
-    env["LIB"] = ";".join(lib_paths)
-
-    # 设置 VS 发现变量
-    env["VCINSTALLDIR"] = f"{install_path}/VC\\"
-    env["VSCMD_VER"] = "17.0"
-    env["GYP_MSVS_VERSION"] = "2022"
+        env["WindowsSDKVersion"] = sdk_version + "\\"
 
     return env
 
 # ============== 验证 ==============
 
-def verify_installation(ctx: Context, version: str) -> dict:
+def verify_installation(ctx, version) -> dict:
     """
     验证安装
 
@@ -375,34 +744,23 @@ def verify_installation(ctx: Context, version: str) -> dict:
     install_path = ctx.paths.install_dir("msvc", version)
     arch = ctx.platform.arch
 
-    # 查找 cl.exe
-    expected_paths = [
-        f"{install_path}/VC/Tools/MSVC/{version}/bin/Host{arch}/{arch}/cl.exe",
-        f"{install_path}/bin/Host{arch}/{arch}/cl.exe",
-        f"{install_path}/cl.exe",
-    ]
-
-    for path in expected_paths:
-        if ctx.fs.exists(path):
-            return {"valid": True, "executable": path}
-
-    # 尝试在安装目录中搜索
-    cl_exes = ctx.fs.glob(f"{install_path}/**/cl.exe")
+    # 搜索 cl.exe
+    cl_exes = ctx.fs.glob(ctx.fs.join(install_path, "**", "cl.exe"))
     if cl_exes:
         return {"valid": True, "executable": cl_exes[0]}
 
     return {
         "valid": False,
-        "errors": [f"MSVC compiler (cl.exe) not found in {install_path}"],
+        "errors": ["MSVC compiler (cl.exe) not found in {}".format(install_path)],
         "suggestions": [
             "Try reinstalling: vx install msvc",
             "Ensure the installation completed successfully",
         ]
     }
 
-# ============== 组件管理 (MSVC 特有) ==============
+# ============== 组件管理 ==============
 
-def check_missing_components(ctx: Context, version: str, components: list[str]) -> list[str]:
+def check_missing_components(ctx, version, components) -> list:
     """
     检查缺失的 MSVC 组件
 
@@ -418,197 +776,233 @@ def check_missing_components(ctx: Context, version: str, components: list[str]) 
     arch = ctx.platform.arch
     missing = []
 
-    # 查找 MSVC 版本目录
-    tools_dirs = ctx.fs.glob(f"{install_path}/VC/Tools/MSVC/*")
+    tools_dirs = ctx.fs.glob(ctx.fs.join(install_path, "VC", "Tools", "MSVC", "*"))
     if not tools_dirs:
-        return components  # 所有组件都缺失
+        return list(components)
 
     msvc_dir = tools_dirs[0]
 
     for component in components:
         if component == "spectre":
-            # Spectre libs: VC/Tools/MSVC/{ver}/lib/{arch}/spectre/
-            spectre_dir = f"{msvc_dir}/lib/{arch}/spectre"
+            spectre_dir = ctx.fs.join(msvc_dir, "lib", arch, "spectre")
             if not ctx.fs.exists(spectre_dir) or not ctx.fs.list_dir(spectre_dir):
                 missing.append("spectre")
 
         elif component in ["mfc", "atl"]:
-            # MFC/ATL: VC/Tools/MSVC/{ver}/atlmfc/
-            atlmfc_dir = f"{msvc_dir}/atlmfc/include"
+            atlmfc_dir = ctx.fs.join(msvc_dir, "atlmfc", "include")
             if not ctx.fs.exists(atlmfc_dir):
                 missing.append(component)
 
         elif component == "asan":
-            # ASAN: VC/Tools/MSVC/{ver}/lib/{arch}/clang_rt.asan*.lib
-            lib_dir = f"{msvc_dir}/lib/{arch}"
-            asan_libs = ctx.fs.glob(f"{lib_dir}/clang_rt.asan*.lib")
+            lib_dir = ctx.fs.join(msvc_dir, "lib", arch)
+            asan_libs = ctx.fs.glob(ctx.fs.join(lib_dir, "clang_rt.asan*.lib"))
             if not asan_libs:
                 missing.append("asan")
 
     return missing
+
+# ============== 内部辅助函数 ==============
+
+def _extract_version_from_path(path) -> str:
+    """从路径提取版本号，返回 str"""
+    # path like: .../VC/Tools/MSVC/14.42.34433/bin/...
+    parts = path.replace("/", "\\").split("\\")
+    for i, part in enumerate(parts):
+        if part == "MSVC" and i + 1 < len(parts):
+            version_parts = parts[i + 1].split(".")
+            # 返回 "14.42" 格式的字符串
+            if len(version_parts) >= 2:
+                return version_parts[0] + "." + version_parts[1]
+    return "unknown"
+
+
+def _detect_cl_version(ctx, cl_path) -> str:
+    """通过执行 cl.exe 检测版本（使用字符串操作，不依赖正则）"""
+    result = ctx.execute(cl_path, [])
+    if result["success"] or result.get("stderr"):
+        # cl.exe 输出格式: "Microsoft (R) C/C++ Optimizing Compiler Version 19.42.34433"
+        stderr = result.get("stderr", "")
+        for line in stderr.split("\n"):
+            if "Version" in line:
+                # 找到 "Version " 后的数字
+                idx = line.find("Version ")
+                if idx >= 0:
+                    rest = line[idx + 8:].strip()
+                    # 取第一个空格前的内容作为版本号
+                    parts = rest.split(" ")
+                    if parts:
+                        return parts[0]
+    return "unknown"
+
+
+def _detect_windows_sdk_version(ctx) -> str:
+    """检测 Windows SDK 版本"""
+    sdk_roots = [
+        "C:\\Program Files (x86)\\Windows Kits\\10\\Include",
+        "C:\\Program Files\\Windows Kits\\10\\Include",
+    ]
+
+    for sdk_root in sdk_roots:
+        if ctx.fs.exists(sdk_root):
+            versions = ctx.fs.list_dir(sdk_root)
+            sdk_versions = [v for v in versions if v.startswith("10.0.")]
+            if sdk_versions:
+                return sorted(sdk_versions)[-1]
+
+    return None
+
+
+def _build_include_paths(ctx, install_path, msvc_version, arch) -> list:
+    """构建 INCLUDE 路径"""
+    paths = []
+
+    msvc_inc = ctx.fs.join(install_path, "VC", "Tools", "MSVC", msvc_version, "include")
+    if ctx.fs.exists(msvc_inc):
+        paths.append(msvc_inc)
+
+    sdk_version = _detect_windows_sdk_version(ctx)
+    if sdk_version:
+        for sdk_root in ["C:\\Program Files (x86)\\Windows Kits\\10", "C:\\Program Files\\Windows Kits\\10"]:
+            inc_base = ctx.fs.join(sdk_root, "Include", sdk_version)
+            for subdir in ["ucrt", "shared", "um", "winrt"]:
+                path = ctx.fs.join(inc_base, subdir)
+                if ctx.fs.exists(path):
+                    paths.append(path)
+
+    return paths
+
+
+def _build_lib_paths(ctx, install_path, msvc_version, arch) -> list:
+    """构建 LIB 路径"""
+    paths = []
+
+    msvc_lib = ctx.fs.join(install_path, "VC", "Tools", "MSVC", msvc_version, "lib", arch)
+    if ctx.fs.exists(msvc_lib):
+        paths.append(msvc_lib)
+
+    sdk_version = _detect_windows_sdk_version(ctx)
+    if sdk_version:
+        for sdk_root in ["C:\\Program Files (x86)\\Windows Kits\\10", "C:\\Program Files\\Windows Kits\\10"]:
+            lib_base = ctx.fs.join(sdk_root, "Lib", sdk_version)
+            for subdir in ["ucrt", "um"]:
+                path = ctx.fs.join(lib_base, subdir, arch)
+                if ctx.fs.exists(path):
+                    paths.append(path)
+
+    return paths
+
+
+def _deploy_msbuild_bridge(ctx, install_path) -> None:
+    """部署 MSBuild bridge（通过 ctx 调用 Rust 实现）"""
+    ctx.deploy_msbuild_bridge(install_path)
+
+
+def _install_with_msvc_kit(ctx, version, install_path) -> dict:
+    """使用 msvc-kit 安装（通过 ctx 调用 Rust 实现）"""
+    components_str = ctx.env.get("VX_MSVC_COMPONENTS", "")
+    components = [c.strip() for c in components_str.split(",") if c.strip()] if components_str else []
+    return ctx.install_msvc_kit(version, install_path, components)
 ```
 
-#### 2.2 Context API
+#### 4.2 ProviderContext API（Rust 侧）
 
-```python
-# Context 对象提供给 Starlark 脚本使用
+```rust
+// crates/vx-starlark/src/context.rs
 
-class Context:
-    """执行上下文，注入所有外部依赖"""
+/// Provider 执行上下文（注入到 Starlark 脚本）
+/// 命名为 ProviderContext 以区分 vx-runtime 中的 RuntimeContext
+pub struct ProviderContext {
+    /// 平台信息
+    pub platform: PlatformInfo,
 
-    # ========== 平台信息 ==========
-    platform: Platform     # 当前平台信息
-    env: dict[str, str]    # 环境变量
+    /// 环境变量（只读）
+    pub env: HashMap<String, String>,
 
-    # ========== 路径管理 ==========
-    paths: PathProvider    # 路径管理器
+    /// 路径管理器
+    pub paths: Arc<dyn PathProvider>,
 
-    # ========== 文件系统 (沙箱限制) ==========
-    fs: FileSystem         # 文件系统操作
+    /// 沙箱文件系统
+    pub fs: Arc<SandboxFileSystem>,
 
-    # ========== HTTP 客户端 (沙箱限制) ==========
-    http: HttpClient       # HTTP 请求
+    /// 沙箱 HTTP 客户端
+    pub http: Arc<SandboxHttpClient>,
 
-    # ========== 命令执行 (沙箱限制) ==========
-    execute: Callable      # 执行外部命令
+    /// 命令执行器（受沙箱限制）
+    pub executor: Arc<SandboxCommandExecutor>,
 
-    # ========== 进度报告 ==========
-    progress: Callable     # 报告进度
-    log: Callable          # 日志输出
+    /// 进度报告回调
+    pub progress_reporter: Arc<dyn ProgressReporter>,
+}
 
-
-class Platform:
-    """平台信息"""
-    os: str          # "windows", "macos", "linux"
-    arch: str        # "x64", "arm64", "x86"
-
-    def exe_name(self, name: str) -> str:
-        """添加平台特定的可执行文件后缀"""
-        if self.os == "windows":
-            return f"{name}.exe"
-        return name
-
-
-class PathProvider:
-    """路径管理器"""
-
-    def vx_home(self) -> str:
-        """vx 主目录 (~/.vx)"""
-        ...
-
-    def store_dir(self) -> str:
-        """全局存储目录 (~/.vx/store)"""
-        ...
-
-    def install_dir(self, name: str, version: str) -> str:
-        """指定 runtime 的安装目录"""
-        ...
-
-    def cache_dir(self) -> str:
-        """缓存目录"""
-        ...
-
-
-class FileSystem:
-    """文件系统操作 (沙箱限制)"""
-
-    # 只允许访问安装目录和缓存目录
-
-    def exists(self, path: str) -> bool:
-        """检查文件/目录是否存在"""
-        ...
-
-    def mkdir(self, path: str) -> None:
-        """创建目录"""
-        ...
-
-    def remove(self, path: str) -> None:
-        """删除文件/目录"""
-        ...
-
-    def list_dir(self, path: str) -> list[str]:
-        """列出目录内容"""
-        ...
-
-    def glob(self, pattern: str) -> list[str]:
-        """Glob 模式匹配"""
-        ...
-
-    def read(self, path: str) -> str:
-        """读取文件内容"""
-        ...
-
-    def write(self, path: str, content: str) -> None:
-        """写入文件"""
-        ...
-
-    def copy(self, src: str, dst: str) -> None:
-        """复制文件"""
-        ...
-
-    def rename(self, src: str, dst: str) -> None:
-        """重命名/移动文件"""
-        ...
-
-    def basename(self, path: str) -> str:
-        """获取文件名"""
-        ...
-
-    def dirname(self, path: str) -> str:
-        """获取目录名"""
-        ...
-
-    def join(self, *paths: str) -> str:
-        """连接路径"""
-        ...
-
-
-class HttpClient:
-    """HTTP 客户端 (沙箱限制)"""
-
-    # 只允许访问预定义的白名单域名
-
-    def get(self, url: str) -> str:
-        """GET 请求，返回响应体"""
-        ...
-
-    def get_json(self, url: str) -> dict:
-        """GET 请求，解析 JSON 响应"""
-        ...
-
-    def download(self, url: str, path: str) -> None:
-        """下载文件到指定路径"""
-        ...
+/// 平台信息（暴露给 Starlark）
+#[derive(Clone)]
+pub struct PlatformInfo {
+    pub os: String,    // "windows", "macos", "linux"
+    pub arch: String,  // "x64", "arm64", "x86"
+}
 ```
 
-### 3. 沙箱安全模型
+**注意**：Starlark 脚本中通过 `ctx.fs.join()`、`ctx.fs.exists()` 等**扁平方法**访问，而非嵌套对象，这与 Buck2 的扁平化 `ctx` 设计一致，有利于 IDE 自动补全。
 
-#### 3.1 Starlark 内置安全特性
+### 5. 沙箱安全模型
+
+#### 5.1 Starlark 内置安全特性
 
 Starlark 语言本身的设计就考虑了安全性：
 
 ```python
-# ❌ Starlark 不支持的操作
+# ❌ Starlark 不支持的操作（语言层面禁止）
 import os          # SyntaxError: import not allowed
 open("/etc/passwd")  # NameError: open not defined
 eval("code")       # SyntaxError: eval not allowed
 exec("code")       # SyntaxError: exec not allowed
-os.system("rm -rf")  # NameError: os not defined
 
-# ❌ 无副作用
+# ❌ 无副作用（数据结构默认不可变）
 x = [1, 2, 3]
-x.append(4)  # Error: list is frozen (immutable)
+x.append(4)  # Error: cannot mutate frozen list
 ```
 
 **内置限制：**
-- 无 `import` 语句
-- 无文件 I/O（除非通过注入的 API）
-- 无网络访问（除非通过注入的 API）
-- 无全局状态
-- 无副作用（所有数据结构默认不可变）
+- 无 `import` 语句（这是 Starlark 的核心设计，与 Python 的最大区别）
+- 无文件 I/O（除非通过注入的 `ctx.fs` API）
+- 无网络访问（除非通过注入的 `ctx.http` API）
+- 无全局可变状态
 - 无无限循环（可配置超时）
 
-#### 3.2 vx 沙箱增强
+#### 5.2 声明式权限（借鉴 Deno）
+
+受 Deno 权限模型启发，`provider.star` 在头部声明所需权限：
+
+```python
+# provider.star 头部声明权限（借鉴 Deno 的显式权限模型）
+permissions = {
+    # 文件系统访问白名单（仅允许访问这些路径前缀）
+    "fs": [
+        "~/.vx/store",
+        "C:\\Program Files\\Microsoft Visual Studio",
+        "C:\\Program Files (x86)\\Windows Kits",
+    ],
+    # HTTP 访问白名单
+    "http": [
+        "api.github.com",
+        "aka.ms",
+    ],
+    # 允许执行的命令白名单
+    "exec": [
+        "where",
+        "powershell",
+    ],
+}
+```
+
+Rust 侧在加载 `provider.star` 时读取 `permissions` 变量，并据此构建 `SandboxConfig`：
+
+```rust
+// 从 provider.star 的 permissions 变量构建沙箱配置
+let sandbox = SandboxConfig::from_permissions(&permissions_value)?;
+```
+
+#### 5.3 SandboxConfig
 
 ```rust
 // crates/vx-starlark/src/sandbox.rs
@@ -627,557 +1021,108 @@ pub struct SandboxConfig {
     /// 内存限制
     pub memory_limit: usize,
 
-    /// 是否允许执行外部命令
-    pub allow_command_execution: bool,
-
-    /// 允许执行的命令白名单
+    /// 允许执行的命令白名单（空表示禁止所有命令执行）
     pub allowed_commands: Vec<String>,
 }
 
 impl SandboxConfig {
-    /// 默认安全配置
-    pub fn secure() -> Self {
+    /// 最严格的沙箱配置（默认）
+    pub fn restrictive() -> Self {
         Self {
             fs_allowed_paths: vec![],
             http_allowed_hosts: vec![
-                "api.github.com",
-                "github.com",
-                "nodejs.org",
-                "go.dev",
-                "pypi.org",
-                "static.rust-lang.org",
+                "api.github.com".to_string(),
+                "github.com".to_string(),
+                "nodejs.org".to_string(),
+                "go.dev".to_string(),
+                "pypi.org".to_string(),
+                "static.rust-lang.org".to_string(),
             ],
             execution_timeout: Duration::from_secs(60),
-            memory_limit: 100 * 1024 * 1024, // 100MB
-            allow_command_execution: false,
+            memory_limit: 64 * 1024 * 1024, // 64MB
             allowed_commands: vec![],
         }
     }
 
-    /// MSVC Provider 配置（需要更宽松的权限）
-    pub fn for_msvc() -> Self {
-        Self {
-            fs_allowed_paths: vec![
-                // 允许访问 vx 安装目录
-                dirs::home_dir().unwrap().join(".vx"),
-                // 允许访问 Windows SDK
-                PathBuf::from(r"C:\Program Files (x86)\Windows Kits"),
-                PathBuf::from(r"C:\Program Files\Windows Kits"),
-                // 允许访问 Visual Studio
-                PathBuf::from(r"C:\Program Files\Microsoft Visual Studio"),
-            ],
-            http_allowed_hosts: vec![
-                "api.github.com",
-                "github.com",
-                "aka.ms",  // Microsoft 短链接
-            ],
-            execution_timeout: Duration::from_secs(300), // 5 分钟
-            memory_limit: 500 * 1024 * 1024, // 500MB
-            allow_command_execution: true,
-            allowed_commands: vec![
-                "where",
-                "powershell",
-                "git",
-            ],
+    /// 从 provider.star 的 permissions 声明构建
+    pub fn from_permissions(permissions: &PermissionsDecl) -> Result<Self> {
+        let mut config = Self::restrictive();
+
+        // 解析文件系统权限
+        for path_str in &permissions.fs {
+            let path = expand_home(path_str)?;
+            config.fs_allowed_paths.push(path);
         }
+
+        // 解析 HTTP 权限
+        config.http_allowed_hosts.extend(permissions.http.clone());
+
+        // 解析命令执行权限
+        config.allowed_commands.extend(permissions.exec.clone());
+
+        Ok(config)
     }
 }
 ```
 
-#### 3.3 文件系统沙箱
+#### 5.4 文件系统沙箱
 
 ```rust
-// crates/vx-starlark/src/filesystem.rs
+// crates/vx-starlark/src/sandbox.rs（续）
 
 /// 沙箱文件系统
 pub struct SandboxFileSystem {
     /// 允许访问的路径前缀
     allowed_prefixes: Vec<PathBuf>,
-
-    /// 实际的文件系统操作
-    inner: RealFileSystem,
 }
 
 impl SandboxFileSystem {
     /// 检查路径是否在白名单内
     fn check_path(&self, path: &Path) -> Result<()> {
-        let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        // 始终允许访问 vx 自己的目录
+        let vx_home = dirs::home_dir()
+            .map(|h| h.join(".vx"))
+            .unwrap_or_default();
+
+        if path.starts_with(&vx_home) {
+            return Ok(());
+        }
 
         for prefix in &self.allowed_prefixes {
-            if canonical.starts_with(prefix) {
+            if path.starts_with(prefix) {
                 return Ok(());
             }
         }
 
         Err(anyhow!(
-            "Access denied: {} is not in allowed paths. Allowed: {:?}",
-            path.display(),
-            self.allowed_prefixes
+            "Sandbox violation: access to '{}' is not permitted. \
+             Declare required paths in the 'permissions.fs' field of provider.star",
+            path.display()
         ))
     }
-
-    pub fn exists(&self, path: &str) -> Result<bool> {
-        let path = Path::new(path);
-        self.check_path(path)?;
-        self.inner.exists(path)
-    }
-
-    pub fn read(&self, path: &str) -> Result<String> {
-        let path = Path::new(path);
-        self.check_path(path)?;
-        self.inner.read(path)
-    }
-
-    // ... 其他方法都会先调用 check_path
 }
 ```
 
-#### 3.4 HTTP 沙箱
+### 6. Rust 实现
 
-```rust
-// crates/vx-starlark/src/http.rs
-
-/// 沙箱 HTTP 客户端
-pub struct SandboxHttpClient {
-    /// 允许访问的域名
-    allowed_hosts: Vec<String>,
-
-    /// 实际的 HTTP 客户端
-    inner: reqwest::Client,
-}
-
-impl SandboxHttpClient {
-    /// 检查 URL 是否在白名单内
-    fn check_url(&self, url: &str) -> Result<()> {
-        let parsed = Url::parse(url)?;
-        let host = parsed.host_str().ok_or_else(|| anyhow!("Invalid URL"))?;
-
-        for allowed in &self.allowed_hosts {
-            if host == allowed || host.ends_with(&format!(".{allowed}")) {
-                return Ok(());
-            }
-        }
-
-        Err(anyhow!(
-            "HTTP access denied: {} is not in allowed hosts. Allowed: {:?}",
-            host,
-            self.allowed_hosts
-        ))
-    }
-
-    pub async fn get(&self, url: &str) -> Result<String> {
-        self.check_url(url)?;
-        let response = self.inner.get(url).send().await?;
-        let body = response.text().await?;
-        Ok(body)
-    }
-}
-```
-
-### 4. MSVC Provider 完整示例
-
-#### 4.1 provider.star
-
-```python
-# crates/vx-providers/msvc/provider.star
-# MSVC Build Tools Starlark Provider
-
-def name() -> str:
-    return "msvc"
-
-def description() -> str:
-    return "MSVC Build Tools - Microsoft Visual C++ compiler and tools"
-
-def version() -> str:
-    return "1.0"
-
-def ecosystem() -> str:
-    return "system"
-
-def aliases() -> list[str]:
-    return ["cl", "nmake"]
-
-def supported_platforms() -> list[dict]:
-    return [{"os": "windows", "arch": "x64"}, {"os": "windows", "arch": "arm64"}]
-
-
-# ============== 版本管理 ==============
-
-def fetch_versions(ctx) -> list[dict]:
-    """返回已知的 MSVC 版本"""
-    return [
-        {"version": "14.42", "lts": True},
-        {"version": "14.41", "lts": True},
-        {"version": "14.40", "lts": True},
-        {"version": "14.39", "lts": True},
-        {"version": "14.38", "lts": True},
-        {"version": "14.37", "lts": True},
-        {"version": "14.36", "lts": True},
-        {"version": "14.35", "lts": True},
-        {"version": "14.34", "lts": True},
-        {"version": "14.29", "lts": False},
-    ]
-
-
-# ============== 系统检测 ==============
-
-def detect_system_installation(ctx) -> list[dict]:
-    """检测系统已安装的 Visual Studio"""
-    results = []
-
-    # VS 2022 路径
-    vs_editions = ["Community", "Professional", "Enterprise"]
-    vs_root = "C:\\Program Files\\Microsoft Visual Studio\\2022"
-
-    for edition in vs_editions:
-        vs_path = f"{vs_root}\\{edition}"
-        if ctx.fs.exists(vs_path):
-            # 查找 cl.exe
-            cl_exes = ctx.fs.glob(f"{vs_path}\\VC\\Tools\\MSVC\\*\\bin\\Host*\\cl.exe")
-            if cl_exes:
-                version = _extract_version_from_path(cl_exes[0])
-                results.append({
-                    "type": "visual_studio_2022",
-                    "path": cl_exes[0],
-                    "version": version,
-                    "edition": edition,
-                    "priority": 100,
-                })
-
-    # 使用 where 命令
-    result = ctx.execute("where", ["cl.exe"])
-    if result.success:
-        for path in result.stdout.strip().split("\n"):
-            path = path.strip()
-            if ctx.fs.exists(path) and path not in [r["path"] for r in results]:
-                version = _detect_cl_version(ctx, path)
-                results.append({
-                    "type": "path",
-                    "path": path,
-                    "version": version,
-                    "priority": 90,
-                })
-
-    return sorted(results, key=lambda x: x["priority"], reverse=True)
-
-
-# ============== 安装流程 ==============
-
-def install(ctx, version) -> dict:
-    """安装 MSVC Build Tools"""
-    install_path = ctx.paths.install_dir("msvc", version)
-
-    # 解析请求的组件
-    components = _parse_components(ctx)
-
-    # 检查是否已安装
-    if ctx.fs.exists(install_path):
-        verification = verify_installation(ctx, version)
-        if verification["valid"]:
-            # 检查缺失的组件
-            missing = check_missing_components(ctx, version, components)
-            if not missing:
-                return {"success": True, "path": install_path, "already_installed": True}
-
-            # 检查是否已经尝试安装过组件
-            marker = f"{install_path}/.component-install-attempted"
-            if ctx.fs.exists(marker):
-                ctx.log("warn", f"Components {missing} were requested but unavailable. Skipping re-installation.")
-                return {"success": True, "path": install_path, "already_installed": True}
-
-            # 清理旧的 marker 文件以强制重新提取
-            ctx.fs.remove(f"{install_path}/.msvc-kit-extracted")
-
-    # 创建安装目录
-    ctx.fs.mkdir(install_path)
-
-    # 使用 msvc-kit 安装
-    ctx.progress("Downloading MSVC packages...")
-    result = _install_with_msvc_kit(ctx, version, install_path, components)
-
-    if not result["success"]:
-        return result
-
-    # 部署 MSBuild bridge
-    ctx.progress("Deploying MSBuild bridge...")
-    _deploy_msbuild_bridge(ctx, install_path)
-
-    # 标记组件安装尝试
-    ctx.fs.write(f"{install_path}/.component-install-attempted", version)
-
-    return {"success": True, "path": install_path}
-
-
-# ============== 环境变量 ==============
-
-def prepare_environment(ctx, version) -> dict[str, str]:
-    """准备 MSVC 编译环境"""
-    env = {}
-    install_path = ctx.paths.install_dir("msvc", version)
-
-    # 查找 MSVC 版本目录
-    tools_dirs = ctx.fs.glob(f"{install_path}\\VC\\Tools\\MSVC\\*")
-    if not tools_dirs:
-        return env
-
-    msvc_version = ctx.fs.basename(tools_dirs[0])
-    arch = ctx.platform.arch
-
-    # 构建 INCLUDE
-    include_paths = _build_include_paths(ctx, install_path, msvc_version, arch)
-    if include_paths:
-        env["INCLUDE"] = ";".join(include_paths)
-
-    # 构建 LIB
-    lib_paths = _build_lib_paths(ctx, install_path, msvc_version, arch)
-    if lib_paths:
-        env["LIB"] = ";".join(lib_paths)
-
-    # 设置 VS 发现变量
-    vc_dir = f"{install_path}\\VC"
-    if ctx.fs.exists(vc_dir):
-        env["VCINSTALLDIR"] = f"{vc_dir}\\"
-        env["VCToolsInstallDir"] = f"{vc_dir}\\Tools\\MSVC\\{msvc_version}\\"
-        env["VSCMD_VER"] = "17.0"
-        env["GYP_MSVS_VERSION"] = "2022"
-
-    # Windows SDK 版本
-    sdk_version = _detect_windows_sdk_version(ctx)
-    if sdk_version:
-        env["WindowsSDKVersion"] = f"{sdk_version}\\"
-
-    # vcpkg 集成
-    _integrate_vcpkg(ctx, env, arch)
-
-    return env
-
-
-# ============== 验证 ==============
-
-def verify_installation(ctx, version) -> dict:
-    """验证 MSVC 安装"""
-    install_path = ctx.paths.install_dir("msvc", version)
-    arch = ctx.platform.arch
-
-    # 查找 cl.exe
-    expected_paths = [
-        f"{install_path}\\VC\\Tools\\MSVC\\{version}\\bin\\Host{arch}\\{arch}\\cl.exe",
-        f"{install_path}\\bin\\Host{arch}\\{arch}\\cl.exe",
-        f"{install_path}\\cl.exe",
-    ]
-
-    for path in expected_paths:
-        if ctx.fs.exists(path):
-            return {"valid": True, "executable": path}
-
-    # 搜索
-    cl_exes = ctx.fs.glob(f"{install_path}\\**\\cl.exe")
-    if cl_exes:
-        return {"valid": True, "executable": cl_exes[0]}
-
-    return {
-        "valid": False,
-        "errors": [f"MSVC compiler (cl.exe) not found in {install_path}"],
-        "suggestions": ["Try reinstalling: vx install msvc"]
-    }
-
-
-# ============== 组件管理 ==============
-
-def check_missing_components(ctx, version, components) -> list[str]:
-    """检查缺失的组件"""
-    install_path = ctx.paths.install_dir("msvc", version)
-    arch = ctx.platform.arch
-    missing = []
-
-    tools_dirs = ctx.fs.glob(f"{install_path}\\VC\\Tools\\MSVC\\*")
-    if not tools_dirs:
-        return components
-
-    msvc_dir = tools_dirs[0]
-
-    for component in components:
-        if component == "spectre":
-            spectre_dir = f"{msvc_dir}\\lib\\{arch}\\spectre"
-            if not ctx.fs.exists(spectre_dir) or not ctx.fs.list_dir(spectre_dir):
-                missing.append("spectre")
-
-        elif component in ["mfc", "atl"]:
-            atlmfc_dir = f"{msvc_dir}\\atlmfc\\include"
-            if not ctx.fs.exists(atlmfc_dir):
-                missing.append(component)
-
-        elif component == "asan":
-            lib_dir = f"{msvc_dir}\\lib\\{arch}"
-            asan_libs = ctx.fs.glob(f"{lib_dir}\\clang_rt.asan*.lib")
-            if not asan_libs:
-                missing.append("asan")
-
-    return missing
-
-
-# ============== 内部函数 ==============
-
-def _parse_components(ctx) -> list[str]:
-    """从配置解析请求的组件"""
-    # 从 install_options 获取
-    components_str = ctx.install_options.get("VX_MSVC_COMPONENTS", "")
-    if not components_str:
-        # 从环境变量获取
-        components_str = ctx.env.get("VX_MSVC_COMPONENTS", "")
-
-    if not components_str:
-        return []
-
-    return [c.strip() for c in components_str.split(",") if c.strip()]
-
-
-def _extract_version_from_path(path) -> str:
-    """从路径提取版本号"""
-    # path like: .../VC/Tools/MSVC/14.42.34433/bin/...
-    parts = path.replace("/", "\\").split("\\")
-    for i, part in enumerate(parts):
-        if part == "MSVC" and i + 1 < len(parts):
-            return parts[i + 1].split(".")[0:2]  # 返回 14.42
-    return "unknown"
-
-
-def _detect_cl_version(ctx, cl_path) -> str:
-    """通过执行 cl.exe 检测版本"""
-    result = ctx.execute(cl_path, ["-Bv"])
-    if result.success:
-        # 解析版本号
-        import re
-        match = re.search(r"(\d+\.\d+\.\d+)", result.stderr)
-        if match:
-            return match.group(1)
-    return "unknown"
-
-
-def _detect_windows_sdk_version(ctx) -> str | None:
-    """检测 Windows SDK 版本"""
-    sdk_roots = [
-        "C:\\Program Files (x86)\\Windows Kits\\10\\Include",
-        "C:\\Program Files\\Windows Kits\\10\\Include",
-    ]
-
-    for sdk_root in sdk_roots:
-        if ctx.fs.exists(sdk_root):
-            versions = ctx.fs.list_dir(sdk_root)
-            versions = [v for v in versions if v.startswith("10.0.")]
-            if versions:
-                return sorted(versions)[-1]
-
-    return None
-
-
-def _build_include_paths(ctx, install_path, msvc_version, arch) -> list[str]:
-    """构建 INCLUDE 路径"""
-    paths = []
-
-    # MSVC 头文件
-    msvc_inc = f"{install_path}\\VC\\Tools\\MSVC\\{msvc_version}\\include"
-    if ctx.fs.exists(msvc_inc):
-        paths.append(msvc_inc)
-
-    # Windows SDK 头文件
-    sdk_version = _detect_windows_sdk_version(ctx)
-    if sdk_version:
-        for sdk_root in ["C:\\Program Files (x86)\\Windows Kits\\10", "C:\\Program Files\\Windows Kits\\10"]:
-            inc_base = f"{sdk_root}\\Include\\{sdk_version}"
-            for subdir in ["ucrt", "shared", "um", "winrt"]:
-                path = f"{inc_base}\\{subdir}"
-                if ctx.fs.exists(path):
-                    paths.append(path)
-
-    return paths
-
-
-def _build_lib_paths(ctx, install_path, msvc_version, arch) -> list[str]:
-    """构建 LIB 路径"""
-    paths = []
-
-    # MSVC 库
-    msvc_lib = f"{install_path}\\VC\\Tools\\MSVC\\{msvc_version}\\lib\\{arch}"
-    if ctx.fs.exists(msvc_lib):
-        paths.append(msvc_lib)
-
-    # Windows SDK 库
-    sdk_version = _detect_windows_sdk_version(ctx)
-    if sdk_version:
-        for sdk_root in ["C:\\Program Files (x86)\\Windows Kits\\10", "C:\\Program Files\\Windows Kits\\10"]:
-            lib_base = f"{sdk_root}\\Lib\\{sdk_version}"
-            for subdir in ["ucrt", "um"]:
-                path = f"{lib_base}\\{subdir}\\{arch}"
-                if ctx.fs.exists(path):
-                    paths.append(path)
-
-    return paths
-
-
-def _deploy_msbuild_bridge(ctx, install_path) -> None:
-    """部署 MSBuild bridge"""
-    target = f"{install_path}\\MSBuild\\Current\\Bin\\MSBuild.exe"
-    ctx.fs.mkdir(ctx.fs.dirname(target))
-    # 调用 vx-bridge 部署
-    # 这里简化处理，实际需要调用 Rust 的 vx_bridge 模块
-
-
-def _install_with_msvc_kit(ctx, version, install_path, components) -> dict:
-    """使用 msvc-kit 安装"""
-    # 这里需要调用 Rust 的 msvc-kit 库
-    # Starlark 无法直接调用，需要通过 ctx 提供的 API
-    return ctx.install_msvc_kit(version, install_path, components)
-
-
-def _integrate_vcpkg(ctx, env, arch) -> None:
-    """集成 vcpkg 环境"""
-    vcpkg_dir = ctx.paths.install_dir("vcpkg", "latest")
-    if not ctx.fs.exists(vcpkg_dir):
-        return
-
-    triplet = f"{arch}-windows"
-    installed_dir = f"{vcpkg_dir}\\installed\\{triplet}"
-
-    if ctx.fs.exists(installed_dir):
-        # 添加 include
-        include_dir = f"{installed_dir}\\include"
-        if ctx.fs.exists(include_dir):
-            if env.get("INCLUDE"):
-                env["INCLUDE"] = f"{include_dir};{env['INCLUDE']}"
-            else:
-                env["INCLUDE"] = include_dir
-
-        # 添加 lib
-        lib_dir = f"{installed_dir}\\lib"
-        if ctx.fs.exists(lib_dir):
-            if env.get("LIB"):
-                env["LIB"] = f"{lib_dir};{env['LIB']}"
-            else:
-                env["LIB"] = lib_dir
-
-    env["VCPKG_ROOT"] = vcpkg_dir
-    env["VCPKG_DEFAULT_TRIPLET"] = triplet
-```
-
-### 5. Rust 实现
-
-#### 5.1 Cargo.toml
+#### 6.1 Cargo.toml
 
 ```toml
 # crates/vx-starlark/Cargo.toml
 
 [package]
 name = "vx-starlark"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+description = "Starlark scripting support for vx providers"
 
 [dependencies]
-# Starlark runtime
-starlark = { version = "0.13", features = ["trace"] }
+# Starlark runtime (starlark-rust by Meta/Facebook)
+starlark = { version = "0.13" }
+starlark_derive = { version = "0.13" }
 
 # vx crates
-vx-runtime = { path = "../vx-runtime" }
+vx-core = { path = "../vx-core" }
 vx-paths = { path = "../vx-paths" }
 
 # Async
@@ -1191,198 +1136,270 @@ serde_json = { workspace = true }
 # Utilities
 anyhow = { workspace = true }
 tracing = { workspace = true }
+once_cell = { workspace = true }
 ```
 
-#### 5.2 核心 Trait
+#### 6.2 模块结构
 
 ```rust
 // crates/vx-starlark/src/lib.rs
 
-pub mod sandbox;
+//! Starlark scripting support for vx providers.
+//!
+//! This crate enables writing vx providers in Starlark (a Python dialect
+//! used by Bazel and Buck2), providing a safe sandboxed execution environment.
+//!
+//! # Architecture
+//!
+//! Inspired by Buck2's two-phase execution model:
+//! - **Analysis phase**: Starlark scripts run to produce frozen ProviderInfo
+//! - **Execution phase**: Rust core uses frozen ProviderInfo to perform I/O
+//!
+//! # Example
+//!
+//! ```rust
+//! use vx_starlark::StarlarkProvider;
+//!
+//! let provider = StarlarkProvider::load(Path::new("provider.star")).await?;
+//! let versions = provider.fetch_versions(&ctx).await?;
+//! ```
+
 pub mod context;
+pub mod error;
 pub mod provider;
-pub mod api;
+pub mod sandbox;
+pub mod stdlib;
 
 pub use provider::StarlarkProvider;
-pub use context::StarlarkContext;
+pub use context::ProviderContext;
 pub use sandbox::SandboxConfig;
-
-/// Starlark Provider 加载器
-pub struct StarlarkLoader {
-    sandbox_config: SandboxConfig,
-}
-
-impl StarlarkLoader {
-    pub fn new(sandbox_config: SandboxConfig) -> Self {
-        Self { sandbox_config }
-    }
-
-    /// 加载 provider.star 文件
-    pub fn load(&self, path: &Path) -> Result<StarlarkProvider> {
-        let source = std::fs::read_to_string(path)?;
-
-        // 创建 Starlark 环境
-        let mut env = starlark::environment::Environment::new();
-
-        // 注册 vx API
-        self.register_api(&mut env)?;
-
-        // 解析并执行
-        let ast = starlark::syntax::parse(path.to_string_lossy(), source)?;
-        let module = ast.eval(&env)?;
-
-        // 提取函数
-        StarlarkProvider::from_module(module)
-    }
-
-    fn register_api(&self, env: &mut Environment) -> Result<()> {
-        // 注册 Context API
-        env.add_function("ctx", self.create_context_function()?);
-
-        // 注册辅助函数
-        env.add_function("semver_compare", api::semver_compare)?;
-        env.add_function("regex_match", api::regex_match)?;
-
-        Ok(())
-    }
-}
+pub use error::StarlarkError;
 ```
 
-#### 5.3 StarlarkProvider
+#### 6.3 StarlarkProvider
 
 ```rust
 // crates/vx-starlark/src/provider.rs
 
-use starlark::values::Value;
 use std::path::Path;
+use anyhow::Result;
+use async_trait::async_trait;
 
 /// Starlark Provider 实现
+///
+/// 通过加载 provider.star 文件创建，实现 vx-core 的 Provider trait。
+/// 采用 Buck2 风格的两阶段执行：
+/// 1. 分析阶段：调用 Starlark 函数获取元数据（无副作用）
+/// 2. 执行阶段：Rust 核心执行实际 I/O 操作
 pub struct StarlarkProvider {
-    /// Provider 名称
+    /// Provider 名称（从 name() 函数获取）
     name: String,
 
-    /// 解析后的 Starlark 模块
-    module: starlark::environment::Module,
+    /// Provider 描述
+    description: String,
 
-    /// 沙箱配置
+    /// 沙箱配置（从 permissions 变量构建）
     sandbox: SandboxConfig,
+
+    /// provider.star 文件路径（用于重新加载）
+    source_path: PathBuf,
 }
 
 impl StarlarkProvider {
-    /// 从 Starlark 模块创建 Provider
-    pub fn from_module(module: starlark::environment::Module) -> Result<Self> {
-        let name = module
-            .get("name")
-            .and_then(|v| v.unpack_str())
-            .ok_or_else(|| anyhow!("name() function not found in provider.star"))?
-            .to_string();
+    /// 异步加载 provider.star 文件
+    pub async fn load(path: &Path) -> Result<Self> {
+        let source = tokio::fs::read_to_string(path).await?;
+
+        // 解析元数据（不需要完整执行）
+        let metadata = parse_metadata(&source)?;
+
+        // 从 permissions 变量构建沙箱配置
+        let sandbox = if let Some(perms) = metadata.permissions {
+            SandboxConfig::from_permissions(&perms)?
+        } else {
+            SandboxConfig::restrictive()
+        };
 
         Ok(Self {
-            name,
-            module,
-            sandbox: SandboxConfig::secure(),
+            name: metadata.name,
+            description: metadata.description,
+            sandbox,
+            source_path: path.to_path_buf(),
         })
     }
 
-    /// 调用 Starlark 函数
-    fn call_function(&self, name: &str, args: &[Value]) -> Result<Value> {
-        let func = self.module
-            .get(name)
-            .ok_or_else(|| anyhow!("Function '{}' not found", name))?;
-
-        func.call(args, &self.module)
+    /// 在沙箱中执行 Starlark 函数
+    fn eval_function(&self, func_name: &str, ctx: &ProviderContext) -> Result<serde_json::Value> {
+        // TODO: Phase 2 实现完整的 Starlark 执行引擎
+        // 当前为 placeholder，返回空结果
+        tracing::warn!(
+            provider = %self.name,
+            func = %func_name,
+            "Starlark execution not yet implemented (Phase 2)"
+        );
+        Ok(serde_json::Value::Null)
     }
 }
+```
 
-#[async_trait]
-impl Runtime for StarlarkProvider {
-    fn name(&self) -> &str {
-        &self.name
-    }
+#### 6.4 stdlib（标准库注入）
 
-    fn description(&self) -> &str {
-        self.call_function("description", &[])
-            .and_then(|v| v.unpack_str().map(|s| s as &str))
-            .unwrap_or("")
-    }
+```rust
+// crates/vx-starlark/src/stdlib.rs
 
-    async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        let ctx_value = StarlarkContext::from_runtime_context(ctx)?;
+/// 注册 vx 标准库到 Starlark 环境
+///
+/// 提供以下内置函数（无需 import）：
+/// - semver_compare(a, b) -> int  版本比较
+/// - str_contains(s, sub) -> bool  字符串包含检查
+/// - str_split_first(s, sep) -> list  分割并取第一个
+/// - path_join(*parts) -> str  路径拼接（跨平台）
+pub fn register_stdlib(env: &mut GlobalsBuilder) {
+    // 版本比较（避免在 Starlark 中手写版本解析逻辑）
+    env.set("semver_compare", semver_compare_fn);
 
-        let result = self.call_function("fetch_versions", &[ctx_value])?;
+    // 字符串工具（补充 Starlark 内置字符串方法）
+    env.set("str_contains", str_contains_fn);
 
-        // 将 Starlark 列表转换为 Rust Vec<VersionInfo>
-        parse_version_list(&result)
-    }
-
-    async fn install(&self, version: &str, ctx: &RuntimeContext) -> Result<InstallResult> {
-        let ctx_value = StarlarkContext::from_runtime_context(ctx)?;
-        let version_value = Value::new(version);
-
-        let result = self.call_function("install", &[ctx_value, version_value])?;
-
-        // 解析安装结果
-        parse_install_result(&result)
-    }
-
-    async fn prepare_environment(
-        &self,
-        version: &str,
-        ctx: &RuntimeContext,
-    ) -> Result<HashMap<String, String>> {
-        let ctx_value = StarlarkContext::from_runtime_context(ctx)?;
-        let version_value = Value::new(version);
-
-        let result = self.call_function("prepare_environment", &[ctx_value, version_value])?;
-
-        // 解析环境变量字典
-        parse_env_dict(&result)
-    }
-
-    // ... 其他 Runtime trait 方法
+    // 路径工具（跨平台路径处理）
+    env.set("path_join", path_join_fn);
+    env.set("path_basename", path_basename_fn);
+    env.set("path_dirname", path_dirname_fn);
 }
+```
+
+### 7. 测试策略
+
+#### 7.1 单元测试（放在 `tests/` 目录）
+
+```
+crates/vx-starlark/tests/
+├── sandbox_tests.rs      # 沙箱安全测试
+├── provider_tests.rs     # Provider 加载测试
+├── context_tests.rs      # ProviderContext 测试
+└── stdlib_tests.rs       # 标准库函数测试
+```
+
+```rust
+// crates/vx-starlark/tests/sandbox_tests.rs
+
+#[test]
+fn test_sandbox_blocks_unauthorized_path() {
+    let sandbox = SandboxFileSystem::new(vec![
+        PathBuf::from("/tmp/vx-test"),
+    ]);
+
+    // 允许访问白名单路径
+    assert!(sandbox.exists("/tmp/vx-test/file.txt").is_ok());
+
+    // 拒绝访问非白名单路径
+    let result = sandbox.exists("/etc/passwd");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("Sandbox violation"));
+}
+
+#[test]
+fn test_sandbox_always_allows_vx_home() {
+    let sandbox = SandboxFileSystem::new(vec![]);
+    let vx_home = dirs::home_dir().unwrap().join(".vx/store/node/20.0.0");
+
+    // vx 自己的目录始终允许
+    assert!(sandbox.check_path(&vx_home).is_ok());
+}
+
+#[tokio::test]
+async fn test_provider_load_metadata() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let star_path = temp.path().join("provider.star");
+
+    std::fs::write(&star_path, r#"
+def name():
+    return "test-provider"
+
+def description():
+    return "A test provider"
+"#).unwrap();
+
+    let provider = StarlarkProvider::load(&star_path).await.unwrap();
+    assert_eq!(provider.name(), "test-provider");
+}
+```
+
+#### 7.2 Starlark 脚本测试
+
+```python
+# crates/vx-starlark/tests/fixtures/test_provider.star
+# 用于测试的最小 Provider
+
+def name():
+    return "test"
+
+def description():
+    return "Test provider"
+
+def fetch_versions(ctx):
+    return [
+        {"version": "1.0.0", "lts": True},
+        {"version": "0.9.0", "lts": False},
+    ]
+
+def download_url(ctx, version):
+    return "https://example.com/test-{}.tar.gz".format(version)
 ```
 
 ## 实现计划
 
-### Phase 1: 基础设施 (Week 1-2)
+### Phase 1: 基础设施（已部分完成）
 
-- [ ] 创建 `vx-starlark` crate
-- [ ] 集成 `starlark-rust` 依赖
-- [ ] 实现基础沙箱配置
-- [ ] 实现 Context API 注入
-- [ ] 编写单元测试
+- [x] 创建 `vx-starlark` crate
+- [x] 集成 `starlark-rust` 依赖
+- [x] 实现基础沙箱配置（`SandboxConfig::restrictive()`）
+- [x] 实现 `ProviderContext` 结构
+- [x] 实现 `StarlarkProvider::load()` 元数据解析
+- [x] 实现 `SandboxConfig::from_permissions()` 权限解析
+- [x] 实现 `SandboxConfig::is_path_allowed()` / `is_host_allowed()` / `is_command_allowed()`
+- [x] 实现 `ProviderContext` 文件系统 API（`file_exists`, `create_dir`, `read_file` 等）
+- [x] 实现 `ProviderFormat::detect()` 混合格式检测
+- [x] 编写 `tests/sandbox_tests.rs`
+- [x] 编写 `tests/stdlib_tests.rs`
+- [ ] 实现 `permissions` 变量从 Starlark 脚本中解析（需要 Phase 2 执行引擎）
+- [ ] 实现 `VxModuleLoader`（`@vx//stdlib` 虚拟文件系统，借鉴 Buck2 `load()` 模块系统）
 
-### Phase 2: Provider 迁移 (Week 3-4)
+### Phase 2: Starlark 执行引擎（Week 3-4）
 
-- [ ] 实现 `StarlarkProvider` trait
-- [ ] 实现 `StarlarkLoader`
+- [ ] 集成 `starlark-rust` 完整执行引擎（`AstModule` + `Evaluator`）
+- [ ] 实现 `ProviderContext` 到 Starlark `Value` 的转换（`StarlarkValue` derive）
+- [ ] 实现 `eval_function()` 完整逻辑（调用 `fetch_versions`、`download_url` 等）
+- [ ] 注册 `stdlib` 标准库函数到 Starlark `GlobalsBuilder`
+- [ ] 实现两阶段执行（Analysis → Execution）
+- [ ] 实现 `ProviderInfo` 强类型 record（借鉴 Buck2 typed provider_field）
+- [ ] 实现增量分析缓存（内容哈希，借鉴 Buck2 增量分析）
+- [ ] 实现 `@vx//stdlib` 模块加载器（`VxModuleLoader`）
+- [ ] 编写 `tests/provider_tests.rs`
+
+### Phase 3: Provider 迁移（Week 5-6）
+
 - [ ] 迁移 MSVC provider 到 Starlark
-- [ ] 添加混合格式支持
+- [ ] 迁移 vcpkg provider 到 Starlark
+- [ ] 添加混合格式支持（`provider.star` 优先于 `provider.toml`）
+- [ ] 实现声明式动作 API（`ctx.actions.download`、`ctx.actions.extract`，借鉴 Buck2 `ctx.actions`）
+- [ ] 添加调试工具（`vx provider debug <name>`，借鉴 Buck2 BXL 查询能力）
 - [ ] 编写集成测试
 
-### Phase 3: API 完善 (Week 5-6)
+### Phase 4: 生态完善（Week 7-8）
 
-- [ ] 完善 FileSystem API
-- [ ] 完善 HttpClient API
-- [ ] 添加辅助函数库
-- [ ] 添加调试工具 (`--debug-provider`)
-- [ ] 编写文档
-
-### Phase 4: 生态迁移 (Week 7-8)
-
-- [ ] 迁移 vcpkg provider
 - [ ] 迁移 winget provider
 - [ ] 迁移 brew provider
+- [ ] 完善 `@vx//stdlib` 工具函数（`semver.star`、`platform.star`、`http.star`）
 - [ ] 更新用户文档
 - [ ] 发布 v0.14.0
 
 ## 向后兼容性
 
-1. **TOML 格式完全保留** - 所有现有 provider.toml 继续工作
-2. **优先级明确** - provider.star > provider.toml
+1. **TOML 格式完全保留** - 所有现有 `provider.toml` 继续工作，无需修改
+2. **优先级明确** - `provider.star` > `provider.toml`，共存时 Starlark 优先
 3. **迁移路径清晰** - 可渐进式迁移，无需一次性全部转换
-4. **API 版本化** - provider.star 中的 `version()` 函数支持未来扩展
+4. **API 版本化** - `provider.star` 中的 `version()` 函数支持未来扩展
 
 ## 风险与缓解
 
@@ -1392,10 +1409,21 @@ impl Runtime for StarlarkProvider {
 | 沙箱绕过 | 高 | 严格审计 API，限制权限，编写安全测试 |
 | 性能开销 | 低 | Starlark 执行很快，主要时间在 I/O |
 | 维护复杂度 | 中 | 混合格式增加测试负担，需要 CI 覆盖 |
+| starlark-rust API 变更 | 中 | 封装 starlark-rust，隔离变更影响 |
 
 ## 参考资料
 
 - [Starlark Language Specification](https://github.com/bazelbuild/starlark/blob/master/spec.md)
-- [starlark-rust](https://github.com/facebook/starlark-rust)
-- [Buck2 Starlark API](https://buck2.build/docs/concepts/starlark/)
+- [starlark-rust (Meta/Facebook)](https://github.com/facebook/starlark-rust)
+- [Buck2 Rule Authors Guide](https://buck2.build/docs/rule_authors/writing_rules/)
+- [Buck2 Provider Design](https://buck2.build/docs/concepts/providers/)
 - [Bazel Starlark Rules](https://bazel.build/extending/rules)
+- [Deno Permission Model](https://docs.deno.com/runtime/fundamentals/security/)
+
+## 更新记录
+
+| 日期 | 版本 | 变更内容 |
+|------|------|----------|
+| 2026-02-19 | v0.1 | 初始草稿 |
+| 2026-02-19 | v0.2 | 加入 Buck2 借鉴内容：两阶段执行模型、Frozen Provider、声明式权限；修复 Starlark 示例中的非法 `import re` 语法；修正 Cargo.toml 和模块结构以匹配实际实现；修正 `SandboxConfig::restrictive()`（原 `secure()`）和内存限制（64MB）；修正 `_extract_version_from_path` 返回类型为 `str`；补充主流方案调研、替代方案章节 |
+| 2026-02-19 | v0.3 | 深化 Buck2 借鉴：补充 Typed Provider Fields（`record` 类型替代无类型 dict）、`load()` 模块系统（`@vx//stdlib` 虚拟文件系统）、增量分析缓存（内容哈希）、声明式动作 API（`ctx.actions`）、BXL 调试工具对应设计；更新 Bazel 对比表格；更新实现计划（Phase 1 已完成项打勾，Phase 2-3 补充新任务） |
