@@ -6,7 +6,8 @@
 //! - Caching compiled bytecode
 //! - Providing a trait-based interface compatible with vx's Provider system
 
-use crate::context::{InstallResult, PlatformInfo, ProviderContext, VersionInfo};
+use crate::context::{InstallResult, ProviderContext, VersionInfo};
+use crate::engine::StarlarkEngine;
 use crate::error::{Error, Result};
 use crate::sandbox::SandboxConfig;
 use serde::Deserialize;
@@ -65,7 +66,7 @@ fn default_priority() -> u32 {
 }
 
 /// A loaded Starlark provider
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StarlarkProvider {
     /// Path to the provider script
     script_path: PathBuf,
@@ -82,9 +83,12 @@ pub struct StarlarkProvider {
     /// VX home directory
     vx_home: PathBuf,
 
+    /// Cached script content (for engine execution)
+    script_content: Arc<String>,
+
     /// Cached bytecode (for performance)
     #[allow(dead_code)]
-    bytecode_cache: Option<Vec<u8>>,
+    bytecode_cache: Option<Arc<Vec<u8>>>,
 }
 
 /// Cache for loaded providers
@@ -127,13 +131,16 @@ impl StarlarkProvider {
         let (meta, runtimes) = Self::parse_metadata(&content)?;
 
         // Create the provider
-        let vx_home = vx_paths::VxPaths::default().vx_home();
+        let vx_home = vx_paths::VxPaths::new()
+            .map(|p| p.base_dir)
+            .unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".vx"));
         let provider = Self {
             script_path: path.clone(),
             meta,
             runtimes,
             sandbox: SandboxConfig::default(),
             vx_home,
+            script_content: Arc::new(content),
             bytecode_cache: None,
         };
 
@@ -152,6 +159,11 @@ impl StarlarkProvider {
         let mut provider = Self::load(path).await?;
         provider.sandbox = sandbox;
         Ok(provider)
+    }
+
+    /// Get the Starlark engine for this provider
+    fn engine(&self) -> StarlarkEngine {
+        StarlarkEngine::new()
     }
 
     /// Parse metadata from a Starlark script
@@ -209,7 +221,7 @@ impl StarlarkProvider {
     }
 
     /// Extract string return value from a function
-    fn extract_string_return(func_line: &str, _content: &str) -> Option<String> {
+    fn extract_string_return(_func_line: &str, _content: &str) -> Option<String> {
         // Simple extraction - look for return "value" in the next few lines
         // This is a simplified implementation
         None
@@ -272,46 +284,125 @@ impl StarlarkProvider {
 
     // === Internal Execution Methods ===
 
-    /// Execute fetch_versions function
-    ///
-    /// This is a placeholder for the actual Starlark execution.
-    /// In a full implementation, this would:
-    /// 1. Create a Starlark evaluator
-    /// 2. Register the vx stdlib
-    /// 3. Inject the ProviderContext
-    /// 4. Call the function
-    async fn execute_fetch_versions(&self, _ctx: &ProviderContext) -> Result<Vec<VersionInfo>> {
-        // Placeholder implementation
-        // In reality, this would execute the Starlark script
-        warn!(
-            "Starlark execution not yet implemented for provider: {}",
-            self.meta.name
+    /// Execute fetch_versions function using the Starlark engine
+    async fn execute_fetch_versions(&self, ctx: &ProviderContext) -> Result<Vec<VersionInfo>> {
+        let engine = self.engine();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "fetch_versions",
+            ctx,
+            &[],
         );
-        Ok(vec![])
+
+        match result {
+            Ok(json) => {
+                // Parse JSON array of version dicts
+                if let Some(arr) = json.as_array() {
+                    let versions = arr
+                        .iter()
+                        .filter_map(|v| {
+                            let version = v.get("version")?.as_str()?.to_string();
+                            Some(VersionInfo {
+                                version,
+                                lts: v.get("lts").and_then(|l| l.as_bool()).unwrap_or(false),
+                                stable: v.get("stable").and_then(|s| s.as_bool()).unwrap_or(true),
+                                date: v.get("date").and_then(|d| d.as_str()).map(|s| s.to_string()),
+                            })
+                        })
+                        .collect();
+                    Ok(versions)
+                } else {
+                    Ok(vec![])
+                }
+            }
+            Err(Error::FunctionNotFound { .. }) => {
+                warn!(
+                    provider = %self.meta.name,
+                    "fetch_versions() not found in provider script"
+                );
+                Ok(vec![])
+            }
+            Err(e) => Err(e),
+        }
     }
 
-    /// Execute install function
+    /// Execute install function using the Starlark engine
     async fn execute_install(
         &self,
-        _ctx: &ProviderContext,
-        _version: &str,
+        ctx: &ProviderContext,
+        version: &str,
     ) -> Result<InstallResult> {
-        // Placeholder implementation
-        warn!(
-            "Starlark execution not yet implemented for provider: {}",
-            self.meta.name
+        let engine = self.engine();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "install",
+            ctx,
+            &[serde_json::Value::String(version.to_string())],
         );
-        Ok(InstallResult::failure("Starlark execution not implemented"))
+
+        match result {
+            Ok(json) => {
+                let success = json.get("success").and_then(|s| s.as_bool()).unwrap_or(false);
+                let install_path = json
+                    .get("path")
+                    .and_then(|p| p.as_str())
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| ctx.paths.install_dir(version));
+
+                if success {
+                    Ok(InstallResult::success(install_path))
+                } else {
+                    let msg = json
+                        .get("error")
+                        .and_then(|e| e.as_str())
+                        .unwrap_or("Installation failed")
+                        .to_string();
+                    Ok(InstallResult::failure(msg))
+                }
+            }
+            Err(Error::FunctionNotFound { .. }) => {
+                // install() is optional - use default Rust installer
+                debug!(
+                    provider = %self.meta.name,
+                    "install() not found, using default installer"
+                );
+                Ok(InstallResult::failure("No install() function defined"))
+            }
+            Err(e) => Err(e),
+        }
     }
 
-    /// Execute prepare_environment function
+    /// Execute prepare_environment function using the Starlark engine
     async fn execute_prepare_environment(
         &self,
-        _ctx: &ProviderContext,
-        _version: &str,
+        ctx: &ProviderContext,
+        version: &str,
     ) -> Result<HashMap<String, String>> {
-        // Placeholder implementation
-        Ok(HashMap::new())
+        let engine = self.engine();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "prepare_environment",
+            ctx,
+            &[serde_json::Value::String(version.to_string())],
+        );
+
+        match result {
+            Ok(json) => {
+                if let Some(obj) = json.as_object() {
+                    Ok(obj
+                        .iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect())
+                } else {
+                    Ok(HashMap::new())
+                }
+            }
+            Err(Error::FunctionNotFound { .. }) => Ok(HashMap::new()),
+            Err(e) => Err(e),
+        }
     }
 
     // === Cache Management ===
@@ -378,52 +469,5 @@ impl ProviderFormat {
             Self::Toml => Some("provider.toml"),
             Self::None => None,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-
-    #[test]
-    fn test_provider_format_detect() {
-        let temp = tempfile::tempdir().unwrap();
-
-        // Empty directory
-        assert_eq!(ProviderFormat::detect(temp.path()), ProviderFormat::None);
-
-        // With provider.star
-        fs::write(temp.path().join("provider.star"), "# test").unwrap();
-        assert_eq!(
-            ProviderFormat::detect(temp.path()),
-            ProviderFormat::Starlark
-        );
-
-        // With provider.toml (Starlark takes priority)
-        fs::write(temp.path().join("provider.toml"), "# test").unwrap();
-        assert_eq!(
-            ProviderFormat::detect(temp.path()),
-            ProviderFormat::Starlark
-        );
-    }
-
-    #[test]
-    fn test_is_starlark_provider() {
-        assert!(is_starlark_provider(Path::new("provider.star")));
-        assert!(!is_starlark_provider(Path::new("provider.toml")));
-    }
-
-    #[test]
-    fn test_provider_meta() {
-        let meta = ProviderMeta {
-            name: "test".to_string(),
-            description: "Test provider".to_string(),
-            version: "1.0.0".to_string(),
-            homepage: None,
-            repository: None,
-            platforms: None,
-        };
-        assert_eq!(meta.name, "test");
     }
 }

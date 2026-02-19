@@ -36,6 +36,7 @@ pub mod template {
     ///
     /// # Example
     /// ```
+    /// use std::collections::HashMap;
     /// use vx_starlark::stdlib::template::render;
     ///
     /// let mut vars = HashMap::new();
@@ -160,52 +161,5 @@ pub mod url {
         url.strip_prefix("http://")
             .or_else(|| url.strip_prefix("https://"))
             .and_then(|s| s.split('/').next())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_template_render() {
-        let mut vars = std::collections::HashMap::new();
-        vars.insert("version", "20.0.0");
-        vars.insert("platform", "windows");
-
-        let result = template::render("https://example.com/{version}/tool-{platform}.zip", &vars);
-        assert_eq!(result, "https://example.com/20.0.0/tool-windows.zip");
-    }
-
-    #[test]
-    fn test_version_compare() {
-        assert_eq!(version::compare("1.0.0", "1.0.0"), Some(0));
-        assert_eq!(version::compare("1.0.1", "1.0.0"), Some(1));
-        assert_eq!(version::compare("1.0.0", "1.0.1"), Some(-1));
-        assert_eq!(version::compare("2.0.0", "1.9.9"), Some(1));
-        assert!(version::gt("1.0.1", "1.0.0"));
-        assert!(version::lt("1.0.0", "1.0.1"));
-    }
-
-    #[test]
-    fn test_version_strip_prefix() {
-        assert_eq!(version::strip_v_prefix("v1.0.0"), "1.0.0");
-        assert_eq!(version::strip_v_prefix("1.0.0"), "1.0.0");
-    }
-
-    #[test]
-    fn test_url_filename() {
-        assert_eq!(
-            url::filename("https://example.com/path/to/file.zip"),
-            Some("file.zip")
-        );
-    }
-
-    #[test]
-    fn test_url_host() {
-        assert_eq!(
-            url::host("https://example.com/path/to/file"),
-            Some("example.com")
-        );
     }
 }

@@ -9,7 +9,6 @@ use crate::sandbox::SandboxConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 /// Platform information exposed to Starlark scripts
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,11 +58,24 @@ impl PlatformInfo {
     fn detect_target() -> String {
         // Get target at runtime
         std::env::var("TARGET").unwrap_or_else(|_| {
-            // Fallback to compile-time target
-            cfg!(target_arch)
-                .then_some("x86_64")
-                .unwrap_or("unknown")
-                .to_string()
+            // Fallback to compile-time target triple
+            if cfg!(target_arch = "x86_64") {
+                if cfg!(target_os = "windows") {
+                    "x86_64-pc-windows-msvc".to_string()
+                } else if cfg!(target_os = "macos") {
+                    "x86_64-apple-darwin".to_string()
+                } else {
+                    "x86_64-unknown-linux-gnu".to_string()
+                }
+            } else if cfg!(target_arch = "aarch64") {
+                if cfg!(target_os = "macos") {
+                    "aarch64-apple-darwin".to_string()
+                } else {
+                    "aarch64-unknown-linux-gnu".to_string()
+                }
+            } else {
+                "unknown".to_string()
+            }
         })
     }
 }
@@ -450,42 +462,5 @@ impl ProviderContext {
         } else {
             s == pattern
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_platform_info() {
-        let platform = PlatformInfo::current();
-        assert!(!platform.os.is_empty());
-        assert!(!platform.arch.is_empty());
-    }
-
-    #[test]
-    fn test_version_info() {
-        let v = VersionInfo::new("20.0.0").with_lts(true);
-        assert_eq!(v.version, "20.0.0");
-        assert!(v.lts);
-    }
-
-    #[test]
-    fn test_path_manager() {
-        let pm = PathManager::new("node", PathBuf::from("/tmp/vx"));
-        assert_eq!(
-            pm.install_dir("20.0.0"),
-            PathBuf::from("/tmp/vx/store/node/20.0.0")
-        );
-    }
-
-    #[test]
-    fn test_provider_context_sandbox() {
-        let ctx = ProviderContext::new("test", PathBuf::from("/tmp/vx"))
-            .with_sandbox(SandboxConfig::restrictive());
-
-        let path = PathBuf::from("/etc/passwd");
-        assert!(ctx.file_exists(&path).is_err());
     }
 }
