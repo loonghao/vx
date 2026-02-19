@@ -4,9 +4,15 @@
 version = 1
 
 [metadata]
-generated_at = "2026-02-19T13:53:25Z"
+generated_at = "2026-02-19T18:14:20Z"
 vx_version = "0.6.19"
 platform = "x86_64-pc-windows-msvc"
+
+[tools.7z]
+version = "26.00"
+source = "vx install"
+resolved_from = "latest"
+ecosystem = "Generic"
 
 [tools.cmake]
 version = "4.2.2"

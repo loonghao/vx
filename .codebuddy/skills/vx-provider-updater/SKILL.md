@@ -16,6 +16,8 @@ Update existing VX providers to RFC 0018 + RFC 0019 standards with layout config
 
 - Updating existing provider.toml to add layout configuration
 - Migrating from custom `post_extract` hooks to RFC 0019
+- **Migrating from Rust runtime.rs to Starlark provider.star**
+- **Adding MSI install support for Windows using Starlark**
 - **Adding system package manager fallback for tools without portable binaries**
 - **Adding missing `license` field to provider.toml** (all providers MUST have it)
 - Standardizing provider manifests
@@ -484,6 +486,206 @@ target_dir = "bin"
 
 [runtimes.platforms.windows]
 executable_extensions = [".exe"]
+```
+
+## Migration: From Rust runtime.rs to Starlark provider.star
+
+Starlark (`provider.star`) is the **preferred** way to implement providers. It replaces `runtime.rs` and `config.rs` with pure-computation scripts that are easier to read, write, and maintain.
+
+### When to Migrate
+
+- Provider has custom `download_url()` logic in `config.rs`
+- Provider has `post_extract()` or `install()` overrides in `runtime.rs`
+- Provider needs MSI install support on Windows
+- Provider needs system package manager fallback
+- Any new provider being created
+
+### Migration Steps
+
+#### Step 1: Create provider.star
+
+Create `crates/vx-providers/{name}/provider.star` with the equivalent logic:
+
+**Before (Rust config.rs):**
+```rust
+pub fn download_url(version: &str, platform: &Platform) -> Option<String> {
+    let triple = match (&platform.os, &platform.arch) {
+        (Os::Windows, Arch::X86_64) => "x86_64-pc-windows-msvc",
+        (Os::MacOS, Arch::Aarch64)  => "aarch64-apple-darwin",
+        (Os::Linux, Arch::X86_64)   => "x86_64-unknown-linux-musl",
+        _ => return None,
+    };
+    let ext = if platform.os == Os::Windows { "zip" } else { "tar.gz" };
+    Some(format!("https://github.com/owner/repo/releases/download/v{}/tool-v{}-{}.{}",
+        version, version, triple, ext))
+}
+```
+
+**After (Starlark provider.star):**
+```python
+load("@vx//stdlib:github.star",   "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:platform.star", "is_windows")
+
+fetch_versions = make_fetch_versions("owner", "repo")
+
+def _triple(ctx):
+    os   = ctx["platform"]["os"]
+    arch = ctx["platform"]["arch"]
+    return {
+        "windows/x64":  "x86_64-pc-windows-msvc",
+        "macos/arm64":  "aarch64-apple-darwin",
+        "linux/x64":    "x86_64-unknown-linux-musl",
+    }.get("{}/{}".format(os, arch))
+
+def download_url(ctx, version):
+    triple = _triple(ctx)
+    if not triple:
+        return None
+    os  = ctx["platform"]["os"]
+    ext = "zip" if os == "windows" else "tar.gz"
+    asset = "tool-v{}-{}.{}".format(version, triple, ext)
+    return github_asset_url("owner", "repo", "v" + version, asset)
+
+def install_layout(ctx, version):
+    os  = ctx["platform"]["os"]
+    exe = "tool.exe" if os == "windows" else "tool"
+    return {
+        "type":             "archive",
+        "strip_prefix":     "tool-v{}-{}".format(version, _triple(ctx) or ""),
+        "executable_paths": [exe, "tool"],
+    }
+
+def environment(ctx, version, install_dir):
+    return {"PATH": install_dir}
+
+def deps(ctx, version):
+    return []
+```
+
+#### Step 2: Simplify provider.toml
+
+After creating `provider.star`, the `provider.toml` only needs metadata (remove layout fields):
+
+```toml
+[provider]
+name = "mytool"
+description = "My awesome tool"
+homepage = "https://example.com"
+repository = "https://github.com/owner/repo"
+ecosystem = "devtools"
+license = "MIT"
+```
+
+#### Step 3: Remove Rust files (if manifest-only)
+
+If the provider was Rust-only (no `provider.toml`), you can keep the Rust factory or convert to manifest-only. For manifest+star providers, the Rust files are optional.
+
+### Starlark Standard Library Quick Reference
+
+| Module | Load Path | Key Functions |
+|--------|-----------|---------------|
+| GitHub | `@vx//stdlib:github.star` | `make_fetch_versions(owner, repo)`, `make_download_url(owner, repo, template)`, `make_github_provider(owner, repo, template)`, `github_asset_url(owner, repo, tag, asset)` |
+| Platform | `@vx//stdlib:platform.star` | `is_windows(ctx)`, `is_macos(ctx)`, `is_linux(ctx)`, `is_x64(ctx)`, `is_arm64(ctx)`, `platform_triple(ctx)`, `platform_ext(ctx)`, `exe_ext(ctx)`, `arch_to_gnu(arch)`, `arch_to_go(arch)`, `os_to_go(os)` |
+| Install | `@vx//stdlib:install.star` | `msi_install(url, ...)`, `archive_install(url, ...)`, `binary_install(url, ...)`, `platform_install(ctx, ...)` |
+| HTTP | `@vx//stdlib:http.star` | `github_releases(ctx, owner, repo)`, `releases_to_versions(releases)`, `parse_github_tag(tag)` |
+| Semver | `@vx//stdlib:semver.star` | `semver_compare(a, b)`, `semver_gt/lt/gte/lte/eq(a, b)`, `semver_sort(versions)`, `semver_strip_v(v)` |
+
+### ctx Object Reference
+
+```python
+ctx = {
+    "platform": {
+        "os":     "windows" | "macos" | "linux",
+        "arch":   "x64" | "arm64" | "x86",
+        "target": "x86_64-pc-windows-msvc" | ...,
+    },
+    "http": {
+        "get_json": lambda url: ...,  # returns parsed JSON
+    },
+    "paths": {
+        "install_dir": "/path/to/install",
+        "cache_dir":   "/path/to/cache",
+    },
+}
+```
+
+### install_layout Return Values
+
+| Type | Required Fields | Optional Fields |
+|------|----------------|------------------|
+| `"archive"` | `type` | `strip_prefix`, `executable_paths` |
+| `"binary"` | `type` | `executable_name`, `source_name`, `permissions` |
+| `"msi"` | `type`, `url` | `executable_paths`, `strip_prefix`, `extra_args` |
+
+## Migration: Adding MSI Install Support (Windows)
+
+For tools that distribute `.msi` installers on Windows, use `msi_install()` from `install.star`.
+
+### How MSI Install Works
+
+The Rust runtime runs:
+```
+msiexec /a <file.msi> /qn /norestart TARGETDIR=<install_dir>
+```
+This extracts the MSI contents to `install_dir` **without modifying the Windows registry**.
+
+### Template: MSI on Windows + Archive on Other Platforms
+
+```python
+# provider.star
+load("@vx//stdlib:install.star",  "msi_install", "archive_install")
+load("@vx//stdlib:github.star",   "make_fetch_versions", "github_asset_url")
+
+fetch_versions = make_fetch_versions("owner", "repo")
+
+def download_url(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "https://github.com/owner/repo/releases/download/v{}/tool-{}-x64.msi".format(version, version)
+    elif os == "macos":
+        return github_asset_url("owner", "repo", "v" + version, "tool-{}-macos.tar.gz".format(version))
+    elif os == "linux":
+        return github_asset_url("owner", "repo", "v" + version, "tool-{}-linux.tar.gz".format(version))
+    return None
+
+def install_layout(ctx, version):
+    os  = ctx["platform"]["os"]
+    url = download_url(ctx, version)
+    if os == "windows":
+        return msi_install(
+            url,
+            executable_paths = ["bin/tool.exe", "tool.exe"],
+            # strip_prefix = "PFiles/Tool",  # if msiexec extracts to a subdir
+        )
+    else:
+        return archive_install(
+            url,
+            strip_prefix = "tool-{}".format(version),
+            executable_paths = ["bin/tool"],
+        )
+
+def environment(ctx, version, install_dir):
+    return {"PATH": install_dir}
+
+def deps(ctx, version):
+    return []
+```
+
+### Template: platform_install() Convenience Helper
+
+```python
+load("@vx//stdlib:install.star", "platform_install")
+
+def install_layout(ctx, version):
+    return platform_install(
+        ctx,
+        windows_url = "https://example.com/tool-{}.msi".format(version),
+        macos_url   = "https://example.com/tool-{}-macos.tar.gz".format(version),
+        linux_url   = "https://example.com/tool-{}-linux.tar.gz".format(version),
+        windows_msi = True,
+        executable_paths = ["bin/tool.exe", "bin/tool"],
+        strip_prefix = "tool-{}".format(version),
+    )
 ```
 
 ## Migration: From post_extract to Layout

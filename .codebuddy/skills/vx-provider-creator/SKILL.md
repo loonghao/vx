@@ -174,11 +174,459 @@ The `provider.toml` file is the declarative manifest for the provider. It define
 See `references/templates.md` for complete provider.toml template.
 See `references/rfc-0019-layout.md` for RFC 0019 layout configuration guide.
 
+## Step 2.2: Create provider.star (Starlark Script)
+
+**provider.star is the preferred way to implement providers.** It replaces the need for Rust code (`runtime.rs`, `config.rs`) for most providers. The Starlark script is pure computation — all real I/O (HTTP, filesystem, msiexec) is performed by the Rust runtime based on descriptor dicts returned by the script.
+
+### File Location
+
+```
+crates/vx-providers/{name}/
+├── provider.toml   # Metadata only (name, description, ecosystem, license)
+└── provider.star   # Logic: fetch_versions, download_url, install_layout, etc.
+```
+
+> **When to use provider.star vs provider.toml layout:**
+> - `provider.star` — for any custom logic: platform-specific URLs, MSI installs, system package manager fallback, complex version parsing
+> - `provider.toml` layout fields — only for simple standard archive/binary downloads with no custom logic
+
+### Starlark Standard Library
+
+Load helpers from `@vx//stdlib:`:
+
+| Module | Key Functions | Use Case |
+|--------|--------------|----------|
+| `github.star` | `make_fetch_versions`, `make_download_url`, `make_github_provider`, `github_asset_url` | GitHub releases |
+| `http.star` | `github_releases`, `releases_to_versions`, `parse_github_tag` | HTTP descriptors |
+| `platform.star` | `is_windows`, `is_macos`, `is_linux`, `is_x64`, `is_arm64`, `platform_triple`, `platform_ext`, `exe_ext`, `arch_to_gnu`, `arch_to_go`, `os_to_go` | Platform detection |
+| `install.star` | `msi_install`, `archive_install`, `binary_install`, `platform_install` | Install descriptors |
+| `semver.star` | `semver_compare`, `semver_gt`, `semver_lt`, `semver_parse`, `semver_sort`, `semver_strip_v` | Version comparison |
+
+### provider.star Structure
+
+A complete `provider.star` has these top-level symbols:
+
+```python
+# ── Metadata (required) ──────────────────────────────────────────────────
+def name():        return "mytool"
+def description(): return "My awesome tool"
+def homepage():    return "https://example.com"
+def repository():  return "https://github.com/owner/repo"
+def license():     return "MIT"          # SPDX identifier
+def ecosystem():   return "devtools"     # nodejs/python/rust/go/devtools/system/...
+def aliases():     return ["mt"]         # optional
+
+# ── Platform constraint (optional, provider-level) ────────────────────────
+platforms = {"os": ["windows"]}         # omit if cross-platform
+
+# ── Runtime definitions (required) ───────────────────────────────────────
+runtimes = [
+    {
+        "name":        "mytool",
+        "executable":  "mytool",
+        "description": "My tool CLI",
+        "aliases":     ["mt"],
+        "priority":    100,
+        # optional: "platform_constraint": {"os": ["windows"]},
+        # optional: "bundled_with": "other-runtime",
+        # optional: "system_paths": ["C:/Program Files/MyTool"],
+        # optional: "system_install": [{"manager": "brew", "package": "mytool", "priority": 90, "platforms": ["macos"]}],
+    },
+]
+
+# ── Permissions (sandbox declaration) ────────────────────────────────────
+permissions = {
+    "http": ["api.github.com", "github.com"],
+    "fs":   [],
+    "exec": [],
+}
+
+# ── fetch_versions (required) ─────────────────────────────────────────────
+# Option A: inherit from github.star (zero code)
+fetch_versions = make_fetch_versions("owner", "repo")
+
+# Option B: custom logic
+def fetch_versions(ctx):
+    releases = ctx["http"]["get_json"]("https://api.github.com/repos/owner/repo/releases?per_page=30")
+    versions = []
+    for release in releases:
+        if release.get("draft") or release.get("prerelease"):
+            continue
+        tag = release.get("tag_name", "")
+        v = tag.lstrip("v")
+        if v:
+            versions.append({"version": v, "lts": True, "prerelease": False})
+    return versions
+
+# ── download_url (required) ───────────────────────────────────────────────
+# Option A: inherit from github.star
+download_url = make_download_url("owner", "repo", "mytool-{vversion}-{triple}.{ext}")
+
+# Option B: custom logic
+def download_url(ctx, version):
+    os   = ctx["platform"]["os"]
+    arch = ctx["platform"]["arch"]
+    # ... build URL ...
+    return url_string  # or None if unsupported
+
+# ── install_layout (required for non-trivial installs) ────────────────────
+def install_layout(ctx, version):
+    # Returns a descriptor dict; Rust runtime performs actual extraction
+    return {
+        "type":             "archive",   # or "binary", "msi"
+        "strip_prefix":     "mytool-{}".format(version),
+        "executable_paths": ["bin/mytool.exe", "bin/mytool"],
+    }
+
+# ── environment (optional) ────────────────────────────────────────────────
+def environment(ctx, version, install_dir):
+    return {"PATH": install_dir}  # prepend install_dir to PATH
+
+# ── system_install (optional, for package manager fallback) ───────────────
+def system_install(ctx):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return {"strategies": [{"manager": "winget", "package": "Publisher.MyTool", "priority": 95}]}
+    elif os == "macos":
+        return {"strategies": [{"manager": "brew", "package": "mytool", "priority": 90}]}
+    return {}
+
+# ── constraints (optional) ────────────────────────────────────────────────
+constraints = [
+    {
+        "when": "*",
+        "recommends": [{"runtime": "git", "version": ">=2.0", "reason": "Used as backend"}],
+    },
+]
+
+# ── deps (optional) ───────────────────────────────────────────────────────
+def deps(ctx, version):
+    return []  # list of {"runtime": "node", "version": ">=18"}
+```
+
+### Inheritance Levels
+
+Choose the level that fits your provider:
+
+**Level 0 — Fully inherited (2 lines)**
+```python
+load("@vx//stdlib:github.star", "make_github_provider")
+_p = make_github_provider("owner", "repo", "mytool-{vversion}-{triple}.{ext}")
+fetch_versions = _p["fetch_versions"]
+download_url   = _p["download_url"]
+```
+
+**Level 1 — Inherit fetch_versions, custom download_url**
+```python
+load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:platform.star", "is_windows")
+
+fetch_versions = make_fetch_versions("owner", "repo")
+
+def download_url(ctx, version):
+    os = ctx["platform"]["os"]
+    ext = "zip" if os == "windows" else "tar.gz"
+    asset = "mytool-v{}-{}.{}".format(version, os, ext)
+    return github_asset_url("owner", "repo", "v" + version, asset)
+```
+
+**Level 2 — Fully custom (non-GitHub source)**
+```python
+def fetch_versions(ctx):
+    data = ctx["http"]["get_json"]("https://example.com/api/versions")
+    return [{"version": v["name"], "lts": True, "prerelease": False} for v in data]
+
+def download_url(ctx, version):
+    os = ctx["platform"]["os"]
+    return "https://example.com/download/{}/{}".format(version, os)
+```
+
+### MSI Install (Windows)
+
+For tools that distribute `.msi` installers on Windows, use `msi_install()` from `install.star`:
+
+```python
+load("@vx//stdlib:install.star", "msi_install", "archive_install")
+load("@vx//stdlib:platform.star", "is_windows")
+
+def download_url(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "https://example.com/tool-{}.msi".format(version)
+    elif os == "macos":
+        return "https://example.com/tool-{}-macos.tar.gz".format(version)
+    elif os == "linux":
+        return "https://example.com/tool-{}-linux.tar.gz".format(version)
+    return None
+
+def install_layout(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        url = download_url(ctx, version)
+        # msi_install uses msiexec /a (administrative install, no registry changes)
+        return msi_install(
+            url,
+            executable_paths = ["bin/tool.exe", "tool.exe"],
+            strip_prefix = "PFiles/Tool",  # optional: strip msiexec extraction prefix
+        )
+    else:
+        url = download_url(ctx, version)
+        return archive_install(
+            url,
+            strip_prefix = "tool-{}".format(version),
+            executable_paths = ["bin/tool"],
+        )
+```
+
+> **How MSI install works:** `msi_install()` returns a descriptor dict. The Rust runtime runs:
+> `msiexec /a <file.msi> /qn /norestart TARGETDIR=<install_dir>`
+> This extracts the MSI contents without modifying the Windows registry.
+
+### platform_install() Convenience Helper
+
+For tools with different URLs per platform (including MSI on Windows):
+
+```python
+load("@vx//stdlib:install.star", "platform_install")
+
+def install_layout(ctx, version):
+    return platform_install(
+        ctx,
+        windows_url = "https://example.com/tool-{}.msi".format(version),
+        macos_url   = "https://example.com/tool-{}-macos.tar.gz".format(version),
+        linux_url   = "https://example.com/tool-{}-linux.tar.gz".format(version),
+        windows_msi = True,                          # use msi_install on Windows
+        executable_paths = ["bin/tool.exe", "bin/tool"],
+        strip_prefix = "tool-{}".format(version),
+    )
+```
+
+### System Package Manager Fallback
+
+For tools without portable binaries on some platforms:
+
+```python
+def download_url(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "linux":
+        return "https://github.com/owner/repo/releases/download/v{}/tool-linux.tar.gz".format(version)
+    # Windows/macOS: no portable binary → return None → triggers system_install
+    return None
+
+def system_install(ctx):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return {
+            "strategies": [
+                {"manager": "winget", "package": "Publisher.Tool", "priority": 95},
+                {"manager": "choco",  "package": "tool",           "priority": 80},
+                {"manager": "scoop",  "package": "tool",           "priority": 60},
+            ],
+        }
+    elif os == "macos":
+        return {
+            "strategies": [
+                {"manager": "brew", "package": "tool", "priority": 90},
+            ],
+        }
+    elif os == "linux":
+        return {
+            "strategies": [
+                {"manager": "apt", "package": "tool", "priority": 80},
+                {"manager": "dnf", "package": "tool", "priority": 80},
+            ],
+        }
+    return {}
+```
+
+### ctx Object Reference
+
+The `ctx` dict injected by the vx runtime:
+
+```python
+ctx = {
+    "platform": {
+        "os":     "windows" | "macos" | "linux",
+        "arch":   "x64" | "arm64" | "x86",
+        "target": "x86_64-pc-windows-msvc" | ...,  # Rust target triple
+    },
+    "http": {
+        "get_json": lambda url: ...,   # returns parsed JSON (list or dict)
+    },
+    "paths": {
+        "install_dir": "/path/to/install",
+        "cache_dir":   "/path/to/cache",
+    },
+}
+```
+
+### install_layout Return Values
+
+| Type | Fields | Description |
+|------|--------|-------------|
+| `"archive"` | `strip_prefix`, `executable_paths` | ZIP/TAR.GZ/TAR.XZ archive |
+| `"binary"` | `executable_name`, `source_name` (opt), `permissions` (opt) | Single file download |
+| `"msi"` | `url`, `executable_paths` (opt), `strip_prefix` (opt), `extra_args` (opt) | Windows MSI installer |
+
+### Complete Example: Standard GitHub Provider
+
+```python
+# provider.star - ripgrep provider
+load("@vx//stdlib:github.star",   "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:platform.star", "is_windows")
+
+def name():        return "ripgrep"
+def description(): return "ripgrep - recursively searches directories for a regex pattern"
+def homepage():    return "https://github.com/BurntSushi/ripgrep"
+def repository():  return "https://github.com/BurntSushi/ripgrep"
+def license():     return "MIT"
+def ecosystem():   return "devtools"
+def aliases():     return ["rg"]
+
+runtimes = [
+    {
+        "name":        "rg",
+        "executable":  "rg",
+        "description": "ripgrep - fast regex search",
+        "aliases":     ["ripgrep"],
+        "priority":    100,
+    },
+]
+
+permissions = {
+    "http": ["api.github.com", "github.com"],
+    "fs":   [],
+    "exec": [],
+}
+
+fetch_versions = make_fetch_versions("BurntSushi", "ripgrep")
+
+def _rg_triple(ctx):
+    os   = ctx["platform"]["os"]
+    arch = ctx["platform"]["arch"]
+    triples = {
+        "windows/x64":  "x86_64-pc-windows-msvc",
+        "macos/x64":    "x86_64-apple-darwin",
+        "macos/arm64":  "aarch64-apple-darwin",
+        "linux/x64":    "x86_64-unknown-linux-musl",
+        "linux/arm64":  "aarch64-unknown-linux-musl",
+    }
+    return triples.get("{}/{}".format(os, arch))
+
+def download_url(ctx, version):
+    triple = _rg_triple(ctx)
+    if not triple:
+        return None
+    os  = ctx["platform"]["os"]
+    ext = "zip" if os == "windows" else "tar.gz"
+    asset = "ripgrep-{}-{}.{}".format(version, triple, ext)
+    return github_asset_url("BurntSushi", "ripgrep", "v" + version, asset)
+
+def install_layout(ctx, version):
+    os  = ctx["platform"]["os"]
+    exe = "rg.exe" if os == "windows" else "rg"
+    triple = _rg_triple(ctx)
+    return {
+        "type":             "archive",
+        "strip_prefix":     "ripgrep-{}-{}".format(version, triple) if triple else "",
+        "executable_paths": [exe, "rg"],
+    }
+
+def environment(ctx, version, install_dir):
+    return {"PATH": install_dir}
+
+def deps(ctx, version):
+    return []
+```
+
+### Complete Example: MSI on Windows + Archive on Other Platforms
+
+```python
+# provider.star - tool with MSI on Windows
+load("@vx//stdlib:install.star",  "msi_install", "archive_install")
+load("@vx//stdlib:github.star",   "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:platform.star", "is_windows")
+
+def name():        return "mytool"
+def description(): return "My tool with MSI installer on Windows"
+def homepage():    return "https://example.com"
+def repository():  return "https://github.com/owner/mytool"
+def license():     return "MIT"
+def ecosystem():   return "devtools"
+
+runtimes = [{"name": "mytool", "executable": "mytool", "description": "My tool", "priority": 100}]
+permissions = {"http": ["api.github.com", "github.com"], "fs": [], "exec": []}
+
+fetch_versions = make_fetch_versions("owner", "mytool")
+
+def download_url(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "https://github.com/owner/mytool/releases/download/v{}/mytool-{}-x64.msi".format(version, version)
+    elif os == "macos":
+        return github_asset_url("owner", "mytool", "v" + version, "mytool-{}-macos.tar.gz".format(version))
+    elif os == "linux":
+        return github_asset_url("owner", "mytool", "v" + version, "mytool-{}-linux.tar.gz".format(version))
+    return None
+
+def install_layout(ctx, version):
+    os = ctx["platform"]["os"]
+    url = download_url(ctx, version)
+    if os == "windows":
+        # MSI: msiexec /a extracts to TARGETDIR, no registry changes
+        return msi_install(
+            url,
+            executable_paths = ["bin/mytool.exe", "mytool.exe"],
+            # strip_prefix = "PFiles/MyTool",  # uncomment if msiexec extracts to a subdir
+        )
+    else:
+        return archive_install(
+            url,
+            strip_prefix = "mytool-{}".format(version),
+            executable_paths = ["bin/mytool"],
+        )
+
+def environment(ctx, version, install_dir):
+    return {"PATH": install_dir}
+
+def deps(ctx, version):
+    return []
+```
+
 ## Step 3: Implement Core Files
 
-Refer to `references/templates.md` for complete code templates.
+> **Preferred approach:** Use `provider.star` (Starlark) instead of Rust files for most providers.
+> Only create Rust files (`runtime.rs`, `config.rs`) when you need capabilities not available in Starlark.
 
-### Key Implementation Points
+### Option A: Starlark-only Provider (Recommended)
+
+For most providers, you only need:
+
+```
+crates/vx-providers/{name}/
+├── Cargo.toml      # minimal, no custom Rust code
+├── provider.toml   # metadata: name, description, ecosystem, license
+└── provider.star   # all logic: fetch_versions, download_url, install_layout
+```
+
+The `provider.toml` for a Starlark provider only needs metadata:
+
+```toml
+[provider]
+name = "mytool"
+description = "My awesome tool"
+homepage = "https://example.com"
+repository = "https://github.com/owner/repo"
+ecosystem = "devtools"
+license = "MIT"
+```
+
+All logic (versions, URLs, install layout, system_install) goes in `provider.star`.
+See **Step 2.2** for the complete Starlark guide.
+
+### Option B: Rust Provider (for advanced cases)
+
+Refer to `references/templates.md` for complete code templates.
 
 **Cargo.toml**: Use workspace dependencies, package name `vx-provider-{name}`
 

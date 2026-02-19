@@ -110,19 +110,26 @@ impl Runtime for SevenZipRuntime {
     }
 
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        // 7-Zip GitHub releases: https://github.com/ip7z/7zip/releases/download/24.09/7z2409-x64.exe
+        // 7-Zip GitHub releases: https://github.com/ip7z/7zip/releases/download/24.09/
         // Normalize version: "24.09" -> "2409"
         let ver_compact = version.replace('.', "");
 
         let url = match (platform.os_name(), platform.arch.as_str()) {
+            // Windows: use MSI installer (extracted via msiexec /a, no registry changes)
             ("windows", "x64") => Some(format!(
-                "https://github.com/ip7z/7zip/releases/download/{}/7z{}-x64.exe",
+                "https://github.com/ip7z/7zip/releases/download/{}/7z{}-x64.msi",
                 version, ver_compact
             )),
             ("windows", "x86") => Some(format!(
-                "https://github.com/ip7z/7zip/releases/download/{}/7z{}.exe",
+                "https://github.com/ip7z/7zip/releases/download/{}/7z{}.msi",
                 version, ver_compact
             )),
+            // macOS: universal binary tar.xz
+            ("macos", _) => Some(format!(
+                "https://github.com/ip7z/7zip/releases/download/{}/7z{}-mac.tar.xz",
+                version, ver_compact
+            )),
+            // Linux: platform-specific tar.xz
             ("linux", "x64") => Some(format!(
                 "https://github.com/ip7z/7zip/releases/download/{}/7z{}-linux-x64.tar.xz",
                 version, ver_compact

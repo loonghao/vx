@@ -163,6 +163,13 @@ impl StarlarkEngine {
 
     /// Convert ProviderContext to a JSON value for injection into Starlark
     fn context_to_json(&self, ctx: &ProviderContext) -> JsonValue {
+        // Build paths object with install_dir and other useful paths
+        let install_dir = ctx
+            .paths
+            .current_install_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
+
         serde_json::json!({
             "platform": {
                 "os": ctx.platform.os,
@@ -170,6 +177,13 @@ impl StarlarkEngine {
                 "target": ctx.platform.target,
             },
             "env": ctx.env,
+            "paths": {
+                "install_dir":    install_dir,
+                "vx_home":        ctx.paths.vx_home.to_string_lossy().as_ref(),
+                "store_dir":      ctx.paths.store_dir.to_string_lossy().as_ref(),
+                "cache_dir":      ctx.paths.cache_dir.to_string_lossy().as_ref(),
+                "download_cache": ctx.paths.download_cache().to_string_lossy().as_ref(),
+            },
         })
     }
 
