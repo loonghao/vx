@@ -1,6 +1,6 @@
 # RFC 0036: Starlark Provider Support
 
-> **状态**: Draft (v0.3)
+> **状态**: Draft (v0.4)
 > **作者**: vx team
 > **创建日期**: 2026-02-19
 > **目标版本**: v0.14.0
@@ -1349,7 +1349,7 @@ def download_url(ctx, version):
 
 ## 实现计划
 
-### Phase 1: 基础设施（已部分完成）
+### Phase 1: 基础设施（✅ 已完成）
 
 - [x] 创建 `vx-starlark` crate
 - [x] 集成 `starlark-rust` 依赖
@@ -1362,26 +1362,34 @@ def download_url(ctx, version):
 - [x] 实现 `ProviderFormat::detect()` 混合格式检测
 - [x] 编写 `tests/sandbox_tests.rs`
 - [x] 编写 `tests/stdlib_tests.rs`
-- [ ] 实现 `permissions` 变量从 Starlark 脚本中解析（需要 Phase 2 执行引擎）
-- [ ] 实现 `VxModuleLoader`（`@vx//stdlib` 虚拟文件系统，借鉴 Buck2 `load()` 模块系统）
+- [x] 实现 `permissions` 变量从 Starlark 脚本中解析（`SandboxConfig::from_permissions()`）
+- [x] 实现 `VxModuleLoader`（`@vx//stdlib` 虚拟文件系统，借鉴 Buck2 `load()` 模块系统）
 
-### Phase 2: Starlark 执行引擎（Week 3-4）
+### Phase 2: Starlark 执行引擎（✅ 已完成）
 
-- [ ] 集成 `starlark-rust` 完整执行引擎（`AstModule` + `Evaluator`）
-- [ ] 实现 `ProviderContext` 到 Starlark `Value` 的转换（`StarlarkValue` derive）
-- [ ] 实现 `eval_function()` 完整逻辑（调用 `fetch_versions`、`download_url` 等）
-- [ ] 注册 `stdlib` 标准库函数到 Starlark `GlobalsBuilder`
-- [ ] 实现两阶段执行（Analysis → Execution）
-- [ ] 实现 `ProviderInfo` 强类型 record（借鉴 Buck2 typed provider_field）
-- [ ] 实现增量分析缓存（内容哈希，借鉴 Buck2 增量分析）
-- [ ] 实现 `@vx//stdlib` 模块加载器（`VxModuleLoader`）
-- [ ] 编写 `tests/provider_tests.rs`
+- [x] 集成 `starlark-rust` 完整执行引擎（`AstModule` + `Evaluator`）
+- [x] 实现 `ProviderContext` 到 Starlark `Value` 的转换（JSON bridge via `context_to_json`）
+- [x] 实现 `eval_function()` 完整逻辑（`StarlarkEngine::call_function()`）
+- [x] 注册 `stdlib` 标准库函数到 Starlark `GlobalsBuilder`
+- [x] 实现两阶段执行（Analysis → Execution，`StarlarkEngine` + `StarlarkProvider`）
+- [x] 实现 `FrozenProviderInfo` 不可变分析结果（借鉴 Buck2 Frozen Values）
+- [x] 实现增量分析缓存（内容哈希 `sha256_bytes`，借鉴 Buck2 增量分析）
+- [x] 实现 `@vx//stdlib` 模块加载器（`VxModuleLoader`，`loader.rs`）
+- [x] 编写 `tests/provider_tests.rs`
 
-### Phase 3: Provider 迁移（Week 5-6）
+### Phase 3: Provider 迁移（🚧 进行中）
 
-- [ ] 迁移 MSVC provider 到 Starlark
-- [ ] 迁移 vcpkg provider 到 Starlark
-- [ ] 添加混合格式支持（`provider.star` 优先于 `provider.toml`）
+- [x] 创建 `@vx//stdlib:github.star` — GitHub provider 通用基类（`make_fetch_versions`、`make_download_url`、`make_github_provider`）
+- [x] 创建 `@vx//stdlib:platform.star` — 平台检测工具函数
+- [x] 创建 `@vx//stdlib:http.star` — HTTP 工具函数（`github_releases`、`releases_to_versions`）
+- [x] 创建 `@vx//stdlib:semver.star` — 语义版本工具函数
+- [x] **jj provider 迁移** — `crates/vx-providers/jj/provider.star`（首个 Starlark provider 示例）
+  - `fetch_versions` 完全继承自 `github.star`（零自定义代码）
+  - `download_url` 重写（Linux 使用 musl，特殊命名格式）
+  - 展示了「继承基类、只重写需要定制的部分」模式
+- [ ] 迁移 MSVC provider 到 Starlark（最复杂，1077 行 → 预计 ~200 行 Starlark）
+- [ ] 迁移 vcpkg provider 到 Starlark（git clone 多步骤安装）
+- [ ] 添加混合格式支持（`provider.star` 优先于 `provider.toml`，`ProviderFormat::detect()` 已实现）
 - [ ] 实现声明式动作 API（`ctx.actions.download`、`ctx.actions.extract`，借鉴 Buck2 `ctx.actions`）
 - [ ] 添加调试工具（`vx provider debug <name>`，借鉴 Buck2 BXL 查询能力）
 - [ ] 编写集成测试
@@ -1390,9 +1398,118 @@ def download_url(ctx, version):
 
 - [ ] 迁移 winget provider
 - [ ] 迁移 brew provider
-- [ ] 完善 `@vx//stdlib` 工具函数（`semver.star`、`platform.star`、`http.star`）
+- [ ] 迁移更多简单 GitHub provider（fzf、ripgrep、fd、bat、yq 等）
 - [ ] 更新用户文档
 - [ ] 发布 v0.14.0
+
+## 继承复用模式（`load()` 工厂函数）
+
+Starlark 的 `load()` + 函数作为一等公民，天然支持"继承基类、只重写需要定制的部分"的模式。
+这是 vx Starlark provider 的核心设计理念，比 Rust trait 更轻量，比 TOML 模板更强大。
+
+### 三层复用粒度
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              Starlark Provider 继承复用层次                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Level 3: 完全复用（零自定义代码）                               │
+│  ─────────────────────────────────────────────────────────────  │
+│  load("@vx//stdlib:github.star", "make_github_provider")        │
+│  _p = make_github_provider("owner", "repo",                     │
+│           "{name}-{vversion}-{triple}.{ext}")                   │
+│  fetch_versions = _p.fetch_versions                             │
+│  download_url   = _p.download_url                               │
+│                                                                 │
+│  Level 2: 部分重写（只重写 download_url）← jj 示例              │
+│  ─────────────────────────────────────────────────────────────  │
+│  fetch_versions = make_fetch_versions("jj-vcs", "jj")  # 继承  │
+│  def download_url(ctx, version):                        # 重写  │
+│      triple = _jj_triple(ctx)   # musl instead of gnu          │
+│      ...                                                        │
+│                                                                 │
+│  Level 1: 完全自定义（复杂 Provider，如 MSVC）                   │
+│  ─────────────────────────────────────────────────────────────  │
+│  def fetch_versions(ctx): ...   # 完全自定义                    │
+│  def download_url(ctx, version): ...                            │
+│  def install(ctx, version): ...                                 │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### `@vx//stdlib:github.star` 工厂函数
+
+`github.star` 提供三个工厂函数，实现不同粒度的复用：
+
+```python
+# 工厂 1：只复用 fetch_versions
+fetch_versions = make_fetch_versions("jj-vcs", "jj")
+# → 等价于 Rust: ctx.fetch_github_releases("jj", "jj-vcs", "jj", ...)
+
+# 工厂 2：只复用 download_url（标准 Rust triple 命名）
+download_url = make_download_url(
+    "cli", "cli",
+    "gh_{version}_{os}_{arch}.{ext}"   # GitHub CLI 命名格式
+)
+
+# 工厂 3：完整 provider（fetch_versions + download_url 一起）
+_p = make_github_provider(
+    "BurntSushi", "ripgrep",
+    "ripgrep-{version}-{triple}.{ext}"
+)
+fetch_versions = _p.fetch_versions
+download_url   = _p.download_url
+```
+
+### jj provider.star 实现示例
+
+`crates/vx-providers/jj/provider.star` 是首个 Starlark provider 迁移示例，
+展示了 Level 2 复用（继承 `fetch_versions`，重写 `download_url`）：
+
+```python
+load("@vx//stdlib:github.star",   "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:platform.star", "is_windows")
+
+# ✅ fetch_versions 完全继承，零自定义代码
+# jj tags 是 "v0.38.0"，parse_github_tag() 自动去掉 v 前缀
+fetch_versions = make_fetch_versions("jj-vcs", "jj")
+
+# ✅ download_url 重写：因为 jj Linux 用 musl（不是 gnu）
+def _jj_triple(ctx):
+    triples = {
+        "linux/x64":  "x86_64-unknown-linux-musl",   # musl!
+        "linux/arm64": "aarch64-unknown-linux-musl",
+        "windows/x64": "x86_64-pc-windows-msvc",
+        "macos/arm64": "aarch64-apple-darwin",
+        # ...
+    }
+    return triples.get("{}/{}".format(ctx["platform"]["os"],
+                                      ctx["platform"]["arch"]))
+
+def download_url(ctx, version):
+    triple = _jj_triple(ctx)
+    if not triple:
+        return None
+    ext   = "zip" if ctx["platform"]["os"] == "windows" else "tar.gz"
+    asset = "jj-v{}-{}.{}".format(version, triple, ext)
+    return github_asset_url("jj-vcs", "jj", "v" + version, asset)
+```
+
+**对比 Rust 实现**：原 `JjUrlBuilder`（117 行 Rust）→ `provider.star`（~30 行 Starlark），
+代码量减少 **74%**，且逻辑更直观。
+
+### 与 TOML 的对比
+
+| 能力 | TOML `provider.toml` | Starlark `provider.star` |
+|------|---------------------|--------------------------|
+| 静态 URL 模板 | ✅ `{version}` 占位符 | ✅ 字符串 format |
+| 动态 URL 构建 | ❌ 无逻辑 | ✅ 完整 Python 逻辑 |
+| 跨 provider 复用 | ❌ 无法共享 | ✅ `load()` 导入 |
+| 继承并重写部分方法 | ❌ 无法继承 | ✅ 工厂函数 + 覆盖 |
+| 条件逻辑（if/for） | ❌ | ✅ |
+| 多步骤安装流程 | ❌ | ✅ `install()` 函数 |
+| 沙箱安全 | N/A | ✅ 声明式权限 |
 
 ## 向后兼容性
 
@@ -1427,3 +1544,4 @@ def download_url(ctx, version):
 | 2026-02-19 | v0.1 | 初始草稿 |
 | 2026-02-19 | v0.2 | 加入 Buck2 借鉴内容：两阶段执行模型、Frozen Provider、声明式权限；修复 Starlark 示例中的非法 `import re` 语法；修正 Cargo.toml 和模块结构以匹配实际实现；修正 `SandboxConfig::restrictive()`（原 `secure()`）和内存限制（64MB）；修正 `_extract_version_from_path` 返回类型为 `str`；补充主流方案调研、替代方案章节 |
 | 2026-02-19 | v0.3 | 深化 Buck2 借鉴：补充 Typed Provider Fields（`record` 类型替代无类型 dict）、`load()` 模块系统（`@vx//stdlib` 虚拟文件系统）、增量分析缓存（内容哈希）、声明式动作 API（`ctx.actions`）、BXL 调试工具对应设计；更新 Bazel 对比表格；更新实现计划（Phase 1 已完成项打勾，Phase 2-3 补充新任务） |
+| 2026-02-19 | v0.4 | 实现进展更新：Phase 1/2 全部完成；新增 `@vx//stdlib:github.star`（`make_fetch_versions`、`make_download_url`、`make_github_provider` 工厂函数，实现「继承复用」模式）；完成首个 Starlark provider 迁移示例（`jj/provider.star`）；修复 jj `strip_v_prefix(false)` 导致的 `vv0.38.0` 双重前缀 bug；优化 `registry.rs` 合并重复的 provider 列表宏调用 |
