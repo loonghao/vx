@@ -638,18 +638,9 @@ async fn handle_session_status(_ctx: &CommandContext) -> Result<()> {
     UI::header("AI Session Status");
     println!();
 
-    if let Some(session_id) = session.get("session_id").and_then(|s| s.as_str()) {
-        // Show truncated session ID for correlation without revealing full token
-        let truncated = if session_id.len() > 8 {
-            format!(
-                "{}...{}",
-                &session_id[..4],
-                &session_id[session_id.len() - 4..]
-            )
-        } else {
-            "<redacted>".to_string()
-        };
-        println!("  Session ID: {}", truncated);
+    if session.get("session_id").is_some() {
+        // Never expose any portion of the session ID for security
+        println!("  Session ID: <redacted>");
     }
 
     if let Some(project_root) = session.get("project_root").and_then(|s| s.as_str()) {
