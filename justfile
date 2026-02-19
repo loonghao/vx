@@ -71,8 +71,9 @@ test-fast:
     vx cargo nextest run --workspace --no-fail-fast -E 'not test(e2e)'
 
 # Run tests for specific packages
+# Usage: just test-pkgs "-p vx-provider-* -p vx-cli"
 test-pkgs PKGS:
-    vx cargo nextest run --no-fail-fast -p {{PKGS}}
+    vx cargo nextest run --no-fail-fast {{PKGS}}
 
 
 # Test all providers in a clean temporary environment
