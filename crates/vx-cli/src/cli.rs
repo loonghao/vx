@@ -1183,6 +1183,38 @@ pub enum AiCommand {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+
+    /// Generate AI-friendly project context (RFC 0035)
+    ///
+    /// Outputs project information optimized for AI agents including:
+    /// - Installed tools and versions
+    /// - Available scripts
+    /// - Tool constraints
+    /// - Environment setup
+    Context {
+        /// Output minimal context (only essential information)
+        #[arg(long)]
+        minimal: bool,
+    },
+
+    /// Manage AI session state (RFC 0035)
+    ///
+    /// Commands to manage persistent state for AI agents.
+    #[command(subcommand)]
+    Session(SessionCommand),
+}
+
+/// AI session management commands
+#[derive(Subcommand, Clone)]
+pub enum SessionCommand {
+    /// Initialize a new AI session
+    Init,
+
+    /// Show current session status
+    Status,
+
+    /// Clean up session state
+    Cleanup,
 }
 
 // =============================================================================
@@ -1342,6 +1374,7 @@ impl CommandHandler for Commands {
                     version.as_deref(),
                     *all,
                     ctx.use_system_path(),
+                    ctx.output_format(),
                 )
                 .await
             }
@@ -1367,6 +1400,7 @@ impl CommandHandler for Commands {
                     *prerelease,
                     *detailed,
                     *interactive,
+                    ctx.output_format(),
                 )
                 .await
             }
@@ -1744,7 +1778,16 @@ impl CommandHandler for Commands {
                 tool,
                 detailed,
                 quiet,
-            } => commands::check::handle(ctx.registry(), tool.clone(), *detailed, *quiet).await,
+            } => {
+                commands::check::handle(
+                    ctx.registry(),
+                    tool.clone(),
+                    *detailed,
+                    *quiet,
+                    ctx.output_format(),
+                )
+                .await
+            }
 
             Commands::Bundle { command } => match command {
                 BundleCommand::Create { tools, verbose } => {
@@ -1821,6 +1864,10 @@ impl CommandHandler for Commands {
                 } => commands::ai::handle_setup(agent, *global, *force).await,
                 AiCommand::Agents => commands::ai::handle_agents().await,
                 AiCommand::Skills { args } => commands::ai::handle_skills(ctx, args).await,
+                AiCommand::Context { minimal } => {
+                    commands::ai::handle_context(ctx, *minimal, ctx.output_format()).await
+                }
+                AiCommand::Session(session) => commands::ai::handle_session(ctx, session).await,
             },
         }
     }
