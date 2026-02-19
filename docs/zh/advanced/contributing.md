@@ -27,6 +27,16 @@ git checkout -b feature/my-feature
 cargo build
 ```
 
+### 安装 Pre-commit Hooks
+
+vx 使用 [prek](https://prek.j178.dev/) 进行 pre-commit 检查。克隆仓库后执行一次安装：
+
+```bash
+vx prek install
+```
+
+这会安装在每次提交前自动检查代码的 hooks。详情请参阅 [Pre-commit Hooks](pre-commit-hooks)。
+
 ### 跨平台构建说明
 
 vx 使用 **rustls**（纯 Rust TLS 实现）而不是 OpenSSL，这带来了以下好处：
@@ -60,7 +70,23 @@ cargo test
 ```bash
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --check
+
+# 手动运行所有 pre-commit hooks
+vx prek run --all-files
 ```
+
+### 保持 workspace-hack 同步
+
+在任何 `Cargo.toml` 中添加或更新依赖后，需要重新生成 workspace-hack：
+
+```bash
+just hakari-generate
+# 或手动执行：
+cargo hakari generate
+cargo hakari manage-deps
+```
+
+pre-commit hook 会在你忘记时自动捕获这个问题。
 
 ## 项目结构
 

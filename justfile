@@ -151,10 +151,6 @@ check-inline-tests:
 validate-version-scripts:
     ./scripts/test-version-extraction.sh && ./scripts/test-winget-version.sh
 
-# Run tests for selected packages (pass cargo args)
-test-pkgs PKGS:
-    vx run test-pkgs -- {{PKGS}}
-
 # Run E2E benchmark tests (local)
 benchmark-run:
     vx cargo test --release --test e2e_benchmark_tests -- --nocapture

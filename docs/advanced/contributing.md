@@ -65,13 +65,23 @@ cargo fmt
 git checkout -b feature/my-feature
 ```
 
-### 2. Make Changes
+### 2. Set Up Pre-commit Hooks
+
+vx uses [prek](https://prek.j178.dev/) for pre-commit hooks. Install them once after cloning:
+
+```bash
+vx prek install
+```
+
+This installs hooks that automatically check your code before every commit. See [Pre-commit Hooks](pre-commit-hooks) for the full list of checks.
+
+### 3. Make Changes
 
 - Write code
 - Add tests
 - Update documentation
 
-### 3. Test Locally
+### 4. Test Locally
 
 ```bash
 # Run all tests
@@ -84,7 +94,7 @@ cargo test test_name
 cargo test -- --nocapture
 ```
 
-### 4. Check Code Quality
+### 5. Check Code Quality
 
 ```bash
 # Format
@@ -95,9 +105,25 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # Check documentation
 cargo doc --all-features --no-deps
+
+# Run all pre-commit hooks manually
+vx prek run --all-files
 ```
 
-### 5. Submit PR
+### 6. Keep workspace-hack in Sync
+
+After adding or updating dependencies in any `Cargo.toml`, regenerate the workspace-hack:
+
+```bash
+just hakari-generate
+# or manually:
+cargo hakari generate
+cargo hakari manage-deps
+```
+
+The pre-commit hook will catch this automatically if you forget.
+
+### 7. Submit PR
 
 - Push your branch
 - Create a pull request
