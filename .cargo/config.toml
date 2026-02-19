@@ -1,6 +1,9 @@
 # ============================================
 # Build Time Optimization (RFC 0032)
 # ============================================
+# Inspired by Bevy's config_fast_builds.toml
+# See: https://github.com/bevyengine/bevy/blob/main/.cargo/config_fast_builds.toml
+#
 # Use rust-lld for faster linking on all platforms
 # Rust 1.93+ includes rust-lld by default
 # Benefits: ~10-13s faster linking on Windows MSVC
@@ -15,6 +18,9 @@ rustflags = [
 ]
 
 # Linux gnu - Use lld linker for faster builds
+# Alternative: Use mold for even faster linking (install: sudo apt install mold)
+# To use mold, replace lld with mold below:
+# rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))']
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
@@ -37,3 +43,46 @@ rustflags = [
     "-C", "link-self-contained=yes",
     "-C", "link-arg=-fuse-ld=lld",
 ]
+
+# ============================================
+# Optional: Nightly-only optimizations
+# ============================================
+# Uncomment the following sections if using nightly toolchain
+# Run: rustup toolchain install nightly
+# Then: cargo +nightly build
+
+# [target.'cfg(all(target_os = "linux", target_env = "gnu"))']
+# rustflags = [
+#     "-C", "link-arg=-fuse-ld=lld",
+#     # Share generic code across crates (reduces compile time)
+#     "-Zshare-generics=y",
+#     # Use all CPU cores for frontend compilation
+#     "-Zthreads=0",
+# ]
+
+# [target.'cfg(target_os = "macos")']
+# rustflags = [
+#     # Share generic code across crates
+#     "-Zshare-generics=y",
+#     # Use all CPU cores for frontend compilation
+#     "-Zthreads=0",
+# ]
+
+# [target.'cfg(all(target_env = "msvc", target_os = "windows"))']
+# rustflags = [
+#     "-C", "target-feature=+crt-static",
+#     "-C", "link-arg=-fuse-ld=lld",
+#     # Use all CPU cores for frontend compilation
+#     "-Zthreads=0",
+#     # Note: share-generics=y may cause issues on Windows with dynamic linking
+#     "-Zshare-generics=n",
+# ]
+
+# ============================================
+# Optional: Reduce debug info for faster builds
+# ============================================
+# Uncomment to reduce compile time (trades off debugging experience)
+# debug = 1 means line-number tables only (no local variable info)
+
+# [profile.dev]
+# debug = 1
