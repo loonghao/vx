@@ -92,6 +92,10 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub json: bool,
 
+    /// TOON output shortcut (equivalent to --output-format toon)
+    #[arg(long, global = true)]
+    pub toon: bool,
+
     /// Additional runtime dependencies to inject into the environment (can be specified multiple times)
     ///
     /// Similar to uvx --with or rez-env, this option injects additional runtimes into the PATH
@@ -110,9 +114,11 @@ pub struct Cli {
 
 impl From<&Cli> for GlobalOptions {
     fn from(cli: &Cli) -> Self {
-        // --json flag overrides --format
+        // --json or --toon flags override --output-format
         let output_format = if cli.json {
             OutputFormat::Json
+        } else if cli.toon {
+            OutputFormat::Toon
         } else {
             // Also check VX_OUTPUT environment variable
             match std::env::var("VX_OUTPUT").as_deref() {
