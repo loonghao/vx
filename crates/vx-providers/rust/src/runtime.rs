@@ -188,7 +188,7 @@ impl Runtime for RustupRuntime {
                     && !line.contains("info: installing component")
                     && !line.trim().is_empty()
                 {
-                    tracing::debug!("  {}", line);
+                    tracing::trace!("  {}", line);
                 }
             }
         });
@@ -198,7 +198,7 @@ impl Runtime for RustupRuntime {
                 if line.contains("error:") || line.contains("warning:") {
                     tracing::warn!("  {}", line);
                 } else if !line.trim().is_empty() {
-                    tracing::debug!("  {}", line);
+                    tracing::trace!("  {}", line);
                 }
             }
         });
@@ -249,7 +249,7 @@ impl Runtime for RustupRuntime {
         if let Ok(system_exe) = which::which(exe_name) {
             let is_system = !system_exe.to_string_lossy().contains(".vx");
             if is_system {
-                eprintln!("✓ Using system rustup at: {}", system_exe.display());
+                tracing::trace!("✓ Using system rustup at: {}", system_exe.display());
                 // For system rustup, return the system path
                 return Ok(InstallResult::already_installed(
                     system_exe.clone(),
@@ -263,7 +263,7 @@ impl Runtime for RustupRuntime {
         // Check in cargo/bin directory (where rustup-init installs itself)
         let cargo_bin_rustup = rustup_store_dir.join("cargo").join("bin").join(exe_name);
         if cargo_bin_rustup.exists() {
-            eprintln!(
+            tracing::trace!(
                 "✓ Using vx-managed rustup at: {}",
                 cargo_bin_rustup.display()
             );
@@ -509,7 +509,7 @@ impl Runtime for CargoRuntime {
 
         // Check if the requested version is already the default toolchain
         if Self::is_current_toolchain(&rustup_exe, version, &rustup_home, &cargo_home) {
-            eprintln!("✓ Rust toolchain {} is already the default", version);
+            tracing::trace!("✓ Rust toolchain {} is already the default", version);
             return Ok(InstallResult::already_installed(
                 install_path.clone(),
                 install_path.clone(),
@@ -519,7 +519,7 @@ impl Runtime for CargoRuntime {
 
         // Check if the toolchain is installed but not default
         if Self::check_rustup_toolchain_exists(&rustup_exe, version, &rustup_home, &cargo_home) {
-            eprintln!("📦 Switching to Rust toolchain {}...", version);
+            tracing::trace!("📦 Switching to Rust toolchain {}...", version);
             Self::switch_toolchain(&rustup_exe, version, &rustup_home, &cargo_home)?;
             return Ok(InstallResult::success(
                 install_path.clone(),
@@ -607,7 +607,7 @@ impl Runtime for CargoRuntime {
                     && !line.contains("info: installing component")
                     && !line.trim().is_empty()
                 {
-                    tracing::debug!("  {}", line);
+                    tracing::trace!("  {}", line);
                 }
             }
         });
@@ -617,7 +617,7 @@ impl Runtime for CargoRuntime {
                 if line.contains("error:") || line.contains("warning:") {
                     tracing::warn!("  {}", line);
                 } else if !line.trim().is_empty() {
-                    tracing::debug!("  {}", line);
+                    tracing::trace!("  {}", line);
                 }
             }
         });
@@ -783,7 +783,7 @@ impl CargoRuntime {
                 // Try direct path in version directory
                 let direct_path = path.join(exe_name);
                 if direct_path.exists() {
-                    eprintln!("✓ Found rustup at: {}", direct_path.display());
+                    tracing::trace!("✓ Found rustup at: {}", direct_path.display());
                     return Ok(direct_path);
                 }
             }
@@ -792,13 +792,13 @@ impl CargoRuntime {
         // Try cargo/bin directory (where rustup-init installs itself)
         let cargo_bin = rustup_store_dir.join("cargo").join("bin").join(exe_name);
         if cargo_bin.exists() {
-            eprintln!("✓ Found rustup at: {}", cargo_bin.display());
+            tracing::trace!("✓ Found rustup at: {}", cargo_bin.display());
             return Ok(cargo_bin);
         }
 
         // Fallback to system PATH
         if let Ok(system_exe) = which::which(exe_name) {
-            eprintln!("✓ Using system rustup at: {}", system_exe.display());
+            tracing::trace!("✓ Using system rustup at: {}", system_exe.display());
             return Ok(system_exe);
         }
 
@@ -891,7 +891,7 @@ impl CargoRuntime {
             ));
         }
 
-        eprintln!("✓ Switched to Rust toolchain {}", version);
+        tracing::trace!("✓ Switched to Rust toolchain {}", version);
         Ok(())
     }
 }
@@ -1063,7 +1063,7 @@ impl Runtime for RustcRuntime {
 
         // Check if the requested version is already the default toolchain
         if CargoRuntime::is_current_toolchain(&rustup_exe, version, &rustup_home, &cargo_home) {
-            eprintln!("✓ Rust toolchain {} is already the default", version);
+            tracing::trace!("✓ Rust toolchain {} is already the default", version);
             return Ok(InstallResult::already_installed(
                 install_path.clone(),
                 install_path.clone(),
@@ -1078,7 +1078,7 @@ impl Runtime for RustcRuntime {
             &rustup_home,
             &cargo_home,
         ) {
-            eprintln!("📦 Switching to Rust toolchain {}...", version);
+            tracing::trace!("📦 Switching to Rust toolchain {}...", version);
             CargoRuntime::switch_toolchain(&rustup_exe, version, &rustup_home, &cargo_home)?;
             return Ok(InstallResult::success(
                 install_path.clone(),
@@ -1165,7 +1165,7 @@ impl Runtime for RustcRuntime {
                     && !line.contains("info: installing component")
                     && !line.trim().is_empty()
                 {
-                    tracing::debug!("  {}", line);
+                    tracing::trace!("  {}", line);
                 }
             }
         });
@@ -1175,7 +1175,7 @@ impl Runtime for RustcRuntime {
                 if line.contains("error:") || line.contains("warning:") {
                     tracing::warn!("  {}", line);
                 } else if !line.trim().is_empty() {
-                    tracing::debug!("  {}", line);
+                    tracing::trace!("  {}", line);
                 }
             }
         });
