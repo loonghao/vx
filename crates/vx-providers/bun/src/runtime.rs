@@ -9,7 +9,7 @@ use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
 use vx_manifest::MirrorConfig;
-use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Ecosystem, Platform, Runtime, RuntimeContext, Shim, VersionInfo};
 use vx_version_fetcher::VersionFetcherBuilder;
 
 /// Bun runtime
@@ -33,6 +33,25 @@ impl BunRuntime {
             (Os::Linux, Arch::Aarch64) => "bun-linux-aarch64",
             _ => "bun-linux-x64",
         }
+    }
+
+    /// Create a bunx shim script that wraps `bun x`
+    ///
+    /// This is needed because bun's official distribution doesn't include a
+    /// standalone `bunx` executable. When subprocess calls `bunx`, it needs
+    /// to find this shim in PATH.
+    fn create_bunx_shim(install_path: &Path, platform: &Platform) -> Result<()> {
+        let dir_name = Self::get_archive_dir_name(platform);
+        let bun_exe = platform.exe_name("bun");
+        let bun_path = install_path.join(dir_name).join(&bun_exe);
+        let shim_dir = install_path.join(dir_name);
+
+        Shim::new("bunx", &bun_path)
+            .with_args(&["x"])
+            .create(&shim_dir, platform)?;
+
+        debug!("Created bunx shim at {}", shim_dir.display());
+        Ok(())
     }
 }
 
@@ -110,10 +129,34 @@ impl Runtime for BunRuntime {
         )))
     }
 
+    /// Post-extract hook to create bunx shim
+    ///
+    /// Creates a `bunx` shim script in the installation directory so that
+    /// subprocess calls to `bunx` will work (e.g., `bunx electron-vite build`).
+    fn post_extract(&self, _version: &str, install_path: &std::path::PathBuf) -> Result<()> {
+        let platform = Platform::current();
+        if let Err(e) = Self::create_bunx_shim(install_path, &platform) {
+            warn!("Failed to create bunx shim: {}", e);
+        }
+        Ok(())
+    }
+
     /// Pre-run hook for bun commands
     ///
     /// For "bun run" commands, ensures project dependencies are installed first.
+    /// Also ensures bunx shim exists for already-installed bun versions.
     async fn pre_run(&self, args: &[String], executable: &Path) -> Result<bool> {
+        // Ensure bunx shim exists (handles already-installed versions)
+        if let Some(install_dir) = executable.parent() {
+            let platform = Platform::current();
+            let bunx_shim = install_dir.join(if cfg!(windows) { "bunx.cmd" } else { "bunx" });
+            if !bunx_shim.exists()
+                && let Err(e) = Self::create_bunx_shim(install_dir, &platform)
+            {
+                debug!("Failed to create bunx shim on-demand: {}", e);
+            }
+        }
+
         // Handle "bun run" commands
         if args.first().is_some_and(|a| a == "run") {
             ensure_node_modules_installed(executable).await?;
