@@ -57,12 +57,15 @@ impl Runtime for JjRuntime {
     }
 
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        // strip_v_prefix must be true: jj tags are "v0.38.0", stored as "0.38.0".
+        // JjUrlBuilder::download_url() adds the "v" prefix back in the URL path,
+        // so storing with "v" would produce double-v: "vv0.38.0".
         ctx.fetch_github_releases(
             "jj",
             "jj-vcs",
             "jj",
             GitHubReleaseOptions::new()
-                .strip_v_prefix(false)
+                .strip_v_prefix(true)
                 .skip_prereleases(true),
         )
         .await
