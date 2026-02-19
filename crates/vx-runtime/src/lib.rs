@@ -63,6 +63,7 @@ pub mod provider_loader;
 pub mod region;
 pub mod registry;
 pub mod runtime;
+pub mod shim;
 pub mod testing;
 pub mod traits;
 pub mod types;
@@ -83,6 +84,7 @@ pub use platform::{Arch, Libc, Os, Platform, compare_semver};
 pub use provider::Provider;
 pub use registry::{PlatformError, ProviderRegistry};
 pub use runtime::{Runtime, VerificationResult};
+pub use shim::{Shim, ShimBuilder, ShimType, create_shim};
 pub use traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProvider};
 pub use types::{
     ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec, VersionInfo,

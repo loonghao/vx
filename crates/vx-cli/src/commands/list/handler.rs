@@ -1,7 +1,9 @@
 //! List command handler
 
 use super::Args;
+use crate::cli::OutputFormat;
 use crate::commands::CommandContext;
+use crate::output::{ListOutput, OutputRenderer, RuntimeEntry, VersionEntry, VersionsOutput};
 use crate::registry::get_runtime_platform_label;
 use crate::system_tools::{discover_system_tools, group_by_category};
 use crate::ui::UI;
@@ -25,6 +27,7 @@ pub async fn handle(ctx: &CommandContext, args: &Args) -> Result<()> {
         args.status,
         args.all,
         args.system,
+        ctx.output_format(),
     )
     .await
 }
@@ -37,6 +40,7 @@ pub async fn handle_list(
     show_status: bool,
     show_all: bool,
     show_system: bool,
+    format: OutputFormat,
 ) -> Result<()> {
     // Create path manager and resolver
     let path_manager = PathManager::new()
@@ -45,109 +49,145 @@ pub async fn handle_list(
 
     if show_system {
         // Show system tools
-        list_system_tools(registry, show_all).await?;
+        list_system_tools(registry, show_all, format).await?;
         return Ok(());
     }
 
     match tool {
         Some(tool_name) => {
             // List versions for a specific tool (always show regardless of platform)
-            list_tool_versions(registry, &resolver, tool_name, show_status).await?;
+            list_tool_versions(registry, &resolver, tool_name, show_status, format).await?;
         }
         None => {
             // List all tools with optional platform filtering
-            list_all_tools(registry, &resolver, show_status, show_all).await?;
+            list_all_tools(registry, &resolver, show_status, show_all, format).await?;
         }
     }
     Ok(())
 }
 
 /// List system tools discovered from PATH and known locations
-async fn list_system_tools(registry: &ProviderRegistry, show_all: bool) -> Result<()> {
+async fn list_system_tools(
+    registry: &ProviderRegistry,
+    show_all: bool,
+    format: OutputFormat,
+) -> Result<()> {
     let current_platform = Platform::current();
     let discovery = discover_system_tools(registry);
 
-    UI::info(&format!("🔧 System Tools ({})", current_platform.as_str()));
-    println!();
+    let renderer = OutputRenderer::new(format);
 
-    // Group available tools by category
-    let grouped = group_by_category(&discovery.available);
+    if renderer.is_json() {
+        // JSON output
+        let mut runtimes = Vec::new();
 
-    // Define category order
-    let category_order = [
-        "build",
-        "compiler",
-        "vcs",
-        "container",
-        "cloud",
-        "network",
-        "security",
-        "package",
-        "system",
-        "archive",
-        "filesystem",
-        "mlops",
-        "other",
-    ];
+        // Group available tools by category (unused but kept for future use)
+        let _grouped = group_by_category(&discovery.available);
 
-    for category in category_order {
-        if let Some(tools) = grouped.get(category)
-            && !tools.is_empty()
-        {
-            println!("  {}:", capitalize_category(category));
-            for tool in tools {
-                let path_str = tool
-                    .path
+        for tool in &discovery.available {
+            runtimes.push(RuntimeEntry {
+                name: tool.name.clone(),
+                versions: tool.version.clone().map(|v| vec![v]).unwrap_or_default(),
+                installed: true,
+                description: tool.description.clone(),
+                platform_supported: true,
+                ecosystem: Some(tool.category.clone()),
+                platform_label: None,
+            });
+        }
+
+        let output = ListOutput {
+            runtimes,
+            total: discovery.available.len(),
+            installed_count: discovery.available.len(),
+            platform: current_platform.as_str().to_string(),
+        };
+
+        renderer.render(&output)?;
+    } else {
+        // Text output
+        UI::info(&format!("🔧 System Tools ({})", current_platform.as_str()));
+        println!();
+
+        // Group available tools by category
+        let grouped = group_by_category(&discovery.available);
+
+        // Define category order
+        let category_order = [
+            "build",
+            "compiler",
+            "vcs",
+            "container",
+            "cloud",
+            "network",
+            "security",
+            "package",
+            "system",
+            "archive",
+            "filesystem",
+            "mlops",
+            "other",
+        ];
+
+        for category in category_order {
+            if let Some(tools) = grouped.get(category)
+                && !tools.is_empty()
+            {
+                println!("  {}:", capitalize_category(category));
+                for tool in tools {
+                    let path_str = tool
+                        .path
+                        .as_ref()
+                        .map(|p| format!(" @ {}", p.display()))
+                        .unwrap_or_default();
+                    let version_str = tool
+                        .version
+                        .as_ref()
+                        .map(|v| format!(" ({})", v))
+                        .unwrap_or_default();
+                    println!(
+                        "    ✅ {}{} - {}{}",
+                        tool.name, version_str, tool.description, path_str
+                    );
+                }
+            }
+        }
+
+        if discovery.available.is_empty() {
+            UI::hint("  No system tools discovered");
+        }
+
+        // Show unavailable tools if --all is specified
+        if show_all && !discovery.unavailable.is_empty() {
+            println!();
+            UI::info("⚠️  Unavailable on this platform:");
+            for tool in &discovery.unavailable {
+                let platform_str = tool
+                    .platform
                     .as_ref()
-                    .map(|p| format!(" @ {}", p.display()))
-                    .unwrap_or_default();
-                let version_str = tool
-                    .version
-                    .as_ref()
-                    .map(|v| format!(" ({})", v))
+                    .map(|p| format!(" ({} only)", p))
                     .unwrap_or_default();
                 println!(
-                    "    ✅ {}{} - {}{}",
-                    tool.name, version_str, tool.description, path_str
+                    "    ❌ {} - {}{}",
+                    tool.name, tool.description, platform_str
                 );
             }
         }
-    }
 
-    if discovery.available.is_empty() {
-        UI::hint("  No system tools discovered");
-    }
-
-    // Show unavailable tools if --all is specified
-    if show_all && !discovery.unavailable.is_empty() {
+        // Summary
         println!();
-        UI::info("⚠️  Unavailable on this platform:");
-        for tool in &discovery.unavailable {
-            let platform_str = tool
-                .platform
-                .as_ref()
-                .map(|p| format!(" ({} only)", p))
-                .unwrap_or_default();
-            println!(
-                "    ❌ {} - {}{}",
-                tool.name, tool.description, platform_str
-            );
-        }
-    }
-
-    // Summary
-    println!();
-    UI::info(&format!(
-        "📊 Summary: {} system tools available",
-        discovery.available.len()
-    ));
-
-    if !show_all && !discovery.unavailable.is_empty() {
-        UI::hint(&format!(
-            "   {} tools unavailable on {}. Use --all to show all.",
-            discovery.unavailable.len(),
-            current_platform.as_str()
+        UI::info(&format!(
+            "📊 Summary: {} system tools available",
+            discovery.available.len()
         ));
+
+        if !show_all && !discovery.unavailable.is_empty() {
+            UI::hint(&format!(
+                "   {} tools unavailable on {}. Use --all to show all.",
+                discovery.unavailable.len(),
+                current_platform.as_str()
+            ));
+        }
     }
 
     Ok(())
@@ -179,6 +219,7 @@ async fn list_tool_versions(
     resolver: &PathResolver,
     tool_name: &str,
     show_status: bool,
+    format: OutputFormat,
 ) -> Result<()> {
     // Check if tool is supported
     let runtime = registry.get_runtime(tool_name);
@@ -197,24 +238,13 @@ async fn list_tool_versions(
     let canonical_name = runtime.name();
     let exe_name = runtime.executable_name();
 
-    // Show tool name with platform support indicator
-
-    if platform_supported {
-        UI::info(&format!("📦 {}", tool_name));
-    } else {
-        UI::info(&format!(
-            "📦 {} ⚠️  (not supported on {})",
-            tool_name,
-            current_platform.as_str()
-        ));
-    }
+    let renderer = OutputRenderer::new(format);
 
     // Check if this tool is bundled with another tool
     let bundled_with = runtime.metadata().get("bundled_with").cloned();
 
     // Get installed versions - check both the tool itself and its parent (if bundled)
-    // Use canonical runtime name for store lookup and executable name for searching (e.g., cl.exe under msvc)
-    let mut installed_executables =
+    let installed_executables =
         resolver.find_tool_executables_with_exe(canonical_name, exe_name)?;
 
     // If this tool is bundled with another and has no direct installations,
@@ -224,68 +254,159 @@ async fn list_tool_versions(
     {
         let parent_executables = resolver.find_tool_executables(parent_tool)?;
         if !parent_executables.is_empty() {
-            // Tool is available via parent - show parent's versions
+            // Tool is available via parent
+            let mut versions = Vec::new();
             for exe_path in &parent_executables {
                 let version = extract_version_from_path(exe_path);
-                installed_executables.push(exe_path.clone());
-                let status_icon = if show_status { "✅" } else { "  " };
-                println!(
-                    "  {} {} (bundled with {})",
-                    status_icon, version, parent_tool
-                );
+                versions.push(version);
             }
 
-            if show_status {
-                UI::success(&format!(
-                    "Total: {} version(s) available (bundled with {})",
-                    parent_executables.len(),
-                    parent_tool
-                ));
+            if renderer.is_json() {
+                let output = VersionsOutput {
+                    tool: tool_name.to_string(),
+                    versions: versions
+                        .iter()
+                        .map(|v| VersionEntry {
+                            version: v.clone(),
+                            installed: true,
+                            lts: false,
+                            lts_name: None,
+                            date: None,
+                            prerelease: false,
+                            download_url: None,
+                        })
+                        .collect(),
+                    total: versions.len(),
+                    latest: versions.first().cloned(),
+                    lts: None,
+                };
+                renderer.render(&output)?;
+            } else {
+                // Text output
+                if platform_supported {
+                    UI::info(&format!("📦 {}", tool_name));
+                } else {
+                    UI::info(&format!(
+                        "📦 {} ⚠️  (not supported on {})",
+                        tool_name,
+                        current_platform.as_str()
+                    ));
+                }
+
+                for version in &versions {
+                    let status_icon = if show_status { "✅" } else { "  " };
+                    println!(
+                        "  {} {} (bundled with {})",
+                        status_icon, version, parent_tool
+                    );
+                }
+
+                if show_status {
+                    UI::success(&format!(
+                        "Total: {} version(s) available (bundled with {})",
+                        versions.len(),
+                        parent_tool
+                    ));
+                }
             }
             return Ok(());
         }
     }
 
     if installed_executables.is_empty() {
-        UI::hint("  No versions installed");
-        if show_status {
-            if let Some(parent_tool) = bundled_with {
-                UI::hint(&format!(
-                    "  This tool is bundled with '{}'. Install {} to get {}.",
-                    parent_tool, parent_tool, tool_name
-                ));
-            } else if platform_supported {
-                UI::hint(&format!(
-                    "  Use 'vx install {}' to install this tool",
-                    tool_name
-                ));
+        if renderer.is_json() {
+            let output = VersionsOutput {
+                tool: tool_name.to_string(),
+                versions: vec![],
+                total: 0,
+                latest: None,
+                lts: None,
+            };
+            renderer.render(&output)?;
+        } else {
+            // Text output
+            if platform_supported {
+                UI::info(&format!("📦 {}", tool_name));
             } else {
-                UI::hint(&format!(
-                    "  This tool is not available on {}",
+                UI::info(&format!(
+                    "📦 {} ⚠️  (not supported on {})",
+                    tool_name,
                     current_platform.as_str()
                 ));
+            }
+            UI::hint("  No versions installed");
+            if show_status {
+                if let Some(parent_tool) = bundled_with {
+                    UI::hint(&format!(
+                        "  This tool is bundled with '{}'. Install {} to get {}.",
+                        parent_tool, parent_tool, tool_name
+                    ));
+                } else if platform_supported {
+                    UI::hint(&format!(
+                        "  Use 'vx install {}' to install this tool",
+                        tool_name
+                    ));
+                } else {
+                    UI::hint(&format!(
+                        "  This tool is not available on {}",
+                        current_platform.as_str()
+                    ));
+                }
             }
         }
         return Ok(());
     }
 
-    // Show installed versions
-    for exe_path in &installed_executables {
-        let status_icon = if show_status { "✅" } else { "  " };
-        // Extract version from path if possible
-        let version = extract_version_from_path(exe_path);
-        println!("  {} {}", status_icon, version);
+    // Collect versions
+    let versions: Vec<(String, std::path::PathBuf)> = installed_executables
+        .iter()
+        .map(|exe_path| (extract_version_from_path(exe_path), exe_path.clone()))
+        .collect();
+
+    if renderer.is_json() {
+        let output = VersionsOutput {
+            tool: tool_name.to_string(),
+            versions: versions
+                .iter()
+                .map(|(v, path)| VersionEntry {
+                    version: v.clone(),
+                    installed: true,
+                    lts: false,
+                    lts_name: None,
+                    date: None,
+                    prerelease: false,
+                    download_url: Some(path.display().to_string()),
+                })
+                .collect(),
+            total: versions.len(),
+            latest: versions.first().map(|(v, _)| v.clone()),
+            lts: None,
+        };
+        renderer.render(&output)?;
+    } else {
+        // Text output
+        if platform_supported {
+            UI::info(&format!("📦 {}", tool_name));
+        } else {
+            UI::info(&format!(
+                "📦 {} ⚠️  (not supported on {})",
+                tool_name,
+                current_platform.as_str()
+            ));
+        }
+
+        for (version, exe_path) in &versions {
+            let status_icon = if show_status { "✅" } else { "  " };
+            println!("  {} {}", status_icon, version);
+
+            if show_status {
+                println!("     📁 {}", exe_path.display());
+            }
+        }
 
         if show_status {
-            println!("     📁 {}", exe_path.display());
+            UI::success(&format!("Total: {} version(s) installed", versions.len()));
         }
-    }
-
-    if show_status {
-        UI::success(&format!(
-            "Total: {} version(s) installed",
-            installed_executables.len()
-        ));
     }
 
     Ok(())
@@ -313,8 +434,9 @@ fn extract_version_from_path(path: &std::path::Path) -> String {
 async fn list_all_tools(
     registry: &ProviderRegistry,
     resolver: &PathResolver,
-    show_status: bool,
+    _show_status: bool,
     show_all: bool,
+    format: OutputFormat,
 ) -> Result<()> {
     let current_platform = Platform::current();
 
@@ -343,11 +465,8 @@ async fn list_all_tools(
     }
 
     let mut installed_count = 0;
-    let mut shown_count = 0;
-    let mut hidden_count = 0;
+    let mut runtimes = Vec::new();
 
-    // First pass: count and collect tools to display
-    let mut tools_to_display = Vec::new();
     for tool_name in &supported_tools {
         // Check platform support
         let platform_supported = if let Some(ref runtime) = registry.get_runtime(tool_name) {
@@ -358,122 +477,89 @@ async fn list_all_tools(
 
         // If not supported and not showing all, skip
         if !platform_supported && !show_all {
-            hidden_count += 1;
             continue;
         }
 
-        tools_to_display.push((tool_name.clone(), platform_supported));
-    }
-
-    // Print header
-    if show_all && hidden_count == 0 {
-        UI::info("📦 Available Tools:");
-    } else if show_all {
-        UI::info(&format!(
-            "📦 Available Tools (showing all, including {} unsupported):",
-            hidden_count
-        ));
-        // Reset hidden_count since we're showing all
-        hidden_count = 0;
-    } else {
-        UI::info(&format!(
-            "📦 Available Tools ({})",
-            current_platform.as_str()
-        ));
-    }
-
-    // Second pass: display tools
-    for (tool_name, platform_supported) in &tools_to_display {
         let is_available = available_tools.contains(tool_name);
-
-        shown_count += 1;
-
-        // Status icon: ✅ installed, ❌ not installed, ⚠️ not supported on this platform
-        let status_icon = if is_available {
-            "✅"
-        } else if !platform_supported {
-            "⚠️ "
-        } else {
-            "❌"
-        };
-
-        if is_available {
-            installed_count += 1;
-        }
 
         if let Some(runtime) = registry.get_runtime(tool_name) {
             // Get platform label from manifest
             let platform_label = get_runtime_platform_label(tool_name);
 
-            let platform_note = if !platform_supported {
-                if let Some(label) = &platform_label {
-                    format!(" ({} only)", label)
-                } else {
-                    format!(" (not supported on {})", current_platform.as_str())
-                }
-            } else if show_all {
-                // Show platform label for all tools when --all is used
-                platform_label
-                    .map(|l| format!(" [{}]", l))
-                    .unwrap_or_default()
-            } else {
-                String::new()
-            };
-
-            println!(
-                "  {} {} - {}{}",
-                status_icon,
-                tool_name,
-                runtime.description(),
-                platform_note
-            );
-
-            if show_status && is_available {
-                // Find versions for this tool
+            // Get installed versions
+            let versions = if is_available {
                 let tool_name_str: &str = tool_name;
                 let is_directly_installed = directly_installed.contains(tool_name_str);
                 if is_directly_installed {
-                    if let Some((_, versions)) = installed_tools_with_versions
+                    installed_tools_with_versions
                         .iter()
                         .find(|(name, _)| name == tool_name)
-                        && !versions.is_empty()
-                    {
-                        println!("     Versions: {}", versions.join(", "));
-                    }
+                        .map(|(_, vers)| vers.clone())
+                        .unwrap_or_default()
                 } else {
                     // Bundled tool - show parent's versions
-                    if let Some(parent_tool) = runtime.metadata().get("bundled_with")
-                        && let Some((_, versions)) = installed_tools_with_versions
-                            .iter()
-                            .find(|(name, _)| name == parent_tool)
-                        && !versions.is_empty()
-                    {
-                        println!(
-                            "     Versions: {} (via {})",
-                            versions.join(", "),
-                            parent_tool
-                        );
-                    }
+                    runtime
+                        .metadata()
+                        .get("bundled_with")
+                        .and_then(|parent_tool| {
+                            installed_tools_with_versions
+                                .iter()
+                                .find(|(name, _)| name == parent_tool)
+                                .map(|(_, vers)| vers.clone())
+                        })
+                        .unwrap_or_default()
                 }
+            } else {
+                vec![]
+            };
+
+            if is_available {
+                installed_count += 1;
             }
+
+            // Get ecosystem
+            let ecosystem = runtime.metadata().get("ecosystem").cloned();
+
+            runtimes.push(RuntimeEntry {
+                name: tool_name.clone(),
+                versions: versions.clone(),
+                installed: is_available,
+                description: runtime.description().to_string(),
+                platform_supported,
+                ecosystem,
+                platform_label: if !platform_supported || show_all {
+                    platform_label
+                } else {
+                    None
+                },
+            });
         }
     }
 
-    // Show summary
-    if show_status {
-        UI::info(&format!(
-            "\n📊 Summary: {}/{} tools installed",
-            installed_count, shown_count
-        ));
-    }
+    let renderer = OutputRenderer::new(format);
 
-    // Show hint about hidden tools
-    if hidden_count > 0 && !show_all {
-        UI::hint(&format!(
-            "   {} tools hidden (not supported on {}). Use --all to show all.",
-            hidden_count,
-            current_platform.as_str()
-        ));
+    let runtimes_count = runtimes.len();
+    let output = ListOutput {
+        runtimes,
+        total: renderer.is_json() as usize * supported_tools.len()
+            + !renderer.is_json() as usize * runtimes_count,
+        installed_count,
+        platform: current_platform.as_str().to_string(),
+    };
+
+    if renderer.is_json() {
+        renderer.render(&output)?;
+    } else {
+        // Text mode: use existing UI for header, then render results
+        if show_all {
+            UI::info("📦 Available Tools (showing all, including unsupported)");
+        } else {
+            UI::info(&format!(
+                "📦 Available Tools ({})",
+                current_platform.as_str()
+            ));
+        }
+        renderer.render(&output)?;
     }
 
     Ok(())

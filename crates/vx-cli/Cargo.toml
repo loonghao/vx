@@ -118,6 +118,9 @@ dotenvy = "0.15"
 self-replace = { workspace = true }
 sha2 = { workspace = true }
 futures-util = { workspace = true }
+uuid = { version = "1.0", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+toon-format = "0.4"
 
 # Self-updater library for cargo-dist integration
 axoupdater = { workspace = true, optional = true }
