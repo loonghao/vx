@@ -3,19 +3,55 @@
 //! This module implements the core Starlark evaluation logic, including:
 //! - Two-phase execution (Analysis → Execution), inspired by Buck2
 //! - ProviderContext injection as Starlark values
-//! - @vx//stdlib module loading
+//! - @vx//stdlib module loading via FileLoader
 //! - Incremental analysis caching (content-hash based), inspired by Buck2
 
 use crate::context::ProviderContext;
 use crate::error::{Error, Result};
+use crate::loader::VxModuleLoader;
 use serde_json::Value as JsonValue;
-use starlark::environment::{GlobalsBuilder, Module};
-use starlark::eval::Evaluator;
+use starlark::environment::{FrozenModule, GlobalsBuilder, Module};
+use starlark::eval::{Evaluator, FileLoader};
 use starlark::syntax::{AstModule, Dialect};
 use starlark::values::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::trace;
+
+/// FileLoader implementation for @vx//stdlib modules
+///
+/// Implements Buck2-style `load("@vx//stdlib:github.star", ...)` support.
+/// When the Starlark evaluator encounters a `load()` statement, it calls
+/// this loader to resolve and evaluate the referenced module.
+struct VxFileLoader {
+    module_loader: VxModuleLoader,
+    dialect: Dialect,
+}
+
+impl VxFileLoader {
+    fn new(dialect: Dialect) -> Self {
+        Self {
+            module_loader: VxModuleLoader::new(),
+            dialect,
+        }
+    }
+}
+
+impl FileLoader for VxFileLoader {
+    fn load(&self, path: &str) -> std::result::Result<FrozenModule, starlark::Error> {
+        if VxModuleLoader::is_vx_module(path) {
+            self.module_loader
+                .load_module(path, &self.dialect)
+                .map_err(starlark::Error::new_other)
+        } else {
+            Err(starlark::Error::new_other(anyhow::anyhow!(
+                "External module loading is not supported: '{}'. \
+                 Only @vx//stdlib modules are allowed.",
+                path
+            )))
+        }
+    }
+}
 
 /// Frozen analysis result (Buck2-inspired: immutable after analysis phase)
 #[derive(Debug, Clone)]
@@ -53,7 +89,7 @@ impl StarlarkEngine {
     /// This is the core execution method. It:
     /// 1. Parses the script
     /// 2. Builds the global environment (stdlib)
-    /// 3. Evaluates the module (defines all functions)
+    /// 3. Evaluates the module with @vx//stdlib FileLoader (handles load() statements)
     /// 4. Calls the named function with ctx + extra args
     /// 5. Returns the result as JSON
     pub fn call_function(
@@ -81,10 +117,13 @@ impl StarlarkEngine {
         // Build globals with standard builtins
         let globals = GlobalsBuilder::standard().build();
 
-        // Create module and evaluator, evaluate the script to define functions
+        // Create module and evaluator with @vx//stdlib FileLoader
+        // This enables load("@vx//stdlib:github.star", ...) in provider scripts
+        let loader = VxFileLoader::new(self.dialect.clone());
         let module = Module::new();
         {
             let mut eval = Evaluator::new(&module);
+            eval.set_loader(&loader);
             eval.eval_module(ast, &globals)
                 .map_err(|e| Error::EvalError(e.to_string()))?;
         }
@@ -108,9 +147,9 @@ impl StarlarkEngine {
 
         // Look up the function by name (must happen after args are built,
         // since get() returns a Value tied to the module's heap)
-        let func_value = module.get(func_name).ok_or_else(|| {
-            Error::function_not_found(func_name)
-        })?;
+        let func_value = module
+            .get(func_name)
+            .ok_or_else(|| Error::function_not_found(func_name))?;
 
         // Call the function using the same module's evaluator
         let mut eval = Evaluator::new(&module);
@@ -135,7 +174,11 @@ impl StarlarkEngine {
     }
 
     /// Convert a JSON value to a Starlark Value using the heap
-    fn json_to_starlark_value<'v>(&self, heap: &'v starlark::values::Heap, json: &JsonValue) -> Value<'v> {
+    fn json_to_starlark_value<'v>(
+        &self,
+        heap: &'v starlark::values::Heap,
+        json: &JsonValue,
+    ) -> Value<'v> {
         match json {
             JsonValue::Null => Value::new_none(),
             JsonValue::Bool(b) => Value::new_bool(*b),
@@ -150,7 +193,10 @@ impl StarlarkEngine {
             }
             JsonValue::String(s) => heap.alloc(s.as_str()),
             JsonValue::Array(arr) => {
-                let items: Vec<Value> = arr.iter().map(|v| self.json_to_starlark_value(heap, v)).collect();
+                let items: Vec<Value> = arr
+                    .iter()
+                    .map(|v| self.json_to_starlark_value(heap, v))
+                    .collect();
                 heap.alloc(items)
             }
             JsonValue::Object(obj) => {
@@ -166,7 +212,10 @@ impl StarlarkEngine {
                     .collect();
                 // Use alloc_dict for simple key-value pairs
                 heap.alloc(starlark::values::dict::Dict::new(
-                    pairs.into_iter().map(|(k, v)| (k.get_hashed().unwrap(), v)).collect()
+                    pairs
+                        .into_iter()
+                        .map(|(k, v)| (k.get_hashed().unwrap(), v))
+                        .collect(),
                 ))
             }
         }
@@ -195,7 +244,10 @@ impl StarlarkEngine {
 
         // Try list
         if let Some(list) = starlark::values::list::ListRef::from_value(value) {
-            let items: Vec<JsonValue> = list.iter().map(|v| self.starlark_value_to_json(v)).collect();
+            let items: Vec<JsonValue> = list
+                .iter()
+                .map(|v| self.starlark_value_to_json(v))
+                .collect();
             return JsonValue::Array(items);
         }
 
