@@ -173,7 +173,7 @@ fn test_bun_post_extract_creates_bunx_shim() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     // Create the platform-specific directory structure
-    let platform = Platform::current();
+    let _platform = Platform::current();
     let dir_name = get_expected_archive_dir();
     let bun_dir = temp_dir.path().join(dir_name);
     std::fs::create_dir_all(&bun_dir).expect("Failed to create bun dir");
