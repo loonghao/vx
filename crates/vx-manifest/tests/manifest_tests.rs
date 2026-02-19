@@ -3,10 +3,210 @@
 use rstest::rstest;
 use vx_manifest::{Ecosystem, ProviderManifest, VersionRequest};
 
+// Minimal inline TOML fixtures (provider.toml files have been migrated to Starlark)
+
+const YARN_TOML: &str = r#"
+[provider]
+name = "yarn"
+description = "Yarn package manager"
+ecosystem = "nodejs"
+
+[[runtimes]]
+name = "yarn"
+description = "Yarn package manager"
+executable = "yarn"
+aliases = ["yarnpkg"]
+priority = 80
+auto_installable = true
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "([\\d.]+)"
+system_paths = ["/usr/local/bin/yarn", "/usr/bin/yarn"]
+env_hints = ["YARN_HOME"]
+
+[runtimes.health]
+check_command = "{executable} --version"
+exit_code = 0
+check_on = ["install"]
+
+[[runtimes.mirrors]]
+name = "taobao"
+url = "https://registry.npmmirror.com"
+region = "cn"
+
+[runtimes.cache]
+versions_ttl = 3600
+cache_downloads = true
+
+[[runtimes.constraints]]
+when = "<2"
+requires = [
+    { runtime = "node", version = ">=12, <23", recommended = "20", reason = "Yarn 1.x requires Node.js" }
+]
+
+[[runtimes.constraints]]
+when = ">=2, <3"
+requires = [
+    { runtime = "node", version = ">=14", recommended = "20", reason = "Yarn 2.x requires Node.js" }
+]
+
+[[runtimes.constraints]]
+when = ">=4"
+requires = [
+    { runtime = "node", version = ">=18", recommended = "22", reason = "Yarn 4.x requires Node.js" }
+]
+"#;
+
+const PNPM_TOML: &str = r#"
+[provider]
+name = "pnpm"
+description = "Fast, disk space efficient package manager"
+ecosystem = "nodejs"
+
+[[runtimes]]
+name = "pnpm"
+description = "pnpm package manager"
+executable = "pnpm"
+priority = 85
+auto_installable = true
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "([\\d.]+)"
+system_paths = ["/usr/local/bin/pnpm"]
+
+[runtimes.health]
+check_command = "{executable} --version"
+exit_code = 0
+check_on = ["install"]
+
+[[runtimes.mirrors]]
+name = "taobao"
+url = "https://registry.npmmirror.com"
+region = "cn"
+
+[runtimes.cache]
+versions_ttl = 3600
+cache_downloads = true
+
+[[runtimes.constraints]]
+when = ">=7, <8"
+requires = [
+    { runtime = "node", version = ">=14", reason = "pnpm 7.x requires Node.js >=14" }
+]
+
+[[runtimes.constraints]]
+when = ">=8, <9"
+requires = [
+    { runtime = "node", version = ">=16", reason = "pnpm 8.x requires Node.js >=16" }
+]
+
+[[runtimes.constraints]]
+when = ">=9"
+requires = [
+    { runtime = "node", version = ">=18", reason = "pnpm 9.x requires Node.js >=18" }
+]
+"#;
+
+const NODE_TOML: &str = r#"
+[provider]
+name = "node"
+description = "Node.js JavaScript runtime"
+ecosystem = "nodejs"
+
+[[runtimes]]
+name = "node"
+description = "Node.js runtime"
+executable = "node"
+priority = 100
+auto_installable = true
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "v([\\d.]+)"
+system_paths = ["/usr/local/bin/node", "/usr/bin/node"]
+env_hints = ["NODE_HOME"]
+
+[runtimes.health]
+check_command = "{executable} --version"
+exit_code = 0
+check_on = ["install"]
+
+[runtimes.env]
+vars = { PATH = "{install_dir}/bin:$PATH" }
+
+[[runtimes.env.conditional]]
+when = { os = "windows" }
+vars = { PATH = "{install_dir};$PATH" }
+
+[[runtimes.mirrors]]
+name = "taobao"
+url = "https://npmmirror.com/mirrors/node"
+region = "cn"
+
+[runtimes.cache]
+versions_ttl = 3600
+cache_downloads = true
+
+[runtimes.hooks]
+post_install = ["node --version"]
+post_activate = ["node --version"]
+
+[[runtimes]]
+name = "npm"
+description = "Node.js package manager"
+executable = "npm"
+bundled_with = "node"
+auto_installable = false
+
+[[runtimes]]
+name = "npx"
+description = "Node.js package runner"
+executable = "npx"
+bundled_with = "node"
+auto_installable = false
+"#;
+
+const PYTHON_TOML: &str = r#"
+[provider]
+name = "python"
+description = "Python programming language"
+ecosystem = "python"
+
+[[runtimes]]
+name = "python"
+description = "Python interpreter"
+executable = "python"
+priority = 100
+auto_installable = true
+
+[runtimes.detection]
+command = "{executable} --version"
+pattern = "Python ([\\d.]+)"
+system_paths = ["/usr/bin/python3", "/usr/local/bin/python3"]
+
+[runtimes.health]
+check_command = "{executable} --version"
+exit_code = 0
+check_on = ["install"]
+
+[runtimes.env]
+vars = { PYTHONHOME = "{install_dir}" }
+
+[[runtimes.mirrors]]
+name = "taobao"
+url = "https://npmmirror.com/mirrors/python"
+region = "cn"
+
+[runtimes.cache]
+versions_ttl = 3600
+cache_downloads = true
+"#;
+
 #[test]
 fn test_parse_yarn_manifest() {
-    let toml = include_str!("../../vx-providers/yarn/provider.toml");
-    let manifest = ProviderManifest::parse(toml).expect("Failed to parse yarn manifest");
+    let manifest = ProviderManifest::parse(YARN_TOML).expect("Failed to parse yarn manifest");
 
     assert_eq!(manifest.provider.name, "yarn");
     assert_eq!(manifest.provider.ecosystem, Some(Ecosystem::NodeJs));
@@ -21,8 +221,7 @@ fn test_parse_yarn_manifest() {
 
 #[test]
 fn test_parse_pnpm_manifest() {
-    let toml = include_str!("../../vx-providers/pnpm/provider.toml");
-    let manifest = ProviderManifest::parse(toml).expect("Failed to parse pnpm manifest");
+    let manifest = ProviderManifest::parse(PNPM_TOML).expect("Failed to parse pnpm manifest");
 
     assert_eq!(manifest.provider.name, "pnpm");
     assert_eq!(manifest.provider.ecosystem, Some(Ecosystem::NodeJs));
@@ -30,8 +229,7 @@ fn test_parse_pnpm_manifest() {
 
 #[test]
 fn test_parse_node_manifest() {
-    let toml = include_str!("../../vx-providers/node/provider.toml");
-    let manifest = ProviderManifest::parse(toml).expect("Failed to parse node manifest");
+    let manifest = ProviderManifest::parse(NODE_TOML).expect("Failed to parse node manifest");
 
     assert_eq!(manifest.provider.name, "node");
     assert_eq!(manifest.provider.ecosystem, Some(Ecosystem::NodeJs));
@@ -39,11 +237,10 @@ fn test_parse_node_manifest() {
     assert_eq!(manifest.runtimes.len(), 3);
 }
 
-/// RFC 0018: Test extended schema fields in node provider.toml
+/// RFC 0018: Test extended schema fields in node provider
 #[test]
 fn test_parse_node_manifest_extended_fields() {
-    let toml = include_str!("../../vx-providers/node/provider.toml");
-    let manifest = ProviderManifest::parse(toml).expect("Failed to parse node manifest");
+    let manifest = ProviderManifest::parse(NODE_TOML).expect("Failed to parse node manifest");
 
     let node_runtime = &manifest.runtimes[0];
     assert_eq!(node_runtime.name, "node");
@@ -93,11 +290,10 @@ fn test_parse_node_manifest_extended_fields() {
     assert!(!hooks.post_activate.is_empty());
 }
 
-/// RFC 0018: Test extended schema fields in yarn provider.toml
+/// RFC 0018: Test extended schema fields in yarn provider
 #[test]
 fn test_parse_yarn_manifest_extended_fields() {
-    let toml = include_str!("../../vx-providers/yarn/provider.toml");
-    let manifest = ProviderManifest::parse(toml).expect("Failed to parse yarn manifest");
+    let manifest = ProviderManifest::parse(YARN_TOML).expect("Failed to parse yarn manifest");
 
     let yarn_runtime = &manifest.runtimes[0];
     assert_eq!(yarn_runtime.name, "yarn");
@@ -119,11 +315,10 @@ fn test_parse_yarn_manifest_extended_fields() {
     assert!(yarn_runtime.cache.is_some());
 }
 
-/// RFC 0018: Test extended schema fields in python provider.toml
+/// RFC 0018: Test extended schema fields in python provider
 #[test]
 fn test_parse_python_manifest_extended_fields() {
-    let toml = include_str!("../../vx-providers/python/provider.toml");
-    let manifest = ProviderManifest::parse(toml).expect("Failed to parse python manifest");
+    let manifest = ProviderManifest::parse(PYTHON_TOML).expect("Failed to parse python manifest");
 
     let python_runtime = &manifest.runtimes[0];
     assert_eq!(python_runtime.name, "python");
@@ -156,11 +351,10 @@ fn test_parse_python_manifest_extended_fields() {
     assert!(python_runtime.cache.is_some());
 }
 
-/// RFC 0018: Test extended schema fields in pnpm provider.toml
+/// RFC 0018: Test extended schema fields in pnpm provider
 #[test]
 fn test_parse_pnpm_manifest_extended_fields() {
-    let toml = include_str!("../../vx-providers/pnpm/provider.toml");
-    let manifest = ProviderManifest::parse(toml).expect("Failed to parse pnpm manifest");
+    let manifest = ProviderManifest::parse(PNPM_TOML).expect("Failed to parse pnpm manifest");
 
     let pnpm_runtime = &manifest.runtimes[0];
     assert_eq!(pnpm_runtime.name, "pnpm");
@@ -207,8 +401,7 @@ fn test_constraint_matching(
 
 #[test]
 fn test_yarn_v1_constraints() {
-    let toml = include_str!("../../vx-providers/yarn/provider.toml");
-    let manifest = ProviderManifest::parse(toml).unwrap();
+    let manifest = ProviderManifest::parse(YARN_TOML).unwrap();
     let runtime = manifest.get_runtime("yarn").unwrap();
 
     // Test Yarn 1.x constraints
@@ -228,8 +421,7 @@ fn test_yarn_v1_constraints() {
 
 #[test]
 fn test_yarn_v4_constraints() {
-    let toml = include_str!("../../vx-providers/yarn/provider.toml");
-    let manifest = ProviderManifest::parse(toml).unwrap();
+    let manifest = ProviderManifest::parse(YARN_TOML).unwrap();
     let runtime = manifest.get_runtime("yarn").unwrap();
 
     // Test Yarn 4.x constraints
@@ -247,8 +439,7 @@ fn test_yarn_v4_constraints() {
 
 #[test]
 fn test_pnpm_constraints() {
-    let toml = include_str!("../../vx-providers/pnpm/provider.toml");
-    let manifest = ProviderManifest::parse(toml).unwrap();
+    let manifest = ProviderManifest::parse(PNPM_TOML).unwrap();
     let runtime = manifest.get_runtime("pnpm").unwrap();
 
     // pnpm 7.x
@@ -269,8 +460,7 @@ fn test_pnpm_constraints() {
 
 #[test]
 fn test_get_runtime_by_alias() {
-    let toml = include_str!("../../vx-providers/yarn/provider.toml");
-    let manifest = ProviderManifest::parse(toml).unwrap();
+    let manifest = ProviderManifest::parse(YARN_TOML).unwrap();
 
     // Should find by name
     assert!(manifest.get_runtime("yarn").is_some());

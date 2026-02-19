@@ -5581,6 +5581,7 @@ dependencies = [
  "vx-migration",
  "vx-paths",
  "vx-project-analyzer",
+ "vx-provider-7zip",
  "vx-provider-actrun",
  "vx-provider-awscli",
  "vx-provider-azcli",
@@ -5910,6 +5911,20 @@ dependencies = [
  "vx-core",
  "vx-paths",
  "walkdir",
+ "which",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-7zip"
+version = "0.8.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "tokio",
+ "vx-runtime",
  "which",
  "workspace-hack",
 ]

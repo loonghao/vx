@@ -254,6 +254,10 @@ pub fn create_manifest_registry() -> ManifestRegistry {
     // Register all builtin provider factories via the unified master list
     for_each_provider!(register_provider_factories, registry);
 
+    // Special case: 7zip cannot be registered via the macro because "7zip" is not
+    // a valid Rust identifier. Register it manually here.
+    registry.register_factory("7zip", || vx_provider_7zip::create_provider());
+
     registry
 }
 
@@ -263,6 +267,10 @@ fn create_static_registry() -> ProviderRegistry {
 
     // Register all builtin providers via the unified master list
     for_each_provider!(register_providers, registry);
+
+    // Special case: 7zip cannot be registered via the macro because "7zip" is not
+    // a valid Rust identifier. Register it manually here.
+    registry.register(vx_provider_7zip::create_provider());
 
     registry
 }

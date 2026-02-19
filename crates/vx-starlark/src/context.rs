@@ -8,7 +8,7 @@ use crate::error::{Error, Result};
 use crate::sandbox::SandboxConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Platform information exposed to Starlark scripts
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -414,23 +414,23 @@ impl ProviderContext {
     // === Path Utilities ===
 
     /// Join path components
-    pub fn path_join(&self, base: &PathBuf, name: &str) -> PathBuf {
+    pub fn path_join(&self, base: &Path, name: &str) -> PathBuf {
         base.join(name)
     }
 
     /// Get the parent directory
-    pub fn path_parent(&self, path: &PathBuf) -> Option<PathBuf> {
+    pub fn path_parent(&self, path: &Path) -> Option<PathBuf> {
         path.parent().map(|p| p.to_path_buf())
     }
 
     /// Get the file name
-    pub fn path_filename(&self, path: &PathBuf) -> Option<String> {
+    pub fn path_filename(&self, path: &Path) -> Option<String> {
         path.file_name()
             .and_then(|n| n.to_str().map(|s| s.to_string()))
     }
 
     /// Get the file extension
-    pub fn path_extension(&self, path: &PathBuf) -> Option<String> {
+    pub fn path_extension(&self, path: &Path) -> Option<String> {
         path.extension()
             .and_then(|e| e.to_str().map(|s| s.to_string()))
     }
