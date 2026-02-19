@@ -54,13 +54,25 @@ build-fast:
 # Test
 # ============================================
 
-# Run all tests
+# Run all tests (use nextest for faster execution)
 test:
-    vx run test
+    vx cargo nextest run --workspace --no-fail-fast
 
 # Run tests with verbose output
 test-verbose:
-    vx run test-verbose
+    vx cargo nextest run --workspace --no-fail-fast --no-capture
+
+# Run tests with cargo test (fallback if nextest not available)
+test-cargo:
+    vx cargo test --workspace --no-fail-fast
+
+# Run fast unit tests only (skip slow integration tests)
+test-fast:
+    vx cargo nextest run --workspace --no-fail-fast -E 'not test(e2e)'
+
+# Run tests for specific packages
+test-pkgs PKGS:
+    vx cargo nextest run --no-fail-fast -p {{PKGS}}
 
 
 # Test all providers in a clean temporary environment
