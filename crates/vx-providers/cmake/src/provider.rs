@@ -9,19 +9,21 @@ pub struct CMakeProvider;
 
 impl Provider for CMakeProvider {
     fn name(&self) -> &str {
-        "cmake"
+        crate::star_metadata().name_or("cmake")
     }
 
     fn description(&self) -> &str {
-        "Cross-platform build system generator"
+        crate::star_metadata().description_or("Cross-platform build system generator")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(ManifestDrivenRuntime::new(
-            "cmake",
-            "cmake",
-            ProviderSource::BuiltIn,
-        ))]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("cmake", "cmake", ProviderSource::BuiltIn)
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "cmake",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
 }
 

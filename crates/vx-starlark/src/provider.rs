@@ -216,6 +216,12 @@ pub struct RuntimeMeta {
     /// Priority
     #[serde(default = "default_priority")]
     pub priority: u32,
+    /// Known system paths (glob patterns) for system-installed tools (RFC-0037)
+    ///
+    /// Populated from the `system_paths` field in the `runtimes` list of provider.star.
+    /// Used by `where_cmd` to locate system-installed tools (e.g. MSVC cl.exe).
+    #[serde(default)]
+    pub system_paths: Vec<String>,
 }
 
 fn default_priority() -> u32 {
@@ -421,6 +427,103 @@ impl StarlarkProvider {
         Ok(provider)
     }
 
+    /// Create a provider from in-memory script content (no filesystem access).
+    ///
+    /// This is the preferred entry point for built-in providers that embed their
+    /// `provider.star` at compile time via `include_str!`.  It avoids the need
+    /// to locate the script on disk at runtime and works correctly in all
+    /// deployment scenarios (installed binary, CI, Docker, etc.).
+    ///
+    /// # Arguments
+    ///
+    /// * `name` – Provider name used as a virtual script path label
+    ///   (e.g. `"just"`, `"go"`).  Does not need to be a real path.
+    /// * `content` – The raw Starlark source code (typically `PROVIDER_STAR`).
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use vx_starlark::StarlarkProvider;
+    ///
+    /// // In a provider crate's lib.rs:
+    /// pub const PROVIDER_STAR: &str = include_str!("../provider.star");
+    ///
+    /// // In provider.rs:
+    /// let provider = StarlarkProvider::from_content("just", PROVIDER_STAR).await?;
+    /// let versions = provider.fetch_versions().await?;
+    /// ```
+    pub async fn from_content(name: impl Into<String>, content: impl Into<String>) -> Result<Self> {
+        let name = name.into();
+        let content = content.into();
+
+        // Use a virtual path so the engine can identify the script in error messages
+        let virtual_path = PathBuf::from(format!("<builtin:{}>", name));
+
+        let script_hash = sha256_bytes(content.as_bytes());
+
+        // Check analysis cache by content hash
+        {
+            let cache = ANALYSIS_CACHE.read().await;
+            if let Some(entry) = cache.get(&script_hash) {
+                debug!(
+                    provider = %name,
+                    "Using cached analysis result for built-in provider (content hash match)"
+                );
+                let vx_home = vx_paths::VxPaths::new()
+                    .map(|p| p.base_dir)
+                    .unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".vx"));
+                let (meta, runtimes) = Self::parse_metadata(&content)?;
+                return Ok(Self {
+                    script_path: virtual_path,
+                    meta,
+                    runtimes,
+                    sandbox: SandboxConfig::default(),
+                    vx_home,
+                    script_content: Arc::new(content),
+                    script_hash: entry.script_hash,
+                });
+            }
+        }
+
+        // Cache miss: parse metadata
+        let (meta, runtimes) = Self::parse_metadata(&content)?;
+
+        let vx_home = vx_paths::VxPaths::new()
+            .map(|p| p.base_dir)
+            .unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".vx"));
+
+        let provider = Self {
+            script_path: virtual_path,
+            meta: meta.clone(),
+            runtimes,
+            sandbox: SandboxConfig::default(),
+            vx_home,
+            script_content: Arc::new(content),
+            script_hash,
+        };
+
+        // Store in analysis cache
+        {
+            let mut cache = ANALYSIS_CACHE.write().await;
+            cache.insert(
+                script_hash,
+                AnalysisCacheEntry {
+                    script_hash,
+                    frozen_info: FrozenProviderInfo {
+                        versions_url: None,
+                        download_url: None,
+                        env_template: HashMap::new(),
+                        metadata: HashMap::new(),
+                    },
+                    cached_at: SystemTime::now(),
+                },
+            );
+        }
+
+        info!("Loaded built-in Starlark provider: {}", provider.meta.name);
+        Ok(provider)
+    }
+
     /// Get the Starlark engine for this provider
     fn engine(&self) -> StarlarkEngine {
         StarlarkEngine::new()
@@ -479,7 +582,61 @@ impl StarlarkProvider {
             }
         }
 
-        // For now, create a default runtime with the provider name
+        // Try to parse the `runtimes` list variable via the Starlark engine
+        // This extracts system_paths, aliases, executable, etc. from provider.star
+        let virtual_path = std::path::PathBuf::from("<parse_metadata>");
+        let engine = StarlarkEngine::new();
+        if let Ok(Some(runtimes_json)) = engine.get_variable(&virtual_path, content, "runtimes")
+            && let Some(arr) = runtimes_json.as_array()
+        {
+            for item in arr {
+                let name = item
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&meta.name)
+                    .to_string();
+                let description = item
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let executable = item
+                    .get("executable")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&name)
+                    .to_string();
+                let aliases: Vec<String> = item
+                    .get("aliases")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let priority = item.get("priority").and_then(|v| v.as_u64()).unwrap_or(100) as u32;
+                let system_paths: Vec<String> = item
+                    .get("system_paths")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                runtimes.push(RuntimeMeta {
+                    name,
+                    description,
+                    executable,
+                    aliases,
+                    priority,
+                    system_paths,
+                });
+            }
+        }
+
+        // Fallback: create a default runtime with the provider name
         if runtimes.is_empty() {
             runtimes.push(RuntimeMeta {
                 name: meta.name.clone(),
@@ -487,6 +644,7 @@ impl StarlarkProvider {
                 executable: meta.name.clone(),
                 aliases: vec![],
                 priority: 100,
+                system_paths: vec![],
             });
         }
 
@@ -1500,6 +1658,129 @@ impl StarlarkProvider {
                 );
                 None
             }
+        }
+    }
+
+    // === RFC-0037 Path Query Functions ===
+
+    /// Call `store_root(ctx)` from provider.star (RFC-0037)
+    ///
+    /// Returns the raw template string (e.g. `"{vx_home}/store/7zip"`),
+    /// or `None` if the function is not defined.
+    pub async fn call_store_root(&self) -> Result<Option<String>> {
+        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+            .with_sandbox(self.sandbox.clone());
+
+        let engine = self.engine();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "store_root",
+            &ctx,
+            &[],
+        );
+
+        match result {
+            Ok(json) => {
+                if json.is_null() {
+                    Ok(None)
+                } else if let Some(s) = json.as_str() {
+                    Ok(Some(s.to_string()))
+                } else {
+                    Ok(None)
+                }
+            }
+            Err(Error::FunctionNotFound { .. }) => {
+                debug!(
+                    provider = %self.meta.name,
+                    "store_root() not found in provider script, using convention"
+                );
+                Ok(None)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Call `get_execute_path(ctx, version)` from provider.star (RFC-0037)
+    ///
+    /// Returns the raw template string (e.g. `"{install_dir}/7z.exe"`),
+    /// or `None` if the function returns `None` or is not defined.
+    pub async fn call_get_execute_path(&self, version: &str) -> Result<Option<String>> {
+        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+            .with_sandbox(self.sandbox.clone())
+            .with_version(version);
+
+        let engine = self.engine();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "get_execute_path",
+            &ctx,
+            &[serde_json::Value::String(version.to_string())],
+        );
+
+        match result {
+            Ok(json) => {
+                if json.is_null() {
+                    Ok(None)
+                } else if let Some(s) = json.as_str() {
+                    Ok(Some(s.to_string()))
+                } else {
+                    Ok(None)
+                }
+            }
+            Err(Error::FunctionNotFound { .. }) => {
+                debug!(
+                    provider = %self.meta.name,
+                    "get_execute_path() not found in provider script, using convention"
+                );
+                Ok(None)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Call `post_install(ctx, version, install_dir)` from provider.star (RFC-0037)
+    ///
+    /// Returns a list of [`PostExtractAction`]s to execute after installation,
+    /// or an empty list if the function returns `None` / is not defined.
+    pub async fn call_post_install(
+        &self,
+        version: &str,
+        install_dir: &std::path::Path,
+    ) -> Result<Vec<PostExtractAction>> {
+        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+            .with_sandbox(self.sandbox.clone())
+            .with_version(version);
+
+        let engine = self.engine();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "post_install",
+            &ctx,
+            &[
+                serde_json::Value::String(version.to_string()),
+                serde_json::Value::String(install_dir.to_string_lossy().to_string()),
+            ],
+        );
+
+        match result {
+            Ok(json) => {
+                let actions = self.parse_hook_actions(&json, "post_install")?;
+                Ok(actions
+                    .into_iter()
+                    .filter_map(|a| self.json_to_post_extract_action(&a))
+                    .collect())
+            }
+            Err(Error::FunctionNotFound { .. }) => {
+                debug!(
+                    provider = %self.meta.name,
+                    "post_install() not found in provider script"
+                );
+                Ok(vec![])
+            }
+            Err(e) => Err(e),
         }
     }
 

@@ -92,6 +92,22 @@ def download_url(ctx, version):
     return None
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for meson."""
+    return "{vx_home}/store/meson"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version (uv package alias)."""
+    return "{install_dir}/meson"
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed for meson."""
+    return None
+
+# ---------------------------------------------------------------------------
 # deps — requires uv
 # ---------------------------------------------------------------------------
 

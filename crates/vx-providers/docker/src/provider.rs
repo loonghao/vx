@@ -9,19 +9,21 @@ pub struct DockerProvider;
 
 impl Provider for DockerProvider {
     fn name(&self) -> &str {
-        "docker"
+        crate::star_metadata().name_or("docker")
     }
 
     fn description(&self) -> &str {
-        "Docker container platform"
+        crate::star_metadata().description_or("Docker container platform")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(ManifestDrivenRuntime::new(
-            "docker",
-            "docker",
-            ProviderSource::BuiltIn,
-        ))]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("docker", "docker", ProviderSource::BuiltIn)
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "docker",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
 }
 

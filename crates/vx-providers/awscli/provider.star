@@ -170,3 +170,41 @@ def post_extract(ctx, version, install_dir):
 
 def deps(ctx, version):
     return []
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for awscli."""
+    return "{vx_home}/store/awscli"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/aws.exe"
+    else:
+        return "{install_dir}/aws"
+
+def post_install(ctx, version, install_dir):
+    """Post-install hook (no-op for awscli)."""
+    return None
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/awscli"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/aws.exe"
+    else:
+        return "{install_dir}/aws"
+
+def post_install(ctx, version, install_dir):
+    return None

@@ -112,3 +112,21 @@ def install_layout(ctx, version):
 
 def environment(ctx, version, install_dir):
     return {"PATH": install_dir}
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/fd"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/fd.exe"
+    else:
+        return "{install_dir}/fd"
+
+def post_install(ctx, version, install_dir):
+    return None

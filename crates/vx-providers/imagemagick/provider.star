@@ -142,6 +142,24 @@ def system_install(ctx):
     return {}
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for imagemagick."""
+    return "{vx_home}/store/imagemagick"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    exe = "magick.exe" if os == "windows" else "magick"
+    return "{install_dir}/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed for imagemagick."""
+    return None
+
+# ---------------------------------------------------------------------------
 # deps
 # ---------------------------------------------------------------------------
 

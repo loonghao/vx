@@ -128,6 +128,24 @@ def environment(ctx, version, install_dir):
     }
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for yarn."""
+    return "{vx_home}/store/yarn"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    exe = "yarn.cmd" if os == "windows" else "yarn"
+    return "{install_dir}/bin/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install actions needed for yarn."""
+    return None
+
+# ---------------------------------------------------------------------------
 # pre_run — ensure node_modules before `yarn run`
 # ---------------------------------------------------------------------------
 

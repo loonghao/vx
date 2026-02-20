@@ -9,19 +9,22 @@ pub struct PwshProvider;
 
 impl Provider for PwshProvider {
     fn name(&self) -> &str {
-        "pwsh"
+        crate::star_metadata().name_or("pwsh")
     }
 
     fn description(&self) -> &str {
-        "Cross-platform command-line shell and scripting language"
+        crate::star_metadata()
+            .description_or("Cross-platform command-line shell and scripting language")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(ManifestDrivenRuntime::new(
-            "pwsh",
-            "pwsh",
-            ProviderSource::BuiltIn,
-        ))]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("pwsh", "pwsh", ProviderSource::BuiltIn)
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "pwsh",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
 }
 

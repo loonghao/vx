@@ -9,18 +9,25 @@ pub struct YqProvider;
 
 impl Provider for YqProvider {
     fn name(&self) -> &str {
-        "yq"
+        crate::star_metadata().name_or("yq")
     }
 
     fn description(&self) -> &str {
-        "A portable command-line YAML, JSON, XML, CSV, TOML and properties processor"
+        crate::star_metadata().description_or(
+            "A portable command-line YAML, JSON, XML, CSV, TOML and properties processor",
+        )
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
         vec![Arc::new(
-            ManifestDrivenRuntime::new("yq", "yq", ProviderSource::BuiltIn).with_description(
-                "A portable command-line YAML, JSON, XML, CSV, TOML and properties processor",
-            ),
+            ManifestDrivenRuntime::new("yq", "yq", ProviderSource::BuiltIn)
+                .with_description(
+                    "A portable command-line YAML, JSON, XML, CSV, TOML and properties processor",
+                )
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "yq",
+                    crate::PROVIDER_STAR,
+                )),
         )]
     }
 }

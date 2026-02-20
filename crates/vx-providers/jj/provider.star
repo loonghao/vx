@@ -163,6 +163,24 @@ def environment(ctx, version, install_dir):
     }
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for jj."""
+    return "{vx_home}/store/jj"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    exe = "jj.exe" if os == "windows" else "jj"
+    return "{install_dir}/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed for jj."""
+    return None
+
+# ---------------------------------------------------------------------------
 # constraints — runtime recommendations
 # ---------------------------------------------------------------------------
 

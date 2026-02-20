@@ -146,3 +146,41 @@ def environment(ctx, version, install_dir):
     return {
         "PATH": install_dir + "/bin",
     }
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for cmake."""
+    return "{vx_home}/store/cmake"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/cmake.exe"
+    else:
+        return "{install_dir}/cmake"
+
+def post_install(ctx, version, install_dir):
+    """Post-install hook (no-op for cmake)."""
+    return None
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/cmake"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/cmake.exe"
+    else:
+        return "{install_dir}/cmake"
+
+def post_install(ctx, version, install_dir):
+    return None

@@ -136,6 +136,24 @@ def install_layout(ctx, version):
     }
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for ripgrep."""
+    return "{vx_home}/store/ripgrep"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    exe = "rg.exe" if os == "windows" else "rg"
+    return "{install_dir}/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed for ripgrep."""
+    return None
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

@@ -135,6 +135,24 @@ def install_layout(ctx, version):
     }
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for task."""
+    return "{vx_home}/store/task"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    exe = "task.exe" if os == "windows" else "task"
+    return "{install_dir}/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install actions needed for task."""
+    return None
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

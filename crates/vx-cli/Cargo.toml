@@ -15,6 +15,7 @@ rust-version.workspace = true
 [dependencies]
 vx-cache = { workspace = true }
 vx-core = { workspace = true }
+vx-starlark = { workspace = true }
 vx-config = { workspace = true, features = ["schema"] }
 vx-ecosystem-pm = { workspace = true }
 vx-env = { workspace = true }

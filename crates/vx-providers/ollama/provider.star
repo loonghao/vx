@@ -139,6 +139,37 @@ def install_layout(ctx, version):
     }
 
 # ---------------------------------------------------------------------------
+# store_root — vx-managed install directory
+# ---------------------------------------------------------------------------
+
+def store_root(ctx, version):
+    """Return the vx store root for this ollama version."""
+    return ctx["paths"]["store_dir"] + "/ollama/" + version
+
+# ---------------------------------------------------------------------------
+# get_execute_path — resolve ollama executable
+# ---------------------------------------------------------------------------
+
+def get_execute_path(ctx, version, install_dir):
+    """Return the path to the ollama executable."""
+    os  = ctx["platform"]["os"]
+    exe = "ollama.exe" if os == "windows" else "ollama"
+    return install_dir + "/" + exe
+
+# ---------------------------------------------------------------------------
+# post_install — set permissions on Unix
+# ---------------------------------------------------------------------------
+
+def post_install(ctx, version, install_dir):
+    """Set execute permissions on Unix."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return []
+    return [
+        {"type": "set_permissions", "path": install_dir + "/ollama", "mode": "755"},
+    ]
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

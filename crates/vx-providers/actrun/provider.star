@@ -133,3 +133,41 @@ def environment(ctx, version, install_dir):
     return {
         "PATH": install_dir,
     }
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for actrun."""
+    return "{vx_home}/store/actrun"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/actrun.exe"
+    else:
+        return "{install_dir}/actrun"
+
+def post_install(ctx, version, install_dir):
+    """Post-install hook (no-op for actrun)."""
+    return None
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/actrun"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/actrun.exe"
+    else:
+        return "{install_dir}/actrun"
+
+def post_install(ctx, version, install_dir):
+    return None

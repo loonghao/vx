@@ -188,3 +188,21 @@ def deps(ctx, version):
         {"runtime": "nuget", "version": "*", "optional": True,
          "reason": "NuGet CLI for advanced package management"},
     ]
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/dotnet"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/dotnet.exe"
+    else:
+        return "{install_dir}/dotnet"
+
+def post_install(ctx, version, install_dir):
+    return None

@@ -125,6 +125,25 @@ def download_url(ctx, version):
     return None
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for xcodebuild.
+
+    xcodebuild is a macOS system tool; it is never installed by vx.
+    """
+    return "{vx_home}/store/xcodebuild"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for xcodebuild (macOS-only)."""
+    return "/usr/bin/xcodebuild"
+
+def post_install(ctx, version, install_dir):
+    """No post-install actions needed — system-only tool."""
+    return None
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

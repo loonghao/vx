@@ -198,6 +198,41 @@ def environment(ctx, version, install_dir):
         return {"PATH": install_dir + "/bin"}
 
 # ---------------------------------------------------------------------------
+# store_root — vx-managed install directory
+# ---------------------------------------------------------------------------
+
+def store_root(ctx, version):
+    """Return the vx store root for this Node.js version."""
+    return ctx["paths"]["store_dir"] + "/node/" + version
+
+# ---------------------------------------------------------------------------
+# get_execute_path — resolve node executable
+# ---------------------------------------------------------------------------
+
+def get_execute_path(ctx, version, install_dir):
+    """Return the path to the node executable."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return install_dir + "/node.exe"
+    else:
+        return install_dir + "/bin/node"
+
+# ---------------------------------------------------------------------------
+# post_install — set permissions on Unix
+# ---------------------------------------------------------------------------
+
+def post_install(ctx, version, install_dir):
+    """Set execute permissions on bundled tools on Unix."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return []
+    bundled = ["node", "npm", "npx", "corepack"]
+    return [
+        {"type": "set_permissions", "path": install_dir + "/bin/" + t, "mode": "755"}
+        for t in bundled
+    ]
+
+# ---------------------------------------------------------------------------
 # deps — explicit dependency declarations (Buck2 style)
 # ---------------------------------------------------------------------------
 
