@@ -8,6 +8,7 @@
 # Inheritance pattern: Level 2 (custom download_url for platform-specific asset naming)
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:install.star", "flatten_dir")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -140,6 +141,41 @@ def environment(ctx, version, install_dir):
     if os == "windows":
         return {"PATH": install_dir + "/bin"}
     return {"PATH": install_dir}
+
+# ---------------------------------------------------------------------------
+# post_extract — flatten nested directory on Linux
+#
+# Linux static builds from johnvansickle.com extract to a dynamic top-level
+# directory (e.g. ffmpeg-7.1-amd64-static/). We flatten it so that ffmpeg,
+# ffprobe, ffplay are directly in the install root.
+#
+# Windows: already handled by install_layout strip_prefix.
+# macOS:   evermeet.cx zip contains the binary directly, no nesting.
+# ---------------------------------------------------------------------------
+
+def post_extract(ctx, version, install_dir):
+    """Flatten the nested directory structure for Linux static builds.
+
+    johnvansickle.com archives extract to a single top-level directory
+    (e.g. ffmpeg-7.1-amd64-static/) containing ffmpeg, ffprobe, ffplay
+    and other files. We flatten it so executables are in the install root.
+
+    Args:
+        ctx:         Provider context
+        version:     Installed version string
+        install_dir: Path to the installation directory
+
+    Returns:
+        List of post-extract actions, or empty list if not Linux
+    """
+    os = ctx["platform"]["os"]
+
+    # Only Linux static builds need flattening;
+    # Windows uses strip_prefix in install_layout, macOS zip is already flat.
+    if os == "linux":
+        return [flatten_dir()]
+
+    return []
 
 # ---------------------------------------------------------------------------
 # deps

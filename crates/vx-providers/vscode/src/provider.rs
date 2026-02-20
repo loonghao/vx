@@ -1,29 +1,30 @@
-//! VSCode provider implementation
+//! vscode provider implementation
 
-use crate::runtime::VscodeRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// VSCode provider that provides Visual Studio Code editor
+/// vscode provider (Starlark-driven)
 #[derive(Debug, Default)]
-pub struct VscodeProvider;
+pub struct VsCodeProvider;
 
-impl VscodeProvider {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Provider for VscodeProvider {
+impl Provider for VsCodeProvider {
     fn name(&self) -> &str {
         "vscode"
     }
 
     fn description(&self) -> &str {
-        "Visual Studio Code - Free, built on open source, runs everywhere"
+        "Visual Studio Code - Code editing. Redefined."
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(VscodeRuntime::new())]
+        vec![Arc::new(ManifestDrivenRuntime::new(
+            "code",
+            "code",
+            ProviderSource::BuiltIn,
+        ))]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(VsCodeProvider)
 }

@@ -1,40 +1,22 @@
-//! Spack provider for vx
-//!
-//! This crate provides the Spack provider for vx.
-//! Spack is a flexible package manager designed for supercomputers, Linux, and macOS.
-//! It makes installing scientific software easy by automatically handling dependencies,
-//! multiple versions, configurations, platforms, and compilers.
-//!
-//! # Features
-//!
-//! - Install Spack on Windows, macOS, and Linux
-//! - Version management
-//! - Support for HPC and scientific computing workflows
-//! - Compiler management and detection
-//!
-//! # Example
-//!
-//! ```ignore
-//! use vx_provider_spack::create_provider;
-//!
-//! let provider = create_provider();
-//! assert_eq!(provider.name(), "spack");
-//! ```
+//! spack provider for vx
 
-mod config;
 mod provider;
-mod runtime;
 
-pub use config::SpackUrlBuilder;
-pub use provider::SpackProvider;
-pub use runtime::SpackRuntime;
+pub use provider::create_provider;
 
-use std::sync::Arc;
-use vx_runtime::Provider;
-
-/// Create a new Spack provider instance
+/// The raw content of `provider.star`, embedded at compile time.
 ///
-/// This is the main entry point for the provider, used by the registry.
-pub fn create_provider() -> Arc<dyn Provider> {
-    Arc::new(SpackProvider::new())
+/// This is the single source of truth for provider metadata (name, description,
+/// aliases, platform constraints, etc.).  The `build.rs` script ensures Cargo
+/// re-compiles this crate whenever `provider.star` changes.
+pub const PROVIDER_STAR: &str = include_str!("../provider.star");
+
+/// Lazily-parsed metadata from `provider.star`.
+///
+/// Use this to access provider/runtime metadata without spinning up the full
+/// Starlark engine.  The metadata is parsed once on first access.
+pub fn star_metadata() -> &'static vx_starlark::StarMetadata {
+    use std::sync::OnceLock;
+    static META: OnceLock<vx_starlark::StarMetadata> = OnceLock::new();
+    META.get_or_init(|| vx_starlark::StarMetadata::parse(PROVIDER_STAR))
 }

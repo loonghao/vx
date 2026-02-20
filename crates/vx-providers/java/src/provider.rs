@@ -1,25 +1,11 @@
-//! Java provider implementation
+//! java provider implementation
 
-use crate::runtime::JavaRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Java provider
-#[derive(Debug)]
+/// java provider (Starlark-driven)
+#[derive(Debug, Default)]
 pub struct JavaProvider;
-
-impl JavaProvider {
-    /// Create a new Java provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for JavaProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl Provider for JavaProvider {
     fn name(&self) -> &str {
@@ -27,10 +13,18 @@ impl Provider for JavaProvider {
     }
 
     fn description(&self) -> &str {
-        "Provides Java (Temurin JDK) runtime support"
+        "Java Development Kit"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(JavaRuntime::new())]
+        vec![Arc::new(ManifestDrivenRuntime::new(
+            "java",
+            "java",
+            ProviderSource::BuiltIn,
+        ))]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(JavaProvider)
 }

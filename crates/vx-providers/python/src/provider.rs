@@ -1,21 +1,11 @@
-//! Python provider implementation
+//! python provider implementation
 
-use crate::runtime::{PipRuntime, PythonRuntime};
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Python provider for vx
-///
-/// Provides Python runtime using python-build-standalone distributions
-/// from Astral (https://github.com/astral-sh/python-build-standalone)
+/// python provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct PythonProvider;
-
-impl PythonProvider {
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl Provider for PythonProvider {
     fn name(&self) -> &str {
@@ -23,10 +13,18 @@ impl Provider for PythonProvider {
     }
 
     fn description(&self) -> &str {
-        "Python programming language (using python-build-standalone)"
+        "Python programming language"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(PythonRuntime::new()), Arc::new(PipRuntime::new())]
+        vec![Arc::new(ManifestDrivenRuntime::new(
+            "python",
+            "python",
+            ProviderSource::BuiltIn,
+        ))]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(PythonProvider)
 }

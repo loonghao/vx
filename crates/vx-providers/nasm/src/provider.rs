@@ -1,21 +1,11 @@
-//! NASM provider implementation
-//!
-//! Provides the NASM assembler.
+//! nasm provider implementation
 
-use crate::runtime::NasmRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// NASM provider
+/// nasm provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct NasmProvider;
-
-impl NasmProvider {
-    /// Create a new NASM provider
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl Provider for NasmProvider {
     fn name(&self) -> &str {
@@ -23,22 +13,17 @@ impl Provider for NasmProvider {
     }
 
     fn description(&self) -> &str {
-        "NASM - Netwide Assembler for x86 and x86-64"
+        "Netwide Assembler (NASM)"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(NasmRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("nasm", "nasm", ProviderSource::BuiltIn)
+                .with_description("Netwide Assembler (NASM)"),
+        )]
     }
+}
 
-    fn supports(&self, name: &str) -> bool {
-        name == "nasm" || name == "ndisasm"
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if name == "nasm" || name == "ndisasm" {
-            Some(Arc::new(NasmRuntime::new()))
-        } else {
-            None
-        }
-    }
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(NasmProvider)
 }

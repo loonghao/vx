@@ -1,6 +1,6 @@
 # RFC 0036: Starlark Provider Support
 
-> **状态**: Draft (v0.4)
+> **状态**: Draft (v0.6)
 > **作者**: vx team
 > **创建日期**: 2026-02-19
 > **目标版本**: v0.14.0
@@ -1418,6 +1418,151 @@ def download_url(ctx, version):
 - [ ] 添加调试工具（`vx provider debug <name>`，借鉴 Buck2 BXL 查询能力）
 - [ ] 编写集成测试
 
+### Phase 5: Lifecycle Hook 迁移（✅ 已完成）
+
+将 Rust `Runtime` trait 中的 `post_extract()` 和 `pre_run()` 生命周期钩子迁移到 Starlark。
+
+#### 5.1 新增 stdlib 函数（`@vx//stdlib:install.star`）
+
+```python
+# post_extract hook 描述符
+create_shim(name, target_executable, args=None, shim_dir=None)
+set_permissions(path, mode="755")
+run_command(executable, args, working_dir=None, env=None, on_failure="warn")
+
+# pre_run hook 描述符
+ensure_dependencies(package_manager, check_file="package.json",
+                    lock_file=None, install_dir="node_modules")
+run_command(executable, args, ...)  # 同上，可复用
+```
+
+#### 5.2 Rust 侧新增枚举（`vx-starlark/src/provider.rs`）
+
+```rust
+/// post_extract() 返回的动作列表
+pub enum PostExtractAction {
+    CreateShim { name, target, args, shim_dir },
+    SetPermissions { path, mode },
+    RunCommand { executable, args, working_dir, env, on_failure },
+}
+
+/// pre_run() 返回的动作列表
+pub enum PreRunAction {
+    EnsureDependencies { package_manager, check_file, lock_file, install_dir },
+    RunCommand { executable, args, working_dir, env, on_failure },
+}
+```
+
+#### 5.3 新增公开方法
+
+```rust
+impl StarlarkProvider {
+    /// 调用 post_extract(ctx, version, install_dir) → Vec<PostExtractAction>
+    pub async fn post_extract(&self, version: &str, install_dir: &Path) -> Result<Vec<PostExtractAction>>;
+
+    /// 调用 pre_run(ctx, args, executable) → Vec<PreRunAction>
+    pub async fn pre_run(&self, args: &[String], executable: &Path) -> Result<Vec<PreRunAction>>;
+}
+```
+
+#### 5.4 已迁移的 Providers
+
+| Provider | 迁移内容 | Starlark 实现 |
+|----------|---------|--------------|
+| `bun` | `post_extract` (bunx shim) + `pre_run` (ensure node_modules) | `create_shim("bunx", "bun", args=["x"])` + `ensure_dependencies("bun")` |
+| `node` | `post_extract` (npm/npx shims) + `pre_run` (ensure node_modules) | `create_shim("npm", ...)` + `ensure_dependencies("npm")` |
+| `pnpm` | `post_extract` (pnpx shim) + `pre_run` (ensure node_modules) | `create_shim("pnpx", "pnpm", args=["dlx"])` + `ensure_dependencies("pnpm")` |
+| `go` | `pre_run` (go mod download) | `ensure_dependencies("go", check_file="go.mod", install_dir="vendor")` |
+| `uv` | `pre_run` (uv sync) | `ensure_dependencies("uv", check_file="pyproject.toml", install_dir=".venv")` |
+| `yarn` | `pre_run` (yarn install) | `ensure_dependencies("yarn", check_file="package.json", lock_file="yarn.lock")` |
+| `rust` | `post_extract` (set permissions) | `set_permissions("bin/rustup", "755")` |
+| `java` | `post_extract` (set permissions) | `set_permissions("bin/java", "755")` |
+| `ffmpeg` | `post_extract` (set permissions) | `set_permissions("ffmpeg", "755")` |
+| `awscli` | `post_extract` (set permissions) | `set_permissions("aws", "755")` |
+| `azcli` | `post_extract` (set permissions) | `set_permissions("az", "755")` |
+| `rcedit` | `post_extract` (set permissions) | `set_permissions("rcedit.exe", "755")` |
+
+#### 5.5 Hook 函数签名规范
+
+```python
+def post_extract(ctx, version, install_dir):
+    """
+    Called after archive extraction.
+    Returns: list of PostExtractAction descriptors, or []
+    """
+    return [
+        create_shim("bunx", "bun", args=["x"]),
+        set_permissions("bin/tool", "755"),
+    ]
+
+def pre_run(ctx, args, executable):
+    """
+    Called before running the tool.
+    Returns: list of PreRunAction descriptors, or []
+    """
+    if len(args) > 0 and args[0] == "run":
+        return [ensure_dependencies("bun")]
+    return []
+```
+
+**设计原则（与 Buck2 一致）：**
+- Starlark 函数只**声明**动作（返回 descriptor 列表），不执行 I/O
+- Rust 核心解释 descriptor 并执行实际操作
+- 函数不存在时返回空列表（graceful degradation）
+- 所有 descriptor 通过 `__type` 字段区分类型
+
+#### 5.6 `install.star` 完整 API 参考
+
+```python
+# ---------------------------------------------------------------------------
+# post_extract hook descriptors
+# ---------------------------------------------------------------------------
+
+def create_shim(name, target_executable, args=None, shim_dir=None):
+    """Create a shim script that wraps another executable.
+    
+    Args:
+        name:              Shim name (e.g. "bunx", "npx"). .cmd appended on Windows.
+        target_executable: Target executable the shim wraps (e.g. "bun", "node").
+        args:              Optional list of args to prepend (e.g. ["x"] for `bun x`).
+        shim_dir:          Optional directory for the shim (default: same as target).
+    """
+
+def set_permissions(path, mode="755"):
+    """Set Unix file permissions on an extracted file (no-op on Windows).
+    
+    Args:
+        path: Relative path within the install directory.
+        mode: Unix permission mode string (default: "755").
+    """
+
+def run_command(executable, args, working_dir=None, env=None, on_failure="warn"):
+    """Run an arbitrary command as part of a hook.
+    
+    Args:
+        executable:  The executable to run.
+        args:        List of arguments.
+        working_dir: Optional working directory.
+        env:         Optional dict of environment variables.
+        on_failure:  "warn" | "error" | "ignore" (default: "warn").
+    """
+
+# ---------------------------------------------------------------------------
+# pre_run hook descriptors
+# ---------------------------------------------------------------------------
+
+def ensure_dependencies(package_manager, check_file="package.json",
+                        lock_file=None, install_dir="node_modules"):
+    """Ensure project dependencies are installed before running.
+    
+    Args:
+        package_manager: PM executable to run (e.g. "bun", "npm", "go").
+        check_file:      File that must exist for this check to apply.
+        lock_file:       Optional lock file to check for staleness.
+        install_dir:     Directory to check for existence (skip if exists).
+    """
+```
+
 ### Phase 4: 生态完善（Week 7-8）
 
 - [ ] 迁移 MSVC provider（最复杂，需要 Windows SDK 检测）
@@ -1569,3 +1714,5 @@ def download_url(ctx, version):
 | 2026-02-19 | v0.3 | 深化 Buck2 借鉴：补充 Typed Provider Fields（`record` 类型替代无类型 dict）、`load()` 模块系统（`@vx//stdlib` 虚拟文件系统）、增量分析缓存（内容哈希）、声明式动作 API（`ctx.actions`）、BXL 调试工具对应设计；更新 Bazel 对比表格；更新实现计划（Phase 1 已完成项打勾，Phase 2-3 补充新任务） |
 | 2026-02-19 | v0.4 | 实现进展更新：Phase 1/2 全部完成；新增 `@vx//stdlib:github.star`（`make_fetch_versions`、`make_download_url`、`make_github_provider` 工厂函数，实现「继承复用」模式）；完成首个 Starlark provider 迁移示例（`jj/provider.star`）；修复 jj `strip_v_prefix(false)` 导致的 `vv0.38.0` 双重前缀 bug；优化 `registry.rs` 合并重复的 provider 列表宏调用 |
 | 2026-02-19 | v0.5 | Phase 3 全部完成：批量迁移 20 个 GitHub provider（fzf/ripgrep/fd/bat/yq/starship/just/deno/zig/hadolint/kubectl/helm/terraform/dagu/ollama/task/ninja/protoc/gh/rcedit）；`engine.rs` 实现 `VxFileLoader`（`FileLoader` trait）支持 `load()` 语句；`loader.rs` 注册 `github.star` 并实现 `RecursiveVxLoader` 支持 stdlib 模块间递归加载；三种继承模式（Level 1/2/3）均有实际案例 |
+| 2026-02-20 | v0.6 | Phase 5 完成：新增 `post_extract`/`pre_run` lifecycle hook 支持；`install.star` 新增 `create_shim`、`set_permissions`、`ensure_dependencies`、`run_command` 四个 descriptor 函数；`provider.rs` 新增 `PostExtractAction`/`PreRunAction` 枚举及对应执行方法；完成 12 个 provider 的 hook 迁移（bun/node/pnpm/go/uv/yarn/rust/java/ffmpeg/awscli/azcli/rcedit），将 Rust `Runtime::post_extract()` 和 `Runtime::pre_run()` 完全替代为 Starlark 声明式描述符 |
+| 2026-02-20 | v0.6 | Phase 5 完成：新增 `post_extract`/`pre_run` lifecycle hook 支持；`install.star` 新增 `create_shim`、`set_permissions`、`ensure_dependencies`、`run_command` 四个 descriptor 函数；`provider.rs` 新增 `PostExtractAction`/`PreRunAction` 枚举及对应执行方法；完成 12 个 provider 的 hook 迁移（bun/node/pnpm/go/uv/yarn/rust/java/ffmpeg/awscli/azcli/rcedit），将 Rust `Runtime::post_extract()` 和 `Runtime::pre_run()` 完全替代为 Starlark 声明式描述符 |

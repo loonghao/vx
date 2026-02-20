@@ -92,7 +92,6 @@ clap_builder = { version = "4", default-features = false, features = ["env"] }
 clipboard-win = { version = "5", default-features = false, features = ["std"] }
 error-code = { version = "3", default-features = false, features = ["std"] }
 flate2 = { version = "1", features = ["zlib-rs"] }
-form_urlencoded = { version = "1" }
 getrandom = { version = "0.3", default-features = false, features = ["std"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "ring", "tls12", "webpki-tokio"] }

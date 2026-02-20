@@ -515,22 +515,65 @@ impl MsvcRuntime {
 #[async_trait]
 impl Runtime for MsvcRuntime {
     fn name(&self) -> &str {
-        "msvc"
+        // Sourced from provider.star: `def name(): return "msvc"`
+        crate::star_metadata().name_or("msvc")
     }
 
     fn description(&self) -> &str {
-        "MSVC Build Tools - Microsoft Visual C++ compiler and tools for Windows development"
+        // Sourced from provider.star: `def description(): return "..."`
+        use std::sync::OnceLock;
+        static DESC: OnceLock<&'static str> = OnceLock::new();
+        DESC.get_or_init(|| {
+            let s = crate::star_metadata()
+                .description
+                .as_deref()
+                .unwrap_or("MSVC Build Tools - Microsoft Visual C++ compiler and tools for Windows development");
+            Box::leak(s.to_string().into_boxed_str())
+        })
     }
 
     fn aliases(&self) -> &[&str] {
-        // Only expose non-conflicting aliases
-        // "cl" and "nmake" are safe, but "link" and "lib" conflict with system tools
-        &["cl", "nmake"]
+        // Sourced from provider.star runtimes[0].aliases
+        // Only expose non-conflicting aliases ("cl" and "nmake" are safe;
+        // "link" and "lib" conflict with system tools on some platforms).
+        use std::sync::OnceLock;
+        static ALIASES: OnceLock<Vec<&'static str>> = OnceLock::new();
+        ALIASES.get_or_init(|| {
+            let meta = crate::star_metadata();
+            // Use the primary "msvc" runtime's aliases from .star
+            if let Some(rt) = meta
+                .runtimes
+                .iter()
+                .find(|r| r.name.as_deref() == Some("msvc"))
+            {
+                rt.aliases
+                    .iter()
+                    .filter(|a| *a != "link" && *a != "lib") // avoid system tool conflicts
+                    .map(|a| Box::leak(a.clone().into_boxed_str()) as &'static str)
+                    .collect()
+            } else {
+                vec!["cl", "nmake"]
+            }
+        })
     }
 
     /// The primary executable is cl.exe (the C/C++ compiler)
     fn executable_name(&self) -> &str {
-        "cl"
+        // Sourced from provider.star runtimes[0].executable
+        use std::sync::OnceLock;
+        static EXE: OnceLock<&'static str> = OnceLock::new();
+        EXE.get_or_init(|| {
+            let meta = crate::star_metadata();
+            if let Some(rt) = meta
+                .runtimes
+                .iter()
+                .find(|r| r.name.as_deref() == Some("msvc"))
+                && let Some(exe) = rt.executable.as_deref()
+            {
+                return Box::leak(exe.to_string().into_boxed_str());
+            }
+            "cl"
+        })
     }
 
     fn ecosystem(&self) -> Ecosystem {
@@ -539,10 +582,22 @@ impl Runtime for MsvcRuntime {
 
     fn metadata(&self) -> HashMap<String, String> {
         let mut meta = HashMap::new();
-        meta.insert(
-            "homepage".to_string(),
-            "https://visualstudio.microsoft.com/visual-cpp-build-tools/".to_string(),
-        );
+        // Sourced from provider.star: `def homepage(): return "..."`
+        let star = crate::star_metadata();
+        if let Some(hp) = star.homepage.as_deref() {
+            meta.insert("homepage".to_string(), hp.to_string());
+        } else {
+            meta.insert(
+                "homepage".to_string(),
+                "https://visualstudio.microsoft.com/visual-cpp-build-tools/".to_string(),
+            );
+        }
+        if let Some(repo) = star.repository.as_deref() {
+            meta.insert("repository".to_string(), repo.to_string());
+        }
+        if let Some(license) = star.license.as_deref() {
+            meta.insert("license".to_string(), license.to_string());
+        }
         meta.insert(
             "documentation".to_string(),
             "https://docs.microsoft.com/en-us/cpp/build/".to_string(),

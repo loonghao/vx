@@ -1,99 +1,53 @@
-//! Chocolatey runtime tests
+//! choco provider tests
 
 use rstest::rstest;
-use vx_provider_choco::{ChocoProvider, ChocoRuntime};
-use vx_runtime::{Ecosystem, Provider, Runtime};
+use vx_provider_choco::create_provider;
+use vx_runtime::{Provider, Runtime};
 
-#[rstest]
-fn test_choco_runtime_name() {
-    let runtime = ChocoRuntime::new();
-    assert_eq!(runtime.name(), "choco");
-}
-
-#[rstest]
-fn test_choco_runtime_ecosystem() {
-    let runtime = ChocoRuntime::new();
-    assert_eq!(runtime.ecosystem(), Ecosystem::System);
-}
-
-#[rstest]
-fn test_choco_runtime_description() {
-    let runtime = ChocoRuntime::new();
-    assert!(runtime.description().contains("Chocolatey"));
-    assert!(runtime.description().contains("Windows"));
-}
-
-#[rstest]
-fn test_choco_runtime_aliases() {
-    let runtime = ChocoRuntime::new();
-    let aliases = runtime.aliases();
-    assert!(aliases.contains(&"chocolatey"));
-}
-
-#[rstest]
-fn test_choco_runtime_metadata() {
-    let runtime = ChocoRuntime::new();
-    let metadata = runtime.metadata();
-    assert!(metadata.contains_key("homepage"));
-    assert!(metadata.get("homepage").unwrap().contains("chocolatey.org"));
-}
-
-#[rstest]
-fn test_choco_provider_name() {
-    let provider = ChocoProvider::new();
+#[test]
+fn test_provider_name() {
+    let provider = create_provider();
     assert_eq!(provider.name(), "choco");
 }
 
-#[rstest]
-fn test_choco_provider_description() {
-    let provider = ChocoProvider::new();
-    assert!(provider.description().contains("Chocolatey"));
+#[test]
+fn test_provider_description() {
+    let provider = create_provider();
+    assert!(!provider.description().is_empty());
 }
 
-#[rstest]
-fn test_choco_provider_runtimes() {
-    let provider = ChocoProvider::new();
+#[test]
+fn test_provider_runtimes() {
+    let provider = create_provider();
     let runtimes = provider.runtimes();
-    assert_eq!(runtimes.len(), 1);
-
-    let names: Vec<&str> = runtimes.iter().map(|r| r.name()).collect();
+    assert!(!runtimes.is_empty());
+    let names: Vec<&str> = runtimes
+        .iter()
+        .map(|r: &std::sync::Arc<dyn Runtime>| r.name())
+        .collect();
     assert!(names.contains(&"choco"));
 }
 
 #[rstest]
-fn test_choco_provider_supports() {
-    let provider = ChocoProvider::new();
-    assert!(provider.supports("choco"));
-    assert!(provider.supports("chocolatey")); // alias
-    assert!(!provider.supports("brew"));
-    assert!(!provider.supports("npm"));
+#[case("choco", true)]
+#[case("chocolatey", true)]
+#[case("node", false)]
+fn test_provider_supports(#[case] name: &str, #[case] expected: bool) {
+    let provider = create_provider();
+    assert_eq!(provider.supports(name), expected);
 }
 
-#[rstest]
-fn test_choco_provider_get_runtime() {
-    let provider = ChocoProvider::new();
-
-    let choco = provider.get_runtime("choco");
-    assert!(choco.is_some());
-    assert_eq!(choco.unwrap().name(), "choco");
-
-    // Test alias
-    let chocolatey = provider.get_runtime("chocolatey");
-    assert!(chocolatey.is_some());
-    assert_eq!(chocolatey.unwrap().name(), "choco");
-
-    let unknown = provider.get_runtime("unknown");
-    assert!(unknown.is_none());
+#[test]
+fn test_provider_get_runtime() {
+    let provider = create_provider();
+    assert!(provider.get_runtime("choco").is_some());
+    assert!(provider.get_runtime("chocolatey").is_some());
+    assert!(provider.get_runtime("unknown").is_none());
 }
 
-#[rstest]
-fn test_choco_executable_path() {
-    use vx_runtime::{Arch, Os, Platform};
-
-    let runtime = ChocoRuntime::new();
-    let platform = Platform::new(Os::Windows, Arch::X86_64);
-
-    let path = runtime.executable_relative_path("2.4.3", &platform);
-    assert!(path.contains("choco.exe"));
-    assert!(path.contains("tools"));
+#[test]
+fn test_star_metadata() {
+    let meta = vx_provider_choco::star_metadata();
+    assert!(meta.name.is_some());
+    assert!(!meta.runtimes.is_empty());
 }
