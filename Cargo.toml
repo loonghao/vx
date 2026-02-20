@@ -267,7 +267,7 @@ workspace-hack = { path = "crates/workspace-hack" }
 clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "1.0"
-toml_edit = "0.24"
+toml_edit = "0.25"
 # Optimize tokio - only include needed features for better compile times
 tokio = { version = "1.0", features = [
   "rt-multi-thread",
