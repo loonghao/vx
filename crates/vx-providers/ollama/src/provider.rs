@@ -1,21 +1,11 @@
-//! Ollama provider implementation
-//!
-//! Provides the Ollama runtime for local LLM support.
+//! ollama provider implementation
 
-use crate::runtime::OllamaRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Ollama provider
+/// ollama provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct OllamaProvider;
-
-impl OllamaProvider {
-    /// Create a new Ollama provider
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl Provider for OllamaProvider {
     fn name(&self) -> &str {
@@ -23,22 +13,17 @@ impl Provider for OllamaProvider {
     }
 
     fn description(&self) -> &str {
-        "Ollama - Run large language models locally"
+        "Get up and running with large language models locally"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(OllamaRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("ollama", "ollama", ProviderSource::BuiltIn)
+                .with_description("Get up and running with large language models locally"),
+        )]
     }
+}
 
-    fn supports(&self, name: &str) -> bool {
-        name == "ollama"
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if name == "ollama" {
-            Some(Arc::new(OllamaRuntime::new()))
-        } else {
-            None
-        }
-    }
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(OllamaProvider)
 }

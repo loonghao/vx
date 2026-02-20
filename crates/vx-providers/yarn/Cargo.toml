@@ -16,6 +16,7 @@ vx-core = { workspace = true }
 vx-manifest = { workspace = true }
 vx-paths = { workspace = true }
 vx-runtime = { workspace = true }
+vx-starlark = { workspace = true }
 vx-version-fetcher = { workspace = true }
 serde = { workspace = true }
 anyhow = { workspace = true }

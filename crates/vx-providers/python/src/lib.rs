@@ -1,37 +1,22 @@
-//! Python provider for vx
-//!
-//! This provider includes:
-//! - Python programming language runtime (`python`)
-//! - pip package installer (`pip`) - bundled with Python
-//!
-//! Uses python-build-standalone for portable Python distributions:
-//! - Direct download from GitHub releases
-//! - Consistent installation across platforms
-//! - Support for Python 3.9 - 3.15 (3.7 and 3.8 are EOL)
-//!
-//! Example:
-//! ```bash
-//! # Install Python
-//! vx install python@3.12
-//!
-//! # Run Python
-//! vx python@3.11 --version
-//! vx python script.py
-//!
-//! # pip is also available
-//! vx pip install requests
-//! ```
+//! python provider for vx
 
 mod provider;
-mod runtime;
 
-pub use provider::PythonProvider;
-pub use runtime::{PipRuntime, PythonRuntime};
+pub use provider::create_provider;
 
-use std::sync::Arc;
-use vx_runtime::Provider;
+/// The raw content of `provider.star`, embedded at compile time.
+///
+/// This is the single source of truth for provider metadata (name, description,
+/// aliases, platform constraints, etc.).  The `build.rs` script ensures Cargo
+/// re-compiles this crate whenever `provider.star` changes.
+pub const PROVIDER_STAR: &str = include_str!("../provider.star");
 
-/// Create a new Python provider instance
-pub fn create_provider() -> Arc<dyn Provider> {
-    Arc::new(PythonProvider::new())
+/// Lazily-parsed metadata from `provider.star`.
+///
+/// Use this to access provider/runtime metadata without spinning up the full
+/// Starlark engine.  The metadata is parsed once on first access.
+pub fn star_metadata() -> &'static vx_starlark::StarMetadata {
+    use std::sync::OnceLock;
+    static META: OnceLock<vx_starlark::StarMetadata> = OnceLock::new();
+    META.get_or_init(|| vx_starlark::StarMetadata::parse(PROVIDER_STAR))
 }

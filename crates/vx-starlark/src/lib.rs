@@ -27,6 +27,7 @@ pub mod context;
 pub mod engine;
 pub mod error;
 pub mod loader;
+pub mod metadata;
 pub mod provider;
 pub mod sandbox;
 pub mod stdlib;
@@ -36,6 +37,7 @@ pub use context::ProviderContext;
 pub use engine::StarlarkEngine;
 pub use error::{Error, Result};
 pub use loader::VxModuleLoader;
+pub use metadata::{StarMetadata, StarRuntimeMeta};
 pub use provider::StarlarkProvider;
 pub use sandbox::SandboxConfig;
 

@@ -1,24 +1,11 @@
-//! UV provider implementation
-//!
-//! This module provides the UvProvider which bundles UV and UVX runtimes.
+//! uv provider implementation
 
-use crate::runtime::{UvRuntime, UvxRuntime};
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// UV provider that bundles UV Python package management tools
-///
-/// This provider includes:
-/// - `uv` - Python package installer and resolver
-/// - `uvx` - Python application runner
+/// uv provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct UvProvider;
-
-impl UvProvider {
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl Provider for UvProvider {
     fn name(&self) -> &str {
@@ -26,10 +13,25 @@ impl Provider for UvProvider {
     }
 
     fn description(&self) -> &str {
-        "UV Python package management tools"
+        "An extremely fast Python package installer and resolver"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(UvRuntime::new()), Arc::new(UvxRuntime::new())]
+        vec![
+            Arc::new(ManifestDrivenRuntime::new(
+                "uv",
+                "uv",
+                ProviderSource::BuiltIn,
+            )),
+            Arc::new(ManifestDrivenRuntime::new(
+                "uvx",
+                "uvx",
+                ProviderSource::BuiltIn,
+            )),
+        ]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(UvProvider)
 }

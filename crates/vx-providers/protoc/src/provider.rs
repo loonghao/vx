@@ -1,21 +1,11 @@
-//! Protoc provider implementation
-//!
-//! Provides the Protocol Buffers compiler.
+//! protoc provider implementation
 
-use crate::runtime::ProtocRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Protoc provider
+/// protoc provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct ProtocProvider;
-
-impl ProtocProvider {
-    /// Create a new protoc provider
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl Provider for ProtocProvider {
     fn name(&self) -> &str {
@@ -23,22 +13,17 @@ impl Provider for ProtocProvider {
     }
 
     fn description(&self) -> &str {
-        "Protocol Buffers Compiler - Google's data interchange format"
+        "Protocol Buffers compiler"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(ProtocRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("protoc", "protoc", ProviderSource::BuiltIn)
+                .with_description("Protocol Buffers compiler"),
+        )]
     }
+}
 
-    fn supports(&self, name: &str) -> bool {
-        name == "protoc" || name == "protobuf"
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if name == "protoc" || name == "protobuf" {
-            Some(Arc::new(ProtocRuntime::new()))
-        } else {
-            None
-        }
-    }
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(ProtocProvider)
 }

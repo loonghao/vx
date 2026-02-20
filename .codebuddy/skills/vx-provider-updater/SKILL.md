@@ -6,6 +6,10 @@ description: |
   Use this skill when updating provider.toml files, migrating from custom post_extract hooks
   to declarative layout configuration, or adding package manager fallback for tools without
   portable binaries on all platforms.
+  Also covers the latest provider.star-as-single-source-of-truth architecture: every provider
+  crate must embed provider.star via include_str! (PROVIDER_STAR constant), expose a
+  star_metadata() function backed by vx_starlark::StarMetadata, and have a build.rs that
+  triggers recompilation when provider.star changes.
 ---
 
 # VX Provider Updater
@@ -490,7 +494,31 @@ executable_extensions = [".exe"]
 
 ## Migration: From Rust runtime.rs to Starlark provider.star
 
-Starlark (`provider.star`) is the **preferred** way to implement providers. It replaces `runtime.rs` and `config.rs` with pure-computation scripts that are easier to read, write, and maintain.
+Starlark (`provider.star`) is the **single source of truth** for all provider metadata and
+install logic. Every provider crate — whether it keeps custom Rust code or is fully
+manifest-driven — **must** embed `provider.star` at compile time and expose its metadata
+through `star_metadata()`.
+
+### Architecture Overview
+
+```
+provider.star  (single source of truth)
+    │
+    │  include_str!("../provider.star")   ← compile-time embed
+    │  build.rs watches for changes
+    ▼
+lib.rs
+    ├── pub const PROVIDER_STAR: &str = include_str!("../provider.star")
+    └── pub fn star_metadata() -> &'static StarMetadata   ← OnceLock lazy parse
+            │
+            ▼
+    provider.rs / runtime.rs
+        ├── name()        → star_metadata().name_or("tool")
+        ├── description() → star_metadata().description (OnceLock &'static str)
+        ├── aliases()     → star_metadata().runtimes[0].aliases
+        ├── metadata()    → star_metadata().homepage / repository / license
+        └── supports()    → star_metadata().runtimes[*].aliases
+```
 
 ### When to Migrate
 
@@ -499,8 +527,129 @@ Starlark (`provider.star`) is the **preferred** way to implement providers. It r
 - Provider needs MSI install support on Windows
 - Provider needs system package manager fallback
 - Any new provider being created
+- **Any existing provider that still hardcodes name/description in Rust**
 
 ### Migration Steps
+
+#### Step 0: Add build.rs (ALL providers)
+
+Every provider crate must have a `build.rs` that watches `provider.star`:
+
+```rust
+// crates/vx-providers/{name}/build.rs
+fn main() {
+    // Re-run this build script whenever provider.star changes.
+    // This ensures that `include_str!("../provider.star")` in lib.rs always
+    // reflects the latest content and that Cargo rebuilds the crate when the
+    // Starlark provider definition is updated.
+    println!("cargo:rerun-if-changed=provider.star");
+}
+```
+
+#### Step 0b: Update lib.rs (ALL providers)
+
+Every provider crate's `lib.rs` must embed `provider.star` and expose `star_metadata()`:
+
+```rust
+// crates/vx-providers/{name}/src/lib.rs
+
+/// The raw content of `provider.star`, embedded at compile time.
+///
+/// This is the single source of truth for provider metadata (name, description,
+/// aliases, platform constraints, etc.).  The `build.rs` script ensures Cargo
+/// re-compiles this crate whenever `provider.star` changes.
+pub const PROVIDER_STAR: &str = include_str!("../provider.star");
+
+/// Lazily-parsed metadata from `provider.star`.
+///
+/// Use this to access provider/runtime metadata without spinning up the full
+/// Starlark engine.  The metadata is parsed once on first access.
+pub fn star_metadata() -> &'static vx_starlark::StarMetadata {
+    use std::sync::OnceLock;
+    static META: OnceLock<vx_starlark::StarMetadata> = OnceLock::new();
+    META.get_or_init(|| vx_starlark::StarMetadata::parse(PROVIDER_STAR))
+}
+```
+
+Also add `vx-starlark` to `Cargo.toml`:
+
+```toml
+[dependencies]
+vx-runtime = { workspace = true }
+vx-starlark = { workspace = true }   # ← add this
+```
+
+#### Step 0c: Update provider.rs / runtime.rs (ALL providers with custom Rust)
+
+Replace hardcoded strings with calls to `star_metadata()`:
+
+```rust
+// provider.rs / runtime.rs
+impl Provider for MyProvider {
+    fn name(&self) -> &str {
+        // Sourced from provider.star: `def name(): return "mytool"`
+        crate::star_metadata().name_or("mytool")
+    }
+
+    fn description(&self) -> &str {
+        // Sourced from provider.star: `def description(): return "..."`
+        // We need a &'static str; use OnceLock to leak once.
+        use std::sync::OnceLock;
+        static DESC: OnceLock<&'static str> = OnceLock::new();
+        DESC.get_or_init(|| {
+            let s = crate::star_metadata()
+                .description
+                .as_deref()
+                .unwrap_or("My tool description");
+            Box::leak(s.to_string().into_boxed_str())
+        })
+    }
+
+    fn supports(&self, name: &str) -> bool {
+        // Check primary name and all aliases from provider.star
+        if name == self.name() { return true; }
+        crate::star_metadata()
+            .runtimes
+            .iter()
+            .any(|r| r.name.as_deref() == Some(name) || r.aliases.iter().any(|a| a == name))
+    }
+}
+
+// In Runtime impl:
+impl Runtime for MyRuntime {
+    fn aliases(&self) -> &[&str] {
+        // Sourced from provider.star runtimes[0].aliases
+        use std::sync::OnceLock;
+        static ALIASES: OnceLock<Vec<&'static str>> = OnceLock::new();
+        ALIASES.get_or_init(|| {
+            let meta = crate::star_metadata();
+            if let Some(rt) = meta.runtimes.iter().find(|r| r.name.as_deref() == Some("mytool")) {
+                rt.aliases
+                    .iter()
+                    .map(|a| Box::leak(a.clone().into_boxed_str()) as &'static str)
+                    .collect()
+            } else {
+                vec![]
+            }
+        })
+    }
+
+    fn metadata(&self) -> HashMap<String, String> {
+        let mut meta = HashMap::new();
+        let star = crate::star_metadata();
+        if let Some(hp) = star.homepage.as_deref() {
+            meta.insert("homepage".to_string(), hp.to_string());
+        }
+        if let Some(repo) = star.repository.as_deref() {
+            meta.insert("repository".to_string(), repo.to_string());
+        }
+        if let Some(license) = star.license.as_deref() {
+            meta.insert("license".to_string(), license.to_string());
+        }
+        meta
+    }
+}
+```
 
 #### Step 1: Create provider.star
 
@@ -578,7 +727,23 @@ license = "MIT"
 
 #### Step 3: Remove Rust files (if manifest-only)
 
-If the provider was Rust-only (no `provider.toml`), you can keep the Rust factory or convert to manifest-only. For manifest+star providers, the Rust files are optional.
+For providers that use `ManifestDrivenRuntime` (i.e., `provider.rs` delegates entirely to
+the manifest), delete the now-redundant files:
+
+```bash
+# Safe to delete when provider.rs uses ManifestDrivenRuntime
+rm crates/vx-providers/{name}/src/runtime.rs
+rm crates/vx-providers/{name}/src/config.rs
+```
+
+For providers with custom Rust logic (brew, choco, make, msbuild, msvc, winget), keep
+`runtime.rs` and `config.rs` but update them to read metadata from `star_metadata()` as
+shown in Step 0c above.
+
+**Current status** (as of this migration):
+- ✅ 49 providers: fully manifest-driven (`ManifestDrivenRuntime`), `runtime.rs`/`config.rs` deleted
+- ✅ 6 providers: custom Rust kept, metadata sourced from `provider.star` via `star_metadata()`
+- ✅ All 55 providers: have `build.rs`, `PROVIDER_STAR` constant, and `star_metadata()` function
 
 ### Starlark Standard Library Quick Reference
 

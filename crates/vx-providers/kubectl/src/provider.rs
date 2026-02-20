@@ -1,25 +1,11 @@
 //! kubectl provider implementation
 
-use crate::runtime::KubectlRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// kubectl provider
-#[derive(Debug)]
+/// kubectl provider (Starlark-driven)
+#[derive(Debug, Default)]
 pub struct KubectlProvider;
-
-impl KubectlProvider {
-    /// Create a new kubectl provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for KubectlProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl Provider for KubectlProvider {
     fn name(&self) -> &str {
@@ -27,10 +13,18 @@ impl Provider for KubectlProvider {
     }
 
     fn description(&self) -> &str {
-        "Provides kubectl (Kubernetes CLI) support"
+        "kubectl - Kubernetes command-line tool"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(KubectlRuntime::new())]
+        vec![Arc::new(ManifestDrivenRuntime::new(
+            "kubectl",
+            "kubectl",
+            ProviderSource::BuiltIn,
+        ))]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(KubectlProvider)
 }

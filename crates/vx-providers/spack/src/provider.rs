@@ -1,21 +1,11 @@
-//! Spack provider implementation
-//!
-//! Provides the Spack runtime for HPC and scientific computing.
+//! spack provider implementation
 
-use crate::runtime::SpackRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Spack provider
+/// spack provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct SpackProvider;
-
-impl SpackProvider {
-    /// Create a new Spack provider
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl Provider for SpackProvider {
     fn name(&self) -> &str {
@@ -23,22 +13,17 @@ impl Provider for SpackProvider {
     }
 
     fn description(&self) -> &str {
-        "Spack - A flexible package manager for HPC and scientific computing"
+        "A flexible package manager for HPC"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(SpackRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("spack", "spack", ProviderSource::BuiltIn)
+                .with_description("A flexible package manager for HPC"),
+        )]
     }
+}
 
-    fn supports(&self, name: &str) -> bool {
-        name == "spack"
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if name == "spack" {
-            Some(Arc::new(SpackRuntime::new()))
-        } else {
-            None
-        }
-    }
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(SpackProvider)
 }

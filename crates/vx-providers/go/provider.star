@@ -6,6 +6,11 @@
 # Inheritance pattern: Level 1 (fully custom - uses go.dev API, not GitHub)
 #
 # Go releases: https://go.dev/dl/
+#
+# Hooks:
+#   pre_run: run `go mod download` before `go run` when go.mod exists
+
+load("@vx//stdlib:install.star", "ensure_dependencies")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -184,3 +189,32 @@ def deps(ctx, version):
         {"runtime": "git", "version": "*", "optional": True,
          "reason": "Git is required for fetching Go modules"},
     ]
+
+# ---------------------------------------------------------------------------
+# pre_run — ensure go mod download before `go run`
+# ---------------------------------------------------------------------------
+
+def pre_run(ctx, args, executable):
+    """Ensure Go module dependencies are downloaded before running.
+
+    For `go run` commands, checks if go.mod exists and vendor/ does not,
+    then runs `go mod download` to ensure all dependencies are available.
+
+    Args:
+        ctx:        Provider context
+        args:       Command-line arguments passed to go
+        executable: Path to the go executable
+
+    Returns:
+        List of pre-run actions
+    """
+    if len(args) > 0 and args[0] == "run":
+        return [
+            ensure_dependencies(
+                "go",
+                check_file  = "go.mod",
+                lock_file   = "go.sum",
+                install_dir = "vendor",
+            ),
+        ]
+    return []

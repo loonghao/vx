@@ -1,46 +1,22 @@
-//! Rust provider for vx
-//!
-//! This crate provides Rust toolchain support for vx.
-//! Rust is installed via rustup, the official Rust toolchain installer.
-//!
-//! # Installation Methods
-//!
-//! - Direct download: Downloads rustup-init binary from static.rust-lang.org
-//! - Windows fallback: `winget install Rustlang.Rustup`
-//! - macOS fallback: `brew install rustup-init && rustup-init -y`
-//! - Linux fallback: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y`
-//!
-//! # Runtimes
-//!
-//! - `rustup` - The Rust toolchain installer (primary)
-//! - `rustc` (alias: `rust`) - The Rust compiler (provided by rustup)
-//! - `cargo` - Rust package manager and build tool (provided by rustup)
-//!
-//! # Example
-//!
-//! ```ignore
-//! // Install rustup (installs rustc and cargo automatically)
-//! vx install rustup
-//!
-//! // Use cargo
-//! vx cargo build
-//!
-//! // Use rustc
-//! vx rustc --version
-//! ```
+//! rust provider for vx
 
-mod config;
 mod provider;
-mod runtime;
 
-pub use config::RustupUrlBuilder;
-pub use provider::RustProvider;
-pub use runtime::{CargoRuntime, RustcRuntime, RustupRuntime};
+pub use provider::create_provider;
 
-use std::sync::Arc;
-use vx_runtime::Provider;
+/// The raw content of `provider.star`, embedded at compile time.
+///
+/// This is the single source of truth for provider metadata (name, description,
+/// aliases, platform constraints, etc.).  The `build.rs` script ensures Cargo
+/// re-compiles this crate whenever `provider.star` changes.
+pub const PROVIDER_STAR: &str = include_str!("../provider.star");
 
-/// Create a new Rust provider instance
-pub fn create_provider() -> Arc<dyn Provider> {
-    Arc::new(RustProvider::new())
+/// Lazily-parsed metadata from `provider.star`.
+///
+/// Use this to access provider/runtime metadata without spinning up the full
+/// Starlark engine.  The metadata is parsed once on first access.
+pub fn star_metadata() -> &'static vx_starlark::StarMetadata {
+    use std::sync::OnceLock;
+    static META: OnceLock<vx_starlark::StarMetadata> = OnceLock::new();
+    META.get_or_init(|| vx_starlark::StarMetadata::parse(PROVIDER_STAR))
 }

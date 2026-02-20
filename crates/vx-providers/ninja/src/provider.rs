@@ -1,21 +1,11 @@
-//! Ninja provider implementation
-//!
-//! Provides the Ninja build system.
+//! ninja provider implementation
 
-use crate::runtime::NinjaRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Ninja provider
+/// ninja provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct NinjaProvider;
-
-impl NinjaProvider {
-    /// Create a new Ninja provider
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl Provider for NinjaProvider {
     fn name(&self) -> &str {
@@ -23,22 +13,17 @@ impl Provider for NinjaProvider {
     }
 
     fn description(&self) -> &str {
-        "Ninja - A small build system with a focus on speed"
+        "Ninja - a small build system with a focus on speed"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(NinjaRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("ninja", "ninja", ProviderSource::BuiltIn)
+                .with_description("Ninja - a small build system with a focus on speed"),
+        )]
     }
+}
 
-    fn supports(&self, name: &str) -> bool {
-        name == "ninja"
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if name == "ninja" {
-            Some(Arc::new(NinjaRuntime::new()))
-        } else {
-            None
-        }
-    }
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(NinjaProvider)
 }
