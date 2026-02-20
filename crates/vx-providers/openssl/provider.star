@@ -93,6 +93,30 @@ def download_url(ctx, version):
     return None
 
 # ---------------------------------------------------------------------------
+# store_root — not managed by vx (system tool)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx, version):
+    """OpenSSL is a system tool — no vx store root."""
+    return None
+
+# ---------------------------------------------------------------------------
+# get_execute_path — system detection only
+# ---------------------------------------------------------------------------
+
+def get_execute_path(ctx, version, install_dir):
+    """OpenSSL is located via system_paths; no vx-managed install_dir."""
+    return None
+
+# ---------------------------------------------------------------------------
+# post_install — nothing to do
+# ---------------------------------------------------------------------------
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps required for openssl."""
+    return []
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

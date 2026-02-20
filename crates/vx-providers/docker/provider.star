@@ -168,3 +168,21 @@ def system_install(ctx):
 
 def deps(ctx, version):
     return []
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/docker"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/docker.exe"
+    else:
+        return "{install_dir}/docker"
+
+def post_install(ctx, version, install_dir):
+    return None

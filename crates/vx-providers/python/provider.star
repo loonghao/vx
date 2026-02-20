@@ -195,6 +195,26 @@ def environment(ctx, version, install_dir):
         }
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for python."""
+    return "{vx_home}/store/python"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/python/python.exe"
+    else:
+        return "{install_dir}/python/bin/python3"
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed for python."""
+    return None
+
+# ---------------------------------------------------------------------------
 # deps
 # ---------------------------------------------------------------------------
 

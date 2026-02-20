@@ -99,6 +99,33 @@ def install_layout(ctx, version):
     }
 
 # ---------------------------------------------------------------------------
+# store_root — vx-managed install directory
+# ---------------------------------------------------------------------------
+
+def store_root(ctx, version):
+    """Return the vx store root for this nuget version."""
+    return ctx["paths"]["store_dir"] + "/nuget/" + version
+
+# ---------------------------------------------------------------------------
+# get_execute_path — resolve nuget executable
+# ---------------------------------------------------------------------------
+
+def get_execute_path(ctx, version, install_dir):
+    """Return the path to the nuget executable (Windows only)."""
+    os = ctx["platform"]["os"]
+    if os != "windows":
+        return None
+    return install_dir + "/bin/nuget.exe"
+
+# ---------------------------------------------------------------------------
+# post_install — nothing to do (single binary)
+# ---------------------------------------------------------------------------
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps required for nuget."""
+    return []
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

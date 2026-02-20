@@ -118,6 +118,25 @@ Add-AppxPackage -Path "./$latestWingetMsixBundle"
     }
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for winget.
+
+    winget is a Windows system tool; it is not directly installed by vx.
+    """
+    return "{vx_home}/store/winget"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for winget (Windows-only)."""
+    return "C:/Users/*/AppData/Local/Microsoft/WindowsApps/winget.exe"
+
+def post_install(ctx, version, install_dir):
+    """No post-install actions needed — system package via msixbundle."""
+    return None
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

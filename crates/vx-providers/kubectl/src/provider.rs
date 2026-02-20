@@ -9,19 +9,21 @@ pub struct KubectlProvider;
 
 impl Provider for KubectlProvider {
     fn name(&self) -> &str {
-        "kubectl"
+        crate::star_metadata().name_or("kubectl")
     }
 
     fn description(&self) -> &str {
-        "kubectl - Kubernetes command-line tool"
+        crate::star_metadata().description_or("kubectl - Kubernetes command-line tool")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(ManifestDrivenRuntime::new(
-            "kubectl",
-            "kubectl",
-            ProviderSource::BuiltIn,
-        ))]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("kubectl", "kubectl", ProviderSource::BuiltIn)
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "kubectl",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
 }
 

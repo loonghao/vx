@@ -9,17 +9,21 @@ pub struct DaguProvider;
 
 impl Provider for DaguProvider {
     fn name(&self) -> &str {
-        "dagu"
+        crate::star_metadata().name_or("dagu")
     }
 
     fn description(&self) -> &str {
-        "Dagu - A No-code workflow runner"
+        crate::star_metadata().description_or("Dagu - A No-code workflow runner")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
         vec![Arc::new(
             ManifestDrivenRuntime::new("dagu", "dagu", ProviderSource::BuiltIn)
-                .with_description("Dagu - A No-code workflow runner"),
+                .with_description("Dagu - A No-code workflow runner")
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "dagu",
+                    crate::PROVIDER_STAR,
+                )),
         )]
     }
 }

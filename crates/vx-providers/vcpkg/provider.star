@@ -154,6 +154,24 @@ def environment(ctx, version, install_dir):
     }
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for vcpkg."""
+    return "{vx_home}/store/vcpkg"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    exe = "vcpkg.exe" if os == "windows" else "vcpkg"
+    return "{install_dir}/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install actions needed for vcpkg."""
+    return None
+
+# ---------------------------------------------------------------------------
 # deps — explicit dependency declarations
 # ---------------------------------------------------------------------------
 

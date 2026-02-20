@@ -168,6 +168,24 @@ def environment(ctx, version, install_dir):
     }
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for rust."""
+    return "{vx_home}/store/rust"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for rustup (the primary runtime)."""
+    os = ctx["platform"]["os"]
+    exe = "rustup.exe" if os == "windows" else "rustup"
+    return "{install_dir}/cargo/bin/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed; rustup-init handles toolchain setup."""
+    return None
+
+# ---------------------------------------------------------------------------
 # deps
 # ---------------------------------------------------------------------------
 

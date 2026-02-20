@@ -9,19 +9,21 @@ pub struct YarnProvider;
 
 impl Provider for YarnProvider {
     fn name(&self) -> &str {
-        "yarn"
+        crate::star_metadata().name_or("yarn")
     }
 
     fn description(&self) -> &str {
-        "Fast, reliable, and secure dependency management"
+        crate::star_metadata().description_or("Fast, reliable, and secure dependency management")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(ManifestDrivenRuntime::new(
-            "yarn",
-            "yarn",
-            ProviderSource::BuiltIn,
-        ))]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("yarn", "yarn", ProviderSource::BuiltIn)
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "yarn",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
 }
 

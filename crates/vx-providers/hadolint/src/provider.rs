@@ -9,17 +9,21 @@ pub struct HadolintProvider;
 
 impl Provider for HadolintProvider {
     fn name(&self) -> &str {
-        "hadolint"
+        crate::star_metadata().name_or("hadolint")
     }
 
     fn description(&self) -> &str {
-        "Dockerfile linter"
+        crate::star_metadata().description_or("Dockerfile linter")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
         vec![Arc::new(
             ManifestDrivenRuntime::new("hadolint", "hadolint", ProviderSource::BuiltIn)
-                .with_description("Dockerfile linter"),
+                .with_description("Dockerfile linter")
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "hadolint",
+                    crate::PROVIDER_STAR,
+                )),
         )]
     }
 }

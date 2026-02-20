@@ -212,6 +212,24 @@ def deps(ctx, version):
     return []
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for java."""
+    return "{vx_home}/store/java"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    exe = "java.exe" if os == "windows" else "java"
+    return "{install_dir}/bin/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed for java."""
+    return None
+
+# ---------------------------------------------------------------------------
 # post_extract — flatten JDK directory structure
 #
 # Temurin archives extract to a versioned subdirectory:

@@ -149,6 +149,30 @@ system_install = {
 }
 
 # ---------------------------------------------------------------------------
+# store_root — not managed by vx (installed via Visual Studio Installer)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx, version):
+    """MSVC is installed via Visual Studio Installer — no vx store root."""
+    return None
+
+# ---------------------------------------------------------------------------
+# get_execute_path — resolve cl.exe via system_paths
+# ---------------------------------------------------------------------------
+
+def get_execute_path(ctx, version, install_dir):
+    """MSVC is located via system_paths; no vx-managed install_dir."""
+    return None
+
+# ---------------------------------------------------------------------------
+# post_install — nothing to do
+# ---------------------------------------------------------------------------
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps required for MSVC."""
+    return []
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

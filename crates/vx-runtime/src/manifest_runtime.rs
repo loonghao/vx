@@ -13,6 +13,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -42,11 +43,28 @@ impl std::fmt::Display for ProviderSource {
     }
 }
 
+/// Type alias for an async fetch_versions function injected from Starlark providers.
+///
+/// This allows `ManifestDrivenRuntime` to delegate `fetch_versions` to a
+/// Starlark-driven implementation (e.g. from `provider.star`) without creating
+/// a circular dependency between `vx-runtime` and `vx-starlark`.
+pub type FetchVersionsFn = Arc<
+    dyn Fn()
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionInfo>>> + Send>>
+        + Send
+        + Sync,
+>;
+
 /// A runtime driven by manifest configuration (provider.toml)
 ///
 /// This is used for system tools that don't require strict version management.
 /// The runtime is entirely configured via TOML, with no Rust code needed.
-#[derive(Debug, Clone)]
+///
+/// For Starlark-driven providers (those with a `provider.star` that defines
+/// `fetch_versions`), the `fetch_versions_fn` field can be set to delegate
+/// version fetching to the Starlark engine.  This avoids a circular dependency
+/// between `vx-runtime` and `vx-starlark`.
+#[derive(Clone)]
 pub struct ManifestDrivenRuntime {
     /// Runtime name
     pub name: String,
@@ -74,6 +92,12 @@ pub struct ManifestDrivenRuntime {
     pub normalize: Option<vx_manifest::NormalizeConfig>,
     /// Mirror configurations from provider.toml (RFC 0018)
     pub mirrors: Vec<vx_manifest::MirrorConfig>,
+    /// Optional Starlark-driven fetch_versions implementation.
+    ///
+    /// When set, `fetch_versions()` delegates to this function instead of
+    /// returning the default `["system"]` placeholder.  Injected by
+    /// provider crates that have a `provider.star` with `fetch_versions`.
+    pub fetch_versions_fn: Option<FetchVersionsFn>,
 }
 
 /// Installation strategy for system tools
@@ -241,6 +265,22 @@ pub enum SystemDepType {
     Runtime,
 }
 
+impl std::fmt::Debug for ManifestDrivenRuntime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ManifestDrivenRuntime")
+            .field("name", &self.name)
+            .field("description", &self.description)
+            .field("executable", &self.executable)
+            .field("aliases", &self.aliases)
+            .field("provider_name", &self.provider_name)
+            .field(
+                "fetch_versions_fn",
+                &self.fetch_versions_fn.as_ref().map(|_| "<fn>"),
+            )
+            .finish()
+    }
+}
+
 impl ManifestDrivenRuntime {
     /// Create a new manifest-driven runtime
     pub fn new(
@@ -263,6 +303,7 @@ impl ManifestDrivenRuntime {
             system_deps: None,
             normalize: None,
             mirrors: Vec::new(),
+            fetch_versions_fn: None,
         }
     }
 
@@ -311,6 +352,37 @@ impl ManifestDrivenRuntime {
     /// Set normalize configuration
     pub fn with_normalize(mut self, normalize: vx_manifest::NormalizeConfig) -> Self {
         self.normalize = Some(normalize);
+        self
+    }
+
+    /// Inject a Starlark-driven `fetch_versions` implementation.
+    ///
+    /// Call this from provider crates that have a `provider.star` with a
+    /// `fetch_versions` function.  When set, `Runtime::fetch_versions()` will
+    /// delegate to this closure instead of returning the `["system"]` fallback.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use vx_runtime::{ManifestDrivenRuntime, ProviderSource};
+    ///
+    /// let runtime = ManifestDrivenRuntime::new("just", "just", ProviderSource::BuiltIn)
+    ///     .with_fetch_versions(|| {
+    ///         Box::pin(async {
+    ///             // Call StarlarkProvider::fetch_versions() here
+    ///             Ok(vec![])
+    ///         })
+    ///     });
+    /// ```
+    pub fn with_fetch_versions<F>(mut self, f: F) -> Self
+    where
+        F: Fn() -> std::pin::Pin<
+                Box<dyn std::future::Future<Output = Result<Vec<VersionInfo>>> + Send>,
+            > + Send
+            + Sync
+            + 'static,
+    {
+        self.fetch_versions_fn = Some(Arc::new(f));
         self
     }
 
@@ -445,9 +517,19 @@ impl Runtime for ManifestDrivenRuntime {
         self.bundled_with.as_deref().unwrap_or(&self.name)
     }
 
-    /// For manifest-driven runtimes, we return "system" as the only version
-    /// since we don't manage versions - we use whatever the system package manager installs
+    /// Fetch available versions.
+    ///
+    /// If a Starlark-driven `fetch_versions_fn` was injected via
+    /// [`ManifestDrivenRuntime::with_fetch_versions`], delegates to that
+    /// function (which calls the `fetch_versions` function in `provider.star`).
+    ///
+    /// Otherwise falls back to returning `["system"]`, indicating that this
+    /// runtime is managed by the OS package manager and has no vx-managed
+    /// version list.
     async fn fetch_versions(&self, _ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
+        if let Some(ref f) = self.fetch_versions_fn {
+            return f().await;
+        }
         Ok(vec![VersionInfo {
             version: "system".to_string(),
             released_at: None,
@@ -457,17 +539,6 @@ impl Runtime for ManifestDrivenRuntime {
             checksum: None,
             metadata: HashMap::new(),
         }])
-    }
-
-    /// For manifest-driven (system) runtimes, any version request resolves to "system".
-    ///
-    /// System tools are not version-managed by vx — they are installed via the OS
-    /// package manager (brew, choco, apt, etc.) and have no concept of "latest" in
-    /// the vx store.  Returning "system" here prevents the default `resolve_version`
-    /// implementation from calling `fetch_versions` → `VersionResolver::resolve`, which
-    /// would fail because `"system"` cannot be parsed as a semantic version.
-    async fn resolve_version(&self, _version: &str, _ctx: &RuntimeContext) -> Result<String> {
-        Ok("system".to_string())
     }
 
     /// Check if the tool is installed on the system

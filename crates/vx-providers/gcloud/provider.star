@@ -155,3 +155,21 @@ def environment(ctx, version, install_dir):
 def deps(ctx, version):
     """gcloud bundles its own Python, no external deps needed."""
     return []
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/gcloud"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/gcloud.exe"
+    else:
+        return "{install_dir}/gcloud"
+
+def post_install(ctx, version, install_dir):
+    return None

@@ -9,19 +9,20 @@ pub struct JqProvider;
 
 impl Provider for JqProvider {
     fn name(&self) -> &str {
-        "jq"
+        crate::star_metadata().name_or("jq")
     }
 
     fn description(&self) -> &str {
-        "A lightweight and flexible command-line JSON processor"
+        crate::star_metadata()
+            .description_or("A lightweight and flexible command-line JSON processor")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(ManifestDrivenRuntime::new(
-            "jq",
-            "jq",
-            ProviderSource::BuiltIn,
-        ))]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("jq", "jq", ProviderSource::BuiltIn).with_fetch_versions(
+                vx_starlark::make_fetch_versions_fn("jq", crate::PROVIDER_STAR),
+            ),
+        )]
     }
 }
 

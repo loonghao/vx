@@ -112,6 +112,22 @@ def system_install(ctx):
     ]
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for make."""
+    return "{vx_home}/store/make"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version (system tool)."""
+    return "{install_dir}/make"
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed for make."""
+    return None
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

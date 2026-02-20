@@ -183,3 +183,21 @@ def post_extract(ctx, version, install_dir):
 
 def deps(ctx, version):
     return []
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/ffmpeg"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/ffmpeg.exe"
+    else:
+        return "{install_dir}/ffmpeg"
+
+def post_install(ctx, version, install_dir):
+    return None

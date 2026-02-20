@@ -196,6 +196,34 @@ def prepare_execution(ctx, version):
         )
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for 7zip."""
+    return "{vx_home}/store/7zip"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/7z.exe"
+    else:
+        # macOS and Linux both use 7zz
+        return "{install_dir}/7zz"
+
+def post_install(ctx, version, install_dir):
+    """Post-install: on macOS create a 7z -> 7zz symlink for compatibility."""
+    os = ctx["platform"]["os"]
+    if os == "macos":
+        return {
+            "type": "symlink",
+            "source": install_dir + "/7zz",
+            "target": install_dir + "/7z",
+        }
+    return None
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

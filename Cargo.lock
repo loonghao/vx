@@ -5641,6 +5641,7 @@ dependencies = [
  "vx-runtime-http",
  "vx-setup",
  "vx-shim",
+ "vx-starlark",
  "walkdir",
  "which",
  "windows-sys 0.61.2",
@@ -6982,6 +6983,7 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "dirs",
  "once_cell",
  "reqwest 0.13.2",

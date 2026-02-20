@@ -9,17 +9,20 @@ pub struct JustProvider;
 
 impl Provider for JustProvider {
     fn name(&self) -> &str {
-        "just"
+        crate::star_metadata().name_or("just")
     }
 
     fn description(&self) -> &str {
-        "A handy way to save and run project-specific commands"
+        crate::star_metadata().description_or("just")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
         vec![Arc::new(
             ManifestDrivenRuntime::new("just", "just", ProviderSource::BuiltIn)
-                .with_description("A handy way to save and run project-specific commands"),
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "just",
+                    crate::PROVIDER_STAR,
+                )),
         )]
     }
 }

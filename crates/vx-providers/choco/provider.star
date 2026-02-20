@@ -104,3 +104,41 @@ def environment(ctx, version, install_dir):
         "PATH":            "C:/ProgramData/chocolatey/bin",
         "ChocolateyInstall": "C:/ProgramData/chocolatey",
     }
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for choco."""
+    return "{vx_home}/store/choco"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/choco.exe"
+    else:
+        return "{install_dir}/choco"
+
+def post_install(ctx, version, install_dir):
+    """Post-install hook (no-op for choco)."""
+    return None
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/choco"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/choco.exe"
+    else:
+        return "{install_dir}/choco"
+
+def post_install(ctx, version, install_dir):
+    return None
