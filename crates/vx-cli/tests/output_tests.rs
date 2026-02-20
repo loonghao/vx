@@ -44,16 +44,18 @@ fn test_render_text() {
 }
 
 #[test]
-fn test_render_toon_not_supported() {
+fn test_render_toon_supported() {
+    // TOON format is implemented via toon_format::encode_default
     let renderer = OutputRenderer::new(OutputFormat::Toon);
     let result = renderer.render_to_string(&test_output());
-    assert!(result.is_err());
+    // TOON format should succeed and produce non-empty output
     assert!(
-        result
-            .unwrap_err()
-            .to_string()
-            .contains("TOON format is not yet supported")
+        result.is_ok(),
+        "TOON format should be supported: {:?}",
+        result.err()
     );
+    let toon = result.unwrap();
+    assert!(!toon.is_empty(), "TOON output should not be empty");
 }
 
 #[test]
