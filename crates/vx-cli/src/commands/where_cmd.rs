@@ -1,4 +1,6 @@
 //! Which command implementation - Find vx-managed tools (RFC 0031, RFC 0035: unified structured output)
+//!
+//! RFC-0037: Path queries now delegate to provider.star::get_execute_path when available.
 
 use crate::cli::OutputFormat;
 use crate::output::{OutputRenderer, ToolPathEntry, ToolSource, WhichOutput};
@@ -11,6 +13,7 @@ use vx_manifest::ManifestLoader;
 use vx_paths::{PackageRegistry, PathManager, PathResolver, VxPaths};
 use vx_resolver::RuntimeIndex;
 use vx_runtime::ProviderRegistry;
+use vx_starlark::handle::global_registry;
 
 pub async fn handle(
     registry: &ProviderRegistry,
@@ -89,7 +92,37 @@ pub async fn handle(
         (runtime_part.to_string(), runtime_part.to_string())
     };
 
-    // Try RuntimeIndex first for fast lookup
+    // --- RFC-0037: Try ProviderHandle (provider.star) first ---
+    let provider_handle_path: Option<std::path::PathBuf> = {
+        let reg = global_registry().await;
+        if let Some(handle) = reg.get(&canonical_name) {
+            if let Some(ver) = version {
+                // Specific version requested
+                let path = handle.get_execute_path(ver).await;
+                UI::debug(&format!(
+                    "ProviderHandle::get_execute_path({}, {}) => {:?}",
+                    canonical_name, ver, path
+                ));
+                path
+            } else {
+                // Latest installed version
+                let path = handle.get_latest_execute_path().await;
+                UI::debug(&format!(
+                    "ProviderHandle::get_latest_execute_path({}) => {:?}",
+                    canonical_name, path
+                ));
+                path
+            }
+        } else {
+            UI::debug(&format!(
+                "No ProviderHandle registered for '{}', falling back to RuntimeIndex",
+                canonical_name
+            ));
+            None
+        }
+    };
+
+    // Try RuntimeIndex as secondary lookup
     let mut runtime_index = RuntimeIndex::new().ok();
 
     // Build index if it doesn't exist or is invalid
@@ -124,7 +157,14 @@ pub async fn handle(
         }
     });
 
-    let locations = if let Some(path) = index_lookup {
+    let locations = if let Some(path) = provider_handle_path.filter(|p| p.exists()) {
+        // RFC-0037: provider.star returned a valid path
+        UI::debug(&format!(
+            "Found via ProviderHandle (provider.star): {}",
+            path.display()
+        ));
+        vec![(path, ToolSource::Vx)]
+    } else if let Some(path) = index_lookup {
         UI::debug(&format!("Found in runtime index: {}", path.display()));
         vec![(path, ToolSource::Vx)]
     } else {
@@ -213,9 +253,9 @@ pub async fn handle(
                     }
                 }
                 Err(_) => {
-                    // Try detection system_paths
+                    // Try detection system_paths (RFC-0037: provider.star first, then manifest)
                     if let Some(path) =
-                        find_via_detection_paths(&canonical_name, &exe_name, registry)?
+                        find_via_detection_paths(&canonical_name, &exe_name, registry).await?
                     {
                         if all {
                             (
@@ -429,12 +469,45 @@ fn find_in_global_packages(exe_name: &str) -> Result<Option<std::path::PathBuf>>
     Ok(None)
 }
 
-/// Find an executable via detection system_paths (glob patterns from provider.toml)
-fn find_via_detection_paths(
+/// Find an executable via detection system_paths (RFC-0037: provider.star first, then manifest glob)
+///
+/// Priority:
+/// 1. `provider.star::runtimes[].system_paths` (via ProviderHandle, RFC-0037)
+/// 2. `provider.toml` detection.system_paths glob patterns (legacy fallback)
+async fn find_via_detection_paths(
     runtime_name: &str,
     _exe_name: &str,
     _registry: &ProviderRegistry,
 ) -> Result<Option<std::path::PathBuf>> {
+    // --- RFC-0037: Try provider.star system_paths via ProviderHandle ---
+    {
+        let reg = global_registry().await;
+        if let Some(handle) = reg.get(runtime_name) {
+            // Iterate over runtime definitions in provider.star
+            for runtime_meta in handle.runtime_metas() {
+                for pattern in &runtime_meta.system_paths {
+                    if let Ok(paths) = glob::glob(pattern) {
+                        let mut found: Vec<std::path::PathBuf> = paths
+                            .filter_map(|p| p.ok())
+                            .filter(|p| p.exists())
+                            .collect();
+                        // Sort descending so newest VS version wins (e.g. 2022 > 2019)
+                        found.sort_by(|a, b| b.cmp(a));
+                        if let Some(path) = found.into_iter().next() {
+                            UI::debug(&format!(
+                                "Found '{}' via provider.star system_paths: {}",
+                                runtime_name,
+                                path.display()
+                            ));
+                            return Ok(Some(path));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Legacy fallback: provider.toml detection.system_paths ---
     let mut loader = ManifestLoader::new();
     let manifests_data: Vec<(&str, &str)> = get_embedded_manifests().to_vec();
     if loader.load_embedded(manifests_data).is_err() {
@@ -452,13 +525,13 @@ fn find_via_detection_paths(
             if matches && let Some(ref detection) = runtime_def.detection {
                 for pattern in &detection.system_paths {
                     if let Ok(paths) = glob::glob(pattern) {
-                        let mut matches: Vec<std::path::PathBuf> = paths
+                        let mut found: Vec<std::path::PathBuf> = paths
                             .filter_map(|p| p.ok())
                             .filter(|p| p.exists())
                             .collect();
-                        matches.sort_by(|a, b| b.cmp(a));
+                        found.sort_by(|a, b| b.cmp(a));
 
-                        if let Some(path) = matches.into_iter().next() {
+                        if let Some(path) = found.into_iter().next() {
                             return Ok(Some(path));
                         }
                     }

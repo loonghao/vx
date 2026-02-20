@@ -9,19 +9,21 @@ pub struct DotnetProvider;
 
 impl Provider for DotnetProvider {
     fn name(&self) -> &str {
-        "dotnet"
+        crate::star_metadata().name_or("dotnet")
     }
 
     fn description(&self) -> &str {
-        ".NET SDK and runtime"
+        crate::star_metadata().description_or(".NET SDK and runtime")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(ManifestDrivenRuntime::new(
-            "dotnet",
-            "dotnet",
-            ProviderSource::BuiltIn,
-        ))]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("dotnet", "dotnet", ProviderSource::BuiltIn)
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "dotnet",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
 }
 

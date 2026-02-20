@@ -84,6 +84,46 @@ impl StarlarkEngine {
         }
     }
 
+    /// Get a named variable from a Starlark script (e.g. `runtimes`, `permissions`)
+    ///
+    /// Evaluates the script and returns the value of the named variable as JSON.
+    /// Returns `None` if the variable is not defined.
+    pub fn get_variable(
+        &self,
+        script_path: &Path,
+        script_content: &str,
+        var_name: &str,
+    ) -> Result<Option<JsonValue>> {
+        trace!(
+            var = %var_name,
+            path = %script_path.display(),
+            "Getting Starlark variable"
+        );
+
+        // Parse the script
+        let ast = AstModule::parse(
+            &script_path.to_string_lossy(),
+            script_content.to_string(),
+            &self.dialect,
+        )
+        .map_err(|e| Error::ParseError(e.to_string()))?;
+
+        let globals = GlobalsBuilder::standard().build();
+        let loader = VxFileLoader::new(self.dialect.clone());
+        let module = Module::new();
+        {
+            let mut eval = Evaluator::new(&module);
+            eval.set_loader(&loader);
+            eval.eval_module(ast, &globals)
+                .map_err(|e| Error::EvalError(e.to_string()))?;
+        }
+
+        match module.get(var_name) {
+            Some(value) => Ok(Some(self.starlark_value_to_json(value))),
+            None => Ok(None),
+        }
+    }
+
     /// Execute a named function from a Starlark script
     ///
     /// This is the core execution method. It:

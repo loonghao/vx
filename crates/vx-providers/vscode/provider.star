@@ -147,6 +147,28 @@ def environment(ctx, version, install_dir):
         return {"PATH": install_dir + "/bin"}
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for vscode."""
+    return "{vx_home}/store/vscode"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/bin/code.cmd"
+    elif os == "macos":
+        return "{install_dir}/Visual Studio Code.app/Contents/Resources/app/bin/code"
+    else:
+        return "{install_dir}/bin/code"
+
+def post_install(ctx, version, install_dir):
+    """No post-install actions needed for vscode."""
+    return None
+
+# ---------------------------------------------------------------------------
 # deps
 # ---------------------------------------------------------------------------
 

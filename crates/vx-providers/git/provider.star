@@ -152,3 +152,21 @@ def environment(ctx, version, install_dir):
             ),
         }
     return {}
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/git"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/git.exe"
+    else:
+        return "{install_dir}/git"
+
+def post_install(ctx, version, install_dir):
+    return None

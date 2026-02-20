@@ -90,3 +90,41 @@ def download_url(ctx, version):
 
 def environment(ctx, version, install_dir):
     return {}
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for curl."""
+    return "{vx_home}/store/curl"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/curl.exe"
+    else:
+        return "{install_dir}/curl"
+
+def post_install(ctx, version, install_dir):
+    """Post-install hook (no-op for curl)."""
+    return None
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/curl"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/curl.exe"
+    else:
+        return "{install_dir}/curl"
+
+def post_install(ctx, version, install_dir):
+    return None

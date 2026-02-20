@@ -106,3 +106,21 @@ def download_url(ctx, version):
     tag   = "v{}".format(version)
 
     return github_asset_url("junegunn", "fzf", tag, asset)
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/fzf"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/fzf.exe"
+    else:
+        return "{install_dir}/fzf"
+
+def post_install(ctx, version, install_dir):
+    return None

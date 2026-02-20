@@ -9,19 +9,21 @@ pub struct ImageMagickProvider;
 
 impl Provider for ImageMagickProvider {
     fn name(&self) -> &str {
-        "imagemagick"
+        crate::star_metadata().name_or("imagemagick")
     }
 
     fn description(&self) -> &str {
-        "ImageMagick - image processing tools"
+        crate::star_metadata().description_or("ImageMagick - image processing tools")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(ManifestDrivenRuntime::new(
-            "magick",
-            "magick",
-            ProviderSource::BuiltIn,
-        ))]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("magick", "magick", ProviderSource::BuiltIn)
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "imagemagick",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
 }
 

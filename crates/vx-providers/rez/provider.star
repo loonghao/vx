@@ -94,6 +94,24 @@ def deps(ctx, version):
     return [{"runtime": "python", "version": ">=3.8"}]
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for rez."""
+    return "{vx_home}/store/rez"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    exe = "rez.exe" if os == "windows" else "rez"
+    return "{install_dir}/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed for rez."""
+    return None
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

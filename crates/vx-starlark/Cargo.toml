@@ -28,6 +28,7 @@ reqwest = { workspace = true }
 tokio = { workspace = true }
 once_cell = { workspace = true }
 dirs = { workspace = true }
+chrono = { workspace = true }
 
 # Internal dependencies
 vx-core = { path = "../vx-core" }
