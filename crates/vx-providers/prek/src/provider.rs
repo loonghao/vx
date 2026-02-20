@@ -1,17 +1,11 @@
+//! prek provider implementation
+
 use std::sync::Arc;
-use vx_runtime::Provider;
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-use crate::runtime::PrekRuntime;
-
-/// prek Provider implementation
-#[derive(Debug, Clone, Default)]
+/// prek provider (Starlark-driven)
+#[derive(Debug, Default)]
 pub struct PrekProvider;
-
-impl PrekProvider {
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl Provider for PrekProvider {
     fn name(&self) -> &str {
@@ -19,14 +13,17 @@ impl Provider for PrekProvider {
     }
 
     fn description(&self) -> &str {
-        "prek - better pre-commit, re-engineered in Rust"
+        "Pre-commit hook runner"
     }
 
-    fn runtimes(&self) -> Vec<Arc<dyn vx_runtime::Runtime>> {
-        vec![Arc::new(PrekRuntime::new())]
+    fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("prek", "prek", ProviderSource::BuiltIn)
+                .with_description("Pre-commit hook runner"),
+        )]
     }
+}
 
-    fn supports(&self, name: &str) -> bool {
-        name == "prek"
-    }
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(PrekProvider)
 }

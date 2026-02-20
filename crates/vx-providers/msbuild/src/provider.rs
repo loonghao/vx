@@ -22,11 +22,21 @@ impl MsbuildProvider {
 
 impl Provider for MsbuildProvider {
     fn name(&self) -> &str {
-        "msbuild"
+        // Sourced from provider.star: `def name(): return "msbuild"`
+        crate::star_metadata().name_or("msbuild")
     }
 
     fn description(&self) -> &str {
-        "Microsoft Build Engine - bundled with .NET SDK"
+        // Sourced from provider.star: `def description(): return "..."`
+        use std::sync::OnceLock;
+        static DESC: OnceLock<&'static str> = OnceLock::new();
+        DESC.get_or_init(|| {
+            let s = crate::star_metadata()
+                .description
+                .as_deref()
+                .unwrap_or("Microsoft Build Engine - bundled with .NET SDK");
+            Box::leak(s.to_string().into_boxed_str())
+        })
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {

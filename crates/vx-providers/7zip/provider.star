@@ -1,21 +1,16 @@
-# provider.star - 7-Zip provider
+# 7-Zip provider for vx
 #
-# 7-Zip is a file archiver with a high compression ratio.
-# Tags are date-based like "24.09" (no "v" prefix).
+# Replaces the Rust runtime.rs implementation entirely.
+# All logic is pure computation — no real I/O happens here.
+# The Rust runtime interprets the returned descriptors to perform actual work.
 #
-# Installation strategy:
-#   Windows: MSI install (7z{compact}-x64.msi) via msiexec /a
-#   macOS:   tar.xz archive (7z{compact}-mac.tar.xz)
-#   Linux:   tar.xz archive (7z{compact}-linux-{arch}.tar.xz)
-#
-# Fallback (system package managers):
-#   Windows: winget (7zip.7zip) or choco (7zip)
-#   macOS:   brew (sevenzip)
-#   Linux:   brew or apt (p7zip-full)
-#
-# Inheritance pattern: Level 2 (custom download_url + install_layout)
+# Design follows Buck2/Bazel's descriptor pattern:
+#   Starlark = pure computation (what to do)
+#   Rust     = actual execution  (how to do it)
 
-load("@vx//stdlib:install.star", "msi_install", "archive_install")
+load("@vx//stdlib:github.star", "github_releases", "releases_to_versions")
+load("@vx//stdlib:install.star", "archive_install", "msi_install", "system_find")
+load("@vx//stdlib:platform.star", "is_windows", "is_macos", "is_linux")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -25,7 +20,7 @@ def name():
     return "7zip"
 
 def description():
-    return "7-Zip file archiver with high compression ratio"
+    return "7-Zip - High compression ratio file archiver supporting 7z, ZIP, TAR, GZ, XZ and more"
 
 def homepage():
     return "https://www.7-zip.org"
@@ -78,101 +73,126 @@ permissions = {
 }
 
 # ---------------------------------------------------------------------------
-# fetch_versions — GitHub releases (tags like "24.09", no "v" prefix)
+# Version fetching
 # ---------------------------------------------------------------------------
 
 def fetch_versions(ctx):
-    """Fetch 7-Zip versions from GitHub releases (ip7z/7zip)."""
-    releases = ctx["http"]["get_json"](
-        "https://api.github.com/repos/ip7z/7zip/releases?per_page=20"
+    """Fetch available 7-Zip versions from GitHub releases.
+
+    7-Zip uses tags like "24.09", "23.01" (no 'v' prefix).
+    """
+    releases = github_releases(
+        owner = "ip7z",
+        repo = "7zip",
+        include_prereleases = False,
     )
-    versions = []
-    for release in releases:
-        if release.get("draft") or release.get("prerelease"):
-            continue
-        tag = release.get("tag_name", "")
-        if tag:
-            versions.append({
-                "version":    tag,
-                "lts":        False,
-                "prerelease": False,
-            })
-    return versions
+    return releases_to_versions(releases, strip_v_prefix = False)
 
 # ---------------------------------------------------------------------------
-# _compact_version — "24.09" -> "2409"
+# Download URL
 # ---------------------------------------------------------------------------
 
-def _compact_version(version):
-    """Convert dotted version to compact form: '24.09' -> '2409'."""
+def _ver_compact(version):
+    """Convert "24.09" -> "2409" for 7-Zip asset naming."""
     return version.replace(".", "")
 
-# ---------------------------------------------------------------------------
-# download_url
-# ---------------------------------------------------------------------------
-
 def download_url(ctx, version):
-    """Return the download URL for the given platform.
+    """Return the download URL for the given version and platform.
 
-    Windows: MSI installer (7z{compact}-x64.msi)
-    macOS:   Universal tar.xz (7z{compact}-mac.tar.xz)
-    Linux:   Platform-specific tar.xz
+    7-Zip asset naming convention:
+      Windows x64:  7z{compact}-x64.msi   (e.g. 7z2409-x64.msi)
+      Windows x86:  7z{compact}.msi        (e.g. 7z2409.msi)
+      macOS:        7z{compact}-mac.tar.xz
+      Linux x64:    7z{compact}-linux-x64.tar.xz
+      Linux arm64:  7z{compact}-linux-arm64.tar.xz
     """
     os   = ctx["platform"]["os"]
     arch = ctx["platform"]["arch"]
-    ver  = _compact_version(version)
-    base = "https://github.com/ip7z/7zip/releases/download/{}/".format(version)
+    ver  = _ver_compact(version)
+    base = "https://github.com/ip7z/7zip/releases/download/{}".format(version)
 
     if os == "windows":
         if arch == "x64":
-            return base + "7z{}-x64.msi".format(ver)
-        elif arch == "x86":
-            return base + "7z{}.msi".format(ver)
-        # arm64 has no MSI, fall back to system install
-        return None
+            return "{}/7z{}-x64.msi".format(base, ver)
+        else:
+            return "{}/7z{}.msi".format(base, ver)
     elif os == "macos":
-        # Universal binary (supports both x64 and arm64)
-        return base + "7z{}-mac.tar.xz".format(ver)
+        return "{}/7z{}-mac.tar.xz".format(base, ver)
     elif os == "linux":
-        if arch == "x64":
-            return base + "7z{}-linux-x64.tar.xz".format(ver)
-        elif arch == "arm64":
-            return base + "7z{}-linux-arm64.tar.xz".format(ver)
-        elif arch == "arm":
-            return base + "7z{}-linux-arm.tar.xz".format(ver)
-        return None
-
+        if arch == "arm64":
+            return "{}/7z{}-linux-arm64.tar.xz".format(base, ver)
+        else:
+            return "{}/7z{}-linux-x64.tar.xz".format(base, ver)
     return None
 
 # ---------------------------------------------------------------------------
-# install_layout
+# Install layout
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, version):
-    """Return the install layout descriptor for the Rust runtime.
+    """Return the install descriptor for the given version and platform.
 
-    Windows: MSI install via msiexec /a (no registry changes)
-    macOS/Linux: Archive extraction
+    Windows uses MSI (extracted via msiexec /a, no registry changes).
+    macOS and Linux use tar.xz archives.
+    The 7z executable lives at the root of the extracted archive.
     """
-    os  = ctx["platform"]["os"]
-    url = download_url(ctx, version)
+    os   = ctx["platform"]["os"]
+    arch = ctx["platform"]["arch"]
+    url  = download_url(ctx, version)
 
     if url == None:
         return None
 
     if os == "windows":
-        # msiexec /a extracts to TARGETDIR; 7-Zip MSI places files in root
+        # msiexec /a extracts to target dir; 7z.exe is at the root
         return msi_install(
             url,
-            executable_paths = ["7z.exe", "7za.exe", "7zr.exe"],
+            executable_paths = ["7z.exe"],
+            strip_prefix = "PFiles\\7-Zip",
         )
     else:
-        # Linux and macOS: tar.xz with executables in root (no subdirectory)
-        exe = "7zz" if os == "macos" else "7zzs"
+        # tar.xz: 7z binary is at the root (no top-level directory)
+        exe = "7zz" if os == "macos" else "7zz"
         return archive_install(
             url,
-            strip_prefix = "",
-            executable_paths = [exe, "7z", "7za", "7zr"],
+            executable_paths = [exe, "7z"],
+        )
+
+# ---------------------------------------------------------------------------
+# Prepare execution  (system tool detection)
+# ---------------------------------------------------------------------------
+
+def prepare_execution(ctx, version):
+    """Find 7z on the system before falling back to vx-managed installation.
+
+    Follows the same pattern as Buck2's ctx.actions.run():
+    Starlark declares *what to search for*, Rust performs the actual search.
+
+    Search order (handled by Rust runtime):
+      1. PATH lookup for "7z" / "7zz"
+      2. Known Windows system paths
+      3. Fall back to vx-managed installation
+    """
+    os = ctx["platform"]["os"]
+
+    if os == "windows":
+        return system_find(
+            "7z",
+            system_paths = [
+                "C:\\Program Files\\7-Zip\\7z.exe",
+                "C:\\Program Files (x86)\\7-Zip\\7z.exe",
+            ],
+            hint = "Install via: winget install 7zip.7zip  |  choco install 7zip",
+        )
+    elif os == "macos":
+        return system_find(
+            "7zz",
+            hint = "Install via: brew install sevenzip",
+        )
+    else:
+        return system_find(
+            "7zz",
+            hint = "Install via: sudo apt install 7zip  |  sudo dnf install 7zip",
         )
 
 # ---------------------------------------------------------------------------

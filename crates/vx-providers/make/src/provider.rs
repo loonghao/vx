@@ -18,11 +18,21 @@ impl MakeProvider {
 
 impl Provider for MakeProvider {
     fn name(&self) -> &str {
-        "make"
+        // Sourced from provider.star: `def name(): return "make"`
+        crate::star_metadata().name_or("make")
     }
 
     fn description(&self) -> &str {
-        "GNU Make - Controls generation of executables from source files"
+        // Sourced from provider.star: `def description(): return "..."`
+        use std::sync::OnceLock;
+        static DESC: OnceLock<&'static str> = OnceLock::new();
+        DESC.get_or_init(|| {
+            let s = crate::star_metadata()
+                .description
+                .as_deref()
+                .unwrap_or("GNU Make - Controls generation of executables from source files");
+            Box::leak(s.to_string().into_boxed_str())
+        })
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {

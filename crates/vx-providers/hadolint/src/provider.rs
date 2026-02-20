@@ -1,27 +1,11 @@
-//! Hadolint provider implementation
-//!
-//! Provides the Hadolint (Dockerfile linter) runtime.
+//! hadolint provider implementation
 
-use crate::runtime::HadolintRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Hadolint provider
-#[derive(Debug)]
+/// hadolint provider (Starlark-driven)
+#[derive(Debug, Default)]
 pub struct HadolintProvider;
-
-impl HadolintProvider {
-    /// Create a new Hadolint provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for HadolintProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl Provider for HadolintProvider {
     fn name(&self) -> &str {
@@ -29,10 +13,17 @@ impl Provider for HadolintProvider {
     }
 
     fn description(&self) -> &str {
-        "Provides Hadolint (Dockerfile linter) support"
+        "Dockerfile linter"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(HadolintRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("hadolint", "hadolint", ProviderSource::BuiltIn)
+                .with_description("Dockerfile linter"),
+        )]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(HadolintProvider)
 }

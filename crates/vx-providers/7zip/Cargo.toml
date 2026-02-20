@@ -16,6 +16,7 @@ name = "vx_provider_7zip"
 
 [dependencies]
 vx-runtime = { workspace = true }
+vx-starlark = { workspace = true }
 serde = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }

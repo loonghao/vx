@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 vx-runtime = { workspace = true }
+vx-starlark = { workspace = true }
 vx-manifest = { workspace = true }
 async-trait = { workspace = true }
 anyhow = { workspace = true }

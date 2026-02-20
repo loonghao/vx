@@ -1,25 +1,11 @@
-//! Helm provider implementation
+//! helm provider implementation
 
-use crate::runtime::HelmRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Helm provider
-#[derive(Debug)]
+/// helm provider (Starlark-driven)
+#[derive(Debug, Default)]
 pub struct HelmProvider;
-
-impl HelmProvider {
-    /// Create a new Helm provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for HelmProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl Provider for HelmProvider {
     fn name(&self) -> &str {
@@ -27,10 +13,17 @@ impl Provider for HelmProvider {
     }
 
     fn description(&self) -> &str {
-        "Provides Helm (Kubernetes package manager) support"
+        "The Kubernetes Package Manager"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(HelmRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("helm", "helm", ProviderSource::BuiltIn)
+                .with_description("The Kubernetes Package Manager"),
+        )]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(HelmProvider)
 }

@@ -1,26 +1,22 @@
-//! GitHub CLI Provider for vx
-//!
-//! This provider adds support for GitHub CLI (gh) tool to vx.
-//!
-//! GitHub CLI is a command-line tool that brings GitHub to your terminal.
-//!
-//! ## Features
-//!
-//! - Version management via GitHub releases
-//! - Cross-platform support (Windows, macOS, Linux)
-//! - Automatic installation and verification
+//! gh provider for vx
 
-use std::sync::Arc;
+mod provider;
 
-pub mod config;
-pub mod provider;
-pub mod runtime;
+pub use provider::create_provider;
 
-pub use config::GitHubUrlBuilder;
-pub use provider::GitHubProvider;
-pub use runtime::GitHubRuntime;
+/// The raw content of `provider.star`, embedded at compile time.
+///
+/// This is the single source of truth for provider metadata (name, description,
+/// aliases, platform constraints, etc.).  The `build.rs` script ensures Cargo
+/// re-compiles this crate whenever `provider.star` changes.
+pub const PROVIDER_STAR: &str = include_str!("../provider.star");
 
-/// Factory function to create the GitHub provider
-pub fn create_provider() -> Arc<dyn vx_runtime::Provider> {
-    Arc::new(provider::GitHubProvider::new())
+/// Lazily-parsed metadata from `provider.star`.
+///
+/// Use this to access provider/runtime metadata without spinning up the full
+/// Starlark engine.  The metadata is parsed once on first access.
+pub fn star_metadata() -> &'static vx_starlark::StarMetadata {
+    use std::sync::OnceLock;
+    static META: OnceLock<vx_starlark::StarMetadata> = OnceLock::new();
+    META.get_or_init(|| vx_starlark::StarMetadata::parse(PROVIDER_STAR))
 }

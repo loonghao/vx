@@ -1,25 +1,11 @@
-//! Zig provider implementation
+//! zig provider implementation
 
-use crate::runtime::ZigRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Zig provider
-#[derive(Debug)]
+/// zig provider (Starlark-driven)
+#[derive(Debug, Default)]
 pub struct ZigProvider;
-
-impl ZigProvider {
-    /// Create a new Zig provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for ZigProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl Provider for ZigProvider {
     fn name(&self) -> &str {
@@ -27,10 +13,17 @@ impl Provider for ZigProvider {
     }
 
     fn description(&self) -> &str {
-        "Provides Zig programming language support"
+        "Zig programming language and toolchain"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(ZigRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("zig", "zig", ProviderSource::BuiltIn)
+                .with_description("Zig programming language and toolchain"),
+        )]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(ZigProvider)
 }

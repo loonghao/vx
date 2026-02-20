@@ -1,18 +1,11 @@
 //! bat provider implementation
 
-use crate::runtime::BatRuntime;
 use std::sync::Arc;
-use vx_runtime::{Runtime, provider::Provider};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// bat provider
+/// bat provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct BatProvider;
-
-impl BatProvider {
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl Provider for BatProvider {
     fn name(&self) -> &str {
@@ -24,22 +17,13 @@ impl Provider for BatProvider {
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(BatRuntime::new())]
-    }
-
-    fn supports(&self, name: &str) -> bool {
-        name == "bat"
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if name == "bat" {
-            Some(Arc::new(BatRuntime::new()))
-        } else {
-            None
-        }
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("bat", "bat", ProviderSource::BuiltIn)
+                .with_description("A cat clone with syntax highlighting and Git integration"),
+        )]
     }
 }
 
 pub fn create_provider() -> Arc<dyn Provider> {
-    Arc::new(BatProvider::new())
+    Arc::new(BatProvider)
 }

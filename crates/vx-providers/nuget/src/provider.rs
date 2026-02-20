@@ -1,36 +1,30 @@
-//! NuGet provider implementation
+//! nuget provider implementation
 
-use crate::runtime::NugetRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// NuGet provider
-#[derive(Debug)]
-pub struct NugetProvider;
+/// nuget provider (Starlark-driven)
+#[derive(Debug, Default)]
+pub struct NuGetProvider;
 
-impl NugetProvider {
-    /// Create a new NuGet provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for NugetProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Provider for NugetProvider {
+impl Provider for NuGetProvider {
     fn name(&self) -> &str {
         "nuget"
     }
 
     fn description(&self) -> &str {
-        "Provides NuGet package manager support for .NET"
+        "NuGet package manager for .NET"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(NugetRuntime::new())]
+        vec![Arc::new(ManifestDrivenRuntime::new(
+            "nuget",
+            "nuget",
+            ProviderSource::BuiltIn,
+        ))]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(NuGetProvider)
 }
