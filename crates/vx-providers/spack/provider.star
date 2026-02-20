@@ -108,6 +108,22 @@ def environment(ctx, version, install_dir):
     }
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for spack."""
+    return "{vx_home}/store/spack"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    return "{install_dir}/bin/spack"
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed for spack."""
+    return None
+
+# ---------------------------------------------------------------------------
 # deps — requires python 3.6+ and git
 # ---------------------------------------------------------------------------
 

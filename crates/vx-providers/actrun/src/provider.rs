@@ -9,17 +9,21 @@ pub struct ActrunProvider;
 
 impl Provider for ActrunProvider {
     fn name(&self) -> &str {
-        "actrun"
+        crate::star_metadata().name_or("actrun")
     }
 
     fn description(&self) -> &str {
-        "Run GitHub Actions locally"
+        crate::star_metadata().description_or("Run GitHub Actions locally")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
         vec![Arc::new(
             ManifestDrivenRuntime::new("actrun", "actrun", ProviderSource::BuiltIn)
-                .with_description("Run GitHub Actions locally"),
+                .with_description("Run GitHub Actions locally")
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "actrun",
+                    crate::PROVIDER_STAR,
+                )),
         )]
     }
 }

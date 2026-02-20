@@ -155,6 +155,24 @@ def install_layout(ctx, version):
     }
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for jq."""
+    return "{vx_home}/store/jq"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    exe = "jq.exe" if os == "windows" else "jq"
+    return "{install_dir}/bin/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed for jq."""
+    return None
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

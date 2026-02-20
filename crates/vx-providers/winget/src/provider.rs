@@ -28,16 +28,7 @@ impl Provider for WingetProvider {
     }
 
     fn description(&self) -> &str {
-        // Sourced from provider.star: `def description(): return "..."`
-        use std::sync::OnceLock;
-        static DESC: OnceLock<&'static str> = OnceLock::new();
-        DESC.get_or_init(|| {
-            let s = crate::star_metadata()
-                .description
-                .as_deref()
-                .unwrap_or("Provides Windows Package Manager (winget) support");
-            Box::leak(s.to_string().into_boxed_str())
-        })
+        crate::star_metadata().description_or("winget")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {

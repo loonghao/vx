@@ -82,6 +82,30 @@ def deps(ctx, version):
     return [{"runtime": "uv", "version": "*"}]
 
 # ---------------------------------------------------------------------------
+# store_root — not managed by vx (installed via uvx)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx, version):
+    """pre-commit is installed via uvx — no vx store root."""
+    return None
+
+# ---------------------------------------------------------------------------
+# get_execute_path — resolve pre-commit executable
+# ---------------------------------------------------------------------------
+
+def get_execute_path(ctx, version, install_dir):
+    """pre-commit is run via uvx; no vx-managed install_dir."""
+    return None
+
+# ---------------------------------------------------------------------------
+# post_install — nothing to do
+# ---------------------------------------------------------------------------
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps required for pre-commit."""
+    return []
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

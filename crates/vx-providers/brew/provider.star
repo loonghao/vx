@@ -125,3 +125,41 @@ def environment(ctx, version, install_dir):
     elif os == "linux":
         return {"PATH": "/home/linuxbrew/.linuxbrew/bin"}
     return {}
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for brew."""
+    return "{vx_home}/store/brew"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/brew.exe"
+    else:
+        return "{install_dir}/brew"
+
+def post_install(ctx, version, install_dir):
+    """Post-install hook (no-op for brew)."""
+    return None
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/brew"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/brew.exe"
+    else:
+        return "{install_dir}/brew"
+
+def post_install(ctx, version, install_dir):
+    return None

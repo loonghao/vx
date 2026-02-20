@@ -9,17 +9,21 @@ pub struct PrekProvider;
 
 impl Provider for PrekProvider {
     fn name(&self) -> &str {
-        "prek"
+        crate::star_metadata().name_or("prek")
     }
 
     fn description(&self) -> &str {
-        "Pre-commit hook runner"
+        crate::star_metadata().description_or("Pre-commit hook runner")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
         vec![Arc::new(
             ManifestDrivenRuntime::new("prek", "prek", ProviderSource::BuiltIn)
-                .with_description("Pre-commit hook runner"),
+                .with_description("Pre-commit hook runner")
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "prek",
+                    crate::PROVIDER_STAR,
+                )),
         )]
     }
 }

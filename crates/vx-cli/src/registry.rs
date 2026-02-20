@@ -38,6 +38,15 @@ use vx_runtime_http::create_runtime_context;
 // ---------------------------------------------------------------------------
 include!(concat!(env!("OUT_DIR"), "/provider_manifests.rs"));
 
+// ---------------------------------------------------------------------------
+// Compile-time embedded provider.star contents (RFC-0037)
+//
+// build.rs writes provider_stars.rs:
+//   - PROVIDER_STAR_<NAME> : &str  (individual star content, via include_str!)
+//   - ALL_PROVIDER_STARS   : &[(&str, &str)]  (name, star_content pairs)
+// ---------------------------------------------------------------------------
+include!(concat!(env!("OUT_DIR"), "/provider_stars.rs"));
+
 /// Embedded provider manifests `(name, toml_content)`.
 ///
 /// Lazily parsed from `ALL_PROVIDERS_TOML` on first access.
@@ -445,6 +454,34 @@ pub fn get_embedded_manifests() -> &'static [(&'static str, &'static str)] {
 /// Get the number of embedded provider manifests
 pub fn get_embedded_manifest_count() -> usize {
     PROVIDER_COUNT
+}
+
+/// Initialize the global ProviderHandle registry with all built-in providers (RFC-0037)
+///
+/// This function registers all embedded `provider.star` files into the
+/// `global_registry()` so that CLI commands can use `ProviderHandle` for
+/// path queries, version management, and post-install operations.
+///
+/// Should be called once at CLI startup, before any command is dispatched.
+pub async fn init_provider_handles() {
+    use vx_starlark::handle::global_registry_mut;
+
+    let mut reg = global_registry_mut().await;
+    for (name, star_content) in ALL_PROVIDER_STARS {
+        match reg.register_builtin(name, star_content).await {
+            Ok(()) => {
+                trace!(provider = %name, "Registered ProviderHandle");
+            }
+            Err(e) => {
+                // Non-fatal: log and continue so other providers still load
+                tracing::warn!(
+                    provider = %name,
+                    error = %e,
+                    "Failed to register ProviderHandle — provider.star may have errors"
+                );
+            }
+        }
+    }
 }
 
 /// Get platform label for a runtime from embedded manifests

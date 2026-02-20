@@ -9,20 +9,22 @@ pub struct RustProvider;
 
 impl Provider for RustProvider {
     fn name(&self) -> &str {
-        "rust"
+        crate::star_metadata().name_or("rust")
     }
 
     fn description(&self) -> &str {
-        "Rust programming language toolchain"
+        crate::star_metadata().description_or("Rust programming language toolchain")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
         vec![
-            Arc::new(ManifestDrivenRuntime::new(
-                "rustup",
-                "rustup",
-                ProviderSource::BuiltIn,
-            )),
+            Arc::new(
+                ManifestDrivenRuntime::new("rustup", "rustup", ProviderSource::BuiltIn)
+                    .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                        "rust",
+                        crate::PROVIDER_STAR,
+                    )),
+            ),
             Arc::new(ManifestDrivenRuntime::new(
                 "cargo",
                 "cargo",

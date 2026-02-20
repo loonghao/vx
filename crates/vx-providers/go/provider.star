@@ -218,3 +218,21 @@ def pre_run(ctx, args, executable):
             ),
         ]
     return []
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/go"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/go.exe"
+    else:
+        return "{install_dir}/go"
+
+def post_install(ctx, version, install_dir):
+    return None

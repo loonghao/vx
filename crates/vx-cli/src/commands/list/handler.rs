@@ -1,4 +1,6 @@
 //! List command handler
+//!
+//! RFC-0037: installed version queries now delegate to ProviderHandle when available.
 
 use super::Args;
 use crate::cli::OutputFormat;
@@ -12,6 +14,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use vx_paths::{PathManager, PathResolver};
 use vx_runtime::{Platform, ProviderRegistry, Runtime, RuntimeContext};
+use vx_starlark::handle::global_registry;
 
 /// Check if a runtime supports the given platform
 fn is_platform_supported(runtime: &Arc<dyn Runtime>, platform: &Platform) -> bool {
@@ -243,9 +246,44 @@ async fn list_tool_versions(
     // Check if this tool is bundled with another tool
     let bundled_with = runtime.metadata().get("bundled_with").cloned();
 
-    // Get installed versions - check both the tool itself and its parent (if bundled)
-    let installed_executables =
-        resolver.find_tool_executables_with_exe(canonical_name, exe_name)?;
+    // --- RFC-0037: Try ProviderHandle first for installed versions ---
+    let handle_installed: Option<Vec<String>> = {
+        let reg = global_registry().await;
+        reg.get(canonical_name)
+            .map(|handle| handle.installed_versions())
+    };
+
+    // Get installed versions - prefer ProviderHandle, fall back to PathResolver
+    let installed_executables: Vec<std::path::PathBuf> =
+        if let Some(versions) = handle_installed.filter(|v| !v.is_empty()) {
+            UI::debug(&format!(
+                "ProviderHandle::installed_versions({}) => {:?}",
+                canonical_name, versions
+            ));
+            // Convert version strings to paths for backward-compatible display
+            versions
+                .iter()
+                .filter_map(|v| {
+                    // Build the expected executable path from the store
+                    let paths = vx_paths::VxPaths::new().ok()?;
+                    let version_dir = paths.store_dir.join(canonical_name).join(v);
+                    // Try common locations
+                    let exe_with_ext = vx_paths::with_executable_extension(exe_name);
+                    let candidates = vec![
+                        version_dir.join(&exe_with_ext),
+                        version_dir.join(exe_name),
+                        version_dir.join("bin").join(&exe_with_ext),
+                        version_dir.join("bin").join(exe_name),
+                    ];
+                    candidates
+                        .into_iter()
+                        .find(|p| p.exists())
+                        .or_else(|| Some(version_dir.join(&exe_with_ext)))
+                })
+                .collect()
+        } else {
+            resolver.find_tool_executables_with_exe(canonical_name, exe_name)?
+        };
 
     // If this tool is bundled with another and has no direct installations,
     // check the parent tool's installations

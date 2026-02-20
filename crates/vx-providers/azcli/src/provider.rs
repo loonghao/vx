@@ -9,19 +9,20 @@ pub struct AzCliProvider;
 
 impl Provider for AzCliProvider {
     fn name(&self) -> &str {
-        "azcli"
+        crate::star_metadata().name_or("azcli")
     }
 
     fn description(&self) -> &str {
-        "Azure CLI - Command-line interface for Microsoft Azure"
+        crate::star_metadata()
+            .description_or("Azure CLI - Command-line interface for Microsoft Azure")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(ManifestDrivenRuntime::new(
-            "az",
-            "az",
-            ProviderSource::BuiltIn,
-        ))]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("az", "az", ProviderSource::BuiltIn).with_fetch_versions(
+                vx_starlark::make_fetch_versions_fn("azcli", crate::PROVIDER_STAR),
+            ),
+        )]
     }
 }
 
