@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4](https://github.com/loonghao/vx/compare/v0.8.3...v0.8.4) (2026-02-20)
+
+
+### Features
+
+* **starlark:** add github.star stdlib + jj provider.star migration ([2666e9c](https://github.com/loonghao/vx/commit/2666e9c35d48962caa4943614fe422d7e7a886b3))
+* **starlark:** complete provider.star migration and fix stdlib ctx access ([eb9c882](https://github.com/loonghao/vx/commit/eb9c8821c16458edfcbe61d2650485abf798cef9))
+* **vx-starlark:** implement Phase 2 Starlark execution engine ([46ace14](https://github.com/loonghao/vx/commit/46ace140ae17d909b12ace6b1f1df51a180cf2dd))
+* **vx-starlark:** Phase 2 - integrate starlark-rust execution engine ([61b2fd3](https://github.com/loonghao/vx/commit/61b2fd3c167aa851c84c12ffe3ce48efa179591f))
+
+
+### Bug Fixes
+
+* fix workspace-hack hakari section markers and regenerate dependencies ([f41c6c6](https://github.com/loonghao/vx/commit/f41c6c694d102f6a39492987d3de16190dc9093a))
+* **justfile:** fix test-pkgs recipe to not duplicate -p flag ([cbfc402](https://github.com/loonghao/vx/commit/cbfc402a896bbb0e40ee6352fc3383a32d4bed24))
+* **vx-provider-jj:** strip v prefix from version tags to prevent double-v in download URL ([e0b13eb](https://github.com/loonghao/vx/commit/e0b13eb8f7c9995682eb3024d798c2fed8ef2288))
+* **where:** use executable_name() instead of runtime name for exe lookup ([610310f](https://github.com/loonghao/vx/commit/610310fbba23d21940214cc0c820730fcc57882c))
+
+
+### Code Refactoring
+
+* **build:** remove legacy provider.toml support, simplify build.rs and registry.rs ([b0dd935](https://github.com/loonghao/vx/commit/b0dd935619a4454c65aec137cef79a202d9bc44b))
+* **vx-starlark:** replace path-based cache with content-hash incremental analysis cache ([23c9918](https://github.com/loonghao/vx/commit/23c9918382c93a9081ffeb8b5dbbcfaf52a2e19e))
+
+
+### Documentation
+
+* **rfc:** add RFC 0036 - Starlark Provider Support ([9f29ebf](https://github.com/loonghao/vx/commit/9f29ebf34c29aaed9c1c94918ae3a4a40f198ff3))
+* **rfc:** update RFC 0036 v0.3 - add Buck2 typed provider_field, load() module system, incremental analysis cache, declarative actions ([58ac77d](https://github.com/loonghao/vx/commit/58ac77d60cabacfdd451b926ae83548fc2d4a5a0))
+
 ## [0.8.3](https://github.com/loonghao/vx/compare/v0.8.2...v0.8.3) (2026-02-19)
 
 
