@@ -8,6 +8,7 @@
 # Inheritance pattern: Level 2 (custom download_url + system_install)
 
 load("@vx//stdlib:github.star", "make_fetch_versions")
+load("@vx//stdlib:install.star", "set_permissions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -132,6 +133,34 @@ def system_install(ctx):
             ],
         }
     return {}
+
+# ---------------------------------------------------------------------------
+# post_extract — set executable permissions on Linux
+#
+# Azure CLI Linux tar.gz extracts to bin/az.
+# The binary needs +x permissions on Linux.
+# ---------------------------------------------------------------------------
+
+def post_extract(ctx, version, install_dir):
+    """Set executable permissions on the Azure CLI binary after extraction.
+
+    The Azure CLI Linux tar.gz places the main executable at bin/az.
+    On Linux we need to ensure it has execute permissions.
+
+    Args:
+        ctx:         Provider context
+        version:     Installed version string
+        install_dir: Path to the installation directory
+
+    Returns:
+        List of post-extract actions
+    """
+    os = ctx["platform"]["os"]
+    if os == "linux" or os == "macos":
+        return [
+            set_permissions("bin/az", "755"),
+        ]
+    return []
 
 # ---------------------------------------------------------------------------
 # deps

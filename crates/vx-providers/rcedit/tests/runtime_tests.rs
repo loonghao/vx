@@ -1,70 +1,51 @@
-//! Unit tests for rcedit runtime
-//!
-//! Tests for the rcedit provider implementation.
+//! rcedit provider tests
 
 use rstest::rstest;
-use vx_runtime::{Arch, Os, Platform};
+use vx_provider_rcedit::create_provider;
+use vx_runtime::{Provider, Runtime};
 
-// Import the config module for URL builder tests
-use vx_provider_rcedit::RceditUrlBuilder;
+#[test]
+fn test_provider_name() {
+    let provider = create_provider();
+    assert_eq!(provider.name(), "rcedit");
+}
 
-#[rstest]
-#[case(
-    "2.0.0",
-    Arch::X86_64,
-    "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe"
-)]
-#[case(
-    "1.1.1",
-    Arch::X86_64,
-    "https://github.com/electron/rcedit/releases/download/v1.1.1/rcedit-x64.exe"
-)]
-#[case(
-    "2.0.0",
-    Arch::Aarch64,
-    "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-arm64.exe"
-)]
-fn test_download_url_windows(#[case] version: &str, #[case] arch: Arch, #[case] expected: &str) {
-    let platform = Platform::new(Os::Windows, arch);
-    let url = RceditUrlBuilder::download_url(version, &platform);
-    assert_eq!(url, Some(expected.to_string()));
+#[test]
+fn test_provider_description() {
+    let provider = create_provider();
+    assert!(!provider.description().is_empty());
+}
+
+#[test]
+fn test_provider_runtimes() {
+    let provider = create_provider();
+    let runtimes = provider.runtimes();
+    assert!(!runtimes.is_empty());
+    let names: Vec<&str> = runtimes
+        .iter()
+        .map(|r: &std::sync::Arc<dyn Runtime>| r.name())
+        .collect();
+    assert!(names.contains(&"rcedit"));
 }
 
 #[rstest]
-#[case(Os::Linux, Arch::X86_64)]
-#[case(Os::MacOS, Arch::X86_64)]
-#[case(Os::MacOS, Arch::Aarch64)]
-fn test_download_url_unsupported_platforms(#[case] os: Os, #[case] arch: Arch) {
-    let platform = Platform::new(os, arch);
-    let url = RceditUrlBuilder::download_url("2.0.0", &platform);
-    assert_eq!(url, None);
+#[case("rcedit", true)]
+#[case("node", false)]
+fn test_provider_supports(#[case] name: &str, #[case] expected: bool) {
+    let provider = create_provider();
+    assert_eq!(provider.supports(name), expected);
 }
 
-#[rstest]
-#[case(Arch::X86_64, "rcedit-x64.exe")]
-#[case(Arch::Aarch64, "rcedit-arm64.exe")]
-#[case(Arch::X86, "rcedit-x86.exe")]
-fn test_executable_name(#[case] arch: Arch, #[case] expected: &str) {
-    let platform = Platform::new(Os::Windows, arch);
-    assert_eq!(RceditUrlBuilder::get_executable_name(&platform), expected);
+#[test]
+fn test_provider_get_runtime() {
+    let provider = create_provider();
+    assert!(provider.get_runtime("rcedit").is_some());
+    assert!(provider.get_runtime("unknown").is_none());
 }
 
-#[rstest]
-#[case(Os::Windows, Arch::X86_64, true)]
-#[case(Os::Windows, Arch::Aarch64, true)]
-#[case(Os::Windows, Arch::X86, true)]
-#[case(Os::Linux, Arch::X86_64, false)]
-#[case(Os::MacOS, Arch::Aarch64, false)]
-fn test_platform_support(#[case] os: Os, #[case] arch: Arch, #[case] expected: bool) {
-    let platform = Platform::new(os, arch);
-    assert_eq!(RceditUrlBuilder::is_platform_supported(&platform), expected);
-}
-
-#[rstest]
-#[case(Arch::X86_64, Some("x64"))]
-#[case(Arch::Aarch64, Some("arm64"))]
-#[case(Arch::X86, Some("x86"))]
-fn test_arch_suffix(#[case] arch: Arch, #[case] expected: Option<&str>) {
-    let platform = Platform::new(Os::Windows, arch);
-    assert_eq!(RceditUrlBuilder::get_arch_suffix(&platform), expected);
+#[test]
+fn test_star_metadata() {
+    let meta = vx_provider_rcedit::star_metadata();
+    assert!(meta.name.is_some());
+    assert!(!meta.runtimes.is_empty());
 }

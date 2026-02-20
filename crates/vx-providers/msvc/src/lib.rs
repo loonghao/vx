@@ -52,6 +52,23 @@
 //! - [PortableBuildTools](https://github.com/Data-Oriented-House/PortableBuildTools)
 //! - [VS Manifest System](https://aka.ms/vs/17/release/channel)
 
+/// The raw content of `provider.star`, embedded at compile time.
+///
+/// This is the single source of truth for provider metadata (name, description,
+/// aliases, platform constraints, etc.).  The `build.rs` script ensures Cargo
+/// re-compiles this crate whenever `provider.star` changes.
+pub const PROVIDER_STAR: &str = include_str!("../provider.star");
+
+/// Lazily-parsed metadata from `provider.star`.
+///
+/// Use this to access provider/runtime metadata without spinning up the full
+/// Starlark engine.  The metadata is parsed once on first access.
+pub fn star_metadata() -> &'static vx_starlark::StarMetadata {
+    use std::sync::OnceLock;
+    static META: OnceLock<vx_starlark::StarMetadata> = OnceLock::new();
+    META.get_or_init(|| vx_starlark::StarMetadata::parse(PROVIDER_STAR))
+}
+
 #[cfg(target_os = "windows")]
 mod config;
 #[cfg(target_os = "windows")]
@@ -100,11 +117,21 @@ mod unsupported {
     #[async_trait]
     impl Runtime for UnsupportedRuntime {
         fn name(&self) -> &str {
-            "msvc"
+            crate::star_metadata().name_or("msvc")
         }
 
         fn description(&self) -> &str {
-            "MSVC Build Tools (Windows-only; disabled on this platform)"
+            // Static string required by the trait; use the star metadata value
+            // via a leak so we can return &'static str.
+            let desc = crate::star_metadata()
+                .description
+                .as_deref()
+                .unwrap_or("MSVC Build Tools (Windows-only; disabled on this platform)");
+            // SAFETY: the string is derived from PROVIDER_STAR which is 'static.
+            // We leak a Box<str> once to obtain a &'static str.
+            use std::sync::OnceLock;
+            static DESC: OnceLock<&'static str> = OnceLock::new();
+            DESC.get_or_init(|| Box::leak(desc.to_string().into_boxed_str()))
         }
 
         fn aliases(&self) -> &[&str] {
@@ -120,7 +147,11 @@ mod unsupported {
         }
 
         fn metadata(&self) -> HashMap<String, String> {
-            HashMap::new()
+            let mut meta = HashMap::new();
+            if let Some(hp) = crate::star_metadata().homepage.as_deref() {
+                meta.insert("homepage".to_string(), hp.to_string());
+            }
+            meta
         }
 
         fn supported_platforms(&self) -> Vec<Platform> {
@@ -172,11 +203,19 @@ mod unsupported {
 
     impl Provider for UnsupportedProvider {
         fn name(&self) -> &str {
-            "msvc"
+            crate::star_metadata().name_or("msvc")
         }
 
         fn description(&self) -> &str {
-            "MSVC Build Tools (Windows-only; disabled on this platform)"
+            use std::sync::OnceLock;
+            static DESC: OnceLock<&'static str> = OnceLock::new();
+            DESC.get_or_init(|| {
+                let desc = crate::star_metadata()
+                    .description
+                    .as_deref()
+                    .unwrap_or("MSVC Build Tools (Windows-only; disabled on this platform)");
+                Box::leak(desc.to_string().into_boxed_str())
+            })
         }
 
         fn runtimes(&self) -> Vec<Arc<dyn vx_runtime::Runtime>> {

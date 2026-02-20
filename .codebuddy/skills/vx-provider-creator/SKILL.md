@@ -134,14 +134,67 @@ Create the following structure under `crates/vx-providers/{name}/`:
 ```
 crates/vx-providers/{name}/
 ├── Cargo.toml
-├── provider.toml       # Provider manifest (metadata, runtimes, constraints)
+├── build.rs        # REQUIRED: watches provider.star for changes
+├── provider.toml   # Provider manifest (metadata, runtimes, constraints)
+├── provider.star   # Starlark logic (fetch_versions, download_url, install_layout)
 ├── src/
-│   ├── lib.rs          # Module exports + create_provider() factory
-│   ├── provider.rs     # Provider trait implementation
-│   ├── runtime.rs      # Runtime trait implementation
-│   └── config.rs       # URL builder and platform configuration
+│   ├── lib.rs          # Module exports + PROVIDER_STAR + star_metadata() + create_provider()
+│   ├── provider.rs     # Provider trait implementation (optional for Starlark-only)
+│   ├── runtime.rs      # Runtime trait implementation (optional for Starlark-only)
+│   └── config.rs       # URL builder and platform configuration (optional)
 └── tests/
     └── runtime_tests.rs  # Unit tests (using rstest)
+```
+
+### Required: build.rs
+
+Every provider crate **must** have a `build.rs` that watches `provider.star`:
+
+```rust
+// crates/vx-providers/{name}/build.rs
+fn main() {
+    // Re-run this build script whenever provider.star changes.
+    // This ensures that `include_str!("../provider.star")` in lib.rs always
+    // reflects the latest content and that Cargo rebuilds the crate when the
+    // Starlark provider definition is updated.
+    println!("cargo:rerun-if-changed=provider.star");
+}
+```
+
+### Required: lib.rs with PROVIDER_STAR and star_metadata()
+
+Every provider crate's `lib.rs` **must** embed `provider.star` and expose `star_metadata()`:
+
+```rust
+// crates/vx-providers/{name}/src/lib.rs
+
+/// The raw content of `provider.star`, embedded at compile time.
+///
+/// This is the single source of truth for provider metadata (name, description,
+/// aliases, platform constraints, etc.).  The `build.rs` script ensures Cargo
+/// re-compiles this crate whenever `provider.star` changes.
+pub const PROVIDER_STAR: &str = include_str!("../provider.star");
+
+/// Lazily-parsed metadata from `provider.star`.
+///
+/// Use this to access provider/runtime metadata without spinning up the full
+/// Starlark engine.  The metadata is parsed once on first access.
+pub fn star_metadata() -> &'static vx_starlark::StarMetadata {
+    use std::sync::OnceLock;
+    static META: OnceLock<vx_starlark::StarMetadata> = OnceLock::new();
+    META.get_or_init(|| vx_starlark::StarMetadata::parse(PROVIDER_STAR))
+}
+
+// ... rest of lib.rs (module declarations, create_provider, etc.)
+```
+
+### Required: Cargo.toml with vx-starlark
+
+```toml
+[dependencies]
+vx-runtime = { workspace = true }
+vx-starlark = { workspace = true }   # REQUIRED for star_metadata()
+# ... other deps
 ```
 
 ## Step 2.1: Create provider.toml Manifest
@@ -604,9 +657,35 @@ For most providers, you only need:
 
 ```
 crates/vx-providers/{name}/
-├── Cargo.toml      # minimal, no custom Rust code
+├── Cargo.toml      # includes vx-starlark dependency
+├── build.rs        # watches provider.star
 ├── provider.toml   # metadata: name, description, ecosystem, license
-└── provider.star   # all logic: fetch_versions, download_url, install_layout
+├── provider.star   # all logic: fetch_versions, download_url, install_layout
+└── src/
+    └── lib.rs      # PROVIDER_STAR + star_metadata() + create_provider()
+```
+
+The `lib.rs` for a Starlark-only provider:
+
+```rust
+pub const PROVIDER_STAR: &str = include_str!("../provider.star");
+
+pub fn star_metadata() -> &'static vx_starlark::StarMetadata {
+    use std::sync::OnceLock;
+    static META: OnceLock<vx_starlark::StarMetadata> = OnceLock::new();
+    META.get_or_init(|| vx_starlark::StarMetadata::parse(PROVIDER_STAR))
+}
+
+use std::sync::Arc;
+use vx_runtime::Provider;
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    // ManifestDrivenRuntime reads from provider.star embedded above
+    Arc::new(vx_runtime::ManifestDrivenProvider::new(
+        PROVIDER_STAR,
+        include_str!("../provider.toml"),
+    ))
+}
 ```
 
 The `provider.toml` for a Starlark provider only needs metadata:

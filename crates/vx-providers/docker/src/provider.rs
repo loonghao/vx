@@ -1,25 +1,11 @@
-//! Docker provider implementation
+//! docker provider implementation
 
-use crate::runtime::DockerRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Docker provider
-#[derive(Debug)]
+/// docker provider (Starlark-driven)
+#[derive(Debug, Default)]
 pub struct DockerProvider;
-
-impl DockerProvider {
-    /// Create a new Docker provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for DockerProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl Provider for DockerProvider {
     fn name(&self) -> &str {
@@ -27,10 +13,18 @@ impl Provider for DockerProvider {
     }
 
     fn description(&self) -> &str {
-        "Provides Docker CLI support for container management"
+        "Docker container platform"
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(DockerRuntime::new())]
+        vec![Arc::new(ManifestDrivenRuntime::new(
+            "docker",
+            "docker",
+            ProviderSource::BuiltIn,
+        ))]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(DockerProvider)
 }
