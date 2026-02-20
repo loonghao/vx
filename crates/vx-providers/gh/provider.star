@@ -182,3 +182,21 @@ def environment(ctx, version, install_dir):
     return {
         "PATH": install_dir,
     }
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/gh"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/gh.exe"
+    else:
+        return "{install_dir}/gh"
+
+def post_install(ctx, version, install_dir):
+    return None

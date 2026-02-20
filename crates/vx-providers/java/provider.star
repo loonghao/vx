@@ -10,6 +10,8 @@
 #
 # Inheritance pattern: Level 1 (fully custom - uses Adoptium API, not GitHub)
 
+load("@vx//stdlib:install.star", "flatten_dir")
+
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
@@ -208,3 +210,50 @@ def environment(ctx, version, install_dir):
 def deps(ctx, version):
     """Java has no external dependencies."""
     return []
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for java."""
+    return "{vx_home}/store/java"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    exe = "java.exe" if os == "windows" else "java"
+    return "{install_dir}/bin/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed for java."""
+    return None
+
+# ---------------------------------------------------------------------------
+# post_extract — flatten JDK directory structure
+#
+# Temurin archives extract to a versioned subdirectory:
+#   jdk-21.0.1+12/bin/java  →  bin/java
+#
+# The Rust runtime's flatten_dir action moves all contents one level up
+# and removes the now-empty subdirectory.
+# ---------------------------------------------------------------------------
+
+def post_extract(ctx, version, install_dir):
+    """Flatten the JDK subdirectory into the install root.
+
+    Adoptium Temurin archives extract to a versioned top-level directory
+    (e.g. jdk-21.0.1+12/) rather than directly into the install path.
+    This hook flattens that structure so executables are at bin/java, etc.
+
+    Args:
+        ctx:         Provider context
+        version:     Installed version string
+        install_dir: Path to the installation directory
+
+    Returns:
+        List of post-extract actions
+    """
+    return [
+        flatten_dir(pattern = "jdk-*"),
+    ]

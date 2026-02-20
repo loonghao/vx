@@ -131,6 +131,28 @@ def detect_system_installation(ctx):
     return results
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for systemctl.
+
+    systemctl is a system-only tool; it is never installed by vx.
+    """
+    return "{vx_home}/store/systemctl"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for systemctl.
+
+    Always resolved from system paths on Linux.
+    """
+    return "/usr/bin/systemctl"
+
+def post_install(ctx, version, install_dir):
+    """No post-install actions needed — system-only tool."""
+    return None
+
+# ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 

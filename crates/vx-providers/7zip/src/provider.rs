@@ -1,36 +1,32 @@
-//! 7-Zip provider implementation
+//! 7zip provider implementation
 
-use crate::runtime::SevenZipRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// 7-Zip file archiver provider
-#[derive(Debug)]
+/// 7zip provider (Starlark-driven)
+#[derive(Debug, Default)]
 pub struct SevenZipProvider;
-
-impl SevenZipProvider {
-    /// Create a new 7-Zip provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for SevenZipProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl Provider for SevenZipProvider {
     fn name(&self) -> &str {
-        "7zip"
+        crate::star_metadata().name_or("7zip")
     }
 
     fn description(&self) -> &str {
-        "7-Zip file archiver with high compression ratio"
+        crate::star_metadata().description_or("7-Zip file archiver")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(SevenZipRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("7zip", "7zip", ProviderSource::BuiltIn)
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "7zip",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(SevenZipProvider)
 }

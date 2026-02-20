@@ -1,78 +1,54 @@
-//! Tests for GitHub CLI runtime
+//! gh provider tests
 
-use rstest::*;
-use vx_runtime::{Arch, Os, Platform, Runtime};
-
-use vx_provider_gh::{GitHubRuntime, GitHubUrlBuilder};
+use rstest::rstest;
+use vx_provider_gh::create_provider;
+use vx_runtime::{Provider, Runtime};
 
 #[test]
-fn test_runtime_name() {
-    let runtime = GitHubRuntime::new();
-    assert_eq!(runtime.name(), "gh");
+fn test_provider_name() {
+    let provider = create_provider();
+    assert_eq!(provider.name(), "gh");
 }
 
 #[test]
-fn test_runtime_description() {
-    let runtime = GitHubRuntime::new();
-    assert!(runtime.description().contains("GitHub CLI"));
+fn test_provider_description() {
+    let provider = create_provider();
+    assert!(!provider.description().is_empty());
 }
 
 #[test]
-fn test_runtime_aliases() {
-    let runtime = GitHubRuntime::new();
-    assert!(runtime.aliases().contains(&"github"));
-}
-
-#[test]
-fn test_runtime_ecosystem() {
-    let runtime = GitHubRuntime::new();
-    assert_eq!(format!("{:?}", runtime.ecosystem()), "System");
+fn test_provider_runtimes() {
+    let provider = create_provider();
+    let runtimes = provider.runtimes();
+    assert!(!runtimes.is_empty());
+    let names: Vec<&str> = runtimes
+        .iter()
+        .map(|r: &std::sync::Arc<dyn Runtime>| r.name())
+        .collect();
+    assert!(names.contains(&"gh"));
 }
 
 #[rstest]
-#[case(
-    "2.45.0",
-    Platform::new(Os::Windows, Arch::X86_64),
-    "https://github.com/cli/cli/releases/download/v2.45.0/gh_2.45.0_windows_amd64.zip"
-)]
-#[case(
-    "2.44.0",
-    Platform::new(Os::Linux, Arch::X86_64),
-    "https://github.com/cli/cli/releases/download/v2.44.0/gh_2.44.0_linux_amd64.tar.gz"
-)]
-#[case(
-    "2.43.0",
-    Platform::new(Os::MacOS, Arch::X86_64),
-    "https://github.com/cli/cli/releases/download/v2.43.0/gh_2.43.0_macOS_amd64.zip"
-)]
-#[case(
-    "2.42.0",
-    Platform::new(Os::MacOS, Arch::Aarch64),
-    "https://github.com/cli/cli/releases/download/v2.42.0/gh_2.42.0_macOS_arm64.zip"
-)]
-fn test_url_builder(#[case] version: &str, #[case] platform: Platform, #[case] expected_url: &str) {
-    let url = GitHubUrlBuilder::download_url(version, &platform);
-    assert_eq!(url, expected_url);
+#[case("gh", true)]
+#[case("github-cli", true)]
+#[case("github", true)]
+#[case("node", false)]
+fn test_provider_supports(#[case] name: &str, #[case] expected: bool) {
+    let provider = create_provider();
+    assert_eq!(provider.supports(name), expected);
 }
 
-#[rstest]
-#[case(Platform::new(Os::Windows, Arch::X86_64), "2.45.0", "bin/gh.exe")]
-#[case(
-    Platform::new(Os::Linux, Arch::X86_64),
-    "2.44.0",
-    "gh_2.44.0_linux_amd64/bin/gh"
-)]
-#[case(
-    Platform::new(Os::MacOS, Arch::X86_64),
-    "2.43.0",
-    "gh_2.43.0_macOS_amd64/bin/gh"
-)]
-fn test_executable_relative_path(
-    #[case] platform: Platform,
-    #[case] version: &str,
-    #[case] expected_path: &str,
-) {
-    let runtime = GitHubRuntime::new();
-    let path = runtime.executable_relative_path(version, &platform);
-    assert_eq!(path, expected_path);
+#[test]
+fn test_provider_get_runtime() {
+    let provider = create_provider();
+    assert!(provider.get_runtime("gh").is_some());
+    assert!(provider.get_runtime("github-cli").is_some());
+    assert!(provider.get_runtime("unknown").is_none());
+}
+
+#[test]
+fn test_star_metadata() {
+    let meta = vx_provider_gh::star_metadata();
+    assert!(meta.name.is_some());
+    assert!(!meta.runtimes.is_empty());
 }

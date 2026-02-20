@@ -1,44 +1,33 @@
-//! Task provider implementation
-//!
-//! Provides the Task (go-task) runner.
+//! task provider implementation
 
-use crate::runtime::TaskRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Task provider
+/// task provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct TaskProvider;
 
-impl TaskProvider {
-    /// Create a new Task provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
 impl Provider for TaskProvider {
     fn name(&self) -> &str {
-        "task"
+        crate::star_metadata().name_or("task")
     }
 
     fn description(&self) -> &str {
-        "Task - A task runner / simpler Make alternative written in Go"
+        crate::star_metadata().description_or("A task runner / simpler Make alternative")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(TaskRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("task", "task", ProviderSource::BuiltIn)
+                .with_description("A task runner / simpler Make alternative")
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "task",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
+}
 
-    fn supports(&self, name: &str) -> bool {
-        name == "task" || name == "go-task"
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if name == "task" || name == "go-task" {
-            Some(Arc::new(TaskRuntime::new()))
-        } else {
-            None
-        }
-    }
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(TaskProvider)
 }

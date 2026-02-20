@@ -411,30 +411,6 @@ async fn auto_install_package(ctx: &CommandContext, pkg_request: &PackageRequest
     Ok(())
 }
 
-/// Get the required runtime for an ecosystem (primary dependency only)
-///
-/// Note: This is kept for reference but the `get_all_required_runtimes_for_ecosystem`
-/// is now used for package installation to support packages that use multiple runtimes.
-#[allow(dead_code)]
-fn get_required_runtime_for_ecosystem(ecosystem: &str) -> Option<&'static str> {
-    match ecosystem.to_lowercase().as_str() {
-        // Node.js ecosystem requires node (which provides npm)
-        "npm" | "node" | "yarn" | "pnpm" | "bun" => Some("node"),
-        // Python ecosystem requires uv or python
-        "pip" | "python" | "pypi" => Some("uv"),
-        "uv" => None, // uv is self-contained
-        // Rust ecosystem
-        "cargo" | "rust" | "crates" => Some("cargo"),
-        // Go ecosystem
-        "go" | "golang" => Some("go"),
-        // Ruby ecosystem
-        "gem" | "ruby" | "rubygems" => Some("ruby"),
-        // Windows ecosystem (choco is self-contained when managed by vx)
-        "choco" | "chocolatey" => Some("choco"),
-        _ => None,
-    }
-}
-
 /// Get all required runtimes for an ecosystem (including optional ones)
 ///
 /// Some npm packages may use bun internally, so we install both node and bun
@@ -618,6 +594,11 @@ impl VxCli {
             self.ctx.runtime_context.clone(),
             options,
         );
+
+        // RFC-0037: Initialize ProviderHandle registry with all built-in providers.
+        // This is done once at startup so that CLI commands can use ProviderHandle
+        // for path queries, version management, and post-install operations.
+        registry::init_provider_handles().await;
 
         // Route to appropriate handler
         match &cli.command {

@@ -7,7 +7,8 @@ use std::path::PathBuf;
 use tempfile::TempDir;
 
 use vx_provider_msvc::{
-    MsvcInstallConfig, MsvcInstallInfo, MsvcInstaller, MsvcProvider, MsvcRuntime, PlatformHelper,
+    MsvcInstallConfig, MsvcInstallInfo, MsvcInstaller, MsvcRuntime, PlatformHelper,
+    create_provider, star_metadata,
 };
 use vx_runtime::{Arch, Ecosystem, Os, Platform, Provider, Runtime};
 
@@ -71,42 +72,56 @@ fn test_runtime_supported_platforms() {
 
 #[test]
 fn test_provider_name() {
-    let provider = MsvcProvider::new();
+    let provider = create_provider();
     assert_eq!(provider.name(), "msvc");
 }
 
 #[test]
 fn test_provider_description() {
-    let provider = MsvcProvider::new();
-    assert!(provider.description().contains("MSVC"));
-    assert!(provider.description().contains("Microsoft"));
-}
-
-#[test]
-fn test_provider_supports() {
-    let provider = MsvcProvider::new();
-    assert!(provider.supports("msvc"));
-    assert!(provider.supports("cl"));
-    assert!(provider.supports("nmake"));
-    assert!(!provider.supports("gcc"));
-    assert!(!provider.supports("clang"));
+    let provider = create_provider();
+    assert!(!provider.description().is_empty());
 }
 
 #[test]
 fn test_provider_runtimes() {
-    let provider = MsvcProvider::new();
+    let provider = create_provider();
     let runtimes = provider.runtimes();
-    assert_eq!(runtimes.len(), 1);
-    assert_eq!(runtimes[0].name(), "msvc");
+    assert!(!runtimes.is_empty());
+    let names: Vec<&str> = runtimes
+        .iter()
+        .map(|r: &std::sync::Arc<dyn Runtime>| r.name())
+        .collect();
+    assert!(names.contains(&"msvc"));
+    assert!(names.contains(&"nmake"));
+    assert!(names.contains(&"link"));
+}
+
+#[rstest]
+#[case("msvc", true)]
+#[case("cl", true)]
+#[case("vs-build-tools", true)]
+#[case("nmake", true)]
+#[case("link", true)]
+#[case("node", false)]
+fn test_provider_supports(#[case] name: &str, #[case] expected: bool) {
+    let provider = create_provider();
+    assert_eq!(provider.supports(name), expected);
 }
 
 #[test]
 fn test_provider_get_runtime() {
-    let provider = MsvcProvider::new();
+    let provider = create_provider();
     assert!(provider.get_runtime("msvc").is_some());
     assert!(provider.get_runtime("cl").is_some());
     assert!(provider.get_runtime("nmake").is_some());
-    assert!(provider.get_runtime("gcc").is_none());
+    assert!(provider.get_runtime("unknown").is_none());
+}
+
+#[test]
+fn test_star_metadata() {
+    let meta = star_metadata();
+    assert!(meta.name.is_some());
+    assert!(!meta.runtimes.is_empty());
 }
 
 // ============================================

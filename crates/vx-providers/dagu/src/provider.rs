@@ -1,32 +1,33 @@
+//! dagu provider implementation
+
 use std::sync::Arc;
-use vx_runtime::Provider;
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-use crate::runtime::DaguRuntime;
-
-/// Dagu Provider implementation
-#[derive(Debug, Clone, Default)]
+/// dagu provider (Starlark-driven)
+#[derive(Debug, Default)]
 pub struct DaguProvider;
-
-impl DaguProvider {
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl Provider for DaguProvider {
     fn name(&self) -> &str {
-        "dagu"
+        crate::star_metadata().name_or("dagu")
     }
 
     fn description(&self) -> &str {
-        "Dagu - self-contained workflow engine with Web UI"
+        crate::star_metadata().description_or("Dagu - A No-code workflow runner")
     }
 
-    fn runtimes(&self) -> Vec<Arc<dyn vx_runtime::Runtime>> {
-        vec![Arc::new(DaguRuntime::new())]
+    fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("dagu", "dagu", ProviderSource::BuiltIn)
+                .with_description("Dagu - A No-code workflow runner")
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "dagu",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
+}
 
-    fn supports(&self, name: &str) -> bool {
-        name == "dagu"
-    }
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(DaguProvider)
 }

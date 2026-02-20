@@ -9,6 +9,7 @@
 # Asset format: uv-{triple}.{ext}
 
 load("@vx//stdlib:github.star", "make_github_provider")
+load("@vx//stdlib:install.star", "ensure_dependencies")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -97,3 +98,49 @@ def environment(ctx, version, install_dir):
     return {
         "PATH": install_dir,
     }
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for uv."""
+    return "{vx_home}/store/uv"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    exe = "uv.exe" if os == "windows" else "uv"
+    return "{install_dir}/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install actions needed for uv."""
+    return None
+
+# ---------------------------------------------------------------------------
+# pre_run — ensure uv sync before `uv run`
+# ---------------------------------------------------------------------------
+
+def pre_run(ctx, args, executable):
+    """Ensure project dependencies are synced before running uv commands.
+
+    For `uv run` commands, checks if pyproject.toml exists and .venv does not,
+    then runs `uv sync` to install project dependencies.
+
+    Args:
+        ctx:        Provider context
+        args:       Command-line arguments passed to uv
+        executable: Path to the uv executable
+
+    Returns:
+        List of pre-run actions
+    """
+    if len(args) > 0 and args[0] == "run":
+        return [
+            ensure_dependencies(
+                "uv",
+                check_file  = "pyproject.toml",
+                install_dir = ".venv",
+            ),
+        ]
+    return []

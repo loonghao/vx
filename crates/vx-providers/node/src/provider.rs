@@ -1,40 +1,49 @@
-//! Node.js provider implementation
-//!
-//! This module provides the NodeProvider which bundles Node.js, NPM, and NPX runtimes.
+//! node provider implementation
 
-use crate::runtime::{NodeRuntime, NpmRuntime, NpxRuntime};
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Node.js provider that bundles Node.js runtime and package management tools
-///
-/// This provider includes:
-/// - `node` - Node.js JavaScript runtime
-/// - `npm` - Node Package Manager
-/// - `npx` - Node Package Runner
+/// node provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct NodeProvider;
 
-impl NodeProvider {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
 impl Provider for NodeProvider {
     fn name(&self) -> &str {
-        "node"
+        crate::star_metadata().name_or("node")
     }
 
     fn description(&self) -> &str {
-        "Node.js JavaScript runtime and package management tools"
+        crate::star_metadata().description_or("Node.js JavaScript runtime")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
         vec![
-            Arc::new(NodeRuntime::new()),
-            Arc::new(NpmRuntime::new()),
-            Arc::new(NpxRuntime::new()),
+            Arc::new(
+                ManifestDrivenRuntime::new("node", "node", ProviderSource::BuiltIn)
+                    .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                        "node",
+                        crate::PROVIDER_STAR,
+                    )),
+            ),
+            Arc::new(ManifestDrivenRuntime::new(
+                "npm",
+                "npm",
+                ProviderSource::BuiltIn,
+            )),
+            Arc::new(ManifestDrivenRuntime::new(
+                "npx",
+                "npx",
+                ProviderSource::BuiltIn,
+            )),
+            Arc::new(ManifestDrivenRuntime::new(
+                "corepack",
+                "corepack",
+                ProviderSource::BuiltIn,
+            )),
         ]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(NodeProvider)
 }

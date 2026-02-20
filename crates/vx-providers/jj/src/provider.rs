@@ -1,49 +1,30 @@
-//! Jujutsu (jj) provider implementation
-//!
-//! Provides the jj Git-compatible DVCS tool.
+//! jj provider implementation
 
-use crate::runtime::JjRuntime;
 use std::sync::Arc;
-use vx_runtime::{Runtime, provider::Provider};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// jj provider
+/// jj provider (Starlark-driven)
 #[derive(Debug, Default)]
-pub struct JjProvider;
+pub struct JujutsuProvider;
 
-impl JjProvider {
-    /// Create a new jj provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Provider for JjProvider {
+impl Provider for JujutsuProvider {
     fn name(&self) -> &str {
-        "jj"
+        crate::star_metadata().name_or("jj")
     }
 
     fn description(&self) -> &str {
-        "Jujutsu (jj) - A Git-compatible DVCS that is both simple and powerful"
+        crate::star_metadata().description_or("Jujutsu - a Git-compatible DVCS")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(JjRuntime::new())]
-    }
-
-    fn supports(&self, name: &str) -> bool {
-        name == "jj"
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if name == "jj" {
-            Some(Arc::new(JjRuntime::new()))
-        } else {
-            None
-        }
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("jj", "jj", ProviderSource::BuiltIn).with_fetch_versions(
+                vx_starlark::make_fetch_versions_fn("jj", crate::PROVIDER_STAR),
+            ),
+        )]
     }
 }
 
-/// Create the jj provider
 pub fn create_provider() -> Arc<dyn Provider> {
-    Arc::new(JjProvider::new())
+    Arc::new(JujutsuProvider)
 }

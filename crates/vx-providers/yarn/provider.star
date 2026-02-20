@@ -10,6 +10,7 @@
 # Asset format: yarn-v{version}.tar.gz
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:install.star", "ensure_dependencies")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -125,3 +126,49 @@ def environment(ctx, version, install_dir):
     return {
         "PATH": install_dir + "/bin",
     }
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for yarn."""
+    return "{vx_home}/store/yarn"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    exe = "yarn.cmd" if os == "windows" else "yarn"
+    return "{install_dir}/bin/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install actions needed for yarn."""
+    return None
+
+# ---------------------------------------------------------------------------
+# pre_run — ensure node_modules before `yarn run`
+# ---------------------------------------------------------------------------
+
+def pre_run(ctx, args, executable):
+    """Ensure project dependencies are installed before running yarn scripts.
+
+    For `yarn run` commands, checks if node_modules exists and runs
+    `yarn install` if not.
+
+    Args:
+        ctx:        Provider context
+        args:       Command-line arguments passed to yarn
+        executable: Path to the yarn executable
+
+    Returns:
+        List of pre-run actions
+    """
+    if len(args) > 0 and args[0] == "run":
+        return [
+            ensure_dependencies(
+                "yarn",
+                check_file  = "package.json",
+                install_dir = "node_modules",
+            ),
+        ]
+    return []

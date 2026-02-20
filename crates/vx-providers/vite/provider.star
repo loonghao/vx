@@ -90,6 +90,27 @@ def download_url(ctx, version):
     return None
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for vite.
+
+    vite is an npm package alias; it is not directly installed by vx.
+    """
+    return "{vx_home}/store/vite"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for vite (resolved via npx)."""
+    os = ctx["platform"]["os"]
+    exe = "vite.cmd" if os == "windows" else "vite"
+    return "{install_dir}/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install actions needed — npm package alias."""
+    return None
+
+# ---------------------------------------------------------------------------
 # deps — requires node (with version constraints per vite version)
 # ---------------------------------------------------------------------------
 

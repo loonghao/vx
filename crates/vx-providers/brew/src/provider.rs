@@ -23,11 +23,12 @@ impl Default for BrewProvider {
 
 impl Provider for BrewProvider {
     fn name(&self) -> &str {
-        "brew"
+        // Sourced from provider.star: `def name(): return "brew"`
+        crate::star_metadata().name_or("brew")
     }
 
     fn description(&self) -> &str {
-        "Provides Homebrew package manager support for macOS and Linux"
+        crate::star_metadata().description_or("brew")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {

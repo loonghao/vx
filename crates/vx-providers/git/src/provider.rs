@@ -1,32 +1,30 @@
-//! Git provider implementation.
+//! git provider implementation
 
 use std::sync::Arc;
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-use vx_runtime::{Provider, Runtime};
-
-use crate::runtime::GitRuntime;
-
-/// Git provider for vx.
+/// git provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct GitProvider;
 
-impl GitProvider {
-    /// Create a new Git provider instance.
-    pub fn new() -> Self {
-        Self
-    }
-}
-
 impl Provider for GitProvider {
     fn name(&self) -> &str {
-        "git"
+        crate::star_metadata().name_or("git")
     }
 
     fn description(&self) -> &str {
-        "Git version control system support for vx"
+        crate::star_metadata().description_or("Git - distributed version control system")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(GitRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("git", "git", ProviderSource::BuiltIn).with_fetch_versions(
+                vx_starlark::make_fetch_versions_fn("git", crate::PROVIDER_STAR),
+            ),
+        )]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(GitProvider)
 }

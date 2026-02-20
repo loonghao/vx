@@ -1,44 +1,31 @@
 //! jq provider implementation
 
-use crate::runtime::JqRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// jq provider
-///
-/// Provides the jq JSON processor runtime.
-#[derive(Debug, Clone, Default)]
+/// jq provider (Starlark-driven)
+#[derive(Debug, Default)]
 pub struct JqProvider;
-
-impl JqProvider {
-    /// Create a new jq provider
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl Provider for JqProvider {
     fn name(&self) -> &str {
-        "jq"
+        crate::star_metadata().name_or("jq")
     }
 
     fn description(&self) -> &str {
-        "Lightweight and flexible command-line JSON processor"
+        crate::star_metadata()
+            .description_or("A lightweight and flexible command-line JSON processor")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(JqRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("jq", "jq", ProviderSource::BuiltIn).with_fetch_versions(
+                vx_starlark::make_fetch_versions_fn("jq", crate::PROVIDER_STAR),
+            ),
+        )]
     }
+}
 
-    fn supports(&self, name: &str) -> bool {
-        name == "jq"
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if name == "jq" {
-            Some(Arc::new(JqRuntime::new()))
-        } else {
-            None
-        }
-    }
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(JqProvider)
 }

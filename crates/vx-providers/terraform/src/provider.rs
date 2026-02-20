@@ -1,36 +1,32 @@
-//! Terraform provider implementation
+//! terraform provider implementation
 
-use crate::runtime::TerraformRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Terraform provider
-#[derive(Debug)]
+/// terraform provider (Starlark-driven)
+#[derive(Debug, Default)]
 pub struct TerraformProvider;
-
-impl TerraformProvider {
-    /// Create a new Terraform provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for TerraformProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl Provider for TerraformProvider {
     fn name(&self) -> &str {
-        "terraform"
+        crate::star_metadata().name_or("terraform")
     }
 
     fn description(&self) -> &str {
-        "Provides Terraform infrastructure as code tool support"
+        crate::star_metadata().description_or("HashiCorp Terraform - Infrastructure as Code")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(TerraformRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("terraform", "terraform", ProviderSource::BuiltIn)
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "terraform",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(TerraformProvider)
 }

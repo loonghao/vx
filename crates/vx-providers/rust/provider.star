@@ -9,6 +9,7 @@
 # Inheritance pattern: Level 2 (custom download_url for rustup binary)
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:install.star", "set_permissions", "run_command")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -167,9 +168,80 @@ def environment(ctx, version, install_dir):
     }
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for rust."""
+    return "{vx_home}/store/rust"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for rustup (the primary runtime)."""
+    os = ctx["platform"]["os"]
+    exe = "rustup.exe" if os == "windows" else "rustup"
+    return "{install_dir}/cargo/bin/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed; rustup-init handles toolchain setup."""
+    return None
+
+# ---------------------------------------------------------------------------
 # deps
 # ---------------------------------------------------------------------------
 
 def deps(ctx, version):
     """rustup has no external dependencies."""
     return []
+
+# ---------------------------------------------------------------------------
+# post_extract — make rustup-init executable, then run it to install toolchain
+#
+# rustup-init is a self-contained installer binary. After download we need to:
+#   1. Set executable permissions (Unix only)
+#   2. Run it with -y --no-modify-path to install the stable toolchain
+#
+# The Rust runtime's run_command descriptor handles the actual execution.
+# RUSTUP_HOME and CARGO_HOME are set to subdirs of install_dir so the
+# toolchain is fully self-contained under vx's managed directory.
+# ---------------------------------------------------------------------------
+
+def post_extract(ctx, version, install_dir):
+    """Set permissions and run rustup-init to install the Rust toolchain.
+
+    Args:
+        ctx:         Provider context
+        version:     Installed rustup version string
+        install_dir: Path to the installation directory
+
+    Returns:
+        List of post-extract actions
+    """
+    os = ctx["platform"]["os"]
+    actions = []
+
+    if os != "windows":
+        # Make rustup-init executable on Unix
+        actions.append(set_permissions("rustup-init", "755"))
+
+    # Determine the init binary name
+    init_bin = "rustup-init.exe" if os == "windows" else "rustup-init"
+
+    # Run rustup-init to install the stable toolchain
+    # -y                  : non-interactive
+    # --no-modify-path    : don't touch shell profiles
+    # --default-toolchain : install stable
+    actions.append(run_command(
+        install_dir + "/" + init_bin,
+        args = [
+            "-y",
+            "--no-modify-path",
+            "--default-toolchain", "stable",
+        ],
+        env = {
+            "RUSTUP_HOME": install_dir + "/rustup",
+            "CARGO_HOME":  install_dir + "/cargo",
+        },
+        on_failure = "error",
+    ))
+
+    return actions

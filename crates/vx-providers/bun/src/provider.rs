@@ -1,36 +1,41 @@
-//! Bun provider implementation
+//! bun provider implementation
 
-use crate::runtime::{BunRuntime, BunxRuntime};
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Bun provider
-#[derive(Debug)]
+/// bun provider (Starlark-driven)
+#[derive(Debug, Default)]
 pub struct BunProvider;
-
-impl BunProvider {
-    /// Create a new Bun provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for BunProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl Provider for BunProvider {
     fn name(&self) -> &str {
-        "bun"
+        crate::star_metadata().name_or("bun")
     }
 
     fn description(&self) -> &str {
-        "Provides Bun JavaScript runtime support"
+        crate::star_metadata().description_or(
+            "Incredibly fast JavaScript runtime, bundler, test runner, and package manager",
+        )
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(BunRuntime::new()), Arc::new(BunxRuntime::new())]
+        vec![
+            Arc::new(
+                ManifestDrivenRuntime::new("bun", "bun", ProviderSource::BuiltIn)
+                    .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                        "bun",
+                        crate::PROVIDER_STAR,
+                    )),
+            ),
+            Arc::new(ManifestDrivenRuntime::new(
+                "bunx",
+                "bunx",
+                ProviderSource::BuiltIn,
+            )),
+        ]
     }
+}
+
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(BunProvider)
 }

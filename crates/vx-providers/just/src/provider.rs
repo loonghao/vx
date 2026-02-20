@@ -1,49 +1,32 @@
-//! Just provider implementation
-//!
-//! Provides the Just command runner.
+//! just provider implementation
 
-use crate::runtime::JustRuntime;
 use std::sync::Arc;
-use vx_runtime::{Runtime, provider::Provider};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Just provider
+/// just provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct JustProvider;
 
-impl JustProvider {
-    /// Create a new Just provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
 impl Provider for JustProvider {
     fn name(&self) -> &str {
-        "just"
+        crate::star_metadata().name_or("just")
     }
 
     fn description(&self) -> &str {
-        "Just - A handy way to save and run project-specific commands"
+        crate::star_metadata().description_or("just")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(JustRuntime::new())]
-    }
-
-    fn supports(&self, name: &str) -> bool {
-        name == "just"
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if name == "just" {
-            Some(Arc::new(JustRuntime::new()))
-        } else {
-            None
-        }
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("just", "just", ProviderSource::BuiltIn)
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "just",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
 }
 
-/// Create the Just provider
 pub fn create_provider() -> Arc<dyn Provider> {
-    Arc::new(JustProvider::new())
+    Arc::new(JustProvider)
 }

@@ -154,6 +154,24 @@ def environment(ctx, version, install_dir):
     }
 
 # ---------------------------------------------------------------------------
+# Path queries (RFC-0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for protoc."""
+    return "{vx_home}/store/protoc"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    exe = "bin/protoc.exe" if os == "windows" else "bin/protoc"
+    return "{install_dir}/" + exe
+
+def post_install(ctx, version, install_dir):
+    """No post-install steps needed for protoc."""
+    return None
+
+# ---------------------------------------------------------------------------
 # constraints
 # ---------------------------------------------------------------------------
 

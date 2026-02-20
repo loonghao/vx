@@ -1,44 +1,32 @@
-//! .NET SDK provider implementation
-//!
-//! Provides the .NET SDK runtime for C# and F# development.
+//! dotnet provider implementation
 
-use crate::runtime::DotnetRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// .NET SDK provider
+/// dotnet provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct DotnetProvider;
 
-impl DotnetProvider {
-    /// Create a new .NET SDK provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
 impl Provider for DotnetProvider {
     fn name(&self) -> &str {
-        "dotnet"
+        crate::star_metadata().name_or("dotnet")
     }
 
     fn description(&self) -> &str {
-        ".NET SDK - Free, cross-platform, open-source developer platform for C#, F#, and VB.NET"
+        crate::star_metadata().description_or(".NET SDK and runtime")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(DotnetRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("dotnet", "dotnet", ProviderSource::BuiltIn)
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "dotnet",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
+}
 
-    fn supports(&self, name: &str) -> bool {
-        matches!(name, "dotnet" | "dotnet-sdk")
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if self.supports(name) {
-            Some(Arc::new(DotnetRuntime::new()))
-        } else {
-            None
-        }
-    }
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(DotnetProvider)
 }

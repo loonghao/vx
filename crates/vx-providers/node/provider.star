@@ -6,6 +6,12 @@
 # Inheritance pattern: Level 1 (fully custom - uses nodejs.org API, not GitHub)
 #
 # Node.js releases: https://nodejs.org/en/download/releases
+#
+# Hooks:
+#   post_extract: ensure npm/npx/node/corepack have 755 permissions on Unix
+#   pre_run:      ensure node_modules installed before `npm run` / `npm run-script`
+
+load("@vx//stdlib:install.star", "set_permissions", "ensure_dependencies")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -192,9 +198,103 @@ def environment(ctx, version, install_dir):
         return {"PATH": install_dir + "/bin"}
 
 # ---------------------------------------------------------------------------
+# store_root — vx-managed install directory
+# ---------------------------------------------------------------------------
+
+def store_root(ctx, version):
+    """Return the vx store root for this Node.js version."""
+    return ctx["paths"]["store_dir"] + "/node/" + version
+
+# ---------------------------------------------------------------------------
+# get_execute_path — resolve node executable
+# ---------------------------------------------------------------------------
+
+def get_execute_path(ctx, version, install_dir):
+    """Return the path to the node executable."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return install_dir + "/node.exe"
+    else:
+        return install_dir + "/bin/node"
+
+# ---------------------------------------------------------------------------
+# post_install — set permissions on Unix
+# ---------------------------------------------------------------------------
+
+def post_install(ctx, version, install_dir):
+    """Set execute permissions on bundled tools on Unix."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return []
+    bundled = ["node", "npm", "npx", "corepack"]
+    return [
+        {"type": "set_permissions", "path": install_dir + "/bin/" + t, "mode": "755"}
+        for t in bundled
+    ]
+
+# ---------------------------------------------------------------------------
 # deps — explicit dependency declarations (Buck2 style)
 # ---------------------------------------------------------------------------
 
 def deps(ctx, version):
     """Node.js has no external dependencies."""
+    return []
+
+# ---------------------------------------------------------------------------
+# post_extract — ensure bundled tools have correct permissions on Unix
+#
+# On Unix, npm/npx/node/corepack are shell scripts that need execute
+# permissions (0o755). The tar extraction should preserve these, but in
+# some environments (Docker, CI) the permissions may be lost.
+# ---------------------------------------------------------------------------
+
+def post_extract(ctx, version, install_dir):
+    """Ensure bundled Node.js tools have execute permissions on Unix.
+
+    Args:
+        ctx:         Provider context
+        version:     Installed version string
+        install_dir: Path to the installation directory
+
+    Returns:
+        List of post-extract actions (empty on Windows)
+    """
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        # Windows uses .cmd wrappers, no chmod needed
+        return []
+
+    # Unix: executables live in bin/
+    bundled_tools = ["node", "npm", "npx", "corepack"]
+    return [
+        set_permissions("bin/{}".format(tool), "755")
+        for tool in bundled_tools
+    ]
+
+# ---------------------------------------------------------------------------
+# pre_run — ensure node_modules before `npm run` / `npm run-script`
+# ---------------------------------------------------------------------------
+
+def pre_run(ctx, args, executable):
+    """Ensure project dependencies are installed before running npm scripts.
+
+    For `npm run` and `npm run-script` commands, checks if node_modules
+    exists and runs `npm install` if not.
+
+    Args:
+        ctx:        Provider context
+        args:       Command-line arguments passed to npm
+        executable: Path to the npm executable
+
+    Returns:
+        List of pre-run actions
+    """
+    if len(args) > 0 and (args[0] == "run" or args[0] == "run-script"):
+        return [
+            ensure_dependencies(
+                "npm",
+                check_file  = "package.json",
+                install_dir = "node_modules",
+            ),
+        ]
     return []

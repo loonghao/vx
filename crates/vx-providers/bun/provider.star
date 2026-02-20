@@ -9,6 +9,7 @@
 # Asset format: bun-{os}-{arch}.zip
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:install.star", "create_shim", "ensure_dependencies")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -140,3 +141,97 @@ def environment(ctx, version, install_dir):
     return {
         "PATH": install_dir,
     }
+
+# ---------------------------------------------------------------------------
+# post_extract — create bunx shim after installation
+#
+# bun's official distribution does NOT include a standalone `bunx` executable.
+# We create a shim script that forwards `bunx <args>` → `bun x <args>`.
+# ---------------------------------------------------------------------------
+
+def post_extract(ctx, version, install_dir):
+    """Create the bunx shim after bun is extracted.
+
+    bun's zip archive only contains the `bun` executable. We need to create
+    a `bunx` shim that wraps `bun x` so that subprocess calls to `bunx` work.
+
+    Args:
+        ctx:         Provider context
+        version:     Installed version string
+        install_dir: Path to the installation directory
+
+    Returns:
+        List of post-extract actions
+    """
+    return [
+        create_shim("bunx", "bun", args = ["x"]),
+    ]
+
+# ---------------------------------------------------------------------------
+# pre_run — ensure node_modules before `bun run`
+# ---------------------------------------------------------------------------
+
+def pre_run(ctx, args, executable):
+    """Ensure project dependencies are installed before running bun commands.
+
+    For `bun run` commands, checks if node_modules exists and runs
+    `bun install` if not. This mirrors the behavior of the Rust runtime's
+    `ensure_node_modules_installed()` helper.
+
+    Args:
+        ctx:        Provider context
+        args:       Command-line arguments passed to bun
+        executable: Path to the bun executable
+
+    Returns:
+        List of pre-run actions
+    """
+    # Only trigger for `bun run` commands
+    if len(args) > 0 and args[0] == "run":
+        return [
+            ensure_dependencies(
+                "bun",
+                check_file  = "package.json",
+                lock_file   = "bun.lockb",
+                install_dir = "node_modules",
+            ),
+        ]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for bun."""
+    return "{vx_home}/store/bun"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/bun.exe"
+    else:
+        return "{install_dir}/bun"
+
+def post_install(ctx, version, install_dir):
+    """Post-install hook (no-op for bun)."""
+    return None
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/bun"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/bun.exe"
+    else:
+        return "{install_dir}/bun"
+
+def post_install(ctx, version, install_dir):
+    return None

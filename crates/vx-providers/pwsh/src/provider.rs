@@ -1,53 +1,33 @@
-//! PowerShell provider implementation
-//!
-//! This provider manages PowerShell 7+ (pwsh) installation and execution.
+//! pwsh provider implementation
 
-use crate::runtime::PwshRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// PowerShell provider
-///
-/// Provides the PowerShell 7+ runtime.
-#[derive(Debug, Clone, Default)]
+/// pwsh provider (Starlark-driven)
+#[derive(Debug, Default)]
 pub struct PwshProvider;
-
-impl PwshProvider {
-    /// Create a new PowerShell provider
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl Provider for PwshProvider {
     fn name(&self) -> &str {
-        "pwsh"
+        crate::star_metadata().name_or("pwsh")
     }
 
     fn description(&self) -> &str {
-        "PowerShell - Cross-platform shell and scripting language"
+        crate::star_metadata()
+            .description_or("Cross-platform command-line shell and scripting language")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(PwshRuntime::new())]
-    }
-
-    fn supports(&self, name: &str) -> bool {
-        name == "pwsh" || name == "powershell" || name == "ps"
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if self.supports(name) {
-            Some(Arc::new(PwshRuntime::new()))
-        } else {
-            None
-        }
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("pwsh", "pwsh", ProviderSource::BuiltIn)
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "pwsh",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
 }
 
-/// Create a new PowerShell provider instance
-///
-/// This is the main entry point for the provider, used by the registry.
 pub fn create_provider() -> Arc<dyn Provider> {
-    Arc::new(PwshProvider::new())
+    Arc::new(PwshProvider)
 }

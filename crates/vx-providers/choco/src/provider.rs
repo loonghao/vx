@@ -23,11 +23,12 @@ impl Default for ChocoProvider {
 
 impl Provider for ChocoProvider {
     fn name(&self) -> &str {
-        "choco"
+        // Sourced from provider.star: `def name(): return "choco"`
+        crate::star_metadata().name_or("choco")
     }
 
     fn description(&self) -> &str {
-        "Provides Chocolatey package manager support for Windows"
+        crate::star_metadata().description_or("choco")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {

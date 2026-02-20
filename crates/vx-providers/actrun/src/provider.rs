@@ -1,49 +1,33 @@
-//! Actrun provider implementation
-//!
-//! Provides the Actrun CLI runner from Actionforge.
+//! actrun provider implementation
 
-use crate::runtime::ActrunRuntime;
 use std::sync::Arc;
-use vx_runtime::{Runtime, provider::Provider};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// Actrun provider
+/// actrun provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct ActrunProvider;
 
-impl ActrunProvider {
-    /// Create a new Actrun provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
 impl Provider for ActrunProvider {
     fn name(&self) -> &str {
-        "actrun"
+        crate::star_metadata().name_or("actrun")
     }
 
     fn description(&self) -> &str {
-        "Actrun - The runner executable of Actionforge"
+        crate::star_metadata().description_or("Run GitHub Actions locally")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(ActrunRuntime::new())]
-    }
-
-    fn supports(&self, name: &str) -> bool {
-        name == "actrun"
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if name == "actrun" {
-            Some(Arc::new(ActrunRuntime::new()))
-        } else {
-            None
-        }
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("actrun", "actrun", ProviderSource::BuiltIn)
+                .with_description("Run GitHub Actions locally")
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "actrun",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
 }
 
-/// Create the Actrun provider
 pub fn create_provider() -> Arc<dyn Provider> {
-    Arc::new(ActrunProvider::new())
+    Arc::new(ActrunProvider)
 }

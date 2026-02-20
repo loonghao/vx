@@ -23,11 +23,12 @@ impl Default for WingetProvider {
 
 impl Provider for WingetProvider {
     fn name(&self) -> &str {
-        "winget"
+        // Sourced from provider.star: `def name(): return "winget"`
+        crate::star_metadata().name_or("winget")
     }
 
     fn description(&self) -> &str {
-        "Provides Windows Package Manager (winget) support"
+        crate::star_metadata().description_or("winget")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {

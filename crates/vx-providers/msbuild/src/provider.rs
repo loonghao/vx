@@ -22,11 +22,12 @@ impl MsbuildProvider {
 
 impl Provider for MsbuildProvider {
     fn name(&self) -> &str {
-        "msbuild"
+        // Sourced from provider.star: `def name(): return "msbuild"`
+        crate::star_metadata().name_or("msbuild")
     }
 
     fn description(&self) -> &str {
-        "Microsoft Build Engine - bundled with .NET SDK"
+        crate::star_metadata().description_or("msbuild")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {

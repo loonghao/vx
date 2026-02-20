@@ -1,44 +1,22 @@
-//! prek Provider for vx
-//!
-//! This provider adds support for prek - a better `pre-commit` framework,
-//! re-engineered in Rust. Single binary, fully compatible with pre-commit
-//! configuration, faster and lighter.
-//!
-//! ## Features
-//!
-//! - Version management via GitHub releases
-//! - Cross-platform support (Windows, macOS, Linux)
-//! - Automatic installation and verification
-//! - Drop-in replacement for pre-commit
-//! - Native monorepo support
-//!
-//! ## Usage with vx
-//!
-//! ```bash
-//! # Install prek
-//! vx install prek
-//!
-//! # Install git hooks
-//! vx prek install
-//!
-//! # Run all hooks
-//! vx prek run --all-files
-//!
-//! # Auto-update hooks
-//! vx prek auto-update
-//! ```
+//! prek provider for vx
 
-use std::sync::Arc;
+mod provider;
 
-pub mod config;
-pub mod provider;
-pub mod runtime;
+pub use provider::create_provider;
 
-pub use config::PrekUrlBuilder;
-pub use provider::PrekProvider;
-pub use runtime::PrekRuntime;
+/// The raw content of `provider.star`, embedded at compile time.
+///
+/// This is the single source of truth for provider metadata (name, description,
+/// aliases, platform constraints, etc.).  The `build.rs` script ensures Cargo
+/// re-compiles this crate whenever `provider.star` changes.
+pub const PROVIDER_STAR: &str = include_str!("../provider.star");
 
-/// Factory function to create the prek provider
-pub fn create_provider() -> Arc<dyn vx_runtime::Provider> {
-    Arc::new(provider::PrekProvider::new())
+/// Lazily-parsed metadata from `provider.star`.
+///
+/// Use this to access provider/runtime metadata without spinning up the full
+/// Starlark engine.  The metadata is parsed once on first access.
+pub fn star_metadata() -> &'static vx_starlark::StarMetadata {
+    use std::sync::OnceLock;
+    static META: OnceLock<vx_starlark::StarMetadata> = OnceLock::new();
+    META.get_or_init(|| vx_starlark::StarMetadata::parse(PROVIDER_STAR))
 }

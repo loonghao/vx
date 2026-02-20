@@ -1,44 +1,32 @@
 //! rcedit provider implementation
-//!
-//! Provides the rcedit Windows resource editor tool.
 
-use crate::runtime::RceditRuntime;
 use std::sync::Arc;
-use vx_runtime::{Provider, Runtime};
+use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
 
-/// rcedit provider
+/// rcedit provider (Starlark-driven)
 #[derive(Debug, Default)]
 pub struct RceditProvider;
 
-impl RceditProvider {
-    /// Create a new rcedit provider
-    pub fn new() -> Self {
-        Self
-    }
-}
-
 impl Provider for RceditProvider {
     fn name(&self) -> &str {
-        "rcedit"
+        crate::star_metadata().name_or("rcedit")
     }
 
     fn description(&self) -> &str {
-        "rcedit - Command-line tool to edit resources of Windows executables"
+        crate::star_metadata().description_or("Edit resources of exe files on Windows")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(RceditRuntime::new())]
+        vec![Arc::new(
+            ManifestDrivenRuntime::new("rcedit", "rcedit", ProviderSource::BuiltIn)
+                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
+                    "rcedit",
+                    crate::PROVIDER_STAR,
+                )),
+        )]
     }
+}
 
-    fn supports(&self, name: &str) -> bool {
-        name == "rcedit"
-    }
-
-    fn get_runtime(&self, name: &str) -> Option<Arc<dyn Runtime>> {
-        if name == "rcedit" {
-            Some(Arc::new(RceditRuntime::new()))
-        } else {
-            None
-        }
-    }
+pub fn create_provider() -> Arc<dyn Provider> {
+    Arc::new(RceditProvider)
 }

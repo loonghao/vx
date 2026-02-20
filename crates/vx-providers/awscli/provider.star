@@ -8,6 +8,7 @@
 # Inheritance pattern: Level 2 (custom download_url + system_install)
 
 load("@vx//stdlib:github.star", "make_fetch_versions")
+load("@vx//stdlib:install.star", "set_permissions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -136,8 +137,74 @@ def system_install(ctx):
     return {}
 
 # ---------------------------------------------------------------------------
+# post_extract — set executable permissions on Linux
+#
+# AWS CLI Linux zip extracts to dist/aws (no .exe extension).
+# The binary needs +x permissions on Linux/macOS.
+# ---------------------------------------------------------------------------
+
+def post_extract(ctx, version, install_dir):
+    """Set executable permissions on the AWS CLI binary after extraction.
+
+    The AWS CLI Linux zip places the main executable at dist/aws.
+    On Linux/macOS we need to ensure it has execute permissions.
+
+    Args:
+        ctx:         Provider context
+        version:     Installed version string
+        install_dir: Path to the installation directory
+
+    Returns:
+        List of post-extract actions
+    """
+    os = ctx["platform"]["os"]
+    if os == "linux" or os == "macos":
+        return [
+            set_permissions("dist/aws", "755"),
+        ]
+    return []
+
+# ---------------------------------------------------------------------------
 # deps
 # ---------------------------------------------------------------------------
 
 def deps(ctx, version):
     return []
+
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    """Return the vx store root directory for awscli."""
+    return "{vx_home}/store/awscli"
+
+def get_execute_path(ctx, version):
+    """Return the executable path for the given version."""
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/aws.exe"
+    else:
+        return "{install_dir}/aws"
+
+def post_install(ctx, version, install_dir):
+    """Post-install hook (no-op for awscli)."""
+    return None
+
+# ---------------------------------------------------------------------------
+# Path queries (RFC 0037)
+# ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return "{vx_home}/store/awscli"
+
+def get_execute_path(ctx, version):
+    os = ctx["platform"]["os"]
+    if os == "windows":
+        return "{install_dir}/aws.exe"
+    else:
+        return "{install_dir}/aws"
+
+def post_install(ctx, version, install_dir):
+    return None

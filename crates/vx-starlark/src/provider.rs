@@ -54,6 +54,124 @@ pub enum InstallLayout {
         /// Unix file permissions (e.g. "755")
         permissions: String,
     },
+    /// System tool finder (for prepare_execution)
+    ///
+    /// Instructs the Rust runtime to search for an already-installed system tool
+    /// via PATH lookup and optional known system paths, before falling back to
+    /// the vx-managed installation.
+    ///
+    /// This is the Starlark equivalent of `prepare_execution()` in Rust runtimes.
+    /// Follows the same descriptor pattern as Buck2's `ctx.actions.run()`:
+    /// Starlark declares *what to find*, Rust performs the actual search.
+    SystemFind {
+        /// Executable name to search for (e.g. "7z", "git")
+        executable: String,
+        /// Additional absolute paths to check after PATH lookup
+        system_paths: Vec<String>,
+        /// Human-readable hint shown when the tool is not found
+        hint: Option<String>,
+    },
+}
+
+/// Actions returned by `post_extract()` hook in Starlark provider scripts
+///
+/// The `post_extract()` function returns a list of these action descriptors.
+/// The Rust runtime executes them in order after archive extraction.
+///
+/// Equivalent to the `post_extract()` method in Rust `Runtime` trait.
+#[derive(Debug, Clone)]
+pub enum PostExtractAction {
+    /// Create a shim script that wraps another executable
+    ///
+    /// Starlark: `create_shim("bunx", "bun", args=["x"])`
+    CreateShim {
+        /// Name of the shim to create (e.g. "bunx")
+        name: String,
+        /// Target executable the shim wraps (e.g. "bun")
+        target: String,
+        /// Arguments to prepend when the shim is invoked
+        args: Vec<String>,
+        /// Optional directory where the shim is created
+        shim_dir: Option<String>,
+    },
+    /// Set Unix file permissions on an extracted file
+    ///
+    /// Starlark: `set_permissions("bin/mytool", "755")`
+    SetPermissions {
+        /// Relative path to the file within the install directory
+        path: String,
+        /// Unix permission mode string (e.g. "755")
+        mode: String,
+    },
+    /// Run an arbitrary command as part of the post-extract hook
+    ///
+    /// Starlark: `run_command("install_name_tool", ["-add_rpath", "..."])`
+    RunCommand {
+        /// The executable to run
+        executable: String,
+        /// Arguments to pass to the executable
+        args: Vec<String>,
+        /// Optional working directory
+        working_dir: Option<String>,
+        /// Optional environment variables
+        env: std::collections::HashMap<String, String>,
+        /// How to handle command failure: "warn", "error", "ignore"
+        on_failure: String,
+    },
+    /// Flatten a nested subdirectory into the install root
+    ///
+    /// Starlark: `flatten_dir(pattern = "jdk-*")`
+    ///
+    /// Many archives extract to a single top-level subdirectory
+    /// (e.g. `jdk-21.0.1+12/`, `ffmpeg-7.1-essentials_build/`).
+    /// This action moves all contents one level up and removes the
+    /// now-empty subdirectory.
+    FlattenDir {
+        /// Optional glob pattern to match the subdirectory name (e.g. "jdk-*").
+        /// If None, flattens the single subdirectory if exactly one exists.
+        pattern: Option<String>,
+        /// Optional list of subdirectory names to keep in place rather than
+        /// flattening (e.g. ["bin", "lib"]).
+        keep_subdirs: Vec<String>,
+    },
+}
+
+/// Actions returned by `pre_run()` hook in Starlark provider scripts
+///
+/// The `pre_run()` function returns a list of these action descriptors.
+/// The Rust runtime executes them in order before running the tool.
+///
+/// Equivalent to the `pre_run()` method in Rust `Runtime` trait.
+#[derive(Debug, Clone)]
+pub enum PreRunAction {
+    /// Ensure project dependencies are installed before running
+    ///
+    /// Starlark: `ensure_dependencies("bun")`
+    EnsureDependencies {
+        /// The package manager executable to run (e.g. "bun", "npm")
+        package_manager: String,
+        /// File that must exist for this check to apply (e.g. "package.json")
+        check_file: String,
+        /// Optional lock file to check
+        lock_file: Option<String>,
+        /// Directory to check for existence (e.g. "node_modules")
+        install_dir: String,
+    },
+    /// Run an arbitrary command before the tool executes
+    ///
+    /// Starlark: `run_command("git", ["submodule", "update"])`
+    RunCommand {
+        /// The executable to run
+        executable: String,
+        /// Arguments to pass to the executable
+        args: Vec<String>,
+        /// Optional working directory
+        working_dir: Option<String>,
+        /// Optional environment variables
+        env: std::collections::HashMap<String, String>,
+        /// How to handle command failure: "warn", "error", "ignore"
+        on_failure: String,
+    },
 }
 
 /// Provider metadata parsed from the script
@@ -98,6 +216,12 @@ pub struct RuntimeMeta {
     /// Priority
     #[serde(default = "default_priority")]
     pub priority: u32,
+    /// Known system paths (glob patterns) for system-installed tools (RFC-0037)
+    ///
+    /// Populated from the `system_paths` field in the `runtimes` list of provider.star.
+    /// Used by `where_cmd` to locate system-installed tools (e.g. MSVC cl.exe).
+    #[serde(default)]
+    pub system_paths: Vec<String>,
 }
 
 fn default_priority() -> u32 {
@@ -303,6 +427,103 @@ impl StarlarkProvider {
         Ok(provider)
     }
 
+    /// Create a provider from in-memory script content (no filesystem access).
+    ///
+    /// This is the preferred entry point for built-in providers that embed their
+    /// `provider.star` at compile time via `include_str!`.  It avoids the need
+    /// to locate the script on disk at runtime and works correctly in all
+    /// deployment scenarios (installed binary, CI, Docker, etc.).
+    ///
+    /// # Arguments
+    ///
+    /// * `name` – Provider name used as a virtual script path label
+    ///   (e.g. `"just"`, `"go"`).  Does not need to be a real path.
+    /// * `content` – The raw Starlark source code (typically `PROVIDER_STAR`).
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use vx_starlark::StarlarkProvider;
+    ///
+    /// // In a provider crate's lib.rs:
+    /// pub const PROVIDER_STAR: &str = include_str!("../provider.star");
+    ///
+    /// // In provider.rs:
+    /// let provider = StarlarkProvider::from_content("just", PROVIDER_STAR).await?;
+    /// let versions = provider.fetch_versions().await?;
+    /// ```
+    pub async fn from_content(name: impl Into<String>, content: impl Into<String>) -> Result<Self> {
+        let name = name.into();
+        let content = content.into();
+
+        // Use a virtual path so the engine can identify the script in error messages
+        let virtual_path = PathBuf::from(format!("<builtin:{}>", name));
+
+        let script_hash = sha256_bytes(content.as_bytes());
+
+        // Check analysis cache by content hash
+        {
+            let cache = ANALYSIS_CACHE.read().await;
+            if let Some(entry) = cache.get(&script_hash) {
+                debug!(
+                    provider = %name,
+                    "Using cached analysis result for built-in provider (content hash match)"
+                );
+                let vx_home = vx_paths::VxPaths::new()
+                    .map(|p| p.base_dir)
+                    .unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".vx"));
+                let (meta, runtimes) = Self::parse_metadata(&content)?;
+                return Ok(Self {
+                    script_path: virtual_path,
+                    meta,
+                    runtimes,
+                    sandbox: SandboxConfig::default(),
+                    vx_home,
+                    script_content: Arc::new(content),
+                    script_hash: entry.script_hash,
+                });
+            }
+        }
+
+        // Cache miss: parse metadata
+        let (meta, runtimes) = Self::parse_metadata(&content)?;
+
+        let vx_home = vx_paths::VxPaths::new()
+            .map(|p| p.base_dir)
+            .unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".vx"));
+
+        let provider = Self {
+            script_path: virtual_path,
+            meta: meta.clone(),
+            runtimes,
+            sandbox: SandboxConfig::default(),
+            vx_home,
+            script_content: Arc::new(content),
+            script_hash,
+        };
+
+        // Store in analysis cache
+        {
+            let mut cache = ANALYSIS_CACHE.write().await;
+            cache.insert(
+                script_hash,
+                AnalysisCacheEntry {
+                    script_hash,
+                    frozen_info: FrozenProviderInfo {
+                        versions_url: None,
+                        download_url: None,
+                        env_template: HashMap::new(),
+                        metadata: HashMap::new(),
+                    },
+                    cached_at: SystemTime::now(),
+                },
+            );
+        }
+
+        info!("Loaded built-in Starlark provider: {}", provider.meta.name);
+        Ok(provider)
+    }
+
     /// Get the Starlark engine for this provider
     fn engine(&self) -> StarlarkEngine {
         StarlarkEngine::new()
@@ -361,7 +582,61 @@ impl StarlarkProvider {
             }
         }
 
-        // For now, create a default runtime with the provider name
+        // Try to parse the `runtimes` list variable via the Starlark engine
+        // This extracts system_paths, aliases, executable, etc. from provider.star
+        let virtual_path = std::path::PathBuf::from("<parse_metadata>");
+        let engine = StarlarkEngine::new();
+        if let Ok(Some(runtimes_json)) = engine.get_variable(&virtual_path, content, "runtimes")
+            && let Some(arr) = runtimes_json.as_array()
+        {
+            for item in arr {
+                let name = item
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&meta.name)
+                    .to_string();
+                let description = item
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let executable = item
+                    .get("executable")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&name)
+                    .to_string();
+                let aliases: Vec<String> = item
+                    .get("aliases")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let priority = item.get("priority").and_then(|v| v.as_u64()).unwrap_or(100) as u32;
+                let system_paths: Vec<String> = item
+                    .get("system_paths")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                runtimes.push(RuntimeMeta {
+                    name,
+                    description,
+                    executable,
+                    aliases,
+                    priority,
+                    system_paths,
+                });
+            }
+        }
+
+        // Fallback: create a default runtime with the provider name
         if runtimes.is_empty() {
             runtimes.push(RuntimeMeta {
                 name: meta.name.clone(),
@@ -369,6 +644,7 @@ impl StarlarkProvider {
                 executable: meta.name.clone(),
                 aliases: vec![],
                 priority: 100,
+                system_paths: vec![],
             });
         }
 
@@ -460,6 +736,45 @@ impl StarlarkProvider {
             .with_version(version);
 
         self.execute_install_layout(&ctx, version).await
+    }
+
+    /// Call the `post_extract` function and resolve the returned action list
+    ///
+    /// Returns a list of [`PostExtractAction`]s to execute after archive extraction,
+    /// or an empty list if the function is not defined or returns an empty list.
+    ///
+    /// The `post_extract(ctx, version, install_dir)` function in Starlark should
+    /// return a list of descriptors from `create_shim()`, `set_permissions()`,
+    /// or `run_command()` in install.star.
+    pub async fn post_extract(
+        &self,
+        version: &str,
+        install_dir: &std::path::Path,
+    ) -> Result<Vec<PostExtractAction>> {
+        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+            .with_sandbox(self.sandbox.clone())
+            .with_version(version);
+
+        self.execute_post_extract(&ctx, version, install_dir).await
+    }
+
+    /// Call the `pre_run` function and resolve the returned action list
+    ///
+    /// Returns a list of [`PreRunAction`]s to execute before running the tool,
+    /// or an empty list if the function is not defined or returns an empty list.
+    ///
+    /// The `pre_run(ctx, args, executable)` function in Starlark should return
+    /// a list of descriptors from `ensure_dependencies()` or `run_command()`
+    /// in install.star.
+    pub async fn pre_run(
+        &self,
+        args: &[String],
+        executable: &std::path::Path,
+    ) -> Result<Vec<PreRunAction>> {
+        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+            .with_sandbox(self.sandbox.clone());
+
+        self.execute_pre_run(&ctx, args, executable).await
     }
 
     // === Internal Execution Methods ===
@@ -932,6 +1247,45 @@ impl StarlarkProvider {
                         }))
                     }
 
+                    "system_find" => {
+                        let executable = json
+                            .get("executable")
+                            .and_then(|e| e.as_str())
+                            .ok_or_else(|| {
+                                Error::EvalError(
+                                    "system_find descriptor missing 'executable'".into(),
+                                )
+                            })?
+                            .to_string();
+
+                        let system_paths = json
+                            .get("system_paths")
+                            .and_then(|p| p.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+
+                        let hint = json
+                            .get("hint")
+                            .and_then(|h| h.as_str())
+                            .map(|s| s.to_string());
+
+                        debug!(
+                            provider = %self.meta.name,
+                            executable = %executable,
+                            "Resolved system_find descriptor"
+                        );
+
+                        Ok(Some(InstallLayout::SystemFind {
+                            executable,
+                            system_paths,
+                            hint,
+                        }))
+                    }
+
                     other => {
                         warn!(
                             provider = %self.meta.name,
@@ -948,6 +1302,483 @@ impl StarlarkProvider {
                     "install_layout() not found in provider script"
                 );
                 Ok(None)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Execute post_extract function using the Starlark engine
+    ///
+    /// The function signature in Starlark is:
+    /// ```python
+    /// def post_extract(ctx, version, install_dir):
+    ///     return [create_shim("bunx", "bun", args=["x"])]
+    /// ```
+    async fn execute_post_extract(
+        &self,
+        ctx: &ProviderContext,
+        version: &str,
+        install_dir: &std::path::Path,
+    ) -> Result<Vec<PostExtractAction>> {
+        let engine = self.engine();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "post_extract",
+            ctx,
+            &[
+                serde_json::Value::String(version.to_string()),
+                serde_json::Value::String(install_dir.to_string_lossy().to_string()),
+            ],
+        );
+
+        match result {
+            Ok(json) => {
+                let actions = self.parse_hook_actions(&json, "post_extract")?;
+                Ok(actions
+                    .into_iter()
+                    .filter_map(|a| self.json_to_post_extract_action(&a))
+                    .collect())
+            }
+            Err(Error::FunctionNotFound { .. }) => {
+                debug!(
+                    provider = %self.meta.name,
+                    "post_extract() not found in provider script"
+                );
+                Ok(vec![])
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Execute pre_run function using the Starlark engine
+    ///
+    /// The function signature in Starlark is:
+    /// ```python
+    /// def pre_run(ctx, args, executable):
+    ///     if len(args) > 0 and args[0] == "run":
+    ///         return [ensure_dependencies("bun")]
+    ///     return []
+    /// ```
+    async fn execute_pre_run(
+        &self,
+        ctx: &ProviderContext,
+        args: &[String],
+        executable: &std::path::Path,
+    ) -> Result<Vec<PreRunAction>> {
+        let engine = self.engine();
+        let args_json: Vec<serde_json::Value> = args
+            .iter()
+            .map(|a| serde_json::Value::String(a.clone()))
+            .collect();
+
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "pre_run",
+            ctx,
+            &[
+                serde_json::Value::Array(args_json),
+                serde_json::Value::String(executable.to_string_lossy().to_string()),
+            ],
+        );
+
+        match result {
+            Ok(json) => {
+                let actions = self.parse_hook_actions(&json, "pre_run")?;
+                Ok(actions
+                    .into_iter()
+                    .filter_map(|a| self.json_to_pre_run_action(&a))
+                    .collect())
+            }
+            Err(Error::FunctionNotFound { .. }) => {
+                debug!(
+                    provider = %self.meta.name,
+                    "pre_run() not found in provider script"
+                );
+                Ok(vec![])
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Parse hook function return value into a list of action JSON objects
+    ///
+    /// Hook functions must return either:
+    /// - A list of descriptor dicts: `[create_shim(...), set_permissions(...)]`
+    /// - An empty list: `[]`
+    /// - `None`: treated as empty list
+    fn parse_hook_actions(
+        &self,
+        json: &serde_json::Value,
+        func_name: &str,
+    ) -> Result<Vec<serde_json::Value>> {
+        if json.is_null() {
+            return Ok(vec![]);
+        }
+        if let Some(arr) = json.as_array() {
+            return Ok(arr.clone());
+        }
+        warn!(
+            provider = %self.meta.name,
+            func = %func_name,
+            "Hook function must return a list, got: {:?}",
+            json
+        );
+        Ok(vec![])
+    }
+
+    /// Convert a JSON descriptor to a PostExtractAction
+    fn json_to_post_extract_action(&self, json: &serde_json::Value) -> Option<PostExtractAction> {
+        let type_str = json.get("__type").and_then(|t| t.as_str()).unwrap_or("");
+
+        match type_str {
+            "create_shim" => {
+                let name = json.get("name").and_then(|n| n.as_str())?.to_string();
+                let target = json.get("target").and_then(|t| t.as_str())?.to_string();
+                let args = json
+                    .get("args")
+                    .and_then(|a| a.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let shim_dir = json
+                    .get("shim_dir")
+                    .and_then(|d| d.as_str())
+                    .map(|s| s.to_string());
+
+                debug!(
+                    provider = %self.meta.name,
+                    shim = %name,
+                    target = %target,
+                    "Resolved create_shim descriptor"
+                );
+
+                Some(PostExtractAction::CreateShim {
+                    name,
+                    target,
+                    args,
+                    shim_dir,
+                })
+            }
+
+            "set_permissions" => {
+                let path = json.get("path").and_then(|p| p.as_str())?.to_string();
+                let mode = json
+                    .get("mode")
+                    .and_then(|m| m.as_str())
+                    .unwrap_or("755")
+                    .to_string();
+
+                debug!(
+                    provider = %self.meta.name,
+                    path = %path,
+                    mode = %mode,
+                    "Resolved set_permissions descriptor"
+                );
+
+                Some(PostExtractAction::SetPermissions { path, mode })
+            }
+
+            "run_command" => {
+                let executable = json.get("executable").and_then(|e| e.as_str())?.to_string();
+                let args = json
+                    .get("args")
+                    .and_then(|a| a.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let working_dir = json
+                    .get("working_dir")
+                    .and_then(|d| d.as_str())
+                    .map(|s| s.to_string());
+                let env = json
+                    .get("env")
+                    .and_then(|e| e.as_object())
+                    .map(|obj| {
+                        obj.iter()
+                            .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let on_failure = json
+                    .get("on_failure")
+                    .and_then(|f| f.as_str())
+                    .unwrap_or("warn")
+                    .to_string();
+
+                debug!(
+                    provider = %self.meta.name,
+                    executable = %executable,
+                    "Resolved run_command descriptor (post_extract)"
+                );
+
+                Some(PostExtractAction::RunCommand {
+                    executable,
+                    args,
+                    working_dir,
+                    env,
+                    on_failure,
+                })
+            }
+
+            "flatten_dir" => {
+                let pattern = json
+                    .get("pattern")
+                    .and_then(|p| p.as_str())
+                    .map(|s| s.to_string());
+                let keep_subdirs = json
+                    .get("keep_subdirs")
+                    .and_then(|k| k.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                debug!(
+                    provider = %self.meta.name,
+                    pattern = ?pattern,
+                    "Resolved flatten_dir descriptor"
+                );
+
+                Some(PostExtractAction::FlattenDir {
+                    pattern,
+                    keep_subdirs,
+                })
+            }
+
+            other => {
+                warn!(
+                    provider = %self.meta.name,
+                    type_ = %other,
+                    "Unknown post_extract action type, ignoring"
+                );
+                None
+            }
+        }
+    }
+
+    /// Convert a JSON descriptor to a PreRunAction
+    fn json_to_pre_run_action(&self, json: &serde_json::Value) -> Option<PreRunAction> {
+        let type_str = json.get("__type").and_then(|t| t.as_str()).unwrap_or("");
+
+        match type_str {
+            "ensure_dependencies" => {
+                let package_manager = json
+                    .get("package_manager")
+                    .and_then(|p| p.as_str())?
+                    .to_string();
+                let check_file = json
+                    .get("check_file")
+                    .and_then(|f| f.as_str())
+                    .unwrap_or("package.json")
+                    .to_string();
+                let lock_file = json
+                    .get("lock_file")
+                    .and_then(|f| f.as_str())
+                    .map(|s| s.to_string());
+                let install_dir = json
+                    .get("install_dir")
+                    .and_then(|d| d.as_str())
+                    .unwrap_or("node_modules")
+                    .to_string();
+
+                debug!(
+                    provider = %self.meta.name,
+                    pm = %package_manager,
+                    "Resolved ensure_dependencies descriptor"
+                );
+
+                Some(PreRunAction::EnsureDependencies {
+                    package_manager,
+                    check_file,
+                    lock_file,
+                    install_dir,
+                })
+            }
+
+            "run_command" => {
+                let executable = json.get("executable").and_then(|e| e.as_str())?.to_string();
+                let args = json
+                    .get("args")
+                    .and_then(|a| a.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let working_dir = json
+                    .get("working_dir")
+                    .and_then(|d| d.as_str())
+                    .map(|s| s.to_string());
+                let env = json
+                    .get("env")
+                    .and_then(|e| e.as_object())
+                    .map(|obj| {
+                        obj.iter()
+                            .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let on_failure = json
+                    .get("on_failure")
+                    .and_then(|f| f.as_str())
+                    .unwrap_or("warn")
+                    .to_string();
+
+                debug!(
+                    provider = %self.meta.name,
+                    executable = %executable,
+                    "Resolved run_command descriptor (pre_run)"
+                );
+
+                Some(PreRunAction::RunCommand {
+                    executable,
+                    args,
+                    working_dir,
+                    env,
+                    on_failure,
+                })
+            }
+
+            other => {
+                warn!(
+                    provider = %self.meta.name,
+                    type_ = %other,
+                    "Unknown pre_run action type, ignoring"
+                );
+                None
+            }
+        }
+    }
+
+    // === RFC-0037 Path Query Functions ===
+
+    /// Call `store_root(ctx)` from provider.star (RFC-0037)
+    ///
+    /// Returns the raw template string (e.g. `"{vx_home}/store/7zip"`),
+    /// or `None` if the function is not defined.
+    pub async fn call_store_root(&self) -> Result<Option<String>> {
+        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+            .with_sandbox(self.sandbox.clone());
+
+        let engine = self.engine();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "store_root",
+            &ctx,
+            &[],
+        );
+
+        match result {
+            Ok(json) => {
+                if json.is_null() {
+                    Ok(None)
+                } else if let Some(s) = json.as_str() {
+                    Ok(Some(s.to_string()))
+                } else {
+                    Ok(None)
+                }
+            }
+            Err(Error::FunctionNotFound { .. }) => {
+                debug!(
+                    provider = %self.meta.name,
+                    "store_root() not found in provider script, using convention"
+                );
+                Ok(None)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Call `get_execute_path(ctx, version)` from provider.star (RFC-0037)
+    ///
+    /// Returns the raw template string (e.g. `"{install_dir}/7z.exe"`),
+    /// or `None` if the function returns `None` or is not defined.
+    pub async fn call_get_execute_path(&self, version: &str) -> Result<Option<String>> {
+        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+            .with_sandbox(self.sandbox.clone())
+            .with_version(version);
+
+        let engine = self.engine();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "get_execute_path",
+            &ctx,
+            &[serde_json::Value::String(version.to_string())],
+        );
+
+        match result {
+            Ok(json) => {
+                if json.is_null() {
+                    Ok(None)
+                } else if let Some(s) = json.as_str() {
+                    Ok(Some(s.to_string()))
+                } else {
+                    Ok(None)
+                }
+            }
+            Err(Error::FunctionNotFound { .. }) => {
+                debug!(
+                    provider = %self.meta.name,
+                    "get_execute_path() not found in provider script, using convention"
+                );
+                Ok(None)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Call `post_install(ctx, version, install_dir)` from provider.star (RFC-0037)
+    ///
+    /// Returns a list of [`PostExtractAction`]s to execute after installation,
+    /// or an empty list if the function returns `None` / is not defined.
+    pub async fn call_post_install(
+        &self,
+        version: &str,
+        install_dir: &std::path::Path,
+    ) -> Result<Vec<PostExtractAction>> {
+        let ctx = ProviderContext::new(&self.meta.name, self.vx_home.clone())
+            .with_sandbox(self.sandbox.clone())
+            .with_version(version);
+
+        let engine = self.engine();
+        let result = engine.call_function(
+            &self.script_path,
+            &self.script_content,
+            "post_install",
+            &ctx,
+            &[
+                serde_json::Value::String(version.to_string()),
+                serde_json::Value::String(install_dir.to_string_lossy().to_string()),
+            ],
+        );
+
+        match result {
+            Ok(json) => {
+                let actions = self.parse_hook_actions(&json, "post_install")?;
+                Ok(actions
+                    .into_iter()
+                    .filter_map(|a| self.json_to_post_extract_action(&a))
+                    .collect())
+            }
+            Err(Error::FunctionNotFound { .. }) => {
+                debug!(
+                    provider = %self.meta.name,
+                    "post_install() not found in provider script"
+                );
+                Ok(vec![])
             }
             Err(e) => Err(e),
         }
