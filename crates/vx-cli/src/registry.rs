@@ -26,8 +26,83 @@ use vx_runtime::{
 };
 use vx_runtime_http::create_runtime_context;
 
-// Include the compile-time generated provider manifests
+// ---------------------------------------------------------------------------
+// Compile-time embedded provider manifests
+//
+// build.rs writes two items into provider_manifests.rs:
+//   - ALL_PROVIDERS_TOML : &str  (the combined TOML file, via include_str!)
+//   - PROVIDER_COUNT     : usize (number of providers)
+//
+// All parsing logic lives here so it is readable, testable, and not buried
+// inside a generated string.
+// ---------------------------------------------------------------------------
 include!(concat!(env!("OUT_DIR"), "/provider_manifests.rs"));
+
+/// Embedded provider manifests `(name, toml_content)`.
+///
+/// Lazily parsed from `ALL_PROVIDERS_TOML` on first access.
+/// The combined file uses `# ===PROVIDER:<name>===` as a section delimiter.
+pub static PROVIDER_MANIFESTS: std::sync::LazyLock<Vec<(&'static str, &'static str)>> =
+    std::sync::LazyLock::new(|| parse_combined_providers(ALL_PROVIDERS_TOML));
+
+/// Parse the combined provider TOML file into `(name, toml_content)` pairs.
+///
+/// The file format written by `build.rs`:
+/// ```text
+/// # ===PROVIDER:node===
+/// [provider]
+/// name = "node"
+/// ...
+///
+/// # ===PROVIDER:go===
+/// [provider]
+/// name = "go"
+/// ...
+/// ```
+fn parse_combined_providers(combined: &'static str) -> Vec<(&'static str, &'static str)> {
+    const MARKER_PREFIX: &str = "# ===PROVIDER:";
+    const MARKER_SUFFIX: &str = "===";
+
+    let mut result = Vec::new();
+    let mut remaining = combined;
+
+    while let Some(prefix_pos) = remaining.find(MARKER_PREFIX) {
+        let after_prefix = &remaining[prefix_pos + MARKER_PREFIX.len()..];
+
+        let suffix_pos = match after_prefix.find(MARKER_SUFFIX) {
+            Some(p) => p,
+            None => break,
+        };
+
+        // Name is the slice between prefix and suffix
+        let name = &after_prefix[..suffix_pos];
+
+        // Content starts after the marker line's newline
+        let after_marker = &after_prefix[suffix_pos + MARKER_SUFFIX.len()..];
+        let content_offset = after_marker.find('\n').map(|p| p + 1).unwrap_or(0);
+        let content_str = &after_marker[content_offset..];
+
+        // Content ends at the next marker or end of string
+        let content_end = content_str.find(MARKER_PREFIX).unwrap_or(content_str.len());
+        let content = content_str[..content_end].trim();
+
+        result.push((name, content));
+
+        // Advance past this section
+        let consumed = prefix_pos
+            + MARKER_PREFIX.len()
+            + suffix_pos
+            + MARKER_SUFFIX.len()
+            + content_offset
+            + content_end;
+        if consumed >= remaining.len() {
+            break;
+        }
+        remaining = &remaining[consumed..];
+    }
+
+    result
+}
 
 // Include the compile-time generated embedded bridge binaries
 mod embedded_bridges {
@@ -364,7 +439,7 @@ fn init_constraints_from_manifest_list(manifests: &[ProviderManifest]) {
 /// Returns a slice of (name, toml_content) tuples for all provider manifests
 /// that were embedded at compile time.
 pub fn get_embedded_manifests() -> &'static [(&'static str, &'static str)] {
-    PROVIDER_MANIFESTS
+    PROVIDER_MANIFESTS.as_slice()
 }
 
 /// Get the number of embedded provider manifests
@@ -377,7 +452,7 @@ pub fn get_embedded_manifest_count() -> usize {
 /// Returns the platform label (e.g., "Windows", "macOS") if the runtime
 /// has platform constraints, or None if it supports all platforms.
 pub fn get_runtime_platform_label(runtime_name: &str) -> Option<String> {
-    for (_, content) in PROVIDER_MANIFESTS {
+    for (_, content) in PROVIDER_MANIFESTS.iter() {
         if let Ok(manifest) = ProviderManifest::parse(content) {
             // Check if provider has platform constraint
             if let Some(ref constraint) = manifest.provider.platform_constraint {
@@ -485,12 +560,12 @@ mod tests {
         // Verify that manifests were embedded at compile time
         let count = PROVIDER_COUNT;
         assert!(count > 0, "Expected embedded manifests, found none");
-        assert_eq!(PROVIDER_MANIFESTS.len(), count);
+        assert_eq!(PROVIDER_MANIFESTS.as_slice().len(), count);
     }
 
     #[test]
     fn test_embedded_manifests_are_valid_toml() {
-        for (name, content) in PROVIDER_MANIFESTS {
+        for (name, content) in PROVIDER_MANIFESTS.iter() {
             let result: Result<toml::Value, _> = toml::from_str(content);
             assert!(
                 result.is_ok(),
@@ -521,6 +596,7 @@ mod tests {
     fn test_nuget_manifest_parses() {
         // Find nuget manifest
         let nuget_manifest = PROVIDER_MANIFESTS
+            .as_slice()
             .iter()
             .find(|(name, _)| *name == "nuget")
             .map(|(_, content)| content);
@@ -547,6 +623,7 @@ mod tests {
     fn test_msbuild_manifest_parses() {
         // Find msbuild manifest
         let msbuild_manifest = PROVIDER_MANIFESTS
+            .as_slice()
             .iter()
             .find(|(name, _)| *name == "msbuild")
             .map(|(_, content)| content);
@@ -573,6 +650,7 @@ mod tests {
     fn test_winget_manifest_parses() {
         // Find winget manifest
         let winget_manifest = PROVIDER_MANIFESTS
+            .as_slice()
             .iter()
             .find(|(name, _)| *name == "winget")
             .map(|(_, content)| content);

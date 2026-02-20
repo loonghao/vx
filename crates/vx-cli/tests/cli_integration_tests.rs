@@ -227,7 +227,6 @@ mod search_tests {
 
 mod versions_tests {
     use super::*;
-    use vx_cli::cli::OutputFormat;
     use vx_cli::commands::fetch;
 
     #[rstest]

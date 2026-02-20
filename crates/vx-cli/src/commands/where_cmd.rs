@@ -38,7 +38,10 @@ pub async fn handle(
                     tool: tool.to_string(),
                     version: None,
                     path: Some(path.display().to_string()),
-                    source: ToolSource::System,
+                    // Use Vx source to avoid showing "(system)" suffix —
+                    // the user explicitly requested system path lookup,
+                    // so the result is the expected output without extra annotation.
+                    source: ToolSource::Vx,
                     all_paths: vec![],
                 };
                 let renderer = OutputRenderer::new(format);
