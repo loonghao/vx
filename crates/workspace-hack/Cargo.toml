@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "workspace-hack"
 version = "0.1.0"
 edition.workspace = true
@@ -16,35 +16,41 @@ publish = false
 
 ### BEGIN HAKARI SECTION
 [dependencies]
+ahash = { version = "0.8" }
+bit-set = { version = "0.5", default-features = false, features = ["std"] }
+bit-vec = { version = "0.6", default-features = false, features = ["std"] }
 clap = { version = "4", features = ["derive"] }
 clap_builder = { version = "4", default-features = false, features = ["color", "help", "std", "suggestions", "usage"] }
 console = { version = "0.16" }
 crossbeam-epoch = { version = "0.9" }
 crossbeam-utils = { version = "0.8" }
+either = { version = "1", features = ["use_std"] }
 futures-channel = { version = "0.3", features = ["sink"] }
 futures-core = { version = "0.3" }
 futures-executor = { version = "0.3" }
 futures-sink = { version = "0.3" }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
-hashbrown = { version = "0.16" }
+hashbrown-582f2526e08bb6a0 = { package = "hashbrown", version = "0.14", features = ["raw"] }
+hashbrown-986da7b5efc2b80e = { package = "hashbrown", version = "0.16" }
 indexmap = { version = "2", features = ["serde"] }
+lalrpop-util = { version = "0.19", features = ["lexer"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
 memchr = { version = "2" }
-num-traits = { version = "0.2" }
+num-traits = { version = "0.2", features = ["i128"] }
 once_cell = { version = "1", features = ["critical-section"] }
 parking_lot = { version = "0.12" }
 percent-encoding = { version = "2" }
 portable-atomic = { version = "1" }
 rand = { version = "0.9" }
 regex = { version = "1" }
-regex-automata = { version = "0.4", default-features = false, features = ["dfa-build", "dfa-onepass", "hybrid", "meta", "nfa-backtrack", "perf-inline", "perf-literal", "std", "unicode"] }
+regex-automata = { version = "0.4", default-features = false, features = ["dfa", "hybrid", "meta", "nfa", "perf", "std", "unicode"] }
 regex-syntax = { version = "0.8" }
 reqwest = { version = "0.13", default-features = false, features = ["brotli", "charset", "deflate", "form", "gzip", "hickory-dns", "http2", "json", "rustls", "rustls-no-provider", "stream"] }
 serde = { version = "1", features = ["alloc", "derive"] }
 serde_core = { version = "1", features = ["alloc"] }
-serde_json = { version = "1", features = ["alloc"] }
+serde_json = { version = "1", features = ["alloc", "preserve_order"] }
 smallvec = { version = "1", default-features = false, features = ["const_generics"] }
-time = { version = "0.3", default-features = false, features = ["formatting", "macros", "parsing"] }
+time = { version = "0.3", features = ["formatting", "macros", "parsing"] }
 tokio = { version = "1", features = ["full", "test-util"] }
 toml_parser = { version = "1" }
 toml_writer = { version = "1" }
@@ -52,19 +58,29 @@ tracing = { version = "0.1" }
 tracing-core = { version = "0.1" }
 tracing-log = { version = "0.2" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+url = { version = "2", features = ["serde"] }
 winnow = { version = "0.7" }
 zerocopy = { version = "0.8", default-features = false, features = ["derive", "simd"] }
 
 [build-dependencies]
-hashbrown = { version = "0.16" }
+bit-set = { version = "0.5", default-features = false, features = ["std"] }
+bit-vec = { version = "0.6", default-features = false, features = ["std"] }
+either = { version = "1", features = ["use_std"] }
+hashbrown-986da7b5efc2b80e = { package = "hashbrown", version = "0.16" }
 indexmap = { version = "2", features = ["serde"] }
+lalrpop-util = { version = "0.19", features = ["lexer"] }
+log = { version = "0.4", default-features = false, features = ["std"] }
 memchr = { version = "2" }
+parking_lot = { version = "0.12" }
 proc-macro2 = { version = "1" }
 quote = { version = "1" }
 regex = { version = "1" }
-regex-automata = { version = "0.4", default-features = false, features = ["dfa-build", "dfa-onepass", "hybrid", "meta", "nfa-backtrack", "perf-inline", "perf-literal", "std", "unicode"] }
+regex-automata = { version = "0.4", default-features = false, features = ["dfa", "hybrid", "meta", "nfa", "perf", "std", "unicode"] }
 regex-syntax = { version = "0.8" }
+serde = { version = "1", features = ["alloc", "derive"] }
 serde_core = { version = "1", features = ["alloc"] }
+serde_json = { version = "1", features = ["alloc", "preserve_order"] }
+smallvec = { version = "1", default-features = false, features = ["const_generics"] }
 syn = { version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
 time-macros = { version = "0.2", default-features = false, features = ["formatting", "parsing"] }
 toml_parser = { version = "1" }
@@ -73,23 +89,28 @@ winnow = { version = "0.7" }
 [target.x86_64-pc-windows-msvc.dependencies]
 clap = { version = "4", default-features = false, features = ["env"] }
 clap_builder = { version = "4", default-features = false, features = ["env"] }
+clipboard-win = { version = "5", default-features = false, features = ["std"] }
+error-code = { version = "3", default-features = false, features = ["std"] }
 flate2 = { version = "1", features = ["zlib-rs"] }
 form_urlencoded = { version = "1" }
 getrandom = { version = "0.3", default-features = false, features = ["std"] }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
+miniz_oxide = { version = "0.8", features = ["simd"] }
 reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
+simd-adler32 = { version = "0.3" }
 smallvec = { version = "1", default-features = false, features = ["const_new"] }
 thiserror = { version = "2" }
-time = { version = "0.3" }
 tokio-rustls = { version = "0.26", default-features = false, features = ["aws-lc-rs", "ring", "tls12"] }
 tokio-util = { version = "0.7", features = ["codec", "io"] }
 tower-http = { version = "0.6", default-features = false, features = ["decompression-br", "decompression-deflate", "decompression-gzip", "follow-redirect"] }
-windows-sys-4db8c43aad08e7ae = { package = "windows-sys", version = "0.60", features = ["Win32_Networking_WinSock", "Win32_System_Console", "Win32_System_IO", "Win32_System_Threading", "Win32_System_WindowsProgramming"] }
-windows-sys-b21d60becc0929df = { package = "windows-sys", version = "0.52", features = ["Win32_Foundation", "Win32_Networking_WinSock", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Environment", "Win32_System_IO", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Shell"] }
+winapi = { version = "0.3", default-features = false, features = ["consoleapi", "fileapi", "handleapi", "impl-default", "knownfolders", "objbase", "processenv", "shlobj", "synchapi", "sysinfoapi", "winbase", "wincon", "winerror", "winuser"] }
+windows-sys-4db8c43aad08e7ae = { package = "windows-sys", version = "0.60", features = ["Win32_Graphics_Gdi", "Win32_Networking_WinSock", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_DataExchange", "Win32_System_IO", "Win32_System_Memory", "Win32_System_Ole", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Shell"] }
+windows-sys-73dcd821b1037cfd = { package = "windows-sys", version = "0.59", features = ["Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_Debug", "Win32_System_IO", "Win32_System_Registry", "Win32_System_Time"] }
+windows-sys-b21d60becc0929df = { package = "windows-sys", version = "0.52", features = ["Win32_Foundation", "Win32_Networking_WinSock", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_Environment", "Win32_System_IO", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell"] }
 windows-sys-d4189bed749088b6 = { package = "windows-sys", version = "0.61", features = ["Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Win32_Globalization", "Win32_Networking_WinSock", "Win32_Security_Authentication_Identity", "Win32_Security_Credentials", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Console", "Win32_System_IO", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_Pipes", "Win32_System_SystemInformation", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell"] }
 winnow = { version = "0.7", default-features = false, features = ["simd"] }
 zip = { version = "8", default-features = false, features = ["deflate", "time", "zstd"] }
@@ -99,7 +120,8 @@ zstd-sys = { version = "2", default-features = false, features = ["legacy", "std
 
 [target.x86_64-pc-windows-msvc.build-dependencies]
 getrandom = { version = "0.3", default-features = false, features = ["std"] }
-serde = { version = "1", features = ["alloc", "derive"] }
+smallvec = { version = "1", default-features = false, features = ["const_new"] }
+winapi = { version = "0.3", default-features = false, features = ["consoleapi", "fileapi", "handleapi", "impl-default", "knownfolders", "objbase", "processenv", "shlobj", "synchapi", "sysinfoapi", "winbase", "wincon", "winerror", "winuser"] }
 windows-sys-d4189bed749088b6 = { package = "windows-sys", version = "0.61", features = ["Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Win32_Globalization", "Win32_Networking_WinSock", "Win32_Security_Authentication_Identity", "Win32_Security_Credentials", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Console", "Win32_System_IO", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_Pipes", "Win32_System_SystemInformation", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell"] }
 winnow = { version = "0.7", default-features = false, features = ["simd"] }
 
@@ -110,10 +132,13 @@ hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
 libc = { version = "0.2", features = ["extra_traits"] }
-rustix = { version = "1", features = ["fs", "termios"] }
+linux-raw-sys = { version = "0.11", default-features = false, features = ["auxvec", "elf", "errno", "general", "if_ether", "ioctl", "net", "netlink", "no_std", "system", "xdp"] }
+miniz_oxide = { version = "0.8", features = ["simd"] }
+mio = { version = "1", features = ["net", "os-ext"] }
+rustix = { version = "1", features = ["event", "fs", "net", "stdio", "system", "termios"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
-simd-adler32 = { version = "0.3", default-features = false, features = ["std"] }
+simd-adler32 = { version = "0.3" }
 smallvec = { version = "1", default-features = false, features = ["const_new"] }
 thiserror = { version = "2" }
 tokio-rustls = { version = "0.26", default-features = false, features = ["aws-lc-rs", "ring", "tls12"] }
@@ -122,16 +147,19 @@ tower-http = { version = "0.6", default-features = false, features = ["decompres
 
 [target.x86_64-unknown-linux-gnu.build-dependencies]
 libc = { version = "0.2", features = ["extra_traits"] }
+smallvec = { version = "1", default-features = false, features = ["const_new"] }
 
 [target.x86_64-apple-darwin.dependencies]
 errno = { version = "0.3" }
 flate2 = { version = "1", features = ["zlib-rs"] }
 getrandom = { version = "0.3", default-features = false, features = ["std"] }
+half = { version = "2" }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
 libc = { version = "0.2", features = ["extra_traits"] }
-rustix = { version = "1", features = ["fs", "termios"] }
+mio = { version = "1", features = ["net", "os-ext"] }
+rustix = { version = "1", features = ["fs", "stdio", "termios"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
 simd-adler32 = { version = "0.3", default-features = false, features = ["std"] }
@@ -143,16 +171,19 @@ tower-http = { version = "0.6", default-features = false, features = ["decompres
 
 [target.x86_64-apple-darwin.build-dependencies]
 libc = { version = "0.2", features = ["extra_traits"] }
+smallvec = { version = "1", default-features = false, features = ["const_new"] }
 
 [target.aarch64-apple-darwin.dependencies]
 errno = { version = "0.3" }
 flate2 = { version = "1", features = ["zlib-rs"] }
 getrandom = { version = "0.3", default-features = false, features = ["std"] }
+half = { version = "2" }
 hyper = { version = "1", features = ["client", "http1", "http2"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "client-proxy", "http1", "http2"] }
 libc = { version = "0.2", features = ["extra_traits"] }
-rustix = { version = "1", features = ["fs", "termios"] }
+mio = { version = "1", features = ["net", "os-ext"] }
+rustix = { version = "1", features = ["fs", "stdio", "termios"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs", "logging", "ring", "std", "tls12"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
 simd-adler32 = { version = "0.3", default-features = false, features = ["std"] }
@@ -164,5 +195,6 @@ tower-http = { version = "0.6", default-features = false, features = ["decompres
 
 [target.aarch64-apple-darwin.build-dependencies]
 libc = { version = "0.2", features = ["extra_traits"] }
+smallvec = { version = "1", default-features = false, features = ["const_new"] }
 
 ### END HAKARI SECTION
