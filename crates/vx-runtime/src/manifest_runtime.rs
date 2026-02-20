@@ -459,6 +459,17 @@ impl Runtime for ManifestDrivenRuntime {
         }])
     }
 
+    /// For manifest-driven (system) runtimes, any version request resolves to "system".
+    ///
+    /// System tools are not version-managed by vx — they are installed via the OS
+    /// package manager (brew, choco, apt, etc.) and have no concept of "latest" in
+    /// the vx store.  Returning "system" here prevents the default `resolve_version`
+    /// implementation from calling `fetch_versions` → `VersionResolver::resolve`, which
+    /// would fail because `"system"` cannot be parsed as a semantic version.
+    async fn resolve_version(&self, _version: &str, _ctx: &RuntimeContext) -> Result<String> {
+        Ok("system".to_string())
+    }
+
     /// Check if the tool is installed on the system
     async fn is_installed(&self, _version: &str, _ctx: &RuntimeContext) -> Result<bool> {
         Ok(which::which(&self.executable).is_ok())
