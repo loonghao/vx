@@ -5477,7 +5477,7 @@ checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "vx"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -5494,7 +5494,7 @@ dependencies = [
 
 [[package]]
 name = "vx-args"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "indexmap",
  "regex",
@@ -5508,7 +5508,7 @@ dependencies = [
 
 [[package]]
 name = "vx-bridge"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "tempfile",
  "vx-paths",
@@ -5517,7 +5517,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cache"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "bincode 2.0.1",
@@ -5532,7 +5532,7 @@ dependencies = [
 
 [[package]]
 name = "vx-cli"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5650,7 +5650,7 @@ dependencies = [
 
 [[package]]
 name = "vx-config"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5672,7 +5672,7 @@ dependencies = [
 
 [[package]]
 name = "vx-console"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anstream",
  "anstyle",
@@ -5693,7 +5693,7 @@ dependencies = [
 
 [[package]]
 name = "vx-core"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5713,7 +5713,7 @@ dependencies = [
 
 [[package]]
 name = "vx-ecosystem-pm"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5731,7 +5731,7 @@ dependencies = [
 
 [[package]]
 name = "vx-env"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "dirs",
@@ -5751,7 +5751,7 @@ dependencies = [
 
 [[package]]
 name = "vx-extension"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5773,7 +5773,7 @@ dependencies = [
 
 [[package]]
 name = "vx-installer"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5805,7 +5805,7 @@ dependencies = [
 
 [[package]]
 name = "vx-manifest"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "pretty_assertions",
  "rstest",
@@ -5821,7 +5821,7 @@ dependencies = [
 
 [[package]]
 name = "vx-metrics"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5844,7 +5844,7 @@ dependencies = [
 
 [[package]]
 name = "vx-migration"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "async-trait",
  "chrono",
@@ -5866,14 +5866,14 @@ dependencies = [
 
 [[package]]
 name = "vx-msbuild-bridge"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "workspace-hack",
 ]
 
 [[package]]
 name = "vx-paths"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5892,7 +5892,7 @@ dependencies = [
 
 [[package]]
 name = "vx-project-analyzer"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5917,7 +5917,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-7zip"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5932,7 +5932,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-actrun"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5946,7 +5946,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-awscli"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5960,7 +5960,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-azcli"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5974,7 +5974,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-bat"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5989,7 +5989,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-brew"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6003,7 +6003,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-bun"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6020,7 +6020,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-choco"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6034,7 +6034,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-cmake"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6049,7 +6049,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-dagu"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6064,7 +6064,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-deno"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6079,7 +6079,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-docker"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6094,7 +6094,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-dotnet"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6110,7 +6110,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-fd"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6125,7 +6125,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-ffmpeg"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6142,7 +6142,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-fzf"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6157,7 +6157,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-gcloud"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6171,7 +6171,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-gh"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6186,7 +6186,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-git"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6201,7 +6201,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-go"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6218,7 +6218,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-hadolint"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6233,7 +6233,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-helm"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6248,7 +6248,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-imagemagick"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6267,7 +6267,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-java"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6283,7 +6283,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-jj"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6297,7 +6297,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-jq"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6312,7 +6312,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-just"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6326,7 +6326,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-kubectl"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6341,7 +6341,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-make"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6357,7 +6357,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-msbuild"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6374,7 +6374,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-msvc"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6393,7 +6393,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-nasm"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6408,7 +6408,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-ninja"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6424,7 +6424,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-node"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6441,7 +6441,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-nuget"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6455,7 +6455,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-ollama"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6470,7 +6470,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-pnpm"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6486,7 +6486,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-prek"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6501,7 +6501,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-protoc"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6517,7 +6517,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-pwsh"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6531,7 +6531,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-python"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6544,7 +6544,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-rcedit"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6559,7 +6559,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-ripgrep"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6574,7 +6574,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-rust"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6591,7 +6591,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-spack"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6606,7 +6606,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-starship"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6621,7 +6621,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-task"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6637,7 +6637,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-terraform"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6651,7 +6651,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-uv"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6669,7 +6669,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-vcpkg"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6685,7 +6685,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-vscode"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6698,7 +6698,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-winget"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6713,7 +6713,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-yarn"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6731,7 +6731,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-yq"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6746,7 +6746,7 @@ dependencies = [
 
 [[package]]
 name = "vx-provider-zig"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6760,7 +6760,7 @@ dependencies = [
 
 [[package]]
 name = "vx-resolver"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6792,7 +6792,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6822,7 +6822,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-archive"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "flate2",
@@ -6841,7 +6841,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-core"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6858,7 +6858,7 @@ dependencies = [
 
 [[package]]
 name = "vx-runtime-http"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6889,7 +6889,7 @@ dependencies = [
 
 [[package]]
 name = "vx-setup"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "chrono",
@@ -6906,7 +6906,7 @@ dependencies = [
 
 [[package]]
 name = "vx-shim"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "serde",
@@ -6923,7 +6923,7 @@ dependencies = [
 
 [[package]]
 name = "vx-starlark"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6948,7 +6948,7 @@ dependencies = [
 
 [[package]]
 name = "vx-system-pm"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6971,7 +6971,7 @@ dependencies = [
 
 [[package]]
 name = "vx-version-fetcher"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7810,7 +7810,7 @@ version = "0.1.0"
 dependencies = [
  "ahash",
  "bit-set 0.5.3",
- "bit-vec 0.6.3",
+ "bit-vec 0.7.0",
  "clap",
  "clap_builder",
  "clipboard-win",
