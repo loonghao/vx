@@ -49,6 +49,8 @@ if (Get-Module PSReadLine) {
 }
 
 # Set custom prompt to indicate vx environment
+# Note: We build the prompt directly without calling previous prompt to avoid
+# PSReadLine cursor positioning issues caused by trailing spaces in chained prompts.
 function global:prompt {
     "($ProjectName[vx]) PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1)) "
 }
