@@ -341,9 +341,9 @@ function global:prompt {{
     $previous_prompt = if (Test-Path function:global:_old_vx_prompt) {{
         & $function:_old_vx_prompt
     }} else {{
-        "PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1)) "
+        "PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1))"
     }}
-    "({}[vx]) $previous_prompt"
+    "({}[vx]) $($previous_prompt.TrimEnd()) "
 }}
 "#,
             project_name

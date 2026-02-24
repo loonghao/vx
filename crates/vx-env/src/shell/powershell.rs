@@ -260,9 +260,9 @@ function global:prompt {{
     $previous_prompt = if (Test-Path function:global:_old_vx_prompt) {{
         & $function:_old_vx_prompt
     }} else {{
-        "PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1)) "
+        "PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1))"
     }}
-    "{} $previous_prompt"
+    "{} $($previous_prompt.TrimEnd()) "
 }}
 
 # Type 'Vx-Deactivate' to exit the vx environment
