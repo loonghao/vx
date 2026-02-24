@@ -93,7 +93,7 @@ def download_url(ctx, version):
         return None
 
     ext   = ".exe" if ctx.platform.os == "windows" else ""
-    asset = "hadolint-{}{}{}".format(os_str, arch_str, ext)
+    asset = "hadolint-{}-{}{}".format(os_str, arch_str, ext)
     return github_asset_url("hadolint", "hadolint", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ def install_layout(ctx, _version):
     arch_str = _ARCH_MAP.get(ctx.platform.arch, ctx.platform.arch)
     ext      = ".exe" if ctx.platform.os == "windows" else ""
 
-    source_name = "hadolint-{}{}{}".format(os_str, arch_str, ext)
+    source_name = "hadolint-{}-{}{}".format(os_str, arch_str, ext)
     target_name = "hadolint" + ext
 
     return {

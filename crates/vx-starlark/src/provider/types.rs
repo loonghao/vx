@@ -348,6 +348,10 @@ pub struct RuntimeMeta {
     /// Format: ["7zip", "node>=18", ...]
     #[serde(default)]
     pub install_deps: Vec<String>,
+    /// The parent runtime that bundles this runtime (e.g., "uv" for uvx)
+    /// When set, this runtime's executable is found in the parent's store directory.
+    #[serde(default)]
+    pub bundled_with: Option<String>,
 }
 
 fn default_priority() -> u32 {
