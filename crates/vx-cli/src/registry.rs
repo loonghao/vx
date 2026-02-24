@@ -271,7 +271,7 @@ pub async fn init_provider_handles() {
 ///
 /// Falls back to an empty RuntimeMap if the registry is not yet initialized.
 pub fn build_runtime_map() -> vx_resolver::RuntimeMap {
-    use vx_resolver::{RuntimeMap, RuntimeSpec};
+    use vx_resolver::{RuntimeDependency, RuntimeMap, RuntimeSpec};
 
     let Ok(registry) = vx_starlark::handle::GLOBAL_REGISTRY.try_read() else {
         return RuntimeMap::empty();
@@ -286,6 +286,19 @@ pub fn build_runtime_map() -> vx_resolver::RuntimeMap {
             spec.aliases = runtime_meta.aliases.clone();
             spec.priority = runtime_meta.priority as i32;
             spec.command_prefix = runtime_meta.command_prefix.clone();
+
+            // Handle bundled_with: add a provided_by dependency so the resolver
+            // looks in the parent runtime's store directory for this executable.
+            // e.g., uvx is bundled_with uv → look in ~/.vx/store/uv/ for uvx
+            if let Some(ref bundled_with) = runtime_meta.bundled_with {
+                let dep = RuntimeDependency::required(
+                    bundled_with.clone(),
+                    format!("{} is bundled with {}", runtime_meta.name, bundled_with),
+                )
+                .provided_by(bundled_with.clone());
+                spec.dependencies.push(dep);
+            }
+
             map.register(spec);
         }
     }

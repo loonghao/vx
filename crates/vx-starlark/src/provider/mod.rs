@@ -599,6 +599,10 @@ impl StarlarkProvider {
                                 .collect()
                         })
                         .unwrap_or_default(),
+                    bundled_with: item
+                        .get("bundled_with")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
                 });
             }
         }
@@ -614,6 +618,7 @@ impl StarlarkProvider {
                 system_paths: vec![],
                 test_commands: vec![],
                 install_deps: vec![],
+                bundled_with: None,
             });
         }
 
