@@ -8,7 +8,8 @@
 # uv releases: https://github.com/astral-sh/uv/releases
 # Asset format: uv-{triple}.{ext}
 
-load("@vx//stdlib:github.star", "make_github_provider")
+load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:platform.star", "platform_triple", "platform_ext")
 load("@vx//stdlib:install.star", "ensure_dependencies")
 
 load("@vx//stdlib:env.star", "env_prepend")
@@ -60,18 +61,34 @@ permissions = {
 }
 
 # ---------------------------------------------------------------------------
-# fetch_versions + download_url — inherited via make_github_provider
+# fetch_versions + download_url
 #
 # uv asset naming: uv-{triple}.{ext}
 #   uv-x86_64-pc-windows-msvc.zip
 #   uv-x86_64-apple-darwin.tar.gz
 #   uv-aarch64-apple-darwin.tar.gz
 #   uv-x86_64-unknown-linux-gnu.tar.gz
+#
+# IMPORTANT: uv release tags do NOT have a 'v' prefix (e.g. "0.10.5", not "v0.10.5")
 # ---------------------------------------------------------------------------
 
-_p = make_github_provider("astral-sh", "uv", "uv-{triple}.{ext}")
-fetch_versions = _p["fetch_versions"]
-download_url   = _p["download_url"]
+fetch_versions = make_fetch_versions("astral-sh", "uv")
+
+def download_url(ctx, version):
+    """Build the uv download URL.
+
+    uv uses tag format WITHOUT 'v' prefix: e.g. "0.10.5" not "v0.10.5"
+    Asset format: uv-{triple}.{ext}
+    """
+    triple = platform_triple(ctx)
+    if not triple:
+        return None
+    ext = platform_ext(ctx).lstrip(".")   # "zip" or "tar.gz"
+
+    asset = "uv-{}.{}".format(triple, ext)
+    # uv tags have NO 'v' prefix — use version directly as tag
+    tag = version
+    return github_asset_url("astral-sh", "uv", tag, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout

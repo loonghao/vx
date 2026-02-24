@@ -12,6 +12,7 @@
 
 load("@vx//stdlib:install.star", "flatten_dir")
 load("@vx//stdlib:env.star", "env_set", "env_prepend")
+load("@vx//stdlib:http.star", "fetch_json_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -80,35 +81,14 @@ def fetch_versions(ctx):
     - All available Temurin releases
     - LTS/non-LTS information
     - No rate limiting
+
+    Returns a descriptor dict for the Rust runtime to execute.
     """
-    # Get available release versions
-    info = ctx.http.get_json(
-        "https://api.adoptium.net/v3/info/available_releases"
+    return fetch_json_versions(
+        ctx,
+        "https://api.adoptium.net/v3/info/available_releases",
+        "adoptium",
     )
-
-    available = info.get("available_releases", [])
-    lts_releases = info.get("available_lts_releases", [])
-    lts_set = {}
-    for v in lts_releases:
-        lts_set[v] = True
-
-    versions = []
-    for major in available:
-        # Get the latest release for each major version
-        releases = ctx.http.get_json(
-            "https://api.adoptium.net/v3/assets/latest/{}/hotspot?architecture=x64&image_type=jdk&os=linux&vendor=eclipse".format(major)
-        )
-        for release in releases:
-            version_data = release.get("version", {})
-            semver = version_data.get("semver", "")
-            if semver:
-                versions.append({
-                    "version":    semver,
-                    "lts":        lts_set.get(major, False),
-                    "prerelease": "ea" in semver or "beta" in semver,
-                })
-
-    return versions
 
 # ---------------------------------------------------------------------------
 # download_url — Adoptium API
@@ -136,7 +116,13 @@ def _adoptium_arch(ctx):
     return mapping.get(arch)
 
 def download_url(ctx, version):
-    """Build the Java JDK download URL from Adoptium API.
+    """Build the Java JDK download URL from Adoptium binary API.
+
+    Uses the Adoptium direct binary download endpoint:
+      https://api.adoptium.net/v3/binary/latest/{major}/ga/{os}/{arch}/jdk/hotspot/normal/eclipse
+
+    This avoids any HTTP calls inside Starlark — the URL is constructed
+    purely from the version string and platform info.
 
     Args:
         ctx:     Provider context
@@ -150,26 +136,13 @@ def download_url(ctx, version):
     if not os_str or not arch_str:
         return None
 
-    os = ctx.platform.os
-
     # Extract major version from semver (e.g. "21.0.1+12" -> "21")
     major = version.split(".")[0]
 
-    # Query Adoptium API for the specific version
-    releases = ctx.http.get_json(
-        "https://api.adoptium.net/v3/assets/latest/{}/hotspot?architecture={}&image_type=jdk&os={}&vendor=eclipse".format(
-            major, arch_str, os_str
-        )
+    # Adoptium direct binary download — no HTTP query needed
+    return "https://api.adoptium.net/v3/binary/latest/{}/ga/{}/{}/jdk/hotspot/normal/eclipse".format(
+        major, os_str, arch_str
     )
-
-    for release in releases:
-        binary = release.get("binary", {})
-        package = binary.get("package", {})
-        link = package.get("link", "")
-        if link:
-            return link
-
-    return None
 
 # ---------------------------------------------------------------------------
 # install_layout

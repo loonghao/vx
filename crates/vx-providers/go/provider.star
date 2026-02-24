@@ -12,6 +12,7 @@
 
 load("@vx//stdlib:install.star", "ensure_dependencies")
 load("@vx//stdlib:env.star", "env_set", "env_prepend")
+load("@vx//stdlib:http.star",    "fetch_json_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -72,29 +73,14 @@ def fetch_versions(ctx):
     - Stable and unstable releases
     - File metadata per platform
     - No rate limiting
+
+    Returns a descriptor dict for the Rust runtime to execute.
     """
-    releases = ctx.http.get_json("https://go.dev/dl/?mode=json&include=all")
-
-    versions = []
-    seen = {}
-    for release in releases:
-        v = release.get("version", "")
-        # Strip "go" prefix: "go1.21.0" -> "1.21.0"
-        if v.startswith("go"):
-            v = v[2:]
-
-        if not v or v in seen:
-            continue
-        seen[v] = True
-
-        stable = release.get("stable", False)
-        versions.append({
-            "version":    v,
-            "lts":        stable,
-            "prerelease": not stable,
-        })
-
-    return versions
+    return fetch_json_versions(
+        ctx,
+        "https://go.dev/dl/?mode=json&include=all",
+        "go_versions",
+    )
 
 # ---------------------------------------------------------------------------
 # download_url — go.dev official download
