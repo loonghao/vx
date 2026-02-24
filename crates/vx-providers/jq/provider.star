@@ -8,7 +8,7 @@
 # jq releases: https://github.com/jqlang/jq/releases
 # Asset format: jq-{os}-{arch}[.exe]  (direct binary, no archive)
 
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url", "github_releases", "releases_to_versions")
 load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
@@ -59,28 +59,13 @@ permissions = {
 def fetch_versions(ctx):
     """Fetch jq versions from GitHub releases.
 
-    jq uses tag format "jq-1.8.1" (not "v1.8.1"), so we strip the "jq-" prefix.
+    jq uses tag format "jq-1.8.1" (not "v1.8.1"), so we use tag_prefix="jq-".
+    Returns a descriptor dict for the Rust runtime to execute.
     """
-    releases = ctx.http.get_json("https://api.github.com/repos/jqlang/jq/releases?per_page=30")
-    versions = []
-    for release in releases:
-        if release.get("draft", False):
-            continue
-        tag = release.get("tag_name", "")
-        # Strip "jq-" prefix
-        if tag.startswith("jq-"):
-            version = tag[3:]
-        elif tag.startswith("v"):
-            version = tag[1:]
-        else:
-            version = tag
-        if version:
-            versions.append({
-                "version":    version,
-                "lts":        not release.get("prerelease", False),
-                "prerelease": release.get("prerelease", False),
-            })
-    return versions
+    return releases_to_versions(
+        github_releases(ctx, "jqlang", "jq"),
+        tag_prefix = "jq-",
+    )
 
 # ---------------------------------------------------------------------------
 # download_url — custom (binary, platform-specific naming)

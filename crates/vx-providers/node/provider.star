@@ -13,6 +13,7 @@
 
 load("@vx//stdlib:install.star", "set_permissions", "ensure_dependencies")
 load("@vx//stdlib:env.star", "env_prepend")
+load("@vx//stdlib:http.star", "fetch_json_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -82,27 +83,14 @@ def fetch_versions(ctx):
     - Full version list with LTS status
     - No rate limiting (unlike GitHub API)
     - Official release metadata
+
+    Returns a descriptor dict for the Rust runtime to execute.
     """
-    releases = ctx.http.get_json("https://nodejs.org/dist/index.json")
-
-    versions = []
-    for release in releases:
-        v = release["version"]
-        # Strip leading 'v': "v20.0.0" -> "20.0.0"
-        if v.startswith("v"):
-            v = v[1:]
-
-        lts = release.get("lts", False)
-        # lts field is either False or a codename string like "Iron"
-        is_lts = lts != False and lts != None
-
-        versions.append({
-            "version":    v,
-            "lts":        is_lts,
-            "prerelease": False,
-        })
-
-    return versions
+    return fetch_json_versions(
+        ctx,
+        "https://nodejs.org/dist/index.json",
+        "nodejs_org",
+    )
 
 # ---------------------------------------------------------------------------
 # download_url — nodejs.org official download

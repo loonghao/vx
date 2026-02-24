@@ -6,6 +6,7 @@
 # Inheritance pattern: Level 1 (fully custom - uses VS Code update API)
 
 load("@vx//stdlib:env.star", "env_prepend")
+load("@vx//stdlib:http.star", "fetch_json_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -50,16 +51,15 @@ permissions = {
 # ---------------------------------------------------------------------------
 
 def fetch_versions(ctx):
-    """Fetch VS Code stable versions from the official update API."""
-    releases = ctx.http.get_json(
-        "https://update.code.visualstudio.com/api/releases/stable"
+    """Fetch VS Code stable versions from the official update API.
+
+    Returns a descriptor dict for the Rust runtime to execute.
+    """
+    return fetch_json_versions(
+        ctx,
+        "https://update.code.visualstudio.com/api/releases/stable",
+        "vscode_releases",
     )
-
-    versions = []
-    for v in releases:
-        versions.append({"version": v, "lts": True, "prerelease": False})
-
-    return versions
 
 # ---------------------------------------------------------------------------
 # download_url — VS Code portable archive
