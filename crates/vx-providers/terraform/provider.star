@@ -1,15 +1,15 @@
 # provider.star - Terraform provider
 #
 # Terraform releases are hosted on releases.hashicorp.com (NOT GitHub).
-# URL pattern: https://releases.hashicorp.com/terraform/{version}/terraform_{version}_{os}_{arch}.zip
+# URL: https://releases.hashicorp.com/terraform/{version}/terraform_{version}_{os}_{arch}.zip
 #
-# Inheritance pattern: Level 1 (full custom) — custom domain, no GitHub
-#
-# fetch_versions: custom (HashiCorp releases API)
-# download_url:   custom (releases.hashicorp.com)
+# Uses fetch_versions_from_api + runtime_def from @vx//stdlib:provider.star
 
-load("@vx//stdlib:http.star",     "http_get_json")
-load("@vx//stdlib:platform.star", "exe_ext")
+load("@vx//stdlib:provider.star",
+     "runtime_def", "fetch_versions_from_api",
+     "system_permissions")
+load("@vx//stdlib:http.star", "http_get_json")
+load("@vx//stdlib:env.star",  "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -27,123 +27,55 @@ aliases     = ["tf"]
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        name,
-        "executable":  name,
-        "description": "Terraform - Infrastructure as Code",
-        "aliases":     ["tf"],
-        "priority":    100,
-        "test_commands": [
-            {"command": "{executable} version", "name": "version_check", "expected_output": "Terraform v\\d+"},
-        ],
-    },
+    runtime_def("terraform",
+        aliases         = ["tf"],
+        version_cmd     = "{executable} version",
+        version_pattern = "Terraform v\\d+",
+    ),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["releases.hashicorp.com", "checkpoint-api.hashicorp.com"],
-    "fs":   [],
-    "exec": [],
-}
+permissions = system_permissions(
+    extra_hosts = ["releases.hashicorp.com", "checkpoint-api.hashicorp.com"],
+)
+
+# ---------------------------------------------------------------------------
+# fetch_versions — HashiCorp releases API
+# ---------------------------------------------------------------------------
+
+fetch_versions = fetch_versions_from_api(
+    "https://releases.hashicorp.com/terraform/index.json",
+    "hashicorp_releases",
+)
 
 # ---------------------------------------------------------------------------
 # Platform helpers
 # ---------------------------------------------------------------------------
 
-def _terraform_os(ctx):
-    """Map vx OS name to Terraform OS string."""
-    os_map = {
-        "windows": "windows",
-        "macos":   "darwin",
-        "linux":   "linux",
-    }
-    return os_map.get(ctx.platform.os, "linux")
-
-def _terraform_arch(ctx):
-    """Map vx arch name to Terraform arch string (go-style)."""
-    arch_map = {
-        "x64":   "amd64",
-        "arm64": "arm64",
-        "x86":   "386",
-        "arm":   "arm",
-    }
-    return arch_map.get(ctx.platform.arch, "amd64")
-
-# ---------------------------------------------------------------------------
-# fetch_versions — HashiCorp Checkpoint API
-# ---------------------------------------------------------------------------
-
-def fetch_versions(ctx):
-    """Fetch available Terraform versions from HashiCorp releases index.
-
-    Uses the HashiCorp releases API which returns a JSON index of all versions.
-    Falls back to checkpoint API for latest version info.
-
-    Args:
-        ctx: Provider context
-
-    Returns:
-        List of VersionInfo dicts
-    """
-    url = "https://releases.hashicorp.com/terraform/index.json"
-    data = http_get_json(ctx, url)
-    if not data:
-        return []
-
-    versions = data.get("versions", {})
-    result = []
-    for v in versions.keys():
-        # Skip pre-release versions (alpha, beta, rc)
-        if "alpha" in v or "beta" in v or "rc" in v:
-            continue
-        result.append({
-            "version":    v,
-            "stable":     True,
-            "prerelease": False,
-        })
-
-    return result
+def _terraform_platform(ctx):
+    os_map   = {"windows": "windows", "macos": "darwin", "linux": "linux"}
+    arch_map = {"x64": "amd64", "arm64": "arm64", "x86": "386", "arm": "arm"}
+    return os_map.get(ctx.platform.os, "linux"), arch_map.get(ctx.platform.arch, "amd64")
 
 # ---------------------------------------------------------------------------
 # download_url — releases.hashicorp.com
+# URL: https://releases.hashicorp.com/terraform/{version}/terraform_{version}_{os}_{arch}.zip
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    """Build the Terraform download URL.
-
-    URL pattern:
-        https://releases.hashicorp.com/terraform/{version}/terraform_{version}_{os}_{arch}.zip
-
-    Args:
-        ctx:     Provider context
-        version: Version string WITHOUT 'v' prefix, e.g. "1.7.0"
-
-    Returns:
-        Download URL string, or None if platform is unsupported
-    """
-    os_str   = _terraform_os(ctx)
-    arch_str = _terraform_arch(ctx)
-
-    if not os_str or not arch_str:
-        return None
-
-    # Asset: "terraform_1.7.0_linux_amd64.zip"
+    os_str, arch_str = _terraform_platform(ctx)
     asset = "terraform_{}_{}_{}.zip".format(version, os_str, arch_str)
-
     return "https://releases.hashicorp.com/terraform/{}/{}".format(version, asset)
 
 # ---------------------------------------------------------------------------
-# install_layout
+# install_layout — single binary at archive root
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    """Terraform archives contain a single binary at the root."""
-    os  = ctx.platform.os
-    exe = "terraform.exe" if os == "windows" else "terraform"
-
+    exe = "terraform.exe" if ctx.platform.os == "windows" else "terraform"
     return {
         "type":             "archive",
         "strip_prefix":     "",
@@ -151,28 +83,21 @@ def install_layout(ctx, _version):
     }
 
 # ---------------------------------------------------------------------------
-# Path queries (RFC-0037)
+# Path queries + environment
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    """Return the vx store root directory for terraform."""
     return ctx.vx_home + "/store/terraform"
 
-def get_execute_path(ctx, version):
-    """Return the executable path for the given version."""
-    os = ctx.platform.os
-    exe = "terraform.exe" if os == "windows" else "terraform"
+def get_execute_path(ctx, _version):
+    exe = "terraform.exe" if ctx.platform.os == "windows" else "terraform"
     return ctx.install_dir + "/" + exe
 
 def post_install(_ctx, _version):
-    """No post-install actions needed for terraform."""
     return None
 
-# ---------------------------------------------------------------------------
-# environment
-# ---------------------------------------------------------------------------
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
-def environment(ctx):
-    ctx.env.PATH.set(ctx.install_dir)
-    ctx.env.PATH.append(ctx.install_dir + "/" + ctx.platform.os)
-    ctx.env.PATH.prepend(ctx.install_dir + "/" + ctx.version + "/" + ctx.name)
+def deps(_ctx, _version):
+    return []

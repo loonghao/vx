@@ -6,6 +6,11 @@
 # Windows is NOT supported via vx - use 'just' as a modern alternative.
 # On macOS/Linux, make is typically pre-installed or available via system package manager.
 
+load("@vx//stdlib:provider.star",
+     "system_permissions",
+     "multi_platform_install", "brew_install", "apt_install",
+     "dnf_install", "pacman_install")
+
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
@@ -53,11 +58,9 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": [],
-    "fs":   ["/usr/bin", "/usr/local/bin", "/opt/homebrew/bin"],
-    "exec": ["make", "brew", "apt", "dnf", "pacman"],
-}
+permissions = system_permissions(
+    exec_cmds = ["make", "brew", "apt", "dnf", "pacman"],
+)
 
 # ---------------------------------------------------------------------------
 # fetch_versions — static list (system package manager managed)
@@ -92,17 +95,17 @@ def download_url(_ctx, _version):
 # system_install — package manager strategies
 # ---------------------------------------------------------------------------
 
-def system_install(ctx):
-    """Return system install strategies for make."""
-    os = ctx.platform.os
-    if os == "windows":
-        return []
-    return [
-        {"manager": "brew",   "package": "make",  "priority": 90},
-        {"manager": "apt",    "package": "make",  "priority": 90},
-        {"manager": "dnf",    "package": "make",  "priority": 90},
-        {"manager": "pacman", "package": "make",  "priority": 90},
-    ]
+system_install = multi_platform_install(
+    macos_strategies = [
+        brew_install("make"),
+    ],
+    linux_strategies = [
+        brew_install("make",    priority = 90),
+        apt_install("make",     priority = 90),
+        dnf_install("make",     priority = 90),
+        pacman_install("make",  priority = 90),
+    ],
+)
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC 0037)

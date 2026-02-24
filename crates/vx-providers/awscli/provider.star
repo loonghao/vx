@@ -1,15 +1,16 @@
 # provider.star - AWS CLI provider
 #
-# Version source: https://github.com/aws/aws-cli/releases
+# Linux: direct zip from awscli.amazonaws.com
+# Windows/macOS: system package manager (MSI/PKG not supported)
 #
-# AWS CLI v2 uses platform-specific installers (.msi on Windows, .pkg on macOS).
-# vx prefers system package managers; Linux supports direct zip download.
-#
-# Inheritance pattern: Level 2 (custom download_url + system_install)
+# Uses stdlib templates from @vx//stdlib:provider.star
 
+load("@vx//stdlib:provider.star",
+     "runtime_def", "github_permissions", "post_extract_permissions",
+     "multi_platform_install", "winget_install", "choco_install",
+     "brew_install")
 load("@vx//stdlib:github.star", "make_fetch_versions")
-load("@vx//stdlib:install.star", "set_permissions")
-load("@vx//stdlib:env.star", "env_prepend")
+load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -27,62 +28,39 @@ aliases     = ["aws-cli"]
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "aws",
-        "executable":  "aws",
-        "description": "AWS Command Line Interface v2",
-        "aliases":     ["awscli", "aws-cli"],
-        "priority":    100,
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check", "expected_output": "aws-cli"},
-        ],
-    },
+    runtime_def("aws",
+        aliases         = ["awscli", "aws-cli"],
+        version_pattern = "aws-cli",
+    ),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com", "awscli.amazonaws.com"],
-    "fs":   [],
-    "exec": [],
-}
+permissions = github_permissions(extra_hosts = ["awscli.amazonaws.com"])
 
 # ---------------------------------------------------------------------------
-# fetch_versions — aws/aws-cli GitHub releases
+# fetch_versions
 # ---------------------------------------------------------------------------
 
 fetch_versions = make_fetch_versions("aws", "aws-cli")
 
 # ---------------------------------------------------------------------------
-# download_url — Linux only (Windows/macOS use system install)
+# download_url — Linux only; Windows/macOS use system_install
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    """Build AWS CLI download URL.
-
-    Linux x86_64/arm64: official zip from awscli.amazonaws.com
-    Windows/macOS: use system_install (MSI/PKG not supported by vx-installer)
-    """
-    os   = ctx.platform.os
-    arch = ctx.platform.arch
-
-    if os == "linux":
-        arch_map = {"x64": "x86_64", "arm64": "aarch64"}
-        arch_str = arch_map.get(arch)
-        if not arch_str:
-            return None
-        # https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.22.0.zip
-        return "https://awscli.amazonaws.com/awscli-exe-linux-{}-{}.zip".format(
-            arch_str, version
-        )
-
-    # Windows/macOS: no portable archive, use system_install
-    return None
+    if ctx.platform.os != "linux":
+        return None
+    arch_map = {"x64": "x86_64", "arm64": "aarch64"}
+    arch_str = arch_map.get(ctx.platform.arch)
+    if not arch_str:
+        return None
+    return "https://awscli.amazonaws.com/awscli-exe-linux-{}-{}.zip".format(arch_str, version)
 
 # ---------------------------------------------------------------------------
-# install_layout — Linux zip layout
+# install_layout
 # ---------------------------------------------------------------------------
 
 def install_layout(_ctx, _version):
@@ -93,91 +71,44 @@ def install_layout(_ctx, _version):
     }
 
 # ---------------------------------------------------------------------------
-# environment
+# post_extract — set +x on Linux/macOS
 # ---------------------------------------------------------------------------
 
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir + "/bin")]
+post_extract = post_extract_permissions(["dist/aws"])
 
 # ---------------------------------------------------------------------------
 # system_install — preferred on Windows and macOS
 # ---------------------------------------------------------------------------
 
-def system_install(ctx):
-    os = ctx.platform.os
-    if os == "windows":
-        return {
-            "strategies": [
-                {"manager": "winget", "package": "Amazon.AWSCLI", "priority": 100},
-                {"manager": "choco",  "package": "awscli",         "priority": 80},
-            ],
-        }
-    elif os == "macos":
-        return {
-            "strategies": [
-                {"manager": "brew", "package": "awscli", "priority": 90},
-            ],
-        }
-    elif os == "linux":
-        return {
-            "strategies": [
-                {"manager": "brew", "package": "awscli", "priority": 70},
-            ],
-        }
-    return {}
+system_install = multi_platform_install(
+    windows_strategies = [
+        winget_install("Amazon.AWSCLI", priority = 100),
+        choco_install("awscli",         priority = 80),
+    ],
+    macos_strategies = [
+        brew_install("awscli"),
+    ],
+    linux_strategies = [
+        brew_install("awscli", priority = 70),
+    ],
+)
 
 # ---------------------------------------------------------------------------
-# post_extract — set executable permissions on Linux
-#
-# AWS CLI Linux zip extracts to dist/aws (no .exe extension).
-# The binary needs +x permissions on Linux/macOS.
-# ---------------------------------------------------------------------------
-
-def post_extract(ctx, version, install_dir):
-    """Set executable permissions on the AWS CLI binary after extraction.
-
-    The AWS CLI Linux zip places the main executable at dist/aws.
-    On Linux/macOS we need to ensure it has execute permissions.
-
-    Args:
-        ctx:         Provider context
-        version:     Installed version string
-        install_dir: Path to the installation directory
-
-    Returns:
-        List of post-extract actions
-    """
-    os = ctx.platform.os
-    if os == "linux" or os == "macos":
-        return [
-            set_permissions("dist/aws", "755"),
-        ]
-    return []
-
-# ---------------------------------------------------------------------------
-# deps
-# ---------------------------------------------------------------------------
-
-def deps(_ctx, _version):
-    return []
-
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
+# Path queries + environment
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    """Return the vx store root directory for awscli."""
     return ctx.vx_home + "/store/awscli"
 
-def get_execute_path(ctx, version):
-    """Return the executable path for the given version."""
-    os = ctx.platform.os
-    if os == "windows":
-        return ctx.install_dir + "/aws.exe"
-    else:
-        return ctx.install_dir + "/aws"
+def get_execute_path(ctx, _version):
+    exe = "aws.exe" if ctx.platform.os == "windows" else "aws"
+    return ctx.install_dir + "/" + exe
 
 def post_install(_ctx, _version):
-    """Post-install hook (no-op for awscli)."""
     return None
+
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
+
+def deps(_ctx, _version):
+    return []

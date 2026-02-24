@@ -1,15 +1,16 @@
 # provider.star - jq provider
 #
 # jq: Lightweight and flexible command-line JSON processor
-# Inheritance pattern: Level 3 (custom download_url, non-standard naming)
-#   - fetch_versions: inherited (tag_prefix "jq-" stripped)
-#   - download_url:   custom (binary, platform-specific naming: jq-{os}-{arch})
+# Tags use "jq-" prefix: "jq-1.8.1" → version "1.8.1"
+# Asset: jq-{os}-{arch}[.exe]  (direct binary, no archive)
 #
-# jq releases: https://github.com/jqlang/jq/releases
-# Asset format: jq-{os}-{arch}[.exe]  (direct binary, no archive)
+# Uses stdlib templates from @vx//stdlib:provider.star
 
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url", "github_releases", "releases_to_versions")
-load("@vx//stdlib:env.star", "env_set", "env_prepend")
+load("@vx//stdlib:provider.star",
+     "runtime_def", "github_permissions",
+     "fetch_versions_with_tag_prefix")
+load("@vx//stdlib:github.star", "github_asset_url")
+load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -26,133 +27,81 @@ ecosystem   = "devtools"
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "jq",
-        "executable":  "jq",
-        "description": "Command-line JSON processor",
-        "aliases":     [],
-        "priority":    100,
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check", "expected_output": "jq-\\d+"},
-            {"command": "{executable} -n \"1+1\"", "name": "eval_check", "expected_output": "2"},
+    runtime_def("jq",
+        test_commands = [
+            {"command": "{executable} --version", "name": "version_check",
+             "expected_output": "jq-\\d+"},
+            {"command": "{executable} -n \"1+1\"", "name": "eval_check",
+             "expected_output": "2"},
         ],
-    },
+    ),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com"],
-    "fs":   [],
-    "exec": [],
+permissions = github_permissions()
+
+# ---------------------------------------------------------------------------
+# fetch_versions — jq tags use "jq-" prefix
+# ---------------------------------------------------------------------------
+
+fetch_versions = fetch_versions_with_tag_prefix("jqlang", "jq", tag_prefix = "jq-")
+
+# ---------------------------------------------------------------------------
+# download_url — direct binary: jq-{os}-{arch}[.exe]
+# ---------------------------------------------------------------------------
+
+_JQ_PLATFORMS = {
+    "windows/x64":  ("windows", "amd64"),
+    "windows/x86":  ("windows", "i386"),
+    "macos/x64":    ("macos",   "amd64"),
+    "macos/arm64":  ("macos",   "arm64"),
+    "linux/x64":    ("linux",   "amd64"),
+    "linux/arm64":  ("linux",   "arm64"),
 }
 
-# ---------------------------------------------------------------------------
-# fetch_versions — inherited
-#
-# jq tags use "jq-" prefix: "jq-1.8.1" → version "1.8.1"
-# We use a custom fetch that strips the "jq-" prefix.
-# ---------------------------------------------------------------------------
-
-def fetch_versions(ctx):
-    """Fetch jq versions from GitHub releases.
-
-    jq uses tag format "jq-1.8.1" (not "v1.8.1"), so we use tag_prefix="jq-".
-    Returns a descriptor dict for the Rust runtime to execute.
-    """
-    return releases_to_versions(
-        github_releases(ctx, "jqlang", "jq"),
-        tag_prefix = "jq-",
-    )
-
-# ---------------------------------------------------------------------------
-# download_url — custom (binary, platform-specific naming)
-#
-# jq releases are direct binaries (not archives):
-#   jq-windows-amd64.exe
-#   jq-macos-amd64 / jq-macos-arm64
-#   jq-linux-amd64 / jq-linux-arm64
-# ---------------------------------------------------------------------------
-
 def download_url(ctx, version):
-    """Build the jq download URL.
-
-    Args:
-        ctx:     Provider context
-        version: Version string, e.g. "1.8.1"
-
-    Returns:
-        Download URL string, or None if platform is unsupported
-    """
-    os   = ctx.platform.os
-    arch = ctx.platform.arch
-
-    # Map arch to jq naming
-    arch_map = {
-        "x64":   "amd64",
-        "arm64": "arm64",
-        "x86":   "i386",
-    }
-    jq_arch = arch_map.get(arch)
-    if not jq_arch:
+    platform = _JQ_PLATFORMS.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
+    if not platform:
         return None
-
-    # Map OS to jq naming
-    os_map = {
-        "windows": "windows",
-        "macos":   "macos",
-        "linux":   "linux",
-    }
-    jq_os = os_map.get(os)
-    if not jq_os:
-        return None
-
-    # Build asset name
-    if os == "windows":
+    jq_os, jq_arch = platform[0], platform[1]
+    if ctx.platform.os == "windows":
         asset = "jq-{}-{}.exe".format(jq_os, jq_arch)
     else:
         asset = "jq-{}-{}".format(jq_os, jq_arch)
-
-    tag = "jq-{}".format(version)
-    return github_asset_url("jqlang", "jq", tag, asset)
+    return github_asset_url("jqlang", "jq", "jq-" + version, asset)
 
 # ---------------------------------------------------------------------------
-# install_layout — binary (single file)
+# install_layout — single binary
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    os = ctx.platform.os
-    exe = "jq.exe" if os == "windows" else "jq"
+    exe = "jq.exe" if ctx.platform.os == "windows" else "jq"
     return {
-        "type":             "binary",
-        "target_name":      exe,
-        "target_dir":       "bin",
+        "type":               "binary",
+        "target_name":        exe,
+        "target_dir":         "bin",
         "target_permissions": "755",
     }
 
 # ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
+# Path queries + environment
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    """Return the vx store root directory for jq."""
     return ctx.vx_home + "/store/jq"
 
-def get_execute_path(ctx, version):
-    """Return the executable path for the given version."""
-    os = ctx.platform.os
-    exe = "jq.exe" if os == "windows" else "jq"
+def get_execute_path(ctx, _version):
+    exe = "jq.exe" if ctx.platform.os == "windows" else "jq"
     return ctx.install_dir + "/bin/" + exe
 
 def post_install(_ctx, _version):
-    """No post-install steps needed for jq."""
     return None
-
-# ---------------------------------------------------------------------------
-# environment
-# ---------------------------------------------------------------------------
 
 def environment(ctx, _version):
     return [env_prepend("PATH", ctx.install_dir + "/bin")]
+
+def deps(_ctx, _version):
+    return []

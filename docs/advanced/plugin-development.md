@@ -1,124 +1,238 @@
 # Provider Development Guide
 
-This guide explains how to create a new tool provider for vx. Providers are the core extension mechanism that enables vx to support different development tools.
+This guide explains how to create a new provider for vx. The recommended approach is
+**Starlark-first**: write a `provider.star` file and let vx handle the rest. For advanced
+use cases that require custom Rust logic, see the [Custom Rust Provider](#custom-rust-provider) section.
 
-## Architecture Overview
+## Two Approaches
 
-vx uses a **Provider-Runtime** architecture:
+| Approach | When to Use | Effort |
+|----------|-------------|--------|
+| **`provider.star`** (recommended) | GitHub releases, archive/binary downloads, PyPI/npm tools, system package manager fallback | Minutes |
+| **Custom Rust Provider** | Custom install logic, complex version parsing, non-standard protocols | Hours |
 
-- **Provider**: A container for related runtimes (e.g., `NodeProvider` provides `node`, `npm`, `npx`)
-- **Runtime**: The actual tool implementation (version fetching, installation, execution)
+---
+
+## Approach 1: provider.star (Recommended)
+
+For the vast majority of tools, a `provider.star` file is all you need.
+See the [Manifest-Driven Providers Guide](../guide/manifest-driven-providers.md) for the
+complete reference. Here is a condensed walkthrough.
+
+### Minimal Example
+
+```python
+# crates/vx-providers/mytool/provider.star
+load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star",    "env_prepend")
+
+# --- Metadata ---
+name        = "mytool"
+description = "My awesome tool"
+homepage    = "https://github.com/myorg/mytool"
+repository  = "https://github.com/myorg/mytool"
+license     = "MIT"
+ecosystem   = "devtools"
+
+runtimes = [
+    {
+        "name":        "mytool",
+        "executable":  "mytool",
+        "description": "My tool runtime",
+        "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
+    },
+]
+
+permissions = {
+    "http": ["api.github.com", "github.com"],
+    "fs":   [],
+    "exec": [],
+}
+
+# --- Logic ---
+fetch_versions = make_fetch_versions("myorg", "mytool")
+
+def download_url(ctx, version):
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
+    triples = {
+        "windows/x64":  "x86_64-pc-windows-msvc",
+        "macos/x64":    "x86_64-apple-darwin",
+        "macos/arm64":  "aarch64-apple-darwin",
+        "linux/x64":    "x86_64-unknown-linux-musl",
+        "linux/arm64":  "aarch64-unknown-linux-gnu",
+    }
+    triple = triples.get("{}/{}".format(os, arch))
+    if not triple:
+        return None
+    ext   = "zip" if os == "windows" else "tar.gz"
+    asset = "mytool-{}-{}.{}".format(version, triple, ext)
+    return github_asset_url("myorg", "mytool", "v" + version, asset)
+
+def install_layout(ctx, version):
+    os  = ctx.platform.os
+    exe = "mytool.exe" if os == "windows" else "mytool"
+    return {
+        "type":             "archive",
+        "strip_prefix":     "mytool-{}".format(version),
+        "executable_paths": [exe, "mytool"],
+    }
+
+def store_root(ctx):
+    return ctx.vx_home + "/store/mytool"
+
+def get_execute_path(ctx, version):
+    os  = ctx.platform.os
+    exe = "mytool.exe" if os == "windows" else "mytool"
+    return ctx.install_dir + "/" + exe
+
+def post_install(_ctx, _version):
+    return None
+
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
+```
+
+### Required Files
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      ProviderRegistry                        │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
-│  │NodeProvider │  │ GoProvider  │  │ UVProvider  │   ...    │
-│  │  - node     │  │  - go       │  │  - uv       │          │
-│  │  - npm      │  │             │  │  - uvx      │          │
-│  │  - npx      │  │             │  │             │          │
-│  └─────────────┘  └─────────────┘  └─────────────┘          │
-└─────────────────────────────────────────────────────────────┘
+crates/vx-providers/mytool/
+├── provider.star     # All logic (required)
+└── provider.toml     # Metadata only (required for built-in providers)
 ```
 
-## Provider Structure
+**`provider.toml`** — metadata only, no layout fields:
 
-Providers are Rust crates located in `crates/vx-providers/`:
-
-```
-crates/vx-providers/
-├── node/
-│   ├── Cargo.toml
-│   └── src/
-│       ├── lib.rs          # Module exports
-│       ├── provider.rs     # Provider implementation
-│       ├── runtime.rs      # Runtime implementations
-│       └── config.rs       # Configuration (optional)
-├── go/
-├── rust/
-└── ...
+```toml
+[provider]
+name        = "mytool"
+description = "My awesome tool"
+homepage    = "https://github.com/myorg/mytool"
+repository  = "https://github.com/myorg/mytool"
+ecosystem   = "devtools"
+license     = "MIT"
 ```
 
-## Step-by-Step Guide
+### Required Functions Checklist
 
-### 1. Create the Crate
+Every `provider.star` must implement:
 
-Create a new directory under `crates/vx-providers/`:
+| Function | Signature | Notes |
+|----------|-----------|-------|
+| `fetch_versions` | `fetch_versions(ctx)` or `make_fetch_versions(...)` | Returns version list |
+| `download_url` | `download_url(ctx, version) -> str\|None` | Returns download URL |
+| `install_layout` | `install_layout(ctx, version) -> dict\|None` | Returns install descriptor |
+| `store_root` | `store_root(ctx) -> str` | Returns store path |
+| `get_execute_path` | `get_execute_path(ctx, version) -> str` | Returns executable path |
+| `post_install` | `post_install(ctx, version) -> None` | Post-install hook |
+| `environment` | `environment(ctx, version) -> list` | Returns env operations |
 
-```bash
-mkdir -p crates/vx-providers/mytool/src
+Optional functions:
+
+| Function | Signature | Notes |
+|----------|-----------|-------|
+| `system_install` | `system_install(ctx) -> dict` | Package manager fallback |
+| `deps` | `deps(ctx, version) -> list` | Runtime dependencies |
+| `uninstall` | `uninstall(ctx, version) -> None` | Custom uninstall logic |
+
+### Registering a Built-in Provider
+
+After creating `provider.star` and `provider.toml`, register the provider in the Rust
+registry so it is loaded at startup:
+
+**`crates/vx-starlark/src/registry.rs`** (or equivalent registry file):
+
+```rust
+// Add the provider directory name to the built-in list
+pub const BUILTIN_PROVIDERS: &[&str] = &[
+    "node",
+    "go",
+    // ... existing providers ...
+    "mytool",   // ← add here
+];
 ```
 
-Create `Cargo.toml`:
+No Rust code is needed beyond this registration line.
+
+---
+
+## Approach 2: Custom Rust Provider
+
+Use this approach only when `provider.star` is insufficient — for example:
+- Custom authentication flows
+- Non-HTTP install sources (e.g., S3, internal registries)
+- Complex post-install logic that Starlark cannot express
+- Providers that wrap other Rust crates
+
+### Directory Structure
+
+```
+crates/vx-providers/mytool/
+├── Cargo.toml
+├── provider.star     # Still recommended even with Rust code
+├── provider.toml
+└── src/
+    ├── lib.rs        # Module exports
+    ├── provider.rs   # Provider implementation
+    └── runtime.rs    # Runtime implementation
+```
+
+### Cargo.toml
 
 ```toml
 [package]
-name = "vx-provider-mytool"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+name        = "vx-provider-mytool"
+version.workspace   = true
+edition.workspace   = true
+license.workspace   = true
 description = "vx provider for MyTool"
 
 [dependencies]
-vx-core = { workspace = true }
+vx-core    = { workspace = true }
 vx-runtime = { workspace = true }
 async-trait = { workspace = true }
-anyhow = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-tracing = { workspace = true }
+anyhow      = { workspace = true }
+serde_json  = { workspace = true }
+tracing     = { workspace = true }
 ```
 
-### 2. Implement the Runtime Trait
-
-The `Runtime` trait is the core abstraction. Only two methods are **required**:
+### Implement the Runtime Trait
 
 ```rust
 // src/runtime.rs
 use async_trait::async_trait;
-use vx_runtime::{
-    Runtime, RuntimeContext, VersionInfo, Ecosystem, Platform,
-    ExecutionContext, ExecutionResult, InstallResult,
-};
+use vx_runtime::{Runtime, RuntimeContext, VersionInfo, Ecosystem, Platform};
 use anyhow::Result;
 
 pub struct MyToolRuntime;
 
 impl MyToolRuntime {
-    pub fn new() -> Self {
-        Self
-    }
+    pub fn new() -> Self { Self }
 }
 
 #[async_trait]
 impl Runtime for MyToolRuntime {
-    // ========== Required Methods ==========
+    // ── Required ──────────────────────────────────────────────────────────
 
-    /// Runtime name - used as the command name
-    fn name(&self) -> &str {
-        "mytool"
-    }
+    fn name(&self) -> &str { "mytool" }
 
-    /// Fetch available versions from official source
     async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-        // Example: Fetch from GitHub releases API
-        let url = "https://api.github.com/repos/org/mytool/releases";
+        let url = "https://api.github.com/repos/myorg/mytool/releases";
         let response: serde_json::Value = ctx.http.get_json_value(url).await?;
 
         let versions = response
             .as_array()
             .unwrap_or(&vec![])
             .iter()
-            .filter_map(|release| {
-                let tag = release["tag_name"].as_str()?;
+            .filter_map(|r| {
+                let tag = r["tag_name"].as_str()?;
                 let version = tag.strip_prefix('v').unwrap_or(tag);
-                let prerelease = release["prerelease"].as_bool().unwrap_or(false);
-
                 Some(VersionInfo {
-                    version: version.to_string(),
-                    prerelease,
-                    lts: false,
-                    release_date: release["published_at"].as_str().map(String::from),
+                    version:    version.to_string(),
+                    prerelease: r["prerelease"].as_bool().unwrap_or(false),
                     ..Default::default()
                 })
             })
@@ -127,57 +241,34 @@ impl Runtime for MyToolRuntime {
         Ok(versions)
     }
 
-    // ========== Optional Methods with Defaults ==========
+    // ── Optional ──────────────────────────────────────────────────────────
 
-    fn description(&self) -> &str {
-        "MyTool - A fantastic development tool"
-    }
+    fn description(&self) -> &str { "MyTool - A fantastic development tool" }
 
-    fn aliases(&self) -> &[&str] {
-        &["mt", "my-tool"]  // Alternative names
-    }
+    fn aliases(&self) -> &[&str] { &["mt"] }
 
-    fn ecosystem(&self) -> Ecosystem {
-        Ecosystem::Unknown  // Or NodeJs, Go, Rust, Python, etc.
-    }
+    fn ecosystem(&self) -> Ecosystem { Ecosystem::Unknown }
 
-    /// Get download URL for a specific version and platform
     async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-        let os = match platform.os.as_str() {
-            "macos" => "darwin",
-            "windows" => "windows",
-            "linux" => "linux",
+        let triple = match (platform.os.as_str(), platform.arch.as_str()) {
+            ("windows", "x86_64") => "x86_64-pc-windows-msvc",
+            ("macos",   "x86_64") => "x86_64-apple-darwin",
+            ("macos",   "aarch64") => "aarch64-apple-darwin",
+            ("linux",   "x86_64") => "x86_64-unknown-linux-musl",
+            ("linux",   "aarch64") => "aarch64-unknown-linux-gnu",
             _ => return Ok(None),
         };
-
-        let arch = match platform.arch.as_str() {
-            "x86_64" => "amd64",
-            "aarch64" => "arm64",
-            _ => return Ok(None),
-        };
-
-        let ext = if platform.os == "windows" { "zip" } else { "tar.gz" };
-
+        let ext   = if platform.os == "windows" { "zip" } else { "tar.gz" };
+        let asset = format!("mytool-{}-{}.{}", version, triple, ext);
         Ok(Some(format!(
-            "https://github.com/org/mytool/releases/download/v{}/mytool-{}-{}.{}",
-            version, os, arch, ext
+            "https://github.com/myorg/mytool/releases/download/v{}/{}",
+            version, asset
         )))
-    }
-
-    /// Customize executable path within the extracted archive
-    fn executable_relative_path(&self, _version: &str, platform: &Platform) -> String {
-        if platform.os == "windows" {
-            "mytool.exe".to_string()
-        } else {
-            "mytool".to_string()
-        }
     }
 }
 ```
 
-### 3. Implement the Provider Trait
-
-The `Provider` groups related runtimes:
+### Implement the Provider Trait
 
 ```rust
 // src/provider.rs
@@ -188,13 +279,9 @@ use crate::runtime::MyToolRuntime;
 pub struct MyToolProvider;
 
 impl Provider for MyToolProvider {
-    fn name(&self) -> &str {
-        "mytool"
-    }
+    fn name(&self) -> &str { "mytool" }
 
-    fn description(&self) -> &str {
-        "MyTool development tool"
-    }
+    fn description(&self) -> &str { "MyTool development tool" }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
         vec![Arc::new(MyToolRuntime::new())]
@@ -202,7 +289,7 @@ impl Provider for MyToolProvider {
 }
 ```
 
-### 4. Export from lib.rs
+### Export from lib.rs
 
 ```rust
 // src/lib.rs
@@ -213,49 +300,35 @@ pub use provider::MyToolProvider;
 pub use runtime::MyToolRuntime;
 ```
 
-### 5. Register the Provider
+### Register the Provider
 
-Add your provider to `crates/vx-cli/src/registry.rs`:
-
-```rust
-use vx_provider_mytool::MyToolProvider;
-
-pub fn create_registry() -> ProviderRegistry {
-    let mut registry = ProviderRegistry::new();
-
-    // Register your provider
-    registry.register(Box::new(MyToolProvider));
-
-    // ... other providers
-    registry
-}
-```
-
-Add the dependency to `crates/vx-cli/Cargo.toml`:
+Add to `crates/vx-cli/Cargo.toml`:
 
 ```toml
 [dependencies]
 vx-provider-mytool = { path = "../vx-providers/mytool" }
 ```
 
-## Lifecycle Hooks
+Add to `crates/vx-cli/src/registry.rs`:
 
-The `Runtime` trait provides lifecycle hooks for customization:
+```rust
+use vx_provider_mytool::MyToolProvider;
 
-### Installation Hooks
+pub fn create_registry() -> ProviderRegistry {
+    let mut registry = ProviderRegistry::new();
+    registry.register(Box::new(MyToolProvider));
+    // ... other providers
+    registry
+}
+```
+
+### Lifecycle Hooks
 
 ```rust
 #[async_trait]
 impl Runtime for MyToolRuntime {
-    /// Called before installation - validate environment
-    async fn pre_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
-        // Check system requirements
-        Ok(())
-    }
-
-    /// Called after extraction - rename files, set permissions
-    fn post_extract(&self, version: &str, install_path: &PathBuf) -> Result<()> {
-        // Example: Rename platform-specific binary
+    /// Called after extraction — rename files, set permissions
+    fn post_extract(&self, _version: &str, install_path: &PathBuf) -> Result<()> {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -270,92 +343,26 @@ impl Runtime for MyToolRuntime {
     }
 
     /// Called after successful installation
-    async fn post_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
+    async fn post_install(&self, _version: &str, _ctx: &RuntimeContext) -> Result<()> {
         // Run initialization, install bundled tools, etc.
         Ok(())
     }
 }
 ```
 
-### Execution Hooks
-
-```rust
-#[async_trait]
-impl Runtime for MyToolRuntime {
-    /// Called before command execution
-    async fn pre_execute(&self, args: &[String], ctx: &ExecutionContext) -> Result<()> {
-        // Set up environment, validate args
-        Ok(())
-    }
-
-    /// Called after command execution
-    async fn post_execute(
-        &self,
-        args: &[String],
-        result: &ExecutionResult,
-        ctx: &ExecutionContext,
-    ) -> Result<()> {
-        // Log results, clean up temp files
-        Ok(())
-    }
-}
-```
-
-### Version Switch Hooks
-
-```rust
-#[async_trait]
-impl Runtime for MyToolRuntime {
-    async fn pre_switch(
-        &self,
-        from_version: Option<&str>,
-        to_version: &str,
-        ctx: &RuntimeContext,
-    ) -> Result<()> {
-        // Validate target version
-        Ok(())
-    }
-
-    async fn post_switch(
-        &self,
-        from_version: Option<&str>,
-        to_version: &str,
-        ctx: &RuntimeContext,
-    ) -> Result<()> {
-        // Update symlinks, rehash commands
-        Ok(())
-    }
-}
-```
-
-## Custom Installation Verification
-
-Override `verify_installation` for custom verification logic:
-
-```rust
-fn verify_installation(
-    &self,
-    version: &str,
-    install_path: &Path,
-    platform: &Platform,
-) -> VerificationResult {
-    let exe_path = install_path.join(self.executable_relative_path(version, platform));
-
-    if !exe_path.exists() {
-        return VerificationResult::failure(
-            vec![format!("Executable not found: {}", exe_path.display())],
-            vec!["Check the download URL and archive structure".to_string()],
-        );
-    }
-
-    // Additional checks (e.g., verify it's actually executable)
-    VerificationResult::success(exe_path)
-}
-```
+---
 
 ## Testing
 
-Create tests in `tests/` directory (following project conventions):
+### Unit Tests
+
+Place tests in `tests/` (not inline `#[cfg(test)]` modules):
+
+```
+crates/vx-providers/mytool/tests/
+├── provider_tests.rs
+└── runtime_tests.rs
+```
 
 ```rust
 // tests/runtime_tests.rs
@@ -364,113 +371,79 @@ use vx_provider_mytool::MyToolRuntime;
 use vx_runtime::Runtime;
 
 #[rstest]
-#[tokio::test]
-async fn test_fetch_versions() {
+fn test_runtime_name() {
     let runtime = MyToolRuntime::new();
-    // Note: This test requires network access
-    // Consider mocking for CI
     assert_eq!(runtime.name(), "mytool");
 }
 
 #[rstest]
-fn test_executable_path() {
+fn test_aliases() {
     let runtime = MyToolRuntime::new();
-    let platform = Platform::current();
-    let path = runtime.executable_relative_path("1.0.0", &platform);
-    assert!(!path.is_empty());
+    assert!(runtime.aliases().contains(&"mt"));
+}
+
+#[tokio::test]
+async fn test_download_url_linux() {
+    let runtime = MyToolRuntime::new();
+    let platform = Platform { os: "linux".into(), arch: "x86_64".into() };
+    let url = runtime.download_url("1.0.0", &platform).await.unwrap();
+    assert!(url.is_some());
+    assert!(url.unwrap().contains("1.0.0"));
 }
 ```
 
-## Best Practices
+### Testing provider.star
 
-### 1. Handle Platform Differences
+For Starlark providers, test by running vx commands against a temporary `VX_HOME`:
 
-```rust
-async fn download_url(&self, version: &str, platform: &Platform) -> Result<Option<String>> {
-    // Map platform names to download URL format
-    let (os, arch) = match (platform.os.as_str(), platform.arch.as_str()) {
-        ("macos", "x86_64") => ("darwin", "amd64"),
-        ("macos", "aarch64") => ("darwin", "arm64"),
-        ("linux", "x86_64") => ("linux", "amd64"),
-        ("linux", "aarch64") => ("linux", "arm64"),
-        ("windows", "x86_64") => ("windows", "amd64"),
-        _ => return Ok(None), // Unsupported platform
-    };
-    // ...
-}
+```bash
+# Set a temp home and test
+VX_HOME=/tmp/vx-test vx mytool --version
 ```
 
-### 2. Verify Downloads
+---
 
-Use checksums when available:
+## Checklist
 
-```rust
-async fn post_install(&self, version: &str, ctx: &RuntimeContext) -> Result<()> {
-    // Verify checksum if available
-    let checksum_url = format!("https://example.com/mytool/{}/SHA256SUMS", version);
-    // ... verify
-    Ok(())
-}
-```
+### provider.star Provider
 
-### 3. Provide Good Error Messages
+- [ ] `provider.star` created with all required functions
+- [ ] `provider.toml` created (metadata only, no layout fields)
+- [ ] `license` field set to SPDX identifier
+- [ ] `runtimes` list includes `test_commands`
+- [ ] `download_url()` covers all major platforms (windows/x64, macos/x64, macos/arm64, linux/x64, linux/arm64)
+- [ ] `install_layout()` returns correct `strip_prefix` and `executable_paths`
+- [ ] `environment()` returns a **list** (not a dict)
+- [ ] `system_install()` added if tool is available via brew/winget/choco
+- [ ] Provider registered in built-in registry
+- [ ] Tested on at least one platform
 
-```rust
-async fn fetch_versions(&self, ctx: &RuntimeContext) -> Result<Vec<VersionInfo>> {
-    ctx.http
-        .get_json_value(API_URL)
-        .await
-        .map_err(|e| anyhow::anyhow!(
-            "Failed to fetch MyTool versions from {}: {}. \
-             Check your network connection or try again later.",
-            API_URL, e
-        ))?;
-    // ...
-}
-```
+### Custom Rust Provider (additional)
 
-### 4. Support Version Specifiers
+- [ ] `Cargo.toml` created with workspace dependencies
+- [ ] `Runtime` trait implemented (`name()` + `fetch_versions()` required)
+- [ ] `Provider` trait implemented
+- [ ] Tests in `tests/` directory (not inline)
+- [ ] Added to `vx-cli/Cargo.toml` dependencies
+- [ ] Registered in `create_registry()`
 
-Handle common version formats:
+---
 
-```rust
-async fn resolve_version(&self, version: &str, ctx: &RuntimeContext) -> Result<String> {
-    match version {
-        "latest" => {
-            let versions = self.fetch_versions(ctx).await?;
-            versions.into_iter()
-                .filter(|v| !v.prerelease)
-                .map(|v| v.version)
-                .next()
-                .ok_or_else(|| anyhow::anyhow!("No stable versions found"))
-        }
-        "lts" => {
-            // Handle LTS if applicable
-            self.resolve_version("latest", ctx).await
-        }
-        v => Ok(v.to_string()),
-    }
-}
-```
+## Reference Providers
 
-## Example Providers
+Study these built-in providers as examples:
 
-Study existing providers for reference:
+| Provider | Pattern | Location |
+|----------|---------|----------|
+| `ripgrep` | Standard GitHub binary, archive layout | `crates/vx-providers/ripgrep/` |
+| `meson` | PyPI package alias (`uvx`) | `crates/vx-providers/meson/` |
+| `imagemagick` | Hybrid: direct download (Linux) + system pkg (Win/Mac) | `crates/vx-providers/imagemagick/` |
+| `node` | Custom Rust provider, multiple runtimes, LTS support | `crates/vx-providers/node/` |
+| `go` | Custom Rust provider, official API version fetching | `crates/vx-providers/go/` |
+| `uv` | Custom Rust provider, Python ecosystem | `crates/vx-providers/uv/` |
 
-| Provider | Features | Location |
-|----------|----------|----------|
-| `node` | Multiple runtimes (node, npm, npx), LTS support | `crates/vx-providers/node/` |
-| `go` | Simple single runtime | `crates/vx-providers/go/` |
-| `uv` | Python ecosystem, uvx runner | `crates/vx-providers/uv/` |
-| `rust` | Multiple commands (cargo, rustc, rustup) | `crates/vx-providers/rust/` |
-| `pnpm` | Post-extract file renaming | `crates/vx-providers/pnpm/` |
+## See Also
 
-## Contributing
-
-1. Fork the repository
-2. Create your provider crate under `crates/vx-providers/`
-3. Add comprehensive tests
-4. Update documentation
-5. Submit a pull request
-
-See [Contributing Guide](contributing.md) for more details.
+- [Manifest-Driven Providers](../guide/manifest-driven-providers.md) — Complete `provider.star` reference
+- [Extension Development](./extension-development.md) — Script-based extensions
+- [Contributing Guide](./contributing.md) — How to submit a provider

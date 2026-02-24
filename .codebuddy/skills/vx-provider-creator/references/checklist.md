@@ -25,7 +25,15 @@ Use this checklist to ensure all steps are completed when creating a new provide
 
 ## Files to Create
 
-### Provider Crate (`crates/vx-providers/{name}/`)
+### Starlark Provider (Preferred — `crates/vx-providers/{name}/`)
+
+- [ ] `provider.star` - Starlark provider script (main logic)
+- [ ] `provider.toml` - Provider manifest (metadata + layout config)
+- [ ] `Cargo.toml` - Package configuration
+- [ ] `src/lib.rs` - Minimal Rust shim (`include_str!("../provider.star")`)
+- [ ] `build.rs` - Rebuild trigger for provider.star changes
+
+### Rust Provider (Complex cases only — `crates/vx-providers/{name}/`)
 
 - [ ] `Cargo.toml` - Package configuration
 - [ ] `src/lib.rs` - Module exports and `create_provider()`
@@ -98,6 +106,9 @@ Documentation should include:
 ## Verification Commands
 
 ```bash
+# Syntax check provider.star (Starlark)
+vx check-star crates/vx-providers/{name}/provider.star
+
 # Check provider compiles
 cargo check -p vx-provider-{name}
 
@@ -118,7 +129,23 @@ cargo fmt
 
 # Run clippy
 cargo clippy -p vx-provider-{name}
+
+# End-to-end test
+vx install {name}@latest
+vx {name} --version
 ```
+
+## provider.star Validation Checklist
+
+- [ ] All metadata as top-level variables (no `def name():` functions)
+- [ ] All `ctx["..."]["..."]` replaced with `ctx.platform.os` / `ctx.platform.arch`
+- [ ] `environment()` returns list (not dict): `[env_prepend("PATH", ctx.install_dir)]`
+- [ ] `store_root()`, `get_execute_path()`, `post_install()` all present
+- [ ] `runtimes` includes `test_commands`
+- [ ] `system_install()` returns `{"strategies": [...]}` (not flat list)
+- [ ] `license` field present (SPDX identifier)
+- [ ] `permissions` declared correctly
+- [ ] `deps()` returns list of dicts (not strings)
 
 ## Common Issues
 

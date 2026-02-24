@@ -1,16 +1,13 @@
 # provider.star - pwsh (PowerShell) provider
 #
-# PowerShell: Cross-platform command-line shell and scripting language
-# Inheritance pattern: Level 2 (custom download_url for PowerShell's naming)
-#   - fetch_versions: inherited from github.star
-#   - download_url:   custom (PowerShell-{version}-{platform}.{ext})
-#
-# pwsh releases: https://github.com/PowerShell/PowerShell/releases
-# Asset format: PowerShell-{version}-{os}-{arch}.{ext}
+# Asset: PowerShell-{version}-{os}-{arch}.{ext}
+# Uses stdlib templates from @vx//stdlib:provider.star
 
+load("@vx//stdlib:provider.star",
+     "runtime_def", "github_permissions")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star",    "env_prepend")
 
-load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
@@ -26,84 +23,55 @@ ecosystem   = "system"
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "pwsh",
-        "executable":  "pwsh",
-        "description": "PowerShell 7+ (cross-platform)",
-        "aliases":     ["powershell", "ps"],
-        "priority":    100,
-        "test_commands": [
-            {"command": "{executable} -Command \"$PSVersionTable.PSVersion\"", "name": "version_check", "expected_output": "\\d+\\.\\d+"},
+    runtime_def("pwsh",
+        aliases = ["powershell", "ps"],
+        test_commands = [
+            {"command": "{executable} -Command \"$PSVersionTable.PSVersion\"",
+             "name": "version_check", "expected_output": "\\d+\\.\\d+"},
         ],
-    },
+    ),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com"],
-    "fs":   [],
-    "exec": [],
-}
+permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# fetch_versions — inherited
+# fetch_versions
 # ---------------------------------------------------------------------------
 
 fetch_versions = make_fetch_versions("PowerShell", "PowerShell")
 
 # ---------------------------------------------------------------------------
-# download_url — custom
-#
-# PowerShell asset naming: PowerShell-{version}-{os}-{arch}.{ext}
-#   PowerShell-7.5.0-win-x64.zip
-#   PowerShell-7.5.0-osx-x64.tar.gz / PowerShell-7.5.0-osx-arm64.tar.gz
-#   PowerShell-7.5.0-linux-x64.tar.gz / PowerShell-7.5.0-linux-arm64.tar.gz
+# Platform helpers
+# Asset: PowerShell-{version}-{os}-{arch}.{ext}
 # ---------------------------------------------------------------------------
 
-def _pwsh_platform(ctx):
-    """Map platform to PowerShell's naming convention."""
-    os   = ctx.platform.os
-    arch = ctx.platform.arch
-
-    platform_map = {
-        "windows/x64":   ("win",   "x64",   "zip"),
-        "windows/arm64": ("win",   "arm64", "zip"),
-        "macos/x64":     ("osx",   "x64",   "tar.gz"),
-        "macos/arm64":   ("osx",   "arm64", "tar.gz"),
-        "linux/x64":     ("linux", "x64",   "tar.gz"),
-        "linux/arm64":   ("linux", "arm64", "tar.gz"),
-    }
-    return platform_map.get("{}/{}".format(os, arch))
+_PWSH_PLATFORMS = {
+    "windows/x64":   ("win",   "x64",   "zip"),
+    "windows/arm64": ("win",   "arm64", "zip"),
+    "macos/x64":     ("osx",   "x64",   "tar.gz"),
+    "macos/arm64":   ("osx",   "arm64", "tar.gz"),
+    "linux/x64":     ("linux", "x64",   "tar.gz"),
+    "linux/arm64":   ("linux", "arm64", "tar.gz"),
+}
 
 def download_url(ctx, version):
-    """Build the PowerShell download URL.
-
-    Args:
-        ctx:     Provider context
-        version: Version string, e.g. "7.5.0"
-
-    Returns:
-        Download URL string, or None if platform is unsupported
-    """
-    platform = _pwsh_platform(ctx)
+    platform = _PWSH_PLATFORMS.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
     if not platform:
         return None
-
-    ps_os, ps_arch, ext = platform
+    ps_os, ps_arch, ext = platform[0], platform[1], platform[2]
     asset = "PowerShell-{}-{}-{}.{}".format(version, ps_os, ps_arch, ext)
-    tag = "v{}".format(version)
-    return github_asset_url("PowerShell", "PowerShell", tag, asset)
+    return github_asset_url("PowerShell", "PowerShell", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
 # install_layout
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    os = ctx.platform.os
-    exe = "pwsh.exe" if os == "windows" else "pwsh"
+    exe = "pwsh.exe" if ctx.platform.os == "windows" else "pwsh"
     return {
         "type":             "archive",
         "strip_prefix":     "",
@@ -111,26 +79,21 @@ def install_layout(ctx, _version):
     }
 
 # ---------------------------------------------------------------------------
-# Path queries (RFC-0037)
+# Path queries + environment
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    """Return the vx store root directory for pwsh."""
     return ctx.vx_home + "/store/pwsh"
 
-def get_execute_path(ctx, version):
-    """Return the executable path for the given version."""
-    os = ctx.platform.os
-    exe = "pwsh.exe" if os == "windows" else "pwsh"
+def get_execute_path(ctx, _version):
+    exe = "pwsh.exe" if ctx.platform.os == "windows" else "pwsh"
     return ctx.install_dir + "/" + exe
 
 def post_install(_ctx, _version):
-    """No post-install steps needed for pwsh."""
     return None
-
-# ---------------------------------------------------------------------------
-# environment
-# ---------------------------------------------------------------------------
 
 def environment(ctx, _version):
     return [env_prepend("PATH", ctx.install_dir)]
+
+def deps(_ctx, _version):
+    return []

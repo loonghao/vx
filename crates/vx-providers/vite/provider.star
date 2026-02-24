@@ -1,71 +1,52 @@
 # provider.star - Vite provider
 #
-# Vite is a frontend build tool distributed as an npm package.
-# `vx vite` is routed to `vx npx vite` (npm package alias pattern).
-#
-# Inheritance pattern: Level 3 (npm package alias, no direct download)
+# Vite is an npm package. `vx vite` routes to `vx npx vite`.
+# Uses stdlib templates from @vx//stdlib:provider.star
+
+load("@vx//stdlib:provider.star", "runtime_def", "dep_def", "system_permissions")
+load("@vx//stdlib:http.star",     "fetch_json_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-name        = "vite"
-description = "Vite - Next generation frontend build tool"
-homepage    = "https://vitejs.dev"
-repository  = "https://github.com/vitejs/vite"
-license     = "MIT"
-ecosystem   = "nodejs"
+name          = "vite"
+description   = "Vite - Next generation frontend build tool"
+homepage      = "https://vitejs.dev"
+repository    = "https://github.com/vitejs/vite"
+license       = "MIT"
+ecosystem     = "nodejs"
+
+# RFC 0033: route `vx vite` → `vx npx vite`
+package_alias = {"ecosystem": "npm", "package": "vite"}
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "vite",
-        "executable":  "vite",
-        "description": "Vite frontend build tool",
-        "priority":    100,
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check", "expected_output": "vite/\\d+"},
+    runtime_def("vite",
+        test_commands = [
+            {"command": "{executable} --version", "name": "version_check",
+             "expected_output": "vite/\\d+"},
         ],
-    },
+    ),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["registry.npmjs.org"],
-    "fs":   [],
-    "exec": ["npx", "node"],
-}
-
-# ---------------------------------------------------------------------------
-# Package alias configuration
-# ---------------------------------------------------------------------------
-
-package_alias = {
-    "ecosystem": "npm",
-    "package":   "vite",
-}
-
-load("@vx//stdlib:http.star", "fetch_json_versions")
+permissions = system_permissions(
+    extra_hosts = ["registry.npmjs.org"],
+    exec_cmds   = ["npx", "node"],
+)
 
 # ---------------------------------------------------------------------------
 # fetch_versions — npm registry
 # ---------------------------------------------------------------------------
 
 def fetch_versions(ctx):
-    """Fetch Vite versions from npm registry.
-
-    Returns a descriptor dict for the Rust runtime to execute.
-    """
-    return fetch_json_versions(
-        ctx,
-        "https://registry.npmjs.org/vite",
-        "npm_registry",
-    )
+    return fetch_json_versions(ctx, "https://registry.npmjs.org/vite", "npm_registry")
 
 # ---------------------------------------------------------------------------
 # download_url — not applicable (npm package)
@@ -75,43 +56,34 @@ def download_url(_ctx, _version):
     return None
 
 # ---------------------------------------------------------------------------
-# Path queries (RFC-0037)
+# Path queries
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    """Return the vx store root directory for vite.
-
-    vite is an npm package alias; it is not directly installed by vx.
-    """
     return ctx.vx_home + "/store/vite"
 
 def get_execute_path(ctx, _version):
-    """Return the executable path for vite (resolved via npx)."""
-    os = ctx.platform.os
-    exe = "vite.cmd" if os == "windows" else "vite"
+    exe = "vite.cmd" if ctx.platform.os == "windows" else "vite"
     return ctx.install_dir + "/" + exe
 
-def post_install(_ctx, version):
-    """No post-install actions needed — npm package alias."""
+def post_install(_ctx, _version):
     return None
 
+def environment(_ctx, _version):
+    return []
+
 # ---------------------------------------------------------------------------
-# deps — requires node (with version constraints per vite version)
+# deps — Node.js version-dependent
 # ---------------------------------------------------------------------------
 
 def deps(_ctx, version):
-    """Vite requires Node.js with version-specific constraints."""
     parts = version.split(".")
     major = int(parts[0]) if parts else 0
-
     if major >= 5:
-        node_version = ">=18"
+        node_ver = ">=18"
     elif major >= 3:
-        node_version = ">=14.18"
+        node_ver = ">=14.18"
     else:
-        node_version = ">=12"
-
-    return [
-        {"runtime": "node", "version": node_version,
-         "reason": "Vite {} requires Node.js {}".format(version, node_version)},
-    ]
+        node_ver = ">=12"
+    return [dep_def("node", version = node_ver,
+                    reason = "Vite {} requires Node.js {}".format(version, node_ver))]

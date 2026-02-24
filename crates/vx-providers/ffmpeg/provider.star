@@ -1,15 +1,17 @@
 # provider.star - FFmpeg provider
 #
-# Version source: https://github.com/GyanD/codexffmpeg/releases (pre-built Windows binaries)
-#                 https://github.com/FFmpeg/FFmpeg/releases (official, Unix)
+# Windows: GyanD pre-built binaries (GitHub)
+# Linux:   johnvansickle.com static builds (needs flatten)
+# macOS:   evermeet.cx static builds
+# Bundled runtimes: ffprobe, ffplay
 #
-# Bundled runtimes: ffprobe, ffplay (included in every FFmpeg release)
-#
-# Inheritance pattern: Level 2 (custom download_url for platform-specific asset naming)
+# Uses stdlib templates from @vx//stdlib:provider.star
 
+load("@vx//stdlib:provider.star",
+     "runtime_def", "bundled_runtime_def",
+     "github_permissions", "post_extract_flatten")
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:install.star", "flatten_dir")
-load("@vx//stdlib:env.star", "env_prepend")
+load("@vx//stdlib:env.star",    "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -26,47 +28,25 @@ ecosystem   = "system"
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "ffmpeg",
-        "executable":  "ffmpeg",
-        "description": "FFmpeg multimedia framework",
-        "priority":    100,
-        "test_commands": [
-            {"command": "{executable} -version", "name": "version_check", "expected_output": "ffmpeg version"},
-        ],
-    },
-    {
-        "name":        "ffprobe",
-        "executable":  "ffprobe",
-        "description": "FFprobe multimedia stream analyzer (bundled with FFmpeg)",
-        "bundled_with": "ffmpeg",
-        "test_commands": [
-            {"command": "{executable} -version", "name": "version_check", "expected_output": "ffprobe version"},
-        ],
-    },
-    {
-        "name":        "ffplay",
-        "executable":  "ffplay",
-        "description": "FFplay simple media player (bundled with FFmpeg)",
-        "bundled_with": "ffmpeg",
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check"},
-        ],
-    },
+    runtime_def("ffmpeg",
+        version_pattern = "ffmpeg version",
+        version_cmd     = "{executable} -version",
+    ),
+    bundled_runtime_def("ffprobe", bundled_with = "ffmpeg",
+        version_pattern = "ffprobe version",
+        test_commands   = [{"command": "{executable} -version", "name": "version_check",
+                            "expected_output": "ffprobe version"}]),
+    bundled_runtime_def("ffplay", bundled_with = "ffmpeg"),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com"],
-    "fs":   [],
-    "exec": [],
-}
+permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# fetch_versions — GyanD pre-built releases (Windows) / FFmpeg official (Unix)
+# fetch_versions — GyanD pre-built releases
 # ---------------------------------------------------------------------------
 
 fetch_versions = make_fetch_versions("GyanD", "codexffmpeg")
@@ -76,31 +56,19 @@ fetch_versions = make_fetch_versions("GyanD", "codexffmpeg")
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    """Build FFmpeg download URL.
-
-    Windows: GyanD pre-built binaries (ffmpeg-{version}-essentials_build.zip)
-    Linux:   Static builds from johnvansickle.com
-    macOS:   evermeet.cx static builds
-    """
     os   = ctx.platform.os
     arch = ctx.platform.arch
-
     if os == "windows":
-        # GyanD Windows builds: ffmpeg-7.1-essentials_build.zip
         asset = "ffmpeg-{}-essentials_build.zip".format(version)
         return github_asset_url("GyanD", "codexffmpeg", version, asset)
-
-    elif os == "linux" and arch == "x64":
-        # John Van Sickle static builds for Linux
-        return "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
-
-    elif os == "linux" and arch == "arm64":
-        return "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz"
-
+    elif os == "linux":
+        arch_map = {"x64": "amd64", "arm64": "arm64"}
+        arch_str = arch_map.get(arch)
+        if not arch_str:
+            return None
+        return "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-{}-static.tar.xz".format(arch_str)
     elif os == "macos":
-        # evermeet.cx static builds for macOS
         return "https://evermeet.cx/ffmpeg/ffmpeg-{}.zip".format(version)
-
     return None
 
 # ---------------------------------------------------------------------------
@@ -109,93 +77,42 @@ def download_url(ctx, version):
 
 def install_layout(ctx, version):
     os = ctx.platform.os
-
     if os == "windows":
-        # GyanD: ffmpeg-{version}-essentials_build/bin/ffmpeg.exe
         return {
             "type":             "archive",
             "strip_prefix":     "ffmpeg-{}-essentials_build".format(version),
             "executable_paths": ["bin/ffmpeg.exe", "bin/ffprobe.exe", "bin/ffplay.exe"],
         }
-    elif os == "linux":
-        return {
-            "type":             "archive",
-            "strip_prefix":     "",
-            "executable_paths": ["ffmpeg", "ffprobe", "ffplay"],
-        }
-    else:
-        return {
-            "type":             "archive",
-            "strip_prefix":     "",
-            "executable_paths": ["ffmpeg", "ffprobe", "ffplay"],
-        }
+    return {
+        "type":             "archive",
+        "strip_prefix":     "",
+        "executable_paths": ["ffmpeg", "ffprobe", "ffplay"],
+    }
 
 # ---------------------------------------------------------------------------
-# environment
+# post_extract — flatten Linux static build's top-level dir
 # ---------------------------------------------------------------------------
 
-def environment(ctx, _version):
-    os = ctx.platform.os
-    if os == "windows":
-        return [env_prepend("PATH", ctx.install_dir + "/bin")]
-    return [env_prepend("PATH", ctx.install_dir)]
+post_extract = post_extract_flatten()
 
 # ---------------------------------------------------------------------------
-# post_extract — flatten nested directory on Linux
-#
-# Linux static builds from johnvansickle.com extract to a dynamic top-level
-# directory (e.g. ffmpeg-7.1-amd64-static/). We flatten it so that ffmpeg,
-# ffprobe, ffplay are directly in the install root.
-#
-# Windows: already handled by install_layout strip_prefix.
-# macOS:   evermeet.cx zip contains the binary directly, no nesting.
-# ---------------------------------------------------------------------------
-
-def post_extract(ctx, version, install_dir):
-    """Flatten the nested directory structure for Linux static builds.
-
-    johnvansickle.com archives extract to a single top-level directory
-    (e.g. ffmpeg-7.1-amd64-static/) containing ffmpeg, ffprobe, ffplay
-    and other files. We flatten it so executables are in the install root.
-
-    Args:
-        ctx:         Provider context
-        version:     Installed version string
-        install_dir: Path to the installation directory
-
-    Returns:
-        List of post-extract actions, or empty list if not Linux
-    """
-    os = ctx.platform.os
-
-    # Only Linux static builds need flattening;
-    # Windows uses strip_prefix in install_layout, macOS zip is already flat.
-    if os == "linux":
-        return [flatten_dir()]
-
-    return []
-
-# ---------------------------------------------------------------------------
-# deps
-# ---------------------------------------------------------------------------
-
-def deps(_ctx, _version):
-    return []
-
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
+# Path queries + environment
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
     return ctx.vx_home + "/store/ffmpeg"
 
 def get_execute_path(ctx, _version):
-    os = ctx.platform.os
-    if os == "windows":
-        return ctx.install_dir + "/ffmpeg.exe"
-    else:
-        return ctx.install_dir + "/ffmpeg"
+    exe = "ffmpeg.exe" if ctx.platform.os == "windows" else "ffmpeg"
+    return ctx.install_dir + "/" + exe
 
 def post_install(_ctx, _version):
     return None
+
+def environment(ctx, _version):
+    if ctx.platform.os == "windows":
+        return [env_prepend("PATH", ctx.install_dir + "/bin")]
+    return [env_prepend("PATH", ctx.install_dir)]
+
+def deps(_ctx, _version):
+    return []

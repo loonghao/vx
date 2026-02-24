@@ -6,10 +6,8 @@
 # systemd is Linux-only and cannot be installed by vx.
 # vx only detects the system installation.
 
-# ---------------------------------------------------------------------------
-# Provider metadata
-# ---------------------------------------------------------------------------
-name        = "systemctl"
+load("@vx//stdlib:provider.star", "system_permissions")
+
 description = "systemd system and service manager"
 homepage    = "https://systemd.io"
 repository  = "https://github.com/systemd/systemd"
@@ -82,11 +80,14 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": [],
-    "fs":   ["/usr/bin", "/bin"],
-    "exec": ["systemctl", "journalctl"],
-}
+permissions = system_permissions(
+    exec_cmds = ["systemctl", "journalctl"],
+)
+
+# ---------------------------------------------------------------------------
+# Provider metadata
+# ---------------------------------------------------------------------------
+name        = "systemctl"
 
 # ---------------------------------------------------------------------------
 # fetch_versions — system detection only

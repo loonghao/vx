@@ -15,9 +15,10 @@
 #   - RceditUrlBuilder::download_url()  → download_url() below
 #   - RceditRuntime::post_extract()     → install_layout() rename hint
 
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:provider.star",
+     "github_binary_provider", "runtime_def", "github_permissions")
+load("@vx//stdlib:github.star", "github_asset_url")
 
-load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
@@ -41,133 +42,67 @@ platforms = {
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":                "rcedit",
-        "executable":          "rcedit",
-        "description":         "Command-line tool to edit resources of Windows executables",
-        "aliases":             [],
-        "priority":            100,
-        "platform_constraint": {"os": ["windows"]},
-        "test_commands": [
-            {"command": "{executable} --help", "name": "help_check", "expect_success": True},
-        ],
-    },
+    runtime_def("rcedit",
+        description   = "Command-line tool to edit resources of Windows executables",
+        version_cmd   = "{executable} --help",
+        test_commands = [{"command": "{executable} --help", "name": "help_check",
+                          "expect_success": True}]),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com", "objects.githubusercontent.com"],
-    "fs":   [],
-    "exec": [],
+permissions = github_permissions(
+    extra_hosts = ["objects.githubusercontent.com"],
+)
+
+# ---------------------------------------------------------------------------
+# Provider template — binary download, Windows-only
+# ---------------------------------------------------------------------------
+
+_p = github_binary_provider(
+    "electron", "rcedit",
+    asset      = "rcedit-x64.exe",   # overridden below
+    executable = "rcedit",
+)
+
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+post_install     = _p["post_install"]
+environment      = _p["environment"]
+deps             = _p["deps"]
+fetch_versions   = _p["fetch_versions"]
+
+# ---------------------------------------------------------------------------
+# download_url — Windows-only, arch-specific binary
+#
+# Asset naming: rcedit-{arch}.exe  (x64 / arm64 / x86)
+# ---------------------------------------------------------------------------
+
+_ARCH_MAP = {
+    "x64":   "x64",
+    "arm64": "arm64",
+    "x86":   "x86",
 }
 
-# ---------------------------------------------------------------------------
-# fetch_versions — fully inherited from github.star
-#
-# rcedit tags are "v2.0.0"; strip_v_prefix handled by releases_to_versions()
-# so versions are stored as "2.0.0".
-# ---------------------------------------------------------------------------
-
-fetch_versions = make_fetch_versions("electron", "rcedit", include_prereleases = False)
-
-# ---------------------------------------------------------------------------
-# download_url — custom override
-#
-# Why override?
-#   - Windows-only: return None for non-Windows platforms
-#   - Direct binary (no archive): asset is "rcedit-{arch}.exe"
-#   - Arch mapping: x64 → "x64", arm64 → "arm64", x86 → "x86"
-# ---------------------------------------------------------------------------
-
-def _rcedit_arch(ctx):
-    """Map platform arch to rcedit's arch suffix.
-
-    Returns None if the platform is not Windows or arch is unsupported.
-    """
-    os   = ctx.platform.os
-    arch = ctx.platform.arch
-
-    # rcedit is Windows-only
-    if os != "windows":
-        return None
-
-    arch_map = {
-        "x64":   "x64",
-        "arm64": "arm64",
-        "x86":   "x86",
-    }
-    return arch_map.get(arch)
-
 def download_url(ctx, version):
-    """Build the rcedit download URL for the given version and platform.
-
-    Args:
-        ctx:     Provider context
-        version: Version string WITHOUT 'v' prefix, e.g. "2.0.0"
-
-    Returns:
-        Download URL string, or None if platform is unsupported (non-Windows)
-    """
-    arch = _rcedit_arch(ctx)
+    if ctx.platform.os != "windows":
+        return None
+    arch = _ARCH_MAP.get(ctx.platform.arch)
     if not arch:
         return None
-
-    # Asset: "rcedit-x64.exe"  (direct binary, no archive)
     asset = "rcedit-{}.exe".format(arch)
-    tag   = "v{}".format(version)
-
-    return github_asset_url("electron", "rcedit", tag, asset)
+    return github_asset_url("electron", "rcedit", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
-# install_layout — binary download, rename to standard name
-#
-# The downloaded file is "rcedit-x64.exe" (or arm64/x86).
-# After install, it should be accessible as "rcedit.exe" in bin/.
+# install_layout — binary, rename rcedit-{arch}.exe → rcedit.exe
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    """Describe how to handle the downloaded binary.
-
-    Args:
-        ctx:     Provider context
-        version: Installed version string
-
-    Returns:
-        Layout dict consumed by the vx installer
-    """
-    arch = _rcedit_arch(ctx)
-    if not arch:
-        return {"type": "binary", "executable_name": "rcedit.exe"}
-
-    # Downloaded as "rcedit-x64.exe", rename to "rcedit.exe"
+def install_layout(ctx, _version):
+    arch = _ARCH_MAP.get(ctx.platform.arch, "x64")
     return {
         "type":            "binary",
         "source_name":     "rcedit-{}.exe".format(arch),
         "executable_name": "rcedit.exe",
     }
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC-0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    """Return the vx store root directory for rcedit."""
-    return ctx.vx_home + "/store/rcedit"
-
-def get_execute_path(ctx, version):
-    """Return the executable path for the given version (Windows only)."""
-    return ctx.install_dir + "/rcedit.exe"
-
-def post_install(_ctx, _version):
-    """No post-install steps needed for rcedit."""
-    return None
-
-# ---------------------------------------------------------------------------
-# environment
-# ---------------------------------------------------------------------------
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
