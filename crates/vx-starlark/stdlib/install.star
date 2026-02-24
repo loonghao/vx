@@ -188,9 +188,7 @@ def platform_install(ctx, windows_url = None, macos_url = None, linux_url = None
                 executable_paths = ["bin/tool.exe"],
             )
     """
-    os = ctx["platform"]["os"]
-
-    if os == "windows":
+    os = ctx.platform.os
         if windows_url == None:
             return None
         if windows_msi:
@@ -396,7 +394,7 @@ def run_command(executable, args, working_dir = None, env = None,
 
     Example (in post_extract):
         def post_extract(ctx, version, install_dir):
-            if ctx["platform"]["os"] == "macos":
+            if ctx.platform.os == "macos":
                 return [
                     run_command("install_name_tool", ["-add_rpath", "@executable_path", "bin/mytool"]),
                 ]
