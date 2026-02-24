@@ -1,4 +1,4 @@
-﻿# provider.star - msbuild provider
+# provider.star - msbuild provider
 #
 # Microsoft Build Engine - bundled with .NET SDK
 # Inheritance pattern: Level 1 (fully custom, bundled with dotnet, not directly installable)

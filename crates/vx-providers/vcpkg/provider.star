@@ -1,4 +1,4 @@
-﻿# provider.star - vcpkg provider
+# provider.star - vcpkg provider
 #
 # C++ library manager for Windows, Linux, and macOS
 # Version source: https://github.com/microsoft/vcpkg-tool/releases

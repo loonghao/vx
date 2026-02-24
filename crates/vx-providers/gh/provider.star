@@ -1,4 +1,4 @@
-﻿# provider.star - GitHub CLI (gh) provider
+# provider.star - GitHub CLI (gh) provider
 #
 # Reuse pattern: Level 2 (partial override)
 #   - fetch_versions: fully inherited from github.star

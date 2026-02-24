@@ -1,4 +1,4 @@
-﻿# provider.star - ImageMagick provider
+# provider.star - ImageMagick provider
 #
 # Version source: https://github.com/ImageMagick/ImageMagick/releases
 #

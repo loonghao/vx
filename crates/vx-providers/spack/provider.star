@@ -1,4 +1,4 @@
-﻿# provider.star - Spack provider
+# provider.star - Spack provider
 #
 # Version source: https://github.com/spack/spack/releases
 #

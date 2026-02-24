@@ -1,4 +1,4 @@
-﻿# provider.star - .NET SDK provider
+# provider.star - .NET SDK provider
 #
 # Version source: Microsoft dotnet-releases API
 #   https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/releases-index.json

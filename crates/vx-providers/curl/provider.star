@@ -1,4 +1,4 @@
-﻿# provider.star - curl provider
+# provider.star - curl provider
 #
 # cURL - command-line tool for transferring data with URLs
 # Inheritance pattern: Level 1 (fully custom, system detection only)

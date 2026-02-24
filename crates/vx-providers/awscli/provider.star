@@ -1,4 +1,4 @@
-﻿# provider.star - AWS CLI provider
+# provider.star - AWS CLI provider
 #
 # Version source: https://github.com/aws/aws-cli/releases
 #

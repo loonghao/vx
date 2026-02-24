@@ -1,4 +1,4 @@
-﻿# provider.star - Jujutsu (jj) provider
+# provider.star - Jujutsu (jj) provider
 #
 # Demonstrates the Starlark "inheritance via load()" pattern:
 #   - fetch_versions: fully reused from @vx//stdlib:github.star (zero custom code)

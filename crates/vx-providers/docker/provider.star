@@ -1,4 +1,4 @@
-﻿# provider.star - Docker provider
+# provider.star - Docker provider
 #
 # Version source: https://github.com/docker/cli/releases
 #

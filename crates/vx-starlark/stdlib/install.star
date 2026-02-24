@@ -189,6 +189,7 @@ def platform_install(ctx, windows_url = None, macos_url = None, linux_url = None
             )
     """
     os = ctx.platform.os
+    if os == "windows":
         if windows_url == None:
             return None
         if windows_msi:

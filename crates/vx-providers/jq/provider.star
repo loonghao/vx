@@ -1,4 +1,4 @@
-﻿# provider.star - jq provider
+# provider.star - jq provider
 #
 # jq: Lightweight and flexible command-line JSON processor
 # Inheritance pattern: Level 3 (custom download_url, non-standard naming)

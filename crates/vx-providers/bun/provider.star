@@ -1,4 +1,4 @@
-﻿# provider.star - bun provider
+# provider.star - bun provider
 #
 # Bun: Incredibly fast JavaScript runtime, bundler, test runner, and package manager
 # Inheritance pattern: Level 2 (custom download_url for bun's naming convention)

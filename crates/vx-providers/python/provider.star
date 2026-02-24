@@ -1,4 +1,4 @@
-﻿# provider.star - Python provider
+# provider.star - Python provider
 #
 # Version source: GitHub releases of python-build-standalone
 #   https://github.com/astral-sh/python-build-standalone/releases

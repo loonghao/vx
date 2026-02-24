@@ -1,4 +1,4 @@
-﻿# provider.star - Rust provider
+# provider.star - Rust provider
 #
 # Rust is managed via rustup, the official Rust toolchain installer.
 # rustup itself is distributed as GitHub releases.
