@@ -11,6 +11,9 @@ fn test_is_vx_module_stdlib() {
     assert!(VxModuleLoader::is_vx_module("@vx//stdlib:semver.star"));
     assert!(VxModuleLoader::is_vx_module("@vx//stdlib:platform.star"));
     assert!(VxModuleLoader::is_vx_module("@vx//stdlib:http.star"));
+    assert!(VxModuleLoader::is_vx_module("@vx//stdlib:provider.star"));
+    assert!(VxModuleLoader::is_vx_module("@vx//stdlib:runtime.star"));
+    assert!(VxModuleLoader::is_vx_module("@vx//stdlib:layout.star"));
 }
 
 #[test]
@@ -105,14 +108,61 @@ fn test_available_modules_contains_all_builtins() {
         modules.contains(&"@vx//stdlib:http.star"),
         "Should list http.star"
     );
+    assert!(
+        modules.contains(&"@vx//stdlib:github.star"),
+        "Should list github.star"
+    );
+    assert!(
+        modules.contains(&"@vx//stdlib:install.star"),
+        "Should list install.star"
+    );
+    assert!(
+        modules.contains(&"@vx//stdlib:env.star"),
+        "Should list env.star"
+    );
+    assert!(
+        modules.contains(&"@vx//stdlib:layout.star"),
+        "Should list layout.star"
+    );
+    assert!(
+        modules.contains(&"@vx//stdlib:permissions.star"),
+        "Should list permissions.star"
+    );
+    assert!(
+        modules.contains(&"@vx//stdlib:provider.star"),
+        "Should list provider.star"
+    );
+    assert!(
+        modules.contains(&"@vx//stdlib:provider_templates.star"),
+        "Should list provider_templates.star"
+    );
+    assert!(
+        modules.contains(&"@vx//stdlib:runtime.star"),
+        "Should list runtime.star"
+    );
+    assert!(
+        modules.contains(&"@vx//stdlib:script_install.star"),
+        "Should list script_install.star"
+    );
+    assert!(
+        modules.contains(&"@vx//stdlib:system_install.star"),
+        "Should list system_install.star"
+    );
+    assert!(
+        modules.contains(&"@vx//stdlib:test.star"),
+        "Should list test.star"
+    );
 }
 
 #[test]
 fn test_available_modules_count() {
     let loader = VxModuleLoader::new();
     let modules = loader.available_modules();
-    // We have 5 built-in modules: semver, platform, http, github, install
-    assert_eq!(modules.len(), 5, "Should have exactly 5 built-in modules");
+    // We have 14 built-in modules:
+    // semver, platform, http, github, install, env,
+    // layout, permissions, provider, provider_templates,
+    // runtime, script_install, system_install, test
+    assert_eq!(modules.len(), 14, "Should have exactly 14 built-in modules");
 }
 
 // ============================================================
