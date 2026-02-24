@@ -73,7 +73,7 @@ def fetch_versions(ctx):
     - File metadata per platform
     - No rate limiting
     """
-    releases = ctx["http"]["get_json"]("https://go.dev/dl/?mode=json&include=all")
+    releases = ctx.http.get_json("https://go.dev/dl/?mode=json&include=all")
 
     versions = []
     seen = {}

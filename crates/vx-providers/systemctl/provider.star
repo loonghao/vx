@@ -122,7 +122,7 @@ def detect_system_installation(ctx):
 
     results = []
     for path in ["/usr/bin/systemctl", "/bin/systemctl"]:
-        if ctx["fs"]["exists"](path):
+        if ctx.fs.exists(path):
             results.append({
                 "type":     "system_path",
                 "path":     path,

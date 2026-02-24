@@ -83,7 +83,7 @@ def fetch_versions(ctx):
     - No rate limiting (unlike GitHub API)
     - Official release metadata
     """
-    releases = ctx["http"]["get_json"]("https://nodejs.org/dist/index.json")
+    releases = ctx.http.get_json("https://nodejs.org/dist/index.json")
 
     versions = []
     for release in releases:
@@ -192,7 +192,7 @@ def environment(ctx, _version):
         return [env_prepend("PATH", ctx.install_dir)]
     else:
         # Unix: executables are in bin/
-        return [env_prepend("PATH", ctx.ctx.install_dir + "/bin")]
+        return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 # ---------------------------------------------------------------------------
 # store_root — vx-managed install directory
@@ -200,7 +200,7 @@ def environment(ctx, _version):
 
 def store_root(ctx, version):
     """Return the vx store root for this Node.js version."""
-    return ctx["paths"]["store_dir"] + "/node/" + version
+    return ctx.paths.store_dir + "/node/" + version
 
 # ---------------------------------------------------------------------------
 # get_execute_path — resolve node executable

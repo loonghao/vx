@@ -56,7 +56,7 @@ package_alias = {
 
 def fetch_versions(ctx):
     """Fetch Vite versions from npm registry."""
-    data = ctx["http"]["get_json"](
+    data = ctx.http.get_json(
         "https://registry.npmjs.org/vite"
     )
     versions_map = data.get("versions", {})

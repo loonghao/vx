@@ -142,7 +142,7 @@ def install_layout(ctx, _version):
 
 def store_root(ctx, version):
     """Return the vx store root for this ninja version."""
-    return ctx["paths"]["store_dir"] + "/ninja/" + version
+    return ctx.paths.store_dir + "/ninja/" + version
 
 # ---------------------------------------------------------------------------
 # get_execute_path — resolve ninja executable

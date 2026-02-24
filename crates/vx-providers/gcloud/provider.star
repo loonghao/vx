@@ -70,7 +70,7 @@ permissions = {
 
 def fetch_versions(ctx):
     """Fetch gcloud SDK versions from Google's release manifest."""
-    manifest = ctx["http"]["get_json"](
+    manifest = ctx.http.get_json(
         "https://dl.google.com/dl/cloudsdk/channels/rapid/components-2.json"
     )
 

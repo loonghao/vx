@@ -133,7 +133,7 @@ def install_layout(ctx, _version):
 
 def store_root(ctx, version):
     """Return the vx store root for this ollama version."""
-    return ctx["paths"]["store_dir"] + "/ollama/" + version
+    return ctx.paths.store_dir + "/ollama/" + version
 
 # ---------------------------------------------------------------------------
 # get_execute_path — resolve ollama executable
