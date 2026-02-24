@@ -13,6 +13,7 @@
 load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:env.star", "env_set", "env_prepend")
 load("@vx//stdlib:test.star", "cmd", "check_path", "check_env")
+load("@vx//stdlib:provider.star", "system_permissions", "irm_iex_install")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -67,11 +68,10 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com", "community.chocolatey.org"],
-    "fs":   ["C:/ProgramData/chocolatey"],
-    "exec": ["powershell", "pwsh"],
-}
+permissions = system_permissions(
+    exec_cmds   = ["powershell", "pwsh"],
+    extra_hosts = ["api.github.com", "github.com", "community.chocolatey.org"],
+)
 
 # ---------------------------------------------------------------------------
 # fetch_versions — inherited from GitHub releases
@@ -88,30 +88,15 @@ def download_url(_ctx, _version):
     return None
 
 # ---------------------------------------------------------------------------
-# script_install — PowerShell installation
+# script_install — PowerShell iex(irm) with custom install dir
 # ---------------------------------------------------------------------------
 
-def script_install(ctx):
-    """Install Chocolatey to the vx store path.
-
-    Chocolatey respects the CHOCOLATEY_INSTALL environment variable as the
-    installation directory.  We set it to the vx store path so that choco
-    is fully managed by vx and does not pollute C:/ProgramData/chocolatey.
-
-    The install script is the official one from community.chocolatey.org.
-    """
-    install_dir = ctx.vx_home + "/store/choco/" + ctx.version
-    return {
-        "command": (
-            "$env:ChocolateyInstall = '" + install_dir + "'; " +
-            "Set-ExecutionPolicy Bypass -Scope Process -Force; " +
-            "[System.Net.ServicePointManager]::SecurityProtocol = " +
-            "[System.Net.ServicePointManager]::SecurityProtocol -bor 3072; " +
-            "iex ((New-Object System.Net.WebClient).DownloadString(" +
-            "'https://community.chocolatey.org/install.ps1'))"
-        ),
-        "shell": "powershell",
-    }
+# Chocolatey respects CHOCOLATEY_INSTALL as the installation directory.
+# We set it to the vx store path so choco is fully managed by vx.
+script_install = irm_iex_install(
+    "https://community.chocolatey.org/install.ps1",
+    env_vars = {"ChocolateyInstall": "{install_dir}"},
+)
 
 # ---------------------------------------------------------------------------
 # environment

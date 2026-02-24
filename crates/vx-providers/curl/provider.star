@@ -1,10 +1,11 @@
 # provider.star - curl provider
 #
-# cURL - command-line tool for transferring data with URLs
-# Inheritance pattern: Level 1 (fully custom, system detection only)
+# cURL is pre-installed on most modern systems (Windows 10+, macOS, Linux).
+# vx only detects the system installation — no download managed.
 #
-# curl is pre-installed on most modern systems (Windows 10+, macOS, Linux).
-# vx only detects the system installation.
+# Uses stdlib templates from @vx//stdlib:provider.star
+
+load("@vx//stdlib:provider.star", "runtime_def", "system_permissions", "system_provider")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -21,84 +22,58 @@ ecosystem   = "system"
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "curl",
-        "executable":  "curl",
-        "description": "Transfer data from or to a server",
-        "aliases":     [],
-        "priority":    100,
-        "system_paths": [
-            # Windows
+    runtime_def("curl",
+        system_paths = [
             "C:/Windows/System32/curl.exe",
             "C:/Program Files/Git/mingw64/bin/curl.exe",
             "C:/msys64/usr/bin/curl.exe",
-            # Unix
             "/usr/bin/curl",
             "/usr/local/bin/curl",
             "/opt/homebrew/bin/curl",
         ],
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check", "expected_output": "curl \\d+\\.\\d+"},
+        test_commands = [
+            {"command": "{executable} --version", "name": "version_check",
+             "expected_output": "curl \\d+\\.\\d+"},
         ],
-    },
+    ),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": [],
-    "fs":   [
-        "C:/Windows/System32",
-        "C:/Program Files/Git",
-        "/usr/bin",
-        "/usr/local/bin",
-        "/opt/homebrew/bin",
-    ],
-    "exec": ["curl"],
-}
+permissions = system_permissions(exec_cmds = ["curl"])
 
 # ---------------------------------------------------------------------------
 # fetch_versions — system detection only
 # ---------------------------------------------------------------------------
 
 def fetch_versions(_ctx):
-    """curl version is detected from system installation."""
     return [{"version": "system", "lts": True, "prerelease": False}]
 
 # ---------------------------------------------------------------------------
-# download_url — not managed by vx
+# download_url — system tool, not managed by vx
 # ---------------------------------------------------------------------------
 
 def download_url(_ctx, _version):
-    """curl is a system tool — install via system package manager."""
     return None
 
 # ---------------------------------------------------------------------------
-# environment
+# Path queries + environment
 # ---------------------------------------------------------------------------
+
+def store_root(ctx):
+    return ctx.vx_home + "/store/curl"
+
+def get_execute_path(ctx, _version):
+    exe = "curl.exe" if ctx.platform.os == "windows" else "curl"
+    return ctx.install_dir + "/" + exe
+
+def post_install(_ctx, _version):
+    return None
 
 def environment(_ctx, _version):
     return []
 
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
-# ---------------------------------------------------------------------------
-
-def store_root(_ctx):
-    """Return the vx store root directory for curl."""
-    return _ctx.vx_home + "/store/curl"
-
-def get_execute_path(ctx, version):
-    """Return the executable path for the given version."""
-    os = ctx.platform.os
-    if os == "windows":
-        return ctx.install_dir + "/curl.exe"
-    else:
-        return ctx.install_dir + "/curl"
-
-def post_install(_ctx, _version):
-    """Post-install hook (no-op for curl)."""
-    return None
+def deps(_ctx, _version):
+    return []

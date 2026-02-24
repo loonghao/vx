@@ -8,8 +8,10 @@
 # nuget.exe is Windows-only; on macOS/Linux use `dotnet nuget`
 # Download: https://dist.nuget.org/win-x86-commandline/v{version}/nuget.exe
 
+load("@vx//stdlib:provider.star",
+     "runtime_def", "path_fns", "path_env_fns",
+     "github_permissions")
 load("@vx//stdlib:github.star", "make_fetch_versions")
-load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -26,100 +28,59 @@ ecosystem   = "dotnet"
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "nuget",
-        "executable":  "nuget",
-        "description": "NuGet command-line tool",
-        "aliases":     ["nuget-cli"],
-        "priority":    100,
-        "test_commands": [
-            {"command": "{executable} help", "name": "help_check", "expected_output": "NuGet"},
-        ],
-    },
+    runtime_def("nuget",
+        aliases         = ["nuget-cli"],
+        description     = "NuGet command-line tool",
+        version_cmd     = "{executable} help",
+        version_pattern = "NuGet"),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com", "dist.nuget.org"],
-    "fs":   [],
-    "exec": [],
-}
+permissions = github_permissions(extra_hosts = ["dist.nuget.org"])
 
 # ---------------------------------------------------------------------------
-# fetch_versions — inherited from GitHub releases
+# fetch_versions — GitHub releases
 # ---------------------------------------------------------------------------
 
 fetch_versions = make_fetch_versions("NuGet", "NuGet.Client")
 
 # ---------------------------------------------------------------------------
-# download_url — custom
+# download_url — nuget.org CDN, Windows-only
 #
-# nuget.exe is Windows-only, downloaded from nuget.org CDN:
-#   https://dist.nuget.org/win-x86-commandline/v{version}/nuget.exe
+# nuget.exe is Windows-only. On macOS/Linux, use `dotnet nuget` instead.
+# URL: https://dist.nuget.org/win-x86-commandline/v{version}/nuget.exe
 # ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    """Build the nuget download URL.
-
-    nuget.exe is Windows-only. On macOS/Linux, use `dotnet nuget` instead.
-
-    Args:
-        ctx:     Provider context
-        version: Version string, e.g. "6.12.1"
-
-    Returns:
-        Download URL string, or None if not Windows
-    """
-    os = ctx.platform.os
-    if os != "windows":
+    if ctx.platform.os != "windows":
         return None
-
     return "https://dist.nuget.org/win-x86-commandline/v{}/nuget.exe".format(version)
 
 # ---------------------------------------------------------------------------
-# install_layout — binary (single file)
+# install_layout — single binary
 # ---------------------------------------------------------------------------
 
 def install_layout(_ctx, _version):
     return {
-        "type":       "binary",
+        "type":        "binary",
         "target_name": "nuget.exe",
         "target_dir":  "bin",
     }
 
 # ---------------------------------------------------------------------------
-# store_root — vx-managed install directory
+# Path queries + environment (RFC-0037)
 # ---------------------------------------------------------------------------
 
-def store_root(ctx, version):
-    """Return the vx store root for this nuget version."""
-    return ctx.paths.store_dir + "/nuget/" + version
+_paths = path_fns("nuget", executable = "nuget")
+_env   = path_env_fns()
 
-# ---------------------------------------------------------------------------
-# get_execute_path — resolve nuget executable
-# ---------------------------------------------------------------------------
+store_root       = _paths["store_root"]
+get_execute_path = _paths["get_execute_path"]
+environment      = _env["environment"]
+post_install     = _env["post_install"]
 
-def get_execute_path(ctx, _version, install_dir):
-    """Return the path to the nuget executable (Windows only)."""
-    os = ctx.platform.os
-    if os != "windows":
-        return None
-    return install_dir + "/bin/nuget.exe"
-
-# ---------------------------------------------------------------------------
-# post_install — nothing to do (single binary)
-# ---------------------------------------------------------------------------
-
-def post_install(_ctx, _version):
-    """No post-install steps required for nuget."""
+def deps(_ctx, _version):
     return []
-
-# ---------------------------------------------------------------------------
-# environment
-# ---------------------------------------------------------------------------
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir + "/bin")]

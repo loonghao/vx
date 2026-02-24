@@ -1,22 +1,18 @@
 # provider.star - uv provider
 #
 # uv: An extremely fast Python package installer and resolver
-# Inheritance pattern: Level 2 (standard Rust triple naming)
-#   - fetch_versions: inherited from github.star
-#   - download_url:   inherited via make_download_url (standard Rust triple)
+# Tags have NO 'v' prefix (e.g. "0.10.5"). Asset: uv-{triple}.{ext}
+# Bundled runtime: uvx
 #
-# uv releases: https://github.com/astral-sh/uv/releases
-# Asset format: uv-{triple}.{ext}
+# Uses github_rust_provider template from @vx//stdlib:provider.star
 
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-load("@vx//stdlib:platform.star", "platform_triple", "platform_ext")
-load("@vx//stdlib:install.star", "ensure_dependencies")
+load("@vx//stdlib:provider.star",
+     "github_rust_provider", "runtime_def", "bundled_runtime_def",
+     "github_permissions", "pre_run_ensure_deps")
 
-load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
 name        = "uv"
 description = "An extremely fast Python package installer and resolver"
 homepage    = "https://github.com/astral-sh/uv"
@@ -29,129 +25,52 @@ ecosystem   = "python"
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "uv",
-        "executable":  "uv",
-        "description": "Extremely fast Python package installer",
-        "aliases":     [],
-        "priority":    100,
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check", "expected_output": "uv \\d+\\.\\d+"},
-        ],
-    },
-    {
-        "name":         "uvx",
-        "executable":   "uvx",
-        "description":  "Python application runner",
-        "bundled_with": "uv",
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check"},
-        ],
-    },
+    runtime_def("uv",
+        version_pattern = "uv \\d+\\.\\d+",
+    ),
+    bundled_runtime_def("uvx", bundled_with = "uv"),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com"],
-    "fs":   [],
-    "exec": [],
-}
+permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# fetch_versions + download_url
+# Provider template — github_rust_provider
 #
-# uv asset naming: uv-{triple}.{ext}
-#   uv-x86_64-pc-windows-msvc.zip
-#   uv-x86_64-apple-darwin.tar.gz
-#   uv-aarch64-apple-darwin.tar.gz
-#   uv-x86_64-unknown-linux-gnu.tar.gz
-#
-# IMPORTANT: uv release tags do NOT have a 'v' prefix (e.g. "0.10.5", not "v0.10.5")
+# uv tags have NO 'v' prefix: "0.10.5" not "v0.10.5"
+# Asset: uv-{triple}.{ext}  (no version in asset name)
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("astral-sh", "uv")
+_p = github_rust_provider(
+    "astral-sh", "uv",
+    asset      = "uv-{triple}.{ext}",
+    tag_prefix = "",
+)
 
-def download_url(ctx, version):
-    """Build the uv download URL.
-
-    uv uses tag format WITHOUT 'v' prefix: e.g. "0.10.5" not "v0.10.5"
-    Asset format: uv-{triple}.{ext}
-    """
-    triple = platform_triple(ctx)
-    if not triple:
-        return None
-    ext = platform_ext(ctx).lstrip(".")   # "zip" or "tar.gz"
-
-    asset = "uv-{}.{}".format(triple, ext)
-    # uv tags have NO 'v' prefix — use version directly as tag
-    tag = version
-    return github_asset_url("astral-sh", "uv", tag, asset)
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+post_install     = _p["post_install"]
+environment      = _p["environment"]
 
 # ---------------------------------------------------------------------------
-# install_layout
+# pre_run — ensure .venv before `uv run`
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, _version):
-    os = ctx.platform.os
-    exe = "uv.exe" if os == "windows" else "uv"
-    return {
-        "type":             "archive",
-        "strip_prefix":     "",
-        "executable_paths": [exe, "uv"],
-    }
+pre_run = pre_run_ensure_deps("uv",
+    trigger_args = ["run"],
+    check_file   = "pyproject.toml",
+    install_dir  = ".venv",
+)
 
 # ---------------------------------------------------------------------------
-# environment
+# deps
 # ---------------------------------------------------------------------------
 
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC-0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    """Return the vx store root directory for uv."""
-    return ctx.vx_home + "/store/uv"
-
-def get_execute_path(ctx, version):
-    """Return the executable path for the given version."""
-    os = ctx.platform.os
-    exe = "uv.exe" if os == "windows" else "uv"
-    return ctx.install_dir + "/" + exe
-
-def post_install(_ctx, _version):
-    """No post-install actions needed for uv."""
-    return None
-
-# ---------------------------------------------------------------------------
-# pre_run — ensure uv sync before `uv run`
-# ---------------------------------------------------------------------------
-
-def pre_run(ctx, args, executable):
-    """Ensure project dependencies are synced before running uv commands.
-
-    For `uv run` commands, checks if pyproject.toml exists and .venv does not,
-    then runs `uv sync` to install project dependencies.
-
-    Args:
-        ctx:        Provider context
-        args:       Command-line arguments passed to uv
-        executable: Path to the uv executable
-
-    Returns:
-        List of pre-run actions
-    """
-    if len(args) > 0 and args[0] == "run":
-        return [
-            ensure_dependencies(
-                "uv",
-                check_file  = "pyproject.toml",
-                install_dir = ".venv",
-            ),
-        ]
+def deps(_ctx, _version):
     return []

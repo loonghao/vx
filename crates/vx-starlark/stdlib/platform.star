@@ -3,6 +3,7 @@
 #
 # Usage:
 #   load("@vx//stdlib:platform.star", "is_windows", "platform_triple", "arch_to_gnu")
+#   load("@vx//stdlib:platform.star", "platform_map", "platform_select")
 #
 # Note: ctx is a struct injected by the vx runtime:
 #   ctx.platform.os     -> "windows" | "macos" | "linux"
@@ -110,3 +111,69 @@ def exe_ext(ctx):
     if is_windows(ctx):
         return ".exe"
     return ""
+
+# ---------------------------------------------------------------------------
+# platform_map / platform_select — generic platform dispatch helpers
+# ---------------------------------------------------------------------------
+
+def platform_map(ctx, mapping, fallback = None):
+    """Look up a value from a platform-keyed dict.
+
+    The key is "{os}/{arch}" (e.g. "linux/x64", "macos/arm64").
+    Use this to avoid repeating the same lookup pattern in every provider.
+
+    Args:
+        ctx:      Provider context
+        mapping:  Dict with "{os}/{arch}" keys (e.g. {"linux/x64": "amd64"})
+        fallback: Value to return when the key is not found (default: None)
+
+    Returns:
+        The mapped value, or `fallback` if not found.
+
+    Example:
+        _ARCH = {
+            "windows/x64":   "x64",
+            "macos/x64":     "x64",
+            "macos/arm64":   "aarch64",
+            "linux/x64":     "x64",
+            "linux/arm64":   "aarch64",
+        }
+        arch = platform_map(ctx, _ARCH)
+        if not arch:
+            return None
+    """
+    key = "{}/{}".format(ctx.platform.os, ctx.platform.arch)
+    return mapping.get(key, fallback)
+
+def platform_select(ctx, windows = None, macos = None, linux = None,
+                    fallback = None):
+    """Select a value based on the current OS.
+
+    Simpler than platform_map when you only need OS-level dispatch
+    (not arch-level). Equivalent to a match on ctx.platform.os.
+
+    Args:
+        ctx:      Provider context
+        windows:  Value to return on Windows
+        macos:    Value to return on macOS
+        linux:    Value to return on Linux
+        fallback: Value to return for unknown OS (default: None)
+
+    Returns:
+        The value for the current OS, or `fallback`.
+
+    Example:
+        exe_dir = platform_select(ctx,
+            windows = ctx.install_dir,
+            macos   = ctx.install_dir + "/bin",
+            linux   = ctx.install_dir + "/bin",
+        )
+    """
+    os = ctx.platform.os
+    if os == "windows" and windows != None:
+        return windows
+    if os == "macos" and macos != None:
+        return macos
+    if os == "linux" and linux != None:
+        return linux
+    return fallback

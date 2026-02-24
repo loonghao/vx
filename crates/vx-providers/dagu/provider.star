@@ -1,16 +1,13 @@
 # provider.star - Dagu provider
 #
 # Dagu is a powerful DAG (Directed Acyclic Graph) workflow engine.
-# Asset naming: dagu_{version}_{os}_{arch}.tar.gz
-# All platforms use tar.gz.
+# Asset naming: dagu_{version}_{os}_{arch}.tar.gz  (Go-style, all platforms tar.gz)
 #
-# Inheritance pattern (Level 2):
-#   - fetch_versions: fully inherited from github.star
-#   - download_url:   overridden (go-style os/arch naming, not Rust triple)
+# Uses github_go_provider template from @vx//stdlib:provider.star
 
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:provider.star",
+     "github_go_provider", "runtime_def", "github_permissions")
 
-load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
@@ -26,115 +23,36 @@ ecosystem   = "devtools"
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "dagu",
-        "executable":  "dagu",
-        "description": "Dagu - DAG workflow engine",
-        "aliases":     [],
-        "priority":    100,
-        "test_commands": [
-            {"command": "{executable} version", "name": "version_check", "expected_output": "\\d+\\.\\d+"},
-        ],
-    },
+    runtime_def("dagu",
+        version_cmd     = "{executable} version",
+        version_pattern = "\\d+\\.\\d+",
+    ),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com"],
-    "fs":   [],
-    "exec": [],
-}
+permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# fetch_versions — fully inherited from github.star
-# ---------------------------------------------------------------------------
-
-fetch_versions = make_fetch_versions("dagu-org", "dagu", include_prereleases = False)
-
-# ---------------------------------------------------------------------------
-# download_url — custom override
+# Provider template — github_go_provider
 #
-# Asset pattern: dagu_{version}_{os}_{arch}.tar.gz
-# e.g. dagu_1.14.5_linux_amd64.tar.gz
+# Asset: dagu_{version}_{os}_{arch}.tar.gz
+# Tag:   v{version}
+# All platforms use tar.gz (no zip on Windows for dagu)
 # ---------------------------------------------------------------------------
 
-def _dagu_platform(ctx):
-    """Map platform to dagu's os/arch naming."""
-    os   = ctx.platform.os
-    arch = ctx.platform.arch
+_p = github_go_provider(
+    "dagu-org", "dagu",
+    asset = "dagu_{version}_{os}_{arch}.tar.gz",
+)
 
-    platforms = {
-        "windows/x64":  ("windows", "amd64"),
-        "windows/arm64": ("windows", "arm64"),
-        "macos/x64":    ("darwin",  "amd64"),
-        "macos/arm64":  ("darwin",  "arm64"),
-        "linux/x64":    ("linux",   "amd64"),
-        "linux/arm64":  ("linux",   "arm64"),
-    }
-    return platforms.get("{}/{}".format(os, arch))
-
-def download_url(ctx, version):
-    """Build the dagu download URL.
-
-    Args:
-        ctx:     Provider context
-        version: Version string WITHOUT 'v' prefix, e.g. "1.14.5"
-
-    Returns:
-        Download URL string, or None if platform is unsupported
-    """
-    platform = _dagu_platform(ctx)
-    if not platform:
-        return None
-
-    os_name, arch_name = platform[0], platform[1]
-
-    # Asset: "dagu_1.14.5_linux_amd64.tar.gz"
-    asset = "dagu_{}_{}_{}.tar.gz".format(version, os_name, arch_name)
-    tag   = "v{}".format(version)
-
-    return github_asset_url("dagu-org", "dagu", tag, asset)
-
-# ---------------------------------------------------------------------------
-# install_layout
-# ---------------------------------------------------------------------------
-
-def install_layout(ctx, _version):
-    os  = ctx.platform.os
-    exe = "dagu.exe" if os == "windows" else "dagu"
-    return {
-        "type":             "archive",
-        "strip_prefix":     "",
-        "executable_paths": [exe, "dagu"],
-    }
-
-# ---------------------------------------------------------------------------
-# environment
-# ---------------------------------------------------------------------------
-
-def environment(ctx, _version):
-    return [env_prepend("PATH", ctx.install_dir)]
-
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    """Return the vx store root directory for dagu."""
-    return ctx.vx_home + "/store/dagu"
-
-def get_execute_path(ctx, version):
-    """Return the executable path for the given version."""
-    os = ctx.platform.os
-    if os == "windows":
-        return ctx.install_dir + "/dagu.exe"
-    else:
-        return ctx.install_dir + "/dagu"
-
-def post_install(_ctx, _version):
-    """Post-install hook (no-op for dagu)."""
-    return None
+fetch_versions   = _p["fetch_versions"]
+download_url     = _p["download_url"]
+install_layout   = _p["install_layout"]
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+post_install     = _p["post_install"]
+environment      = _p["environment"]
+deps             = _p["deps"]

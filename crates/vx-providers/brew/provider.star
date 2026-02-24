@@ -9,6 +9,7 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:env.star", "env_prepend")
+load("@vx//stdlib:provider.star", "system_permissions", "curl_bash_install")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -61,15 +62,10 @@ runtimes = [
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com", "raw.githubusercontent.com"],
-    "fs":   [
-        "/opt/homebrew",
-        "/usr/local",
-        "/home/linuxbrew",
-    ],
-    "exec": ["bash", "curl"],
-}
+permissions = system_permissions(
+    exec_cmds   = ["bash", "curl"],
+    extra_hosts = ["api.github.com", "github.com", "raw.githubusercontent.com"],
+)
 
 # ---------------------------------------------------------------------------
 # fetch_versions — inherited from GitHub releases
@@ -88,19 +84,17 @@ def download_url(_ctx, _version):
     return None
 
 # ---------------------------------------------------------------------------
-# script_install — shell script installation
+# script_install — curl | bash (official Homebrew install script)
 # ---------------------------------------------------------------------------
 
-def script_install(_ctx):
-    """Return the shell script install command for Homebrew."""
-    return {
-        "command": '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
-        "post_install": [
-            'eval "$(/opt/homebrew/bin/brew shellenv)"',
-            'eval "$(/usr/local/bin/brew shellenv)"',
-            'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"',
-        ],
-    }
+script_install = curl_bash_install(
+    "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh",
+    post_install_cmds = [
+        'eval "$(/opt/homebrew/bin/brew shellenv)"',
+        'eval "$(/usr/local/bin/brew shellenv)"',
+        'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"',
+    ],
+)
 
 # ---------------------------------------------------------------------------
 # environment

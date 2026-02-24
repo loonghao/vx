@@ -11,7 +11,9 @@
 # Release URL format:
 #   https://github.com/hadolint/hadolint/releases/download/v{version}/hadolint-{os}-{arch}[.exe]
 
-load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:provider.star",
+     "github_binary_provider", "runtime_def", "github_permissions")
+load("@vx//stdlib:github.star", "github_asset_url")
 
 load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
@@ -29,130 +31,87 @@ ecosystem   = "devtools"
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "hadolint",
-        "executable":  "hadolint",
-        "description": "Dockerfile linter",
-        "aliases":     [],
-        "priority":    100,
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check", "expected_output": "Haskell Dockerfile Linter"},
-        ],
-    },
+    runtime_def("hadolint",
+        description     = "Dockerfile linter",
+        version_pattern = "Haskell Dockerfile Linter"),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["api.github.com", "github.com"],
-    "fs":   [],
-    "exec": [],
-}
+permissions = github_permissions()
 
 # ---------------------------------------------------------------------------
-# fetch_versions — fully inherited from github.star
+# Provider template — binary download, custom OS/arch naming
+#
+# hadolint uses: hadolint-{OS}-{arch}[.exe]
+#   OS:   Linux / Darwin / Windows  (capitalized)
+#   arch: x86_64 / arm64
+#   Windows only supports x86_64
 # ---------------------------------------------------------------------------
 
-fetch_versions = make_fetch_versions("hadolint", "hadolint", include_prereleases = False)
+_p = github_binary_provider(
+    "hadolint", "hadolint",
+    asset      = "hadolint{exe}",   # placeholder — overridden below
+    executable = "hadolint",
+)
+
+store_root       = _p["store_root"]
+get_execute_path = _p["get_execute_path"]
+post_install     = _p["post_install"]
+environment      = _p["environment"]
+deps             = _p["deps"]
+fetch_versions   = _p["fetch_versions"]
 
 # ---------------------------------------------------------------------------
 # download_url — custom override
 #
-# Why override:
-#   - Direct binary download (no archive to extract)
-#   - Naming: hadolint-{os}-{arch}[.exe]  (NOT Rust triple)
-#   - Windows only supports x86_64 (no arm64)
-#   - os strings: "Linux", "Darwin", "Windows" (capitalized)
+# hadolint uses capitalized OS names and x86_64/arm64 arch strings.
+# Windows only supports x86_64.
 # ---------------------------------------------------------------------------
 
-def _hadolint_asset(ctx):
-    """Return the asset filename for the current platform, or None if unsupported."""
-    os   = ctx.platform.os
-    arch = ctx.platform.arch
+_OS_MAP = {
+    "linux":   "Linux",
+    "macos":   "Darwin",
+    "windows": "Windows",
+}
 
-    # hadolint uses capitalized OS names
-    os_map = {
-        "linux":   "Linux",
-        "macos":   "Darwin",
-        "windows": "Windows",
-    }
+_ARCH_MAP = {
+    "x64":   "x86_64",
+    "arm64": "arm64",
+}
 
-    # hadolint uses x86_64 / arm64 (not aarch64)
-    arch_map = {
-        "x64":   "x86_64",
-        "arm64": "arm64",
-    }
-
-    os_str   = os_map.get(os)
-    arch_str = arch_map.get(arch)
+def download_url(ctx, version):
+    os_str   = _OS_MAP.get(ctx.platform.os)
+    arch_str = _ARCH_MAP.get(ctx.platform.arch)
 
     if not os_str or not arch_str:
         return None
-
     # Windows only supports x86_64
-    if os == "windows" and arch != "x64":
+    if ctx.platform.os == "windows" and ctx.platform.arch != "x64":
         return None
 
-    ext = ".exe" if os == "windows" else ""
-    return "hadolint-{}-{}{}".format(os_str, arch_str, ext)
-
-def download_url(ctx, version):
-    """Build the hadolint download URL.
-
-    hadolint releases are direct binary downloads (not archives).
-
-    Args:
-        ctx:     Provider context
-        version: Version string WITHOUT 'v' prefix, e.g. "2.14.0"
-
-    Returns:
-        Download URL string, or None if platform is unsupported
-    """
-    asset = _hadolint_asset(ctx)
-    if not asset:
-        return None
-
-    tag = "v{}".format(version)
-    return github_asset_url("hadolint", "hadolint", tag, asset)
+    ext   = ".exe" if ctx.platform.os == "windows" else ""
+    asset = "hadolint-{}{}{}".format(os_str, arch_str, ext)
+    return github_asset_url("hadolint", "hadolint", "v" + version, asset)
 
 # ---------------------------------------------------------------------------
-# install_layout — direct binary (no archive)
+# install_layout — binary, rename to standard hadolint[.exe]
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    """Hadolint is a direct binary download, no archive extraction needed.
+    os_str   = _OS_MAP.get(ctx.platform.os, ctx.platform.os)
+    arch_str = _ARCH_MAP.get(ctx.platform.arch, ctx.platform.arch)
+    ext      = ".exe" if ctx.platform.os == "windows" else ""
 
-    The downloaded binary is named hadolint-{OS}-{arch}[.exe].
-    We rename it to the standard name hadolint[.exe] so the executable
-    path is always predictable regardless of platform.
-
-    Fields:
-        source_name  — original filename from GitHub release asset
-        target_name  — standard name after rename
-        target_dir   — subdirectory inside the install root (default: "bin")
-    """
-    os   = ctx.platform.os
-    arch = ctx.platform.arch
-
-    os_map   = {"linux": "Linux", "macos": "Darwin", "windows": "Windows"}
-    arch_map = {"x64": "x86_64", "arm64": "arm64"}
-
-    os_str   = os_map.get(os, os)
-    arch_str = arch_map.get(arch, arch)
-    ext      = ".exe" if os == "windows" else ""
-
-    # Original asset filename (e.g. hadolint-Windows-x86_64.exe)
-    source_name = "hadolint-{}-{}{}".format(os_str, arch_str, ext)
-    # Standard target name (e.g. hadolint.exe)
-    target_name = "hadolint{}".format(ext)
+    source_name = "hadolint-{}{}{}".format(os_str, arch_str, ext)
+    target_name = "hadolint" + ext
 
     return {
-        "source_name": source_name,
-        "target_name": target_name,
-        "target_dir":  "bin",
-        # Also expose executable_paths for path resolution
+        "source_name":      source_name,
+        "target_name":      target_name,
+        "target_dir":       "bin",
         "executable_paths": ["bin/" + target_name],
     }
 

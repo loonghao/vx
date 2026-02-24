@@ -1,12 +1,12 @@
 # provider.star - Visual Studio Code provider
 #
-# Version source: https://update.code.visualstudio.com/api/releases/stable
-#
-# VS Code provides portable archives for all platforms.
-# Inheritance pattern: Level 1 (fully custom - uses VS Code update API)
+# Version source: VS Code update API
+# Uses stdlib templates from @vx//stdlib:provider.star
 
+load("@vx//stdlib:provider.star",
+     "runtime_def", "fetch_versions_from_api",
+     "system_permissions")
 load("@vx//stdlib:env.star", "env_prepend")
-load("@vx//stdlib:http.star", "fetch_json_versions")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
@@ -24,85 +24,52 @@ aliases     = ["code", "vs-code"]
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "code",
-        "executable":  "code",
-        "description": "Visual Studio Code editor",
-        "aliases":     ["vscode", "vs-code"],
-        "priority":    100,
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check", "expected_output": "\\d+\\.\\d+"},
+    runtime_def("code",
+        aliases = ["vscode", "vs-code"],
+        test_commands = [
+            {"command": "{executable} --version", "name": "version_check",
+             "expected_output": "\\d+\\.\\d+"},
         ],
-    },
+    ),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["update.code.visualstudio.com", "az764295.vo.msecnd.net"],
-    "fs":   [],
-    "exec": [],
-}
+permissions = system_permissions(
+    extra_hosts = ["update.code.visualstudio.com", "az764295.vo.msecnd.net"],
+)
 
 # ---------------------------------------------------------------------------
 # fetch_versions — VS Code update API
 # ---------------------------------------------------------------------------
 
-def fetch_versions(ctx):
-    """Fetch VS Code stable versions from the official update API.
-
-    Returns a descriptor dict for the Rust runtime to execute.
-    """
-    return fetch_json_versions(
-        ctx,
-        "https://update.code.visualstudio.com/api/releases/stable",
-        "vscode_releases",
-    )
+fetch_versions = fetch_versions_from_api(
+    "https://update.code.visualstudio.com/api/releases/stable",
+    "vscode_releases",
+)
 
 # ---------------------------------------------------------------------------
-# download_url — VS Code portable archive
+# Platform helpers
 # ---------------------------------------------------------------------------
 
-def _vscode_platform(ctx):
-    """Map vx platform to VS Code platform/archive strings."""
-    os   = ctx.platform.os
-    arch = ctx.platform.arch
-
-    # (platform_id, ext)
-    platforms = {
-        "windows/x64":   ("win32-x64-archive",   "zip"),
-        "windows/arm64": ("win32-arm64-archive",  "zip"),
-        "macos/x64":     ("darwin",               "zip"),
-        "macos/arm64":   ("darwin-arm64",         "zip"),
-        "linux/x64":     ("linux-x64",            "tar.gz"),
-        "linux/arm64":   ("linux-arm64",          "tar.gz"),
-        "linux/armv7":   ("linux-armhf",          "tar.gz"),
-    }
-    return platforms.get("{}/{}".format(os, arch))
+_VSCODE_PLATFORMS = {
+    "windows/x64":   ("win32-x64-archive",  "zip"),
+    "windows/arm64": ("win32-arm64-archive", "zip"),
+    "macos/x64":     ("darwin",              "zip"),
+    "macos/arm64":   ("darwin-arm64",        "zip"),
+    "linux/x64":     ("linux-x64",           "tar.gz"),
+    "linux/arm64":   ("linux-arm64",         "tar.gz"),
+    "linux/armv7":   ("linux-armhf",         "tar.gz"),
+}
 
 def download_url(ctx, version):
-    """Build the VS Code portable archive download URL.
-
-    Args:
-        ctx:     Provider context
-        version: VS Code version string, e.g. "1.86.0"
-
-    Returns:
-        Download URL string, or None if platform is unsupported
-    """
-    platform = _vscode_platform(ctx)
+    platform = _VSCODE_PLATFORMS.get("{}/{}".format(ctx.platform.os, ctx.platform.arch))
     if not platform:
         return None
-
-    platform_id, ext = platform[0], platform[1]
-
-    # https://update.code.visualstudio.com/1.86.0/linux-x64/stable
-    # redirects to the actual CDN URL
-    return "https://update.code.visualstudio.com/{}/{}/stable".format(
-        version, platform_id
-    )
+    platform_id, _ext = platform[0], platform[1]
+    return "https://update.code.visualstudio.com/{}/{}/stable".format(version, platform_id)
 
 # ---------------------------------------------------------------------------
 # install_layout
@@ -110,14 +77,12 @@ def download_url(ctx, version):
 
 def install_layout(ctx, _version):
     os = ctx.platform.os
-
     if os == "windows":
         exe_paths = ["bin/code.cmd", "Code.exe"]
     elif os == "macos":
         exe_paths = ["Visual Studio Code.app/Contents/Resources/app/bin/code"]
     else:
         exe_paths = ["bin/code"]
-
     return {
         "type":             "archive",
         "strip_prefix":     "",
@@ -125,43 +90,28 @@ def install_layout(ctx, _version):
     }
 
 # ---------------------------------------------------------------------------
-# environment
-# ---------------------------------------------------------------------------
-
-def environment(ctx, _version):
-    os = ctx.platform.os
-    if os == "windows":
-        return [env_prepend("PATH", ctx.install_dir + "/bin")]
-    elif os == "macos":
-        return [env_prepend("PATH", ctx.install_dir + "/Visual Studio Code.app/Contents/Resources/app/bin")]
-    else:
-        return [env_prepend("PATH", ctx.install_dir + "/bin")]
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC-0037)
+# Path queries + environment
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    """Return the vx store root directory for vscode."""
     return ctx.vx_home + "/store/vscode"
 
-def get_execute_path(ctx, version):
-    """Return the executable path for the given version."""
+def get_execute_path(ctx, _version):
     os = ctx.platform.os
     if os == "windows":
         return ctx.install_dir + "/bin/code.cmd"
     elif os == "macos":
         return ctx.install_dir + "/Visual Studio Code.app/Contents/Resources/app/bin/code"
-    else:
-        return ctx.install_dir + "/bin/code"
+    return ctx.install_dir + "/bin/code"
 
 def post_install(_ctx, _version):
-    """No post-install actions needed for vscode."""
     return None
 
-# ---------------------------------------------------------------------------
-# deps
-# ---------------------------------------------------------------------------
+def environment(ctx, _version):
+    os = ctx.platform.os
+    if os == "macos":
+        return [env_prepend("PATH", ctx.install_dir + "/Visual Studio Code.app/Contents/Resources/app/bin")]
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 def deps(_ctx, _version):
     return []

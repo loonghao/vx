@@ -1,16 +1,16 @@
 # provider.star - Ninja build system provider
 #
-# Ninja uses a non-standard platform naming scheme (win/mac/linux/linux-aarch64)
-# instead of Rust target triples, so download_url is fully custom.
-# fetch_versions uses jsDelivr (GitHub tag API) instead of GitHub Releases API.
+# Ninja uses short platform names (win/mac/linux/linux-aarch64) and
+# jsDelivr for version listing.
 #
-# Asset format: ninja-{platform}.zip
-# URL format:   https://github.com/ninja-build/ninja/releases/download/v{version}/ninja-{platform}.zip
+# Uses runtime_def + github_permissions from @vx//stdlib:provider.star
 
+load("@vx//stdlib:provider.star",
+     "runtime_def", "github_permissions")
 load("@vx//stdlib:github.star", "github_asset_url")
 load("@vx//stdlib:http.star",   "jsdelivr_versions")
+load("@vx//stdlib:env.star",    "env_prepend")
 
-load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
@@ -27,109 +27,61 @@ aliases     = ["ninja-build"]
 # ---------------------------------------------------------------------------
 
 runtimes = [
-    {
-        "name":        "ninja",
-        "executable":  "ninja",
-        "description": "Ninja - A small build system with a focus on speed",
-        "aliases":     ["ninja-build"],
-        "priority":    100,
-        "test_commands": [
-            {"command": "{executable} --version", "name": "version_check", "expected_output": "^\\d+\\.\\d+"},
-        ],
-    },
+    runtime_def("ninja",
+        aliases         = ["ninja-build"],
+        version_pattern = "^\\d+\\.\\d+",
+    ),
 ]
 
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
 
-permissions = {
-    "http": ["registry.npmjs.org", "cdn.jsdelivr.net", "github.com"],
-    "fs":   [],
-    "exec": [],
-}
+permissions = github_permissions(extra_hosts = ["registry.npmjs.org", "cdn.jsdelivr.net"])
 
 # ---------------------------------------------------------------------------
-# fetch_versions — jsDelivr (GitHub tag API)
-#
-# Ninja uses jsDelivr for version listing (same as the Rust implementation).
+# fetch_versions — jsDelivr GitHub tag API
 # ---------------------------------------------------------------------------
 
 def fetch_versions(ctx):
-    """Fetch available Ninja versions via jsDelivr GitHub tag API.
-
-    Args:
-        ctx: Provider context
-
-    Returns:
-        list of VersionInfo dicts
-    """
     return jsdelivr_versions(ctx, "ninja-build", "ninja", limit = 30)
 
 # ---------------------------------------------------------------------------
-# download_url — custom (non-standard platform names)
+# Platform helpers
 #
-# Ninja uses short platform names instead of Rust target triples:
-#   windows/x64   → "win"
-#   macos/*       → "mac"   (universal binary)
-#   linux/x64     → "linux"
-#   linux/arm64   → "linux-aarch64"
+# Ninja uses short names: win / mac / linux / linux-aarch64
 # ---------------------------------------------------------------------------
 
 def _ninja_platform(ctx):
-    """Map platform to ninja's short platform name."""
     os   = ctx.platform.os
     arch = ctx.platform.arch
-
     if os == "windows" and arch == "x64":
         return "win"
     elif os == "macos":
-        # macOS uses a universal binary for both x64 and arm64
-        return "mac"
+        return "mac"   # universal binary
     elif os == "linux" and arch == "x64":
         return "linux"
     elif os == "linux" and arch == "arm64":
         return "linux-aarch64"
-    else:
-        return None
+    return None
+
+# ---------------------------------------------------------------------------
+# download_url — GitHub releases, asset: ninja-{platform}.zip
+# ---------------------------------------------------------------------------
 
 def download_url(ctx, version):
-    """Build the ninja download URL for the given version and platform.
-
-    Args:
-        ctx:     Provider context
-        version: Version string WITHOUT 'v' prefix, e.g. "1.12.1"
-
-    Returns:
-        Download URL string, or None if platform is unsupported
-    """
     platform = _ninja_platform(ctx)
     if not platform:
         return None
-
-    # Asset: "ninja-linux.zip"
-    asset = "ninja-{}.zip".format(platform)
-
-    # Tag: "v1.12.1"
-    tag = "v{}".format(version)
-
-    return github_asset_url("ninja-build", "ninja", tag, asset)
+    return github_asset_url("ninja-build", "ninja", "v" + version,
+                             "ninja-{}.zip".format(platform))
 
 # ---------------------------------------------------------------------------
-# install_layout — ninja extracts directly (no subdirectory)
+# install_layout — zip contains executable at root
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, _version):
-    """Describe how to extract the downloaded archive.
-
-    Ninja zip contains the executable directly in the root.
-
-    Returns:
-        Layout dict consumed by the vx installer
-    """
-    os  = ctx.platform.os
-    exe = "ninja.exe" if os == "windows" else "ninja"
-
+    exe = "ninja.exe" if ctx.platform.os == "windows" else "ninja"
     return {
         "type":             "archive",
         "strip_prefix":     "",
@@ -137,39 +89,21 @@ def install_layout(ctx, _version):
     }
 
 # ---------------------------------------------------------------------------
-# store_root — vx-managed install directory
+# Path queries + environment
 # ---------------------------------------------------------------------------
 
-def store_root(ctx, version):
-    """Return the vx store root for this ninja version."""
-    return ctx.paths.store_dir + "/ninja/" + version
+def store_root(ctx):
+    return ctx.vx_home + "/store/ninja"
 
-# ---------------------------------------------------------------------------
-# get_execute_path — resolve ninja executable
-# ---------------------------------------------------------------------------
-
-def get_execute_path(ctx, _version, install_dir):
-    """Return the path to the ninja executable."""
-    os  = ctx.platform.os
-    exe = "ninja.exe" if os == "windows" else "ninja"
+def get_execute_path(ctx, _version):
+    exe = "ninja.exe" if ctx.platform.os == "windows" else "ninja"
     return ctx.install_dir + "/" + exe
 
-# ---------------------------------------------------------------------------
-# post_install — set permissions on Unix
-# ---------------------------------------------------------------------------
-
-def post_install(ctx, _version):
-    """Set execute permissions on Unix."""
-    os = ctx.platform.os
-    if os == "windows":
-        return []
-    return [
-        {"type": "set_permissions", "path": ctx.install_dir + "/ninja", "mode": "755"},
-    ]
-
-# ---------------------------------------------------------------------------
-# environment
-# ---------------------------------------------------------------------------
+def post_install(_ctx, _version):
+    return None
 
 def environment(ctx, _version):
     return [env_prepend("PATH", ctx.install_dir)]
+
+def deps(_ctx, _version):
+    return []
