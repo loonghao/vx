@@ -1,4 +1,4 @@
-﻿# provider.star - pre-commit provider
+# provider.star - pre-commit provider
 #
 # pre-commit: A framework for managing and maintaining multi-language pre-commit hooks
 # Inheritance pattern: Level 3 (package alias - runs via uvx)

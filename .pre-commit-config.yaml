@@ -82,6 +82,22 @@ repos:
         files: ^justfile$
         pass_filenames: false
 
+  # Starlark (.star) provider script: auto-fix then check
+  - repo: local
+    hooks:
+      - id: fix-star-syntax
+        name: fix .star syntax (auto-fix ctx dict access)
+        entry: vx python scripts/check_star_syntax.py --fix
+        language: system
+        files: \.star$
+        pass_filenames: true
+      - id: check-star-syntax
+        name: check .star syntax
+        entry: vx python scripts/check_star_syntax.py
+        language: system
+        files: \.star$
+        pass_filenames: true
+
   # Common safety checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

@@ -1,4 +1,4 @@
-﻿# provider.star - Vite provider
+# provider.star - Vite provider
 #
 # Vite is a frontend build tool distributed as an npm package.
 # `vx vite` is routed to `vx npx vite` (npm package alias pattern).

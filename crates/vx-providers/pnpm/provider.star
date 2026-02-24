@@ -1,4 +1,4 @@
-﻿# provider.star - pnpm provider
+# provider.star - pnpm provider
 #
 # pnpm: Fast, disk space efficient package manager
 # Inheritance pattern: Level 2 (custom download_url for pnpm's naming)

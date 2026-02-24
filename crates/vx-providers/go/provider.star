@@ -1,4 +1,4 @@
-﻿# provider.star - Go programming language provider
+# provider.star - Go programming language provider
 #
 # Version source: https://go.dev/dl/?mode=json (official API, no rate limiting)
 # Bundled runtimes: gofmt (included in every Go release)

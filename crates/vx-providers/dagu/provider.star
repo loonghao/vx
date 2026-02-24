@@ -1,4 +1,4 @@
-﻿# provider.star - Dagu provider
+# provider.star - Dagu provider
 #
 # Dagu is a powerful DAG (Directed Acyclic Graph) workflow engine.
 # Asset naming: dagu_{version}_{os}_{arch}.tar.gz

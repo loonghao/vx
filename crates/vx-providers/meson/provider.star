@@ -1,4 +1,4 @@
-﻿# provider.star - Meson provider
+# provider.star - Meson provider
 #
 # Meson is a Python-based build system distributed via PyPI.
 # Executed via `uvx meson` — each version runs in its own isolated Python env.

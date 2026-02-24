@@ -1,4 +1,4 @@
-﻿# provider.star - yarn provider
+# provider.star - yarn provider
 #
 # Yarn: Fast, reliable, and secure dependency management
 # Inheritance pattern: Level 2 (custom download_url for yarn's archive naming)

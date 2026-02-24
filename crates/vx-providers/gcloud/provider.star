@@ -1,4 +1,4 @@
-﻿# provider.star - Google Cloud CLI provider
+# provider.star - Google Cloud CLI provider
 #
 # Version source: https://cloud.google.com/sdk/docs/release-notes
 #   Download index: https://dl.google.com/dl/cloudsdk/channels/rapid/components-2.json

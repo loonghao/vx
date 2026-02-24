@@ -1,4 +1,4 @@
-﻿# provider.star - rez provider
+# provider.star - rez provider
 #
 # Rez: Cross-platform package manager for deterministic environments
 # Inheritance pattern: Level 3 (package alias - runs via uvx)

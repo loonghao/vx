@@ -1,4 +1,4 @@
-﻿# provider.star - brew provider
+# provider.star - brew provider
 #
 # Homebrew - The Missing Package Manager for macOS (or Linux)
 # Inheritance pattern: Level 2 (custom fetch_versions + script install)

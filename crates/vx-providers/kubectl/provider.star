@@ -1,4 +1,4 @@
-﻿# provider.star - kubectl provider
+# provider.star - kubectl provider
 #
 # Inheritance pattern:
 #   - fetch_versions: inherited from @vx//stdlib:github.star

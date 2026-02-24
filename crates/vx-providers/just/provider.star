@@ -1,4 +1,4 @@
-﻿# provider.star - just (command runner)
+# provider.star - just (command runner)
 #
 # Inheritance level: 2 — fetch_versions inherited, download_url overridden
 #

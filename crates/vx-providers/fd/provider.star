@@ -1,4 +1,4 @@
-﻿# provider.star - fd (fd-find) provider
+# provider.star - fd (fd-find) provider
 #
 # Inheritance pattern (Level 2):
 #   - fetch_versions: fully inherited from github.star

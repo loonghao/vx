@@ -1,4 +1,4 @@
-﻿# provider.star - xcodebuild provider
+# provider.star - xcodebuild provider
 #
 # Apple Xcode build tools (macOS-only, system detection only)
 # Inheritance pattern: Level 1 (fully custom, system-only, not installable)

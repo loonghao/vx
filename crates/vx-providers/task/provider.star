@@ -1,4 +1,4 @@
-﻿# provider.star - Task (go-task) provider
+# provider.star - Task (go-task) provider
 #
 # Reuse level: Level 2 — fetch_versions inherited, download_url overridden
 #

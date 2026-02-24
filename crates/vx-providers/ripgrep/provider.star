@@ -1,4 +1,4 @@
-﻿# provider.star - ripgrep (rg) provider
+# provider.star - ripgrep (rg) provider
 #
 # Inheritance pattern: Level 2 (partial override)
 #   - fetch_versions: fully inherited from github.star

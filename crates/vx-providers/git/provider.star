@@ -1,4 +1,4 @@
-﻿# provider.star - git provider
+# provider.star - git provider
 #
 # Git - Distributed version control system
 # Inheritance pattern: Level 2 (custom download_url for Windows portable Git)

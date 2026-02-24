@@ -1,4 +1,4 @@
-﻿# provider.star - fzf provider
+# provider.star - fzf provider
 #
 # fzf: A command-line fuzzy finder
 # Releases: https://github.com/junegunn/fzf/releases

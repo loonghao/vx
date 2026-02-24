@@ -1,4 +1,4 @@
-﻿# provider.star - Zig programming language provider
+# provider.star - Zig programming language provider
 #
 # Inheritance level: Level 1 (full custom) — Zig does NOT use GitHub Releases.
 # Downloads come from ziglang.org with a unique URL scheme:

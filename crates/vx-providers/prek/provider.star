@@ -1,4 +1,4 @@
-﻿# provider.star - prek provider
+# provider.star - prek provider
 #
 # prek: Better pre-commit, re-engineered in Rust
 # Inheritance pattern: Level 3 (standard Rust triple naming)

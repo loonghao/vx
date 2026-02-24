@@ -1,4 +1,4 @@
-﻿# provider.star - actrun provider
+# provider.star - actrun provider
 #
 # actrun: Actionforge workflow runner CLI
 # Inheritance pattern: Level 2 (custom download_url for actrun's naming)

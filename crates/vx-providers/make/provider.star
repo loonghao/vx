@@ -1,4 +1,4 @@
-﻿# provider.star - make provider
+# provider.star - make provider
 #
 # GNU Make - build automation tool (Unix-only, system detection + package manager install)
 # Inheritance pattern: Level 1 (fully custom, system tool, Unix-only)

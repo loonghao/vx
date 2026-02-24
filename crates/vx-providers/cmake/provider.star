@@ -1,4 +1,4 @@
-﻿# provider.star - cmake provider
+# provider.star - cmake provider
 #
 # CMake: Cross-platform build system generator
 # Inheritance pattern: Level 2 (custom download_url for cmake's naming)

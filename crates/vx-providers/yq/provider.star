@@ -1,4 +1,4 @@
-﻿# provider.star - yq provider
+# provider.star - yq provider
 #
 # yq: a portable command-line YAML, JSON, XML, CSV, TOML and properties processor
 # Releases: https://github.com/mikefarah/yq/releases

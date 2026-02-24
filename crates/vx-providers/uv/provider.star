@@ -1,4 +1,4 @@
-﻿# provider.star - uv provider
+# provider.star - uv provider
 #
 # uv: An extremely fast Python package installer and resolver
 # Inheritance pattern: Level 2 (standard Rust triple naming)

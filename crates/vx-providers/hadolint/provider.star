@@ -1,4 +1,4 @@
-﻿# provider.star - Hadolint provider
+# provider.star - Hadolint provider
 #
 # Hadolint is a Dockerfile linter that helps you build best practice Docker images.
 #
