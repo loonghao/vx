@@ -1,4 +1,4 @@
-# provider.star - openssl provider
+﻿# provider.star - openssl provider
 #
 # OpenSSL - Cryptography and SSL/TLS toolkit
 # Inheritance pattern: Level 1 (fully custom, system detection only)
@@ -9,24 +9,12 @@
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "openssl"
-
-def description():
-    return "Cryptography and SSL/TLS toolkit"
-
-def homepage():
-    return "https://www.openssl.org"
-
-def repository():
-    return "https://github.com/openssl/openssl"
-
-def license():
-    return "Apache-2.0"
-
-def ecosystem():
-    return "system"
+name        = "openssl"
+description = "Cryptography and SSL/TLS toolkit"
+homepage    = "https://www.openssl.org"
+repository  = "https://github.com/openssl/openssl"
+license     = "Apache-2.0"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -56,6 +44,9 @@ runtimes = [
             "/usr/local/bin/openssl",
             "/bin/openssl",
         ],
+        "test_commands": [
+            {"command": "{executable} version", "name": "version_check", "expected_output": "OpenSSL \\d+"},
+        ],
     },
 ]
 
@@ -80,7 +71,7 @@ permissions = {
 # fetch_versions — system detection only
 # ---------------------------------------------------------------------------
 
-def fetch_versions(ctx):
+def fetch_versions(_ctx):
     """openssl version is detected from system installation."""
     return [{"version": "system", "lts": True, "prerelease": False}]
 
@@ -88,7 +79,7 @@ def fetch_versions(ctx):
 # download_url — not managed by vx
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
+def download_url(_ctx, _version):
     """openssl is a system tool — install via system package manager."""
     return None
 
@@ -96,7 +87,7 @@ def download_url(ctx, version):
 # store_root — not managed by vx (system tool)
 # ---------------------------------------------------------------------------
 
-def store_root(ctx, version):
+def store_root(_ctx, _version):
     """OpenSSL is a system tool — no vx store root."""
     return None
 
@@ -104,7 +95,7 @@ def store_root(ctx, version):
 # get_execute_path — system detection only
 # ---------------------------------------------------------------------------
 
-def get_execute_path(ctx, version, install_dir):
+def get_execute_path(_ctx, _version, install_dir):
     """OpenSSL is located via system_paths; no vx-managed install_dir."""
     return None
 
@@ -112,7 +103,7 @@ def get_execute_path(ctx, version, install_dir):
 # post_install — nothing to do
 # ---------------------------------------------------------------------------
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps required for openssl."""
     return []
 
@@ -120,5 +111,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {}
+def environment(_ctx, _version):
+    return []

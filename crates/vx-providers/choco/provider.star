@@ -1,35 +1,28 @@
-# provider.star - choco provider
+﻿# provider.star - choco provider
 #
 # Chocolatey - The package manager for Windows
 # Inheritance pattern: Level 2 (custom download_url + script install)
 #   - fetch_versions: inherited from github.star
-#   - download_url:   None (installed via PowerShell script)
+#   - download_url:   None (installed via PowerShell script to vx store)
 #
-# Chocolatey is Windows-only. Installed via PowerShell script.
+# Chocolatey is Windows-only.
+# We install it to the vx store path (~/.vx/store/choco/<version>/) using
+# the official install script with a custom CHOCOLATEY_INSTALL env var,
+# which Chocolatey respects as the installation directory.
 
 load("@vx//stdlib:github.star", "make_fetch_versions")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
+load("@vx//stdlib:test.star", "cmd", "check_path", "check_env")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "choco"
-
-def description():
-    return "The package manager for Windows"
-
-def homepage():
-    return "https://chocolatey.org"
-
-def repository():
-    return "https://github.com/chocolatey/choco"
-
-def license():
-    return "Apache-2.0"
-
-def ecosystem():
-    return "system"
+name        = "choco"
+description = "The package manager for Windows"
+homepage    = "https://chocolatey.org"
+repository  = "https://github.com/chocolatey/choco"
+license     = "Apache-2.0"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Platform constraint: Windows-only
@@ -57,6 +50,16 @@ runtimes = [
             "C:/ProgramData/chocolatey/bin/choco.exe",
             "C:/ProgramData/chocolatey/choco.exe",
         ],
+        "test_commands": [
+            cmd("{executable} --version",
+                name="version_check",
+                expected_output="^\\d+\\.\\d+"),
+            check_path("{install_dir}/choco.exe",
+                       name="binary_exists"),
+            check_env("ChocolateyInstall",
+                      name="install_dir_set",
+                      expected_output=".+"),
+        ],
     },
 ]
 
@@ -80,7 +83,7 @@ fetch_versions = make_fetch_versions("chocolatey", "choco")
 # download_url — None (installed via PowerShell script)
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
+def download_url(_ctx, _version):
     """Chocolatey is installed via PowerShell script, not direct download."""
     return None
 
@@ -89,9 +92,24 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def script_install(ctx):
-    """Return the PowerShell install command for Chocolatey."""
+    """Install Chocolatey to the vx store path.
+
+    Chocolatey respects the CHOCOLATEY_INSTALL environment variable as the
+    installation directory.  We set it to the vx store path so that choco
+    is fully managed by vx and does not pollute C:/ProgramData/chocolatey.
+
+    The install script is the official one from community.chocolatey.org.
+    """
+    install_dir = ctx.vx_home + "/store/choco/" + ctx.version
     return {
-        "command": "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))",
+        "command": (
+            "$env:ChocolateyInstall = '" + install_dir + "'; " +
+            "Set-ExecutionPolicy Bypass -Scope Process -Force; " +
+            "[System.Net.ServicePointManager]::SecurityProtocol = " +
+            "[System.Net.ServicePointManager]::SecurityProtocol -bor 3072; " +
+            "iex ((New-Object System.Net.WebClient).DownloadString(" +
+            "'https://community.chocolatey.org/install.ps1'))"
+        ),
         "shell": "powershell",
     }
 
@@ -99,12 +117,12 @@ def script_install(ctx):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH":            "C:/ProgramData/chocolatey/bin",
-        "ChocolateyInstall": "C:/ProgramData/chocolatey",
-    }
-
+def environment(_ctx, _version):
+    install_dir = _ctx.vx_home + "/store/choco/" + _version
+    return [
+        env_set("ChocolateyInstall", install_dir),
+        env_prepend("PATH", install_dir + "/bin"),
+    ]
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC 0037)
@@ -112,33 +130,16 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for choco."""
-    return "{vx_home}/store/choco"
+    return ctx.vx_home + "/store/choco"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/choco.exe"
+        return ctx.vx_home + "/store/choco/" + version + "/choco.exe"
     else:
-        return "{install_dir}/choco"
+        return ctx.vx_home + "/store/choco/" + version + "/choco"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """Post-install hook (no-op for choco)."""
-    return None
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return "{vx_home}/store/choco"
-
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/choco.exe"
-    else:
-        return "{install_dir}/choco"
-
-def post_install(ctx, version, install_dir):
     return None

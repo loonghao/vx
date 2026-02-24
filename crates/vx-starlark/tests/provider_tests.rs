@@ -1,55 +1,14 @@
 //! Provider loading and metadata tests for vx-starlark
+//!
+//! All providers are now exclusively `provider.star` (Starlark).
+//! There is no longer any `provider.toml` support in this crate.
 
 use vx_starlark::StarlarkProvider;
-use vx_starlark::provider::{
-    ProviderFormat, has_starlark_provider, has_toml_provider, is_starlark_provider,
-};
+use vx_starlark::provider::{has_starlark_provider, is_starlark_provider};
 
 // ============================================================
-// ProviderFormat detection tests
+// Starlark provider detection helpers
 // ============================================================
-
-#[test]
-fn test_provider_format_none_for_empty_dir() {
-    let temp = tempfile::tempdir().unwrap();
-    assert_eq!(ProviderFormat::detect(temp.path()), ProviderFormat::None);
-}
-
-#[test]
-fn test_provider_format_starlark_when_star_exists() {
-    let temp = tempfile::tempdir().unwrap();
-    std::fs::write(temp.path().join("provider.star"), "# test").unwrap();
-    assert_eq!(
-        ProviderFormat::detect(temp.path()),
-        ProviderFormat::Starlark
-    );
-}
-
-#[test]
-fn test_provider_format_toml_when_only_toml_exists() {
-    let temp = tempfile::tempdir().unwrap();
-    std::fs::write(temp.path().join("provider.toml"), "# test").unwrap();
-    assert_eq!(ProviderFormat::detect(temp.path()), ProviderFormat::Toml);
-}
-
-#[test]
-fn test_provider_format_starlark_takes_priority_over_toml() {
-    let temp = tempfile::tempdir().unwrap();
-    std::fs::write(temp.path().join("provider.star"), "# test").unwrap();
-    std::fs::write(temp.path().join("provider.toml"), "# test").unwrap();
-    // Starlark takes priority (RFC: provider.star > provider.toml)
-    assert_eq!(
-        ProviderFormat::detect(temp.path()),
-        ProviderFormat::Starlark
-    );
-}
-
-#[test]
-fn test_provider_format_filename() {
-    assert_eq!(ProviderFormat::Starlark.filename(), Some("provider.star"));
-    assert_eq!(ProviderFormat::Toml.filename(), Some("provider.toml"));
-    assert_eq!(ProviderFormat::None.filename(), None);
-}
 
 #[test]
 fn test_is_starlark_provider_by_extension() {
@@ -57,6 +16,7 @@ fn test_is_starlark_provider_by_extension() {
     assert!(is_starlark_provider(std::path::Path::new("my_tool.star")));
     assert!(!is_starlark_provider(std::path::Path::new("provider.toml")));
     assert!(!is_starlark_provider(std::path::Path::new("provider.py")));
+    assert!(!is_starlark_provider(std::path::Path::new("provider")));
 }
 
 #[test]
@@ -69,12 +29,11 @@ fn test_has_starlark_provider_checks_dir() {
 }
 
 #[test]
-fn test_has_toml_provider_checks_dir() {
+fn test_has_starlark_provider_ignores_toml() {
     let temp = tempfile::tempdir().unwrap();
-    assert!(!has_toml_provider(temp.path()));
-
+    // A directory with only provider.toml is NOT a valid Starlark provider
     std::fs::write(temp.path().join("provider.toml"), "[provider]").unwrap();
-    assert!(has_toml_provider(temp.path()));
+    assert!(!has_starlark_provider(temp.path()));
 }
 
 // ============================================================
@@ -95,17 +54,17 @@ async fn test_load_minimal_provider() {
     std::fs::write(
         &star_path,
         r#"
-def name():
-    return "test-provider"
+name = "test-provider"
+description = "A test provider for unit tests"
 
-def description():
-    return "A test provider for unit tests"
+runtimes = [
+    {"name": "test-provider", "executable": "test-provider"},
+]
 "#,
     )
     .unwrap();
 
     let provider = StarlarkProvider::load(&star_path).await.unwrap();
-    // Metadata parsing is currently simplified; just verify it loads without error
     assert!(!provider.script_path().to_str().unwrap().is_empty());
 }
 
@@ -125,6 +84,65 @@ async fn test_load_with_sandbox_config() {
     assert!(!provider.script_path().to_str().unwrap().is_empty());
 }
 
+#[tokio::test]
+async fn test_from_content_creates_provider() {
+    let content = r#"
+name = "inline-tool"
+description = "Inline test provider"
+
+runtimes = [
+    {"name": "inline-tool", "executable": "inline-tool"},
+]
+"#;
+    let provider = StarlarkProvider::from_content("inline-tool", content)
+        .await
+        .unwrap();
+
+    assert!(!provider.script_path().to_str().unwrap().is_empty());
+    assert_eq!(provider.name(), "inline-tool");
+}
+
+#[tokio::test]
+async fn test_from_content_parses_runtimes() {
+    let content = r#"
+name = "node"
+description = "Node.js runtime"
+
+runtimes = [
+    {"name": "node", "executable": "node", "aliases": ["nodejs"]},
+    {"name": "npm",  "executable": "npm",  "bundled_with": "node"},
+    {"name": "npx",  "executable": "npx",  "bundled_with": "node"},
+]
+"#;
+    let provider = StarlarkProvider::from_content("node", content)
+        .await
+        .unwrap();
+
+    let runtimes = provider.runtimes();
+    assert_eq!(runtimes.len(), 3);
+    assert_eq!(runtimes[0].name, "node");
+    assert_eq!(runtimes[1].name, "npm");
+    assert_eq!(runtimes[2].name, "npx");
+}
+
+#[tokio::test]
+async fn test_from_content_parses_aliases() {
+    let content = r#"
+name = "node"
+description = "Node.js runtime"
+
+runtimes = [
+    {"name": "node", "executable": "node", "aliases": ["nodejs", "node-js"]},
+]
+"#;
+    let provider = StarlarkProvider::from_content("node", content)
+        .await
+        .unwrap();
+
+    let runtimes = provider.runtimes();
+    assert_eq!(runtimes[0].aliases, vec!["nodejs", "node-js"]);
+}
+
 // ============================================================
 // ProviderMeta tests
 // ============================================================
@@ -140,6 +158,7 @@ fn test_provider_meta_defaults() {
         homepage: None,
         repository: None,
         platforms: None,
+        package_alias: None,
     };
 
     assert_eq!(meta.name, "test");
@@ -163,8 +182,63 @@ fn test_provider_meta_with_platforms() {
         homepage: None,
         repository: None,
         platforms: Some(platforms),
+        package_alias: None,
     };
 
     let platforms = meta.platforms.unwrap();
     assert_eq!(platforms["os"], vec!["windows"]);
+}
+
+// ============================================================
+// Script hash / incremental cache tests
+// ============================================================
+
+#[tokio::test]
+async fn test_same_content_produces_same_hash() {
+    let content = r#"
+name = "tool"
+description = "Test"
+runtimes = [{"name": "tool", "executable": "tool"}]
+"#;
+    let p1 = StarlarkProvider::from_content("tool", content)
+        .await
+        .unwrap();
+    let p2 = StarlarkProvider::from_content("tool", content)
+        .await
+        .unwrap();
+
+    assert_eq!(p1.script_hash(), p2.script_hash());
+}
+
+#[tokio::test]
+async fn test_different_content_produces_different_hash() {
+    let content_a = r#"name = "tool-a"
+description = "A"
+runtimes = [{"name": "tool-a", "executable": "tool-a"}]
+"#;
+    let content_b = r#"name = "tool-b"
+description = "B"
+runtimes = [{"name": "tool-b", "executable": "tool-b"}]
+"#;
+    let pa = StarlarkProvider::from_content("tool-a", content_a)
+        .await
+        .unwrap();
+    let pb = StarlarkProvider::from_content("tool-b", content_b)
+        .await
+        .unwrap();
+
+    assert_ne!(pa.script_hash(), pb.script_hash());
+}
+
+#[tokio::test]
+async fn test_script_hash_hex_is_64_chars() {
+    let content = r#"name = "tool"
+description = "Test"
+runtimes = [{"name": "tool", "executable": "tool"}]
+"#;
+    let provider = StarlarkProvider::from_content("tool", content)
+        .await
+        .unwrap();
+    // SHA-256 hex = 64 characters
+    assert_eq!(provider.script_hash_hex().len(), 64);
 }

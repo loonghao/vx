@@ -51,4 +51,4 @@ pub use range::{ApplyConfigResult, BoundsCheckResult, VersionRangeConfig, Versio
 pub use request::VersionRequest;
 pub use resolved::ResolvedVersion;
 pub use solver::{SolverConfig, SolverError, SolverResult, SolverStatus, VersionSolver};
-pub use strategy::{SemverStrategy, VersionStrategy};
+pub use strategy::{GitVersionStrategy, SemverStrategy, VersionStrategy};

@@ -1,4 +1,4 @@
-# provider.star - yq provider
+﻿# provider.star - yq provider
 #
 # yq: a portable command-line YAML, JSON, XML, CSV, TOML and properties processor
 # Releases: https://github.com/mikefarah/yq/releases
@@ -11,28 +11,17 @@
 # URL format: https://github.com/mikefarah/yq/releases/download/v{version}/yq_{os}_{arch}[.exe]
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
-
+load("@vx//stdlib:env.star", "env_prepend")
+load("@vx//stdlib:test.star", "cmd", "check_path")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "yq"
-
-def description():
-    return "yq - a portable command-line YAML, JSON, XML, CSV, TOML and properties processor"
-
-def homepage():
-    return "https://github.com/mikefarah/yq"
-
-def repository():
-    return "https://github.com/mikefarah/yq"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "devtools"
+name        = "yq"
+description = "yq - a portable command-line YAML, JSON, XML, CSV, TOML and properties processor"
+homepage    = "https://github.com/mikefarah/yq"
+repository  = "https://github.com/mikefarah/yq"
+license     = "MIT"
+ecosystem   = "devtools"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -45,6 +34,13 @@ runtimes = [
         "description": "Portable command-line YAML/JSON/XML processor",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            cmd("{executable} --version",
+                name="version_check",
+                expected_output="yq \\(https://github.com/mikefarah/yq\\) version"),
+            check_path("{install_dir}/yq",
+                       name="binary_exists"),
+        ],
     },
 ]
 
@@ -81,8 +77,8 @@ fetch_versions = make_fetch_versions("mikefarah", "yq")
 
 def _yq_asset(ctx):
     """Return the yq asset filename for the current platform."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     os_map = {
         "windows": "windows",
@@ -127,9 +123,9 @@ def download_url(ctx, version):
 # install_layout — binary download, no extraction
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(ctx, _version):
     """yq is a direct binary — no archive to extract."""
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     exe = "yq.exe" if os == "windows" else "yq"
 
     return {
@@ -144,15 +140,15 @@ def install_layout(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for yq."""
-    return "{vx_home}/store/yq"
+    return ctx.vx_home + "/store/yq"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "yq.exe" if os == "windows" else "yq"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install actions needed for yq."""
     return None
 
@@ -160,7 +156,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]

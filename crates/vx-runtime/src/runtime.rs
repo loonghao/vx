@@ -26,6 +26,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
+use vx_runtime_core::{MirrorConfig, NormalizeConfig};
 
 /// Detect the download region for mirror selection
 ///
@@ -159,6 +160,19 @@ pub trait Runtime: Send + Sync {
         &[]
     }
 
+    /// Aliases as owned strings.
+    ///
+    /// This is an alternative to `aliases()` for runtimes that store aliases
+    /// as `Vec<String>` (e.g. `ManifestDrivenRuntime`) and cannot return a
+    /// `&[&str]` due to lifetime constraints.
+    ///
+    /// The default implementation converts `aliases()` to owned strings.
+    /// Override this method when `aliases()` always returns `&[]` but you
+    /// have aliases stored as `Vec<String>`.
+    fn aliases_owned(&self) -> Vec<String> {
+        self.aliases().iter().map(|s| s.to_string()).collect()
+    }
+
     /// Ecosystem this runtime belongs to
     fn ecosystem(&self) -> Ecosystem {
         Ecosystem::Unknown
@@ -186,7 +200,7 @@ pub trait Runtime: Send + Sync {
     /// if the mirror fails.
     ///
     /// Override this method to provide mirrors for your runtime.
-    fn mirror_urls(&self) -> Vec<vx_manifest::MirrorConfig> {
+    fn mirror_urls(&self) -> Vec<MirrorConfig> {
         vec![]
     }
 
@@ -494,7 +508,7 @@ pub trait Runtime: Send + Sync {
     /// name = "convert"
     /// target = "magick"
     /// ```
-    fn normalize_config(&self) -> Option<&vx_manifest::NormalizeConfig> {
+    fn normalize_config(&self) -> Option<&NormalizeConfig> {
         None
     }
 
@@ -1508,6 +1522,54 @@ pub trait Runtime: Send + Sync {
                     hint
                 )
             })
+    }
+
+    // ========== Shell Support (RFC 0038) ==========
+
+    /// Get the path to a shell executable provided by this runtime
+    ///
+    /// This method is used when launching a shell with the runtime's environment
+    /// (e.g., `vx git::git-bash`).
+    ///
+    /// # Arguments
+    ///
+    /// * `shell_name` - The name of the shell (e.g., "git-bash", "cmd", "bash")
+    /// * `version` - The version of the runtime
+    /// * `ctx` - Runtime context providing paths
+    ///
+    /// # Returns
+    ///
+    /// * `Some(path)` - The path to the shell executable
+    /// * `None` - This runtime doesn't provide this shell
+    ///
+    /// # Example
+    ///
+    /// For Git, this would return the path to `git-bash.exe`:
+    /// ```rust,ignore
+    /// fn get_shell_path(&self, shell_name: &str, version: &str, ctx: &RuntimeContext) -> Option<PathBuf> {
+    ///     if shell_name == "git-bash" {
+    ///         let install_path = ctx.paths.version_store_dir("git", version);
+    ///         Some(install_path.join("git-bash.exe"))
+    ///     } else {
+    ///         None
+    ///     }
+    /// }
+    /// ```
+    fn get_shell_path(
+        &self,
+        _shell_name: &str,
+        _version: &str,
+        _ctx: &RuntimeContext,
+    ) -> Option<std::path::PathBuf> {
+        None // Default: runtime doesn't provide any shells
+    }
+
+    /// Get list of shells provided by this runtime
+    ///
+    /// Returns a list of shell names that this runtime can provide.
+    /// For example, Git provides ["git-bash", "git-cmd"].
+    fn provided_shells(&self) -> Vec<&'static str> {
+        vec![] // Default: no shells provided
     }
 }
 

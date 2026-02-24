@@ -10,9 +10,8 @@ use crate::registry::get_runtime_platform_label;
 use crate::system_tools::{discover_system_tools, group_by_category};
 use crate::ui::UI;
 use anyhow::Result;
-use std::collections::HashSet;
 use std::sync::Arc;
-use vx_paths::{PathManager, PathResolver};
+use vx_paths::PathResolver;
 use vx_runtime::{Platform, ProviderRegistry, Runtime, RuntimeContext};
 use vx_starlark::handle::global_registry;
 
@@ -45,24 +44,21 @@ pub async fn handle_list(
     show_system: bool,
     format: OutputFormat,
 ) -> Result<()> {
-    // Create path manager and resolver
-    let path_manager = PathManager::new()
+    // Dummy resolver kept for function signature compatibility
+    let path_manager = vx_paths::PathManager::new()
         .map_err(|e| anyhow::anyhow!("Failed to initialize path manager: {}", e))?;
     let resolver = PathResolver::new(path_manager);
 
     if show_system {
-        // Show system tools
         list_system_tools(registry, show_all, format).await?;
         return Ok(());
     }
 
     match tool {
         Some(tool_name) => {
-            // List versions for a specific tool (always show regardless of platform)
             list_tool_versions(registry, &resolver, tool_name, show_status, format).await?;
         }
         None => {
-            // List all tools with optional platform filtering
             list_all_tools(registry, &resolver, show_status, show_all, format).await?;
         }
     }
@@ -219,7 +215,7 @@ fn capitalize_category(category: &str) -> String {
 
 async fn list_tool_versions(
     registry: &ProviderRegistry,
-    resolver: &PathResolver,
+    _resolver: &PathResolver,
     tool_name: &str,
     show_status: bool,
     format: OutputFormat,
@@ -227,7 +223,6 @@ async fn list_tool_versions(
     // Check if tool is supported
     let runtime = registry.get_runtime(tool_name);
     if runtime.is_none() {
-        // Show friendly error with suggestions
         let available_tools = registry.runtime_names();
         UI::tool_not_found(tool_name, &available_tools);
         return Ok(());
@@ -236,122 +231,44 @@ async fn list_tool_versions(
     let runtime = runtime.unwrap();
     let current_platform = Platform::current();
     let platform_supported = is_platform_supported(&runtime, &current_platform);
-
-    // Use canonical runtime name for store lookup and executable name for file search
     let canonical_name = runtime.name();
-    let exe_name = runtime.executable_name();
-
+    let bundled_with = runtime.metadata().get("bundled_with").cloned();
     let renderer = OutputRenderer::new(format);
 
-    // Check if this tool is bundled with another tool
-    let bundled_with = runtime.metadata().get("bundled_with").cloned();
+    // ── RFC-0037: ProviderHandle is the single source of truth ───────────
+    let reg = global_registry().await;
 
-    // --- RFC-0037: Try ProviderHandle first for installed versions ---
-    let handle_installed: Option<Vec<String>> = {
-        let reg = global_registry().await;
-        reg.get(canonical_name)
-            .map(|handle| handle.installed_versions())
-    };
-
-    // Get installed versions - prefer ProviderHandle, fall back to PathResolver
-    let installed_executables: Vec<std::path::PathBuf> =
-        if let Some(versions) = handle_installed.filter(|v| !v.is_empty()) {
-            UI::debug(&format!(
-                "ProviderHandle::installed_versions({}) => {:?}",
-                canonical_name, versions
-            ));
-            // Convert version strings to paths for backward-compatible display
-            versions
-                .iter()
-                .filter_map(|v| {
-                    // Build the expected executable path from the store
-                    let paths = vx_paths::VxPaths::new().ok()?;
-                    let version_dir = paths.store_dir.join(canonical_name).join(v);
-                    // Try common locations
-                    let exe_with_ext = vx_paths::with_executable_extension(exe_name);
-                    let candidates = vec![
-                        version_dir.join(&exe_with_ext),
-                        version_dir.join(exe_name),
-                        version_dir.join("bin").join(&exe_with_ext),
-                        version_dir.join("bin").join(exe_name),
-                    ];
-                    candidates
-                        .into_iter()
-                        .find(|p| p.exists())
-                        .or_else(|| Some(version_dir.join(&exe_with_ext)))
-                })
-                .collect()
+    // Resolve the handle: try canonical name first, then bundled parent
+    let (versions, source_label): (Vec<String>, Option<String>) =
+        if let Some(handle) = reg.get(canonical_name) {
+            let v = handle.installed_versions();
+            (v, None)
+        } else if let Some(parent) = &bundled_with
+            && let Some(parent_handle) = reg.get(parent)
+        {
+            // Tool is bundled with parent — show parent's installed versions
+            let v = parent_handle.installed_versions();
+            (v, Some(parent.clone()))
         } else {
-            resolver.find_tool_executables_with_exe(canonical_name, exe_name)?
+            (vec![], None)
         };
 
-    // If this tool is bundled with another and has no direct installations,
-    // check the parent tool's installations
-    if installed_executables.is_empty()
-        && let Some(parent_tool) = &bundled_with
-    {
-        let parent_executables = resolver.find_tool_executables(parent_tool)?;
-        if !parent_executables.is_empty() {
-            // Tool is available via parent
-            let mut versions = Vec::new();
-            for exe_path in &parent_executables {
-                let version = extract_version_from_path(exe_path);
-                versions.push(version);
-            }
+    // Get executable paths for each version (for --status display)
+    let version_paths: Vec<(String, Option<std::path::PathBuf>)> = if show_status {
+        versions
+            .iter()
+            .map(|v| {
+                let path = reg.get(canonical_name).and_then(|h| h.get_execute_path(v));
+                (v.clone(), path)
+            })
+            .collect()
+    } else {
+        versions.iter().map(|v| (v.clone(), None)).collect()
+    };
 
-            if renderer.is_json() {
-                let output = VersionsOutput {
-                    tool: tool_name.to_string(),
-                    versions: versions
-                        .iter()
-                        .map(|v| VersionEntry {
-                            version: v.clone(),
-                            installed: true,
-                            lts: false,
-                            lts_name: None,
-                            date: None,
-                            prerelease: false,
-                            download_url: None,
-                        })
-                        .collect(),
-                    total: versions.len(),
-                    latest: versions.first().cloned(),
-                    lts: None,
-                };
-                renderer.render(&output)?;
-            } else {
-                // Text output
-                if platform_supported {
-                    UI::info(&format!("📦 {}", tool_name));
-                } else {
-                    UI::info(&format!(
-                        "📦 {} ⚠️  (not supported on {})",
-                        tool_name,
-                        current_platform.as_str()
-                    ));
-                }
+    drop(reg);
 
-                for version in &versions {
-                    let status_icon = if show_status { "✅" } else { "  " };
-                    println!(
-                        "  {} {} (bundled with {})",
-                        status_icon, version, parent_tool
-                    );
-                }
-
-                if show_status {
-                    UI::success(&format!(
-                        "Total: {} version(s) available (bundled with {})",
-                        versions.len(),
-                        parent_tool
-                    ));
-                }
-            }
-            return Ok(());
-        }
-    }
-
-    if installed_executables.is_empty() {
+    if version_paths.is_empty() {
         if renderer.is_json() {
             let output = VersionsOutput {
                 tool: tool_name.to_string(),
@@ -362,7 +279,6 @@ async fn list_tool_versions(
             };
             renderer.render(&output)?;
         } else {
-            // Text output
             if platform_supported {
                 UI::info(&format!("📦 {}", tool_name));
             } else {
@@ -374,7 +290,7 @@ async fn list_tool_versions(
             }
             UI::hint("  No versions installed");
             if show_status {
-                if let Some(parent_tool) = bundled_with {
+                if let Some(parent_tool) = &bundled_with {
                     UI::hint(&format!(
                         "  This tool is bundled with '{}'. Install {} to get {}.",
                         parent_tool, parent_tool, tool_name
@@ -395,16 +311,10 @@ async fn list_tool_versions(
         return Ok(());
     }
 
-    // Collect versions
-    let versions: Vec<(String, std::path::PathBuf)> = installed_executables
-        .iter()
-        .map(|exe_path| (extract_version_from_path(exe_path), exe_path.clone()))
-        .collect();
-
     if renderer.is_json() {
         let output = VersionsOutput {
             tool: tool_name.to_string(),
-            versions: versions
+            versions: version_paths
                 .iter()
                 .map(|(v, path)| VersionEntry {
                     version: v.clone(),
@@ -413,16 +323,15 @@ async fn list_tool_versions(
                     lts_name: None,
                     date: None,
                     prerelease: false,
-                    download_url: Some(path.display().to_string()),
+                    download_url: path.as_ref().map(|p| p.display().to_string()),
                 })
                 .collect(),
-            total: versions.len(),
-            latest: versions.first().map(|(v, _)| v.clone()),
+            total: version_paths.len(),
+            latest: version_paths.first().map(|(v, _)| v.clone()),
             lts: None,
         };
         renderer.render(&output)?;
     } else {
-        // Text output
         if platform_supported {
             UI::info(&format!("📦 {}", tool_name));
         } else {
@@ -433,149 +342,103 @@ async fn list_tool_versions(
             ));
         }
 
-        for (version, exe_path) in &versions {
+        for (version, exe_path) in &version_paths {
             let status_icon = if show_status { "✅" } else { "  " };
-            println!("  {} {}", status_icon, version);
-
-            if show_status {
-                println!("     📁 {}", exe_path.display());
+            if let Some(label) = &source_label {
+                println!("  {} {} (bundled with {})", status_icon, version, label);
+            } else {
+                println!("  {} {}", status_icon, version);
+            }
+            if show_status && let Some(path) = exe_path {
+                println!("     📁 {}", path.display());
             }
         }
 
         if show_status {
-            UI::success(&format!("Total: {} version(s) installed", versions.len()));
+            UI::success(&format!(
+                "Total: {} version(s) installed",
+                version_paths.len()
+            ));
         }
     }
 
     Ok(())
 }
 
-/// Extract version from executable path
-/// Paths are like: ~/.vx/store/uv/0.9.17/uv-platform/uv
-/// or: ~/.vx/tools/node/18.17.0/node
-fn extract_version_from_path(path: &std::path::Path) -> String {
-    // Walk up the path to find a version-like component
-    for ancestor in path.ancestors() {
-        if let Some(name) = ancestor.file_name().and_then(|n| n.to_str()) {
-            // Check if this looks like a version (contains digits and dots)
-            if name.chars().any(|c| c.is_ascii_digit())
-                && (name.contains('.') || name.chars().all(|c| c.is_ascii_digit()))
-                && !name.contains('-')
-            {
-                return name.to_string();
-            }
-        }
-    }
-    "unknown".to_string()
-}
-
 async fn list_all_tools(
     registry: &ProviderRegistry,
-    resolver: &PathResolver,
+    _resolver: &PathResolver,
     _show_status: bool,
     show_all: bool,
     format: OutputFormat,
 ) -> Result<()> {
     let current_platform = Platform::current();
-
-    // Get all supported tools from registry
     let supported_tools = registry.runtime_names();
 
-    // Get all installed tools (from both store and tools directories)
-    let installed_tools_with_versions = resolver.get_installed_tools_with_versions()?;
-    let directly_installed: HashSet<_> = installed_tools_with_versions
-        .iter()
-        .map(|(name, _)| name.as_str())
-        .collect();
-
-    // Build a set of tools that are available (either directly installed or bundled with an installed tool)
-    let mut available_tools: HashSet<String> =
-        directly_installed.iter().map(|s| s.to_string()).collect();
-
-    // Check for bundled tools - if a parent tool is installed, its bundled tools are also available
-    for tool_name in &supported_tools {
-        if let Some(runtime) = registry.get_runtime(tool_name)
-            && let Some(parent_tool) = runtime.metadata().get("bundled_with")
-            && directly_installed.contains(parent_tool.as_str())
-        {
-            available_tools.insert(tool_name.clone());
-        }
-    }
+    // ── RFC-0037: ProviderHandle is the single source of truth ───────────
+    let reg = global_registry().await;
 
     let mut installed_count = 0;
     let mut runtimes = Vec::new();
 
     for tool_name in &supported_tools {
-        // Check platform support
         let platform_supported = if let Some(ref runtime) = registry.get_runtime(tool_name) {
             is_platform_supported(runtime, &current_platform)
         } else {
             true
         };
 
-        // If not supported and not showing all, skip
+        // Skip unsupported platforms unless --all
         if !platform_supported && !show_all {
             continue;
         }
 
-        let is_available = available_tools.contains(tool_name);
+        let runtime = match registry.get_runtime(tool_name) {
+            Some(r) => r,
+            None => continue,
+        };
 
-        if let Some(runtime) = registry.get_runtime(tool_name) {
-            // Get platform label from manifest
-            let platform_label = get_runtime_platform_label(tool_name);
+        let canonical_name = runtime.name();
+        let bundled_with = runtime.metadata().get("bundled_with").cloned();
 
-            // Get installed versions
-            let versions = if is_available {
-                let tool_name_str: &str = tool_name;
-                let is_directly_installed = directly_installed.contains(tool_name_str);
-                if is_directly_installed {
-                    installed_tools_with_versions
-                        .iter()
-                        .find(|(name, _)| name == tool_name)
-                        .map(|(_, vers)| vers.clone())
-                        .unwrap_or_default()
-                } else {
-                    // Bundled tool - show parent's versions
-                    runtime
-                        .metadata()
-                        .get("bundled_with")
-                        .and_then(|parent_tool| {
-                            installed_tools_with_versions
-                                .iter()
-                                .find(|(name, _)| name == parent_tool)
-                                .map(|(_, vers)| vers.clone())
-                        })
-                        .unwrap_or_default()
-                }
-            } else {
-                vec![]
-            };
+        // Get installed versions from ProviderHandle
+        let versions: Vec<String> = if let Some(handle) = reg.get(canonical_name) {
+            handle.installed_versions()
+        } else if let Some(parent) = &bundled_with
+            && let Some(parent_handle) = reg.get(parent)
+        {
+            // Bundled tool: show parent's versions
+            parent_handle.installed_versions()
+        } else {
+            vec![]
+        };
 
-            if is_available {
-                installed_count += 1;
-            }
-
-            // Get ecosystem
-            let ecosystem = runtime.metadata().get("ecosystem").cloned();
-
-            runtimes.push(RuntimeEntry {
-                name: tool_name.clone(),
-                versions: versions.clone(),
-                installed: is_available,
-                description: runtime.description().to_string(),
-                platform_supported,
-                ecosystem,
-                platform_label: if !platform_supported || show_all {
-                    platform_label
-                } else {
-                    None
-                },
-            });
+        let is_available = !versions.is_empty();
+        if is_available {
+            installed_count += 1;
         }
+
+        let platform_label = get_runtime_platform_label(tool_name);
+        let ecosystem = runtime.metadata().get("ecosystem").cloned();
+
+        runtimes.push(RuntimeEntry {
+            name: tool_name.clone(),
+            versions,
+            installed: is_available,
+            description: runtime.description().to_string(),
+            platform_supported,
+            ecosystem,
+            platform_label: if !platform_supported || show_all {
+                platform_label
+            } else {
+                None
+            },
+        });
     }
 
-    let renderer = OutputRenderer::new(format);
+    drop(reg);
 
+    let renderer = OutputRenderer::new(format);
     let runtimes_count = runtimes.len();
     let output = ListOutput {
         runtimes,
@@ -588,7 +451,6 @@ async fn list_all_tools(
     if renderer.is_json() {
         renderer.render(&output)?;
     } else {
-        // Text mode: use existing UI for header, then render results
         if show_all {
             UI::info("📦 Available Tools (showing all, including unsupported)");
         } else {

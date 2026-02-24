@@ -212,6 +212,7 @@ impl RuntimeMap {
             vx_manifest::Ecosystem::Python => Ecosystem::Python,
             vx_manifest::Ecosystem::Rust => Ecosystem::Rust,
             vx_manifest::Ecosystem::Go => Ecosystem::Go,
+            vx_manifest::Ecosystem::Git => Ecosystem::Git,
             vx_manifest::Ecosystem::Java => Ecosystem::Java,
             // All other ecosystems map to Generic for now
             _ => Ecosystem::Generic,

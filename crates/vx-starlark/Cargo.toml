@@ -21,7 +21,7 @@ starlark_derive = { version = "0.13" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
-# HTTP client (for resolving github_versions descriptors)
+# HTTP client (for building minimal RuntimeContext in descriptor resolvers)
 reqwest = { workspace = true }
 
 # Utilities
@@ -29,11 +29,13 @@ tokio = { workspace = true }
 once_cell = { workspace = true }
 dirs = { workspace = true }
 chrono = { workspace = true }
+which = { workspace = true }
 
 # Internal dependencies
 vx-core = { path = "../vx-core" }
 vx-paths = { path = "../vx-paths" }
 vx-runtime = { path = "../vx-runtime" }
+vx-version-fetcher = { path = "../vx-version-fetcher" }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]

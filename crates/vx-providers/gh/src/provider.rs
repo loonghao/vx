@@ -1,30 +1,26 @@
 //! gh provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// gh provider (Starlark-driven)
 #[derive(Debug, Default)]
-pub struct GitHubCliProvider;
+pub struct GhProvider;
 
-impl Provider for GitHubCliProvider {
+impl Provider for GhProvider {
     fn name(&self) -> &str {
         crate::star_metadata().name_or("gh")
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata().description_or("GitHub CLI - command line tool for GitHub")
+        crate::star_metadata().description_or("GitHub CLI")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("gh", "gh", ProviderSource::BuiltIn).with_fetch_versions(
-                vx_starlark::make_fetch_versions_fn("gh", crate::PROVIDER_STAR),
-            ),
-        )]
+        vx_starlark::build_runtimes("gh", crate::PROVIDER_STAR, None)
     }
 }
 
 pub fn create_provider() -> Arc<dyn Provider> {
-    Arc::new(GitHubCliProvider)
+    Arc::new(GhProvider)
 }

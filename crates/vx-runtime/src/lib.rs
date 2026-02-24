@@ -49,8 +49,6 @@ pub mod ecosystem;
 pub mod impls;
 pub mod integrated_resolver;
 pub mod layout;
-pub mod manifest;
-pub mod manifest_registry;
 pub mod manifest_runtime;
 pub mod normalizer;
 pub mod package_runtime;
@@ -93,7 +91,8 @@ pub use types::{
 // Re-export testing utilities
 pub use testing::{
     MockCommandExecutor, MockFileSystem, MockHttpClient, MockInstaller, MockPathProvider,
-    RuntimeTestResult, RuntimeTester, TestCaseResult, mock_context, mock_execution_context,
+    RuntimeTestResult, RuntimeTester, TestCaseResult, TestCheckType, TestCommand, TestConfig,
+    mock_context, mock_execution_context,
 };
 pub use version_cache::{CacheEntry, CacheMode, CacheStats, DEFAULT_CACHE_TTL, VersionCache};
 pub use version_resolver::VersionResolver;
@@ -109,23 +108,9 @@ pub use integrated_resolver::{IntegratedVersionResolver, ProviderEnvBuilder};
 // Constraints system
 pub use constraints::{
     ConstraintRule, ConstraintsRegistry, DEFAULT_CONSTRAINTS, DependencyConstraint,
-    ManifestVersionPattern, VersionPattern, get_default_constraints,
-    init_constraints_from_manifests, load_constraints_from_manifest_content,
+    ManifestVersionPattern, VersionPattern, build_constraint_rules, get_default_constraints,
+    init_constraints_from_star,
 };
-
-// Manifest-driven registry
-pub use manifest_registry::{ManifestRegistry, RuntimeMetadata};
-
-// Manifest sub-modules (RFC 0029 split architecture)
-pub use manifest::builder::{
-    BuildError, BuildErrorKind, BuildResult, BuildWarning, ProviderBuilder,
-};
-pub use manifest::index::{ManifestIndex, ProviderMetadata};
-pub use manifest::loader::ManifestStore;
-
-// Re-export platform types from vx-manifest for convenience
-pub use vx_manifest::{Arch as ManifestArch, Os as ManifestOs, Platform as ManifestPlatform};
-pub use vx_manifest::{PlatformConstraint, PlatformExclusion};
 
 // Plugin system (requires "plugin" feature for dynamic loading)
 #[cfg(feature = "plugin")]

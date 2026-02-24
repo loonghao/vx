@@ -1,4 +1,4 @@
-# provider.star - Docker provider
+﻿# provider.star - Docker provider
 #
 # Version source: https://github.com/docker/cli/releases
 #
@@ -9,30 +9,16 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "docker"
-
-def description():
-    return "Docker - Container platform for building, sharing, and running applications"
-
-def homepage():
-    return "https://www.docker.com"
-
-def repository():
-    return "https://github.com/docker/cli"
-
-def license():
-    return "Apache-2.0"
-
-def ecosystem():
-    return "container"
-
-def aliases():
-    return []
+name        = "docker"
+description = "Docker - Container platform for building, sharing, and running applications"
+homepage    = "https://www.docker.com"
+repository  = "https://github.com/docker/cli"
+license     = "Apache-2.0"
+ecosystem   = "container"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -44,6 +30,10 @@ runtimes = [
         "executable":  "docker",
         "description": "Docker CLI",
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "Docker version"},
+            {"command": "{executable} info", "name": "daemon_check", "expect_success": True},
+        ],
     },
 ]
 
@@ -69,8 +59,8 @@ fetch_versions = make_fetch_versions("docker", "cli")
 
 def _docker_asset(ctx, version):
     """Map vx platform to Docker CLI asset name."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     arch_map = {
         "x64":   "x86_64",
@@ -97,8 +87,8 @@ def download_url(ctx, version):
     Linux/macOS: static binary from download.docker.com
     Windows: not supported (use Docker Desktop)
     """
-    os = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os = ctx.platform.os
+    arch = ctx.platform.arch
 
     arch_map = {
         "x64":   "x86_64",
@@ -127,7 +117,7 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(_ctx, _version):
     return {
         "type":             "archive",
         "strip_prefix":     "docker",
@@ -138,15 +128,15 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {"PATH": install_dir}
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
 # ---------------------------------------------------------------------------
 # system_install — Windows uses Docker Desktop
 # ---------------------------------------------------------------------------
 
 def system_install(ctx):
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         return {
             "strategies": [
@@ -166,7 +156,7 @@ def system_install(ctx):
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, _version):
     return []
 
 
@@ -175,14 +165,14 @@ def deps(ctx, version):
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    return "{vx_home}/store/docker"
+    return ctx.vx_home + "/store/docker"
 
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
+def get_execute_path(ctx, _version):
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/docker.exe"
+        return ctx.install_dir + "/docker.exe"
     else:
-        return "{install_dir}/docker"
+        return ctx.install_dir + "/docker"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     return None

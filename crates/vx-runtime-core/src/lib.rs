@@ -36,15 +36,21 @@
 //! ```
 
 pub mod ecosystem;
+pub mod normalize;
 pub mod platform;
 pub mod provider;
 pub mod registry;
 pub mod runtime;
 pub mod traits;
 pub mod types;
+pub mod version;
 
 // Re-exports for convenience
 pub use ecosystem::Ecosystem;
+pub use normalize::{
+    AliasNormalize, DirectoryNormalize, EffectiveNormalizeConfig, ExecutableNormalize,
+    MirrorConfig, NormalizeAction, NormalizeConfig, PlatformNormalizeConfig,
+};
 pub use platform::{Arch, Libc, Os, Platform, compare_semver};
 pub use provider::{PackageManager, Provider};
 pub use registry::{PlatformError, ProviderRegistry};
@@ -53,6 +59,4 @@ pub use traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProvide
 pub use types::{
     ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, RuntimeSpec, VersionInfo,
 };
-
-// Re-export from vx-manifest for convenience
-pub use vx_manifest::{PlatformConstraint, PlatformExclusion};
+pub use version::{RangeConstraint, RangeOp, Version, VersionConstraint, VersionRequest};

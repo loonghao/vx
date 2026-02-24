@@ -1,7 +1,7 @@
 //! ripgrep provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// ripgrep provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -14,20 +14,11 @@ impl Provider for RipgrepProvider {
 
     fn description(&self) -> &str {
         crate::star_metadata()
-            .description_or("ripgrep (rg) - recursively searches directories for a regex pattern")
+            .description_or("ripgrep - Recursively searches directories for a regex pattern")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("ripgrep", "ripgrep", ProviderSource::BuiltIn)
-                .with_description(
-                    "ripgrep (rg) - recursively searches directories for a regex pattern",
-                )
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "ripgrep",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("ripgrep", crate::PROVIDER_STAR, None)
     }
 }
 

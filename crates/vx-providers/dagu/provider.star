@@ -1,4 +1,4 @@
-# provider.star - Dagu provider
+﻿# provider.star - Dagu provider
 #
 # Dagu is a powerful DAG (Directed Acyclic Graph) workflow engine.
 # Asset naming: dagu_{version}_{os}_{arch}.tar.gz
@@ -10,27 +10,16 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "dagu"
-
-def description():
-    return "Dagu - A powerful DAG workflow engine with a Web UI"
-
-def homepage():
-    return "https://dagu.run"
-
-def repository():
-    return "https://github.com/dagu-org/dagu"
-
-def license():
-    return "GPL-3.0"
-
-def ecosystem():
-    return "devtools"
+name        = "dagu"
+description = "Dagu - A powerful DAG workflow engine with a Web UI"
+homepage    = "https://dagu.run"
+repository  = "https://github.com/dagu-org/dagu"
+license     = "GPL-3.0"
+ecosystem   = "devtools"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -43,6 +32,9 @@ runtimes = [
         "description": "Dagu - DAG workflow engine",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} version", "name": "version_check", "expected_output": "\\d+\\.\\d+"},
+        ],
     },
 ]
 
@@ -71,8 +63,8 @@ fetch_versions = make_fetch_versions("dagu-org", "dagu", include_prereleases = F
 
 def _dagu_platform(ctx):
     """Map platform to dagu's os/arch naming."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     platforms = {
         "windows/x64":  ("windows", "amd64"),
@@ -110,8 +102,8 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os  = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os  = ctx.platform.os
     exe = "dagu.exe" if os == "windows" else "dagu"
     return {
         "type":             "archive",
@@ -123,10 +115,8 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
 
 # ---------------------------------------------------------------------------
@@ -135,33 +125,16 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for dagu."""
-    return "{vx_home}/store/dagu"
+    return ctx.vx_home + "/store/dagu"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/dagu.exe"
+        return ctx.install_dir + "/dagu.exe"
     else:
-        return "{install_dir}/dagu"
+        return ctx.install_dir + "/dagu"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """Post-install hook (no-op for dagu)."""
-    return None
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return "{vx_home}/store/dagu"
-
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/dagu.exe"
-    else:
-        return "{install_dir}/dagu"
-
-def post_install(ctx, version, install_dir):
     return None

@@ -1,4 +1,4 @@
-# provider.star - brew provider
+﻿# provider.star - brew provider
 #
 # Homebrew - The Missing Package Manager for macOS (or Linux)
 # Inheritance pattern: Level 2 (custom fetch_versions + script install)
@@ -8,28 +8,17 @@
 # Installation: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 load("@vx//stdlib:github.star", "make_fetch_versions")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "brew"
-
-def description():
-    return "The Missing Package Manager for macOS (or Linux)"
-
-def homepage():
-    return "https://brew.sh"
-
-def repository():
-    return "https://github.com/Homebrew/brew"
-
-def license():
-    return "BSD-2-Clause"
-
-def ecosystem():
-    return "system"
+name        = "brew"
+description = "The Missing Package Manager for macOS (or Linux)"
+homepage    = "https://brew.sh"
+repository  = "https://github.com/Homebrew/brew"
+license     = "BSD-2-Clause"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Platform constraint: macOS and Linux only
@@ -62,6 +51,9 @@ runtimes = [
             # Linux (Linuxbrew)
             "/home/linuxbrew/.linuxbrew/bin/brew",
         ],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "Homebrew \\d+"},
+        ],
     },
 ]
 
@@ -91,7 +83,7 @@ fetch_versions = make_fetch_versions("Homebrew", "brew")
 # Homebrew is installed via official shell script, not a binary download.
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
+def download_url(_ctx, _version):
     """Homebrew is installed via shell script, not direct download."""
     return None
 
@@ -99,7 +91,7 @@ def download_url(ctx, version):
 # script_install — shell script installation
 # ---------------------------------------------------------------------------
 
-def script_install(ctx):
+def script_install(_ctx):
     """Return the shell script install command for Homebrew."""
     return {
         "command": '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
@@ -114,17 +106,17 @@ def script_install(ctx):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+def environment(ctx, _version):
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     if os == "macos" and arch == "arm64":
-        return {"PATH": "/opt/homebrew/bin"}
+        return [env_prepend("PATH", "/opt/homebrew/bin")]
     elif os == "macos":
-        return {"PATH": "/usr/local/bin"}
+        return [env_prepend("PATH", "/usr/local/bin")]
     elif os == "linux":
-        return {"PATH": "/home/linuxbrew/.linuxbrew/bin"}
-    return {}
+        return [env_prepend("PATH", "/home/linuxbrew/.linuxbrew/bin")]
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -133,33 +125,16 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for brew."""
-    return "{vx_home}/store/brew"
+    return ctx.vx_home + "/store/brew"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/brew.exe"
+        return ctx.install_dir + "/brew.exe"
     else:
-        return "{install_dir}/brew"
+        return ctx.install_dir + "/brew"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """Post-install hook (no-op for brew)."""
-    return None
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return "{vx_home}/store/brew"
-
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/brew.exe"
-    else:
-        return "{install_dir}/brew"
-
-def post_install(ctx, version, install_dir):
     return None

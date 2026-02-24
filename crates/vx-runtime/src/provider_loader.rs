@@ -20,6 +20,7 @@ use crate::manifest_runtime::{
     DetectionConfig, InstallStrategy, ManifestDrivenRuntime, ProvidedTool, ProviderSource,
     ScriptType, SystemDepType, SystemDependency, SystemDepsConfig,
 };
+use vx_runtime_core::{MirrorConfig, NormalizeConfig};
 
 /// Provider loader configuration
 #[derive(Debug, Clone)]
@@ -322,9 +323,7 @@ impl ProviderLoader {
             // RFC 0022: Normalize configuration
             if let Some(normalize) = runtime_value.get("normalize") {
                 // Try to deserialize the normalize section using serde
-                if let Ok(normalize_config) =
-                    normalize.clone().try_into::<vx_manifest::NormalizeConfig>()
-                {
+                if let Ok(normalize_config) = normalize.clone().try_into::<NormalizeConfig>() {
                     runtime = runtime.with_normalize(normalize_config);
                 }
             }
@@ -333,9 +332,7 @@ impl ProviderLoader {
             if let Some(mirrors) = runtime_value.get("mirrors").and_then(|v| v.as_array()) {
                 let mut mirror_configs = Vec::new();
                 for mirror_value in mirrors {
-                    if let Ok(mirror_config) =
-                        mirror_value.clone().try_into::<vx_manifest::MirrorConfig>()
-                    {
+                    if let Ok(mirror_config) = mirror_value.clone().try_into::<MirrorConfig>() {
                         mirror_configs.push(mirror_config);
                     }
                 }

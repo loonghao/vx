@@ -10,6 +10,8 @@ use std::fmt;
 pub struct ResolvedVersion {
     /// Full version number
     pub version: Version,
+    /// Original version string (may include platform-specific suffixes like .windows.1)
+    pub original_version: Option<String>,
     /// Original request that was resolved
     pub resolved_from: String,
     /// Source (GitHub release, npm registry, etc.)
@@ -23,6 +25,22 @@ impl ResolvedVersion {
     pub fn new(version: Version, resolved_from: impl Into<String>) -> Self {
         Self {
             version,
+            original_version: None,
+            resolved_from: resolved_from.into(),
+            source: String::new(),
+            metadata: HashMap::new(),
+        }
+    }
+
+    /// Create a new resolved version with original version string
+    pub fn with_original(
+        version: Version,
+        original: impl Into<String>,
+        resolved_from: impl Into<String>,
+    ) -> Self {
+        Self {
+            version,
+            original_version: Some(original.into()),
             resolved_from: resolved_from.into(),
             source: String::new(),
             metadata: HashMap::new(),
@@ -42,7 +60,15 @@ impl ResolvedVersion {
     }
 
     /// Get the version string
+    /// Returns original version string if available, otherwise the parsed version
     pub fn version_string(&self) -> String {
+        self.original_version
+            .clone()
+            .unwrap_or_else(|| self.version.to_string())
+    }
+
+    /// Get the normalized version string (parsed version)
+    pub fn normalized_version_string(&self) -> String {
         self.version.to_string()
     }
 
@@ -54,7 +80,7 @@ impl ResolvedVersion {
 
 impl fmt::Display for ResolvedVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.version)
+        write!(f, "{}", self.version_string())
     }
 }
 

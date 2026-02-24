@@ -16,6 +16,8 @@ pub enum Ecosystem {
     Rust,
     /// Go ecosystem (go, gofmt)
     Go,
+    /// Git ecosystem (git) - special versioning: 2.53.0.windows.1
+    Git,
     /// Ruby ecosystem (ruby, gem, bundle) - RFC 0025
     Ruby,
     /// Java ecosystem (java, javac, maven, gradle)
@@ -46,6 +48,7 @@ impl fmt::Display for Ecosystem {
             Self::Python => write!(f, "python"),
             Self::Rust => write!(f, "rust"),
             Self::Go => write!(f, "go"),
+            Self::Git => write!(f, "git"),
             Self::Ruby => write!(f, "ruby"),
             Self::Java => write!(f, "java"),
             Self::DotNet => write!(f, "dotnet"),
@@ -69,6 +72,7 @@ impl std::str::FromStr for Ecosystem {
             "python" => Ok(Self::Python),
             "rust" => Ok(Self::Rust),
             "go" | "golang" => Ok(Self::Go),
+            "git" => Ok(Self::Git),
             "ruby" | "gem" => Ok(Self::Ruby),
             "java" => Ok(Self::Java),
             "dotnet" | ".net" => Ok(Self::DotNet),

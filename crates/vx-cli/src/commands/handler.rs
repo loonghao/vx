@@ -7,8 +7,8 @@ use crate::cli::OutputFormat;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
-use vx_manifest::{PackageAlias, RuntimeDef};
-use vx_runtime::{CacheMode, ManifestRegistry, ProviderRegistry, RuntimeContext};
+use vx_runtime::{CacheMode, ProviderRegistry, RuntimeContext, TestCommand, TestConfig};
+use vx_starlark::provider::types::PackageAlias;
 
 /// Global CLI options
 ///
@@ -102,8 +102,6 @@ pub struct CommandContext {
     pub runtime_context: Arc<RuntimeContext>,
     /// Global CLI options
     pub options: GlobalOptions,
-    /// Manifest registry for accessing provider manifests (lazy-loaded)
-    manifest_registry: std::sync::OnceLock<ManifestRegistry>,
 }
 
 impl CommandContext {
@@ -117,7 +115,6 @@ impl CommandContext {
             registry: Arc::new(registry),
             runtime_context: Arc::new(runtime_context),
             options,
-            manifest_registry: std::sync::OnceLock::new(),
         }
     }
 
@@ -131,7 +128,6 @@ impl CommandContext {
             registry,
             runtime_context,
             options,
-            manifest_registry: std::sync::OnceLock::new(),
         }
     }
 
@@ -213,48 +209,85 @@ impl CommandContext {
         self.options.is_json()
     }
 
-    /// Get the manifest registry (lazy-loaded from embedded manifests)
-    pub fn manifest_registry(&self) -> Option<&ManifestRegistry> {
-        Some(self.manifest_registry.get_or_init(|| {
-            let mut registry = ManifestRegistry::new();
-            let manifests = crate::registry::load_manifests_with_overrides();
-            registry.load_from_manifests(manifests);
-            registry
-        }))
-    }
-
-    /// Get runtime manifest definition by name
-    pub fn get_runtime_manifest(&self, runtime_name: &str) -> Option<RuntimeDef> {
-        let registry = self.manifest_registry()?;
-
-        // Search through all manifests for the runtime
-        for manifest in registry.manifest_names() {
-            if let Some(provider_manifest) = registry.get_manifest(&manifest)
-                && let Some(runtime) = provider_manifest.get_runtime(runtime_name)
-            {
-                return Some(runtime.clone());
-            }
-        }
-        None
-    }
-
-    /// Get the package alias for a runtime, if the provider declares one (RFC 0033)
+    /// Get test configuration for a runtime from the global ProviderHandle registry.
     ///
-    /// When a provider has `[provider.package_alias]`, executing `vx <name>` should
+    /// Returns `Some(TestConfig)` if the runtime has test commands defined in provider.star,
+    /// or `None` if no test configuration is available.
+    pub fn get_test_config(&self, runtime_name: &str) -> Option<TestConfig> {
+        // Try to get from global ProviderHandle registry (sync read)
+        let registry = vx_starlark::handle::GLOBAL_REGISTRY.try_read().ok()?;
+        let handle = registry.get(runtime_name)?;
+
+        // Find the matching runtime meta
+        let runtime_meta = handle
+            .runtime_metas()
+            .iter()
+            .find(|r| r.name == runtime_name || r.aliases.contains(&runtime_name.to_string()))?;
+
+        if runtime_meta.test_commands.is_empty() {
+            return None;
+        }
+
+        // Convert TestCommandMeta -> TestCommand
+        let functional_commands = runtime_meta
+            .test_commands
+            .iter()
+            .map(|tc| {
+                use vx_runtime::TestCheckType as RtType;
+                use vx_starlark::provider::types::TestCheckType as MetaType;
+                let check_type = match tc.check_type {
+                    MetaType::CheckPath => RtType::CheckPath,
+                    MetaType::CheckNotPath => RtType::CheckNotPath,
+                    MetaType::CheckEnv => RtType::CheckEnv,
+                    MetaType::CheckNotEnv => RtType::CheckNotEnv,
+                    MetaType::CheckFile => RtType::CheckFile,
+                    MetaType::Command => RtType::Command,
+                };
+                TestCommand {
+                    command: tc.command.clone(),
+                    check_type,
+                    expect_success: tc.expect_success,
+                    expected_output: tc.expected_output.clone(),
+                    expected_exit_code: None,
+                    name: tc.name.clone(),
+                    timeout_ms: tc.timeout_ms,
+                }
+            })
+            .collect();
+
+        Some(TestConfig {
+            functional_commands,
+            ..Default::default()
+        })
+    }
+
+    /// Get runtime manifest definition by name (compatibility shim)
+    ///
+    /// Returns a minimal compat struct with only the `test` field populated.
+    /// Prefer `get_test_config()` for new code.
+    pub fn get_runtime_manifest(&self, runtime_name: &str) -> Option<RuntimeManifestCompat> {
+        Some(RuntimeManifestCompat {
+            test: self.get_test_config(runtime_name),
+        })
+    }
+
+    /// Get the package alias for a runtime from the global ProviderHandle registry (RFC 0033)
+    ///
+    /// When a provider has `package_alias` in its metadata, executing `vx <name>` should
     /// be routed to `vx <ecosystem>:<package>` via the package execution path.
     pub fn get_package_alias(&self, runtime_name: &str) -> Option<PackageAlias> {
-        let registry = self.manifest_registry()?;
-
-        for manifest_name in registry.manifest_names() {
-            if let Some(provider_manifest) = registry.get_manifest(&manifest_name)
-                && provider_manifest.get_runtime(runtime_name).is_some()
-                && provider_manifest.provider.package_alias.is_some()
-            {
-                return provider_manifest.provider.package_alias.clone();
-            }
-        }
-        None
+        let registry = vx_starlark::handle::GLOBAL_REGISTRY.try_read().ok()?;
+        let handle = registry.get(runtime_name)?;
+        handle.provider_meta().package_alias.clone()
     }
+}
+
+/// Compatibility shim for code that previously used RuntimeDef
+///
+/// Only exposes the `test` field that is actually used by test/handler.rs.
+/// Will be removed once all callers are migrated to `get_test_config()`.
+pub struct RuntimeManifestCompat {
+    pub test: Option<TestConfig>,
 }
 
 /// Trait for command handlers

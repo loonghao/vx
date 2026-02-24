@@ -1,7 +1,7 @@
 //! imagemagick provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// imagemagick provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -9,7 +9,7 @@ pub struct ImageMagickProvider;
 
 impl Provider for ImageMagickProvider {
     fn name(&self) -> &str {
-        crate::star_metadata().name_or("imagemagick")
+        crate::star_metadata().name_or("magick")
     }
 
     fn description(&self) -> &str {
@@ -17,13 +17,7 @@ impl Provider for ImageMagickProvider {
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("magick", "magick", ProviderSource::BuiltIn)
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "imagemagick",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("magick", crate::PROVIDER_STAR, None)
     }
 }
 

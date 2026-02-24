@@ -136,9 +136,8 @@ check_on = ["install"]
 [runtimes.env]
 vars = { PATH = "{install_dir}/bin:$PATH" }
 
-[[runtimes.env.conditional]]
-when = { os = "windows" }
-vars = { PATH = "{install_dir};$PATH" }
+[runtimes.env.conditional]
+">=18" = { NODE_ENV = "production" }
 
 [[runtimes.mirrors]]
 name = "taobao"

@@ -1,4 +1,4 @@
-# provider.star - xcodebuild provider
+﻿# provider.star - xcodebuild provider
 #
 # Apple Xcode build tools (macOS-only, system detection only)
 # Inheritance pattern: Level 1 (fully custom, system-only, not installable)
@@ -6,24 +6,16 @@
 # Xcode tools are macOS-only and cannot be installed by vx.
 # vx only detects the system installation.
 
+load("@vx//stdlib:env.star", "env_set")
+
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "xcodebuild"
-
-def description():
-    return "Apple Xcode build tools"
-
-def homepage():
-    return "https://developer.apple.com/xcode"
-
-def license():
-    return "Proprietary"
-
-def ecosystem():
-    return "system"
+name        = "xcodebuild"
+description = "Apple Xcode build tools"
+homepage    = "https://developer.apple.com/xcode"
+license     = "Proprietary"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Platform constraint: macOS-only
@@ -51,6 +43,9 @@ runtimes = [
             "/usr/bin/xcodebuild",
             "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
         ],
+        "test_commands": [
+            {"command": "{executable} -version", "name": "version_check", "expected_output": "Xcode \\d+"},
+        ],
     },
     {
         "name":             "xcrun",
@@ -59,6 +54,9 @@ runtimes = [
         "bundled_with":     "xcodebuild",
         "auto_installable": False,
         "system_paths":     ["/usr/bin/xcrun"],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
     {
         "name":             "xcode-select",
@@ -67,6 +65,9 @@ runtimes = [
         "bundled_with":     "xcodebuild",
         "auto_installable": False,
         "system_paths":     ["/usr/bin/xcode-select"],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
     {
         "name":             "swift",
@@ -78,6 +79,9 @@ runtimes = [
             "/usr/bin/swift",
             "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift",
         ],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
     {
         "name":             "swiftc",
@@ -88,6 +92,9 @@ runtimes = [
         "system_paths":     [
             "/usr/bin/swiftc",
             "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+        ],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
         ],
     },
 ]
@@ -111,7 +118,7 @@ permissions = {
 
 def fetch_versions(ctx):
     """Detect Xcode version from system installation."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os != "macos":
         return []
     return [{"version": "system", "lts": True, "prerelease": False}]
@@ -120,7 +127,7 @@ def fetch_versions(ctx):
 # download_url — not installable
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
+def download_url(_ctx, _version):
     """Xcode cannot be installed by vx — install from Mac App Store or developer.apple.com."""
     return None
 
@@ -133,13 +140,13 @@ def store_root(ctx):
 
     xcodebuild is a macOS system tool; it is never installed by vx.
     """
-    return "{vx_home}/store/xcodebuild"
+    return ctx.vx_home + "/store/xcodebuild"
 
-def get_execute_path(ctx, version):
+def get_execute_path(_ctx, _version):
     """Return the executable path for xcodebuild (macOS-only)."""
     return "/usr/bin/xcodebuild"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install actions needed — system-only tool."""
     return None
 
@@ -147,7 +154,7 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
-    }
+def environment(_ctx, _version):
+    return [
+        env_set("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer"),
+    ]

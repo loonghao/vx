@@ -10,13 +10,16 @@ use crate::context::ProviderContext;
 use crate::error::{Error, Result};
 use crate::loader::VxModuleLoader;
 use serde_json::Value as JsonValue;
+use starlark::analysis::AstModuleLint;
 use starlark::environment::{FrozenModule, GlobalsBuilder, Module};
 use starlark::eval::{Evaluator, FileLoader};
 use starlark::syntax::{AstModule, Dialect};
 use starlark::values::Value;
+use starlark::values::structs::AllocStruct;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::Path;
-use tracing::trace;
+use tracing::{trace, warn};
 
 /// FileLoader implementation for @vx//stdlib modules
 ///
@@ -66,6 +69,17 @@ pub struct FrozenProviderInfo {
     pub metadata: HashMap<String, JsonValue>,
 }
 
+/// A lint warning from a provider.star script
+#[derive(Debug, Clone)]
+pub struct ProviderLint {
+    /// Short name of the lint rule (e.g. "unused-assign", "missing-return")
+    pub rule: String,
+    /// Human-readable description of the problem
+    pub problem: String,
+    /// Location in the source file (line:col)
+    pub location: String,
+}
+
 /// The Starlark execution engine
 ///
 /// Provides two-phase execution (Buck2-inspired):
@@ -80,7 +94,101 @@ impl StarlarkEngine {
     /// Create a new engine instance
     pub fn new() -> Self {
         Self {
-            dialect: Dialect::Standard,
+            dialect: Dialect::Extended,
+        }
+    }
+
+    /// Run the static linter over a provider.star script.
+    ///
+    /// Returns a list of lint warnings. An empty list means the script is clean.
+    /// Known vx globals (fetch_versions, download_url, etc.) are passed so the
+    /// linter does not report them as undefined.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let engine = StarlarkEngine::new();
+    /// let lints = engine.lint_script("provider.star", content)?;
+    /// for lint in &lints {
+    ///     tracing::warn!("lint [{}]: {} at {}", lint.rule, lint.problem, lint.location);
+    /// }
+    /// ```
+    pub fn lint_script(
+        &self,
+        script_name: &str,
+        script_content: &str,
+    ) -> Result<Vec<ProviderLint>> {
+        let ast = AstModule::parse(
+            script_name,
+            strip_bom(script_content).to_string(),
+            &self.dialect,
+        )
+        .map_err(|e| Error::ParseError(e.to_string()))?;
+
+        // Known globals injected by vx into every provider.star,
+        // plus starlark built-in constants that the linter doesn't auto-include
+        let known_globals: HashSet<String> = [
+            // vx-injected globals
+            "fetch_versions",
+            "download_url",
+            "install_layout",
+            "environment",
+            "ctx",
+            "name",
+            "description",
+            "homepage",
+            "repository",
+            "license",
+            "ecosystem",
+            "runtimes",
+            "permissions",
+            // Starlark built-in constants (linter doesn't include these automatically)
+            "True",
+            "False",
+            "None",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+
+        let lints = ast.lint(Some(&known_globals));
+
+        let result: Vec<ProviderLint> = lints
+            .into_iter()
+            .map(|lint| ProviderLint {
+                rule: lint.short_name.to_string(),
+                problem: lint.problem.clone(),
+                location: lint.location.to_string(),
+            })
+            .collect();
+
+        Ok(result)
+    }
+
+    /// Parse a provider.star script, run the linter, and emit warnings via tracing.
+    ///
+    /// This is called automatically before evaluating any provider script so that
+    /// provider authors get early feedback on code quality issues.
+    fn lint_and_warn(&self, script_name: &str, script_content: &str) {
+        match self.lint_script(script_name, script_content) {
+            Ok(lints) if !lints.is_empty() => {
+                for lint in &lints {
+                    warn!(
+                        provider = %script_name,
+                        rule = %lint.rule,
+                        location = %lint.location,
+                        "provider.star lint: {}",
+                        lint.problem
+                    );
+                }
+            }
+            Ok(_) => {
+                trace!(provider = %script_name, "provider.star lint: clean");
+            }
+            Err(e) => {
+                // Lint errors are non-fatal — just log them
+                warn!(provider = %script_name, "provider.star lint failed: {}", e);
+            }
         }
     }
 
@@ -94,16 +202,30 @@ impl StarlarkEngine {
         script_content: &str,
         var_name: &str,
     ) -> Result<Option<JsonValue>> {
+        let path_lossy = script_path.to_string_lossy();
+        let script_name = script_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(&path_lossy);
+
+        // Sanitize the script name for AstModule::parse — Starlark's parser
+        // treats '<' as content if it appears in the filename argument, which
+        // breaks virtual paths like "<builtin:7zip>".
+        let parse_name = sanitize_script_name(script_name);
+
         trace!(
             var = %var_name,
             path = %script_path.display(),
             "Getting Starlark variable"
         );
 
-        // Parse the script
+        // Run linter before evaluation — emit warnings via tracing
+        self.lint_and_warn(&parse_name, script_content);
+
+        // Parse the script (strip UTF-8 BOM if present)
         let ast = AstModule::parse(
-            &script_path.to_string_lossy(),
-            script_content.to_string(),
+            &parse_name,
+            strip_bom(script_content).to_string(),
             &self.dialect,
         )
         .map_err(|e| Error::ParseError(e.to_string()))?;
@@ -140,16 +262,30 @@ impl StarlarkEngine {
         ctx: &ProviderContext,
         extra_args: &[JsonValue],
     ) -> Result<JsonValue> {
+        let path_lossy = script_path.to_string_lossy();
+        let script_name = script_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(&path_lossy);
+
+        // Sanitize the script name for AstModule::parse — Starlark's parser
+        // treats '<' as content if it appears in the filename argument, which
+        // breaks virtual paths like "<builtin:7zip>".
+        let parse_name = sanitize_script_name(script_name);
+
         trace!(
             func = %func_name,
             path = %script_path.display(),
             "Calling Starlark function"
         );
 
-        // Parse the script
+        // Run linter before evaluation — emit warnings via tracing
+        self.lint_and_warn(&parse_name, script_content);
+
+        // Parse the script (strip UTF-8 BOM if present)
         let ast = AstModule::parse(
-            &script_path.to_string_lossy(),
-            script_content.to_string(),
+            &parse_name,
+            strip_bom(script_content).to_string(),
             &self.dialect,
         )
         .map_err(|e| Error::ParseError(e.to_string()))?;
@@ -210,10 +346,25 @@ impl StarlarkEngine {
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default();
 
+        let vx_home = ctx.paths.vx_home.to_string_lossy().to_string();
+
+        let version = ctx.paths.version.clone().unwrap_or_default();
+
         serde_json::json!({
+            // Top-level convenience fields (dot-notation: ctx.name, ctx.install_dir, etc.)
+            "name":         ctx.paths.provider_name,
+            "description":  ctx.description,
+            "version":      version,
+            "vx_home":      vx_home,
+            "install_dir":  install_dir,
+            // Build tag / release date for the resolved version (e.g. "20240107").
+            // Used by providers like python-build-standalone in download_url.
+            "version_date": ctx.version_date.as_deref().unwrap_or(""),
+
+            // Structured sub-objects
             "platform": {
-                "os": ctx.platform.os,
-                "arch": ctx.platform.arch,
+                "os":     ctx.platform.os,
+                "arch":   ctx.platform.arch,
                 "target": ctx.platform.target,
             },
             "env": ctx.env,
@@ -254,23 +405,14 @@ impl StarlarkEngine {
                 heap.alloc(items)
             }
             JsonValue::Object(obj) => {
-                // Build a Starlark dict from JSON object
-                let pairs: Vec<(Value, Value)> = obj
+                // Build a Starlark struct from JSON object so that dot-notation
+                // attribute access works in provider.star scripts (e.g. ctx.platform.os).
+                // Dict does NOT support `.` access in starlark-rust; struct does.
+                let fields: Vec<(&str, Value)> = obj
                     .iter()
-                    .map(|(k, v)| {
-                        (
-                            heap.alloc(k.as_str()) as Value,
-                            self.json_to_starlark_value(heap, v),
-                        )
-                    })
+                    .map(|(k, v)| (k.as_str(), self.json_to_starlark_value(heap, v)))
                     .collect();
-                // Use alloc_dict for simple key-value pairs
-                heap.alloc(starlark::values::dict::Dict::new(
-                    pairs
-                        .into_iter()
-                        .map(|(k, v)| (k.get_hashed().unwrap(), v))
-                        .collect(),
-                ))
+                heap.alloc(AllocStruct(fields))
             }
         }
     }
@@ -324,4 +466,34 @@ impl Default for StarlarkEngine {
     fn default() -> Self {
         Self::new()
     }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/// Sanitize a script name for use as the `filename` argument to `AstModule::parse`.
+///
+/// Starlark's parser uses the filename only for error reporting, but it will
+/// fail with `invalid input` if the name contains certain special characters:
+/// - `<` / `>` angle brackets (e.g. `<builtin:7zip>`)
+/// - `:` colons (e.g. `builtin:7zip`) — starlark-rust's lexer treats `:` in
+///   the filename as a token separator, producing a spurious parse error at 1:1
+///
+/// Strip angle brackets and replace colons with `-` so the name is safe.
+///
+/// Examples:
+/// - `"<builtin:7zip>"`    → `"builtin-7zip"`
+/// - `"<parse_metadata>"`  → `"parse_metadata"`
+/// - `"provider.star"`     → `"provider.star"` (unchanged)
+fn sanitize_script_name(name: &str) -> String {
+    let trimmed = name.trim_start_matches('<').trim_end_matches('>');
+    trimmed.replace(':', "-")
+}
+
+/// Strip a UTF-8 BOM (`\u{FEFF}`) from the start of a string if present.
+///
+/// Some editors (notably Notepad on Windows) save files with a UTF-8 BOM.
+/// Starlark's lexer does not recognise the BOM and reports a spurious
+/// `Parse error: invalid input` at line 1, column 1.
+fn strip_bom(s: &str) -> &str {
+    s.strip_prefix('\u{FEFF}').unwrap_or(s)
 }

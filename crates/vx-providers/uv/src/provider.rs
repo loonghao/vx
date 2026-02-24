@@ -1,7 +1,7 @@
 //! uv provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// uv provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -18,20 +18,7 @@ impl Provider for UvProvider {
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![
-            Arc::new(
-                ManifestDrivenRuntime::new("uv", "uv", ProviderSource::BuiltIn)
-                    .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                        "uv",
-                        crate::PROVIDER_STAR,
-                    )),
-            ),
-            Arc::new(ManifestDrivenRuntime::new(
-                "uvx",
-                "uvx",
-                ProviderSource::BuiltIn,
-            )),
-        ]
+        vx_starlark::build_runtimes("uv", crate::PROVIDER_STAR, Some("uv"))
     }
 }
 

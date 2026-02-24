@@ -1,7 +1,7 @@
 //! pnpm provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// pnpm provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -13,24 +13,11 @@ impl Provider for PnpmProvider {
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata().description_or("Fast, disk space efficient package manager")
+        crate::star_metadata().description_or("pnpm - Fast, disk space efficient package manager")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![
-            Arc::new(
-                ManifestDrivenRuntime::new("pnpm", "pnpm", ProviderSource::BuiltIn)
-                    .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                        "pnpm",
-                        crate::PROVIDER_STAR,
-                    )),
-            ),
-            Arc::new(ManifestDrivenRuntime::new(
-                "pnpx",
-                "pnpx",
-                ProviderSource::BuiltIn,
-            )),
-        ]
+        vx_starlark::build_runtimes("pnpm", crate::PROVIDER_STAR, None)
     }
 }
 

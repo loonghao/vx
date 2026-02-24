@@ -1,31 +1,21 @@
-# provider.star - NASM provider
+﻿# provider.star - NASM provider
 #
 # Version source: https://www.nasm.us/pub/nasm/releasebuilds/
 # NASM (Netwide Assembler) - portable 80x86 and x86-64 assembler
 #
 # Inheritance pattern: Level 1 (fully custom - uses nasm.us, not GitHub)
+load("@vx//stdlib:github.star", "make_fetch_versions", "github_releases", "releases_to_versions")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "nasm"
-
-def description():
-    return "NASM - Netwide Assembler, portable 80x86 and x86-64 assembler"
-
-def homepage():
-    return "https://www.nasm.us"
-
-def repository():
-    return "https://github.com/netwide-assembler/nasm"
-
-def license():
-    return "BSD-2-Clause"
-
-def ecosystem():
-    return "system"
+name        = "nasm"
+description = "NASM - Netwide Assembler, portable 80x86 and x86-64 assembler"
+homepage    = "https://www.nasm.us"
+repository  = "https://github.com/netwide-assembler/nasm"
+license     = "BSD-2-Clause"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -37,6 +27,9 @@ runtimes = [
         "executable":  "nasm",
         "description": "Netwide Assembler",
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "NASM version"},
+        ],
     },
 ]
 
@@ -55,32 +48,20 @@ permissions = {
 # ---------------------------------------------------------------------------
 
 def fetch_versions(ctx):
-    """Fetch NASM versions from the official nasm.us release directory.
+    """Fetch NASM versions from GitHub releases.
 
-    Uses GitHub releases as a reliable alternative to directory scraping.
+    NASM tags are like "nasm-2.16.03" or "2.16.03".
+    We strip the "nasm-" prefix to get clean version numbers.
     """
-    releases = ctx["http"]["get_json"](
-        "https://api.github.com/repos/netwide-assembler/nasm/releases?per_page=30"
-    )
-
-    versions = []
-    for release in releases:
-        if release.get("draft"):
-            continue
-        tag = release.get("tag_name", "")
-        # Tags are like "nasm-2.16.03" or "2.16.03"
-        v = tag
-        if v.startswith("nasm-"):
-            v = v[5:]
-        if v:
-            prerelease = release.get("prerelease", False)
-            versions.append({
-                "version":    v,
-                "lts":        not prerelease,
-                "prerelease": prerelease,
-            })
-
-    return versions
+    releases = github_releases(ctx, "netwide-assembler", "nasm", include_prereleases = False)
+    return {
+        "__type":           "github_versions",
+        "source":           releases,
+        "tag_key":          "tag_name",
+        "strip_v_prefix":   False,
+        "tag_prefix":       "nasm-",
+        "skip_prereleases": True,
+    }
 
 # ---------------------------------------------------------------------------
 # download_url — nasm.us official download
@@ -96,8 +77,8 @@ def download_url(ctx, version):
     Returns:
         Download URL string, or None if platform is unsupported
     """
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     if os == "windows":
         if arch == "x64":
@@ -126,7 +107,7 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
 
     if os == "windows":
         return {
@@ -160,39 +141,39 @@ def store_root(ctx, version):
 # get_execute_path — resolve nasm executable
 # ---------------------------------------------------------------------------
 
-def get_execute_path(ctx, version, install_dir):
+def get_execute_path(ctx, _version, install_dir):
     """Return the path to the nasm executable."""
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     exe = "nasm.exe" if os == "windows" else "nasm"
-    return install_dir + "/" + exe
+    return ctx.install_dir + "/" + exe
 
 # ---------------------------------------------------------------------------
 # post_install — set permissions on Unix
 # ---------------------------------------------------------------------------
 
-def post_install(ctx, version, install_dir):
+def post_install(ctx, _version):
     """Set execute permissions on Unix."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         return []
     return [
-        {"type": "set_permissions", "path": install_dir + "/nasm",    "mode": "755"},
-        {"type": "set_permissions", "path": install_dir + "/ndisasm", "mode": "755"},
+        {"type": "set_permissions", "path": ctx.install_dir + "/nasm",    "mode": "755"},
+        {"type": "set_permissions", "path": ctx.install_dir + "/ndisasm", "mode": "755"},
     ]
 
 # ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {"PATH": install_dir}
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
 # ---------------------------------------------------------------------------
 # system_install — preferred on Linux
 # ---------------------------------------------------------------------------
 
 def system_install(ctx):
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         return {
             "strategies": [
@@ -219,5 +200,47 @@ def system_install(ctx):
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, _version):
     return []
+
+# ---------------------------------------------------------------------------
+# uninstall — vx-managed versions use default dir removal;
+#             system-installed versions delegate to package manager
+# ---------------------------------------------------------------------------
+
+def uninstall(ctx, version):
+    """Uninstall NASM.
+
+    vx-managed versions (store directory exists): return False to let vx
+    remove the store directory.
+    system version: delegate to the system package manager.
+    """
+    if version != "system":
+        # vx-managed install — let default directory removal handle it
+        return False
+
+    os = ctx.platform.os
+    if os == "windows":
+        return {
+            "type": "system_uninstall",
+            "strategies": [
+                {"manager": "choco",  "package": "nasm",      "priority": 80},
+                {"manager": "winget", "package": "NASM.NASM", "priority": 70},
+            ],
+        }
+    elif os == "macos":
+        return {
+            "type": "system_uninstall",
+            "strategies": [
+                {"manager": "brew", "package": "nasm", "priority": 90},
+            ],
+        }
+    elif os == "linux":
+        return {
+            "type": "system_uninstall",
+            "strategies": [
+                {"manager": "apt", "package": "nasm", "priority": 80},
+                {"manager": "dnf", "package": "nasm", "priority": 80},
+            ],
+        }
+    return False

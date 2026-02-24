@@ -1,7 +1,7 @@
 //! starship provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// starship provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -13,19 +13,11 @@ impl Provider for StarshipProvider {
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata()
-            .description_or("The minimal, blazing-fast, and infinitely customizable prompt")
+        crate::star_metadata().description_or("Starship - The minimal, blazing-fast shell prompt")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("starship", "starship", ProviderSource::BuiltIn)
-                .with_description("The minimal, blazing-fast, and infinitely customizable prompt")
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "starship",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("starship", crate::PROVIDER_STAR, None)
     }
 }
 

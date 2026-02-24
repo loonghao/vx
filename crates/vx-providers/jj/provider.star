@@ -1,4 +1,4 @@
-# provider.star - Jujutsu (jj) provider
+﻿# provider.star - Jujutsu (jj) provider
 #
 # Demonstrates the Starlark "inheritance via load()" pattern:
 #   - fetch_versions: fully reused from @vx//stdlib:github.star (zero custom code)
@@ -11,31 +11,18 @@
 
 load("@vx//stdlib:github.star",   "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:platform.star", "is_windows", "exe_ext")
+load("@vx//stdlib:env.star",      "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "jj"
-
-def description():
-    return "Jujutsu (jj) - A Git-compatible DVCS that is both simple and powerful"
-
-def homepage():
-    return "https://github.com/jj-vcs/jj"
-
-def repository():
-    return "https://github.com/jj-vcs/jj"
-
-def license():
-    return "Apache-2.0"
-
-def ecosystem():
-    return "devtools"
-
-def aliases():
-    return ["jujutsu"]
+name        = "jj"
+description = "Jujutsu (jj) - A Git-compatible DVCS that is both simple and powerful"
+homepage    = "https://github.com/jj-vcs/jj"
+repository  = "https://github.com/jj-vcs/jj"
+license     = "Apache-2.0"
+ecosystem   = "devtools"
+aliases     = ["jujutsu"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -48,6 +35,9 @@ runtimes = [
         "description": "Jujutsu - A Git-compatible DVCS",
         "aliases":     ["jujutsu"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "jj \\d+"},
+        ],
     },
 ]
 
@@ -84,8 +74,8 @@ fetch_versions = make_fetch_versions("jj-vcs", "jj", include_prereleases = False
 
 def _jj_triple(ctx):
     """Map platform to jj's Rust target triple."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     triples = {
         "windows/x64":  "x86_64-pc-windows-msvc",
@@ -111,7 +101,7 @@ def download_url(ctx, version):
     if not triple:
         return None
 
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     ext = "zip" if os == "windows" else "tar.gz"
 
     # Asset: "jj-v0.38.0-x86_64-pc-windows-msvc.zip"
@@ -126,7 +116,7 @@ def download_url(ctx, version):
 # install_layout — tells vx how to extract the downloaded archive
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(ctx, _version):
     """Describe how to extract the downloaded archive.
 
     jj archives contain the executable directly in the root (no subdirectory).
@@ -134,7 +124,7 @@ def install_layout(ctx, version):
     Returns:
         Layout dict consumed by the vx installer
     """
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "jj.exe" if os == "windows" else "jj"
 
     return {
@@ -147,20 +137,8 @@ def install_layout(ctx, version):
 # environment — PATH and env vars to set after installation
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    """Return environment variables to set for this runtime.
-
-    Args:
-        ctx:         Provider context
-        version:     Installed version string
-        install_dir: Path where jj was installed
-
-    Returns:
-        Dict of env var name → value
-    """
-    return {
-        "PATH": install_dir,  # prepend install_dir to PATH
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC 0037)
@@ -168,15 +146,15 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for jj."""
-    return "{vx_home}/store/jj"
+    return ctx.vx_home + "/store/jj"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "jj.exe" if os == "windows" else "jj"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for jj."""
     return None
 

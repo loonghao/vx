@@ -1,7 +1,7 @@
 //! yarn provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// yarn provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -17,13 +17,7 @@ impl Provider for YarnProvider {
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("yarn", "yarn", ProviderSource::BuiltIn)
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "yarn",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("yarn", crate::PROVIDER_STAR, Some("yarn"))
     }
 }
 

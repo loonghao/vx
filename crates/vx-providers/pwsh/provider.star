@@ -1,4 +1,4 @@
-# provider.star - pwsh (PowerShell) provider
+﻿# provider.star - pwsh (PowerShell) provider
 #
 # PowerShell: Cross-platform command-line shell and scripting language
 # Inheritance pattern: Level 2 (custom download_url for PowerShell's naming)
@@ -10,27 +10,16 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "pwsh"
-
-def description():
-    return "Cross-platform command-line shell and scripting language"
-
-def homepage():
-    return "https://docs.microsoft.com/en-us/powershell/"
-
-def repository():
-    return "https://github.com/PowerShell/PowerShell"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "system"
+name        = "pwsh"
+description = "Cross-platform command-line shell and scripting language"
+homepage    = "https://docs.microsoft.com/en-us/powershell/"
+repository  = "https://github.com/PowerShell/PowerShell"
+license     = "MIT"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -43,6 +32,9 @@ runtimes = [
         "description": "PowerShell 7+ (cross-platform)",
         "aliases":     ["powershell", "ps"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} -Command \"$PSVersionTable.PSVersion\"", "name": "version_check", "expected_output": "\\d+\\.\\d+"},
+        ],
     },
 ]
 
@@ -73,8 +65,8 @@ fetch_versions = make_fetch_versions("PowerShell", "PowerShell")
 
 def _pwsh_platform(ctx):
     """Map platform to PowerShell's naming convention."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     platform_map = {
         "windows/x64":   ("win",   "x64",   "zip"),
@@ -109,8 +101,8 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os = ctx.platform.os
     exe = "pwsh.exe" if os == "windows" else "pwsh"
     return {
         "type":             "archive",
@@ -124,15 +116,15 @@ def install_layout(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for pwsh."""
-    return "{vx_home}/store/pwsh"
+    return ctx.vx_home + "/store/pwsh"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "pwsh.exe" if os == "windows" else "pwsh"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for pwsh."""
     return None
 
@@ -140,7 +132,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]

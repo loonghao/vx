@@ -1,4 +1,4 @@
-# provider.star - just (command runner)
+﻿# provider.star - just (command runner)
 #
 # Inheritance level: 2 — fetch_versions inherited, download_url overridden
 #
@@ -11,30 +11,16 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "just"
-
-def description():
-    return "just - A handy way to save and run project-specific commands"
-
-def homepage():
-    return "https://github.com/casey/just"
-
-def repository():
-    return "https://github.com/casey/just"
-
-def license():
-    return "CC0-1.0"
-
-def ecosystem():
-    return "devtools"
-
-def aliases():
-    return []
+name        = "just"
+description = "just - A handy way to save and run project-specific commands"
+homepage    = "https://github.com/casey/just"
+repository  = "https://github.com/casey/just"
+license     = "CC0-1.0"
+ecosystem   = "devtools"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -47,6 +33,9 @@ runtimes = [
         "description": "just - A handy way to save and run project-specific commands",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "^\\d+\\.\\d+"},
+        ],
     },
 ]
 
@@ -80,8 +69,8 @@ fetch_versions = make_fetch_versions("casey", "just", include_prereleases = Fals
 
 def _just_triple(ctx):
     """Map platform to just's Rust target triple."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     triples = {
         "windows/x64":   "x86_64-pc-windows-msvc",
@@ -108,7 +97,7 @@ def download_url(ctx, version):
     if not triple:
         return None
 
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     ext = "zip" if os == "windows" else "tar.gz"
 
     # Asset: "just-1.45.0-x86_64-unknown-linux-musl.tar.gz"
@@ -123,8 +112,8 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os  = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os  = ctx.platform.os
     exe = "just.exe" if os == "windows" else "just"
     return {
         "type":             "archive",
@@ -138,15 +127,15 @@ def install_layout(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for just."""
-    return "{vx_home}/store/just"
+    return ctx.vx_home + "/store/just"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "just.exe" if os == "windows" else "just"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for just."""
     return None
 
@@ -154,7 +143,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]

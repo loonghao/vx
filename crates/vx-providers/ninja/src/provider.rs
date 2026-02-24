@@ -1,7 +1,7 @@
 //! ninja provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// ninja provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -13,18 +13,11 @@ impl Provider for NinjaProvider {
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata().description_or("Ninja - a small build system with a focus on speed")
+        crate::star_metadata().description_or("Ninja - A small build system")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("ninja", "ninja", ProviderSource::BuiltIn)
-                .with_description("Ninja - a small build system with a focus on speed")
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "ninja",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("ninja", crate::PROVIDER_STAR, None)
     }
 }
 

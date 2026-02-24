@@ -1,11 +1,12 @@
-use std::fs;
-use std::path::Path;
+//! Tests for ProviderRegistry (formerly ManifestRegistry)
+//!
+//! These tests verify the provider registry functionality using the current API.
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tempfile::TempDir;
 use vx_manifest::{Ecosystem, ProviderManifest, ProviderMeta, RuntimeDef};
-use vx_runtime::{ManifestRegistry, Provider, Runtime, RuntimeContext, VersionInfo};
+use vx_runtime::{Provider, ProviderRegistry, Runtime, RuntimeContext, VersionInfo};
 
 /// Create a minimal RuntimeDef for testing
 fn make_runtime_def(name: &str) -> RuntimeDef {
@@ -60,24 +61,6 @@ fn make_manifest(name: &str, description: &str) -> ProviderManifest {
     }
 }
 
-fn create_test_manifest(dir: &Path, name: &str) {
-    let provider_dir = dir.join(name);
-    fs::create_dir_all(&provider_dir).unwrap();
-
-    let manifest = format!(
-        r#"
-[provider]
-name = "{name}"
-
-[[runtimes]]
-name = "{name}"
-executable = "{name}"
-"#
-    );
-
-    fs::write(provider_dir.join("provider.toml"), manifest).unwrap();
-}
-
 struct DummyRuntime {
     name: &'static str,
     aliases: &'static [&'static str],
@@ -124,134 +107,115 @@ impl Provider for DummyProvider {
 }
 
 #[test]
-fn later_manifest_overrides_by_name() {
-    let mut registry = ManifestRegistry::new();
+fn provider_registry_supports_registered_provider() {
+    let mut registry = ProviderRegistry::new();
+    registry.register(Arc::new(DummyProvider::new(
+        "tool",
+        vec![Arc::new(DummyRuntime {
+            name: "tool",
+            aliases: &[],
+        })],
+    )));
 
-    let base = make_manifest("tool", "base description");
-    let overlay = make_manifest("tool", "override description");
+    assert!(registry.supports("tool"));
+    assert!(!registry.supports("other-tool"));
+}
 
-    registry.load_from_manifests(vec![base, overlay]);
+#[test]
+fn provider_registry_supports_alias() {
+    let mut registry = ProviderRegistry::new();
+    registry.register(Arc::new(DummyProvider::new(
+        "tool",
+        vec![Arc::new(DummyRuntime {
+            name: "tool",
+            aliases: &["tool-alias", "t"],
+        })],
+    )));
 
-    let manifest = registry
-        .get_manifest("tool")
-        .expect("manifest should exist after load");
+    assert!(registry.supports("tool"));
+    assert!(registry.supports("tool-alias"));
+    assert!(registry.supports("t"));
+}
+
+#[test]
+fn provider_registry_multiple_providers() {
+    let mut registry = ProviderRegistry::new();
+    registry.register(Arc::new(DummyProvider::new(
+        "node",
+        vec![
+            Arc::new(DummyRuntime {
+                name: "node",
+                aliases: &["nodejs"],
+            }),
+            Arc::new(DummyRuntime {
+                name: "npm",
+                aliases: &[],
+            }),
+        ],
+    )));
+    registry.register(Arc::new(DummyProvider::new(
+        "go",
+        vec![Arc::new(DummyRuntime {
+            name: "go",
+            aliases: &["golang"],
+        })],
+    )));
+
+    assert!(registry.supports("node"));
+    assert!(registry.supports("nodejs"));
+    assert!(registry.supports("npm"));
+    assert!(registry.supports("go"));
+    assert!(registry.supports("golang"));
+}
+
+#[test]
+fn manifest_parse_and_use() {
+    // Verify that ProviderManifest can be parsed and used
+    let manifest = make_manifest("test-tool", "A test tool");
+    assert_eq!(manifest.provider.name, "test-tool");
     assert_eq!(
         manifest.provider.description.as_deref(),
-        Some("override description")
+        Some("A test tool")
     );
+    assert_eq!(manifest.runtimes.len(), 1);
+    assert_eq!(manifest.runtimes[0].name, "test-tool");
 }
 
 #[test]
-fn directory_override_replaces_embedded() {
-    let mut registry = ManifestRegistry::new();
-
-    // Load embedded manifest first via load_from_manifests
-    let embedded = ProviderManifest {
-        provider: ProviderMeta {
-            name: "tool".to_string(),
-            description: Some("embedded".to_string()),
-            homepage: None,
-            repository: None,
-            ecosystem: None,
-            platform_constraint: None,
-            package_alias: None,
-        },
-        runtimes: vec![make_runtime_def("tool")],
-    };
-    registry.load_from_manifests(vec![embedded]);
-
-    // Project-level override
-    let temp = TempDir::new().expect("temp dir");
-    let provider_dir = temp.path().join("tool");
-    fs::create_dir_all(&provider_dir).expect("create provider dir");
-    let override_manifest = r#"
-[provider]
-name = "tool"
-description = "project override"
-
-[[runtimes]]
-name = "tool"
-executable = "tool"
-"#;
-    fs::write(provider_dir.join("provider.toml"), override_manifest).expect("write override");
-
-    registry
-        .load_from_directory(temp.path())
-        .expect("load override dir");
-
-    let manifest = registry
-        .get_manifest("tool")
-        .expect("manifest should exist after override");
-    assert_eq!(
-        manifest.provider.description.as_deref(),
-        Some("project override")
-    );
-}
-
-#[test]
-fn manifest_registry_loads_directory() {
-    let temp_dir = TempDir::new().unwrap();
-    create_test_manifest(temp_dir.path(), "test-provider");
-
-    let mut registry = ManifestRegistry::new();
-    let count = registry.load_from_directory(temp_dir.path()).unwrap();
-
-    assert_eq!(count, 1);
-    assert!(registry.get_manifest("test-provider").is_some());
-}
-
-#[test]
-fn runtime_metadata_resolves_aliases() {
-    let mut registry = ManifestRegistry::new();
-
-    let mut runtime_def = make_runtime_def("test-runtime");
-    runtime_def.description = Some("A test runtime".to_string());
-    runtime_def.executable = "test-bin".to_string();
-    runtime_def.aliases = vec!["tr".to_string(), "test".to_string()];
-
+fn manifest_with_ecosystem() {
     let manifest = ProviderManifest {
         provider: ProviderMeta {
-            name: "test".to_string(),
-            description: Some("desc".to_string()),
+            name: "node".to_string(),
+            description: Some("Node.js".to_string()),
             homepage: None,
             repository: None,
             ecosystem: Some(Ecosystem::NodeJs),
             platform_constraint: None,
             package_alias: None,
         },
-        runtimes: vec![runtime_def],
+        runtimes: vec![make_runtime_def("node")],
     };
 
-    registry.load_from_manifests(vec![manifest]);
-
-    let metadata = registry
-        .get_runtime_metadata("tr")
-        .expect("metadata should resolve by alias");
-
-    assert_eq!(metadata.name, "test-runtime");
-    assert_eq!(metadata.executable, "test-bin");
-    assert_eq!(metadata.aliases, vec!["tr", "test"]);
-    assert_eq!(metadata.provider_name, "test");
-    assert_eq!(metadata.ecosystem, Some(Ecosystem::NodeJs));
+    assert_eq!(manifest.provider.ecosystem, Some(Ecosystem::NodeJs));
 }
 
 #[test]
-fn build_registry_uses_registered_factories() {
-    let mut registry = ManifestRegistry::new();
+fn manifest_with_aliases() {
+    let mut runtime_def = make_runtime_def("node");
+    runtime_def.aliases = vec!["nodejs".to_string()];
 
-    registry.register_factory("tool", || {
-        Arc::new(DummyProvider::new(
-            "tool",
-            vec![Arc::new(DummyRuntime {
-                name: "tool",
-                aliases: &["tool-alias"],
-            })],
-        )) as Arc<dyn Provider>
-    });
+    let manifest = ProviderManifest {
+        provider: ProviderMeta {
+            name: "node".to_string(),
+            description: None,
+            homepage: None,
+            repository: None,
+            ecosystem: None,
+            platform_constraint: None,
+            package_alias: None,
+        },
+        runtimes: vec![runtime_def],
+    };
 
-    registry.load_from_manifests(vec![make_manifest("tool", "desc")]);
-
-    let provider_registry = registry.build_registry();
-    assert!(provider_registry.supports("tool"));
-    assert!(provider_registry.supports("tool-alias"));
+    assert_eq!(manifest.runtimes[0].aliases, vec!["nodejs"]);
 }

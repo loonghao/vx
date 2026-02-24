@@ -1,4 +1,4 @@
-# provider.star - Rust provider
+﻿# provider.star - Rust provider
 #
 # Rust is managed via rustup, the official Rust toolchain installer.
 # rustup itself is distributed as GitHub releases.
@@ -10,31 +10,17 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:install.star", "set_permissions", "run_command")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "rust"
-
-def description():
-    return "Rust - A language empowering everyone to build reliable and efficient software"
-
-def homepage():
-    return "https://www.rust-lang.org"
-
-def repository():
-    return "https://github.com/rust-lang/rust"
-
-def license():
-    return "MIT OR Apache-2.0"
-
-def ecosystem():
-    return "rust"
-
-def aliases():
-    return []
+name        = "rust"
+description = "Rust - A language empowering everyone to build reliable and efficient software"
+homepage    = "https://www.rust-lang.org"
+repository  = "https://github.com/rust-lang/rust"
+license     = "MIT OR Apache-2.0"
+ecosystem   = "rust"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -46,6 +32,9 @@ runtimes = [
         "executable":  "rustup",
         "description": "The Rust toolchain installer",
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "rustup"},
+        ],
     },
     {
         "name":        "rustc",
@@ -53,18 +42,27 @@ runtimes = [
         "description": "Rust compiler (provided by rustup)",
         "aliases":     ["rust"],
         "bundled_with": "rustup",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "rustc"},
+        ],
     },
     {
         "name":        "cargo",
         "executable":  "cargo",
         "description": "Rust package manager and build tool (provided by rustup)",
         "bundled_with": "rustup",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "cargo"},
+        ],
     },
     {
         "name":        "rustfmt",
         "executable":  "rustfmt",
         "description": "Rust code formatter (provided by rustup)",
         "bundled_with": "rustup",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
 ]
 
@@ -90,8 +88,8 @@ fetch_versions = make_fetch_versions("rust-lang", "rustup")
 
 def _rustup_asset(ctx):
     """Map vx platform to rustup binary asset name."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     assets = {
         "windows/x64":   "rustup-init.exe",
@@ -105,8 +103,8 @@ def _rustup_asset(ctx):
 
 def _rustup_triple(ctx):
     """Map vx platform to Rust target triple for rustup binary path."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     triples = {
         "windows/x64":   "x86_64-pc-windows-msvc",
@@ -136,7 +134,7 @@ def download_url(ctx, version):
     if not triple:
         return None
 
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         asset = "rustup-init-{}-{}.exe".format(version, triple)
     else:
@@ -148,8 +146,8 @@ def download_url(ctx, version):
 # install_layout — rustup-init is a single binary installer
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os = ctx.platform.os
     exe = "rustup-init.exe" if os == "windows" else "rustup-init"
     return {
         "type":             "binary",
@@ -160,12 +158,12 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "RUSTUP_HOME": install_dir + "/rustup",
-        "CARGO_HOME":  install_dir + "/cargo",
-        "PATH":        install_dir + "/cargo/bin",
-    }
+def environment(ctx, _version):
+    return [
+        env_set("RUSTUP_HOME", ctx.install_dir + "/rustup"),
+        env_set("CARGO_HOME",  ctx.install_dir + "/cargo"),
+        env_prepend("PATH",    ctx.install_dir + "/cargo/bin"),
+    ]
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC-0037)
@@ -173,15 +171,15 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for rust."""
-    return "{vx_home}/store/rust"
+    return ctx.vx_home + "/store/rust"
 
-def get_execute_path(ctx, version):
+def get_execute_path(ctx, _version):
     """Return the executable path for rustup (the primary runtime)."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "rustup.exe" if os == "windows" else "rustup"
-    return "{install_dir}/cargo/bin/" + exe
+    return ctx.install_dir + "/cargo/bin/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed; rustup-init handles toolchain setup."""
     return None
 
@@ -189,7 +187,7 @@ def post_install(ctx, version, install_dir):
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, _version):
     """rustup has no external dependencies."""
     return []
 
@@ -216,7 +214,7 @@ def post_extract(ctx, version, install_dir):
     Returns:
         List of post-extract actions
     """
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     actions = []
 
     if os != "windows":

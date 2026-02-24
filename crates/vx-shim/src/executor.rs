@@ -9,6 +9,12 @@
 //! depending on Node.js), the executor automatically sets up the runtime's
 //! bin directory in PATH before execution.
 //!
+//! ## Shell Mode
+//!
+//! When using `::shell` syntax (e.g., `npm:codex::cmd`), instead of executing
+//! an executable, the executor launches an interactive shell with the package's
+//! runtime environment configured.
+//!
 //! ## Example
 //!
 //! When running `opencode` (an npm package):
@@ -110,6 +116,11 @@ impl ShimExecutor {
     ) -> ShimResult<i32> {
         debug!("Execute package request: {:?}", request);
 
+        // Check if this is a shell request
+        if request.is_shell_request() {
+            return self.execute_shell_request(request, args, with_deps).await;
+        }
+
         let exe_name = request.executable_name();
         debug!("Executable name: {}", exe_name);
 
@@ -146,6 +157,184 @@ impl ShimExecutor {
             ecosystem: request.ecosystem.clone(),
             package: request.package.clone(),
         })
+    }
+
+    /// Execute a shell request (ecosystem:package::shell syntax)
+    ///
+    /// This launches an interactive shell with the package's runtime environment
+    /// configured. The shell is found in the system PATH.
+    async fn execute_shell_request(
+        &self,
+        request: &PackageRequest,
+        args: &[String],
+        with_deps: &[vx_core::WithDependency],
+    ) -> ShimResult<i32> {
+        let shell_name = request.shell_name().unwrap_or("cmd");
+
+        debug!(
+            "Execute shell request: {} for package {}:{}",
+            shell_name, request.ecosystem, request.package
+        );
+
+        // Find the shell executable in system PATH
+        let shell_exe = if cfg!(windows) {
+            // On Windows, try with .exe extension
+            let shell_with_ext = format!("{}.exe", shell_name);
+            which::which(&shell_with_ext)
+                .or_else(|_| which::which(shell_name))
+                .map_err(|_| {
+                    ShimError::Other(anyhow::anyhow!(
+                        "Shell '{}' not found in system PATH",
+                        shell_name
+                    ))
+                })?
+        } else {
+            which::which(shell_name).map_err(|_| {
+                ShimError::Other(anyhow::anyhow!(
+                    "Shell '{}' not found in system PATH",
+                    shell_name
+                ))
+            })?
+        };
+
+        info!("Found shell at: {}", shell_exe.display());
+
+        // Load the package registry to get runtime dependencies
+        let registry = PackageRegistry::load(&self.registry_path).map_err(|e| {
+            ShimError::Other(anyhow::anyhow!("Failed to load package registry: {}", e))
+        })?;
+
+        // Build environment for the package
+        let env = if let Some(package) = registry.get(&request.ecosystem, &request.package) {
+            // Package found - build environment with its runtime deps
+            self.build_shell_environment(package, with_deps)?
+        } else {
+            // Package not installed - build environment from ecosystem only
+            self.build_ecosystem_environment(&request.ecosystem, with_deps)?
+        };
+
+        // Build shell command args
+        // For cmd on Windows, we need to keep it interactive
+        let shell_args: Vec<String> = if args.is_empty() {
+            // No args - launch interactive shell
+            vec![]
+        } else {
+            // Args provided - execute them in the shell
+            args.to_vec()
+        };
+
+        info!(
+            "Launching shell {} with package environment (args: {:?})",
+            shell_exe.display(),
+            shell_args
+        );
+
+        // Execute the shell
+        let status = Command::new(&shell_exe)
+            .args(&shell_args)
+            .envs(&env)
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
+            .await?;
+
+        Ok(status.code().unwrap_or(1))
+    }
+
+    /// Build environment for shell execution with package runtime deps
+    fn build_shell_environment(
+        &self,
+        package: &GlobalPackage,
+        with_deps: &[vx_core::WithDependency],
+    ) -> ShimResult<HashMap<String, String>> {
+        // Get runtime dependencies (explicit or inferred from ecosystem)
+        let mut runtime_deps = package.get_runtime_dependencies();
+
+        // If no explicit dependencies, infer all applicable runtimes from ecosystem
+        if runtime_deps.is_empty() {
+            runtime_deps = self.infer_all_runtimes_from_ecosystem(&package.ecosystem);
+        }
+
+        // Build environment with all dependencies
+        let mut tool_env = ToolEnvironment::new();
+
+        // Add --with dependencies first (they take priority in PATH)
+        for dep in with_deps {
+            let version = dep.version.as_deref().unwrap_or("latest");
+            info!("Injecting --with runtime: {}@{}", dep.runtime, version);
+            tool_env = tool_env.tool(&dep.runtime, version);
+        }
+
+        // Add package's own runtime dependencies
+        for dep in &runtime_deps {
+            if with_deps.iter().any(|w| w.runtime == dep.runtime) {
+                continue;
+            }
+            info!(
+                "Package '{}' requires runtime: {}@{}",
+                package.name, dep.runtime, dep.version
+            );
+            tool_env = tool_env.tool(&dep.runtime, &dep.version);
+        }
+
+        let env = tool_env
+            .include_vx_bin(true)
+            .inherit_path(true)
+            .warn_missing(false)
+            .build()
+            .map_err(|e| {
+                ShimError::Other(anyhow::anyhow!("Failed to build shell environment: {}", e))
+            })?;
+
+        debug!("Built shell environment with {} entries", env.len());
+        Ok(env)
+    }
+
+    /// Build environment for shell execution with only ecosystem runtime deps
+    /// (when package is not yet installed)
+    fn build_ecosystem_environment(
+        &self,
+        ecosystem: &str,
+        with_deps: &[vx_core::WithDependency],
+    ) -> ShimResult<HashMap<String, String>> {
+        let runtime_deps = self.infer_all_runtimes_from_ecosystem(ecosystem);
+
+        let mut tool_env = ToolEnvironment::new();
+
+        // Add --with dependencies first
+        for dep in with_deps {
+            let version = dep.version.as_deref().unwrap_or("latest");
+            info!("Injecting --with runtime: {}@{}", dep.runtime, version);
+            tool_env = tool_env.tool(&dep.runtime, version);
+        }
+
+        // Add ecosystem's runtime dependencies
+        for dep in &runtime_deps {
+            if with_deps.iter().any(|w| w.runtime == dep.runtime) {
+                continue;
+            }
+            info!(
+                "Ecosystem '{}' requires runtime: {}@{}",
+                ecosystem, dep.runtime, dep.version
+            );
+            tool_env = tool_env.tool(&dep.runtime, &dep.version);
+        }
+
+        let env = tool_env
+            .include_vx_bin(true)
+            .inherit_path(true)
+            .warn_missing(false)
+            .build()
+            .map_err(|e| {
+                ShimError::Other(anyhow::anyhow!(
+                    "Failed to build ecosystem environment: {}",
+                    e
+                ))
+            })?;
+
+        debug!("Built ecosystem environment with {} entries", env.len());
+        Ok(env)
     }
 
     /// Check if an executable exists as a shim
@@ -420,6 +609,11 @@ impl ShimExecutor {
             }
             // Python ecosystem
             "pip" | "pypi" => vec![RuntimeDependency {
+                runtime: "uv".to_string(),
+                version: "latest".to_string(),
+            }],
+            // uvx: Python CLI tools run via uvx, requires uv
+            "uvx" => vec![RuntimeDependency {
                 runtime: "uv".to_string(),
                 version: "latest".to_string(),
             }],

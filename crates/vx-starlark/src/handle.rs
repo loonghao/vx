@@ -15,13 +15,32 @@
 
 use crate::context::VersionInfo;
 use crate::error::{Error, Result};
+use crate::provider::version_cache::{VersionCacheStats, global_version_cache};
 use crate::provider::{
-    InstallLayout, PostExtractAction, ProviderMeta, RuntimeMeta, StarlarkProvider,
+    EnvOp, InstallLayout, PostExtractAction, ProviderMeta, RuntimeMeta, StarlarkProvider,
+    apply_env_ops,
 };
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use vx_paths::VxPaths;
+
+// ---------------------------------------------------------------------------
+// DepRequirement - structured dependency descriptor
+// ---------------------------------------------------------------------------
+
+/// A dependency requirement returned by `deps()` in provider.star
+#[derive(Debug, Clone)]
+pub struct DepRequirement {
+    /// The runtime name this provider depends on (e.g. "git", "node")
+    pub runtime: String,
+    /// Version constraint (e.g. "*", ">=2.0", "^18")
+    pub version_req: String,
+    /// Whether this dependency is optional
+    pub optional: bool,
+    /// Human-readable reason for the dependency
+    pub reason: Option<String>,
+}
 
 // ---------------------------------------------------------------------------
 // PostInstallOps - post-install operations descriptor
@@ -170,32 +189,262 @@ impl ProviderHandle {
         Ok(filtered)
     }
 
-    /// Get list of installed versions by scanning the store directory
+    /// Fetch versions with explicit cache bypass (force refresh from network)
+    ///
+    /// Invalidates the cache for this provider first, then fetches fresh versions.
+    /// Useful for `vx versions --refresh <tool>`.
+    pub async fn versions_refresh(&self, filter: VersionFilter) -> Result<Vec<VersionInfo>> {
+        // Invalidate cache for this provider
+        let cache = global_version_cache();
+        cache.invalidate(&self.name).await;
+        tracing::debug!(provider = %self.name, "Invalidated version cache for refresh");
+
+        // Fetch fresh versions (will miss cache and re-fetch)
+        self.versions(filter).await
+    }
+
+    /// Invalidate the version cache for this provider
+    ///
+    /// Next call to `versions()` will fetch fresh data from the network.
+    pub async fn invalidate_version_cache(&self) {
+        let cache = global_version_cache();
+        cache.invalidate(&self.name).await;
+        tracing::debug!(provider = %self.name, "Version cache invalidated");
+    }
+
+    /// Get version cache statistics for this provider
+    pub async fn version_cache_stats(&self) -> VersionCacheStats {
+        let cache = global_version_cache();
+        cache.stats().await
+    }
+
+    /// Get list of installed versions by scanning the store directory.
+    ///
+    /// If no vx-managed versions are found, checks whether the tool is available
+    /// on the system PATH (installed via a system package manager such as winget,
+    /// brew, or apt).  In that case `["system"]` is returned so that
+    /// `vx uninstall <tool>` can delegate to the provider's `uninstall()` hook.
     pub fn installed_versions(&self) -> Vec<String> {
         let store_root = self.store_root();
-        if !store_root.exists() {
-            return vec![];
+        if store_root.exists() {
+            let mut versions: Vec<String> = std::fs::read_dir(&store_root)
+                .ok()
+                .map(|entries| {
+                    entries
+                        .filter_map(|e| e.ok())
+                        .filter(|e| e.path().is_dir())
+                        .filter_map(|e| e.file_name().into_string().ok())
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            if !versions.is_empty() {
+                // Sort versions in descending order (newest first)
+                versions.sort_by(|a, b| b.cmp(a));
+                return versions;
+            }
         }
 
-        let mut versions: Vec<String> = std::fs::read_dir(&store_root)
-            .ok()
-            .map(|entries| {
-                entries
-                    .filter_map(|e| e.ok())
-                    .filter(|e| e.path().is_dir())
-                    .filter_map(|e| e.file_name().into_string().ok())
-                    .collect()
-            })
-            .unwrap_or_default();
+        // No vx-managed versions found — check if the tool is system-installed.
+        // Use the primary executable name from the first runtime definition.
+        let exe_name = self
+            .star
+            .runtimes()
+            .first()
+            .map(|r| r.executable.clone())
+            .unwrap_or_else(|| self.name.clone());
 
-        // Sort versions in descending order (newest first)
-        versions.sort_by(|a, b| b.cmp(a));
-        versions
+        if which::which(&exe_name).is_ok() {
+            tracing::debug!(
+                provider = %self.name,
+                executable = %exe_name,
+                "Found system-installed tool"
+            );
+            return vec!["system".to_string()];
+        }
+
+        vec![]
     }
 
     /// Check if a specific version is installed
     pub fn is_installed(&self, version: &str) -> bool {
+        if version == "system" {
+            let exe_name = self
+                .star
+                .runtimes()
+                .first()
+                .map(|r| r.executable.clone())
+                .unwrap_or_else(|| self.name.clone());
+            return which::which(&exe_name).is_ok();
+        }
         self.store_root().join(version).exists()
+    }
+
+    /// Uninstall a specific version.
+    ///
+    /// **Two-phase strategy** (mirrors the install pipeline):
+    ///
+    /// 1. **provider.star hook** — if `uninstall(ctx, version)` is defined in the
+    ///    provider script, it is called first.  The hook can perform tool-specific
+    ///    cleanup (e.g. removing pip caches, npm global packages, Go module cache).
+    ///    If the hook returns `false` the default phase still runs.
+    ///
+    /// 2. **Default fallback** — removes the version directory from the store
+    ///    (`{vx_home}/store/{provider}/{version}`).  This runs whenever the hook
+    ///    is absent *or* returns `false`.
+    ///
+    /// Returns `Ok(())` on success, `Err` if the version is not installed or
+    /// any removal step fails.
+    pub async fn uninstall(&self, version: &str) -> Result<()> {
+        // ── System-installed tool path ────────────────────────────────────
+        // When the tool was installed via a system package manager (winget,
+        // brew, apt, …) there is no vx store directory.  Delegate entirely
+        // to the provider.star::uninstall() hook.
+        if version == "system" {
+            let hook_handled = self.star.uninstall(version).await.unwrap_or_else(|e| {
+                tracing::warn!(
+                    provider = %self.name,
+                    error    = %e,
+                    "provider.star uninstall() failed for system version"
+                );
+                false
+            });
+
+            if hook_handled {
+                tracing::info!(
+                    provider = %self.name,
+                    "Uninstalled system version via provider hook"
+                );
+                return Ok(());
+            }
+
+            // Hook returned false or is absent — we cannot remove a system
+            // installation without knowing the package manager.  Surface a
+            // helpful message instead of a cryptic error.
+            return Err(Error::EvalError(format!(
+                "{} is installed via a system package manager. \
+                 Please uninstall it manually (e.g. `winget uninstall`, `brew uninstall`, etc.).",
+                self.name
+            )));
+        }
+
+        // ── vx-managed version path ───────────────────────────────────────
+        let version_dir = self.store_root().join(version);
+        if !version_dir.exists() {
+            return Err(Error::EvalError(format!(
+                "{} {} is not installed",
+                self.name, version
+            )));
+        }
+
+        // Phase 1: try provider.star::uninstall hook
+        let hook_handled = self.star.uninstall(version).await.unwrap_or_else(|e| {
+            tracing::warn!(
+                provider = %self.name,
+                version  = %version,
+                error    = %e,
+                "provider.star uninstall() failed, falling back to default removal"
+            );
+            false
+        });
+
+        // Phase 2: default directory removal (runs when hook is absent or returns false)
+        if !hook_handled {
+            std::fs::remove_dir_all(&version_dir).map_err(|e| {
+                Error::EvalError(format!("Failed to remove {} {}: {}", self.name, version, e))
+            })?;
+        }
+
+        tracing::info!(
+            provider    = %self.name,
+            version     = %version,
+            custom_hook = hook_handled,
+            "Uninstalled version"
+        );
+        Ok(())
+    }
+
+    /// Uninstall all installed versions of this provider.
+    ///
+    /// Calls [`uninstall`] for each installed version in sequence.
+    /// Continues on individual failures and returns the first error encountered.
+    pub async fn uninstall_all(&self) -> Result<()> {
+        let versions = self.installed_versions();
+        if versions.is_empty() {
+            return Ok(());
+        }
+        let mut first_err: Option<Error> = None;
+        for version in &versions {
+            if let Err(e) = self.uninstall(version).await {
+                tracing::warn!(
+                    provider = %self.name,
+                    version  = %version,
+                    error    = %e,
+                    "Failed to uninstall version"
+                );
+                if first_err.is_none() {
+                    first_err = Some(e);
+                }
+            }
+        }
+        match first_err {
+            Some(e) => Err(e),
+            None => Ok(()),
+        }
+    }
+
+    /// Resolve a version request against installed versions.
+    ///
+    /// Supports:
+    /// - Exact: `"3.7.13"` → `"3.7.13"`
+    /// - Partial: `"3.7"` → `"3.7.13"` (latest matching 3.7.x)
+    /// - Major: `"3"` → `"3.12.0"` (latest matching 3.x.x)
+    /// - `"latest"` / `"*"` → newest installed version
+    ///
+    /// Returns `Err` if no installed version matches.
+    pub fn resolve_installed_version(&self, requested: &str) -> Result<String> {
+        let installed = self.installed_versions();
+        if installed.is_empty() {
+            return Err(Error::EvalError(format!(
+                "No versions of {} are installed",
+                self.name
+            )));
+        }
+
+        // "latest" / "*" → return newest
+        if requested == "latest" || requested == "*" {
+            return Ok(installed[0].clone());
+        }
+
+        // Try exact match first
+        if installed.contains(&requested.to_string()) {
+            return Ok(requested.to_string());
+        }
+
+        // Partial match: split by '.' and check prefix
+        let parts: Vec<&str> = requested.split('.').collect();
+        let mut matching: Vec<&String> = installed
+            .iter()
+            .filter(|v| {
+                let v_parts: Vec<&str> = v.split('.').collect();
+                parts
+                    .iter()
+                    .enumerate()
+                    .all(|(i, p)| v_parts.get(i).map(|vp| *vp == *p).unwrap_or(false))
+            })
+            .collect();
+
+        if matching.is_empty() {
+            return Err(Error::EvalError(format!(
+                "No installed version of {} matches '{}'. Installed: {}",
+                self.name,
+                requested,
+                installed.join(", ")
+            )));
+        }
+
+        // Return the first (newest, since installed_versions is sorted descending)
+        Ok(matching.remove(0).clone())
     }
 
     // ── Path Queries ───────────────────────────────────────────────────────
@@ -209,47 +458,32 @@ impl ProviderHandle {
         self.paths.store_dir.join(&self.name)
     }
 
-    /// Get the store root directory, preferring provider.star::store_root (async)
+    /// Get the store root directory (convention-based: `{vx_home}/store/{provider_name}`).
     ///
-    /// Calls `store_root(ctx)` in provider.star if defined; falls back to
-    /// the convention-based path `{vx_home}/store/{provider_name}`.
-    pub async fn store_root_from_star(&self) -> PathBuf {
-        if let Ok(Some(template)) = self.star.call_store_root().await {
-            // Replace {vx_home} placeholder with the actual vx home directory
-            let resolved = template.replace("{vx_home}", &self.paths.base_dir.to_string_lossy());
-            return PathBuf::from(resolved);
-        }
-        // Convention fallback
+    /// Previously this called `store_root(ctx)` in provider.star, but since no
+    /// provider.star defines that function, we use the convention directly.
+    pub fn store_root_from_star(&self) -> PathBuf {
         self.paths.store_dir.join(&self.name)
     }
 
-    /// Get the executable path for a specific version
+    /// Get the executable path for a specific version.
     ///
-    /// Calls `get_execute_path(ctx, version)` in provider.star if defined;
-    /// falls back to convention-based path scanning.
+    /// Uses convention-based path scanning. Previously this called
+    /// `get_execute_path(ctx, version)` in provider.star, but since no
+    /// provider.star defines that function, we use the convention directly.
     ///
     /// Corresponds to `vx where <tool>@<version>`
-    pub async fn get_execute_path(&self, version: &str) -> Option<PathBuf> {
-        // Try provider.star::get_execute_path first
-        if let Ok(Some(template)) = self.star.call_get_execute_path(version).await {
-            let store_root = self.store_root_from_star().await;
-            let install_dir = store_root.join(version);
-            let resolved = template
-                .replace("{install_dir}", &install_dir.to_string_lossy())
-                .replace("{vx_home}", &self.paths.base_dir.to_string_lossy());
-            return Some(PathBuf::from(resolved));
-        }
-        // Convention fallback
+    pub fn get_execute_path(&self, version: &str) -> Option<PathBuf> {
         self.convention_execute_path(version)
     }
 
     /// Get the executable path for the latest installed version
     ///
     /// Corresponds to `vx where <tool>` (when versions are installed)
-    pub async fn get_latest_execute_path(&self) -> Option<PathBuf> {
+    pub fn get_latest_execute_path(&self) -> Option<PathBuf> {
         let versions = self.installed_versions();
         let latest = versions.first()?.clone();
-        self.get_execute_path(&latest).await
+        self.get_execute_path(&latest)
     }
 
     // ── Installation ───────────────────────────────────────────────────────
@@ -270,14 +504,14 @@ impl ProviderHandle {
 
     /// Get post-install operations for a specific version
     ///
-    /// Calls `post_install(ctx, version, install_dir)` in provider.star (RFC-0037).
-    /// Falls back to `post_extract()` for backward compatibility.
+    /// Calls `post_install(ctx, version, install_dir)` in provider.star first;
+    /// falls back to `post_extract()` for backward compatibility.
     pub async fn post_install(
         &self,
         version: &str,
         install_dir: &Path,
     ) -> Result<Vec<PostInstallOps>> {
-        // Try provider.star::post_install first (RFC-0037)
+        // Try provider.star::post_install first
         let post_install_actions = self.star.call_post_install(version, install_dir).await?;
         if !post_install_actions.is_empty() {
             return Ok(post_install_actions
@@ -295,22 +529,91 @@ impl ProviderHandle {
 
     // ── Execution ──────────────────────────────────────────────────────────
 
-    /// Get environment variables for a specific version
+    /// Get environment variable operations for a specific version (new API)
     ///
-    /// Delegates to provider.star::environment
+    /// Returns a list of [`EnvOp`]s that describe how to set up the environment.
+    /// Use [`apply_env_ops`] to apply them to a mutable env map.
+    ///
+    /// **System-installed tools** (`version == "system"`): instead of calling
+    /// `provider.star::environment()` (which uses `ctx.install_dir` and would
+    /// produce a wrong path), we locate the executable via `which` and return
+    /// a `PATH` prepend for its parent directory.  This ensures that tools
+    /// declared as deps (e.g. `git`) are visible inside `vx dev` even when
+    /// they are managed by the OS package manager rather than vx.
+    pub async fn environment_ops(&self, version: &str) -> Result<Vec<EnvOp>> {
+        if version == "system" {
+            // Locate the primary executable on the system PATH
+            let exe_name = self
+                .star
+                .runtimes()
+                .first()
+                .map(|r| r.executable.clone())
+                .unwrap_or_else(|| self.name.clone());
+
+            if let Ok(exe_path) = which::which(&exe_name)
+                && let Some(bin_dir) = exe_path.parent()
+            {
+                let sep = if cfg!(windows) {
+                    ";".to_string()
+                } else {
+                    ":".to_string()
+                };
+                return Ok(vec![EnvOp::Prepend {
+                    key: "PATH".to_string(),
+                    value: bin_dir.to_string_lossy().to_string(),
+                    sep,
+                }]);
+            }
+            // System tool not found — return empty (caller may warn)
+            return Ok(vec![]);
+        }
+        self.star.environment(version).await
+    }
+    /// Get environment variables for a specific version (legacy API)
+    ///
+    /// Applies all [`EnvOp`]s from `environment()` and returns the resulting map.
+    /// For multi-tool composition, prefer [`environment_ops`] + [`apply_env_ops`].
     pub async fn environment(
         &self,
         version: &str,
         _install_dir: &Path,
     ) -> Result<HashMap<String, String>> {
-        self.star.prepare_environment(version).await
+        let ops = self.star.environment(version).await?;
+        Ok(apply_env_ops(&ops, None))
     }
 
     /// Get dependencies for a specific version
     ///
-    /// Returns empty list; future work may call provider.star::deps()
-    pub async fn deps(&self, _version: &str) -> Result<Vec<String>> {
-        Ok(vec![])
+    /// Calls `deps(ctx, version)` in provider.star and returns structured dependency requirements.
+    /// Returns an empty list if `deps()` is not defined in provider.star.
+    pub async fn deps(&self, version: &str) -> Result<Vec<DepRequirement>> {
+        let raw = self.star.deps(version).await?;
+        let deps = raw
+            .into_iter()
+            .filter_map(|item| {
+                let runtime = item.get("runtime").and_then(|v| v.as_str())?.to_string();
+                let version_req = item
+                    .get("version")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("*")
+                    .to_string();
+                let optional = item
+                    .get("optional")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                let reason = item
+                    .get("reason")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                Some(DepRequirement {
+                    runtime,
+                    version_req,
+                    optional,
+                    reason,
+                })
+            })
+            .collect();
+        Ok(deps)
     }
 
     // ── Internal Helpers ───────────────────────────────────────────────────
@@ -475,7 +778,7 @@ impl ProviderHandleRegistry {
 /// Global lazy-initialized ProviderHandleRegistry
 ///
 /// Populated at startup by registering all built-in providers.
-static GLOBAL_REGISTRY: once_cell::sync::Lazy<tokio::sync::RwLock<ProviderHandleRegistry>> =
+pub static GLOBAL_REGISTRY: once_cell::sync::Lazy<tokio::sync::RwLock<ProviderHandleRegistry>> =
     once_cell::sync::Lazy::new(|| tokio::sync::RwLock::new(ProviderHandleRegistry::new()));
 
 /// Get a reference to the global ProviderHandleRegistry

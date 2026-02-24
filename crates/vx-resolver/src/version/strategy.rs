@@ -230,6 +230,238 @@ impl VersionStrategy for GoVersionStrategy {
     }
 }
 
+/// Git for Windows version strategy (handles 2.53.0.windows.1 format)
+///
+/// Git for Windows uses a special versioning scheme:
+/// - `2.53.0.windows.1` means Git 2.53.0, Windows build 1
+/// - `2.47.1.windows.2` means Git 2.47.1, Windows build 2
+///
+/// This strategy normalizes these versions for comparison and matching.
+pub struct GitVersionStrategy;
+
+impl Default for GitVersionStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl GitVersionStrategy {
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Normalize a Git for Windows version string.
+    /// Examples:
+    /// - `2.53.0.windows.1` -> `2.53.0`
+    /// - `2.47.1.windows.2` -> `2.47.1`
+    /// - `v2.53.0.windows.1` -> `2.53.0`
+    /// - `2.53.0` -> `2.53.0` (already normalized)
+    fn normalize_version(version: &str) -> String {
+        // Strip 'v' prefix if present
+        let version = version.strip_prefix('v').unwrap_or(version);
+
+        // Remove .windows.X suffix
+        // Pattern: major.minor.patch.windows.build
+        if let Some(pos) = version.find(".windows.") {
+            version[..pos].to_string()
+        } else {
+            version.to_string()
+        }
+    }
+
+    /// Check if an available version matches a normalized requested version.
+    /// E.g., requested "2.53.0" matches available "2.53.0.windows.1"
+    fn version_matches_normalized(available: &str, normalized_requested: &str) -> bool {
+        let normalized_available = Self::normalize_version(available);
+        normalized_available == normalized_requested
+    }
+}
+
+impl VersionStrategy for GitVersionStrategy {
+    fn ecosystem(&self) -> Ecosystem {
+        Ecosystem::Git
+    }
+
+    fn satisfies(&self, version: &Version, constraint: &VersionConstraint) -> bool {
+        // Use semver logic - the Version should already be normalized
+        SemverStrategy::new(Ecosystem::Git).satisfies(version, constraint)
+    }
+
+    fn select_best_match(
+        &self,
+        constraint: &VersionConstraint,
+        available: &[VersionInfo],
+    ) -> Option<ResolvedVersion> {
+        // Git for Windows uses special versioning like "2.53.0.windows.1"
+        // We need to handle this specially to preserve the original version string
+
+        match constraint {
+            VersionConstraint::Exact(v) => {
+                // Try to find a version that normalizes to the requested version
+                let normalized_requested = format!("{}.{}.{}", v.major, v.minor, v.patch);
+
+                // Find all matching versions and pick the latest
+                let mut matches: Vec<&VersionInfo> = available
+                    .iter()
+                    .filter(|info| {
+                        Self::version_matches_normalized(&info.version, &normalized_requested)
+                    })
+                    .collect();
+
+                if matches.is_empty() {
+                    return None;
+                }
+
+                // Sort by raw version string (descending) to get the latest windows build
+                matches.sort_by(|a, b| b.version.cmp(&a.version));
+
+                let best = matches.first()?;
+                let resolved_version = Version::parse(&best.version)?;
+                Some(ResolvedVersion::with_original(
+                    resolved_version,
+                    &best.version,
+                    constraint.to_string(),
+                ))
+            }
+            VersionConstraint::Partial { major, minor } => {
+                // Find versions that match major.minor
+                let prefix = format!("{}.{}.", major, minor);
+
+                let mut matches: Vec<&VersionInfo> = available
+                    .iter()
+                    .filter(|info| {
+                        let normalized = Self::normalize_version(&info.version);
+                        normalized.starts_with(&prefix)
+                    })
+                    .collect();
+
+                if matches.is_empty() {
+                    return None;
+                }
+
+                // Sort by normalized version (descending), using semver comparison
+                matches.sort_by(|a, b| {
+                    let a_norm = Self::normalize_version(&a.version);
+                    let b_norm = Self::normalize_version(&b.version);
+                    match (Version::parse(&a_norm), Version::parse(&b_norm)) {
+                        (Some(va), Some(vb)) => vb.cmp(&va),
+                        _ => b_norm.cmp(&a_norm),
+                    }
+                });
+
+                let best = matches.first()?;
+                let resolved_version = Version::parse(&best.version)?;
+                Some(ResolvedVersion::with_original(
+                    resolved_version,
+                    &best.version,
+                    constraint.to_string(),
+                ))
+            }
+            VersionConstraint::Major(major) => {
+                // Find versions that match major
+                let prefix = format!("{}.", major);
+
+                let mut matches: Vec<&VersionInfo> = available
+                    .iter()
+                    .filter(|info| {
+                        let normalized = Self::normalize_version(&info.version);
+                        normalized.starts_with(&prefix)
+                    })
+                    .collect();
+
+                if matches.is_empty() {
+                    return None;
+                }
+
+                // Sort by normalized version (descending)
+                matches.sort_by(|a, b| {
+                    let a_norm = Self::normalize_version(&a.version);
+                    let b_norm = Self::normalize_version(&b.version);
+                    match (Version::parse(&a_norm), Version::parse(&b_norm)) {
+                        (Some(va), Some(vb)) => vb.cmp(&va),
+                        _ => b_norm.cmp(&a_norm),
+                    }
+                });
+
+                let best = matches.first()?;
+                let resolved_version = Version::parse(&best.version)?;
+                Some(ResolvedVersion::with_original(
+                    resolved_version,
+                    &best.version,
+                    constraint.to_string(),
+                ))
+            }
+            VersionConstraint::Latest => {
+                // Find the latest version (excluding prereleases)
+                let mut stable: Vec<&VersionInfo> =
+                    available.iter().filter(|info| !info.prerelease).collect();
+
+                if stable.is_empty() {
+                    stable = available.iter().collect();
+                }
+
+                // Sort by normalized version (descending)
+                stable.sort_by(|a, b| {
+                    let a_norm = Self::normalize_version(&a.version);
+                    let b_norm = Self::normalize_version(&b.version);
+                    // Try semver comparison first
+                    match (Version::parse(&a_norm), Version::parse(&b_norm)) {
+                        (Some(va), Some(vb)) => vb.cmp(&va),
+                        _ => b_norm.cmp(&a_norm),
+                    }
+                });
+
+                let best = stable.first()?;
+                let resolved_version = Version::parse(&best.version)?;
+                Some(ResolvedVersion::with_original(
+                    resolved_version,
+                    &best.version,
+                    constraint.to_string(),
+                ))
+            }
+            _ => {
+                // For other constraints, use semver with normalized versions
+                // but still try to preserve original version strings
+                let mut normalized_available: Vec<(usize, VersionInfo)> = available
+                    .iter()
+                    .enumerate()
+                    .map(|(i, info)| {
+                        let normalized = Self::normalize_version(&info.version);
+                        let mut new_info = info.clone();
+                        new_info.version = normalized;
+                        (i, new_info)
+                    })
+                    .collect();
+
+                // Sort by normalized version
+                normalized_available.sort_by(|a, b| {
+                    match (Version::parse(&a.1.version), Version::parse(&b.1.version)) {
+                        (Some(va), Some(vb)) => vb.cmp(&va),
+                        _ => b.1.version.cmp(&a.1.version),
+                    }
+                });
+
+                let best_idx = normalized_available.first()?.0;
+                let best = &available[best_idx];
+                let resolved_version = Version::parse(&best.version)?;
+                Some(ResolvedVersion::with_original(
+                    resolved_version,
+                    &best.version,
+                    constraint.to_string(),
+                ))
+            }
+        }
+    }
+
+    fn compare(&self, a: &Version, b: &Version) -> Ordering {
+        a.cmp(b)
+    }
+
+    fn normalize(&self, version: &str) -> String {
+        Self::normalize_version(version)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -305,5 +537,72 @@ mod tests {
         let strategy = GoVersionStrategy::new();
         assert_eq!(strategy.normalize("go1.22"), "1.22");
         assert_eq!(strategy.normalize("1.22"), "1.22");
+    }
+
+    #[test]
+    fn test_git_normalize() {
+        let strategy = GitVersionStrategy::new();
+        assert_eq!(strategy.normalize("2.53.0.windows.1"), "2.53.0");
+        assert_eq!(strategy.normalize("v2.53.0.windows.1"), "2.53.0");
+        assert_eq!(strategy.normalize("2.47.1.windows.2"), "2.47.1");
+        assert_eq!(strategy.normalize("2.53.0"), "2.53.0");
+    }
+
+    #[test]
+    fn test_git_select_best_match_exact() {
+        let strategy = GitVersionStrategy::new();
+        let available = vec![
+            make_version_info("2.52.0.windows.1"),
+            make_version_info("2.53.0.windows.1"),
+            make_version_info("2.53.0.windows.2"),
+            make_version_info("2.54.0.windows.1"),
+        ];
+
+        // Request "2.53.0" should match "2.53.0.windows.2" (latest windows build)
+        let result = strategy.select_best_match(
+            &VersionConstraint::Exact(Version::new(2, 53, 0)),
+            &available,
+        );
+        assert!(result.is_some());
+        let resolved = result.unwrap();
+        assert_eq!(resolved.version_string(), "2.53.0.windows.2");
+    }
+
+    #[test]
+    fn test_git_select_best_match_partial() {
+        let strategy = GitVersionStrategy::new();
+        let available = vec![
+            make_version_info("2.52.0.windows.1"),
+            make_version_info("2.53.0.windows.1"),
+            make_version_info("2.53.1.windows.1"),
+            make_version_info("2.54.0.windows.1"),
+        ];
+
+        // Request "2.53" should match "2.53.1.windows.1" (latest 2.53.x)
+        let result = strategy.select_best_match(
+            &VersionConstraint::Partial {
+                major: 2,
+                minor: 53,
+            },
+            &available,
+        );
+        assert!(result.is_some());
+        let resolved = result.unwrap();
+        assert_eq!(resolved.version_string(), "2.53.1.windows.1");
+    }
+
+    #[test]
+    fn test_git_select_best_match_latest() {
+        let strategy = GitVersionStrategy::new();
+        let available = vec![
+            make_version_info("2.52.0.windows.1"),
+            make_version_info("2.53.0.windows.1"),
+            make_version_info("2.54.0.windows.1"),
+        ];
+
+        let result = strategy.select_best_match(&VersionConstraint::Latest, &available);
+        assert!(result.is_some());
+        let resolved = result.unwrap();
+        assert_eq!(resolved.version_string(), "2.54.0.windows.1");
     }
 }

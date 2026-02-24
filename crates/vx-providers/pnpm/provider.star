@@ -1,4 +1,4 @@
-# provider.star - pnpm provider
+﻿# provider.star - pnpm provider
 #
 # pnpm: Fast, disk space efficient package manager
 # Inheritance pattern: Level 2 (custom download_url for pnpm's naming)
@@ -11,28 +11,17 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 load("@vx//stdlib:install.star", "ensure_dependencies", "run_command")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "pnpm"
-
-def description():
-    return "Fast, disk space efficient package manager"
-
-def homepage():
-    return "https://pnpm.io"
-
-def repository():
-    return "https://github.com/pnpm/pnpm"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "nodejs"
+name        = "pnpm"
+description = "Fast, disk space efficient package manager"
+homepage    = "https://pnpm.io"
+repository  = "https://github.com/pnpm/pnpm"
+license     = "MIT"
+ecosystem   = "nodejs"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -45,6 +34,9 @@ runtimes = [
         "description": "pnpm package manager",
         "aliases":     ["pnpx"],
         "priority":    85,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "^\\d+\\.\\d+"},
+        ],
     },
 ]
 
@@ -75,8 +67,8 @@ fetch_versions = make_fetch_versions("pnpm", "pnpm")
 
 def _pnpm_platform(ctx):
     """Map platform to pnpm's naming convention."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     platform_map = {
         "windows/x64":   ("win",   "x64"),
@@ -102,7 +94,7 @@ def download_url(ctx, version):
         return None
 
     pnpm_os, pnpm_arch = platform
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
 
     if os == "windows":
         asset = "pnpm-{}-{}.exe".format(pnpm_os, pnpm_arch)
@@ -116,7 +108,7 @@ def download_url(ctx, version):
 # deps — version-based Node.js dependency
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, version):
     """Declare Node.js dependency based on pnpm version.
 
     pnpm 7.x requires Node.js 14+
@@ -137,8 +129,8 @@ def deps(ctx, version):
 # install_layout — binary (single file)
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os = ctx.platform.os
     exe = "pnpm.exe" if os == "windows" else "pnpm"
     return {
         "type":             "binary",
@@ -151,10 +143,8 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir + "/bin",
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.ctx.install_dir + "/bin")]
 
 # ---------------------------------------------------------------------------
 # post_extract — rename platform-specific binary to standard name
@@ -183,7 +173,7 @@ def post_extract(ctx, version, install_dir):
         return []
 
     pnpm_os, pnpm_arch = platform
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
 
     if os == "windows":
         source_name = "pnpm-{}-{}.exe".format(pnpm_os, pnpm_arch)
@@ -196,7 +186,7 @@ def post_extract(ctx, version, install_dir):
     return [
         run_command(
             "mv" if os != "windows" else "move",
-            [install_dir + "/bin/" + source_name, install_dir + "/bin/" + target_name],
+            [ctx.install_dir + "/bin/" + source_name, ctx.install_dir + "/bin/" + target_name],
             on_failure = "warn",
         ),
     ]
@@ -213,23 +203,23 @@ def store_root(ctx, version):
 # get_execute_path — resolve pnpm executable
 # ---------------------------------------------------------------------------
 
-def get_execute_path(ctx, version, install_dir):
+def get_execute_path(ctx, _version, install_dir):
     """Return the path to the pnpm executable."""
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     exe = "pnpm.exe" if os == "windows" else "pnpm"
-    return install_dir + "/bin/" + exe
+    return ctx.install_dir + "/bin/" + exe
 
 # ---------------------------------------------------------------------------
 # post_install — set permissions on Unix
 # ---------------------------------------------------------------------------
 
-def post_install(ctx, version, install_dir):
+def post_install(ctx, _version):
     """Set execute permissions on Unix."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         return []
     return [
-        {"type": "set_permissions", "path": install_dir + "/bin/pnpm", "mode": "755"},
+        {"type": "set_permissions", "path": ctx.install_dir + "/bin/pnpm", "mode": "755"},
     ]
 
 # ---------------------------------------------------------------------------

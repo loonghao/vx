@@ -1,7 +1,7 @@
 //! pwsh provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// pwsh provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -13,18 +13,11 @@ impl Provider for PwshProvider {
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata()
-            .description_or("Cross-platform command-line shell and scripting language")
+        crate::star_metadata().description_or("PowerShell - Cross-platform task automation")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("pwsh", "pwsh", ProviderSource::BuiltIn)
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "pwsh",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("pwsh", crate::PROVIDER_STAR, None)
     }
 }
 

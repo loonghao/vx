@@ -1,4 +1,4 @@
-# provider.star - curl provider
+﻿# provider.star - curl provider
 #
 # cURL - command-line tool for transferring data with URLs
 # Inheritance pattern: Level 1 (fully custom, system detection only)
@@ -9,24 +9,12 @@
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "curl"
-
-def description():
-    return "Command-line tool for transferring data with URLs"
-
-def homepage():
-    return "https://curl.se"
-
-def repository():
-    return "https://github.com/curl/curl"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "system"
+name        = "curl"
+description = "Command-line tool for transferring data with URLs"
+homepage    = "https://curl.se"
+repository  = "https://github.com/curl/curl"
+license     = "MIT"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -48,6 +36,9 @@ runtimes = [
             "/usr/bin/curl",
             "/usr/local/bin/curl",
             "/opt/homebrew/bin/curl",
+        ],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "curl \\d+\\.\\d+"},
         ],
     },
 ]
@@ -72,7 +63,7 @@ permissions = {
 # fetch_versions — system detection only
 # ---------------------------------------------------------------------------
 
-def fetch_versions(ctx):
+def fetch_versions(_ctx):
     """curl version is detected from system installation."""
     return [{"version": "system", "lts": True, "prerelease": False}]
 
@@ -80,7 +71,7 @@ def fetch_versions(ctx):
 # download_url — not managed by vx
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
+def download_url(_ctx, _version):
     """curl is a system tool — install via system package manager."""
     return None
 
@@ -88,43 +79,26 @@ def download_url(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {}
+def environment(_ctx, _version):
+    return []
 
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC 0037)
 # ---------------------------------------------------------------------------
 
-def store_root(ctx):
+def store_root(_ctx):
     """Return the vx store root directory for curl."""
-    return "{vx_home}/store/curl"
+    return _ctx.vx_home + "/store/curl"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/curl.exe"
+        return ctx.install_dir + "/curl.exe"
     else:
-        return "{install_dir}/curl"
+        return ctx.install_dir + "/curl"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """Post-install hook (no-op for curl)."""
-    return None
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return "{vx_home}/store/curl"
-
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/curl.exe"
-    else:
-        return "{install_dir}/curl"
-
-def post_install(ctx, version, install_dir):
     return None

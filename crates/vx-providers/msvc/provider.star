@@ -1,4 +1,4 @@
-# provider.star - MSVC Build Tools provider
+﻿# provider.star - MSVC Build Tools provider
 #
 # Microsoft Visual C++ Build Tools - Windows only
 # Provides: cl (compiler), nmake, link, ml64, lib
@@ -12,27 +12,12 @@
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "msvc"
-
-def description():
-    return "Microsoft Visual C++ Build Tools"
-
-def homepage():
-    return "https://visualstudio.microsoft.com/visual-cpp-build-tools/"
-
-def repository():
-    return "https://github.com/microsoft/STL"
-
-def license():
-    return "Proprietary"
-
-def ecosystem():
-    return "system"
-
-def platforms():
-    return {"os": ["windows"]}
+name        = "msvc"
+description = "Microsoft Visual C++ Build Tools"
+homepage    = "https://visualstudio.microsoft.com/visual-cpp-build-tools/"
+repository  = "https://github.com/microsoft/STL"
+license     = "Proprietary"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -59,6 +44,9 @@ runtimes = [
             "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/*/bin/Hostx64/x64/cl.exe",
             "C:/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/*/bin/Hostx64/x64/cl.exe",
         ],
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
     {
         "name":             "nmake",
@@ -67,6 +55,9 @@ runtimes = [
         "bundled_with":     "msvc",
         "auto_installable": False,
         "platform_constraint": {"os": ["windows"]},
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
     {
         "name":             "link",
@@ -75,6 +66,9 @@ runtimes = [
         "bundled_with":     "msvc",
         "auto_installable": False,
         "platform_constraint": {"os": ["windows"]},
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
     {
         "name":             "ml64",
@@ -83,6 +77,9 @@ runtimes = [
         "bundled_with":     "msvc",
         "auto_installable": False,
         "platform_constraint": {"os": ["windows"]},
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
     {
         "name":             "lib",
@@ -91,6 +88,90 @@ runtimes = [
         "bundled_with":     "msvc",
         "auto_installable": False,
         "platform_constraint": {"os": ["windows"]},
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
+    },
+    {
+        "name":             "dumpbin",
+        "executable":       "dumpbin",
+        "description":      "Microsoft COFF Binary File Dumper (bundled with MSVC)",
+        "bundled_with":     "msvc",
+        "auto_installable": False,
+        "platform_constraint": {"os": ["windows"]},
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
+    },
+    {
+        "name":             "editbin",
+        "executable":       "editbin",
+        "description":      "Microsoft COFF Binary File Editor (bundled with MSVC)",
+        "bundled_with":     "msvc",
+        "auto_installable": False,
+        "platform_constraint": {"os": ["windows"]},
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
+    },
+    {
+        "name":             "mt",
+        "executable":       "mt",
+        "description":      "Microsoft Manifest Tool (Windows SDK)",
+        "bundled_with":     "msvc",
+        "auto_installable": False,
+        "platform_constraint": {"os": ["windows"]},
+        "system_paths": [
+            "C:/Program Files (x86)/Windows Kits/10/bin/*/x64/mt.exe",
+            "C:/Program Files (x86)/Windows Kits/10/bin/*/x86/mt.exe",
+            "C:/Program Files (x86)/Windows Kits/8.1/bin/x64/mt.exe",
+            "C:/Program Files (x86)/Windows Kits/8.1/bin/x86/mt.exe",
+        ],
+        "test_commands": [
+            {"command": "{executable} /?", "name": "help_check"},
+        ],
+    },
+    {
+        "name":             "rc",
+        "executable":       "rc",
+        "description":      "Microsoft Resource Compiler (Windows SDK)",
+        "bundled_with":     "msvc",
+        "auto_installable": False,
+        "platform_constraint": {"os": ["windows"]},
+        "system_paths": [
+            "C:/Program Files (x86)/Windows Kits/10/bin/*/x64/rc.exe",
+            "C:/Program Files (x86)/Windows Kits/10/bin/*/x86/rc.exe",
+            "C:/Program Files (x86)/Windows Kits/8.1/bin/x64/rc.exe",
+            "C:/Program Files (x86)/Windows Kits/8.1/bin/x86/rc.exe",
+        ],
+        "test_commands": [
+            {"command": "{executable} /?", "name": "help_check"},
+        ],
+    },
+    {
+        "name":             "signtool",
+        "executable":       "signtool",
+        "description":      "Microsoft Authenticode signing tool (Windows SDK)",
+        "bundled_with":     "msvc",
+        "auto_installable": False,
+        "platform_constraint": {"os": ["windows"]},
+        "system_paths": [
+            # Windows SDK 10 (x64)
+            "C:/Program Files (x86)/Windows Kits/10/bin/*/x64/signtool.exe",
+            # Windows SDK 10 (x86)
+            "C:/Program Files (x86)/Windows Kits/10/bin/*/x86/signtool.exe",
+            # Windows SDK 8.1
+            "C:/Program Files (x86)/Windows Kits/8.1/bin/x64/signtool.exe",
+            "C:/Program Files (x86)/Windows Kits/8.1/bin/x86/signtool.exe",
+            # Bundled with Visual Studio
+            "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/SDK/ScopedNetFxSDK/*/bin/signtool.exe",
+            "C:/Program Files/Microsoft Visual Studio/2022/Professional/SDK/ScopedNetFxSDK/*/bin/signtool.exe",
+            "C:/Program Files/Microsoft Visual Studio/2022/Community/SDK/ScopedNetFxSDK/*/bin/signtool.exe",
+            "C:/Program Files/Microsoft Visual Studio/2022/BuildTools/SDK/ScopedNetFxSDK/*/bin/signtool.exe",
+        ],
+        "test_commands": [
+            {"command": "{executable} /?", "name": "help_check"},
+        ],
     },
 ]
 
@@ -104,14 +185,14 @@ permissions = {
         "C:/Program Files/Microsoft Visual Studio",
         "C:/Program Files (x86)/Microsoft Visual Studio",
     ],
-    "exec": ["cl", "nmake", "link", "winget", "choco"],
+    "exec": ["cl", "nmake", "link", "dumpbin", "editbin", "mt", "rc", "signtool", "winget", "choco"],
 }
 
 # ---------------------------------------------------------------------------
 # fetch_versions — system detection only (no remote API)
 # ---------------------------------------------------------------------------
 
-def fetch_versions(ctx):
+def fetch_versions(_ctx):
     """MSVC version is tied to Visual Studio installation."""
     return [{"version": "system", "lts": True, "prerelease": False}]
 
@@ -119,7 +200,7 @@ def fetch_versions(ctx):
 # download_url — not directly downloadable as portable archive
 # ---------------------------------------------------------------------------
 
-def download_url(ctx, version):
+def download_url(_ctx, _version):
     """MSVC is installed via Visual Studio Installer, not a portable archive."""
     return None
 
@@ -152,7 +233,7 @@ system_install = {
 # store_root — not managed by vx (installed via Visual Studio Installer)
 # ---------------------------------------------------------------------------
 
-def store_root(ctx, version):
+def store_root(_ctx, _version):
     """MSVC is installed via Visual Studio Installer — no vx store root."""
     return None
 
@@ -160,7 +241,7 @@ def store_root(ctx, version):
 # get_execute_path — resolve cl.exe via system_paths
 # ---------------------------------------------------------------------------
 
-def get_execute_path(ctx, version, install_dir):
+def get_execute_path(_ctx, _version, install_dir):
     """MSVC is located via system_paths; no vx-managed install_dir."""
     return None
 
@@ -168,7 +249,7 @@ def get_execute_path(ctx, version, install_dir):
 # post_install — nothing to do
 # ---------------------------------------------------------------------------
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps required for MSVC."""
     return []
 
@@ -176,15 +257,15 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
+def environment(_ctx, _version):
     # MSVC environment is set up by vcvarsall.bat; vx does not manage it directly
-    return {}
+    return []
 
 # ---------------------------------------------------------------------------
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, version):
     """MSVC recommends cmake and ninja for C++ projects."""
     return [
         {"runtime": "cmake", "version": "*", "optional": True,

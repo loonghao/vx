@@ -1,4 +1,4 @@
-# provider.star - rcedit provider (Windows-only)
+﻿# provider.star - rcedit provider (Windows-only)
 #
 # Reuse pattern: Level 2 (partial override)
 #   - fetch_versions: fully inherited from github.star
@@ -17,30 +17,16 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "rcedit"
-
-def description():
-    return "rcedit - Command-line tool to edit resources of Windows executables"
-
-def homepage():
-    return "https://github.com/electron/rcedit"
-
-def repository():
-    return "https://github.com/electron/rcedit"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "system"
-
-def aliases():
-    return []
+name        = "rcedit"
+description = "rcedit - Command-line tool to edit resources of Windows executables"
+homepage    = "https://github.com/electron/rcedit"
+repository  = "https://github.com/electron/rcedit"
+license     = "MIT"
+ecosystem   = "system"
 
 # ---------------------------------------------------------------------------
 # Platform constraint — Windows only
@@ -62,6 +48,9 @@ runtimes = [
         "aliases":             [],
         "priority":            100,
         "platform_constraint": {"os": ["windows"]},
+        "test_commands": [
+            {"command": "{executable} --help", "name": "help_check", "expect_success": True},
+        ],
     },
 ]
 
@@ -98,8 +87,8 @@ def _rcedit_arch(ctx):
 
     Returns None if the platform is not Windows or arch is unsupported.
     """
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     # rcedit is Windows-only
     if os != "windows":
@@ -166,13 +155,13 @@ def install_layout(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for rcedit."""
-    return "{vx_home}/store/rcedit"
+    return ctx.vx_home + "/store/rcedit"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version (Windows only)."""
-    return "{install_dir}/rcedit.exe"
+    return ctx.install_dir + "/rcedit.exe"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for rcedit."""
     return None
 
@@ -180,7 +169,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]

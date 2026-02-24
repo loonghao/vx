@@ -228,7 +228,8 @@ impl<'a> Stage<ExecutionPlan, PreparedExecution> for PrepareStage<'a> {
         // Step 2: Resolve executable — try direct path first, then proxy execution (RFC 0028)
         let (executable, command_prefix) = if let Some(exe) = plan.primary.executable.clone() {
             // Executable already resolved (normal runtimes)
-            (exe, Vec::new())
+            // Use command_prefix from the plan (e.g., ["x"] for bunx -> bun x)
+            (exe, plan.primary.command_prefix.clone())
         } else {
             // No executable path — this is expected for bundled runtimes (e.g., msbuild).
             // Try proxy execution: the runtime's prepare_execution() can provide

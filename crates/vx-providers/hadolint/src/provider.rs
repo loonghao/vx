@@ -1,7 +1,7 @@
 //! hadolint provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// hadolint provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -17,14 +17,7 @@ impl Provider for HadolintProvider {
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("hadolint", "hadolint", ProviderSource::BuiltIn)
-                .with_description("Dockerfile linter")
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "hadolint",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("hadolint", crate::PROVIDER_STAR, None)
     }
 }
 

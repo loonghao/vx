@@ -1,4 +1,4 @@
-# provider.star - cmake provider
+﻿# provider.star - cmake provider
 #
 # CMake: Cross-platform build system generator
 # Inheritance pattern: Level 2 (custom download_url for cmake's naming)
@@ -9,28 +9,17 @@
 # Asset format: cmake-{version}-{os}-{arch}.{ext}
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "cmake"
-
-def description():
-    return "Cross-platform build system generator"
-
-def homepage():
-    return "https://cmake.org"
-
-def repository():
-    return "https://github.com/Kitware/CMake"
-
-def license():
-    return "BSD-3-Clause"
-
-def ecosystem():
-    return "devtools"
+name        = "cmake"
+description = "Cross-platform build system generator"
+homepage    = "https://cmake.org"
+repository  = "https://github.com/Kitware/CMake"
+license     = "BSD-3-Clause"
+ecosystem   = "devtools"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -43,18 +32,27 @@ runtimes = [
         "description": "CMake build system",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "cmake version"},
+        ],
     },
     {
         "name":         "ctest",
         "executable":   "ctest",
         "description":  "CMake test driver",
         "bundled_with": "cmake",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
     {
         "name":         "cpack",
         "executable":   "cpack",
         "description":  "CMake packaging tool",
         "bundled_with": "cmake",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
 ]
 
@@ -85,8 +83,8 @@ fetch_versions = make_fetch_versions("Kitware", "CMake")
 
 def _cmake_platform(ctx):
     """Map platform to cmake's naming convention."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     platform_map = {
         "windows/x64":   ("windows", "x86_64",  "zip"),
@@ -123,7 +121,7 @@ def download_url(ctx, version):
 
 def install_layout(ctx, version):
     platform = _cmake_platform(ctx)
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "cmake.exe" if os == "windows" else "cmake"
 
     if platform:
@@ -142,10 +140,8 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir + "/bin",
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 
 # ---------------------------------------------------------------------------
@@ -154,33 +150,14 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for cmake."""
-    return "{vx_home}/store/cmake"
+    return ctx.vx_home + "/store/cmake"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/cmake.exe"
-    else:
-        return "{install_dir}/cmake"
+    os = ctx.platform.os
+    exe = "cmake.exe" if os == "windows" else "cmake"
+    return ctx.install_dir + "/bin/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """Post-install hook (no-op for cmake)."""
-    return None
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return "{vx_home}/store/cmake"
-
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/cmake.exe"
-    else:
-        return "{install_dir}/cmake"
-
-def post_install(ctx, version, install_dir):
     return None

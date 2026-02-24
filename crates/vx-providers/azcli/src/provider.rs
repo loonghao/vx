@@ -1,7 +1,7 @@
 //! azcli provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// azcli provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -13,16 +13,11 @@ impl Provider for AzCliProvider {
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata()
-            .description_or("Azure CLI - Command-line interface for Microsoft Azure")
+        crate::star_metadata().description_or("Azure CLI - Microsoft Azure command line interface")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("az", "az", ProviderSource::BuiltIn).with_fetch_versions(
-                vx_starlark::make_fetch_versions_fn("azcli", crate::PROVIDER_STAR),
-            ),
-        )]
+        vx_starlark::build_runtimes("azcli", crate::PROVIDER_STAR, None)
     }
 }
 

@@ -1,4 +1,4 @@
-# provider.star - uv provider
+﻿# provider.star - uv provider
 #
 # uv: An extremely fast Python package installer and resolver
 # Inheritance pattern: Level 2 (standard Rust triple naming)
@@ -11,27 +11,17 @@
 load("@vx//stdlib:github.star", "make_github_provider")
 load("@vx//stdlib:install.star", "ensure_dependencies")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
 
-def name():
-    return "uv"
-
-def description():
-    return "An extremely fast Python package installer and resolver"
-
-def homepage():
-    return "https://github.com/astral-sh/uv"
-
-def repository():
-    return "https://github.com/astral-sh/uv"
-
-def license():
-    return "MIT OR Apache-2.0"
-
-def ecosystem():
-    return "python"
+name        = "uv"
+description = "An extremely fast Python package installer and resolver"
+homepage    = "https://github.com/astral-sh/uv"
+repository  = "https://github.com/astral-sh/uv"
+license     = "MIT OR Apache-2.0"
+ecosystem   = "python"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -44,12 +34,18 @@ runtimes = [
         "description": "Extremely fast Python package installer",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "uv \\d+\\.\\d+"},
+        ],
     },
     {
         "name":         "uvx",
         "executable":   "uvx",
         "description":  "Python application runner",
         "bundled_with": "uv",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
 ]
 
@@ -81,8 +77,8 @@ download_url   = _p["download_url"]
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os = ctx.platform.os
     exe = "uv.exe" if os == "windows" else "uv"
     return {
         "type":             "archive",
@@ -94,10 +90,8 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC-0037)
@@ -105,15 +99,15 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for uv."""
-    return "{vx_home}/store/uv"
+    return ctx.vx_home + "/store/uv"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "uv.exe" if os == "windows" else "uv"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install actions needed for uv."""
     return None
 

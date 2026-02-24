@@ -22,3 +22,4 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 rstest = { workspace = true }
+starlark = { version = "0.13" }

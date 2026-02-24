@@ -1,4 +1,4 @@
-# provider.star - Zig programming language provider
+﻿# provider.star - Zig programming language provider
 #
 # Inheritance level: Level 1 (full custom) — Zig does NOT use GitHub Releases.
 # Downloads come from ziglang.org with a unique URL scheme:
@@ -13,31 +13,17 @@
 
 load("@vx//stdlib:http.star",     "github_releases", "releases_to_versions")
 load("@vx//stdlib:platform.star", "is_windows")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "zig"
-
-def description():
-    return "Zig - A general-purpose programming language and toolchain"
-
-def homepage():
-    return "https://ziglang.org"
-
-def repository():
-    return "https://github.com/ziglang/zig"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "zig"
-
-def aliases():
-    return []
+name        = "zig"
+description = "Zig - A general-purpose programming language and toolchain"
+homepage    = "https://ziglang.org"
+repository  = "https://github.com/ziglang/zig"
+license     = "MIT"
+ecosystem   = "zig"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -50,6 +36,10 @@ runtimes = [
         "description": "Zig compiler and build system",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} version", "name": "version_check", "expected_output": "^\\d+\\.\\d+"},
+            {"command": "{executable} zen", "name": "zen_check", "expected_output": "Communicate intent"},
+        ],
     },
 ]
 
@@ -70,8 +60,6 @@ permissions = {
 # We fall back to GitHub releases for the version list since the
 # stdlib github.star already handles that cleanly.
 # ---------------------------------------------------------------------------
-
-fetch_versions = make_fetch_versions("ziglang", "zig", include_prereleases = False)
 
 def make_fetch_versions(owner, repo, include_prereleases = False):
     """Bind fetch_versions to ziglang/zig GitHub releases."""
@@ -94,7 +82,7 @@ fetch_versions = make_fetch_versions("ziglang", "zig")
 
 def _zig_arch(ctx):
     """Map vx arch to Zig's arch string."""
-    arch = ctx["platform"]["arch"]
+    arch = ctx.platform.arch
     return {
         "x64":   "x86_64",
         "arm64": "aarch64",
@@ -104,7 +92,7 @@ def _zig_arch(ctx):
 
 def _zig_os(ctx):
     """Map vx OS to Zig's OS string."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     return {
         "windows": "windows",
         "macos":   "macos",
@@ -123,7 +111,7 @@ def download_url(ctx, version):
     """
     arch = _zig_arch(ctx)
     os   = _zig_os(ctx)
-    ext  = "zip" if ctx["platform"]["os"] == "windows" else "tar.xz"
+    ext  = "zip" if ctx.platform.os == "windows" else "tar.xz"
 
     # Asset: "zig-x86_64-linux-0.13.0.tar.xz"
     # Note: arch comes BEFORE os in Zig's naming convention
@@ -145,7 +133,7 @@ def install_layout(ctx, version):
     """Describe how to extract the Zig archive."""
     arch = _zig_arch(ctx)
     os   = _zig_os(ctx)
-    exe  = "zig.exe" if ctx["platform"]["os"] == "windows" else "zig"
+    exe  = "zig.exe" if ctx.platform.os == "windows" else "zig"
 
     # The archive contains a top-level directory to strip
     strip_prefix = "zig-{}-{}-{}".format(arch, os, version)
@@ -162,15 +150,15 @@ def install_layout(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for zig."""
-    return "{vx_home}/store/zig"
+    return ctx.vx_home + "/store/zig"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "zig.exe" if os == "windows" else "zig"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install actions needed for zig."""
     return None
 
@@ -178,8 +166,5 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    """Return environment variables for Zig."""
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]

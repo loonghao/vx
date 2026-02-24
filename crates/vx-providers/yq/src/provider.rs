@@ -1,7 +1,7 @@
 //! yq provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// yq provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -13,22 +13,11 @@ impl Provider for YqProvider {
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata().description_or(
-            "A portable command-line YAML, JSON, XML, CSV, TOML and properties processor",
-        )
+        crate::star_metadata().description_or("yq - A portable command-line YAML processor")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("yq", "yq", ProviderSource::BuiltIn)
-                .with_description(
-                    "A portable command-line YAML, JSON, XML, CSV, TOML and properties processor",
-                )
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "yq",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("yq", crate::PROVIDER_STAR, None)
     }
 }
 

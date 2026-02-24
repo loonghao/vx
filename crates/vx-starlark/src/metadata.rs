@@ -19,7 +19,16 @@
 //! ```rust
 //! use vx_starlark::metadata::StarMetadata;
 //!
-//! const STAR: &str = include_str!("../provider.star");
+//! // RFC 0038 v5 top-level variable format
+//! const STAR: &str = r#"
+//! name = "msvc"
+//! description = "Microsoft Visual C++ Build Tools"
+//! ecosystem = "system"
+//!
+//! runtimes = [
+//!     {"name": "msvc", "executable": "cl"},
+//! ]
+//! "#;
 //! let meta = StarMetadata::parse(STAR);
 //!
 //! assert_eq!(meta.name, Some("msvc".to_string()));
@@ -45,6 +54,17 @@ pub struct StarMetadata {
     pub platforms: Option<Vec<String>>,
     /// Runtime definitions extracted from the top-level `runtimes` list
     pub runtimes: Vec<StarRuntimeMeta>,
+    /// pip package name (from `pip_package = "..."`).
+    ///
+    /// When set, `build_runtimes` will create a `ManifestDrivenRuntime` with
+    /// `pip_package` set, enabling PyPI version fetching and pip installation.
+    pub pip_package: Option<String>,
+    /// Package alias (from `package_alias = {"ecosystem": "uvx", "package": "meson"}`).
+    ///
+    /// When set, `vx <name>` is routed to `vx <ecosystem>:<package>` (RFC 0033).
+    /// For example, `package_alias = {"ecosystem": "uvx", "package": "meson"}`
+    /// makes `vx meson` equivalent to `vx uvx meson`.
+    pub package_alias: Option<(String, String)>,
 }
 
 /// Metadata for a single runtime entry inside the `runtimes` list.
@@ -62,6 +82,14 @@ pub struct StarRuntimeMeta {
     pub platform_os: Vec<String>,
     /// Whether auto-installable
     pub auto_installable: Option<bool>,
+    /// Parent runtime name (for bundled tools like ctest/cpack bundled with cmake)
+    pub bundled_with: Option<String>,
+    /// Shells provided by this runtime (RFC 0038)
+    /// Each shell is (name, relative_path)
+    pub shells: Vec<(String, String)>,
+    /// Install dependencies (vx-managed runtimes that must be installed first)
+    /// Format: ["7zip", "node>=18", ...] - each entry is a runtime name with optional version constraint
+    pub install_deps: Vec<String>,
 }
 
 impl StarMetadata {
@@ -79,6 +107,8 @@ impl StarMetadata {
             ecosystem: extract_simple_return(source, "ecosystem"),
             platforms: extract_platforms_os(source),
             runtimes: extract_runtimes(source),
+            pip_package: extract_simple_return(source, "pip_package"),
+            package_alias: extract_package_alias(source),
         }
     }
 
@@ -117,24 +147,37 @@ impl StarMetadata {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-/// Extract the return value of a simple `def <name>(): return "<value>"` function.
+/// Extract a string value for a top-level variable or function return.
 ///
-/// Handles both single-line and multi-line forms:
-/// ```starlark
-/// def name(): return "msvc"
-///
-/// def name():
-///     return "msvc"
-/// ```
+/// Supports two formats (RFC 0038 v5 top-level variables take priority):
+/// 1. Top-level variable: `name = "value"` or `name = 'value'` (any spacing around `=`)
+/// 2. Function return: `def name(): return "value"` (single or multi-line)
 fn extract_simple_return(source: &str, fn_name: &str) -> Option<String> {
+    // Try top-level variable format first (RFC 0038 v5): `name = "value"`
+    // Handles any amount of whitespace around `=`, e.g. `name        = "node"`
+    for line in source.lines() {
+        let trimmed = line.trim();
+        // Must start with the exact variable name followed by optional spaces then `=`
+        if let Some(rest) = trimmed.strip_prefix(fn_name) {
+            let rest = rest.trim_start();
+            if let Some(after_eq_raw) = rest.strip_prefix('=') {
+                let after_eq = after_eq_raw.trim_start();
+                if let Some(val) = extract_string_literal(after_eq) {
+                    return Some(val);
+                }
+            }
+        }
+    }
+
+    // Fall back to function return format: `def name(): return "value"`
     let pattern = format!("def {}()", fn_name);
     let start = source.find(&pattern)?;
     let after_def = &source[start + pattern.len()..];
 
-    // Find the `return` keyword within the next ~200 chars
+    // Find the `return` keyword within the next ~300 chars
     let search_window = &after_def[..after_def.len().min(300)];
     let return_pos = search_window.find("return")?;
-    let after_return = &search_window[return_pos + 6..].trim_start();
+    let after_return = search_window[return_pos + 6..].trim_start();
 
     // Extract the string literal
     extract_string_literal(after_return)
@@ -155,8 +198,29 @@ fn extract_string_literal(s: &str) -> Option<String> {
     Some(rest[..end].to_string())
 }
 
-/// Extract the OS list from `def platforms(): return {"os": ["windows", ...]}`.
+/// Extract the OS list from `platforms = {"os": [...]}` or `def platforms(): return {"os": [...]}`.
 fn extract_platforms_os(source: &str) -> Option<Vec<String>> {
+    // Try top-level variable format first (RFC 0038 v5): `platforms = {"os": [...]}`
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if let Some(after_prefix) = trimmed.strip_prefix("platforms =") {
+            let after_eq = after_prefix.trim_start();
+            if after_eq.starts_with('{')
+                && let Some(dict_body) = find_matching_bracket(after_eq, 0, '{', '}')
+                && let Some(os_pos) = dict_body.find("\"os\"")
+            {
+                let after_os = &dict_body[os_pos + 4..];
+                let after_colon = after_os.trim_start().trim_start_matches(':').trim_start();
+                if after_colon.starts_with('[')
+                    && let Some(list_body) = find_matching_bracket(after_colon, 0, '[', ']')
+                {
+                    return Some(extract_string_list_items(list_body));
+                }
+            }
+        }
+    }
+
+    // Fall back to function format: `def platforms(): return {"os": [...]}`
     let pattern = "def platforms()";
     let start = source.find(pattern)?;
     let after_def = &source[start + pattern.len()..];
@@ -296,7 +360,56 @@ fn parse_runtime_dict(body: &str) -> StarRuntimeMeta {
         aliases: extract_dict_string_list(body, "aliases"),
         platform_os: extract_dict_platform_os(body),
         auto_installable: extract_dict_bool_value(body, "auto_installable"),
+        bundled_with: extract_dict_string_value(body, "bundled_with"),
+        shells: extract_dict_shells(body),
+        install_deps: extract_dict_string_list(body, "install_deps"),
     }
+}
+
+/// Extract shells list from a dict body.
+///
+/// Format: `"shells": [{"name": "git-bash", "path": "git-bash.exe"}, ...]`
+fn extract_dict_shells(body: &str) -> Vec<(String, String)> {
+    let mut shells = Vec::new();
+
+    // Find "shells": [
+    let key_patterns = ["\"shells\"", "'shells'"];
+    for key_pattern in key_patterns {
+        if let Some(pos) = body.find(key_pattern) {
+            let after_key = &body[pos + key_pattern.len()..];
+            // Skip : and whitespace, then find [
+            let after_colon = after_key.trim_start().trim_start_matches(':').trim_start();
+            if after_colon.starts_with('[') {
+                // Find the matching ]
+                if let Some(list_body) = find_matching_bracket(after_colon, 0, '[', ']') {
+                    // Parse each dict in the list
+                    let mut remaining = list_body;
+                    while let Some(dict_start) = remaining.find('{') {
+                        if let Some(dict_body) =
+                            find_matching_bracket(remaining, dict_start, '{', '}')
+                        {
+                            let name = extract_dict_string_value(dict_body, "name");
+                            let path = extract_dict_string_value(dict_body, "path");
+                            if let (Some(name), Some(path)) = (name, path) {
+                                shells.push((name, path));
+                            }
+                            // Advance past this dict
+                            let end_pos = dict_start + dict_body.len() + 2;
+                            if end_pos >= remaining.len() {
+                                break;
+                            }
+                            remaining = &remaining[end_pos..];
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+            break;
+        }
+    }
+
+    shells
 }
 
 /// Extract a string value for a given key from a dict body.
@@ -372,6 +485,30 @@ fn extract_dict_platform_os(body: &str) -> Vec<String> {
         }
     }
     Vec::new()
+}
+
+/// Extract `package_alias = {"ecosystem": "...", "package": "..."}` from provider.star.
+///
+/// Returns `Some((ecosystem, package))` if found, `None` otherwise.
+fn extract_package_alias(source: &str) -> Option<(String, String)> {
+    // Find `package_alias = {`
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("package_alias") {
+            let rest = rest.trim_start();
+            if let Some(after_eq_raw) = rest.strip_prefix('=') {
+                let after_eq = after_eq_raw.trim_start();
+                if after_eq.starts_with('{')
+                    && let Some(dict_body) = find_matching_bracket(after_eq, 0, '{', '}')
+                {
+                    let ecosystem = extract_dict_string_value(dict_body, "ecosystem")?;
+                    let package = extract_dict_string_value(dict_body, "package")?;
+                    return Some((ecosystem, package));
+                }
+            }
+        }
+    }
+    None
 }
 
 // ---------------------------------------------------------------------------
@@ -496,5 +633,56 @@ runtimes = [
     fn test_name_or_fallback() {
         let meta = StarMetadata::default();
         assert_eq!(meta.name_or("fallback"), "fallback");
+    }
+
+    // RFC 0038 v5: top-level variable format
+    const SAMPLE_STAR_V5: &str = r#"
+name        = "node"
+description = "Node.js - JavaScript runtime built on Chrome's V8 engine"
+homepage    = "https://nodejs.org"
+repository  = "https://github.com/nodejs/node"
+ecosystem   = "nodejs"
+
+runtimes = [
+    {
+        "name":       "node",
+        "executable": "node",
+        "aliases":    ["nodejs"],
+        "priority":   100,
+    },
+    {"name": "npm",  "executable": "npm",  "bundled_with": "node"},
+    {"name": "npx",  "executable": "npx",  "bundled_with": "node"},
+]
+"#;
+
+    #[test]
+    fn test_parse_v5_name() {
+        let meta = StarMetadata::parse(SAMPLE_STAR_V5);
+        assert_eq!(meta.name, Some("node".to_string()));
+    }
+
+    #[test]
+    fn test_parse_v5_description() {
+        let meta = StarMetadata::parse(SAMPLE_STAR_V5);
+        assert_eq!(
+            meta.description,
+            Some("Node.js - JavaScript runtime built on Chrome's V8 engine".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_v5_ecosystem() {
+        let meta = StarMetadata::parse(SAMPLE_STAR_V5);
+        assert_eq!(meta.ecosystem, Some("nodejs".to_string()));
+    }
+
+    #[test]
+    fn test_parse_v5_runtimes() {
+        let meta = StarMetadata::parse(SAMPLE_STAR_V5);
+        assert_eq!(meta.runtimes.len(), 3);
+        assert_eq!(meta.runtimes[0].name, Some("node".to_string()));
+        assert_eq!(meta.runtimes[0].aliases, vec!["nodejs"]);
+        assert_eq!(meta.runtimes[1].name, Some("npm".to_string()));
+        assert_eq!(meta.runtimes[1].bundled_with, Some("node".to_string()));
     }
 }

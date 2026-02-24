@@ -5576,7 +5576,6 @@ dependencies = [
  "vx-ecosystem-pm",
  "vx-env",
  "vx-extension",
- "vx-manifest",
  "vx-metrics",
  "vx-migration",
  "vx-paths",
@@ -5585,11 +5584,13 @@ dependencies = [
  "vx-provider-actrun",
  "vx-provider-awscli",
  "vx-provider-azcli",
+ "vx-provider-bash",
  "vx-provider-bat",
  "vx-provider-brew",
  "vx-provider-bun",
  "vx-provider-choco",
  "vx-provider-cmake",
+ "vx-provider-curl",
  "vx-provider-dagu",
  "vx-provider-deno",
  "vx-provider-docker",
@@ -5610,6 +5611,7 @@ dependencies = [
  "vx-provider-just",
  "vx-provider-kubectl",
  "vx-provider-make",
+ "vx-provider-meson",
  "vx-provider-msbuild",
  "vx-provider-msvc",
  "vx-provider-nasm",
@@ -5617,22 +5619,28 @@ dependencies = [
  "vx-provider-node",
  "vx-provider-nuget",
  "vx-provider-ollama",
+ "vx-provider-openssl",
  "vx-provider-pnpm",
+ "vx-provider-pre-commit",
  "vx-provider-prek",
  "vx-provider-protoc",
  "vx-provider-pwsh",
  "vx-provider-python",
  "vx-provider-rcedit",
+ "vx-provider-release-please",
+ "vx-provider-rez",
  "vx-provider-ripgrep",
  "vx-provider-rust",
  "vx-provider-spack",
  "vx-provider-starship",
+ "vx-provider-systemctl",
  "vx-provider-task",
  "vx-provider-terraform",
  "vx-provider-uv",
  "vx-provider-vcpkg",
  "vx-provider-vscode",
  "vx-provider-winget",
+ "vx-provider-xcodebuild",
  "vx-provider-yarn",
  "vx-provider-yq",
  "vx-provider-zig",
@@ -5953,10 +5961,10 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -5968,10 +5976,25 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-bash"
+version = "0.8.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "rstest",
+ "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -5985,9 +6008,8 @@ dependencies = [
  "async-trait",
  "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6049,11 +6071,26 @@ dependencies = [
  "async-trait",
  "chrono",
  "rstest",
+ "tokio",
+ "tracing",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-curl"
+version = "0.8.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
  "serde",
  "serde_json",
  "tokio",
  "vx-runtime",
  "vx-starlark",
+ "vx-version-fetcher",
  "workspace-hack",
 ]
 
@@ -6063,13 +6100,12 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
- "vx-version-fetcher",
  "workspace-hack",
 ]
 
@@ -6079,13 +6115,12 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
- "vx-version-fetcher",
  "workspace-hack",
 ]
 
@@ -6095,11 +6130,10 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
- "regex",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6113,8 +6147,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
  "tracing",
  "vx-runtime",
@@ -6130,9 +6162,8 @@ dependencies = [
  "async-trait",
  "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6164,9 +6195,8 @@ dependencies = [
  "async-trait",
  "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6178,10 +6208,10 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6193,13 +6223,12 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
- "vx-version-fetcher",
  "workspace-hack",
 ]
 
@@ -6229,6 +6258,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "starlark",
  "tokio",
  "tracing",
  "vx-manifest",
@@ -6259,13 +6289,12 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
- "vx-version-fetcher",
  "workspace-hack",
 ]
 
@@ -6295,14 +6324,12 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
  "tracing",
  "vx-runtime",
  "vx-starlark",
- "walkdir",
  "workspace-hack",
 ]
 
@@ -6329,9 +6356,8 @@ dependencies = [
  "async-trait",
  "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6358,13 +6384,12 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
- "vx-version-fetcher",
  "workspace-hack",
 ]
 
@@ -6382,6 +6407,22 @@ dependencies = [
  "tracing",
  "vx-runtime",
  "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-meson"
+version = "0.8.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+ "vx-starlark",
+ "vx-version-fetcher",
  "workspace-hack",
 ]
 
@@ -6447,12 +6488,10 @@ dependencies = [
  "async-trait",
  "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
- "vx-version-fetcher",
  "workspace-hack",
 ]
 
@@ -6466,6 +6505,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "starlark",
  "tokio",
  "tracing",
  "vx-manifest",
@@ -6480,10 +6520,10 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6495,13 +6535,27 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
- "vx-version-fetcher",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-openssl"
+version = "0.8.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "rstest",
+ "tokio",
+ "tracing",
+ "vx-runtime",
+ "vx-starlark",
  "workspace-hack",
 ]
 
@@ -6511,14 +6565,27 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
  "tokio",
  "tracing",
- "vx-manifest",
  "vx-runtime",
  "vx-starlark",
- "vx-version-fetcher",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-pre-commit"
+version = "0.8.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "rstest",
+ "tokio",
+ "tracing",
+ "vx-runtime",
+ "vx-starlark",
  "workspace-hack",
 ]
 
@@ -6546,12 +6613,10 @@ dependencies = [
  "async-trait",
  "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
- "vx-version-fetcher",
  "workspace-hack",
 ]
 
@@ -6561,10 +6626,10 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
- "serde",
+ "chrono",
+ "rstest",
  "tokio",
  "tracing",
- "vx-manifest",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6577,6 +6642,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "rstest",
+ "starlark",
  "tracing",
  "vx-manifest",
  "vx-runtime",
@@ -6601,6 +6667,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "vx-provider-release-please"
+version = "0.8.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "rstest",
+ "tokio",
+ "tracing",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-rez"
+version = "0.8.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vx-runtime",
+ "vx-starlark",
+ "vx-version-fetcher",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vx-provider-ripgrep"
 version = "0.8.3"
 dependencies = [
@@ -6608,9 +6705,8 @@ dependencies = [
  "async-trait",
  "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6622,15 +6718,12 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
- "dirs",
- "once_cell",
+ "chrono",
  "rstest",
  "tokio",
  "tracing",
- "vx-manifest",
  "vx-runtime",
  "vx-starlark",
- "which",
  "workspace-hack",
 ]
 
@@ -6642,9 +6735,8 @@ dependencies = [
  "async-trait",
  "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6658,9 +6750,23 @@ dependencies = [
  "async-trait",
  "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
+ "vx-runtime",
+ "vx-starlark",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-systemctl"
+version = "0.8.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "rstest",
+ "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6674,12 +6780,10 @@ dependencies = [
  "async-trait",
  "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
- "vx-version-fetcher",
  "workspace-hack",
 ]
 
@@ -6689,10 +6793,10 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6740,11 +6844,12 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
+ "tokio",
  "tracing",
  "vx-runtime",
  "vx-starlark",
- "vx-version-fetcher",
  "workspace-hack",
 ]
 
@@ -6761,6 +6866,21 @@ dependencies = [
  "vx-runtime",
  "vx-starlark",
  "which",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vx-provider-xcodebuild"
+version = "0.8.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "rstest",
+ "tokio",
+ "tracing",
+ "vx-runtime",
+ "vx-starlark",
  "workspace-hack",
 ]
 
@@ -6791,9 +6911,8 @@ dependencies = [
  "async-trait",
  "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6805,10 +6924,10 @@ version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "rstest",
- "serde",
- "serde_json",
  "tokio",
+ "tracing",
  "vx-runtime",
  "vx-starlark",
  "workspace-hack",
@@ -6871,6 +6990,7 @@ dependencies = [
  "vx-core",
  "vx-manifest",
  "vx-paths",
+ "vx-runtime-core",
  "vx-system-pm",
  "which",
  "workspace-hack",
@@ -6908,7 +7028,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "vx-manifest",
  "workspace-hack",
 ]
 
@@ -6974,6 +7093,7 @@ dependencies = [
  "vx-core",
  "vx-env",
  "vx-paths",
+ "which",
  "workspace-hack",
 ]
 
@@ -7000,6 +7120,8 @@ dependencies = [
  "vx-core",
  "vx-paths",
  "vx-runtime",
+ "vx-version-fetcher",
+ "which",
  "workspace-hack",
 ]
 

@@ -5,6 +5,7 @@
 //! ## Python
 //! - [`PipInstaller`] - Standard Python package manager using venv
 //! - [`UvInstaller`] - Fast Python package manager (recommended)
+//! - [`UvxInstaller`] - Run Python CLI tools via uvx (isolated, ephemeral environments)
 //!
 //! ## Node.js
 //! - [`NpmInstaller`] - Node Package Manager
@@ -26,6 +27,7 @@ mod npm;
 mod pip;
 mod pnpm;
 mod uv;
+mod uvx;
 mod yarn;
 
 pub use bun::BunInstaller;
@@ -37,4 +39,5 @@ pub use npm::NpmInstaller;
 pub use pip::PipInstaller;
 pub use pnpm::PnpmInstaller;
 pub use uv::UvInstaller;
+pub use uvx::UvxInstaller;
 pub use yarn::YarnInstaller;

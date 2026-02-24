@@ -456,6 +456,19 @@ async fn install_npm_package(
     ))
 }
 
+/// Public entry point for `ManifestDrivenRuntime` to install a pip package.
+///
+/// This is called when `ManifestDrivenRuntime.pip_package` is set.
+/// It delegates to the internal `install_pip_package` function.
+pub async fn install_pip_package_for_manifest(
+    package_name: &str,
+    bin_name: &str,
+    version: &str,
+    ctx: &RuntimeContext,
+) -> anyhow::Result<crate::types::InstallResult> {
+    install_pip_package(package_name, bin_name, version, ctx).await
+}
+
 /// Install a pip package to an isolated virtual environment
 async fn install_pip_package(
     package_name: &str,

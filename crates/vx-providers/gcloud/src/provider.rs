@@ -1,7 +1,7 @@
 //! gcloud provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// gcloud provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -17,13 +17,7 @@ impl Provider for GcloudProvider {
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("gcloud", "gcloud", ProviderSource::BuiltIn)
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "gcloud",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("gcloud", crate::PROVIDER_STAR, None)
     }
 }
 

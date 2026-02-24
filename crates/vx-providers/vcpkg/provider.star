@@ -1,4 +1,4 @@
-# provider.star - vcpkg provider
+﻿# provider.star - vcpkg provider
 #
 # C++ library manager for Windows, Linux, and macOS
 # Version source: https://github.com/microsoft/vcpkg-tool/releases
@@ -9,31 +9,18 @@
 # Inheritance pattern: Level 2 (custom download_url for platform-specific binary)
 
 load("@vx//stdlib:github.star", "make_fetch_versions")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "vcpkg"
-
-def description():
-    return "C++ library manager for Windows, Linux, and macOS"
-
-def homepage():
-    return "https://vcpkg.io/"
-
-def repository():
-    return "https://github.com/microsoft/vcpkg-tool"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "cpp"
-
-def aliases():
-    return ["vcpkg-cli"]
+name        = "vcpkg"
+description = "C++ library manager for Windows, Linux, and macOS"
+homepage    = "https://vcpkg.io/"
+repository  = "https://github.com/microsoft/vcpkg-tool"
+license     = "MIT"
+ecosystem   = "cpp"
+aliases     = ["vcpkg-cli"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -52,6 +39,9 @@ runtimes = [
             "/usr/bin/vcpkg",
         ],
         "env_hints": ["VCPKG_ROOT"],
+        "test_commands": [
+            {"command": "{executable} version", "name": "version_check", "expected_output": "vcpkg"},
+        ],
     },
 ]
 
@@ -92,8 +82,8 @@ def _vcpkg_asset(ctx):
       vcpkg-x64-windows-static.exe
       vcpkg-x64-windows-static.exe.sha512
     """
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     assets = {
         "windows/x64":   "vcpkg-x64-windows.exe",
@@ -128,8 +118,8 @@ def download_url(ctx, version):
 # install_layout — single binary
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os    = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os    = ctx.platform.os
     asset = _vcpkg_asset(ctx)
     if not asset:
         return {"type": "binary", "executable_paths": ["vcpkg"]}
@@ -145,13 +135,13 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "VCPKG_ROOT":                  install_dir,
-        "VCPKG_DOWNLOADS":             install_dir + "/.cache/downloads",
-        "VCPKG_DEFAULT_BINARY_CACHE":  install_dir + "/.cache/archives",
-        "PATH":                        install_dir,
-    }
+def environment(ctx, _version):
+    return [
+        env_set("VCPKG_ROOT",                 ctx.install_dir),
+        env_set("VCPKG_DOWNLOADS",            ctx.install_dir + "/.cache/downloads"),
+        env_set("VCPKG_DEFAULT_BINARY_CACHE", ctx.install_dir + "/.cache/archives"),
+        env_prepend("PATH",                   ctx.install_dir),
+    ]
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC-0037)
@@ -159,15 +149,15 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for vcpkg."""
-    return "{vx_home}/store/vcpkg"
+    return ctx.vx_home + "/store/vcpkg"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "vcpkg.exe" if os == "windows" else "vcpkg"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install actions needed for vcpkg."""
     return None
 
@@ -175,7 +165,7 @@ def post_install(ctx, version, install_dir):
 # deps — explicit dependency declarations
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, version):
     """vcpkg requires git; recommends cmake and ninja."""
     return [
         {"runtime": "git",   "version": "*", "optional": False,

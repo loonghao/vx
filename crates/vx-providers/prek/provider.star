@@ -1,4 +1,4 @@
-# provider.star - prek provider
+﻿# provider.star - prek provider
 #
 # prek: Better pre-commit, re-engineered in Rust
 # Inheritance pattern: Level 3 (standard Rust triple naming)
@@ -10,27 +10,16 @@
 
 load("@vx//stdlib:github.star", "make_github_provider")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "prek"
-
-def description():
-    return "Better pre-commit, re-engineered in Rust"
-
-def homepage():
-    return "https://prek.j178.dev"
-
-def repository():
-    return "https://github.com/j178/prek"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "devtools"
+name        = "prek"
+description = "Better pre-commit, re-engineered in Rust"
+homepage    = "https://prek.j178.dev"
+repository  = "https://github.com/j178/prek"
+license     = "MIT"
+ecosystem   = "devtools"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -43,6 +32,9 @@ runtimes = [
         "description": "prek - better pre-commit framework",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
 ]
 
@@ -74,8 +66,8 @@ download_url   = _p["download_url"]
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os = ctx.platform.os
     exe = "prek.exe" if os == "windows" else "prek"
     return {
         "type":             "archive",
@@ -89,15 +81,15 @@ def install_layout(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for prek."""
-    return "{vx_home}/store/prek"
+    return ctx.vx_home + "/store/prek"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "prek.exe" if os == "windows" else "prek"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for prek."""
     return None
 
@@ -105,7 +97,16 @@ def post_install(ctx, version, install_dir):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
+
+# ---------------------------------------------------------------------------
+# deps — requires git
+# ---------------------------------------------------------------------------
+
+def deps(_ctx, _version):
+    """prek requires git to manage hooks and interact with repositories."""
+    return [
+        {"runtime": "git", "version": "*", "optional": False,
+         "reason": "Git is required by prek to install and run pre-commit hooks"},
+    ]

@@ -1,7 +1,7 @@
 //! git provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// git provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -17,11 +17,7 @@ impl Provider for GitProvider {
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("git", "git", ProviderSource::BuiltIn).with_fetch_versions(
-                vx_starlark::make_fetch_versions_fn("git", crate::PROVIDER_STAR),
-            ),
-        )]
+        vx_starlark::build_runtimes("git", crate::PROVIDER_STAR, Some("git"))
     }
 }
 

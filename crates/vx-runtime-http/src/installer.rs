@@ -337,50 +337,82 @@ impl Installer for RealInstaller {
             Some("zip")
         } else if archive_str.ends_with(".7z") {
             Some("7z")
+        } else if archive_str.ends_with(".7z.exe") || archive_str.ends_with(".7z.sfx") {
+            // 7z Self-Extracting Archive (SFX) - common for Git for Windows
+            Some("7z")
         } else if archive_str.ends_with(".msi") {
             Some("msi")
         } else if archive_str.ends_with(".pkg") {
             Some("pkg")
         } else {
             // Try to detect by magic bytes
-            let file = std::fs::File::open(archive)?;
+            // For SFX executables (.exe), we need to scan for embedded 7z signature
             use std::io::Read;
-            let mut magic = [0u8; 6];
-            if (&file).take(6).read(&mut magic).is_ok() {
-                if magic[0] == 0x50 && magic[1] == 0x4B {
-                    // ZIP magic: PK\x03\x04
-                    Some("zip")
-                } else if magic[0] == 0x1f && magic[1] == 0x8b {
-                    // GZIP magic: \x1f\x8b
-                    Some("tar.gz")
-                } else if magic[0] == 0xFD
-                    && magic[1] == 0x37
-                    && magic[2] == 0x7A
-                    && magic[3] == 0x58
-                {
-                    // XZ magic: \xFD7zXZ
-                    Some("tar.xz")
-                } else if magic[0] == 0x28
-                    && magic[1] == 0xB5
-                    && magic[2] == 0x2F
-                    && magic[3] == 0xFD
-                {
-                    // Zstd magic: \x28\xB5\x2F\xFD
-                    Some("tar.zst")
-                } else if magic[0] == 0x37
-                    && magic[1] == 0x7A
-                    && magic[2] == 0xBC
-                    && magic[3] == 0xAF
-                    && magic[4] == 0x27
-                    && magic[5] == 0x1C
-                {
-                    // 7z magic: 7z\xBC\xAF\x27\x1C
+
+            // Check if it's a .exe file - might be a 7z SFX
+            if archive_str.ends_with(".exe") {
+                // Scan up to 4MB for 7z signature (SFX stubs are typically a few hundred KB)
+                const MAX_SCAN: usize = 4 * 1024 * 1024;
+                let mut buf = vec![
+                    0u8;
+                    MAX_SCAN.min(
+                        archive
+                            .metadata()
+                            .map(|m| m.len() as usize)
+                            .unwrap_or(MAX_SCAN),
+                    )
+                ];
+                let mut file = std::fs::File::open(archive)?;
+                let n = file.read(&mut buf)?;
+                let buf = &buf[..n];
+
+                // 7z magic: 7z\xBC\xAF\x27\x1C
+                let sevenz_magic: &[u8] = &[0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
+                if buf.windows(sevenz_magic.len()).any(|w| w == sevenz_magic) {
                     Some("7z")
                 } else {
                     None
                 }
             } else {
-                None
+                // Check magic bytes at start of file
+                let mut magic = [0u8; 6];
+                let mut file = std::fs::File::open(archive)?;
+                if file.read(&mut magic).is_ok() {
+                    if magic[0] == 0x50 && magic[1] == 0x4B {
+                        // ZIP magic: PK\x03\x04
+                        Some("zip")
+                    } else if magic[0] == 0x1f && magic[1] == 0x8b {
+                        // GZIP magic: \x1f\x8b
+                        Some("tar.gz")
+                    } else if magic[0] == 0xFD
+                        && magic[1] == 0x37
+                        && magic[2] == 0x7A
+                        && magic[3] == 0x58
+                    {
+                        // XZ magic: \xFD7zXZ
+                        Some("tar.xz")
+                    } else if magic[0] == 0x28
+                        && magic[1] == 0xB5
+                        && magic[2] == 0x2F
+                        && magic[3] == 0xFD
+                    {
+                        // Zstd magic: \x28\xB5\x2F\xFD
+                        Some("tar.zst")
+                    } else if magic[0] == 0x37
+                        && magic[1] == 0x7A
+                        && magic[2] == 0xBC
+                        && magic[3] == 0xAF
+                        && magic[4] == 0x27
+                        && magic[5] == 0x1C
+                    {
+                        // 7z magic: 7z\xBC\xAF\x27\x1C
+                        Some("7z")
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             }
         };
 
@@ -581,6 +613,108 @@ impl Installer for RealInstaller {
                 let mut perms = std::fs::metadata(&dest_path)?.permissions();
                 perms.set_mode(0o755);
                 std::fs::set_permissions(&dest_path, perms)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn download_with_layout(
+        &self,
+        url: &str,
+        dest: &Path,
+        metadata: &std::collections::HashMap<String, String>,
+    ) -> Result<()> {
+        // First download and extract
+        self.download_and_extract(url, dest).await?;
+
+        // Handle strip_prefix for archive extraction
+        // This moves contents from a nested directory to the root of dest.
+        if let Some(strip_prefix) = metadata.get("strip_prefix") {
+            let prefix_dir = if strip_prefix.is_empty() {
+                // Auto-detect: check if dest contains exactly one directory and nothing else
+                let entries: Vec<_> = std::fs::read_dir(dest)?.filter_map(|e| e.ok()).collect();
+                if entries.len() == 1 && entries[0].path().is_dir() {
+                    Some(entries[0].path())
+                } else {
+                    None
+                }
+            } else {
+                let p = dest.join(strip_prefix);
+                if p.exists() && p.is_dir() {
+                    Some(p)
+                } else {
+                    tracing::debug!(
+                        "strip_prefix directory not found: {} (expected at {})",
+                        strip_prefix,
+                        p.display()
+                    );
+                    None
+                }
+            };
+
+            if let Some(prefix_dir) = prefix_dir {
+                tracing::debug!(
+                    "Stripping prefix directory: {} -> {}",
+                    prefix_dir.display(),
+                    dest.display()
+                );
+                // Move all contents from prefix_dir to dest
+                for entry in std::fs::read_dir(&prefix_dir)? {
+                    let entry = entry?;
+                    let source = entry.path();
+                    let target = dest.join(entry.file_name());
+
+                    // Remove target if it exists (shouldn't normally happen)
+                    if target.exists() {
+                        if target.is_dir() {
+                            let _ = std::fs::remove_dir_all(&target);
+                        } else {
+                            let _ = std::fs::remove_file(&target);
+                        }
+                    }
+
+                    // Move (rename) the entry
+                    std::fs::rename(&source, &target)?;
+                }
+
+                // Remove the now-empty prefix directory
+                let _ = std::fs::remove_dir(&prefix_dir);
+            }
+        }
+
+        // Apply layout transformations if metadata is provided
+        if let (Some(source_name), Some(target_name), Some(target_dir)) = (
+            metadata.get("source_name"),
+            metadata.get("target_name"),
+            metadata.get("target_dir"),
+        ) {
+            let source_path = dest.join(target_dir).join(source_name);
+            let target_path = dest.join(target_dir).join(target_name);
+
+            if source_path.exists() && source_path != target_path {
+                // On Windows, rename might fail if target exists, so remove target first
+                if target_path.exists() {
+                    let _ = std::fs::remove_file(&target_path);
+                }
+
+                // Try rename first (atomic on same filesystem)
+                if std::fs::rename(&source_path, &target_path).is_err() {
+                    // Fallback to copy + delete
+                    std::fs::copy(&source_path, &target_path)?;
+                    let _ = std::fs::remove_file(&source_path);
+                }
+
+                // Set permissions if specified
+                #[cfg(unix)]
+                if let Some(perm_str) = metadata.get("target_permissions") {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Ok(mode) = u32::from_str_radix(perm_str, 8) {
+                        let mut perms = std::fs::metadata(&target_path)?.permissions();
+                        perms.set_mode(mode);
+                        std::fs::set_permissions(&target_path, perms)?;
+                    }
+                }
             }
         }
 

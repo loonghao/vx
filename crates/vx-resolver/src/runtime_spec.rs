@@ -85,6 +85,8 @@ pub enum Ecosystem {
     Rust,
     /// Go ecosystem (go)
     Go,
+    /// Git ecosystem (git)
+    Git,
     /// Java ecosystem (java, javac, jar)
     Java,
     /// Generic/standalone runtimes
@@ -290,6 +292,7 @@ impl std::fmt::Display for Ecosystem {
             Ecosystem::Python => write!(f, "python"),
             Ecosystem::Rust => write!(f, "rust"),
             Ecosystem::Go => write!(f, "go"),
+            Ecosystem::Git => write!(f, "git"),
             Ecosystem::Java => write!(f, "java"),
             Ecosystem::Generic => write!(f, "generic"),
         }

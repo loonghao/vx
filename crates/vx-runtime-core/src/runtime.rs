@@ -3,6 +3,7 @@
 //! The `Runtime` trait is the core abstraction for executable runtimes in vx.
 
 use crate::ecosystem::Ecosystem;
+use crate::normalize::{MirrorConfig, NormalizeConfig};
 use crate::platform::Platform;
 use crate::traits::{CommandExecutor, FileSystem, HttpClient, Installer, PathProvider};
 use crate::types::{ExecutionPrep, ExecutionResult, InstallResult, RuntimeDependency, VersionInfo};
@@ -99,7 +100,7 @@ pub trait Runtime: Send + Sync {
     }
 
     /// Mirror configurations for alternative download sources
-    fn mirror_urls(&self) -> Vec<vx_manifest::MirrorConfig> {
+    fn mirror_urls(&self) -> Vec<MirrorConfig> {
         vec![]
     }
 
@@ -174,16 +175,8 @@ pub trait Runtime: Send + Sync {
         }
     }
 
-    /// Get executable layout configuration from provider.toml (RFC 0019)
-    ///
-    /// Returns layout configuration for handling various executable file layouts.
-    /// The actual resolution is done in vx-runtime.
-    fn executable_layout(&self) -> Option<vx_manifest::LayoutConfig> {
-        None
-    }
-
     /// Return the post-install normalization configuration (RFC 0022)
-    fn normalize_config(&self) -> Option<&vx_manifest::NormalizeConfig> {
+    fn normalize_config(&self) -> Option<&NormalizeConfig> {
         None
     }
 

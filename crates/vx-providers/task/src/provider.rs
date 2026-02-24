@@ -1,7 +1,7 @@
 //! task provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// task provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -13,18 +13,11 @@ impl Provider for TaskProvider {
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata().description_or("A task runner / simpler Make alternative")
+        crate::star_metadata().description_or("Task - A task runner / build tool")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("task", "task", ProviderSource::BuiltIn)
-                .with_description("A task runner / simpler Make alternative")
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "task",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("task", crate::PROVIDER_STAR, None)
     }
 }
 

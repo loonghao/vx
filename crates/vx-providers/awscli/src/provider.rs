@@ -1,7 +1,7 @@
 //! awscli provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// awscli provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -18,11 +18,7 @@ impl Provider for AwsCliProvider {
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("aws", "aws", ProviderSource::BuiltIn).with_fetch_versions(
-                vx_starlark::make_fetch_versions_fn("awscli", crate::PROVIDER_STAR),
-            ),
-        )]
+        vx_starlark::build_runtimes("awscli", crate::PROVIDER_STAR, None)
     }
 }
 

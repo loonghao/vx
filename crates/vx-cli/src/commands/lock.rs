@@ -399,6 +399,7 @@ async fn resolve_tool_version(
             ResolvedVersion {
                 version: Version::parse(&channel_version.version)
                     .unwrap_or_else(|| Version::new(0, 0, 0)),
+                original_version: None,
                 source: ecosystem.to_string(),
                 metadata: channel_version.metadata.clone(),
                 resolved_from: version_str.to_string(),
@@ -411,6 +412,7 @@ async fn resolve_tool_version(
             }
             ResolvedVersion {
                 version: Version::parse(version_str).unwrap_or_else(|| Version::new(0, 0, 0)),
+                original_version: None,
                 source: ecosystem.to_string(),
                 metadata: std::collections::HashMap::new(),
                 resolved_from: version_str.to_string(),

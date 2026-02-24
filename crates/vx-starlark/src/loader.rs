@@ -19,6 +19,7 @@ const PLATFORM_STAR: &str = include_str!("../stdlib/platform.star");
 const HTTP_STAR: &str = include_str!("../stdlib/http.star");
 const GITHUB_STAR: &str = include_str!("../stdlib/github.star");
 const INSTALL_STAR: &str = include_str!("../stdlib/install.star");
+const ENV_STAR: &str = include_str!("../stdlib/env.star");
 
 /// Module loader for `@vx//stdlib:*.star` virtual modules
 ///
@@ -38,6 +39,7 @@ impl VxModuleLoader {
         modules.insert("@vx//stdlib:http.star".to_string(), HTTP_STAR);
         modules.insert("@vx//stdlib:github.star".to_string(), GITHUB_STAR);
         modules.insert("@vx//stdlib:install.star".to_string(), INSTALL_STAR);
+        modules.insert("@vx//stdlib:env.star".to_string(), ENV_STAR);
         Self { modules }
     }
 

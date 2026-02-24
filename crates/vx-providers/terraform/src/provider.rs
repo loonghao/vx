@@ -1,7 +1,7 @@
 //! terraform provider implementation
 
 use std::sync::Arc;
-use vx_runtime::{ManifestDrivenRuntime, ProviderSource, Runtime, provider::Provider};
+use vx_runtime::{Runtime, provider::Provider};
 
 /// terraform provider (Starlark-driven)
 #[derive(Debug, Default)]
@@ -13,17 +13,11 @@ impl Provider for TerraformProvider {
     }
 
     fn description(&self) -> &str {
-        crate::star_metadata().description_or("HashiCorp Terraform - Infrastructure as Code")
+        crate::star_metadata().description_or("Terraform - Infrastructure as Code")
     }
 
     fn runtimes(&self) -> Vec<Arc<dyn Runtime>> {
-        vec![Arc::new(
-            ManifestDrivenRuntime::new("terraform", "terraform", ProviderSource::BuiltIn)
-                .with_fetch_versions(vx_starlark::make_fetch_versions_fn(
-                    "terraform",
-                    crate::PROVIDER_STAR,
-                )),
-        )]
+        vx_starlark::build_runtimes("terraform", crate::PROVIDER_STAR, None)
     }
 }
 

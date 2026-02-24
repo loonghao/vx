@@ -1,4 +1,4 @@
-# provider.star - AWS CLI provider
+﻿# provider.star - AWS CLI provider
 #
 # Version source: https://github.com/aws/aws-cli/releases
 #
@@ -9,31 +9,18 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions")
 load("@vx//stdlib:install.star", "set_permissions")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "awscli"
-
-def description():
-    return "AWS CLI - Unified command line interface to Amazon Web Services"
-
-def homepage():
-    return "https://aws.amazon.com/cli/"
-
-def repository():
-    return "https://github.com/aws/aws-cli"
-
-def license():
-    return "Apache-2.0"
-
-def ecosystem():
-    return "cloud"
-
-def aliases():
-    return ["aws-cli"]
+name        = "awscli"
+description = "AWS CLI - Unified command line interface to Amazon Web Services"
+homepage    = "https://aws.amazon.com/cli/"
+repository  = "https://github.com/aws/aws-cli"
+license     = "Apache-2.0"
+ecosystem   = "cloud"
+aliases     = ["aws-cli"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -46,6 +33,9 @@ runtimes = [
         "description": "AWS Command Line Interface v2",
         "aliases":     ["awscli", "aws-cli"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "aws-cli"},
+        ],
     },
 ]
 
@@ -75,8 +65,8 @@ def download_url(ctx, version):
     Linux x86_64/arm64: official zip from awscli.amazonaws.com
     Windows/macOS: use system_install (MSI/PKG not supported by vx-installer)
     """
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     if os == "linux":
         arch_map = {"x64": "x86_64", "arm64": "aarch64"}
@@ -95,7 +85,7 @@ def download_url(ctx, version):
 # install_layout — Linux zip layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(_ctx, _version):
     return {
         "type":             "archive",
         "strip_prefix":     "aws",
@@ -106,15 +96,15 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {"PATH": install_dir + "/bin"}
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 # ---------------------------------------------------------------------------
 # system_install — preferred on Windows and macOS
 # ---------------------------------------------------------------------------
 
 def system_install(ctx):
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         return {
             "strategies": [
@@ -157,7 +147,7 @@ def post_extract(ctx, version, install_dir):
     Returns:
         List of post-extract actions
     """
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "linux" or os == "macos":
         return [
             set_permissions("dist/aws", "755"),
@@ -168,7 +158,7 @@ def post_extract(ctx, version, install_dir):
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, _version):
     return []
 
 
@@ -178,33 +168,16 @@ def deps(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for awscli."""
-    return "{vx_home}/store/awscli"
+    return ctx.vx_home + "/store/awscli"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/aws.exe"
+        return ctx.install_dir + "/aws.exe"
     else:
-        return "{install_dir}/aws"
+        return ctx.install_dir + "/aws"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """Post-install hook (no-op for awscli)."""
-    return None
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return "{vx_home}/store/awscli"
-
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/aws.exe"
-    else:
-        return "{install_dir}/aws"
-
-def post_install(ctx, version, install_dir):
     return None

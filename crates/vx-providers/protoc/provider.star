@@ -1,4 +1,4 @@
-# provider.star - Protocol Buffers compiler (protoc)
+﻿# provider.star - Protocol Buffers compiler (protoc)
 #
 # Reuse pattern: Level 2 (partial override)
 #   - fetch_versions: fully inherited from github.star
@@ -13,31 +13,18 @@
 #   protoc-29.2-osx-universal_binary.zip
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "protoc"
-
-def description():
-    return "Protocol Buffers compiler"
-
-def homepage():
-    return "https://protobuf.dev"
-
-def repository():
-    return "https://github.com/protocolbuffers/protobuf"
-
-def license():
-    return "BSD-3-Clause"
-
-def ecosystem():
-    return "devtools"
-
-def aliases():
-    return ["protobuf"]
+name        = "protoc"
+description = "Protocol Buffers compiler"
+homepage    = "https://protobuf.dev"
+repository  = "https://github.com/protocolbuffers/protobuf"
+license     = "BSD-3-Clause"
+ecosystem   = "devtools"
+aliases     = ["protobuf"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -50,6 +37,9 @@ runtimes = [
         "description": "Protocol Buffers compiler",
         "aliases":     ["protobuf"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "libprotoc \\d+"},
+        ],
     },
 ]
 
@@ -85,8 +75,8 @@ fetch_versions = make_fetch_versions("protocolbuffers", "protobuf", include_prer
 
 def _protoc_platform(ctx):
     """Map platform to protoc's platform suffix."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     platforms = {
         "windows/x64":  "win64",
@@ -125,7 +115,7 @@ def download_url(ctx, version):
 # install_layout — protoc archives have a bin/ subdirectory
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(ctx, _version):
     """Describe how to extract the downloaded archive.
 
     protoc archives contain:
@@ -135,7 +125,7 @@ def install_layout(ctx, version):
     Returns:
         Layout dict consumed by the vx installer
     """
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     exe = "bin/protoc.exe" if os == "windows" else "bin/protoc"
 
     return {
@@ -148,10 +138,8 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir + "/bin",
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir + "/bin")]
 
 # ---------------------------------------------------------------------------
 # Path queries (RFC-0037)
@@ -159,15 +147,15 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for protoc."""
-    return "{vx_home}/store/protoc"
+    return ctx.vx_home + "/store/protoc"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "bin/protoc.exe" if os == "windows" else "bin/protoc"
-    return "{install_dir}/" + exe
+    return ctx.install_dir + "/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for protoc."""
     return None
 

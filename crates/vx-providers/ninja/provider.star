@@ -1,4 +1,4 @@
-# provider.star - Ninja build system provider
+﻿# provider.star - Ninja build system provider
 #
 # Ninja uses a non-standard platform naming scheme (win/mac/linux/linux-aarch64)
 # instead of Rust target triples, so download_url is fully custom.
@@ -10,30 +10,17 @@
 load("@vx//stdlib:github.star", "github_asset_url")
 load("@vx//stdlib:http.star",   "jsdelivr_versions")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "ninja"
-
-def description():
-    return "Ninja - A small build system with a focus on speed"
-
-def homepage():
-    return "https://ninja-build.org/"
-
-def repository():
-    return "https://github.com/ninja-build/ninja"
-
-def license():
-    return "Apache-2.0"
-
-def ecosystem():
-    return "build-system"
-
-def aliases():
-    return ["ninja-build"]
+name        = "ninja"
+description = "Ninja - A small build system with a focus on speed"
+homepage    = "https://ninja-build.org/"
+repository  = "https://github.com/ninja-build/ninja"
+license     = "Apache-2.0"
+ecosystem   = "build-system"
+aliases     = ["ninja-build"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -46,6 +33,9 @@ runtimes = [
         "description": "Ninja - A small build system with a focus on speed",
         "aliases":     ["ninja-build"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "^\\d+\\.\\d+"},
+        ],
     },
 ]
 
@@ -88,8 +78,8 @@ def fetch_versions(ctx):
 
 def _ninja_platform(ctx):
     """Map platform to ninja's short platform name."""
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     if os == "windows" and arch == "x64":
         return "win"
@@ -129,7 +119,7 @@ def download_url(ctx, version):
 # install_layout — ninja extracts directly (no subdirectory)
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
+def install_layout(ctx, _version):
     """Describe how to extract the downloaded archive.
 
     Ninja zip contains the executable directly in the root.
@@ -137,7 +127,7 @@ def install_layout(ctx, version):
     Returns:
         Layout dict consumed by the vx installer
     """
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     exe = "ninja.exe" if os == "windows" else "ninja"
 
     return {
@@ -158,30 +148,28 @@ def store_root(ctx, version):
 # get_execute_path — resolve ninja executable
 # ---------------------------------------------------------------------------
 
-def get_execute_path(ctx, version, install_dir):
+def get_execute_path(ctx, _version, install_dir):
     """Return the path to the ninja executable."""
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     exe = "ninja.exe" if os == "windows" else "ninja"
-    return install_dir + "/" + exe
+    return ctx.install_dir + "/" + exe
 
 # ---------------------------------------------------------------------------
 # post_install — set permissions on Unix
 # ---------------------------------------------------------------------------
 
-def post_install(ctx, version, install_dir):
+def post_install(ctx, _version):
     """Set execute permissions on Unix."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
         return []
     return [
-        {"type": "set_permissions", "path": install_dir + "/ninja", "mode": "755"},
+        {"type": "set_permissions", "path": ctx.install_dir + "/ninja", "mode": "755"},
     ]
 
 # ---------------------------------------------------------------------------
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]

@@ -1,17 +1,23 @@
-//! Which command implementation - Find vx-managed tools (RFC 0031, RFC 0035: unified structured output)
+//! Where command — find the executable path for a vx-managed tool.
 //!
-//! RFC-0037: Path queries now delegate to provider.star::get_execute_path when available.
+//! # Architecture (RFC-0037)
+//!
+//! `ProviderHandle` is the **single source of truth** for vx-managed paths.
+//! All path queries delegate to `provider.star` via `ProviderHandle`.
+//!
+//! Lookup priority:
+//! 1. `ProviderHandle` (provider.star convention-based path scanning)
+//! 2. Global packages (`~/.vx/packages/`)
+//! 3. System PATH
+//! 4. `provider.star::runtimes[].system_paths` glob patterns
 
 use crate::cli::OutputFormat;
 use crate::output::{OutputRenderer, ToolPathEntry, ToolSource, WhichOutput};
-use crate::registry::get_embedded_manifests;
 use crate::suggestions;
 use crate::ui::UI;
 use anyhow::Result;
 use colored::Colorize;
-use vx_manifest::ManifestLoader;
-use vx_paths::{PackageRegistry, PathManager, PathResolver, VxPaths};
-use vx_resolver::RuntimeIndex;
+use vx_paths::{PackageRegistry, VxPaths};
 use vx_runtime::ProviderRegistry;
 use vx_starlark::handle::global_registry;
 
@@ -25,9 +31,24 @@ pub async fn handle(
 ) -> Result<()> {
     UI::debug(&format!("Looking for tool: {}@{:?}", tool, version));
 
-    // Parse runtime::executable syntax (e.g., msvc::cl)
-    let (runtime_part, exe_override) = if let Some((rt, exe)) = tool.split_once("::") {
-        (rt, Some(exe))
+    // Parse provider::runtime syntax (e.g., msvc::signtool, msvc::cl)
+    //
+    // Semantics: `provider::runtime` means "the `runtime` runtime under the `provider` provider".
+    // The right-hand side is first tried as a runtime name; if not found in the registry,
+    // it falls back to being treated as an executable override (legacy behaviour).
+    let (runtime_part, exe_override) = if let Some((provider_hint, rhs)) = tool.split_once("::") {
+        // Check if `rhs` is itself a known runtime name in the global registry
+        let rhs_is_runtime = {
+            let reg = global_registry().await;
+            reg.get(rhs).is_some()
+        };
+        if rhs_is_runtime {
+            // e.g. msvc::signtool → look up "signtool" as the runtime
+            (rhs, None)
+        } else {
+            // e.g. msvc::cl (legacy exe-override) → look up "msvc", exe = "cl"
+            (provider_hint, Some(rhs))
+        }
     } else {
         (tool, None)
     };
@@ -41,14 +62,10 @@ pub async fn handle(
                     tool: tool.to_string(),
                     version: None,
                     path: Some(path.display().to_string()),
-                    // Use Vx source to avoid showing "(system)" suffix —
-                    // the user explicitly requested system path lookup,
-                    // so the result is the expected output without extra annotation.
                     source: ToolSource::Vx,
                     all_paths: vec![],
                 };
-                let renderer = OutputRenderer::new(format);
-                renderer.render(&output)?;
+                OutputRenderer::new(format).render(&output)?;
                 return Ok(());
             }
             Err(_) => {
@@ -59,32 +76,24 @@ pub async fn handle(
                     source: ToolSource::NotFound,
                     all_paths: vec![],
                 };
-                let renderer = OutputRenderer::new(format);
-                renderer.render(&output)?;
+                OutputRenderer::new(format).render(&output)?;
                 std::process::exit(1);
             }
         }
     }
 
-    // Resolve canonical runtime name and executable (handles aliases like imagemagick -> magick)
+    // Resolve canonical runtime name and executable via ProviderRegistry
     let (canonical_name, exe_name) = if let Some(exe) = exe_override {
-        let rt_name = if let Some(runtime) = registry.get_runtime(runtime_part) {
-            runtime.name().to_string()
-        } else {
-            runtime_part.to_string()
-        };
-        UI::debug(&format!(
-            "Parsed '{}' as runtime='{}', exe='{}'",
-            tool, rt_name, exe
-        ));
+        let rt_name = registry
+            .get_runtime(runtime_part)
+            .map(|r| r.name().to_string())
+            .unwrap_or_else(|| runtime_part.to_string());
         (rt_name, exe.to_string())
     } else if let Some(runtime) = registry.get_runtime(runtime_part) {
         let canonical = runtime.name().to_string();
-        // Use executable_name() which may differ from the runtime name
-        // e.g. runtime name "7zip" has executable "7z"
         let exe = runtime.executable_name().to_string();
         UI::debug(&format!(
-            "Resolved '{}' to canonical='{}', exe='{}'",
+            "Resolved '{}' → canonical='{}', exe='{}'",
             tool, canonical, exe
         ));
         (canonical, exe)
@@ -92,212 +101,67 @@ pub async fn handle(
         (runtime_part.to_string(), runtime_part.to_string())
     };
 
-    // --- RFC-0037: Try ProviderHandle (provider.star) first ---
-    let provider_handle_path: Option<std::path::PathBuf> = {
+    // ── Step 1: ProviderHandle (provider.star) ────────────────────────────
+    let locations: Vec<(std::path::PathBuf, ToolSource)> = {
         let reg = global_registry().await;
         if let Some(handle) = reg.get(&canonical_name) {
-            if let Some(ver) = version {
+            if all {
+                // Return all installed versions
+                handle
+                    .installed_versions()
+                    .into_iter()
+                    .filter_map(|ver| handle.get_execute_path(&ver).map(|p| (p, ToolSource::Vx)))
+                    .collect()
+            } else if let Some(ver) = version {
                 // Specific version requested
-                let path = handle.get_execute_path(ver).await;
-                UI::debug(&format!(
-                    "ProviderHandle::get_execute_path({}, {}) => {:?}",
-                    canonical_name, ver, path
-                ));
-                path
+                handle
+                    .get_execute_path(ver)
+                    .map(|p| vec![(p, ToolSource::Vx)])
+                    .unwrap_or_default()
             } else {
                 // Latest installed version
-                let path = handle.get_latest_execute_path().await;
-                UI::debug(&format!(
-                    "ProviderHandle::get_latest_execute_path({}) => {:?}",
-                    canonical_name, path
-                ));
-                path
+                handle
+                    .get_latest_execute_path()
+                    .map(|p| vec![(p, ToolSource::Vx)])
+                    .unwrap_or_default()
             }
         } else {
             UI::debug(&format!(
-                "No ProviderHandle registered for '{}', falling back to RuntimeIndex",
+                "No ProviderHandle for '{}', skipping vx store lookup",
                 canonical_name
             ));
-            None
+            vec![]
         }
     };
 
-    // Try RuntimeIndex as secondary lookup
-    let mut runtime_index = RuntimeIndex::new().ok();
+    // Filter to only paths that actually exist on disk
+    let locations: Vec<(std::path::PathBuf, ToolSource)> =
+        locations.into_iter().filter(|(p, _)| p.exists()).collect();
 
-    // Build index if it doesn't exist or is invalid
-    if let Some(ref mut index) = runtime_index
-        && !index.is_valid()
-    {
-        UI::debug("Runtime index missing or expired, building...");
-        let mut loader = ManifestLoader::new();
-        let manifests_data: Vec<(&str, &str)> = get_embedded_manifests().to_vec();
-        if loader.load_embedded(manifests_data).is_ok() {
-            let manifests: Vec<_> = loader.all().cloned().collect();
-            if let Err(e) = index.build_and_save(&manifests) {
-                UI::debug(&format!("Failed to build runtime index: {}", e));
-            } else {
-                UI::debug(&format!(
-                    "Built runtime index with {} manifests",
-                    manifests.len()
-                ));
-            }
-        }
-    }
-
-    let index_lookup = runtime_index.as_mut().and_then(|index| {
-        if let Some(ver) = version {
-            index
-                .get(&canonical_name)
-                .and_then(|entry| entry.get_executable_path(&VxPaths::new().ok()?.store_dir, ver))
-        } else if all {
-            None
+    // ── Step 2: Global packages / System PATH / system_paths ─────────────
+    let (final_path, final_source, all_paths) = if !locations.is_empty() {
+        if all {
+            let all_paths = locations
+                .iter()
+                .map(|(path, source)| ToolPathEntry {
+                    path: path.display().to_string(),
+                    version: extract_version_from_path(path),
+                    source: *source,
+                })
+                .collect();
+            (None, ToolSource::NotFound, all_paths)
         } else {
-            index.get_executable_path(&canonical_name)
+            let (path, source) = &locations[0];
+            (Some(path.display().to_string()), *source, vec![])
         }
-    });
-
-    let locations = if let Some(path) = provider_handle_path.filter(|p| p.exists()) {
-        // RFC-0037: provider.star returned a valid path
-        UI::debug(&format!(
-            "Found via ProviderHandle (provider.star): {}",
-            path.display()
-        ));
-        vec![(path, ToolSource::Vx)]
-    } else if let Some(path) = index_lookup {
-        UI::debug(&format!("Found in runtime index: {}", path.display()));
-        vec![(path, ToolSource::Vx)]
     } else {
-        UI::debug("Not in runtime index, scanning file system...");
-
-        let path_manager = PathManager::new()
-            .map_err(|e| anyhow::anyhow!("Failed to initialize path manager: {}", e))?;
-        let resolver = PathResolver::new(path_manager);
-
-        if let Some(ver) = version {
-            match resolver.find_tool_version_with_executable(&canonical_name, ver, &exe_name) {
-                Some(location) => vec![(location.path, ToolSource::Vx)],
-                None => vec![],
-            }
-        } else if all {
-            resolver
-                .find_tool_executables_with_exe(&canonical_name, &exe_name)?
-                .into_iter()
-                .map(|p| (p, ToolSource::Vx))
-                .collect()
-        } else {
-            match resolver.find_latest_executable_with_exe(&canonical_name, &exe_name)? {
-                Some(path) => vec![(path, ToolSource::Vx)],
-                None => vec![],
-            }
-        }
-    };
-
-    // Check global packages and system PATH if not found in vx
-    let (final_path, final_source, all_paths) = if locations.is_empty() {
-        // Check global packages (RFC 0025)
-        if let Some(exe_path) = find_in_global_packages(tool)? {
-            if all {
-                (
-                    None,
-                    ToolSource::NotFound,
-                    vec![ToolPathEntry {
-                        path: exe_path.display().to_string(),
-                        version: None,
-                        source: ToolSource::GlobalPackage,
-                    }],
-                )
-            } else {
-                (
-                    Some(exe_path.display().to_string()),
-                    ToolSource::GlobalPackage,
-                    vec![],
-                )
-            }
-        } else if exe_name != tool
-            && let Some(exe_path) = find_in_global_packages(&exe_name)?
-        {
-            if all {
-                (
-                    None,
-                    ToolSource::NotFound,
-                    vec![ToolPathEntry {
-                        path: exe_path.display().to_string(),
-                        version: None,
-                        source: ToolSource::GlobalPackage,
-                    }],
-                )
-            } else {
-                (
-                    Some(exe_path.display().to_string()),
-                    ToolSource::GlobalPackage,
-                    vec![],
-                )
-            }
-        } else {
-            // Check system PATH
-            match which::which(&exe_name) {
-                Ok(path) => {
-                    if all {
-                        (
-                            None,
-                            ToolSource::NotFound,
-                            vec![ToolPathEntry {
-                                path: path.display().to_string(),
-                                version: None,
-                                source: ToolSource::System,
-                            }],
-                        )
-                    } else {
-                        (Some(path.display().to_string()), ToolSource::System, vec![])
-                    }
-                }
-                Err(_) => {
-                    // Try detection system_paths (RFC-0037: provider.star first, then manifest)
-                    if let Some(path) =
-                        find_via_detection_paths(&canonical_name, &exe_name, registry).await?
-                    {
-                        if all {
-                            (
-                                None,
-                                ToolSource::NotFound,
-                                vec![ToolPathEntry {
-                                    path: path.display().to_string(),
-                                    version: None,
-                                    source: ToolSource::Detected,
-                                }],
-                            )
-                        } else {
-                            (
-                                Some(path.display().to_string()),
-                                ToolSource::Detected,
-                                vec![],
-                            )
-                        }
-                    } else {
-                        (None, ToolSource::NotFound, vec![])
-                    }
-                }
-            }
-        }
-    } else if all {
-        let all_paths: Vec<ToolPathEntry> = locations
-            .iter()
-            .map(|(path, source)| ToolPathEntry {
-                path: path.display().to_string(),
-                version: extract_version_from_path(path),
-                source: *source,
-            })
-            .collect();
-        (None, ToolSource::NotFound, all_paths)
-    } else {
-        let (path, source) = &locations[0];
-        (Some(path.display().to_string()), *source, vec![])
+        // Fallback chain: global packages → system PATH → system_paths
+        resolve_fallback(tool, &exe_name, &canonical_name, all).await?
     };
 
     let renderer = OutputRenderer::new(format);
 
-    // Handle not found case
+    // Handle not found
     if final_path.is_none() && all_paths.is_empty() {
         let output = WhichOutput {
             tool: tool.to_string(),
@@ -310,9 +174,8 @@ pub async fn handle(
         if renderer.is_json() {
             renderer.render(&output)?;
         } else {
-            // Show friendly error with suggestions
             let available_tools = registry.runtime_names();
-            let tool_suggestions = suggestions::get_tool_suggestions(tool, &available_tools);
+            let suggestions = suggestions::get_tool_suggestions(tool, &available_tools);
 
             eprintln!(
                 "{} {}",
@@ -324,21 +187,21 @@ pub async fn handle(
                 .red()
             );
 
-            if !tool_suggestions.is_empty() {
+            if !suggestions.is_empty() {
                 eprintln!();
-                for suggestion in &tool_suggestions {
-                    if suggestion.is_alias {
+                for s in &suggestions {
+                    if s.is_alias {
                         eprintln!(
                             "{} Did you mean: {} ({})",
                             "💡".cyan(),
-                            suggestion.suggested_tool.cyan().bold(),
-                            suggestion.description.dimmed()
+                            s.suggested_tool.cyan().bold(),
+                            s.description.dimmed()
                         );
                     } else {
                         eprintln!(
                             "{} Did you mean: {}",
                             "💡".cyan(),
-                            suggestion.suggested_tool.cyan().bold()
+                            s.suggested_tool.cyan().bold()
                         );
                     }
                 }
@@ -370,37 +233,73 @@ pub async fn handle(
     };
 
     renderer.render(&output)?;
-
     Ok(())
 }
 
-/// Extract version from path string
-fn extract_version_from_path_str(path_str: &str) -> Option<String> {
-    let path = std::path::Path::new(path_str);
-    extract_version_from_path(path)
-}
+// ---------------------------------------------------------------------------
+// Fallback resolution (global packages → system PATH → system_paths)
+// ---------------------------------------------------------------------------
 
-/// Extract version from executable path
-fn extract_version_from_path(path: &std::path::Path) -> Option<String> {
-    for ancestor in path.ancestors() {
-        if let Some(name) = ancestor.file_name().and_then(|n| n.to_str())
-            && name.chars().any(|c| c.is_ascii_digit())
-            && (name.contains('.') || name.chars().all(|c| c.is_ascii_digit()))
-            && !name.contains('-')
-        {
-            return Some(name.to_string());
-        }
+async fn resolve_fallback(
+    tool: &str,
+    exe_name: &str,
+    canonical_name: &str,
+    all: bool,
+) -> Result<(Option<String>, ToolSource, Vec<ToolPathEntry>)> {
+    // 1. Global packages
+    if let Some(path) = find_in_global_packages(tool)? {
+        return Ok(make_single_or_all(path, ToolSource::GlobalPackage, all));
     }
-    None
+    if exe_name != tool
+        && let Some(path) = find_in_global_packages(exe_name)?
+    {
+        return Ok(make_single_or_all(path, ToolSource::GlobalPackage, all));
+    }
+
+    // 2. System PATH
+    if let Ok(path) = which::which(exe_name) {
+        return Ok(make_single_or_all(path, ToolSource::System, all));
+    }
+
+    // 3. provider.star system_paths glob patterns
+    if let Some(path) = find_via_system_paths(canonical_name).await? {
+        return Ok(make_single_or_all(path, ToolSource::Detected, all));
+    }
+
+    Ok((None, ToolSource::NotFound, vec![]))
 }
 
-/// Find an executable in globally installed packages (RFC 0025)
+fn make_single_or_all(
+    path: std::path::PathBuf,
+    source: ToolSource,
+    all: bool,
+) -> (Option<String>, ToolSource, Vec<ToolPathEntry>) {
+    if all {
+        (
+            None,
+            ToolSource::NotFound,
+            vec![ToolPathEntry {
+                path: path.display().to_string(),
+                version: None,
+                source,
+            }],
+        )
+    } else {
+        (Some(path.display().to_string()), source, vec![])
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/// Find an executable in globally installed packages (`~/.vx/packages/`)
 fn find_in_global_packages(exe_name: &str) -> Result<Option<std::path::PathBuf>> {
     let paths = VxPaths::new()?;
     let registry_path = paths.packages_registry_file();
 
     UI::debug(&format!(
-        "Looking for '{}' in global packages, registry: {}",
+        "Looking for '{}' in global packages: {}",
         exe_name,
         registry_path.display()
     ));
@@ -408,22 +307,15 @@ fn find_in_global_packages(exe_name: &str) -> Result<Option<std::path::PathBuf>>
     let registry = match PackageRegistry::load(&registry_path) {
         Ok(r) => r,
         Err(e) => {
-            UI::debug(&format!("Failed to load registry: {}", e));
+            UI::debug(&format!("Failed to load package registry: {}", e));
             return Ok(None);
         }
     };
 
-    UI::debug(&format!("Registry has {} packages", registry.len()));
-
     if let Some(package) = registry.find_by_executable(exe_name) {
-        UI::debug(&format!(
-            "Found package '{}' for executable '{}', install_dir: {}",
-            package.name,
-            exe_name,
-            package.install_dir.display()
-        ));
-
-        let candidates = vec![
+        let bin_dir =
+            paths.global_package_bin_dir(&package.ecosystem, &package.name, &package.version);
+        let candidates = [
             #[cfg(windows)]
             package.install_dir.join(format!("{}.cmd", exe_name)),
             #[cfg(windows)]
@@ -444,101 +336,64 @@ fn find_in_global_packages(exe_name: &str) -> Result<Option<std::path::PathBuf>>
                 .join("bin")
                 .join(format!("{}.exe", exe_name)),
             package.install_dir.join("bin").join(exe_name),
-            paths
-                .global_package_bin_dir(&package.ecosystem, &package.name, &package.version)
-                .join(format!("{}.cmd", exe_name)),
-            paths
-                .global_package_bin_dir(&package.ecosystem, &package.name, &package.version)
-                .join(exe_name),
+            bin_dir.join(format!("{}.cmd", exe_name)),
+            bin_dir.join(exe_name),
         ];
 
         for candidate in &candidates {
-            UI::debug(&format!(
-                "  Checking: {} (exists: {})",
-                candidate.display(),
-                candidate.exists()
-            ));
             if candidate.exists() {
                 return Ok(Some(candidate.clone()));
             }
         }
-    } else {
-        UI::debug(&format!("No package found for executable '{}'", exe_name));
     }
 
     Ok(None)
 }
 
-/// Find an executable via detection system_paths (RFC-0037: provider.star first, then manifest glob)
-///
-/// Priority:
-/// 1. `provider.star::runtimes[].system_paths` (via ProviderHandle, RFC-0037)
-/// 2. `provider.toml` detection.system_paths glob patterns (legacy fallback)
-async fn find_via_detection_paths(
-    runtime_name: &str,
-    _exe_name: &str,
-    _registry: &ProviderRegistry,
-) -> Result<Option<std::path::PathBuf>> {
-    // --- RFC-0037: Try provider.star system_paths via ProviderHandle ---
-    {
-        let reg = global_registry().await;
-        if let Some(handle) = reg.get(runtime_name) {
-            // Iterate over runtime definitions in provider.star
-            for runtime_meta in handle.runtime_metas() {
-                for pattern in &runtime_meta.system_paths {
-                    if let Ok(paths) = glob::glob(pattern) {
-                        let mut found: Vec<std::path::PathBuf> = paths
-                            .filter_map(|p| p.ok())
-                            .filter(|p| p.exists())
-                            .collect();
-                        // Sort descending so newest VS version wins (e.g. 2022 > 2019)
-                        found.sort_by(|a, b| b.cmp(a));
-                        if let Some(path) = found.into_iter().next() {
-                            UI::debug(&format!(
-                                "Found '{}' via provider.star system_paths: {}",
-                                runtime_name,
-                                path.display()
-                            ));
-                            return Ok(Some(path));
-                        }
+/// Find an executable via `provider.star::runtimes[].system_paths` glob patterns
+async fn find_via_system_paths(runtime_name: &str) -> Result<Option<std::path::PathBuf>> {
+    let reg = global_registry().await;
+    if let Some(handle) = reg.get(runtime_name) {
+        for runtime_meta in handle.runtime_metas() {
+            for pattern in &runtime_meta.system_paths {
+                if let Ok(paths) = glob::glob(pattern) {
+                    let mut found: Vec<std::path::PathBuf> = paths
+                        .filter_map(|p| p.ok())
+                        .filter(|p| p.exists())
+                        .collect();
+                    // Sort descending so newest version wins (e.g. VS 2022 > 2019)
+                    found.sort_by(|a, b| b.cmp(a));
+                    if let Some(path) = found.into_iter().next() {
+                        UI::debug(&format!(
+                            "Found '{}' via system_paths: {}",
+                            runtime_name,
+                            path.display()
+                        ));
+                        return Ok(Some(path));
                     }
                 }
             }
         }
     }
-
-    // --- Legacy fallback: provider.toml detection.system_paths ---
-    let mut loader = ManifestLoader::new();
-    let manifests_data: Vec<(&str, &str)> = get_embedded_manifests().to_vec();
-    if loader.load_embedded(manifests_data).is_err() {
-        return Ok(None);
-    }
-
-    for manifest in loader.all() {
-        for runtime_def in &manifest.runtimes {
-            let matches = runtime_def.name == runtime_name
-                || runtime_def
-                    .aliases
-                    .iter()
-                    .any(|alias| alias == runtime_name);
-
-            if matches && let Some(ref detection) = runtime_def.detection {
-                for pattern in &detection.system_paths {
-                    if let Ok(paths) = glob::glob(pattern) {
-                        let mut found: Vec<std::path::PathBuf> = paths
-                            .filter_map(|p| p.ok())
-                            .filter(|p| p.exists())
-                            .collect();
-                        found.sort_by(|a, b| b.cmp(a));
-
-                        if let Some(path) = found.into_iter().next() {
-                            return Ok(Some(path));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     Ok(None)
+}
+
+/// Extract version string from an executable path
+///
+/// Looks for a path component that looks like a version number (e.g. `20.0.0`).
+fn extract_version_from_path(path: &std::path::Path) -> Option<String> {
+    for ancestor in path.ancestors() {
+        if let Some(name) = ancestor.file_name().and_then(|n| n.to_str())
+            && name.chars().any(|c| c.is_ascii_digit())
+            && (name.contains('.') || name.chars().all(|c| c.is_ascii_digit()))
+            && !name.contains('-')
+        {
+            return Some(name.to_string());
+        }
+    }
+    None
+}
+
+fn extract_version_from_path_str(path_str: &str) -> Option<String> {
+    extract_version_from_path(std::path::Path::new(path_str))
 }

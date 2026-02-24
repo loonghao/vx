@@ -1,4 +1,4 @@
-# provider.star - fd (fd-find) provider
+﻿# provider.star - fd (fd-find) provider
 #
 # Inheritance pattern (Level 2):
 #   - fetch_versions: fully inherited from github.star
@@ -8,30 +8,17 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "fd"
-
-def description():
-    return "fd - A simple, fast and user-friendly alternative to 'find'"
-
-def homepage():
-    return "https://github.com/sharkdp/fd"
-
-def repository():
-    return "https://github.com/sharkdp/fd"
-
-def license():
-    return "MIT OR Apache-2.0"
-
-def ecosystem():
-    return "devtools"
-
-def aliases():
-    return ["fd-find"]
+name        = "fd"
+description = "fd - A simple, fast and user-friendly alternative to 'find'"
+homepage    = "https://github.com/sharkdp/fd"
+repository  = "https://github.com/sharkdp/fd"
+license     = "MIT OR Apache-2.0"
+ecosystem   = "devtools"
+aliases     = ["fd-find"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -44,6 +31,9 @@ runtimes = [
         "description": "A simple, fast and user-friendly alternative to 'find'",
         "aliases":     ["fd-find"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "fd \\d+"},
+        ],
     },
 ]
 
@@ -72,8 +62,8 @@ fetch_versions = make_fetch_versions("sharkdp", "fd")
 # ---------------------------------------------------------------------------
 
 def _fd_triple(ctx):
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
     triples = {
         "windows/x64":   "x86_64-pc-windows-msvc",
         "windows/arm64": "aarch64-pc-windows-msvc",
@@ -88,7 +78,7 @@ def download_url(ctx, version):
     triple = _fd_triple(ctx)
     if not triple:
         return None
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     ext = "zip" if os == "windows" else "tar.gz"
     # Asset: "fd-v0.10.2-x86_64-unknown-linux-musl.tar.gz"
     asset = "fd-v{}-{}.{}".format(version, triple, ext)
@@ -99,7 +89,7 @@ def download_url(ctx, version):
 # ---------------------------------------------------------------------------
 
 def install_layout(ctx, version):
-    os  = ctx["platform"]["os"]
+    os  = ctx.platform.os
     triple = _fd_triple(ctx)
     exe = "fd.exe" if os == "windows" else "fd"
     # fd archives contain a subdirectory: "fd-v{version}-{triple}/"
@@ -110,8 +100,8 @@ def install_layout(ctx, version):
         "executable_paths": [exe, "fd"],
     }
 
-def environment(ctx, version, install_dir):
-    return {"PATH": install_dir}
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
 
 # ---------------------------------------------------------------------------
@@ -119,14 +109,14 @@ def environment(ctx, version, install_dir):
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    return "{vx_home}/store/fd"
+    return ctx.vx_home + "/store/fd"
 
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
+def get_execute_path(ctx, _version):
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/fd.exe"
+        return ctx.install_dir + "/fd.exe"
     else:
-        return "{install_dir}/fd"
+        return ctx.install_dir + "/fd"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     return None

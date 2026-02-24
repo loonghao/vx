@@ -1,4 +1,4 @@
-# provider.star - GitHub CLI (gh) provider
+﻿# provider.star - GitHub CLI (gh) provider
 #
 # Reuse pattern: Level 2 (partial override)
 #   - fetch_versions: fully inherited from github.star
@@ -14,30 +14,17 @@
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
 
+load("@vx//stdlib:env.star", "env_prepend")
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "gh"
-
-def description():
-    return "GitHub CLI - command line tool that brings GitHub to your terminal"
-
-def homepage():
-    return "https://cli.github.com/"
-
-def repository():
-    return "https://github.com/cli/cli"
-
-def license():
-    return "MIT"
-
-def ecosystem():
-    return "devtools"
-
-def aliases():
-    return ["github-cli", "github"]
+name        = "gh"
+description = "GitHub CLI - command line tool that brings GitHub to your terminal"
+homepage    = "https://cli.github.com/"
+repository  = "https://github.com/cli/cli"
+license     = "MIT"
+ecosystem   = "devtools"
+aliases     = ["github-cli", "github"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -50,6 +37,9 @@ runtimes = [
         "description": "GitHub CLI",
         "aliases":     ["github-cli", "github"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check", "expected_output": "gh version"},
+        ],
     },
 ]
 
@@ -83,8 +73,8 @@ def _gh_platform(ctx):
       - "amd64" / "arm64" for arch
       - zip for Windows + macOS, tar.gz for Linux
     """
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     arch_map = {
         "x64":   "amd64",
@@ -152,7 +142,7 @@ def install_layout(ctx, version):
     Returns:
         Layout dict consumed by the vx installer
     """
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
 
     if os == "windows":
         return {
@@ -178,10 +168,8 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
 
 # ---------------------------------------------------------------------------
@@ -189,14 +177,14 @@ def environment(ctx, version, install_dir):
 # ---------------------------------------------------------------------------
 
 def store_root(ctx):
-    return "{vx_home}/store/gh"
+    return ctx.vx_home + "/store/gh"
 
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
+def get_execute_path(ctx, _version):
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/gh.exe"
+        return ctx.install_dir + "/gh.exe"
     else:
-        return "{install_dir}/gh"
+        return ctx.install_dir + "/gh"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     return None

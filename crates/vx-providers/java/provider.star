@@ -1,4 +1,4 @@
-# provider.star - Java (Adoptium Temurin) provider
+﻿# provider.star - Java (Adoptium Temurin) provider
 #
 # Version source: Adoptium API
 #   https://api.adoptium.net/v3/info/available_releases
@@ -11,31 +11,18 @@
 # Inheritance pattern: Level 1 (fully custom - uses Adoptium API, not GitHub)
 
 load("@vx//stdlib:install.star", "flatten_dir")
+load("@vx//stdlib:env.star", "env_set", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "java"
-
-def description():
-    return "Java Development Kit (Eclipse Temurin) - Write once, run anywhere"
-
-def homepage():
-    return "https://adoptium.net"
-
-def repository():
-    return "https://github.com/adoptium/temurin-build"
-
-def license():
-    return "GPL-2.0-with-classpath-exception"
-
-def ecosystem():
-    return "java"
-
-def aliases():
-    return ["jdk", "temurin"]
+name        = "java"
+description = "Java Development Kit (Eclipse Temurin) - Write once, run anywhere"
+homepage    = "https://adoptium.net"
+repository  = "https://github.com/adoptium/temurin-build"
+license     = "GPL-2.0-with-classpath-exception"
+ecosystem   = "java"
+aliases     = ["jdk", "temurin"]
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -48,18 +35,27 @@ runtimes = [
         "description": "Java runtime environment",
         "aliases":     ["jdk", "temurin"],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} -version", "name": "version_check", "expected_output": "version"},
+        ],
     },
     {
         "name":        "javac",
         "executable":  "javac",
         "description": "Java compiler (bundled with JDK)",
         "bundled_with": "java",
+        "test_commands": [
+            {"command": "{executable} -version", "name": "version_check", "expected_output": "javac"},
+        ],
     },
     {
         "name":        "jar",
         "executable":  "jar",
         "description": "Java archive tool (bundled with JDK)",
         "bundled_with": "java",
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
 ]
 
@@ -120,7 +116,7 @@ def fetch_versions(ctx):
 
 def _adoptium_os(ctx):
     """Map vx platform to Adoptium OS string."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     mapping = {
         "windows": "windows",
         "macos":   "mac",
@@ -130,7 +126,7 @@ def _adoptium_os(ctx):
 
 def _adoptium_arch(ctx):
     """Map vx platform to Adoptium architecture string."""
-    arch = ctx["platform"]["arch"]
+    arch = ctx.platform.arch
     mapping = {
         "x64":   "x64",
         "arm64": "aarch64",
@@ -154,7 +150,7 @@ def download_url(ctx, version):
     if not os_str or not arch_str:
         return None
 
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
 
     # Extract major version from semver (e.g. "21.0.1+12" -> "21")
     major = version.split(".")[0]
@@ -179,8 +175,8 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os = ctx.platform.os
 
     if os == "windows":
         exe_paths = ["bin/java.exe", "bin/javac.exe", "bin/jar.exe"]
@@ -197,17 +193,17 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "JAVA_HOME": install_dir,
-        "PATH":      install_dir + "/bin",
-    }
+def environment(ctx, _version):
+    return [
+        env_set("JAVA_HOME", ctx.install_dir),
+        env_prepend("PATH", ctx.install_dir + "/bin"),
+    ]
 
 # ---------------------------------------------------------------------------
 # deps
 # ---------------------------------------------------------------------------
 
-def deps(ctx, version):
+def deps(_ctx, _version):
     """Java has no external dependencies."""
     return []
 
@@ -217,15 +213,15 @@ def deps(ctx, version):
 
 def store_root(ctx):
     """Return the vx store root directory for java."""
-    return "{vx_home}/store/java"
+    return ctx.vx_home + "/store/java"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     exe = "java.exe" if os == "windows" else "java"
-    return "{install_dir}/bin/" + exe
+    return ctx.install_dir + "/bin/" + exe
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """No post-install steps needed for java."""
     return None
 

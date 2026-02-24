@@ -4,8 +4,9 @@ description: |
   This skill should be used when creating a new runtime provider for the vx tool manager.
   It provides complete templates, code generation, and step-by-step guidance for implementing
   Provider and Runtime traits, including URL builders, platform configuration, test files,
-  provider.toml manifest, system package manager fallback, and optionally project analyzer
-  integration for language-specific tools.
+  provider.toml manifest, system package manager fallback, ecosystem-managed tools via
+  package_alias (RFC 0033: vx meson = vx uvx:meson, vx vite = vx npx:vite), and optionally
+  project analyzer integration for language-specific tools.
   Use this skill when the user asks to add support for a new tool/runtime in vx.
 ---
 
@@ -20,19 +21,21 @@ This skill guides the creation of new runtime providers for the vx universal too
 - Adding a new tool to the vx ecosystem
 - Adding project analyzer support for a language/ecosystem
 - Adding tools that require system package manager installation
+- **Adding PyPI/npm tools that run in isolated environments** (e.g., `vx meson` = `vx uvx:meson`)
 
 ## Workflow Overview
 
 1. **Check license compatibility** (MUST DO FIRST)
 2. Create a feature branch from remote main
-3. **Determine installation type** (direct download vs system package manager)
+3. **Determine installation type** (direct download / system package manager / ecosystem package)
 4. Generate provider directory structure (including `provider.toml`)
 5. Implement core files (lib.rs, provider.rs, runtime.rs, config.rs)
 6. **Add system package manager fallback if needed**
-7. Register the provider in workspace and CLI
-8. **(Optional)** Add project analyzer integration for language-specific tools
-9. Update snapshot tests
-10. Verify and test
+7. **Add `package_alias` if tool is a PyPI/npm package** (RFC 0033)
+8. Register the provider in workspace and CLI
+9. **(Optional)** Add project analyzer integration for language-specific tools
+10. Update snapshot tests
+11. Verify and test
 
 ## ⚠️ License Compliance (MANDATORY - Step 0)
 
@@ -105,8 +108,15 @@ Does the tool provide portable binaries for all platforms?
     ├─ Some platforms have binaries → Hybrid Provider (download + package manager)
     │   └─ Examples: imagemagick (Linux AppImage, macOS/Windows via brew/winget)
     │   └─ Examples: ffmpeg (Windows binary, macOS/Linux via brew/apt)
-    └─ No portable binaries → System Package Manager Only
-        └─ Examples: make, git (on non-Windows), curl, openssl
+    ├─ No portable binaries → Is it a PyPI/npm package?
+    │   ├─ Yes (PyPI) → package_alias = {"ecosystem": "uvx", "package": "..."}
+    │   │   └─ Examples: meson, ruff, black, mypy, nox, pre-commit
+    │   ├─ Yes (npm)  → package_alias = {"ecosystem": "npx", "package": "..."}
+    │   │   └─ Examples: vite, eslint, prettier, create-react-app
+    │   └─ No → System Package Manager Only
+    │       └─ Examples: make, git (on non-Windows), curl, openssl
+    └─ System-installed only → Detection-only
+        └─ Examples: msbuild, xcodebuild, systemctl
 ```
 
 ### Provider Types Summary
@@ -115,6 +125,8 @@ Does the tool provide portable binaries for all platforms?
 |------|-----------------|-------------------------|----------|
 | **Standard** | ✅ All platforms | ❌ Not needed | terraform, just, go, node |
 | **Hybrid** | ✅ Some platforms | ✅ For others | imagemagick, ffmpeg, docker |
+| **Ecosystem (uvx)** | ❌ None | ❌ Runs via `uvx` | meson, ruff, black, mypy |
+| **Ecosystem (npx)** | ❌ None | ❌ Runs via `npx` | vite, eslint, prettier |
 | **System-only** | ❌ None | ✅ All platforms | make, curl, openssl |
 | **Detection-only** | ❌ None | ❌ System-installed | msbuild, xcodebuild, systemctl |
 
@@ -355,7 +367,138 @@ constraints = [
 # ── deps (optional) ───────────────────────────────────────────────────────
 def deps(ctx, version):
     return []  # list of {"runtime": "node", "version": ">=18"}
+
+# ── package_alias (optional, RFC 0033) ────────────────────────────────────
+# Routes `vx <name>` → `vx <ecosystem>:<package>` for ecosystem-managed tools.
+# Example: `vx meson` → `vx uvx:meson` (isolated Python env via uv)
+#          `vx vite`  → `vx npx:vite`  (npm package via npx)
+#
+# Supported ecosystems: "uvx" (uv tool), "npx" (npm package)
+package_alias = {"ecosystem": "uvx", "package": "meson"}
 ```
+
+### package_alias — Ecosystem-Managed Tools (RFC 0033)
+
+Use `package_alias` when a tool is **distributed as a package** in an ecosystem (PyPI, npm)
+rather than as a standalone binary. This routes `vx <name>` to `vx <ecosystem>:<package>`,
+giving each version its own isolated environment.
+
+#### When to Use
+
+| Tool Type | Example | package_alias |
+|-----------|---------|---------------|
+| Python CLI tool (PyPI) | meson, ruff, black, mypy | `{"ecosystem": "uvx", "package": "..."}` |
+| npm CLI tool | vite, eslint, prettier | `{"ecosystem": "npx", "package": "..."}` |
+
+#### How It Works
+
+```
+vx meson@1.5.0
+  ↓ RFC 0033: package_alias routing (from provider.star)
+vx uvx:meson@1.5.0
+  ↓ UvxInstaller.install()
+uv tool install meson==1.5.0  (pre-warms uv cache)
++ creates shim: exec uvx meson==1.5.0 "$@"
+  ↓ execution
+uvx meson==1.5.0 [args...]  ← isolated Python env per version
+```
+
+#### provider.star Example (Python/PyPI tool)
+
+```python
+# provider.star - Meson provider
+name        = "meson"
+description = "Meson - An extremely fast and user friendly build system"
+homepage    = "https://mesonbuild.com"
+repository  = "https://github.com/mesonbuild/meson"
+license     = "Apache-2.0"
+ecosystem   = "python"
+aliases     = ["mesonbuild"]
+
+# RFC 0033: route `vx meson` → `vx uvx:meson`
+# Each version runs in its own isolated uv-managed Python environment.
+package_alias = {"ecosystem": "uvx", "package": "meson"}
+
+runtimes = [
+    {
+        "name":        "meson",
+        "executable":  "meson",
+        "description": "Meson build system",
+        "aliases":     ["mesonbuild"],
+        "priority":    100,
+    },
+]
+
+permissions = {
+    "http": ["pypi.org"],
+    "fs":   [],
+    "exec": ["uvx", "uv"],
+}
+
+def download_url(_ctx, _version):
+    return None  # Not applicable; runs via uvx
+
+def deps(_ctx, version):
+    return [
+        {"runtime": "uv", "version": "*",
+         "reason": "Tool is installed and run via uv"},
+    ]
+```
+
+#### provider.star Example (npm tool)
+
+```python
+# provider.star - Vite provider
+name        = "vite"
+description = "Next generation frontend tooling"
+homepage    = "https://vitejs.dev"
+repository  = "https://github.com/vitejs/vite"
+license     = "MIT"
+ecosystem   = "nodejs"
+
+# RFC 0033: route `vx vite` → `vx npx:vite`
+package_alias = {"ecosystem": "npx", "package": "vite"}
+
+runtimes = [
+    {
+        "name":        "vite",
+        "executable":  "vite",
+        "description": "Vite build tool",
+        "priority":    100,
+    },
+]
+
+permissions = {
+    "http": ["registry.npmjs.org"],
+    "fs":   [],
+    "exec": ["npx", "node"],
+}
+
+def download_url(_ctx, _version):
+    return None  # Not applicable; runs via npx
+
+def deps(_ctx, version):
+    return [
+        {"runtime": "node", "version": ">=18",
+         "reason": "Tool is installed and run via npx"},
+    ]
+```
+
+#### Ecosystem Comparison
+
+| Syntax | Equivalent | Installer | Runtime Dep | Isolation |
+|--------|-----------|-----------|-------------|-----------|
+| `vx meson@1.5.0` | `vx uvx:meson@1.5.0` | `UvxInstaller` | `uv` | Per-version Python env |
+| `vx ruff@0.9.0` | `vx uvx:ruff@0.9.0` | `UvxInstaller` | `uv` | Per-version Python env |
+| `vx vite@5.0` | `vx npx:vite@5.0` | `NpmInstaller` | `node` | npm cache |
+| `vx yarn@1.22` | `vx npm:yarn@1.22` | `NpmInstaller` | `node` | npm cache |
+
+#### Implementation Notes
+
+- `package_alias` is parsed from `provider.star` by `StarMetadata::parse()`
+- The routing happens in `vx-cli/src/lib.rs` (RFC 0033 logic)
+- `uvx` ecosystem requires `uv` runtime; `npx` ecosystem requires `node` runtime
+- Version pinning in `vx.toml` works normally: `meson = "1.5.0"` → `uvx meson==1.5.0`
 
 ### Inheritance Levels
 

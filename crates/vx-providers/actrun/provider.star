@@ -1,4 +1,4 @@
-# provider.star - actrun provider
+﻿# provider.star - actrun provider
 #
 # actrun: Actionforge workflow runner CLI
 # Inheritance pattern: Level 2 (custom download_url for actrun's naming)
@@ -10,28 +10,17 @@
 # Note: macOS uses .pkg which is not supported, skip macOS
 
 load("@vx//stdlib:github.star", "make_fetch_versions", "github_asset_url")
+load("@vx//stdlib:env.star", "env_prepend")
 
 # ---------------------------------------------------------------------------
 # Provider metadata
 # ---------------------------------------------------------------------------
-
-def name():
-    return "actrun"
-
-def description():
-    return "Actionforge workflow runner CLI for executing GitHub Actions-compatible workflows locally"
-
-def homepage():
-    return "https://github.com/actionforge/actrun-cli"
-
-def repository():
-    return "https://github.com/actionforge/actrun-cli"
-
-def license():
-    return "Actionforge-EULA"
-
-def ecosystem():
-    return "devtools"
+name        = "actrun"
+description = "Actionforge workflow runner CLI for executing GitHub Actions-compatible workflows locally"
+homepage    = "https://github.com/actionforge/actrun-cli"
+repository  = "https://github.com/actionforge/actrun-cli"
+license     = "Actionforge-EULA"
+ecosystem   = "devtools"
 
 # ---------------------------------------------------------------------------
 # Runtime definitions
@@ -44,6 +33,9 @@ runtimes = [
         "description": "Actionforge workflow runner CLI",
         "aliases":     [],
         "priority":    100,
+        "test_commands": [
+            {"command": "{executable} --version", "name": "version_check"},
+        ],
     },
 ]
 
@@ -81,8 +73,8 @@ def _actrun_platform(ctx):
     Returns (arch, os, ext) tuple, or None if unsupported.
     Note: macOS uses .pkg which is not supported by vx-installer.
     """
-    os   = ctx["platform"]["os"]
-    arch = ctx["platform"]["arch"]
+    os   = ctx.platform.os
+    arch = ctx.platform.arch
 
     platform_map = {
         "windows/x64":   ("x64",   "windows", "zip"),
@@ -116,8 +108,8 @@ def download_url(ctx, version):
 # install_layout
 # ---------------------------------------------------------------------------
 
-def install_layout(ctx, version):
-    os = ctx["platform"]["os"]
+def install_layout(ctx, _version):
+    os = ctx.platform.os
     exe = "actrun.exe" if os == "windows" else "actrun"
     return {
         "type":             "archive",
@@ -129,10 +121,8 @@ def install_layout(ctx, version):
 # environment
 # ---------------------------------------------------------------------------
 
-def environment(ctx, version, install_dir):
-    return {
-        "PATH": install_dir,
-    }
+def environment(ctx, _version):
+    return [env_prepend("PATH", ctx.install_dir)]
 
 
 # ---------------------------------------------------------------------------
@@ -141,33 +131,16 @@ def environment(ctx, version, install_dir):
 
 def store_root(ctx):
     """Return the vx store root directory for actrun."""
-    return "{vx_home}/store/actrun"
+    return ctx.vx_home + "/store/actrun"
 
 def get_execute_path(ctx, version):
     """Return the executable path for the given version."""
-    os = ctx["platform"]["os"]
+    os = ctx.platform.os
     if os == "windows":
-        return "{install_dir}/actrun.exe"
+        return ctx.install_dir + "/actrun.exe"
     else:
-        return "{install_dir}/actrun"
+        return ctx.install_dir + "/actrun"
 
-def post_install(ctx, version, install_dir):
+def post_install(_ctx, _version):
     """Post-install hook (no-op for actrun)."""
-    return None
-
-# ---------------------------------------------------------------------------
-# Path queries (RFC 0037)
-# ---------------------------------------------------------------------------
-
-def store_root(ctx):
-    return "{vx_home}/store/actrun"
-
-def get_execute_path(ctx, version):
-    os = ctx["platform"]["os"]
-    if os == "windows":
-        return "{install_dir}/actrun.exe"
-    else:
-        return "{install_dir}/actrun"
-
-def post_install(ctx, version, install_dir):
     return None
