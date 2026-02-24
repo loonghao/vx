@@ -130,6 +130,8 @@ vx-provider-vite = { workspace = true }
 # Platform-specific
 vx-provider-systemctl = { workspace = true }
 vx-provider-xcodebuild = { workspace = true }
+# Conda package manager
+vx-provider-conda = { workspace = true }
 # Bridge framework for embedded bridge binaries (MSBuild.exe etc.)
 vx-bridge = { workspace = true }
 clap = { workspace = true }
