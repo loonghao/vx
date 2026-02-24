@@ -135,7 +135,7 @@ def install_layout(ctx, version):
 
 def store_root(ctx, version):
     """Return the vx store root for this nasm version."""
-    return ctx["paths"]["store_dir"] + "/nasm/" + version
+    return ctx.paths.store_dir + "/nasm/" + version
 
 # ---------------------------------------------------------------------------
 # get_execute_path — resolve nasm executable

@@ -114,7 +114,7 @@ fn test_ctx_platform_os_accessible() {
 
     let script = r#"
 def get_os(ctx):
-    return ctx["platform"]["os"]
+    return ctx.platform.os
 "#;
 
     let result = engine.call_function(Path::new("test.star"), script, "get_os", &ctx, &[]);
@@ -137,7 +137,7 @@ fn test_ctx_platform_arch_accessible() {
 
     let script = r#"
 def get_arch(ctx):
-    return ctx["platform"]["arch"]
+    return ctx.platform.arch
 "#;
 
     let result = engine.call_function(Path::new("test.star"), script, "get_arch", &ctx, &[]);

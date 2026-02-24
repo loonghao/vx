@@ -82,7 +82,7 @@ def fetch_versions(ctx):
     - No rate limiting
     """
     # Get available release versions
-    info = ctx["http"]["get_json"](
+    info = ctx.http.get_json(
         "https://api.adoptium.net/v3/info/available_releases"
     )
 
@@ -95,7 +95,7 @@ def fetch_versions(ctx):
     versions = []
     for major in available:
         # Get the latest release for each major version
-        releases = ctx["http"]["get_json"](
+        releases = ctx.http.get_json(
             "https://api.adoptium.net/v3/assets/latest/{}/hotspot?architecture=x64&image_type=jdk&os=linux&vendor=eclipse".format(major)
         )
         for release in releases:
@@ -156,7 +156,7 @@ def download_url(ctx, version):
     major = version.split(".")[0]
 
     # Query Adoptium API for the specific version
-    releases = ctx["http"]["get_json"](
+    releases = ctx.http.get_json(
         "https://api.adoptium.net/v3/assets/latest/{}/hotspot?architecture={}&image_type=jdk&os={}&vendor=eclipse".format(
             major, arch_str, os_str
         )

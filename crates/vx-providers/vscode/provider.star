@@ -51,7 +51,7 @@ permissions = {
 
 def fetch_versions(ctx):
     """Fetch VS Code stable versions from the official update API."""
-    releases = ctx["http"]["get_json"](
+    releases = ctx.http.get_json(
         "https://update.code.visualstudio.com/api/releases/stable"
     )
 
